@@ -100,7 +100,7 @@ endif
 ifdef MODULE_OPENFST
 UNIT_TEST_O += ../OpenFst/libSprintOpenFst.$(a)
 endif
-ifdef MODULE_LM_TFRNN
+ifdef MODULE_TENSORFLOW
 UNIT_TEST_O += ../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)

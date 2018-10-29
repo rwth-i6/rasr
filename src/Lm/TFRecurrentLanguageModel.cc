@@ -24,14 +24,16 @@ namespace {
 
 namespace Lm {
 
-Core::ParameterBool TFRecurrentLanguageModel::paramTransformOuputLog   ("transform-output-log",    "apply log to tensorflow output",                 false);
-Core::ParameterBool TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)",           false);
-Core::ParameterInt  TFRecurrentLanguageModel::paramMaxBatchSize        ("max-batch-size",          "maximum number of histories forwarded in one go", 2048);
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog   ("transform-output-log",    "apply log to tensorflow output",                 false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)",           false);
+Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize        ("max-batch-size",          "maximum number of histories forwarded in one go", 2048);
+Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores          ("dump-scores",             "write all scores from this LM to disk",          false);
+Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix    ("dump-scores-prefix",      "prefix for the score dumps",                  "scores");
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                          : Core::Component(c), Precursor(c, l),
                            transform_output_log_(paramTransformOuputLog(config)), transform_output_negate_(paramTransformOuputNegate(config)),
-                           max_batch_size_(paramMaxBatchSize(config)),
+                           max_batch_size_(paramMaxBatchSize(config)), dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
                            session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
                            graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")) {
     session_.addGraph(*graph_);
@@ -171,6 +173,27 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     for (size_t s = 0ul; s < prev_state.size(); s++) {
         for (size_t c = 0ul; c < caches.size(); c++) {
             outputs[s + 1ul].get(c, caches[c]->state[s]);
+        }
+    }
+
+    if (dump_scores_) {
+        for (auto const& c : caches) {
+            std::stringstream path;
+            path << dump_scores_prefix_;
+            for (auto token : *c->history) {
+                path << "_" << token;
+            }
+            std::ofstream out(path.str(), std::ios::out | std::ios::trunc);
+            out << "scores:\n";
+            for (auto score : c->scores) {
+                out << score << '\n';
+            }
+            for (size_t s = 0ul; s < c->state.size(); s++) {
+                out << "state " << s << ":\n";
+                for (auto v : c->state[s]) {
+                    out << v << '\n';
+                }
+            }
         }
     }
 

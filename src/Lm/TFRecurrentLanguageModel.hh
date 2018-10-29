@@ -29,9 +29,11 @@ public:
     typedef AbstractNNLanguageModel Precursor;
     typedef f32                     FeatureType;
 
-    static Core::ParameterBool paramTransformOuputLog;
-    static Core::ParameterBool paramTransformOuputNegate;
-    static Core::ParameterInt  paramMaxBatchSize;
+    static Core::ParameterBool   paramTransformOuputLog;
+    static Core::ParameterBool   paramTransformOuputNegate;
+    static Core::ParameterInt    paramMaxBatchSize;
+    static Core::ParameterBool   paramDumpScores;
+    static Core::ParameterString paramDumpScoresPrefix;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
     virtual ~TFRecurrentLanguageModel() = default;
@@ -48,6 +50,8 @@ private:
     bool                        transform_output_negate_;
     std::function<Score(Score)> output_transform_function_;
     size_t                      max_batch_size_;
+    bool                        dump_scores_;
+    std::string                 dump_scores_prefix_;
 
     mutable Tensorflow::Session              session_;
     std::unique_ptr<Tensorflow::GraphLoader> loader_;

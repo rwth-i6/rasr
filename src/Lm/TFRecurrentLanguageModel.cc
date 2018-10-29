@@ -44,7 +44,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     for (std::string const& s : graph_->state_vars()) {
         auto const& var = graph_->variables().find(s)->second;
         initializer_tensor_names_.push_back(var.initializer_name);
-        output_tensor_names_.push_back(var.snapshot_name);
+        read_vars_tensor_names_.push_back(var.snapshot_name);
     }
 
     if (transform_output_log_ and transform_output_negate_) {
@@ -170,9 +170,11 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         require_eq(scores.size(), num_outputs_);
     }
 
+    // fetch new values of state variables, needs to be done in separate Session::run call (for GPU devices)
+    session_.run({}, read_vars_tensor_names_, {}, outputs);
     for (size_t s = 0ul; s < prev_state.size(); s++) {
         for (size_t c = 0ul; c < caches.size(); c++) {
-            outputs[s + 1ul].get(c, caches[c]->state[s]);
+            outputs[s].get(c, caches[c]->state[s]);
         }
     }
 

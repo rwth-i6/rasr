@@ -61,6 +61,7 @@ private:
 
     std::vector<std::string> initializer_tensor_names_;
     std::vector<std::string> output_tensor_names_;
+    std::vector<std::string> read_vars_tensor_names_;
 
     History empty_history_; // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
 };

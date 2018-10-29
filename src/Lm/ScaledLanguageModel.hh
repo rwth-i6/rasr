@@ -93,7 +93,7 @@ namespace Lm {
                               std::vector<f32> &result) const {
             return languageModel_->getBatch(h, r, result);
         }
-        virtual Core::Ref<const ScaledLanguageModel> lookaheadLanguageModel() const {
+        virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const {
             return languageModel_->lookaheadLanguageModel();
         }
     };

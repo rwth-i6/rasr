@@ -43,7 +43,7 @@ class CombineLanguageModel : public LanguageModel {
         virtual History reducedHistory(History const& history, u32 limit) const;
         virtual Score score(History const& history, Token w) const;
         virtual Score sentenceEndScore(const History& history) const;
-        virtual Core::Ref<const ScaledLanguageModel> lookaheadLanguageModel() const;
+        virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
     private:
         std::vector<Core::Ref<ScaledLanguageModel>> lms_;
         std::vector<Core::Ref<const LanguageModel>> unscaled_lms_;

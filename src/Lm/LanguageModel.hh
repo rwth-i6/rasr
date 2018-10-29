@@ -152,8 +152,6 @@ namespace Lm {
         virtual std::string describe() const { return "lm"; }
     };
 
-    class ScaledLanguageModel;
-
     /**
      * Abstract language model.
      *
@@ -429,7 +427,7 @@ namespace Lm {
          * Returns the LanguageModel that shall be used for lookahead (useful for CombinedLM when we do not want to reinstanciate the model)
          * @return the LM that should be used for lookahead, can be nullptr (in that case this LM should be used)
          */
-        virtual Core::Ref<const ScaledLanguageModel> lookaheadLanguageModel() const;
+        virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
     protected:
         class NonCompiledBatchRequest : public CompiledBatchRequest {
         public:

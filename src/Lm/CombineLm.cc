@@ -70,7 +70,7 @@ Core::ParameterInt CombineLanguageModel::paramNumLms(
 Core::ParameterBool CombineLanguageModel::paramLinearCombination(
         "linear-combination", "if true linear combination instead of log-linear combination is used", false);
 Core::ParameterInt CombineLanguageModel::paramLookaheadLM(
-        "lookahead-lm", "index of the sub-lm to be used for lookahead, -1 for the combine-lm itself", -1, -1);
+        "lookahead-lm", "index of the sub-lm to be used for lookahead, use 0 for the combine-lm itself", 0, 0);
 
 CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                                           : Core::Component(c), CombineLanguageModel::Precursor(c, l),
@@ -178,12 +178,12 @@ Score CombineLanguageModel::sentenceEndScore(const History& history) const {
     }
 }
 
-Core::Ref<const ScaledLanguageModel> CombineLanguageModel::lookaheadLanguageModel() const {
-    if (lookahead_lm_ >= 0) {
-        require_lt(lookahead_lm_, lms_.size());
-        return lms_[lookahead_lm_];
+Core::Ref<const LanguageModel> CombineLanguageModel::lookaheadLanguageModel() const {
+    if (lookahead_lm_ > 0) {
+        require_lt(lookahead_lm_, unscaled_lms_.size());
+        return unscaled_lms_[lookahead_lm_-1];
     }
-    return Core::Ref<ScaledLanguageModel>();
+    return Core::Ref<LanguageModel>();
 }
 
 } // namespace Lm

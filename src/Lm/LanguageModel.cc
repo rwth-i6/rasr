@@ -18,8 +18,6 @@
 
 #include <Bliss/Fsa.hh>
 
-#include "ScaledLanguageModel.hh"
-
 using namespace Lm;
 
 
@@ -211,6 +209,6 @@ void LanguageModel::getBatch(
     }
 }
 
-Core::Ref<const ScaledLanguageModel> LanguageModel::lookaheadLanguageModel() const {
-    return Core::Ref<ScaledLanguageModel>();
+Core::Ref<const LanguageModel> LanguageModel::lookaheadLanguageModel() const {
+    return Core::Ref<LanguageModel>();
 }

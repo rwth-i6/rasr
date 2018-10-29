@@ -121,6 +121,7 @@ History CombineLanguageModel::startHistory() const {
 }
 
 History CombineLanguageModel::extendedHistory(History const& history, Token w) const {
+    require(history.isManagedBy(historyManager_));
     History const* prev_hist = reinterpret_cast<History const*>(history.handle());
     History* new_hist = new History[lms_.size()];
     for (size_t i = 0ul; i < lms_.size(); i++) {
@@ -132,6 +133,7 @@ History CombineLanguageModel::extendedHistory(History const& history, Token w) c
 }
 
 History CombineLanguageModel::reducedHistory(History const& history, u32 limit) const {
+    require(history.isManagedBy(historyManager_));
     History const* prev_hist = reinterpret_cast<History const*>(history.handle());
     History* new_hist = new History[lms_.size()];
     for (size_t i = 0ul; i < lms_.size(); i++) {
@@ -143,6 +145,7 @@ History CombineLanguageModel::reducedHistory(History const& history, u32 limit) 
 }
 
 Score CombineLanguageModel::score(History const& history, Token w) const {
+    require(history.isManagedBy(historyManager_));
     History const* hist = reinterpret_cast<History const*>(history.handle());
     if (linear_combination_) {
         Score s(std::numeric_limits<Score>::infinity());
@@ -161,6 +164,7 @@ Score CombineLanguageModel::score(History const& history, Token w) const {
 }
 
 Score CombineLanguageModel::sentenceEndScore(const History& history) const {
+    require(history.isManagedBy(historyManager_));
     History const* hist = reinterpret_cast<History const*>(history.handle());
     if (linear_combination_) {
         Score s(std::numeric_limits<Score>::infinity());

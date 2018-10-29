@@ -81,6 +81,10 @@ namespace Lm {
             return mang_ != &sentinel;
         }
 
+        bool isManagedBy(HistoryManager const* manager) const {
+            return mang_ == manager;
+        }
+
         bool operator==(const History &rhs) const {
 #ifdef LM_ALLOW_CROSS_LM_COMPARISON
             if (mang_ != rhs.mang_) return false;

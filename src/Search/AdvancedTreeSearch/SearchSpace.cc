@@ -14,9 +14,13 @@
  */
 #include "SearchSpace.hh"
 
-#include <Lm/BackingOff.hh>
+#include <random>
+
 #include <Am/ClassicAcousticModel.hh>
 #include <Core/MappedArchive.hh>
+#include <Lm/BackingOff.hh>
+#include <Lm/Module.hh>
+#include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
 
 #include "SearchSpaceStatistics.hh"
 #include "PersistentStateTree.hh"
@@ -25,8 +29,6 @@
 #include "Pruning.hh"
 #include "TreeBuilder.hh"
 #include "PrefixFilter.hh"
-#include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
-#include <random>
 
 using namespace AdvancedTreeSearch;
 
@@ -144,6 +146,11 @@ const Core::ParameterInt paramDecodeMeshPhones(
 const Core::ParameterBool paramEnableLmLookahead(
   "lm-lookahead",
   "enable language model lookahead (recommended)",
+  true );
+
+const Core::ParameterBool paramSeparateLmLookahead(
+  "separate-lm-lookahead",
+  "use a separate lm for lookahead (one that is not provided by the language-model)",
   true );
 
 const Core::ParameterBool paramDisableUnigramLookahead(
@@ -318,7 +325,7 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   lexicon_( lexicon ),
   acousticModel_( acousticModel ),
   lm_( lm ),
-  lookaheadLm_(lm_->lookaheadLanguageModel().get() == nullptr ? lm_ : lm_->lookaheadLanguageModel()),
+  lookaheadLm_(),
   lmLookahead_( 0 ),
   prefixFilter_( 0 ),
   network_( config, acousticModel, lexicon ),
@@ -391,6 +398,17 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   hmmLength_ = acousticModel_->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel_->hmmTopologySet()->getDefault().nSubStates();
 
   log() << "HMM length of a phoneme: " << hmmLength_;
+
+  if (paramSeparateLmLookahead(config_)) {
+    lookaheadLm_ = Lm::Module::instance().createScaledLanguageModel(select("lookahead-lm"), lexicon_);
+  }
+  if (lm_->lookaheadLanguageModel().get() != nullptr) {
+    lookaheadLm_ = Core::Ref<const Lm::ScaledLanguageModel>(new Lm::LanguageModelScaling(select("lookahead-lm"),
+                                                            Core::Ref<Lm::LanguageModel>(const_cast<Lm::LanguageModel*>(lm_->lookaheadLanguageModel().get()))));
+  }
+  else {
+    lookaheadLm_ = lm_;
+  }
 
   if( sparseLookahead_ && !dynamic_cast<const Lm::BackingOffLm*>( lookaheadLm_->unscaled().get() ) )
   {

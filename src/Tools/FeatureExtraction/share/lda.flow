@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<network name="lda">
+  <in name="in"/>
+  <out name="out"/>
+
+  <param name="file"/>
+  <param name="length"/>
+  <!-- position of time t from the right side of the window. E.g.: length = "11" right="5" -->
+  <param name="right"/>
+
+  <node name="window" filter="signal-vector-f32-sequence-concatenation" 
+	max-size="$(length)" right="$(right)" 
+	margin-condition="present-not-empty"
+	expand-timestamp="false"/>
+  <link from="lda:in" to="window"/>
+
+  <node name="multiplication" filter="signal-matrix-multiplication-f32"
+	file="$(file)"/>
+  <link from="window" to="multiplication"/>
+
+  <link from="multiplication" to="lda:out"/>
+</network>

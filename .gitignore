@@ -1,0 +1,58 @@
+# Note that there are some files which we might to change
+# locally but which we don't want to commit, e.g.
+#   Modules.make
+# Such files don't belong here.
+# Do this instead:
+#   git update-index --assume-unchanged Modules.make
+
+# Auto generated.
+/src/SourceVersion
+/src/SourceVersion.cc
+/src/Modules.hh
+/src/Core/ArithmeticExpressionParser.cc
+/src/Core/ArithmeticExpressionParser.hh
+/src/Core/ArithmeticExpressionParser.yy
+/src/Core/location.hh
+/src/Core/position.hh
+/src/Core/stack.hh
+
+# From build.
+.build
+*.a
+*.pyc
+*.o
+*.so
+
+# For exec-files, the postfix is ".$(OS)-$(PROC)-$(COMPILE)[-$(SUFFIX)]".
+*.*-*-*
+
+# It's handled seperately/independently.
+/test
+
+# Custom tools.
+# KDevelop
+*.kdev4
+*~
+*-swp
+.*.swp
+# Eclipse
+/.cproject
+/.project
+/.settings
+# Qt Creator
+/Sprint.config
+/Sprint.creator
+/Sprint.creator.user
+/Sprint.creator.user.*
+/Sprint.files
+/Sprint.includes
+# CLion
+/.idea
+/CMakeLists.txt
+# Other
+.history*
+*.autosave
+
+# Broken NFS.
+.nfs*
+

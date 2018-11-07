@@ -1,0 +1,369 @@
+#!/usr/bin/env python2.1
+# $Id$
+
+"""
+WARNING: This program is outdated!  It was superseded by a new program
+called Analog which lives in the Tools/Analog directory.
+
+usage: analog [-option(s)] <recognition log file(s)>...
+options
+  -1          use single-best statistics (default)
+  -b          print output in bootlog format
+  -c n        use only the first 'n' segments (use -1 to reset to all)
+  -f          follow mode: set number of segments to that of previous log file
+  -h          this short description
+  -j          join statistics from log files
+  -l          list statistics from log files (default)
+  -n          use lattice statistics
+  -nosil      remove silence words from recognized sentence
+  -rec file   extract recognized sentences to file (UTF8 encoding)
+  -ref file   extract reference sentences to file (UTF8 encoding)
+  -s n        subcorpus level 'n' used for clustering of results
+"""
+
+import gzip, os, sys, traceback, re, string
+import xml.sax, xml.sax.saxutils
+
+class Statistics:
+    def __init__(self, count = 0, d = 0, i = 0, s = 0, t = 0, user = 0, real = 0):
+        self.count = count
+        self.d = d
+        self.i = i
+        self.s = s
+        self.t = t
+        self.user = user
+        self.real = real
+
+    def add(self, stat):
+        self.count = self.count + stat.count
+        self.d = self.d + stat.d
+        self.i = self.i + stat.i
+        self.s = self.s + stat.s
+        self.t = self.t + stat.t
+        self.user = self.user + stat.user
+        self.real = self.real + stat.real
+
+    def wer(self, key):
+        self.total = self.d + self.i + self.s
+        if self.t > 0:
+            self.error = 100.0 * self.total / self.t
+        else:
+            self.error = 0.0
+        if self.real > 0:
+            self.rtf = self.user / self.real
+        else:
+            self.rtf = 0.0
+        print "  %-30s %6d %6d %6d %6d %6d %6d %6.2f %6.2f" \
+              % (key, self.count, self.d, self.i, self.s, self.total, self.t, self.error, self.rtf)
+
+    def bootlog(self, key):
+        print "%-32s %6d %6d %6d %6d" % (key, self.d, self.i, self.s, self.t)
+
+
+class SprintParser(xml.sax.saxutils.DefaultHandler):
+    def __init__(self, processor=None):
+        self.re_segment = re.compile(r'\s*<segment\s.*\sname="([^"]*)".*>')
+        self.re_start = re.compile(r'\s*error rate:')
+        self.re_stop = re.compile(r'\s*accumulated error rate:')
+        self.re_counts = re.compile(r'\s*(\d+)\s*del\s*\+\s*(\d+)\s*ins\s*\+\s*(\d+)\s*sub\s*=\s*\d+\s*errors\s*/\s*(\d+)\s*total')
+        self.re_user = re.compile(r'\s*<user>([^<]*)<.*>')
+        self.re_real = re.compile(r'\s*<real-time>([^<]*)<.*>')
+	self.parser = xml.sax.make_parser()
+	self.parser.setContentHandler(self)
+        self.depth = 1
+        self.recognized = ""
+        self.recognizedFile = None
+        self.reference = ""
+        self.referenceFile = None
+        self.singleBest = 1
+	self.noSilence = 0
+
+    def setSubcorpusDepth(self, depth):
+        self.depth = int(depth)
+
+    def setSingleBest(self):
+        self.singleBest = 1
+
+    def setLattice(self):
+        self.singleBest = 0
+
+    def setNoSilence(self):
+	self.noSilence = 1
+
+    def setRecognized(self, file):
+        if file != self.recognized:
+            if file != "":
+                self.recognized = file
+                self.recognizedFile = open(file, 'w')
+            else:
+                if self.recognizedFile != None:
+                    self.recognizedFile.close()
+
+    def setReference(self, file):
+        if file != self.reference:
+            if file != "":
+                self.reference = file
+                self.referenceFile = open(file, 'w')
+            else:
+                if self.referenceFile != None:
+                    self.referenceFile.close()
+
+    def startElement(self, name, atts):
+        if name == 'segment':
+            self.state.append(name)
+            self.values = {}
+            self.values['total'] = 'total'
+            self.values['segment'] = atts['name']
+	    self.values['token'] = 0
+	    self.values['deletion'] = 0
+	    self.values['insertion'] = 0
+	    self.values['substitution'] = 0
+            self.values['user'] = 0
+            self.values['real'] = 0
+        elif self.state[-1] == 'segment' and name == 'timer':
+            self.state.append(name)
+        elif self.state[-1] == 'timer' and name == 'user':
+            self.state.append(name)
+            self.cdata = ''
+        elif self.state[-1] == 'segment' and name == 'real-time':
+            self.state.append(name)
+            self.cdata = ''
+        elif self.state[-1] == 'segment' and name == 'statistic' and atts['type'] == 'edit-distance':
+            if ((self.singleBest == 1) and (atts['name'] == 'word errors')) or \
+                   ((self.singleBest == 0) and (atts['name'] == 'lattice word errors')):
+                self.state.append(name)
+        elif self.state[-1] == 'statistic' and name == 'count':
+            self.state.append(atts['event'])
+            self.cdata = ''
+        elif self.state[-1] == 'segment' and name == 'information' and atts['component'] == 'speech-recognizer':
+            self.state.append('error rate')
+            self.cdata = ''
+            self.isIn = 0
+        elif self.state[-1] == 'segment' and name == 'orth' and atts['source'] == 'reference':
+            self.state.append('reference')
+            self.cdata = ''
+        elif self.state[-1] == 'segment' and name == 'orth' and atts['source'] == 'recognized':
+            self.state.append('recognized')
+            self.cdata = ''
+
+    def endElement(self, name):
+        if name == 'information' and self.state[-1] == 'error rate':
+            self.state.pop()
+        elif name == 'count' and self.state[-1] in ['token', 'deletion', 'insertion', 'substitution']:
+            self.values[self.state[-1]] = int(self.cdata)
+            self.state.pop()
+        elif name == 'statistic' and self.state[-1] == 'statistic':
+            self.state.pop()
+        elif name == 'timer' and self.state[-1] == 'timer':
+            self.state.pop()
+        elif name == 'user' and self.state[-1] == 'user':
+            self.values['user'] = float(self.cdata)
+            self.state.pop()
+        elif name == 'real-time' and self.state[-1] == 'real-time':
+            self.values['real'] = float(self.cdata)
+            self.state.pop()
+        elif name == 'segment' and self.state[-1] == 'segment':
+            self.state.pop()
+            tmp = string.split(self.values['segment'], '/')
+            key = string.join(tmp[:self.depth], '/')
+            stat = Statistics(1, self.values['deletion'], self.values['insertion'], self.values['substitution'], self.values['token'], self.values['user'], self.values['real'])
+            try:
+                self.stats[key].add(stat)
+            except KeyError:
+                self.stats[key] = stat
+        elif name == 'orth' and self.state[-1] == 'reference':
+            if self.referenceFile != None:
+		self.referenceFile.write(self.values['segment'])
+		self.referenceFile.write(' ')
+                tmp = string.strip(self.cdata)
+                self.referenceFile.write(string.join(tmp.split()).encode("UTF8"))
+                self.referenceFile.write('\n')
+            self.state.pop()
+        elif name == 'orth' and self.state[-1] == 'recognized':
+            if self.recognizedFile != None:
+		self.recognizedFile.write(self.values['segment'])
+		self.recognizedFile.write(' ')
+                tmp = string.strip(self.cdata)
+                if self.noSilence:
+		    tmp = string.replace(tmp, ' [SILENCE]', '')
+		    tmp = string.replace(tmp, '[SILENCE]', '')
+                self.recognizedFile.write(string.join(tmp.split()).encode("UTF8"))
+                self.recognizedFile.write('\n')
+            self.state.pop()
+
+    def characters(self, data):
+        if self.state[-1] in ['deletion', 'insertion', 'substitution', 'token', 'user', 'real-time', 'reference', 'recognized']:
+            self.cdata += data
+        elif self.state[-1] == 'error rate':
+            if not self.isIn and self.re_start.match(data):
+                self.isIn = 1
+            elif self.isIn and self.re_stop.match(data):
+                self.isIn = 0
+            elif self.isIn:
+                m = self.re_counts.match(data)
+                if m:
+                    self.values['deletion'] = int(m.group(1))
+                    self.values['insertion'] = int(m.group(2))
+                    self.values['substitution'] = int(m.group(3))
+                    self.values['token'] = int(m.group(4))
+
+    def parseIncrementally(self, fname):
+        if os.path.splitext(fname)[1] == '.gz':
+            data = gzip.open(fname).read()
+        else:
+            data = open(fname).read()
+        try:
+            self.parser.reset()
+            self.state = [None]
+            if data.startswith('<?xml'):
+                self.parser.feed(data)
+            else:
+                self.parser.feed('<?xml version="1.0" encoding="ISO-8859-1"?>')
+                self.parser.feed('<sprint>')
+                self.parser.feed(data)
+                self.parser.feed('</sprint>')
+            self.parser.close()
+            return 1
+        except KeyboardInterrupt:
+            raise
+        except xml.sax.SAXParseException:
+#            sys.stderr.write('\033[01;31mWARNING [')
+#            sys.stderr.write(fname)
+#            sys.stderr.write(']: incomplete or broken log file\033[;m\n')
+            return 0
+        except:
+            sys.stderr.write('%s FAILED\n' % fname)
+            traceback.print_exc()
+            return 0
+        return True
+
+    def parse(self, fname):
+        self.stats = {}
+        return self.parseIncrementally(fname)
+
+
+header = 0
+
+def compareKeys(a, b):
+    if len(a) == len(b):
+        if a < b: return -1
+        return 1
+    elif len(a) < len(b):
+        return -1
+    else:
+        return 1
+
+def outputStatistics(stats, filename, bootlog, segments):
+    global header
+    keys = stats.keys()
+    keys.sort(compareKeys)
+    total = Statistics()
+    if len(keys) > 0:
+        if header == 0:
+            if bootlog == 0:
+                print 'file/subcorpus                      seg    del    ins    sub  total  words    wer    rtf'
+            else:
+                print '                                    del    ins    sub  words'
+            header = 1
+        if bootlog == 0:
+            print '----------------------------------------------------------------------------------------'
+            if filename != "":
+                if segments > 0:
+                    print "%s (%d)" % (filename, segments)
+                else:
+                    print filename
+        seg = 0
+        for key in keys:
+            if segments >= 0:
+                seg = seg + 1
+                if seg > segments:
+                    break
+            if bootlog == 0:
+                stats[key].wer(key)
+                total.add(stats[key])
+            else:
+                stats[key].bootlog(key)
+        if len(keys) > 1:
+            if bootlog == 0:
+                print '----------------------------------------------------------------------------------------'
+                total.wer('sum')
+    
+def main(args):
+    f = 0
+    while f < len(args):
+        if args[f] == '-h':
+            print __doc__
+            sys.exit(0)
+        f = f + 1
+
+    parser = SprintParser()
+    f = 0
+    bootlog = 0
+    merge = 0
+    filename = ""
+    segments = -1
+    follow = -1
+    stats = {}
+    while f < len(args):
+        file = args[f]
+        if file == '-1':
+            parser.setSingleBest()
+        elif file == '-b':
+            bootlog = 1
+        elif file == '-c':
+            f = f + 1
+            segments = int(args[f])
+        elif file == '-f':
+            segments = follow
+        elif file == '-l':
+            merge = 0
+            outputStatistics(stats, filename, bootlog, segments)
+            stats = {}
+            filename = ""
+        elif file == '-j':
+            merge = 1
+            if len(stats) > 0:
+                outputStatistics(stats, filename, bootlog, segments)
+            stats = {}
+            filename = ""
+        elif file == '-n':
+            parser.setLattice()
+	elif file == '-nosil':
+	    parser.setNoSilence()
+        elif file == '-rec':
+            f = f + 1
+            parser.setRecognized(args[f])
+        elif file == '-ref':
+            f = f + 1
+            parser.setReference(args[f])
+        elif file == '-s':
+            f = f + 1
+            depth = args[f]
+            parser.setSubcorpusDepth(depth)
+        else:
+            if parser.parse(file) == 0:
+                highlightedFile = '\033[01;31m' + os.path.basename(file) + '\033[;m'
+            else:
+                highlightedFile = os.path.basename(file)
+            keys = parser.stats.keys()
+            keys.sort(compareKeys)
+            for key in keys:
+                try:
+                    stats[key].add(parser.stats[key])
+                except KeyError:
+                    stats[key] = parser.stats[key]
+            if merge == 1:
+                if filename == "":
+                    filename = highlightedFile
+                else:
+                    filename = filename + "\n + " + highlightedFile
+            else:
+                outputStatistics(stats, highlightedFile, bootlog, segments)
+                follow = len(stats)
+                stats = {}
+        f = f + 1
+    outputStatistics(stats, filename, bootlog, segments)
+
+if __name__ == '__main__':
+    sys.stderr.write("WARNING: Please use Tools/Analog/analog!\n")
+    main(sys.argv[1:])

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<network name="mfplp">
+  <in name="samples"/>
+  <out name="features"/>
+
+  <param name="nr-autocorrelation-coefficients"/> <!-- lpc order + 1 -->
+  <param name="nr-cepstrum-coefficients"/>
+
+  <node name="preemphasis" filter="signal-preemphasis"
+	alpha="1.00"/>
+  <link from="mfplp:samples" to="preemphasis"/>
+
+  <node name="window" filter="signal-window" 
+	type="hamming" shift=".01" length="0.025"/>
+  <link from="preemphasis" to="window"/>
+
+  <node name="fast-fourier-transform" filter="signal-real-fast-fourier-transform"
+	maximum-input-size="0.025"/>
+  <link from="window" to="fast-fourier-transform"/>
+
+  <node name="amplitude-spectrum" filter="signal-vector-alternating-complex-f32-amplitude"/>
+  <link from="fast-fourier-transform" to="amplitude-spectrum"/>
+
+  <node name="power-spectrum" filter="generic-vector-f32-power"
+	value="2"/>
+  <link from="amplitude-spectrum" to="power-spectrum"/>
+
+  <node name="filterbank" filter="signal-filterbank"
+	warping-function="mel" filter-width="268.258"/>
+  <link from="power-spectrum" to="filterbank"/>
+
+  <node name="intensity-loudness-law" filter="generic-vector-f32-power"
+	value="0.33"/>
+  <link from="filterbank" to="intensity-loudness-law"/>
+
+  <node name="autocorrelation" filter="signal-cosine-transform"
+	nr-outputs="$(nr-autocorrelation-coefficients)" input-type="N-plus-one" normalize="true"/>
+  <link from="intensity-loudness-law" to="autocorrelation"/>
+
+  <node name="autoregression" filter="signal-autocorrelation-to-autoregression"/>
+  <link from="autocorrelation" to="autoregression"/>				
+
+  <node name="linear-prediction-cepstrum" filter="signal-autoregression-to-cepstrum"
+	nr-outputs="$(nr-cepstrum-coefficients)"/>
+  <link from="autoregression" to="linear-prediction-cepstrum"/>
+  <link from="linear-prediction-cepstrum" to="mfplp:features"/>
+</network>

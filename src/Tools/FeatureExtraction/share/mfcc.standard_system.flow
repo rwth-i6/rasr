@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  Front-end signal analysis of old the standard system:
+  16 Mel-frequency cepstral coefficients
+  + scaling by 500
+  + quantization to integers
+
+  Note: The old standard system performs the following operations in
+  the back-end (recognition/training):
+  + cepstral mean normalization
+  + variance normalization (optional)
+  + energy normalization (some copora)
+  + adding derivatives (optional finite differences / linear regression)
+  + linear transform (i.e. LDA)
+-->
+<network name="legacy-feature-extraction">
+  <out name="features"/>
+
+  <param name="input-file"/>
+  <param name="start-time"/>
+  <param name="end-time"/>
+  <param name="track"/>
+
+
+  <node name="samples" filter="samples.legacy.flow"
+	file="$(input-file)" start-time="$(start-time)" end-time="$(end-time)" track="$(track)"/>	  
+  <node name="mfcc" filter="mfcc.legacy.flow"
+	nr-cepstrum-coefficients="16"/>	
+  <link from="samples:out" to="mfcc:samples"/>
+
+  <node name="scaling" filter="generic-vector-f32-multiplication"
+	value="500"/>
+  <link from="mfcc:features" to="scaling"/>
+
+  <node name="quantization" filter="generic-vector-f32-quantize"
+        value = "1.0"/>
+  <link from="scaling" to="quantization"/>
+
+  <link from="quantization" to="legacy-feature-extraction:features"/>
+</network>
+
+

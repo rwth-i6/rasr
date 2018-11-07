@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<network name="voicedness-autocorrelation">
+  <in name="samples"/>
+  <out name="measures"/>
+
+  <node name="window" filter="signal-window" 
+	type="rectangular" shift=".010" length=".040"/>
+  <link from="voicedness-autocorrelation:samples" to="window"/>
+
+  <node name="padded-window" filter="signal-vector-f32-resize" 
+	new-size=".040"/>
+  <link from="window" to="padded-window"/>
+
+  <node name="mean-energy-normalization" filter="signal-vector-f32-mean-energy-normalization"/>
+  <link from="padded-window" to="mean-energy-normalization"/>
+
+  <node name="autocorrelation" filter="signal-cross-correlation"
+	begin="0" end=".040" normalization="unbiased-estimate" 
+	similarity-function="multiplication" use-fft="true"/>
+  <link from="mean-energy-normalization" to="autocorrelation:x"/>
+  <link from="mean-energy-normalization" to="autocorrelation:y"/>
+
+  <node name="peak-detection" filter="signal-peak-detection"
+	min-position=".0025" max-position=".0167"/>
+  <link from="autocorrelation" to="peak-detection"/>
+  <link from="peak-detection:maximal-peak-value" to="voicedness-autocorrelation:measures"/>
+</network>

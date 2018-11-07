@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<network name="legacy-mfcc">
+  <in name="samples"/>
+  <out name="features"/>
+
+  <param name="nr-cepstrum-coefficients"/>
+
+  <node name="preemphasis" filter="signal-preemphasis"
+	alpha="1.00"/>
+  <link from="legacy-mfcc:samples" to="preemphasis"/>
+
+  <node name="window" filter="signal-window" 
+	type="hamming" shift=".01" length="0.025"/>
+  <link from="preemphasis" to="window"/>
+
+  <node name="fast-fourier-transform" filter="signal-real-fast-fourier-transform"
+        length="1024"/>
+  <link from="window" to="fast-fourier-transform"/>
+
+  <node name="amplitude-spectrum" filter="signal-vector-alternating-complex-f32-amplitude"/>
+  <link from="fast-fourier-transform" to="amplitude-spectrum"/>
+
+  <node name="scaling-spectrum" filter="generic-vector-f32-multiplication"
+	value="15.625"/>
+  <link from="amplitude-spectrum" to="scaling-spectrum"/>
+
+  <node name="mel-warping" filter="signal-warping"
+	warping-function="mel(discretize-argument)"/>
+  <link from="scaling-spectrum" to="mel-warping"/>
+ 
+  <node name="linear-filterbank" filter="signal-filterbank"
+        filter-width="250" filtering-interval="2625"/>
+  <link from="mel-warping" to="linear-filterbank"/>
+
+  <node name="nonlinear" filter="generic-vector-f32-log"/>
+  <link from="linear-filterbank" to="nonlinear"/>
+
+  <node name="cepstrum" filter="signal-cosine-transform" 
+	nr-outputs="$(nr-cepstrum-coefficients)"/>
+  <link from="nonlinear" to="cepstrum"/>
+
+  <link from="cepstrum" to="legacy-mfcc:features"/>
+</network>

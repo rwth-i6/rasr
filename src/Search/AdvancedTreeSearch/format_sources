@@ -1,0 +1,1 @@
+*.cc *.hh : uncrustify -l CPP -f $TMPFILE -c ../../../scripts/format.config.uncrustify.2_spaces -o $TMPFILE

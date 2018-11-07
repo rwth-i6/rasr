@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<network name="derivatives-with-regression">
+  <in name="in"/>
+  <out name="delta"/>
+  <out name="deltadelta"/>
+
+  <node name="window" filter="signal-delay"
+	max-size="5" right="2" margin-condition="present-not-empty"/>
+  <link from="derivatives-with-regression:in" to="window"/>
+
+  <node name="delta" filter="signal-regression" 
+	order="1"/>
+  <link from="window:-2" to="delta:-2"/>
+  <link from="window:-1" to="delta:-1"/>
+  <link from="window:0" to="delta:0"/>
+  <link from="window:+1" to="delta:+1"/>
+  <link from="window:+2" to="delta:+2"/>
+  <link from="delta" to="derivatives-with-regression:delta"/>
+
+  <node name="deltadelta" filter="signal-regression" 
+	order="2"/>
+  <link from="window:-2" to="deltadelta:-2"/>
+  <link from="window:-1" to="deltadelta:-1"/>
+  <link from="window:0" to="deltadelta:0"/>
+  <link from="window:+1" to="deltadelta:+1"/>
+  <link from="window:+2" to="deltadelta:+2"/>
+  <link from="deltadelta" to="derivatives-with-regression:deltadelta"/>
+</network>

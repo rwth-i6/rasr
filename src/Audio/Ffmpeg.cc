@@ -74,6 +74,19 @@ Flow::Timestamp* create_output_buffer(Flow::Timestamp* buffer, u32 numTotalSampl
     }
 }
 
+void flush_buffer(Flow::Timestamp* buffer) {
+    auto u8_ptr = dynamic_cast<Flow::Vector<u8>*>(buffer);
+    if (u8_ptr != nullptr) { dynamic_cast<Flow::Vector<u8>*>(buffer)->clear(); }
+    auto s16_ptr = dynamic_cast<Flow::Vector<s16>*>(buffer);
+    if (s16_ptr != nullptr) { dynamic_cast<Flow::Vector<s16>*>(buffer)->clear(); }
+    auto s32_ptr = dynamic_cast<Flow::Vector<s32>*>(buffer);
+    if (s32_ptr != nullptr) { dynamic_cast<Flow::Vector<s32>*>(buffer)->clear(); }
+    auto f32_ptr = dynamic_cast<Flow::Vector<f32>*>(buffer);
+    if (f32_ptr != nullptr) { dynamic_cast<Flow::Vector<f32>*>(buffer)->clear(); }
+    auto f64_ptr = dynamic_cast<Flow::Vector<f64>*>(buffer);
+    if (f64_ptr != nullptr) { dynamic_cast<Flow::Vector<f64>*>(buffer)->clear(); }
+}
+
 }
 
 namespace Audio {
@@ -252,6 +265,9 @@ bool FfmpegInputNode::seek(SampleCount newSamplePos) {
         av_frame_free(&in_frame);
         av_frame_free(&out_frame);
     }
+
+    // flush output buffer
+    flush_buffer(buffer_);
 
     return true;
 }

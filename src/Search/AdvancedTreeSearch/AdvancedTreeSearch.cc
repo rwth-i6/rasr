@@ -496,7 +496,8 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(
 
   Fsa::State *previousState, *currentState;
   while ( !stack.empty() ) {
-    trace = stack.top(); stack.pop();
+    trace = stack.top();
+    stack.pop();
     currentState = state[trace.get()];
     wordBoundaries->set(
       currentState->id(),

@@ -145,8 +145,9 @@ struct AlignmentToPython {
             ++time;
         }
         require_eq(time, alignmentVec.size());
-        if(features_)
+        if(features_) {
             require_eq(time, features_->nColumns());
+        }
         pyAlignment.clear();
         Python::stdVec2numpy(criticalErrorFunc_, pyAlignment.obj, alignmentVec);
     }

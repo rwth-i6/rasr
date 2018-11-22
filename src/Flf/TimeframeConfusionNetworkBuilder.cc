@@ -68,7 +68,7 @@ namespace Flf {
                                 PosteriorCn::Arc cnArc(a->input(), itScore->score());
                                 Time t = l->boundary(sr->id()).time(), end_t = l->boundary(a->target()).time();
                                 if ((t == InvalidTime) || (end_t == InvalidTime) || (t > end_t) || (end_t >= 2147483647))
-                                        Core::Application::us()->criticalError("Frame-wise score collector: interval [%d,%d] is invalid.", t, end_t);
+                                        Core::Application::us()->criticalError("Frame-wise score collector: interval [%d,%d] is invalid. Label id: %d", t, end_t, a->input());
 
                                 if (t < end_t) {
                                         begin_ = std::min(begin_, t);

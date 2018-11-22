@@ -285,7 +285,7 @@ bool AlignmentNode::work(Flow::PortId p)
     Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>();
     alignment->invalidateTimestamp();
 
-    if(writeAlphabet_)
+    if (writeAlphabet_)
         alignment->data().setAlphabet(acousticModel_->allophoneStateAlphabet());
 
     bool firstFeature = true;
@@ -293,19 +293,31 @@ bool AlignmentNode::work(Flow::PortId p)
     std::vector<Mm::FeatureScorer::Scorer> scorers;
     // reset feature scorer for usage with embedded flow files
     acousticModel_->featureScorer()->reset();
-    while(getData(0, in)) {
+    auto featureScorer = acousticModel_->featureScorer();
+    while (getData(0, in)) {
         Core::Ref<const Feature> feature(new Feature(in));
         if (firstFeature) {
             checkFeatureDependencies(*feature);
             firstFeature = false;
         }
-        scorers.push_back(acousticModel_->featureScorer()->getScorer(feature));
+        if (featureScorer->isBuffered() && !featureScorer->bufferFilled()) {
+            featureScorer->addFeature(feature);
+        } else {
+            scorers.push_back(featureScorer->getScorer(feature));
+        }
         alignment->expandTimestamp(feature->timestamp());
         if (tracebackChannel_.isOpen())
             featureTimes_.push_back(feature->timestamp());
     }
+
+    if (featureScorer->isBuffered()) {
+        while (!featureScorer->bufferEmpty()) {
+            scorers.push_back(featureScorer->flush());
+        }
+    }
+
     // finalize embedded network if applicable i.e. EOS
-    if(firstFeature){
+    if (firstFeature) {
         acousticModel_->featureScorer()->finalize();
     }
 

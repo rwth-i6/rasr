@@ -43,6 +43,7 @@ private:
     std::unique_ptr<Internal> internal_;
     Flow::Timestamp*          buffer_;
     u32                       resampleRate_;
+    s64						  lastSeekTime_;
 
     virtual bool openFile_();
     virtual void closeFile_();

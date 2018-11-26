@@ -33,22 +33,26 @@ Flow::Timestamp* alloc_buffer(AVSampleFormat fmt) {
 }
 
 template<typename T>
-size_t add_to_buffer(Flow::Vector<T>* buffer, AVFrame const* frame) {
+size_t add_to_buffer(Flow::Vector<T>* buffer, AVFrame const* frame, u32 sample_offset = 0u) {
     size_t old_size = buffer->size();
     size_t num_total_samples = frame->channels * frame->nb_samples;
-    buffer->resize(buffer->size() + num_total_samples);
-    T* out = buffer->data() + old_size;
-    memcpy(out, frame->data[0], num_total_samples * sizeof(T));
+    size_t total_sample_offset = frame->channels * sample_offset;
+    if (num_total_samples > total_sample_offset) {
+    	size_t added_total_samples = num_total_samples - total_sample_offset;
+        buffer->resize(buffer->size() + added_total_samples);
+        T* out = buffer->data() + old_size;
+        memcpy(out, frame->data[0] + total_sample_offset * sizeof(T), added_total_samples * sizeof(T));
+    }
     return buffer->size();
 }
 
-size_t add_to_buffer(Flow::Timestamp* buffer, AVFrame const* frame, AVSampleFormat fmt) {
+size_t add_to_buffer(Flow::Timestamp* buffer, AVFrame const* frame, AVSampleFormat fmt, u32 sample_offset = 0u) {
     switch (fmt) {
-        case AV_SAMPLE_FMT_U8:  return add_to_buffer<u8> (dynamic_cast<Flow::Vector<u8>*> (buffer), frame);
-        case AV_SAMPLE_FMT_S16: return add_to_buffer<s16>(dynamic_cast<Flow::Vector<s16>*>(buffer), frame);
-        case AV_SAMPLE_FMT_S32: return add_to_buffer<s32>(dynamic_cast<Flow::Vector<s32>*>(buffer), frame);
-        case AV_SAMPLE_FMT_FLT: return add_to_buffer<f32>(dynamic_cast<Flow::Vector<f32>*>(buffer), frame);
-        case AV_SAMPLE_FMT_DBL: return add_to_buffer<f64>(dynamic_cast<Flow::Vector<f64>*>(buffer), frame);
+        case AV_SAMPLE_FMT_U8:  return add_to_buffer<u8> (dynamic_cast<Flow::Vector<u8>*> (buffer), frame, sample_offset);
+        case AV_SAMPLE_FMT_S16: return add_to_buffer<s16>(dynamic_cast<Flow::Vector<s16>*>(buffer), frame, sample_offset);
+        case AV_SAMPLE_FMT_S32: return add_to_buffer<s32>(dynamic_cast<Flow::Vector<s32>*>(buffer), frame, sample_offset);
+        case AV_SAMPLE_FMT_FLT: return add_to_buffer<f32>(dynamic_cast<Flow::Vector<f32>*>(buffer), frame, sample_offset);
+        case AV_SAMPLE_FMT_DBL: return add_to_buffer<f64>(dynamic_cast<Flow::Vector<f64>*>(buffer), frame, sample_offset);
         default: return 0ul;
     }
 }
@@ -178,7 +182,8 @@ bool FfmpegInputNode::openFile_() {
         success = false;
         goto cleanup;
     }
-    if (input_fmt != packed_fmt or resampleRate_ > 0) {
+
+    if ((input_fmt != packed_fmt and channel_layout != AV_CH_LAYOUT_MONO) or resampleRate_ > 0) {
         internal_->swr_ctx = swr_alloc_set_opts(internal_->swr_ctx,
                                                 channel_layout, packed_fmt, internal_->cdc_ctx->sample_rate,
                                                 channel_layout, input_fmt,  output_sr,
@@ -193,6 +198,9 @@ bool FfmpegInputNode::openFile_() {
     setSampleRate(output_sr);
     setSampleSize(8 * av_get_bytes_per_sample(packed_fmt));
     setTrackCount(internal_->cdc_ctx->channels);
+
+    //set seeking cursor
+    lastSeekTime_ = 0;
 
 cleanup:
     av_dict_free(&opts); // does this have to be done always or only on error?
@@ -269,6 +277,9 @@ bool FfmpegInputNode::seek(SampleCount newSamplePos) {
     // flush output buffer
     flush_buffer(buffer_);
 
+    //set seek cursor
+    lastSeekTime_ = stream_time;
+
     return true;
 }
 
@@ -297,28 +308,36 @@ u32 FfmpegInputNode::read(u32 nSamples, Flow::Timestamp* &d) {
                 return 0u;
             }
             ret = FFMIN(packet.size, ret);
+
             if (got_frame) {
-                s64 time = av_frame_get_best_effort_timestamp(frame);
-                if (internal_->swr_ctx != nullptr) {
-                    out_frame = av_frame_alloc();
-                    av_frame_set_channel_layout(out_frame, av_frame_get_channel_layout(frame));
-                    av_frame_set_sample_rate(out_frame, resampleRate_ > 0 ? resampleRate_ : av_frame_get_sample_rate(frame));
-                    out_frame->format = av_get_packed_sample_fmt(static_cast<AVSampleFormat>(frame->format));
-                    int error_code = swr_convert_frame(internal_->swr_ctx, out_frame, frame);
-                    if (error_code < 0) {
-                        error("Error converting frame");
-                        return 0u;
-                    }
-                }
-                else {
-                    out_frame = frame;
-                }
-                fmt = static_cast<AVSampleFormat>(out_frame->format);
-                if (buffer_ == nullptr) {
-                    buffer_ = alloc_buffer(fmt);
-                    require(buffer_ != nullptr);
-                }
-                buffer_size = add_to_buffer(buffer_, out_frame, fmt);
+
+				if (internal_->swr_ctx != nullptr) {
+					out_frame = av_frame_alloc();
+					av_frame_set_channel_layout(out_frame, av_frame_get_channel_layout(frame));
+					av_frame_set_sample_rate(out_frame, resampleRate_ > 0 ? resampleRate_ : av_frame_get_sample_rate(frame));
+					out_frame->format = av_get_packed_sample_fmt(static_cast<AVSampleFormat>(frame->format));
+					int error_code = swr_convert_frame(internal_->swr_ctx, out_frame, frame);
+					if (error_code < 0) {
+						error("Error converting frame");
+						return 0u;
+					}
+				}
+				else {
+					out_frame = frame;
+					out_frame->format = av_get_packed_sample_fmt(static_cast<AVSampleFormat>(frame->format));
+				}
+				fmt = static_cast<AVSampleFormat>(out_frame->format);
+				if (buffer_ == nullptr) {
+					buffer_ = alloc_buffer(fmt);
+					require(buffer_ != nullptr);
+				}
+
+				s64 time = av_frame_get_best_effort_timestamp(out_frame);
+				s64 time_offset = lastSeekTime_ - time;
+				AVRational sr_norm = av_make_q(1, av_frame_get_sample_rate(out_frame));
+				u32 sample_offset = static_cast<u32>(std::max(0l, av_rescale_q(time_offset, internal_->fmt_ctx->streams[internal_->stream_idx]->time_base, sr_norm)));
+                buffer_size = add_to_buffer(buffer_, out_frame, fmt, sample_offset);
+
             }
             if (out_frame != frame) {
                 av_frame_free(&out_frame);

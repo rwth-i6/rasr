@@ -194,7 +194,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
             traceback.push_back(hyp);
 
             // prune by not expanding
-            if (hyps.size() > max_hyps_ or hyps.top().seq_prospect_score > pruning_limit) {
+            if (not hyps.size() <= 1 and (hyps.size() > max_hyps_ or hyps.top().seq_prospect_score > pruning_limit)) {
                 hyps.pop();
                 continue;
             }

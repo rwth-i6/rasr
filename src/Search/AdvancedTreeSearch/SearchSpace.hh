@@ -135,13 +135,13 @@ namespace Search
         bool correctPushedBoundaryTimes_;
         bool correctPushedAcousticScores_;
         bool earlyBeamPruning_;
+        bool earlyWordEndPruning_;
+        bool histogramPruningIsMasterPruning_;
 
 /// Pruning thresholds
-        bool histogramPruningIsMasterPruning_;
         Score acousticPruning_;     // main pruning threshold (log-scores)
         u32 acousticPruningLimit_;  // maximum number of hypotheses for Histogram pruning
         Score wordEndPruning_;
-        bool earlyWordEndPruning_;
         u32 wordEndPruningLimit_;
         f64 lmStatePruning_;
         f32 wordEndPhonemePruningThreshold_;

@@ -327,10 +327,8 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   lm_( lm ),
   lookaheadLm_(),
   lmLookahead_( 0 ),
-  prefixFilter_( 0 ),
   network_( config, acousticModel, lexicon ),
   acousticLookAhead_( 0 ),
-  hadWordEnd_( true ),
   minimized_( paramBuildMinimizedTreeFromScratch( config ) ),
   conditionPredecessorWord_( paramConditionPredecessorWord( config ) ),
   decodeMesh_( paramDecodeMesh( config ) ),
@@ -343,10 +341,11 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   acousticPruningLimit_( 0 ),
   wordEndPruning_( 0 ),
   lmStatePruning_( lmStatePruning( config ) ),
+  acousticProspectFactor_( 1.0 + paramAcousticLookaheadTemporalApproximationScale( config ) ),
   minimumBeamPruning_( paramMinimumBeamPruning( config ) ),
   maximumBeamPruning_( paramMaximumBeamPruning( config ) ),
-  maximumAcousticPruningLimit_( paramMaximumAcousticPruningLimit( config ) ),
   minimumAcousticPruningLimit_( paramMinimumAcousticPruningLimit( config ) ),
+  maximumAcousticPruningLimit_( paramMaximumAcousticPruningLimit( config ) ),
   minimumStatesAfterPruning_( paramMinimumStatesAfterPruning( config ) ),
   minimumWordEndsAfterPruning_( paramMinimumWordEndsAfterPruning( config ) ),
   minimumWordLemmasAfterRecombination_( paramMinimumWordLemmasAfterRecombination( config ) ),
@@ -355,11 +354,8 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   maximumAcousticPruningSaturation_( paramMaximumAcousticPruningSaturation( config ) ),
   earlyWordEndPruningAnticipatedLmScore_( paramEarlyWordEndPruningMinimumLmScore( config ) ),
   wordEndPruningFadeInInterval_( paramWordEndPruningFadeInInterval( config ) ),
-  acousticProspectFactor_( 1.0 + paramAcousticLookaheadTemporalApproximationScale( config ) ),
+  prefixFilter_( 0 ),
   instanceDeletionLatency_( paramInstanceDeletionLatency( config ) ),
-  earlyBackoff_( paramEarlyBackOff( config ) ),
-  allowSkips_( true ),
-  unigramLookaheadBackoffFactor_( paramUnigramLookaheadBackOffFactor( config ) ),
   fullLookAheadStateMinimum_( paramReduceLookAheadStateMinimum( config ) ),
   fullLookAheadDominanceMinimum_( paramReduceLookAheadDominanceMinimum( config ) ),
   currentLookaheadInstanceStateThreshold_( fullLookAheadStateMinimum_ ),
@@ -367,24 +363,28 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   sparseLookahead_( paramSparseLmLookAhead( config ) ),
   overflowLmScoreToAm_( paramOverflowLmScoreToAm( config ) ),
   sparseLookaheadSlowPropagation_( paramSparseLmLookaheadSlowPropagation( config ) ),
+  unigramLookaheadBackoffFactor_( paramUnigramLookaheadBackOffFactor( config ) ),
+  earlyBackoff_( paramEarlyBackOff( config ) ),
+  allowSkips_( true ),
   wpScale_( wpScale ),
   extendStatistics_( paramExtendedStatistics( config ) ),
+  encodeStateInTrace_( paramEncodeStateInTrace( config ) ),
+  encodeStateInTraceAlways_( paramEncodeStateInTraceAlways( config ) ),
   bestScore_( Core::Type<Score>::max ),
   bestProspect_( Core::Type<Score>::max ),
   minWordEndScore_( Core::Type<Score>::max ),
-  encodeStateInTrace_( paramEncodeStateInTrace( config ) ),
-  encodeStateInTraceAlways_( paramEncodeStateInTraceAlways( config ) ),
   stateHistogram_( paramAcousticPruningBins( config ) ),
   wordEndHistogram_( paramWordEndPruningBins( config ) ),
+  hadWordEnd_( true ),
   currentStatesAfterPruning( "current states after pruning" ),
   currentWordEndsAfterPruning( "current word ends after pruning" ),
   currentWordLemmasAfterRecombination( "current word lemmas after recombination" ),
   currentAcousticPruningSaturation( "current acoustic-pruning saturation" ),
-  computeLookaheadPerf_( new PerformanceCounter( *statistics, "compute LM lookahead", false ) ),
   applyLookaheadPerf_( new PerformanceCounter( *statistics, "apply lookahead", false ) ),
   applyLookaheadSparsePerf_( new PerformanceCounter( *statistics, "apply sparse lookahead", false ) ),
   applyLookaheadSparsePrePerf_( new PerformanceCounter( *statistics, "pre-apply unigram lookahead", false ) ),
   applyLookaheadStandardPerf_( new PerformanceCounter( *statistics, "apply standard lookahead", false ) ),
+  computeLookaheadPerf_( new PerformanceCounter( *statistics, "compute LM lookahead", false ) ),
   extendedPerf_( new PerformanceCounter( *statistics, "test", false ) )
 {
   if ( decodeMesh_ ) {
@@ -1479,7 +1479,6 @@ void SearchSpace::addAcousticScoresInternal(
   StateHypothesesList::iterator sh_end = stateHypotheses.begin() + to;
 
   GaussianDensity temp;
-  Score bestScore = Core::Type<Score>::max;
 
   const Mm::CachedFeatureScorer::CachedContextScorerOverlay* scorerCache( dynamic_cast<const Mm::CachedFeatureScorer::CachedContextScorerOverlay*>( scorer_.get() ) );
 
@@ -1981,8 +1980,6 @@ void SearchSpace::pruneEarlyWordEnds() {
   std::vector<u32> groupCount( nPhonemes + 1, 0 );
   std::vector<s32> groups;
 
-  Score bestNormalizedScore = Core::Type<Score>::max;
-
   // Expand surviving EarlyWordEndHypotheses to WordEndHypotheses.
   for ( EarlyWordEndHypothesisList::iterator in = earlyWordEndHypotheses.begin(); in != earlyWordEndHypotheses.end(); ++in )
   {
@@ -2113,14 +2110,6 @@ void SearchSpace::createTraces( TimeframeIndex time ) {
     {
       weh->trace = Core::ref( new Trace( weh->trace, weh->pronunciation, time, weh->score, describeRootState(weh->transitState) ) );
       weh->trace->score.acoustic += globalScoreOffset_;
-      Score ownAmScore = weh->trace->score.acoustic - weh->trace->predecessor->score.acoustic;
-/*      if(ownAmScore < 0 || ownAmScore > 1000000)
-      {
-         std::cout << "time " << time << std::endl;
-         std::cout << "bad own am score: " << ownAmScore << " weh score " << weh->score << " trace ac " << weh->trace->score.acoustic << " predecessor ac " << weh->trace->predecessor->score.acoustic << std::endl;
-         std::cout << "best word-end score " << minWordEndScore_ << std::endl;
-         verify(0);
-      }*/
 
       // Don't allow negative per-word LM scores (may happen in conjunction with negative pronunciation scores)
       Score ownLmScore = weh->trace->score.lm;
@@ -2643,7 +2632,7 @@ SearchSpace::getCommonPrefix() const {
 class InitialTraceChanger
 {
 public:
-  InitialTraceChanger( Core::Ref<Trace> initialTrace ) : initialTrace_( initialTrace ), baseScore_( initialTrace->score ), kept( 0 ), killed( 0 ) {
+  InitialTraceChanger( Core::Ref<Trace> initialTrace ) : kept( 0 ), killed( 0 ), initialTrace_( initialTrace ), baseScore_( initialTrace->score ) {
   }
 
   bool check( const Core::Ref<Trace>& trace ) {
@@ -3221,13 +3210,12 @@ void SearchSpace::setMasterBeam( Score value )
 
     acousticPruningLimit_ = value / lm_->scale();
 
-    if ( oldAcousticPruningLimit != acousticPruningLimit_ )
-    {
+    if ( oldAcousticPruningLimit != acousticPruningLimit_ ) {
       std::cout << "t=" << timeFrame_ << " hp -> " << acousticPruningLimit_ << std::endl;
       if ( wordEndPruningLimit_ < oldAcousticPruningLimit )
         wordEndPruningLimit_ = wordEndPruningLimit_ * ( acousticPruningLimit_ / oldAcousticPruningLimit );
     }
-  }else{
+  } else {
     f32 oldAcousticPruning = acousticPruning_, oldWordEndPruning = wordEndPruning_, oldLmStatePruning = lmStatePruning_, oldWordEndPhonemePruning = wordEndPhonemePruningThreshold_;
 
     verify( acousticPruning_ < Core::Type<f32>::max );
@@ -3244,7 +3232,7 @@ void SearchSpace::setMasterBeam( Score value )
       lmStatePruning_ = oldLmStatePruning * ( acousticPruning_ / oldAcousticPruning );
 
     if( wordEndPhonemePruningThreshold_ < Core::Type<f32>::max )
-      wordEndPhonemePruningThreshold_ = wordEndPhonemePruningThreshold_ * ( acousticPruning_ / oldAcousticPruning );
+      wordEndPhonemePruningThreshold_ = oldWordEndPhonemePruning * ( acousticPruning_ / oldAcousticPruning );
   }
 }
 

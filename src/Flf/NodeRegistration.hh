@@ -48,6 +48,7 @@
 #include "NonWordFilter.hh"
 #include "PivotArcConfusionNetworkBuilder.hh"
 #include "Prune.hh"
+#include "PushForwardRescoring.hh"
 #include "Recognizer.hh"
 #include "IncrementalRecognizer.hh"
 #include "Rescale.hh"
@@ -1871,6 +1872,23 @@ namespace Flf {
                 "output:\n"
                 "  x:CN",
                 &createNormalizedCnPruningNode));
+
+        factory->add(
+            NodeCreator(
+                "push-forward-rescoring",
+                "Rescore incoming lattices with the push-forward algorithm",
+                "[*.network.rescore-lattice]\n"
+                "type              = push-forward-rescoring\n"
+                "rescorer-type     = (single-best)|replacement-approximation|traceback-approximation\n"
+                "max-hypotheses    = 5\n"
+                "pruning-threshold = 14.0\n"
+                "history-limit     = 0 (no limit)\n"
+                "lookahead-scale   = 1.0\n",
+                "input:\n"
+                "  0:lattice\n"
+                "output:\n"
+                "  0:rescored-lattice",
+                &createPushForwardRescoringNode));
 
         factory->add(
             NodeCreator(

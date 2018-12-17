@@ -54,8 +54,9 @@ LIBSPRINTFLF_O 	= \
 		$(OBJDIR)/PivotArcConfusionNetworkBuilder.o \
 		$(OBJDIR)/Processor.o \
 		$(OBJDIR)/Prune.o \
+		$(OBJDIR)/PushForwardRescoring.o \
 		$(OBJDIR)/Recognizer.o \
-        $(OBJDIR)/IncrementalRecognizer.o \
+		$(OBJDIR)/IncrementalRecognizer.o \
 		$(OBJDIR)/Rescore.o \
 		$(OBJDIR)/RescoreLm.o \
 		$(OBJDIR)/RescoreInternal.o \

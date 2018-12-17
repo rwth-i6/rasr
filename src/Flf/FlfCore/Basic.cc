@@ -399,7 +399,7 @@ namespace Flf {
         // a stable sort w/o taking the topological order (explicitly) into account should be enough here
         ConstStateMapRef topologicalOrder = findTopologicalOrder(l);
         ChronologicalWeakOrder lessThan(*l->getBoundaries(), *topologicalOrder);
-        std::sort(chronologicalSort->begin(), chronologicalSort->end(), lessThan);
+        std::stable_sort(chronologicalSort->begin(), chronologicalSort->end(), lessThan);
         return ConstStateMapRef(chronologicalSort);
     }
     // -------------------------------------------------------------------------

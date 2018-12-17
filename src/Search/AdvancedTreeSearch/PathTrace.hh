@@ -28,7 +28,7 @@ namespace Search
 #ifdef TRACE_PATH
 
 struct PathPruningDescriptor : public Core::ReferenceCounted {
-  std::map<std::pair<char*, int>, Score> offsets;
+  std::map<std::pair<char const*, int>, Score> offsets;
   typedef Core::Ref<PathPruningDescriptor> Ref;
 };
 
@@ -52,7 +52,7 @@ public:
         return;  // Don't log tokens which are not evaluated
     }
 
-    for( std::map<std::pair<char*, int>, Score>::iterator it = pruning->offsets.begin(); it != pruning->offsets.end(); ++it )
+    for( std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.begin(); it != pruning->offsets.end(); ++it )
     {
       if( it->first.second == -1 )
         component.log() << "Word " << it->first.first << ":" << it->second;
@@ -61,12 +61,12 @@ public:
     }
   }
 
-  void maximizeOffset( char* desc, Score offset, int index = -1 )
+  void maximizeOffset( char const* desc, Score offset, int index = -1 )
   {
     if( !pruning )
       makeUnique();
 
-    std::map<std::pair<char*, int>, Score>::iterator it = pruning->offsets.find( std::make_pair( desc, index ) );
+    std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.find( std::make_pair( desc, index ) );
     if( it == pruning->offsets.end() )
     {
       makeUnique();
@@ -107,7 +107,7 @@ public:
   enum {
     Enabled = 0
   };
-  void maximizeOffset( char*, Score, int = -1 ) {
+  void maximizeOffset( char const*, Score, int = -1 ) {
   }
 };
 

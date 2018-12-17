@@ -20,22 +20,68 @@ namespace {
         Math::FastVector<Lm::Score>        scores;
         std::vector<Math::FastVector<f32>> state; // for now float is hardcoded, TODO: replace this with Tensor and add merge utility for tensors
     };
+
+    struct FwdRequest {
+        ScoresWithContext* initial_cache;
+        ScoresWithContext* final_cache;
+        size_t             length;
+
+        bool operator==(FwdRequest const& other) const {
+            return final_cache == other.final_cache;
+        }
+    };
+
+    void add_request(std::vector<FwdRequest>& requests, ScoresWithContext* cache) {
+        FwdRequest tmp_new_request{const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle())), cache, 1ul};
+        FwdRequest* new_request = &tmp_new_request;
+        // determine the first parent where we have already computed the context
+        bool inserted = false; // actually this is equivalent to new_request == &tmp_new_request, but inserted is more clear
+        while (new_request->initial_cache->state.empty()) { // the parent does not have it's scores computed yet
+            // check if the parent is present in the requests vector; if so, replace it
+            auto iter = requests.begin();
+            // linear search, the vector is small, so this is probably OK
+            while (iter != requests.end() and iter->final_cache != new_request->initial_cache) {
+                ++iter;
+            }
+            if (iter != requests.end()) {
+                // extend the entry that we have found
+                iter->final_cache = cache;
+                iter->length += new_request->length;
+                new_request = &(*iter);
+                inserted = true;
+                break;
+            }
+            else {
+                // continue recursion
+                new_request->initial_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(new_request->initial_cache->parent.handle()));
+                new_request->length += 1;
+            }
+        }
+        if (not inserted) {
+            requests.push_back(*new_request);
+        }
+    }
 } // namespace
 
 namespace Lm {
 
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog   ("transform-output-log",    "apply log to tensorflow output",                 false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)",           false);
-Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize        ("max-batch-size",          "maximum number of histories forwarded in one go", 2048);
-Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores          ("dump-scores",             "write all scores from this LM to disk",          false);
-Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix    ("dump-scores-prefix",      "prefix for the score dumps",                  "scores");
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog   ("transform-output-log",    "apply log to tensorflow output",                         false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)",                   false);
+Core::ParameterInt    TFRecurrentLanguageModel::paramMinBatchSize        ("min-batch-size",          "minimum number of histories forwarded in one go",           32);
+Core::ParameterInt    TFRecurrentLanguageModel::paramOptBatchSize        ("opt-batch-size",          "optimum number of histories forwarded in one go",          128);
+Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize        ("max-batch-size",          "maximum number of histories forwarded in one go",         2048);
+Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory ("allow-reduced-history",   "wether this LM will actually reduce the history length", false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores          ("dump-scores",             "write all scores from this LM to disk",                  false);
+Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix    ("dump-scores-prefix",      "prefix for the score dumps",                          "scores");
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                          : Core::Component(c), Precursor(c, l),
                            transform_output_log_(paramTransformOuputLog(config)), transform_output_negate_(paramTransformOuputNegate(config)),
-                           max_batch_size_(paramMaxBatchSize(config)), dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
+                           min_batch_size_(paramMinBatchSize(config)), opt_batch_size_(paramOptBatchSize(config)), max_batch_size_(paramMaxBatchSize(config)),
+                           allow_reduced_history_(paramAllowReducedHistory(config)), dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
                            session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
-                           graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")) {
+                           graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")),
+                           run_time_(max_batch_size_, 0.0), run_count_(max_batch_size_, 0ul) {
     session_.addGraph(*graph_);
     loader_->initialize(session_);
 
@@ -73,6 +119,18 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     empty_history_ = history(h);
 }
 
+TFRecurrentLanguageModel::~TFRecurrentLanguageModel() {
+    Core::XmlChannel out(config, "statistics");
+    out << Core::XmlOpen("fwd-time");
+    for (size_t i = 0ul; i < run_count_.size(); i++) {
+        if (run_count_[i] > 0ul) {
+            out << (i + 1) << " " << run_count_[i] << " " << run_time_[i] << "\n";
+        }
+    }
+    out << Core::XmlClose("fwd-time");
+
+}
+
 History TFRecurrentLanguageModel::startHistory() const {
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     TokenIdSequence ts(1ul, lexicon_mapping_[sentenceBeginToken()->id()]);
@@ -83,10 +141,14 @@ History TFRecurrentLanguageModel::startHistory() const {
 }
 
 History TFRecurrentLanguageModel::extendedHistory(History const& hist, Token w) const {
+    return extendedHistory(hist, w->id());
+}
+
+History TFRecurrentLanguageModel::extendedHistory(History const& hist, Bliss::Token::Id w) const {
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     ScoresWithContext const* sc = reinterpret_cast<ScoresWithContext const*>(hist.handle());
     TokenIdSequence ts(*sc->history);
-    ts.push_back(lexicon_mapping_[w->id()]);
+    ts.push_back(lexicon_mapping_[w]);
     HistoryHandle h = hm->get<ScoresWithContext>(ts);
     ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
     if (cache->parent.handle() == nullptr) {
@@ -95,48 +157,79 @@ History TFRecurrentLanguageModel::extendedHistory(History const& hist, Token w) 
     return history(h);
 }
 
+
+History TFRecurrentLanguageModel::reducedHistory(History const& hist, u32 limit) const {
+    ScoresWithContext const* sc = reinterpret_cast<ScoresWithContext const*>(hist.handle());
+    if (not allow_reduced_history_ or sc->history->size() <= limit) {
+        return hist;
+    }
+    History h = startHistory();
+    for (u32 w = limit; w > 0; w--) {
+        h = extendedHistory(h, sc->history->at(sc->history->size() - w));
+    }
+    return h;
+}
+
 Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     ScoresWithContext const* sc = reinterpret_cast<ScoresWithContext const*>(hist.handle());
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     if (not sc->scores.empty()) {
+        //std::cerr << "fwd: " << output_idx << " " << sc->scores[output_idx] << std::endl;
         return sc->scores[output_idx];
     }
 
-    std::vector<ScoresWithContext*> caches;
-    caches.push_back(const_cast<ScoresWithContext*>(sc));
+    std::vector<FwdRequest> requests;
+    add_request(requests, const_cast<ScoresWithContext*>(sc)); 
+
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     NNHistoryManager::NNCacheMap const& cm = hm->getNNCacheMap();
     for (auto const& kv : cm) {
         ScoresWithContext* c = const_cast<ScoresWithContext*>(static_cast<ScoresWithContext const*>(kv.second));
         if (c->scores.empty() and c != sc) {
-            caches.push_back(c);
+            add_request(requests, c);
         }
-        if (caches.size() >= max_batch_size_) {
-            break;
-        }
+    }
+    if (requests.size() > opt_batch_size_ + min_batch_size_) {
+        requests.resize(opt_batch_size_);
+    }
+    if (requests.size() > max_batch_size_) {
+        requests.resize(max_batch_size_);
+    }
+    size_t max_length = 0ul;
+    for (auto r : requests) {
+        max_length = std::max(max_length, r.length);
     }
 
     // prepare the data in Sprint Datastructures
-    Math::FastMatrix<s32>              words(caches.size(), 1u);
+    Math::FastMatrix<s32>              words(requests.size(), max_length);
+    Math::FastVector<s32>              word_lengths(requests.size());
     std::vector<Math::FastMatrix<f32>> prev_state;
     prev_state.reserve(graph_->state_vars().size());
-    for (size_t c = 0ul; c < caches.size(); c++) {
-        words.at(c, 0u) = static_cast<s32>(caches[c]->history->back());
-        ScoresWithContext* parent_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(caches[c]->parent.handle()));
-        require(parent_cache != nullptr);
-        require_eq(graph_->state_vars().size(), parent_cache->state.size()); // this will be violated if a lemma has multiple syntactic tokens, TODO: traverse parents and process multiple words
+    for (size_t r = 0ul; r < requests.size(); r++) {
+        auto& history = *(requests[r].final_cache->history);
+        size_t offset = history.size() - requests[r].length;
+        for (size_t w = 0u; w < requests[r].length; w++) {
+            words.at(r, w) = static_cast<s32>(history[offset + w]);
+        }
+        word_lengths[r] = requests[r].length;
+        ScoresWithContext* initial_cache = requests[r].initial_cache;
+        require(initial_cache != nullptr);
+        require_eq(graph_->state_vars().size(), initial_cache->state.size());
         for (size_t s = 0ul; s < graph_->state_vars().size(); s++) {
             if (s >= prev_state.size()) {
-                prev_state.emplace_back(parent_cache->state[s].size(), caches.size());
+                prev_state.emplace_back(initial_cache->state[s].size(), requests.size());
             }
             else {
-                require_eq(parent_cache->state[s].size(), prev_state[s].nRows());
+                require_eq(initial_cache->state[s].size(), prev_state[s].nRows());
             }
             // we place the state for each history in columns and transpose later
-            std::copy(parent_cache->state[s].begin(), parent_cache->state[s].end(), &prev_state[s].at(0u, c));
+            std::copy(initial_cache->state[s].begin(), initial_cache->state[s].end(), &prev_state[s].at(0u, r));
         }
     }
+
+    // measure times - tick
+    auto timer_start = std::chrono::high_resolution_clock::now();
 
     // build tensors + set state variables
     std::vector<std::pair<std::string, Tensorflow::Tensor>> inputs;
@@ -152,54 +245,66 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     auto const& word_info = tensor_input_map_.get_info("word");
     inputs.emplace_back(std::make_pair(word_info.tensor_name(), Tensorflow::Tensor::create(words)));
     if (not word_info.seq_length_tensor_name().empty()) {
-        Math::FastVector<s32> word_lengths(caches.size());
-        std::fill(word_lengths.begin(), word_lengths.end(), 1);
         inputs.emplace_back(std::make_pair(word_info.seq_length_tensor_name(), Tensorflow::Tensor::create(word_lengths)));
     }
     std::vector<Tensorflow::Tensor> outputs;
     session_.run(inputs, output_tensor_names_, graph_->update_ops(), outputs);
 
     // store outputs in score caches
-    for (size_t c = 0ul; c < caches.size(); c++) {
-        caches[c]->state.resize(prev_state.size());
-        auto& scores = caches[c]->scores;
-        outputs[0ul].get(c, 0ul, scores);
-        if (output_transform_function_) {
-            std::transform(scores.begin(), scores.end(), scores.begin(), output_transform_function_);
+    for (size_t r = 0ul; r < requests.size(); r++) {
+        ScoresWithContext* cache = requests[r].final_cache;
+        for (size_t w = requests[r].length; w > 0;) {
+            --w;
+            cache->state.resize(prev_state.size());
+            auto& scores = cache->scores;
+            outputs[0ul].get(r, w, scores);
+            if (output_transform_function_) {
+                std::transform(scores.begin(), scores.end(), scores.begin(), output_transform_function_);
+            }
+            require_eq(scores.size(), num_outputs_);
+            cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
         }
-        require_eq(scores.size(), num_outputs_);
+        require_eq(cache, requests[r].initial_cache);
     }
 
     // fetch new values of state variables, needs to be done in separate Session::run call (for GPU devices)
+    // TODO: atm the model only returns the final state, thus if we have fwd. a multiword sequence we do not get the state of the intermediate words
     session_.run({}, read_vars_tensor_names_, {}, outputs);
     for (size_t s = 0ul; s < prev_state.size(); s++) {
-        for (size_t c = 0ul; c < caches.size(); c++) {
-            outputs[s].get(c, caches[c]->state[s]);
+        for (size_t r = 0ul; r < requests.size(); r++) {
+            outputs[s].get(r, requests[r].final_cache->state[s]);
         }
     }
 
+    // measure times - tock
+    auto timer_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = timer_end - timer_start;
+    run_time_ [requests.size()-1ul] += duration.count();
+    run_count_[requests.size()-1ul] += 1ul;
+
     if (dump_scores_) {
-        for (auto const& c : caches) {
+        for (auto const& r : requests) {
             std::stringstream path;
             path << dump_scores_prefix_;
-            for (auto token : *c->history) {
+            for (auto token : *r.final_cache->history) {
                 path << "_" << token;
             }
             std::ofstream out(path.str(), std::ios::out | std::ios::trunc);
             out << "scores:\n";
-            for (auto score : c->scores) {
+            for (auto score : r.final_cache->scores) {
                 out << score << '\n';
             }
-            for (size_t s = 0ul; s < c->state.size(); s++) {
+            for (size_t s = 0ul; s < r.final_cache->state.size(); s++) {
                 out << "state " << s << ":\n";
-                for (auto v : c->state[s]) {
+                for (auto v : r.final_cache->state[s]) {
                     out << v << '\n';
                 }
             }
         }
     }
 
-    useOutput(*sc, output_idx);
+    //std::cerr << "fwd: " << output_idx << " " << sc->scores[output_idx] << std::endl;
+
     return sc->scores[output_idx];
 }
 

@@ -31,15 +31,20 @@ public:
 
     static Core::ParameterBool   paramTransformOuputLog;
     static Core::ParameterBool   paramTransformOuputNegate;
+    static Core::ParameterInt    paramMinBatchSize;
+    static Core::ParameterInt    paramOptBatchSize;
     static Core::ParameterInt    paramMaxBatchSize;
+    static Core::ParameterBool   paramAllowReducedHistory;
     static Core::ParameterBool   paramDumpScores;
     static Core::ParameterString paramDumpScoresPrefix;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
-    virtual ~TFRecurrentLanguageModel() = default;
+    virtual ~TFRecurrentLanguageModel();
 
     virtual History startHistory() const;
     virtual History extendedHistory(History const& hist, Token w) const;
+    virtual History extendedHistory(History const& hist, Bliss::Token::Id w) const;
+    virtual History reducedHistory(History const& hist, u32 limit) const;
     virtual Score score(History const& hist, Token w) const;
 
 protected:
@@ -49,7 +54,10 @@ private:
     bool                        transform_output_log_;
     bool                        transform_output_negate_;
     std::function<Score(Score)> output_transform_function_;
+    size_t                      min_batch_size_;
+    size_t                      opt_batch_size_;
     size_t                      max_batch_size_;
+    bool                        allow_reduced_history_;
     bool                        dump_scores_;
     std::string                 dump_scores_prefix_;
 
@@ -64,6 +72,9 @@ private:
     std::vector<std::string> read_vars_tensor_names_;
 
     History empty_history_; // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
+
+    mutable std::vector<double> run_time_;
+    mutable std::vector<size_t> run_count_;
 };
 
 } // namespace Lm

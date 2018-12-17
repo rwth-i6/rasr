@@ -481,6 +481,8 @@ namespace Search
 
         struct WordEndPusher;
 
+        // helper function to for recombineWordEnds(bool)
+        inline_ void recombineTwoHypotheses(WordEndHypothesis& a, WordEndHypothesis& b, bool shallCreateLattice);
     public:
 /// ------------- External Initialization --------------------:
         SearchSpace( const Core::Configuration& configuration, Core::Ref<const Am::AcousticModel> acousticModel,

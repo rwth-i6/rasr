@@ -2908,8 +2908,32 @@ void SearchSpace::doStateStatistics() {
   statistics->customStatistics( "states in trees without lookahead" ) += statesInTreesWithoutLookAhead;
 }
 
-void SearchSpace::recombineWordEnds(
-  bool shallCreateLattice ) {
+inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHypothesis& b, bool shallCreateLattice) {
+  if ( b.score > a.score || ( b.score == a.score && b.pronunciation->id() > a.pronunciation->id() ) ) // Make the order deterministic if the scores are equal
+  {
+    // The incoming hypothesis a is better than the stored hypothesis b,
+    // just store the values from the incoming a over the old b.
+
+    b.history = a.history; // just remember the history of the better path (relevant for mesh decoding)
+    b.pronunciation = a.pronunciation;
+    b.endExit = a.endExit;
+    b.score = a.score;
+    if ( shallCreateLattice )
+    {
+      verify( !a.trace->sibling );
+      a.trace->sibling = b.trace;
+    }
+    b.trace = a.trace;
+  } else {
+    if ( shallCreateLattice ) {
+      verify( !a.trace->sibling );
+      a.trace->sibling = b.trace->sibling;
+      b.trace->sibling = a.trace;
+    }
+  }
+}
+
+void SearchSpace::recombineWordEnds(bool shallCreateLattice ) {
   PerformanceCounter perf( *statistics, "recombine word-ends" );
 
   if( recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::No )
@@ -2930,23 +2954,7 @@ void SearchSpace::recombineWordEnds(
         WordEndHypothesis &a( *in );
         WordEndHypothesis &b( **i );
         verify_( b.transitState == a.transitState );
-        if ( b.score > a.score || ( b.score == a.score && b.pronunciation->id() > a.pronunciation->id() ) ) // Make the order deterministic if the scores are equal
-        {
-          // The incoming hypothesis a is better than the stored hypothesis b,
-          // just store the values from the incoming a over the old b.
-
-          b.history = a.history; // just remember the history of the better path
-          b.pronunciation = a.pronunciation;
-          b.endExit = a.endExit;
-          b.score = a.score;
-          verify( !a.trace->sibling );
-          a.trace->sibling = b.trace;
-          b.trace = a.trace;
-        } else {
-          verify( !a.trace->sibling );
-          a.trace->sibling = b.trace->sibling;
-          b.trace->sibling = a.trace;
-        }
+        recombineTwoHypotheses(a, b, shallCreateLattice);
       } else {
         *out = *in;
         wordEndHypothesisMap.insert( out );
@@ -2963,27 +2971,7 @@ void SearchSpace::recombineWordEnds(
         WordEndHypothesis &b( **i );
         verify_( b.history == a.history ); // found another hypothesis with equal transit and history
         verify_( b.transitState == a.transitState );
-        if ( b.score > a.score || ( b.score == a.score && b.pronunciation->id() > a.pronunciation->id() ) ) // Make the order deterministic if the scores are equal
-        {
-          // The incoming hypothesis a is better than the stored hypothesis b,
-          // just store the values from the incoming a over the old b.
-
-          b.pronunciation = a.pronunciation;
-          b.endExit = a.endExit;
-          b.score = a.score;
-          if ( shallCreateLattice )
-          {
-            verify( !a.trace->sibling );
-            a.trace->sibling = b.trace;
-          }
-          b.trace = a.trace;
-        } else {
-          if ( shallCreateLattice ) {
-            verify( !a.trace->sibling );
-            a.trace->sibling = b.trace->sibling;
-            b.trace->sibling = a.trace;
-          }
-        }
+        recombineTwoHypotheses(a, b, shallCreateLattice);
       } else {
         *out = *in;
         wordEndHypothesisMap.insert( out );

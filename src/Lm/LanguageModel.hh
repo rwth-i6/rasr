@@ -357,11 +357,11 @@ namespace Lm {
          * of histories considered, by reducing the amount of
          * conditioning information in the history.  E.g. when using a
          * bigram lookahead in a trigram search.  This is the purpose
-         * of extendHistory().
+         * of reducedHistory().
          * @param limit Maximum amount of conditioning information in
          * the returned history.  The meaning this parameter is
          * dependent on the language model.  In general higher values
-         * mean more con longer histories.
+         * mean more longer histories.
          * The default implementation returns the given history unchanged.
          */
         virtual History reducedHistory(const History&, u32 limit) const;

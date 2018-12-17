@@ -94,7 +94,7 @@ if __name__ == "__main__":
 	mydir = os.path.dirname(__file__)
 	os.chdir(mydir)
 	assert os.path.exists(ExecPath), "%s/%s not found" % (mydir, ExecPath)
-	args = [ExecPath, "--*.action=python-control", "--pymod-name=python_control_demo"]
+	args = [ExecPath, "--*.action=python-control", "--pymod-name=python_control_demo"] + sys.argv[1:]
 	print("Call: %r" % args)
 	check_call(args)
 

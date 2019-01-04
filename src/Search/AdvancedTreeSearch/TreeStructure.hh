@@ -137,7 +137,7 @@ public:
 
   class EfficientSingleTargetIterator
   {
-public:
+  public:
     inline EfficientSingleTargetIterator( StateId target ) : target_( target ) {
     }
 
@@ -161,13 +161,13 @@ public:
       return LABEL_FROM_ID(**this);
     }
 
-private:
+  private:
     StateId target_;
   };
 
   class EfficientBatchTargetIterator
   {
-public:
+  public:
     inline EfficientBatchTargetIterator( std::pair<StateId, StateId> targets ) : targets_( targets ) {
     }
 
@@ -192,31 +192,9 @@ public:
       return LABEL_FROM_ID(**this);
     }
 
-private:
+  private:
     std::pair<StateId, StateId> targets_;
   };
-
-/*    class TreeStructureTargetIterator
-    {
-    public:
-        inline TreeStructureTargetIterator(HMMStateNetwork::SuccessorIterator it) : it_(it) {
-        }
-
-        inline void operator++() {
-   ++it_;
-        }
-
-        inline operator bool() const {
-            return (bool)it_;
-        }
-
-        inline StateId operator*() const {
-            return *it_;
-        }
-
-    private:
-        HMMStateNetwork::SuccessorIterator it_;
-    };*/
 
   HMMStateNetwork();
 
@@ -308,7 +286,7 @@ private:
 ///The change is applied when apply() is called
   class ChangePlan
   {
-public:
+  public:
     void addSuccessor(StateId state) {
       remove.erase( state );
       add.insert( state );
@@ -330,7 +308,8 @@ public:
     }
 
     void apply();
-private:
+
+  private:
     ChangePlan( HMMStateNetwork& _structure, StateId _node ) : node( _node ), structure( &_structure ) {
     }
 

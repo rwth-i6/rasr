@@ -1263,21 +1263,6 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(
   firstNodeForToken_.push_back( nodeForToken_.size() );
 
   buildDepths();
-
-/*  if( !paramObservationStats( config ).empty() )
-   {
-    std::string filename = paramObservationStats( config );
-    std::ifstream in( filename.c_str() );
-    if( readVector( in, nodeObservations_ ) && nodeObservations_.size() == nEntries_ )
-    {
-      log() << "successfully read node-observations from " << filename;
-    }else{
-      log() << "failed reding node-observations from " << filename << " accumulating";
-      nodeObservations_.clear();
-      nodeObservations_.resize( nEntries_, 0 );
-      accumulateNodeObservations_ = true;
-    }
-   }*/
 }
 
 void LanguageModelLookahead::buildHash() {

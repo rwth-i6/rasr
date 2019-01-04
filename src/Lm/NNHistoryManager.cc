@@ -49,5 +49,16 @@ bool NNHistoryManager::isEquivalent(HistoryHandle lhs, HistoryHandle rhs) const 
     return false;
 }
 
+std::string NNHistoryManager::format(HistoryHandle handle) const {
+    NNCacheBase const* c = reinterpret_cast<NNCacheBase const*>(handle);
+    std::stringstream ss;
+    ss << "NNHistory{ ";
+    for (auto token_id : *(c->history)) {
+        ss << token_id << " ";
+    }
+    ss << "}";
+    return ss.str();
+}
+
 } // namespace Lm
 

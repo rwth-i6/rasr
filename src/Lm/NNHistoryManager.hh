@@ -77,10 +77,11 @@ public:
     NNCacheMap const& getNNCacheMap() const;
 
     // implement HistoryManager interface
-    virtual HistoryHandle acquire(HistoryHandle handle);
-    virtual void          release(HistoryHandle handle);
-    virtual HistoryHash   hashKey(HistoryHandle handle) const;
+    virtual HistoryHandle acquire     (HistoryHandle handle);
+    virtual void          release     (HistoryHandle handle);
+    virtual HistoryHash   hashKey     (HistoryHandle handle) const;
     virtual bool          isEquivalent(HistoryHandle lhs, HistoryHandle rhs) const;
+    virtual std::string   format      (HistoryHandle handle) const;
 
 private:
     NNCacheMap nn_caches_;

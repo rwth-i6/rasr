@@ -2554,7 +2554,7 @@ class RootTraceSearcher
 public:
   RootTraceSearcher( std::vector<Core::Ref<Trace> > traces ) : rootTrace_( 0 ) {
     for( std::vector<Core::Ref<Trace> >::const_iterator it = traces.begin(); it != traces.end(); ++it )
-      addTrace( it->get(), 0 );
+      addTrace( it->get(), 0, true );
 
     for( std::map<Trace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it )
     {
@@ -2563,8 +2563,14 @@ public:
         // This is "the" root trace
         verify( rootTrace_ == 0 );
         rootTrace_ = it->first;
-        while( traces_[rootTrace_].followers.size() == 1 )
-          rootTrace_ = traces_[rootTrace_].followers.front();
+        TraceDesc& desc = traces_[rootTrace_];
+        while( desc.followers.size() == 1 )
+        { // can not be sure if current root trace still have active states 
+          if ( desc.isEndTrace )
+            break;
+          rootTrace_ = desc.followers.front();
+          desc = traces_[rootTrace_];
+        }
       }
     }
   }
@@ -2574,7 +2580,7 @@ public:
   }
 
 private:
-  int addTrace( Trace* trace, Trace* follower ) {
+  int addTrace( Trace* trace, Trace* follower, bool isEndTrace=false ) {
     std::map<Trace*, TraceDesc>::iterator it = traces_.find( trace );
 
     if( it != traces_.end() ) {
@@ -2590,6 +2596,7 @@ private:
         length += addTrace( trace->predecessor.get(), trace );
       TraceDesc desc;
       desc.length = length;
+      desc.isEndTrace = isEndTrace;
       if( follower )
         desc.followers.push_back( follower );
       traces_.insert( std::make_pair( trace, desc ) );
@@ -2600,6 +2607,7 @@ private:
   struct TraceDesc {
     int length;
     std::vector<Trace*> followers;
+    bool isEndTrace;
   };
 
   std::map<Trace*, TraceDesc> traces_;

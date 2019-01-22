@@ -46,10 +46,16 @@ namespace Flf {
         virtual ~PushForwardRescoringNode() = default;
 
         virtual void init(std::vector<std::string> const& arguments);
+
+        virtual void sync() {
+            rescored_lattice_.reset();
+        }
     protected:
         virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id);
     private:
         std::unique_ptr<PushForwardRescorer> rescorer_;
+
+        ConstLatticeRef rescored_lattice_;
     };
 
     NodeRef createPushForwardRescoringNode(std::string const& name, Core::Configuration const& config);

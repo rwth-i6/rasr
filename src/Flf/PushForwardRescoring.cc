@@ -397,7 +397,14 @@ void PushForwardRescoringNode::init(const std::vector<std::string> &arguments) {
 }
 
 ConstLatticeRef PushForwardRescoringNode::rescore(ConstLatticeRef l, ScoreId id) {
-    return rescorer_->rescore(l, id);
+    if (!l) {
+        return l;
+    }
+    if (!rescored_lattice_) {
+        rescored_lattice_ = rescorer_->rescore(l, id);
+    }
+
+    return rescored_lattice_;
 }
 
 // ----------------------------------------------------------------------

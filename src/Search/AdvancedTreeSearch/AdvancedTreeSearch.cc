@@ -139,7 +139,7 @@ void AdvancedTreeSearchManager::setGrammar( Fsa::ConstAutomatonRef g ) {
   criticalError( "Module LM_FSA is not available" );
 #endif
 
-  delete ss_; ss_ = 0;
+  delete ss_; ss_ = nullptr;
 }
 
 void AdvancedTreeSearchManager::setAllowHmmSkips( bool allow )

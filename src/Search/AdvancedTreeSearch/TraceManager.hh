@@ -27,14 +27,15 @@ static const TraceId invalidTraceId = Core::Type<TraceId>::max;
 
 struct TraceItem {
 public:
-  TraceItem( Core::Ref<Trace> t, Lm::History h, Lm::History lah, Score s )
-           : trace( t ), history( h ), lookaheadHistory( lah ), range( 0 ) {
+  TraceItem( Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch, Score s )
+           : trace( t ), recombinationHistory( rch ), lookaheadHistory( lah ), scoreHistory( sch ), range( 0 ) {
   }
   TraceItem() : range( 0 ) {
   }
   Core::Ref<Trace> trace;
-  Lm::History history;
+  Lm::History recombinationHistory;
   Lm::History lookaheadHistory;
+  Lm::History scoreHistory;
 
   u16 range;   //Total number of trace-items in the range, including this one
 private:

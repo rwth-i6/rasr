@@ -17,15 +17,17 @@
 #ifndef _LM_LANGUAGE_MODEL_HH
 #define _LM_LANGUAGE_MODEL_HH
 
+#include <vector>
+
+#include "HistoryManager.hh"
+
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
+#include <Core/Hash.hh>
 #include <Core/Types.hh>
 #include <Bliss/Lexicon.hh>
 #include <Bliss/Symbol.hh>
 #include <Fsa/Automaton.hh>
-#include <Core/Hash.hh>
-#include <vector>
-#include "HistoryManager.hh"
 
 namespace Lm {
 
@@ -422,16 +424,19 @@ namespace Lm {
          * @param r pre-compiled batch request created using compileBatchRequest()
          * @param result a vector in which results are stored (output parameter)
          */
-        virtual void getBatch(
-            const History &h,
-            const CompiledBatchRequest *r,
-            std::vector<f32> &result) const;
+        virtual void getBatch(const History &h, const CompiledBatchRequest *r, std::vector<f32> &result) const;
 
         /**
          * Returns the LanguageModel that shall be used for lookahead (useful for CombinedLM when we do not want to reinstanciate the model)
          * @return the LM that should be used for lookahead, can be nullptr (in that case this LM should be used)
          */
         virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
+
+        /**
+         * Returns the LanguageModel that shall be used for recombination (useful for CombinedLM when we do not want to reinstanciate the model)
+         * @return the LM that should be used for recombination, can be nullptr (in that case this LM should be used)
+         */
+        virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
     protected:
         class NonCompiledBatchRequest : public CompiledBatchRequest {
         public:
@@ -457,7 +462,6 @@ namespace Lm {
             history = lm->extendedHistory(history, st);
         }
     }
-
 } // namespace Lm
 
 #endif // _LM_LANGUAGE_MODEL_HH

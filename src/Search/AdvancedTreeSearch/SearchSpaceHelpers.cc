@@ -27,7 +27,7 @@ namespace Search {
     }
 
     void Instance::enter(Core::Ref<Trace> trace, StateId entryNode, Score score) {
-      rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookAheadHistory, score)), score));
+      rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory, score)), score));
     }
 
     u32 Instance::backOffChainStates() const {
@@ -49,7 +49,7 @@ namespace Search {
       if (it == lmCache.end()) {
         Score oldLmScore = hyp.score.lm;
         if (pron != Bliss::LemmaPronunciation::invalidId) {
-          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), key.history, hyp.score.lm);
+          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
         }
         lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
       } else {
@@ -62,7 +62,7 @@ namespace Search {
       if (it == lmCache.end()) {
         Score oldLmScore = hyp.score.lm;
         if (pron != Bliss::LemmaPronunciation::invalidId) {
-          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), key.history, hyp.score.lm);
+          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
         }
         lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
       } else {

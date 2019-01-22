@@ -72,6 +72,7 @@ namespace Search
         Core::Ref<const Am::AcousticModel> acousticModel_;
         Core::Ref<const Lm::ScaledLanguageModel> lm_;
         Core::Ref<const Lm::ScaledLanguageModel> lookaheadLm_;
+        Core::Ref<const Lm::LanguageModel>       recombinationLm_;
         AdvancedTreeSearch::LanguageModelLookahead* lmLookahead_;
         std::vector<const Am::StateTransitionModel*> transitionModels_;
 
@@ -399,7 +400,7 @@ namespace Search
 
         ///@param create Whether the network should be created if it doesn't exist yet
         ///@param key The key, containing the unique properties of the network
-        Instance* instanceForKey(bool create, const InstanceKey &key, Lm::History const& lookaheadHistory);
+        Instance* instanceForKey(bool create, const InstanceKey &key, Lm::History const& lookaheadHistory, Lm::History const& scoreHistory);
 
         template <bool earlyWordEndPruning>
         void findWordEndsInternal();
@@ -418,7 +419,7 @@ namespace Search
           return Core::Type<u32>::max;
         }
 
-        Instance* activateOrUpdateTree( const Core::Ref<Trace> &, Lm::History, Lm::History, StateId, Score );
+        Instance* activateOrUpdateTree( const Core::Ref<Trace> &, Lm::History, Lm::History, Lm::History, StateId, Score );
 
         Instance* getBackOffInstance(Instance *instance);
 
@@ -490,7 +491,7 @@ namespace Search
 
   class PruningDesc : public SearchAlgorithm::Pruning
   {
-public:
+  public:
     virtual Core::Ref<SearchAlgorithm::Pruning> clone() const {
       return Core::Ref<SearchAlgorithm::Pruning>( new PruningDesc( *this ) );
     }
@@ -601,7 +602,7 @@ public:
       }
       return os.str();
     }
-private:
+  private:
     // Core::Type<Score>::max or no value means that the standard acoustic-pruning is to be used
     std::vector<Score> timeBeamMap;
   };

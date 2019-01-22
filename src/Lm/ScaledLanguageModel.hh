@@ -96,6 +96,9 @@ namespace Lm {
         virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const {
             return languageModel_->lookaheadLanguageModel();
         }
+        virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const {
+            return languageModel_->recombinationLanguageModel();
+        }
     };
 
     /** Language model score convenience function for syntactic tokens. */

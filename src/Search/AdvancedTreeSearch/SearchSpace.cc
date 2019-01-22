@@ -153,6 +153,11 @@ const Core::ParameterBool paramSeparateLmLookahead(
   "use a separate lm for lookahead (one that is not provided by the language-model)",
   true );
 
+const Core::ParameterBool paramSeparateRecombinationLm(
+  "separate-recombination-lm",
+  "use a separate lm for recombination (one that is not provided by the main language-model)",
+  false );
+
 const Core::ParameterBool paramDisableUnigramLookahead(
   "disable-unigram-lookahead",
   "",
@@ -326,6 +331,7 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   acousticModel_( acousticModel ),
   lm_( lm ),
   lookaheadLm_(),
+  recombinationLm_(),
   lmLookahead_( 0 ),
   network_( config, acousticModel, lexicon ),
   acousticLookAhead_( 0 ),
@@ -408,6 +414,19 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   }
   else {
     lookaheadLm_ = lm_;
+  }
+
+  if (paramSeparateRecombinationLm(config_)) {
+    log() << "using new recombination lm";
+    recombinationLm_ = Lm::Module::instance().createLanguageModel(select("recombination-lm"), lexicon_);
+  }
+  else if (lm_->recombinationLanguageModel().get() != nullptr) {
+    log() << "using the recombination lm from the score lm";
+    recombinationLm_ = lm_->recombinationLanguageModel();
+  }
+  else {
+    log() << "using the scoring lm for recombination";
+    recombinationLm_ = lm_;
   }
 
   if( sparseLookahead_ && !dynamic_cast<const Lm::BackingOffLm*>( lookaheadLm_->unscaled().get() ) )
@@ -1989,8 +2008,10 @@ void SearchSpace::pruneEarlyWordEnds() {
       const PersistentStateTree::Exit* we = &network_.exits[in->exit];
       const Bliss::LemmaPronunciation* pron = ( we->pronunciation == Bliss::LemmaPronunciation::invalidId ) ? 0 : lexicon_->lemmaPronunciation( we->pronunciation );
 
-      WordEndHypothesis end( TraceManager::traceItem( in->trace ).history,
-        TraceManager::traceItem( in->trace ).lookaheadHistory,
+      TraceItem const& traceItem = TraceManager::traceItem( in->trace );
+      WordEndHypothesis end( traceItem.recombinationHistory,
+        traceItem.lookaheadHistory,
+        traceItem.scoreHistory,
         we->transitState,
         pron,
         in->score,
@@ -2177,14 +2198,14 @@ void SearchSpace::hypothesizeEpsilonPronunciations( Score bestScore ) {
         weh.pronunciation = pronunciation;
         weh.transitState = wordEnd.transitState;
 
-        std::unordered_map<InstanceKey, Instance*, InstanceKey::Hash>::iterator instIt = activeInstanceMap.find( InstanceKey( weh.history ) );
+        std::unordered_map<InstanceKey, Instance*, InstanceKey::Hash>::iterator instIt = activeInstanceMap.find( InstanceKey( weh.recombinationHistory ) );
         if( instIt != activeInstanceMap.end() )
         {
           // Use the network's cache to extend the LM score
           static_cast<Instance&>( *instIt->second ).addLmScore( weh, pronunciation->id(), lm_, lexicon_, wpScale_ );
         }else{
           // Go on without a cache
-          Lm::addLemmaPronunciationScoreOmitExtension( lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.history, weh.score.lm );
+          Lm::addLemmaPronunciationScoreOmitExtension( lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.scoreHistory, weh.score.lm );
         }
 
         weh.score.acoustic += ( *transitionModel(network_.structure.state(transit).stateDesc ) )[Am::StateTransitionModel::exit];
@@ -2211,14 +2232,14 @@ void SearchSpace::hypothesizeEpsilonPronunciations( Score bestScore ) {
       weh.pronunciation = pronunciation;
       weh.transitState = wordEnd.transitState;
 
-      std::unordered_map<InstanceKey, Instance*, InstanceKey::Hash>::iterator instIt = activeInstanceMap.find( InstanceKey( weh.history ) );
+      std::unordered_map<InstanceKey, Instance*, InstanceKey::Hash>::iterator instIt = activeInstanceMap.find( InstanceKey( weh.recombinationHistory ) );
       if( instIt != activeInstanceMap.end() )
       {
         // Use the network's cache to extend the LM score
         static_cast<Instance&>( *instIt->second ).addLmScore( weh, pronunciation->id(), lm_, lexicon_, wpScale_ );
       } else {
         // Go on without a cache
-        Lm::addLemmaPronunciationScoreOmitExtension( lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.history, weh.score.lm );
+        Lm::addLemmaPronunciationScoreOmitExtension( lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.scoreHistory, weh.score.lm );
       }
 
       weh.score.acoustic += ( *transitionModel(network_.structure.state(transit).stateDesc ) )[Am::StateTransitionModel::exit];
@@ -2308,15 +2329,17 @@ StateId SearchSpace::rootForCoarticulation( std::pair<Bliss::Phoneme::Id, Bliss:
 }
 
 void SearchSpace::addStartupWordEndHypothesis( TimeframeIndex time ) {
-  Lm::History h   = lm_->startHistory();
+  Lm::History rch = recombinationLm_->startHistory();
   Lm::History lah = lookaheadLm_->startHistory();
+  Lm::History sch = lm_->startHistory();
   for( std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.prefix.begin(); it != recognitionContext_.prefix.end(); ++it )
   {
     const Bliss::SyntacticTokenSequence tokenSequence( ( *it )->syntacticTokenSequence() );
     for ( u32 ti = 0; ti < tokenSequence.length(); ++ti ) {
       const Bliss::SyntacticToken *st = tokenSequence[ti];
-      h   = lm_->extendedHistory( h, st );
+      rch = recombinationLm_->extendedHistory( rch, st );
       lah = lookaheadLm_->extendedHistory( lah, st );
+      sch = lm_->extendedHistory( sch, st );
     }
   }
 
@@ -2325,12 +2348,13 @@ void SearchSpace::addStartupWordEndHypothesis( TimeframeIndex time ) {
   if( rootState == 0 )
     Core::Application::us()->error() << "failed finding coarticulated root-state for coarticulation";
 
-  verify( h.isValid() );
+  verify( rch.isValid() );
   verify( lah.isValid() );
+  verify( sch.isValid() );
   SearchAlgorithm::ScoreVector score( 0.0, 0.0 );
   Core::Ref<Trace> t( new Trace( time, score, describeRootState(rootState) ) );
   t->score.acoustic += globalScoreOffset_;
-  wordEndHypotheses.push_back( WordEndHypothesis( h, lah, rootState, 0, score, t, Core::Type<u32>::max, PathTrace() ) );
+  wordEndHypotheses.push_back( WordEndHypothesis( rch, lah, sch, rootState, 0, score, t, Core::Type<u32>::max, PathTrace() ) );
 }
 
 void SearchSpace::dumpWordEnds(
@@ -2338,8 +2362,10 @@ void SearchSpace::dumpWordEnds(
   for ( WordEndHypothesisList::const_iterator weh = wordEndHypotheses.begin(); weh != wordEndHypotheses.end(); ++weh ) {
     os << "trace:" << std::endl;
     weh->trace->write( os, phi );
-    os << "history:       " << weh->history.format() << std::endl
-       << "transit entry: " << weh->transitState << std::endl
+    os << "recombination history: " << weh->recombinationHistory.format() << std::endl
+       << "lookahead history:     " << weh->lookaheadHistory.format() << std::endl
+       << "score history:         " << weh->scoreHistory.format() << std::endl
+       << "transit entry:         " << weh->transitState << std::endl
        << std::endl;
   }
 }
@@ -2400,7 +2426,7 @@ SearchSpace::getSentenceEnd( TimeframeIndex time, bool shallCreateLattice ) {
 
     t->score.acoustic += globalScoreOffset_;
 
-    Lm::History h( weh->history );
+    Lm::History h( weh->scoreHistory );
     verify( h.isValid() );
 
     for( std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.suffix.begin(); it != recognitionContext_.suffix.end(); ++it ) {
@@ -2462,7 +2488,7 @@ SearchSpace::getSentenceEnd( TimeframeIndex time, bool shallCreateLattice ) {
         // Append sentence-end epsilon arc
         t = Core::Ref<Trace>( new Trace( t, 0, time, t->score, describeRootState(network_.rootState) ) );
 
-        Lm::History h( TraceManager::traceItem( ( *it ).trace ).history );
+        Lm::History h( TraceManager::traceItem( ( *it ).trace ).scoreHistory );
         verify( h.isValid() );
 
         for( std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.suffix.begin(); it != recognitionContext_.suffix.end(); ++it )
@@ -2534,7 +2560,7 @@ SearchSpace::getSentenceEndFallBack( TimeframeIndex time, bool shallCreateLattic
       best = Core::Ref<Trace>( new Trace( pre, 0, time, pre->score, describeRootState(network_.rootState) ) );
       best->score.acoustic = globalScoreOffset_ + score - pre->score.lm;
 
-      Lm::History h = TraceManager::traceItem( bestHyp->trace ).history;
+      Lm::History h = TraceManager::traceItem( bestHyp->trace ).scoreHistory;
 
       verify( h.isValid() );
       for( std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.suffix.begin(); it != recognitionContext_.suffix.end(); ++it )
@@ -2911,10 +2937,12 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
     // The incoming hypothesis a is better than the stored hypothesis b,
     // just store the values from the incoming a over the old b.
 
-    b.history = a.history; // just remember the history of the better path (relevant for mesh decoding)
-    b.pronunciation = a.pronunciation;
-    b.endExit = a.endExit;
-    b.score = a.score;
+    b.recombinationHistory = a.recombinationHistory; // just remember the history of the better path (relevant for mesh decoding)
+    b.lookaheadHistory     = a.lookaheadHistory;
+    b.scoreHistory         = a.scoreHistory;
+    b.pronunciation        = a.pronunciation;
+    b.endExit              = a.endExit;
+    b.score                = a.score;
     if ( shallCreateLattice )
     {
       verify( !a.trace->sibling );
@@ -2930,7 +2958,7 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
   }
 }
 
-void SearchSpace::recombineWordEnds(bool shallCreateLattice ) {
+void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
   PerformanceCounter perf( *statistics, "recombine word-ends" );
 
   if( recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::No )
@@ -2940,8 +2968,7 @@ void SearchSpace::recombineWordEnds(bool shallCreateLattice ) {
 
   WordEndHypothesisList::iterator in, out;
 
-  if ( decodeMesh_ && shallCreateLattice )
-  {
+  if ( decodeMesh_ && shallCreateLattice ) {
     typedef std::unordered_set<WordEndHypothesisList::iterator, WordEndHypothesis::MeshHash, WordEndHypothesis::MeshEquality> MeshWordEndHypothesisRecombinationMap;
     MeshWordEndHypothesisRecombinationMap wordEndHypothesisMap; // Map used for recombining word end hypotheses
 
@@ -3060,7 +3087,7 @@ Instance* SearchSpace::createTreeInstance( const Search::InstanceKey& key ) {
   return ret;
 }
 
-Instance* SearchSpace::instanceForKey(bool create, const InstanceKey &key, Lm::History const& lookaheadHistory) {
+Instance* SearchSpace::instanceForKey(bool create, const InstanceKey &key, Lm::History const& lookaheadHistory, Lm::History const& scoreHistory) {
   std::unordered_map<InstanceKey, Instance*, InstanceKey::Hash>::iterator it = activeInstanceMap.find( key );
   if( it != activeInstanceMap.end() )
     return it->second;
@@ -3069,7 +3096,8 @@ Instance* SearchSpace::instanceForKey(bool create, const InstanceKey &key, Lm::H
     return 0;
 
   Instance* t = createTreeInstance( key );
-  t->lookAheadHistory = lookaheadHistory;
+  t->lookaheadHistory = lookaheadHistory;
+  t->scoreHistory     = scoreHistory;
   activeInstances.push_back( t );
   verify( activeInstanceMap.find( key ) == activeInstanceMap.end() );
   activeInstanceMap[key] = t;
@@ -3148,8 +3176,9 @@ void SearchSpace::extendHistoryByLemma( WordEndHypothesis& weh, const Bliss::Lem
   for ( u32 ti = 0; ti < tokenSequence.length(); ++ti )
   {
     const Bliss::SyntacticToken *st = tokenSequence[ti];
-    weh.history          = lm_->extendedHistory( weh.history, st );
-    weh.lookaheadHistory = lookaheadLm_->extendedHistory( weh.lookaheadHistory, st );
+    weh.recombinationHistory = recombinationLm_->extendedHistory( weh.recombinationHistory, st );
+    weh.lookaheadHistory     = lookaheadLm_->extendedHistory( weh.lookaheadHistory, st );
+    weh.scoreHistory         = lm_->extendedHistory( weh.scoreHistory, st );
   }
 }
 
@@ -3300,7 +3329,7 @@ void SearchSpace::startNewTrees() {
   PerformanceCounter perf( *statistics, "start new trees" );
 
   for ( WordEndHypothesisList::const_iterator weh = wordEndHypotheses.begin(); weh != wordEndHypotheses.end(); ++weh ) {
-    Instance* instance = activateOrUpdateTree( weh->trace, weh->history, weh->lookaheadHistory, weh->transitState, weh->score );
+    Instance* instance = activateOrUpdateTree( weh->trace, weh->recombinationHistory, weh->lookaheadHistory, weh->scoreHistory, weh->transitState, weh->score );
     verify( instance );
     allEnteredTrees.insert( instance );
     if( lmLookahead_ )
@@ -3313,12 +3342,14 @@ void SearchSpace::startNewTrees() {
 
 Instance* SearchSpace::activateOrUpdateTree(
   const Core::Ref<Trace> &trace,
-  Lm::History history,
+  Lm::History recombinationHistory,
   Lm::History lookaheadHistory,
+  Lm::History scoreHistory,
   StateId entry,
   Score score ) {
-  /// TODO: getLastSyntacticToken is inefficient for long sequences. A simple rule would be better: Stay in same instance, or follow most recent pron.
-  Instance* instance = instanceForKey(true, InstanceKey(history, conditionPredecessorWord_ ? getLastSyntacticToken(trace) : Bliss::LemmaPronunciation::invalidId), lookaheadHistory);
+  /// TODO (Nolden): getLastSyntacticToken is inefficient for long sequences. A simple rule would be better: Stay in same instance, or follow most recent pron.
+  InstanceKey key(recombinationHistory, conditionPredecessorWord_ ? getLastSyntacticToken(trace) : Bliss::LemmaPronunciation::invalidId);
+  Instance* instance = instanceForKey(true, key, lookaheadHistory, scoreHistory);
   if( !instance )
     return 0;
   verify( dynamic_cast<Instance*>( instance ) );
@@ -3490,7 +3521,8 @@ Instance* SearchSpace::getBackOffInstance(Instance *instance) {
   /// @todo Möglicherweise wird der falsche backoff-score angewandt. Es sollte der score für die verkürzte history benutzt werden.
   instance->backOffScore = lm->getBackOffScores( useHistory ).backOffScore;
 
-  instance->backOffInstance->lookAheadHistory = reduced;
+  instance->backOffInstance->scoreHistory     = instance->scoreHistory;
+  instance->backOffInstance->lookaheadHistory = reduced;
 
   verify( instance->backOffInstance );
   verify( instance->backOffInstance->backOffParent == instance );
@@ -3498,4 +3530,4 @@ Instance* SearchSpace::getBackOffInstance(Instance *instance) {
   return instance->backOffInstance;
 }
 
-}
+} // namespace Search

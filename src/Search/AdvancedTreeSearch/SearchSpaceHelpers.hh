@@ -165,7 +165,10 @@ struct Instance {
   void enter( Core::Ref<Trace> trace, StateId entryNode, Score score );
 
   /// Alternative history that should be used for look-ahead
-  Lm::History lookAheadHistory;
+  Lm::History lookaheadHistory;
+
+  /// History used for scoring
+  Lm::History scoreHistory;
 
   /// Returns the total number of states in this back-off chain (eg. in this tree, its back-off parents, and its back-off trees)
   u32 backOffChainStates() const;
@@ -204,8 +207,9 @@ struct EarlyWordEndHypothesis {
 };
 
 struct WordEndHypothesis {
-  Lm::History history;
+  Lm::History recombinationHistory;
   Lm::History lookaheadHistory;
+  Lm::History scoreHistory;
   StateId transitState;
   const Bliss::LemmaPronunciation *pronunciation;
   SearchAlgorithm::ScoreVector score;
@@ -213,11 +217,12 @@ struct WordEndHypothesis {
   u32 endExit; //Exit from which this word end hypothesis was constructed
   PathTrace pathTrace;
 
-  WordEndHypothesis( const Lm::History& h, const Lm::History& lah, StateId e,
+  WordEndHypothesis( const Lm::History& rch, const Lm::History& lah, const Lm::History& sch, StateId e,
     const Bliss::LemmaPronunciation* p, SearchAlgorithm::ScoreVector s,
     const Core::Ref<Trace>& t, u32 _endExit, PathTrace _pathTrace ) :
-    history( h ),
+    recombinationHistory( rch ),
     lookaheadHistory( lah ),
+    scoreHistory( sch ),
     transitState( e ),
     pronunciation( p ),
     score( s ),
@@ -230,8 +235,9 @@ struct WordEndHypothesis {
   }
 
   WordEndHypothesis( const WordEndHypothesis& rhs ) :
-    history( rhs.history ),
+    recombinationHistory( rhs.recombinationHistory ),
     lookaheadHistory( rhs.lookaheadHistory ),
+    scoreHistory( rhs.scoreHistory ),
     transitState( rhs.transitState ),
     pronunciation( rhs.pronunciation ),
     score( rhs.score ),
@@ -241,7 +247,7 @@ struct WordEndHypothesis {
   }
 
   inline u32 hashKey() const {
-    u32 hash = history.hashKey();
+    u32 hash = recombinationHistory.hashKey();
     hash = ( hash << 5 | hash >> 27 ) ^ transitState;
     return hash;
   }
@@ -306,13 +312,13 @@ struct WordEndHypothesis {
   };
   struct Equality {
     inline bool operator()( const WordEndHypothesis *l, const WordEndHypothesis *r ) const {
-      return ( l->history      == r->history )
+      return ( l->recombinationHistory == r->recombinationHistory )
              && ( l->transitState == r->transitState );
     }
 
     inline bool operator()( const WordEndHypothesisList::iterator l,
       const WordEndHypothesisList::iterator r ) const {
-      return ( l->history == r->history )
+      return ( l->recombinationHistory == r->recombinationHistory )
              && ( l->transitState == r->transitState );
     }
   };

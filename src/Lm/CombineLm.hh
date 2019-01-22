@@ -28,9 +28,10 @@ class CombineLanguageModel : public LanguageModel {
     public:
         typedef LanguageModel Precursor;
 
-        static Core::ParameterInt  paramNumLms;
-        static Core::ParameterBool paramLinearCombination;
-        static Core::ParameterInt  paramLookaheadLM;
+        static Core::ParameterInt   paramNumLms;
+        static Core::ParameterBool  paramLinearCombination;
+        static Core::ParameterInt   paramLookaheadLM;
+        static Core::ParameterInt   paramRecombinationLM;
 
         CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
         virtual ~CombineLanguageModel();
@@ -44,11 +45,14 @@ class CombineLanguageModel : public LanguageModel {
         virtual Score score(History const& history, Token w) const;
         virtual Score sentenceEndScore(const History& history) const;
         virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
+        virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
+
     private:
         std::vector<Core::Ref<ScaledLanguageModel>> lms_;
         std::vector<Core::Ref<const LanguageModel>> unscaled_lms_;
         bool linear_combination_;
-        int lookahead_lm_;
+        int  lookahead_lm_;
+        int  recombination_lm_;
 };
 
 } // namespace Lm

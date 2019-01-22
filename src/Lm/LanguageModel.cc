@@ -212,3 +212,7 @@ void LanguageModel::getBatch(
 Core::Ref<const LanguageModel> LanguageModel::lookaheadLanguageModel() const {
     return Core::Ref<LanguageModel>();
 }
+
+Core::Ref<const LanguageModel> LanguageModel::recombinationLanguageModel() const {
+    return Core::Ref<LanguageModel>();
+}

@@ -33,6 +33,7 @@ class CombineLanguageModel : public LanguageModel, public SearchSpaceAwareLangua
         static Core::ParameterBool  paramLinearCombination;
         static Core::ParameterInt   paramLookaheadLM;
         static Core::ParameterInt   paramRecombinationLM;
+        static Core::ParameterFloat paramSkipThreshold;
 
         CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
         virtual ~CombineLanguageModel();
@@ -55,6 +56,7 @@ class CombineLanguageModel : public LanguageModel, public SearchSpaceAwareLangua
         std::vector<Core::Ref<ScaledLanguageModel>>       lms_;
         std::vector<Core::Ref<const LanguageModel>>       unscaled_lms_;
         std::vector<SearchSpaceAwareLanguageModel const*> ssa_lms_;
+        std::vector<Score>                                skip_thresholds_;
 
         bool linear_combination_;
         int  lookahead_lm_;

@@ -48,6 +48,7 @@ public:
     virtual History extendedHistory(History const& hist, Bliss::Token::Id w) const;
     virtual History reducedHistory(History const& hist, u32 limit) const;
     virtual Score score(History const& hist, Token w) const;
+    virtual bool scoreCached(History const& hist, Token w) const;
 
     virtual void startFrame(Search::TimeframeIndex time) const;
     virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;

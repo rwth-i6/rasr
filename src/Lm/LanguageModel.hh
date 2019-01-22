@@ -400,6 +400,16 @@ namespace Lm {
         virtual Score score(const History&, Token w) const = 0;
 
         /**
+         * Some LMs might cache scores and thus provide fast
+         * access. If we use the skip heuristic in the combined
+         * LM we do not have to skip if the score is computed
+         * anyway.
+         */
+        virtual bool scoreCached(const History&, Token w) const {
+            return false;
+        }
+
+        /**
          * Probability for sentence to end in current position.
          * In WFST terminology this is the final weight.
          * If the lexicon defines a "sentence-end" special token this

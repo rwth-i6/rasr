@@ -93,9 +93,11 @@ CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::
                                             lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
     size_t num_lms = paramNumLms(c);
     for (size_t i = 0ul; i < num_lms; i++) {
-        lms_.push_back(Module::instance().createScaledLanguageModel(select(std::string("lm-") + std::to_string(i+1)), l));
+        Core::Configuration sub_config = select(std::string("lm-") + std::to_string(i+1));
+        lms_.push_back(Module::instance().createScaledLanguageModel(sub_config, l));
         unscaled_lms_.push_back(lms_.back()->unscaled());
         ssa_lms_.push_back(dynamic_cast<SearchSpaceAwareLanguageModel const*>(unscaled_lms_.back().get()));
+        skip_thresholds_.push_back(paramSkipThreshold(sub_config));
     }
     historyManager_ = new CombineHistoryManager(num_lms);
 }
@@ -163,17 +165,43 @@ History CombineLanguageModel::reducedHistory(History const& history, u32 limit) 
 Score CombineLanguageModel::score(History const& history, Token w) const {
     require(history.isManagedBy(historyManager_));
     History const* hist = reinterpret_cast<History const*>(history.handle());
+    Score prev_score = 0.0;
+    bool  override_score = false;
     if (linear_combination_) {
         Score s(std::numeric_limits<Score>::infinity());
         for (size_t i = 0ul; i < lms_.size(); i++) {
-            s = Math::scoreSum(s, unscaled_lms_[i]->score(hist[i], w) - std::log(lms_[i]->scale()));
+            Score raw_score = 0.0;
+            if (not override_score) {
+                raw_score = unscaled_lms_[i]->score(hist[i], w);
+                prev_score = raw_score;
+                override_score |= raw_score >= skip_thresholds_[i];
+            }
+            else {
+                raw_score = prev_score;
+                if (unscaled_lms_[i]->scoreCached(history, w)) {
+                    raw_score = unscaled_lms_[i]->score(hist[i], w);
+                }
+            }
+            s = Math::scoreSum(s, raw_score - std::log(lms_[i]->scale()));
         }
         return s;
     }
     else {
         Score s(0.0);
         for (size_t i = 0ul; i < lms_.size(); i++) {
-            s += lms_[i]->score(hist[i], w);
+            Score raw_score = unscaled_lms_[i]->score(hist[i], w);
+            if (not override_score) {
+                raw_score = unscaled_lms_[i]->score(hist[i], w);
+                prev_score = raw_score;
+                override_score |= raw_score >= skip_thresholds_[i];
+            }
+            else {
+                raw_score = prev_score;
+                if (unscaled_lms_[i]->scoreCached(history, w)) {
+                    raw_score = unscaled_lms_[i]->score(hist[i], w);
+                }
+            }
+            s += raw_score * lms_[i]->scale();
         }
         return s;
     }

@@ -123,15 +123,27 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
 }
 
 TFRecurrentLanguageModel::~TFRecurrentLanguageModel() {
+    size_t total_run_count = 0ul;
+    size_t total_fwd_hist  = 0ul;
+    double total_run_time  = 0.0;
+
     Core::XmlChannel out(config, "statistics");
     out << Core::XmlOpen("fwd-time");
     for (size_t i = 0ul; i < run_count_.size(); i++) {
         if (run_count_[i] > 0ul) {
             out << (i + 1) << " " << run_count_[i] << " " << run_time_[i] << "\n";
+            total_run_count += run_count_[i];
+            total_fwd_hist  += (i+1) * run_count_[i];
+            total_run_time  += run_time_[i];
         }
     }
     out << Core::XmlClose("fwd-time");
 
+    out << Core::XmlOpen("fwd-summary");
+    out << Core::XmlOpen("total-run-count") << total_run_count << Core::XmlClose("total-run-count");
+    out << Core::XmlOpen("total-fwd-hist")  << total_fwd_hist  << Core::XmlClose("total-fwd-hist");
+    out << Core::XmlOpen("total-run-time")  << total_run_time  << Core::XmlClose("total-run-time");
+    out << Core::XmlClose("fwd-summary");
 }
 
 History TFRecurrentLanguageModel::startHistory() const {
@@ -330,6 +342,11 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     }
 
     return sc->scores[output_idx];
+}
+
+bool TFRecurrentLanguageModel::scoreCached(History const& hist, Token w) const {
+    ScoresWithContext const* sc = reinterpret_cast<ScoresWithContext const*>(hist.handle());
+    return not sc->scores.empty();
 }
 
 void TFRecurrentLanguageModel::load() {

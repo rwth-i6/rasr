@@ -47,7 +47,7 @@ namespace {
                 // extend the entry that we have found
                 iter->final_cache = cache;
                 iter->length += new_request->length;
-                new_request = &(*iter);
+                new_request = &(*iter);  // TODO: think about how to handle scores used for pruning
                 inserted = true;
                 break;
             }
@@ -175,7 +175,6 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     if (not sc->scores.empty()) {
-        //std::cerr << "fwd: " << output_idx << " " << sc->scores[output_idx] << std::endl;
         return sc->scores[output_idx];
     }
 

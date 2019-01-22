@@ -82,11 +82,15 @@ Core::ParameterBool CombineLanguageModel::paramLinearCombination(
         "linear-combination", "if true linear combination instead of log-linear combination is used", false);
 Core::ParameterInt CombineLanguageModel::paramLookaheadLM(
         "lookahead-lm", "index of the sub-lm to be used for lookahead, use 0 for the combine-lm itself", 0, 0);
+Core::ParameterInt CombineLanguageModel::paramRecombinationLM(
+        "recombination-lm", "index of the sub-lm to be used for recombination, use 0 for the combine-lm itself", 0, 0);
+Core::ParameterFloat CombineLanguageModel::paramSkipThreshold(
+        "skip-threshold", "if this LM's (unscaled) score is greater than this threshold successive LMs are not evaluated", std::numeric_limits<Score>::max());
 
 CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                                           : Core::Component(c), CombineLanguageModel::Precursor(c, l),
                                             lms_(), unscaled_lms_(), linear_combination_(paramLinearCombination(c)),
-                                            lookahead_lm_(paramLookaheadLM(config)) {
+                                            lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
     size_t num_lms = paramNumLms(c);
     for (size_t i = 0ul; i < num_lms; i++) {
         lms_.push_back(Module::instance().createScaledLanguageModel(select(std::string("lm-") + std::to_string(i+1)), l));
@@ -195,8 +199,16 @@ Score CombineLanguageModel::sentenceEndScore(const History& history) const {
 
 Core::Ref<const LanguageModel> CombineLanguageModel::lookaheadLanguageModel() const {
     if (lookahead_lm_ > 0) {
-        require_lt(lookahead_lm_, unscaled_lms_.size());
+        require_le(static_cast<unsigned>(lookahead_lm_), unscaled_lms_.size());
         return unscaled_lms_[lookahead_lm_-1];
+    }
+    return Core::Ref<LanguageModel>();
+}
+
+Core::Ref<const LanguageModel> CombineLanguageModel::recombinationLanguageModel() const {
+    if (recombination_lm_ > 0) {
+        require_le(static_cast<unsigned>(recombination_lm_), unscaled_lms_.size());
+        return unscaled_lms_[recombination_lm_-1];
     }
     return Core::Ref<LanguageModel>();
 }

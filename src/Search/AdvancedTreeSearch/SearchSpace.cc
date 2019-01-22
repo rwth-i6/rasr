@@ -148,10 +148,10 @@ const Core::ParameterBool paramEnableLmLookahead(
   "enable language model lookahead (recommended)",
   true );
 
-const Core::ParameterBool paramSeparateLmLookahead(
-  "separate-lm-lookahead",
-  "use a separate lm for lookahead (one that is not provided by the language-model)",
-  true );
+const Core::ParameterBool paramSeparateLookaheadLm(
+  "separate-lookahead-lm",
+  "use a separate lm for lookahead (one that is not provided by the main language-model)",
+  false );
 
 const Core::ParameterBool paramSeparateRecombinationLm(
   "separate-recombination-lm",
@@ -405,10 +405,11 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
 
   log() << "HMM length of a phoneme: " << hmmLength_;
 
-  if (paramSeparateLmLookahead(config_)) {
+  if (paramSeparateLookaheadLm(config_)) {
+    log() << "using new lookahead lm";
     lookaheadLm_ = Lm::Module::instance().createScaledLanguageModel(select("lookahead-lm"), lexicon_);
   }
-  if (lm_->lookaheadLanguageModel().get() != nullptr) {
+  else if (lm_->lookaheadLanguageModel().get() != nullptr) {
     lookaheadLm_ = Core::Ref<const Lm::ScaledLanguageModel>(new Lm::LanguageModelScaling(select("lookahead-lm"),
                                                             Core::Ref<Lm::LanguageModel>(const_cast<Lm::LanguageModel*>(lm_->lookaheadLanguageModel().get()))));
   }
@@ -1348,7 +1349,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
   if( !instance.lookahead.get() )
   {
     if( useBackOffOffset )
-      backOffOffset = static_cast<const Lm::BackingOffLm*>( lookaheadLm_->unscaled().get() )->getAccumulatedBackOffScore( instance.lookAheadHistory, 1 ) * unigramLookaheadBackoffFactor_ * lookaheadLm_->scale();
+      backOffOffset = static_cast<const Lm::BackingOffLm*>( lookaheadLm_->unscaled().get() )->getAccumulatedBackOffScore( instance.lookaheadHistory, 1 ) * unigramLookaheadBackoffFactor_ * lookaheadLm_->scale();
 
     bool shouldIncreaseLookAheadOrder = false;
     {
@@ -1587,9 +1588,9 @@ void SearchSpace::activateLmLookahead( Search::Instance& instance, bool compute 
     {
       computeLookaheadPerf_->start();
 
-      if ( !wt.lookahead && ( wt.lookAheadHistory.isValid() || wt.key.history.isValid() ) )
+      if ( !wt.lookahead && ( wt.lookaheadHistory.isValid() || wt.key.history.isValid() ) )
       {
-        Lm::History h = wt.lookAheadHistory;
+        Lm::History h = wt.lookaheadHistory;
         if( !h.isValid() )
           h = wt.key.history;
 
@@ -1604,12 +1605,12 @@ void SearchSpace::activateLmLookahead( Search::Instance& instance, bool compute 
     }
     else
     {
-      if( wt.lookAheadHistory == unigramHistory_ )
+      if( wt.lookaheadHistory == unigramHistory_ )
         instance.lookahead = unigramLookAhead_;
       else
         instance.lookahead = lmLookahead_->tryToGetLookahead(
-          wt.lookAheadHistory.isValid() ?
-          wt.lookAheadHistory : wt.key.history );
+          wt.lookaheadHistory.isValid() ?
+          wt.lookaheadHistory : wt.key.history );
     }
   }
 }
@@ -2901,7 +2902,7 @@ void SearchSpace::doStateStatistics() {
       //Do statistics over the count of states in back-off instances
       Instance& mt = dynamic_cast<Instance&>( **it );
 
-      Lm::History h = mt.lookAheadHistory;
+      Lm::History h = mt.lookaheadHistory;
 
       int len = 0;
 
@@ -3333,7 +3334,7 @@ void SearchSpace::startNewTrees() {
     verify( instance );
     allEnteredTrees.insert( instance );
     if( lmLookahead_ )
-      instance->lookAheadHistory = lmLookahead_->getReducedHistory( weh->lookaheadHistory );
+      instance->lookaheadHistory = lmLookahead_->getReducedHistory( weh->lookaheadHistory );
   }
 
   wordEndHypotheses.reserve( wordEndHypotheses.size() );
@@ -3502,7 +3503,7 @@ Instance* SearchSpace::getBackOffInstance(Instance *instance) {
   const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>( lm_->unscaled().get() );
   verify( lm );
 
-  Lm::History useHistory = instance->lookAheadHistory;
+  Lm::History useHistory = instance->lookaheadHistory;
 
   int length = lm->historyLenght( useHistory );
 

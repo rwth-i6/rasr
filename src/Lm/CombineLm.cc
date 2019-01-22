@@ -58,6 +58,17 @@ namespace {
             }
             return true;
         }
+
+        virtual std::string format(Lm::HistoryHandle handle) const {
+            Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
+            std::stringstream ss;
+            ss << "CombinedHistory<";
+            for (size_t i = 0ul; i < numLms_; i++) {
+                ss << " h" << i << ": " << hist[i].format();
+            }
+            ss << " >";
+            return ss.str();
+        }
     private:
         size_t numLms_;
     };

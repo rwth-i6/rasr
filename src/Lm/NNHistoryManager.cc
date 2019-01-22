@@ -43,10 +43,7 @@ HistoryHash NNHistoryManager::hashKey(HistoryHandle handle) const {
 }
 
 bool NNHistoryManager::isEquivalent(HistoryHandle lhs, HistoryHandle rhs) const {
-    if (lhs == rhs) {
-      return true;
-    }
-    return false;
+    return lhs == rhs;
 }
 
 std::string NNHistoryManager::format(HistoryHandle handle) const {

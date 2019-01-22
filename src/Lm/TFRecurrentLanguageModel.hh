@@ -21,10 +21,11 @@
 #include <Tensorflow/TensorMap.hh>
 
 #include "AbstractNNLanguageModel.hh"
+#include "SearchSpaceAwareLanguageModel.hh"
 
 namespace Lm {
 
-class TFRecurrentLanguageModel : public AbstractNNLanguageModel {
+class TFRecurrentLanguageModel : public AbstractNNLanguageModel, public SearchSpaceAwareLanguageModel {
 public:
     typedef AbstractNNLanguageModel Precursor;
     typedef f32                     FeatureType;
@@ -34,6 +35,7 @@ public:
     static Core::ParameterInt    paramMinBatchSize;
     static Core::ParameterInt    paramOptBatchSize;
     static Core::ParameterInt    paramMaxBatchSize;
+    static Core::ParameterFloat  paramBatchPruningThreshold;
     static Core::ParameterBool   paramAllowReducedHistory;
     static Core::ParameterBool   paramDumpScores;
     static Core::ParameterString paramDumpScoresPrefix;
@@ -47,6 +49,9 @@ public:
     virtual History reducedHistory(History const& hist, u32 limit) const;
     virtual Score score(History const& hist, Token w) const;
 
+    virtual void startFrame(Search::TimeframeIndex time) const;
+    virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;
+
 protected:
     virtual void load();
 
@@ -57,6 +62,7 @@ private:
     size_t                      min_batch_size_;
     size_t                      opt_batch_size_;
     size_t                      max_batch_size_;
+    Score                       batch_pruning_threshold_;
     bool                        allow_reduced_history_;
     bool                        dump_scores_;
     std::string                 dump_scores_prefix_;

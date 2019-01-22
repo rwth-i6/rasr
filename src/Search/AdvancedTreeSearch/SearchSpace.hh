@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <Lm/SearchSpaceAwareLanguageModel.hh>
 #include <Search/Histogram.hh>
 #include <Search/StateTree.hh>
 #include <Search/Search.hh>
@@ -73,6 +74,7 @@ namespace Search
         Core::Ref<const Lm::ScaledLanguageModel> lm_;
         Core::Ref<const Lm::ScaledLanguageModel> lookaheadLm_;
         Core::Ref<const Lm::LanguageModel>       recombinationLm_;
+        Lm::SearchSpaceAwareLanguageModel const* ssaLm_;
         AdvancedTreeSearch::LanguageModelLookahead* lmLookahead_;
         std::vector<const Am::StateTransitionModel*> transitionModels_;
 
@@ -108,6 +110,9 @@ namespace Search
         // Also adapted to the fade-in granularity
         std::vector<unsigned char> truncatedInvertedStateDepths_;
         std::vector<unsigned char> truncatedStateDepths_;
+
+        // number of transitions needed untill the next word end (that is not silence)
+        std::vector<unsigned> labelDistance_;
 
         template <class From, class To>
         void truncate( const std::vector<From>& source, std::vector<To>& to )
@@ -356,6 +361,8 @@ namespace Search
         template <class Pruning>
         void pruneStates( Pruning& pruning );
 
+        void updateSsaLm();
+
         void correctPushedTransitions();
 
         void doStateStatisticsBeforePruning();
@@ -453,6 +460,9 @@ namespace Search
           verify( idx < stateDepths_.size() );
           return stateDepths_[idx];
         }
+
+        // fills the labelDistance_ array, has to be run after buildDepths (as they are used for topological sorting)
+        void buildLabelDistances();
 
         // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
         void initializeSearchNetwork();

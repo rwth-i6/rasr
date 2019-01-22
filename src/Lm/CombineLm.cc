@@ -95,6 +95,7 @@ CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::
     for (size_t i = 0ul; i < num_lms; i++) {
         lms_.push_back(Module::instance().createScaledLanguageModel(select(std::string("lm-") + std::to_string(i+1)), l));
         unscaled_lms_.push_back(lms_.back()->unscaled());
+        ssa_lms_.push_back(dynamic_cast<SearchSpaceAwareLanguageModel const*>(unscaled_lms_.back().get()));
     }
     historyManager_ = new CombineHistoryManager(num_lms);
 }
@@ -211,6 +212,23 @@ Core::Ref<const LanguageModel> CombineLanguageModel::recombinationLanguageModel(
         return unscaled_lms_[recombination_lm_-1];
     }
     return Core::Ref<LanguageModel>();
+}
+
+void CombineLanguageModel::startFrame(Search::TimeframeIndex time) const {
+    for (auto lm : ssa_lms_) {
+        if (lm) {
+            lm->startFrame(time);
+        }
+    }
+}
+
+void CombineLanguageModel::setInfo(History const& hist, SearchSpaceInformation const& info) const {
+    History const* comb_hist = reinterpret_cast<History const*>(hist.handle());
+    for (size_t i = 0ul; i < ssa_lms_.size(); i++) {
+        if (ssa_lms_[i]) {
+            ssa_lms_[i]->setInfo(comb_hist[i], info);
+        }
+    }
 }
 
 } // namespace Lm

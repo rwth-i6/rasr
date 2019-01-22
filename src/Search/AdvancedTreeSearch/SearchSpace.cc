@@ -342,6 +342,7 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   lm_( lm ),
   lookaheadLm_(),
   recombinationLm_(),
+  ssaLm_( dynamic_cast<Lm::SearchSpaceAwareLanguageModel const*>(lm_->unscaled().get()) ),
   lmLookahead_( 0 ),
   network_( config, acousticModel, lexicon ),
   acousticLookAhead_( 0 ),
@@ -591,6 +592,8 @@ void SearchSpace::initialize() {
   {
     error() << "bad state depths! root-state has depth " << stateDepths_[network_.rootState] << ", should be " << ( minimized_ ? hmmLength_ : 0 );
   }
+
+  buildLabelDistances();
 
   // The filter must be created _before_ the outputs are cut off the search network
   prefixFilter_ = new PrefixFilter( network_, lexicon_, config_ );
@@ -968,6 +971,35 @@ int SearchSpace::fillStateDepths(StateId state, int depth) {
 
   invertedStateDepths_[state] = localDepth;
   return localDepth + 1;
+}
+
+/// Label Distance -----------------------------------------------------------------------------
+
+void SearchSpace::buildLabelDistances() {
+  labelDistance_.resize(network_.structure.stateCount(), Core::Type<unsigned>::max);
+
+  std::vector<StateId> toposort(network_.structure.stateCount());
+  std::iota(toposort.begin(), toposort.end(), 0u);
+  std::sort(toposort.begin(), toposort.end(), [&](StateId a, StateId b){
+    return stateDepths_[a] > stateDepths_[b];
+  });
+
+  for (StateId s : toposort) {
+    HMMState& state = network_.structure.state(s);
+
+    for (auto successorIt = network_.structure.successors(state); successorIt; ++successorIt) {
+      if (successorIt.isLabel()) {
+        Bliss::LemmaPronunciation::Id lemmaPronId = network_.exits[successorIt.label()].pronunciation;
+        if (lexicon_->lemmaPronunciation(lemmaPronId)->lemma()->syntacticTokenSequence().size() > 0) {
+          labelDistance_[s] = 0u;
+          break;
+        }
+      }
+      else {
+        labelDistance_[s] = std::min(labelDistance_[s], labelDistance_[*successorIt] + 1);
+      }
+    }
+  }
 }
 
 /// Search Management -----------------------------------------------------------------------------
@@ -1783,6 +1815,25 @@ void SearchSpace::pruneStates( Pruning& pruning ) {
   activeInstances.resize( instOut );
 }
 
+void SearchSpace::updateSsaLm() {
+  if (!ssaLm_) {
+    return;
+  }
+
+  for (Instance* inst : activeInstances) {
+    Lm::SearchSpaceInformation info;
+    info.minLabelDistance = std::numeric_limits<unsigned>::max();
+    info.bestScore        = std::numeric_limits<Score>::infinity();
+    for (auto hypIter = stateHypotheses.begin() + inst->states.begin; hypIter < stateHypotheses.begin() + inst->states.end; ++hypIter) {
+      info.minLabelDistance = std::min(info.minLabelDistance, labelDistance_[hypIter->state]);
+      info.bestScore        = std::min(info.bestScore, hypIter->score);
+    }
+    info.bestScoreOffset = info.bestScore - bestScore();
+    info.numStates       = inst->states.size();
+    ssaLm_->setInfo(inst->scoreHistory, info);
+  }
+}
+
 void SearchSpace::filterStates()
 {
   if( !prefixFilter_ )
@@ -1857,6 +1908,9 @@ void SearchSpace::pruneAndAddScores() {
       statistics->customStatistics( "acoustic pruning saturation" )  += 0.0;
     }
   }
+
+  // now that pruning is done we can update the lm (if necessary)
+  updateSsaLm();
 
   // Append time/score modifications to state traces to obtain correct word timings.
   correctPushedTransitions();
@@ -3112,6 +3166,10 @@ void SearchSpace::setCurrentTimeFrame( TimeframeIndex timeFrame, const Mm::Featu
   PerformanceCounter perf( *statistics, "initialize acoustic lookahead" );
 
   acousticLookAhead_->startLookAhead( timeFrame_, true );
+
+  if (ssaLm_) {
+    ssaLm_->startFrame(timeFrame);
+  }
 }
 
 Instance* SearchSpace::createTreeInstance( const Search::InstanceKey& key ) {

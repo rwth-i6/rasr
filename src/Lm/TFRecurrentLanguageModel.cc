@@ -19,6 +19,7 @@ namespace {
         Lm::History                        parent;
         Math::FastVector<Lm::Score>        scores;
         std::vector<Math::FastVector<f32>> state; // for now float is hardcoded, TODO: replace this with Tensor and add merge utility for tensors
+        Lm::SearchSpaceInformation         info;
     };
 
     struct FwdRequest {
@@ -65,20 +66,22 @@ namespace {
 
 namespace Lm {
 
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog   ("transform-output-log",    "apply log to tensorflow output",                         false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)",                   false);
-Core::ParameterInt    TFRecurrentLanguageModel::paramMinBatchSize        ("min-batch-size",          "minimum number of histories forwarded in one go",           32);
-Core::ParameterInt    TFRecurrentLanguageModel::paramOptBatchSize        ("opt-batch-size",          "optimum number of histories forwarded in one go",          128);
-Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize        ("max-batch-size",          "maximum number of histories forwarded in one go",         2048);
-Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory ("allow-reduced-history",   "wether this LM will actually reduce the history length", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores          ("dump-scores",             "write all scores from this LM to disk",                  false);
-Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix    ("dump-scores-prefix",      "prefix for the score dumps",                          "scores");
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog    ("transform-output-log",    "apply log to tensorflow output",       false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate ("transform-output-negate", "negate tensorflow output (after log)", false);
+Core::ParameterInt    TFRecurrentLanguageModel::paramMinBatchSize         ("min-batch-size",          "minimum number of histories forwarded in one go",   32);
+Core::ParameterInt    TFRecurrentLanguageModel::paramOptBatchSize         ("opt-batch-size",          "optimum number of histories forwarded in one go",  128);
+Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize         ("max-batch-size",          "maximum number of histories forwarded in one go", 2048);
+Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batch-pruning-threshold", "pruning threshold for all hypothesis beyond min-batch-size during eager forwarding", 10.0);
+Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory  ("allow-reduced-history",   "wether this LM will actually reduce the history length", false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores           ("dump-scores",             "write all scores from this LM to disk", false);
+Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix     ("dump-scores-prefix",      "prefix for the score dumps",            "scores");
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                          : Core::Component(c), Precursor(c, l),
                            transform_output_log_(paramTransformOuputLog(config)), transform_output_negate_(paramTransformOuputNegate(config)),
                            min_batch_size_(paramMinBatchSize(config)), opt_batch_size_(paramOptBatchSize(config)), max_batch_size_(paramMaxBatchSize(config)),
-                           allow_reduced_history_(paramAllowReducedHistory(config)), dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
+                           batch_pruning_threshold_(paramBatchPruningThreshold(config)), allow_reduced_history_(paramAllowReducedHistory(config)),
+                           dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
                            session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
                            graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")),
                            run_time_(max_batch_size_, 0.0), run_count_(max_batch_size_, 0ul) {
@@ -183,20 +186,44 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
 
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     NNHistoryManager::NNCacheMap const& cm = hm->getNNCacheMap();
+
+    std::vector<ScoresWithContext*> early_requests;
+
     for (auto const& kv : cm) {
         ScoresWithContext* c = const_cast<ScoresWithContext*>(static_cast<ScoresWithContext const*>(kv.second));
         if (c->scores.empty() and c != sc) {
-            add_request(requests, c);
+            early_requests.emplace_back(c);
         }
     }
-    if (requests.size() > opt_batch_size_ + min_batch_size_) {
+
+    std::sort(early_requests.begin(), early_requests.end(), [](ScoresWithContext* a, ScoresWithContext* b) {
+        return a->info.bestScoreOffset < b->info.bestScoreOffset;
+    });
+
+    for (auto r : early_requests) {
+        add_request(requests, r);
+    }
+
+    // prune requests
+    if (min_batch_size_ > 0ul and requests.size() > min_batch_size_) {
+        size_t i = min_batch_size_;
+        Score ref_score = requests.front().final_cache->info.bestScoreOffset + batch_pruning_threshold_;
+        if (not Math::isinf(ref_score)) {
+            while ((i + 1) < requests.size() and requests[i+1].final_cache->info.bestScoreOffset <= ref_score) {
+                i += 1ul;
+            }
+            requests.resize(i);
+        }
+    }
+
+    if (min_batch_size_ > 0ul and opt_batch_size_ > 0ul and requests.size() > opt_batch_size_ + min_batch_size_) {
         requests.resize(opt_batch_size_);
     }
-    if (requests.size() > max_batch_size_) {
+    if (max_batch_size_ > 0ul and requests.size() > max_batch_size_) {
         requests.resize(max_batch_size_);
     }
     size_t max_length = 0ul;
-    for (auto r : requests) {
+    for (auto const& r : requests) {
         max_length = std::max(max_length, r.length);
     }
 
@@ -302,13 +329,19 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         }
     }
 
-    //std::cerr << "fwd: " << output_idx << " " << sc->scores[output_idx] << std::endl;
-
     return sc->scores[output_idx];
 }
 
 void TFRecurrentLanguageModel::load() {
     loadVocabulary();
+}
+
+void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
+}
+
+void TFRecurrentLanguageModel::setInfo(History const& hist, SearchSpaceInformation const& info) const {
+    ScoresWithContext* sc = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
+    sc->info = info;
 }
 
 } // namespace Lm

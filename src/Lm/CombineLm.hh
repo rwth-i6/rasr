@@ -21,10 +21,11 @@
 #include "HistoryManager.hh"
 #include "LanguageModel.hh"
 #include "ScaledLanguageModel.hh"
+#include "SearchSpaceAwareLanguageModel.hh"
 
 namespace Lm {
 
-class CombineLanguageModel : public LanguageModel {
+class CombineLanguageModel : public LanguageModel, public SearchSpaceAwareLanguageModel {
     public:
         typedef LanguageModel Precursor;
 
@@ -47,9 +48,14 @@ class CombineLanguageModel : public LanguageModel {
         virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
         virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
 
+        virtual void startFrame(Search::TimeframeIndex time) const;
+        virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;
+
     private:
-        std::vector<Core::Ref<ScaledLanguageModel>> lms_;
-        std::vector<Core::Ref<const LanguageModel>> unscaled_lms_;
+        std::vector<Core::Ref<ScaledLanguageModel>>       lms_;
+        std::vector<Core::Ref<const LanguageModel>>       unscaled_lms_;
+        std::vector<SearchSpaceAwareLanguageModel const*> ssa_lms_;
+
         bool linear_combination_;
         int  lookahead_lm_;
         int  recombination_lm_;

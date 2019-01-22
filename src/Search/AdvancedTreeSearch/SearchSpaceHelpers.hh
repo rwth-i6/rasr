@@ -323,6 +323,19 @@ struct WordEndHypothesis {
     }
   };
 };
+
+typedef std::pair<Lm::History, StateId> ReducedContextRecombinationKey;
+
+// same as for WordEndHypothesis
+struct HistoryStateHash {
+  inline size_t operator()(ReducedContextRecombinationKey const& k) const {
+    u32 hash = k.first.hashKey();
+    hash = ( hash << 5 | hash >> 27 ) ^ k.second;
+    return hash;
+  }
+};
+
+typedef std::unordered_map<ReducedContextRecombinationKey, WordEndHypothesisList::iterator, HistoryStateHash> ReducedContextRecombinationMap;
 }
 
 #endif

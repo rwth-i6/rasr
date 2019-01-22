@@ -138,6 +138,8 @@ namespace Search
         bool earlyBeamPruning_;
         bool earlyWordEndPruning_;
         bool histogramPruningIsMasterPruning_;
+        bool reducedContextWordRecombination_;
+        unsigned reducedContextWordRecombinationLimit_;
 
 /// Pruning thresholds
         Score acousticPruning_;     // main pruning threshold (log-scores)

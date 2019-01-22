@@ -198,6 +198,16 @@ const Core::ParameterBool paramEarlyWordEndPruning(
   "enable earlier pruning of word-ends during the recombiniation",
   true );
 
+const Core::ParameterBool paramReducedContextWordRecombination(
+  "reduced-context-word-recombination",
+  "reduce the context of word-end hypotheses before recombination",
+  false );
+
+const Core::ParameterInt paramReducedContextWordRecombinationLimit(
+  "reduced-context-word-recombination-limit",
+  "the maximum context length to consider when doing word combination",
+  1, 0);
+
 const Core::ParameterBool paramExtendedStatistics(
   "expensive-statistics",
   "add additional performance-wise expensive statistics",
@@ -343,6 +353,8 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   earlyBeamPruning_( paramEarlyBeamPruning( config ) ),
   earlyWordEndPruning_( paramEarlyWordEndPruning( config ) ),
   histogramPruningIsMasterPruning_( false ),
+  reducedContextWordRecombination_( paramReducedContextWordRecombination( config ) ),
+  reducedContextWordRecombinationLimit_( paramReducedContextWordRecombinationLimit( config ) ),
   acousticPruning_( 0 ),
   acousticPruningLimit_( 0 ),
   wordEndPruning_( 0 ),
@@ -2986,7 +2998,26 @@ void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
         ++out;
       }
     }
-  }else{
+  }
+  else if (reducedContextWordRecombination_) {
+    ReducedContextRecombinationMap wordEndHypothesisMap;
+
+    for ( in = out = wordEndHypotheses.begin(); in != wordEndHypotheses.end(); ++in ) {
+      auto key = std::make_pair(recombinationLm_->reducedHistory( in->recombinationHistory, reducedContextWordRecombinationLimit_ ), in->transitState);
+      ReducedContextRecombinationMap::iterator i = wordEndHypothesisMap.find( key );
+      if ( i != wordEndHypothesisMap.end() ) {
+        WordEndHypothesis &a( *in );
+        WordEndHypothesis &b( *(i->second) );
+        verify_( b.transitState == a.transitState );
+        recombineTwoHypotheses(a, b, shallCreateLattice);
+      } else {
+        *out = *in;
+        wordEndHypothesisMap.insert( std::make_pair(key, out) );
+        ++out;
+      }
+    }
+  }
+  else {
     wordEndHypothesisMap.clear();
 
     for ( in = out = wordEndHypotheses.begin(); in != wordEndHypotheses.end(); ++in ) {

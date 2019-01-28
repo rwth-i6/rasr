@@ -21,12 +21,18 @@ namespace Tensorflow {
 /* For detailed description of options see:
  * https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/protobuf/config.proto
  */
-Core::ParameterInt Session::paramIntraOpParallelismThreads("intra-op-parallelism-threads",
-                                                           "Number of threads of execution of parallelizable ops, 0 = system picks appropriate number",
-                                                           1, 0);
-Core::ParameterInt Session::paramInterOpParallelismThreads("inter-op-parallelism-threads",
-                                                           "Execute parallel nodes with this many threads",
-                                                           1, 0);
+Core::ParameterInt   Session::paramIntraOpParallelismThreads("intra-op-parallelism-threads",
+                                                             "Number of threads of execution of parallelizable ops, 0 = system picks appropriate number",
+                                                             1, 0);
+Core::ParameterInt   Session::paramInterOpParallelismThreads("inter-op-parallelism-threads",
+                                                             "Execute parallel nodes with this many threads",
+                                                             1, 0);
+Core::ParameterFloat Session::paramPerProcessGpuMemoryFraction("per-process-gpu-memory-fraction", 
+                                                               "Fraction of GPU memory to allocate on session creation",
+                                                               0.95, 0.0, 1.0);
+Core::ParameterBool  Session::paramAllowGpuMemoryGrowth("allow-gpu-memory-growth",
+                                                        "Allow GPU memory allocations after session creation",
+                                                        true);
 
 void Session::addGraph(Graph const& graph) {
     tf::Env* env = tf::Env::Default();

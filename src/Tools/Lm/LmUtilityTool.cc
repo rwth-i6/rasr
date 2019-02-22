@@ -50,7 +50,7 @@ class LmUtilityTool : public Core::Application {
 public:
     enum Action {
       actionNotGiven,
-      actionComputePerplexity
+      actionComputePerplexityFromTextFile
     };
 
     static const Core::Choice          choiceAction;
@@ -66,14 +66,14 @@ public:
 
     int main(std::vector<std::string> const& arguments);
 private:
-    void computePerplexity();
+    void computePerplexityFromTextFile();
 };
 
 APPLICATION(LmUtilityTool)
 
 // ---------- Implementations ----------
 
-const Core::Choice          LmUtilityTool::choiceAction    ("compute-perplexity", actionComputePerplexity, Core::Choice::endMark());
+const Core::Choice          LmUtilityTool::choiceAction    ("compute-perplexity-from-text-file", actionComputePerplexityFromTextFile, Core::Choice::endMark());
 const Core::ParameterChoice LmUtilityTool::paramAction     ("action", &choiceAction, "action to perform", actionNotGiven);
 const Core::ParameterString LmUtilityTool::paramFile       ("file", "input file");
 const Core::ParameterString LmUtilityTool::paramEncoding   ("encoding", "the encoding of the input file", "utf8");
@@ -101,14 +101,14 @@ LmUtilityTool::LmUtilityTool() : Core::Application() {
 
 int LmUtilityTool::main(std::vector<std::string> const& arguments) {
     switch (paramAction(config)) {
-      case actionComputePerplexity: computePerplexity(); break;
+      case actionComputePerplexityFromTextFile: computePerplexityFromTextFile(); break;
       default:
       case actionNotGiven: error("no action given"); 
     }
     return EXIT_SUCCESS;
 }
 
-void LmUtilityTool::computePerplexity() {
+void LmUtilityTool::computePerplexityFromTextFile() {
     bool                   renormalize = paramRenormalize(config);
     size_t                 batch_size = paramBatchSize(config);
     Bliss::LexiconRef      lexicon(Bliss::Lexicon::create(select("lexicon")));

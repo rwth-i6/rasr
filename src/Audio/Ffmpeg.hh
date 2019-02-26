@@ -30,12 +30,15 @@ public:
 
     static Core::ParameterInt paramResampleRate;
 
-    static std::string filterName() { return "audio-input-file-ffmpeg"; }
+    static std::string filterName() {
+        return "audio-input-file-ffmpeg";
+    }
 
-    FfmpegInputNode(const Core::Configuration &c);
+    FfmpegInputNode(const Core::Configuration& c);
     virtual ~FfmpegInputNode() = default;
 
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
+
 private:
     struct Internal;
     static std::once_flag ffmpeg_initialized;
@@ -43,15 +46,15 @@ private:
     std::unique_ptr<Internal> internal_;
     Flow::Timestamp*          buffer_;
     u32                       resampleRate_;
-    s64						  lastSeekTime_;
+    s64                       lastSeekTime_;
 
     virtual bool openFile_();
     virtual void closeFile_();
     virtual bool isFileOpen() const;
     virtual bool seek(SampleCount newSamplePos);
-    virtual u32 read(u32 nSamples, Flow::Timestamp* &d);
+    virtual u32  read(u32 nSamples, Flow::Timestamp*& d);
 };
 
-} // namespace Audio
+}  // namespace Audio
 
-#endif // _AUDIO_FFMPEG_HH
+#endif  // _AUDIO_FFMPEG_HH

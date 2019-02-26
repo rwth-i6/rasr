@@ -57,5 +57,4 @@ Audio::Module_::Module_() {
 #ifdef MODULE_AUDIO_FFMPEG
     registry.registerFilter<FfmpegInputNode>();
 #endif
-
 }

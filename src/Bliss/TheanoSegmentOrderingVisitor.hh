@@ -24,19 +24,17 @@ namespace Bliss {
  * Changes the order of processed segments according to the order given by Theano
  * note that each segment can also be visited multiple times
  */
-class TheanoSegmentOrderingVisitor : public Bliss::SegmentOrderingVisitor
-{
+class TheanoSegmentOrderingVisitor : public Bliss::SegmentOrderingVisitor {
 public:
-        virtual ~TheanoSegmentOrderingVisitor();
-        virtual SegmentOrderingVisitor* copy();
+    virtual ~TheanoSegmentOrderingVisitor();
+    virtual SegmentOrderingVisitor* copy();
 
-        virtual void leaveCorpus(Bliss::Corpus *corpus);
+    virtual void leaveCorpus(Bliss::Corpus* corpus);
 
-        virtual void setAutoShuffle(bool enabled);
-        virtual void setSegmentList(const std::string &filename);
+    virtual void setAutoShuffle(bool enabled);
+    virtual void setSegmentList(const std::string& filename);
 };
 
+}  // namespace Bliss
 
-} // namespace Bliss
-
-#endif // _BLISS_THEANO_SEGMENT_ORDERING_VISITOR_HH
+#endif  // _BLISS_THEANO_SEGMENT_ORDERING_VISITOR_HH

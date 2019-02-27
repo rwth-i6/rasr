@@ -32,26 +32,25 @@ using namespace Bliss;
  */
 
 Fsa::ConstAutomatonRef Bliss::createAnyPhonemeToUnknownTransducer(
-    Core::Ref<const Lexicon> lexicon,
-    f32 weight)
-{
+        Core::Ref<const Lexicon> lexicon,
+        f32                      weight) {
     Core::Ref<Fsa::StaticAutomaton> utap(new Fsa::StaticAutomaton);
     utap->setType(Fsa::TypeTransducer);
     utap->setSemiring(Fsa::TropicalSemiring);
     utap->setInputAlphabet(lexicon->phonemeInventory()->phonemeAlphabet());
     utap->setOutputAlphabet(lexicon->lemmaAlphabet());
-    Fsa::State *first  = utap->newState();
-    Fsa::State *second = utap->newState();
+    Fsa::State* first  = utap->newState();
+    Fsa::State* second = utap->newState();
     utap->setInitialStateId(first->id());
-    Fsa::Weight one = Fsa::Weight(utap->semiring()->one());
-    Fsa::Weight pen = Fsa::Weight(weight);
-    const Lemma *unknown = lexicon->specialLemma("unknown");
+    Fsa::Weight  one     = Fsa::Weight(utap->semiring()->one());
+    Fsa::Weight  pen     = Fsa::Weight(weight);
+    const Lemma* unknown = lexicon->specialLemma("unknown");
     if (unknown) {
         PhonemeInventory::PhonemeIterator pi, pi_end;
         for (Core::tie(pi, pi_end) = lexicon->phonemeInventory()->phonemes(); pi != pi_end; ++pi) {
             if (!(*pi)->isContextDependent())
                 continue;
-            first ->newArc(second->id(), pen, (*pi)->id(), unknown->id());
+            first->newArc(second->id(), pen, (*pi)->id(), unknown->id());
             second->newArc(second->id(), pen, (*pi)->id(), Fsa::Epsilon);
         }
     }

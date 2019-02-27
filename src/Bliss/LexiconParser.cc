@@ -20,36 +20,31 @@
 #include <Core/StringUtilities.hh>
 #include <Core/TextStream.hh>
 
-
 using namespace Bliss;
 using namespace Core;
 
 // Note: Features marked "FFE" are placeholders "for furture extensions".
 
 // ===========================================================================
-PhonemeInventoryElement::PhonemeInventoryElement(
-    XmlContext *_context, Handler _handler) :
-    Precursor("phoneme-inventory", _context, _handler)
-{
+PhonemeInventoryElement::PhonemeInventoryElement(XmlContext* _context, Handler _handler)
+        : Precursor("phoneme-inventory", _context, _handler) {
     phoneme_ = 0;
 
-    { // build schema
-        XmlElement *symbol =
-            collect(new XmlStringBuilderElement(
+    {  // build schema
+        XmlElement* symbol =
+                collect(new XmlStringBuilderElement(
                         "symbol", this,
                         XmlStringBuilderElement::handler(&Self::phonemedefSymbol)));
 
-        XmlRegularElement *phoneme = new XmlRegularElementRelay(
-            "phoneme", this,
-            XmlMixedElementRelay::startHandler(&Self::startPhonemedef),
-            XmlMixedElementRelay::endHandler(&Self::endPhonemedef));
+        XmlRegularElement* phoneme = new XmlRegularElementRelay(
+                "phoneme", this,
+                XmlMixedElementRelay::startHandler(&Self::startPhonemedef),
+                XmlMixedElementRelay::endHandler(&Self::endPhonemedef));
         collect(phoneme);
         phoneme->addTransition(initial, 1, symbol);
         phoneme->addTransition(1, 1, symbol);
         phoneme->addTransition(
-            1, 2, collect(new XmlStringBuilderElement(
-                              "variation", this,
-                              XmlStringBuilderElement::handler(&Self::phonemedefVariation))));
+                1, 2, collect(new XmlStringBuilderElement("variation", this, XmlStringBuilderElement::handler(&Self::phonemedefVariation))));
         phoneme->addTransition(2, 3, collect(new XmlIgnoreElement("features")));  // FFE
         phoneme->addFinalState(1);
         phoneme->addFinalState(2);
@@ -61,143 +56,127 @@ PhonemeInventoryElement::PhonemeInventoryElement(
     }
 }
 
-void PhonemeInventoryElement::characters(const char *ch, int len) {
-
+void PhonemeInventoryElement::characters(const char* ch, int len) {
 }
 
 void PhonemeInventoryElement::startPhonemedef(const XmlAttributes atts) {
-    phoneme_ = product_->newPhoneme() ;
+    phoneme_ = product_->newPhoneme();
 }
 
-void PhonemeInventoryElement::phonemedefSymbol(const std::string &s) {
+void PhonemeInventoryElement::phonemedefSymbol(const std::string& s) {
     std::string symbol(s);
     stripWhitespace(symbol);
 
-    const Phoneme *test = product_->phoneme(symbol);
+    const Phoneme* test = product_->phoneme(symbol);
     if (test == phoneme_) {
-        parser()->warning(
-            "Redundant definition of phonetic symbol \"%s\"",
-            symbol.c_str());
-    } else if (test != 0) {
-        parser()->error(
-            "Phonetic symbol \"%s\" already assigned to a different phoneme",
-            symbol.c_str());
-    } else {
+        parser()->warning("Redundant definition of phonetic symbol \"%s\"", symbol.c_str());
+    }
+    else if (test != 0) {
+        parser()->error("Phonetic symbol \"%s\" already assigned to a different phoneme", symbol.c_str());
+    }
+    else {
         product_->assignSymbol(phoneme_, symbol);
     }
 }
 
-void PhonemeInventoryElement::phonemedefVariation(const std::string &s) {
+void PhonemeInventoryElement::phonemedefVariation(const std::string& s) {
     std::string spec(s);
     stripWhitespace(spec);
     if (spec == std::string("none")) {
         phoneme_->setContextDependent(false);
-    } else if (spec == std::string("context")) {
+    }
+    else if (spec == std::string("context")) {
         phoneme_->setContextDependent(true);
-    } else {
-        parser()->error(
-            "variation must be one of \"none\" or \"context\", \"%s\" given",
-            spec.c_str());
+    }
+    else {
+        parser()->error("variation must be one of \"none\" or \"context\", \"%s\" given", spec.c_str());
     }
 }
 
 void PhonemeInventoryElement::endPhonemedef() {
-    phoneme_ = 0 ;
+    phoneme_ = 0;
 }
 
 // ===========================================================================
+
 struct Bliss::WeightedPhonemeString {
     std::string phon;
-    f32 weight;
-    WeightedPhonemeString() : weight(1.0) {}
+    f32         weight;
+    WeightedPhonemeString()
+            : weight(1.0) {}
 };
 
-class Bliss::PronunciationElement :
-    public Core::XmlBuilderElement<WeightedPhonemeString, XmlEmptyElement, CreateStatic>
-{
+class Bliss::PronunciationElement : public Core::XmlBuilderElement<WeightedPhonemeString, XmlEmptyElement, CreateStatic> {
     typedef Core::XmlBuilderElement<WeightedPhonemeString, XmlEmptyElement, CreateStatic> Precursor;
+
 public:
     PronunciationElement(Core::XmlContext*, Handler handler = 0);
     virtual void start(const XmlAttributes atts);
-    virtual void characters(const char *ch, int len);
+    virtual void characters(const char* ch, int len);
 };
 
 void PronunciationElement::start(const Core::XmlAttributes atts) {
     Precursor::start(atts);
-    const char *weightStr = atts["weight"];
-    const char *scoreStr = atts["score"];
+    const char* weightStr = atts["weight"];
+    const char* scoreStr  = atts["score"];
     if (weightStr && scoreStr) {
         parser()->criticalError("not possible to set both, pronunciation weight and score");
         return;
     }
-    f32 weight = (weightStr) ? atof(weightStr) : 1.0;
+    f32 weight      = (weightStr) ? atof(weightStr) : 1.0;
     product_.weight = (scoreStr) ? exp(-atof(scoreStr)) : weight;
     if (product_.weight < 0.0) {
         parser()->error("pronunciation weight must be non-negative");
         product_.weight = 0.0;
     }
-
 }
 
-PronunciationElement::PronunciationElement(XmlContext *context, Handler handler) :
-    Precursor("phon", context, handler)
-{}
+PronunciationElement::PronunciationElement(XmlContext* context, Handler handler)
+        : Precursor("phon", context, handler) {}
 
-void PronunciationElement::characters(const char *ch, int len) {
+void PronunciationElement::characters(const char* ch, int len) {
     product_.phon.append(ch, len);
 }
 
 // ===========================================================================
 const Core::ParameterBool LexiconElement::paramNormalizePronunciation(
-    "normalize-pronunciation",
-    "normalize pronunciation weights/scores",
-    true);
+        "normalize-pronunciation",
+        "normalize pronunciation weights/scores",
+        true);
 
 LexiconElement::LexiconElement(
-    XmlContext *_context, CreationHandler _newLexicon, const Core::Configuration &c) :
-    Precursor("lexicon", _context, _newLexicon)
-{
-    lexicon_ = 0;
-    lemma_ = 0;
+        XmlContext* _context, CreationHandler _newLexicon, const Core::Configuration& c)
+        : Precursor("lexicon", _context, _newLexicon) {
+    lexicon_                  = 0;
+    lemma_                    = 0;
     isNormalizePronunciation_ = paramNormalizePronunciation(c);
 
-    { // build schema
-        addTransition(
-            initial, 1, collect(
-                new PhonemeInventoryElement(
-                    this, PhonemeInventoryElement::handler(&Self::addPhonemeInventory))));
+    {  // build schema
+        addTransition(initial, 1, collect(new PhonemeInventoryElement(this, PhonemeInventoryElement::handler(&Self::addPhonemeInventory))));
 
-        XmlElement *orth =
-            collect(new XmlStringBuilderElement(
-                        "orth", this, XmlStringBuilderElement::handler(&Self::addOrth)));
-        XmlElement *phon =
-            collect(new PronunciationElement(
-                        this, PronunciationElement::handler(&Self::addPhon)));
+        XmlElement* orth = collect(new XmlStringBuilderElement("orth", this, XmlStringBuilderElement::handler(&Self::addOrth)));
+        XmlElement* phon = collect(new PronunciationElement(this, PronunciationElement::handler(&Self::addPhon)));
 
-        XmlRegularElement *synt = new XmlRegularElementRelay(
-            "synt", this,
-            startHandler(&Self::startSynt),
-            endHandler(&Self::endSynt));
+        XmlRegularElement* synt = new XmlRegularElementRelay(
+                "synt", this,
+                startHandler(&Self::startSynt),
+                endHandler(&Self::endSynt));
         collect(synt);
-        synt->addTransition(
-            0, 0, collect(new XmlStringBuilderElement(
-                              "tok", this, XmlStringBuilderElement::handler(&Self::tok))));
+        synt->addTransition(0, 0, collect(new XmlStringBuilderElement("tok", this, XmlStringBuilderElement::handler(&Self::tok))));
         synt->addFinalState(0);
 
-        XmlRegularElement *eval = new XmlRegularElementRelay(
-            "eval", this,
-            startHandler(&Self::startEval),
-            endHandler(&Self::endEval));
+        XmlRegularElement* eval = new XmlRegularElementRelay(
+                "eval", this,
+                startHandler(&Self::startEval),
+                endHandler(&Self::endEval));
         collect(eval);
-        eval->addTransition(
-            0, 0, collect(new XmlStringBuilderElement(
-                              "tok", this, XmlStringBuilderElement::handler(&Self::tok))));
+        eval->addTransition(0, 0, collect(new XmlStringBuilderElement("tok", this, XmlStringBuilderElement::handler(&Self::tok))));
         eval->addFinalState(0);
 
-        XmlRegularElement *lemma = new XmlRegularElementRelay(
-            "lemma", this,
-            startHandler(&Self::startLemma),
-            endHandler(&Self::endLemma));
+        XmlRegularElement* lemma = new XmlRegularElementRelay(
+                "lemma", this,
+                startHandler(&Self::startLemma),
+                endHandler(&Self::endLemma));
         collect(lemma);
         lemma->addTransition(initial, 1, orth);
         lemma->addTransition(1, 1, orth);
@@ -221,17 +200,17 @@ LexiconElement::LexiconElement(
     }
 }
 
-void LexiconElement::addPhonemeInventory(std::unique_ptr<PhonemeInventory> &pi) {
+void LexiconElement::addPhonemeInventory(std::unique_ptr<PhonemeInventory>& pi) {
     if (product_->phonemeInventory_) {
-        parser()->error("Phoneme inventory already defined") ;
-        return ;
+        parser()->error("Phoneme inventory already defined");
+        return;
     }
     product_->setPhonemeInventory(Core::ref(pi.release()));
 }
 
 void LexiconElement::startLemma(const XmlAttributes atts) {
     verify(!lemma_);
-    const char *c;
+    const char* c;
     c = atts["name"];
     if (c)
         lemmaName_ = std::string(c);
@@ -240,7 +219,7 @@ void LexiconElement::startLemma(const XmlAttributes atts) {
         specialLemmaName_ = std::string(c);
 }
 
-void LexiconElement::addOrth(const std::string &_orth) {
+void LexiconElement::addOrth(const std::string& _orth) {
     std::string orth(_orth);
     normalizeWhitespace(orth);
     suppressTrailingBlank(orth);
@@ -255,32 +234,34 @@ void LexiconElement::addOrth(const std::string &_orth) {
             if (product_->lemma(lemmaName_)) {
                 parser()->error("Lemma name \"%s\" already taken", lemmaName_.c_str());
                 lemma_ = product_->newLemma();
-            } else {
+            }
+            else {
                 lemma_ = product_->newLemma(lemmaName_);
             }
-        } else {
-            lemma_ = product_->newLemma() ;
+        }
+        else {
+            lemma_ = product_->newLemma();
         }
         verify(lemma_);
         if (!specialLemmaName_.empty()) {
             if (product_->specialLemma(specialLemmaName_))
-                parser()->error("Special lemma \"%s\" already defined" , specialLemmaName_.c_str()) ;
+                parser()->error("Special lemma \"%s\" already defined", specialLemmaName_.c_str());
             else
-                product_->defineSpecialLemma(specialLemmaName_, lemma_) ;
+                product_->defineSpecialLemma(specialLemmaName_, lemma_);
         }
     }
 }
 
-void LexiconElement::addPhon(const WeightedPhonemeString &phon) {
-    if(!lemma_)
+void LexiconElement::addPhon(const WeightedPhonemeString& phon) {
+    if (!lemma_)
         return;
     if (!product_->phonemeInventory()) {
         parser()->warning(
-            "No phoneme inventory defined. Ingnoring pronunciation");
+                "No phoneme inventory defined. Ingnoring pronunciation");
         return;
     }
 
-    Pronunciation *pron = product_->getPronunciation(phon.phon);
+    Pronunciation* pron = product_->getPronunciation(phon.phon);
     if (lemma_->hasPronunciation(pron)) {
         parser()->error("duplicate pronunciation");
         return;
@@ -290,13 +271,13 @@ void LexiconElement::addPhon(const WeightedPhonemeString &phon) {
 }
 
 void LexiconElement::startTokSeq(const XmlAttributes atts) {
-    if(!lemma_)
+    if (!lemma_)
         return;
     verify(tokSeq_.size() == 0);
 }
 
-void LexiconElement::tok(const std::string &_tok) {
-    if(!lemma_)
+void LexiconElement::tok(const std::string& _tok) {
+    if (!lemma_)
         return;
     std::string tok(_tok);
     normalizeWhitespace(tok);
@@ -305,47 +286,48 @@ void LexiconElement::tok(const std::string &_tok) {
 }
 
 void LexiconElement::endTokSeq() {
-    if(!lemma_)
+    if (!lemma_)
         return;
     tokSeq_.clear();
 }
 
 void LexiconElement::startSynt(const XmlAttributes atts) {
-    if(!lemma_)
+    if (!lemma_)
         return;
     startTokSeq(atts);
     verify(!lemma_->hasSyntacticTokenSequence());
 }
 
 void LexiconElement::endSynt() {
-    if(!lemma_)
+    if (!lemma_)
         return;
     product_->setSyntacticTokenSequence(lemma_, tokSeq_);
     endTokSeq();
 }
 
 void LexiconElement::startEval(const XmlAttributes atts) {
-    if(!lemma_)
+    if (!lemma_)
         return;
     startTokSeq(atts);
 }
 
 void LexiconElement::endEval() {
-    if(!lemma_)
+    if (!lemma_)
         return;
     product_->addEvaluationTokenSequence(lemma_, tokSeq_);
     endTokSeq();
 }
 
 void LexiconElement::endLemma() {
-    if(!lemma_)
+    if (!lemma_)
         return;
 
     product_->setOrthographicForms(lemma_, orths_);
 
     if (lemma_->nOrthographicForms() == 0) {
         parser()->warning("Lemma without orthographic form");
-    } else {
+    }
+    else {
         if (!lemma_->hasName())
             product_->setDefaultLemmaName(lemma_);
         if (!lemma_->hasSyntacticTokenSequence())
@@ -354,7 +336,7 @@ void LexiconElement::endLemma() {
             product_->setDefaultEvaluationToken(lemma_);
     }
 
-    if(isNormalizePronunciation_)
+    if (isNormalizePronunciation_)
         product_->normalizePronunciationWeights(lemma_);
 
     lemmaName_.clear();
@@ -364,23 +346,23 @@ void LexiconElement::endLemma() {
 }
 
 // ===========================================================================
+
 namespace {
-    const Core::ParameterString paramFile(
+const Core::ParameterString paramFile(
         "file",
         "file name",
         "");
-    const Core::ParameterString paramEncoding(
+const Core::ParameterString paramEncoding(
         "encoding",
         "encoding",
         "utf-8");
-} // namespace
+}  // namespace
 
-void LexiconParser::loadWhitelist(const Core::Configuration &config, Core::StringHashSet &whitelist)
-{
+void LexiconParser::loadWhitelist(const Core::Configuration& config, Core::StringHashSet& whitelist) {
     std::string filename = paramFile(config);
     if (!filename.empty()) {
-        Core::CompressedInputStream *cis = new Core::CompressedInputStream(filename.c_str());
-        Core::TextInputStream is(cis);
+        Core::CompressedInputStream* cis = new Core::CompressedInputStream(filename.c_str());
+        Core::TextInputStream        is(cis);
         is.setEncoding(paramEncoding(config));
         if (!is)
             criticalError("Failed to open vocab file \"%s\".", filename.c_str());
@@ -397,13 +379,12 @@ void LexiconParser::loadWhitelist(const Core::Configuration &config, Core::Strin
     }
 }
 
-LexiconParser::LexiconParser(const Core::Configuration &c, Lexicon *_lexicon) :
-    Precursor(c)
-{
+LexiconParser::LexiconParser(const Core::Configuration& c, Lexicon* _lexicon)
+        : Precursor(c) {
     lexicon_ = _lexicon;
 
     // build schema
-    LexiconElement *lexElement = new LexiconElement(this, LexiconElement::creationHandler(&Self::pseudoCreateLexicon), c);
+    LexiconElement* lexElement = new LexiconElement(this, LexiconElement::creationHandler(&Self::pseudoCreateLexicon), c);
     loadWhitelist(select("vocab"), lexElement->whitelist_);
     setRoot(collect(lexElement));
 }

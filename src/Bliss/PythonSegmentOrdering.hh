@@ -15,43 +15,43 @@
 #ifndef _BLISS_PYTHONSEGMENTORDERING_HH
 #define _BLISS_PYTHONSEGMENTORDERING_HH
 
-#include "SegmentOrdering.hh"
 #include <Core/ReferenceCounting.hh>
 #include <Python/Init.hh>
 #include <Python/Utilities.hh>
 #include <Python.h>
 
+#include "SegmentOrdering.hh"
+
 namespace Core {
-    class Component;
+class Component;
 }
 
 namespace Speech {
-    class DataSource;
+class DataSource;
 }
 
 namespace Bliss {
 
 class PythonSegmentOrderingVisitor : public SegmentOrderingVisitor {
-    Python::Initializer pythonInitializer;
-    Python::ObjRef pyMod_;
-    std::string pyConfig_;
-    bool allowCopy_;
-    bool withInfo_;
-    Core::Ref<Speech::DataSource> dataSource_; // used to get seq len
+    Python::Initializer           pythonInitializer;
+    Python::ObjRef                pyMod_;
+    std::string                   pyConfig_;
+    bool                          allowCopy_;
+    bool                          withInfo_;
+    Core::Ref<Speech::DataSource> dataSource_;  // used to get seq len
 
-    size_t getSegmentNumFramesViaDataSourceSlow();
-    size_t getSegmentNumFramesViaDataSource();
-    size_t getSegmentNumFrames(Segment* segment);
+    size_t    getSegmentNumFramesViaDataSourceSlow();
+    size_t    getSegmentNumFramesViaDataSource();
+    size_t    getSegmentNumFrames(Segment* segment);
     PyObject* getSegmentsInfo();
 
 public:
     PythonSegmentOrderingVisitor(const std::string& pyModPath, const std::string& pyModName, const std::string& pyConfig, Core::Component& owner);
     virtual SegmentOrderingVisitor* copy();
 
-    virtual void leaveCorpus(Bliss::Corpus *corpus);
-
+    virtual void leaveCorpus(Bliss::Corpus* corpus);
 };
 
-}
+}  // namespace Bliss
 
-#endif // PYTHONSEGMENTORDERING_HH
+#endif  // PYTHONSEGMENTORDERING_HH

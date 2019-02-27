@@ -1,36 +1,30 @@
+#include <Core/Application.hh>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
-#include <cstdio>
 #include "PrefixTree.hh"
-#include <Core/Application.hh>
 
 namespace Bliss {
 
-template <class S, class L, class K, class T>
+template<class S, class L, class K, class T>
 PrefixTree<S, L, K, T>::PrefixTree() {
     bucketSortThreshold_ = (Traits::last - Traits::first + 1) / 2;
-    root = 0;
+    root                 = 0;
 }
 
-
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::build(
-    ItemLocation begin, 
-    ItemLocation end) 
-{
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::build(ItemLocation begin, ItemLocation end) {
     require(!root);
 
     TreeNode m;
-    m.symbol        = Traits::last+1;
+    m.symbol        = Traits::last + 1;
     m.expanded      = false;
     m.depth         = -1;
     m.entries.begin = begin;
     m.entries.end   = end;
-    root = tree.add(m);
-    
-//    list.append(Item(Traits::sentinel, Value())); // provide space for sentinel
+    root            = tree.add(m);
+
     buildNode(root);
-//    list.truncate(list.size()-1); // remove sentinel
 }
 
 // While building the prefix tree the list of entries is effectively
@@ -47,61 +41,61 @@ void PrefixTree<S, L, K, T>::build(
 // smaller than some empirically adjusted threshold called
 // @c bucketSortThreshold_
 
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::buildNode(TreeNode *n) {
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::buildNode(TreeNode* n) {
     require(!n->expanded);
-    if (n->depth >= Traits::maximumLength){
+    if (n->depth >= Traits::maximumLength) {
         std::stringstream ss;
         ss << "assertion failed: depth of prefix tree is " << n->depth
-                << ", but maximal length is " << Traits::maximumLength << "\n";
+           << ", but maximal length is " << Traits::maximumLength << "\n";
         ss << "labels of current node:\n";
-        for (ItemLocation m = n->entries.begin ; m != n->entries.end ; ++m) {
+        for (ItemLocation m = n->entries.begin; m != n->entries.end; ++m) {
             ss << "l" << m << " [shape=\"box\" label=\"l" << key(*m) << "\"]\n";
         }
         Core::Application::us()->criticalError("%s", ss.str().c_str());
     }
 
-    if (n->entries.end - n->entries.begin > bucketSortThreshold_) 
+    if (n->entries.end - n->entries.begin > bucketSortThreshold_)
         buildNodeBucketSort(n);
-    else 
+    else
         buildNodeInsertionSort(n);
     n->expanded = true;
 
-    for (TreeNode* m = n->subtrees.begin ; m < n->subtrees.end ; ++m) {
+    for (TreeNode* m = n->subtrees.begin; m < n->subtrees.end; ++m) {
         if (m->symbol != Traits::term) {
             buildNode(m);
         }
     }
-//  drawTree(cout); // DEBUG
+    //  drawTree(cout); // DEBUG
 }
 
-
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::buildNodeInsertionSort(TreeNode *n) {
-    SymbolIndex d = n->depth + 1;
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::buildNodeInsertionSort(TreeNode* n) {
+    SymbolIndex  d = n->depth + 1;
     ItemLocation i, j;
-    Item v;
+    Item         v;
 
     putSentinel(n->entries.end, d);
 
     // insertion sort (backwards)
-    for (i = n->entries.end - 2 ; i >= n->entries.begin ; --i) {
+    for (i = n->entries.end - 2; i >= n->entries.begin; --i) {
         v = *i;
-        for (j = i ; key(*(j+1))[d] < key(v)[d] ; ++j)
-            *j = *(j+1);
+        for (j = i; key(*(j + 1))[d] < key(v)[d]; ++j)
+            *j = *(j + 1);
         *j = v;
     }
 
     // create tree nodes
     TreeNode m;
     tree.start();
-    for (i = n->entries.begin ; i < n->entries.end ;) {
+    for (i = n->entries.begin; i < n->entries.end;) {
         m.symbol        = key(*i)[d];
         m.expanded      = false;
         m.depth         = d;
         m.entries.begin = i;
-        while (key(*(++i))[d] == m.symbol);
-        m.entries.end   = i;
+        while (key(*(++i))[d] == m.symbol)
+            ;
+        m.entries.end = i;
         tree.grow(m);
     }
     n->subtrees.begin = tree.currentBegin();
@@ -111,53 +105,52 @@ void PrefixTree<S, L, K, T>::buildNodeInsertionSort(TreeNode *n) {
     removeSentinel();
 }
 
-
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::buildNodeBucketSort(TreeNode *n) {
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::buildNodeBucketSort(TreeNode* n) {
     SymbolIndex d = n->depth + 1;
-    
+
     putSentinel(n->entries.end, d);
 
     // create counts
     static Buckets<int> count;
-    for (Symbol k = Traits::first ; k <= Traits::last ; ++k) 
+    for (Symbol k = Traits::first; k <= Traits::last; ++k)
         count[k] = 0;
-    for (ItemLocation s = n->entries.begin ; s != n->entries.end ; ++s)
+    for (ItemLocation s = n->entries.begin; s != n->entries.end; ++s)
         ++count[key(*s)[d]];
 
     // create iterators by summing counts
     static Buckets<ItemLocation> loc;
-    loc[Traits::last+1] = n->entries.end;
-    for (int k = Traits::last ; k >= Traits::first ; --k)
-        loc[k] = loc[k+1] - count[k];
+    loc[Traits::last + 1] = n->entries.end;
+    for (int k = Traits::last; k >= Traits::first; --k)
+        loc[k] = loc[k + 1] - count[k];
     verify(loc[Traits::first] == n->entries.begin);
-    
+
     // sort in-situ by circular exchange
     Item u, v;
-    for (int k = Traits::last ; k >= Traits::first ; --k) {
+    for (int k = Traits::last; k >= Traits::first; --k) {
         while (key(v = *loc[k])[d] <= k) {
             do {
-                u = v;
-                v = *loc[key(u)[d]];
+                u               = v;
+                v               = *loc[key(u)[d]];
                 *loc[key(u)[d]] = u;
                 ++loc[key(u)[d]];
             } while (key(u)[d] != k);
         }
     }
-    loc[Traits::first-1] = n->entries.begin;
+    loc[Traits::first - 1] = n->entries.begin;
     verify(loc[Traits::last] == n->entries.end);
 
     removeSentinel();
-    
+
     // create tree nodes
     TreeNode m;
     tree.start();
-    for (int k = Traits::first ; k <= Traits::last ; ++k) {
-        if (loc[k-1] < loc[k]) {
+    for (int k = Traits::first; k <= Traits::last; ++k) {
+        if (loc[k - 1] < loc[k]) {
             m.symbol        = k;
             m.expanded      = false;
             m.depth         = d;
-            m.entries.begin = loc[k-1];
+            m.entries.begin = loc[k - 1];
             m.entries.end   = loc[k];
             tree.grow(m);
         }
@@ -167,61 +160,59 @@ void PrefixTree<S, L, K, T>::buildNodeBucketSort(TreeNode *n) {
     tree.finish();
 }
 
+template<class S, class L, class K, class T>
+typename PrefixTree<S, L, K, T>::TreeNode* PrefixTree<S, L, K, T>::findSuccessor(
+        const TreeNode* n, Symbol c) const {
+    TreeNode *l, *r, *m;
 
-template <class S, class L, class K, class T>
-typename PrefixTree<S, L, K, T>::TreeNode*
-PrefixTree<S, L, K, T>::findSuccessor(
-    const TreeNode *n, Symbol c) const 
-{
-    TreeNode *l, *r, *m ;
-
-    l = n->subtrees.begin ; r = n->subtrees.end - 1 ;
+    l = n->subtrees.begin;
+    r = n->subtrees.end - 1;
     while (l <= r) {
-        m = l + (r - l) / 2 ;
+        m = l + (r - l) / 2;
         if (c < m->symbol) {
-            r = m - 1 ;
-        } else if (c > m->symbol) {
-            l = m + 1 ;
-        } else /* c == m->symbol */ {
-            return m ;
+            r = m - 1;
+        }
+        else if (c > m->symbol) {
+            l = m + 1;
+        }
+        else /* c == m->symbol */ {
+            return m;
         }
     }
-    return 0 ;
+    return 0;
 }
 
-
-template <class S, class L, class K, class T>
+template<class S, class L, class K, class T>
 typename PrefixTree<S, L, K, T>::ItemRange PrefixTree<S, L, K, T>::lookup(
-    const SymbolString &seq, SymbolIndex &maxLen) const
-{
+        const SymbolString& seq, SymbolIndex& maxLen) const {
     require(root);
 
     TreeNode *n, *m, *longest_match;
 
     longest_match = 0;
-    n = root;
+    n             = root;
     while (n->depth < maxLen) {
         if ((m = findTermSuccessor(n)) != 0)
             longest_match = m;
-        if ((seq[n->depth+1] == Traits::term) ||
-            (n = findSuccessor(n, seq[n->depth+1])) == 0)
+        if ((seq[n->depth + 1] == Traits::term) ||
+            (n = findSuccessor(n, seq[n->depth + 1])) == 0)
             break;
     }
 
     if (longest_match != 0) {
         maxLen = longest_match->depth;
-        return ItemRange(longest_match->entries.begin, 
+        return ItemRange(longest_match->entries.begin,
                          longest_match->entries.end);
-    } else {
+    }
+    else {
         maxLen = -1;
         return ItemRange(0, 0);
     }
 }
 
-template <class S, class L, class K, class T>
+template<class S, class L, class K, class T>
 typename PrefixTree<S, L, K, T>::SymbolIndex PrefixTree<S, L, K, T>::lookup(
-    const SymbolString &seq, std::vector<ItemRange> &matches, SymbolIndex maxLen) const
-{
+        const SymbolString& seq, std::vector<ItemRange>& matches, SymbolIndex maxLen) const {
     require(root);
 
     TreeNode *n, *m;
@@ -232,29 +223,30 @@ typename PrefixTree<S, L, K, T>::SymbolIndex PrefixTree<S, L, K, T>::lookup(
         if ((m = findTermSuccessor(n)) != 0)
             matches.push_back(ItemRange(m->entries.begin, m->entries.end));
         else
-            matches.push_back(ItemRange(0,0)); 
-        if ((seq[n->depth+1] == Traits::term) ||
-            ((n = findSuccessor(n, seq[n->depth+1])) == 0))
-            break;	
+            matches.push_back(ItemRange(0, 0));
+        if ((seq[n->depth + 1] == Traits::term) ||
+            ((n = findSuccessor(n, seq[n->depth + 1])) == 0))
+            break;
     }
     return matches.size();
 }
 
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::drawTree(std::ostream &os, const TreeNode *n) const {
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::drawTree(std::ostream& os, const TreeNode* n) const {
     //os.form("n%xd [label=\"%c\"]\n", n, (n->symbol != Traits::term) ? n->symbol : '$'); // _GNU_ extension which should not be used
     //std::fprintf(os, "n%xd [label=\"%c\"]\n", n, (n->symbol != Traits::term) ? n->symbol : '$');
     os << "n" << n << " [label=\"" << ((n->symbol != Traits::term) ? n->symbol : '$') << "\"]" << std::endl;
 
     if (n->expanded) {
-        for (const TreeNode *m = n->subtrees.begin ; m != n->subtrees.end ; ++m) {
+        for (const TreeNode* m = n->subtrees.begin; m != n->subtrees.end; ++m) {
             //os.form("n%xd -> n%xd\n", n, m); // _GNU_ extension
             //std::fprintf(os, "n%xd -> n%xd\n", n, m);
             os << "n" << n << " -> n" << m << std::endl;
             drawTree(os, m);
         }
-    } else {
-        for (ItemLocation m = n->entries.begin ; m != n->entries.end ; ++m) {
+    }
+    else {
+        for (ItemLocation m = n->entries.begin; m != n->entries.end; ++m) {
             //os.form("n%xd -> l%d\n", n, m); // _GNU_ extension
             //std::fprintf(os, "n%xd -> l%d\n", n, m);
             os << "n" << n << " -> l" << m << std::endl;
@@ -265,8 +257,8 @@ void PrefixTree<S, L, K, T>::drawTree(std::ostream &os, const TreeNode *n) const
     }
 }
 
-template <class S, class L, class K, class T>
-void PrefixTree<S, L, K, T>::drawTree(std::ostream &os) const {
+template<class S, class L, class K, class T>
+void PrefixTree<S, L, K, T>::drawTree(std::ostream& os) const {
     os << "digraph G {" << std::endl
        << "ranksep = 1.5" << std::endl
        << "rankdir = LR" << std::endl
@@ -276,5 +268,4 @@ void PrefixTree<S, L, K, T>::drawTree(std::ostream &os) const {
     os << "}" << std::endl;
 }
 
-} // namespace Bliss
-
+}  // namespace Bliss

@@ -20,47 +20,44 @@
 using namespace Bliss;
 using namespace Core;
 
-
 // Note: Features marked "FFE" are placeholders "for furture extensions".
 
 // ===========================================================================
-class Bliss::SpeakerDescriptionElement :
-    public  Core::XmlBuilderElement<Speaker, Core::XmlMixedElement, Core::CreateUsingNew>
-{
+
+class Bliss::SpeakerDescriptionElement : public Core::XmlBuilderElement<Speaker, Core::XmlMixedElement, Core::CreateUsingNew> {
     typedef Core::XmlBuilderElement<Speaker, Core::XmlMixedElement, Core::CreateUsingNew> Precursor;
-    typedef SpeakerDescriptionElement Self;
+    typedef SpeakerDescriptionElement                                                     Self;
+
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char *ch, int len) {};
-    void gender(const std::string &s);
+    virtual void characters(const char* ch, int len){};
+    void         gender(const std::string& s);
+
 public:
-    SpeakerDescriptionElement(Core::XmlContext *_context, Handler _handler = 0);
+    SpeakerDescriptionElement(Core::XmlContext* _context, Handler _handler = 0);
 };
 
 SpeakerDescriptionElement::SpeakerDescriptionElement(
-    Core::XmlContext *_context, Handler _handler) :
-    Precursor("speaker-description", _context, _handler)
-{
-    addChild(collect(new XmlStringBuilderElement(
-                         "gender",this,
-                         XmlStringBuilderElement::handler(&Self::gender))));
-    addChild(collect(new XmlIgnoreElement("name",            this))); // FFE
-    addChild(collect(new XmlIgnoreElement("age",             this))); // FFE
-    addChild(collect(new XmlIgnoreElement("date-of-birth",   this))); // FFE
-    addChild(collect(new XmlIgnoreElement("native-language", this))); // FFE
+        Core::XmlContext* _context, Handler _handler)
+        : Precursor("speaker-description", _context, _handler) {
+    addChild(collect(new XmlStringBuilderElement("gender", this, XmlStringBuilderElement::handler(&Self::gender))));
+    addChild(collect(new XmlIgnoreElement("name", this)));             // FFE
+    addChild(collect(new XmlIgnoreElement("age", this)));              // FFE
+    addChild(collect(new XmlIgnoreElement("date-of-birth", this)));    // FFE
+    addChild(collect(new XmlIgnoreElement("native-language", this)));  // FFE
     ignoreUnknownElements();
 }
 
 void SpeakerDescriptionElement::start(const XmlAttributes atts) {
     Precursor::start(atts);
-    Speaker *s = product_.get();
-    const char *name = atts["name"] ;
+    Speaker*    s    = product_.get();
+    const char* name = atts["name"];
     if (name) {
         s->setName(name);
     }
 }
 
-void SpeakerDescriptionElement::gender(const std::string &_s) {
+void SpeakerDescriptionElement::gender(const std::string& _s) {
     std::string s(_s);
     stripWhitespace(s);
     if (s == Speaker::genderId[Speaker::male]) {
@@ -78,61 +75,58 @@ void SpeakerDescriptionElement::gender(const std::string &_s) {
 }
 
 // ===========================================================================
-class Bliss::ConditionDescriptionElement :
-    public  Core::XmlBuilderElement<AcousticCondition, Core::XmlMixedElement, Core::CreateUsingNew>
-{
+
+class Bliss::ConditionDescriptionElement : public Core::XmlBuilderElement<AcousticCondition, Core::XmlMixedElement, Core::CreateUsingNew> {
     typedef Core::XmlBuilderElement<AcousticCondition, Core::XmlMixedElement, Core::CreateUsingNew> Precursor;
-    typedef ConditionDescriptionElement Self;
+    typedef ConditionDescriptionElement                                                             Self;
+
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char *ch, int len) {};
+    virtual void characters(const char* ch, int len){};
+
 public:
-    ConditionDescriptionElement(Core::XmlContext *_context, Handler _handler = 0);
+    ConditionDescriptionElement(Core::XmlContext* _context, Handler _handler = 0);
 };
 
-ConditionDescriptionElement::ConditionDescriptionElement(
-    Core::XmlContext *_context, Handler _handler) :
-    Precursor( "condition-description", _context, _handler)
-{
-    addChild(collect(new XmlIgnoreElement("environment", this))); // FFE
-    addChild(collect(new XmlIgnoreElement("microphone",  this))); // FFE
-    addChild(collect(new XmlIgnoreElement("channel",     this))); // FFE
+ConditionDescriptionElement::ConditionDescriptionElement(Core::XmlContext* _context, Handler _handler)
+        : Precursor("condition-description", _context, _handler) {
+    addChild(collect(new XmlIgnoreElement("environment", this)));  // FFE
+    addChild(collect(new XmlIgnoreElement("microphone", this)));   // FFE
+    addChild(collect(new XmlIgnoreElement("channel", this)));      // FFE
     ignoreUnknownElements();
 }
 
 void ConditionDescriptionElement::start(const XmlAttributes atts) {
     Precursor::start(atts);
-    AcousticCondition *c = product_.get();
-    const char *name = atts["name"] ;
+    AcousticCondition* c    = product_.get();
+    const char*        name = atts["name"];
     if (name) {
         c->setName(name);
     }
 }
 
 // ===========================================================================
-class Bliss::OrthographyElement :
-    public Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic>
-{
-    typedef Core::XmlBuilderElement<std::string,Core::XmlMixedElement, Core::CreateStatic> Precursor;
-    typedef OrthographyElement Self;
+
+class Bliss::OrthographyElement : public Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> {
+    typedef Core::XmlBuilderElement<std::string, Core::XmlMixedElement, Core::CreateStatic> Precursor;
+    typedef OrthographyElement                                                              Self;
+
 public:
     OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler = 0);
-    virtual void characters(const char *ch, int len);
+    virtual void characters(const char* ch, int len);
 };
 
-OrthographyElement::OrthographyElement(
-    char const* _elementName, Core::XmlContext* _context, Handler _handler /*= 0*/) :
-    Precursor(_elementName, _context, _handler)
-{
-    addChild(collect(new XmlFlattenElement("noise",      this))); // FFE
-    addChild(collect(new XmlFlattenElement("hesitation", this))); // FFE
-    addChild(collect(new XmlFlattenElement("name",       this))); // FFE
-    addChild(collect(new XmlFlattenElement("numeral",    this))); // FFE
-    addChild(collect(new XmlFlattenElement("pron",       this))); // FFE
+OrthographyElement::OrthographyElement(char const* _elementName, Core::XmlContext* _context, Handler _handler /*= 0*/)
+        : Precursor(_elementName, _context, _handler) {
+    addChild(collect(new XmlFlattenElement("noise", this)));       // FFE
+    addChild(collect(new XmlFlattenElement("hesitation", this)));  // FFE
+    addChild(collect(new XmlFlattenElement("name", this)));        // FFE
+    addChild(collect(new XmlFlattenElement("numeral", this)));     // FFE
+    addChild(collect(new XmlFlattenElement("pron", this)));        // FFE
     flattenUnknownElements();
 }
 
-void OrthographyElement::characters(const char *ch, int len) {
+void OrthographyElement::characters(const char* ch, int len) {
     std::string s(ch, len);
     if (s.find_first_of(utf8::whitespace) == 0) {
         enforceTrailingBlank(product_);
@@ -143,27 +137,28 @@ void OrthographyElement::characters(const char *ch, int len) {
 }
 
 // ===========================================================================
+
 const Core::ParameterString CorpusDescriptionParser::paramAudioDir(
-    "audio-dir",
-    "directory with audio files",
-    "",
-    "This path will be prefixed to all audio file names, unless they are absolute.  If unset, the directory of the corpus file will be used.");
+        "audio-dir",
+        "directory with audio files",
+        "",
+        "This path will be prefixed to all audio file names, unless they are absolute.  If unset, the directory of the corpus file will be used.");
 
 const Core::ParameterString CorpusDescriptionParser::paramVideoDir(
-    "video-dir",
-    "directory with video files",
-    "",
-    "This path will be prefixed to all video file names, unless they are absolute.  If unset, the directory of the corpus file will be used.");
+        "video-dir",
+        "directory with video files",
+        "",
+        "This path will be prefixed to all video file names, unless they are absolute.  If unset, the directory of the corpus file will be used.");
 
 const Core::ParameterBool CorpusDescriptionParser::paramCaptializeTranscriptions(
-    "capitalize-transcriptions",
-    "convert all transcriptions to upper case: yes/no",
-    false);
+        "capitalize-transcriptions",
+        "convert all transcriptions to upper case: yes/no",
+        false);
 
 const Core::ParameterBool CorpusDescriptionParser::paramGemenizeTranscriptions(
-    "gemenize-transcriptions",
-    "convert all transcriptions to lower case: yes/no",
-    false);
+        "gemenize-transcriptions",
+        "convert all transcriptions to lower case: yes/no",
+        false);
 
 const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         "progress",
@@ -171,52 +166,41 @@ const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         false);
 
 void CorpusDescriptionParser::initSchema() {
-    XmlElement *conditionDesc =
-        collect(new ConditionDescriptionElement(
-                    this, ConditionDescriptionElement::handler(&Self::defineCondition)));
-    XmlElement *segmentConditionDesc =
-        collect(new ConditionDescriptionElement(
-                    this, ConditionDescriptionElement::handler(&Self::defineSegmentCondition)));
+    XmlElement* conditionDesc        = collect(new ConditionDescriptionElement(
+            this, ConditionDescriptionElement::handler(&Self::defineCondition)));
+    XmlElement* segmentConditionDesc = collect(new ConditionDescriptionElement(
+            this, ConditionDescriptionElement::handler(&Self::defineSegmentCondition)));
 
-    XmlElement *condition =
-        collect(new Core::XmlEmptyElementRelay(
-                    "condition", this, startHandler(&Self::selectDefaultCondition)));
-    XmlElement *segmentCondition =
-        collect(new Core::XmlEmptyElementRelay(
-                    "condition", this, startHandler(&Self::selectSegmentCondition)));
+    XmlElement* condition        = collect(new Core::XmlEmptyElementRelay(
+            "condition", this, startHandler(&Self::selectDefaultCondition)));
+    XmlElement* segmentCondition = collect(new Core::XmlEmptyElementRelay(
+            "condition", this, startHandler(&Self::selectSegmentCondition)));
 
-    XmlElement *speakerDesc =
-        collect(new SpeakerDescriptionElement(
-                    this, SpeakerDescriptionElement::handler(&Self::defineSpeaker)));
-    XmlElement *segmentSpeakerDesc =
-        collect(new SpeakerDescriptionElement(
-                    this, SpeakerDescriptionElement::handler(&Self::defineSegmentSpeaker)));
+    XmlElement* speakerDesc        = collect(new SpeakerDescriptionElement(
+            this, SpeakerDescriptionElement::handler(&Self::defineSpeaker)));
+    XmlElement* segmentSpeakerDesc = collect(new SpeakerDescriptionElement(
+            this, SpeakerDescriptionElement::handler(&Self::defineSegmentSpeaker)));
 
-    XmlElement *speaker =
-        collect(new Core::XmlEmptyElementRelay(
-                    "speaker", this, startHandler(&Self::selectDefaultSpeaker)));
-    XmlElement *segmentSpeaker =
-        collect(new Core::XmlEmptyElementRelay(
-                    "speaker", this, startHandler(&Self::selectSegmentSpeaker)));
+    XmlElement* speaker        = collect(new Core::XmlEmptyElementRelay(
+            "speaker", this, startHandler(&Self::selectDefaultSpeaker)));
+    XmlElement* segmentSpeaker = collect(new Core::XmlEmptyElementRelay(
+            "speaker", this, startHandler(&Self::selectSegmentSpeaker)));
 
-    XmlElement *orth =
-        collect(new OrthographyElement(
-                    "orth", this, OrthographyElement::handler(&Self::setOrth)));
+    XmlElement* orth = collect(new OrthographyElement(
+            "orth", this, OrthographyElement::handler(&Self::setOrth)));
 
-    XmlElement *leftContextOrth =
-        collect(new OrthographyElement(
-                    "left-context-orth", this, OrthographyElement::handler(&Self::setLeftContextOrth)));
+    XmlElement* leftContextOrth = collect(new OrthographyElement(
+            "left-context-orth", this, OrthographyElement::handler(&Self::setLeftContextOrth)));
 
-    XmlElement *rightContextOrth =
-        collect(new OrthographyElement(
-                    "right-context-orth", this, OrthographyElement::handler(&Self::setRightContextOrth)));
+    XmlElement* rightContextOrth = collect(new OrthographyElement(
+            "right-context-orth", this, OrthographyElement::handler(&Self::setRightContextOrth)));
 
-    XmlElement *description_decl = collect(new XmlIgnoreElement("description", this)); // FFE
+    XmlElement* description_decl = collect(new XmlIgnoreElement("description", this));  // FFE
 
-    XmlRegularElement *segment = new XmlRegularElementRelay(
-        "segment", this,
-        startHandler(&Self::startSegment),
-        endHandler(&Self::endSegment));
+    XmlRegularElement* segment = new XmlRegularElementRelay(
+            "segment", this,
+            startHandler(&Self::startSegment),
+            endHandler(&Self::endSegment));
     collect(segment);
 
     // The automaton we want to build is as follow:
@@ -241,10 +225,10 @@ void CorpusDescriptionParser::initSchema() {
 
     // now we connect the different states
     for (XmlRegularElement::State s = 0; s < 5; s++) {
-        segment->addTransition(s,      s +  5,  leftContextOrth);
-        segment->addTransition(s,      s + 10, rightContextOrth);
-        segment->addTransition(s +  5, s + 15, rightContextOrth);
-        segment->addTransition(s + 10, s + 15,  leftContextOrth);
+        segment->addTransition(s, s + 5, leftContextOrth);
+        segment->addTransition(s, s + 10, rightContextOrth);
+        segment->addTransition(s + 5, s + 15, rightContextOrth);
+        segment->addTransition(s + 10, s + 15, leftContextOrth);
     }
 
     // all states are final
@@ -254,10 +238,10 @@ void CorpusDescriptionParser::initSchema() {
 
     segment->ignoreUnknownElements();
 
-    XmlRegularElement *recording = new XmlRegularElementRelay(
-        "recording", this,
-        startHandler(&Self::startRecording),
-        endHandler(&Self::endRecording));
+    XmlRegularElement* recording = new XmlRegularElementRelay(
+            "recording", this,
+            startHandler(&Self::startRecording),
+            endHandler(&Self::endRecording));
     collect(recording);
     recording->addTransition(0, 0, description_decl);
     recording->addTransition(0, 0, conditionDesc);
@@ -268,18 +252,17 @@ void CorpusDescriptionParser::initSchema() {
     recording->addFinalState(0);
     recording->ignoreUnknownElements();
 
-    XmlElement *include_decl =
-        collect(new XmlEmptyElementRelay(
-                    "include", this,
-                    startHandler(&Self::include)));
+    XmlElement* include_decl = collect(new XmlEmptyElementRelay(
+            "include", this,
+            startHandler(&Self::include)));
 
-    XmlMixedElement *subcorpus = new XmlMixedElementRelay(
-        // should use XmlRegularElement, but cannot due to nesting restriction
-        "subcorpus", this,
-        startHandler(&Self::startSubcorpus),
-        endHandler(&Self::endSubcorpus),
-        0,
-        XML_NO_MORE_CHILDREN);
+    XmlMixedElement* subcorpus = new XmlMixedElementRelay(
+            // should use XmlRegularElement, but cannot due to nesting restriction
+            "subcorpus", this,
+            startHandler(&Self::startSubcorpus),
+            endHandler(&Self::endSubcorpus),
+            0,
+            XML_NO_MORE_CHILDREN);
     collect(subcorpus);
     subcorpus->addChild(description_decl);
     subcorpus->addChild(subcorpus);
@@ -290,10 +273,10 @@ void CorpusDescriptionParser::initSchema() {
     subcorpus->addChild(speaker);
     subcorpus->addChild(recording);
 
-    XmlRegularElement *corpus = new XmlRegularElementRelay(
-        "corpus", this,
-        startHandler(&Self::startCorpus),
-        endHandler(&Self::endCorpus));
+    XmlRegularElement* corpus = new XmlRegularElementRelay(
+            "corpus", this,
+            startHandler(&Self::startCorpus),
+            endHandler(&Self::endCorpus));
     collect(corpus);
     corpus->addTransition(0, 0, description_decl);
     corpus->addTransition(0, 0, subcorpus);
@@ -302,139 +285,139 @@ void CorpusDescriptionParser::initSchema() {
     corpus->addTransition(0, 0, condition);
     corpus->addTransition(0, 0, speakerDesc);
     corpus->addTransition(0, 0, speaker);
-    corpus->addTransition(0, 0, recording),
+    corpus->addTransition(0, 0, recording);
     corpus->addFinalState(0);
 
     setRoot(corpus);
 }
 
-CorpusDescriptionParser::CorpusDescriptionParser(const Configuration &c) :
-    XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0)
-{
-    initSchema() ;
+CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c)
+        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+    initSchema();
 
-    isSubParser_    = false ;
-    corpusVisitor_  = 0 ;
-    superCorpus_    = 0 ;
-    corpus_         = 0 ;
-    recording_      = 0 ;
-    segment_        = 0 ;
-    segmentNum_     = 0 ;
-    currentSection_ = 0 ;
+    isSubParser_    = false;
+    corpusVisitor_  = 0;
+    superCorpus_    = 0;
+    corpus_         = 0;
+    recording_      = 0;
+    segment_        = 0;
+    segmentNum_     = 0;
+    currentSection_ = 0;
 }
 
-CorpusDescriptionParser::CorpusDescriptionParser(
-    const Configuration &c,
-    Corpus *_corpus
-    ) :
-    XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0)
-{
-    initSchema() ;
+CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c, Corpus* _corpus)
+        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+    initSchema();
 
-    isSubParser_    = true ;
-    corpusVisitor_  = 0 ;
-    superCorpus_    = 0 ;
-    corpus_         = _corpus ;
-    recording_      = 0 ;
-    segment_        = 0 ;
-    segmentNum_     = 0 ;
-    currentSection_ = 0 ;
+    isSubParser_    = true;
+    corpusVisitor_  = 0;
+    superCorpus_    = 0;
+    corpus_         = _corpus;
+    recording_      = 0;
+    segment_        = 0;
+    segmentNum_     = 0;
+    currentSection_ = 0;
 }
 
 CorpusDescriptionParser::~CorpusDescriptionParser() {
     delete progressIndicator_;
 }
 
-void CorpusDescriptionParser::includeFile(const std::string &relativeFilename) {
+void CorpusDescriptionParser::includeFile(const std::string& relativeFilename) {
     std::string filename(relativeFilename);
     filename = config.resolve(filename);
     filename = Core::joinPaths(corpusDir_, filename);
 
-    CorpusDescriptionParser subParser(config, corpus_) ;
+    CorpusDescriptionParser subParser(config, corpus_);
     subParser.accept(filename, corpusVisitor_);
 }
 
 void CorpusDescriptionParser::include(const XmlAttributes atts) {
-    const char *corpus = atts["file"] ;
+    const char* corpus = atts["file"];
     if (!corpus) {
         error("attribute \"file\" missing in \"include\" tag");
         return;
     }
-    includeFile(corpus) ;
+    includeFile(corpus);
 }
 
 void CorpusDescriptionParser::startCorpus(const XmlAttributes atts) {
-    const char *name = atts["name"] ;
+    const char* name = atts["name"];
 
     if (!name) {
-        error("attribute 'name' missing in 'corpus' tag") ;
-        return ;
+        error("attribute 'name' missing in 'corpus' tag");
+        return;
     }
 
     if (isSubParser_) {
         if (std::string(name) != corpus_->name()) {
             warning("name mismatch on included corpus: ")
-                << "'" << name << "' instead of '" << corpus_->name() << "'";
-            return ;
-        }
-    } else {
-        verify(!superCorpus_) ;
-        corpus_ = new Corpus();
-        corpus_->setName(name) ;
-        if (corpusVisitor_) {
-            corpusVisitor_->enterCorpus(corpus_) ;
+                    << "'" << name << "' instead of '" << corpus_->name() << "'";
+            return;
         }
     }
-    currentSection_ = corpus_ ;
+    else {
+        verify(!superCorpus_);
+        corpus_ = new Corpus();
+        corpus_->setName(name);
+        if (corpusVisitor_) {
+            corpusVisitor_->enterCorpus(corpus_);
+        }
+    }
+    currentSection_ = corpus_;
 }
 
 void CorpusDescriptionParser::startSubcorpus(const XmlAttributes atts) {
-    const char *name = atts["name"] ;
+    const char* name = atts["name"];
 
     if (!name) {
-        error("attribute 'name' missing in 'subcorpus' tag") ;
-        return ;
+        error("attribute 'name' missing in 'subcorpus' tag");
+        return;
     }
 
-    superCorpus_ = corpus_ ;
-    corpus_ = new Corpus(superCorpus_) ;
+    superCorpus_ = corpus_;
+    corpus_      = new Corpus(superCorpus_);
 
     if (superCorpus_->isNameReserved(name)) {
         error("subcorpus \"%s\" already defined in the section", name);
-    } else {
+    }
+    else {
         superCorpus_->reserveName(name);
         corpus_->setName(name);
     }
 
-    currentSection_ = corpus_ ;
+    currentSection_ = corpus_;
 
     if (corpusVisitor_) {
-        corpusVisitor_->enterCorpus(corpus_) ;
+        corpusVisitor_->enterCorpus(corpus_);
     }
 }
 
 void CorpusDescriptionParser::startRecording(const XmlAttributes atts) {
-    const char *name = atts["name"];
-    const char *audio = atts["audio"];
-    const char *video = atts["video"];
+    const char* name  = atts["name"];
+    const char* audio = atts["audio"];
+    const char* video = atts["video"];
 
     recording_ = new Recording(corpus_);
 
     if (!name) {
         error("attribute 'name' missing in 'recording' tag");
-    } else {
+    }
+    else {
         if (corpus_->isNameReserved(name)) {
             error("recording \"%s\" already defined in the section", name);
-        } else {
+        }
+        else {
             corpus_->reserveName(name);
             recording_->setName(name);
         }
     }
 
     if (!audio && !video) {
-        error("At least one of attribute 'audio' or 'video' has "\
+        error("At least one of attribute 'audio' or 'video' has "
               "to be specified in 'recording' tag.");
-    } else {
+    }
+    else {
         if (audio) {
             std::string audioFilename(audio);
             audioFilename = config.resolve(audioFilename);
@@ -450,11 +433,11 @@ void CorpusDescriptionParser::startRecording(const XmlAttributes atts) {
     }
 
     recording_->duration_ = Core::Type<Time>::max;
-    currentSection_ = recording_;
-    segmentNum_ = 0;
+    currentSection_       = recording_;
+    segmentNum_           = 0;
 
     if (progressIndicator_) {
-        progressIndicator_->setTask(std::string("CorpusDescriptionParser processing recording '")+name+"'");
+        progressIndicator_->setTask(std::string("CorpusDescriptionParser processing recording '") + name + "'");
         progressIndicator_->start();
     }
 
@@ -464,14 +447,14 @@ void CorpusDescriptionParser::startRecording(const XmlAttributes atts) {
 }
 
 void CorpusDescriptionParser::startSegment(const XmlAttributes atts) {
-    verify(recording_) ;
+    verify(recording_);
 
-    const char *name  = atts["name"] ;
-    const char *start = atts["start"] ;
-    const char *end   = atts["end"] ;
-    const char *track = atts["track"];
+    const char* name  = atts["name"];
+    const char* start = atts["start"];
+    const char* end   = atts["end"];
+    const char* track = atts["track"];
 
-    segment_ = new SpeechSegment(recording_) ;
+    segment_ = new SpeechSegment(recording_);
     ++segmentNum_;
 
     if (progressIndicator_) {
@@ -481,11 +464,13 @@ void CorpusDescriptionParser::startSegment(const XmlAttributes atts) {
     if (name) {
         if (recording_->isNameReserved(name)) {
             error("segment \"%s\" already defined in the section", name);
-        } else {
+        }
+        else {
             recording_->reserveName(name);
             segment_->setName(name);
         }
-    } else {
+    }
+    else {
         std::string autoName = form("%d", segmentNum_);
         while (recording_->isNameReserved(autoName)) {
             autoName += "+";
@@ -494,7 +479,7 @@ void CorpusDescriptionParser::startSegment(const XmlAttributes atts) {
         segment_->setName(autoName);
     }
     segment_->start_ = (start) ? atof(start) : 0.0;
-    segment_->end_   = (end)   ? atof(end)   : recording_->duration();
+    segment_->end_   = (end) ? atof(end) : recording_->duration();
     if (segment_->start() > segment_->end()) {
         error("illegal segment boundary times");
     }
@@ -531,22 +516,21 @@ void CorpusDescriptionParser::setRightContextOrth(std::string const& _orth) {
     segment_->setRightContextOrth(orth);
 }
 
-
 void CorpusDescriptionParser::endSegment() {
     if (corpusVisitor_) {
         segment_->accept(corpusVisitor_);
     }
-    delete segment_ ;
-    segment_ = 0 ;
+    delete segment_;
+    segment_ = 0;
 }
 
 void CorpusDescriptionParser::endRecording() {
     if (corpusVisitor_) {
-        corpusVisitor_->leaveRecording(recording_) ;
+        corpusVisitor_->leaveRecording(recording_);
     }
-    delete recording_ ;
-    recording_ = 0 ;
-    currentSection_ = corpus_ ;
+    delete recording_;
+    recording_      = 0;
+    currentSection_ = corpus_;
 
     if (progressIndicator_) {
         progressIndicator_->finish();
@@ -555,34 +539,34 @@ void CorpusDescriptionParser::endRecording() {
 
 void CorpusDescriptionParser::endSubcorpus() {
     if (corpusVisitor_) {
-        corpusVisitor_->leaveCorpus(corpus_) ;
+        corpusVisitor_->leaveCorpus(corpus_);
     }
-    delete corpus_ ;
+    delete corpus_;
     verify(superCorpus_);
-    corpus_ = superCorpus_ ;
-    superCorpus_ = dynamic_cast<Corpus*>(corpus_->parent()) ;
-    currentSection_ = corpus_ ;
+    corpus_         = superCorpus_;
+    superCorpus_    = dynamic_cast<Corpus*>(corpus_->parent());
+    currentSection_ = corpus_;
 }
 
 void CorpusDescriptionParser::endCorpus() {
     if (!isSubParser_) {
-        verify(!superCorpus_) ;
+        verify(!superCorpus_);
         if (corpusVisitor_) {
-            corpusVisitor_->leaveCorpus(corpus_) ;
+            corpusVisitor_->leaveCorpus(corpus_);
         }
-        delete corpus_ ;
-        corpus_ = 0 ;
-        currentSection_ = corpus_ ;
+        delete corpus_;
+        corpus_         = 0;
+        currentSection_ = corpus_;
     }
 }
 
 // ===========================================================================
 // speakers
 
-const Speaker *CorpusDescriptionParser::getSpeaker(const std::string &name) const {
+const Speaker* CorpusDescriptionParser::getSpeaker(const std::string& name) const {
     require(currentSection_);
 
-    const Speaker *speaker = currentSection_->speaker(name);
+    const Speaker* speaker = currentSection_->speaker(name);
     if (!speaker) {
         error("speaker \"%s\" not defined", name.c_str());
     }
@@ -590,16 +574,17 @@ const Speaker *CorpusDescriptionParser::getSpeaker(const std::string &name) cons
     return speaker;
 }
 
-void CorpusDescriptionParser::defineSpeaker(std::unique_ptr<Speaker> &speaker) {
-    verify(currentSection_) ; // speaker declaration outside corpus
+void CorpusDescriptionParser::defineSpeaker(std::unique_ptr<Speaker>& speaker) {
+    verify(currentSection_);  // speaker declaration outside corpus
 
-    Speaker *s = speaker.release();
+    Speaker* s = speaker.release();
     s->setParent(currentSection_);
     if (s->isAnonymous()) {
         currentSection_->defaultSpeaker_ = s;
-    } else {
+    }
+    else {
         if (currentSection_->speakers_.hasKey(s->name())) {
-            error("speaker \"%s\" already defined in this section" , s->name().c_str());
+            error("speaker \"%s\" already defined in this section", s->name().c_str());
             delete s;
             return;
         }
@@ -608,27 +593,21 @@ void CorpusDescriptionParser::defineSpeaker(std::unique_ptr<Speaker> &speaker) {
 }
 
 void CorpusDescriptionParser::selectDefaultSpeaker(const Core::XmlAttributes atts) {
-    verify(currentSection_) ; // speaker declaration outside corpus
+    verify(currentSection_);  // speaker declaration outside corpus
     verify(!segment_);
 
-    const char *name = atts["name"];
+    const char* name = atts["name"];
     if (!name) {
         error("attribute \"name\" missing in \"speaker\" element");
         return;
     }
-/*
-    if (currentSection_->defaultSpeaker_) {
-        error("default speaker for this section already defined");
-        return;
-    }
-*/
     currentSection_->defaultSpeaker_ = getSpeaker(name);
 }
 
-void CorpusDescriptionParser::defineSegmentSpeaker(std::unique_ptr<Speaker> &speaker) {
+void CorpusDescriptionParser::defineSegmentSpeaker(std::unique_ptr<Speaker>& speaker) {
     verify(segment_);
 
-    Speaker *s = speaker.release();
+    Speaker* s = speaker.release();
     if (!s->isAnonymous()) {
         warning("speaker declaration within segment should be anonymous");
     }
@@ -646,7 +625,7 @@ void CorpusDescriptionParser::defineSegmentSpeaker(std::unique_ptr<Speaker> &spe
 void CorpusDescriptionParser::selectSegmentSpeaker(const Core::XmlAttributes atts) {
     verify(segment_);
 
-    const char *name = atts["name"];
+    const char* name = atts["name"];
     if (!name) {
         error("attribute \"name\" missing in \"speaker\" element");
         return;
@@ -663,10 +642,10 @@ void CorpusDescriptionParser::selectSegmentSpeaker(const Core::XmlAttributes att
 // ===========================================================================
 // conditions
 
-const AcousticCondition *CorpusDescriptionParser::getCondition(const std::string &name) const {
+const AcousticCondition* CorpusDescriptionParser::getCondition(const std::string& name) const {
     require(currentSection_);
 
-    const AcousticCondition *condition = currentSection_->condition(name);
+    const AcousticCondition* condition = currentSection_->condition(name);
     if (!condition) {
         error("condition \"%s\" not defined", name.c_str());
     }
@@ -674,16 +653,17 @@ const AcousticCondition *CorpusDescriptionParser::getCondition(const std::string
     return condition;
 }
 
-void CorpusDescriptionParser::defineCondition(std::unique_ptr<AcousticCondition> &condition) {
-    verify(currentSection_) ; // condition declaration outside corpus
+void CorpusDescriptionParser::defineCondition(std::unique_ptr<AcousticCondition>& condition) {
+    verify(currentSection_);  // condition declaration outside corpus
 
-    AcousticCondition *s = condition.release();
+    AcousticCondition* s = condition.release();
     s->setParent(currentSection_);
     if (s->isAnonymous()) {
         currentSection_->defaultCondition_ = s;
-    } else {
+    }
+    else {
         if (currentSection_->conditions_.hasKey(s->name())) {
-            error("condition \"%s\" already defined in this section" , s->name().c_str());
+            error("condition \"%s\" already defined in this section", s->name().c_str());
             delete s;
             return;
         }
@@ -692,27 +672,21 @@ void CorpusDescriptionParser::defineCondition(std::unique_ptr<AcousticCondition>
 }
 
 void CorpusDescriptionParser::selectDefaultCondition(const Core::XmlAttributes atts) {
-    verify(currentSection_) ; // condition declaration outside corpus
+    verify(currentSection_);  // condition declaration outside corpus
     verify(!segment_);
 
-    const char *name = atts["name"];
+    const char* name = atts["name"];
     if (!name) {
         error("attribute \"name\" missing in \"condition\" element");
         return;
     }
-/*
-    if (currentSection_->defaultCondition_) {
-        error("default condition for this section already defined");
-        return;
-    }
-*/
     currentSection_->defaultCondition_ = getCondition(name);
 }
 
-void CorpusDescriptionParser::defineSegmentCondition(std::unique_ptr<AcousticCondition> &condition) {
+void CorpusDescriptionParser::defineSegmentCondition(std::unique_ptr<AcousticCondition>& condition) {
     verify(segment_);
 
-    AcousticCondition *s = condition.release();
+    AcousticCondition* s = condition.release();
     if (!s->isAnonymous()) {
         warning("condition declaration within segment should be anonymous");
     }
@@ -730,7 +704,7 @@ void CorpusDescriptionParser::defineSegmentCondition(std::unique_ptr<AcousticCon
 void CorpusDescriptionParser::selectSegmentCondition(const Core::XmlAttributes atts) {
     verify(segment_);
 
-    const char *name = atts["name"];
+    const char* name = atts["name"];
     if (!name) {
         error("attribute \"name\" missing in \"condition\" element");
         return;
@@ -745,15 +719,13 @@ void CorpusDescriptionParser::selectSegmentCondition(const Core::XmlAttributes a
 }
 
 // ===========================================================================
-int CorpusDescriptionParser::accept(
-    const std::string &filename,
-    CorpusVisitor *visitor)
-{
-    corpusVisitor_ = visitor ;
-    corpusDir_ = Core::directoryName(filename);
-    audioDir_ = paramAudioDir(config, corpusDir_);
-    videoDir_ = paramVideoDir(config, corpusDir_);
+
+int CorpusDescriptionParser::accept(const std::string& filename, CorpusVisitor* visitor) {
+    corpusVisitor_                 = visitor;
+    corpusDir_                     = Core::directoryName(filename);
+    audioDir_                      = paramAudioDir(config, corpusDir_);
+    videoDir_                      = paramVideoDir(config, corpusDir_);
     shallCaptializeTranscriptions_ = paramCaptializeTranscriptions(config);
-    shallGemenizeTranscriptions_ = paramGemenizeTranscriptions(config);
-    return XmlParser::parseFile(filename.c_str()) ;
+    shallGemenizeTranscriptions_   = paramGemenizeTranscriptions(config);
+    return XmlParser::parseFile(filename.c_str());
 }

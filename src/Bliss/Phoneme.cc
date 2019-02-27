@@ -13,39 +13,35 @@
  *  limitations under the License.
  */
 // $Id$
-#include <Core/Utility.hh>
 #include "Phoneme.hh"
+#include <Core/Utility.hh>
 #include "Fsa.hh"
 
 using namespace Bliss;
 
-
 const Phoneme::Id Phoneme::term;
 
-Phoneme::Phoneme() :
-    Token(),
-    isContextDependent_(true)
-{}
+Phoneme::Phoneme()
+        : Token(), isContextDependent_(true) {}
 
 struct PhonemeInventory::Internal {
-    SymbolSet symbols_;
+    SymbolSet                            symbols_;
     Core::WeakRef<const PhonemeAlphabet> phonemeAlphabet_;
 };
 
-PhonemeInventory::PhonemeInventory() :
-    internal_(0)
-{
-    internal_ = new Internal;
-    Phoneme *term = new Phoneme();
+PhonemeInventory::PhonemeInventory()
+        : internal_(0) {
+    internal_     = new Internal;
+    Phoneme* term = new Phoneme();
     term->setSymbol(internal_->symbols_["__term__"]);
     phonemes_.insert(term);
 }
 
 #ifdef DEPRECATED
-PhonemeInventory::PhonemeInventory(const PhonemeInventory &phonemeInventory) {
+PhonemeInventory::PhonemeInventory(const PhonemeInventory& phonemeInventory) {
     PhonemeIterator pi, pi_end;
     for (Core::tie(pi, pi_end) = phonemeInventory.phonemes(); pi != pi_end; ++pi) {
-        Phoneme *phoneme = newPhoneme();
+        Phoneme* phoneme             = newPhoneme();
         phoneme->isContextDependent_ = (*pi)->isContextDependent();
         assignSymbol(phoneme, (*pi)->symbol());
     }
@@ -56,22 +52,23 @@ PhonemeInventory::~PhonemeInventory() {
     delete internal_;
 }
 
-Phoneme *PhonemeInventory::newPhoneme() {
-    Phoneme *pho = new Phoneme;
+Phoneme* PhonemeInventory::newPhoneme() {
+    Phoneme* pho = new Phoneme;
     phonemes_.insert(pho);
-    return pho ;
+    return pho;
 }
 
-void PhonemeInventory::assignSymbol(Phoneme *pho, const std::string &sym) {
+void PhonemeInventory::assignSymbol(Phoneme* pho, const std::string& sym) {
     require(pho);
     require(!phoneme(sym));
 
     Symbol symbol = internal_->symbols_[sym];
-    if (!pho->symbol())	pho->setSymbol(symbol);
+    if (!pho->symbol())
+        pho->setSymbol(symbol);
     phonemes_.link(symbol, pho);
 }
 
-void PhonemeInventory::writeXml(Core::XmlWriter &os) const {
+void PhonemeInventory::writeXml(Core::XmlWriter& os) const {
     os << Core::XmlOpen("phoneme-inventory");
     PhonemeIterator pi, pi_end;
     for (Core::tie(pi, pi_end) = phonemes(); pi != pi_end; ++pi) {
@@ -89,7 +86,7 @@ void PhonemeInventory::writeXml(Core::XmlWriter &os) const {
 /**
  * \todo PhonemeInventory::writeBinary not implemented
  */
-void PhonemeInventory::writeBinary(Core::BinaryOutputStream &os) const {
+void PhonemeInventory::writeBinary(Core::BinaryOutputStream& os) const {
     defect();
 }
 
@@ -102,17 +99,15 @@ Core::Ref<const PhonemeAlphabet> PhonemeInventory::phonemeAlphabet() const {
     return result;
 }
 
-std::set<Phoneme::Id> PhonemeInventory::parseSelection(std::string selector) const
-{
+std::set<Phoneme::Id> PhonemeInventory::parseSelection(std::string selector) const {
     std::set<Bliss::Phoneme::Id> selection;
-    if(!selector.empty())
-    {
+    if (!selector.empty()) {
         for (Bliss::Token::Id phone = 1; phone < nPhonemes(); ++phone) {
             std::string phoneName(phoneme(phone)->symbol());
-            if ( (selector[0] == '*' && selector[selector.length()-1] == '*' && phoneName.find(selector.substr(1, selector.length()-2)) != std::string::npos) ||
-                    (selector[0] == '*' && phoneName.rfind(selector.substr(1)) == phoneName.length() - (selector.length()-1)) ||
-                    (selector[selector.length()-1] == '*' && phoneName.find(selector.substr(0, selector.length()-1)) == 0) ||
-                    selector == phoneName )
+            if ((selector[0] == '*' && selector[selector.length() - 1] == '*' && phoneName.find(selector.substr(1, selector.length() - 2)) != std::string::npos) ||
+                (selector[0] == '*' && phoneName.rfind(selector.substr(1)) == phoneName.length() - (selector.length() - 1)) ||
+                (selector[selector.length() - 1] == '*' && phoneName.find(selector.substr(0, selector.length() - 1)) == 0) ||
+                selector == phoneName)
                 selection.insert(phone);
         }
     }

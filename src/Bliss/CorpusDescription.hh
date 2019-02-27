@@ -15,17 +15,16 @@
 #ifndef _BLISS_CORPUS_DESCRIPTION_HH
 #define _BLISS_CORPUS_DESCRIPTION_HH
 
-#include <string>
-#include <map>
 #include <Core/Assertions.hh>
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
 #include <Core/StringUtilities.hh>
-
+#include <map>
+#include <string>
 
 namespace Bliss {
 
-typedef f64 Time; // measured in seconds
+typedef f64 Time;  // measured in seconds
 typedef u16 TrackId;
 
 class ParentEntity;
@@ -43,26 +42,30 @@ class SegmentVisitor;
 
 class NamedCorpusEntity {
 private:
-    ParentEntity *parent_;
-    std::string name_;
-    static const char *const anonymous /*= "ANONYMOUS"*/;
+    ParentEntity*            parent_;
+    std::string              name_;
+    static const char* const anonymous /*= "ANONYMOUS"*/;
 
 protected:
-    NamedCorpusEntity(ParentEntity *_parent = 0);
+    NamedCorpusEntity(ParentEntity* _parent = 0);
 
 public:
-    virtual ~NamedCorpusEntity() {};
+    virtual ~NamedCorpusEntity(){};
 
-    ParentEntity *parent() const { return parent_; }
-    void setParent(ParentEntity *_parent) { parent_ = _parent; }
+    ParentEntity* parent() const {
+        return parent_;
+    }
+    void setParent(ParentEntity* _parent) {
+        parent_ = _parent;
+    }
 
-    const std::string &name() const {
+    const std::string& name() const {
         return name_;
     }
 
     std::string fullName() const;
 
-    void setName(const std::string &n) {
+    void setName(const std::string& n) {
         require(n != anonymous);
         require(n.empty() || (n[0] != '/' && n[n.size() - 1] != '/'));
         name_ = n;
@@ -83,20 +86,29 @@ public:
 class Speaker : public NamedCorpusEntity {
     typedef NamedCorpusEntity Precursor;
     friend class SpeakerDescriptionElement;
+
 public:
-    enum Gender {unknown, male, female, nGenders};
-    static const char *genderId[nGenders];
+    enum Gender { unknown,
+                  male,
+                  female,
+                  nGenders };
+    static const char* genderId[nGenders];
+
 private:
     Gender gender_;
+
 public:
     // real name
     // age
-    Gender gender() const { return gender_; }
+    Gender gender() const {
+        return gender_;
+    }
 
-    Speaker(ParentEntity *_parent = 0);
-    void setParent(ParentEntity *_parent) { Precursor::setParent(_parent); }
+    Speaker(ParentEntity* _parent = 0);
+    void setParent(ParentEntity* _parent) {
+        Precursor::setParent(_parent);
+    }
 };
-
 
 /**
  * Acoustic condition.
@@ -108,15 +120,17 @@ public:
 class AcousticCondition : public NamedCorpusEntity {
     typedef NamedCorpusEntity Precursor;
     friend class ConditionDescriptionElement;
+
 public:
     // environment
     // microphone
     // channel
 
-    AcousticCondition(ParentEntity *_parent = 0);
-    void setParent(ParentEntity *_parent) { Precursor::setParent(_parent); }
+    AcousticCondition(ParentEntity* _parent = 0);
+    void setParent(ParentEntity* _parent) {
+        Precursor::setParent(_parent);
+    }
 };
-
 
 /**
  * A NamedCorpusEntity which can be parent of other entities.
@@ -129,31 +143,31 @@ private:
     std::set<std::string> childrensNames_;
 
 protected:
-    ParentEntity(ParentEntity *_parent = 0) :
-            NamedCorpusEntity(_parent) {}
+    ParentEntity(ParentEntity* _parent = 0)
+            : NamedCorpusEntity(_parent) {}
 
 public:
-    bool isNameReserved(const std::string &n) const {
+    bool isNameReserved(const std::string& n) const {
         return childrensNames_.find(n) != childrensNames_.end();
     }
 
-    void reserveName(const std::string &n) {
+    void reserveName(const std::string& n) {
         require(!isNameReserved(n));
         childrensNames_.insert(n);
     }
 };
 
-
-template <class T>
+template<class T>
 class Directory : private std::map<std::string, T*> {
-typedef std::map<std::string, T*> Base;
+    typedef std::map<std::string, T*> Base;
+
 public:
     typedef Directory<T> Self;
-    typedef T Entry;
+    typedef T            Entry;
 
     Directory() {}
 
-    Directory(const Directory &o) {
+    Directory(const Directory& o) {
         for (typename Base::const_iterator i = o.begin(); i != o.end(); ++i) {
             Base::insert(std::make_pair(i->first, new T(*i->second)));
         }
@@ -165,7 +179,7 @@ public:
         }
     }
 
-    bool hasKey(const std::string &k) const {
+    bool hasKey(const std::string& k) const {
         return Base::find(k) != this->end();
     }
 
@@ -174,17 +188,16 @@ public:
      * The directory will take over ownership of the entry and delete
      * it when the directory is destroyed.
      */
-    void add(Entry *e) {
+    void add(Entry* e) {
         require(!hasKey(e->name()));
         Base::insert(std::make_pair(e->name(), e));
     }
 
-    Entry *lookup(const std::string &k) const {
+    Entry* lookup(const std::string& k) const {
         typename Base::const_iterator i = Base::find(k);
         return (i != this->end()) ? i->second : 0;
     }
 };
-
 
 /**
  * Abstract base class for the "parts" of a corpus which contain
@@ -192,49 +205,51 @@ public:
  */
 
 class CorpusSection : public ParentEntity {
-typedef ParentEntity Precursor;
-friend class CorpusDescriptionParser;
+    typedef ParentEntity Precursor;
+    friend class CorpusDescriptionParser;
+
 private:
-     u32 level_;
+    u32 level_;
 
-     Directory<AcousticCondition> conditions_;
-     const AcousticCondition *defaultCondition_;
+    Directory<AcousticCondition> conditions_;
+    const AcousticCondition*     defaultCondition_;
 
-     Directory<Speaker> speakers_;
-     const Speaker *defaultSpeaker_;
+    Directory<Speaker> speakers_;
+    const Speaker*     defaultSpeaker_;
 
-     std::string defaultLanguage_;
+    std::string defaultLanguage_;
 
 public:
-    CorpusSection(CorpusSection *_parent = 0);
+    CorpusSection(CorpusSection* _parent = 0);
     virtual ~CorpusSection() {}
 
-    CorpusSection *parent() const {
+    CorpusSection* parent() const {
         verify(Precursor::parent() == dynamic_cast<CorpusSection*>(Precursor::parent()));
         return static_cast<CorpusSection*>(Precursor::parent());
     }
 
-    u32 level() const { return level_; }
+    u32 level() const {
+        return level_;
+    }
 
-    const Speaker *speaker(const std::string &name) const {
-        const Speaker *result = speakers_.lookup(name);
+    const Speaker* speaker(const std::string& name) const {
+        const Speaker* result = speakers_.lookup(name);
         if (!result && parent()) {
             result = parent()->speaker(name);
         }
         return result;
     }
-    const Speaker *defaultSpeaker() const;
+    const Speaker* defaultSpeaker() const;
 
-    const AcousticCondition *condition(const std::string &name) const {
-        const AcousticCondition *result = conditions_.lookup(name);
+    const AcousticCondition* condition(const std::string& name) const {
+        const AcousticCondition* result = conditions_.lookup(name);
         if (!result && parent()) {
             result = parent()->condition(name);
         }
         return result;
     }
-    const AcousticCondition *defaultCondition() const;
+    const AcousticCondition* defaultCondition() const;
 };
-
 
 /**
  * A collection of recordings.
@@ -242,11 +257,11 @@ public:
  */
 
 class Corpus : public CorpusSection {
-friend class CorpusDescriptionParser;
-public:
-    Corpus(Corpus *parentCorpus = 0);
-};
+    friend class CorpusDescriptionParser;
 
+public:
+    Corpus(Corpus* parentCorpus = 0);
+};
 
 /**
  * Continuous audio data.
@@ -256,25 +271,37 @@ public:
  */
 
 class Recording : public CorpusSection {
-friend class CorpusDescriptionParser;
+    friend class CorpusDescriptionParser;
+
 private:
     std::string audio_;
     std::string video_;
-    Time duration_;
+    Time        duration_;
 
 public:
-    const std::string &audio() const { return audio_; }
-    void setAudio(const std::string &a) { audio_ = a; }
+    const std::string& audio() const {
+        return audio_;
+    }
+    void setAudio(const std::string& a) {
+        audio_ = a;
+    }
 
-    const std::string &video() const { return video_; }
-    void setVideo(const std::string &v) { video_ = v; }
+    const std::string& video() const {
+        return video_;
+    }
+    void setVideo(const std::string& v) {
+        video_ = v;
+    }
 
-    Time duration() const { return duration_; }
-    void setDuration(Time d) { duration_ = d; }
+    Time duration() const {
+        return duration_;
+    }
+    void setDuration(Time d) {
+        duration_ = d;
+    }
 
     Recording(Corpus*);
 };
-
 
 /**
  * General segment of a Recording.
@@ -284,47 +311,69 @@ public:
  */
 
 class Segment : public ParentEntity {
-typedef ParentEntity Precursor;
-friend class CorpusDescriptionParser;
-public:
-    enum Type {typeSpeech, typeOther, nTypes};
-    static const char *typeId[nTypes];
-private:
-    Recording *recording_; // == parent_ actually redundant
+    typedef ParentEntity Precursor;
+    friend class CorpusDescriptionParser;
 
-    Type type_;
-    Time start_, end_;
-    TrackId track_;
-    const AcousticCondition *condition_;
+public:
+    enum Type { typeSpeech,
+                typeOther,
+                nTypes };
+    static const char* typeId[nTypes];
+
+private:
+    Recording* recording_;  // == parent_ actually redundant
+
+    Type                     type_;
+    Time                     start_, end_;
+    TrackId                  track_;
+    const AcousticCondition* condition_;
 
 public:
     Segment(Type, Recording*);
 
-    Recording *recording() const { return recording_; }
-    void setRecording(Recording *r) {
+    Recording* recording() const {
+        return recording_;
+    }
+    void setRecording(Recording* r) {
         recording_ = r;
         setParent(recording_);
     }
 
-    Recording *parent() const {
+    Recording* parent() const {
         verify(Precursor::parent() == dynamic_cast<Recording*>(Precursor::parent()));
         return static_cast<Recording*>(Precursor::parent());
     }
 
-    Type type() const { return type_; }
-    void setType(Type t) { type_ = t; }
+    Type type() const {
+        return type_;
+    }
+    void setType(Type t) {
+        type_ = t;
+    }
 
     /** Start time in seconds from begin of recording */
-    Time start() const { return start_; }
-    void setStart(Time s) { start_ = s; }
+    Time start() const {
+        return start_;
+    }
+    void setStart(Time s) {
+        start_ = s;
+    }
 
     /** End time in seconds from begin of recording */
-    Time end() const { return end_; }
-    void setEnd(Time e) { end_ = e; }
+    Time end() const {
+        return end_;
+    }
+    void setEnd(Time e) {
+        end_ = e;
+    }
 
     /** Track number of this segment */
-    TrackId track() const { return track_; }
-    void setTrack(TrackId track) { track_ = track; }
+    TrackId track() const {
+        return track_;
+    }
+    void setTrack(TrackId track) {
+        track_ = track;
+    }
 
     /**
      * Acoustic condition of this segment
@@ -332,11 +381,11 @@ public:
      * specified in the corpus description.
      * @see AcousticCondition
      */
-    const AcousticCondition *condition() const {
+    const AcousticCondition* condition() const {
         return (condition_) ? condition_ : recording()->defaultCondition();
     }
 
-    void setCondition(const AcousticCondition *condition) {
+    void setCondition(const AcousticCondition* condition) {
         condition_ = condition;
     }
 
@@ -356,15 +405,17 @@ public:
  */
 
 class SpeechSegment : public Segment {
-friend class CorpusDescriptionParser;
+    friend class CorpusDescriptionParser;
+
 private:
-    const Speaker *speaker_;
-    std::string lang_;
-    std::string orth_;
-    std::string leftContextOrth_;
-    std::string rightContextOrth_;
+    const Speaker* speaker_;
+    std::string    lang_;
+    std::string    orth_;
+    std::string    leftContextOrth_;
+    std::string    rightContextOrth_;
+
 public:
-    const std::string &orth() const {
+    const std::string& orth() const {
         ensure(Core::isWhitespaceNormalized(orth_, Core::requireTrailingBlank));
         return orth_;
     }
@@ -400,11 +451,11 @@ public:
      * specified in the corpus description
      * @see Speaker
      */
-    const Speaker *speaker() const {
+    const Speaker* speaker() const {
         return (speaker_) ? speaker_ : recording()->defaultSpeaker();
     }
 
-    void setSpeaker(const Speaker *speaker) {
+    void setSpeaker(const Speaker* speaker) {
         speaker_ = speaker;
     }
 
@@ -412,7 +463,6 @@ public:
 
     virtual void accept(SegmentVisitor*);
 };
-
 
 /**
  * Abstract visitor base class for processing segments.
@@ -433,7 +483,9 @@ public:
      * request will be forwarded to visitSegment(), so ignore this if
      * you want to treat speech and non-speech segments alike.
      */
-    virtual void visitSpeechSegment(SpeechSegment *s) { visitSegment(s); }
+    virtual void visitSpeechSegment(SpeechSegment* s) {
+        visitSegment(s);
+    }
 
     virtual ~SegmentVisitor() {}
 };
@@ -474,7 +526,6 @@ public:
     virtual void leaveCorpus(Corpus*) {}
 };
 
-
 /**
  * Corpus description.
  *
@@ -501,47 +552,51 @@ class CorpusDescription : public Core::Component {
 private:
     std::string filename_;
     class SegmentPartitionVisitorAdaptor;
-    SegmentPartitionVisitorAdaptor *selector_;
+    SegmentPartitionVisitorAdaptor* selector_;
 
     Core::XmlChannel progressChannel_;
 
-    ProgressReportingVisitorAdaptor *reporter_;
+    ProgressReportingVisitorAdaptor* reporter_;
 
-    enum ProgressIndcationMode { noProgress, localProgress, globalProgress };
-    static const Core::Choice progressIndicationChoice;
+    enum ProgressIndcationMode { noProgress,
+                                 localProgress,
+                                 globalProgress };
+    static const Core::Choice          progressIndicationChoice;
     static const Core::ParameterChoice paramProgressIndication;
-    ProgressIndcationMode progressIndicationMode_;
+    ProgressIndcationMode              progressIndicationMode_;
     class SegmentCountingVisitor;
     class ProgressIndicationVisitorAdaptor;
-    ProgressIndicationVisitorAdaptor *indicator_;
-    SegmentOrderingVisitor *ordering_;
+    ProgressIndicationVisitorAdaptor* indicator_;
+    SegmentOrderingVisitor*           ordering_;
 
 public:
-    static const Core::ParameterString paramFilename;
-    static const Core::ParameterBool paramAllowEmptyWhitelist;
-    static const Core::ParameterString paramEncoding;
-    static const Core::ParameterInt paramPartition;
-    static const Core::ParameterInt paramPartitionSelection;
-    static const Core::ParameterInt paramSkipFirstSegments;
+    static const Core::ParameterString       paramFilename;
+    static const Core::ParameterBool         paramAllowEmptyWhitelist;
+    static const Core::ParameterString       paramEncoding;
+    static const Core::ParameterInt          paramPartition;
+    static const Core::ParameterInt          paramPartitionSelection;
+    static const Core::ParameterInt          paramSkipFirstSegments;
     static const Core::ParameterStringVector paramSegmentsToSkip;
-    static const Core::ParameterBool paramRecordingBasedPartition;
-    static const Core::ParameterString paramSegmentOrder;
-    static const Core::ParameterBool paramSegmentOrderLookupName;
-    static const Core::ParameterBool paramSegmentOrderShuffle;
-    static const Core::ParameterInt paramSegmentOrderShuffleSeed;
-    static const Core::ParameterBool paramSegmentOrderSortByTimeLength;
-    static const Core::ParameterInt paramSegmentOrderSortByTimeLengthChunkSize;
-    static const Core::ParameterBool paramProgressReportingSegmentOrth;
-    static const Core::ParameterBool paramTheanoSegmentOrder;
-    static const Core::ParameterBool paramPythonSegmentOrder;
-    static const Core::ParameterString paramPythonSegmentOrderModPath;
-    static const Core::ParameterString paramPythonSegmentOrderModName;
-    static const Core::ParameterString paramPythonSegmentOrderConfig;
+    static const Core::ParameterBool         paramRecordingBasedPartition;
+    static const Core::ParameterString       paramSegmentOrder;
+    static const Core::ParameterBool         paramSegmentOrderLookupName;
+    static const Core::ParameterBool         paramSegmentOrderShuffle;
+    static const Core::ParameterInt          paramSegmentOrderShuffleSeed;
+    static const Core::ParameterBool         paramSegmentOrderSortByTimeLength;
+    static const Core::ParameterInt          paramSegmentOrderSortByTimeLengthChunkSize;
+    static const Core::ParameterBool         paramProgressReportingSegmentOrth;
+    static const Core::ParameterBool         paramTheanoSegmentOrder;
+    static const Core::ParameterBool         paramPythonSegmentOrder;
+    static const Core::ParameterString       paramPythonSegmentOrderModPath;
+    static const Core::ParameterString       paramPythonSegmentOrderModName;
+    static const Core::ParameterString       paramPythonSegmentOrderConfig;
 
     CorpusDescription(const Core::Configuration&);
     ~CorpusDescription();
 
-    const std::string &file() const { return filename_; }
+    const std::string& file() const {
+        return filename_;
+    }
 
     /**
      * Traverse corpus.
@@ -556,27 +611,28 @@ public:
 
 class ProgressReportingVisitorAdaptor : public CorpusVisitor {
 public:
-    ProgressReportingVisitorAdaptor(Core::XmlChannel &ch, bool reportOrth=false);
-    void setVisitor(CorpusVisitor *v) { visitor_ = v; }
+    ProgressReportingVisitorAdaptor(Core::XmlChannel& ch, bool reportOrth = false);
+    void setVisitor(CorpusVisitor* v) {
+        visitor_ = v;
+    }
 
-    virtual void enterCorpus(Corpus *c);
-    virtual void leaveCorpus(Corpus *c);
-    virtual void enterRecording(Recording *r);
-    virtual void leaveRecording(Bliss::Recording *r);
-    virtual void visitSegment(Segment *s);
-    virtual void visitSpeechSegment(SpeechSegment *s);
-
-private:
-    void openSegment(Segment *s);
-    void closeSegment(Segment *s);
+    virtual void enterCorpus(Corpus* c);
+    virtual void leaveCorpus(Corpus* c);
+    virtual void enterRecording(Recording* r);
+    virtual void leaveRecording(Bliss::Recording* r);
+    virtual void visitSegment(Segment* s);
+    virtual void visitSpeechSegment(SpeechSegment* s);
 
 private:
-    CorpusVisitor *visitor_;
-    Core::XmlChannel &channel_;
-    bool reportSegmentOrth_;
+    void openSegment(Segment* s);
+    void closeSegment(Segment* s);
+
+private:
+    CorpusVisitor*    visitor_;
+    Core::XmlChannel& channel_;
+    bool              reportSegmentOrth_;
 };
 
+}  // namespace Bliss
 
-} // namespace Bliss
-
-#endif // _BLISS_CORPUS_DESCRIPTION_HH
+#endif  // _BLISS_CORPUS_DESCRIPTION_HH

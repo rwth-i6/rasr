@@ -22,28 +22,26 @@
 
 namespace Bliss {
 
-    /** CorpusKey: template for combining copus section names. E.g "$(coprus)/$(speaker).xxx"
-     *  They can be used as identifier for the currently processed objects
-     *  (e.g. speaker dependent estimation).
-     *  CorpusVisitor resolves the copus section names in the template.
-     */
-    class CorpusKey :
-        public Core::ReferenceCounted,
-        public Core::StringExpression,
-        public virtual Core::Component {
-    public:
+/** CorpusKey: template for combining copus section names. E.g "$(coprus)/$(speaker).xxx"
+ *  They can be used as identifier for the currently processed objects
+ *  (e.g. speaker dependent estimation).
+ *  CorpusVisitor resolves the copus section names in the template.
+ */
+class CorpusKey : public Core::ReferenceCounted,
+                  public Core::StringExpression,
+                  public virtual Core::Component {
+public:
+    static const Core::ParameterString paramTemplate;
 
-        static const Core::ParameterString paramTemplate;
+    static const std::string openTag;
+    static const std::string closeTag;
 
-        static const std::string openTag;
-        static const std::string closeTag;
+public:
+    CorpusKey(const Core::Configuration& configuration);
 
-    public:
-        CorpusKey(const Core::Configuration &configuration);
+    void resolve(std::string& result);
+};
 
-        void resolve(std::string &result);
-    };
+}  // namespace Bliss
 
-} // namespace Speech
-
-#endif // _BLISS_CORPUS_KEY_HH
+#endif  // _BLISS_CORPUS_KEY_HH

@@ -21,64 +21,62 @@
 #include <Core/Component.hh>
 #include <Fsa/Automaton.hh>
 namespace Bliss {
-    class ErrorStatistic;
-    class Lexicon;
-    class OrthographicParser;
-}
+class ErrorStatistic;
+class Lexicon;
+class OrthographicParser;
+}  // namespace Bliss
 
 namespace Bliss {
 
-    class Evaluator :
-        public Core::Component
-    {
-    private:
-        static const Core::ParameterBool paramWordErrors;
-        static const Core::ParameterBool paramLetterErrors;
-        static const Core::ParameterBool paramFilterLettersByEvalTokens;
-        static const Core::ParameterBool paramPhonemeErrors;
+class Evaluator : public Core::Component {
+private:
+    static const Core::ParameterBool paramWordErrors;
+    static const Core::ParameterBool paramLetterErrors;
+    static const Core::ParameterBool paramFilterLettersByEvalTokens;
+    static const Core::ParameterBool paramPhonemeErrors;
 
-        bool shallComputeWordErrors_;
-        bool shallComputeLetterErrors_;
-        bool shallFilterLettersByEvalTokens_;
-        bool shallComputePhonemeErrors_;
+    bool shallComputeWordErrors_;
+    bool shallComputeLetterErrors_;
+    bool shallFilterLettersByEvalTokens_;
+    bool shallComputePhonemeErrors_;
 
-        Core::Ref<const Lexicon> lexicon_;
-        Core::Ref<const OrthographicParser> orthParser_;
-        Fsa::ConstAutomatonRef lemmaPronToLemma_;
-        Fsa::ConstAutomatonRef lemmaPronToPhoneme_;
-        Fsa::ConstAutomatonRef lemmaToSynt_;
-        Fsa::ConstAutomatonRef lemmaToEval_;
-        //	Fsa::ConstAutomatonRef lemmaToPreferredEval_;
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion_;
-        Fsa::ConstAutomatonRef lemmaToLetter_;
-        Fsa::ConstAutomatonRef lemmaToPhoneme_;
-        class LetterAcceptorBuilder;
-        LetterAcceptorBuilder *letterAcceptorBuilder_;
-        Bliss::EditDistance *editDistance_;
-        struct {
-            Fsa::ConstAutomatonRef lemma, eval, phon, orth;
-        } correct_;
-        Core::XmlChannel graphStatisticsChannel_;
-        Core::XmlChannel graphDumpChannel_;
+    Core::Ref<const Lexicon>            lexicon_;
+    Core::Ref<const OrthographicParser> orthParser_;
+    Fsa::ConstAutomatonRef              lemmaPronToLemma_;
+    Fsa::ConstAutomatonRef              lemmaPronToPhoneme_;
+    Fsa::ConstAutomatonRef              lemmaToSynt_;
+    Fsa::ConstAutomatonRef              lemmaToEval_;
+    //	Fsa::ConstAutomatonRef lemmaToPreferredEval_;
+    Fsa::ConstAutomatonRef lemmaToLemmaConfusion_;
+    Fsa::ConstAutomatonRef lemmaToLetter_;
+    Fsa::ConstAutomatonRef lemmaToPhoneme_;
+    class LetterAcceptorBuilder;
+    LetterAcceptorBuilder* letterAcceptorBuilder_;
+    Bliss::EditDistance*   editDistance_;
+    struct {
+        Fsa::ConstAutomatonRef lemma, eval, phon, orth;
+    } correct_;
+    Core::XmlChannel graphStatisticsChannel_;
+    Core::XmlChannel graphDumpChannel_;
 
-        void reportLatticeDensity(
-            Fsa::ConstAutomatonRef lattice,
-            const Bliss::ErrorStatistic &latticeWordErrors);
+    void reportLatticeDensity(
+            Fsa::ConstAutomatonRef       lattice,
+            const Bliss::ErrorStatistic& latticeWordErrors);
 
-        Bliss::ErrorStatistic evaluateMetric(
+    Bliss::ErrorStatistic evaluateMetric(
             Fsa::ConstAutomatonRef correct,
             Fsa::ConstAutomatonRef candidate,
-            const std::string &type,
-            const std::string &name);
+            const std::string&     type,
+            const std::string&     name);
 
-    public:
-        Evaluator(const Core::Configuration&,
-                  Core::Ref<const Lexicon>);
-        ~Evaluator();
+public:
+    Evaluator(const Core::Configuration&,
+              Core::Ref<const Lexicon>);
+    ~Evaluator();
 
-        void setReferenceTranscription(const std::string&);
+    void setReferenceTranscription(const std::string&);
 
-        /**
+    /**
          * Evaluate a word sequence or lattice.
          *
          * For "normal" single-best error rates, make sure that the
@@ -93,11 +91,11 @@ namespace Bliss {
          * @param name a string identifier that will be attached to
          * the result.
          */
-        u32 evaluateWords(
+    u32 evaluateWords(
             Fsa::ConstAutomatonRef lemmaPron,
-            const std::string &name);
+            const std::string&     name);
 
-        /**
+    /**
          * Evaluate a phoneme sequence or lattice.
          *
          * This function is intended for use in a phoneme recognizer.
@@ -116,20 +114,20 @@ namespace Bliss {
          * @param name a string identifier that will be attached to
          * the result.
          */
-        u32 evaluatePhonemes(
+    u32 evaluatePhonemes(
             Fsa::ConstAutomatonRef phonemes,
-            const std::string &name);
+            const std::string&     name);
 
-        /**
+    /**
          * Evaluate a sequence or a lattice.
          * This function automatically dispatches to evaluateWords()
          * or evaluatePhonemes().
          */
-        u32 evaluate(
+    u32 evaluate(
             Fsa::ConstAutomatonRef,
-            const std::string &name);
-    };
+            const std::string& name);
+};
 
-} // namespace Bliss
+}  // namespace Bliss
 
-#endif //_BLISS_EVALUATION_HH
+#endif  //_BLISS_EVALUATION_HH

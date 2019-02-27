@@ -16,10 +16,9 @@
 
 #include "PrefixTree.hh"
 
-
 namespace Bliss {
 
 char PrefixTreeSymbolTraits<std::string>::sentinel[maximumLength];
 char PrefixTreeSymbolTraits<const char*>::sentinel[maximumLength];
 
-} // namespace Bliss
+}  // namespace Bliss

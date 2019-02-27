@@ -22,44 +22,46 @@ const Bliss::Token::Id Bliss::Token::invalidId;
 
 SymbolSet::SymbolSet() {}
 
-Symbol SymbolSet::operator[] (const Symbol::Char *s) {
-    const Symbol::Char *result = 0;
-    Map::const_iterator i = map_.find(s);
+Symbol SymbolSet::operator[](const Symbol::Char* s) {
+    const Symbol::Char* result = 0;
+    Map::const_iterator i      = map_.find(s);
     if (i == map_.end()) {
         result = strings_.add0(s, s + strlen((char*)s));
         map_.insert(result);
-    } else {
+    }
+    else {
         result = *i;
     }
     return Symbol(result);
 }
 
-Symbol SymbolSet::operator[] (const Symbol::String &s) {
-    const Symbol::Char *result = 0;
-    Map::const_iterator i = map_.find(s.c_str());
+Symbol SymbolSet::operator[](const Symbol::String& s) {
+    const Symbol::Char* result = 0;
+    Map::const_iterator i      = map_.find(s.c_str());
     if (i == map_.end()) {
         //result = strings_.add0(&*(s.begin()),&*(s.end()));
-        result = strings_.add0(&*(s.begin()),(&*(s.end()-1))+1);
+        result = strings_.add0(&*(s.begin()), (&*(s.end() - 1)) + 1);
         map_.insert(result);
-    } else {
+    }
+    else {
         result = *i;
     }
     return Symbol(result);
 }
 
-Symbol SymbolSet::get(const Symbol::Char *s) const {
+Symbol SymbolSet::get(const Symbol::Char* s) const {
     Map::const_iterator i = map_.find(s);
     return Symbol((i != map_.end()) ? *i : 0);
 }
 
-Symbol SymbolSet::get(const Symbol::String &s) const {
+Symbol SymbolSet::get(const Symbol::String& s) const {
     return this->get(s.c_str());
 }
 
-bool SymbolSet::contains(const Symbol::Char *s) const {
+bool SymbolSet::contains(const Symbol::Char* s) const {
     return map_.find(s) != map_.end();
 }
 
-bool SymbolSet::contains(const Symbol::String &s) const {
+bool SymbolSet::contains(const Symbol::String& s) const {
     return this->contains(s.c_str());
 }

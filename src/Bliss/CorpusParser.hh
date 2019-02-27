@@ -15,8 +15,8 @@
 #ifndef _BLISS_CORPUS_PARSER_HH
 #define _BLISS_CORPUS_PARSER_HH
 
-#include <Core/XmlBuilder.hh>
 #include <Core/ProgressIndicator.hh>
+#include <Core/XmlBuilder.hh>
 #include "CorpusDescription.hh"
 
 namespace Bliss {
@@ -33,40 +33,38 @@ class OrthographyElement;
  * CorpusDescription.
  */
 
-class CorpusDescriptionParser :
-    public Core::XmlSchemaParser
-{
+class CorpusDescriptionParser : public Core::XmlSchemaParser {
 private:
     typedef CorpusDescriptionParser Self;
 
-    CorpusVisitor *corpusVisitor_ ;
+    CorpusVisitor* corpusVisitor_;
 
-    Core::ProgressIndicator *progressIndicator_;
+    Core::ProgressIndicator* progressIndicator_;
 
-    std::string   corpusDir_;
-    std::string   audioDir_;
-    std::string   videoDir_;
-    bool          shallCaptializeTranscriptions_;
-    bool          shallGemenizeTranscriptions_;
-    bool          isSubParser_ ;
-    Corpus        *superCorpus_, *corpus_ ;
-    Recording     *recording_ ;
-    SpeechSegment *segment_ ;
-    int           segmentNum_;      // counter for enumeration of unnamed segments
-    CorpusSection *currentSection_; // current innermost corpus, subcorpus or recording
+    std::string    corpusDir_;
+    std::string    audioDir_;
+    std::string    videoDir_;
+    bool           shallCaptializeTranscriptions_;
+    bool           shallGemenizeTranscriptions_;
+    bool           isSubParser_;
+    Corpus *       superCorpus_, *corpus_;
+    Recording*     recording_;
+    SpeechSegment* segment_;
+    int            segmentNum_;      // counter for enumeration of unnamed segments
+    CorpusSection* currentSection_;  // current innermost corpus, subcorpus or recording
 
-    const Speaker *getSpeaker(const std::string &name) const;
-    const AcousticCondition *getCondition(const std::string &name) const;
+    const Speaker*           getSpeaker(const std::string& name) const;
+    const AcousticCondition* getCondition(const std::string& name) const;
 
-    void startCorpus(const Core::XmlAttributes atts) ;
-    void endCorpus() ;
-    void startSubcorpus(const Core::XmlAttributes atts) ;
-    void endSubcorpus() ;
-    void include(const Core::XmlAttributes atts) ;
-    void startRecording(const Core::XmlAttributes atts) ;
-    void endRecording() ;
-    void startSegment(const Core::XmlAttributes atts) ;
-    void endSegment() ;
+    void startCorpus(const Core::XmlAttributes atts);
+    void endCorpus();
+    void startSubcorpus(const Core::XmlAttributes atts);
+    void endSubcorpus();
+    void include(const Core::XmlAttributes atts);
+    void startRecording(const Core::XmlAttributes atts);
+    void endRecording();
+    void startSegment(const Core::XmlAttributes atts);
+    void endSegment();
 
     void defineSpeaker(std::unique_ptr<Speaker>&);
     void selectDefaultSpeaker(const Core::XmlAttributes atts);
@@ -79,33 +77,33 @@ private:
     void selectSegmentCondition(const Core::XmlAttributes atts);
 
     std::string processOrth(std::string const&);
-    void setOrth(std::string const&);
-    void setLeftContextOrth(std::string const&);
-    void setRightContextOrth(std::string const&);
+    void        setOrth(std::string const&);
+    void        setLeftContextOrth(std::string const&);
+    void        setRightContextOrth(std::string const&);
 
     /**
      * Include another corpus file at current (logical) position.
      * @param relativeFilename path of the corpus file to be included.
      * @c filename is resolved against the configuration and treated
      * as a path relative to the current file. */
-    void includeFile(const std::string &relativeFilename) ;
+    void includeFile(const std::string& relativeFilename);
 
-    void initSchema() ;
-    CorpusDescriptionParser(const Core::Configuration&, Corpus*) ;
+    void initSchema();
+    CorpusDescriptionParser(const Core::Configuration&, Corpus*);
 
 public:
     static const Core::ParameterString paramAudioDir;
     static const Core::ParameterString paramVideoDir;
-    static const Core::ParameterBool paramCaptializeTranscriptions;
-    static const Core::ParameterBool paramGemenizeTranscriptions;
-    static const Core::ParameterBool paramProgress;
+    static const Core::ParameterBool   paramCaptializeTranscriptions;
+    static const Core::ParameterBool   paramGemenizeTranscriptions;
+    static const Core::ParameterBool   paramProgress;
 
-    CorpusDescriptionParser(const Core::Configuration&) ;
+    CorpusDescriptionParser(const Core::Configuration&);
     virtual ~CorpusDescriptionParser();
 
-    int accept(const std::string &filename, CorpusVisitor*);
+    int accept(const std::string& filename, CorpusVisitor*);
 };
 
-} // namespace Bliss
+}  // namespace Bliss
 
-#endif // _BLISS_CORPUS_PARSER_HH
+#endif  // _BLISS_CORPUS_PARSER_HH

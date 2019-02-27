@@ -15,9 +15,9 @@
 // $Id$
 
 #include "Evaluation.hh"
-#include <Bliss/Orthography.hh>
 #include <Bliss/EditDistance.hh>
 #include <Bliss/Fsa.hh>
+#include <Bliss/Orthography.hh>
 #include <Bliss/Unknown.hh>
 #include <Core/Assertions.hh>
 #include <Fsa/Arithmetic.hh>
@@ -35,35 +35,37 @@
 
 using namespace Bliss;
 
-
 const Core::ParameterBool Evaluator::paramWordErrors(
-    "word-errors",
-    "compute edit-distance on word level",
-    true);
+        "word-errors",
+        "compute edit-distance on word level",
+        true);
 const Core::ParameterBool Evaluator::paramLetterErrors(
-    "letter-errors",
-    "compute edit-distance on letter level",
-    false);
+        "letter-errors",
+        "compute edit-distance on letter level",
+        false);
 const Core::ParameterBool Evaluator::paramFilterLettersByEvalTokens(
-    "filter-letters-by-eval-tokens",
-    "when computing letter-errors, ignore letters for lemmas which have no eval token",
-    false);
+        "filter-letters-by-eval-tokens",
+        "when computing letter-errors, ignore letters for lemmas which have no eval token",
+        false);
 const Core::ParameterBool Evaluator::paramPhonemeErrors(
-    "phoneme-errors",
-    "compute edit-distance on phoneme level",
-    false);
-
+        "phoneme-errors",
+        "compute edit-distance on phoneme level",
+        false);
 
 class Evaluator::LetterAcceptorBuilder : public OrthographicParser::Handler {
     typedef OrthographicParser::Handler Precursor;
+
 private:
     Core::Ref<Fsa::StaticAutomaton> product_;
+
 public:
     LetterAcceptorBuilder() {}
     ~LetterAcceptorBuilder() {}
-    Fsa::ConstAutomatonRef product() const { return product_; }
+    Fsa::ConstAutomatonRef product() const {
+        return product_;
+    }
 
-    virtual void initialize(const OrthographicParser *parser) {
+    virtual void initialize(const OrthographicParser* parser) {
         Precursor::initialize(parser);
         product_ = ref(new Fsa::StaticAutomaton);
         product_->setType(Fsa::TypeAcceptor);
@@ -75,82 +77,79 @@ public:
         return product_->newState();
     }
 
-    void buildString(Fsa::State *source, Fsa::State *target, const std::string &orth) {
+    void buildString(Fsa::State* source, Fsa::State* target, const std::string& orth) {
         Fsa::Weight one = Fsa::Weight(product_->semiring()->one());
         const char *cc, *nc;
-        Fsa::State *state = source;
-        for (cc = nc = orth.c_str(); *cc; cc=nc) {
-            do ++nc; while (*nc && utf8::byteType(*nc) == utf8::multiByteTail);
+        Fsa::State* state = source;
+        for (cc = nc = orth.c_str(); *cc; cc = nc) {
+            do
+                ++nc;
+            while (*nc && utf8::byteType(*nc) == utf8::multiByteTail);
             std::string letter(cc, nc);
-            Fsa::State *next = (*nc) ? product_->newState() : target;
+            Fsa::State* next = (*nc) ? product_->newState() : target;
             state->newArc(next->id(), one, parser_->lexicon()->letter(letter)->id());
             state = next;
         }
-        if (state != target) // when orth has length zero
+        if (state != target)  // when orth has length zero
             source->newArc(target->id(), one, Fsa::Epsilon);
     }
 
     virtual void newEdge(
-        OrthographicParser::Node from,
-        OrthographicParser::Node to,
-        const Lemma *lemma)
-    {
-        Fsa::State *source = static_cast<Fsa::State*>(from);
-        Fsa::State *target = static_cast<Fsa::State*>(to);
+            OrthographicParser::Node from,
+            OrthographicParser::Node to,
+            const Lemma*             lemma) {
+        Fsa::State* source = static_cast<Fsa::State*>(from);
+        Fsa::State* target = static_cast<Fsa::State*>(to);
         if (lemma) {
 #if 1
             buildString(source, target, lemma->preferredOrthographicForm());
 #else
-            const OrthographicFormList &forms(lemma->orthographicForms());
+            const OrthographicFormList& forms(lemma->orthographicForms());
             for (OrthographicFormList::Iterator orth = forms.begin(); orth != forms.end(); ++orth)
                 buildString(source, target, *orth);
 #endif
-        } else {
+        }
+        else {
             source->newArc(target->id(), product_->semiring()->one(), Fsa::Epsilon);
         }
     }
 
     void newUnmatchableEdge(
-        OrthographicParser::Node from, OrthographicParser::Node to,
-        const std::string &orth)
-    {
-        Fsa::State *source = static_cast<Fsa::State*>(from);
-        Fsa::State *target = static_cast<Fsa::State*>(to);
+            OrthographicParser::Node from, OrthographicParser::Node to,
+            const std::string& orth) {
+        Fsa::State* source = static_cast<Fsa::State*>(from);
+        Fsa::State* target = static_cast<Fsa::State*>(to);
         buildString(source, target, orth);
     }
 
     void finalize(
-        OrthographicParser::Node initial,
-        OrthographicParser::Node final)
-    {
+            OrthographicParser::Node initial,
+            OrthographicParser::Node final) {
         product_->setInitialStateId(static_cast<Fsa::State*>(initial)->id());
         product_->setStateFinal(static_cast<Fsa::State*>(final));
         product_->normalize();
     }
-
 };
 
-
 Evaluator::Evaluator(
-    const Core::Configuration &c,
-    Core::Ref<const Lexicon> l) :
-    Core::Component(c),
-    lexicon_(l),
-    orthParser_(),
-    letterAcceptorBuilder_(0),
-    editDistance_(0),
-    graphStatisticsChannel_(config, "graph-statistics"),
-    graphDumpChannel_(config, "dump-graphs")
-{
-    shallComputeWordErrors_    = paramWordErrors(config);
-    shallComputeLetterErrors_  = paramLetterErrors(config);
+        const Core::Configuration& c,
+        Core::Ref<const Lexicon>   l)
+        : Core::Component(c),
+          lexicon_(l),
+          orthParser_(),
+          letterAcceptorBuilder_(0),
+          editDistance_(0),
+          graphStatisticsChannel_(config, "graph-statistics"),
+          graphDumpChannel_(config, "dump-graphs") {
+    shallComputeWordErrors_         = paramWordErrors(config);
+    shallComputeLetterErrors_       = paramLetterErrors(config);
     shallFilterLettersByEvalTokens_ = paramFilterLettersByEvalTokens(config);
-    shallComputePhonemeErrors_ = paramPhonemeErrors(config);
+    shallComputePhonemeErrors_      = paramPhonemeErrors(config);
 
-    orthParser_ = Core::ref(new Bliss::OrthographicParser(config, lexicon_));
+    orthParser_       = Core::ref(new Bliss::OrthographicParser(config, lexicon_));
     lemmaPronToLemma_ = Fsa::multiply(lexicon_->createLemmaPronunciationToLemmaTransducer(), Fsa::Weight(0.0));
-    lemmaToSynt_ = Fsa::multiply(lexicon_->createLemmaToSyntacticTokenTransducer(), Fsa::Weight(0.0));
-    lemmaToEval_ = Fsa::multiply(lexicon_->createLemmaToEvaluationTokenTransducer(), Fsa::Weight(0.0));
+    lemmaToSynt_      = Fsa::multiply(lexicon_->createLemmaToSyntacticTokenTransducer(), Fsa::Weight(0.0));
+    lemmaToEval_      = Fsa::multiply(lexicon_->createLemmaToEvaluationTokenTransducer(), Fsa::Weight(0.0));
     //    lemmaToPreferredEval_ = Fsa::multiply(lexicon_->createLemmaToPreferredEvaluationTokenSequenceTransducer(), Fsa::Weight(0.0));
 
     if (shallComputeLetterErrors_ || shallComputePhonemeErrors_) {
@@ -160,20 +159,20 @@ Evaluator::Evaluator(
 
     if (shallComputeLetterErrors_) {
         letterAcceptorBuilder_ = new LetterAcceptorBuilder;
-        lemmaToLetter_ = lexicon_->createLemmaToOrthographyTransducer(false, shallFilterLettersByEvalTokens_);
+        lemmaToLetter_         = lexicon_->createLemmaToOrthographyTransducer(false, shallFilterLettersByEvalTokens_);
     }
 
     if (shallComputePhonemeErrors_) {
         Fsa::ConstAutomatonRef phonToPron =
-            lexicon_->createPhonemeToLemmaPronunciationTransducer();
+                lexicon_->createPhonemeToLemmaPronunciationTransducer();
         lemmaPronToPhoneme_ = Fsa::cache(Fsa::invert(phonToPron));
-        lemmaToPhoneme_ = Fsa::invert(
-            Fsa::removeDisambiguationSymbols(
-                Fsa::fuse(
-                    Fsa::composeSequencing(
-                        phonToPron,
-                        lemmaPronToLemma_),
-                    createAnyPhonemeToUnknownTransducer(lexicon_))));
+        lemmaToPhoneme_     = Fsa::invert(
+                Fsa::removeDisambiguationSymbols(
+                        Fsa::fuse(
+                                Fsa::composeSequencing(
+                                        phonToPron,
+                                        lemmaPronToLemma_),
+                                createAnyPhonemeToUnknownTransducer(lexicon_))));
         lemmaToPhoneme_ = Fsa::cache(lemmaToPhoneme_);
     }
 
@@ -185,7 +184,7 @@ Evaluator::~Evaluator() {
     delete editDistance_;
 }
 
-void Evaluator::setReferenceTranscription(const std::string &referenceTranscription) {
+void Evaluator::setReferenceTranscription(const std::string& referenceTranscription) {
     correct_.lemma = orthParser_->createLemmaAcceptor(referenceTranscription);
 
     graphStatisticsChannel_ << Core::XmlOpen("reference") + Core::XmlAttribute("type", "lemma");
@@ -197,12 +196,12 @@ void Evaluator::setReferenceTranscription(const std::string &referenceTranscript
 
     if (shallComputeWordErrors_) {
         correct_.eval = Fsa::staticCopy(
-            Fsa::minimize(
-                Fsa::determinize(
-                    Fsa::projectOutput(
-                        Fsa::composeMatching(
-                            correct_.lemma,
-                            lemmaToEval_)))));
+                Fsa::minimize(
+                        Fsa::determinize(
+                                Fsa::projectOutput(
+                                        Fsa::composeMatching(
+                                                correct_.lemma,
+                                                lemmaToEval_)))));
 
         graphStatisticsChannel_ << Core::XmlOpen("reference") + Core::XmlAttribute("type", "eval");
         if (graphStatisticsChannel_.isOpen())
@@ -210,25 +209,26 @@ void Evaluator::setReferenceTranscription(const std::string &referenceTranscript
         if (graphDumpChannel_.isOpen())
             Fsa::drawDot(correct_.eval, graphDumpChannel_);
         graphStatisticsChannel_ << Core::XmlClose("reference");
-    } else {
+    }
+    else {
         correct_.eval.reset();
     }
 
     if (shallComputeLetterErrors_) {
         orthParser_->parse(referenceTranscription, *letterAcceptorBuilder_);
-        if(shallFilterLettersByEvalTokens_)
-        {
-                correct_.orth =
+        if (shallFilterLettersByEvalTokens_) {
+            correct_.orth =
                     Fsa::staticCopy(Fsa::trim(Fsa::projectOutput(
-                        Fsa::composeMatching(
-                            correct_.lemma,
-                            lemmaToLetter_))));
-        }else{
-                correct_.orth = Fsa::staticCopy(
+                            Fsa::composeMatching(
+                                    correct_.lemma,
+                                    lemmaToLetter_))));
+        }
+        else {
+            correct_.orth = Fsa::staticCopy(
                     Fsa::minimize(
-                        Fsa::determinize(
-                            Fsa::removeEpsilons(
-                                letterAcceptorBuilder_->product()))));
+                            Fsa::determinize(
+                                    Fsa::removeEpsilons(
+                                            letterAcceptorBuilder_->product()))));
         }
 
         graphStatisticsChannel_ << Core::XmlOpen("reference") + Core::XmlAttribute("type", "orth");
@@ -237,25 +237,26 @@ void Evaluator::setReferenceTranscription(const std::string &referenceTranscript
         if (graphDumpChannel_.isOpen())
             Fsa::drawDot(correct_.orth, graphDumpChannel_);
         graphStatisticsChannel_ << Core::XmlClose("reference");
-    } else {
+    }
+    else {
         correct_.orth.reset();
     }
 
     if (shallComputePhonemeErrors_) {
         Fsa::ConstAutomatonRef confusedLemma = Fsa::minimize(
-            Fsa::determinize(
-                Fsa::removeEpsilons(
-                    Fsa::projectOutput(
-                        Fsa::composeMatching(
-                            correct_.lemma,
-                            lemmaToLemmaConfusion_)))));
-        correct_.phon = Fsa::staticCopy(
-            Fsa::minimize(
                 Fsa::determinize(
-                    Fsa::projectOutput(
-                        Fsa::composeMatching(
-                            confusedLemma,
-                            lemmaToPhoneme_)))));
+                        Fsa::removeEpsilons(
+                                Fsa::projectOutput(
+                                        Fsa::composeMatching(
+                                                correct_.lemma,
+                                                lemmaToLemmaConfusion_)))));
+        correct_.phon = Fsa::staticCopy(
+                Fsa::minimize(
+                        Fsa::determinize(
+                                Fsa::projectOutput(
+                                        Fsa::composeMatching(
+                                                confusedLemma,
+                                                lemmaToPhoneme_)))));
 
         graphStatisticsChannel_ << Core::XmlOpen("reference") + Core::XmlAttribute("type", "phon");
         if (graphStatisticsChannel_.isOpen())
@@ -268,11 +269,11 @@ void Evaluator::setReferenceTranscription(const std::string &referenceTranscript
             warning("The set of correct phoneme sequences is empty.  Phoneme errors cannot be computed.");
             correct_.phon.reset();
         }
-    } else {
+    }
+    else {
         correct_.phon.reset();
     }
 }
-
 
 /**
  * Compute and report density of the lattice in terms of arcs per
@@ -290,27 +291,21 @@ void Evaluator::setReferenceTranscription(const std::string &referenceTranscript
  * eval tokens can be ambiguous (depending on the lexicon).  This is
  * addressed by using the sequence which yields the fewest errors.
  */
-void Evaluator::reportLatticeDensity(
-    Fsa::ConstAutomatonRef lattice,
-    const ErrorStatistic &latticeWordErrors)
-{
-    Core::XmlWriter &os(clog());
+void Evaluator::reportLatticeDensity(Fsa::ConstAutomatonRef lattice, const ErrorStatistic& latticeWordErrors) {
+    Core::XmlWriter& os(clog());
 
     u32 nCorrectEvalTokens = latticeWordErrors.nLeftTokens();
     os << Core::XmlFull("correct-words", nCorrectEvalTokens);
 
     Fsa::AutomatonCounts countsLattice = Fsa::count(lattice);
-    u32 nArcs = countsLattice.nArcs_ - countsLattice.nIEps_;
+    u32                  nArcs         = countsLattice.nArcs_ - countsLattice.nIEps_;
     os << Core::XmlFull("word-arcs", nArcs);
 
     f32 wordLatticeDensity = f32(nArcs) / f32(nCorrectEvalTokens);
     os << Core::XmlFull("word-lattice-density", wordLatticeDensity);
 }
 
-u32 Evaluator::evaluateWords(
-    Fsa::ConstAutomatonRef lemmaOrPronOrSyntOrEval,
-    const std::string &name)
-{
+u32 Evaluator::evaluateWords(Fsa::ConstAutomatonRef lemmaOrPronOrSyntOrEval, const std::string& name) {
     require(!Fsa::isEmpty(lemmaOrPronOrSyntOrEval));
     require(lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->lemmaPronunciationAlphabet() ||
             lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->lemmaAlphabet() ||
@@ -320,47 +315,37 @@ u32 Evaluator::evaluateWords(
     Fsa::ConstAutomatonRef lemma, lemmaPron;
     if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->lemmaPronunciationAlphabet()) {
         lemmaPron = lemmaOrPronOrSyntOrEval;
-        lemma = Fsa::cache(Fsa::composeMatching(lemmaPron, lemmaPronToLemma_));
-    } else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->lemmaAlphabet()) {
+        lemma     = Fsa::cache(Fsa::composeMatching(lemmaPron, lemmaPronToLemma_));
+    }
+    else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->lemmaAlphabet()) {
         lemma = lemmaOrPronOrSyntOrEval;
-    } else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->syntacticTokenAlphabet()) {
+    }
+    else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->syntacticTokenAlphabet()) {
         lemma = Fsa::cache(Fsa::composeMatching(lemmaOrPronOrSyntOrEval, Fsa::invert(lemmaToSynt_)));
-    } else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->evaluationTokenAlphabet()) {
+    }
+    else if (lemmaOrPronOrSyntOrEval->getOutputAlphabet() == lexicon_->evaluationTokenAlphabet()) {
         lemma = Fsa::cache(Fsa::composeMatching(lemmaOrPronOrSyntOrEval, Fsa::invert(lemmaToEval_)));
     }
 
     u32 result = 0;
 
     if (shallComputeWordErrors_) {
-        Fsa::ConstAutomatonRef eval =
-            Fsa::projectOutput(
-                Fsa::composeMatching(
-                    lemma,
-                    lemmaToEval_));
-        eval = Fsa::staticCopy(Fsa::trim(eval));
-        ErrorStatistic errors = evaluateMetric(
-            correct_.eval, eval, "eval", name);
+        Fsa::ConstAutomatonRef eval = Fsa::projectOutput(Fsa::composeMatching(lemma, lemmaToEval_));
+        eval                        = Fsa::staticCopy(Fsa::trim(eval));
+        ErrorStatistic errors       = evaluateMetric(correct_.eval, eval, "eval", name);
         reportLatticeDensity(Fsa::projectOutput(lemma), errors);
         result = errors.nErrors();
     }
 
     if (shallComputeLetterErrors_) {
-        Fsa::ConstAutomatonRef orth =
-            Fsa::projectOutput(
-                Fsa::composeMatching(
-                    lemma,
-                    lemmaToLetter_));
-        orth = Fsa::staticCopy(Fsa::trim(orth));
+        Fsa::ConstAutomatonRef orth = Fsa::projectOutput(Fsa::composeMatching(lemma, lemmaToLetter_));
+        orth                        = Fsa::staticCopy(Fsa::trim(orth));
         evaluateMetric(correct_.orth, orth, "orth", name);
     }
 
     if (shallComputePhonemeErrors_ && correct_.phon && lemmaPron) {
-        Fsa::ConstAutomatonRef phon = Fsa::removeDisambiguationSymbols(
-            Fsa::projectOutput(
-                Fsa::composeMatching(
-                    lemmaPron,
-                    lemmaPronToPhoneme_)));
-        phon = Fsa::staticCopy(Fsa::trim(phon));
+        Fsa::ConstAutomatonRef phon = Fsa::removeDisambiguationSymbols(Fsa::projectOutput(Fsa::composeMatching(lemmaPron, lemmaPronToPhoneme_)));
+        phon                        = Fsa::staticCopy(Fsa::trim(phon));
         evaluateMetric(correct_.phon, phon, "phon", name);
     }
 
@@ -368,19 +353,15 @@ u32 Evaluator::evaluateWords(
 }
 
 u32 Evaluator::evaluatePhonemes(
-    Fsa::ConstAutomatonRef phon,
-    const std::string &name)
-{
+        Fsa::ConstAutomatonRef phon,
+        const std::string&     name) {
     require(phon->getOutputAlphabet() == lexicon_->phonemeInventory()->phonemeAlphabet());
     require(!Fsa::isEmpty(phon));
 
     u32 result = 0;
 
     if (shallComputePhonemeErrors_ && correct_.phon) {
-        ErrorStatistic errors = evaluateMetric(
-            correct_.phon,
-            Fsa::staticCopy(Fsa::trim(phon)),
-            "phon", name);
+        ErrorStatistic errors = evaluateMetric(correct_.phon, Fsa::staticCopy(Fsa::trim(phon)), "phon", name);
         reportLatticeDensity(phon, errors);
         result = errors.nErrors();
     }
@@ -388,10 +369,7 @@ u32 Evaluator::evaluatePhonemes(
     return result;
 }
 
-u32 Evaluator::evaluate(
-    Fsa::ConstAutomatonRef aa,
-    const std::string &name)
-{
+u32 Evaluator::evaluate(Fsa::ConstAutomatonRef aa, const std::string& name) {
     require(!Fsa::isEmpty(aa));
     if (aa->getOutputAlphabet() == lexicon_->lemmaPronunciationAlphabet())
         return evaluateWords(aa, name);
@@ -408,15 +386,12 @@ u32 Evaluator::evaluate(
 }
 
 ErrorStatistic Evaluator::evaluateMetric(
-    Fsa::ConstAutomatonRef correct,
-    Fsa::ConstAutomatonRef candidate,
-    const std::string &type,
-    const std::string &name)
-{
-    Core::XmlWriter &os(clog());
-    os << Core::XmlOpen("evaluation")
-        + Core::XmlAttribute("name", name)
-        + Core::XmlAttribute("type", type);
+        Fsa::ConstAutomatonRef correct,
+        Fsa::ConstAutomatonRef candidate,
+        const std::string&     type,
+        const std::string&     name) {
+    Core::XmlWriter& os(clog());
+    os << Core::XmlOpen("evaluation") + Core::XmlAttribute("name", name) + Core::XmlAttribute("type", type);
 
     if (graphStatisticsChannel_.isOpen()) {
         graphStatisticsChannel_ << Core::XmlOpen("candidate");
@@ -432,30 +407,16 @@ ErrorStatistic Evaluator::evaluateMetric(
     al.write(os);
 
     // report alignment statistics
-    os << (Core::XmlOpen("statistic")
-           + Core::XmlAttribute("type", "alignment"))
+    os << (Core::XmlOpen("statistic") + Core::XmlAttribute("type", "alignment"))
        << Core::XmlFull("cost", al.cost)
        << Core::XmlFull("edit-operations", errors.nErrors())
-       << (Core::XmlFull("score", al.score)
-           + Core::XmlAttribute("source", "best"))
-       << (Core::XmlFull("count", errors.nRightTokens())
-           + Core::XmlAttribute("event", "token")
-           + Core::XmlAttribute("source", "best"))
-       << (Core::XmlFull("count", errors.nLeftTokens())
-           + Core::XmlAttribute("event", "token")
-           + Core::XmlAttribute("source", "reference"));
-#if 0 // information of interest ?
-    Fsa::AutomatonCounts countsCandidate = Fsa::count(candidate);
-    os << (Core::XmlFull("lattice-arcs", countsCandidate.nArcs_)
-           + Core::XmlAttribute("source", "hypothesis"))
-       << (Core::XmlFull("lattice-density", f32(countsCandidate.nArcs_) / f32(errors.nLeftTokens()))
-           + Core::XmlAttribute("source", "hypothesis"));
-#endif
+       << (Core::XmlFull("score", al.score) + Core::XmlAttribute("source", "best"))
+       << (Core::XmlFull("count", errors.nRightTokens()) + Core::XmlAttribute("event", "token") + Core::XmlAttribute("source", "best"))
+       << (Core::XmlFull("count", errors.nLeftTokens()) + Core::XmlAttribute("event", "token") + Core::XmlAttribute("source", "reference"));
     os << Core::XmlClose("statistic");
 
     // report best sequence
-    os << Core::XmlOpen(type)
-        + Core::XmlAttribute("source", "best sequence");
+    os << Core::XmlOpen(type) + Core::XmlAttribute("source", "best sequence");
     for (EditDistance::Alignment::const_iterator ai = al.begin(); ai != al.end(); ++ai)
         if (ai->b)
             os << ai->b->symbol() << Core::XmlBlank();

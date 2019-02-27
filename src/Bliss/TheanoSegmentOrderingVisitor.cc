@@ -13,17 +13,17 @@
  *  limitations under the License.
  */
 #include "TheanoSegmentOrderingVisitor.hh"
-#include "TheanoCommunicator.hh"
+
 #include <Core/Application.hh>
+
+#include "TheanoCommunicator.hh"
 
 using namespace Bliss;
 
-TheanoSegmentOrderingVisitor::~TheanoSegmentOrderingVisitor(){
-
+TheanoSegmentOrderingVisitor::~TheanoSegmentOrderingVisitor() {
 }
 
-void TheanoSegmentOrderingVisitor::leaveCorpus(Bliss::Corpus *corpus)
-{
+void TheanoSegmentOrderingVisitor::leaveCorpus(Bliss::Corpus* corpus) {
     curCorpus_.pop_back();
     if (!curCorpus_.empty()) {
         // not the root corpus
@@ -31,25 +31,25 @@ void TheanoSegmentOrderingVisitor::leaveCorpus(Bliss::Corpus *corpus)
     }
 
     CustomCorpusGuide corpusGuide(this, /* root */ corpus);
-    std::string name;
-    while(TheanoCommunicator::communicator().waitForErrorSignalRequest(name))
+    std::string       name;
+    while (TheanoCommunicator::communicator().waitForErrorSignalRequest(name))
         corpusGuide.showSegmentByName(name);
 }
 
 SegmentOrderingVisitor* TheanoSegmentOrderingVisitor::copy() {
     Core::Application::us()->error(
-        "TheanoSegmentOrderingVisitor: copy not supported (check progress-indication != global)");
+            "TheanoSegmentOrderingVisitor: copy not supported (check progress-indication != global)");
     // copy() is currently only used by CorpusDescription::totalSegmentCount().
     // Maybe this could be implemented -- however, not sure if it's worth.
     return 0;
 }
 
 void TheanoSegmentOrderingVisitor::setAutoShuffle(bool enabled) {
-    if(enabled)
+    if (enabled)
         Core::Application::us()->error("TheanoSegmentOrderingVisitor: auto-shuffle not supported");
 }
 
 void TheanoSegmentOrderingVisitor::setSegmentList(const std::string& filename) {
     Core::Application::us()->error(
-        "TheanoSegmentOrderingVisitor: segment list not supported: %s", filename.c_str());
+            "TheanoSegmentOrderingVisitor: segment list not supported: %s", filename.c_str());
 }

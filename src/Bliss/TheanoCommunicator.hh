@@ -16,8 +16,10 @@
 #define THEANOCOMMUNICATOR_HH_
 
 #include <memory>
+
 #include <Core/Component.hh>
 #include <Math/Matrix.hh>
+
 #include "CorpusDescription.hh"
 
 namespace Bliss {
@@ -31,29 +33,31 @@ private:
     TheanoCommunicator(const Core::Configuration& c);
 
     //careful: the offset is in bytes and not related to T
-    template<typename T> T& shMem(u32 offset);
-    u32& shMemStatus();
-    float& shMemData(u32 idx); //here idx is in floats, not in bytes!
-    u32& shMemRows();
-    u32& shMemCols();
+    template<typename T>
+    T&     shMem(u32 offset);
+    u32&   shMemStatus();
+    float& shMemData(u32 idx);  //here idx is in floats, not in bytes!
+    u32&   shMemRows();
+    u32&   shMemCols();
     float& shMemLoss();
-    void waitForStatus(u32 status);
+    void   waitForStatus(u32 status);
 
     static std::unique_ptr<TheanoCommunicator> communicator_;
-    std::string currentSegmentName_; //used to cache posteriors for 1 segment
-    Math::Matrix<f32> posteriors_;
+    std::string                                currentSegmentName_;  //used to cache posteriors for 1 segment
+    Math::Matrix<f32>                          posteriors_;
 
-    int shId_;
-    void * shMem_;
+    int   shId_;
+    void* shMem_;
+
 public:
     ~TheanoCommunicator();
     static TheanoCommunicator& communicator();
-    static void create(const Core::Configuration &c);
-    bool waitForErrorSignalRequest(/*out*/ std::string& segmentName);
-    const Math::Matrix<f32>& getPosteriorsForSegment(const Bliss::SpeechSegment *segment);
-    void writeErrorSignalForSegment(const Bliss::SpeechSegment *segment, float loss, const Math::Matrix<f32>& m_);
+    static void                create(const Core::Configuration& c);
+    bool                       waitForErrorSignalRequest(/*out*/ std::string& segmentName);
+    const Math::Matrix<f32>&   getPosteriorsForSegment(const Bliss::SpeechSegment* segment);
+    void                       writeErrorSignalForSegment(const Bliss::SpeechSegment* segment, float loss, const Math::Matrix<f32>& m_);
 };
 
-}
+}  // namespace Bliss
 
 #endif /*THEANOCOMMUNICATOR_HH_*/

@@ -16,51 +16,54 @@
 #define _BLISS_SYNTACTIC_TOKEN_MAP
 
 #include <vector>
+
 #include "Lexicon.hh"
 
 namespace Bliss {
 
-    template <typename T>
-    class SyntacticTokenMap {
-    public:
-        typedef T Value;
-        typedef typename std::vector<Value>::iterator iterator;
-    private:
-        std::vector<Value> store_;
-    public:
-        SyntacticTokenMap(LexiconRef _lexicon) :
-            store_(_lexicon->nSyntacticTokens() + 1) {}
+template<typename T>
+class SyntacticTokenMap {
+public:
+    typedef T                                     Value;
+    typedef typename std::vector<Value>::iterator iterator;
 
-        void fill(const Value &v) {
-            std::fill(store_.begin(), store_.end(), v);
-        }
+private:
+    std::vector<Value> store_;
 
-        iterator begin() {
-            return store_.begin();
-        }
+public:
+    SyntacticTokenMap(LexiconRef _lexicon)
+            : store_(_lexicon->nSyntacticTokens() + 1) {}
 
-        iterator end() {
-            return store_.end();
-        }
+    void fill(const Value& v) {
+        std::fill(store_.begin(), store_.end(), v);
+    }
 
-        void operator= (const SyntacticTokenMap<T> &map) {
-            require_(store_.size() == map.store_.size());
-            store_ = map.store_;
-        }
+    iterator begin() {
+        return store_.begin();
+    }
 
-        Value &operator[](const SyntacticToken *s) {
-            require_(s);
-            verify_(s->id() < store_.size());
-            return store_[s->id()];
-        }
+    iterator end() {
+        return store_.end();
+    }
 
-        const Value &operator[](const SyntacticToken *s) const {
-            require_(s);
-            verify_(s->id() < store_.size());
-            return store_[s->id()];
-        }
-    };
+    void operator=(const SyntacticTokenMap<T>& map) {
+        require_(store_.size() == map.store_.size());
+        store_ = map.store_;
+    }
 
-} // namespace Bliss
+    Value& operator[](const SyntacticToken* s) {
+        require_(s);
+        verify_(s->id() < store_.size());
+        return store_[s->id()];
+    }
 
-#endif // _BLISS_SYNTACTIC_TOKEN_MAP
+    const Value& operator[](const SyntacticToken* s) const {
+        require_(s);
+        verify_(s->id() < store_.size());
+        return store_[s->id()];
+    }
+};
+
+}  // namespace Bliss
+
+#endif  // _BLISS_SYNTACTIC_TOKEN_MAP

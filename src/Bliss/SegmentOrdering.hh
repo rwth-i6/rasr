@@ -27,80 +27,91 @@ namespace Bliss {
  * segment object, because they are immediately deleted by
  * the CorpusDescriptionParser
  */
-class SegmentOrderingVisitor : public CorpusVisitor
-{
+class SegmentOrderingVisitor : public CorpusVisitor {
 public:
-        SegmentOrderingVisitor();
-        SegmentOrderingVisitor(const SegmentOrderingVisitor&);
-        virtual ~SegmentOrderingVisitor();
-        virtual SegmentOrderingVisitor* copy();
+    SegmentOrderingVisitor();
+    SegmentOrderingVisitor(const SegmentOrderingVisitor&);
+    virtual ~SegmentOrderingVisitor();
+    virtual SegmentOrderingVisitor* copy();
 
-        void setVisitor(CorpusVisitor *v) { visitor_ = v; }
-        virtual void setShortNameLookup(bool enabled) { shortNameLookup_ = enabled; }
-        virtual void setAutoShuffle(bool enabled) { autoShuffle_ = enabled; }
-        void shuffleRandomSeed(u32 seed) { shuffleRandomEngine_.seed(seed); }
-        virtual void setSegmentList(const std::string &filename);
-        void setSortByTimeLength(bool enabled, long chunkSize);
+    void setVisitor(CorpusVisitor* v) {
+        visitor_ = v;
+    }
+    virtual void setShortNameLookup(bool enabled) {
+        shortNameLookup_ = enabled;
+    }
+    virtual void setAutoShuffle(bool enabled) {
+        autoShuffle_ = enabled;
+    }
+    void shuffleRandomSeed(u32 seed) {
+        shuffleRandomEngine_.seed(seed);
+    }
 
-        virtual void enterRecording(Recording *r);
-        virtual void enterCorpus(Corpus *c);
-        virtual void leaveCorpus(Corpus *corpus);
-        virtual void visitSegment(Segment *s) {
-                curSegment_ = s;
-                Segment *segment = new Segment(*s);
-                addSegment(segment);
-        }
-        virtual void visitSpeechSegment(SpeechSegment *s);
+    virtual void setSegmentList(const std::string& filename);
+    void         setSortByTimeLength(bool enabled, long chunkSize);
+
+    virtual void enterRecording(Recording* r);
+    virtual void enterCorpus(Corpus* c);
+    virtual void leaveCorpus(Corpus* corpus);
+    virtual void visitSegment(Segment* s) {
+        curSegment_      = s;
+        Segment* segment = new Segment(*s);
+        addSegment(segment);
+    }
+    virtual void visitSpeechSegment(SpeechSegment* s);
+
 private:
-        class CorpusCopy;
-        class RecordingCopy;
+    class CorpusCopy;
+    class RecordingCopy;
 
-        void addSegment(Segment *segment);
-        template<class T, class C>
-        const T* updateSegmentData(Segment *segment, const T *entry, C &map);
-        void updateCondition(Segment *segment);
-        void updateSpeaker(SpeechSegment *segment);
-        template<class T> const std::string _getName(const T* entry);
+    void addSegment(Segment* segment);
+    template<class T, class C>
+    const T* updateSegmentData(Segment* segment, const T* entry, C& map);
+    void     updateCondition(Segment* segment);
+    void     updateSpeaker(SpeechSegment* segment);
+    template<class T>
+    const std::string _getName(const T* entry);
+
 protected:
-        Segment* getSegmentByName(const std::string& name);
-        void prepareSegmentLoop();
-        void finishSegmentLoop();
+    Segment* getSegmentByName(const std::string& name);
+    void     prepareSegmentLoop();
+    void     finishSegmentLoop();
 
-        struct CustomCorpusGuide {
-            SegmentOrderingVisitor* parent_;
-            Corpus* rootCorpus_;
-            Corpus* curCorpus_;
-            Recording* curRecording_;
+    struct CustomCorpusGuide {
+        SegmentOrderingVisitor* parent_;
+        Corpus*                 rootCorpus_;
+        Corpus*                 curCorpus_;
+        Recording*              curRecording_;
 
-            CustomCorpusGuide(SegmentOrderingVisitor* parent, Corpus* rootCorpus);
-            ~CustomCorpusGuide();
-            void showSegment(Segment* segment);
-            void showSegmentByName(const std::string& segmentName);
-        };
+        CustomCorpusGuide(SegmentOrderingVisitor* parent, Corpus* rootCorpus);
+        ~CustomCorpusGuide();
+        void showSegment(Segment* segment);
+        void showSegmentByName(const std::string& segmentName);
+    };
 
-        typedef Core::StringHashMap<Segment*> SegmentMap;
-        typedef Core::StringHashMap<Speaker*> SpeakerMap;
-        typedef Core::StringHashMap<AcousticCondition*> ConditionMap;
-        typedef std::vector< std::pair<Corpus*, Corpus*> > CorpusMap;
-        CorpusVisitor *visitor_;
-        std::vector<Recording*> recordings_;
-        std::vector<Corpus*> corpus_; // own copies of sub-corpora. kept list for cleanup.
-        CorpusMap curCorpus_;
-        SpeakerMap speakers_;
-        ConditionMap conditions_;
-        const Segment *curSegment_;
-        const Recording *curRecording_;
-        SegmentMap segments_;
-        std::vector<std::string> segmentList_;
-        bool shortNameLookup_;
-        bool autoShuffle_;
-        std::mt19937 shuffleRandomEngine_;
-        bool sortByTimeLength_;
-        long sortByTimeLengthChunkSize_;
-        bool predefinedOrder_; // set via setSegmentList
+    typedef Core::StringHashMap<Segment*>            SegmentMap;
+    typedef Core::StringHashMap<Speaker*>            SpeakerMap;
+    typedef Core::StringHashMap<AcousticCondition*>  ConditionMap;
+    typedef std::vector<std::pair<Corpus*, Corpus*>> CorpusMap;
+
+    CorpusVisitor*           visitor_;
+    std::vector<Recording*>  recordings_;
+    std::vector<Corpus*>     corpus_;  // own copies of sub-corpora. kept list for cleanup.
+    CorpusMap                curCorpus_;
+    SpeakerMap               speakers_;
+    ConditionMap             conditions_;
+    const Segment*           curSegment_;
+    const Recording*         curRecording_;
+    SegmentMap               segments_;
+    std::vector<std::string> segmentList_;
+    bool                     shortNameLookup_;
+    bool                     autoShuffle_;
+    std::mt19937             shuffleRandomEngine_;
+    bool                     sortByTimeLength_;
+    long                     sortByTimeLengthChunkSize_;
+    bool                     predefinedOrder_;  // set via setSegmentList
 };
 
+}  // namespace Bliss
 
-} // namespace Bliss
-
-#endif // _BLISS_SEGMENT_ORDERING_HH
+#endif  // _BLISS_SEGMENT_ORDERING_HH

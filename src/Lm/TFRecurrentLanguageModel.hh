@@ -39,6 +39,9 @@ public:
     static Core::ParameterBool   paramAllowReducedHistory;
     static Core::ParameterBool   paramDumpScores;
     static Core::ParameterString paramDumpScoresPrefix;
+    static Core::ParameterBool   paramLogMemory;
+    static Core::ParameterBool   paramFreeMemory;
+    static Core::ParameterInt    paramFreeMemoryDelay;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
     virtual ~TFRecurrentLanguageModel();
@@ -67,6 +70,9 @@ private:
     bool                        allow_reduced_history_;
     bool                        dump_scores_;
     std::string                 dump_scores_prefix_;
+    bool                        log_memory_;
+    bool                        free_memory_;
+    Search::TimeframeIndex      free_memory_delay_;
 
     mutable Tensorflow::Session              session_;
     std::unique_ptr<Tensorflow::GraphLoader> loader_;
@@ -80,8 +86,10 @@ private:
 
     History empty_history_; // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
 
-    mutable std::vector<double> run_time_;
-    mutable std::vector<size_t> run_count_;
+    mutable Core::XmlChannel       statistics_;
+    mutable Search::TimeframeIndex current_time_;
+    mutable std::vector<double>    run_time_;
+    mutable std::vector<size_t>    run_count_;
 };
 
 } // namespace Lm

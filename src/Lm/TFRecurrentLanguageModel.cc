@@ -20,6 +20,8 @@ namespace {
         Math::FastVector<Lm::Score>        scores;
         std::vector<Math::FastVector<f32>> state; // for now float is hardcoded, TODO: replace this with Tensor and add merge utility for tensors
         Lm::SearchSpaceInformation         info;
+        Search::TimeframeIndex             last_used;
+        bool                               was_expanded;
     };
 
     struct FwdRequest {
@@ -106,6 +108,9 @@ Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batc
 Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory  ("allow-reduced-history",   "wether this LM will actually reduce the history length", false);
 Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores           ("dump-scores",             "write all scores from this LM to disk", false);
 Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix     ("dump-scores-prefix",      "prefix for the score dumps",            "scores");
+Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory            ("log-memory",              "wether memory usage from scores / states should be logged", false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory           ("free-memory",             "wether scores should be deleted after some delay", false);
+Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay      ("free-memory-delay",       "how many time frames without usage before scores are deleted", 40);
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
                          : Core::Component(c), Precursor(c, l),
@@ -113,9 +118,11 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
                            min_batch_size_(paramMinBatchSize(config)), opt_batch_size_(paramOptBatchSize(config)), max_batch_size_(paramMaxBatchSize(config)),
                            batch_pruning_threshold_(paramBatchPruningThreshold(config)), allow_reduced_history_(paramAllowReducedHistory(config)),
                            dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
+                           log_memory_(paramLogMemory(config)), free_memory_(paramFreeMemory(config)), free_memory_delay_(paramFreeMemoryDelay(config)),
                            session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
                            graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")),
-                           run_time_(max_batch_size_, 0.0), run_count_(max_batch_size_, 0ul) {
+                           statistics_(config, "statistics"),
+                           current_time_(0u), run_time_(max_batch_size_, 0.0), run_count_(max_batch_size_, 0ul) {
     session_.addGraph(*graph_);
     loader_->initialize(session_);
 
@@ -150,6 +157,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
         cache->state.back().fill(0.0f);
     }
     cache->scores.resize(1u); // pretend this history has already been evaluated
+    cache->last_used = std::numeric_limits<Search::TimeframeIndex>::max();
     empty_history_ = history(h);
 }
 
@@ -158,23 +166,22 @@ TFRecurrentLanguageModel::~TFRecurrentLanguageModel() {
     size_t total_fwd_hist  = 0ul;
     double total_run_time  = 0.0;
 
-    Core::XmlChannel out(config, "statistics");
-    out << Core::XmlOpen("fwd-time");
+    statistics_ << Core::XmlOpen("fwd-time");
     for (size_t i = 0ul; i < run_count_.size(); i++) {
         if (run_count_[i] > 0ul) {
-            out << (i + 1) << " " << run_count_[i] << " " << run_time_[i] << "\n";
+            statistics_ << (i + 1) << " " << run_count_[i] << " " << run_time_[i] << "\n";
             total_run_count += run_count_[i];
             total_fwd_hist  += (i+1) * run_count_[i];
             total_run_time  += run_time_[i];
         }
     }
-    out << Core::XmlClose("fwd-time");
+    statistics_ << Core::XmlClose("fwd-time");
 
-    out << Core::XmlOpen("fwd-summary");
-    out << Core::XmlOpen("total-run-count") << total_run_count << Core::XmlClose("total-run-count");
-    out << Core::XmlOpen("total-fwd-hist")  << total_fwd_hist  << Core::XmlClose("total-fwd-hist");
-    out << Core::XmlOpen("total-run-time")  << total_run_time  << Core::XmlClose("total-run-time");
-    out << Core::XmlClose("fwd-summary");
+    statistics_ << Core::XmlOpen("fwd-summary");
+    statistics_ << Core::XmlOpen("total-run-count") << total_run_count << Core::XmlClose("total-run-count");
+    statistics_ << Core::XmlOpen("total-fwd-hist")  << total_fwd_hist  << Core::XmlClose("total-fwd-hist");
+    statistics_ << Core::XmlOpen("total-run-time")  << total_run_time  << Core::XmlClose("total-run-time");
+    statistics_ << Core::XmlClose("fwd-summary");
 }
 
 History TFRecurrentLanguageModel::startHistory() const {
@@ -199,6 +206,8 @@ History TFRecurrentLanguageModel::extendedHistory(History const& hist, Bliss::To
     ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
     if (cache->parent.handle() == nullptr) {
         cache->parent = hist;
+        ScoresWithContext* parent_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
+        parent_cache->was_expanded = true;
     }
     return history(h);
 }
@@ -217,11 +226,12 @@ History TFRecurrentLanguageModel::reducedHistory(History const& hist, u32 limit)
 }
 
 Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
-    ScoresWithContext const* sc = reinterpret_cast<ScoresWithContext const*>(hist.handle());
+    ScoresWithContext* sc = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     if (not sc->scores.empty()) {
-        return sc->scores[output_idx];
+        sc->last_used = current_time_;
+        return sc->scores.at(output_idx);
     }
 
     RequestGraph request_graph;
@@ -234,7 +244,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
 
     for (auto const& kv : cm) {
         ScoresWithContext* c = const_cast<ScoresWithContext*>(static_cast<ScoresWithContext const*>(kv.second));
-        if (c->scores.empty() and c != sc) {
+        if (c->scores.empty() and c != sc and c->parent.handle() != nullptr) {
             early_requests.emplace_back(c);
         }
     }
@@ -329,7 +339,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         ScoresWithContext* cache = requests[r].final_cache;
         for (size_t w = requests[r].length; w > 0;) {
             --w;
-            cache->state.resize(prev_state.size());
+            cache->last_used = current_time_;
             auto& scores = cache->scores;
             outputs[0ul].get(r, w, scores);
             if (output_transform_function_) {
@@ -378,7 +388,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         }
     }
 
-    return sc->scores[output_idx];
+    return sc->scores.at(output_idx);
 }
 
 bool TFRecurrentLanguageModel::scoreCached(History const& hist, Token w) const {
@@ -391,6 +401,35 @@ void TFRecurrentLanguageModel::load() {
 }
 
 void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
+    current_time_ = time;
+
+    if (not log_memory_ and not free_memory_) {
+        return;
+    }
+
+    NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
+    NNHistoryManager::NNCacheMap const& cm = hm->getNNCacheMap();
+
+    size_t score_cache_size = 0ul;
+    size_t state_cache_size = 0ul;
+    for (auto const& kv : cm) {
+        ScoresWithContext* c = const_cast<ScoresWithContext*>(static_cast<ScoresWithContext const*>(kv.second));
+        if (free_memory_ and not c->scores.empty() and c->was_expanded and c->info.numStates == 0 and c->last_used < current_time_ - std::min(free_memory_delay_, current_time_)) {
+            c->scores.clear();
+        }
+        score_cache_size += c->scores.size() * sizeof(decltype(c->scores)::value_type);
+        for (auto const& s : c->state) {
+            state_cache_size += s.size() * sizeof(float);
+        }
+    }
+
+    if (log_memory_ and statistics_.isOpen()) {
+        statistics_ << Core::XmlOpen("memory-usage")     + Core::XmlAttribute("time-frame", current_time_);
+        statistics_ << Core::XmlOpen("score-cache-size") + Core::XmlAttribute("unit", "MB") << (score_cache_size / (1024. * 1024.)) << Core::XmlClose("score-cache-size");
+        statistics_ << Core::XmlOpen("state-cache-size") + Core::XmlAttribute("unit", "MB") << (state_cache_size / (1024. * 1024.)) << Core::XmlClose("state-cache-size");
+        statistics_ << Core::XmlOpen("num-histories")    + Core::XmlAttribute("unit", "MB") << cm.size()                            << Core::XmlClose("num-histories");
+        statistics_ << Core::XmlClose("memory-usage");
+    }
 }
 
 void TFRecurrentLanguageModel::setInfo(History const& hist, SearchSpaceInformation const& info) const {

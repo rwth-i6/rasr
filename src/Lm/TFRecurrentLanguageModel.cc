@@ -32,36 +32,67 @@ namespace {
         }
     };
 
-    void add_request(std::vector<FwdRequest>& requests, ScoresWithContext* cache) {
-        FwdRequest tmp_new_request{const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle())), cache, 1ul};
-        FwdRequest* new_request = &tmp_new_request;
-        // determine the first parent where we have already computed the context
-        bool inserted = false; // actually this is equivalent to new_request == &tmp_new_request, but inserted is more clear
-        while (new_request->initial_cache->state.empty()) { // the parent does not have it's scores computed yet
-            // check if the parent is present in the requests vector; if so, replace it
-            auto iter = requests.begin();
-            // linear search, the vector is small, so this is probably OK
-            while (iter != requests.end() and iter->final_cache != new_request->initial_cache) {
-                ++iter;
+    struct RequestGraph {
+        std::vector<ScoresWithContext*>  entries;
+        std::vector<std::vector<size_t>> children;
+        std::vector<size_t>              roots;
+
+        void add_cache(ScoresWithContext* cache) {
+            std::vector<ScoresWithContext*> request_chain;
+            request_chain.push_back(cache);
+            ScoresWithContext* parent = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
+            request_chain.push_back(parent);
+            while (parent->state.empty()) {
+                parent = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(parent->parent.handle()));
+                request_chain.push_back(parent);
             }
-            if (iter != requests.end()) {
-                // extend the entry that we have found
-                iter->final_cache = cache;
-                iter->length += new_request->length;
-                new_request = &(*iter);  // TODO: think about how to handle scores used for pruning
-                inserted = true;
-                break;
+
+            std::vector<size_t>* child_idxs = &roots;
+            while (not request_chain.empty()) {
+                // find root node
+                size_t child_idx = child_idxs->size();
+                for (size_t c = 0ul; c < child_idxs->size(); c++) {
+                    if (entries[child_idxs->at(c)] == request_chain.back()) {
+                        child_idx = c;
+                        break;
+                    }
+                }
+                size_t next_child_idx = 0ul;
+                if (child_idx == child_idxs->size()) {
+                    child_idxs->push_back(entries.size());
+                    entries.push_back(request_chain.back());
+                    next_child_idx = child_idxs->at(child_idx);
+                    children.emplace_back();  // can invalidate child_idxs
+                }
+                else {
+                    next_child_idx = child_idxs->at(child_idx);
+                }
+                child_idxs = &children[next_child_idx];
+                request_chain.pop_back();
+            }
+        }
+
+        void get_requests_dfs(std::vector<FwdRequest>& requests, ScoresWithContext* initial, size_t entry, size_t length) {
+            if (children[entry].empty()) {
+                requests.emplace_back(FwdRequest{initial, entries[entry], length});
             }
             else {
-                // continue recursion
-                new_request->initial_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(new_request->initial_cache->parent.handle()));
-                new_request->length += 1;
+                for (size_t e : children[entry]) {
+                    get_requests_dfs(requests, initial, e, length + 1ul);
+                }
             }
         }
-        if (not inserted) {
-            requests.push_back(*new_request);
+
+        std::vector<FwdRequest> get_requests() {
+            std::vector<FwdRequest> result;
+            for (size_t r : roots) {
+                for (size_t c : children[r]) {
+                    get_requests_dfs(result, entries[r], c, 1ul);
+                }
+            }
+            return result;
         }
-    }
+    };
 } // namespace
 
 namespace Lm {
@@ -193,8 +224,8 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         return sc->scores[output_idx];
     }
 
-    std::vector<FwdRequest> requests;
-    add_request(requests, const_cast<ScoresWithContext*>(sc)); 
+    RequestGraph request_graph;
+    request_graph.add_cache(const_cast<ScoresWithContext*>(sc));
 
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     NNHistoryManager::NNCacheMap const& cm = hm->getNNCacheMap();
@@ -213,8 +244,10 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     });
 
     for (auto r : early_requests) {
-        add_request(requests, r);
+        request_graph.add_cache(r);
     }
+
+    std::vector<FwdRequest> requests = request_graph.get_requests();
 
     // prune requests
     if (min_batch_size_ > 0ul and requests.size() > min_batch_size_) {

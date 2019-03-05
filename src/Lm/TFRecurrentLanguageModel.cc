@@ -283,6 +283,9 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
         for (size_t w = 0u; w < requests[r].length; w++) {
             words.at(r, w) = static_cast<s32>(history[offset + w]);
         }
+        for (size_t w = requests[r].length; w < max_length; w++) {
+            words.at(r, w) = 0;
+        }
         word_lengths[r] = requests[r].length;
         ScoresWithContext* initial_cache = requests[r].initial_cache;
         require(initial_cache != nullptr);
@@ -335,6 +338,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
             require_eq(scores.size(), num_outputs_);
             cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
         }
+        requests[r].final_cache->state.resize(prev_state.size());
         require_eq(cache, requests[r].initial_cache);
     }
 

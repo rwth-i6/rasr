@@ -1823,7 +1823,7 @@ void SearchSpace::updateSsaLm() {
   for (Instance* inst : activeInstances) {
     Lm::SearchSpaceInformation info;
     info.minLabelDistance = std::numeric_limits<unsigned>::max();
-    info.bestScore        = std::numeric_limits<Score>::infinity();
+    info.bestScore        = std::numeric_limits<Score>::max();
     for (auto hypIter = stateHypotheses.begin() + inst->states.begin; hypIter < stateHypotheses.begin() + inst->states.end; ++hypIter) {
       info.minLabelDistance = std::min(info.minLabelDistance, labelDistance_[hypIter->state]);
       info.bestScore        = std::min(info.bestScore, hypIter->score);

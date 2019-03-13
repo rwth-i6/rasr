@@ -8,8 +8,8 @@
 namespace Lm {
     struct SearchSpaceInformation {
         SearchSpaceInformation() : minLabelDistance(std::numeric_limits<unsigned>::max()),
-                                   bestScore       (std::numeric_limits<Score>::infinity()),
-                                   bestScoreOffset (std::numeric_limits<Score>::infinity()),
+                                   bestScore       (std::numeric_limits<Score>::max()),
+                                   bestScoreOffset (std::numeric_limits<Score>::max()),
                                    numStates       (0u) {
         }
         ~SearchSpaceInformation() {}

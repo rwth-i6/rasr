@@ -3492,7 +3492,7 @@ void SearchSpace::findWordEndsInternal() {
 
         verify_( item.range == 1 );
         //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
-        verify_( item.history.isValid() );
+        verify_( item.scoreHistory.isValid() );
 
         EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
 
@@ -3522,7 +3522,7 @@ void SearchSpace::findWordEndsInternal() {
           const TraceItem& item = TraceManager::traceItem( hyp.trace );
 
           verify_( item.range == 1 );
-          verify_( item.history.isValid() );
+          verify_( item.scoreHistory.isValid() );
 
           EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
 
@@ -3551,7 +3551,7 @@ void SearchSpace::findWordEndsInternal() {
           const TraceItem& item = TraceManager::traceItem( hyp.trace );
 
           verify_( item.range == 1 );
-          verify_( item.history.isValid() );
+          verify_( item.scoreHistory.isValid() );
 
           EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
 
@@ -3607,7 +3607,7 @@ Instance* SearchSpace::getBackOffInstance(Instance *instance) {
   verify( reduced.isValid() );
 
   activeInstances.push_back( new Instance( instance->key, instance ) );
-  verify( instance->backOffInstance == activeInstances.back() );
+  verify( instance->backOffInstance == activeInstances.back() );  // beck: how can this ever be true?
   /// @todo Möglicherweise wird der falsche backoff-score angewandt. Es sollte der score für die verkürzte history benutzt werden.
   instance->backOffScore = lm->getBackOffScores( useHistory ).backOffScore;
 

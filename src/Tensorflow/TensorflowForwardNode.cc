@@ -101,6 +101,7 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
     // check if computation is needed
     require_lt(static_cast<size_t>(p), current_output_frame_.size());
     if (current_output_frame_[p] >= outputs_[p].size() and not eos_) {
+        auto timer_start = std::chrono::steady_clock::now();
         // gather inputs, we assume that all inputs are of the same length, the length of the shortest input will determine
         // the length of all inputs
         size_t                                                   num_frames  = 0ul;
@@ -150,6 +151,8 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
         for (size_t i = 0ul; i < tf_output.size(); i++) {
             appendToOutput(tf_output[i], start_frame, outputs_[i]);
         }
+        auto timer_end = std::chrono::steady_clock::now();
+        log("flow fwd time: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
     }
 
     // the tensorflow graph is not required to have outputs of the same length, thus we have to check again here

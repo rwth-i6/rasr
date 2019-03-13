@@ -32,6 +32,7 @@ Core::ParameterString MetaGraphLoader::paramSavedModelFile(
         "");
 
 std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
+    auto timer_start = std::chrono::steady_clock::now();
     if (meta_graph_file_.empty()) {
         criticalError("no graph-def-path set");
     }
@@ -124,10 +125,15 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
         }
     }
 
+    auto timer_end = std::chrono::steady_clock::now();
+    log("Session::loadGraph: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count() << "ms";
+
     return result;
 }
 
 void MetaGraphLoader::initialize(Session& session) {
+    auto timer_start = std::chrono::steady_clock::now();
+
     if (saved_model_file_.empty()) {
         criticalError("no saved-model-file set");
     }
@@ -136,6 +142,9 @@ void MetaGraphLoader::initialize(Session& session) {
     Tensor              filename_tensor;
     filename_tensor.set(saved_model_file_);
     session.run({std::make_pair<>(restore_filename_tensor_name_, filename_tensor)}, {}, {restore_op_name_}, outputs);
+
+    auto timer_end = std::chrono::steady_clock::now();
+    log("Session::initialize: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count() << "ms " << saved_model_file_;
 }
 
 }  // namespace Tensorflow

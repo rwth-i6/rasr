@@ -35,6 +35,7 @@ Core::ParameterBool  Session::paramAllowGpuMemoryGrowth("allow-gpu-memory-growth
                                                         true);
 
 void Session::addGraph(Graph const& graph) {
+    auto timer_start = std::chrono::steady_clock::now();
     tf::Env* env = tf::Env::Default();
     for (std::string const& lib : graph.libraries()) {
         void*      handle = nullptr;
@@ -59,6 +60,8 @@ void Session::addGraph(Graph const& graph) {
     if (not var_init.empty()) {
         run({}, var_init);
     }
+    auto timer_end = std::chrono::steady_clock::now();
+    log("Session::addGraph ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count() << "ms";
 }
 
 bool Session::run(std::vector<std::pair<std::string, Tensor>> const& inputs,

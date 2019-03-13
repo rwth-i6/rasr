@@ -12,6 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include <chrono>
+
 #include <Fsa/Cache.hh>
 #include <Fsa/Determinize.hh>
 #include <Fsa/Rational.hh>
@@ -473,6 +475,7 @@ namespace Flf {
         }
 
         std::pair<ConstLatticeRef, ConstSegmentRef> recognize() {
+            auto timer_start = std::chrono::steady_clock::now();
             if(!segment_)
                 return std::pair<ConstLatticeRef, ConstSegmentRef>(ConstLatticeRef(), ConstSegmentRef());
 
@@ -492,15 +495,20 @@ namespace Flf {
             if(subSegment_)
             {
                 ret = buildLatticeAndSegment(recognizer_->getCurrentWordLattice());
-                finishRecognition();
-                return ret;
             }else{
                 ret = std::make_pair(buildLattice(recognizer_->getCurrentWordLattice(), false), SegmentRef(new Flf::Segment(segment_)));
                 info(ret.first, clog());
                 processResult();
-                finishRecognition();
-                return ret;
             }
+
+            auto timer_end = std::chrono::steady_clock::now();
+            double duration = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
+            double signal_duration = (featureTimes_.back().endTime() - featureTimes_.front().startTime()) * 1000.;  // convert duration to ms
+            clog() << Core::XmlOpen("flf-recognizer-time") + Core::XmlAttribute("unit", "milliseconds") << duration << Core::XmlClose("flf-recognizer-time");
+            clog() << Core::XmlOpen("flf-recognizer-rtf")  << (duration / signal_duration) << Core::XmlClose("flf-recognizer-rtf");
+
+            finishRecognition();
+            return ret;
         }
 
         void finishRecognition() {

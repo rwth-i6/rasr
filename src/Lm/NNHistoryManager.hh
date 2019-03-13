@@ -59,7 +59,7 @@ struct TokenIdSequencePtrEq {
 struct NNCacheBase {
     virtual ~NNCacheBase() = default;
 
-    size_t ref_count;
+    size_t                                 ref_count;
     std::unique_ptr<const TokenIdSequence> history;
 };
 
@@ -67,6 +67,7 @@ class NNHistoryManager : public HistoryManager {
 public:
     typedef std::function<void(HistoryHandle)> OnReleaseHandler;
     typedef std::unordered_map<TokenIdSequence const*, NNCacheBase*, TokenIdSequencePtrHash, TokenIdSequencePtrEq> NNCacheMap;
+    typedef std::function<void(HistoryHandle)> VisitorFun;
 
     NNHistoryManager();
     virtual ~NNHistoryManager();
@@ -75,6 +76,7 @@ public:
     HistoryHandle get(TokenIdSequence const& hist);
     void setOnReleaseHandler(OnReleaseHandler const& handler);
     NNCacheMap const& getNNCacheMap() const;
+    void visit(VisitorFun f) const;
 
     // implement HistoryManager interface
     virtual HistoryHandle acquire     (HistoryHandle handle);

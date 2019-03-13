@@ -16,6 +16,14 @@
 
 namespace Lm {
 
+void NNHistoryManager::visit(VisitorFun f) const {
+    for (auto const& kv : nn_caches_) {
+        if (kv.second->ref_count > 0) {
+            f(kv.second);
+        }
+    }
+}
+
 HistoryHandle NNHistoryManager::acquire(HistoryHandle handle) {
     NNCacheBase* c = const_cast<NNCacheBase*>(reinterpret_cast<NNCacheBase const*>(handle));
     c->ref_count++;
@@ -24,13 +32,14 @@ HistoryHandle NNHistoryManager::acquire(HistoryHandle handle) {
 
 void NNHistoryManager::release(HistoryHandle handle) {
     NNCacheBase* c = const_cast<NNCacheBase*>(reinterpret_cast<NNCacheBase const*>(handle));
-    require_gt(c->ref_count, 0);
+    require_gt(c->ref_count, 0ul);
     c->ref_count--;
-    if (c->ref_count == 0) {
+    if (c->ref_count == 0ul) {
         if (has_on_release_handler_) {
             on_release_handler_(handle);
         }
         auto iter = nn_caches_.find(c->history.get());
+        require(iter != nn_caches_.end());
         NNCacheBase* to_delete = iter->second;
         nn_caches_.erase(iter);
         delete to_delete; // might cause cascade of more deletions, thus put it at the end after we do not need iterator anymore

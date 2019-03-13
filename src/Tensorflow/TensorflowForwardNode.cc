@@ -118,7 +118,7 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
                     goto fetching_inputs_finished;
                 }
                 if (i == 0ul) {
-                    timestamps_.push_back(i);
+                    timestamps_.push_back(*d.get());
                 }
             }
             num_frames++;
@@ -241,7 +241,7 @@ void TensorflowForwardNode::appendVectorsToOutput(Tensor const& tensor, size_t s
     for (size_t t = 0; t < static_cast<size_t>(tensor.dimSize(1)); t++) {
         Flow::Vector<T>* vec = new Flow::Vector<T>(static_cast<size_t>(tensor.dimSize(2)));
         tensor.get<T>(0ul, t, *vec);
-        vec->setTimestamp(timestamps_[std::max(start_frame + t, timestamps_.size() - 1ul)]);
+        vec->setTimestamp(timestamps_[std::min(start_frame + t, timestamps_.size() - 1ul)]);
         data.push_back(vec);
     }
 }

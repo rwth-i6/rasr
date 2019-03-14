@@ -133,6 +133,7 @@ private:
     mutable HistoryQueue                finished_queue_;
 
     void background_forward() const;
+    template <bool async>
     void forward(Lm::History const* hist) const;
 };
 

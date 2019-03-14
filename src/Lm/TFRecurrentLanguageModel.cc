@@ -314,7 +314,9 @@ History TFRecurrentLanguageModel::extendedHistory(History const& hist, Bliss::To
         cache->parent = hist;
         ScoresWithContext* parent_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
         parent_cache->was_expanded = true;
-        fwd_queue_.enqueue(new History(history(h)));
+        if (async_) {
+            fwd_queue_.enqueue(new History(history(h)));
+        }
     }
     History ext_hist(history(h));
     auto timer_end = std::chrono::steady_clock::now();
@@ -349,7 +351,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
             future.wait();
         }
         else {
-            forward(&hist);
+            forward<false>(&hist);
         }
         auto end = std::chrono::steady_clock::now();
         double wait_time = std::chrono::duration<double, std::milli>(end - start).count();
@@ -396,7 +398,7 @@ void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
             c->scores.clear();
             c->computed.store(false);
         }
-        else if (not computed and not (c->was_expanded and c->info.numStates == 0)) {
+        else if (async_ and not computed and not (c->was_expanded and c->info.numStates == 0)) {
             fwd_queue_.enqueue(new History(history(h)));
         }
         score_cache_size += c->scores.size() * sizeof(decltype(c->scores)::value_type);
@@ -426,7 +428,7 @@ void TFRecurrentLanguageModel::setInfo(History const& hist, SearchSpaceInformati
 
 void TFRecurrentLanguageModel::background_forward() const {
     while (not should_stop_) {
-        forward(to_fwd_.exchange(nullptr));
+        forward<true>(to_fwd_.exchange(nullptr));
     }
     History const* h = nullptr;
     while (fwd_queue_.try_dequeue(h)) {
@@ -438,15 +440,14 @@ void TFRecurrentLanguageModel::background_forward() const {
     pending_.clear();
 }
 
+template <bool async>
 void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     ScoresWithContext* sc = nullptr;
     if (hist != nullptr) {
         sc = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
     }
-    if (sc != nullptr and sc->computed.load()) {  // nothing to do
-        if (async_) {
-            to_fwd_finished_.set_value(hist);
-        }
+    if (async and sc != nullptr and sc->computed.load()) {  // nothing to do (only happens in async case)
+        to_fwd_finished_.set_value(hist);
         return;
     }
     auto start = std::chrono::steady_clock::now();
@@ -461,47 +462,58 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     size_t                   max_length = 0ul;
 
     size_t num_pending_requests = pending_.size();
-    std::unordered_set<void const*> handles;
+    std::unordered_set<void const*> handles; // only relevant in async case
     handles.reserve(pending_.size());
     std::vector<ScoresWithContext*> early_requests;
-    std::vector<History const*>     early_request_histories; // make sure none of the request caches go away while we compute the scores
+    std::vector<History const*>     early_request_histories; // make sure none of the request caches go away while we compute the scores (only relevant in async case)
 
-    auto process_hist = [&](History const* hist) {
-        ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
-        if (handles.find(hist->handle()) == handles.end() and not c->computed.load() and c != sc and c->parent.handle() != nullptr and c->ref_count > 1) {
-            early_requests.emplace_back(c);
-            early_request_histories.emplace_back(hist);
-            handles.insert(hist->handle());
-        }
-        else {
-            finished_queue_.enqueue(hist);
-        }
-    };
+    if (async) {
+        auto process_hist = [&](History const* hist) {
+            ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
+            if (handles.find(hist->handle()) == handles.end() and not c->computed.load() and c != sc and c->parent.handle() != nullptr and c->ref_count > 1) {
+                early_requests.emplace_back(c);
+                early_request_histories.emplace_back(hist);
+                handles.insert(hist->handle());
+            }
+            else {
+                finished_queue_.enqueue(hist);
+            }
+        };
 
-    std::for_each(pending_.begin(), pending_.end(), process_hist);
-    pending_.clear();
+        std::for_each(pending_.begin(), pending_.end(), process_hist);
+        pending_.clear();
 
-    History const* hist_buf = nullptr;
-    bool success = false;
-    bool first   = true;
-    do {
-        if (first) {
-            success = fwd_queue_.wait_dequeue_timed(hist_buf, 1000);
-        }
-        else {
-            success = fwd_queue_.try_dequeue(hist_buf);
-        }
-        if (success) {
-            process_hist(hist_buf);
-            first = false;
-        }
-    } while(success);
+        History const* hist_buf = nullptr;
+        bool success = false;
+        bool first   = true;
+        do {
+            if (first) {
+                success = fwd_queue_.wait_dequeue_timed(hist_buf, 1000);
+            }
+            else {
+                success = fwd_queue_.try_dequeue(hist_buf);
+            }
+            if (success) {
+                process_hist(hist_buf);
+                first = false;
+            }
+        } while(success);
+    }
+    else {
+        NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
+        hm->visit([&](HistoryHandle h) {
+            ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
+            if (not c->computed.load() and c != sc and not (c->was_expanded and c->info.numStates == 0)) {
+                early_requests.emplace_back(c);
+            }
+        });
+    }
 
     size_t num_early_requests = early_requests.size();
 
     auto end_early_requests = std::chrono::steady_clock::now();
     
-    if (sc == nullptr and early_requests.empty()) {
+    if (async and sc == nullptr and early_requests.empty()) {
         // can only happen in async case
         return;
     }
@@ -650,17 +662,19 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         }
     }
 
-    for (auto hist : early_request_histories) {
-        ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
-        if (c->computed.load() or c->ref_count == 1ul or c->info.numStates == 0) {
-            finished_queue_.enqueue(hist);
+    if (async) {
+        for (auto hist : early_request_histories) {
+            ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
+            if (c->computed.load() or c->ref_count == 1ul or c->info.numStates == 0) {
+                finished_queue_.enqueue(hist);
+            }
+            else {
+                pending_.push_back(hist);
+            }
         }
-        else {
-            pending_.push_back(hist);
+        if (sc != nullptr) {
+            to_fwd_finished_.set_value(hist);
         }
-    }
-    if (sc != nullptr and async_) {
-        to_fwd_finished_.set_value(hist);
     }
 
     auto end = std::chrono::steady_clock::now();

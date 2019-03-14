@@ -15,6 +15,11 @@
 #ifndef _LM_TF_RECURRENT_LANGUAGE_MODEL_HH
 #define _LM_TF_RECURRENT_LANGUAGE_MODEL_HH
 
+#include <deque>
+#include <future>
+#include <thread>
+
+#include <Core/readerwriterqueue.h>
 #include <Tensorflow/GraphLoader.hh>
 #include <Tensorflow/Module.hh>
 #include <Tensorflow/Session.hh>
@@ -27,8 +32,25 @@ namespace Lm {
 
 class TFRecurrentLanguageModel : public AbstractNNLanguageModel, public SearchSpaceAwareLanguageModel {
 public:
-    typedef AbstractNNLanguageModel Precursor;
-    typedef f32                     FeatureType;
+    struct TimeStatistics {
+        std::chrono::duration<double, std::milli> total_duration;
+        std::chrono::duration<double, std::milli> early_request_duration;
+        std::chrono::duration<double, std::milli> request_duration;
+        std::chrono::duration<double, std::milli> prepare_duration;
+        std::chrono::duration<double, std::milli> set_state_duration;
+        std::chrono::duration<double, std::milli> run_score_duration;
+        std::chrono::duration<double, std::milli> set_score_duration;
+        std::chrono::duration<double, std::milli> set_new_state_duration;
+
+        TimeStatistics operator+(TimeStatistics const& other) const;
+        TimeStatistics& operator+=(TimeStatistics const& other);
+
+        void write(Core::XmlChannel& channel) const;
+        void write(std::ostream& out) const;
+    };
+
+    typedef AbstractNNLanguageModel                               Precursor;
+    typedef moodycamel::BlockingReaderWriterQueue<History const*> HistoryQueue;
 
     static Core::ParameterBool   paramTransformOuputLog;
     static Core::ParameterBool   paramTransformOuputNegate;
@@ -42,6 +64,8 @@ public:
     static Core::ParameterBool   paramLogMemory;
     static Core::ParameterBool   paramFreeMemory;
     static Core::ParameterInt    paramFreeMemoryDelay;
+    static Core::ParameterBool   paramAsync;
+    static Core::ParameterBool   paramVerbose;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
     virtual ~TFRecurrentLanguageModel();
@@ -73,6 +97,8 @@ private:
     bool                        log_memory_;
     bool                        free_memory_;
     Search::TimeframeIndex      free_memory_delay_;
+    bool                        async_;
+    bool                        verbose_;
 
     mutable Tensorflow::Session              session_;
     std::unique_ptr<Tensorflow::GraphLoader> loader_;
@@ -90,6 +116,24 @@ private:
     mutable Search::TimeframeIndex current_time_;
     mutable std::vector<double>    run_time_;
     mutable std::vector<size_t>    run_count_;
+    mutable double                 total_wait_time_;
+    mutable double                 total_start_frame_time_;
+    mutable double                 total_expand_hist_time_;
+    mutable TimeStatistics         fwd_statistics_;
+
+    // members for async forwarding
+    std::thread background_forwarder_thread_;
+    bool        should_stop_;
+
+    mutable std::atomic<History const*>  to_fwd_;
+    mutable std::promise<History const*> to_fwd_finished_;
+
+    mutable std::vector<History const*> pending_;
+    mutable HistoryQueue                fwd_queue_;
+    mutable HistoryQueue                finished_queue_;
+
+    void background_forward() const;
+    void forward(Lm::History const* hist) const;
 };
 
 } // namespace Lm

@@ -1109,7 +1109,7 @@ public:
         }
 
         control_.run_custom(
-                    "process_segment", "{s:s,s:s,s:O,s:O,s:O}",
+                    "process_segment", "{s:s,s:s,s:s,s:O,s:O,s:O}",
                     "name", s->fullName().c_str(),
                     "orthography", orth,
                     "speaker_name", speaker_name,

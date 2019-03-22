@@ -1076,6 +1076,8 @@ public:
 
         Bliss::SpeechSegment* ss = dynamic_cast<Bliss::SpeechSegment*>(s);
         const char* orth = ss ? ss->orth().c_str() : NULL;
+        const Bliss::Speaker* speaker = ss ? ss->speaker() : NULL;
+        const char* speaker_name = speaker ? speaker->fullName().c_str() : NULL;
 
         if(extractFeatures)
             _extractFeatures();
@@ -1110,6 +1112,7 @@ public:
                     "process_segment", "{s:s,s:s,s:O,s:O,s:O}",
                     "name", s->fullName().c_str(),
                     "orthography", orth,
+                    "speaker_name", speaker_name,
                     "features", pyFeatures.obj ? pyFeatures.obj : Py_None,
                     "alignment", pyAlignment.obj ? pyAlignment.obj : Py_None,
                     "soft_alignment", pySoftAlignment.obj ? pySoftAlignment.obj : Py_None);

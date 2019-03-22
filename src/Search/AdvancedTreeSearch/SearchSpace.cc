@@ -218,6 +218,11 @@ const Core::ParameterBool paramOnTheFlyRescoring(
   "keep track of recombined histories and use those aswell when searching for word ends",
   false );
 
+const Core::ParameterInt paramOnTheFlyRescoringMaxHistories(
+  "on-the-fly-rescoring-history-limit",
+  "what is the maximum number of alternative histories that should be kept",
+  5, 0 );
+
 const Core::ParameterBool paramExtendedStatistics(
   "expensive-statistics",
   "add additional performance-wise expensive statistics",
@@ -368,6 +373,7 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   reducedContextWordRecombinationLimit_( paramReducedContextWordRecombinationLimit( config ) ),
   reducedContextTreeKey_( paramReducedContextTreeKey( config ) ),
   onTheFlyRescoring_( paramOnTheFlyRescoring( config ) ),
+  onTheFlyRescoringMaxHistories_( paramOnTheFlyRescoringMaxHistories( config ) ),
   acousticPruning_( 0 ),
   acousticPruningLimit_( 0 ),
   wordEndPruning_( 0 ),
@@ -3044,7 +3050,7 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
         h.offset += offset;
       }
       b.trace->alternativeHistories.push(AlternativeHistory{b.scoreHistory, offset, b.trace});
-      while (b.trace->alternativeHistories.size() > 5) {
+      while (b.trace->alternativeHistories.size() > onTheFlyRescoringMaxHistories_) {
         b.trace->alternativeHistories.pop();
       }
     }
@@ -3077,7 +3083,7 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
         t->sibling       = a.trace;
 
         b.trace->alternativeHistories.push(AlternativeHistory{a.scoreHistory, a.score - b.score, a.trace});
-        while (b.trace->alternativeHistories.size() > 5) {
+        while (b.trace->alternativeHistories.size() > onTheFlyRescoringMaxHistories_) {
           b.trace->alternativeHistories.pop();
         }
       }

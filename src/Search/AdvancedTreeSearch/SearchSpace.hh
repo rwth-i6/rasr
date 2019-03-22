@@ -147,6 +147,7 @@ namespace Search
         unsigned reducedContextWordRecombinationLimit_;
         bool reducedContextTreeKey_;
         bool onTheFlyRescoring_;
+        unsigned onTheFlyRescoringMaxHistories_;
 
 /// Pruning thresholds
         Score acousticPruning_;     // main pruning threshold (log-scores)

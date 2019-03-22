@@ -145,6 +145,8 @@ namespace Search
         bool histogramPruningIsMasterPruning_;
         bool reducedContextWordRecombination_;
         unsigned reducedContextWordRecombinationLimit_;
+        bool reducedContextTreeKey_;
+        bool onTheFlyRescoring_;
 
 /// Pruning thresholds
         Score acousticPruning_;     // main pruning threshold (log-scores)
@@ -411,8 +413,14 @@ namespace Search
         ///@param key The key, containing the unique properties of the network
         Instance* instanceForKey(bool create, const InstanceKey &key, Lm::History const& lookaheadHistory, Lm::History const& scoreHistory);
 
-        template <bool earlyWordEndPruning>
+        template <bool earlyWordEndPruning, bool onTheFlyRescoring>
+        void processOneWordEnd(Instance const& at, StateHypothesis const& hyp, s32 exit, Score exitPenalty, Score relativePruning, Score& bestWordEndPruning);
+
+        template <bool earlyWordEndPruning, bool onTheFlyRescoring>
         void findWordEndsInternal();
+
+        template <bool onTheFlyRescoring>
+        void recombineWordEndsInternal(bool shallCreateLattice);
 
         u32 getLastSyntacticToken( const Core::Ref<Trace> &_trace ) {
           const Trace* trace = _trace.get();
@@ -495,6 +503,7 @@ namespace Search
         struct WordEndPusher;
 
         // helper function to for recombineWordEnds(bool)
+        template<bool onTheFlyRescoring>
         inline_ void recombineTwoHypotheses(WordEndHypothesis& a, WordEndHypothesis& b, bool shallCreateLattice);
     public:
 /// ------------- External Initialization --------------------:

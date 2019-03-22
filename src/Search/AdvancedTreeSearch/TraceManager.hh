@@ -27,7 +27,7 @@ static const TraceId invalidTraceId = Core::Type<TraceId>::max;
 
 struct TraceItem {
 public:
-  TraceItem( Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch, Score s )
+  TraceItem( Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch )
            : trace( t ), recombinationHistory( rch ), lookaheadHistory( lah ), scoreHistory( sch ), range( 0 ) {
   }
   TraceItem() : range( 0 ) {

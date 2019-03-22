@@ -43,6 +43,22 @@ namespace Search {
             operator Score() const {
                 return acoustic + lm;
             };
+            ScoreVector operator+(ScoreVector const& other) const {
+                return ScoreVector(acoustic + other.acoustic, lm + other.lm);
+            }
+            ScoreVector operator-(ScoreVector const& other) const {
+                return ScoreVector(acoustic - other.acoustic, lm - other.lm);
+            }
+            ScoreVector& operator+=(ScoreVector const& other) {
+                acoustic += other.acoustic;
+                lm       += other.lm;
+                return *this;
+            }
+            ScoreVector& operator-=(ScoreVector const& other) {
+                acoustic -= other.acoustic;
+                lm       -= other.lm;
+                return *this;
+            }
         };
         struct TracebackItem {
         public:

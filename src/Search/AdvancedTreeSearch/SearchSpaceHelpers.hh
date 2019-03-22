@@ -174,10 +174,10 @@ struct Instance {
   u32 backOffChainStates() const;
 
   /// Adds the LM score to the early word end hypothesis, using the tree-wise cache
-  void addLmScore( EarlyWordEndHypothesis& hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel>& lm, const Bliss::LexiconRef& lexicon, Score wpScale );
+  void addLmScore( EarlyWordEndHypothesis& hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel>& lm, const Bliss::LexiconRef& lexicon, Score wpScale ) const;
 
   /// Adds the LM score to the word end hypothesis, using the tree-wise cache
-  void addLmScore( WordEndHypothesis& hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel>& lm, const Bliss::LexiconRef& lexicon, Score wpScale );
+  void addLmScore( WordEndHypothesis& hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel>& lm, const Bliss::LexiconRef& lexicon, Score wpScale ) const;
 
   /// Back-off tree of this tree
   Instance* backOffInstance;

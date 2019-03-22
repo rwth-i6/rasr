@@ -21,22 +21,53 @@
 #include <Search/Search.hh>
 #include "PathTrace.hh"
 
-namespace Search
-{
-class Trace :
-  public Core::ReferenceCounted,
-  public SearchAlgorithm::TracebackItem
-{
+namespace Search {
+
+struct AlternativeHistory {
+    Lm::History                  hist;
+    SearchAlgorithm::ScoreVector offset;
+    Core::Ref<class Trace>       trace;
+};
+
+struct AlternativeHistoryCompare {
+    bool operator()(AlternativeHistory const& a, AlternativeHistory const& b) {
+        return a.offset < b.offset;
+    }
+};
+
+template<typename T, typename Container, typename Compare>
+class AccessiblePriorityQueue : public std::priority_queue<T, Container, Compare> {
 public:
-  Core::Ref<Trace> predecessor, sibling;
+    Container const& container() const {
+        return this->c;
+    }
+    Container& container() {
+        return this->c;
+    }
+};
 
-  Trace( const Core::Ref<Trace> &pre, const Bliss::LemmaPronunciation *p,
-    TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit &transit );
-  Trace( TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit &transit );
+using AlternativeHistoryQueue = AccessiblePriorityQueue<AlternativeHistory, std::vector<AlternativeHistory>, AlternativeHistoryCompare>;
 
-  void write( std::ostream &os, Core::Ref<const Bliss::PhonemeInventory> phi ) const;
+class Trace : public Core::ReferenceCounted,
+              public SearchAlgorithm::TracebackItem {
+public:
+  Core::Ref<Trace> predecessor;
+  Core::Ref<Trace> sibling;
+  PathTrace        pathTrace;
 
-  void getLemmaSequence( std::vector<Bliss::Lemma*>& lemmaSequence ) const;
+  AlternativeHistoryQueue alternativeHistories;
+
+  Trace(Core::Ref<Trace> const& pre,
+        Bliss::LemmaPronunciation const* p,
+        TimeframeIndex t,
+        SearchAlgorithm::ScoreVector s,
+        Transit const& transit);
+
+  Trace(TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit &transit);
+
+  void write(std::ostream &os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
+
+  void getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const;
 
   u32 wordCount() const {
     u32 count = 0;
@@ -47,9 +78,8 @@ public:
 
     return count;
   }
-
-  PathTrace pathTrace;
 };
-}
+
+}  // namespace Search
 
 #endif // CONDITIONEDTREESEARCHTRACE_HH

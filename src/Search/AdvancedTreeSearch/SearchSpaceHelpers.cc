@@ -27,7 +27,7 @@ namespace Search {
     }
 
     void Instance::enter(Core::Ref<Trace> trace, StateId entryNode, Score score) {
-      rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory, score)), score));
+      rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory)), score));
     }
 
     u32 Instance::backOffChainStates() const {
@@ -44,7 +44,7 @@ namespace Search {
       return states;
     }
 
-    void Instance::addLmScore(EarlyWordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) {
+    void Instance::addLmScore(EarlyWordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) const {
       SimpleLMCache::const_iterator it = lmCache.find(pron);
       if (it == lmCache.end()) {
         Score oldLmScore = hyp.score.lm;
@@ -57,7 +57,7 @@ namespace Search {
       }
     }
 
-    void Instance::addLmScore(WordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) {
+    void Instance::addLmScore(WordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) const {
       SimpleLMCache::const_iterator it = lmCache.find(pron);
       if (it == lmCache.end()) {
         Score oldLmScore = hyp.score.lm;

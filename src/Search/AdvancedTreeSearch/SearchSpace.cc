@@ -208,6 +208,16 @@ const Core::ParameterInt paramReducedContextWordRecombinationLimit(
   "the maximum context length to consider when doing word combination",
   1, 0);
 
+const Core::ParameterBool paramReducedContextTreeKey(
+  "reduced-context-tree-key",
+  "reduce the context of tree instance key (to reuse the tree)",
+  false );
+
+const Core::ParameterBool paramOnTheFlyRescoring(
+  "on-the-fly-rescoring",
+  "keep track of recombined histories and use those aswell when searching for word ends",
+  false );
+
 const Core::ParameterBool paramExtendedStatistics(
   "expensive-statistics",
   "add additional performance-wise expensive statistics",
@@ -356,6 +366,8 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   histogramPruningIsMasterPruning_( false ),
   reducedContextWordRecombination_( paramReducedContextWordRecombination( config ) ),
   reducedContextWordRecombinationLimit_( paramReducedContextWordRecombinationLimit( config ) ),
+  reducedContextTreeKey_( paramReducedContextTreeKey( config ) ),
+  onTheFlyRescoring_( paramOnTheFlyRescoring( config ) ),
   acousticPruning_( 0 ),
   acousticPruningLimit_( 0 ),
   wordEndPruning_( 0 ),
@@ -2510,8 +2522,18 @@ SearchSpace::getSentenceEnd( TimeframeIndex time, bool shallCreateLattice ) {
       bestScore = t->score;
     } else {
       if ( shallCreateLattice ) {
-        t->sibling = best->sibling;
-        best->sibling = t;
+        if (not onTheFlyRescoring_) {
+          t->sibling = best->sibling;
+          best->sibling = t;
+        }
+        else { // sorted siblings for on the fly rescoring
+          Core::Ref<Trace> trace = best;
+          while (trace->sibling and trace->sibling->score < t->score) {
+            trace = trace->sibling;
+          }
+          t->sibling = trace->sibling;
+          trace->sibling = t;
+        }
       }
     }
   }
@@ -2570,10 +2592,21 @@ SearchSpace::getSentenceEnd( TimeframeIndex time, bool shallCreateLattice ) {
           // Create sentence-end trace item, and store it as best
           bestScore = t->score;
           best  = t;
-        }else if( shallCreateLattice )
+        }
+        else if( shallCreateLattice )
         {
-          t->sibling = best->sibling;
-          best->sibling = t;
+          if (not onTheFlyRescoring_) {
+            t->sibling = best->sibling;
+            best->sibling = t;
+          }
+          else { // sorted siblings for on the fly rescoring
+            Core::Ref<Trace> trace = best;
+            while (trace->sibling and trace->sibling->score < t->score) {
+              trace = trace->sibling;
+            }
+            t->sibling = trace->sibling;
+            trace->sibling = t;
+          }
         }
       }
     }
@@ -2998,11 +3031,23 @@ void SearchSpace::doStateStatistics() {
   statistics->customStatistics( "states in trees without lookahead" ) += statesInTreesWithoutLookAhead;
 }
 
+template<bool onTheFlyRescoring>
 inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHypothesis& b, bool shallCreateLattice) {
-  if ( b.score > a.score || ( b.score == a.score && b.pronunciation->id() > a.pronunciation->id() ) ) // Make the order deterministic if the scores are equal
-  {
+  if (b.score > a.score || (b.score == a.score && b.pronunciation->id() > a.pronunciation->id())) {  // Make the order deterministic if the scores are equal
     // The incoming hypothesis a is better than the stored hypothesis b,
     // just store the values from the incoming a over the old b.
+
+    if (onTheFlyRescoring) {
+      auto offset = b.score - a.score;
+      std::swap(a.trace->alternativeHistories, b.trace->alternativeHistories);  // move alternative histories to b
+      for (AlternativeHistory& h : b.trace->alternativeHistories.container()) {
+        h.offset += offset;
+      }
+      b.trace->alternativeHistories.push(AlternativeHistory{b.scoreHistory, offset, b.trace});
+      while (b.trace->alternativeHistories.size() > 5) {
+        b.trace->alternativeHistories.pop();
+      }
+    }
 
     b.recombinationHistory = a.recombinationHistory; // just remember the history of the better path (relevant for mesh decoding)
     b.lookaheadHistory     = a.lookaheadHistory;
@@ -3010,22 +3055,47 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
     b.pronunciation        = a.pronunciation;
     b.endExit              = a.endExit;
     b.score                = a.score;
-    if ( shallCreateLattice )
-    {
-      verify( !a.trace->sibling );
+    if (shallCreateLattice) {
+      verify(!a.trace->sibling);
       a.trace->sibling = b.trace;
     }
     b.trace = a.trace;
-  } else {
-    if ( shallCreateLattice ) {
-      verify( !a.trace->sibling );
-      a.trace->sibling = b.trace->sibling;
-      b.trace->sibling = a.trace;
+  }
+  else {
+    if (shallCreateLattice) {
+      verify(!a.trace->sibling);
+      if (not onTheFlyRescoring) {
+        a.trace->sibling = b.trace->sibling;
+        b.trace->sibling = a.trace;
+      }
+      else {  // for on the fly-rescoring we require sorted siblings
+        Core::Ref<Trace> t = b.trace;
+        while (t->sibling and t->sibling->score < a.trace->score) {
+          t = t->sibling;
+        }
+        a.trace->sibling = t->sibling;
+        t->sibling       = a.trace;
+
+        b.trace->alternativeHistories.push(AlternativeHistory{a.scoreHistory, a.score - b.score, a.trace});
+        while (b.trace->alternativeHistories.size() > 5) {
+          b.trace->alternativeHistories.pop();
+        }
+      }
     }
   }
 }
 
 void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
+  if (onTheFlyRescoring_) {
+    recombineWordEndsInternal<true>(shallCreateLattice);
+  }
+  else {
+    recombineWordEndsInternal<false>(shallCreateLattice);
+  }
+}
+
+template<bool onTheFlyRescoring>
+void SearchSpace::recombineWordEndsInternal(bool shallCreateLattice) {
   PerformanceCounter perf( *statistics, "recombine word-ends" );
 
   if( recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::No )
@@ -3045,7 +3115,7 @@ void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
         WordEndHypothesis &a( *in );
         WordEndHypothesis &b( **i );
         verify_( b.transitState == a.transitState );
-        recombineTwoHypotheses(a, b, shallCreateLattice);
+        recombineTwoHypotheses<onTheFlyRescoring>(a, b, shallCreateLattice);
       } else {
         *out = *in;
         wordEndHypothesisMap.insert( out );
@@ -3063,7 +3133,7 @@ void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
         WordEndHypothesis &a( *in );
         WordEndHypothesis &b( *(i->second) );
         verify_( b.transitState == a.transitState );
-        recombineTwoHypotheses(a, b, shallCreateLattice);
+        recombineTwoHypotheses<onTheFlyRescoring>(a, b, shallCreateLattice);
       } else {
         *out = *in;
         wordEndHypothesisMap.insert( std::make_pair(key, out) );
@@ -3081,7 +3151,7 @@ void SearchSpace::recombineWordEnds(bool shallCreateLattice) {
         WordEndHypothesis &b( **i );
         verify_( b.history == a.history ); // found another hypothesis with equal transit and history
         verify_( b.transitState == a.transitState );
-        recombineTwoHypotheses(a, b, shallCreateLattice);
+        recombineTwoHypotheses<onTheFlyRescoring>(a, b, shallCreateLattice);
       } else {
         *out = *in;
         wordEndHypothesisMap.insert( out );
@@ -3446,132 +3516,118 @@ Instance* SearchSpace::activateOrUpdateTree(
 
   Instance *at = static_cast<Instance*>( instance );
 
-  at->enter( trace, entry, score );
+  // still keep the full history in the trace
+  if ( reducedContextTreeKey_ )
+  { TraceId tid = TraceManager::getTrace(TraceItem(trace, recombinationHistory, lookaheadHistory, scoreHistory));
+    StateHypothesis st(entry, tid, score);
+    at->enterWithState(st);
+  }else
+    at->enter( trace, entry, score );
 
   return at;
 }
 
-template <bool earlyWordEndPruning>
+template <bool earlyWordEndPruning, bool onTheFlyRescoring>
+void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& hyp, s32 exit, Score exitPenalty, Score relativePruning, Score& bestWordEndPruning) {
+  PersistentStateTree::Exit const* we = &network_.exits[exit];
+  TraceItem const& item = TraceManager::traceItem(hyp.trace);
+
+  verify_(item.range == 1);
+  //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
+  verify_(item.scoreHistory.isValid());
+
+  EarlyWordEndHypothesis weh(hyp.trace,
+                             SearchAlgorithm::ScoreVector(hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm),
+                             exit,
+                             hyp.pathTrace);
+  weh.score.acoustic += exitPenalty;
+  auto oldScore = weh.score;
+  at.addLmScore(weh, we->pronunciation, lm_, lexicon_, wpScale_);
+
+  if (weh.score < minWordEndScore_) {
+    minWordEndScore_ = weh.score;
+    if (earlyWordEndPruning) {
+      bestWordEndPruning = weh.score + relativePruning;
+    }
+  }
+
+  if (not earlyWordEndPruning or weh.score <= bestWordEndPruning) {
+    earlyWordEndHypotheses.push_back(weh);
+  }
+
+  if (onTheFlyRescoring) {
+    Core::Ref<Trace> trace = item.trace;
+    for (AlternativeHistory const& h : trace->alternativeHistories.container()) {
+      SearchAlgorithm::ScoreVector newScore = oldScore + h.offset;
+      if (we->pronunciation != Bliss::LemmaPronunciation::invalidId) {
+        Lm::addLemmaPronunciationScoreOmitExtension(lm_, lexicon_->lemmaPronunciation(we->pronunciation), wpScale_, lm_->scale(), h.hist, newScore.lm);
+      }
+
+      if (newScore < minWordEndScore_) {
+        minWordEndScore_ = newScore;
+        if (earlyWordEndPruning) {
+          bestWordEndPruning = newScore + relativePruning;
+        }
+      }
+
+      if (not earlyWordEndPruning or newScore <= bestWordEndPruning) {
+        TraceItem const& item = TraceManager::traceItem(hyp.trace); // item might be relocated by call to getTrace
+        TraceId traceId = TraceManager::getTrace(TraceItem(h.trace, item.recombinationHistory, item.lookaheadHistory, h.hist));
+        if (TraceManager::isModified(hyp.trace)) {
+          TraceManager::Modification mod = TraceManager::getModification(hyp.trace);
+          traceId = TraceManager::modify(TraceManager::getUnmodified(traceId), mod.first, mod.second, mod.third);
+        }
+        earlyWordEndHypotheses.emplace_back(traceId, newScore, exit, hyp.pathTrace);
+      }
+    }
+  }
+}
+
+template <bool earlyWordEndPruning, bool onTheFlyRescoring>
 void SearchSpace::findWordEndsInternal() {
-  Search::Score relativePruning = std::min( acousticPruning_, wordEndPruning_ );
+  PerformanceCounter perf(*statistics, "find word ends");
 
-  PerformanceCounter perf( *statistics, "find word ends" );
-
-  verify( earlyWordEndHypotheses.empty() );
-
+  Score relativePruning    = std::min(acousticPruning_, wordEndPruning_);
   Score bestWordEndPruning = Core::Type<Score>::max;
-  minWordEndScore_ = Core::Type<Score>::max;
+  minWordEndScore_         = Core::Type<Score>::max;
 
-  std::vector<Instance*>::iterator instEnd = activeInstances.end();
-  for ( std::vector<Instance*>::iterator it = activeInstances.begin(); it != instEnd; ++it )
-  {
-    Instance &at( **it );
+  verify(earlyWordEndHypotheses.empty());
 
-    for ( StateHypothesesList::iterator sh = stateHypotheses.begin() + at.states.begin; sh != stateHypotheses.begin() + at.states.end; ++sh )
-    {
-      StateHypothesis& hyp( *sh );
+  for (Instance* inst : activeInstances) {
+    for (StateHypothesesList::iterator sh = stateHypotheses.begin() + inst->states.begin; sh != stateHypotheses.begin() + inst->states.end; ++sh) {
+      StateHypothesis& hyp(*sh);
 
       s32 exit = singleLabels_[hyp.state];
-      if( exit == -1 )
+      if (exit == -1) {
         continue;  // No labels
+      }
 
-      const HMMState& state = network_.structure.state(hyp.state);
+      const HMMState& state       = network_.structure.state(hyp.state);
+      Score           exitPenalty = (*transitionModel(state.stateDesc))[Am::StateTransitionModel::exit];
 
-      Score exitPenalty = ( *transitionModel( state.stateDesc ) )[Am::StateTransitionModel::exit];
-
-      if( earlyWordEndPruning && hyp.score + exitPenalty + earlyWordEndPruningAnticipatedLmScore_ > bestWordEndPruning )
-        continue;    //Apply early word-end pruning (If the best score can not be reached, do not even try)
+      if (earlyWordEndPruning && hyp.score + exitPenalty + earlyWordEndPruningAnticipatedLmScore_ > bestWordEndPruning) {
+        continue;  //Apply early word-end pruning (If the best score can not be reached, do not even try)
+      }
 
       ///With pushing, ca. 80% of all label-lists are single-labels, so optimize for this case
-      if( exit >= 0 )
-      {
+      if (exit >= 0) {
         // There is 1 label
-        const PersistentStateTree::Exit* we = &network_.exits[exit];
-
-        const TraceItem& item = TraceManager::traceItem( hyp.trace );
-
-        verify_( item.range == 1 );
-        //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
-        verify_( item.scoreHistory.isValid() );
-
-        EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
-
-        weh.score.acoustic += exitPenalty;
-        at.addLmScore( weh, we->pronunciation, lm_, lexicon_, wpScale_ );
-
-        if( weh.score < minWordEndScore_ )
-        {
-          minWordEndScore_ = weh.score;
-          if( earlyWordEndPruning )
-            bestWordEndPruning = weh.score + relativePruning;
-        }
-
-        if( earlyWordEndPruning && weh.score > bestWordEndPruning )
-          continue;    // Apply early word end pruning
-
-        earlyWordEndHypotheses.push_back( weh );
-      }else if ( exit == -2 ) {
+        processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
+      }
+      else if (exit == -2) {
         // There are multiple labels, with a nice regular structure, use quickLabelBatches_
         u32 exitsStart = quickLabelBatches_[hyp.state];
-        u32 exitsEnd = quickLabelBatches_[hyp.state + 1];
+        u32 exitsEnd   = quickLabelBatches_[hyp.state + 1];
 
-        for( exit = exitsStart; exit != exitsEnd; ++exit )
-        {
-          const PersistentStateTree::Exit* we = &network_.exits[exit];
-
-          const TraceItem& item = TraceManager::traceItem( hyp.trace );
-
-          verify_( item.range == 1 );
-          verify_( item.scoreHistory.isValid() );
-
-          EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
-
-          weh.score.acoustic += exitPenalty;
-          at.addLmScore( weh, we->pronunciation, lm_, lexicon_, wpScale_ );
-
-          if( weh.score < minWordEndScore_ )
-          {
-            minWordEndScore_ = weh.score;
-            if( earlyWordEndPruning )
-              bestWordEndPruning = weh.score + relativePruning;
-          }
-
-          if( earlyWordEndPruning && weh.score > bestWordEndPruning )
-            continue;    // Apply early word end pruning
-
-          earlyWordEndHypotheses.push_back( weh );
+        for( exit = exitsStart; exit != exitsEnd; ++exit ) {
+          processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
         }
-      }else{
+      }
+      else {
         // There are multiple labels, however we cannot use quickLabelBatches_.
-        for( s32 current = -( exit + 3 ); slowLabelBatches_[current] != -1; ++current ) {
+        for (s32 current = -( exit + 3 ); slowLabelBatches_[current] != -1; ++current) {
           u32 exit = slowLabelBatches_[current];
-
-          const PersistentStateTree::Exit* we = &network_.exits[exit];
-
-          const TraceItem& item = TraceManager::traceItem( hyp.trace );
-
-          verify_( item.range == 1 );
-          verify_( item.scoreHistory.isValid() );
-
-          EarlyWordEndHypothesis weh( hyp.trace, SearchAlgorithm::ScoreVector( hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm ), exit, hyp.pathTrace );
-
-          weh.score.acoustic += exitPenalty;
-          Score old = weh.score.lm;
-          at.addLmScore( weh, we->pronunciation, lm_, lexicon_, wpScale_ );
-          if( weh.score.lm - old > 100000 ) // DEBUG: TODO: How can such crap be hypothesized?
-            continue;
-
-          if( weh.score < minWordEndScore_ )
-          {
-            minWordEndScore_ = weh.score;
-            if( earlyWordEndPruning )
-              bestWordEndPruning = weh.score + relativePruning;
-          }
-
-          if( earlyWordEndPruning && weh.score > bestWordEndPruning )
-            continue;    // Apply early word end pruning
-
-          earlyWordEndHypotheses.push_back( weh );
+          processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
         }
       }
     }
@@ -3579,10 +3635,23 @@ void SearchSpace::findWordEndsInternal() {
 }
 
 void SearchSpace::findWordEnds() {
-  if( earlyWordEndPruning_ )
-    findWordEndsInternal<true>();
-  else
-    findWordEndsInternal<false>();
+  //std::cerr << "best hyp: " << bestScore() << std::endl;
+  if (earlyWordEndPruning_) {
+    if (onTheFlyRescoring_) {
+      findWordEndsInternal<true, true>();
+    }
+    else {
+      findWordEndsInternal<true, false>();
+    }
+  }
+  else {
+    if (onTheFlyRescoring_) {
+      findWordEndsInternal<false, true>();
+    }
+    else {
+      findWordEndsInternal<false, false>();
+    }
+  }
 }
 
 Instance* SearchSpace::getBackOffInstance(Instance *instance) {

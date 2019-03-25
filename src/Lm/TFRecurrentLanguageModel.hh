@@ -65,6 +65,7 @@ public:
     static Core::ParameterBool   paramFreeMemory;
     static Core::ParameterInt    paramFreeMemoryDelay;
     static Core::ParameterBool   paramAsync;
+    static Core::ParameterBool   paramSingleStepOnly;
     static Core::ParameterBool   paramVerbose;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
@@ -98,6 +99,7 @@ private:
     bool                        free_memory_;
     Search::TimeframeIndex      free_memory_delay_;
     bool                        async_;
+    bool                        single_step_only_;
     bool                        verbose_;
 
     mutable Tensorflow::Session              session_;

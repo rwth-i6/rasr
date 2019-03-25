@@ -192,6 +192,7 @@ Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory            ("log-
 Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory           ("free-memory",             "wether scores should be deleted after some delay", false);
 Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay      ("free-memory-delay",       "how many time frames without usage before scores are deleted", 40);
 Core::ParameterBool   TFRecurrentLanguageModel::paramAsync                ("async",                   "wether to forward histories in a separate thread", false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramSingleStepOnly       ("single-step-only",        "workaround for some bug that results in wrong scores when recombination is done in combination with async evaluation", false);
 Core::ParameterBool   TFRecurrentLanguageModel::paramVerbose              ("verbose",                 "wether to print detailed statistics to stderr", false);
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
@@ -201,7 +202,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
                            batch_pruning_threshold_(paramBatchPruningThreshold(config)), allow_reduced_history_(paramAllowReducedHistory(config)),
                            dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)),
                            log_memory_(paramLogMemory(config)), free_memory_(paramFreeMemory(config)), free_memory_delay_(paramFreeMemoryDelay(config)),
-                           async_(paramAsync(config)), verbose_(paramVerbose(config)),
+                           async_(paramAsync(config)), single_step_only_(paramSingleStepOnly(config)), verbose_(paramVerbose(config)),
                            session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
                            graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")),
                            statistics_(config, "statistics"),
@@ -470,7 +471,13 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     if (async) {
         auto process_hist = [&](History const* hist) {
             ScoresWithContext* c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist->handle()));
-            if (handles.find(hist->handle()) == handles.end() and not c->computed.load() and c != sc and c->parent.handle() != nullptr and c->ref_count > 1) {
+            ScoresWithContext* parent_c = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(c->parent.handle()));
+            if (handles.find(hist->handle()) == handles.end()
+                and not c->computed.load()
+                and c != sc
+                and c->parent.handle() != nullptr
+                and c->ref_count > 1
+                and (not single_step_only_ or parent_c->computed.load())) {
                 early_requests.emplace_back(c);
                 early_request_histories.emplace_back(hist);
                 handles.insert(hist->handle());
@@ -645,7 +652,6 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     session_.run({}, read_vars_tensor_names_, {}, outputs);
     for (size_t s = 0ul; s < prev_state.size(); s++) {
         for (size_t r = 0ul; r < requests.size(); r++) {
-            Math::FastVector<float> state;
             outputs[s].get(r, requests[r].final_cache->state[s]);
         }
     }

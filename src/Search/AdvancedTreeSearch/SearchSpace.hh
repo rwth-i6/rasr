@@ -250,6 +250,9 @@ namespace Search
 /// Dynamically set context (i.e. left and right boundary conditions)
         Search::SearchAlgorithm::RecognitionContext recognitionContext_;
 
+/// Memory Leak workaround
+        std::vector<Core::WeakRef<Trace>> altHistTraces_;
+
     public:
 /// ----------- Public interface during search --------------:
 

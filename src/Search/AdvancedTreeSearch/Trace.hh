@@ -54,6 +54,7 @@ public:
   Core::Ref<Trace> predecessor;
   Core::Ref<Trace> sibling;
   PathTrace        pathTrace;
+  bool             mark;
 
   AlternativeHistoryQueue alternativeHistories;
 

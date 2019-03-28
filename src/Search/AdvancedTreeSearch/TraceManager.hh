@@ -25,13 +25,16 @@ namespace Search
 typedef u32 TraceId;
 static const TraceId invalidTraceId = Core::Type<TraceId>::max;
 
-struct TraceItem {
+struct TraceItem final {
 public:
   TraceItem( Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch )
            : trace( t ), recombinationHistory( rch ), lookaheadHistory( lah ), scoreHistory( sch ), range( 0 ) {
   }
   TraceItem() : range( 0 ) {
   }
+  ~TraceItem() {
+  }
+
   Core::Ref<Trace> trace;
   Lm::History recombinationHistory;
   Lm::History lookaheadHistory;

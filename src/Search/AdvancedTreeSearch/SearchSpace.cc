@@ -1023,6 +1023,13 @@ void SearchSpace::buildLabelDistances() {
 /// Search Management -----------------------------------------------------------------------------
 
 void SearchSpace::clear() {
+  for (auto& t : altHistTraces_) {
+    if (t) {
+      t->alternativeHistories.container().clear();
+    }
+  }
+  altHistTraces_.clear();
+
   currentStatesAfterPruning.clear();
   currentAcousticPruningSaturation.clear();
   currentWordEndsAfterPruning.clear();
@@ -3045,13 +3052,20 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
 
     if (onTheFlyRescoring) {
       auto offset = b.score - a.score;
-      std::swap(a.trace->alternativeHistories, b.trace->alternativeHistories);  // move alternative histories to b
       for (AlternativeHistory& h : b.trace->alternativeHistories.container()) {
         h.offset += offset;
       }
-      b.trace->alternativeHistories.push(AlternativeHistory{b.scoreHistory, offset, b.trace});
-      while (b.trace->alternativeHistories.size() > onTheFlyRescoringMaxHistories_) {
+      while (not b.trace->alternativeHistories.empty()) {
+        a.trace->alternativeHistories.push(b.trace->alternativeHistories.top());
         b.trace->alternativeHistories.pop();
+      }
+      a.trace->alternativeHistories.push(AlternativeHistory{b.scoreHistory, offset, b.trace});
+      while (a.trace->alternativeHistories.size() > onTheFlyRescoringMaxHistories_) {
+        a.trace->alternativeHistories.pop();
+      }
+      if (not a.trace->mark) {
+        altHistTraces_.push_back(a.trace);
+        a.trace->mark = true;
       }
     }
 
@@ -3083,6 +3097,10 @@ inline void SearchSpace::recombineTwoHypotheses(WordEndHypothesis& a, WordEndHyp
         t->sibling       = a.trace;
 
         b.trace->alternativeHistories.push(AlternativeHistory{a.scoreHistory, a.score - b.score, a.trace});
+        if (not b.trace->mark) {
+          altHistTraces_.push_back(b.trace);
+          b.trace->mark = true;
+        }
         while (b.trace->alternativeHistories.size() > onTheFlyRescoringMaxHistories_) {
           b.trace->alternativeHistories.pop();
         }

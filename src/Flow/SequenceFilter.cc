@@ -16,17 +16,15 @@
 
 using namespace Flow;
 
-SequenceFilterNode::SequenceFilterNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Node(c),
-    featureIndex_(0)
-{
+SequenceFilterNode::SequenceFilterNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Node(c),
+          featureIndex_(0) {
     addInputs(2);
     addOutputs(1);
 }
 
-void SequenceFilterNode::updateSelection(const Timestamp &timestamp)
-{
+void SequenceFilterNode::updateSelection(const Timestamp& timestamp) {
     while (!selection_ || !selection_->contains(timestamp)) {
         featureIndex_ = 0;
         if (!getData(1, selection_)) {
@@ -36,8 +34,7 @@ void SequenceFilterNode::updateSelection(const Timestamp &timestamp)
     }
 }
 
-bool SequenceFilterNode::configure()
-{
+bool SequenceFilterNode::configure() {
     selection_.reset();
 
     Core::Ref<Attributes> attributesSelection(new Attributes);
@@ -46,18 +43,17 @@ bool SequenceFilterNode::configure()
         return false;
 
     return putOutputAttributes(0, getInputAttributes(0));
-
 }
 
-bool SequenceFilterNode::work(PortId p)
-{
+bool SequenceFilterNode::work(PortId p) {
     DataPtr<Timestamp> in;
     while (getData(0, in)) {
         updateSelection(*in);
-        Vector<bool> &selection = *selection_;
+        Vector<bool>& selection = *selection_;
         if (featureIndex_ >= selection.size())
             criticalError("Input stream (%d) is longer than selection (%zd).", featureIndex_ + 1, selection.size());
-        if (selection[featureIndex_ ++]) return putData(0, in.get());
+        if (selection[featureIndex_++])
+            return putData(0, in.get());
     }
     return putData(0, in.get());
 }

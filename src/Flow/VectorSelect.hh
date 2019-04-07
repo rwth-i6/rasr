@@ -16,147 +16,150 @@
 #define _FLOW_VECTOR_SELECT_HH
 
 #include <Core/Parameter.hh>
-#include <Math/Vector.hh>
 #include <Math/Matrix.hh>
+#include <Math/Vector.hh>
 
 #include "Node.hh"
 #include "Vector.hh"
 
 namespace Flow {
 
-    /**
-     * Allow to select elemnts from a feature vector without resorting to concat and split
-     * Parameter selection takes form of 0-2,2,4,5,23-234,2-3 where 23-234 is the range
-     * from dimension 23 up to 234 (234 included)
-     * Original code by Christian Plahl
-     */
+/**
+ * Allow to select elemnts from a feature vector without resorting to concat and split
+ * Parameter selection takes form of 0-2,2,4,5,23-234,2-3 where 23-234 is the range
+ * from dimension 23 up to 234 (234 included)
+ * Original code by Christian Plahl
+ */
 
-    template <class T>
-    class VectorSelectNode : public SleeveNode {
-        typedef SleeveNode Precursor;
-        typedef f32 Value;
-        typedef s32 Range;
-    private:
-        std::vector<Range> featureRange_;
-    public:
-        void setFeatureRange(std::vector<std::string> range);
-        size_t getOutputSize() { return featureRange_.size(); }
+template<class T>
+class VectorSelectNode : public SleeveNode {
+    typedef SleeveNode Precursor;
+    typedef f32        Value;
+    typedef s32        Range;
 
-    private:
-        static const Core::ParameterStringVector paramFeatureSelect;
-        static const Core::ParameterIntVector paramFeatureSelectTemp;
+private:
+    std::vector<Range> featureRange_;
 
-    private:
-        void applyFeatureSelection(Flow::Vector<T> &in, Flow::Vector<T> &out);
+public:
+    void   setFeatureRange(std::vector<std::string> range);
+    size_t getOutputSize() {
+        return featureRange_.size();
+    }
 
-    public:
-        static std::string filterName() { return std::string("generic-vector-" + Core::NameHelper<T>() + "-select"); };
+private:
+    static const Core::ParameterStringVector paramFeatureSelect;
+    static const Core::ParameterIntVector    paramFeatureSelectTemp;
 
-    public:
-        VectorSelectNode(const Core::Configuration &c);
-        virtual ~VectorSelectNode() {};
+private:
+    void applyFeatureSelection(Flow::Vector<T>& in, Flow::Vector<T>& out);
 
-        virtual bool configure();
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool work(Flow::PortId p);
-
+public:
+    static std::string filterName() {
+        return std::string("generic-vector-" + Core::NameHelper<T>() + "-select");
     };
 
-    //////////////////////////////////////////////////
+public:
+    VectorSelectNode(const Core::Configuration& c);
+    virtual ~VectorSelectNode(){};
 
-    template<class T>
-    const Core::ParameterStringVector VectorSelectNode<T>::paramFeatureSelect(
+    virtual bool configure();
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool work(Flow::PortId p);
+};
+
+//////////////////////////////////////////////////
+
+template<class T>
+const Core::ParameterStringVector VectorSelectNode<T>::paramFeatureSelect(
         "select", "vector of features to select, default all features", ",", 0,
         Core::Type<s32>::max);
 
-    template<class T>
-    const Core::ParameterIntVector VectorSelectNode<T>::paramFeatureSelectTemp(
+template<class T>
+const Core::ParameterIntVector VectorSelectNode<T>::paramFeatureSelectTemp(
         "select-temp", "", "-", 0, Core::Type<s32>::max);
 
-    template<class T>
-    VectorSelectNode<T>::VectorSelectNode(const Core::Configuration &c) :
-        Core::Component(c), Precursor(c) {
-        setFeatureRange(paramFeatureSelect(c));
-    }
+template<class T>
+VectorSelectNode<T>::VectorSelectNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c) {
+    setFeatureRange(paramFeatureSelect(c));
+}
 
-    template<class T>
-    void VectorSelectNode<T>::applyFeatureSelection(Flow::Vector<T> &in, Flow::Vector<T> &out) {
-        if (featureRange_.size() == 0)
-            out = in;
-        else
-            for (u32 i = 0; i < featureRange_.size(); i++)
-            {
-                if((u32)featureRange_[i] >= in.size())
-                    criticalError() << "Selection mismatch: " << featureRange_[i] << " >= " << in.size();
-                require(i < out.size());
-                out[i] = in[featureRange_[i]];
-            }
-    }
-
-    template <class T>
-    bool VectorSelectNode<T>::configure() {
-        Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
-        getInputAttributes(0, *attributes);
-
-        if (!configureDatatype(attributes, Flow::Vector<T>::type())){
-            return false;
+template<class T>
+void VectorSelectNode<T>::applyFeatureSelection(Flow::Vector<T>& in, Flow::Vector<T>& out) {
+    if (featureRange_.size() == 0)
+        out = in;
+    else
+        for (u32 i = 0; i < featureRange_.size(); i++) {
+            if ((u32)featureRange_[i] >= in.size())
+                criticalError() << "Selection mismatch: " << featureRange_[i] << " >= " << in.size();
+            require(i < out.size());
+            out[i] = in[featureRange_[i]];
         }
+}
 
-        attributes->set("datatype", Flow::Vector<Value>::type()->name());
-        return putOutputAttributes(0, attributes);
+template<class T>
+bool VectorSelectNode<T>::configure() {
+    Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
+    getInputAttributes(0, *attributes);
+
+    if (!configureDatatype(attributes, Flow::Vector<T>::type())) {
+        return false;
     }
 
-    template<class T>
-    bool VectorSelectNode<T>::work(Flow::PortId p) {
-        Flow::DataPtr<Flow::Vector<T> > ptrFeatures;
+    attributes->set("datatype", Flow::Vector<Value>::type()->name());
+    return putOutputAttributes(0, attributes);
+}
 
-        if (getData(0, ptrFeatures)) {
-            // select the features
-            require(getOutputSize()); // If this fails, then no selection was specified
-            Flow::Vector<T> *out = new Flow::Vector<T>(getOutputSize());
-            applyFeatureSelection(*(ptrFeatures.get()), *out);
+template<class T>
+bool VectorSelectNode<T>::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<T>> ptrFeatures;
 
-            out->setTimestamp(*ptrFeatures);
-            return putData(0, out);
-        }
-        return putData(0, ptrFeatures.get());
+    if (getData(0, ptrFeatures)) {
+        // select the features
+        require(getOutputSize());  // If this fails, then no selection was specified
+        Flow::Vector<T>* out = new Flow::Vector<T>(getOutputSize());
+        applyFeatureSelection(*(ptrFeatures.get()), *out);
+
+        out->setTimestamp(*ptrFeatures);
+        return putData(0, out);
     }
+    return putData(0, ptrFeatures.get());
+}
 
-    template<class T>
-    void VectorSelectNode<T>::setFeatureRange(std::vector<std::string> rangeToken) {
-        std::vector<Range> featureRange;
+template<class T>
+void VectorSelectNode<T>::setFeatureRange(std::vector<std::string> rangeToken) {
+    std::vector<Range> featureRange;
 
-        if (rangeToken.size() != 0) { // get the range:
-            for (u32 i = 0; i < rangeToken.size(); i++) {
-                featureRange = paramFeatureSelectTemp(rangeToken[i]);
+    if (rangeToken.size() != 0) {  // get the range:
+        for (u32 i = 0; i < rangeToken.size(); i++) {
+            featureRange = paramFeatureSelectTemp(rangeToken[i]);
 
-                switch (featureRange.size()) {
+            switch (featureRange.size()) {
                 case 1: {
                     featureRange_.push_back(featureRange[0]);
                 } break;
                 case 2: {
-                    for (Range j = featureRange[0]; j <= (Range) featureRange[1]; j++){
+                    for (Range j = featureRange[0]; j <= (Range)featureRange[1]; j++) {
                         featureRange_.push_back(j);
                     }
                 } break;
                 default:
                     error("parse error in feature selection list");
-                }
             }
         }
     }
+}
 
-    template<class T>
-    bool VectorSelectNode<T>::setParameter(const std::string &name, const std::string &value) {
-        if (paramFeatureSelect.match(name))
-            setFeatureRange(paramFeatureSelect(value));
-        else
-            return false;
+template<class T>
+bool VectorSelectNode<T>::setParameter(const std::string& name, const std::string& value) {
+    if (paramFeatureSelect.match(name))
+        setFeatureRange(paramFeatureSelect(value));
+    else
+        return false;
 
-        return true;
-    }
+    return true;
+}
 
+}  // namespace Flow
 
-} // end namespace
-
-#endif // _FLOW_VECTOR_SELECT_HH
+#endif  // _FLOW_VECTOR_SELECT_HH

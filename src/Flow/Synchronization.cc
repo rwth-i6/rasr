@@ -12,23 +12,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/StringUtilities.hh>
 #include "Synchronization.hh"
+#include <Core/StringUtilities.hh>
 
 using namespace Flow;
 
-
-bool Synchronization::work(const Timestamp &time, DataPointer &dataPointer) {
-
+bool Synchronization::work(const Timestamp& time, DataPointer& dataPointer) {
     DataPointer in;
-    Time startTime = time.startTime();
+    Time        startTime = time.startTime();
     do {
         if (!nextData(in)) {
             lastError_ = Core::form("Input stream ended before the start-time %f.", startTime);
             return false;
         }
-    } while(Core::isSignificantlyGreater(startTime, in->startTime(), timeTolerance));
-
+    } while (Core::isSignificantlyGreater(startTime, in->startTime(), timeTolerance));
 
     if (!Core::isAlmostEqual(startTime, in->startTime(), timeTolerance)) {
         lastError_ = Core::form("Input stream has no element with the start-time %f.", startTime);
@@ -39,7 +36,7 @@ bool Synchronization::work(const Timestamp &time, DataPointer &dataPointer) {
     return true;
 }
 
-bool TimestampCopy::work(const Timestamp &time, DataPointer &dataPointer) {
+bool TimestampCopy::work(const Timestamp& time, DataPointer& dataPointer) {
     if (!nextData(dataPointer)) {
         lastError_ = "input stream endet before target stream";
         return false;
@@ -53,7 +50,6 @@ bool TimestampCopy::work(const Timestamp &time, DataPointer &dataPointer) {
 
 namespace Flow {
 
-    Core::ParameterBool paramSynchronizationIgnoreErrors
-    ("ignore-errors", "ignore if the synchronization algorithm fails", false);
+Core::ParameterBool paramSynchronizationIgnoreErrors("ignore-errors", "ignore if the synchronization algorithm fails", false);
 
-} // namespace Flow
+}  // namespace Flow

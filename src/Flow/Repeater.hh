@@ -17,27 +17,27 @@
 
 #include "Node.hh"
 
-
 namespace Flow {
 
-    /** Flow network repeater */
-    class RepeaterNode : public Node {
-    public:
-        static std::string filterName() { return "generic-repeater"; }
-        RepeaterNode(const Core::Configuration &c);
-        virtual ~RepeaterNode() {}
+/** Flow network repeater */
+class RepeaterNode : public Node {
+public:
+    static std::string filterName() {
+        return "generic-repeater";
+    }
+    RepeaterNode(const Core::Configuration& c);
+    virtual ~RepeaterNode() {}
 
-        /** returns 0 is @param name is "data"
-         *  Remark: input is created only on demand to avoid dead input at configuration.
-         */
-        virtual PortId getInput(const std::string &name);
-        /** returns 0 is @param name is "data" */
-        virtual PortId getOutput(const std::string &name);
+    /** returns 0 is @param name is "data"
+     *  Remark: input is created only on demand to avoid dead input at configuration.
+     */
+    virtual PortId getInput(const std::string& name);
+    /** returns 0 is @param name is "data" */
+    virtual PortId getOutput(const std::string& name);
 
-        virtual bool work(PortId out);
-    };
+    virtual bool work(PortId out);
+};
 
-}
+}  // namespace Flow
 
-
-#endif // _FLOW_REPEATER_HH
+#endif  // _FLOW_REPEATER_HH

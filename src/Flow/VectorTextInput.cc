@@ -14,17 +14,15 @@
  */
 // $Id$
 
-#include <Core/XmlParser.hh>
 #include "VectorTextInput.hh"
+#include <Core/XmlParser.hh>
 
 using namespace Flow;
 
+class VectorTextInputNodeBase::Parser : public Core::XmlParser {
+    VectorTextInputNodeBase* n_;
+    std::string              buffer_;
 
-class VectorTextInputNodeBase::Parser :
-    public Core::XmlParser
-{
-    VectorTextInputNodeBase *n_;
-    std::string buffer_;
 protected:
     virtual void startDocument() {
         n_->timeInS_ = n_->offsetInS_;
@@ -34,16 +32,16 @@ protected:
         verify(!n_->out_);
     }
 
-    virtual void startElement(const char *name, const Core::XmlAttributes atts) {
+    virtual void startElement(const char* name, const Core::XmlAttributes atts) {
         if (std::string(name) == n_->type_->name()) {
-            const char *size = atts["size"];
+            const char* size = atts["size"];
             n_->create(size != 0 ? atoi(size) : 0);
 
-            const char *start = atts["start"];
+            const char* start = atts["start"];
             if (start)
                 n_->out_->setStartTime(atof(start) + n_->offsetInS_);
 
-            const char *end = atts["end"];
+            const char* end = atts["end"];
             if (end)
                 n_->out_->setEndTime(atof(end) + n_->offsetInS_);
 
@@ -51,7 +49,7 @@ protected:
         }
     }
 
-    virtual void endElement(const char *name) {
+    virtual void endElement(const char* name) {
         if (std::string(name) == n_->type_->name()) {
             verify(n_->out_);
 
@@ -69,40 +67,34 @@ protected:
         }
     }
 
-    virtual void characters(const char *ch, int length) {
+    virtual void characters(const char* ch, int length) {
         buffer_.insert(buffer_.size(), ch, length);
     }
 
 public:
-    Parser(const Core::Configuration &c, VectorTextInputNodeBase *n) :
-        Core::XmlParser(c), n_(n) {}
+    Parser(const Core::Configuration& c, VectorTextInputNodeBase* n)
+            : Core::XmlParser(c), n_(n) {}
 };
 
-
 const Core::ParameterString VectorTextInputNodeBase::paramFileName(
-    "file", "input text file name");
+        "file", "input text file name");
 const Core::ParameterFloat VectorTextInputNodeBase::paramLength(
-    "length", "frame length in s", 1, 0);
+        "length", "frame length in s", 1, 0);
 const Core::ParameterFloat VectorTextInputNodeBase::paramShift(
-    "shift", "frame shift in s", 0, 0);
+        "shift", "frame shift in s", 0, 0);
 const Core::ParameterFloat VectorTextInputNodeBase::paramOffset(
-    "offset", "offset in s applied to read time marks", 0, 0);
+        "offset", "offset in s applied to read time marks", 0, 0);
 const Core::ParameterInt VectorTextInputNodeBase::paramSampleRate(
-    "sample-rate", "sample-rate");
-
+        "sample-rate", "sample-rate");
 
 VectorTextInputNodeBase::VectorTextInputNodeBase(
-    const Core::Configuration &c, const Datatype *type) :
-    Core::Component(c), SourceNode(c),
-    timeInS_(0), shiftInS_(0), lengthInS_(0), sampleRate_(0),
-    type_(type),
-    fileinfoChannel_(c, "text-file-info")
-{
-    parser_ = new Parser(c, this);
-    fileName_ = paramFileName(c);
-    shiftInS_ = paramShift(c);
-    offsetInS_ = paramOffset(c);
-    lengthInS_ = paramLength(c);
+        const Core::Configuration& c, const Datatype* type)
+        : Core::Component(c), SourceNode(c), timeInS_(0), shiftInS_(0), lengthInS_(0), sampleRate_(0), type_(type), fileinfoChannel_(c, "text-file-info") {
+    parser_     = new Parser(c, this);
+    fileName_   = paramFileName(c);
+    shiftInS_   = paramShift(c);
+    offsetInS_  = paramOffset(c);
+    lengthInS_  = paramLength(c);
     sampleRate_ = paramSampleRate(c);
 }
 
@@ -115,14 +107,19 @@ bool VectorTextInputNodeBase::configure() {
 }
 
 bool VectorTextInputNodeBase::setParameter(
-    const std::string &name, const std::string &value)
-{
-    if (paramFileName.match(name)) fileName_ = paramFileName(value);
-    else if (paramShift.match(name)) shiftInS_ = paramShift(value);
-    else if (paramLength.match(name)) lengthInS_ = paramLength(value);
-    else if (paramSampleRate.match(name)) sampleRate_ = paramSampleRate(value);
-    else if (paramOffset.match(name)) offsetInS_ = paramOffset(value);
-    else return false;
+        const std::string& name, const std::string& value) {
+    if (paramFileName.match(name))
+        fileName_ = paramFileName(value);
+    else if (paramShift.match(name))
+        shiftInS_ = paramShift(value);
+    else if (paramLength.match(name))
+        lengthInS_ = paramLength(value);
+    else if (paramSampleRate.match(name))
+        sampleRate_ = paramSampleRate(value);
+    else if (paramOffset.match(name))
+        offsetInS_ = paramOffset(value);
+    else
+        return false;
     return true;
 }
 

@@ -15,153 +15,162 @@
 #ifndef _FLOW_VECTOR_SCALAR_FUNCTION_HH
 #define _FLOW_VECTOR_SCALAR_FUNCTION_HH
 
-#include <math.h>
-#include <numeric>
 #include <Core/Parameter.hh>
+#include <numeric>
+#include <math.h>
 
+#include "DataAdaptor.hh"
 #include "Node.hh"
 #include "Vector.hh"
-#include "DataAdaptor.hh"
 
 namespace Flow {
 
-    /** Base class for vector-scalar functions.
-     */
-    template <class A, class P>
-    class VectorScalarFunction {
-    public:
-        typedef A ArgumentType;
-        typedef P ParameterType;
-    };
+/** Base class for vector-scalar functions.
+ */
+template<class A, class P>
+class VectorScalarFunction {
+public:
+    typedef A ArgumentType;
+    typedef P ParameterType;
+};
 
+/** NormFunction: parameter-th norm of input vector
+ *  norm = (sum_i |x_i|^parameter )^{1/parameter}
+ */
+template<class T>
+class NormFunction : public virtual Core::Component,
+                     public VectorScalarFunction<T, f64> {
+public:
+    static std::string name() {
+        return "norm";
+    }
+    NormFunction(const Core::Configuration& c)
+            : Component(c) {}
 
-    /** NormFunction: parameter-th norm of input vector
-     *  norm = (sum_i |x_i|^parameter )^{1/parameter}
-     */
-    template <class T>
-    class NormFunction :
-        public virtual Core::Component,
-        public VectorScalarFunction<T, f64> {
-    public:
-        static std::string name() { return "norm"; }
-        NormFunction(const Core::Configuration &c) : Component(c) {}
-
-        T apply(const std::vector<T> &v, f64 parameter) {
-            if (!v.empty()) {
-                typename std::vector<T>::const_iterator begin = v.begin();
-                typename std::vector<T>::const_iterator end = v.end();
-                T result = 0;
-                if (parameter == (f64)1) {
-                    for(; begin != end; ++ begin) result += Core::abs(*begin);
-                } else if (parameter == (f64)2) {
-                    result = sqrt(std::inner_product(begin, end, begin, 0.0));
-                } else if (parameter >= Core::Type<f64>::max) {
-                    for(; begin != end; ++ begin) {
-                        T tmp = Core::abs(*begin);
-                        if (result < tmp) result = tmp;
-                    }
-                } else {
-                    for(; begin != end; ++ begin) result += pow(Core::abs(*begin), parameter);
-                    result = pow(result, 1.0 / parameter);
-                }
-                return result;
+    T apply(const std::vector<T>& v, f64 parameter) {
+        if (!v.empty()) {
+            typename std::vector<T>::const_iterator begin  = v.begin();
+            typename std::vector<T>::const_iterator end    = v.end();
+            T                                       result = 0;
+            if (parameter == (f64)1) {
+                for (; begin != end; ++begin)
+                    result += Core::abs(*begin);
             }
-            criticalError("Input vector is empty.");
-            return 0;
+            else if (parameter == (f64)2) {
+                result = sqrt(std::inner_product(begin, end, begin, 0.0));
+            }
+            else if (parameter >= Core::Type<f64>::max) {
+                for (; begin != end; ++begin) {
+                    T tmp = Core::abs(*begin);
+                    if (result < tmp)
+                        result = tmp;
+                }
+            }
+            else {
+                for (; begin != end; ++begin)
+                    result += pow(Core::abs(*begin), parameter);
+                result = pow(result, 1.0 / parameter);
+            }
+            return result;
         }
-    };
+        criticalError("Input vector is empty.");
+        return 0;
+    }
+};
 
+/** EnergyFunction: energy of input vector
+ *  energy = sum_i |x_i|^2
+ */
+template<class T>
+class EnergyFunction : public VectorScalarFunction<T, T> {
+public:
+    static std::string name() {
+        return "energy";
+    }
+    EnergyFunction(const Core::Configuration&) {}
+    T apply(const std::vector<T>& v, T) {
+        return std::inner_product(v.begin(), v.end(), v.begin(), 0.0);
+    }
+};
 
-    /** EnergyFunction: energy of input vector
-     *  energy = sum_i |x_i|^2
-     */
-    template <class T>
-    class EnergyFunction : public VectorScalarFunction<T, T> {
-    public:
-        static std::string name() { return "energy"; }
-        EnergyFunction(const Core::Configuration &) {}
-        T apply(const std::vector<T> &v, T) {
-            return std::inner_product(v.begin(), v.end(), v.begin(), 0.0);
-        }
-    };
+const Core::ParameterFloat paramVectorScalarFunctionParameter("value", "parametric value", 0);
 
+/** VectorScalarFunctionNode maps a vector to a scalar value.
+ */
+template<class Function>
+class VectorScalarFunctionNode : public SleeveNode {
+public:
+    typedef typename Function::ArgumentType  ArgumentType;
+    typedef typename Function::ParameterType ParameterType;
 
-    const Core::ParameterFloat paramVectorScalarFunctionParameter("value", "parametric value", 0);
+private:
+    ParameterType functionParameter_;
+    Function      function_;
 
-    /** VectorScalarFunctionNode maps a vector to a scalar value.
-     */
-    template<class Function>
-    class VectorScalarFunctionNode : public SleeveNode {
-    public:
-        typedef typename Function::ArgumentType ArgumentType;
-        typedef typename Function::ParameterType ParameterType;
-    private:
-        ParameterType functionParameter_;
-        Function function_;
-    private:
-        void setFunctionParameter(ParameterType parameter) { functionParameter_ = parameter; }
-    public:
-        static std::string filterName() {
-            return std::string("generic-vector-") + Core::Type<ArgumentType>::name +
-                "-" + Function::name();
-        }
-
-        VectorScalarFunctionNode(const Core::Configuration &c);
-        virtual ~VectorScalarFunctionNode() {}
-
-        virtual bool configure();
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool work(PortId p);
-    };
-
-
-    template<class Function>
-    VectorScalarFunctionNode<Function>::VectorScalarFunctionNode(const Core::Configuration &c) :
-        Component(c), SleeveNode(c), function_(c) {
-        setFunctionParameter(paramVectorScalarFunctionParameter(c));
+private:
+    void setFunctionParameter(ParameterType parameter) {
+        functionParameter_ = parameter;
     }
 
-
-    template<class Function>
-    bool VectorScalarFunctionNode<Function>::configure() {
-        Core::Ref<Attributes> attributes(new Attributes());
-        getInputAttributes(0, *attributes);
-
-        if (!configureDatatype(attributes, Vector<ArgumentType>::type()))
-            return false;
-
-        attributes->set("datatype", DataAdaptor<ArgumentType>::type()->name());
-        attributes->remove("sample-rate");
-
-        return putOutputAttributes(0, attributes);
+public:
+    static std::string filterName() {
+        return std::string("generic-vector-") + Core::Type<ArgumentType>::name +
+               "-" + Function::name();
     }
 
-    template<class Function>
-    bool VectorScalarFunctionNode<Function>::setParameter(
-        const std::string &name, const std::string &value) {
-        if (paramVectorScalarFunctionParameter.match(name))
-            setFunctionParameter(paramVectorScalarFunctionParameter(value));
-        else
-            return false;
+    VectorScalarFunctionNode(const Core::Configuration& c);
+    virtual ~VectorScalarFunctionNode() {}
 
-        return true;
-    }
+    virtual bool configure();
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool work(PortId p);
+};
 
-    template<class Function>
-    bool VectorScalarFunctionNode<Function>::work(PortId p) {
-        DataPtr<Vector<ArgumentType> > in;
+template<class Function>
+VectorScalarFunctionNode<Function>::VectorScalarFunctionNode(const Core::Configuration& c)
+        : Component(c), SleeveNode(c), function_(c) {
+    setFunctionParameter(paramVectorScalarFunctionParameter(c));
+}
 
-        if (!getData(0, in))
-            return putData(0, in.get());
+template<class Function>
+bool VectorScalarFunctionNode<Function>::configure() {
+    Core::Ref<Attributes> attributes(new Attributes());
+    getInputAttributes(0, *attributes);
 
-        DataAdaptor<ArgumentType> *out = new DataAdaptor<ArgumentType>;
-        out->setTimestamp(*in);
-        (*out)() = function_.apply(*in, functionParameter_);
+    if (!configureDatatype(attributes, Vector<ArgumentType>::type()))
+        return false;
 
-        return putData(0, out);
-    }
+    attributes->set("datatype", DataAdaptor<ArgumentType>::type()->name());
+    attributes->remove("sample-rate");
+
+    return putOutputAttributes(0, attributes);
+}
+
+template<class Function>
+bool VectorScalarFunctionNode<Function>::setParameter(
+        const std::string& name, const std::string& value) {
+    if (paramVectorScalarFunctionParameter.match(name))
+        setFunctionParameter(paramVectorScalarFunctionParameter(value));
+    else
+        return false;
+
+    return true;
+}
+
+template<class Function>
+bool VectorScalarFunctionNode<Function>::work(PortId p) {
+    DataPtr<Vector<ArgumentType>> in;
+
+    if (!getData(0, in))
+        return putData(0, in.get());
+
+    DataAdaptor<ArgumentType>* out = new DataAdaptor<ArgumentType>;
+    out->setTimestamp(*in);
+    (*out)() = function_.apply(*in, functionParameter_);
+
+    return putData(0, out);
+}
 
 }  // namespace Flow
 
-
-#endif // _FLOW_VECTOR_SCALAR_FUNCTION_HH
+#endif  // _FLOW_VECTOR_SCALAR_FUNCTION_HH

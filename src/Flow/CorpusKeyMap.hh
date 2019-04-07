@@ -19,44 +19,57 @@
 
 namespace Flow {
 
-    class CoprusKeyMapNode : public SourceNode {
-        typedef SourceNode Precursor;
-    private:
-        static const Core::ParameterString paramKey;
-        static const Core::ParameterString paramMapFilename;
-        static const Core::ParameterString paramDefaultOutput;
-        static const Core::ParameterFloat paramStartTime;
-        static const Core::ParameterFloat paramEndTime;
-    private:
-        bool sent_;
-        bool send(const std::string &value);
+class CoprusKeyMapNode : public SourceNode {
+    typedef SourceNode Precursor;
 
-        std::string key_;
-        void setKey(const std::string &key);
+private:
+    static const Core::ParameterString paramKey;
+    static const Core::ParameterString paramMapFilename;
+    static const Core::ParameterString paramDefaultOutput;
+    static const Core::ParameterFloat  paramStartTime;
+    static const Core::ParameterFloat  paramEndTime;
 
-        typedef Core::StringHashMap<std::string> Map;
-        Map map_;
-        void setMapFile(const std::string &filename);
+private:
+    bool sent_;
+    bool send(const std::string& value);
 
-        std::string defaultOutput_;
-        void setDefaultOutput(const std::string &defaultOutput) { defaultOutput_ = defaultOutput; }
+    std::string key_;
+    void        setKey(const std::string& key);
 
-        Time startTime_;
-        void setStartTime(Time time) { startTime_ = time; }
-        Time endTime_;
-        void setEndTime(Time time) { endTime_ = time; }
+    typedef Core::StringHashMap<std::string> Map;
+    Map                                      map_;
+    void                                     setMapFile(const std::string& filename);
 
-        void reset() { sent_ = false; }
-    public:
-        static std::string filterName() { return "generic-coprus-key-map"; }
+    std::string defaultOutput_;
+    void        setDefaultOutput(const std::string& defaultOutput) {
+        defaultOutput_ = defaultOutput;
+    }
 
-        CoprusKeyMapNode(const Core::Configuration &c);
-        virtual ~CoprusKeyMapNode();
+    Time startTime_;
+    void setStartTime(Time time) {
+        startTime_ = time;
+    }
+    Time endTime_;
+    void setEndTime(Time time) {
+        endTime_ = time;
+    }
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-        virtual bool work(PortId output);
-    };
-} // namespace Flow
+    void reset() {
+        sent_ = false;
+    }
 
-#endif //_FLOW_CORPUS_KEY_MAP_HH
+public:
+    static std::string filterName() {
+        return "generic-coprus-key-map";
+    }
+
+    CoprusKeyMapNode(const Core::Configuration& c);
+    virtual ~CoprusKeyMapNode();
+
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+    virtual bool work(PortId output);
+};
+}  // namespace Flow
+
+#endif  //_FLOW_CORPUS_KEY_MAP_HH

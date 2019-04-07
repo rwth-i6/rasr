@@ -20,36 +20,34 @@
 
 namespace Flow {
 
-    template <typename T>
-    class VectorMultNode :
-        public MergerNode< Vector<T>, Vector<T> >
-    {
-        typedef  MergerNode< Vector<T>, Vector<T> > Precursor;
-    public:
-        static std::string filterName() {
-            return std::string("generic-vector-vector") + Core::Type<T>::name + "-multiplication";
+template<typename T>
+class VectorMultNode : public MergerNode<Vector<T>, Vector<T>> {
+    typedef MergerNode<Vector<T>, Vector<T>> Precursor;
+
+public:
+    static std::string filterName() {
+        return std::string("generic-vector-vector") + Core::Type<T>::name + "-multiplication";
+    }
+    VectorMultNode(const Core::Configuration& c)
+            : Core::Component(c), Precursor(c) {}
+    virtual ~VectorMultNode() {}
+
+    /**
+     * @todo This would be more efficient, if vector dimensions were advertised attributes.
+     */
+    virtual Vector<T>* merge(std::vector<DataPtr<Vector<T>>>& inputData) {
+        require(inputData.size() > 0);
+        Flow::Vector<T>* out = new Flow::Vector<T>(*inputData[0]);
+        for (u32 i = 1; i < inputData.size(); ++i) {
+            Flow::Vector<T>& in(*inputData[i]);
+            if (out->size() < in.size())
+                out->resize(in.size(), T());
+            for (u32 c = 0; c < in.size(); ++c)
+                (*out)[c] *= in[c];
         }
-        VectorMultNode(const Core::Configuration &c) :
-            Core::Component(c), Precursor(c) {}
-        virtual ~VectorMultNode() {}
+        return out;
+    }
+};
 
-        /**
-         * @todo This would be more efficient, if vector dimensions were advertised attributes.
-         */
-        virtual Vector<T> *merge(std::vector< DataPtr< Vector<T> > > &inputData) {
-            require(inputData.size() > 0);
-            Flow::Vector<T> *out = new Flow::Vector<T>(*inputData[0]);
-            for (u32 i = 1; i < inputData.size(); ++i) {
-                Flow::Vector<T> &in(*inputData[i]);
-                if (out->size() < in.size())
-                    out->resize(in.size(), T());
-                for (u32 c = 0; c < in.size(); ++c)
-                    (*out)[c] *= in[c];
-            }
-            return out;
-        }
-
-    };
-
-} // namespace Flow
+}  // namespace Flow
 #endif

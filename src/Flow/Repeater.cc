@@ -16,17 +16,13 @@
 
 using namespace Flow;
 
-
-RepeaterNode::RepeaterNode(const Core::Configuration &c) :
-    Component(c),
-    Node(c)
-{
+RepeaterNode::RepeaterNode(const Core::Configuration& c)
+        : Component(c),
+          Node(c) {
     addOutput(0);
 }
 
-
-PortId RepeaterNode::getInput(const std::string &name)
-{
+PortId RepeaterNode::getInput(const std::string& name) {
     if (name == "data") {
         addInput(0);
         return 0;
@@ -34,17 +30,13 @@ PortId RepeaterNode::getInput(const std::string &name)
     return IllegalPortId;
 }
 
-
-PortId RepeaterNode::getOutput(const std::string &name)
-{
+PortId RepeaterNode::getOutput(const std::string& name) {
     if (name == "data")
         return 0;
     return IllegalPortId;
 }
 
-
-bool RepeaterNode::work(PortId out)
-{
+bool RepeaterNode::work(PortId out) {
     if (nInputs() == 0)
         return putEos(0);
 

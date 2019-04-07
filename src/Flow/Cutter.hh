@@ -20,35 +20,41 @@
 
 namespace Flow {
 
-    /** Flow network. */
-    class CutterNode : public SleeveNode {
-    protected:
-        static Core::ParameterFloat paramStartTime;
-        static Core::ParameterFloat paramEndTime;
-        static Core::ParameterString paramId;
+/** Flow network. */
+class CutterNode : public SleeveNode {
+protected:
+    static Core::ParameterFloat  paramStartTime;
+    static Core::ParameterFloat  paramEndTime;
+    static Core::ParameterString paramId;
 
-        std::vector<DataPtr<Data> > featureSequence_;
-        size_t position_;
-        Time startTime_;
-        Time endTime_;
-        std::string id_;
+    std::vector<DataPtr<Data>> featureSequence_;
+    size_t                     position_;
+    Time                       startTime_;
+    Time                       endTime_;
+    std::string                id_;
 
-        void fillCache();
-        void seekToStartTime();
+    void fillCache();
+    void seekToStartTime();
 
-    public:
-        static std::string filterName() { return "generic-cutter"; }
-        CutterNode(const Core::Configuration &c);
-        virtual ~CutterNode() {}
+public:
+    static std::string filterName() {
+        return "generic-cutter";
+    }
+    CutterNode(const Core::Configuration& c);
+    virtual ~CutterNode() {}
 
-        void setStartTime(Time time) { startTime_ = time; }
-        void setEndTime(Time time) { endTime_ = time; }
-        void setId(const std::string &id);
+    void setStartTime(Time time) {
+        startTime_ = time;
+    }
+    void setEndTime(Time time) {
+        endTime_ = time;
+    }
+    void setId(const std::string& id);
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool work(PortId output);
-        virtual bool configure();
-    };
-}
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool work(PortId output);
+    virtual bool configure();
+};
+}  // namespace Flow
 
-#endif // _FLOW_CUTTER_HH
+#endif  // _FLOW_CUTTER_HH

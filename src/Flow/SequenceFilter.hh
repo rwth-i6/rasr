@@ -20,39 +20,45 @@
 
 namespace Flow {
 
-    /**
-     *  Filters input sequence according to a selection object.
-     *  Input:
-     *    default port: filtered stream
-     *    selection port: vector-bool, i.e. sequence of bool values.
-     *  Output:
-     *    default port: selected features
-     *
-     *  - A new selection is read, if the timestamp of the new data is not contained in the time interval
-     *    of the current selection.
-     *  - Data is filtered out, if the selection object contains 'false' at the position of the data.
-     *    This implies as well, that selection has to have at least as many elements as data will come
-     *    in its time interval.
-     */
-    class SequenceFilterNode : public Flow::Node {
-    private:
-        u32 featureIndex_;
-        Flow::DataPtr<Flow::Vector<bool> > selection_;
-    private:
-        void updateSelection(const Flow::Timestamp &);
-    public:
-        SequenceFilterNode(const Core::Configuration &);
-        static std::string filterName() { return "generic-sequence-filter"; }
+/**
+ *  Filters input sequence according to a selection object.
+ *  Input:
+ *    default port: filtered stream
+ *    selection port: vector-bool, i.e. sequence of bool values.
+ *  Output:
+ *    default port: selected features
+ *
+ *  - A new selection is read, if the timestamp of the new data is not contained in the time interval
+ *    of the current selection.
+ *  - Data is filtered out, if the selection object contains 'false' at the position of the data.
+ *    This implies as well, that selection has to have at least as many elements as data will come
+ *    in its time interval.
+ */
+class SequenceFilterNode : public Flow::Node {
+private:
+    u32                               featureIndex_;
+    Flow::DataPtr<Flow::Vector<bool>> selection_;
 
-        virtual Flow::PortId getInput(const std::string &name) {
-            return name == "selection" ? 1 : 0; }
-        virtual Flow::PortId getOutput(const std::string &name) {
-            return 0; }
+private:
+    void updateSelection(const Flow::Timestamp&);
 
-        virtual bool configure();
-        virtual bool work(Flow::PortId out);
-    };
+public:
+    SequenceFilterNode(const Core::Configuration&);
+    static std::string filterName() {
+        return "generic-sequence-filter";
+    }
 
-} // namespace Speech
+    virtual Flow::PortId getInput(const std::string& name) {
+        return name == "selection" ? 1 : 0;
+    }
+    virtual Flow::PortId getOutput(const std::string& name) {
+        return 0;
+    }
 
-#endif // _FLOW_SEQUENCE_FILTER_HH
+    virtual bool configure();
+    virtual bool work(Flow::PortId out);
+};
+
+}  // namespace Flow
+
+#endif  // _FLOW_SEQUENCE_FILTER_HH

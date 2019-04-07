@@ -16,84 +16,102 @@
 #define _FLOW_TIMESTAMP_HH
 
 #include <Core/BinaryStream.hh>
-#include <Core/XmlStream.hh>
 #include <Core/Utility.hh>
+#include <Core/XmlStream.hh>
 
 #include "Data.hh"
 #include "Datatype.hh"
 
 namespace Flow {
 
-    /**
-     * Base class for Flow packets with time stamp information.
-     *
-     * The time stamp indicates the perdiod of time in the original
-     * recording corresponding to the data packet.  Time values are
-     * measured in seconds from the beginning of the recording.  start()
-     * and end() are understood to denote the left-close, right-open
-     * intervall [start, end).  This means that in a stream of
-     * contiguous, non-overlapping packet, the end time of a packet is
-     * equal to the start time of the next packet.
-     */
+/**
+ * Base class for Flow packets with time stamp information.
+ *
+ * The time stamp indicates the perdiod of time in the original
+ * recording corresponding to the data packet.  Time values are
+ * measured in seconds from the beginning of the recording.  start()
+ * and end() are understood to denote the left-close, right-open
+ * intervall [start, end).  This means that in a stream of
+ * contiguous, non-overlapping packet, the end time of a packet is
+ * equal to the start time of the next packet.
+ */
 
-    class Timestamp : public Data {
-        typedef Timestamp Self;
-    private:
-        Time start_;
-        Time end_;
-    protected:
-        Timestamp(const Datatype *dt);
+class Timestamp : public Data {
+    typedef Timestamp Self;
 
-        Core::XmlOpen xmlOpen() const;
-    public:
-        Timestamp(Time start = 0, Time end = 0);
-        virtual ~Timestamp() {}
+private:
+    Time start_;
+    Time end_;
 
-        static const Datatype *type();
+protected:
+    Timestamp(const Datatype* dt);
 
-        virtual Core::XmlWriter& dump(Core::XmlWriter &o) const;
+    Core::XmlOpen xmlOpen() const;
 
-        bool read(Core::BinaryInputStream &i);
-        bool write(Core::BinaryOutputStream &o) const;
+public:
+    Timestamp(Time start = 0, Time end = 0);
+    virtual ~Timestamp() {}
 
-        void setStartTime(Time start) { start_ = start; }
-        Time getStartTime() const { return start_; }
-        Time startTime() const { return start_; }
+    static const Datatype* type();
 
-        void setEndTime(Time end);
-        Time getEndTime() const { return end_; }
-        Time endTime() const { return end_; }
+    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const;
 
-        void setTimestamp(const Timestamp &t);
-        /** start_ = min(start_, t.start_) and end_ = max(end_, t.end_)*/
-        void expandTimestamp(const Timestamp &t);
+    bool read(Core::BinaryInputStream& i);
+    bool write(Core::BinaryOutputStream& o) const;
 
-        void invalidateTimestamp() { start_ = Core::Type<Time>::max; end_ = Core::Type<Time>::min; }
-        bool isValidTimestamp() { return start_ <= end_; }
+    void setStartTime(Time start) {
+        start_ = start;
+    }
+    Time getStartTime() const {
+        return start_;
+    }
+    Time startTime() const {
+        return start_;
+    }
 
-        bool equalsToStartTime(Time t) const {
-            return Core::isAlmostEqualUlp(startTime(), t, timeToleranceUlp);
-        }
-        bool equalStartTime(const Timestamp &t) const {
-            return equalsToStartTime(t.startTime());
-        }
-        bool equalsToEndTime(Time t) const {
-            return Core::isAlmostEqualUlp(endTime(), t, timeToleranceUlp);
-        }
-        bool equalEndTime(const Timestamp &t) const {
-            return equalsToEndTime(t.endTime());
-        }
-        bool contains(Time t) const {
-            return equalsToStartTime(t) || equalsToEndTime(t) || (t > startTime() && t < endTime());
-        }
-        bool contains(const Timestamp &t) const {
-            return contains(t.startTime()) && contains(t.endTime());
-        }
-        bool overlap(const Timestamp &t) const {
-            return contains(t.startTime()) || contains(t.endTime());
-        }
-    };
+    void setEndTime(Time end);
+    Time getEndTime() const {
+        return end_;
+    }
+    Time endTime() const {
+        return end_;
+    }
 
-} // namespace Flow
+    void setTimestamp(const Timestamp& t);
+    /** start_ = min(start_, t.start_) and end_ = max(end_, t.end_)*/
+    void expandTimestamp(const Timestamp& t);
 
-#endif // _FLOW_TIMESTAMP_HH
+    void invalidateTimestamp() {
+        start_ = Core::Type<Time>::max;
+        end_   = Core::Type<Time>::min;
+    }
+    bool isValidTimestamp() {
+        return start_ <= end_;
+    }
+
+    bool equalsToStartTime(Time t) const {
+        return Core::isAlmostEqualUlp(startTime(), t, timeToleranceUlp);
+    }
+    bool equalStartTime(const Timestamp& t) const {
+        return equalsToStartTime(t.startTime());
+    }
+    bool equalsToEndTime(Time t) const {
+        return Core::isAlmostEqualUlp(endTime(), t, timeToleranceUlp);
+    }
+    bool equalEndTime(const Timestamp& t) const {
+        return equalsToEndTime(t.endTime());
+    }
+    bool contains(Time t) const {
+        return equalsToStartTime(t) || equalsToEndTime(t) || (t > startTime() && t < endTime());
+    }
+    bool contains(const Timestamp& t) const {
+        return contains(t.startTime()) && contains(t.endTime());
+    }
+    bool overlap(const Timestamp& t) const {
+        return contains(t.startTime()) || contains(t.endTime());
+    }
+};
+
+}  // namespace Flow
+
+#endif  // _FLOW_TIMESTAMP_HH

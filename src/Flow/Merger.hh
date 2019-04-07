@@ -24,85 +24,81 @@
 
 namespace Flow {
 
-    /**
-     * Abstract base class for nodes merging several packets into one packet,
-     * e.g. VectorConcat, VectorSum
+/**
+ * Abstract base class for nodes merging several packets into one packet,
+ * e.g. VectorConcat, VectorSum
+ */
+
+template<class I, class O>
+class MergerNode : public CollectorNode<I, O> {
+    typedef CollectorNode<I, O> Precursor;
+
+public:
+    typedef typename Precursor::InputData  InputData;
+    typedef typename Precursor::OutputData OutputData;
+    typedef typename Precursor::InputFrame InputFrame;
+
+public:
+    MergerNode(const Core::Configuration& c);
+    virtual ~MergerNode() {}
+
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+
+    /** Merges input frames into one OutputData object.
+     *  Override this function to implement specific merging algorithms.
+     *  Note: Input Frames are passed as reference and not as const reference.
+     *    In this way, InputFrames objects can be changed if necessary for a more
+     *    efficient merging.
      */
+    virtual OutputData* merge(std::vector<InputFrame>&) = 0;
 
-    template <class I, class O>
-    class MergerNode :
-        public CollectorNode< I, O >
-    {
-        typedef CollectorNode< I, O > Precursor;
-    public:
-        typedef typename Precursor::InputData InputData;
-        typedef typename Precursor::OutputData OutputData;
-        typedef typename Precursor::InputFrame InputFrame;
-    public:
-        MergerNode(const Core::Configuration &c);
-        virtual ~MergerNode() {}
+    virtual bool work(Flow::PortId p);
+};
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
+template<class I, class O>
+MergerNode<I, O>::MergerNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {
+    //init additional params here
+}
 
-        /** Merges input frames into one OutputData object.
-         *  Override this function to implement specific merging algorithms.
-         *  Note: Input Frames are passed as reference and not as const reference.
-         *    In this way, InputFrames objects can be changed if necessary for a more
-         *    efficient merging.
-         */
-        virtual OutputData *merge(std::vector<InputFrame> &) = 0;
+template<class I, class O>
+bool MergerNode<I, O>::setParameter(const std::string& name, const std::string& value) {
+    return Precursor::setParameter(name, value);
+}
 
-        virtual bool work(Flow::PortId p);
-    };
+template<class I, class O>
+bool MergerNode<I, O>::configure() {
+    if (!Precursor::configure())
+        return false;
+    return true;
+}
 
-    template <class I, class O>
-    MergerNode<I, O>::MergerNode(const Core::Configuration &c) :
-        Core::Component(c),
-        Precursor(c)
-    {
-        //init additional params here
+template<class I, class O>
+bool MergerNode<I, O>::work(Flow::PortId p) {
+    if (Precursor::needInit_)
+        Precursor::init();
+
+    Precursor::inputData_.resize(this->nInputs());
+
+    if (this->nInputs() == 0) {
+        this->error("No input connected.");
+        return Precursor::putNullData();
     }
 
-    template <class I, class O>
-    bool MergerNode<I, O>::setParameter(const std::string &name, const std::string &value)
-    {
-        return Precursor::setParameter(name, value);
-    }
+    Time startTime, endTime;
+    if (!Precursor::getData(startTime, endTime))
+        return Precursor::putNullData();
 
-    template <class I, class O>
-    bool MergerNode<I, O>::configure()
-    {
-        if(!Precursor::configure())
-            return false;
-        return true;
-    }
+    OutputData* out = merge(Precursor::inputData_);
+    ensure(out != 0);
 
-    template <class I, class O>
-    bool MergerNode<I, O>::work(Flow::PortId p)
-    {
-        if (Precursor::needInit_)
-            Precursor::init();
+    out->setStartTime(startTime);
+    out->setEndTime(endTime);
+    return this->putData(0, out);
+}
 
-        Precursor::inputData_.resize(this->nInputs());
+}  // namespace Flow
 
-        if (this->nInputs() == 0) {
-            this->error("No input connected.");
-            return Precursor::putNullData();
-        }
-
-        Time startTime, endTime;
-        if (!Precursor::getData(startTime, endTime))
-            return Precursor::putNullData();
-
-        OutputData *out = merge(Precursor::inputData_);
-        ensure(out != 0);
-
-        out->setStartTime(startTime);
-        out->setEndTime(endTime);
-        return this->putData(0, out);
-    }
-
-} // namespace Flow
-
-#endif //_FLOW_MERGER_HH
+#endif  //_FLOW_MERGER_HH

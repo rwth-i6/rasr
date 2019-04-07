@@ -12,19 +12,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "Registry.hh"
 #include "Cache.hh"
-#include "Datatype.hh"
 #include <Core/Directory.hh>
+#include "Datatype.hh"
+#include "Registry.hh"
 
 using namespace Flow;
 
+/******************************************************************************/
 
-/*****************************************************************************/
-CacheReader::CacheReader(Cache *cache, const std::string &name) :
-    Cached(cache, name), reader(*cache->archive_, name)
-/*****************************************************************************/
-{
+CacheReader::CacheReader(Cache* cache, const std::string& name)
+        : Cached(cache, name), reader(*cache->archive_, name) {
     data_.resize(0);
     position_ = 0;
 }
@@ -32,36 +30,36 @@ CacheReader::CacheReader(Cache *cache, const std::string &name) :
 u32 CacheNode::peekCachedDataLen() const {
     require(archive_);
     require(!id_.empty());
-    Core::ArchiveReader reader(*archive_, id_);
+    Core::ArchiveReader     reader(*archive_, id_);
     Core::BinaryInputStream b(reader);
-    std::string datatypeName;
-    if(!(b >> datatypeName)) return 0;
-    const Datatype *datatype = Flow::Registry::instance().getDatatype(datatypeName);
-    if(!datatype) return 0;
+    std::string             datatypeName;
+    if (!(b >> datatypeName))
+        return 0;
+    const Datatype* datatype = Flow::Registry::instance().getDatatype(datatypeName);
+    if (!datatype)
+        return 0;
     return datatype->peekGatheredDataLen(b);
 }
 
+/******************************************************************************/
 
-/*****************************************************************************/
-void CacheReader::readData()
-/*****************************************************************************/
-{
+void CacheReader::readData() {
     Core::BinaryInputStream b(reader);
-    std::string datatypeName;
+    std::string             datatypeName;
     if (b >> datatypeName) {
-        const Datatype *datatype = Flow::Registry::instance().getDatatype(datatypeName);
+        const Datatype* datatype = Flow::Registry::instance().getDatatype(datatypeName);
         if (!datatype || !datatype->readGatheredData(b, data_)) {
             data_.resize(0);
         }
-    } else
+    }
+    else
         data_.resize(0);
     position_ = 0;
 }
 
-/*****************************************************************************/
-Data* CacheReader::getData()
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+Data* CacheReader::getData() {
     if (position_ >= data_.size())
         readData();
     if (position_ < data_.size())
@@ -69,19 +67,15 @@ Data* CacheReader::getData()
     return Data::eos();
 }
 
+/******************************************************************************/
 
-/*****************************************************************************/
-CacheWriter::CacheWriter(Cache *cache, const std::string &name) :
-    Cached(cache, name), writer(*cache->archive_, name, cache->compress_),
-    datatype_(0)
-/*****************************************************************************/
-{
+CacheWriter::CacheWriter(Cache* cache, const std::string& name)
+        : Cached(cache, name), writer(*cache->archive_, name, cache->compress_), datatype_(0) {
 }
 
-/*****************************************************************************/
-CacheWriter::~CacheWriter()
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+CacheWriter::~CacheWriter() {
     if (attributes_) {
         Core::ArchiveWriter w(*cache_->archive_, name_ + ".attribs", cache_->compress_);
         if (w.isOpen()) {
@@ -99,10 +93,9 @@ CacheWriter::~CacheWriter()
     }
 }
 
-/*****************************************************************************/
-void CacheWriter::putData(Data *data)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void CacheWriter::putData(Data* data) {
     if (datatype_ != data->datatype()) {
         if (data_.size() > 0) {
             verify(datatype_);
@@ -128,22 +121,16 @@ void CacheWriter::putData(Data *data)
 // ===========================================================================
 // Cache
 
-Core::ParameterString Cache::paramPath
-  ("path", "path to cache archive");
-Core::ParameterString Cache::paramPrefix
-  ("prefix", "prefix for files within the archive");
-Core::ParameterInt Cache::paramGather
-  ("gather", "number of data packets to gather before writing", Core::Type<u32>::max);
-Core::ParameterBool Cache::paramCompress
-  ("compress", "compress data written to archive", false);
-Core::ParameterString Cache::paramCast
-  ("cast", "datatype casted to before writing to archive");
+Core::ParameterString Cache::paramPath("path", "path to cache archive");
+Core::ParameterString Cache::paramPrefix("prefix", "prefix for files within the archive");
+Core::ParameterInt    Cache::paramGather("gather", "number of data packets to gather before writing", Core::Type<u32>::max);
+Core::ParameterBool   Cache::paramCompress("compress", "compress data written to archive", false);
+Core::ParameterString Cache::paramCast("cast", "datatype casted to before writing to archive");
 
-Cache::Cache(const Core::Configuration &c) :
-    Core::Component(c),
-    archive_(0),
-    attributesParser_(select("attributes-parser"))
-{
+Cache::Cache(const Core::Configuration& c)
+        : Core::Component(c),
+          archive_(0),
+          attributesParser_(select("attributes-parser")) {
     setPath(paramPath(config));
     setPrefix(paramPrefix(config));
     setGather(paramGather(config));
@@ -152,48 +139,51 @@ Cache::Cache(const Core::Configuration &c) :
 }
 
 Cache::~Cache() {
-    if (isOpen()) close();
+    if (isOpen())
+        close();
 }
 
-/*****************************************************************************/
-bool Cache::open(Core::Archive::AccessMode _access)
-/*****************************************************************************/
-{
-    if (isOpen()) close();
+/******************************************************************************/
+
+bool Cache::open(Core::Archive::AccessMode _access) {
+    if (isOpen())
+        close();
     if (path_.empty() ||
         (!Core::isValidPath(path_) &&
-         !(_access & Core::Archive::AccessModeWrite))) return false;
+         !(_access & Core::Archive::AccessModeWrite)))
+        return false;
     archive_ = Core::Archive::create(config, path_, _access);
     return isOpen();
 }
 
-/*****************************************************************************/
-void Cache::close()
-/*****************************************************************************/
-{
-    if (!isOpen()) return;
-    delete archive_; archive_ = 0;
+/******************************************************************************/
+
+void Cache::close() {
+    if (!isOpen())
+        return;
+    delete archive_;
+    archive_ = 0;
 }
 
-/*****************************************************************************/
-CacheReader* Cache::newReader(const std::string &name)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+CacheReader* Cache::newReader(const std::string& name) {
     if (isOpen()) {
-        CacheReader *reader = new CacheReader(this, name);
-        if (reader->isOpen()) return reader;
+        CacheReader* reader = new CacheReader(this, name);
+        if (reader->isOpen())
+            return reader;
         delete reader;
     }
     return 0;
 }
 
-/*****************************************************************************/
-CacheWriter* Cache::newWriter(const std::string &name)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+CacheWriter* Cache::newWriter(const std::string& name) {
     if (isOpen()) {
-        CacheWriter *writer = new CacheWriter(this, name);
-        if (writer->isOpen()) return writer;
+        CacheWriter* writer = new CacheWriter(this, name);
+        if (writer->isOpen())
+            return writer;
         delete writer;
     }
     return 0;
@@ -202,38 +192,41 @@ CacheWriter* Cache::newWriter(const std::string &name)
 // ===========================================================================
 // CacheNode
 
+CacheNode::CacheNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Node(c),
+          Cache(c),
+          hasInput_(false),
+          hasOutput_(false),
+          isCached_(false),
+          reader_(0),
+          writer_(0),
+          datatype_(0) {}
 
-/*****************************************************************************/
-CacheNode::CacheNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Node(c), Cache(c), hasInput_(false), hasOutput_(false),
-    isCached_(false), reader_(0), writer_(0), datatype_(0)
-/*****************************************************************************/
-{}
+/******************************************************************************/
 
-/*****************************************************************************/
-CacheNode::~CacheNode()
-/*****************************************************************************/
-{
+CacheNode::~CacheNode() {
     delete reader_;
     delete writer_;
 }
 
-/*****************************************************************************/
-bool CacheNode::createContext(const std::string &id)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+bool CacheNode::createContext(const std::string& id) {
     id_ = prefix_ + id;
-    delete reader_; reader_ = 0;
-    delete writer_; writer_ = 0;
+    delete reader_;
+    reader_ = 0;
+    delete writer_;
+    writer_ = 0;
 
     // Open archive first only for reading. independent if node has an input.
     if (!hasAccess(Core::Archive::AccessModeRead)) {
         if (!open(Core::Archive::AccessModeRead)) {
             // Report error only if node has no input.
             if (!hasInput_) {
-                Cache::error("Failed to open archive '%s' for reading and "\
-                             "node has no input.", path_.c_str());
+                Cache::error("Failed to open archive '%s' for reading and "
+                             "node has no input.",
+                             path_.c_str());
                 return false;
             }
         }
@@ -243,7 +236,8 @@ bool CacheNode::createContext(const std::string &id)
         isCached_ = archive_->hasFile(id_);
     if (isCached_) {
         return true;
-    } else if (hasInput_) {
+    }
+    else if (hasInput_) {
         // Open archive for writing only on demand.
         if (!hasAccess(Core::Archive::AccessModeWrite)) {
             if (!open(Core::Archive::AccessModeRead | Core::Archive::AccessModeWrite)) {
@@ -265,24 +259,29 @@ bool CacheNode::createContext(const std::string &id)
     return false;
 }
 
-/*****************************************************************************/
-bool CacheNode::setParameter(const std::string &name, const std::string &value)
-/*****************************************************************************/
-{
-    if (name == "id") return createContext(value);
-    else if (paramPath.match(name)) setPath(paramPath(value));
-    else if (paramPrefix.match(name)) setPrefix(paramPrefix(value));
-    else if (paramGather.match(name)) setGather(paramGather(value));
-    else if (paramCompress.match(name)) setCompress(paramCompress(value));
-    else if (paramCast.match(name)) setCast(paramCast(value));
-    else return false;
+/******************************************************************************/
+
+bool CacheNode::setParameter(const std::string& name, const std::string& value) {
+    if (name == "id")
+        return createContext(value);
+    else if (paramPath.match(name))
+        setPath(paramPath(value));
+    else if (paramPrefix.match(name))
+        setPrefix(paramPrefix(value));
+    else if (paramGather.match(name))
+        setGather(paramGather(value));
+    else if (paramCompress.match(name))
+        setCompress(paramCompress(value));
+    else if (paramCast.match(name))
+        setCast(paramCast(value));
+    else
+        return false;
     return true;
 }
 
-/*****************************************************************************/
-PortId CacheNode::getInput(const std::string &name)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+PortId CacheNode::getInput(const std::string& name) {
     if (!hasInput_) {
         hasInput_ = true;
         addInput(0);
@@ -290,10 +289,9 @@ PortId CacheNode::getInput(const std::string &name)
     return 0;
 }
 
-/*****************************************************************************/
-PortId CacheNode::getOutput(const std::string &name)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+PortId CacheNode::getOutput(const std::string& name) {
     if (!hasOutput_) {
         hasOutput_ = true;
         addOutput(0);
@@ -301,10 +299,9 @@ PortId CacheNode::getOutput(const std::string &name)
     return 0;
 }
 
-/*****************************************************************************/
-bool CacheNode::configure()
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+bool CacheNode::configure() {
     Core::Ref<const Attributes> attributes;
 
     if (isCached_) {
@@ -321,43 +318,51 @@ bool CacheNode::configure()
                 attributes = ca;
             }
         }
-    } else if (hasInput_) {
-        attributes = getInputAttributes(0);
+    }
+    else if (hasInput_) {
+        attributes           = getInputAttributes(0);
         std::string datatype = attributes->get("datatype");
         if (!datatype.empty())
             datatype_ = Flow::Registry::instance().getDatatype(datatype);
-    } else
+    }
+    else
         attributes = Core::ref(new Attributes());
 
-    if (writer_) writer_->putAttributes(attributes);
-    if (hasOutput_) return putOutputAttributes(0, attributes);
+    if (writer_)
+        writer_->putAttributes(attributes);
+    if (hasOutput_)
+        return putOutputAttributes(0, attributes);
     return true;
 }
 
-/*****************************************************************************/
-bool CacheNode::work(PortId output)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+bool CacheNode::work(PortId output) {
     if (isCached_ && hasOutput_) {
         if (!reader_)
             reader_ = newReader(id_);
         if (!reader_)
             return false;
         return putData(0, reader_->getData());
-    } else if (hasInput_) {
+    }
+    else if (hasInput_) {
         DataPtr<Data> in;
         getData(0, in);
-        if (writer_ && in) writer_->putData(in.get());
-        if (hasOutput_) return putData(0, in.get());
+        if (writer_ && in)
+            writer_->putData(in.get());
+        if (hasOutput_)
+            return putData(0, in.get());
         return true;
     }
     return false;
 }
 
+/******************************************************************************/
+
 ssize_t CacheNode::getRemainingDataLen(PortId out) {
-    if(isCached_)
+    if (isCached_)
         return peekCachedDataLen();
-    if(hasInput_) {
+    if (hasInput_) {
         Link* link = getInputLink(0);
         require(link);
         return link->getRemainingDataLen();

@@ -16,20 +16,20 @@
 #define _FLOW_ARCHIVEWRITER_HH
 
 #include <Core/Archive.hh>
-#include "DataAdaptor.hh"
 #include "Attributes.hh"
+#include "DataAdaptor.hh"
 
 namespace Flow {
 
 template<typename T>
 struct ArchiveWriter {
-    Core::Archive* archive_;
-    Flow::DataAdaptor<T>* data_;
-    Flow::DataPtr<Flow::Data> dataPtr_; // owns data_
+    Core::Archive*            archive_;
+    Flow::DataAdaptor<T>*     data_;
+    Flow::DataPtr<Flow::Data> dataPtr_;  // owns data_
     ArchiveWriter(Core::Archive* archive)
-        : archive_(archive),
-          data_(new Flow::DataAdaptor<T>()),
-          dataPtr_(data_) {}
+            : archive_(archive),
+              data_(new Flow::DataAdaptor<T>()),
+              dataPtr_(data_) {}
     void write(const std::string& filename) {
         // See Flow::CacheWriter().
         // Compatible with Flow cache nodes.
@@ -37,8 +37,8 @@ struct ArchiveWriter {
         {
             // Write attribs, i.e. datatype.
             Core::ArchiveWriter w(*archive_, filename + ".attribs", true);
-            Core::XmlWriter xw(w);
-            Flow::Attributes attributes;
+            Core::XmlWriter     xw(w);
+            Flow::Attributes    attributes;
             attributes.set("datatype", data_->datatype()->name());
             xw << attributes;
         }
@@ -46,15 +46,15 @@ struct ArchiveWriter {
         {
             // Write data.
             Core::ArchiveWriter w(
-                *archive_, filename, /*compress*/ true);
+                    *archive_, filename, /*compress*/ true);
             Core::BinaryOutputStream b(w);
             b << data_->datatype()->name();
-            b << 1; // see Datatype::writeGatheredData()
+            b << 1;  // see Datatype::writeGatheredData()
             data_->datatype()->writeData(b, dataPtr_);
         }
     }
 };
 
-}
+}  // namespace Flow
 
-#endif // ARCHIVEWRITER_HH
+#endif  // ARCHIVEWRITER_HH

@@ -13,30 +13,28 @@
  *  limitations under the License.
  */
 #include "CorpusKeyMap.hh"
-#include "DataAdaptor.hh"
 #include <Core/MapParser.hh>
+#include "DataAdaptor.hh"
 
 using namespace Flow;
 
-
 const Core::ParameterString CoprusKeyMapNode::paramKey(
-    "key", "corpus key");
+        "key", "corpus key");
 
 const Core::ParameterString CoprusKeyMapNode::paramMapFilename(
-    "map-file", "coprus-key map filename");
+        "map-file", "coprus-key map filename");
 const Core::ParameterString CoprusKeyMapNode::paramDefaultOutput(
-    "default-output", "Default output if map-file does not contain a corpus-key");
+        "default-output", "Default output if map-file does not contain a corpus-key");
 
 const Core::ParameterFloat CoprusKeyMapNode::paramStartTime(
-    "start-time", "start-time of output", 0.0);
+        "start-time", "start-time of output", 0.0);
 const Core::ParameterFloat CoprusKeyMapNode::paramEndTime(
-    "end-time", "end-time of output", 0.0);
+        "end-time", "end-time of output", 0.0);
 
-CoprusKeyMapNode::CoprusKeyMapNode(const Core::Configuration &c) :
-    Component(c),
-    Precursor(c),
-    sent_(false)
-{
+CoprusKeyMapNode::CoprusKeyMapNode(const Core::Configuration& c)
+        : Component(c),
+          Precursor(c),
+          sent_(false) {
     setKey(paramKey(c));
     setMapFile(paramMapFilename(c));
     setDefaultOutput(paramDefaultOutput(c));
@@ -47,21 +45,21 @@ CoprusKeyMapNode::CoprusKeyMapNode(const Core::Configuration &c) :
 CoprusKeyMapNode::~CoprusKeyMapNode() {
 }
 
-void CoprusKeyMapNode::setMapFile(const std::string &filename) {
+void CoprusKeyMapNode::setMapFile(const std::string& filename) {
     if (filename != "") {
         Core::XmlMapDocument<Map> parser(config, map_, "coprus-key-map", "map-item", "key", "value");
         parser.parseFile(filename.c_str());
     }
 }
 
-void CoprusKeyMapNode::setKey(const std::string &key) {
+void CoprusKeyMapNode::setKey(const std::string& key) {
     if (key_ != key) {
-        key_ = key;
+        key_  = key;
         sent_ = false;
     }
 }
 
-bool CoprusKeyMapNode::setParameter(const std::string &name, const std::string &value) {
+bool CoprusKeyMapNode::setParameter(const std::string& name, const std::string& value) {
     if (paramKey.match(name))
         setKey(paramKey(value));
     else if (paramMapFilename.match(name))
@@ -99,8 +97,8 @@ bool CoprusKeyMapNode::work(PortId output) {
     return putEos(0);
 }
 
-bool CoprusKeyMapNode::send(const std::string &value) {
-    String *out = new String(value);
+bool CoprusKeyMapNode::send(const std::string& value) {
+    String* out = new String(value);
     out->setStartTime(startTime_);
     out->setEndTime(endTime_);
     return (sent_ = putData(0, out));

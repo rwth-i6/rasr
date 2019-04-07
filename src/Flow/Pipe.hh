@@ -15,53 +15,57 @@
 #ifndef _FLOW_PIPE_HH
 #define _FLOW_PIPE_HH
 
-
 /*
  * flow network pipe:
  */
-
 
 //#include <stdio.h>
 #include <cstdio>
 
 #include "Node.hh"
 
-
 namespace Flow {
 
-    class PipeNode : public SourceNode {
-    private:
-        bool changed_;
-        std::string command_;
-        FILE *pipe_;
+class PipeNode : public SourceNode {
+private:
+    bool        changed_;
+    std::string command_;
+    FILE*       pipe_;
 
-    public:
-        static std::string filterName() { return "generic-pipe"; }
-        PipeNode(const Core::Configuration &c) :
-            Core::Component(c), SourceNode(c),
-            changed_(true), pipe_(0) {}
-        virtual ~PipeNode() { if (pipe_) pclose(pipe_); }
+public:
+    static std::string filterName() {
+        return "generic-pipe";
+    }
+    PipeNode(const Core::Configuration& c)
+            : Core::Component(c), SourceNode(c), changed_(true), pipe_(0) {}
+    virtual ~PipeNode() {
+        if (pipe_)
+            pclose(pipe_);
+    }
 
-        virtual bool setParameter(const std::string &name, const std::string &value) {
-            if (name == "command") {
-                command_ = value;
-                changed_ = true;
-            } else return false;
-            return true;
+    virtual bool setParameter(const std::string& name, const std::string& value) {
+        if (name == "command") {
+            command_ = value;
+            changed_ = true;
         }
-        virtual bool work(PortId out) {
-            if (changed_) {
-                if (pipe_) pclose(pipe_);
-                pipe_ = popen(command_.c_str(), "r");
-                if (!pipe_) return putEos(0);
-            }
-            // which data to read? datatypes necessary?
-            defect();
-            return putData(out, Data::eos());
+        else
+            return false;
+        return true;
+    }
+    virtual bool work(PortId out) {
+        if (changed_) {
+            if (pipe_)
+                pclose(pipe_);
+            pipe_ = popen(command_.c_str(), "r");
+            if (!pipe_)
+                return putEos(0);
         }
-    };
+        // which data to read? datatypes necessary?
+        defect();
+        return putData(out, Data::eos());
+    }
+};
 
-}
+}  // namespace Flow
 
-
-#endif // _FLOW_PIPE_HH
+#endif  // _FLOW_PIPE_HH

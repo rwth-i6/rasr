@@ -15,51 +15,65 @@
 #ifndef _FLOW_FILTER_HH
 #define _FLOW_FILTER_HH
 
-#include <iostream>
 #include <Core/Configuration.hh>
+#include <iostream>
 
 #include "Node.hh"
 
 namespace Flow {
 
-    class Registry_;
+class Registry_;
 
-    /** Flow filter identifier */
-    class _Filter {
-    private:
-        std::string name;
-    protected:
-        _Filter(const std::string &name) { this->name = name; }
-        void brand(Node *n) const {
-            n->filter_ = this;
-        }
-    public:
-        virtual ~_Filter() {}
+/** Flow filter identifier */
+class _Filter {
+private:
+    std::string name;
 
-        inline bool operator < (const _Filter &f) const
-            { return name < f.name; }
-        friend std::ostream& operator << (std::ostream& o, const _Filter &f)
-            { o << f.name; return o; }
-        friend std::ostream& operator << (std::ostream& o, const _Filter *f)
-            { o << f->name; return o; }
+protected:
+    _Filter(const std::string& name) {
+        this->name = name;
+    }
+    void brand(Node* n) const {
+        n->filter_ = this;
+    }
 
-        const std::string& getName() const { return name; }
-        virtual Node* newNode(const Core::Configuration &c) const = 0;
-    };
+public:
+    virtual ~_Filter() {}
 
-    /** Flow filter definition */
-    template<class T> class Filter : public _Filter {
-    private:
-        friend class Flow::Registry_;
-        Filter(const std::string &name) : _Filter(name) {}
-    public:
-        virtual Node* newNode(const Core::Configuration &c) const {
-            Node *n = new T(c);
-            brand(n);
-            return n;
-        }
-    };
+    inline bool operator<(const _Filter& f) const {
+        return name < f.name;
+    }
+    friend std::ostream& operator<<(std::ostream& o, const _Filter& f) {
+        o << f.name;
+        return o;
+    }
+    friend std::ostream& operator<<(std::ostream& o, const _Filter* f) {
+        o << f->name;
+        return o;
+    }
 
-} // namespace Flow
+    const std::string& getName() const {
+        return name;
+    }
+    virtual Node* newNode(const Core::Configuration& c) const = 0;
+};
 
-#endif // _FLOW_FILTER_HH
+/** Flow filter definition */
+template<class T>
+class Filter : public _Filter {
+private:
+    friend class Flow::Registry_;
+    Filter(const std::string& name)
+            : _Filter(name) {}
+
+public:
+    virtual Node* newNode(const Core::Configuration& c) const {
+        Node* n = new T(c);
+        brand(n);
+        return n;
+    }
+};
+
+}  // namespace Flow
+
+#endif  // _FLOW_FILTER_HH

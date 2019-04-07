@@ -24,8 +24,8 @@ template class Vector<s32>;
 template class Vector<u32>;
 template class Vector<f32>;
 template class Vector<f64>;
-template class Vector<std::complex<f32> >;
-template class Vector<std::complex<f64> >;
+template class Vector<std::complex<f32>>;
+template class Vector<std::complex<f64>>;
 template class Vector<bool>;
 
-}
+}  // namespace Flow

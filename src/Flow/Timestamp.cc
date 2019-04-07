@@ -14,78 +14,63 @@
  */
 #include "Timestamp.hh"
 
-
 using namespace Flow;
 
+Timestamp::Timestamp(const Datatype* dt)
+        : Data(dt),
+          start_(0),
+          end_(0) {}
 
-Timestamp::Timestamp(const Datatype *dt) :
-    Data(dt),
-    start_(0),
-    end_(0)
-{}
+Timestamp::Timestamp(Time start, Time end)
+        : Data(type()),
+          start_(start),
+          end_(end) {}
 
-Timestamp::Timestamp(Time start, Time end) :
-    Data(type()),
-    start_(start),
-    end_(end)
-{}
-
-const Datatype* Timestamp::type()
-{
+const Datatype* Timestamp::type() {
     static DatatypeTemplate<Self> dt("timestamp");
     return &dt;
 }
 
-Core::XmlOpen Timestamp::xmlOpen() const
-{
-    return (Data::xmlOpen()
-            + Core::XmlAttribute("start", startTime())
-            + Core::XmlAttribute("end", endTime()));
+Core::XmlOpen Timestamp::xmlOpen() const {
+    return (Data::xmlOpen() + Core::XmlAttribute("start", startTime()) + Core::XmlAttribute("end", endTime()));
 }
 
-Core::XmlWriter& Timestamp::dump(Core::XmlWriter &o) const
-{
-    o << Core::XmlEmpty(datatype()->name())
-        + Core::XmlAttribute("start", startTime())
-        + Core::XmlAttribute("end", endTime());
+Core::XmlWriter& Timestamp::dump(Core::XmlWriter& o) const {
+    o << Core::XmlEmpty(datatype()->name()) + Core::XmlAttribute("start", startTime()) + Core::XmlAttribute("end", endTime());
     return o;
 }
 
-bool Timestamp::read(Core::BinaryInputStream &i)
-{
+bool Timestamp::read(Core::BinaryInputStream& i) {
     i >> start_;
     i >> end_;
     return i.good();
 }
 
-bool Timestamp::write(Core::BinaryOutputStream &o) const
-{
+bool Timestamp::write(Core::BinaryOutputStream& o) const {
     o << start_;
     o << end_;
     return o.good();
 }
 
-void Timestamp::setEndTime(Time end)
-{
+void Timestamp::setEndTime(Time end) {
     if (end >= start_)
         end_ = end;
     else
         end_ = start_;
 }
 
-void Timestamp::setTimestamp(const Timestamp &t)
-{
+void Timestamp::setTimestamp(const Timestamp& t) {
     setStartTime(t.getStartTime());
     setEndTime(t.getEndTime());
 }
 
-void Timestamp::expandTimestamp(const Timestamp &t)
-{
+void Timestamp::expandTimestamp(const Timestamp& t) {
     if (isValidTimestamp()) {
         if (start_ > t.start_)
             start_ = t.start_;
         if (end_ < t.end_)
             end_ = t.end_;
-    } else
+    }
+    else
         setTimestamp(t);
 }

@@ -27,6 +27,6 @@ public:
 
 typedef Core::SingletonHolder<Module_> Module;
 
-} // namespace Flow
+}  // namespace Flow
 
-#endif // _FLOW_APPLICATION_HH
+#endif  // _FLOW_APPLICATION_HH

@@ -18,43 +18,42 @@
 
 using namespace Flow;
 
-
-u32 Datatype::peekGatheredDataLen(Core::BinaryInputStream &i) const {
+u32 Datatype::peekGatheredDataLen(Core::BinaryInputStream& i) const {
     auto oldPos = i.position();
-    u32 n = 0;
+    u32  n      = 0;
     i >> n;
     i.seek(oldPos);
     return n;
 }
 
 bool Datatype::readGatheredData(
-    Core::BinaryInputStream &i, std::vector<DataPtr<Data> > &data) const
-{
+        Core::BinaryInputStream& i, std::vector<DataPtr<Data>>& data) const {
     u32 n;
     i >> n;
     data.resize(n);
-    for (std::vector<DataPtr<Data> >::iterator j = data.begin(); j != data.end(); ++j) {
-        if (!(*j)) *j = DataPtr<Data>(newData());
+    for (std::vector<DataPtr<Data>>::iterator j = data.begin(); j != data.end(); ++j) {
+        if (!(*j))
+            *j = DataPtr<Data>(newData());
         require((*j)->datatype() == this);
-        if (!(*j)->read(i)) return false;
+        if (!(*j)->read(i))
+            return false;
     }
     return true;
 }
 
 bool Datatype::writeGatheredData(
-    Core::BinaryOutputStream &o, const std::vector<DataPtr<Data> > &data) const
-{
+        Core::BinaryOutputStream& o, const std::vector<DataPtr<Data>>& data) const {
     u32 n = data.size();
     o << n;
-    for (std::vector<DataPtr<Data> >::const_iterator j = data.begin(); j != data.end(); ++j) {
+    for (std::vector<DataPtr<Data>>::const_iterator j = data.begin(); j != data.end(); ++j) {
         require((*j)->datatype() == this);
-        if (!(*j)->write(o)) return false;
+        if (!(*j)->write(o))
+            return false;
     }
     return true;
 }
 
-bool Datatype::readData(Core::BinaryInputStream &i, DataPtr<Data> &data) const
-{
+bool Datatype::readData(Core::BinaryInputStream& i, DataPtr<Data>& data) const {
     DataPtr<Data> d(newData());
     require(d->datatype() == this);
     if (d->read(i)) {
@@ -64,8 +63,7 @@ bool Datatype::readData(Core::BinaryInputStream &i, DataPtr<Data> &data) const
     return false;
 }
 
-bool Datatype::writeData(Core::BinaryOutputStream &o, const DataPtr<Data> &data) const
-{
+bool Datatype::writeData(Core::BinaryOutputStream& o, const DataPtr<Data>& data) const {
     require(data->datatype() == this);
     return data->write(o);
 }

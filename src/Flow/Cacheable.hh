@@ -23,18 +23,18 @@
 
 namespace Flow {
 
-    class Cacheable : public Data {
-    public:
-        Cacheable() {}
-        ~Cacheable();
+class Cacheable : public Data {
+public:
+    Cacheable() {}
+    ~Cacheable();
 
-        // enable transparent caching
-        virtual void read(std::istream &i) {}
-        virtual void write(std::ostream &o) {}
-        virtual void read_n(std::istream &i) {}
-        virtual void write_n(std::ostream &o) {}
-    };
+    // enable transparent caching
+    virtual void read(std::istream& i) {}
+    virtual void write(std::ostream& o) {}
+    virtual void read_n(std::istream& i) {}
+    virtual void write_n(std::ostream& o) {}
+};
 
-} // namespace Flow
+}  // namespace Flow
 
-#endif // _FLOW_CACHEABLE_HH
+#endif  // _FLOW_CACHEABLE_HH

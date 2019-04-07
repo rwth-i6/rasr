@@ -18,45 +18,43 @@
 
 using namespace Flow;
 
-
-Attributes::Parser::Parser(const Core::Configuration &c) :
-    Core::XmlSchemaParser(c),
-    attribs_(0)
-{
-    setRoot(collect(new Core::XmlMixedElementRelay
-            ("flow-attributes", this,
-             0, 0, 0,
-             XML_CHILD(collect(
-                new Core::XmlEmptyElementRelay("flow-attribute", this, startHandler(&Self::startAttribute)))),
-             XML_NO_MORE_CHILDREN)));
+Attributes::Parser::Parser(const Core::Configuration& c)
+        : Core::XmlSchemaParser(c),
+          attribs_(0) {
+    setRoot(collect(new Core::XmlMixedElementRelay("flow-attributes", this,
+                                                   0, 0, 0,
+                                                   XML_CHILD(collect(
+                                                           new Core::XmlEmptyElementRelay("flow-attribute", this, startHandler(&Self::startAttribute)))),
+                                                   XML_NO_MORE_CHILDREN)));
 }
 
 void Attributes::Parser::startAttribute(const Core::XmlAttributes atts) {
-    const char *name = atts["name"];
-    if (!name) std::cerr << "no name specified for attribute";
-    const char *value = atts["value"];
-    if (!value) std::cerr << "no value specified for attribute";
+    const char* name = atts["name"];
+    if (!name)
+        std::cerr << "no name specified for attribute";
+    const char* value = atts["value"];
+    if (!value)
+        std::cerr << "no value specified for attribute";
     attribs_->set(std::string(name), std::string(value));
 }
 
-
-bool Attributes::Parser::buildFromString(Attributes &attribs, const std::string &str)  {
-    attribs_ = &attribs;
+bool Attributes::Parser::buildFromString(Attributes& attribs, const std::string& str) {
+    attribs_    = &attribs;
     bool result = (parseString(str.c_str()) == 0);
-    attribs_ = 0;
+    attribs_    = 0;
     return result;
 }
 
-bool Attributes::Parser::buildFromStream(Attributes &attribs, std::istream &i) {
-    attribs_ = &attribs;
+bool Attributes::Parser::buildFromStream(Attributes& attribs, std::istream& i) {
+    attribs_    = &attribs;
     bool result = (parseStream(i) == 0);
-    attribs_ = 0;
+    attribs_    = 0;
     return result;
 }
 
-bool Attributes::Parser::buildFromFile(Attributes &attribs, const std::string &filename) {
-    attribs_ = &attribs;
+bool Attributes::Parser::buildFromFile(Attributes& attribs, const std::string& filename) {
+    attribs_    = &attribs;
     bool result = (parseFile(filename.c_str()) == 0);
-    attribs_ = 0;
+    attribs_    = 0;
     return result;
 }

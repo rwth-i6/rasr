@@ -19,148 +19,140 @@
 #include "Node.hh"
 #include "Vector.hh"
 
-
 namespace Flow {
 
-    /** Base class for converter functors.
-     */
-    template <class In, class Out>
-    struct Converter {
-        typedef In InputType;
-        typedef Out OutputType;
-    };
+/** Base class for converter functors.
+ */
+template<class In, class Out>
+struct Converter {
+    typedef In  InputType;
+    typedef Out OutputType;
+};
 
+/** Converts Vector<In> to Vector<Out>
+ */
+template<class In, class Out>
+struct VectorConverter : public Converter<Vector<In>, Vector<Out>> {
+    VectorConverter(const Core::Configuration&) {}
 
-    /** Converts Vector<In> to Vector<Out>
-     */
-    template <class In, class Out>
-    struct VectorConverter : public Converter<Vector<In>, Vector<Out> > {
-        VectorConverter(const Core::Configuration&) {}
+    Vector<Out>* operator()(const Vector<In>& v) {
+        Vector<Out>* result = new Vector<Out>(v.size());
+        std::copy(v.begin(), v.end(), result->begin());
+        return result;
+    }
+};
 
-        Vector<Out>* operator() (const Vector<In> &v) {
-            Vector<Out> *result = new Vector<Out>(v.size());
-            std::copy(v.begin(), v.end(), result->begin());
+/** Converts String to Out
+ */
+template<class Out>
+struct StringConverter : public virtual Core::Component,
+                         public Converter<String, Out> {
+    StringConverter(const Core::Configuration& c)
+            : Component(c) {}
+
+    Out* operator()(const String& v) {
+        if (!v().empty()) {
+            Out*              result = new Out;
+            std::stringstream s(v());
+            s >> (*result)();
             return result;
         }
-    };
-
-
-    /** Converts String to Out
-     */
-    template <class Out>
-    struct StringConverter :
-        public virtual Core::Component,
-        public Converter<String, Out>
-    {
-        StringConverter(const Core::Configuration &c) : Component(c) {}
-
-        Out* operator() (const String &v) {
-            if (!v().empty()) {
-                Out *result = new Out;
-                std::stringstream s(v());
-                s >> (*result)();
-                return result;
-            }
-            criticalError("Input is empty.");
-            return 0;
-        }
-    };
-
-    /** Converts scalar In to String
-     */
-    template <class In>
-    struct ScalarToStringConverter :
-        public virtual Core::Component,
-        public Converter<In, String>
-    {
-        ScalarToStringConverter(const Core::Configuration &c) : Component(c) {}
-
-        String* operator() (const In &v) {
-            std::stringstream s;
-            s << v();
-            return new String(s.str());
-        }
-    };
-
-    /** Converts Vector<In> of size 1 to Out
-     */
-    template <class In, class Out>
-    struct VectorToScalarConverter :
-        public virtual Core::Component,
-        public Converter<Vector<In>, Out>
-    {
-        VectorToScalarConverter(const Core::Configuration &c) : Component(c) {}
-
-        Out* operator() (const Vector<In> &v) {
-            if (v.size() == 1)
-                return new Out(v.front());
-            criticalError("Input is of size %zd, instead of 1.", v.size());
-            return 0;
-        }
-    };
-
-
-    /** Converts In to Vector<Out> of size 1
-     */
-    template <class In, class Out>
-    struct ScalarToVectorConverter : public Converter<In, Vector<Out> > {
-        ScalarToVectorConverter(const Core::Configuration&) {}
-
-        Vector<Out>* operator() (const In &v) {
-            Vector<Out> *result = new Vector<Out>(1);
-            (*result)[0] = v();
-            return result;
-        }
-    };
-
-
-    /** Converts object of type C::InputType to
-     *  type C::OutputType by using the functor C.
-     */
-    template <class C>
-    class TypeConverterNode : public SleeveNode {
-    public:
-        typedef typename C::InputType In;
-        typedef typename C::OutputType Out;
-    private:
-        C converter_;
-    public:
-        static std::string filterName() {
-            return std::string("generic-convert-") + In::type()->name() + "-to-" + Out::type()->name();
-        }
-        TypeConverterNode(const Core::Configuration &c) : Component(c), SleeveNode(c), converter_(c) {}
-        virtual ~TypeConverterNode() {}
-
-        virtual bool configure();
-        virtual bool work(PortId p);
-    };
-
-
-    template <class C>
-    bool TypeConverterNode<C>::configure() {
-        Core::Ref<Attributes> a(new Attributes());
-        getInputAttributes(0, *a);
-        if (!configureDatatype(a, In::type()))
-            return false;
-        a->set("datatype", Out::type()->name());
-        return putOutputAttributes(0, a);
+        criticalError("Input is empty.");
+        return 0;
     }
+};
 
+/** Converts scalar In to String
+ */
+template<class In>
+struct ScalarToStringConverter : public virtual Core::Component,
+                                 public Converter<In, String> {
+    ScalarToStringConverter(const Core::Configuration& c)
+            : Component(c) {}
 
-    template <class C>
-    bool TypeConverterNode<C>::work(PortId p) {
-        DataPtr<In> in;
-        if (!getData(0, in))
-            return putData(0, in.get());
-
-        Out *out = converter_(*in);
-        require(out != 0);
-        out->setTimestamp(*in);
-
-        return putData(0, out);
+    String* operator()(const In& v) {
+        std::stringstream s;
+        s << v();
+        return new String(s.str());
     }
+};
 
+/** Converts Vector<In> of size 1 to Out
+ */
+template<class In, class Out>
+struct VectorToScalarConverter : public virtual Core::Component,
+                                 public Converter<Vector<In>, Out> {
+    VectorToScalarConverter(const Core::Configuration& c)
+            : Component(c) {}
 
-} // namespace Flow
+    Out* operator()(const Vector<In>& v) {
+        if (v.size() == 1)
+            return new Out(v.front());
+        criticalError("Input is of size %zd, instead of 1.", v.size());
+        return 0;
+    }
+};
 
-#endif // _FLOW_TYPE_CONVERTER_HH
+/** Converts In to Vector<Out> of size 1
+ */
+template<class In, class Out>
+struct ScalarToVectorConverter : public Converter<In, Vector<Out>> {
+    ScalarToVectorConverter(const Core::Configuration&) {}
+
+    Vector<Out>* operator()(const In& v) {
+        Vector<Out>* result = new Vector<Out>(1);
+        (*result)[0]        = v();
+        return result;
+    }
+};
+
+/** Converts object of type C::InputType to
+ *  type C::OutputType by using the functor C.
+ */
+template<class C>
+class TypeConverterNode : public SleeveNode {
+public:
+    typedef typename C::InputType  In;
+    typedef typename C::OutputType Out;
+
+private:
+    C converter_;
+
+public:
+    static std::string filterName() {
+        return std::string("generic-convert-") + In::type()->name() + "-to-" + Out::type()->name();
+    }
+    TypeConverterNode(const Core::Configuration& c)
+            : Component(c), SleeveNode(c), converter_(c) {}
+    virtual ~TypeConverterNode() {}
+
+    virtual bool configure();
+    virtual bool work(PortId p);
+};
+
+template<class C>
+bool TypeConverterNode<C>::configure() {
+    Core::Ref<Attributes> a(new Attributes());
+    getInputAttributes(0, *a);
+    if (!configureDatatype(a, In::type()))
+        return false;
+    a->set("datatype", Out::type()->name());
+    return putOutputAttributes(0, a);
+}
+
+template<class C>
+bool TypeConverterNode<C>::work(PortId p) {
+    DataPtr<In> in;
+    if (!getData(0, in))
+        return putData(0, in.get());
+
+    Out* out = converter_(*in);
+    require(out != 0);
+    out->setTimestamp(*in);
+
+    return putData(0, out);
+}
+
+}  // namespace Flow
+
+#endif  // _FLOW_TYPE_CONVERTER_HH

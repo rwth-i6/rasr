@@ -17,38 +17,34 @@
 using namespace Flow;
 
 const Core::ParameterFloat WarpTimeFilterNode::paramStartTime(
-    "start-time", "segment start time.", 0);
+        "start-time", "segment start time.", 0);
 
-WarpTimeFilterNode::WarpTimeFilterNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Node(c),
-    currentTime_(Core::Type<Flow::Time>::max)
-{
+WarpTimeFilterNode::WarpTimeFilterNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Node(c),
+          currentTime_(Core::Type<Flow::Time>::max) {
     addInputs(1);
     addOutputs(1);
 }
 
-bool WarpTimeFilterNode::setParameter(const std::string& name, const std::string& value)
-{
-    if(paramStartTime.match(name)) {
-        if(!warping_.empty())
-        {
+bool WarpTimeFilterNode::setParameter(const std::string& name, const std::string& value) {
+    if (paramStartTime.match(name)) {
+        if (!warping_.empty()) {
             warning() << "time warping list was nonempty while setting " << name << ", warping-map is discarded!";
             warping_.clear();
         }
         currentTime_ = paramStartTime(value);
         return true;
-    } else
+    }
+    else
         return Flow::AbstractNode::setParameter(name, value);
 }
 
-bool WarpTimeFilterNode::configure()
-{
+bool WarpTimeFilterNode::configure() {
     return putOutputAttributes(0, getInputAttributes(0));
 }
 
-bool WarpTimeFilterNode::work(PortId p)
-{
+bool WarpTimeFilterNode::work(PortId p) {
     DataPtr<Timestamp> in;
     while (getData(0, in)) {
         in = DataPtr<Timestamp>(dynamic_cast<Timestamp*>(in->clone()));
@@ -57,7 +53,7 @@ bool WarpTimeFilterNode::work(PortId p)
 
         Time offset = currentTime_ - in->startTime();
 
-        if(warping_.empty() || offset != warping_.back().first - warping_.back().second)
+        if (warping_.empty() || offset != warping_.back().first - warping_.back().second)
             warping_.push_back(std::make_pair(in->startTime() + offset, in->startTime()));
 
         in->setStartTime(in->startTime() + offset);
@@ -67,11 +63,10 @@ bool WarpTimeFilterNode::work(PortId p)
         return putData(0, in.get());
     }
 
-    if(in.get() == Flow::Data::eos() && warping_.size())
-    {
+    if (in.get() == Flow::Data::eos() && warping_.size()) {
         Core::Component::Message msg = log();
         msg << "warping map:";
-        for(std::vector<std::pair<Time, Time> >::iterator it = warping_.begin(); it != warping_.end(); ++it)
+        for (std::vector<std::pair<Time, Time>>::iterator it = warping_.begin(); it != warping_.end(); ++it)
             msg << " " << it->first << ":" << it->second;
         // Write the warping map
         warping_.clear();

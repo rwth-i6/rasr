@@ -15,97 +15,101 @@
 #ifndef _FLOW_EXTERNAL_INPUT_HH
 #define _FLOW_EXTERNAL_INPUT_HH
 
-#include "Node.hh"
 #include "Network.hh"
+#include "Node.hh"
 #include "Vector.hh"
 
 namespace Flow {
 
-    const Core::ParameterFloat paramExternalInputSampleRate(
+const Core::ParameterFloat paramExternalInputSampleRate(
         "sample-rate", "sample rate/frequency of input the data", 16000, 1);
 
-    /** Wrapper for network input port
-     *  Supported features:
-     *     - sets sample rate,
-     *     - handles startTime, endTime.
-     */
-    template <class T> class ExternalInput: public virtual Core::Component {
-    private:
-        typedef Core::Component Precursor;
-    public:
-        ExternalInput(const Core::Configuration &c, Network *network) : Precursor(c) {
-            require(network != 0);
-            network_ = network;
-            setSampleRate(paramExternalInputSampleRate(c));
-            configure();
-            setInput();
-        }
-        virtual ~ExternalInput() {}
+/** Wrapper for network input port
+ *  Supported features:
+ *     - sets sample rate,
+ *     - handles startTime, endTime.
+ */
+template<class T>
+class ExternalInput : public virtual Core::Component {
+private:
+    typedef Core::Component Precursor;
 
-        void setSampleRate(Time sampleRate) {
-            require(sampleRate > 0);
-            sampleRate_ = sampleRate;
-            configure();
-        }
+public:
+    ExternalInput(const Core::Configuration& c, Network* network)
+            : Precursor(c) {
+        require(network != 0);
+        network_ = network;
+        setSampleRate(paramExternalInputSampleRate(c));
+        configure();
+        setInput();
+    }
+    virtual ~ExternalInput() {}
 
-        void setInput() {
-            if (network_->nInputs()) {
-                if (network_->nInputs() > 1)
-                    warning("the first network input has been set as an input");
-                inputPortId_ = 0;
-            }
-            else
-                criticalError("network doesn't have any input port");
-        }
+    void setSampleRate(Time sampleRate) {
+        require(sampleRate > 0);
+        sampleRate_ = sampleRate;
+        configure();
+    }
 
-        void setInput(const std::string &name) {
-            inputPortId_ = network_->getInput(name);
-            if (inputPortId_ == IllegalPortId)
-                criticalError("input port with name \"%s\" doesn't exist",name.c_str());
-            else {
-                reset();
-                configure();
-            }
+    void setInput() {
+        if (network_->nInputs()) {
+            if (network_->nInputs() > 1)
+                warning("the first network input has been set as an input");
+            inputPortId_ = 0;
         }
+        else
+            criticalError("network doesn't have any input port");
+    }
 
-        void putData(Vector<T> *v) {
-            startTime_ = endTime_;
-            endTime_ = endTime_ + Time(v->size())/sampleRate_;
-            v->setStartTime(startTime_);
-            v->setEndTime(endTime_);
-            network_->putData(0,v);
-        }
-
-        virtual void putEos() {
-            network_->putEos(0);
-        }
-
-        virtual void putOod() {
-            network_->putOod(0);
-        }
-
-        virtual void reset() {
-            startTime_ = 0;
-            endTime_ = 0;
-        }
-
-        virtual bool configure() {
-            bool isConfigured = network_->configure();
-            Core::Ref<Attributes> a(new Attributes());
-            a->set("sample-rate", sampleRate_);
-            a->set("sample-size", sizeof(T)*8);
-            a->set("datatype", Vector<T>::type()->name());
-            isConfigured = isConfigured && network_->putAttributes(0, a);
+    void setInput(const std::string& name) {
+        inputPortId_ = network_->getInput(name);
+        if (inputPortId_ == IllegalPortId)
+            criticalError("input port with name \"%s\" doesn't exist", name.c_str());
+        else {
             reset();
-            return isConfigured;
+            configure();
         }
-    private:
-        Time sampleRate_; // [Hz]
-        Time startTime_, endTime_;
-        Network *network_;
-        PortId inputPortId_;
-    };
+    }
 
-} // namespace Flow
+    void putData(Vector<T>* v) {
+        startTime_ = endTime_;
+        endTime_   = endTime_ + Time(v->size()) / sampleRate_;
+        v->setStartTime(startTime_);
+        v->setEndTime(endTime_);
+        network_->putData(0, v);
+    }
 
-#endif // _FLOW_EXTERNAL_INPUT
+    virtual void putEos() {
+        network_->putEos(0);
+    }
+
+    virtual void putOod() {
+        network_->putOod(0);
+    }
+
+    virtual void reset() {
+        startTime_ = 0;
+        endTime_   = 0;
+    }
+
+    virtual bool configure() {
+        bool                  isConfigured = network_->configure();
+        Core::Ref<Attributes> a(new Attributes());
+        a->set("sample-rate", sampleRate_);
+        a->set("sample-size", sizeof(T) * 8);
+        a->set("datatype", Vector<T>::type()->name());
+        isConfigured = isConfigured && network_->putAttributes(0, a);
+        reset();
+        return isConfigured;
+    }
+
+private:
+    Time     sampleRate_;  // [Hz]
+    Time     startTime_, endTime_;
+    Network* network_;
+    PortId   inputPortId_;
+};
+
+}  // namespace Flow
+
+#endif  // _FLOW_EXTERNAL_INPUT

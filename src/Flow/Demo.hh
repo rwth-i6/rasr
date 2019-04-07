@@ -17,35 +17,34 @@
 
 #include <map>
 
+#include <Flow/Data.hh>
 #include <Flow/Node.hh>
 #include <Flow/Vector.hh>
-#include <Flow/Data.hh>
 
 namespace Flow {
 
-  /**
-   * @file
-   * Flow Demonstration Node
-   *
-   * This Node is capabable of handling an arbitrary number of input and output ports.
-   * If specified all actions performed within an instance of this Node in a given FLOW network
-   * will be documented using different log channels.
-   *
-   * Additionally, all data passing through an instance of this node can be dumped into files.
-   *
-   * This node takes several assumptions into account
-   *
-   * 1. Each input is directed to exactly one output
-   * 2. There are as many inputs as outputs
-   * 3. There is atleast one input and one output
-   *
-   * To utilize the full functionallity of a Demo Node you need to specify the
-   * dump-attributes and dump-data channels inherited from sleeve node
-   */
+/**
+ * @file
+ * Flow Demonstration Node
+ *
+ * This Node is capabable of handling an arbitrary number of input and output ports.
+ * If specified all actions performed within an instance of this Node in a given FLOW network
+ * will be documented using different log channels.
+ *
+ * Additionally, all data passing through an instance of this node can be dumped into files.
+ *
+ * This node takes several assumptions into account
+ *
+ * 1. Each input is directed to exactly one output
+ * 2. There are as many inputs as outputs
+ * 3. There is atleast one input and one output
+ *
+ * To utilize the full functionallity of a Demo Node you need to specify the
+ * dump-attributes and dump-data channels inherited from sleeve node
+ */
 
-  class DemoNode : public SleeveNode {
-
-  private:
+class DemoNode : public SleeveNode {
+private:
     // definition of the parameters available to the demonode
     // i.e. commandline options, configfile options and so forth
     static const Core::ParameterInt paramMaxInputs_;
@@ -61,41 +60,41 @@ namespace Flow {
     bool isFirstInPort_;
     bool isFirstOutPort_;
 
-  protected:
+protected:
     // mapping of the input port name to the port number
-    std::map<std::string,PortId> inputNameToPort_;
+    std::map<std::string, PortId> inputNameToPort_;
     // mapping of the output port name to the port number
-    std::map<std::string,PortId> outputNameToPort_;
+    std::map<std::string, PortId> outputNameToPort_;
 
-  public:
-
+public:
     //typedef according to sprint naming rule for access to super class
     typedef SleeveNode Precursor;
 
     // constructor and destructor
-    DemoNode(const Core::Configuration &c);
+    DemoNode(const Core::Configuration& c);
     // fullName is inherited from Core::Configurable and returns the runtime name of this node
     // i.e. the configuration path
     virtual ~DemoNode();
 
     // inherited from SleeveNode and hence inherited from Node
     // these three methods are a must have
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool configure();
     virtual bool work(PortId output);
 
     // inherited from SleeveNode, but needed to be adjusted for an arbitray
     // number of input and output ports
-    PortId getOutput(const std::string &name);
-    PortId getInput(const std::string &name);
+    PortId getOutput(const std::string& name);
+    PortId getInput(const std::string& name);
 
     // claim class name flow-demo for detection from within a flow network
-    static std::string filterName() {return "flow-demo";}
+    static std::string filterName() {
+        return "flow-demo";
+    }
 
     // print out config information
     // void dumpConfig(const Core::Configuration &c );
+};
 
-  };
-
-}; // end namespache Flow
-#endif // _FLOW_DEMO_HH
+};      // namespace Flow
+#endif  // _FLOW_DEMO_HH

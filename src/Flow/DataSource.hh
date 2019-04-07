@@ -20,53 +20,49 @@
 
 namespace Flow {
 
-    /** Flow::Network handling several ports
+/** Flow::Network handling several ports
+ */
+class DataSource : public Core::ReferenceCounted,
+                   public Network {
+protected:
+    typedef Network Precursor;
+
+public:
+    DataSource(const Core::Configuration& c, bool loadFromFile = true)
+            : Component(c),
+              Precursor(c, loadFromFile){};
+
+    ~DataSource(){};
+
+    /** Pulls one data object from the network
+     *  @return is false if the port could not deliver an output object.
      */
-    class DataSource :
-                public Core::ReferenceCounted,
-                public Network
-    {
-        protected:
-                typedef Network Precursor;
-    public:
-                DataSource(const Core::Configuration &c, bool loadFromFile=true) :
-                        Component(c),
-                        Precursor(c, loadFromFile)
-                {};
-
-                ~DataSource() {};
-
-                /** Pulls one data object from the network
-                 *  @return is false if the port could not deliver an output object.
-                 */
-                template<class T>
-                bool getData(Flow::PortId out, Flow::DataPtr<T> &d);
-                /** Pulls all the data object from the network
-                 *  @return is false if the port could not deliver any output object.
-                 */
-                template<class T>
-                bool getData(Flow::PortId out, std::vector<T> &d);
-    };
-
     template<class T>
-    bool DataSource::getData(Flow::PortId portId, Flow::DataPtr<T> &d)
-    {
-                Flow::DataPtr<Flow::Data> out;
-                Precursor::getData(portId, out);
-                d = out;
-                return d;
-    }
-
+    bool getData(Flow::PortId out, Flow::DataPtr<T>& d);
+    /** Pulls all the data object from the network
+     *  @return is false if the port could not deliver any output object.
+     */
     template<class T>
-    bool DataSource::getData(Flow::PortId portId, std::vector<T> &v)
-    {
-                T in;
-                v.clear();
-                while (getData(portId, in))
-                        v.push_back(in);
-                return v.size();
-    }
+    bool getData(Flow::PortId out, std::vector<T>& d);
+};
 
-} // namespace Flow
+template<class T>
+bool DataSource::getData(Flow::PortId portId, Flow::DataPtr<T>& d) {
+    Flow::DataPtr<Flow::Data> out;
+    Precursor::getData(portId, out);
+    d = out;
+    return d;
+}
 
-#endif // _FLOW_DATA_SOURCE_HH
+template<class T>
+bool DataSource::getData(Flow::PortId portId, std::vector<T>& v) {
+    T in;
+    v.clear();
+    while (getData(portId, in))
+        v.push_back(in);
+    return v.size();
+}
+
+}  // namespace Flow
+
+#endif  // _FLOW_DATA_SOURCE_HH

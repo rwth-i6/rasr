@@ -15,7 +15,6 @@
 #ifndef _FLOW_TYPES_HH
 #define _FLOW_TYPES_HH
 
-
 /*
  * flow network types:
  */
@@ -24,17 +23,16 @@
 
 namespace Flow {
 
-    typedef s32 PortId;
-    static const s32 IllegalPortId = -1;
+typedef s32      PortId;
+static const s32 IllegalPortId = -1;
 
-    /**
-     * Time interval or point in time measures in seconds.
-     */
-    typedef f64 Time;
+/**
+ * Time interval or point in time measures in seconds.
+ */
+typedef f64 Time;
 
-    const Time timeTolerance    = (Time)1e7;
-    const s32  timeToleranceUlp = 100000;
-}
+const Time timeTolerance    = (Time)1e7;
+const s32  timeToleranceUlp = 100000;
+}  // namespace Flow
 
-
-#endif // _FLOW_TYPES_HH
+#endif  // _FLOW_TYPES_HH

@@ -20,131 +20,141 @@
 
 namespace Flow {
 
-    /** Predefinition of DataAdaptor
-     */
-    template<class Type, class NetworkData = Timestamp>  class DataAdaptor;
+/** Predefinition of DataAdaptor
+ */
+template<class Type, class NetworkData = Timestamp>
+class DataAdaptor;
 
+/** Network timestamp adaptor for type f32
+ */
+typedef DataAdaptor<f32> Float32;
+/** Network timestamp adaptor for type f64
+ */
+typedef DataAdaptor<f64> Float64;
 
-    /** Network timestamp adaptor for type f32
-     */
-    typedef DataAdaptor<f32> Float32;
-    /** Network timestamp adaptor for type f64
-     */
-    typedef DataAdaptor<f64> Float64;
+/** Network string class with timestamp
+ */
+typedef DataAdaptor<std::string> String;
 
-    /** Network string class with timestamp
-     */
-    typedef DataAdaptor<std::string> String;
+/** DataAdaptor adapts the type Type to a network data.
+ *  NetworkData can be the class Data or its derivaties.
+ */
+template<class Type, class NetworkData>
+class DataAdaptor : public NetworkData {
+    typedef DataAdaptor<Type, NetworkData> Self;
+    typedef NetworkData                    Predecessor;
 
+private:
+    Type data_;
 
-    /** DataAdaptor adapts the type Type to a network data.
-     *  NetworkData can be the class Data or its derivaties.
-     */
-    template<class Type, class NetworkData>
-    class DataAdaptor : public NetworkData {
-        typedef DataAdaptor<Type, NetworkData> Self;
-        typedef NetworkData Predecessor;
-    private:
-        Type data_;
-    public:
-        DataAdaptor() : NetworkData(type()) {};
-        explicit DataAdaptor(const Type &d) : NetworkData(type()), data_(d) {}
-        virtual ~DataAdaptor() {}
+public:
+    DataAdaptor()
+            : NetworkData(type()){};
+    explicit DataAdaptor(const Type& d)
+            : NetworkData(type()), data_(d) {}
+    virtual ~DataAdaptor() {}
 
-        static const Datatype* type() {
-            static Core::NameHelper<Type> name;
-            static DatatypeTemplate<Self> dt(name);
-            return &dt;
-        };
-
-        virtual Data* clone() const { return new Self(*this); }
-
-        Type& operator()() { return data_; }
-        Type& data() { return data_; }
-        const Type& operator()() const { return data_; }
-        const Type& data() const { return data_; }
-
-        virtual bool operator==(const Data &other) const;
-
-        virtual bool read(Core::BinaryInputStream &i);
-        virtual bool write(Core::BinaryOutputStream &o) const;
-
-        virtual Core::XmlWriter& dump(Core::XmlWriter &o) const;
-    private:
-        template<class T>
-        void readType(Core::BinaryInputStream &i, T &t) const {
-            i >> t;
-        }
-        template<class T>
-        void readType(Core::BinaryInputStream &i, Core::Ref<T> &t) const {
-            // reference types are not readable
-            defect();
-        }
-        template<class T>
-        void writeType(Core::BinaryOutputStream &o, const T &t) const {
-            o << t;
-        }
-        template<class T>
-        void writeType(Core::BinaryOutputStream &o, Core::Ref<const T> &t) const {
-            // reference types are not writable
-            defect();
-        }
+    static const Datatype* type() {
+        static Core::NameHelper<Type> name;
+        static DatatypeTemplate<Self> dt(name);
+        return &dt;
     };
 
-
-    template<class Type, class NetworkData>
-    bool DataAdaptor<Type, NetworkData>::operator==(const Data &other) const {
-        // workaround for missing double dispatch
-        const Self *pOther = dynamic_cast<const Self*>(&other);
-        verify(pOther);
-        return data_ == pOther->data();
+    virtual Data* clone() const {
+        return new Self(*this);
     }
 
-
-    template<class Type, class NetworkData>
-    bool DataAdaptor<Type, NetworkData>::read(Core::BinaryInputStream &i) {
-        // i >> data_;
-        readType(i, data_);
-        return Predecessor::read(i);
+    Type& operator()() {
+        return data_;
+    }
+    Type& data() {
+        return data_;
+    }
+    const Type& operator()() const {
+        return data_;
+    }
+    const Type& data() const {
+        return data_;
     }
 
+    virtual bool operator==(const Data& other) const;
 
-    template<class Type, class NetworkData>
-    bool DataAdaptor<Type, NetworkData>::write(Core::BinaryOutputStream &o) const {
-        writeType(o, data_);
-        return Predecessor::write(o);
+    virtual bool read(Core::BinaryInputStream& i);
+    virtual bool write(Core::BinaryOutputStream& o) const;
+
+    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const;
+
+private:
+    template<class T>
+    void readType(Core::BinaryInputStream& i, T& t) const {
+        i >> t;
     }
-
-
-    template<class Type, class NetworkData>
-    Core::XmlWriter& DataAdaptor<Type, NetworkData>::dump(Core::XmlWriter &o) const {
-        o << this->xmlOpen();
-        o << data_;
-        o << this->xmlClose();
-        return o;
+    template<class T>
+    void readType(Core::BinaryInputStream& i, Core::Ref<T>& t) const {
+        // reference types are not readable
+        defect();
     }
-
-
-    template<class Type, class NetworkData>
-    Core::XmlWriter& operator<< (Core::XmlWriter& o,
-                                 const DataAdaptor<Type, NetworkData> &v) {
-        v.dump(o); return o;
+    template<class T>
+    void writeType(Core::BinaryOutputStream& o, const T& t) const {
+        o << t;
     }
-
-
-    template<class Type, class NetworkData>
-    Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o,
-                                         const DataAdaptor<Type, NetworkData> &v) {
-        v.write(o); return o;
+    template<class T>
+    void writeType(Core::BinaryOutputStream& o, Core::Ref<const T>& t) const {
+        // reference types are not writable
+        defect();
     }
+};
 
+template<class Type, class NetworkData>
+bool DataAdaptor<Type, NetworkData>::operator==(const Data& other) const {
+    // workaround for missing double dispatch
+    const Self* pOther = dynamic_cast<const Self*>(&other);
+    verify(pOther);
+    return data_ == pOther->data();
+}
 
-    template<class Type, class NetworkData>
-    Core::BinaryInputStream& operator>>(Core::BinaryInputStream& i,
-                                        DataAdaptor<Type, NetworkData> &v) {
-        v.read(i); return i;
-    }
+template<class Type, class NetworkData>
+bool DataAdaptor<Type, NetworkData>::read(Core::BinaryInputStream& i) {
+    // i >> data_;
+    readType(i, data_);
+    return Predecessor::read(i);
+}
 
-} //namespace Flow
+template<class Type, class NetworkData>
+bool DataAdaptor<Type, NetworkData>::write(Core::BinaryOutputStream& o) const {
+    writeType(o, data_);
+    return Predecessor::write(o);
+}
 
-#endif // _FLOW_DATA_ADAPTOR_HH
+template<class Type, class NetworkData>
+Core::XmlWriter& DataAdaptor<Type, NetworkData>::dump(Core::XmlWriter& o) const {
+    o << this->xmlOpen();
+    o << data_;
+    o << this->xmlClose();
+    return o;
+}
+
+template<class Type, class NetworkData>
+Core::XmlWriter& operator<<(Core::XmlWriter&                      o,
+                            const DataAdaptor<Type, NetworkData>& v) {
+    v.dump(o);
+    return o;
+}
+
+template<class Type, class NetworkData>
+Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&             o,
+                                     const DataAdaptor<Type, NetworkData>& v) {
+    v.write(o);
+    return o;
+}
+
+template<class Type, class NetworkData>
+Core::BinaryInputStream& operator>>(Core::BinaryInputStream&        i,
+                                    DataAdaptor<Type, NetworkData>& v) {
+    v.read(i);
+    return i;
+}
+
+}  //namespace Flow
+
+#endif  // _FLOW_DATA_ADAPTOR_HH

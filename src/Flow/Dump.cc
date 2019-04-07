@@ -19,64 +19,60 @@
 using namespace Flow;
 
 const Core::ParameterString DumpNode::paramFilename("file", "file name");
-const Core::ParameterBool DumpNode::paramUnbuffered("unbuffered", "false");
+const Core::ParameterBool   DumpNode::paramUnbuffered("unbuffered", "false");
 
-DumpNode::DumpNode(const Core::Configuration &c) :
-    Core::Component(c),
-    SleeveNode(c),
-    unbuffered_(paramUnbuffered(c))
-{
+DumpNode::DumpNode(const Core::Configuration& c)
+        : Core::Component(c),
+          SleeveNode(c),
+          unbuffered_(paramUnbuffered(c)) {
     open(paramFilename(c));
 }
 
 DumpNode::~DumpNode() {
     if (isOpen_)
-                close();
+        close();
 }
 
-void DumpNode::open(const std::string &filename) {
+void DumpNode::open(const std::string& filename) {
     if (!filename.empty()) {
-                close();
-                //strip of the dirname part and create directory
-                if(!Core::createDirectory(Core::directoryName(filename)))
-                        warning("Could not create directory for dump file '%s'.", filename.c_str());
-                f_.open(filename);
-                if ((isOpen_ = f_.good()))
-                        f_ << Core::XmlOpen(filterName());
-                else
-                        error("Could not open dump file '%s'.", filename.c_str());
-        }
+        close();
+        //strip of the dirname part and create directory
+        if (!Core::createDirectory(Core::directoryName(filename)))
+            warning("Could not create directory for dump file '%s'.", filename.c_str());
+        f_.open(filename);
+        if ((isOpen_ = f_.good()))
+            f_ << Core::XmlOpen(filterName());
+        else
+            error("Could not open dump file '%s'.", filename.c_str());
+    }
 }
-
 
 void DumpNode::close() {
     if (isOpen_) {
-                f_ << Core::XmlClose(filterName());
-                f_.close();
+        f_ << Core::XmlClose(filterName());
+        f_.close();
     }
-    isOpen_=false;
+    isOpen_ = false;
 }
 
-
-bool DumpNode::setParameter(const std::string &name, const std::string &value) {
+bool DumpNode::setParameter(const std::string& name, const std::string& value) {
     if (paramFilename.match(name))
-                open(value);
+        open(value);
     else if (paramUnbuffered.match(name))
-                unbuffered_ = paramUnbuffered(value);
+        unbuffered_ = paramUnbuffered(value);
     else
-                return false;
+        return false;
     return true;
 }
-
 
 bool DumpNode::work(PortId output) {
     DataPtr<Data> d;
     getData(0, d);
 
     if (isOpen_ && d) {
-                d->dump(f_);
-                if (unbuffered_)
-                        f_.flush();
+        d->dump(f_);
+        if (unbuffered_)
+            f_.flush();
     }
     return putData(0, d.get());
 }

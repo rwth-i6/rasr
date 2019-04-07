@@ -15,14 +15,13 @@
 #ifndef _FLOW_REGISTRY_HH
 #define _FLOW_REGISTRY_HH
 
+#include <Core/Singleton.hh>
 #include <iostream>
 #include <map>
 #include <string>
-#include <Core/Singleton.hh>
 #include "Filter.hh"
 
-namespace Flow
-{
+namespace Flow {
 
 class Datatype;
 
@@ -32,38 +31,37 @@ class Datatype;
  *
  * Registry can be accessed using Flow::Registry::instance()
  */
-class Registry_
-{
+class Registry_ {
 private:
-    typedef std::map<std::string, _Filter*> FilterMap;
+    typedef std::map<std::string, _Filter*>        FilterMap;
     typedef std::map<std::string, const Datatype*> DatatypeMap;
-    FilterMap filters_;
-    DatatypeMap datatypes_;
+    FilterMap                                      filters_;
+    DatatypeMap                                    datatypes_;
 
-    void registerFilter_(_Filter *f);
-    void registerDatatype_(const Datatype *d);
+    void registerFilter_(_Filter* f);
+    void registerDatatype_(const Datatype* d);
 
 public:
     ~Registry_();
 
     // filter registry
-    template<class T> void registerFilter()
-    {
-        registerFilter_(new Filter<T> (T::filterName()));
+    template<class T>
+    void registerFilter() {
+        registerFilter_(new Filter<T>(T::filterName()));
     }
-    const _Filter* getFilter(const std::string &name) const;
-    void dumpFilters(std::ostream &o) const;
+    const _Filter* getFilter(const std::string& name) const;
+    void           dumpFilters(std::ostream& o) const;
 
     // datatype registry
-    template<class T> void registerDatatype()
-    {
+    template<class T>
+    void registerDatatype() {
         registerDatatype_(T::type());
     }
-    const Datatype* getDatatype(const std::string &name) const;
-    void dumpDatatypes(std::ostream &o) const;
+    const Datatype* getDatatype(const std::string& name) const;
+    void            dumpDatatypes(std::ostream& o) const;
 };
 
 typedef Core::SingletonHolder<Registry_> Registry;
 
-}
+}  // namespace Flow
 #endif /* _FLOW_REGISTRY_HH */

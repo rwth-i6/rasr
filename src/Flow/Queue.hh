@@ -15,61 +15,74 @@
 #ifndef _FLOW_QUEUE_HH
 #define _FLOW_QUEUE_HH
 
-
 #include <queue>
 
 #include <Core/Thread.hh>
 #include "Data.hh"
 
-
 namespace Flow {
 
-    class Queue {
-    private:
-        mutable Core::Mutex m_;
-        std::queue<DataPtr<Data> > l_;
-        mutable Core::Condition c_;
+class Queue {
+private:
+    mutable Core::Mutex       m_;
+    std::queue<DataPtr<Data>> l_;
+    mutable Core::Condition   c_;
 
-    public:
-        inline void lock() const { m_.lock(); }
-        inline void release() const { m_.release(); }
+public:
+    inline void lock() const {
+        m_.lock();
+    }
+    inline void release() const {
+        m_.release();
+    }
 
-        inline void clear() { while (l_.size()) l_.pop(); }
-        inline size_t size() const { return l_.size(); }
-        inline bool isEmpty() const { return (l_.size() == 0); }
-        inline bool isEmptyAtomar() const {
-            lock();
-            bool is_empty = isEmpty();
-            release();
-            return is_empty;
-        }
-
-        inline void put(Data* d) { l_.push(DataPtr<Data>(d)); }
-        inline void putAtomar(Data* d) {
-            lock();
-            l_.push(DataPtr<Data>(d));
-            release();
-            c_.signal(true);
-        }
-        template<class T> inline void get(DataPtr<T> &d) {
-            d = l_.front();
+    inline void clear() {
+        while (l_.size())
             l_.pop();
-        }
-        template<class T> inline void getBlocking(DataPtr<T> &d) {
-            if (isEmptyAtomar()) c_.wait();
-            d = l_.front();
-            l_.pop();
+    }
+    inline size_t size() const {
+        return l_.size();
+    }
+    inline bool isEmpty() const {
+        return (l_.size() == 0);
+    }
+    inline bool isEmptyAtomar() const {
+        lock();
+        bool is_empty = isEmpty();
+        release();
+        return is_empty;
+    }
+
+    inline void put(Data* d) {
+        l_.push(DataPtr<Data>(d));
+    }
+    inline void putAtomar(Data* d) {
+        lock();
+        l_.push(DataPtr<Data>(d));
+        release();
+        c_.signal(true);
+    }
+    template<class T>
+    inline void get(DataPtr<T>& d) {
+        d = l_.front();
+        l_.pop();
+    }
+    template<class T>
+    inline void getBlocking(DataPtr<T>& d) {
+        if (isEmptyAtomar())
+            c_.wait();
+        d = l_.front();
+        l_.pop();
 #if 0
-            lock();
-            while (isEmpty()) { release(); usleep(10000); lock(); }
-            get(d);
-            release();
-            return true;
+        lock();
+        while (isEmpty()) { release(); usleep(10000); lock(); }
+        get(d);
+        release();
+        return true;
 #endif
-        }
-    };
+    }
+};
 
-}
+}  // namespace Flow
 
-
-#endif // _FLOW_QUEUE_HH
+#endif  // _FLOW_QUEUE_HH

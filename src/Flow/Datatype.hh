@@ -15,77 +15,88 @@
 #ifndef _FLOW_DATATYPE_HH
 #define _FLOW_DATATYPE_HH
 
-#include <iostream>
 #include <Core/Assertions.hh>
 #include <Core/BinaryStream.hh>
 #include <Core/Types.hh>
+#include <iostream>
 
 #include "Data.hh"
 
 namespace Flow {
 
-    class Application;
+class Application;
 
-    /**
-     * Flow data type identifier
-     *
-     * Currently, datatypes in flow are used for:
-     *
-     * - abstract creation (method newData())
-     * - identification (method name())
-     * - abstract gathered i/o (methods readGatheredData(), writeGatheredData())
-     *
-     * generic gathered i/o is simulated through virtual reads/writes delegated
-     * to Data.
-     **/
-    class Datatype {
-    private:
-        std::string name_;
-    protected:
-        Datatype(const std::string &_name) { name_ = _name; }
-    public:
-        virtual ~Datatype() {}
-        inline bool operator < (const Datatype &d) const
-            { return name_ < d.name_; }
-        friend std::ostream& operator << (std::ostream& o, const Datatype &d)
-            { o << d.name_; return o; }
-        friend std::ostream& operator << (std::ostream& o, const Datatype *d)
-            { o << d->name_; return o; }
+/**
+ * Flow data type identifier
+ *
+ * Currently, datatypes in flow are used for:
+ *
+ * - abstract creation (method newData())
+ * - identification (method name())
+ * - abstract gathered i/o (methods readGatheredData(), writeGatheredData())
+ *
+ * generic gathered i/o is simulated through virtual reads/writes delegated
+ * to Data.
+ **/
+class Datatype {
+private:
+    std::string name_;
 
-        const std::string& name() const { return name_; }
+protected:
+    Datatype(const std::string& _name) {
+        name_ = _name;
+    }
 
-        bool readData(Core::BinaryInputStream &, DataPtr<Data> &) const;
-        bool writeData(Core::BinaryOutputStream &, const DataPtr<Data> &) const;
+public:
+    virtual ~Datatype() {}
+    inline bool operator<(const Datatype& d) const {
+        return name_ < d.name_;
+    }
+    friend std::ostream& operator<<(std::ostream& o, const Datatype& d) {
+        o << d.name_;
+        return o;
+    }
+    friend std::ostream& operator<<(std::ostream& o, const Datatype* d) {
+        o << d->name_;
+        return o;
+    }
 
-        u32 peekGatheredDataLen(Core::BinaryInputStream &i) const;
+    const std::string& name() const {
+        return name_;
+    }
 
-        virtual bool readGatheredData(Core::BinaryInputStream &i,
-                                      std::vector<DataPtr<Data> > &data) const;
-        virtual bool writeGatheredData(Core::BinaryOutputStream &o,
-                                       const std::vector<DataPtr<Data> > &data) const;
+    bool readData(Core::BinaryInputStream&, DataPtr<Data>&) const;
+    bool writeData(Core::BinaryOutputStream&, const DataPtr<Data>&) const;
 
-    protected:
-        void brand(Data *d) const {
-            verify(d->datatype_ == this);
-        }
-    public:
-        virtual Data* newData() const = 0;
-    };
+    u32 peekGatheredDataLen(Core::BinaryInputStream& i) const;
 
-    /** Flow data type definition */
-    template <class T>
-    class DatatypeTemplate :
-        public Datatype
-    {
-    public:
-        DatatypeTemplate(const std::string &_name) : Datatype(_name) {}
-        virtual Data* newData() const {
-            Data* d = new T();
-            brand(d);
-            return d;
-        }
-    };
+    virtual bool readGatheredData(Core::BinaryInputStream&    i,
+                                  std::vector<DataPtr<Data>>& data) const;
+    virtual bool writeGatheredData(Core::BinaryOutputStream&         o,
+                                   const std::vector<DataPtr<Data>>& data) const;
 
-} // namespace Flow
+protected:
+    void brand(Data* d) const {
+        verify(d->datatype_ == this);
+    }
 
-#endif // _FLOW_DATATYPE_HH
+public:
+    virtual Data* newData() const = 0;
+};
+
+/** Flow data type definition */
+template<class T>
+class DatatypeTemplate : public Datatype {
+public:
+    DatatypeTemplate(const std::string& _name)
+            : Datatype(_name) {}
+    virtual Data* newData() const {
+        Data* d = new T();
+        brand(d);
+        return d;
+    }
+};
+
+}  // namespace Flow
+
+#endif  // _FLOW_DATATYPE_HH

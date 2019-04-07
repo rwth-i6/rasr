@@ -12,34 +12,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <algorithm>
-#include <iterator>
-#include <iostream>
+#include "Registry.hh"
 #include <Core/Application.hh>
 #include <Core/Extensions.hh>
-#include "Registry.hh"
+#include <algorithm>
+#include <iostream>
+#include <iterator>
 #include "Datatype.hh"
 
 using namespace Flow;
 
 Registry_::~Registry_() {
-    for(std::pair<const std::string, _Filter*>& filter : filters_)
+    for (std::pair<const std::string, _Filter*>& filter : filters_)
         delete filter.second;
     filters_.clear();
 }
 
-/*****************************************************************************/
-void Registry_::dumpFilters(std::ostream &o) const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void Registry_::dumpFilters(std::ostream& o) const {
     transform(filters_.begin(), filters_.end(), std::ostream_iterator<Flow::_Filter*>(o, "\n"),
               Core::select2nd<FilterMap::value_type>());
 }
 
-/*****************************************************************************/
-void Registry_::registerFilter_(_Filter *f)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void Registry_::registerFilter_(_Filter* f) {
     if (filters_.find(f->getName()) == filters_.end())
         filters_[f->getName()] = f;
     else {
@@ -48,19 +46,18 @@ void Registry_::registerFilter_(_Filter *f)
     }
 }
 
-/*****************************************************************************/
-const Flow::_Filter* Registry_::getFilter(const std::string &name) const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+const Flow::_Filter* Registry_::getFilter(const std::string& name) const {
     FilterMap::const_iterator found = filters_.find(name);
-    if (found == filters_.end()) return 0;
+    if (found == filters_.end())
+        return 0;
     return (*found).second;
 }
 
-/*****************************************************************************/
-void Registry_::registerDatatype_(const Datatype *d)
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void Registry_::registerDatatype_(const Datatype* d) {
     require(d != 0 && !d->name().empty());
 
     if (datatypes_.find(d->name()) != datatypes_.end())
@@ -68,19 +65,18 @@ void Registry_::registerDatatype_(const Datatype *d)
     datatypes_[d->name()] = d;
 }
 
-/*****************************************************************************/
-void Registry_::dumpDatatypes(std::ostream &o) const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void Registry_::dumpDatatypes(std::ostream& o) const {
     transform(datatypes_.begin(), datatypes_.end(), std::ostream_iterator<const Flow::Datatype*>(o, "\n"),
               Core::select2nd<DatatypeMap::value_type>());
 }
 
-/*****************************************************************************/
-const Flow::Datatype* Registry_::getDatatype(const std::string &name) const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+const Flow::Datatype* Registry_::getDatatype(const std::string& name) const {
     DatatypeMap::const_iterator found = datatypes_.find(name);
-    if (found == datatypes_.end()) return 0;
+    if (found == datatypes_.end())
+        return 0;
     return (*found).second;
 }

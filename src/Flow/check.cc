@@ -14,8 +14,8 @@
  */
 #include <Core/Application.hh>
 #include <Core/XmlStream.hh>
-#include <Flow/Module.hh>
 #include <Flow/Attributes.hh>
+#include <Flow/Module.hh>
 #include <Flow/Registry.hh>
 
 class TestApplication : public Core::Application {
@@ -24,12 +24,13 @@ public:
         return "short program to test flow network\n";
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         INIT_MODULE(Flow);
 
         std::cout << "--- filters ---" << std::endl;
         Flow::Registry::instance().dumpFilters(std::cout);
-        std::cout << std::endl << "--- datatypes ---" << std::endl;
+        std::cout << std::endl
+                  << "--- datatypes ---" << std::endl;
         Flow::Registry::instance().dumpDatatypes(std::cout);
 
         Flow::Attributes atts;
@@ -37,11 +38,11 @@ public:
         atts.set("sample-rate", "8000");
         atts.set("sample-size", "1");
         {
-            std::ofstream o("xxx");
+            std::ofstream   o("xxx");
             Core::XmlWriter xw(o);
             xw << atts;
         }
-        Flow::Attributes atts2;
+        Flow::Attributes         atts2;
         Flow::Attributes::Parser parser(select("atts"));
         parser.buildFromFile(atts2, "xxx");
         Core::XmlWriter xw(std::cout);

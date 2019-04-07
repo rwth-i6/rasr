@@ -15,46 +15,44 @@
 #include "Data.hh"
 #include "Datatype.hh"
 
-
 using namespace Flow;
 
-/*****************************************************************************/
-const Datatype* Data::type()
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+const Datatype* Data::type() {
     static DatatypeTemplate<Self> dt("sentinel");
     return &dt;
 }
 
-/*****************************************************************************/
-void Data::free() const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+void Data::free() const {
     verify_(isNotSentinel(this));
     delete this;
 }
 
-/*****************************************************************************/
-Core::XmlOpen Data::xmlOpen() const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+Core::XmlOpen Data::xmlOpen() const {
     return Core::XmlOpen(datatype()->name());
 }
 
-/*****************************************************************************/
-Core::XmlClose Data::xmlClose() const
-/*****************************************************************************/
-{
+/******************************************************************************/
+
+Core::XmlClose Data::xmlClose() const {
     return Core::XmlClose(datatype()->name());
 }
 
-/*****************************************************************************/
-Core::XmlWriter& Data::dump(Core::XmlWriter &o) const
-/*****************************************************************************/
-{
-    if (this == sentinel()) o << Core::XmlEmpty("null");
-    else if (this == eos()) o << Core::XmlEmpty("eos");
-    else if (this == ood()) o << Core::XmlEmpty("ood");
-    else defect();
+/******************************************************************************/
+
+Core::XmlWriter& Data::dump(Core::XmlWriter& o) const {
+    if (this == sentinel())
+        o << Core::XmlEmpty("null");
+    else if (this == eos())
+        o << Core::XmlEmpty("eos");
+    else if (this == ood())
+        o << Core::XmlEmpty("ood");
+    else
+        defect();
     return o;
 }

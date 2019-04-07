@@ -18,9 +18,9 @@ using namespace Cart;
 
 // ============================================================================
 const BinaryTree::Node::Id BinaryTree::Node::InvalidId =
-    Core::Type<BinaryTree::Node::Id>::max;
+        Core::Type<BinaryTree::Node::Id>::max;
 
-void BinaryTree::Node::setChilds(Node * leftChild, Node * rightChild) {
+void BinaryTree::Node::setChilds(Node* leftChild, Node* rightChild) {
     delete leftChild_;
     leftChild_ = leftChild;
     if (leftChild)
@@ -32,62 +32,61 @@ void BinaryTree::Node::setChilds(Node * leftChild, Node * rightChild) {
 }
 // ============================================================================
 
-
 // ============================================================================
 const u32 BinaryTree::InvalidDepth = Core::Type<u32>::max;
-const u32 BinaryTree::InvalidSize = Core::Type<u32>::max;
+const u32 BinaryTree::InvalidSize  = Core::Type<u32>::max;
 
-BinaryTree::BinaryTree(
-    const Core::Configuration & config,
-    Node * root) :
-    Precursor(config),
-    root_(0),
-    depth_(InvalidDepth),
-    internalNodeN_(InvalidSize),
-    leafN_(InvalidSize) {
+BinaryTree::BinaryTree(const Core::Configuration& config,
+                       Node*                      root)
+        : Precursor(config),
+          root_(0),
+          depth_(InvalidDepth),
+          internalNodeN_(InvalidSize),
+          leafN_(InvalidSize) {
     if (root)
         setRoot(root);
 }
 
-u32 BinaryTree::checkTree(const Node & node) {
+u32 BinaryTree::checkTree(const Node& node) {
     checkNode(node);
     if (node.isLeaf()) {
         ++leafN_;
         return 1;
-    } else {
+    }
+    else {
         ++internalNodeN_;
-        return 1 + std::max(
-            checkTree(node.leftChild()),
-            checkTree(node.rightChild())
-            );
+        return 1 + std::max(checkTree(node.leftChild()),
+                            checkTree(node.rightChild()));
     }
 }
 
 void BinaryTree::checkTree() {
     if (root_) {
         depth_ = checkTree(*root_);
-    } else {
-        depth_ = InvalidDepth;
+    }
+    else {
+        depth_         = InvalidDepth;
         internalNodeN_ = InvalidSize;
-        leafN_ = InvalidSize;
+        leafN_         = InvalidSize;
     }
 }
 
-u32 drawBinaryTreeNode(std::ostream & out, const BinaryTree::Node & node, u32 id = 0) {
+u32 drawBinaryTreeNode(std::ostream& out, const BinaryTree::Node& node, u32 id = 0) {
     if (node.isLeaf()) {
         out << "n" << id++ << " [shape=doublecircle label=" << node.id() << "]" << std::endl;
-    } else {
+    }
+    else {
         u32 nodeId = id++;
         out << "n" << nodeId << " [shape=circle label=" << node.id() << "]" << std::endl;
         out << "n" << nodeId << " -> n" << id << std::endl;
         id = drawBinaryTreeNode(out, node.leftChild(), id);
-        out << "n" << nodeId << " -> n" << id  << std::endl;
+        out << "n" << nodeId << " -> n" << id << std::endl;
         id = drawBinaryTreeNode(out, node.rightChild(), id);
     }
     return id;
 }
 
-void BinaryTree::draw(std::ostream & out) const {
+void BinaryTree::draw(std::ostream& out) const {
     out << "digraph \"" << fullName() << "\" {" << std::endl
         << "node [fontname=\"Helvetica\"]" << std::endl
         << "edge [fontname=\"Helvetica\"]" << std::endl;
@@ -95,7 +94,7 @@ void BinaryTree::draw(std::ostream & out) const {
     out << "}" << std::endl;
 }
 
-void writeBinaryTreeNode(std::ostream & out, const BinaryTree::Node & node, const u32 depth = 0) {
+void writeBinaryTreeNode(std::ostream& out, const BinaryTree::Node& node, const u32 depth = 0) {
     for (size_t i = 0; i < depth; ++i)
         out << ' ';
     out << "node id: ";
@@ -109,12 +108,12 @@ void writeBinaryTreeNode(std::ostream & out, const BinaryTree::Node & node, cons
     }
 }
 
-void BinaryTree::write(std::ostream & out) const {
+void BinaryTree::write(std::ostream& out) const {
     out << "binary tree:" << std::endl;
     writeBinaryTreeNode(out, root());
 }
 
-void writeXmlBinaryTreeNode(Core::XmlWriter & xml, const BinaryTree::Node & node) {
+void writeXmlBinaryTreeNode(Core::XmlWriter& xml, const BinaryTree::Node& node) {
     Core::XmlOpen open("node");
     if (node.id() != BinaryTree::Node::InvalidId)
         open.operator+(Core::XmlAttribute("id", node.id()));
@@ -128,7 +127,7 @@ void writeXmlBinaryTreeNode(Core::XmlWriter & xml, const BinaryTree::Node & node
     xml << Core::XmlClose("node");
 }
 
-void BinaryTree::writeXml(Core::XmlWriter & xml, const std::string & name) const {
+void BinaryTree::writeXml(Core::XmlWriter& xml, const std::string& name) const {
     xml << Core::XmlOpen(name);
     writeXmlBinaryTreeNode(xml, root());
     xml << Core::XmlClose(name);

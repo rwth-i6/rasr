@@ -22,93 +22,108 @@
 #include <Core/Types.hh>
 #include <Core/XmlStream.hh>
 
-#include "Properties.hh"
 #include "DecisionTree.hh"
 #include "Example.hh"
+#include "Properties.hh"
 
 namespace Cart {
 
 // ============================================================================
-    /**
-       Clustering induced by the application
-       of a decision tree on a list of examples.
-    */
-    class Cluster :
-        public Core::ReferenceCounted {
-    public:
-        const DecisionTree::Node * node;
-        ConstExampleRefList * exampleRefs;
+/**
+ * Clustering induced by the application
+ * of a decision tree on a list of examples.
+ */
+class Cluster : public Core::ReferenceCounted {
+public:
+    const DecisionTree::Node* node;
+    ConstExampleRefList*      exampleRefs;
 
-        Cluster(
-            const DecisionTree::Node * node,
-            ConstExampleRefList * exampleRefs) :
-            node(node),
-            exampleRefs(exampleRefs) {}
-        ~Cluster() {
-            delete exampleRefs;
-        }
+    Cluster(const DecisionTree::Node* node,
+            ConstExampleRefList*      exampleRefs)
+            : node(node),
+              exampleRefs(exampleRefs) {}
+    ~Cluster() {
+        delete exampleRefs;
+    }
 
-        void write(std::ostream & os) const;
-        void writeXml(Core::XmlWriter & xml) const;
-    };
-    typedef Core::Ref<const Cluster> ClusterRef;
-    typedef std::vector<ClusterRef> ClusterRefList;
-
+    void write(std::ostream& os) const;
+    void writeXml(Core::XmlWriter& xml) const;
+};
+typedef Core::Ref<const Cluster> ClusterRef;
+typedef std::vector<ClusterRef>  ClusterRefList;
 
 // ============================================================================
 
+class ClusterList : Core::Component {
+protected:
+    typedef Core::Component Precursor;
 
-    class ClusterList :
-        Core::Component {
-    protected:
-        typedef Core::Component Precursor;
+public:
+    static const Core::ParameterString     paramClusterFilename;
+    static const Core::ParameterString     paramClusterFileEncoding;
+    typedef ClusterRefList::const_iterator const_iterator;
 
-    public:
-        static const Core::ParameterString paramClusterFilename;
-        static const Core::ParameterString paramClusterFileEncoding;
-        typedef ClusterRefList::const_iterator const_iterator;
+private:
+    PropertyMapRef map_;
+    ClusterRefList clusterRefs_;
 
-    private:
-        PropertyMapRef map_;
-        ClusterRefList clusterRefs_;
+public:
+    ClusterList(const Core::Configuration& config,
+                PropertyMapRef             map = PropertyMapRef(new PropertyMap))
+            : Precursor(config),
+              map_(map) {
+        setMap(map);
+    }
 
-    public:
-        ClusterList(
-            const Core::Configuration & config,
-            PropertyMapRef map = PropertyMapRef(new PropertyMap)) :
-            Precursor(config),
-            map_(map) {
-            setMap(map);
-        }
+    void setMap(PropertyMapRef map) {
+        require(map);
+        map_ = map;
+    }
+    bool hasMap() {
+        return !map_->empty();
+    }
+    PropertyMapRef getMap() const {
+        return map_;
+    }
+    const PropertyMap& map() const {
+        return *map_;
+    }
 
-        void setMap(PropertyMapRef map) { require(map); map_ = map; }
-        bool hasMap() { return !map_->empty(); }
-        PropertyMapRef getMap() const { return map_; }
-        const PropertyMap & map() const { return *map_; }
+    void add(Cluster* cluster) {
+        clusterRefs_.push_back(ClusterRef(cluster));
+    }
+    void add(ClusterRef clusterRef) {
+        clusterRefs_.push_back(clusterRef);
+    }
 
-        void add(Cluster * cluster) { clusterRefs_.push_back(ClusterRef(cluster)); }
-        void add(ClusterRef clusterRef) { clusterRefs_.push_back(clusterRef); }
+    size_t size() const {
+        return clusterRefs_.size();
+    }
+    ClusterRef operator[](size_t i) {
+        return clusterRefs_[i];
+    }
+    const_iterator begin() const {
+        return clusterRefs_.begin();
+    }
+    const_iterator end() const {
+        return clusterRefs_.end();
+    }
 
-        size_t size() const { return clusterRefs_.size(); }
-        ClusterRef operator[](size_t i) { return  clusterRefs_[i]; }
-        const_iterator begin() const { return clusterRefs_.begin(); }
-        const_iterator end() const { return clusterRefs_.end(); }
+    void write(std::ostream& os) const;
+    void writeXml(Core::XmlWriter& xml) const;
+    void writeToFile() const;
+};
 
-        void write(std::ostream & os) const;
-        void writeXml(Core::XmlWriter & xml) const;
-        void writeToFile() const;
-    };
+}  // namespace Cart
 
-} // namespace Cart
-
-inline std::ostream & operator<<(std::ostream & out, const Cart::Cluster & c) {
+inline std::ostream& operator<<(std::ostream& out, const Cart::Cluster& c) {
     c.write(out);
     return out;
 }
 
-inline std::ostream & operator<<(std::ostream & out, const Cart::ClusterList & c) {
+inline std::ostream& operator<<(std::ostream& out, const Cart::ClusterList& c) {
     c.write(out);
     return out;
 }
 
-#endif // _CART_CLUSTER_HH
+#endif  // _CART_CLUSTER_HH

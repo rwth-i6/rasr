@@ -19,12 +19,11 @@
 
 using namespace Cart;
 
-
 // ============================================================================
 /**
  * \todo the hash function should be checked/improved some time
  */
-size_t FloatBox::HashFcn::operator()(const FloatBox & val) const {
+size_t FloatBox::HashFcn::operator()(const FloatBox& val) const {
     size_t hash = 0;
     for (FloatBox::const_vector_iterator it = val.begin();
          it != val.end(); ++it)
@@ -32,7 +31,7 @@ size_t FloatBox::HashFcn::operator()(const FloatBox & val) const {
     return hash;
 }
 
-FloatBox & FloatBox::operator+=(const FloatBox & values) {
+FloatBox& FloatBox::operator+=(const FloatBox& values) {
     require(size_ == values.size());
     const_vector_iterator itSrc = values.begin();
     for (vector_iterator itTrg = begin_; itTrg != end_; ++itTrg, ++itSrc)
@@ -40,25 +39,27 @@ FloatBox & FloatBox::operator+=(const FloatBox & values) {
     return *this;
 }
 
-bool FloatBox::operator==(const FloatBox & values) const {
+bool FloatBox::operator==(const FloatBox& values) const {
     if (size_ != values.size())
         return false;
     const_vector_iterator it1, it2;
     for (it1 = begin_, it2 = values.begin();
-         ((it1 != end_) && (*it1 == *it2)); ++it1, ++it2);
+         ((it1 != end_) && (*it1 == *it2)); ++it1, ++it2)
+        ;
     return (it1 == end_);
 }
 
-bool FloatBox::operator<(const FloatBox & values) const {
+bool FloatBox::operator<(const FloatBox& values) const {
     if (size_ != values.size())
         return (size_ < values.size());
     const_vector_iterator it1, it2;
     for (it1 = begin_, it2 = values.begin();
-         ((it1 != end_) && (*it1 == *it2)); ++it1, ++it2);
+         ((it1 != end_) && (*it1 == *it2)); ++it1, ++it2)
+        ;
     return ((it1 != end_) && (*it1 < *it2));
 }
 
-void FloatBox::writeValues(std::ostream & os) const {
+void FloatBox::writeValues(std::ostream& os) const {
     os << std::setiosflags(std::ios::scientific) << std::setprecision(12);
     for (const_row_vector_iterator it = begin_row();
          it != end_row(); ++it) {
@@ -70,23 +71,20 @@ void FloatBox::writeValues(std::ostream & os) const {
     os << std::resetiosflags(std::ios::scientific);
 }
 
-void FloatBox::write(std::ostream & os) const {
+void FloatBox::write(std::ostream& os) const {
     os << rows_ << " " << columns_ << "\n";
     writeValues(os);
 }
 
-void FloatBox::writeXml(Core::XmlWriter & xml) const {
-    xml << Core::XmlOpen("matrix-f64")
-        + Core::XmlAttribute("nRows", rows_)
-        + Core::XmlAttribute("nColumns", columns_);
+void FloatBox::writeXml(Core::XmlWriter& xml) const {
+    xml << Core::XmlOpen("matrix-f64") + Core::XmlAttribute("nRows", rows_) + Core::XmlAttribute("nColumns", columns_);
     writeValues(xml);
     xml << Core::XmlClose(std::string("matrix-f64"));
 }
 // ============================================================================
 
-
 // ============================================================================
-void Example::write(std::ostream & os) const {
+void Example::write(std::ostream& os) const {
     os << "example" << std::endl
        << "observation(s) : " << nObs << std::endl;
     properties->write(os);
@@ -94,33 +92,31 @@ void Example::write(std::ostream & os) const {
     values->write(os);
 }
 
-void Example::writeXml(Core::XmlWriter & os) const {
-    os << Core::XmlOpen("example")
-        + Core::XmlAttribute("nObservations", nObs);
+void Example::writeXml(Core::XmlWriter& os) const {
+    os << Core::XmlOpen("example") + Core::XmlAttribute("nObservations", nObs);
     properties->writeXml(os);
     values->writeXml(os);
     os << Core::XmlClose("example");
 }
 // ============================================================================
 
-
 // ============================================================================
 const Core::ParameterString ExampleList::paramExampleFilename(
-    "example-file",
-    "name of example file");
+        "example-file",
+        "name of example file");
 const Core::ParameterStringVector ExampleList::paramExampleFilenamesToMerge(
-    "merge-example-files",
-    "name of example files to merge");
+        "merge-example-files",
+        "name of example files to merge");
 const Core::ParameterString ExampleList::paramExampleFileEncoding(
-    "encoding",
-    "utf-8");
+        "encoding",
+        "utf-8");
 
-bool ExampleList::loadFromString(const std::string & str) {
+bool ExampleList::loadFromString(const std::string& str) {
     XmlExampleListParser parser(config);
     return parser.parseString(str, this);
 }
 
-bool ExampleList::loadFromStream(std::istream & i) {
+bool ExampleList::loadFromStream(std::istream& i) {
     XmlExampleListParser parser(config);
     return parser.parseStream(i, this);
 }
@@ -150,14 +146,15 @@ bool ExampleList::mergeFromFiles(std::vector<std::string> filenames) {
     return true;
 }
 
-void ExampleList::write(std::ostream & out) const {
+void ExampleList::write(std::ostream& out) const {
     out << "example-list:" << std::endl;
     map_->write(out);
     out << std::endl;
     out << std::right;
     u32 index = 1;
     for (const_iterator it = exampleRefs_.begin();
-         it != exampleRefs_.end(); ++it) if (*it) {
+         it != exampleRefs_.end(); ++it)
+        if (*it) {
             out << std::setw(3) << std::right << index << ". ";
             (*it)->write(out);
             out << std::endl;
@@ -165,12 +162,13 @@ void ExampleList::write(std::ostream & out) const {
         }
 }
 
-void ExampleList::writeXml(Core::XmlWriter & xml) const {
+void ExampleList::writeXml(Core::XmlWriter& xml) const {
     xml << Core::XmlOpen("example-list");
     map_->writeXml(xml);
     for (const_iterator it = exampleRefs_.begin();
          it != exampleRefs_.end(); ++it)
-        if (*it) (*it)->writeXml(xml);
+        if (*it)
+            (*it)->writeXml(xml);
     xml << Core::XmlClose("example-list");
 }
 
@@ -185,7 +183,8 @@ void ExampleList::writeToFile() const {
         xml.setMargin(78);
         xml.setEncoding(encoding);
         writeXml(xml);
-    } else {
+    }
+    else {
         warning("cannot store examples, because no filename is given");
     }
 }

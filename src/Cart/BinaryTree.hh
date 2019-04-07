@@ -23,164 +23,183 @@
 
 #include <stack>
 
-
 namespace Cart {
 
+// ============================================================================
+/**
+ * Generic information;
+ * empty by default.
+ */
+struct Information {
+    virtual ~Information() {}
+    virtual void writeXml(Core::XmlWriter& xml) const {}
+};
 
 // ============================================================================
-    /**
-       Generic information;
-       empty by default.
-    */
-    struct Information {
-        virtual ~Information() {}
-        virtual void writeXml(Core::XmlWriter & xml) const {}
-    };
+/**
+ * <binary-tree>
+ *   <node>
+ *     <node id="...">
+ *       [<information>
+ *         ...
+ *       </information>]
+ *     </node>
+ *     <node>
+ *       ...
+ *     </node>
+ *   </node>
+ * </binary-tree>
+ */
+class BinaryTree : public Core::Component {
+protected:
+    typedef BinaryTree      Self;
+    typedef Core::Component Precursor;
 
-// ============================================================================
-    /**
-     <binary-tree>
-       <node>
-         <node id="...">
-           [<information>
-             ...
-           </information>]
-         </node>
-         <node>
-           ...
-         </node>
-       </node>
-     </binary-tree>
-    */
-    class BinaryTree :
-        public Core::Component {
-    protected:
-        typedef BinaryTree Self;
-        typedef Core::Component Precursor;
+public:
+    class Node {
+    public:
+        typedef u32     Id;
+        static const Id InvalidId;
 
     public:
-        class Node {
-        public:
-            typedef u32 Id;
-            static const Id InvalidId;
+        Id           id_;
+        Information* info_;
 
-        public:
-            Id id_;
-            Information * info_;
-
-            Node * father_;
-            Node * leftChild_;
-            Node * rightChild_;
-
-        public:
-            Node(Node * father = 0, Id id = InvalidId, Information * info = 0) :
-                id_(id),
-                info_(info),
-                father_(father),
-                leftChild_(0),
-                rightChild_(0) {}
-            ~Node() {
-                delete leftChild_;
-                delete rightChild_;
-                delete info_;
-            }
-
-            void setChilds(Node * leftChild, Node * rightChild);
-            void removeChilds() { setChilds(0, 0); }
-
-            void setInfo(Information * info) {
-                delete info_;
-                info_ = info;
-            }
-            bool hasInfo() const { return info_ != 0; }
-            template<class InformationType>
-            const InformationType & info() const {
-                require((info_));
-                return dynamic_cast<const InformationType &>(*info_);
-            }
-
-            bool isRoot() const { return father_ == 0; }
-            bool isLeaf() const { return leftChild_ == 0; }
-            Id id() const { return id_; }
-            const Node & father() const { verify((father_)); return *father_; }
-            const Node & leftChild() const { verify((leftChild_)); return *leftChild_; }
-            const Node & rightChild() const { verify((rightChild_)); return *rightChild_; }
-        };
-
-        static const u32 InvalidDepth;
-        static const u32 InvalidSize;
-
-    protected:
-        typedef std::stack<Node *> NodePtrStack;
-
-    protected:
-        Node * root_;
-        u32 depth_;
-        u32 internalNodeN_;
-        u32 leafN_;
-
-    protected:
-        virtual void checkNode(const Node & node) {}
-
-        u32 checkTree(const Node & node);
-
-        void checkTree();
-
-    protected:
-        void reset() {
-            delete root_;
-            root_ = 0;
-        }
+        Node* father_;
+        Node* leftChild_;
+        Node* rightChild_;
 
     public:
-        BinaryTree(
-            const Core::Configuration & config,
-            Node * root = 0);
-        virtual ~BinaryTree() {
-            reset();
+        Node(Node* father = 0, Id id = InvalidId, Information* info = 0)
+                : id_(id),
+                  info_(info),
+                  father_(father),
+                  leftChild_(0),
+                  rightChild_(0) {}
+        ~Node() {
+            delete leftChild_;
+            delete rightChild_;
+            delete info_;
         }
 
-        void setRoot(Node * root) {
-            reset();
-            root_ = root;
-            checkTree();
+        void setChilds(Node* leftChild, Node* rightChild);
+        void removeChilds() {
+            setChilds(0, 0);
         }
 
-        const Node & root() const {
-            require(root_);
-            return *root_;
+        void setInfo(Information* info) {
+            delete info_;
+            info_ = info;
+        }
+        bool hasInfo() const {
+            return info_ != 0;
+        }
+        template<class InformationType>
+        const InformationType& info() const {
+            require((info_));
+            return dynamic_cast<const InformationType&>(*info_);
         }
 
-        u32 depth() const {
-            return depth_;
+        bool isRoot() const {
+            return father_ == 0;
         }
-        u32 nNodes() const {
-            return internalNodeN_ + leafN_;
+        bool isLeaf() const {
+            return leftChild_ == 0;
         }
-        u32 nLeaves() const {
-            return leafN_;
+        Id id() const {
+            return id_;
         }
-
-        virtual bool loadFromString(const std::string & str) { defect(); }
-
-        virtual bool loadFromStream(std::istream & i) { defect(); }
-
-        virtual bool loadFromFile(const std::string & filename) { defect(); }
-
-        virtual void draw(std::ostream & out) const;
-
-        virtual void write(std::ostream & out) const;
-
-        virtual void writeXml(Core::XmlWriter & xml, const std::string & name = "binary-tree") const;
-
+        const Node& father() const {
+            verify((father_));
+            return *father_;
+        }
+        const Node& leftChild() const {
+            verify((leftChild_));
+            return *leftChild_;
+        }
+        const Node& rightChild() const {
+            verify((rightChild_));
+            return *rightChild_;
+        }
     };
 
+    static const u32 InvalidDepth;
+    static const u32 InvalidSize;
 
-} // namespace Cart
+protected:
+    typedef std::stack<Node*> NodePtrStack;
 
-inline std::ostream & operator<<(std::ostream & out, const Cart::BinaryTree & b) {
+protected:
+    Node* root_;
+    u32   depth_;
+    u32   internalNodeN_;
+    u32   leafN_;
+
+protected:
+    virtual void checkNode(const Node& node) {}
+
+    u32 checkTree(const Node& node);
+
+    void checkTree();
+
+protected:
+    void reset() {
+        delete root_;
+        root_ = 0;
+    }
+
+public:
+    BinaryTree(const Core::Configuration& config,
+               Node*                      root = 0);
+    virtual ~BinaryTree() {
+        reset();
+    }
+
+    void setRoot(Node* root) {
+        reset();
+        root_ = root;
+        checkTree();
+    }
+
+    const Node& root() const {
+        require(root_);
+        return *root_;
+    }
+
+    u32 depth() const {
+        return depth_;
+    }
+    u32 nNodes() const {
+        return internalNodeN_ + leafN_;
+    }
+    u32 nLeaves() const {
+        return leafN_;
+    }
+
+    virtual bool loadFromString(const std::string& str) {
+        defect();
+    }
+
+    virtual bool loadFromStream(std::istream& i) {
+        defect();
+    }
+
+    virtual bool loadFromFile(const std::string& filename) {
+        defect();
+    }
+
+    virtual void draw(std::ostream& out) const;
+
+    virtual void write(std::ostream& out) const;
+
+    virtual void writeXml(Core::XmlWriter& xml, const std::string& name = "binary-tree") const;
+};
+
+}  // namespace Cart
+
+inline std::ostream& operator<<(std::ostream& out, const Cart::BinaryTree& b) {
     b.write(out);
     return out;
 }
 
-#endif // _CART_BINARY_TREE_HH
+#endif  // _CART_BINARY_TREE_HH

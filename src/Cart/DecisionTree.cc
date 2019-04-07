@@ -22,9 +22,8 @@
 
 using namespace Cart;
 
-
 // ============================================================================
-void Cart::write(std::ostream & out, const QuestionRefList & questionRefs) {
+void Cart::write(std::ostream& out, const QuestionRefList& questionRefs) {
     out << "questions:" << std::endl;
     Question::QuestionIndex i = 0;
     out << std::right;
@@ -36,7 +35,7 @@ void Cart::write(std::ostream & out, const QuestionRefList & questionRefs) {
     }
 }
 
-void Cart::writeXml(Core::XmlWriter & xml, const QuestionRefList & questionRefs) {
+void Cart::writeXml(Core::XmlWriter& xml, const QuestionRefList& questionRefs) {
     Question::QuestionIndex index = 0;
     xml << Core::XmlOpen("questions");
     for (QuestionRefList::const_iterator it = questionRefs.begin();
@@ -49,51 +48,46 @@ void Cart::writeXml(Core::XmlWriter & xml, const QuestionRefList & questionRefs)
 }
 // ============================================================================
 
-
 // ============================================================================
 const Question::QuestionIndex Question::InvalidQuestionIndex = Core::Type<Question::QuestionIndex>::max;
 
-void Question::write(std::ostream & out, const Answer & a) const {
+void Question::write(std::ostream& out, const Answer& a) const {
     write(out);
     switch (a) {
-    case RASR_TRUE:
-        out << " Yes!";
-        break;
-    case RASR_FALSE:
-        out << " No!";
-        break;
-    case RASR_UNDEF:
-        out << " Maybe, maybe not ...";
-        break;
+        case RASR_TRUE:
+            out << " Yes!";
+            break;
+        case RASR_FALSE:
+            out << " No!";
+            break;
+        case RASR_UNDEF:
+            out << " Maybe, maybe not ...";
+            break;
     }
 }
 // ============================================================================
 
-
-
 // ============================================================================
-ScalarQuestion::ScalarQuestion(
-    PropertyMapRef map,
-    const std::string & key,
-    const std::string & value,
-    const std::string & desc
-    ) :
-    Question(map, desc),
-    keyIndex_(map_->key(key)),
-    valueIndex_(map_->undefinedIndex) {
+ScalarQuestion::ScalarQuestion(PropertyMapRef     map,
+                               const std::string& key,
+                               const std::string& value,
+                               const std::string& desc)
+        : Question(map, desc),
+          keyIndex_(map_->key(key)),
+          valueIndex_(map_->undefinedIndex) {
     verify(map_->isDefined(keyIndex_));
     valueIndex_ = (*map_)[keyIndex_][value];
     verify(map_->isDefined(valueIndex_));
 }
 
-void ScalarQuestion::write(std::ostream & out) const {
+void ScalarQuestion::write(std::ostream& out) const {
     if (!desc_.empty())
         out << "[" << desc_ << "] ";
-    out  << "Does the value of \"" << map_->key(keyIndex_) << "\" equal "
-         << "\"" << (*map_)[keyIndex_][valueIndex_] << "\"?";
+    out << "Does the value of \"" << map_->key(keyIndex_) << "\" equal "
+        << "\"" << (*map_)[keyIndex_][valueIndex_] << "\"?";
 }
 
-void ScalarQuestion::writeXml(Core::XmlWriter & xml) const {
+void ScalarQuestion::writeXml(Core::XmlWriter& xml) const {
     Core::XmlOpen xmlOpen("question");
     if (index != InvalidQuestionIndex)
         xmlOpen.operator+(Core::XmlAttribute("index", index));
@@ -106,38 +100,33 @@ void ScalarQuestion::writeXml(Core::XmlWriter & xml) const {
 }
 // ============================================================================
 
-
-
 // ============================================================================
-SetQuestion::SetQuestion(
-    PropertyMapRef map,
-    const std::string & key,
-    const std::vector<std::string> & values,
-    const std::string & desc
-    ) :
-    Question(map, desc),
-    keyIndex_(map_->key(key)),
-    begin_(0), end_(0) {
-    if(!map_->isDefined(keyIndex_))
-    {
-                std::cerr << "Key not defined in map: " << key << std::endl;
-                verify(0);
+SetQuestion::SetQuestion(PropertyMapRef                  map,
+                         const std::string&              key,
+                         const std::vector<std::string>& values,
+                         const std::string&              desc)
+        : Question(map, desc),
+          keyIndex_(map_->key(key)),
+          begin_(0),
+          end_(0) {
+    if (!map_->isDefined(keyIndex_)) {
+        std::cerr << "Key not defined in map: " << key << std::endl;
+        verify(0);
     }
     begin_ = new ValueIndex[values.size()];
     end_   = begin_ + values.size();
     std::vector<std::string>::const_iterator it;
-    ValueIndex * itt;
+    ValueIndex*                              itt;
     for (it = values.begin(), itt = begin_;
          it != values.end(); ++it, ++itt) {
         *itt = (*map_)[keyIndex_][*it];
-    if(!map_->isDefined(*itt))
-    {
-                std::cerr << "Value not defined in map: " << *it << " for key " << key << std::endl;
-                std::cerr << "Available values: ";
-                map_->operator[](keyIndex_).printIdentifiers(std::cerr);
-                std::cerr << std::endl;
-                verify(0);
-    }
+        if (!map_->isDefined(*itt)) {
+            std::cerr << "Value not defined in map: " << *it << " for key " << key << std::endl;
+            std::cerr << "Available values: ";
+            map_->operator[](keyIndex_).printIdentifiers(std::cerr);
+            std::cerr << std::endl;
+            verify(0);
+        }
     }
     std::sort(begin_, end_);
 }
@@ -145,7 +134,7 @@ SetQuestion::SetQuestion(
 std::string SetQuestion::values2str() const {
     std::ostringstream oss;
     if (begin_ != end_) {
-        const ValueIndex * it = begin_;
+        const ValueIndex* it = begin_;
         oss << (*map_)[keyIndex_][*it];
         for (++it; it != end_; ++it)
             oss << " " << (*map_)[keyIndex_][*it];
@@ -153,14 +142,14 @@ std::string SetQuestion::values2str() const {
     return oss.str();
 }
 
-void SetQuestion::write(std::ostream & out) const {
+void SetQuestion::write(std::ostream& out) const {
     if (!desc_.empty())
         out << "[" << desc_ << "] ";
     out << "Is the value of \"" << map_->key(keyIndex_) << "\" in "
         << "{" << values2str() << "}?";
 }
 
-void SetQuestion::writeXml(Core::XmlWriter & xml) const {
+void SetQuestion::writeXml(Core::XmlWriter& xml) const {
     Core::XmlOpen xmlOpen("question");
     if (index != InvalidQuestionIndex)
         xmlOpen.operator+(Core::XmlAttribute("index", index));
@@ -173,14 +162,12 @@ void SetQuestion::writeXml(Core::XmlWriter & xml) const {
 }
 // ============================================================================
 
-
-
 // ============================================================================
 const u32 TrainingInformation::InvalidOrder = Core::Type<u32>::max;
 const u32 TrainingInformation::InvalidSize  = Core::Type<u32>::max;
 const f32 TrainingInformation::InvalidScore = Core::Type<u32>::max;
 
-void TrainingInformation::writeXml(Core::XmlWriter & xml) const {
+void TrainingInformation::writeXml(Core::XmlWriter& xml) const {
     xml << Core::XmlOpen("information")
         << Core::XmlFull("order", order)
         << Core::XmlFull("size", size)
@@ -189,12 +176,10 @@ void TrainingInformation::writeXml(Core::XmlWriter & xml) const {
 }
 // ============================================================================
 
-
-
 // ============================================================================
-void DecisionTree::Path::write(std::ostream & out) const {
+void DecisionTree::Path::write(std::ostream& out) const {
     QuestionRefList::const_iterator questionRefIt;
-    AnswerList::const_iterator answerIt;
+    AnswerList::const_iterator      answerIt;
     for (questionRefIt = questionRefs.begin(), answerIt = answers.begin();
          questionRefIt != questionRefs.end(); ++questionRefIt, ++answerIt) {
         (*questionRefIt)->write(out, *answerIt);
@@ -204,22 +189,18 @@ void DecisionTree::Path::write(std::ostream & out) const {
 }
 // ============================================================================
 
-
-
 // ============================================================================
 const Core::ParameterString DecisionTree::paramCartFilename(
-    "decision-tree-file",
-    "name of decision tree (aka cart) file");
+        "decision-tree-file",
+        "name of decision tree (aka cart) file");
 
-DecisionTree::DecisionTree(
-    const Core::Configuration & config,
-    PropertyMapRef map,
-    QuestionRefList * questionRefs,
-    Node * root
-    ) :
-    Precursor(config),
-    map_(),
-    questionRefs_(0) {
+DecisionTree::DecisionTree(const Core::Configuration& config,
+                           PropertyMapRef             map,
+                           QuestionRefList*           questionRefs,
+                           Node*                      root)
+        : Precursor(config),
+          map_(),
+          questionRefs_(0) {
     setMap(map);
     if (questionRefs)
         setQuestions(questionRefs);
@@ -227,89 +208,90 @@ DecisionTree::DecisionTree(
         setRoot(root);
 }
 
-const DecisionTree::Node * DecisionTree::find(const Properties & props) const {
+const DecisionTree::Node* DecisionTree::find(const Properties& props) const {
     require_(root_);
-    QuestionRefList & questions = *questionRefs_;
-    Node * node = root_;
+    QuestionRefList& questions = *questionRefs_;
+    Node*            node      = root_;
     while (!node->isLeaf())
         switch ((*questions[node->id()])(props)) {
-        case RASR_TRUE:
-            node = node->leftChild_;
-            break;
-        case RASR_FALSE:
-            node = node->rightChild_;
-            break;
-        case RASR_UNDEF:
-            warning() << "undefined answer to \"" << *questions[node->id()] << "\", assume false";
-            node = node->rightChild_;
-            break;
+            case RASR_TRUE:
+                node = node->leftChild_;
+                break;
+            case RASR_FALSE:
+                node = node->rightChild_;
+                break;
+            case RASR_UNDEF:
+                warning() << "undefined answer to \"" << *questions[node->id()] << "\", assume false";
+                node = node->rightChild_;
+                break;
         }
     return node;
 }
 
-DecisionTree::NodePtrList DecisionTree::findAll(const Properties & props) const {
+DecisionTree::NodePtrList DecisionTree::findAll(const Properties& props) const {
     require_(root_);
-    QuestionRefList & questions = *questionRefs_;
-    NodePtrList nodes;
-    NodePtrStack stack;
+    QuestionRefList& questions = *questionRefs_;
+    NodePtrList      nodes;
+    NodePtrStack     stack;
     stack.push(root_);
     while (!stack.empty()) {
-        Node * node = stack.top();
+        Node* node = stack.top();
         stack.pop();
         if (node->isLeaf()) {
             nodes.push_back(node);
-        } else {
+        }
+        else {
             switch ((*questions[node->id()])(props)) {
-            case RASR_TRUE:
-                stack.push(node->leftChild_);
-                break;
-            case RASR_FALSE:
-                stack.push(node->rightChild_);
-                break;
-            case RASR_UNDEF:
-                stack.push(node->leftChild_);
-                stack.push(node->rightChild_);
-                break;
+                case RASR_TRUE:
+                    stack.push(node->leftChild_);
+                    break;
+                case RASR_FALSE:
+                    stack.push(node->rightChild_);
+                    break;
+                case RASR_UNDEF:
+                    stack.push(node->leftChild_);
+                    stack.push(node->rightChild_);
+                    break;
             }
         }
     }
     return nodes;
 }
 
-DecisionTree::Path DecisionTree::findPath(const Properties & props) const {
+DecisionTree::Path DecisionTree::findPath(const Properties& props) const {
     require_(questionRefs_);
     require_(root_);
-    QuestionRefList & questions = *questionRefs_;
-    Node * node = root_;
-    Path path;
+    QuestionRefList& questions = *questionRefs_;
+    Node*            node      = root_;
+    Path             path;
     while (!node->isLeaf()) {
         QuestionRef question = questions[node->id()];
-        Answer answer = (*question)(props);
+        Answer      answer   = (*question)(props);
         path.questionRefs.push_back(question);
         path.answers.push_back(answer);
         switch (answer) {
-        case RASR_TRUE:
-            node = node->leftChild_;
-            break;
-        case RASR_FALSE:
-            node = node->rightChild_;
-            break;
-        case RASR_UNDEF:
-            warning() << "undefined answer to \"" << *question << "\", assume false";
-            node = node->rightChild_;
-            break;
+            case RASR_TRUE:
+                node = node->leftChild_;
+                break;
+            case RASR_FALSE:
+                node = node->rightChild_;
+                break;
+            case RASR_UNDEF:
+                warning() << "undefined answer to \"" << *question << "\", assume false";
+                node = node->rightChild_;
+                break;
         }
     }
     path.leaf = node;
     return path;
 }
 
-bool DecisionTree::loadFromString(const std::string & str) {
+bool DecisionTree::loadFromString(const std::string& str) {
     XmlDecisionTreeParser parser(config);
     return parser.parseString(str, this);
 }
 
-bool DecisionTree::loadFromStream(std::istream & i) {
+bool DecisionTree::loadFromStream(std::istream& i) {
     XmlDecisionTreeParser parser(config);
     return parser.parseStream(i, this);
 }
@@ -324,10 +306,11 @@ bool DecisionTree::loadFromFile(std::string filename) {
     return parser.parseFile(filename, this);
 }
 
-u32 drawDecisionTreeNode(std::ostream & out, const DecisionTree::Node & node, u32 id = 0) {
+u32 drawDecisionTreeNode(std::ostream& out, const DecisionTree::Node& node, u32 id = 0) {
     if (node.isLeaf()) {
         out << "n" << id++ << " [shape=doublecircle label=" << node.id() << "]" << std::endl;
-    } else {
+    }
+    else {
         u32 nodeId = id++;
         out << "n" << nodeId << " [shape=circle label=" << node.id() << "]" << std::endl;
         out << "n" << nodeId << " -> n" << id << "[label=yes]" << std::endl;
@@ -338,7 +321,7 @@ u32 drawDecisionTreeNode(std::ostream & out, const DecisionTree::Node & node, u3
     return id;
 }
 
-void DecisionTree::draw(std::ostream & out) const {
+void DecisionTree::draw(std::ostream& out) const {
     out << "digraph \"" << fullName() << "\" {" << std::endl
         << "node [fontname=\"Helvetica\"]" << std::endl
         << "edge [fontname=\"Helvetica\"]" << std::endl;
@@ -346,7 +329,7 @@ void DecisionTree::draw(std::ostream & out) const {
     out << "}" << std::endl;
 }
 
-void writeDecisionTreeNode(std::ostream & out, const DecisionTree::Node & node, const u32 depth = 0) {
+void writeDecisionTreeNode(std::ostream& out, const DecisionTree::Node& node, const u32 depth = 0) {
     for (size_t i = 0; i < 2 * depth; ++i)
         out << ' ';
     if (node.isLeaf())
@@ -363,7 +346,7 @@ void writeDecisionTreeNode(std::ostream & out, const DecisionTree::Node & node, 
     }
 }
 
-void DecisionTree::write(std::ostream & out) const {
+void DecisionTree::write(std::ostream& out) const {
     map_->write(out);
     out << std::endl;
     Cart::write(out, *questionRefs_);
@@ -372,7 +355,7 @@ void DecisionTree::write(std::ostream & out) const {
     writeDecisionTreeNode(out, root());
 }
 
-void DecisionTree::writeXml(Core::XmlWriter & xml, const std::string & name) const {
+void DecisionTree::writeXml(Core::XmlWriter& xml, const std::string& name) const {
     xml << Core::XmlOpen(name);
     map_->writeXml(xml);
     Cart::writeXml(xml, *questionRefs_);
@@ -389,7 +372,8 @@ void DecisionTree::writeToFile() const {
         xml.setIndentation(4);
         xml.setMargin(78);
         writeXml(xml);
-    } else {
+    }
+    else {
         warning("cannot store decision tree, because no filename is given");
     }
 }

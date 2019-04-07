@@ -17,53 +17,61 @@
 #include "Conditions.hh"
 
 namespace Cart {
-    bool Conditions::addCondition(const std::string & condition) {
-        require(!condition.empty());
-        std::vector<std::string>::iterator it = conditions_.begin();
-        for (; (*it < condition) && (it != conditions_.end()); ++it) {}
-        if (it == conditions_.end()) {
-            conditions_.push_back(condition);
+bool Conditions::addCondition(const std::string& condition) {
+    require(!condition.empty());
+    std::vector<std::string>::iterator it = conditions_.begin();
+    for (; (*it < condition) && (it != conditions_.end()); ++it) {
+    }
+    if (it == conditions_.end()) {
+        conditions_.push_back(condition);
+        return true;
+    }
+    else {
+        if (*it != condition) {
+            conditions_.insert(it, condition);
             return true;
-        } else {
-            if (*it != condition) {
-                conditions_.insert(it, condition);
-                return true;
-            } else return false;
         }
-    }
-
-    bool Conditions::removeCondition(const std::string & condition) {
-        std::vector<std::string>::iterator it = conditions_.begin();
-        for (; (*it < condition) && (it != conditions_.end()); ++it) {}
-        if (it == conditions_.end()) {
+        else
             return false;
-        } else {
-            if (*it == condition) {
-                conditions_.erase(it);
-                return true;
-            } else return false;
-        }
     }
+}
 
-    void Conditions::removeAllConditions() {
-        conditions_.clear();
+bool Conditions::removeCondition(const std::string& condition) {
+    std::vector<std::string>::iterator it = conditions_.begin();
+    for (; (*it < condition) && (it != conditions_.end()); ++it) {
     }
-
-    bool Conditions::hasCondition(const std::string & condition) const {
-        size_t low = 0, high = conditions_.size();
-        while (low <= high) {
-            size_t mid = (low + high) / 2;
-            if (condition == conditions_[mid])
-                return true;
-            int cmp = conditions_[mid].compare(condition);
-            if (cmp < 0)
-                high = mid - 1;
-            else if (cmp > 0)
-                low = mid + 1;
-            else
-                return true;
-        }
+    if (it == conditions_.end()) {
         return false;
     }
+    else {
+        if (*it == condition) {
+            conditions_.erase(it);
+            return true;
+        }
+        else
+            return false;
+    }
+}
 
-} // namespace Cart
+void Conditions::removeAllConditions() {
+    conditions_.clear();
+}
+
+bool Conditions::hasCondition(const std::string& condition) const {
+    size_t low = 0, high = conditions_.size();
+    while (low <= high) {
+        size_t mid = (low + high) / 2;
+        if (condition == conditions_[mid])
+            return true;
+        int cmp = conditions_[mid].compare(condition);
+        if (cmp < 0)
+            high = mid - 1;
+        else if (cmp > 0)
+            low = mid + 1;
+        else
+            return true;
+    }
+    return false;
+}
+
+}  // namespace Cart

@@ -18,8 +18,7 @@
 
 using namespace Cart;
 
-
-void Cluster::write(std::ostream & out) const {
+void Cluster::write(std::ostream& out) const {
     out << "cluster " << node->id() << std::endl;
     out << std::right;
     u32 index = 1;
@@ -31,9 +30,8 @@ void Cluster::write(std::ostream & out) const {
     }
 }
 
-void Cluster::writeXml(Core::XmlWriter & xml) const {
-    xml << Core::XmlOpen("cluster")
-        + Core::XmlAttribute("id", node->id());
+void Cluster::writeXml(Core::XmlWriter& xml) const {
+    xml << Core::XmlOpen("cluster") + Core::XmlAttribute("id", node->id());
     for (ConstExampleRefList::const_iterator it = exampleRefs->begin();
          it != exampleRefs->end(); ++it)
         (*it)->writeXml(xml);
@@ -42,13 +40,13 @@ void Cluster::writeXml(Core::XmlWriter & xml) const {
 
 // ============================================================================
 const Core::ParameterString ClusterList::paramClusterFilename(
-    "cluster-file",
-    "name of cluster file");
+        "cluster-file",
+        "name of cluster file");
 const Core::ParameterString ClusterList::paramClusterFileEncoding(
-    "encoding",
-    "utf-8");
+        "encoding",
+        "utf-8");
 
-void ClusterList::write(std::ostream & out) const {
+void ClusterList::write(std::ostream& out) const {
     out << "cluster-list:" << std::endl;
     map_->write(out);
     out << std::endl;
@@ -57,7 +55,7 @@ void ClusterList::write(std::ostream & out) const {
         (*it)->write(out);
 }
 
-void ClusterList::writeXml(Core::XmlWriter & xml) const {
+void ClusterList::writeXml(Core::XmlWriter& xml) const {
     xml << Core::XmlOpen("cluster-list");
     map_->writeXml(xml);
     for (ClusterList::const_iterator it = clusterRefs_.begin();
@@ -77,7 +75,8 @@ void ClusterList::writeToFile() const {
         xml.setMargin(78);
         xml.setEncoding(encoding);
         writeXml(xml);
-    } else {
+    }
+    else {
         warning("cannot store clusters, because no filename is given");
     }
 }

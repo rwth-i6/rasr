@@ -22,63 +22,64 @@
 
 namespace Lattice {
 
-    /**
-     *  NBestListExtractor
-     *  Produces an n-best list with word boundaries. All hypotheses in
-     *  the n-best list are distinct w.r.t. the evaluation tokens.
-     */
-    class NBestListExtractor
-    {
-    private:
-        Fsa::ConstAutomatonRef lemmaPronToLemma_;
-        Fsa::ConstAutomatonRef lemmaToEval_;
-        u32 targetNHypotheses_;
-        f32 minThreshold_;
-        f32 maxThreshold_;
-        f32 thresholdIncrement_;
-        bool workOnOutput_;
-        bool latticeIsDeterministic_;
-        bool hasFailArcs_;
-        bool normalize_;
-    private:
-        Fsa::ConstAutomatonRef mapLemmaPronToEval(Fsa::ConstAutomatonRef) const;
-        Fsa::ConstAutomatonRef mapEvalToLemmaPron(Fsa::ConstAutomatonRef) const;
-        Fsa::ConstAutomatonRef getNBestListWithoutWordBoundaries(Fsa::ConstAutomatonRef, f32 &threshold);
-    public:
-        NBestListExtractor();
-        virtual ~NBestListExtractor();
+/**
+ *  NBestListExtractor
+ *  Produces an n-best list with word boundaries. All hypotheses in
+ *  the n-best list are distinct w.r.t. the evaluation tokens.
+ */
+class NBestListExtractor {
+private:
+    Fsa::ConstAutomatonRef lemmaPronToLemma_;
+    Fsa::ConstAutomatonRef lemmaToEval_;
+    u32                    targetNHypotheses_;
+    f32                    minThreshold_;
+    f32                    maxThreshold_;
+    f32                    thresholdIncrement_;
+    bool                   workOnOutput_;
+    bool                   latticeIsDeterministic_;
+    bool                   hasFailArcs_;
+    bool                   normalize_;
 
-        ConstWordLatticeRef getNBestList(ConstWordLatticeRef);
-        void initialize(Bliss::LexiconRef);
-        void setNumberOfHypotheses(u32 nHypotheses) {
-            targetNHypotheses_ = nHypotheses;
-        }
-        void setMinPruningThreshold(f32 minThreshold) {
-            minThreshold_ = minThreshold;
-        }
-        void setMaxPruningThreshold(f32 maxThreshold) {
-            maxThreshold_ = maxThreshold;
-        }
-        void setPruningIncrement(f32 thresholdIncrement) {
-            thresholdIncrement_ = thresholdIncrement;
-        }
-        void setWorkOnOutput(bool workOnOutput) {
-            workOnOutput_ = workOnOutput;
-        }
-        void setLatticeIsDeterministic(bool isDeterministic) {
-            latticeIsDeterministic_ = isDeterministic;
-        }
-        void setHasFailArcs(bool hasFailArcs) {
-                hasFailArcs_ = hasFailArcs;
-        }
-        void setNormalize(bool normalize) {
-                normalize_ = normalize;
-        }
-    };
+private:
+    Fsa::ConstAutomatonRef mapLemmaPronToEval(Fsa::ConstAutomatonRef) const;
+    Fsa::ConstAutomatonRef mapEvalToLemmaPron(Fsa::ConstAutomatonRef) const;
+    Fsa::ConstAutomatonRef getNBestListWithoutWordBoundaries(Fsa::ConstAutomatonRef, f32& threshold);
 
-    ConstWordLatticeRef nbest(ConstWordLatticeRef l, u32 n);
-    ConstWordLatticeRef best(ConstWordLatticeRef l, bool listFormat = false);
+public:
+    NBestListExtractor();
+    virtual ~NBestListExtractor();
 
-} // namespace Lattice
+    ConstWordLatticeRef getNBestList(ConstWordLatticeRef);
+    void                initialize(Bliss::LexiconRef);
+    void                setNumberOfHypotheses(u32 nHypotheses) {
+        targetNHypotheses_ = nHypotheses;
+    }
+    void setMinPruningThreshold(f32 minThreshold) {
+        minThreshold_ = minThreshold;
+    }
+    void setMaxPruningThreshold(f32 maxThreshold) {
+        maxThreshold_ = maxThreshold;
+    }
+    void setPruningIncrement(f32 thresholdIncrement) {
+        thresholdIncrement_ = thresholdIncrement;
+    }
+    void setWorkOnOutput(bool workOnOutput) {
+        workOnOutput_ = workOnOutput;
+    }
+    void setLatticeIsDeterministic(bool isDeterministic) {
+        latticeIsDeterministic_ = isDeterministic;
+    }
+    void setHasFailArcs(bool hasFailArcs) {
+        hasFailArcs_ = hasFailArcs;
+    }
+    void setNormalize(bool normalize) {
+        normalize_ = normalize;
+    }
+};
 
-#endif // _LATTICE_BEST_HH
+ConstWordLatticeRef nbest(ConstWordLatticeRef l, u32 n);
+ConstWordLatticeRef best(ConstWordLatticeRef l, bool listFormat = false);
+
+}  // namespace Lattice
+
+#endif  // _LATTICE_BEST_HH

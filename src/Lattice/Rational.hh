@@ -15,15 +15,15 @@
 #ifndef _LATTICE_RATIONAL_HH
 #define _LATTICE_RATIONAL_HH
 
-#include "Lattice.hh"
 #include <Core/Vector.hh>
+#include "Lattice.hh"
 
 namespace Lattice {
 
-    ConstWordLatticeRef transpose(ConstWordLatticeRef l, bool progress = false, WordBoundary final = WordBoundary());
-    ConstWordLatticeRef unite(ConstWordLatticeRef, ConstWordLatticeRef);
-    ConstWordLatticeRef unite(const Core::Vector<ConstWordLatticeRef> &);
+ConstWordLatticeRef transpose(ConstWordLatticeRef l, bool progress = false, WordBoundary final = WordBoundary());
+ConstWordLatticeRef unite(ConstWordLatticeRef, ConstWordLatticeRef);
+ConstWordLatticeRef unite(const Core::Vector<ConstWordLatticeRef>&);
 
-} // namespace Lattice
+}  // namespace Lattice
 
-#endif // _LATTICE_RATIONAL_HH
+#endif  // _LATTICE_RATIONAL_HH

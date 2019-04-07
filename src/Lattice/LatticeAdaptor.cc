@@ -17,12 +17,10 @@
 
 using namespace Lattice;
 
-bool WordLatticeAdaptor::write(const std::string &id, Search::LatticeHandler *handler) const
-{
+bool WordLatticeAdaptor::write(const std::string& id, Search::LatticeHandler* handler) const {
     return handler->write(id, *this);
 }
 
-::Lattice::ConstWordLatticeRef WordLatticeAdaptor::wordLattice(const Search::LatticeHandler *handler) const
-{
+::Lattice::ConstWordLatticeRef WordLatticeAdaptor::wordLattice(const Search::LatticeHandler* handler) const {
     return handler->convert(*this);
 }

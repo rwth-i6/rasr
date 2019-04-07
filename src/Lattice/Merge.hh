@@ -15,55 +15,55 @@
 #ifndef _LATTICE_MERGE_HH
 #define _LATTICE_MERGE_HH
 
-#include "Lattice.hh"
 #include <Core/ReferenceCounting.hh>
+#include "Lattice.hh"
 
 namespace Bliss {
-    class OrthographicParser;
+class OrthographicParser;
 }
 
 namespace Lm {
-    class LanguageModel;
+class LanguageModel;
 }
 
 namespace Lattice {
 
-    /**
-     * @param numerator is incorporated into @param denominator
-     * without duplicating sentence hypotheses of @param denominator.
-     * The resulting word lattice is word-conditioned w.r.t. the
-     * given language model.
-     */
-    ConstWordLatticeRef merge(
+/**
+ * @param numerator is incorporated into @param denominator
+ * without duplicating sentence hypotheses of @param denominator.
+ * The resulting word lattice is word-conditioned w.r.t. the
+ * given language model.
+ */
+ConstWordLatticeRef merge(
         ConstWordLatticeRef numerator,
         ConstWordLatticeRef denominator,
         Core::Ref<const Lm::LanguageModel>);
 
-    /**
-     * Extract all sentence hypotheses from @param denominator which
-     * share the orthography @param orth.
-     */
-    ConstWordLatticeRef extractNumerator(
-        const std::string &orth,
-        ConstWordLatticeRef denominator,
-        Bliss::OrthographicParser *orthToLemma,
-        Fsa::ConstAutomatonRef lemmaPronToLemma,
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion);
+/**
+ * Extract all sentence hypotheses from @param denominator which
+ * share the orthography @param orth.
+ */
+ConstWordLatticeRef extractNumerator(
+        const std::string&         orth,
+        ConstWordLatticeRef        denominator,
+        Bliss::OrthographicParser* orthToLemma,
+        Fsa::ConstAutomatonRef     lemmaPronToLemma,
+        Fsa::ConstAutomatonRef     lemmaToLemmaConfusion);
 
-    /**
-     * Generate a lattice which shares the topology with @param denominator,
-     * and the arc weights are set as follows:
-     *    weight of input @param denominator: a path corresponding to the
-     *        orthography @param orth goes through this arc
-     *    0: otherwise
-     */
-    ConstWordLatticeRef turnOffCompetingHypotheses(
-        const std::string &orth,
-        ConstWordLatticeRef denominator,
-        Bliss::OrthographicParser *orthToLemma,
-        Fsa::ConstAutomatonRef lemmaPronToLemma,
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion);
+/**
+ * Generate a lattice which shares the topology with @param denominator,
+ * and the arc weights are set as follows:
+ *    weight of input @param denominator: a path corresponding to the
+ *        orthography @param orth goes through this arc
+ *    0: otherwise
+ */
+ConstWordLatticeRef turnOffCompetingHypotheses(
+        const std::string&         orth,
+        ConstWordLatticeRef        denominator,
+        Bliss::OrthographicParser* orthToLemma,
+        Fsa::ConstAutomatonRef     lemmaPronToLemma,
+        Fsa::ConstAutomatonRef     lemmaToLemmaConfusion);
 
-} // namespace Lattice
+}  // namespace Lattice
 
-#endif //_LATTICE_MERGE_HH
+#endif  //_LATTICE_MERGE_HH

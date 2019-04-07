@@ -15,21 +15,21 @@
 #ifndef _LATTICE_MORPHISM_HH
 #define _LATTICE_MORPHISM_HH
 
-#include "Lattice.hh"
 #include <Fsa/Mapping.hh>
+#include "Lattice.hh"
 
 namespace Lattice {
 
-    ConstWordLatticeRef resolveMorphism(
+ConstWordLatticeRef resolveMorphism(
         ConstWordLatticeRef,
         Core::Ref<const WordBoundaries>,
         Fsa::ConstMappingRef);
 
-    ConstWordLatticeRef resolveNaryMorphism(
+ConstWordLatticeRef resolveNaryMorphism(
         ConstWordLatticeRef l,
-        const Core::Vector<Core::Ref<const WordBoundaries> > &,
-        const Core::Vector<Fsa::ConstMappingRef> &);
+        const Core::Vector<Core::Ref<const WordBoundaries>>&,
+        const Core::Vector<Fsa::ConstMappingRef>&);
 
-} // namespace
+}  // namespace Lattice
 
-#endif // _LATTICE_MORPHISM_HH
+#endif  // _LATTICE_MORPHISM_HH

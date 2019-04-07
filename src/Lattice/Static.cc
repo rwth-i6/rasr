@@ -17,33 +17,28 @@
 
 namespace Lattice {
 
-    ConstWordLatticeRef staticCopy(
-        ConstWordLatticeRef l,
-        const std::vector<std::string> &names)
-    {
-        require(names.size() == l->nParts());
-        Core::Ref<WordLattice> result(new WordLattice);
-        result->setWordBoundaries(l->wordBoundaries());
-        for (size_t i = 0; i < l->nParts(); ++i) {
-            result->setFsa(Fsa::staticCopy(l->part(i)), names[i]);
-        }
-        return result;
+ConstWordLatticeRef staticCopy(ConstWordLatticeRef             l,
+                               const std::vector<std::string>& names) {
+    require(names.size() == l->nParts());
+    Core::Ref<WordLattice> result(new WordLattice);
+    result->setWordBoundaries(l->wordBoundaries());
+    for (size_t i = 0; i < l->nParts(); ++i) {
+        result->setFsa(Fsa::staticCopy(l->part(i)), names[i]);
     }
+    return result;
+}
 
-    ConstWordLatticeRef staticCopy(
-        ConstWordLatticeRef l,
-        const std::string &name)
-    {
-        return staticCopy(l, std::vector<std::string>(1, name));
+ConstWordLatticeRef staticCopy(ConstWordLatticeRef l,
+                               const std::string&  name) {
+    return staticCopy(l, std::vector<std::string>(1, name));
+}
+
+ConstWordLatticeRef staticCopy(ConstWordLatticeRef l) {
+    std::vector<std::string> names(l->nParts());
+    for (size_t i = 0; i < l->nParts(); ++i) {
+        names[i] = l->name(i);
     }
+    return staticCopy(l, names);
+}
 
-    ConstWordLatticeRef staticCopy(ConstWordLatticeRef l)
-    {
-        std::vector<std::string> names(l->nParts());
-        for (size_t i = 0; i < l->nParts(); ++i) {
-            names[i] = l->name(i);
-        }
-        return staticCopy(l, names);
-    }
-
-} //namespace Lattice
+}  //namespace Lattice

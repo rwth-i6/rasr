@@ -17,26 +17,26 @@
 #include <Fsa/Hash.hh>
 #include <Fsa/Sort.hh>
 
-
 using namespace Lattice;
 
 //======================================================================================
-bool WordBoundary::Transit::readBinary(Core::BinaryInputStream &bi) {
+bool WordBoundary::Transit::readBinary(Core::BinaryInputStream& bi) {
     u16 tmp;
-    bi >> tmp; final = tmp;
-    bi >> tmp; initial = tmp;
+    bi >> tmp;
+    final = tmp;
+    bi >> tmp;
+    initial = tmp;
     return bi;
 }
 
-bool WordBoundary::Transit::writeBinary(Core::BinaryOutputStream &bo) const {
-    bo << (u16) final << (u16) initial;
+bool WordBoundary::Transit::writeBinary(Core::BinaryOutputStream& bo) const {
+    bo << (u16)final << (u16)initial;
     return bo;
 }
 
-const WordBoundary WordBoundaries::getFinalWordBoundary() const
-{
+const WordBoundary WordBoundaries::getFinalWordBoundary() const {
     Core::Vector<WordBoundary>::const_iterator it = internal_.begin();
-    for (; it != internal_.end(); ++ it) {
+    for (; it != internal_.end(); ++it) {
         if (it->valid()) {
             break;
         }
@@ -45,8 +45,8 @@ const WordBoundary WordBoundaries::getFinalWordBoundary() const
         return WordBoundary();
     }
     WordBoundary result = *it;
-    ++ it;
-    for (; it != internal_.end(); ++ it) {
+    ++it;
+    for (; it != internal_.end(); ++it) {
         if (it->valid() and (it->time() > result.time())) {
             result = *it;
         }
@@ -57,31 +57,32 @@ const WordBoundary WordBoundaries::getFinalWordBoundary() const
 }
 
 struct WordBoundaries::Header {
-    static const char *magic;
+    static const char*  magic;
     static const size_t magicSize = 8;
-    static const u32 version = 3;
+    static const u32    version   = 3;
 };
 
-const char *WordBoundaries::Header::magic = "LATWRDBN";
+const char* WordBoundaries::Header::magic = "LATWRDBN";
 
-bool WordBoundaries::writeBinary(Core::BinaryOutputStream &bo) const {
+bool WordBoundaries::writeBinary(Core::BinaryOutputStream& bo) const {
     bo.write(Header::magic, Header::magicSize);
-    bo << (u32) Header::version;
-    bo << (u32) size();
-    for (size_t i = 0; i < size(); ++ i) {
-        bo << (u32) time(i);
+    bo << (u32)Header::version;
+    bo << (u32)size();
+    for (size_t i = 0; i < size(); ++i) {
+        bo << (u32)time(i);
         transit(i).writeBinary(bo);
     }
     return bo;
 }
 
-bool WordBoundaries::readBinary(Core::BinaryInputStream &bi) {
+bool WordBoundaries::readBinary(Core::BinaryInputStream& bi) {
     clear();
 
     char magic[Header::magicSize];
-    u32 version;
+    u32  version;
     bi.read(magic, Header::magicSize);
-    if (!bi) return false;
+    if (!bi)
+        return false;
     if (strncmp(magic, Header::magic, Header::magicSize) != 0) {
         // backward compatibility: old format without any header
 #if defined(BISANI)
@@ -89,20 +90,26 @@ bool WordBoundaries::readBinary(Core::BinaryInputStream &bi) {
 #else
         version = 2;
 #endif
-        bi.seek( - Header::magicSize, std::ios::cur);
-    } else {
-        if (!(bi >> version)) return false;
+        bi.seek(-Header::magicSize, std::ios::cur);
+    }
+    else {
+        if (!(bi >> version))
+            return false;
     }
 
     u32 _size;
-    if (!(bi >> _size)) return false;
-    for (size_t i = 0; i < _size; ++ i) {
+    if (!(bi >> _size))
+        return false;
+    for (size_t i = 0; i < _size; ++i) {
         u32 time;
-        if (!(bi >> time)) return false;
+        if (!(bi >> time))
+            return false;
         WordBoundary::Transit transit;
         if (version >= 2) {
-            if (!transit.readBinary(bi)) return false;
-        } else {
+            if (!transit.readBinary(bi))
+                return false;
+        }
+        else {
             u32 transitId;
             bi >> transitId;
         }
@@ -118,62 +125,57 @@ const std::string WordLatticeDescription::nameModel("model");
 const std::string WordLatticeDescription::nameLevel("level");
 const std::string WordLatticeDescription::defaultLevel("word");
 
-WordLatticeDescription::WordLatticeDescription(const std::string &name) :
-    Precursor(name)
-{}
+WordLatticeDescription::WordLatticeDescription(const std::string& name)
+        : Precursor(name) {}
 
-WordLatticeDescription::WordLatticeDescription(const Core::Configurable &parent) :
-    Precursor(prepareName(parent.fullName(), defaultName))
-{}
+WordLatticeDescription::WordLatticeDescription(const Core::Configurable& parent)
+        : Precursor(prepareName(parent.fullName(), defaultName)) {}
 
 WordLatticeDescription::WordLatticeDescription(
-    const std::string &name, ConstWordLatticeRef lattice) :
-    Precursor(name)
-{
+        const std::string& name, ConstWordLatticeRef lattice)
+        : Precursor(name) {
     initialize(lattice);
 }
 
 WordLatticeDescription::WordLatticeDescription(
-    const Core::Configurable &parent, ConstWordLatticeRef lattice) :
-    Precursor(prepareName(parent.fullName(), defaultName))
-{
+        const Core::Configurable& parent, ConstWordLatticeRef lattice)
+        : Precursor(prepareName(parent.fullName(), defaultName)) {
     initialize(lattice);
 }
 
-void WordLatticeDescription::initialize(ConstWordLatticeRef lattice)
-{
+void WordLatticeDescription::initialize(ConstWordLatticeRef lattice) {
     require(lattice);
-    for (size_t i = 0; i < lattice->nParts(); ++ i) {
+    for (size_t i = 0; i < lattice->nParts(); ++i) {
         operator[](i).setValue(Lattice::WordLatticeDescription::nameModel, lattice->name(i));
         operator[](i).setValue(Lattice::WordLatticeDescription::nameLevel, defaultLevel);
     }
 }
 
 //======================================================================================
-const char* WordLattice::mainFsa = "main";
-const char* WordLattice::acousticFsa = "acoustic";
-const char* WordLattice::lmFsa = "lm";
-const char* WordLattice::accuracyFsa = "accuracy";
-const char* WordLattice::totalFsa = "total";
+const char* WordLattice::mainFsa      = "main";
+const char* WordLattice::acousticFsa  = "acoustic";
+const char* WordLattice::lmFsa        = "lm";
+const char* WordLattice::accuracyFsa  = "accuracy";
+const char* WordLattice::totalFsa     = "total";
 const char* WordLattice::posteriorFsa = "posterior";
-
 
 WordLattice::WordLattice() {}
 
-class MaximumTimeDfsState : public DfsState
-{
+class MaximumTimeDfsState : public DfsState {
 private:
     Speech::TimeframeIndex maxTime_;
+
 public:
     MaximumTimeDfsState(
-        Fsa::ConstAutomatonRef fsa,
-        Core::Ref<const WordBoundaries> wordBoundaries) : maxTime_(0) {
-        fsa_ = fsa;
+            Fsa::ConstAutomatonRef          fsa,
+            Core::Ref<const WordBoundaries> wordBoundaries)
+            : maxTime_(0) {
+        fsa_            = fsa;
         wordBoundaries_ = wordBoundaries;
     }
 
     virtual void discoverState(Fsa::ConstStateRef sp) {
-        const WordBoundary &wb = (*wordBoundaries_)[sp->id()];
+        const WordBoundary& wb = (*wordBoundaries_)[sp->id()];
         if (wb.valid()) {
             maxTime_ = std::max(maxTime_, wb.time());
         }
@@ -186,13 +188,12 @@ public:
     }
 };
 
-Speech::TimeframeIndex  WordLattice::maximumTime() const {
+Speech::TimeframeIndex WordLattice::maximumTime() const {
     MaximumTimeDfsState d(part(0), wordBoundaries_);
     return d.getMaximumTime();
 }
 
-StandardWordLattice::StandardWordLattice(Core::Ref<const Bliss::Lexicon> lexicon)
-{
+StandardWordLattice::StandardWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) {
     parts_.addChoice("acoustic", 0);
     parts_.addChoice("lm", 1);
 
@@ -220,35 +221,30 @@ StandardWordLattice::StandardWordLattice(Core::Ref<const Bliss::Lexicon> lexicon
     lm_->setStateFinal(lm_->newState());
 }
 
-Fsa::State *StandardWordLattice::newState()
-{
+Fsa::State* StandardWordLattice::newState() {
     lm_->newState();
     return acoustic_->newState();
 }
 
 void StandardWordLattice::newArc(
-    Fsa::State *source,
-    Fsa::State *target,
-    const Bliss::LemmaPronunciation *lemmaPronunciation,
-    Speech::Score acoustic, Speech::Score lm)
-{
+        Fsa::State*                      source,
+        Fsa::State*                      target,
+        const Bliss::LemmaPronunciation* lemmaPronunciation,
+        Speech::Score acoustic, Speech::Score lm) {
     source->newArc(
-        target->id(),
-        Fsa::Weight(acoustic),
-        (lemmaPronunciation) ? lemmaPronunciation->id() : Fsa::Epsilon);
+            target->id(),
+            Fsa::Weight(acoustic),
+            (lemmaPronunciation) ? lemmaPronunciation->id() : Fsa::Epsilon);
 
-    lm_->state(source->id())->newArc(
-        target->id(),
-        Fsa::Weight(lm),
-        (lemmaPronunciation) ? lemmaPronunciation->id() : Fsa::Epsilon);
+    lm_->state(source->id())->newArc(target->id(), Fsa::Weight(lm), (lemmaPronunciation) ? lemmaPronunciation->id() : Fsa::Epsilon);
 }
 
-void StandardWordLattice::addAcyclicProperty()
-{
+void StandardWordLattice::addAcyclicProperty() {
     if (Fsa::isAcyclic(acoustic_)) {
         acoustic_->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyAcyclic);
         lm_->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyAcyclic);
-    } else {
+    }
+    else {
         acoustic_->setProperties(Fsa::PropertyAcyclic, 0);
         lm_->setProperties(Fsa::PropertyAcyclic, 0);
     }
@@ -256,120 +252,127 @@ void StandardWordLattice::addAcyclicProperty()
 
 namespace Lattice {
 
-    class TimeConditionedWordLattice :
-        public Fsa::SlaveAutomaton,
-        public Fsa::DfsState
-    {
+class TimeConditionedWordLattice : public Fsa::SlaveAutomaton,
+                                   public Fsa::DfsState {
+private:
+    typedef std::vector<Fsa::StateId> MergedStates;
+    class TimeConditionedState {
     private:
-        typedef std::vector<Fsa::StateId> MergedStates;
-        class TimeConditionedState {
-        private:
-            WordBoundary wordBoundary_;
-            mutable MergedStates mergedStates_;
-        public:
-            TimeConditionedState(WordBoundary wordBoundary) : wordBoundary_(wordBoundary) {}
-            void addState(Fsa::StateId s) const { mergedStates_.push_back(s); }
-            const WordBoundary& wordBoundary() const { return wordBoundary_; }
-            const MergedStates& mergedStates() const { return mergedStates_; }
-        };
-        struct TimeConditionedStateHash {
-            u32 operator() (const TimeConditionedState &s) const {
-                return (2239 * s.wordBoundary().time() + s.wordBoundary().transit().final);
-            }
-        };
-        struct TimeConditionedStateEqual {
-            bool operator() (const TimeConditionedState &s1, const TimeConditionedState &s2) const {
-                return (s1.wordBoundary() == s2.wordBoundary());
-            }
-        };
-        typedef Fsa::Hash<TimeConditionedState, TimeConditionedStateHash, TimeConditionedStateEqual> States;
-        mutable States states_;
-        typedef Core::Vector<Speech::TimeframeIndex> StateMap;
-        mutable StateMap stateMap_;
-        /**
-         * Word boundaries of input word lattice.
-         */
-        Core::Ref<const WordBoundaries> wordBoundaries_;
-        /**
-         * Word boundaries of time conditioned word lattice.
-         */
-        mutable Core::Ref<WordBoundaries> timeConditionedWordBoundaries_;
-
-        struct ByInputAndTarget : public std::binary_function<Fsa::Arc, Fsa::Arc, bool> {
-            bool operator() (const Fsa::Arc &a, const Fsa::Arc &b) const {
-                return ((a.input() < b.input()) || ((a.input() == b.input()) && (a.target() < b.target())));
-            }
-        };
+        WordBoundary         wordBoundary_;
+        mutable MergedStates mergedStates_;
 
     public:
-        TimeConditionedWordLattice(ConstWordLatticeRef in) :
-            Fsa::SlaveAutomaton(in->part(WordLattice::acousticFsa)),
-            Fsa::DfsState(in->part(WordLattice::acousticFsa)),
-            wordBoundaries_(in->wordBoundaries()),
-            timeConditionedWordBoundaries_(new WordBoundaries) {
-            dfs();
+        TimeConditionedState(WordBoundary wordBoundary)
+                : wordBoundary_(wordBoundary) {}
+        void addState(Fsa::StateId s) const {
+            mergedStates_.push_back(s);
         }
-        virtual Fsa::StateId initialStateId() const {
-            // this construciton is necessary to guarantee the existence of the word boundary
-            Fsa::StateId s =
-                Fsa::SlaveAutomaton::fsa_->getState(
-                    Fsa::SlaveAutomaton::fsa_->initialStateId())->id();
-            return states_.insert(TimeConditionedState((*wordBoundaries_)[s]));
+        const WordBoundary& wordBoundary() const {
+            return wordBoundary_;
         }
-        virtual void discoverState(Fsa::ConstStateRef sp) {
-            States::Cursor s = states_.insert(TimeConditionedState((*wordBoundaries_)[sp->id()]));
-            states_[s].addState(sp->id());
-            stateMap_.grow(sp->id(), 0);
-            stateMap_[sp->id()] = s;
+        const MergedStates& mergedStates() const {
+            return mergedStates_;
         }
-        virtual Fsa::ConstStateRef getState(Fsa::StateId s) const {
-            Fsa::State *sp = new Fsa::State(s);
-            // merge arcs
-            const MergedStates &states = states_[s].mergedStates();
-            for (MergedStates::const_iterator it = states.begin(); it != states.end(); ++it) {
-                Fsa::ConstStateRef _sp = Fsa::SlaveAutomaton::fsa_->getState(*it);
-                sp->addTags(_sp->tags());
-                if (_sp->isFinal()) sp->weight_ = _sp->weight();
-                for (Fsa::State::const_iterator a = _sp->begin(); a != _sp->end(); ++a) {
-                    Fsa::Arc *_a = sp->newArc();
-                    *_a = *a;
-                    _a->target_ = stateMap_[_a->target()];
-                }
-            }
+    };
+    struct TimeConditionedStateHash {
+        u32 operator()(const TimeConditionedState& s) const {
+            return (2239 * s.wordBoundary().time() + s.wordBoundary().transit().final);
+        }
+    };
+    struct TimeConditionedStateEqual {
+        bool operator()(const TimeConditionedState& s1, const TimeConditionedState& s2) const {
+            return (s1.wordBoundary() == s2.wordBoundary());
+        }
+    };
+    typedef Fsa::Hash<TimeConditionedState, TimeConditionedStateHash, TimeConditionedStateEqual> States;
+    mutable States                                                                               states_;
+    typedef Core::Vector<Speech::TimeframeIndex>                                                 StateMap;
+    mutable StateMap                                                                             stateMap_;
+    /**
+         * Word boundaries of input word lattice.
+         */
+    Core::Ref<const WordBoundaries> wordBoundaries_;
+    /**
+         * Word boundaries of time conditioned word lattice.
+         */
+    mutable Core::Ref<WordBoundaries> timeConditionedWordBoundaries_;
 
-            // remove duplicate entries
-            sp->sort(ByInputAndTarget());
-            if (sp->nArcs() > 1) {
-                Fsa::State::iterator ai = sp->begin() + 1, ao = sp->begin();
-                for (; ai != sp->end(); ++ai) {
-                    if ((ai->input() != ao->input()) || (ai->target() != ao->target()))
-                        *(++ao) = *ai;
+    struct ByInputAndTarget : public std::binary_function<Fsa::Arc, Fsa::Arc, bool> {
+        bool operator()(const Fsa::Arc& a, const Fsa::Arc& b) const {
+            return ((a.input() < b.input()) || ((a.input() == b.input()) && (a.target() < b.target())));
+        }
+    };
+
+public:
+    TimeConditionedWordLattice(ConstWordLatticeRef in)
+            : Fsa::SlaveAutomaton(in->part(WordLattice::acousticFsa)),
+              Fsa::DfsState(in->part(WordLattice::acousticFsa)),
+              wordBoundaries_(in->wordBoundaries()),
+              timeConditionedWordBoundaries_(new WordBoundaries) {
+        dfs();
+    }
+    virtual Fsa::StateId initialStateId() const {
+        // this construciton is necessary to guarantee the existence of the word boundary
+        Fsa::StateId s =
+                Fsa::SlaveAutomaton::fsa_->getState(
+                                                 Fsa::SlaveAutomaton::fsa_->initialStateId())
+                        ->id();
+        return states_.insert(TimeConditionedState((*wordBoundaries_)[s]));
+    }
+    virtual void discoverState(Fsa::ConstStateRef sp) {
+        States::Cursor s = states_.insert(TimeConditionedState((*wordBoundaries_)[sp->id()]));
+        states_[s].addState(sp->id());
+        stateMap_.grow(sp->id(), 0);
+        stateMap_[sp->id()] = s;
+    }
+    virtual Fsa::ConstStateRef getState(Fsa::StateId s) const {
+        Fsa::State* sp = new Fsa::State(s);
+        // merge arcs
+        const MergedStates& states = states_[s].mergedStates();
+        for (MergedStates::const_iterator it = states.begin(); it != states.end(); ++it) {
+            Fsa::ConstStateRef _sp = Fsa::SlaveAutomaton::fsa_->getState(*it);
+            sp->addTags(_sp->tags());
+            if (_sp->isFinal())
+                sp->weight_ = _sp->weight();
+            for (Fsa::State::const_iterator a = _sp->begin(); a != _sp->end(); ++a) {
+                Fsa::Arc* _a = sp->newArc();
+                *_a          = *a;
+                _a->target_  = stateMap_[_a->target()];
+            }
+        }
+
+        // remove duplicate entries
+        sp->sort(ByInputAndTarget());
+        if (sp->nArcs() > 1) {
+            Fsa::State::iterator ai = sp->begin() + 1, ao = sp->begin();
+            for (; ai != sp->end(); ++ai) {
+                if ((ai->input() != ao->input()) || (ai->target() != ao->target()))
+                    *(++ao) = *ai;
 #if 0
                     else
                         hope(semiring()->compare(ai->weight(), ao->weight()) == 0);
 #endif
-                }
-                sp->truncate(++ao);
             }
-            timeConditionedWordBoundaries_->set(s, states_[s].wordBoundary());
-            return Fsa::ConstStateRef(sp);
+            sp->truncate(++ao);
         }
-        virtual std::string describe() const {
-            return Core::form("time-conditioned-word-lattice(%s)", Fsa::SlaveAutomaton::fsa_->describe().c_str());
-        }
-        virtual size_t getMemoryUsed() const {
-            return Fsa::SlaveAutomaton::fsa_->getMemoryUsed() + states_.getMemoryUsed() + stateMap_.getMemoryUsed();
-        }
-        Core::Ref<const WordBoundaries> wordBoundaries() const {
-            return timeConditionedWordBoundaries_;
-        }
-    };
-}
+        timeConditionedWordBoundaries_->set(s, states_[s].wordBoundary());
+        return Fsa::ConstStateRef(sp);
+    }
+    virtual std::string describe() const {
+        return Core::form("time-conditioned-word-lattice(%s)", Fsa::SlaveAutomaton::fsa_->describe().c_str());
+    }
+    virtual size_t getMemoryUsed() const {
+        return Fsa::SlaveAutomaton::fsa_->getMemoryUsed() + states_.getMemoryUsed() + stateMap_.getMemoryUsed();
+    }
+    Core::Ref<const WordBoundaries> wordBoundaries() const {
+        return timeConditionedWordBoundaries_;
+    }
+};
+}  // namespace Lattice
 
-ConstWordLatticeRef Lattice::timeConditionedWordLattice(ConstWordLatticeRef in)
-{
-    Core::Ref<const TimeConditionedWordLattice>f(new TimeConditionedWordLattice(in));
-    WordLattice *result = new WordLattice;
+ConstWordLatticeRef Lattice::timeConditionedWordLattice(ConstWordLatticeRef in) {
+    Core::Ref<const TimeConditionedWordLattice> f(new TimeConditionedWordLattice(in));
+    WordLattice*                                result = new WordLattice;
     result->setWordBoundaries(f->wordBoundaries());
     result->setFsa(f, WordLattice::acousticFsa);
     return ConstWordLatticeRef(result);

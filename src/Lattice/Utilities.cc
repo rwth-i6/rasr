@@ -19,36 +19,28 @@
 
 namespace Lattice {
 
-    bool dumpWordBoundaries(
-        Core::Ref<const WordBoundaries> wordBoundaries,
-        Core::XmlWriter &xo)
-    {
-        xo.generateFormattingHints();
-        if (xo) {
-            xo << Core::XmlOpen("word-boundaries")
-                + Core::XmlAttribute("size", wordBoundaries->size());
-            for (size_t i = 0; i < wordBoundaries->size(); ++ i) {
-                xo << Core::XmlOpen("state")
-                    + Core::XmlAttribute("id", i)
-                    + Core::XmlAttribute("time", wordBoundaries->time(i))
-                    + Core::XmlAttribute("transit-final", wordBoundaries->transit(i).final)
-                    + Core::XmlAttribute("transit-initial", wordBoundaries->transit(i).initial);
-                xo << Core::XmlClose("state");
-            }
-            xo << Core::XmlClose("word-boundaries");
-            return (bool) xo;
+bool dumpWordBoundaries(Core::Ref<const WordBoundaries> wordBoundaries,
+                        Core::XmlWriter&                xo) {
+    xo.generateFormattingHints();
+    if (xo) {
+        xo << Core::XmlOpen("word-boundaries") + Core::XmlAttribute("size", wordBoundaries->size());
+        for (size_t i = 0; i < wordBoundaries->size(); ++i) {
+            xo << Core::XmlOpen("state") + Core::XmlAttribute("id", i) + Core::XmlAttribute("time", wordBoundaries->time(i)) + Core::XmlAttribute("transit-final", wordBoundaries->transit(i).final) + Core::XmlAttribute("transit-initial", wordBoundaries->transit(i).initial);
+            xo << Core::XmlClose("state");
         }
-        return false;
+        xo << Core::XmlClose("word-boundaries");
+        return (bool)xo;
     }
-
-    bool dumpWordBoundaries(
-        Core::Ref<const WordBoundaries> wordBoundaries,
-        const std::string &file)
-    {
-        if (file.empty()) return false;
-        Core::TextOutputStream o(file);
-        Core::XmlWriter xo(o);
-        return dumpWordBoundaries(wordBoundaries, xo);
-    }
-
+    return false;
 }
+
+bool dumpWordBoundaries(Core::Ref<const WordBoundaries> wordBoundaries,
+                        const std::string&              file) {
+    if (file.empty())
+        return false;
+    Core::TextOutputStream o(file);
+    Core::XmlWriter        xo(o);
+    return dumpWordBoundaries(wordBoundaries, xo);
+}
+
+}  // namespace Lattice

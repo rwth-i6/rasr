@@ -24,29 +24,31 @@ class LatticeHandler;
 
 namespace Lattice {
 
-class WordLatticeAdaptor: public Search::LatticeAdaptor
-{
+class WordLatticeAdaptor : public Search::LatticeAdaptor {
 public:
     WordLatticeAdaptor() {}
-    WordLatticeAdaptor(const WordLattice *l) : l_(l) {}
-    WordLatticeAdaptor(ConstWordLatticeRef l) : l_(l) {}
+    WordLatticeAdaptor(const WordLattice* l)
+            : l_(l) {}
+    WordLatticeAdaptor(ConstWordLatticeRef l)
+            : l_(l) {}
     virtual ~WordLatticeAdaptor() {}
 
-    bool write(const std::string &id, Search::LatticeHandler *handler) const;
+    bool write(const std::string& id, Search::LatticeHandler* handler) const;
 
     ::Lattice::ConstWordLatticeRef get() const {
         return l_;
     }
 
-    ::Lattice::ConstWordLatticeRef wordLattice(const Search::LatticeHandler *handler) const;
+    ::Lattice::ConstWordLatticeRef wordLattice(const Search::LatticeHandler* handler) const;
 
     bool empty() const {
         return !l_;
     }
+
 protected:
     ::Lattice::ConstWordLatticeRef l_;
 };
 
-} // namespace Lattice {
+}  // namespace Lattice
 
-#endif // _LATTICE_LATTICE_ADAPTOR_HH
+#endif  // _LATTICE_LATTICE_ADAPTOR_HH

@@ -23,51 +23,55 @@
 using namespace Lattice;
 
 const Core::ParameterFloat HtkReader::paramTimeframeIndexScale(
-    "timeframe-index-scale",
-    "timeframe index = time * scale",
-    100, 0);
+        "timeframe-index-scale",
+        "timeframe index = time * scale",
+        100, 0);
 
 HtkReader::HtkReader(
-    const Core::Configuration & config,
-    Bliss::LexiconRef lexiconRef,
-    f64 amScale,
-    f64 lmScale,
-    f64 penaltyScale,
-    f64 pronunciationScale,
-    bool keepVariants) :
-    Precursor(config),
-    lexiconRef_(lexiconRef),
-    amScale_(amScale),
-    lmScale_(lmScale),
-    penaltyScale_(penaltyScale),
-    keepVariants_(keepVariants),
-    wordPenalty_(0.0),
-    silPenalty_(0.0),
-    unkLemmaId_(Fsa::InvalidLabelId),
-    silLemmaId_(Fsa::InvalidLabelId),
-    lattice_(0),
-    wordBoundaries_(0),
-    states_(),
-    timeframeIndexScale_(paramTimeframeIndexScale(config)),
-    timeOffset_(Core::Type<f64>::min) {
-    orthParser_ = new Bliss::OrthographicParser(config, lexiconRef_);
+        const Core::Configuration& config,
+        Bliss::LexiconRef          lexiconRef,
+        f64                        amScale,
+        f64                        lmScale,
+        f64                        penaltyScale,
+        f64                        pronunciationScale,
+        bool                       keepVariants)
+        : Precursor(config),
+          lexiconRef_(lexiconRef),
+          amScale_(amScale),
+          lmScale_(lmScale),
+          penaltyScale_(penaltyScale),
+          keepVariants_(keepVariants),
+          wordPenalty_(0.0),
+          silPenalty_(0.0),
+          unkLemmaId_(Fsa::InvalidLabelId),
+          silLemmaId_(Fsa::InvalidLabelId),
+          lattice_(0),
+          wordBoundaries_(0),
+          states_(),
+          timeframeIndexScale_(paramTimeframeIndexScale(config)),
+          timeOffset_(Core::Type<f64>::min) {
+    orthParser_     = new Bliss::OrthographicParser(config, lexiconRef_);
     htkAlphabetRef_ = lexiconRef_->lemmaAlphabet();
     lemmaPronunciationToHtkTransducerRef_ =
-        lexiconRef_->createLemmaPronunciationToLemmaTransducer();
+            lexiconRef_->createLemmaPronunciationToLemmaTransducer();
     if (pronunciationScale != 1) {
         lemmaPronunciationToHtkTransducerRef_ =
-            Fsa::cache(Fsa::multiply(lemmaPronunciationToHtkTransducerRef_, Fsa::Weight((f32)pronunciationScale)));
+                Fsa::cache(Fsa::multiply(lemmaPronunciationToHtkTransducerRef_, Fsa::Weight((f32)pronunciationScale)));
     }
-    const Bliss::Lemma *unknown = lexiconRef_->specialLemma("unknown");
-    if (unknown) unkLemmaId_ = unknown->id();
-    else warning() << "could not find label id for the unknown word; use the invalid label id";
-    const Bliss::Lemma *silence = lexiconRef_->specialLemma("silence");
-    if (silence) silLemmaId_ = silence->id();
-    else warning() << "could not find label id for the silence word";
+    const Bliss::Lemma* unknown = lexiconRef_->specialLemma("unknown");
+    if (unknown)
+        unkLemmaId_ = unknown->id();
+    else
+        warning() << "could not find label id for the unknown word; use the invalid label id";
+    const Bliss::Lemma* silence = lexiconRef_->specialLemma("silence");
+    if (silence)
+        silLemmaId_ = silence->id();
+    else
+        warning() << "could not find label id for the silence word";
     isCapitalize_ = false;
     log("htk lattice settings:\nam-scale      : %f\nlm-scale      : %f\npenalty-scale : %f\npronunciation-scale : %f",
         amScale_, lmScale_, penaltyScale_, pronunciationScale);
-    line_ = 0;
+    line_   = 0;
     status_ = htkOk;
 }
 
@@ -75,8 +79,8 @@ HtkReader::~HtkReader() {
     delete orthParser_;
 }
 
-Fsa::Weight HtkReader::getWeight(const Link & link, Fsa::LabelId lemmaId) {
-    f64 weight = -(link.amScore * amScale_  + link.lmScore * lmScale_);
+Fsa::Weight HtkReader::getWeight(const Link& link, Fsa::LabelId lemmaId) {
+    f64 weight = -(link.amScore * amScale_ + link.lmScore * lmScale_);
     if (penaltyScale_ != 0.0) {
         if ((lemmaId == silLemmaId_) && (silLemmaId_ != Fsa::InvalidLabelId))
             weight += penaltyScale_ * silPenalty_;
@@ -97,12 +101,12 @@ HtkReader::Status HtkReader::init() {
     return htkOk;
 }
 
-HtkReader::Status HtkReader::addState(Node & node) {
+HtkReader::Status HtkReader::addState(Node& node) {
     require(size_t(node.id) == states_.size());
     State state;
     state.fsaState = new Fsa::State(getStateId(node.id));
-    state.label  = node.label;
-    state.lemmas = node.lemmas;
+    state.label    = node.label;
+    state.lemmas   = node.lemmas;
     lattice_->setState(state.fsaState);
     /*! \todo across word model is not handled correctly yet */
     WordBoundary wordBoundary(node.timeframeIndex, WordBoundary::Transit());
@@ -111,34 +115,34 @@ HtkReader::Status HtkReader::addState(Node & node) {
     return htkOk;
 }
 
-HtkReader::Status HtkReader::addArc(Link & link) {
+HtkReader::Status HtkReader::addArc(Link& link) {
     require(
-        size_t(link.sourceState) < states_.size()
-        && size_t(link.targetState) < states_.size());
+            size_t(link.sourceState) < states_.size() && size_t(link.targetState) < states_.size());
     if (link.hasLemmas()) {
         for (LemmaIterator it = link.lemmas.first; it != link.lemmas.second; ++it) {
             if (!states_[size_t(link.sourceState)].fsaState->newArc(
-                    getStateId(link.targetState),
-                    getWeight(link, it->id()),
-                    it->id()))
+                        getStateId(link.targetState),
+                        getWeight(link, it->id()),
+                        it->id()))
                 return htkAddLinkError;
         }
-    } else {
+    }
+    else {
         warning() << "No matching lemma for orthographic form \"" << link.label << "\" found.\n"
                   << "Substitute by unknown word.";
         if (!states_[size_t(link.sourceState)].fsaState->newArc(
-                getStateId(link.targetState),
-                getWeight(link, unkLemmaId_),
-                unkLemmaId_))
+                    getStateId(link.targetState),
+                    getWeight(link, unkLemmaId_),
+                    unkLemmaId_))
             return htkAddLinkError;
 
-//    warning() << "No matching lemma for orthographic form \"" << link.label << "\" found.\n"
-//		  << "Substitute by epsilon.";
-//	if (!states_[size_t(link.sourceState)].fsaState->newArc(
-//		getStateId(link.targetState),
-//		getWeight(link, Fsa::Epsilon),
-//		Fsa::Epsilon))
-//	    return htkAddLinkError;
+        //    warning() << "No matching lemma for orthographic form \"" << link.label << "\" found.\n"
+        //		  << "Substitute by epsilon.";
+        //	if (!states_[size_t(link.sourceState)].fsaState->newArc(
+        //		getStateId(link.targetState),
+        //		getWeight(link, Fsa::Epsilon),
+        //		Fsa::Epsilon))
+        //	    return htkAddLinkError;
     }
     return htkOk;
 }
@@ -160,53 +164,60 @@ HtkReader::Status HtkReader::setFinalStates() {
     return (hasFinalState) ? htkOk : htkNoFinalStateError;
 }
 
-HtkReader::Status HtkReader::add(const std::string  & s, StringPairList & props) {
-    const char * c = s.c_str();
-    const char * keyStart, * keyEnd, * valueStart, * valueEnd;
+HtkReader::Status HtkReader::add(const std::string& s, StringPairList& props) {
+    const char* c = s.c_str();
+    const char *keyStart, *keyEnd, *valueStart, *valueEnd;
 
     while (*c != '\0') {
-        for (; ::isspace(*c); ++c);
+        for (; ::isspace(*c); ++c)
+            ;
         if (*c == '\0')
             break;
         keyStart = c;
 
-        for (; (*c != '=') && !::isspace(*c) && (*c != '\0'); ++c);
+        for (; (*c != '=') && !::isspace(*c) && (*c != '\0'); ++c)
+            ;
         if (*c == '\0')
             return htkPropertyParseError;
         keyEnd = c;
 
-        for (; ::isspace(*c); ++c);
+        for (; ::isspace(*c); ++c)
+            ;
         if (*c != '=')
             return htkPropertyParseError;
         ++c;
 
-        for (; ::isspace(*c); ++c);
+        for (; ::isspace(*c); ++c)
+            ;
         if (*c == '\0')
             return htkPropertyParseError;
 
         if (*c == '"') {
             valueStart = ++c;
 
-            for (; (*c != '"') && (*c != '\0'); ++c);
+            for (; (*c != '"') && (*c != '\0'); ++c)
+                ;
             if (*c == '\0')
                 return htkPropertyParseError;
             valueEnd = c;
             ++c;
-        } else {
+        }
+        else {
             valueStart = c;
 
-            for (; !::isspace(*c) && (*c != '\0'); ++c);
+            for (; !::isspace(*c) && (*c != '\0'); ++c)
+                ;
             valueEnd = c;
         }
 
         props.push_back(StringPair(
-                            std::string(keyStart, keyEnd - keyStart),
-                            std::string(valueStart, valueEnd - valueStart)));
+                std::string(keyStart, keyEnd - keyStart),
+                std::string(valueStart, valueEnd - valueStart)));
     }
     return htkOk;
 }
 
-HtkReader::LemmaRange HtkReader::parseLabel(std::string & label, const std::string & variant) {
+HtkReader::LemmaRange HtkReader::parseLabel(std::string& label, const std::string& variant) {
     if (isCapitalize_)
         Core::convertToUpperCase(label);
     if (keepVariants_ && (!variant.empty())) {
@@ -216,39 +227,39 @@ HtkReader::LemmaRange HtkReader::parseLabel(std::string & label, const std::stri
     return orthParser_->lemmas(label);
 }
 
-HtkReader::Status HtkReader::set(const StringPairList & props, Node & node) {
-    s32 required = 1;
+HtkReader::Status HtkReader::set(const StringPairList& props, Node& node) {
+    s32         required = 1;
     std::string variant;
     node.label.clear();
     node.timeframeIndex = Speech::InvalidTimeframeIndex;
     for (StringPairList::const_iterator it = props.begin();
          it != props.end(); ++it) {
         switch (it->first.at(0)) {
-        case 'I':
-            if (!Core::strconv(it->second, node.id))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                --required;
-            break;
-        case 'W':
-            if (!Core::strconv(it->second, node.label)) {
-                error("Unable to parse \"%s\"", it->second.c_str());
-                node.label.clear();
-            }
-            break;
-        case 'v':
-            s32 variantNo;
-            if (!Core::strconv(it->second, variantNo))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                if (variantNo > 0) variant = it->second;
-            break;
-        case 't':
-            f64 time;
-            if (!Core::strconv(it->second, time))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            node.timeframeIndex = timeframeIndex(time);
-            break;
+            case 'I':
+                if (!Core::strconv(it->second, node.id))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else
+                    --required;
+                break;
+            case 'W':
+                if (!Core::strconv(it->second, node.label)) {
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                    node.label.clear();
+                }
+                break;
+            case 'v':
+                s32 variantNo;
+                if (!Core::strconv(it->second, variantNo))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else if (variantNo > 0)
+                    variant = it->second;
+                break;
+            case 't':
+                f64 time;
+                if (!Core::strconv(it->second, time))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                node.timeframeIndex = timeframeIndex(time);
+                break;
         }
     }
     if (!node.label.empty())
@@ -258,8 +269,8 @@ HtkReader::Status HtkReader::set(const StringPairList & props, Node & node) {
     return (required) ? htkParseNodeError : htkOk;
 }
 
-HtkReader::Status HtkReader::set(const StringPairList & props, Link & link) {
-    s32 required = 3;
+HtkReader::Status HtkReader::set(const StringPairList& props, Link& link) {
+    s32         required = 3;
     std::string variant;
     link.label.clear();
     link.amScore = 0.0;
@@ -267,45 +278,45 @@ HtkReader::Status HtkReader::set(const StringPairList & props, Link & link) {
     for (StringPairList::const_iterator it = props.begin();
          it != props.end(); ++it) {
         switch (it->first.at(0)) {
-        case 'J':
-            if (!Core::strconv(it->second, link.id))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                --required;
-            break;
-        case 'S':
-            if (!Core::strconv(it->second, link.sourceState))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                --required;
-            break;
-        case 'E':
-            if (!Core::strconv(it->second, link.targetState))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                --required;
-            break;
-        case 'W':
-            if (!Core::strconv(it->second, link.label)) {
-                error("Unable to parse \"%s\"", it->second.c_str());
-                link.label.clear();
-            }
-            break;
-        case 'v':
-            s32 variantNo;
-            if (!Core::strconv(it->second, variantNo))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            else
-                if (variantNo > 0) variant = it->second;
-            break;
-        case 'a':
-            if (!Core::strconv(it->second, link.amScore))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            break;
-        case 'l':
-            if (!Core::strconv(it->second, link.lmScore))
-                error("Unable to parse \"%s\"", it->second.c_str());
-            break;
+            case 'J':
+                if (!Core::strconv(it->second, link.id))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else
+                    --required;
+                break;
+            case 'S':
+                if (!Core::strconv(it->second, link.sourceState))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else
+                    --required;
+                break;
+            case 'E':
+                if (!Core::strconv(it->second, link.targetState))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else
+                    --required;
+                break;
+            case 'W':
+                if (!Core::strconv(it->second, link.label)) {
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                    link.label.clear();
+                }
+                break;
+            case 'v':
+                s32 variantNo;
+                if (!Core::strconv(it->second, variantNo))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                else if (variantNo > 0)
+                    variant = it->second;
+                break;
+            case 'a':
+                if (!Core::strconv(it->second, link.amScore))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                break;
+            case 'l':
+                if (!Core::strconv(it->second, link.lmScore))
+                    error("Unable to parse \"%s\"", it->second.c_str());
+                break;
         }
     }
     if (!link.label.empty())
@@ -317,45 +328,47 @@ HtkReader::Status HtkReader::set(const StringPairList & props, Link & link) {
     return (required) ? htkParseLinkError : htkOk;
 }
 
-const char * HtkStatusMessage[] = {
-    "Everything's fine!",
-    "Error while parsing property",
-    "Unexpected line; don't know what to do with that line",
-    "Unexpected node; did not expect the definition of a node",
-    "Error while parsing node",
-    "Error while adding node",
-    "Error while parsing link",
-    "Error while adding link",
-    "No initial state, i.e. the lattice is empty",
-    "No final state"
-};
+const char* HtkStatusMessage[] = {
+        "Everything's fine!",
+        "Error while parsing property",
+        "Unexpected line; don't know what to do with that line",
+        "Unexpected node; did not expect the definition of a node",
+        "Error while parsing node",
+        "Error while adding node",
+        "Error while parsing link",
+        "Error while adding link",
+        "No initial state, i.e. the lattice is empty",
+        "No final state"};
 bool HtkReader::checkStatus(Status status) {
     if (status != htkOk) {
-        error("Error while parsing \n%3d: %s", line_, HtkStatusMessage[status]) ;
+        error("Error while parsing \n%3d: %s", line_, HtkStatusMessage[status]);
         return false;
-    } else return true;
+    }
+    else
+        return true;
 }
 
-
-void HtkReader::nextLine(std::istream & is, std::string & s) {
+void HtkReader::nextLine(std::istream& is, std::string& s) {
     do {
         ++line_;
         std::getline(is, s);
         Core::stripWhitespace(s);
-        if (!s.empty() && (s.at(0) == '#'))
-            { comment(s); s.clear(); }
+        if (!s.empty() && (s.at(0) == '#')) {
+            comment(s);
+            s.clear();
+        }
     } while (s.empty() && is);
 }
 
-ConstWordLatticeRef HtkReader::read(std::istream & is) {
-    lattice_ = new Fsa::StaticAutomaton;
+ConstWordLatticeRef HtkReader::read(std::istream& is) {
+    lattice_        = new Fsa::StaticAutomaton;
     wordBoundaries_ = new WordBoundaries;
 
-    line_ = 0;
-    status_ = htkOk;
-    u32 state = 0;
+    line_                = 0;
+    status_              = htkOk;
+    u32            state = 0;
     StringPairList _props;
-    std::string s;
+    std::string    s;
 
     {
         if (!checkStatus(status_ = start()))
@@ -366,15 +379,15 @@ ConstWordLatticeRef HtkReader::read(std::istream & is) {
         nextLine(is, s);
         while ((state == 0) && (status_ == htkOk) && is) {
             switch (s.at(0)) {
-            case 'I':
-                state = 1;
-                break;
-            case 'J':
-                state = 2;
-                break;
-            default:
-                status_ = add(s, _props);
-                nextLine(is, s);
+                case 'I':
+                    state = 1;
+                    break;
+                case 'J':
+                    state = 2;
+                    break;
+                default:
+                    status_ = add(s, _props);
+                    nextLine(is, s);
             }
         }
         status_ = header(_props);
@@ -385,21 +398,21 @@ ConstWordLatticeRef HtkReader::read(std::istream & is) {
         Node _node;
         while ((state == 1) && (status_ == htkOk) && is) {
             switch (s.at(0)) {
-            case 'I':
-                if ((status_ = add(s, _props)) != htkOk)
+                case 'I':
+                    if ((status_ = add(s, _props)) != htkOk)
+                        break;
+                    if ((status_ = set(_props, _node)) != htkOk)
+                        break;
+                    if ((status_ = node(_node)) != htkOk)
+                        break;
+                    _props.clear();
+                    nextLine(is, s);
                     break;
-                if ((status_ = set(_props, _node)) != htkOk)
+                case 'J':
+                    state = 2;
                     break;
-                if ((status_ = node(_node)) != htkOk)
-                    break;
-                _props.clear();
-                nextLine(is, s);
-                break;
-            case 'J':
-                state = 2;
-                break;
-            default:
-                status_ = htkUnexpectedLine;
+                default:
+                    status_ = htkUnexpectedLine;
             }
         }
         if (!checkStatus(status_))
@@ -410,21 +423,21 @@ ConstWordLatticeRef HtkReader::read(std::istream & is) {
         Link _link;
         while ((state == 2) && (status_ == htkOk) && is) {
             switch (s.at(0)) {
-            case 'I':
-                status_ = htkUnexpectedNode;
-                break;
-            case 'J':
-                if ((status_ = add(s, _props)) != htkOk)
+                case 'I':
+                    status_ = htkUnexpectedNode;
                     break;
-                if ((status_ = set(_props, _link)) != htkOk)
+                case 'J':
+                    if ((status_ = add(s, _props)) != htkOk)
+                        break;
+                    if ((status_ = set(_props, _link)) != htkOk)
+                        break;
+                    if ((status_ = link(_link)) != htkOk)
+                        break;
+                    _props.clear();
+                    nextLine(is, s);
                     break;
-                if ((status_ = link(_link)) != htkOk)
-                    break;
-                _props.clear();
-                nextLine(is, s);
-                break;
-            default:
-                status_ = htkUnexpectedLine;
+                default:
+                    status_ = htkUnexpectedLine;
             }
         }
         if (!checkStatus(status_))
@@ -439,18 +452,18 @@ ConstWordLatticeRef HtkReader::read(std::istream & is) {
     Core::Ref<WordLattice> f(new WordLattice);
     f->setWordBoundaries(Core::Ref<WordBoundaries>(wordBoundaries_));
     f->setFsa(Fsa::ConstAutomatonRef(lattice_), WordLattice::totalFsa);
-    ConstWordLatticeRef l = Lattice::composeMatching(lemmaPronunciationToHtkTransducerRef_, f);
-    WordLattice *wordLattice = new WordLattice;
+    ConstWordLatticeRef l           = Lattice::composeMatching(lemmaPronunciationToHtkTransducerRef_, f);
+    WordLattice*        wordLattice = new WordLattice;
     wordLattice->setWordBoundaries(l->wordBoundaries());
     wordLattice->setFsa(
-        Fsa::staticCopy(
-            Fsa::projectInput(
-                l->part(WordLattice::totalFsa))),
+            Fsa::staticCopy(
+                    Fsa::projectInput(
+                            l->part(WordLattice::totalFsa))),
             WordLattice::totalFsa);
 
-    lattice_ = 0;
+    lattice_        = 0;
     wordBoundaries_ = 0;
-    timeOffset_ = Core::Type<f64>::min;
+    timeOffset_     = Core::Type<f64>::min;
     states_.clear();
-        return ConstWordLatticeRef(wordLattice);
+    return ConstWordLatticeRef(wordLattice);
 }

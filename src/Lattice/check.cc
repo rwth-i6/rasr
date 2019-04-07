@@ -12,11 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
-
-/**
- *
- */
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Application.hh>
@@ -32,31 +27,28 @@
 
 using namespace Core;
 
-
 // ===========================================================================
 // Application
 
-class TestApplication :
-    public Application
-{
+class TestApplication : public Application {
 public:
     std::string getUsage() const {
         return "short program";
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         Speech::ModelCombination modelCombination(
-            select("model-combination"), Speech::ModelCombination::useLexicon);
+                select("model-combination"), Speech::ModelCombination::useLexicon);
         modelCombination.load();
 
-        Lattice::ArchiveReader * archiveReader = Lattice::Archive::openForReading(
-            select("lattice-archive"),
-            modelCombination.lexicon());
+        Lattice::ArchiveReader* archiveReader = Lattice::Archive::openForReading(
+                select("lattice-archive"),
+                modelCombination.lexicon());
         verify(archiveReader);
 
         for (Lattice::ArchiveReader::const_iterator it = archiveReader->files();
              it; ++it) {
-            if ((it.name().at(it.name().size()-1) == '~'))
+            if ((it.name().at(it.name().size() - 1) == '~'))
                 continue;
             if (it.name() == Lattice::Archive::latticeConfigFilename)
                 continue;
@@ -64,7 +56,7 @@ public:
                 continue;
             log("read \"%s\"", it.name().c_str());
             Fsa::ConstAutomatonRef f =
-                archiveReader->get(it.name())->part(Lattice::WordLattice::acousticFsa);
+                    archiveReader->get(it.name())->part(Lattice::WordLattice::acousticFsa);
 
             //DEBUG
             // Fsa::drawDot(Fsa::projectOutput(f), log());
@@ -76,6 +68,6 @@ public:
         delete archiveReader;
         return 0;
     }
-} app; // <- You have to create ONE instance of the application
+} app;  // <- You have to create ONE instance of the application
 
 APPLICATION

@@ -20,24 +20,22 @@
 
 namespace Lattice {
 
-    /**
-     *  Calculate the smoothed frame state accuracies (cf. state-based Hamming distance).
-     *  @param correct represents the reference hypotheses (aka numerator lattice).
-     *  The arc weights are assumed to be set to the word posteriors.
-     *  @param smoothingFunction: implementation of smoothing function f.
-     *  @return: word lattice with the same topology as @param lattice
-     *  but with arc weights set to \sum_{t}f'(E[\chi_{spk,t}])\chi_{spk,t} where
-     *  E[\chi_{spk,t}] are the accumulated posteriors of @param correct
-     *  at timeframe t.
-     *  Remark: The accuracies are accumulated and stored as word arc weight.
-     */
-    ConstWordLatticeRef getSmoothedFrameStateAccuracy(
-        ConstWordLatticeRef lattice,
-        ConstWordLatticeRef correct,
-        Core::Ref<Speech::PhonemeSequenceAlignmentGenerator> alignmentGenerator,
-        SmoothingFunction &smoothingFunction);
+/**
+ *  Calculate the smoothed frame state accuracies (cf. state-based Hamming distance).
+ *  @param correct represents the reference hypotheses (aka numerator lattice).
+ *  The arc weights are assumed to be set to the word posteriors.
+ *  @param smoothingFunction: implementation of smoothing function f.
+ *  @return: word lattice with the same topology as @param lattice
+ *  but with arc weights set to \sum_{t}f'(E[\chi_{spk,t}])\chi_{spk,t} where
+ *  E[\chi_{spk,t}] are the accumulated posteriors of @param correct
+ *  at timeframe t.
+ *  Remark: The accuracies are accumulated and stored as word arc weight.
+ */
+ConstWordLatticeRef getSmoothedFrameStateAccuracy(ConstWordLatticeRef                                  lattice,
+                                                  ConstWordLatticeRef                                  correct,
+                                                  Core::Ref<Speech::PhonemeSequenceAlignmentGenerator> alignmentGenerator,
+                                                  SmoothingFunction&                                   smoothingFunction);
 
+}  // namespace Lattice
 
-}
-
-#endif // _LATTICE_SMOOTHED_ACCURACY_HH
+#endif  // _LATTICE_SMOOTHED_ACCURACY_HH

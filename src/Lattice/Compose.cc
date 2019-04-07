@@ -13,84 +13,84 @@
  *  limitations under the License.
  */
 #include "Compose.hh"
-#include "Morphism.hh"
 #include <Fsa/Basic.hh>
 #include <Fsa/Compose.hh>
 #include <Lm/Compose.hh>
+#include "Morphism.hh"
 
 namespace Lattice {
 
-    ConstWordLatticeRef composeMatching(
+ConstWordLatticeRef composeMatching(
         Fsa::ConstAutomatonRef left,
-        ConstWordLatticeRef right,
-        bool reportUnknowns)
-    {
-        Core::Ref<WordLattice> wordLattice(new WordLattice);
-        Fsa::ConstAutomatonRef composed;
-        for (size_t i = 0; i < right->nParts(); ++i) {
-            composed = Fsa::composeMatching(
+        ConstWordLatticeRef    right,
+        bool                   reportUnknowns) {
+    Core::Ref<WordLattice> wordLattice(new WordLattice);
+    Fsa::ConstAutomatonRef composed;
+    for (size_t i = 0; i < right->nParts(); ++i) {
+        composed = Fsa::composeMatching(
                 left,
                 right->part(i),
                 reportUnknowns);
-            Fsa::ConstAutomatonRef f = Fsa::trim(composed);
-            wordLattice->setFsa(f, right->name(i));
-        }
-        if (right->wordBoundaries()) {
-            wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
-            return resolveMorphism(
+        Fsa::ConstAutomatonRef f = Fsa::trim(composed);
+        wordLattice->setFsa(f, right->name(i));
+    }
+    if (right->wordBoundaries()) {
+        wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
+        return resolveMorphism(
                 wordLattice,
                 right->wordBoundaries(),
                 Fsa::mapToRight(composed));
-        } else {
-            return wordLattice;
-        }
     }
+    else {
+        return wordLattice;
+    }
+}
 
-    ConstWordLatticeRef composeMatching(
-        ConstWordLatticeRef left,
+ConstWordLatticeRef composeMatching(
+        ConstWordLatticeRef    left,
         Fsa::ConstAutomatonRef right,
-        bool reportUnknowns)
-    {
-        Core::Ref<WordLattice> wordLattice(new WordLattice);
-        Fsa::ConstAutomatonRef composed;
-        for (size_t i = 0; i < left->nParts(); ++i) {
-            composed = Fsa::composeMatching(
+        bool                   reportUnknowns) {
+    Core::Ref<WordLattice> wordLattice(new WordLattice);
+    Fsa::ConstAutomatonRef composed;
+    for (size_t i = 0; i < left->nParts(); ++i) {
+        composed = Fsa::composeMatching(
                 left->part(i),
                 right,
                 reportUnknowns);
-            Fsa::ConstAutomatonRef f = Fsa::trim(composed);
-            wordLattice->setFsa(f, left->name(i));
-        }
-        if (left->wordBoundaries()) {
-            wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
-            return resolveMorphism(
+        Fsa::ConstAutomatonRef f = Fsa::trim(composed);
+        wordLattice->setFsa(f, left->name(i));
+    }
+    if (left->wordBoundaries()) {
+        wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
+        return resolveMorphism(
                 wordLattice,
                 left->wordBoundaries(),
                 Fsa::mapToLeft(composed));
-        } else {
-            return wordLattice;
-        }
     }
+    else {
+        return wordLattice;
+    }
+}
 
-    ConstWordLatticeRef composeLm(
-        ConstWordLatticeRef left,
+ConstWordLatticeRef composeLm(
+        ConstWordLatticeRef                      left,
         Core::Ref<const Lm::ScaledLanguageModel> right,
-        f32 pronunciationScale)
-    {
-        require(left->wordBoundaries());
-        Core::Ref<WordLattice> wordLattice(new WordLattice);
-        wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
-        if (left->nParts() == 0) return wordLattice;
-        Core::Ref<const Lm::ComposeAutomaton> compose =
+        f32                                      pronunciationScale) {
+    require(left->wordBoundaries());
+    Core::Ref<WordLattice> wordLattice(new WordLattice);
+    wordLattice->setWordBoundaries(Core::ref(new WordBoundaries));
+    if (left->nParts() == 0)
+        return wordLattice;
+    Core::Ref<const Lm::ComposeAutomaton> compose =
             Lm::composePron(left->part(0), right, pronunciationScale);
-        wordLattice->setFsa(compose, left->name(0));
-        for (size_t i = 1; i < left->nParts(); ++i) {
-            compose = Lm::composePron(left->part(i), right, pronunciationScale);
-            wordLattice->setFsa(compose, left->name(i));
-        }
-        return resolveMorphism(ConstWordLatticeRef(wordLattice),
-                               left->wordBoundaries(),
-                               compose->mapToLeft());
+    wordLattice->setFsa(compose, left->name(0));
+    for (size_t i = 1; i < left->nParts(); ++i) {
+        compose = Lm::composePron(left->part(i), right, pronunciationScale);
+        wordLattice->setFsa(compose, left->name(i));
     }
+    return resolveMorphism(ConstWordLatticeRef(wordLattice),
+                           left->wordBoundaries(),
+                           compose->mapToLeft());
+}
 
-} // namespace Lattice
+}  // namespace Lattice

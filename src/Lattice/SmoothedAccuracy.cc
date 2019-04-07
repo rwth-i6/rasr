@@ -13,8 +13,10 @@
  *  limitations under the License.
  */
 #include "SmoothedAccuracy.hh"
-#include "Arithmetic.hh"
-#include "Compose.hh"
+#include <Core/Assertions.hh>
+#include <Core/Hash.hh>
+#include <Core/Types.hh>
+#include <Core/Vector.hh>
 #include <Fsa/Arithmetic.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Cache.hh>
@@ -25,155 +27,147 @@
 #include <Fsa/Project.hh>
 #include <Fsa/RemoveEpsilons.hh>
 #include <Fsa/Static.hh>
-#include <Core/Vector.hh>
-#include <Core/Assertions.hh>
-#include <Core/Hash.hh>
-#include <Core/Types.hh>
-#include <Speech/PhonemeSequenceAlignmentGenerator.hh>
 #include <Speech/AuxiliarySegmentwiseTrainer.hh>
-
+#include <Speech/PhonemeSequenceAlignmentGenerator.hh>
+#include "Arithmetic.hh"
+#include "Compose.hh"
 
 namespace Lattice {
 
-    /**
-     * SmoothedFrameStateAccuracyAutomaton
-     */
-    class SmoothedFrameStateAccuracyAutomaton : public ModifyWordLattice
-    {
+/**
+ * SmoothedFrameStateAccuracyAutomaton
+ */
+class SmoothedFrameStateAccuracyAutomaton : public ModifyWordLattice {
+private:
+    typedef std::unordered_map<Fsa::LabelId, f64> States;
+    typedef Core::Vector<States>                  ActiveStates;
+
+protected:
+    Core::Ref<const Bliss::LemmaPronunciationAlphabet> alphabet_;
+    ActiveStates                                       stateIds_;
+    Speech::AlignmentGeneratorRef                      alignmentGenerator_;
+    SmoothingFunction&                                 smoothing_;
+
+private:
+    class LatticeToActiveStates : public DfsState {
     private:
-        typedef std::unordered_map<Fsa::LabelId, f64> States;
-        typedef Core::Vector<States> ActiveStates;
-    protected:
-        Core::Ref<const Bliss::LemmaPronunciationAlphabet> alphabet_;
-        ActiveStates stateIds_;
-        Speech::AlignmentGeneratorRef alignmentGenerator_;
-        SmoothingFunction &smoothing_;
-    private:
-        class LatticeToActiveStates : public DfsState
-        {
-        private:
-            SmoothedFrameStateAccuracyAutomaton &parent_;
-        public:
-            LatticeToActiveStates(ConstWordLatticeRef, SmoothedFrameStateAccuracyAutomaton &parent);
-            virtual void discoverState(Fsa::ConstStateRef sp);
-            virtual void finish();
-        };
-    protected:
-        Fsa::LabelId label(Fsa::LabelId e) const {
-            return alignmentGenerator_->acousticModel()->emissionIndex(e);
-        }
-        f32 accuracy(const States &refs, const Fsa::LabelId &h) const;
+        SmoothedFrameStateAccuracyAutomaton& parent_;
+
     public:
-        SmoothedFrameStateAccuracyAutomaton(
-            ConstWordLatticeRef, ConstWordLatticeRef, Speech::AlignmentGeneratorRef, SmoothingFunction &);
-        virtual std::string describe() const {
-            return Core::form("smoothed-frame-state-accuracy(%s,%s)", fsa_->describe().c_str(), smoothing_.name().c_str());
-        }
-        virtual void modifyState(Fsa::State *sp) const;
+        LatticeToActiveStates(ConstWordLatticeRef, SmoothedFrameStateAccuracyAutomaton& parent);
+        virtual void discoverState(Fsa::ConstStateRef sp);
+        virtual void finish();
     };
 
-    SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::LatticeToActiveStates(
-        ConstWordLatticeRef correct, SmoothedFrameStateAccuracyAutomaton &parent) :
-        DfsState(correct),
-        parent_(parent)
-    {}
+protected:
+    Fsa::LabelId label(Fsa::LabelId e) const {
+        return alignmentGenerator_->acousticModel()->emissionIndex(e);
+    }
+    f32 accuracy(const States& refs, const Fsa::LabelId& h) const;
 
-    void SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::discoverState(Fsa::ConstStateRef sp)
-    {
-        const Speech::TimeframeIndex startTime = wordBoundaries_->time(sp->id());
-        for (Fsa::State::const_iterator a = sp->begin(); a != sp->end(); ++ a) {
-            const Bliss::LemmaPronunciation *pronunciation = parent_.alphabet_->lemmaPronunciation(a->input());
-            if (!pronunciation) continue;
-            const Speech::TimeframeIndex endTime =
+public:
+    SmoothedFrameStateAccuracyAutomaton(
+            ConstWordLatticeRef, ConstWordLatticeRef, Speech::AlignmentGeneratorRef, SmoothingFunction&);
+    virtual std::string describe() const {
+        return Core::form("smoothed-frame-state-accuracy(%s,%s)", fsa_->describe().c_str(), smoothing_.name().c_str());
+    }
+    virtual void modifyState(Fsa::State* sp) const;
+};
+
+SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::LatticeToActiveStates(
+        ConstWordLatticeRef correct, SmoothedFrameStateAccuracyAutomaton& parent)
+        : DfsState(correct),
+          parent_(parent) {}
+
+void SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::discoverState(Fsa::ConstStateRef sp) {
+    const Speech::TimeframeIndex startTime = wordBoundaries_->time(sp->id());
+    for (Fsa::State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
+        const Bliss::LemmaPronunciation* pronunciation = parent_.alphabet_->lemmaPronunciation(a->input());
+        if (!pronunciation)
+            continue;
+        const Speech::TimeframeIndex endTime =
                 wordBoundaries_->time(fsa_->getState(a->target())->id());
-            Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
+        Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
                 *pronunciation, wordBoundaries_->transit(sp->id()).final,
                 wordBoundaries_->transit(fsa_->getState(a->target())->id()).initial);
-            const Speech::Alignment *alignment =
+        const Speech::Alignment* alignment =
                 parent_.alignmentGenerator_->getAlignment(coarticulatedPronunciation, startTime, endTime);
-            for (std::vector<Speech::AlignmentItem>::const_iterator al = alignment->begin(); al != alignment->end(); ++ al) {
-                parent_.stateIds_.grow(al->time, States());
-                States &stateIds = parent_.stateIds_[al->time];
-                if (stateIds.find(parent_.label(al->emission)) == stateIds.end()) {
-                    stateIds[parent_.label(al->emission)] = f32(a->weight());
-                } else {
-                    stateIds[parent_.label(al->emission)] += f32(a->weight());
-                }
+        for (std::vector<Speech::AlignmentItem>::const_iterator al = alignment->begin(); al != alignment->end(); ++al) {
+            parent_.stateIds_.grow(al->time, States());
+            States& stateIds = parent_.stateIds_[al->time];
+            if (stateIds.find(parent_.label(al->emission)) == stateIds.end()) {
+                stateIds[parent_.label(al->emission)] = f32(a->weight());
+            }
+            else {
+                stateIds[parent_.label(al->emission)] += f32(a->weight());
             }
         }
     }
+}
 
-    void SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::finish()
-    {
-        for (Speech::TimeframeIndex t = 0; t < parent_.stateIds_.size(); ++ t) {
-            States &stateIds = parent_.stateIds_[t];
-            f64 sum = 0;
-            for (States::iterator it = stateIds.begin(); it != stateIds.end(); ++ it) {
-                sum += it->second;
-            }
-            for (States::iterator it = stateIds.begin(); it != stateIds.end(); ++ it) {
-                it->second = sum;
-            }
-            parent_.smoothing_.updateStatistics(sum);
+void SmoothedFrameStateAccuracyAutomaton::LatticeToActiveStates::finish() {
+    for (Speech::TimeframeIndex t = 0; t < parent_.stateIds_.size(); ++t) {
+        States& stateIds = parent_.stateIds_[t];
+        f64     sum      = 0;
+        for (States::iterator it = stateIds.begin(); it != stateIds.end(); ++it) {
+            sum += it->second;
         }
+        for (States::iterator it = stateIds.begin(); it != stateIds.end(); ++it) {
+            it->second = sum;
+        }
+        parent_.smoothing_.updateStatistics(sum);
     }
+}
 
-    SmoothedFrameStateAccuracyAutomaton::SmoothedFrameStateAccuracyAutomaton(
-        ConstWordLatticeRef lattice,
-        ConstWordLatticeRef correct,
-        Speech::AlignmentGeneratorRef alignmentGenerator,
-        SmoothingFunction &smoothing)
-        :
-        ModifyWordLattice(lattice),
-        alphabet_(required_cast(const Bliss::LemmaPronunciationAlphabet*,
-                                lattice->part(0)->getInputAlphabet().get())),
-        alignmentGenerator_(alignmentGenerator),
-        smoothing_(smoothing)
-   {
-        LatticeToActiveStates s(correct, *this);
-        s.dfs();
-    }
+SmoothedFrameStateAccuracyAutomaton::SmoothedFrameStateAccuracyAutomaton(ConstWordLatticeRef           lattice,
+                                                                         ConstWordLatticeRef           correct,
+                                                                         Speech::AlignmentGeneratorRef alignmentGenerator,
+                                                                         SmoothingFunction&            smoothing)
+        : ModifyWordLattice(lattice),
+          alphabet_(required_cast(const Bliss::LemmaPronunciationAlphabet*,
+                                  lattice->part(0)->getInputAlphabet().get())),
+          alignmentGenerator_(alignmentGenerator),
+          smoothing_(smoothing) {
+    LatticeToActiveStates s(correct, *this);
+    s.dfs();
+}
 
-    void SmoothedFrameStateAccuracyAutomaton::modifyState(Fsa::State *sp) const
-    {
-        const Speech::TimeframeIndex startTime = wordBoundaries_->time(sp->id());
-        for (Fsa::State::iterator a = sp->begin(); a != sp->end(); ++ a) {
-            const Bliss::LemmaPronunciation *pronunciation = alphabet_->lemmaPronunciation(a->input());
-            f32 weight = 0;
-            if (pronunciation) {
-                const Speech::TimeframeIndex endTime =
+void SmoothedFrameStateAccuracyAutomaton::modifyState(Fsa::State* sp) const {
+    const Speech::TimeframeIndex startTime = wordBoundaries_->time(sp->id());
+    for (Fsa::State::iterator a = sp->begin(); a != sp->end(); ++a) {
+        const Bliss::LemmaPronunciation* pronunciation = alphabet_->lemmaPronunciation(a->input());
+        f32                              weight        = 0;
+        if (pronunciation) {
+            const Speech::TimeframeIndex endTime =
                     wordBoundaries_->time(fsa_->getState(a->target())->id());
-                Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
+            Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
                     *pronunciation, wordBoundaries_->transit(sp->id()).final,
                     wordBoundaries_->transit(fsa_->getState(a->target())->id()).initial);
-                const Speech::Alignment *alignment =
+            const Speech::Alignment* alignment =
                     alignmentGenerator_->getAlignment(coarticulatedPronunciation, startTime, endTime);
-                for (std::vector<Speech::AlignmentItem>::const_iterator al = alignment->begin(); al != alignment->end(); ++ al) {
-                    weight += accuracy(stateIds_[al->time], label(al->emission));
-                }
+            for (std::vector<Speech::AlignmentItem>::const_iterator al = alignment->begin(); al != alignment->end(); ++al) {
+                weight += accuracy(stateIds_[al->time], label(al->emission));
             }
-            a->weight_ = Fsa::Weight(weight);
         }
+        a->weight_ = Fsa::Weight(weight);
     }
+}
 
-    f32 SmoothedFrameStateAccuracyAutomaton::accuracy(const States &refs, const Fsa::LabelId &h) const
-    {
-        States::const_iterator it = refs.find(h);
-        return it != refs.end() ? smoothing_.dfx(it->second) : 0;
-    }
+f32 SmoothedFrameStateAccuracyAutomaton::accuracy(const States& refs, const Fsa::LabelId& h) const {
+    States::const_iterator it = refs.find(h);
+    return it != refs.end() ? smoothing_.dfx(it->second) : 0;
+}
 
-    ConstWordLatticeRef getSmoothedFrameStateAccuracy(
-        ConstWordLatticeRef lattice,
-        ConstWordLatticeRef correct,
-        Speech::AlignmentGeneratorRef alignmentGenerator,
-        SmoothingFunction &smoothing)
-    {
-        Core::Ref<SmoothedFrameStateAccuracyAutomaton> a(
+ConstWordLatticeRef getSmoothedFrameStateAccuracy(ConstWordLatticeRef           lattice,
+                                                  ConstWordLatticeRef           correct,
+                                                  Speech::AlignmentGeneratorRef alignmentGenerator,
+                                                  SmoothingFunction&            smoothing) {
+    Core::Ref<SmoothedFrameStateAccuracyAutomaton> a(
             new SmoothedFrameStateAccuracyAutomaton(lattice, correct, alignmentGenerator, smoothing));
-        Core::Ref<WordLattice> result(new WordLattice);
-        result->setWordBoundaries(a->wordBoundaries());
-        result->setFsa(Fsa::cache(a), WordLattice::accuracyFsa);
-        return result;
-    }
+    Core::Ref<WordLattice> result(new WordLattice);
+    result->setWordBoundaries(a->wordBoundaries());
+    result->setFsa(Fsa::cache(a), WordLattice::accuracyFsa);
+    return result;
+}
 
-} // namespace Lattice
+}  // namespace Lattice

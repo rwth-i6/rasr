@@ -15,140 +15,178 @@
 #ifndef _LATTICE_WEIGHTED_ACCUMULATOR_HH
 #define _LATTICE_WEIGHTED_ACCUMULATOR_HH
 
-#include "Accumulator.hh"
+#include <Me/FeaturesAccumulator.hh>
 #include <Mm/StatePosteriorFeatureScorer.hh>
-#include <Speech/Confidences.hh>
+#include <Sparse/Feature.hh>
+#include <Sparse/SpeechFeature.hh>
 #include <Speech/AuxiliarySegmentwiseTrainer.hh>
+#include <Speech/Confidences.hh>
+#include "Accumulator.hh"
+#include "MgramFeatures.hh"
+#include "TransitionFeatures.hh"
 
 namespace Mm {
-    class AssigningFeatureScorer;
+class AssigningFeatureScorer;
 }
 
 namespace Lattice {
 
-    /**
-     * WeightedCachedAcousticAccumulator
-     */
-    template <class Trainer>
-    class WeightedCachedAcousticAccumulator : public CachedAcousticAccumulator<Trainer>
-    {
-        typedef CachedAcousticAccumulator<Trainer> Precursor;
-        typedef Speech::Confidences Confidences;
-    private:
-        const Confidences &confidences_;
-    private:
-        virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight);
-    public:
-        WeightedCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
-                                  typename Precursor::AlignmentGeneratorRef,
-                                  Trainer *, Mm::Weight, Core::Ref<const Am::AcousticModel>,
-                                  const Confidences &);
-        virtual ~WeightedCachedAcousticAccumulator() {}
-    };
+/**
+ * WeightedCachedAcousticAccumulator
+ */
+template<class Trainer>
+class WeightedCachedAcousticAccumulator : public CachedAcousticAccumulator<Trainer> {
+    typedef CachedAcousticAccumulator<Trainer> Precursor;
+    typedef Speech::Confidences                Confidences;
 
+private:
+    const Confidences& confidences_;
 
+private:
+    virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight);
 
-    /**
-     * CachedAcousticSparseAccumulator.
-     * adds accumulate() for sparse features to the interface.
-     */
-    template<class Trainer>
-    class CachedAcousticSparseAccumulator : public CachedAcousticAccumulator<Trainer>
-    {
-        typedef CachedAcousticAccumulator<Trainer> Precursor;
-    protected:
-        virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {
-            defect();
-        }
-    public:
-        CachedAcousticSparseAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
-                                        typename Precursor::AlignmentGeneratorRef,
-                                        Trainer *, Mm::Weight, Core::Ref<const Am::AcousticModel>);
-        virtual ~CachedAcousticSparseAccumulator() {}
-        virtual void finish();
-    };
+public:
+    WeightedCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
+                                      typename Precursor::AlignmentGeneratorRef,
+                                      Trainer*, Mm::Weight, Core::Ref<const Am::AcousticModel>,
+                                      const Confidences&);
+    virtual ~WeightedCachedAcousticAccumulator() {}
+};
 
-    /**
-     * DensityCachedAcousticAccumulator
-     */
-    template <class Trainer>
-    class DensityCachedAcousticAccumulator : public CachedAcousticSparseAccumulator<Trainer>
-    {
-        typedef CachedAcousticSparseAccumulator<Trainer> Precursor;
-    protected:
-        typedef const Mm::StatePosteriorFeatureScorer::CachedStatePosteriorContextScorer PosteriorScorer;
-        typedef Mm::StatePosteriorFeatureScorer::Filter Filter;
-        typedef Mm::StatePosteriorFeatureScorer::ConstFilterRef ConstFilterRef;
-    public:
-        typedef Mm::StatePosteriorFeatureScorer::PosteriorsAndDensities PosteriorsAndDensities;
-    protected:
-        Core::Ref<Mm::StatePosteriorFeatureScorer> posteriorFeatureScorer_;
-    protected:
-        virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {}
-        virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, const PosteriorsAndDensities &p) {}
-        virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
-    public:
-        DensityCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
-                                 typename Precursor::AlignmentGeneratorRef,
-                                 Trainer *, Mm::Weight, Core::Ref<const Am::AcousticModel>);
-        virtual ~DensityCachedAcousticAccumulator() {}
-        virtual void finish();
-        void setFeatureScorer(Core::Ref<Mm::StatePosteriorFeatureScorer> fs) {
-            posteriorFeatureScorer_ = fs;
-        }
-    };
+/**
+ * CachedAcousticSparseAccumulator.
+ * adds accumulate() for sparse features to the interface.
+ */
+template<class Trainer>
+class CachedAcousticSparseAccumulator : public CachedAcousticAccumulator<Trainer> {
+    typedef CachedAcousticAccumulator<Trainer> Precursor;
 
+protected:
+    virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {
+        defect();
+    }
 
-    /**
-     * TdpAccumulator
-     */
-    template <class Trainer>
-    class TdpAccumulator : public AcousticAccumulator<Trainer>
-    {
-        typedef AcousticAccumulator<Trainer> Precursor;
-    private:
-        Core::Ref<TransitionFeatures> transitions_;
-    protected:
-        virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight) {
-            defect();
-        }
-        virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
-    public:
-        TdpAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
-                       typename Precursor::AlignmentGeneratorRef,
-                       Trainer *, Mm::Weight,
-                       Core::Ref<const Am::AcousticModel>);
-        virtual ~TdpAccumulator() {}
-        virtual void discoverState(Fsa::ConstStateRef sp);
-        void setTransitionFeatures(Core::Ref<TransitionFeatures> transitions) {
-            transitions_ = transitions;
-        }
-    };
+public:
+    CachedAcousticSparseAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
+                                    typename Precursor::AlignmentGeneratorRef,
+                                    Trainer*, Mm::Weight, Core::Ref<const Am::AcousticModel>);
+    virtual ~CachedAcousticSparseAccumulator() {}
+    virtual void finish();
+};
 
+/**
+ * DensityCachedAcousticAccumulator
+ */
+template<class Trainer>
+class DensityCachedAcousticAccumulator : public CachedAcousticSparseAccumulator<Trainer> {
+    typedef CachedAcousticSparseAccumulator<Trainer> Precursor;
 
-    /**
-     * WeightedDensityCachedAcousticAccumulator
-     */
-    template <class Trainer>
-    class WeightedDensityCachedAcousticAccumulator : public DensityCachedAcousticAccumulator<Trainer>
-    {
-        typedef DensityCachedAcousticAccumulator<Trainer> Precursor;
-        typedef Speech::Confidences Confidences;
-    private:
-        const Confidences &confidences_;
-    protected:
-        virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight);
-    public:
-        WeightedDensityCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
-                                         typename Precursor::AlignmentGeneratorRef,
-                                         Trainer *, Mm::Weight, Core::Ref<const Am::AcousticModel>,
-                                         const Confidences &confidences);
-        virtual ~WeightedDensityCachedAcousticAccumulator() {}
-    };
+protected:
+    typedef const Mm::StatePosteriorFeatureScorer::CachedStatePosteriorContextScorer PosteriorScorer;
+    typedef Mm::StatePosteriorFeatureScorer::Filter                                  Filter;
+    typedef Mm::StatePosteriorFeatureScorer::ConstFilterRef                          ConstFilterRef;
 
+public:
+    typedef Mm::StatePosteriorFeatureScorer::PosteriorsAndDensities PosteriorsAndDensities;
+
+protected:
+    Core::Ref<Mm::StatePosteriorFeatureScorer> posteriorFeatureScorer_;
+
+protected:
+    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {}
+    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, const PosteriorsAndDensities& p) {}
+    virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
+
+public:
+    DensityCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
+                                     typename Precursor::AlignmentGeneratorRef,
+                                     Trainer*, Mm::Weight, Core::Ref<const Am::AcousticModel>);
+    virtual ~DensityCachedAcousticAccumulator() {}
+    virtual void finish();
+    void         setFeatureScorer(Core::Ref<Mm::StatePosteriorFeatureScorer> fs) {
+        posteriorFeatureScorer_ = fs;
+    }
+};
+
+/**
+ * TdpAccumulator
+ */
+template<class Trainer>
+class TdpAccumulator : public AcousticAccumulator<Trainer> {
+    typedef AcousticAccumulator<Trainer> Precursor;
+
+private:
+    Core::Ref<TransitionFeatures> transitions_;
+
+protected:
+    virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight) {
+        defect();
+    }
+    virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
+
+public:
+    TdpAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
+                   typename Precursor::AlignmentGeneratorRef,
+                   Trainer*, Mm::Weight,
+                   Core::Ref<const Am::AcousticModel>);
+    virtual ~TdpAccumulator() {}
+    virtual void discoverState(Fsa::ConstStateRef sp);
+    void         setTransitionFeatures(Core::Ref<TransitionFeatures> transitions) {
+        transitions_ = transitions;
+    }
+};
+
+/**
+ * LmAccumulator
+ */
+template<class Trainer>
+class LmAccumulator : public BaseAccumulator<Trainer> {
+    typedef BaseAccumulator<Trainer>  Precursor;
+    typedef Core::Vector<Lm::History> Histories;
+
+private:
+    Core::Ref<MgramFeatures>                 mgrams_;
+    Core::Ref<const Lm::LanguageModel>       languageModel_;
+    const Bliss::LemmaPronunciationAlphabet* alphabet_;
+    Histories                                histories_;
+
+protected:
+    virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
+
+public:
+    LmAccumulator(Trainer*, Mm::Weight, Core::Ref<const Lm::LanguageModel>);
+    virtual ~LmAccumulator() {}
+    virtual void discoverState(Fsa::ConstStateRef sp);
+    void         setMgramFeatures(Core::Ref<MgramFeatures> mgrams) {
+        mgrams_ = mgrams;
+    }
+    virtual void setFsa(Fsa::ConstAutomatonRef);
+};
+
+/**
+ * WeightedDensityCachedAcousticAccumulator
+ */
+template<class Trainer>
+class WeightedDensityCachedAcousticAccumulator : public DensityCachedAcousticAccumulator<Trainer> {
+    typedef DensityCachedAcousticAccumulator<Trainer> Precursor;
+    typedef Speech::Confidences                       Confidences;
+
+private:
+    const Confidences& confidences_;
+
+protected:
+    virtual void process(typename Precursor::TimeframeIndex, Mm::MixtureIndex, Mm::Weight);
+
+public:
+    WeightedDensityCachedAcousticAccumulator(typename Precursor::ConstSegmentwiseFeaturesRef,
+                                             typename Precursor::AlignmentGeneratorRef,
+                                             Trainer*, Mm::Weight, Core::Ref<const Am::AcousticModel>,
+                                             const Confidences& confidences);
+    virtual ~WeightedDensityCachedAcousticAccumulator() {}
+};
 
 #include "WeightedAccumulator.tcc"
 
-} // namespace Lattice
+}  // namespace Lattice
 
 #endif

@@ -15,24 +15,27 @@
 #include <iostream>
 #include <string>
 #include "Lattice.hh"
-namespace Bliss { class Lexicon; }
+namespace Bliss {
+class Lexicon;
+}
 
 namespace Lattice {
 
-    /**
-     * Write word lattices in HTK format.
-     */
+/**
+ * Write word lattices in HTK format.
+ */
 
-    class HtkWriter {
-    private:
-        Core::Ref<const Bliss::Lexicon> lexicon_;
-        Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpa_;
-    public:
-        HtkWriter(Core::Ref<const Bliss::Lexicon>);
-        void write(
-            const std::string &id,
+class HtkWriter {
+private:
+    Core::Ref<const Bliss::Lexicon>                    lexicon_;
+    Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpa_;
+
+public:
+    HtkWriter(Core::Ref<const Bliss::Lexicon>);
+    void write(
+            const std::string& id,
             ConstWordLatticeRef,
             std::ostream&) const;
-    };
+};
 
-}
+}  // namespace Lattice

@@ -13,24 +13,21 @@
  *  limitations under the License.
  */
 #include "HtkWriter.hh"
-#include "Basic.hh"
 #include <Fsa/Basic.hh>
+#include "Basic.hh"
 
 using namespace Lattice;
 
-
-HtkWriter::HtkWriter(Core::Ref<const Bliss::Lexicon> lexicon) :
-    lexicon_(lexicon)
-{
+HtkWriter::HtkWriter(Core::Ref<const Bliss::Lexicon> lexicon)
+        : lexicon_(lexicon) {
     lpa_ = lexicon_->lemmaPronunciationAlphabet();
 }
 
 void HtkWriter::write(
-    const std::string &id,
-    ConstWordLatticeRef lattice,
-    std::ostream &os) const
-{
-    lattice = normalize(lattice);
+        const std::string&  id,
+        ConstWordLatticeRef lattice,
+        std::ostream&       os) const {
+    lattice                         = normalize(lattice);
     Fsa::ConstAutomatonRef acoustic = lattice->part(WordLattice::acousticFsa);
     Fsa::ConstAutomatonRef lm       = lattice->part(WordLattice::lmFsa);
     require(acoustic->getInputAlphabet() == lpa_);
@@ -44,7 +41,8 @@ void HtkWriter::write(
 
     for (Fsa::StateId si = 0; si <= counts.maxStateId_; ++si) {
         Fsa::ConstStateRef state = acoustic->getState(si);
-        if (!state) continue;
+        if (!state)
+            continue;
         os << "I=" << state->id() << '\t'
            << "t=" << lattice->time(state->id())
            << std::endl;
@@ -53,21 +51,24 @@ void HtkWriter::write(
     u32 linkId = 0;
     for (Fsa::StateId si = 0; si <= counts.maxStateId_; ++si) {
         Fsa::ConstStateRef state = acoustic->getState(si);
-        if (!state) continue;
+        if (!state)
+            continue;
         for (Fsa::State::const_iterator arc = state->begin(); arc != state->end(); ++arc) {
             // word and pronunciation variant
-            std::string word;
-            u32 variantNumber = 0;
-            const Bliss::LemmaPronunciation *lemmaPronunciation = lpa_->lemmaPronunciation(arc->input());
+            std::string                      word;
+            u32                              variantNumber      = 0;
+            const Bliss::LemmaPronunciation* lemmaPronunciation = lpa_->lemmaPronunciation(arc->input());
             if (lemmaPronunciation) {
-                const Bliss::Lemma *lemma = lemmaPronunciation->lemma();
-                word = std::string(lemma->name());
+                const Bliss::Lemma* lemma = lemmaPronunciation->lemma();
+                word                      = std::string(lemma->name());
                 Bliss::Lemma::PronunciationIterator lpi, lpi_end;
                 for (Core::tie(lpi, lpi_end) = lemma->pronunciations(); lpi != lpi_end; ++lpi) {
-                    if (lpi == lemmaPronunciation) break;
+                    if (lpi == lemmaPronunciation)
+                        break;
                     ++variantNumber;
                 }
-            } else {
+            }
+            else {
                 word = "@";
             }
             // acoustic likelihood
@@ -79,11 +80,10 @@ void HtkWriter::write(
                << "E=" << arc->target() << '\t'
                << "W=" << '"' << word << '"' << '\t'
                << "v=" << variantNumber << '\t'
-               << "a=" << - acousticScore << '\t'
-               << "l=" << - lmScore
+               << "a=" << -acousticScore << '\t'
+               << "l=" << -lmScore
                << std::endl;
         }
-
     }
     verify(linkId == counts.nArcs_);
 }

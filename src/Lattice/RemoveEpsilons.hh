@@ -19,9 +19,9 @@
 
 namespace Lattice {
 
-    ConstWordLatticeRef removeEpsilons(ConstWordLatticeRef);
-    ConstWordLatticeRef removeFailures(ConstWordLatticeRef);
+ConstWordLatticeRef removeEpsilons(ConstWordLatticeRef);
+ConstWordLatticeRef removeFailures(ConstWordLatticeRef);
 
-} //namespace Lattice
+}  //namespace Lattice
 
-#endif //_LATTICE_REMOVE_EPSILONS_HH
+#endif  //_LATTICE_REMOVE_EPSILONS_HH

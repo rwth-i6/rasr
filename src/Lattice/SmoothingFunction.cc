@@ -16,13 +16,11 @@
 
 using namespace Lattice;
 
-SmoothingFunction::SmoothingFunction() :
-    sumF_(0)
-{}
+SmoothingFunction::SmoothingFunction()
+        : sumF_(0) {}
 
 void SmoothingFunction::dumpStatistics(
-    Core::XmlWriter &os) const
-{
+        Core::XmlWriter& os) const {
     os << Core::XmlFull("objective-function", sumF_);
 }
 
@@ -31,17 +29,15 @@ void SmoothingFunction::dumpStatistics(
  * Used for frame-based mmi, includes margin parameter.
  */
 const Core::ParameterFloat LogSmoothingFunction::paramM(
-    "m",
-    "margin in distance",
-    0);
+        "m",
+        "margin in distance",
+        0);
 
 LogSmoothingFunction::LogSmoothingFunction(
-    const Core::Configuration &config) :
-    xM_(exp(paramM(config)))
-{}
+        const Core::Configuration& config)
+        : xM_(exp(paramM(config))) {}
 
-void LogSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
-{
+void LogSmoothingFunction::dumpStatistics(Core::XmlWriter& os) const {
     os << Core::XmlOpen("log-smoothing-function");
     os << Core::XmlOpen("statistics");
     Precursor::dumpStatistics(os);
@@ -54,24 +50,22 @@ void LogSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
  * Used for frame-based mce, includes margin parameter.
  */
 const Core::ParameterFloat SigmoidSmoothingFunction::paramBeta(
-    "beta",
-    "smoothing parameter",
-    1,
-    0);
+        "beta",
+        "smoothing parameter",
+        1,
+        0);
 
 const Core::ParameterFloat SigmoidSmoothingFunction::paramM(
-    "m",
-    "margin in distance",
-    0);
+        "m",
+        "margin in distance",
+        0);
 
 SigmoidSmoothingFunction::SigmoidSmoothingFunction(
-    const Core::Configuration &config) :
-    beta_(paramBeta(config)),
-    xM_(exp(paramM(config)))
-{}
+        const Core::Configuration& config)
+        : beta_(paramBeta(config)),
+          xM_(exp(paramM(config))) {}
 
-void SigmoidSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
-{
+void SigmoidSmoothingFunction::dumpStatistics(Core::XmlWriter& os) const {
     os << Core::XmlOpen("sigmoid-smoothing-function");
     os << Core::XmlOpen("statistics");
     Precursor::dumpStatistics(os);
@@ -89,30 +83,28 @@ void SigmoidSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
  * models the smooth transition from 0 to 1.
  */
 const Core::ParameterFloat UnsupervizedSmoothingFunction::paramA(
-    "a",
-    "lower threshold in distance",
-    0);
+        "a",
+        "lower threshold in distance",
+        0);
 
 const Core::ParameterFloat UnsupervizedSmoothingFunction::paramB(
-    "b",
-    "upper threshold in distance",
-    10);
+        "b",
+        "upper threshold in distance",
+        10);
 
-UnsupervizedSmoothingFunction::UnsupervizedSmoothingFunction(
-    const Core::Configuration &config) :
-    dA_(paramA(config)),
-    dB_(paramB(config)),
-    dS_((M_PI / (dB_ - dA_))),
-    xBn_(exp(-dB_) / (1 + exp(-dB_))),
-    xAn_(exp(-dA_) / (1 + exp(-dA_))),
-    xAp_(exp(dA_) / (1 + exp(dA_))),
-    xBp_(exp(dB_) / (1 + exp(dB_))),
-    nInfB_(0),
-    nBA_(0),
-    nAA_(0),
-    nAB_(0),
-    nBInf_(0)
-{
+UnsupervizedSmoothingFunction::UnsupervizedSmoothingFunction(const Core::Configuration& config)
+        : dA_(paramA(config)),
+          dB_(paramB(config)),
+          dS_((M_PI / (dB_ - dA_))),
+          xBn_(exp(-dB_) / (1 + exp(-dB_))),
+          xAn_(exp(-dA_) / (1 + exp(-dA_))),
+          xAp_(exp(dA_) / (1 + exp(dA_))),
+          xBp_(exp(dB_) / (1 + exp(dB_))),
+          nInfB_(0),
+          nBA_(0),
+          nAA_(0),
+          nAB_(0),
+          nBInf_(0) {
     require(dA_ < dB_);
     require(xBn_ > 0);
     require(xBn_ < xAn_);
@@ -122,51 +114,56 @@ UnsupervizedSmoothingFunction::UnsupervizedSmoothingFunction(
 }
 
 // f(x)
-f64 UnsupervizedSmoothingFunction::f(f64 x) const
-{
+f64 UnsupervizedSmoothingFunction::f(f64 x) const {
     if ((xAn_ < x) and (x < xAp_)) {
         return 0;
-    } else if ((x < xBn_) or (xBp_ < x)) {
+    }
+    else if ((x < xBn_) or (xBp_ < x)) {
         return 1;
-    } else {
+    }
+    else {
         const f64 d = std::log(x / (1 - x));
         return (1 - cos((Core::abs(d) - dA_) * dS_)) / 2;
     }
 }
 
 // f'(x)*x
-f64 UnsupervizedSmoothingFunction::dfx(f64 x) const
-{
+f64 UnsupervizedSmoothingFunction::dfx(f64 x) const {
     if ((xAn_ < x) and (x < xAp_)) {
         return 0;
-    } else if ((x < xBn_) or (xBp_ < x)) {
+    }
+    else if ((x < xBn_) or (xBp_ < x)) {
         return 0;
-    } else {
+    }
+    else {
         const f64 d = std::log(x / (1 - x));
         return (dS_ / 2) * sin((Core::abs(d) - dA_) * dS_) / (1 - x);
     }
 }
 
-void UnsupervizedSmoothingFunction::updateStatistics(f64 x)
-{
+void UnsupervizedSmoothingFunction::updateStatistics(f64 x) {
     Precursor::updateStatistics(x);
     if ((xAn_ < x) and (x < xAp_)) {
-        ++ nAA_;
-    } else if (x < xBn_) {
-        ++ nInfB_;
-    } else if(xBp_ < x) {
-        ++ nBInf_;
-    } else if ((xBn_ < x) and (x < xAn_)) {
-        ++ nBA_;
-    } else if ((xAp_ < x) and (x < xBp_)) {
-        ++ nAB_;
-    } else {
+        ++nAA_;
+    }
+    else if (x < xBn_) {
+        ++nInfB_;
+    }
+    else if (xBp_ < x) {
+        ++nBInf_;
+    }
+    else if ((xBn_ < x) and (x < xAn_)) {
+        ++nBA_;
+    }
+    else if ((xAp_ < x) and (x < xBp_)) {
+        ++nAB_;
+    }
+    else {
         defect();
     }
 }
 
-void UnsupervizedSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
-{
+void UnsupervizedSmoothingFunction::dumpStatistics(Core::XmlWriter& os) const {
     os << Core::XmlOpen("unsupervized-smoothing-function");
     os << Core::XmlOpen("statistics");
     os << Core::XmlFull("n-inf-b", nInfB_);
@@ -183,35 +180,34 @@ void UnsupervizedSmoothingFunction::dumpStatistics(Core::XmlWriter &os) const
  *  factory for smoothing function
  */
 Core::Choice SmoothingFunction::choiceType(
-    "identity", identity,
-    "log", log,
-    "sigmoid", sigmoid,
-    "unsupervized", unsupervized,
-    Core::Choice::endMark());
+        "identity", identity,
+        "log", log,
+        "sigmoid", sigmoid,
+        "unsupervized", unsupervized,
+        Core::Choice::endMark());
 
 Core::ParameterChoice SmoothingFunction::paramType(
-    "type",
-    &choiceType,
-    "type of smoothing function f in discriminative training",
-    identity);
+        "type",
+        &choiceType,
+        "type of smoothing function f in discriminative training",
+        identity);
 
 SmoothingFunction* SmoothingFunction::createSmoothingFunction(
-    const Core::Configuration &config)
-{
+        const Core::Configuration& config) {
     switch (paramType(config)) {
-    case SmoothingFunction::identity:
-        return new SmoothingFunction();
-        break;
-    case SmoothingFunction::log:
-        return new LogSmoothingFunction(config);
-        break;
-    case SmoothingFunction::sigmoid:
-        return new SigmoidSmoothingFunction(config);
-        break;
-    case SmoothingFunction::unsupervized:
-        return new UnsupervizedSmoothingFunction(config);
-        break;
-    default:
-        return 0;
+        case SmoothingFunction::identity:
+            return new SmoothingFunction();
+            break;
+        case SmoothingFunction::log:
+            return new LogSmoothingFunction(config);
+            break;
+        case SmoothingFunction::sigmoid:
+            return new SigmoidSmoothingFunction(config);
+            break;
+        case SmoothingFunction::unsupervized:
+            return new UnsupervizedSmoothingFunction(config);
+            break;
+        default:
+            return 0;
     }
 }

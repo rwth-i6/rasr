@@ -17,11 +17,9 @@
 
 #include <Core/Hash.hh>
 
-
 namespace Lattice {
 
-    typedef std::unordered_set<Fsa::LabelId> ShortPauses;
-
+typedef std::unordered_set<Fsa::LabelId> ShortPauses;
 }
 
-#endif // _LATTICE_TYPES_HH
+#endif  // _LATTICE_TYPES_HH

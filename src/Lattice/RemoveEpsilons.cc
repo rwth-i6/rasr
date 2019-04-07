@@ -19,32 +19,28 @@
 
 namespace Lattice {
 
-    struct Remover
-    {
-        Remover() {}
-        Fsa::ConstAutomatonRef modify(Fsa::ConstAutomatonRef fsa) {
-            return Fsa::removeEpsilons(fsa);
-        }
-    };
-
-    ConstWordLatticeRef removeEpsilons(ConstWordLatticeRef l)
-    {
-        Remover r;
-        return apply(l, r);
+struct Remover {
+    Remover() {}
+    Fsa::ConstAutomatonRef modify(Fsa::ConstAutomatonRef fsa) {
+        return Fsa::removeEpsilons(fsa);
     }
+};
 
-    struct FailureRemover
-    {
-        FailureRemover() {}
-        Fsa::ConstAutomatonRef modify(Fsa::ConstAutomatonRef fsa) {
-                return Fsa::removeFailure4SpecialSymbols(fsa);
-        }
-    };
+ConstWordLatticeRef removeEpsilons(ConstWordLatticeRef l) {
+    Remover r;
+    return apply(l, r);
+}
 
-    ConstWordLatticeRef removeFailures(ConstWordLatticeRef l)
-    {
-        FailureRemover r;
-        return apply(l, r);
+struct FailureRemover {
+    FailureRemover() {}
+    Fsa::ConstAutomatonRef modify(Fsa::ConstAutomatonRef fsa) {
+        return Fsa::removeFailure4SpecialSymbols(fsa);
     }
+};
 
-} //namespace Lattice
+ConstWordLatticeRef removeFailures(ConstWordLatticeRef l) {
+    FailureRemover r;
+    return apply(l, r);
+}
+
+}  //namespace Lattice

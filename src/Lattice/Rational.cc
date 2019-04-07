@@ -19,67 +19,66 @@
 
 namespace Lattice {
 
-    ConstWordLatticeRef transpose(ConstWordLatticeRef l, bool progress, WordBoundary final)
-    {
-        require(l->wordBoundaries());
-        WordLattice *result = 0;
-        for (size_t i = 0; i < l->nParts(); ++ i) {
-            Fsa::ConstAutomatonRef transposed = Fsa::transpose(l->part(i), progress);
-            if (!result) {
-                if (!final.valid()) {
-                    final = l->wordBoundaries()->getFinalWordBoundary();
-                }
-                Core::Ref<WordBoundaries> wordBoundaries(new WordBoundaries(*(l->wordBoundaries())));
-                wordBoundaries->set(transposed->initialStateId(), final);
-                result = new WordLattice();
-                result->setWordBoundaries(wordBoundaries);
+ConstWordLatticeRef transpose(ConstWordLatticeRef l, bool progress, WordBoundary final) {
+    require(l->wordBoundaries());
+    WordLattice* result = 0;
+    for (size_t i = 0; i < l->nParts(); ++i) {
+        Fsa::ConstAutomatonRef transposed = Fsa::transpose(l->part(i), progress);
+        if (!result) {
+            if (!final.valid()) {
+                final = l->wordBoundaries()->getFinalWordBoundary();
             }
-            result->setFsa(transposed, l->name(i));
+            Core::Ref<WordBoundaries> wordBoundaries(new WordBoundaries(*(l->wordBoundaries())));
+            wordBoundaries->set(transposed->initialStateId(), final);
+            result = new WordLattice();
+            result->setWordBoundaries(wordBoundaries);
         }
-        return ConstWordLatticeRef(result);
+        result->setFsa(transposed, l->name(i));
     }
+    return ConstWordLatticeRef(result);
+}
 
-    ConstWordLatticeRef unite(ConstWordLatticeRef l1, ConstWordLatticeRef l2)
-    {
-        Core::Vector<ConstWordLatticeRef> lattices(2);
-        lattices[0] = l1;
-        lattices[1] = l2;
-        return unite(lattices);
-    }
+ConstWordLatticeRef unite(ConstWordLatticeRef l1, ConstWordLatticeRef l2) {
+    Core::Vector<ConstWordLatticeRef> lattices(2);
+    lattices[0] = l1;
+    lattices[1] = l2;
+    return unite(lattices);
+}
 
-    ConstWordLatticeRef unite(const Core::Vector<ConstWordLatticeRef> &lattices)
-    {
-        if (lattices.size() > 0) {
-            bool hasWordBoundaries = true;
-            const u32 nParts = lattices.front()->nParts();
-            Core::Vector<Core::Ref<const WordBoundaries> > wordBoundaries(lattices.size());
-            Core::Vector<Fsa::ConstMappingRef> morphisms(lattices.size());
-            Core::Ref<WordLattice> result(new WordLattice());
-            for (size_t i = 0; i < nParts; ++ i) {
-                Core::Vector<Fsa::ConstAutomatonRef> tmp(lattices.size());
-                const std::string latticeName = lattices.front()->name(i);
-                for (u32 n = 0; n < lattices.size(); ++ n) {
-                    require(lattices[n]->name(i) == latticeName);
-                    tmp[n] = lattices[n]->part(i);
-                }
-                result->setFsa(Fsa::unite(tmp), latticeName);
-                for (u32 n = 0; n < lattices.size(); ++ n) {
-                    if (lattices[n]->wordBoundaries()) {
-                        wordBoundaries[n] = lattices[n]->wordBoundaries();
-                    } else {
-                        hasWordBoundaries = false;
-                    }
-                    morphisms[n] = Fsa::mapToSubAutomaton(result->part(latticeName), n);
-                }
+ConstWordLatticeRef unite(const Core::Vector<ConstWordLatticeRef>& lattices) {
+    if (lattices.size() > 0) {
+        bool                                          hasWordBoundaries = true;
+        const u32                                     nParts            = lattices.front()->nParts();
+        Core::Vector<Core::Ref<const WordBoundaries>> wordBoundaries(lattices.size());
+        Core::Vector<Fsa::ConstMappingRef>            morphisms(lattices.size());
+        Core::Ref<WordLattice>                        result(new WordLattice());
+        for (size_t i = 0; i < nParts; ++i) {
+            Core::Vector<Fsa::ConstAutomatonRef> tmp(lattices.size());
+            const std::string                    latticeName = lattices.front()->name(i);
+            for (u32 n = 0; n < lattices.size(); ++n) {
+                require(lattices[n]->name(i) == latticeName);
+                tmp[n] = lattices[n]->part(i);
             }
-            if (hasWordBoundaries) {
-                result->setWordBoundaries(Core::ref(new WordBoundaries()));
-                return resolveNaryMorphism(result, wordBoundaries, morphisms);
-            } else {
-                return result;
+            result->setFsa(Fsa::unite(tmp), latticeName);
+            for (u32 n = 0; n < lattices.size(); ++n) {
+                if (lattices[n]->wordBoundaries()) {
+                    wordBoundaries[n] = lattices[n]->wordBoundaries();
+                }
+                else {
+                    hasWordBoundaries = false;
+                }
+                morphisms[n] = Fsa::mapToSubAutomaton(result->part(latticeName), n);
             }
         }
-        return ConstWordLatticeRef();
+        if (hasWordBoundaries) {
+            result->setWordBoundaries(Core::ref(new WordBoundaries()));
+            return resolveNaryMorphism(result, wordBoundaries, morphisms);
+        }
+        else {
+            return result;
+        }
     }
+    return ConstWordLatticeRef();
+}
 
-} // namespace Lattice
+}  // namespace Lattice

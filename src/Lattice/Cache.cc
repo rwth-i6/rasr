@@ -17,14 +17,13 @@
 
 namespace Lattice {
 
-    ConstWordLatticeRef cache(ConstWordLatticeRef l, u32 maxAge)
-    {
-        Core::Ref<WordLattice> result(new WordLattice);
-        result->setWordBoundaries(l->wordBoundaries());
-        for (size_t i = 0; i < l->nParts(); ++ i) {
-            result->setFsa(Fsa::cache(l->part(i), maxAge), l->name(i));
-        }
-        return result;
+ConstWordLatticeRef cache(ConstWordLatticeRef l, u32 maxAge) {
+    Core::Ref<WordLattice> result(new WordLattice);
+    result->setWordBoundaries(l->wordBoundaries());
+    for (size_t i = 0; i < l->nParts(); ++i) {
+        result->setFsa(Fsa::cache(l->part(i), maxAge), l->name(i));
     }
+    return result;
+}
 
-} //namespace Lattice
+}  //namespace Lattice

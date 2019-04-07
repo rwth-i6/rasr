@@ -15,23 +15,23 @@
 #ifndef _LATTICE_ARITHMETIC_HH
 #define _LATTICE_ARITHMETIC_HH
 
-#include "Lattice.hh"
 #include <Core/Hash.hh>
+#include "Lattice.hh"
 
 namespace Lattice {
 
-    ConstWordLatticeRef multiply(ConstWordLatticeRef, Fsa::Weight);
-    ConstWordLatticeRef multiply(ConstWordLatticeRef, const std::vector<Fsa::Weight> &);
-    ConstWordLatticeRef extend(ConstWordLatticeRef, Fsa::Weight);
-    ConstWordLatticeRef extendFinal(ConstWordLatticeRef, Fsa::Weight);
-    ConstWordLatticeRef expm(ConstWordLatticeRef);
-    ConstWordLatticeRef linearCombination(ConstWordLatticeRef, const std::vector<Fsa::Weight> &);
-    ConstWordLatticeRef linearCombination(ConstWordLatticeRef, const Core::StringHashMap<std::vector<Fsa::Weight> > &);
-    ConstWordLatticeRef getParts(ConstWordLatticeRef, const std::vector<std::string> &parts);
-    ConstWordLatticeRef getPart(ConstWordLatticeRef, const std::string &part);
+ConstWordLatticeRef multiply(ConstWordLatticeRef, Fsa::Weight);
+ConstWordLatticeRef multiply(ConstWordLatticeRef, const std::vector<Fsa::Weight>&);
+ConstWordLatticeRef extend(ConstWordLatticeRef, Fsa::Weight);
+ConstWordLatticeRef extendFinal(ConstWordLatticeRef, Fsa::Weight);
+ConstWordLatticeRef expm(ConstWordLatticeRef);
+ConstWordLatticeRef linearCombination(ConstWordLatticeRef, const std::vector<Fsa::Weight>&);
+ConstWordLatticeRef linearCombination(ConstWordLatticeRef, const Core::StringHashMap<std::vector<Fsa::Weight>>&);
+ConstWordLatticeRef getParts(ConstWordLatticeRef, const std::vector<std::string>& parts);
+ConstWordLatticeRef getPart(ConstWordLatticeRef, const std::string& part);
 
-    ConstWordLatticeRef isGreaterEqual(ConstWordLatticeRef l, Fsa::Weight threshold);
+ConstWordLatticeRef isGreaterEqual(ConstWordLatticeRef l, Fsa::Weight threshold);
 
-} // namespace Lattice
+}  // namespace Lattice
 
-#endif // _LATTICE_ARITHMETIC_H
+#endif  // _LATTICE_ARITHMETIC_H

@@ -20,36 +20,36 @@
 
 namespace Lattice {
 
-    /**
-     *  Calculate the summed timeframe errors.
-     *  @param total contains the total scores.
-     *  @param normalization: 1 = normalization on word level
-     *                        0 = normalization on timeframe level
-     */
-    ConstWordLatticeRef getSumTimeframeErrors(
+/**
+ *  Calculate the summed timeframe errors.
+ *  @param total contains the total scores.
+ *  @param normalization: 1 = normalization on word level
+ *                        0 = normalization on timeframe level
+ */
+ConstWordLatticeRef getSumTimeframeErrors(
         ConstWordLatticeRef total,
-        const ShortPauses &shortPauses,
-        bool useLemmata,
-        f32 normalization);
+        const ShortPauses&  shortPauses,
+        bool                useLemmata,
+        f32                 normalization);
 
-    /**
-     *  Calculate the maximum timeframe errors.
-     */
-    ConstWordLatticeRef getMaximumTimeframeErrors(
+/**
+ *  Calculate the maximum timeframe errors.
+ */
+ConstWordLatticeRef getMaximumTimeframeErrors(
         ConstWordLatticeRef total,
-        const ShortPauses &shortPauses,
-        bool useLemmata);
+        const ShortPauses&  shortPauses,
+        bool                useLemmata);
 
-    /**
-     *  Calcluate the word timeframe accuracy.
-     */
-    ConstWordLatticeRef getWordTimeframeAccuracy(
+/**
+ *  Calcluate the word timeframe accuracy.
+ */
+ConstWordLatticeRef getWordTimeframeAccuracy(
         ConstWordLatticeRef lattice,
         ConstWordLatticeRef correct,
-        const ShortPauses &shortPauses,
-        bool useLemmata,
-        f32 normalization);
+        const ShortPauses&  shortPauses,
+        bool                useLemmata,
+        f32                 normalization);
 
-}
+}  // namespace Lattice
 
-#endif // _LATTICE_TIMEFRAME_ERROR_HH
+#endif  // _LATTICE_TIMEFRAME_ERROR_HH

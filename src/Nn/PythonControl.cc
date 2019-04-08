@@ -1077,7 +1077,7 @@ public:
         Bliss::SpeechSegment* ss = dynamic_cast<Bliss::SpeechSegment*>(s);
         const char* orth = ss ? ss->orth().c_str() : NULL;
         const Bliss::Speaker* speaker = ss ? ss->speaker() : NULL;
-        const char* speaker_name = speaker ? speaker->fullName().c_str() : NULL;
+        const char* speaker_name = speaker ? speaker->name().c_str() : NULL;
 
         if(extractFeatures)
             _extractFeatures();

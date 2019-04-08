@@ -297,6 +297,50 @@ public:
     }
 };
 
+template<class T>
+class VectorMinimumFunction : public SimpleFunction<Vector<T>, T> {
+public:
+    void apply(Vector<T>& v, T value) {
+        std::transform(v.begin(), v.end(), v.begin(), [value](T a){ return std::min<T>(a, value); });
+    }
+    static std::string name() {
+        return Vector<T>::type()->name() + "-minimum";
+    }
+};
+
+template<class T>
+class MinimumFunction : public SimpleFunction<DataAdaptor<T>, T> {
+public:
+    void apply(DataAdaptor<T>& v, T value) {
+        v() = std::min(v(), value);
+    }
+    static std::string name() {
+        return DataAdaptor<T>::type()->name() + "-minimum";
+    }
+};
+
+template<class T>
+class VectorMaximumFunction : public SimpleFunction<Vector<T>, T> {
+public:
+    void apply(Vector<T>& v, T value) {
+        std::transform(v.begin(), v.end(), v.begin(), [value](T a){ return std::max<T>(a, value); });
+    }
+    static std::string name() {
+        return Vector<T>::type()->name() + "-maximum";
+    }
+};
+
+template<class T>
+class MaximumFunction : public SimpleFunction<DataAdaptor<T>, T> {
+public:
+    void apply(DataAdaptor<T>& v, T value) {
+        v() = std::max(v(), value);
+    }
+    static std::string name() {
+        return DataAdaptor<T>::type()->name() + "-maximum";
+    }
+};
+
 /**
  *  Calculates the differences of adjacent elements.
  *  First element is set to zero.

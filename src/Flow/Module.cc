@@ -97,6 +97,10 @@ Module_::Module_() {
     registry.registerFilter<SimpleFunctionNode<VectorQuantizationFunction<f32>>>();
     registry.registerFilter<SimpleFunctionNode<VectorAbsoluteValueFunction<f32>>>();
     registry.registerFilter<SimpleFunctionNode<AbsoluteValueFunction<f32>>>();
+    registry.registerFilter<SimpleFunctionNode<VectorMinimumFunction<f32>>>();
+    registry.registerFilter<SimpleFunctionNode<MinimumFunction<f32>>>();
+    registry.registerFilter<SimpleFunctionNode<VectorMaximumFunction<f32>>>();
+    registry.registerFilter<SimpleFunctionNode<MaximumFunction<f32>>>();
     registry.registerFilter<SimpleFunctionNode<AdjacentDifference<f32>>>();
     // these 4 are used in Flow-based neural network forwarding implementation
     registry.registerFilter<SimpleFunctionNode<VectorLinearFunction<f32>>>();

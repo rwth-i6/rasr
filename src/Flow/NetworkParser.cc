@@ -13,7 +13,6 @@
  *  limitations under the License.
  */
 #include "NetworkParser.hh"
-#include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
 #include <Modules.hh>
 #include <cstdlib>

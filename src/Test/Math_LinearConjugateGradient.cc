@@ -12,73 +12,72 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
 #include <Math/FastMatrix.hh>
 #include <Math/FastVector.hh>
 #include <Math/LinearConjugateGradient.hh>
+#include <Test/UnitTest.hh>
 
 template<typename T>
-class ExplicitConjugateGradient : public Math::LinearConjugateGradient<Math::FastVector<T>, T>
-{
+class ExplicitConjugateGradient : public Math::LinearConjugateGradient<Math::FastVector<T>, T> {
     typedef Math::LinearConjugateGradient<Math::FastVector<T>, T> Precursor;
+
 public:
     using Math::LinearConjugateGradient<Math::FastVector<T>, T>::initializeCg;
     using Math::LinearConjugateGradient<Math::FastVector<T>, T>::rhs_;
     using Math::LinearConjugateGradient<Math::FastVector<T>, T>::iterate_;
+
 protected:
     Math::FastMatrix<T> matrix_;
-public:
-    ExplicitConjugateGradient() :
-        Math::LinearConjugateGradient<Math::FastVector<T>, T>()
-        { }
 
-    virtual void allocate(const Math::FastVector<T> &vector){
+public:
+    ExplicitConjugateGradient()
+            : Math::LinearConjugateGradient<Math::FastVector<T>, T>() {}
+
+    virtual void allocate(const Math::FastVector<T>& vector) {
         Math::LinearConjugateGradient<Math::FastVector<T>, T>::allocate(vector);
     }
 
-    void setMatrix(Math::FastMatrix<T> &matrix){
+    void setMatrix(Math::FastMatrix<T>& matrix) {
         require(matrix.nRows() == matrix.nColumns());
         matrix_.swap(matrix);
     }
 
-    void setPreconditioner(Math::FastVector<T> &diagonalVector){
+    void setPreconditioner(Math::FastVector<T>& diagonalVector) {
         require(diagonalVector.size() == matrix_.nRows());
-        Math::DiagonalCgPreconditioner<Math::FastVector<T>, T> *preconditioner = new Math::DiagonalCgPreconditioner<Math::FastVector<T>, T>();
+        Math::DiagonalCgPreconditioner<Math::FastVector<T>, T>* preconditioner = new Math::DiagonalCgPreconditioner<Math::FastVector<T>, T>();
         preconditioner->swap(diagonalVector);
         Precursor::setPreconditioner(preconditioner);
     }
 
     // not efficient, since symmetry is not exploited, but ok for testing purposes
-    virtual void applyMatrix(const  Math::FastVector<T> &in, Math::FastVector<T> &out) {
+    virtual void applyMatrix(const Math::FastVector<T>& in, Math::FastVector<T>& out) {
         matrix_.multiply(in, out);
     }
 };
 
-
-class TestLinearConjugateGradient: public Test::ConfigurableFixture
-{
+class TestLinearConjugateGradient : public Test::ConfigurableFixture {
 public:
     void setUp();
     void tearDown();
+
 protected:
-    int dim_;
-    Math::FastMatrix<f64> matrix_;
-    Math::FastVector<f64> preconditioner_;
-    Math::FastVector<f64> initialization_;
-    Math::FastVector<f64> rhs_;
-    Math::FastVector<f64> solution_;
-    ExplicitConjugateGradient<f64> *solver_;
+    int                             dim_;
+    Math::FastMatrix<f64>           matrix_;
+    Math::FastVector<f64>           preconditioner_;
+    Math::FastVector<f64>           initialization_;
+    Math::FastVector<f64>           rhs_;
+    Math::FastVector<f64>           solution_;
+    ExplicitConjugateGradient<f64>* solver_;
 };
 
-void TestLinearConjugateGradient::setUp()
-{
+void TestLinearConjugateGradient::setUp() {
     setParameter("*.unbuffered", "true");
     dim_ = 2;
-    matrix_.resize(dim_,dim_);
-    matrix_.at(0,0) = 2.0;
-    matrix_.at(0,1) = 1.0;
-    matrix_.at(1,0) = 1.0;
-    matrix_.at(1,1) = 4.0;
+    matrix_.resize(dim_, dim_);
+    matrix_.at(0, 0) = 2.0;
+    matrix_.at(0, 1) = 1.0;
+    matrix_.at(1, 0) = 1.0;
+    matrix_.at(1, 1) = 4.0;
     preconditioner_.resize(dim_);
     preconditioner_.at(0) = 2.0;
     preconditioner_.at(1) = 4.0;
@@ -94,22 +93,22 @@ void TestLinearConjugateGradient::setUp()
     setParameter("*.channel", "/dev/null");
 }
 
-void TestLinearConjugateGradient::tearDown(){
+void TestLinearConjugateGradient::tearDown() {
     delete solver_;
 }
 
-TEST_F(Test, TestLinearConjugateGradient, solvefromzero){
-    solver_->configuration.maxIterations_ = 1000;
-    solver_->configuration.terminateBasedOnResidualNorm_ = true;
+TEST_F(Test, TestLinearConjugateGradient, solvefromzero) {
+    solver_->configuration.maxIterations_                            = 1000;
+    solver_->configuration.terminateBasedOnResidualNorm_             = true;
     solver_->configuration.terminateBasedOnAverageObjectiveFunction_ = false;
-    solver_->configuration.residualTolerance_ = 0.0;
-    solver_->configuration.verbosity_ = 0;
+    solver_->configuration.residualTolerance_                        = 0.0;
+    solver_->configuration.verbosity_                                = 0;
 
     solver_->allocate(rhs_);
     solver_->setMatrix(matrix_);
 
     Math::FastVector<f64> emptyinit;
-    u32 nIterations = 0;
+    u32                   nIterations = 0;
     solver_->solve(rhs_, emptyinit, solution_, nIterations);
 
     EXPECT_DOUBLE_EQ(solution_.at(0), 2.0, 0.000000001);
@@ -119,12 +118,12 @@ TEST_F(Test, TestLinearConjugateGradient, solvefromzero){
     EXPECT_DOUBLE_EQ(obj, -28.0, 0.000000001);
 }
 
-TEST_F(Test, TestLinearConjugateGradient, solvefromnonzero){
-    solver_->configuration.maxIterations_ = 1000;
-    solver_->configuration.terminateBasedOnResidualNorm_ = true;
+TEST_F(Test, TestLinearConjugateGradient, solvefromnonzero) {
+    solver_->configuration.maxIterations_                            = 1000;
+    solver_->configuration.terminateBasedOnResidualNorm_             = true;
     solver_->configuration.terminateBasedOnAverageObjectiveFunction_ = false;
-    solver_->configuration.residualTolerance_ = 0.0;
-    solver_->configuration.verbosity_ = 0;
+    solver_->configuration.residualTolerance_                        = 0.0;
+    solver_->configuration.verbosity_                                = 0;
 
     solver_->allocate(rhs_);
     solver_->setMatrix(matrix_);
@@ -138,13 +137,13 @@ TEST_F(Test, TestLinearConjugateGradient, solvefromnonzero){
     EXPECT_DOUBLE_EQ(obj, -28.0, 0.000000001);
 }
 
-TEST_F(Test, TestLinearConjugateGradient, objectiveFunction){
+TEST_F(Test, TestLinearConjugateGradient, objectiveFunction) {
     solver_->configuration.verbosity_ = 0;
 
     solver_->allocate(rhs_);
     solver_->setMatrix(matrix_);
 
-    solver_->rhs_ = &rhs_;
+    solver_->rhs_     = &rhs_;
     solver_->iterate_ = &solution_;
     solver_->initializeCg(initialization_);
     f64 obj = solver_->getCgObjectivefunction();
@@ -158,20 +157,20 @@ TEST_F(Test, TestLinearConjugateGradient, objectiveFunction){
     EXPECT_EQ(-5.0, obj);
 }
 
-TEST_F(Test, TestLinearConjugateGradient, PCGsolvefromzero){
-    solver_->configuration.maxIterations_ = 1000;
-    solver_->configuration.terminateBasedOnResidualNorm_ = true;
+TEST_F(Test, TestLinearConjugateGradient, PCGsolvefromzero) {
+    solver_->configuration.maxIterations_                            = 1000;
+    solver_->configuration.terminateBasedOnResidualNorm_             = true;
     solver_->configuration.terminateBasedOnAverageObjectiveFunction_ = false;
-    solver_->configuration.residualTolerance_ = 0.0;
-    solver_->configuration.verbosity_ = 0;
-    solver_->configuration.usePreconditioning_ = true;
+    solver_->configuration.residualTolerance_                        = 0.0;
+    solver_->configuration.verbosity_                                = 0;
+    solver_->configuration.usePreconditioning_                       = true;
 
     solver_->allocate(rhs_);
     solver_->setMatrix(matrix_);
     solver_->setPreconditioner(preconditioner_);
 
     Math::FastVector<f64> emptyinit;
-    u32 nIterations = 0;
+    u32                   nIterations = 0;
     solver_->solve(rhs_, emptyinit, solution_, nIterations);
     EXPECT_DOUBLE_EQ(solution_.at(0), 2.0, 0.000000001);
     EXPECT_DOUBLE_EQ(solution_.at(1), 3.0, 0.000000001);
@@ -180,20 +179,20 @@ TEST_F(Test, TestLinearConjugateGradient, PCGsolvefromzero){
     EXPECT_DOUBLE_EQ(obj, -28.0, 0.000000001);
 }
 
-TEST_F(Test, TestLinearConjugateGradient, PCGsolvefromnonzero){
-    solver_->configuration.maxIterations_ = 1000;
-    solver_->configuration.terminateBasedOnResidualNorm_ = true;
+TEST_F(Test, TestLinearConjugateGradient, PCGsolvefromnonzero) {
+    solver_->configuration.maxIterations_                            = 1000;
+    solver_->configuration.terminateBasedOnResidualNorm_             = true;
     solver_->configuration.terminateBasedOnAverageObjectiveFunction_ = false;
-    solver_->configuration.residualTolerance_ = 0.0;
-    solver_->configuration.verbosity_ = 0;
-    solver_->configuration.usePreconditioning_ = true;
+    solver_->configuration.residualTolerance_                        = 0.0;
+    solver_->configuration.verbosity_                                = 0;
+    solver_->configuration.usePreconditioning_                       = true;
 
     solver_->allocate(rhs_);
     solver_->setMatrix(matrix_);
     solver_->setPreconditioner(preconditioner_);
 
     u32 nIterations = 0;
-    solver_->solve(rhs_, initialization_, solution_,nIterations);
+    solver_->solve(rhs_, initialization_, solution_, nIterations);
     EXPECT_DOUBLE_EQ(solution_.at(0), 2.0, 0.000000001);
     EXPECT_DOUBLE_EQ(solution_.at(1), 3.0, 0.000000001);
 

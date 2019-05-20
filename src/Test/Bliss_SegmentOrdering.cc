@@ -12,28 +12,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
-#include <Test/File.hh>
 #include <Bliss/CorpusDescription.hh>
+#include <Test/File.hh>
+#include <Test/UnitTest.hh>
 
 class TestCorpusVisitor : public Bliss::CorpusVisitor {
 public:
-    TestCorpusVisitor() : lCorpus_(0), lRecording_(0) {}
-    void enterCorpus(Bliss::Corpus *corpus) {
+    TestCorpusVisitor()
+            : lCorpus_(0), lRecording_(0) {}
+    void enterCorpus(Bliss::Corpus* corpus) {
         ++lCorpus_;
         corpus_.push_back(corpus->fullName());
     }
-    void leaveCorpus(Bliss::Corpus *corpus) {
+    void leaveCorpus(Bliss::Corpus* corpus) {
         --lCorpus_;
     }
-    void enterRecording(Bliss::Recording *recording) {
+    void enterRecording(Bliss::Recording* recording) {
         ++lRecording_;
         recordings_.push_back(recording->fullName());
     }
-    void leaveRecording(Bliss::Recording *recording) {
+    void leaveRecording(Bliss::Recording* recording) {
         --lRecording_;
     }
-    void visitSpeechSegment(Bliss::SpeechSegment *segment) {
+    void visitSpeechSegment(Bliss::SpeechSegment* segment) {
         segments_.push_back(segment->fullName());
         if (segment->speaker())
             speakers_.push_back(segment->speaker()->fullName());
@@ -62,44 +63,45 @@ public:
     const std::vector<std::string>& conditions() const {
         return conditions_;
     }
-    int nOpenCorpus() const { return lCorpus_; }
-    int nOpenRecording() const { return lRecording_; }
+    int nOpenCorpus() const {
+        return lCorpus_;
+    }
+    int nOpenRecording() const {
+        return lRecording_;
+    }
 
 protected:
-    int lCorpus_, lRecording_;
+    int                      lCorpus_, lRecording_;
     std::vector<std::string> corpus_, recordings_, segments_, speakers_, conditions_;
 };
 
-
-class SegmentOrderingTest : public Test::ConfigurableFixture
-{
+class SegmentOrderingTest : public Test::ConfigurableFixture {
 public:
     void setUp();
     void tearDown();
 
 protected:
-    void createCorpus(bool subCorpus = false);
-    void processCorpus(Bliss::CorpusVisitor *visistor) const;
-    static const size_t nRecordings, nSegments, nSubCorpus;
+    void                     createCorpus(bool subCorpus = false);
+    void                     processCorpus(Bliss::CorpusVisitor* visistor) const;
+    static const size_t      nRecordings, nSegments, nSubCorpus;
     static const std::string corpusName;
-    ::Test::Directory *tmpDir_;
-    std::string corpusFile_, orderFile_;
+    ::Test::Directory*       tmpDir_;
+    std::string              corpusFile_, orderFile_;
     std::vector<std::string> recordings_;
     std::vector<std::string> segments_;
     std::vector<std::string> speakers_;
     std::vector<std::string> conditions_;
 };
 
-const size_t SegmentOrderingTest::nRecordings = 10;
-const size_t SegmentOrderingTest::nSegments = 3;
-const size_t SegmentOrderingTest::nSubCorpus = 2;
-const std::string SegmentOrderingTest::corpusName = "test";
+const size_t      SegmentOrderingTest::nRecordings = 10;
+const size_t      SegmentOrderingTest::nSegments   = 3;
+const size_t      SegmentOrderingTest::nSubCorpus  = 2;
+const std::string SegmentOrderingTest::corpusName  = "test";
 
-void SegmentOrderingTest::setUp()
-{
-    tmpDir_ = new ::Test::Directory;
+void SegmentOrderingTest::setUp() {
+    tmpDir_     = new ::Test::Directory;
     corpusFile_ = ::Test::File(*tmpDir_, "test.corpus").path();
-    orderFile_ = ::Test::File(*tmpDir_, "segments").path();
+    orderFile_  = ::Test::File(*tmpDir_, "segments").path();
     createCorpus();
     setParameter("*.channel", "nil");
     setParameter("*.error.channel", "stderr");
@@ -107,13 +109,11 @@ void SegmentOrderingTest::setUp()
     setParameter("*.corpus.segment-order", orderFile_);
 }
 
-void SegmentOrderingTest::tearDown()
-{
+void SegmentOrderingTest::tearDown() {
     delete tmpDir_;
 }
 
-void SegmentOrderingTest::createCorpus(bool subCorpus)
-{
+void SegmentOrderingTest::createCorpus(bool subCorpus) {
     recordings_.clear();
     segments_.clear();
     speakers_.clear();
@@ -128,7 +128,7 @@ void SegmentOrderingTest::createCorpus(bool subCorpus)
     for (int c = 0; c < nSub; ++c) {
         std::string corpus = "";
         if (subCorpus) {
-            corpus = Core::form("sub-%d", c);
+            corpus    = Core::form("sub-%d", c);
             condition = Core::form("cond-%d", c);
             os << Core::XmlOpen("subcorpus") + Core::XmlAttribute("name", corpus);
             os << Core::XmlEmpty("condition-description") + Core::XmlAttribute("name", condition);
@@ -138,8 +138,8 @@ void SegmentOrderingTest::createCorpus(bool subCorpus)
         for (uint r = 0; r < nRecordings; ++r) {
             std::string recording = Core::form("recording-%d-%d", c, r);
             os << Core::XmlOpen("recording") +
-                    Core::XmlAttribute("name", recording) +
-                    Core::XmlAttribute("audio", "none");
+                            Core::XmlAttribute("name", recording) +
+                            Core::XmlAttribute("audio", "none");
 
             if (subCorpus)
                 recording = corpusName + "/" + corpus + "/" + recording;
@@ -152,19 +152,21 @@ void SegmentOrderingTest::createCorpus(bool subCorpus)
                 std::string segment = Core::form("segment-%d-%d-%d", c, r, s);
                 os << Core::XmlOpen("segment") + Core::XmlAttribute("name", segment);
                 os << Core::XmlEmpty("condition") + Core::XmlAttribute("name", condition);
-                const std::string &curSpeaker = (s ? speaker : recSpeaker);
+                const std::string& curSpeaker = (s ? speaker : recSpeaker);
                 os << Core::XmlEmpty("speaker") + Core::XmlAttribute("name", curSpeaker);
                 os << Core::XmlClose("segment");
-                segment = recording + "/" + segment;
+                segment               = recording + "/" + segment;
                 std::string speakerId = corpusName + "/";
-                if (subCorpus) speakerId += corpus + "/";
+                if (subCorpus)
+                    speakerId += corpus + "/";
                 if (s)
                     speakerId += curSpeaker;
                 else
                     speakerId = recording + "/" + curSpeaker;
 
                 std::string conditionId = corpusName + "/";
-                if (subCorpus) conditionId += corpus + "/";
+                if (subCorpus)
+                    conditionId += corpus + "/";
                 conditionId += condition;
                 segments_.push_back(segment);
                 speakers_.push_back(speakerId);
@@ -179,12 +181,10 @@ void SegmentOrderingTest::createCorpus(bool subCorpus)
     os << Core::XmlClose("corpus");
 }
 
-void SegmentOrderingTest::processCorpus(Bliss::CorpusVisitor *visitor) const
-{
+void SegmentOrderingTest::processCorpus(Bliss::CorpusVisitor* visitor) const {
     Bliss::CorpusDescription description(select("corpus"));
     description.accept(visitor);
 }
-
 
 TEST_F(Bliss, SegmentOrderingTest, Standard) {
     {
@@ -194,8 +194,8 @@ TEST_F(Bliss, SegmentOrderingTest, Standard) {
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &visitedRecordings = visitor.recordings();
-    const std::vector<std::string> &visitedSegments = visitor.segments();
+    const std::vector<std::string>& visitedRecordings = visitor.recordings();
+    const std::vector<std::string>& visitedSegments   = visitor.segments();
     EXPECT_EQ(0, visitor.nOpenCorpus());
     EXPECT_EQ(0, visitor.nOpenRecording());
     EXPECT_EQ(size_t(1), visitor.corpus().size());
@@ -217,7 +217,7 @@ TEST_F(Bliss, SegmentOrderingTest, ReverseOrder) {
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &visitedSegments = visitor.segments();
+    const std::vector<std::string>& visitedSegments = visitor.segments();
     EXPECT_EQ(0, visitor.nOpenCorpus());
     EXPECT_EQ(0, visitor.nOpenRecording());
     EXPECT_EQ(size_t(1), visitor.corpus().size());
@@ -228,18 +228,17 @@ TEST_F(Bliss, SegmentOrderingTest, ReverseOrder) {
         EXPECT_EQ(*s, *v);
 }
 
-TEST_F(Bliss, SegmentOrderingTest, RepeatedRecording)
-{
+TEST_F(Bliss, SegmentOrderingTest, RepeatedRecording) {
     {
         Core::TextOutputStream os(orderFile_);
         for (uint s = 0; s < nSegments; ++s)
             for (uint r = 0; r < nRecordings; ++r)
-                os << segments_[r*nSegments + s] << std::endl;
+                os << segments_[r * nSegments + s] << std::endl;
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &visitedRecordings = visitor.recordings();
-    const std::vector<std::string> &visitedSegments = visitor.segments();
+    const std::vector<std::string>& visitedRecordings = visitor.recordings();
+    const std::vector<std::string>& visitedSegments   = visitor.segments();
     EXPECT_EQ(0, visitor.nOpenCorpus());
     EXPECT_EQ(0, visitor.nOpenRecording());
     EXPECT_EQ(size_t(1), visitor.corpus().size());
@@ -249,25 +248,23 @@ TEST_F(Bliss, SegmentOrderingTest, RepeatedRecording)
     int v = 0;
     for (uint s = 0; s < nSegments; ++s)
         for (uint r = 0; r < nRecordings; ++r, ++v)
-            EXPECT_EQ(segments_[r*nSegments + s], visitedSegments[v]);
+            EXPECT_EQ(segments_[r * nSegments + s], visitedSegments[v]);
 }
 
-
-TEST_F(Bliss, SegmentOrderingTest, SubCorpus)
-{
+TEST_F(Bliss, SegmentOrderingTest, SubCorpus) {
     createCorpus(true);
     {
         Core::TextOutputStream os(orderFile_);
         for (uint s = 0; s < nSegments; ++s)
             for (uint r = 0; r < nRecordings; ++r)
                 for (uint c = 0; c < nSubCorpus; ++c)
-                    os << segments_[c*nRecordings*nSegments + r*nSegments + s] << std::endl;
+                    os << segments_[c * nRecordings * nSegments + r * nSegments + s] << std::endl;
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &visitedRecordings = visitor.recordings();
-    const std::vector<std::string> &visitedSegments = visitor.segments();
-    size_t nseg = nSubCorpus * nRecordings * nSegments;
+    const std::vector<std::string>& visitedRecordings = visitor.recordings();
+    const std::vector<std::string>& visitedSegments   = visitor.segments();
+    size_t                          nseg              = nSubCorpus * nRecordings * nSegments;
     EXPECT_EQ(0, visitor.nOpenCorpus());
     EXPECT_EQ(0, visitor.nOpenRecording());
     EXPECT_EQ(nseg + 1, visitor.corpus().size());
@@ -278,11 +275,10 @@ TEST_F(Bliss, SegmentOrderingTest, SubCorpus)
     for (uint s = 0; s < nSegments; ++s)
         for (uint r = 0; r < nRecordings; ++r)
             for (uint c = 0; c < nSubCorpus; ++c, ++v)
-                EXPECT_EQ(segments_[c*nRecordings*nSegments + r*nSegments + s], visitedSegments[v]);
+                EXPECT_EQ(segments_[c * nRecordings * nSegments + r * nSegments + s], visitedSegments[v]);
 }
 
-TEST_F(Bliss, SegmentOrderingTest, Speaker)
-{
+TEST_F(Bliss, SegmentOrderingTest, Speaker) {
     createCorpus(true);
     {
         Core::TextOutputStream os(orderFile_);
@@ -291,14 +287,13 @@ TEST_F(Bliss, SegmentOrderingTest, Speaker)
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &speakers = visitor.speakers();
+    const std::vector<std::string>& speakers = visitor.speakers();
     EXPECT_EQ(speakers_.size(), speakers.size());
     for (uint s = 0; s < speakers_.size(); ++s)
         EXPECT_EQ(speakers_[s], speakers[s]);
 }
 
-TEST_F(Bliss, SegmentOrderingTest, Condition)
-{
+TEST_F(Bliss, SegmentOrderingTest, Condition) {
     createCorpus(true);
     {
         Core::TextOutputStream os(orderFile_);
@@ -307,7 +302,7 @@ TEST_F(Bliss, SegmentOrderingTest, Condition)
     }
     TestCorpusVisitor visitor;
     processCorpus(&visitor);
-    const std::vector<std::string> &conditions = visitor.conditions();
+    const std::vector<std::string>& conditions = visitor.conditions();
     EXPECT_EQ(conditions_.size(), conditions.size());
     for (uint s = 0; s < conditions_.size(); ++s)
         EXPECT_EQ(conditions_[s], conditions[s]);

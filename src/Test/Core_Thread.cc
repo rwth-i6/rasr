@@ -16,19 +16,21 @@
  * Test cases for Core::Thread, Core::Mutex
  */
 
-#include <unistd.h>
-#include <vector>
 #include <Core/Thread.hh>
 #include <Test/UnitTest.hh>
+#include <vector>
+#include <unistd.h>
 
 using namespace Core;
 
 class Shared {
 private:
     mutable Mutex lock_;
-    int a_;
+    int           a_;
+
 public:
-    Shared() : a_(0) {}
+    Shared()
+            : a_(0) {}
     void inc() {
         lock_.lock();
         ++a_;
@@ -46,7 +48,9 @@ public:
 
 class TestThread : public Thread {
 public:
-    TestThread(Shared *data) : data_(data) {}
+    TestThread(Shared* data)
+            : data_(data) {}
+
 protected:
     virtual void run() {
         timeval now;
@@ -54,13 +58,13 @@ protected:
         ::usleep(now.tv_usec);
         data_->inc();
     }
-    Shared *data_;
+    Shared* data_;
 };
 
 TEST(Core, Thread, Simple) {
-    const int num_thread = 10;
+    const int                num_thread = 10;
     std::vector<TestThread*> threads;
-    Shared data;
+    Shared                   data;
     for (int t = 0; t < num_thread; ++t)
         threads.push_back(new TestThread(&data));
     for (int t = 0; t < num_thread; ++t)
@@ -69,5 +73,5 @@ TEST(Core, Thread, Simple) {
         threads[t]->wait();
     for (int t = 0; t < num_thread; ++t)
         delete threads[t];
-        EXPECT_EQ(data.get(), num_thread);
+    EXPECT_EQ(data.get(), num_thread);
 }

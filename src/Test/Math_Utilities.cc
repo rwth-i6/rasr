@@ -12,20 +12,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
 #include <Math/Utilities.hh>
+#include <Test/UnitTest.hh>
 
-class TestUtilities : public Test::ConfigurableFixture
-{
+class TestUtilities : public Test::ConfigurableFixture {
 };
 
-TEST_F(Test, TestUtilities, isnan)
-{
+TEST_F(Test, TestUtilities, isnan) {
     volatile f32 a = 0;
     EXPECT_FALSE(Math::isnan(a));
     a = std::log(0.0);
     EXPECT_FALSE(Math::isnan(a));
     a = std::sqrt(-1.0);
     EXPECT_TRUE(Math::isnan(a));
-
 }

@@ -12,20 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
 #include <Core/Directory.hh>
-#include <cstdlib>
 #include <Nn/NeuralNetwork.hh>
 #include <Nn/Statistics.hh>
+#include <Test/UnitTest.hh>
+#include <cstdlib>
 
-class TestStatistics : public Test::ConfigurableFixture
-{
+class TestStatistics : public Test::ConfigurableFixture {
 public:
-    Nn::Statistics<f64>* statistics_;
-    Nn::Statistics<f64>* statistics2_;
-    Nn::NeuralNetwork<f64> *neuralNetwork_;
-    void setUp();
-    void tearDown();
+    Nn::Statistics<f64>*    statistics_;
+    Nn::Statistics<f64>*    statistics2_;
+    Nn::NeuralNetwork<f64>* neuralNetwork_;
+    void                    setUp();
+    void                    tearDown();
 };
 
 void TestStatistics::setUp() {
@@ -41,11 +40,11 @@ void TestStatistics::setUp() {
     neuralNetwork_ = new Nn::NeuralNetwork<f64>(config);
     neuralNetwork_->initializeNetwork(1);
     statistics_ = new Nn::Statistics<f64>(2,
-            Nn::Statistics<f64>::GRADIENT | Nn::Statistics<f64>::CLASS_COUNTS | Nn::Statistics<f64>::BASE_STATISTICS);
+                                          Nn::Statistics<f64>::GRADIENT | Nn::Statistics<f64>::CLASS_COUNTS | Nn::Statistics<f64>::BASE_STATISTICS);
     statistics_->initialize(*neuralNetwork_);
 
-    statistics_->incClassCount(2,4);
-    statistics_->incClassCount(7,3);
+    statistics_->incClassCount(2, 4);
+    statistics_->incClassCount(7, 3);
     statistics_->incClassificationErrors(10);
     statistics_->incObservations(25);
     statistics_->addToTotalWeight(20.0);
@@ -53,15 +52,15 @@ void TestStatistics::setUp() {
 
     for (u32 j = 0; j < 3; j++) {
         for (u32 i = 0; i < 2; i++) {
-            statistics_->gradientWeights(0)[0].at(i,j) = i+j;
+            statistics_->gradientWeights(0)[0].at(i, j) = i + j;
         }
         statistics_->gradientBias(0).at(j) = j;
     }
     for (u32 j = 0; j < 5; j++) {
         for (u32 i = 0; i < 3; i++) {
-            statistics_->gradientWeights(1)[0].at(i,j) = i+j+1;
+            statistics_->gradientWeights(1)[0].at(i, j) = i + j + 1;
         }
-        statistics_->gradientBias(1).at(j) = j+1;
+        statistics_->gradientBias(1).at(j) = j + 1;
     }
 }
 
@@ -69,7 +68,7 @@ void TestStatistics::tearDown() {
 }
 
 TEST_F(Test, TestStatistics, IOBin) {
-    char *t = std::getenv("TMPDIR");
+    char*       t = std::getenv("TMPDIR");
     std::string tmpdir;
     if (t)
         tmpdir = t;
@@ -90,13 +89,13 @@ TEST_F(Test, TestStatistics, IOBin) {
 
     for (u32 i = 0; i < 2; i++) {
         for (u32 j = 0; j < 3; j++) {
-            EXPECT_EQ(statistics_->gradientWeights(0)[0].at(i,j), newStatistics.gradientWeights(0)[0].at(i,j));
+            EXPECT_EQ(statistics_->gradientWeights(0)[0].at(i, j), newStatistics.gradientWeights(0)[0].at(i, j));
         }
         EXPECT_EQ(statistics_->gradientBias(0).at(i), newStatistics.gradientBias(0).at(i));
     }
     for (u32 i = 0; i < 3; i++) {
-        for (u32 j = 0; j < 5 ; j++) {
-            EXPECT_EQ(statistics_->gradientWeights(1)[0].at(i,j), newStatistics.gradientWeights(1)[0].at(i,j));
+        for (u32 j = 0; j < 5; j++) {
+            EXPECT_EQ(statistics_->gradientWeights(1)[0].at(i, j), newStatistics.gradientWeights(1)[0].at(i, j));
         }
         EXPECT_EQ(statistics_->gradientBias(1).at(i), newStatistics.gradientBias(1).at(i));
     }
@@ -108,30 +107,30 @@ TEST_F(Test, TestStatistics, IOBin) {
     filenames.push_back(filename);
     filenames.push_back(filename);
     newStatistics.combine(filenames);
-    EXPECT_EQ(2*statistics_->objectiveFunction(), newStatistics.objectiveFunction());
+    EXPECT_EQ(2 * statistics_->objectiveFunction(), newStatistics.objectiveFunction());
     EXPECT_EQ(statistics_->classificationError(), newStatistics.classificationError());
-    EXPECT_EQ(2*statistics_->nObservations(), newStatistics.nObservations());
+    EXPECT_EQ(2 * statistics_->nObservations(), newStatistics.nObservations());
 
     for (u32 i = 0; i < 2; i++) {
         for (u32 j = 0; j < 3; j++) {
-            EXPECT_EQ(2*statistics_->gradientWeights(0)[0].at(i,j), newStatistics.gradientWeights(0)[0].at(i,j));
+            EXPECT_EQ(2 * statistics_->gradientWeights(0)[0].at(i, j), newStatistics.gradientWeights(0)[0].at(i, j));
         }
-        EXPECT_EQ(2*statistics_->gradientBias(0).at(i), newStatistics.gradientBias(0).at(i));
+        EXPECT_EQ(2 * statistics_->gradientBias(0).at(i), newStatistics.gradientBias(0).at(i));
     }
     for (u32 i = 0; i < 3; i++) {
-        for (u32 j = 0; j < 5 ; j++) {
-            EXPECT_EQ(2*statistics_->gradientWeights(1)[0].at(i,j), newStatistics.gradientWeights(1)[0].at(i,j));
+        for (u32 j = 0; j < 5; j++) {
+            EXPECT_EQ(2 * statistics_->gradientWeights(1)[0].at(i, j), newStatistics.gradientWeights(1)[0].at(i, j));
         }
-        EXPECT_EQ(2*statistics_->gradientBias(1).at(i), newStatistics.gradientBias(1).at(i));
+        EXPECT_EQ(2 * statistics_->gradientBias(1).at(i), newStatistics.gradientBias(1).at(i));
     }
-    EXPECT_EQ(2*statistics_->classCount(2), newStatistics.classCount(2));
-    EXPECT_EQ(2*statistics_->classCount(7), newStatistics.classCount(7));
+    EXPECT_EQ(2 * statistics_->classCount(2), newStatistics.classCount(2));
+    EXPECT_EQ(2 * statistics_->classCount(7), newStatistics.classCount(7));
 
     Core::removeDirectory(dirName);
 }
 
 TEST_F(Test, TestStatistics, add) {
-    char *t = std::getenv("TMPDIR");
+    char*       t = std::getenv("TMPDIR");
     std::string tmpdir;
     if (t)
         tmpdir = t;
@@ -139,8 +138,8 @@ TEST_F(Test, TestStatistics, add) {
         tmpdir = "/tmp";
     std::string dirName = tmpdir + "/XXXX/";
     Core::createDirectory(dirName);
-    std::string filename1 = "bin:" + dirName + "statistics1";
-    std::string filename2 = "bin:" + dirName + "statistics2";
+    std::string              filename1 = "bin:" + dirName + "statistics1";
+    std::string              filename2 = "bin:" + dirName + "statistics2";
     std::vector<std::string> filenames;
     filenames.push_back(filename1);
     filenames.push_back(filename2);
@@ -150,7 +149,7 @@ TEST_F(Test, TestStatistics, add) {
     statistics_->gradientWeights(0)[0].scale(2.0);
     statistics_->gradientWeights(1)[0].scale(3.0);
     statistics_->gradientBias(0).scale(-2.0);
-    statistics_->incClassCount(0,10);
+    statistics_->incClassCount(0, 10);
     statistics_->finishComputation();
     statistics_->write(filename2);
     statistics_->read(filename1);
@@ -158,30 +157,26 @@ TEST_F(Test, TestStatistics, add) {
     Nn::Statistics<f64> newStatistics(*statistics_, true);
     newStatistics.combine(filenames);
 
-    EXPECT_EQ(2*statistics_->objectiveFunction(), newStatistics.objectiveFunction());
+    EXPECT_EQ(2 * statistics_->objectiveFunction(), newStatistics.objectiveFunction());
     EXPECT_EQ(statistics_->classificationError(), newStatistics.classificationError());
-    EXPECT_EQ(2*statistics_->nObservations(), newStatistics.nObservations());
+    EXPECT_EQ(2 * statistics_->nObservations(), newStatistics.nObservations());
     for (u32 i = 0; i < 2; i++) {
         for (u32 j = 0; j < 2; j++) {
-            EXPECT_EQ(3*statistics_->gradientWeights(0)[0].at(i,j), newStatistics.gradientWeights(0)[0].at(i,j));
-            EXPECT_EQ(4*statistics_->gradientWeights(1)[0].at(i,j), newStatistics.gradientWeights(1)[0].at(i,j));
+            EXPECT_EQ(3 * statistics_->gradientWeights(0)[0].at(i, j), newStatistics.gradientWeights(0)[0].at(i, j));
+            EXPECT_EQ(4 * statistics_->gradientWeights(1)[0].at(i, j), newStatistics.gradientWeights(1)[0].at(i, j));
         }
         EXPECT_EQ(-statistics_->gradientBias(0).at(i), newStatistics.gradientBias(0).at(i));
-        EXPECT_EQ(2*statistics_->gradientBias(1).at(i), newStatistics.gradientBias(1).at(i));
+        EXPECT_EQ(2 * statistics_->gradientBias(1).at(i), newStatistics.gradientBias(1).at(i));
     }
     EXPECT_EQ(newStatistics.classCount(0), 10u);
     EXPECT_EQ(newStatistics.classCount(2), 8u);
     EXPECT_EQ(newStatistics.classCount(7), 6u);
 
     Core::removeDirectory(dirName);
-
-
-
-
 }
 
 TEST_F(Test, TestStatistics, combineMeanAndVariance) {
-    char *t = std::getenv("TMPDIR");
+    char*       t = std::getenv("TMPDIR");
     std::string tmpdir;
     if (t)
         tmpdir = t;
@@ -189,21 +184,21 @@ TEST_F(Test, TestStatistics, combineMeanAndVariance) {
         tmpdir = "/tmp";
     std::string dirName = tmpdir + "/XXXX/";
     Core::createDirectory(dirName);
-    std::string filename1 = "bin:" + dirName + "statistics1";
-    std::string filename2 = "bin:" + dirName + "statistics2";
+    std::string              filename1 = "bin:" + dirName + "statistics1";
+    std::string              filename2 = "bin:" + dirName + "statistics2";
     std::vector<std::string> filenames;
     filenames.push_back(filename1);
     filenames.push_back(filename2);
 
     delete statistics_;
     statistics_ = new Nn::Statistics<f64>(0,
-            Nn::Statistics<f64>::MEAN_AND_VARIANCE);
+                                          Nn::Statistics<f64>::MEAN_AND_VARIANCE);
     statistics_->incObservations(3);
     statistics_->featureSum().resize(3);
     statistics_->squaredFeatureSum().resize(3);
-    statistics_->featureSum().at(0) = -1;
-    statistics_->featureSum().at(1) = 2;
-    statistics_->featureSum().at(2) = 3;
+    statistics_->featureSum().at(0)        = -1;
+    statistics_->featureSum().at(1)        = 2;
+    statistics_->featureSum().at(2)        = 3;
     statistics_->squaredFeatureSum().at(0) = 1;
     statistics_->squaredFeatureSum().at(1) = 4;
     statistics_->squaredFeatureSum().at(2) = 9;
@@ -226,12 +221,12 @@ TEST_F(Test, TestStatistics, finalizeMeanAndVariance) {
     if (statistics_)
         delete statistics_;
     statistics_ = new Nn::Statistics<f64>(0,
-            Nn::Statistics<f64>::MEAN_AND_VARIANCE);
+                                          Nn::Statistics<f64>::MEAN_AND_VARIANCE);
     statistics_->incObservations(3);
     statistics_->addToTotalWeight(2.0);
     statistics_->featureSum().resize(1);
     statistics_->squaredFeatureSum().resize(1);
-    statistics_->featureSum().at(0) = 2;
+    statistics_->featureSum().at(0)        = 2;
     statistics_->squaredFeatureSum().at(0) = 3;
     statistics_->initComputation();
     statistics_->finalize();

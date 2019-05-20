@@ -24,14 +24,13 @@ namespace Test {
  *
  * See Test_Lexicon.cc for an example.
  */
-class Lexicon : public Bliss::Lexicon
-{
+class Lexicon : public Bliss::Lexicon {
 public:
     Lexicon();
 
-    bool addPhoneme(const std::string &name, bool contextDependent = true);
-    void addLemma(const std::string &orth, const std::string &pron,
-                  const std::string &special = "");
+    bool addPhoneme(const std::string& name, bool contextDependent = true);
+    void addLemma(const std::string& orth, const std::string& pron,
+                  const std::string& special = "");
 
 protected:
     Core::Ref<Bliss::PhonemeInventory> phonemes_;
@@ -39,4 +38,4 @@ protected:
 
 }  // namespace Test
 
-#endif // _TEST_LEXICON_HH
+#endif  // _TEST_LEXICON_HH

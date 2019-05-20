@@ -19,8 +19,7 @@ using namespace Test;
 
 TestSuiteRegistry* TestSuiteRegistry::instance_ = 0;
 
-TestSuiteRegistry& TestSuiteRegistry::instance()
-{
+TestSuiteRegistry& TestSuiteRegistry::instance() {
     if (!instance_) {
         instance_ = new TestSuiteRegistry();
         CppUnit::TestFactoryRegistry::getRegistry().registerFactory(instance_);
@@ -31,11 +30,10 @@ TestSuiteRegistry& TestSuiteRegistry::instance()
 /**
  * add a test case to the given test suite.
  */
-bool TestSuiteRegistry::addTest(const std::string &module,
-                                const std::string &suiteName,
-                                CppUnit::Test *test)
-{
-    SuiteMap &suites = modules_[module];
+bool TestSuiteRegistry::addTest(const std::string& module,
+                                const std::string& suiteName,
+                                CppUnit::Test*     test) {
+    SuiteMap& suites = modules_[module];
     if (suites.find(suiteName) == suites.end()) {
         suites.insert(SuiteMap::value_type(suiteName,
                                            new CppUnit::TestSuite(suiteName)));
@@ -47,9 +45,8 @@ bool TestSuiteRegistry::addTest(const std::string &module,
 /**
  * generate a CppUnit test case including all registered test cases.
  */
-CppUnit::Test* TestSuiteRegistry::makeTest()
-{
-    CppUnit::TestSuite *allTests = new CppUnit::TestSuite("all");
+CppUnit::Test* TestSuiteRegistry::makeTest() {
+    CppUnit::TestSuite* allTests = new CppUnit::TestSuite("all");
     for (ModuleMap::const_iterator m = modules_.begin(); m != modules_.end(); ++m) {
         for (SuiteMap::const_iterator i = m->second.begin(); i != m->second.end(); ++i) {
             allTests->addTest(i->second);
@@ -58,12 +55,11 @@ CppUnit::Test* TestSuiteRegistry::makeTest()
     return allTests;
 }
 
-CppUnit::Test* TestSuiteRegistry::makeTest(const std::string &module)
-{
+CppUnit::Test* TestSuiteRegistry::makeTest(const std::string& module) {
     if (module.empty())
         return makeTest();
-    CppUnit::TestSuite *allTests = new CppUnit::TestSuite(module);
-    ModuleMap::const_iterator m = modules_.find(module);
+    CppUnit::TestSuite*       allTests = new CppUnit::TestSuite(module);
+    ModuleMap::const_iterator m        = modules_.find(module);
     if (m != modules_.end()) {
         for (SuiteMap::const_iterator i = m->second.begin(); i != m->second.end(); ++i) {
             allTests->addTest(i->second);

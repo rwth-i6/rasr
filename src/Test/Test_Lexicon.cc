@@ -16,19 +16,18 @@
  * Test cases for Test::Lexicon
  */
 
-#include <Test/UnitTest.hh>
 #include <Test/Lexicon.hh>
+#include <Test/UnitTest.hh>
 
-class TestLexicon : public Test::Fixture
-{
+class TestLexicon : public Test::Fixture {
 public:
     void setUp();
+
 protected:
     Test::Lexicon lexicon_;
 };
 
-void TestLexicon::setUp()
-{
+void TestLexicon::setUp() {
     lexicon_.addPhoneme("si", false);
     lexicon_.addPhoneme("a");
     lexicon_.addPhoneme("b");
@@ -38,25 +37,22 @@ void TestLexicon::setUp()
     lexicon_.addLemma("AC", "a  c");
 }
 
-TEST_F(Test, TestLexicon, AddPhoneme)
-{
+TEST_F(Test, TestLexicon, AddPhoneme) {
     EXPECT_NE(lexicon_.phonemeInventory()->phoneme("a"), 0);
     EXPECT_FALSE(lexicon_.addPhoneme("a"));
 }
 
-TEST_F(Test, TestLexicon, SpecialLemma)
-{
+TEST_F(Test, TestLexicon, SpecialLemma) {
     EXPECT_NE(lexicon_.specialLemma("silence"), 0);
 }
 
-TEST_F(Test, TestLexicon, Lemma)
-{
-    const Bliss::Lemma *l = lexicon_.lemma("AC");
+TEST_F(Test, TestLexicon, Lemma) {
+    const Bliss::Lemma* l = lexicon_.lemma("AC");
     EXPECT_NE(l, 0);
     EXPECT_EQ(std::string(l->preferredOrthographicForm()), std::string("AC"));
     Bliss::Lemma::LemmaPronunciationRange lpr = l->pronunciations();
     EXPECT_NE(lpr.first, lpr.second);
-    const Bliss::Pronunciation *pron = lpr.first->pronunciation();
+    const Bliss::Pronunciation* pron = lpr.first->pronunciation();
     EXPECT_EQ(pron->length(), u32(2));
     EXPECT_EQ((*pron)[0], Bliss::Phoneme::Id(lexicon_.phonemeInventory()->phoneme("a")->id()));
     EXPECT_EQ((*pron)[1], Bliss::Phoneme::Id(lexicon_.phonemeInventory()->phoneme("c")->id()));

@@ -13,30 +13,28 @@
  *  limitations under the License.
  */
 #include <Test/File.hh>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 
 namespace Test {
 
-void Directory::create()
-{
-    char *t = std::getenv("TMPDIR");
+void Directory::create() {
+    char*       t = std::getenv("TMPDIR");
     std::string tmpdir;
     if (t)
         tmpdir = t;
     else
         tmpdir = "/tmp";
-    const size_t len = tmpdir.length() + 8;
-    char *dir_template = new char[len];
+    const size_t len          = tmpdir.length() + 8;
+    char*        dir_template = new char[len];
     snprintf(dir_template, len, "%s/XXXXXX", tmpdir.c_str());
     path_ = ::mkdtemp(dir_template);
     delete[] dir_template;
 }
 
-void Directory::remove()
-{
+void Directory::remove() {
     Core::removeDirectory(path_);
 }
 
-} // namespace Test
+}  // namespace Test

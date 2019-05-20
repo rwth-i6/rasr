@@ -75,14 +75,14 @@
  * See http://cppunit.sourceforge.net/doc/lastest/cppunit_cookbook.html
  */
 
-#include <map>
+#include <Core/Configuration.hh>
+#include <Test/Registry.hh>
 #include <cassert>
+#include <map>
 #include <cppunit/TestCase.h>
 #include <cppunit/TestFixture.h>
 #include <cppunit/TestSuite.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include <Test/Registry.hh>
-#include <Core/Configuration.hh>
 
 #define EXPECT_TRUE(v) CPPUNIT_ASSERT(v)
 #define EXPECT_FALSE(v) CPPUNIT_ASSERT(!(v))
@@ -94,13 +94,11 @@
 #define EXPECT_LE(x, y) CPPUNIT_ASSERT((x) <= (y))
 #define EXPECT_LT(x, y) CPPUNIT_ASSERT((x) < (y))
 
-namespace Test
-{
+namespace Test {
 /**
  * Test fixture see comments above.
  */
 typedef CppUnit::TestFixture Fixture;
-
 
 /**
  * Test fixture for classes derived from Core::Configurable / Core::Component,
@@ -130,55 +128,53 @@ typedef CppUnit::TestFixture Fixture;
  * }
  *
  */
-class ConfigurableFixture : public Fixture
-{
+class ConfigurableFixture : public Fixture {
 public:
-    void setParameter(const std::string &name, const std::string &value) {
+    void setParameter(const std::string& name, const std::string& value) {
         config.set(name, value);
     }
+
 protected:
-    Core::Configuration select(const std::string &selection) const {
+    Core::Configuration select(const std::string& selection) const {
         return Core::Configuration(config, selection);
     }
 
     Core::Configuration config;
 };
 
-} // namespace Test
-
+}  // namespace Test
 
 #define STR(s) #s
 
 // Define a test function N in TestSuite S.
-#define TEST(M, S, N) \
-  class TestCase_ ## M ## _ ## S ## _ ## N : public CppUnit::TestCase { \
-  public: \
-      TestCase_ ## M ## _ ## S ## _ ## N(std::string name) : CppUnit::TestCase(name) {} \
-      virtual ~TestCase_ ## M ## _ ## S ## _ ## N () {} \
-      static CppUnit::Test *suite() { \
-          CppUnit::TestSuite *suite = new CppUnit::TestSuite(STR(S ## _ ## N)); \
-          suite->addTest(new TestCase_ ## M ## _ ## S ## _ ## N("")); \
-          return suite; \
-      } \
-      void runTest(); \
-  }; \
-  static Test::RegisterTestCase<TestCase_ ## M ## _ ## S ## _ ## N> \
-      Register_TestCase_ ## M ## _ ## S ## _ ## N(STR(M), STR(S), STR(N)); \
-  void TestCase_ ## M ## _ ## S ## _ ## N::runTest()
+#define TEST(M, S, N)                                                           \
+    class TestCase_##M##_##S##_##N : public CppUnit::TestCase {                 \
+    public:                                                                     \
+        TestCase_##M##_##S##_##N(std::string name) : CppUnit::TestCase(name) {} \
+        virtual ~TestCase_##M##_##S##_##N() {}                                  \
+        static CppUnit::Test* suite() {                                         \
+            CppUnit::TestSuite* suite = new CppUnit::TestSuite(STR(S##_##N));   \
+            suite->addTest(new TestCase_##M##_##S##_##N(""));                   \
+            return suite;                                                       \
+        }                                                                       \
+        void runTest();                                                         \
+    };                                                                          \
+    static Test::RegisterTestCase<TestCase_##M##_##S##_##N>                     \
+            Register_TestCase_##M##_##S##_##N(STR(M), STR(S), STR(N));          \
+    void    TestCase_##M##_##S##_##N::runTest()
 
 // Define a test case N for test fixture S.
-#define TEST_F(M, S, N) \
-  class TestFixture_ ## M ## _ ## S ## _ ## N : public S { \
-  public: \
-      TestFixture_ ## M ## _ ## S ## _ ## N () {} \
-      virtual ~TestFixture_ ## M ## _ ## S ## _ ## N () {} \
-      void TEST_ ## N (); \
-  }; \
-  static Test::RegisterTest<TestFixture_ ## M ## _ ## S ## _ ## N> \
-      Register_TestFixture_ ## M ## _ ## S ## _ ## N(\
-          STR(M), STR(S), STR(N), \
-          & TestFixture_ ## M ## _ ## S ## _ ## N ::TEST_ ## N); \
-  void TestFixture_ ## M ## _ ## S ## _ ## N ::TEST_ ## N ()
-
+#define TEST_F(M, S, N)                                       \
+    class TestFixture_##M##_##S##_##N : public S {            \
+    public:                                                   \
+        TestFixture_##M##_##S##_##N() {}                      \
+        virtual ~TestFixture_##M##_##S##_##N() {}             \
+        void TEST_##N();                                      \
+    };                                                        \
+    static Test::RegisterTest<TestFixture_##M##_##S##_##N>    \
+            Register_TestFixture_##M##_##S##_##N(             \
+                    STR(M), STR(S), STR(N),                   \
+                    &TestFixture_##M##_##S##_##N ::TEST_##N); \
+    void TestFixture_##M##_##S##_##N ::TEST_##N()
 
 #endif  // _TEST_UNIT_TEST_HH

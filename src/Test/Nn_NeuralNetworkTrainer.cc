@@ -12,9 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
 #include <Nn/NeuralNetworkTrainer.hh>
 #include <Nn/Types.hh>
+#include <Test/UnitTest.hh>
 
 class TestNeuralNetworkTrainer : public Test::ConfigurableFixture {
 public:
@@ -24,12 +24,14 @@ public:
 
 class MeanAndVarianceTrainer : public Nn::MeanAndVarianceTrainer<f32> {
     typedef Nn::MeanAndVarianceTrainer<f32> Precursor;
+
 public:
     using Precursor::statistics_;
+
 public:
-    MeanAndVarianceTrainer(const Core::Configuration &c) :
-        Core::Component(c),
-        Precursor(c) {}
+    MeanAndVarianceTrainer(const Core::Configuration& c)
+            : Core::Component(c),
+              Precursor(c) {}
 };
 
 void TestNeuralNetworkTrainer::setUp() {
@@ -39,20 +41,20 @@ void TestNeuralNetworkTrainer::setUp() {
 void TestNeuralNetworkTrainer::tearDown() {}
 
 TEST_F(Test, TestNeuralNetworkTrainer, MeanAndVarianceTrainer_processBatch) {
-    MeanAndVarianceTrainer trainer(config);
-    std::vector<Nn::Types<f32>::NnMatrix > features(1);
-    features.at(0).resize(2,3);
+    MeanAndVarianceTrainer                trainer(config);
+    std::vector<Nn::Types<f32>::NnMatrix> features(1);
+    features.at(0).resize(2, 3);
     Nn::Types<f32>::NnVector weights(3);
     Nn::Types<u32>::NnVector alignment(3);
-    features.at(0).at(0,0) = 1.0;
-    features.at(0).at(0,1) = 2.0;
-    features.at(0).at(0,2) = 0.0;
-    features.at(0).at(1,0) = -3.0;
-    features.at(0).at(1,1) = -2.0;
-    features.at(0).at(1,2) = -1.0;
-    weights.at(0) = 1.0;
-    weights.at(1) = 0.5;
-    weights.at(2) = 0.5;
+    features.at(0).at(0, 0) = 1.0;
+    features.at(0).at(0, 1) = 2.0;
+    features.at(0).at(0, 2) = 0.0;
+    features.at(0).at(1, 0) = -3.0;
+    features.at(0).at(1, 1) = -2.0;
+    features.at(0).at(1, 2) = -1.0;
+    weights.at(0)           = 1.0;
+    weights.at(1)           = 0.5;
+    weights.at(2)           = 0.5;
     features.at(0).initComputation();
     weights.initComputation();
 

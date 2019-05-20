@@ -16,30 +16,27 @@
 
 using namespace Test;
 
-Lexicon::Lexicon() :
-        Bliss::Lexicon(Core::Configuration()),
-        phonemes_(new Bliss::PhonemeInventory)
-{
+Lexicon::Lexicon()
+        : Bliss::Lexicon(Core::Configuration()),
+          phonemes_(new Bliss::PhonemeInventory) {
     setPhonemeInventory(phonemes_);
 }
 
-bool Lexicon::addPhoneme(const std::string &name, bool contextDependent)
-{
+bool Lexicon::addPhoneme(const std::string& name, bool contextDependent) {
     if (phonemes_->phoneme(name))
         return false;
-    Bliss::Phoneme *p = phonemes_->newPhoneme();
+    Bliss::Phoneme* p = phonemes_->newPhoneme();
     p->setContextDependent(contextDependent);
     phonemes_->assignSymbol(p, name);
     return true;
 }
 
-void Lexicon::addLemma(const std::string &orth, const std::string &pron,
-                       const std::string &special)
-{
-    Bliss::Lemma *lemma = newLemma();
+void Lexicon::addLemma(const std::string& orth, const std::string& pron,
+                       const std::string& special) {
+    Bliss::Lemma* lemma = newLemma();
     if (!special.empty())
         defineSpecialLemma(special, lemma);
-    Bliss::Pronunciation *p = getPronunciation(pron);
+    Bliss::Pronunciation* p = getPronunciation(pron);
     addPronunciation(lemma, p);
     std::vector<std::string> orths;
     orths.push_back(orth);

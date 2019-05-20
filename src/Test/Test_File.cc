@@ -12,22 +12,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
-#include <Test/File.hh>
 #include <Core/Directory.hh>
+#include <Test/File.hh>
+#include <Test/UnitTest.hh>
 
-TEST(Test, File, CreateDirectory)
-{
-    ::Test::Directory *dir = new ::Test::Directory;
-    std::string path = dir->path();
+TEST(Test, File, CreateDirectory) {
+    ::Test::Directory* dir  = new ::Test::Directory;
+    std::string        path = dir->path();
     EXPECT_TRUE(Core::isDirectory(path));
     delete dir;
     EXPECT_FALSE(Core::isDirectory(path));
 }
 
-TEST(Test, File, CreateFile)
-{
-    ::Test::Directory *dir = new ::Test::Directory;
-    std::string filename = ::Test::File(*dir, "abc.de").path();
+TEST(Test, File, CreateFile) {
+    ::Test::Directory* dir      = new ::Test::Directory;
+    std::string        filename = ::Test::File(*dir, "abc.de").path();
     EXPECT_EQ(Core::directoryName(filename), dir->path());
 }

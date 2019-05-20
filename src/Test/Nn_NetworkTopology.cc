@@ -12,31 +12,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
+#include <Nn/ActivationLayer.hh>
 #include <Nn/NetworkTopology.hh>
 #include <Nn/NeuralNetworkLayer.hh>
-#include <Nn/ActivationLayer.hh>
+#include <Test/UnitTest.hh>
 
-class TestNetworkTopology : public Test::ConfigurableFixture
-{
+class TestNetworkTopology : public Test::ConfigurableFixture {
 public:
     Nn::NetworkTopology<f32> topology_;
-    void setUp();
-    void tearDown();
+    void                     setUp();
+    void                     tearDown();
 };
 
 void TestNetworkTopology::setUp() {
-
 }
 
 void TestNetworkTopology::tearDown() {
-
 }
 
-TEST_F(Test, TestNetworkTopology, addLayer){
-    Nn::NeuralNetworkLayer<f32> *layer1 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer2 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer3 = new Nn::SigmoidLayer<f32>(config);
+TEST_F(Test, TestNetworkTopology, addLayer) {
+    Nn::NeuralNetworkLayer<f32>* layer1 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer2 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer3 = new Nn::SigmoidLayer<f32>(config);
 
     s32 layerId1 = topology_.addLayer("layer-1", layer1);
     EXPECT_NE(layerId1, -1);
@@ -54,10 +51,10 @@ TEST_F(Test, TestNetworkTopology, addLayer){
     delete layer3;
 }
 
-TEST_F(Test, TestNetworkTopology, id){
-    Nn::NeuralNetworkLayer<f32> *layer1 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer2 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer3 = new Nn::SigmoidLayer<f32>(config);
+TEST_F(Test, TestNetworkTopology, id) {
+    Nn::NeuralNetworkLayer<f32>* layer1 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer2 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer3 = new Nn::SigmoidLayer<f32>(config);
 
     s32 layerId1 = topology_.addLayer("layer-1", layer1);
     s32 layerId2 = topology_.addLayer("layer-2", layer2);
@@ -72,10 +69,10 @@ TEST_F(Test, TestNetworkTopology, id){
     delete layer3;
 }
 
-TEST_F(Test, TestNetworkTopology, addConnection){
-    Nn::NeuralNetworkLayer<f32> *layer1 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer2 = new Nn::SigmoidLayer<f32>(config);
-    Nn::NeuralNetworkLayer<f32> *layer3 = new Nn::SigmoidLayer<f32>(config);
+TEST_F(Test, TestNetworkTopology, addConnection) {
+    Nn::NeuralNetworkLayer<f32>* layer1 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer2 = new Nn::SigmoidLayer<f32>(config);
+    Nn::NeuralNetworkLayer<f32>* layer3 = new Nn::SigmoidLayer<f32>(config);
 
     s32 layerId1 = topology_.addLayer("layer-1", layer1);
     s32 layerId2 = topology_.addLayer("layer-2", layer2);
@@ -96,16 +93,15 @@ TEST_F(Test, TestNetworkTopology, addConnection){
     delete layer3;
 }
 
-TEST_F(Test, TestNetworkTopology, setTopologicalOrdering){
-
+TEST_F(Test, TestNetworkTopology, setTopologicalOrdering) {
     // test with simple linear network
 
-    Nn::NeuralNetworkLayer<f32> *layer1 = new Nn::SigmoidLayer<f32>(select("layer-1"));
-    Nn::NeuralNetworkLayer<f32> *layer2 = new Nn::SigmoidLayer<f32>(select("layer-2"));
-    Nn::NeuralNetworkLayer<f32> *layer3 = new Nn::SigmoidLayer<f32>(select("layer-3"));
-    Nn::NeuralNetworkLayer<f32> *layer4 = new Nn::SigmoidLayer<f32>(select("layer-4"));
-    Nn::NeuralNetworkLayer<f32> *layer5 = new Nn::SigmoidLayer<f32>(select("layer-5"));
-    Nn::NeuralNetworkLayer<f32> *layer6 = new Nn::SigmoidLayer<f32>(select("layer-6"));
+    Nn::NeuralNetworkLayer<f32>* layer1 = new Nn::SigmoidLayer<f32>(select("layer-1"));
+    Nn::NeuralNetworkLayer<f32>* layer2 = new Nn::SigmoidLayer<f32>(select("layer-2"));
+    Nn::NeuralNetworkLayer<f32>* layer3 = new Nn::SigmoidLayer<f32>(select("layer-3"));
+    Nn::NeuralNetworkLayer<f32>* layer4 = new Nn::SigmoidLayer<f32>(select("layer-4"));
+    Nn::NeuralNetworkLayer<f32>* layer5 = new Nn::SigmoidLayer<f32>(select("layer-5"));
+    Nn::NeuralNetworkLayer<f32>* layer6 = new Nn::SigmoidLayer<f32>(select("layer-6"));
 
     s32 layerId6 = topology_.addLayer("layer-6", layer6);
     s32 layerId5 = topology_.addLayer("layer-5", layer5);
@@ -137,7 +133,7 @@ TEST_F(Test, TestNetworkTopology, setTopologicalOrdering){
 
     // test topological ordering
 
-    std::vector<Nn::NeuralNetworkLayer<f32>* > topologicalOrdering;
+    std::vector<Nn::NeuralNetworkLayer<f32>*> topologicalOrdering;
     topology_.setTopologicalOrdering(topologicalOrdering);
 
     EXPECT_EQ(topologicalOrdering.at(0)->name(), std::string("layer-1"));
@@ -153,7 +149,6 @@ TEST_F(Test, TestNetworkTopology, setTopologicalOrdering){
     EXPECT_EQ(topology_.layerElement(layerId4)->topologicalId(), 3);
     EXPECT_EQ(topology_.layerElement(layerId5)->topologicalId(), 4);
     EXPECT_EQ(topology_.layerElement(layerId6)->topologicalId(), 5);
-
 
     // test with skip connections
     topology_.clear();
@@ -172,7 +167,6 @@ TEST_F(Test, TestNetworkTopology, setTopologicalOrdering){
     topology_.addConnection("layer-5", "layer-6", 0);
     topology_.addConnection("layer-1", "layer-2", 0);
     topology_.addConnection("layer-2", "layer-3", 0);
-
 
     EXPECT_EQ(topology_.layerElement("layer-1")->nPredecessors(), 0u);
     EXPECT_EQ(topology_.layerElement("layer-2")->nPredecessors(), 1u);

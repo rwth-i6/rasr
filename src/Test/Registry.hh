@@ -27,8 +27,7 @@ namespace Test {
 /**
  * Registry for all test cases.
  */
-class TestSuiteRegistry: public CppUnit::TestFactory
-{
+class TestSuiteRegistry : public CppUnit::TestFactory {
 public:
     typedef void (*TestMethod)();
 
@@ -40,7 +39,7 @@ public:
     /**
      * add a test case to the given test suite.
      */
-    bool addTest(const std::string &module, const std::string &suiteName, CppUnit::Test *test);
+    bool addTest(const std::string& module, const std::string& suiteName, CppUnit::Test* test);
 
     /**
      * generate a CppUnit test case including all registered test cases.
@@ -51,37 +50,37 @@ public:
      * generate a CppUnit test case including all registered test cases
      * for the given module.
      */
-    CppUnit::Test* makeTest(const std::string &module);
+    CppUnit::Test* makeTest(const std::string& module);
 
     virtual ~TestSuiteRegistry() {}
+
 protected:
     typedef std::map<std::string, CppUnit::TestSuite*> SuiteMap;
-    typedef std::map<std::string, SuiteMap> ModuleMap;
-    ModuleMap modules_;
+    typedef std::map<std::string, SuiteMap>            ModuleMap;
+    ModuleMap                                          modules_;
 
 private:
     TestSuiteRegistry() {}
-    static TestSuiteRegistry *instance_;
+    static TestSuiteRegistry* instance_;
 };
-
 
 /**
  * adds a test case to the registry.
  * to be used as static object.
  */
 template<class T>
-class RegisterTest
-{
+class RegisterTest {
 public:
-    RegisterTest(const std::string &module, const std::string &suiteName,
-                 const std::string &testName, void(T::*m)()) :
-            registry_(TestSuiteRegistry::instance())
-    {
+    RegisterTest(const std::string& module, const std::string& suiteName,
+                 const std::string& testName, void (T::*m)())
+            : registry_(TestSuiteRegistry::instance()) {
         registry_.addTest(module, suiteName, new CppUnit::TestCaller<T>(testName, m));
     }
+
 protected:
-    RegisterTest() : registry_(TestSuiteRegistry::instance()) {}
-    TestSuiteRegistry &registry_;
+    RegisterTest()
+            : registry_(TestSuiteRegistry::instance()) {}
+    TestSuiteRegistry& registry_;
 };
 
 /**
@@ -89,11 +88,9 @@ protected:
  * to be used as static object.
  */
 template<class T>
-class RegisterTestCase: public RegisterTest<T>
-{
+class RegisterTestCase : public RegisterTest<T> {
 public:
-    RegisterTestCase(const std::string &module, const std::string &suiteName, const std::string &testName)
-    {
+    RegisterTestCase(const std::string& module, const std::string& suiteName, const std::string& testName) {
         this->registry_.addTest(module, suiteName, new T(testName));
     }
 };

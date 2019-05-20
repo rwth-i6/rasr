@@ -16,53 +16,57 @@
  * Verifies usability of Intel Threading Building Blocks
  */
 
-#include <vector>
+#include <Test/UnitTest.hh>
 #include <ext/numeric>
+#include <vector>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
-#include <Test/UnitTest.hh>
 
 template<class T>
-class Sum
-{
+class Sum {
 private:
-    const std::vector<T> &data_;
-    T sum_;
+    const std::vector<T>& data_;
+    T                     sum_;
+
 public:
-    Sum(const std::vector<T> &data) : data_(data), sum_(0) {}
-    Sum(const Sum &o, tbb::split) : data_(o.data_), sum_(0) {}
-    T result() const { return sum_; }
-    void operator()(const tbb::blocked_range<size_t> &range) {
+    Sum(const std::vector<T>& data)
+            : data_(data), sum_(0) {}
+    Sum(const Sum& o, tbb::split)
+            : data_(o.data_), sum_(0) {}
+    T result() const {
+        return sum_;
+    }
+    void operator()(const tbb::blocked_range<size_t>& range) {
         size_t end = range.end();
-        T s = sum_;
+        T      s   = sum_;
         for (size_t i = range.begin(); i != end; ++i)
             s += data_[i];
         sum_ = s;
     }
-    void join(const Sum &other) {
+    void join(const Sum& other) {
         sum_ += other.sum_;
     }
 };
 
 template<class T>
-class Plus
-{
+class Plus {
 private:
     T* const data_;
-    T increment_;
+    T        increment_;
+
 public:
-    Plus(T* const data, T inc) : data_(data), increment_(inc) {}
-    void operator()(tbb::blocked_range<size_t> &range) const {
+    Plus(T* const data, T inc)
+            : data_(data), increment_(inc) {}
+    void operator()(tbb::blocked_range<size_t>& range) const {
         size_t end = range.end();
         for (size_t i = range.begin(); i != end; ++i)
             data_[i] += increment_;
     }
 };
 
-TEST(Core, Tbb, For)
-{
-    const size_t nElements = 100000;
+TEST(Core, Tbb, For) {
+    const size_t     nElements = 100000;
     std::vector<s32> data(nElements);
     __gnu_cxx::iota(data.begin(), data.end(), 0);
     Plus<s32> minusTwo(&data[0], -2);
@@ -71,12 +75,11 @@ TEST(Core, Tbb, For)
     EXPECT_EQ(s32(nElements - 3), data.back());
 }
 
-TEST(Core, Tbb, Reduce)
-{
-    const size_t nElements = 100000;
+TEST(Core, Tbb, Reduce) {
+    const size_t     nElements = 100000;
     std::vector<u32> data(nElements);
     __gnu_cxx::iota(data.begin(), data.end(), 0);
     Sum<u32> intSum(data);
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, nElements), intSum);
-    EXPECT_EQ(u32(nElements*(nElements - 1)/2), intSum.result());
+    EXPECT_EQ(u32(nElements * (nElements - 1) / 2), intSum.result());
 }

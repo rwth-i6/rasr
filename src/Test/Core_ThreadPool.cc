@@ -16,23 +16,29 @@
  * Test functions for Core::ThreadPool
  */
 
-#include <unistd.h>
 #include <Core/ThreadPool.hh>
 #include <Test/UnitTest.hh>
+#include <unistd.h>
 
 using namespace Core;
 
 class TestTask {
 public:
-    explicit TestTask(int v = 0) { value = v; }
-    int value;
-    void set(int v) { value = v; }
+    explicit TestTask(int v = 0) {
+        value = v;
+    }
+    int  value;
+    void set(int v) {
+        value = v;
+    }
 };
 
 class TestMapper {
 public:
-    TestMapper* clone() const { return new TestMapper(); }
-    void map(const TestTask &task) {
+    TestMapper* clone() const {
+        return new TestMapper();
+    }
+    void map(const TestTask& task) {
         sum += task.value;
     }
     void reset() {
@@ -43,8 +49,10 @@ public:
 
 class TestPtrMapper {
 public:
-    TestPtrMapper* clone() const { return new TestPtrMapper(); }
-    void map(const TestTask *task) {
+    TestPtrMapper* clone() const {
+        return new TestPtrMapper();
+    }
+    void map(const TestTask* task) {
         sum += task->value;
         delete task;
     }
@@ -56,8 +64,10 @@ public:
 
 class TestPtrModifyMapper {
 public:
-    TestPtrModifyMapper* clone() const { return new TestPtrModifyMapper(); }
-    void map(TestTask *task) {
+    TestPtrModifyMapper* clone() const {
+        return new TestPtrModifyMapper();
+    }
+    void map(TestTask* task) {
         task->set(1);
         sum += task->value;
     }
@@ -69,24 +79,24 @@ public:
 
 class TestReducer {
 public:
-    TestReducer() { sum = 0; }
-    void reduce(TestMapper *mapper) {
+    TestReducer() {
+        sum = 0;
+    }
+    void reduce(TestMapper* mapper) {
         sum += mapper->sum;
     }
-    void reduce(TestPtrMapper *mapper) {
+    void reduce(TestPtrMapper* mapper) {
         sum += mapper->sum;
     }
-    void reduce(TestPtrModifyMapper *mapper) {
+    void reduce(TestPtrModifyMapper* mapper) {
         sum += mapper->sum;
     }
     int sum;
 };
 
-
-TEST(Core, ThreadPool, Simple)
-{
+TEST(Core, ThreadPool, Simple) {
     ThreadPool<TestTask, TestMapper, TestReducer> pool;
-    TestMapper mapper;
+    TestMapper                                    mapper;
     pool.init(10, mapper);
     const int num_task = 100;
     for (int t = 0; t < num_task; ++t) {
@@ -94,13 +104,12 @@ TEST(Core, ThreadPool, Simple)
     }
     TestReducer reducer;
     pool.combine(&reducer);
-    EXPECT_EQ(reducer.sum, num_task*(num_task - 1)/2);
+    EXPECT_EQ(reducer.sum, num_task * (num_task - 1) / 2);
 }
 
-TEST(Core, ThreadPool, Pointer)
-{
+TEST(Core, ThreadPool, Pointer) {
     ThreadPool<TestTask*, TestPtrMapper, TestReducer> pool;
-    TestPtrMapper mapper;
+    TestPtrMapper                                     mapper;
     pool.init(10, mapper);
     const int num_task = 100;
     for (int t = 0; t < num_task; ++t) {
@@ -108,13 +117,12 @@ TEST(Core, ThreadPool, Pointer)
     }
     TestReducer reducer;
     pool.combine(&reducer);
-    EXPECT_EQ(reducer.sum, num_task*(num_task - 1)/2);
+    EXPECT_EQ(reducer.sum, num_task * (num_task - 1) / 2);
 }
 
-TEST(Core, ThreadPool, Modify)
-{
+TEST(Core, ThreadPool, Modify) {
     ThreadPool<TestTask*, TestPtrModifyMapper, TestReducer> pool;
-    TestPtrModifyMapper mapper;
+    TestPtrModifyMapper                                     mapper;
     pool.init(10, mapper);
     const int num_task = 100;
     for (int t = 0; t < num_task; ++t) {
@@ -125,10 +133,9 @@ TEST(Core, ThreadPool, Modify)
     EXPECT_EQ(reducer.sum, num_task);
 }
 
-TEST(Core, ThreadPool, Reset)
-{
+TEST(Core, ThreadPool, Reset) {
     ThreadPool<TestTask, TestMapper, TestReducer> pool;
-    TestMapper mapper;
+    TestMapper                                    mapper;
     pool.init(10, mapper);
     int num_task = 100;
     for (int t = 0; t < num_task; ++t) {
@@ -142,5 +149,5 @@ TEST(Core, ThreadPool, Reset)
     }
     TestReducer reducer;
     pool.combine(&reducer);
-    EXPECT_EQ(reducer.sum, num_task*(num_task - 1)/2);
+    EXPECT_EQ(reducer.sum, num_task * (num_task - 1) / 2);
 }

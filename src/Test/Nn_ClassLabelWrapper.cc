@@ -12,26 +12,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Test/UnitTest.hh>
-#include <Nn/ClassLabelWrapper.hh>
 #include <Core/Directory.hh>
+#include <Nn/ClassLabelWrapper.hh>
+#include <Test/UnitTest.hh>
 
-class TestClassLabelWrapper : public Test::ConfigurableFixture
-{
+class TestClassLabelWrapper : public Test::ConfigurableFixture {
 public:
-    u32 nClasses_;
+    u32  nClasses_;
     void setUp();
 };
 
-void TestClassLabelWrapper::setUp(){
-//    setParameter("*.channel", "nil");
+void TestClassLabelWrapper::setUp() {
+    //    setParameter("*.channel", "nil");
     nClasses_ = 10;
-
 }
 
-TEST_F(Test, TestClassLabelWrapper, initFromConfig){
+TEST_F(Test, TestClassLabelWrapper, initFromConfig) {
     setParameter("*.disregard-classes", "5");
-    Nn::ClassLabelWrapper *classLabelWrapper = new Nn::ClassLabelWrapper(select("class-labels"), nClasses_);
+    Nn::ClassLabelWrapper* classLabelWrapper = new Nn::ClassLabelWrapper(select("class-labels"), nClasses_);
     // nClasses
     EXPECT_EQ(nClasses_, classLabelWrapper->nClasses());
     // nClassesToAccumulate
@@ -59,11 +57,10 @@ TEST_F(Test, TestClassLabelWrapper, initFromConfig){
     EXPECT_EQ(true, classLabelWrapper->isClassToAccumulate(8));
     EXPECT_EQ(true, classLabelWrapper->isClassToAccumulate(9));
     EXPECT_EQ(false, classLabelWrapper->isClassToAccumulate(5));
-
 }
 
-TEST_F(Test, TestClassLabelWrapper, IO){
-    char *t = std::getenv("TMPDIR");
+TEST_F(Test, TestClassLabelWrapper, IO) {
+    char*       t = std::getenv("TMPDIR");
     std::string tmpdir;
     if (t)
         tmpdir = t;
@@ -73,8 +70,8 @@ TEST_F(Test, TestClassLabelWrapper, IO){
     Core::createDirectory(dirName);
     std::string filename = dirName + "label.map";
     setParameter("*.disregard-classes", "5");
-    Nn::ClassLabelWrapper *classLabelWrapper = new Nn::ClassLabelWrapper(config, nClasses_);
-    bool returnValue = classLabelWrapper->save(filename);
+    Nn::ClassLabelWrapper* classLabelWrapper = new Nn::ClassLabelWrapper(config, nClasses_);
+    bool                   returnValue       = classLabelWrapper->save(filename);
     EXPECT_TRUE(returnValue);
 
     std::cout << "filename: " << filename << std::endl;

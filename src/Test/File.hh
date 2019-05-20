@@ -23,37 +23,41 @@ namespace Test {
  * Directory for intermediate files.
  * The directory and all included files are deleted when the object is destroyed.
  */
-class Directory
-{
+class Directory {
 public:
-    Directory() { create(); }
-    ~Directory() { remove(); }
+    Directory() {
+        create();
+    }
+    ~Directory() {
+        remove();
+    }
     const std::string& path() const {
         return path_;
     }
+
 private:
-    void create();
-    void remove();
+    void        create();
+    void        remove();
     std::string path_;
 };
 
 /**
  * A Temporary file.
  */
-class File
-{
+class File {
 public:
-    File(const Directory &dir, const std::string &name) {
+    File(const Directory& dir, const std::string& name) {
         path_ = Core::joinPaths(dir.path(), name);
     }
     const std::string& path() const {
         return path_;
     }
+
 private:
-    void create(const std::string &dir);
+    void        create(const std::string& dir);
     std::string path_;
 };
 
 }  // namespace Test
 
-#endif // _TEST_FILE_HH
+#endif  // _TEST_FILE_HH

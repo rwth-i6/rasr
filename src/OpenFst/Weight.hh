@@ -15,45 +15,40 @@
 #ifndef _OPENFST_WEIGHT_HH
 #define _OPENFST_WEIGHT_HH
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 /**
  * convert weights using casting operators of the
  * involved weight classes
  */
-template <class WeightFrom, class WeightTo>
-struct ImplicitWeightConverter
-{
-    WeightTo operator()(const WeightFrom &w) const {
+template<class WeightFrom, class WeightTo>
+struct ImplicitWeightConverter {
+    WeightTo operator()(const WeightFrom& w) const {
         return static_cast<WeightTo>(w);
     }
 };
 
-template <class T, class WeightTo>
-struct ImplicitWeightConverter<FstLib::FloatWeightTpl<T>, WeightTo>
-{
-    WeightTo operator()(const FstLib::FloatWeightTpl<T> &w) const {
+template<class T, class WeightTo>
+struct ImplicitWeightConverter<FstLib::FloatWeightTpl<T>, WeightTo> {
+    WeightTo operator()(const FstLib::FloatWeightTpl<T>& w) const {
         return static_cast<WeightTo>(w.Value());
     }
 };
 
-template <class T, class WeightTo>
-struct ImplicitWeightConverter<FstLib::TropicalWeightTpl<T>, WeightTo>
-{
-    WeightTo operator()(const FstLib::TropicalWeightTpl<T> &w) const {
+template<class T, class WeightTo>
+struct ImplicitWeightConverter<FstLib::TropicalWeightTpl<T>, WeightTo> {
+    WeightTo operator()(const FstLib::TropicalWeightTpl<T>& w) const {
         return static_cast<WeightTo>(w.Value());
     }
 };
 
-template <class T, class WeightTo>
-struct ImplicitWeightConverter<FstLib::LogWeightTpl<T>, WeightTo>
-{
-    WeightTo operator()(const FstLib::LogWeightTpl<T> &w) const {
+template<class T, class WeightTo>
+struct ImplicitWeightConverter<FstLib::LogWeightTpl<T>, WeightTo> {
+    WeightTo operator()(const FstLib::LogWeightTpl<T>& w) const {
         return static_cast<WeightTo>(w.Value());
     }
 };
 
-}
+}  // namespace OpenFst
 
 #endif /* _OPENFST_WEIGHT_HH */

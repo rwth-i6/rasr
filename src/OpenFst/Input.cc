@@ -15,16 +15,14 @@
 #include "Input.hh"
 #include <Fsa/tCopy.hh>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
-bool readOpenFst(const Fsa::Resources &resources, Fsa::StorageAutomaton *f, std::istream &i)
-{
+bool readOpenFst(const Fsa::Resources& resources, Fsa::StorageAutomaton* f, std::istream& i) {
     if (i) {
-        FstLib::FstReadOptions options;
-        VectorFst *fst = VectorFst::Read(i, options);
+        FstLib::FstReadOptions                                    options;
+        VectorFst*                                                fst = VectorFst::Read(i, options);
         typedef FstMapperAutomaton<Fsa::Semiring, VectorFst::Arc> FstToFsaMapper;
-        Core::Ref<FstToFsaMapper> mapper( new FstToFsaMapper(fst, Fsa::TropicalSemiring) );
+        Core::Ref<FstToFsaMapper>                                 mapper(new FstToFsaMapper(fst, Fsa::TropicalSemiring));
         Ftl::copy(f, mapper);
         delete fst;
         return true;
@@ -32,4 +30,4 @@ bool readOpenFst(const Fsa::Resources &resources, Fsa::StorageAutomaton *f, std:
     return false;
 }
 
-}
+}  // namespace OpenFst

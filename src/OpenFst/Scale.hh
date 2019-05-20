@@ -15,48 +15,53 @@
 #ifndef _OPENFST_SCALE_HH
 #define _OPENFST_SCALE_HH
 
-#include <fst/mutable-fst.h>
 #include <fst/arc-map.h>
+#include <fst/mutable-fst.h>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 /**
  * Multiply all (float) weights by a scaling factor.
  */
 template<class Arc>
-class ScaleMapper
-{
+class ScaleMapper {
 public:
+    ScaleMapper(f32 scale)
+            : scale_(scale) {}
 
-    ScaleMapper(f32 scale) : scale_(scale) {}
-
-    Arc operator()(const Arc &arc) const {
+    Arc operator()(const Arc& arc) const {
         if (arc.weight == Arc::Weight::Zero() || arc.weight == Arc::Weight::One())
             return arc;
-        Arc newArc = arc;
+        Arc newArc    = arc;
         newArc.weight = arc.weight.Value() * scale_;
         return newArc;
     }
 
-    FstLib::MapFinalAction FinalAction() const { return FstLib::MAP_NO_SUPERFINAL; }
+    FstLib::MapFinalAction FinalAction() const {
+        return FstLib::MAP_NO_SUPERFINAL;
+    }
 
-    FstLib::MapSymbolsAction InputSymbolsAction() const { return FstLib::MAP_COPY_SYMBOLS; }
+    FstLib::MapSymbolsAction InputSymbolsAction() const {
+        return FstLib::MAP_COPY_SYMBOLS;
+    }
 
-    FstLib::MapSymbolsAction OutputSymbolsAction() const { return FstLib::MAP_COPY_SYMBOLS;}
+    FstLib::MapSymbolsAction OutputSymbolsAction() const {
+        return FstLib::MAP_COPY_SYMBOLS;
+    }
 
-    u64 Properties(u64 props) const { return props; }
+    u64 Properties(u64 props) const {
+        return props;
+    }
 
 private:
     f32 scale_;
 };
 
 template<class Arc>
-void scaleWeights(FstLib::MutableFst<Arc> *fst, f32 scale)
-{
+void scaleWeights(FstLib::MutableFst<Arc>* fst, f32 scale) {
     FstLib::ArcMap(fst, ScaleMapper<Arc>(scale));
 }
 
-} // namespace OpenFst
+}  // namespace OpenFst
 
 #endif

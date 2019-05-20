@@ -18,33 +18,32 @@
 #include <Fsa/Alphabet.hh>
 #include "Types.hh"
 
-namespace OpenFst
-{
-    /**
-     * convert label id from Fsa to OpenFst.
-     * required because Fsa::Epsilon != OpenFst::Epsilon
-     */
-    inline Label convertLabelFromFsa(Fsa::LabelId l) {
-        return l + 1;
-    }
-
-    /**
-     * convert label id from OpenFst to Fsa.
-     * required because Fsa::Epsilon != OpenFst::Epsilon
-     */
-    inline Fsa::LabelId convertLabelToFsa(Label l) {
-        return l - 1;
-    }
-
-    /**
-     * convert a Fsa::Alphabet to a OpenFst::SymbolTable
-     */
-    SymbolTable* convertAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string &name, s32 keyOffset = 0);
-
-    /**
-     * convert an OpenFst::SymbolTable to a Fsa::Alphabet
-     */
-    Fsa::ConstAlphabetRef convertAlphabet(const SymbolTable *symbolTable);
+namespace OpenFst {
+/**
+ * convert label id from Fsa to OpenFst.
+ * required because Fsa::Epsilon != OpenFst::Epsilon
+ */
+inline Label convertLabelFromFsa(Fsa::LabelId l) {
+    return l + 1;
 }
+
+/**
+ * convert label id from OpenFst to Fsa.
+ * required because Fsa::Epsilon != OpenFst::Epsilon
+ */
+inline Fsa::LabelId convertLabelToFsa(Label l) {
+    return l - 1;
+}
+
+/**
+ * convert a Fsa::Alphabet to a OpenFst::SymbolTable
+ */
+SymbolTable* convertAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string& name, s32 keyOffset = 0);
+
+/**
+ * convert an OpenFst::SymbolTable to a Fsa::Alphabet
+ */
+Fsa::ConstAlphabetRef convertAlphabet(const SymbolTable* symbolTable);
+}  // namespace OpenFst
 
 #endif /* _OPEN_FST_SYMBOL_TABLE_HH */

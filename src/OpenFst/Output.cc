@@ -15,43 +15,39 @@
 #include "Output.hh"
 #include <iostream>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
-bool writeFsa(Fsa::ConstAutomatonRef f, const std::string &file)
-{
+bool writeFsa(Fsa::ConstAutomatonRef f, const std::string& file) {
     std::ofstream out(file.c_str());
     if (!out)
         return false;
 
-    VectorFst *fst = convertFromFsa(f);
-    bool r = fst->Write(out, FstLib::FstWriteOptions(file, true, true, true));
+    VectorFst* fst = convertFromFsa(f);
+    bool       r   = fst->Write(out, FstLib::FstWriteOptions(file, true, true, true));
     delete fst;
     return r;
 }
 
-bool writeOpenFst(const Fsa::Resources &resources, Fsa::ConstAutomatonRef f,
-                  std::ostream &o, Fsa::StoredComponents what, bool progress) {
+bool writeOpenFst(const Fsa::Resources& resources, Fsa::ConstAutomatonRef f,
+                  std::ostream& o, Fsa::StoredComponents what, bool progress) {
     if (o) {
-        VectorFst *fst = convertFromFsa(f);
-        bool r = fst->Write(o, FstLib::FstWriteOptions("", true, true, true));
+        VectorFst* fst = convertFromFsa(f);
+        bool       r   = fst->Write(o, FstLib::FstWriteOptions("", true, true, true));
         delete fst;
         return r;
     }
     return true;
 }
 
-
-VectorFst* convertFromFsa(Fsa::ConstAutomatonRef f)
-{
+VectorFst* convertFromFsa(Fsa::ConstAutomatonRef f) {
     return convertFromFsa<Fsa::Automaton, OpenFst::VectorFst>(f);
 }
 
-
-bool write(const VectorFst &fst, const std::string &filename) {
+bool write(const VectorFst& fst, const std::string& filename) {
     std::ofstream o(filename.c_str());
-    if (!o) return false;
+    if (!o)
+        return false;
     return fst.Write(o, FstLib::FstWriteOptions(filename, true, true, true));
 }
 
-}
+}  // namespace OpenFst

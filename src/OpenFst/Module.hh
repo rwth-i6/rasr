@@ -17,11 +17,9 @@
 
 #include <Core/Singleton.hh>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
-class Module_
-{
+class Module_ {
 public:
     Module_();
     ~Module_() {}
@@ -29,6 +27,6 @@ public:
 
 typedef Core::SingletonHolder<Module_> Module;
 
-}
+}  // namespace OpenFst
 
 #endif /* _OPENFST_MODULE_HH */

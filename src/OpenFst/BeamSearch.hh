@@ -16,49 +16,48 @@
 #define _OPENFST_BEAMS_EARCH_HH
 
 #include <OpenFst/Types.hh>
+#include <unordered_map>
+#include <vector>
 #include <fst/connect.h>
 #include <fst/fst.h>
 #include <fst/reverse.h>
-#include <vector>
-#include <unordered_map>
 
 namespace OpenFst {
 
 namespace {
 template<class A>
 struct ShortestPathHyp {
-    typename A::Weight weight;
+    typename A::Weight  weight;
     typename A::StateId state, trace;
 };
-}
+}  // namespace
 
 /**
  * Arc-synchronous breadth-first beam search
  */
 template<class A>
-void shortestPaths(const FstLib::Fst<A> &fst, typename A::Weight beam, FstLib::VectorFst<A> *lattice)
-{
-    typedef FstLib::Fst<A> Fst;
+void shortestPaths(const FstLib::Fst<A>& fst, typename A::Weight beam, FstLib::VectorFst<A>* lattice) {
+    typedef FstLib::Fst<A>      Fst;
     typedef typename A::StateId StateId;
-    typedef typename A::Weight Weight;
-    typedef typename A::Label Label;
-    typedef ShortestPathHyp<A> Hyp;
-    std::vector<Hyp> active, newActive;
+    typedef typename A::Weight  Weight;
+    typedef typename A::Label   Label;
+    typedef ShortestPathHyp<A>  Hyp;
+    std::vector<Hyp>            active, newActive;
     verify(Weight::Properties() & FstLib::kPath);
-    FstLib::VectorFst<A> traceback;
+    FstLib::VectorFst<A>                        traceback;
     typedef std::unordered_map<StateId, size_t> StateToHypMap;
-    StateToHypMap stateToHyp;
+    StateToHypMap                               stateToHyp;
     lattice->DeleteStates();
     Hyp start;
-    start.state = fst.Start();
+    start.state  = fst.Start();
     start.weight = Weight::One();
-    start.trace = traceback.AddState();
+    start.trace  = traceback.AddState();
     traceback.SetStart(start.trace);
     active.push_back(start);
     Hyp bestFinal;
-    bestFinal.state = FstLib::kNoStateId;
+    bestFinal.state  = FstLib::kNoStateId;
     bestFinal.weight = Weight::Zero();
-    bestFinal.trace = traceback.AddState();
+    bestFinal.trace  = traceback.AddState();
     while (!active.empty() && bestFinal.state == FstLib::kNoStateId) {
         // expand active hypotheses
         Weight best = Weight::Zero();
@@ -68,25 +67,26 @@ void shortestPaths(const FstLib::Fst<A> &fst, typename A::Weight beam, FstLib::V
                 Weight finalWeight = FstLib::Times(hyp->weight, fst.Final(hyp->state));
                 if (bestFinal.weight != FstLib::Plus(bestFinal.weight, finalWeight)) {
                     bestFinal.weight = FstLib::Plus(bestFinal.weight, finalWeight);
-                    bestFinal.state = hyp->state;
+                    bestFinal.state  = hyp->state;
                 }
                 traceback.AddArc(bestFinal.trace, A(0, 0, fst.Final(hyp->state), hyp->trace));
             }
             // expand hypotheses
             for (FstLib::ArcIterator<Fst> aiter(fst, hyp->state); !aiter.Done(); aiter.Next()) {
                 Hyp newHyp;
-                A arc = aiter.Value();
-                newHyp.state = arc.nextstate;
-                newHyp.weight = FstLib::Times(hyp->weight, arc.weight);
+                A   arc                                  = aiter.Value();
+                newHyp.state                             = arc.nextstate;
+                newHyp.weight                            = FstLib::Times(hyp->weight, arc.weight);
                 typename StateToHypMap::const_iterator i = stateToHyp.find(newHyp.state);
                 if (i != stateToHyp.end()) {
                     // recombine hypotheses
-                    Hyp &h = newActive[i->second];
+                    Hyp& h       = newActive[i->second];
                     newHyp.trace = h.trace;
                     if (h.weight != FstLib::Plus(h.weight, newHyp.weight)) {
                         h = newHyp;
                     }
-                } else {
+                }
+                else {
                     stateToHyp.insert(typename StateToHypMap::value_type(newHyp.state, newActive.size()));
                     newHyp.trace = traceback.AddState();
                     newActive.push_back(newHyp);
@@ -98,8 +98,8 @@ void shortestPaths(const FstLib::Fst<A> &fst, typename A::Weight beam, FstLib::V
                 // keep track of the best score (for pruning)
                 if (best != FstLib::Plus(best, newHyp.weight))
                     best = FstLib::Plus(best, newHyp.weight);
-            } // for aiter
-        } // for hyp
+            }  // for aiter
+        }      // for hyp
         // prune hypotheses
         active.clear();
         Weight threshold = FstLib::Times(best, beam);
@@ -110,19 +110,19 @@ void shortestPaths(const FstLib::Fst<A> &fst, typename A::Weight beam, FstLib::V
         /*! @todo garbage collection in the traceback: remove non-reachable states */
         newActive.clear();
         stateToHyp.clear();
-    } // while
+    }  // while
     if (bestFinal.state != FstLib::kNoStateId) {
         // create lattice
         traceback.SetFinal(traceback.Start(), Weight::One());
         traceback.SetStart(bestFinal.trace);
         FstLib::Connect(&traceback);
         FstLib::Reverse(traceback, lattice);
-    } else {
+    }
+    else {
         // no final state found
     }
 }
 
-} // namespace OpenFst
+}  // namespace OpenFst
 
-
-#endif // _OPENFST_BEAMS_EARCH_HH
+#endif  // _OPENFST_BEAMS_EARCH_HH

@@ -15,66 +15,87 @@
 #ifndef _OPENFST_FSTMAPPER_HH
 #define _OPENFST_FSTMAPPER_HH
 
-#include <Fsa/tAutomaton.hh>
-#include <Fsa/Semiring.hh>
 #include <Fsa/Automaton.hh>
+#include <Fsa/Semiring.hh>
+#include <Fsa/tAutomaton.hh>
+#include <OpenFst/SymbolTable.hh>
 #include <OpenFst/Types.hh>
 #include <OpenFst/Weight.hh>
-#include <OpenFst/SymbolTable.hh>
 #include <fst/fst.h>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 template<class Semiring, class FstArc, template<class, class> class WeightConverter, class FsaAutomaton>
-class FstMapperAutomatonImpl
-{
+class FstMapperAutomatonImpl {
 protected:
-    typedef FstLib::Fst<FstArc> FstAutomaton;
+    typedef FstLib::Fst<FstArc>          FstAutomaton;
     typedef typename FsaAutomaton::State State;
-    typedef Core::Ref<const Semiring> ConstSemiringRef;
+    typedef Core::Ref<const Semiring>    ConstSemiringRef;
 
 public:
     typedef WeightConverter<typename FstAutomaton::Weight, typename Semiring::Weight> WeightConverterType;
 
 protected:
-    const FstAutomaton *fst_;
-    ConstSemiringRef semiring_;
+    const FstAutomaton*   fst_;
+    ConstSemiringRef      semiring_;
     Fsa::ConstAlphabetRef inputAlphabet_, outputAlphabet_;
-    WeightConverterType weightConverter_;
-    Fsa::Type type_;
+    WeightConverterType   weightConverter_;
+    Fsa::Type             type_;
 
 public:
-    FstMapperAutomatonImpl(const FstAutomaton *fst, ConstSemiringRef semiring, WeightConverterType converter) :
-        fst_(fst), semiring_(semiring), weightConverter_(converter) { init(); }
+    FstMapperAutomatonImpl(const FstAutomaton* fst, ConstSemiringRef semiring, WeightConverterType converter)
+            : fst_(fst), semiring_(semiring), weightConverter_(converter) {
+        init();
+    }
 
-    Fsa::ConstAlphabetRef inputAlphabet() const { return inputAlphabet_; }
-    Fsa::ConstAlphabetRef outputAlphabet() const { return outputAlphabet_; }
-    void setInputAlphabet(Fsa::ConstAlphabetRef a) { inputAlphabet_ = a; }
-    void setOutputAlphabet(Fsa::ConstAlphabetRef a) { outputAlphabet_ = a; }
-    ConstSemiringRef semiring() const { return semiring_; }
-    void setSemiring(ConstSemiringRef s) { semiring_ = s; }
-    Fsa::StateId initialStateId() const { return fst_->Start(); }
-    typename Semiring::Weight convertWeight(const typename FstAutomaton::Weight &w) { return weightConverter_(w); }
-    const std::string describe() const { return "FstMapper(" + fst_->Type() + ")"; }
-    Fsa::Type type() const { return type_; }
-    void setType(Fsa::Type type) { type_ = type; }
-    State* createState(Fsa::StateId s) const
-    {
-        State *state = new State(s);
+    Fsa::ConstAlphabetRef inputAlphabet() const {
+        return inputAlphabet_;
+    }
+    Fsa::ConstAlphabetRef outputAlphabet() const {
+        return outputAlphabet_;
+    }
+    void setInputAlphabet(Fsa::ConstAlphabetRef a) {
+        inputAlphabet_ = a;
+    }
+    void setOutputAlphabet(Fsa::ConstAlphabetRef a) {
+        outputAlphabet_ = a;
+    }
+    ConstSemiringRef semiring() const {
+        return semiring_;
+    }
+    void setSemiring(ConstSemiringRef s) {
+        semiring_ = s;
+    }
+    Fsa::StateId initialStateId() const {
+        return fst_->Start();
+    }
+    typename Semiring::Weight convertWeight(const typename FstAutomaton::Weight& w) {
+        return weightConverter_(w);
+    }
+    const std::string describe() const {
+        return "FstMapper(" + fst_->Type() + ")";
+    }
+    Fsa::Type type() const {
+        return type_;
+    }
+    void setType(Fsa::Type type) {
+        type_ = type;
+    }
+    State* createState(Fsa::StateId s) const {
+        State* state = new State(s);
         if (fst_->Final(s) != FstAutomaton::Weight::Zero()) {
             state->setFinal(weightConverter_(fst_->Final(s)));
         }
         for (FstLib::ArcIterator<FstAutomaton> a(*fst_, s); !a.Done(); a.Next()) {
-            const typename FstAutomaton::Arc &arc = a.Value();
+            const typename FstAutomaton::Arc& arc = a.Value();
             state->newArc(arc.nextstate, weightConverter_(arc.weight), convertLabelToFsa(arc.ilabel), convertLabelToFsa(arc.olabel));
         }
         return state;
     }
+
 protected:
-    void init()
-    {
-        inputAlphabet_ = convertAlphabet(fst_->InputSymbols());
+    void init() {
+        inputAlphabet_  = convertAlphabet(fst_->InputSymbols());
         bool isAcceptor = fst_->Properties(FstLib::kAcceptor, true);
         if (!isAcceptor) {
             outputAlphabet_ = convertAlphabet(fst_->OutputSymbols());
@@ -83,56 +104,50 @@ protected:
     }
 };
 
-template<class Semiring, class FstArc, template<class, class> class WeightConverter = ImplicitWeightConverter, class Base = Ftl::Automaton<Semiring> >
-class FstMapperAutomaton : public Base
-{
+template<class Semiring, class FstArc, template<class, class> class WeightConverter = ImplicitWeightConverter, class Base = Ftl::Automaton<Semiring>>
+class FstMapperAutomaton : public Base {
 public:
-    typedef Base FsaAutomaton;
-    typedef typename FstLib::Fst<FstArc> FstAutomaton;
-    typedef typename FsaAutomaton::State _State;
+    typedef Base                            FsaAutomaton;
+    typedef typename FstLib::Fst<FstArc>    FstAutomaton;
+    typedef typename FsaAutomaton::State    _State;
     typedef typename FsaAutomaton::Semiring _Semiring;
-    typedef Core::Ref<const _State> _ConstStateRef;
-    typedef Core::Ref<const _Semiring> _ConstSemiringRef;
+    typedef Core::Ref<const _State>         _ConstStateRef;
+    typedef Core::Ref<const _Semiring>      _ConstSemiringRef;
 
 protected:
     typedef FstMapperAutomatonImpl<Semiring, FstArc, WeightConverter, Base> Impl;
-    typedef typename Impl::WeightConverterType WeightConverterType;
-    Impl *impl_;
+    typedef typename Impl::WeightConverterType                              WeightConverterType;
+    Impl*                                                                   impl_;
 
 public:
-    FstMapperAutomaton(const FstAutomaton *fst, WeightConverterType converter = WeightConverterType()) :
-        FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
-    FstMapperAutomaton(const FstAutomaton *fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType()) :
-        FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
-    virtual ~FstMapperAutomaton() { delete impl_; }
+    FstMapperAutomaton(const FstAutomaton* fst, WeightConverterType converter = WeightConverterType())
+            : FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
+    FstMapperAutomaton(const FstAutomaton* fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType())
+            : FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
+    virtual ~FstMapperAutomaton() {
+        delete impl_;
+    }
 
 public:
-    virtual Fsa::Type type() const
-    {
+    virtual Fsa::Type type() const {
         return impl_->type();
     }
-    virtual void setType(Fsa::Type type)
-    {
+    virtual void setType(Fsa::Type type) {
         impl_->setType(type);
     }
-    virtual _ConstSemiringRef semiring() const
-    {
+    virtual _ConstSemiringRef semiring() const {
         return impl_->semiring();
     }
-    virtual void setSemiring(_ConstSemiringRef semiring)
-    {
+    virtual void setSemiring(_ConstSemiringRef semiring) {
         impl_->setSemiring(semiring);
     }
-    virtual Fsa::StateId initialStateId() const
-    {
+    virtual Fsa::StateId initialStateId() const {
         return impl_->initialStateId();
     }
-    virtual Fsa::ConstAlphabetRef getInputAlphabet() const
-    {
+    virtual Fsa::ConstAlphabetRef getInputAlphabet() const {
         return impl_->inputAlphabet();
     }
-    virtual Fsa::ConstAlphabetRef getOutputAlphabet() const
-    {
+    virtual Fsa::ConstAlphabetRef getOutputAlphabet() const {
         return impl_->outputAlphabet();
     }
     void setInputAlphabet(Fsa::ConstAlphabetRef a) {
@@ -142,78 +157,67 @@ public:
         impl_->setOutputAlphabet(a);
     }
 
-    virtual _ConstStateRef getState(Fsa::StateId s) const
-    {
+    virtual _ConstStateRef getState(Fsa::StateId s) const {
         return _ConstStateRef(impl_->createState(s));
     }
-    virtual std::string describe() const
-    {
+    virtual std::string describe() const {
         return impl_->describe();
     }
 };
 
 template<class FstArc, template<class, class> class WeightConverter>
-class FstMapperAutomaton<Fsa::Semiring, FstArc, WeightConverter> : public Fsa::Automaton
-{
+class FstMapperAutomaton<Fsa::Semiring, FstArc, WeightConverter> : public Fsa::Automaton {
 public:
-    typedef typename Fsa::Automaton FsaAutomaton;
-    typedef typename FstLib::Fst<FstArc> FstAutomaton;
-    typedef typename FsaAutomaton::State _State;
+    typedef typename Fsa::Automaton         FsaAutomaton;
+    typedef typename FstLib::Fst<FstArc>    FstAutomaton;
+    typedef typename FsaAutomaton::State    _State;
     typedef typename FsaAutomaton::Semiring _Semiring;
-    typedef Core::Ref<const _State> _ConstStateRef;
-    typedef Core::Ref<const _Semiring> _ConstSemiringRef;
+    typedef Core::Ref<const _State>         _ConstStateRef;
+    typedef Core::Ref<const _Semiring>      _ConstSemiringRef;
 
 protected:
     typedef FstMapperAutomatonImpl<Semiring, FstArc, WeightConverter, FsaAutomaton> Impl;
-    typedef typename Impl::WeightConverterType WeightConverterType;
-    Impl *impl_;
+    typedef typename Impl::WeightConverterType                                      WeightConverterType;
+    Impl*                                                                           impl_;
 
 public:
-    FstMapperAutomaton(const FstAutomaton *fst, WeightConverterType converter = WeightConverterType()) :
-        FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
-    FstMapperAutomaton(const FstAutomaton *fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType()) :
-        FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
-    virtual ~FstMapperAutomaton() { delete impl_; }
+    FstMapperAutomaton(const FstAutomaton* fst, WeightConverterType converter = WeightConverterType())
+            : FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
+    FstMapperAutomaton(const FstAutomaton* fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType())
+            : FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
+    virtual ~FstMapperAutomaton() {
+        delete impl_;
+    }
 
 public:
-    virtual Fsa::Type type() const
-    {
+    virtual Fsa::Type type() const {
         return impl_->type();
     }
-    virtual void setType(Fsa::Type type)
-    {
+    virtual void setType(Fsa::Type type) {
         impl_->setType(type);
     }
-    virtual _ConstSemiringRef semiring() const
-    {
+    virtual _ConstSemiringRef semiring() const {
         return impl_->semiring();
     }
-    virtual void setSemiring(_ConstSemiringRef semiring)
-    {
+    virtual void setSemiring(_ConstSemiringRef semiring) {
         impl_->setSemiring(semiring);
     }
-    virtual Fsa::StateId initialStateId() const
-    {
+    virtual Fsa::StateId initialStateId() const {
         return impl_->initialStateId();
     }
-    virtual Fsa::ConstAlphabetRef getInputAlphabet() const
-    {
+    virtual Fsa::ConstAlphabetRef getInputAlphabet() const {
         return impl_->inputAlphabet();
     }
-    virtual Fsa::ConstAlphabetRef getOutputAlphabet() const
-    {
+    virtual Fsa::ConstAlphabetRef getOutputAlphabet() const {
         return impl_->outputAlphabet();
     }
-    virtual _ConstStateRef getState(Fsa::StateId s) const
-    {
+    virtual _ConstStateRef getState(Fsa::StateId s) const {
         return _ConstStateRef(impl_->createState(s));
     }
-    virtual std::string describe() const
-    {
+    virtual std::string describe() const {
         return impl_->describe();
     }
-
 };
 
-}
+}  // namespace OpenFst
 #endif /* _OPENFST_FSTMAPPER_HH */

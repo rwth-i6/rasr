@@ -16,10 +16,15 @@
 
 class TestApplication : public Core::Application {
 public:
-    virtual std::string getUsage() const { return "\n"; }
-    TestApplication() : Core::Application() { setTitle("check"); }
+    virtual std::string getUsage() const {
+        return "\n";
+    }
+    TestApplication()
+            : Core::Application() {
+        setTitle("check");
+    }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         return 0;
     }
 };

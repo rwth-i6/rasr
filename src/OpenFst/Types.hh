@@ -26,28 +26,27 @@ namespace FstLib = fst;
  * The classes and functions of the library itself are defined
  * in the namespace FstLib
  */
-namespace OpenFst
-{
-    typedef fst::StdVectorFst      VectorFst;
-    typedef fst::StdArc            Arc;
-    typedef fst::StdArc::StateId   StateId;
-    typedef fst::StdArc::Weight    Weight;
-    typedef fst::StdArc::Label     Label;
-    typedef fst::SymbolTable       SymbolTable;
-    typedef fst::StateIterator<VectorFst> StateIterator;
-    typedef fst::ArcIterator<VectorFst>   ArcIterator;
-    typedef fst::MutableArcIterator<VectorFst> MutableArcIterator;
-    typedef fst::LogArc		   LogArc;
-    typedef fst::VectorFst<LogArc> LogVectorFst;
+namespace OpenFst {
+typedef fst::StdVectorFst                  VectorFst;
+typedef fst::StdArc                        Arc;
+typedef fst::StdArc::StateId               StateId;
+typedef fst::StdArc::Weight                Weight;
+typedef fst::StdArc::Label                 Label;
+typedef fst::SymbolTable                   SymbolTable;
+typedef fst::StateIterator<VectorFst>      StateIterator;
+typedef fst::ArcIterator<VectorFst>        ArcIterator;
+typedef fst::MutableArcIterator<VectorFst> MutableArcIterator;
+typedef fst::LogArc                        LogArc;
+typedef fst::VectorFst<LogArc>             LogVectorFst;
 
-    static const Label Epsilon = 0;
-    static const StateId InvalidStateId = FstLib::kNoStateId;
-    static const Label InvalidLabelId = FstLib::kNoLabel;
+static const Label   Epsilon        = 0;
+static const StateId InvalidStateId = FstLib::kNoStateId;
+static const Label   InvalidLabelId = FstLib::kNoLabel;
 
-    template<class A>
-    bool isFinalState(const FstLib::Fst<A> &fst, StateId s) {
-        return fst.Final(s) != A::Weight::Zero();
-    }
+template<class A>
+bool isFinalState(const FstLib::Fst<A>& fst, StateId s) {
+    return fst.Final(s) != A::Weight::Zero();
 }
+}  // namespace OpenFst
 
-#endif // _OPENFST_TYPES_HH
+#endif  // _OPENFST_TYPES_HH

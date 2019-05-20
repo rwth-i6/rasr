@@ -27,39 +27,42 @@ namespace OpenFst {
  * logic is added using the Decorator Pattern.
  */
 template<class A>
-class EpsilonEncodeMapper
-{
+class EpsilonEncodeMapper {
     typedef FstLib::EncodeMapper<A> Mapper;
-    typedef FstLib::EncodeType EncodeType;
-    typedef typename A::Weight Weight;
+    typedef FstLib::EncodeType      EncodeType;
+    typedef typename A::Weight      Weight;
+
 public:
-    EpsilonEncodeMapper(uint32 flags, EncodeType type) : mapper_(flags, type) {}
+    EpsilonEncodeMapper(uint32 flags, EncodeType type)
+            : mapper_(flags, type) {}
 
-    EpsilonEncodeMapper(const EpsilonEncodeMapper& mapper) : mapper_(mapper.mapper_) {}
+    EpsilonEncodeMapper(const EpsilonEncodeMapper& mapper)
+            : mapper_(mapper.mapper_) {}
 
-    EpsilonEncodeMapper(const Mapper& mapper) : mapper_(mapper) {}
+    EpsilonEncodeMapper(const Mapper& mapper)
+            : mapper_(mapper) {}
 
-    EpsilonEncodeMapper(const EpsilonEncodeMapper& mapper, EncodeType type) :
-        mapper_(mapper.mapper_, type) {}
+    EpsilonEncodeMapper(const EpsilonEncodeMapper& mapper, EncodeType type)
+            : mapper_(mapper.mapper_, type) {}
 
-    EpsilonEncodeMapper(const Mapper& mapper, EncodeType type) :
-        mapper_(mapper, type) {}
+    EpsilonEncodeMapper(const Mapper& mapper, EncodeType type)
+            : mapper_(mapper, type) {}
 
     ~EpsilonEncodeMapper() {}
 
-    A operator()(const A &arc) {
+    A operator()(const A& arc) {
         A result = mapper_(arc);
         if (mapper_.Type() == FstLib::ENCODE && arc.nextstate != FstLib::kNoStateId &&
-                arc.ilabel == 0 &&
-                (!(mapper_.Flags() & FstLib::kEncodeWeights) || arc.weight == Weight::One()) &&
-                (!(mapper_.Flags() & FstLib::kEncodeLabels) || arc.olabel == 0)) {
+            arc.ilabel == 0 &&
+            (!(mapper_.Flags() & FstLib::kEncodeWeights) || arc.weight == Weight::One()) &&
+            (!(mapper_.Flags() & FstLib::kEncodeLabels) || arc.olabel == 0)) {
             result.ilabel = 0;
         }
         return result;
     }
 
     FstLib::MapFinalAction FinalAction() const {
-      return mapper_.FinalAction();
+        return mapper_.FinalAction();
     }
 
     FstLib::MapSymbolsAction InputSymbolsAction() const {
@@ -74,11 +77,17 @@ public:
         return mapper_.Properties(props);
     }
 
-    const uint32 flags() const { return mapper_.flags(); }
-    const EncodeType type() const { return mapper_.type(); }
-    const FstLib::internal::EncodeTable<A> &table() const { return mapper_.table(); }
+    const uint32 flags() const {
+        return mapper_.flags();
+    }
+    const EncodeType type() const {
+        return mapper_.type();
+    }
+    const FstLib::internal::EncodeTable<A>& table() const {
+        return mapper_.table();
+    }
 
-    bool Write(std::ostream &strm, const string& source) {
+    bool Write(std::ostream& strm, const string& source) {
         return mapper_.Write(strm, source);
     }
 
@@ -86,9 +95,13 @@ public:
         return mapper_.Write(filename);
     }
 
-    FstLib::SymbolTable *InputSymbols() const { return mapper_.InputSymbols(); }
+    FstLib::SymbolTable* InputSymbols() const {
+        return mapper_.InputSymbols();
+    }
 
-    FstLib::SymbolTable *OutputSymbols() const { return mapper_.OutputSymbols(); }
+    FstLib::SymbolTable* OutputSymbols() const {
+        return mapper_.OutputSymbols();
+    }
 
     void SetInputSymbols(const FstLib::SymbolTable* syms) {
         mapper_.SetInputSymbols(syms);
@@ -97,11 +110,12 @@ public:
     void SetOutputSymbols(const FstLib::SymbolTable* syms) {
         mapper_.SetOutputSymbols(syms);
     }
+
 private:
-    void operator=(const EpsilonEncodeMapper &);  // Disallow.
+    void   operator=(const EpsilonEncodeMapper&);  // Disallow.
     Mapper mapper_;
 };
 
-} // namespace OpenFst {
+}  // namespace OpenFst
 
 #endif /* ENCODE_HH_ */

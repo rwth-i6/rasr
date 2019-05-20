@@ -15,11 +15,10 @@
 #ifndef _OPENFST_RELABEL_HH
 #define _OPENFST_RELABEL_HH
 
+#include <OpenFst/Types.hh>
 #include <utility>
 #include <vector>
 #include <fst/relabel.h>
-#include <OpenFst/Types.hh>
-
 
 namespace OpenFst {
 
@@ -27,20 +26,17 @@ typedef std::pair<Label, Label> LabelPair;
 
 typedef std::vector<LabelPair> LabelMapping;
 
-
-inline void Relabel(FstLib::MutableFst<Arc> *fst,
-             const std::map<Label, Label> &ilabels,
-             const std::map<Label, Label> &olabels)
-{
+inline void Relabel(FstLib::MutableFst<Arc>*      fst,
+                    const std::map<Label, Label>& ilabels,
+                    const std::map<Label, Label>& olabels) {
     LabelMapping ipairs, opairs;
-    for (std::map<Label,Label>::const_iterator l = ilabels.begin(); l != ilabels.end(); ++l)
+    for (std::map<Label, Label>::const_iterator l = ilabels.begin(); l != ilabels.end(); ++l)
         ipairs.push_back(LabelPair(l->first, l->second));
-    for (std::map<Label,Label>::const_iterator l = olabels.begin(); l != olabels.end(); ++l)
+    for (std::map<Label, Label>::const_iterator l = olabels.begin(); l != olabels.end(); ++l)
         ipairs.push_back(LabelPair(l->first, l->second));
     FstLib::Relabel(fst, ipairs, opairs);
 }
 
+}  // namespace OpenFst
 
-}
-
-#endif // _OPENFST_RELABEL_HH
+#endif  // _OPENFST_RELABEL_HH

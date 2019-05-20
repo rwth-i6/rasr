@@ -15,17 +15,16 @@
 #ifndef _OPENFST_OUTPUT_HH
 #define _OPENFST_OUTPUT_HH
 
-#include <Fsa/Types.hh>
 #include <Fsa/Alphabet.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Dfs.hh>
 #include <Fsa/Resources.hh>
-#include "SymbolTable.hh"
+#include <Fsa/Types.hh>
 #include "FsaMapper.hh"
+#include "SymbolTable.hh"
 #include "Types.hh"
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 /**
  * @deprecated
@@ -33,21 +32,22 @@ namespace OpenFst
  * use OpenFst::FsaMapper, see convertFromFsa
  */
 template<class _Automaton>
-class ConvertFsaDfsState: public Ftl::DfsState<_Automaton>
-{
+class ConvertFsaDfsState : public Ftl::DfsState<_Automaton> {
 private:
     typedef Ftl::DfsState<_Automaton> Precursor;
+
 public:
-typedef    typename _Automaton::State _State;
+    typedef typename _Automaton::State         _State;
     typedef typename _Automaton::ConstStateRef _ConstStateRef;
-    typedef typename _Automaton::ConstRef _ConstAutomatonRef;
+    typedef typename _Automaton::ConstRef      _ConstAutomatonRef;
+
 private:
-    VectorFst *fst_;
+    VectorFst* fst_;
 
     typedef std::map<Fsa::StateId, StateId> StateIdMap;
-    StateIdMap stateIdMap_;
-    typedef std::map<Fsa::LabelId, Label> LabelMap;
-    LabelMap inputSymbolMap_, outputSymbolMap_;
+    StateIdMap                              stateIdMap_;
+    typedef std::map<Fsa::LabelId, Label>   LabelMap;
+    LabelMap                                inputSymbolMap_, outputSymbolMap_;
 
     StateId mapState(Fsa::StateId fsaId) {
         StateIdMap::const_iterator id = stateIdMap_.find(fsaId);
@@ -55,25 +55,27 @@ private:
             StateId newId = fst_->AddState();
             stateIdMap_.insert(std::make_pair(fsaId, newId));
             return newId;
-        } else {
+        }
+        else {
             return id->second;
         }
     }
 
-    Label mapLabel(SymbolTable *fstSymbols, Fsa::ConstAlphabetRef fsaSymbols, LabelMap &map, Fsa::LabelId fsaId) {
+    Label mapLabel(SymbolTable* fstSymbols, Fsa::ConstAlphabetRef fsaSymbols, LabelMap& map, Fsa::LabelId fsaId) {
         LabelMap::const_iterator it = map.find(fsaId);
         if (it == map.end()) {
-            Label fstId;
+            Label       fstId;
             std::string strLabel = fsaSymbols->symbol(fsaId);
             if (!strLabel.empty())
-            fstId = fstSymbols->Find(strLabel.c_str());
+                fstId = fstSymbols->Find(strLabel.c_str());
             else {
                 // std::cerr << "unknown label: " << fsaId << std::endl;
                 fstId = fstSymbols->AddSymbol(Core::form("fsa-label-%d", fsaId));
             }
             map.insert(std::make_pair(fsaId, fstId));
             return fstId;
-        } else {
+        }
+        else {
             return it->second;
         }
     }
@@ -87,22 +89,22 @@ private:
     }
 
 public:
-    ConvertFsaDfsState(_ConstAutomatonRef f, VectorFst *fst): Precursor(f), fst_(fst) {
+    ConvertFsaDfsState(_ConstAutomatonRef f, VectorFst* fst)
+            : Precursor(f), fst_(fst) {
         inputSymbolMap_.insert(std::make_pair(Fsa::Epsilon, Epsilon));
         outputSymbolMap_.insert(std::make_pair(Fsa::Epsilon, Epsilon));
     }
 
-    void discoverState(_ConstStateRef sp)
-    {
+    void discoverState(_ConstStateRef sp) {
         Fsa::StateId fsaId = sp->id();
-        StateId id = mapState(fsaId);
+        StateId      id    = mapState(fsaId);
         if (fsaId == Precursor::fsa_->initialStateId())
-        fst_->SetStart(id);
+            fst_->SetStart(id);
         if (sp->isFinal())
-        fst_->SetFinal(id, Weight(sp->weight_));
+            fst_->SetFinal(id, Weight(sp->weight_));
         for (typename _State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
             Label output = mapOutputLabel(Precursor::fsa_->type() == Fsa::TypeTransducer ? a->output() : a->input());
-            Label input = mapInputLabel(a->input());
+            Label input  = mapInputLabel(a->input());
             fst_->AddArc(id, Arc(input, output, Weight(a->weight()), mapState(a->target())));
         }
     }
@@ -114,10 +116,9 @@ public:
  * delayed transducers are expanded.
  */
 template<class _Automaton, class _FstAutomaton>
-_FstAutomaton* convertFromFsa(typename _Automaton::ConstRef f)
-{
+_FstAutomaton* convertFromFsa(typename _Automaton::ConstRef f) {
     FsaMapperAutomaton<_Automaton, typename _FstAutomaton::Arc> mapper(f);
-    _FstAutomaton *fst = new _FstAutomaton(mapper);
+    _FstAutomaton*                                              fst = new _FstAutomaton(mapper);
     return fst;
 }
 
@@ -127,16 +128,16 @@ VectorFst* convertFromFsa(Fsa::ConstAutomatonRef f);
  * write a Fsa transducer in the OpenFst format.
  * transducer will be written as FstLib::VectorFst<StdArc>
  */
-bool writeFsa(Fsa::ConstAutomatonRef f, const std::string &file);
+bool writeFsa(Fsa::ConstAutomatonRef f, const std::string& file);
 
-bool writeOpenFst(const Fsa::Resources &resources, Fsa::ConstAutomatonRef f,
-                  std::ostream &o, Fsa::StoredComponents what, bool progress);
+bool writeOpenFst(const Fsa::Resources& resources, Fsa::ConstAutomatonRef f,
+                  std::ostream& o, Fsa::StoredComponents what, bool progress);
 
 /**
  * convenience method to write a FstLib::VectorFst<StdArc> object to disk using
  * FstLib::VectorFst<StdArc>::Write
  */
-bool write(const VectorFst &fst, const std::string &filename);
+bool write(const VectorFst& fst, const std::string& filename);
 
-}
-#endif // _OPENFST_OUTPUT_HH
+}  // namespace OpenFst
+#endif  // _OPENFST_OUTPUT_HH

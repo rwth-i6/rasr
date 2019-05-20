@@ -21,16 +21,16 @@
 namespace OpenFst {
 
 template<class F>
-OpenFst::StateId findFinalState(const F &fst, bool *moreThanOne)
-{
-    *moreThanOne = false;
+OpenFst::StateId findFinalState(const F& fst, bool* moreThanOne) {
+    *moreThanOne           = false;
     OpenFst::StateId state = OpenFst::InvalidStateId;
     for (FstLib::StateIterator<F> siter(fst); !siter.Done(); siter.Next()) {
         if (OpenFst::isFinalState(fst, siter.Value())) {
             if (state != OpenFst::InvalidStateId) {
                 *moreThanOne = true;
                 break;
-            } else {
+            }
+            else {
                 state = siter.Value();
             }
         }
@@ -39,13 +39,11 @@ OpenFst::StateId findFinalState(const F &fst, bool *moreThanOne)
 }
 
 template<class A>
-void addArcs(FstLib::VectorFst<A> *fst, OpenFst::StateId s, const std::vector<A> &arcs)
-{
+void addArcs(FstLib::VectorFst<A>* fst, OpenFst::StateId s, const std::vector<A>& arcs) {
     for (typename std::vector<A>::const_iterator a = arcs.begin(); a != arcs.end(); ++a)
         fst->AddArc(s, *a);
 }
 
-
-} // namespace OpenFst
+}  // namespace OpenFst
 
 #endif  // _OPENFST_UTILITY_HH

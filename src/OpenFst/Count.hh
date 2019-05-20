@@ -15,23 +15,21 @@
 #ifndef _OPENFST_COUNT_HH
 #define _OPENFST_COUNT_HH
 
-#include "Types.hh"
 #include <Fsa/hInfo.hh>
+#include "Types.hh"
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 template<class A>
-Fsa::AutomatonCounts count(const FstLib::Fst<A> &f)
-{
+Fsa::AutomatonCounts count(const FstLib::Fst<A>& f) {
     Fsa::AutomatonCounts counts;
-    for (FstLib::StateIterator< FstLib::Fst<A> > s(f); !s.Done(); s.Next()) {
+    for (FstLib::StateIterator<FstLib::Fst<A>> s(f); !s.Done(); s.Next()) {
         ++counts.nStates_;
         StateId state = s.Value();
         if (f.Final(state) != A::Weight::Zero())
             ++counts.nFinals_;
-        for (FstLib::ArcIterator< FstLib::Fst<A> > a(f, state); !a.Done(); a.Next()) {
-            const A &arc = a.Value();
+        for (FstLib::ArcIterator<FstLib::Fst<A>> a(f, state); !a.Done(); a.Next()) {
+            const A& arc = a.Value();
             ++counts.nArcs_;
             if (arc.ilabel == Epsilon && arc.olabel == Epsilon)
                 ++counts.nIoEps_;
@@ -45,25 +43,27 @@ Fsa::AutomatonCounts count(const FstLib::Fst<A> &f)
 }
 
 template<class A>
-u32 maxLabelId(const FstLib::Fst<A> &f, bool inputLabel)
-{
+u32 maxLabelId(const FstLib::Fst<A>& f, bool inputLabel) {
     u32 maxLabel = 0;
-    for (FstLib::StateIterator< FstLib::Fst<A> > s(f); !s.Done(); s.Next()) {
-        for (FstLib::ArcIterator< FstLib::Fst<A> > a(f, s.Value()); !a.Done(); a.Next()) {
-            const A &arc = a.Value();
-            const typename A::Label l = (inputLabel ? arc.ilabel : arc.olabel);
-            if (l > maxLabel) maxLabel = l;
+    for (FstLib::StateIterator<FstLib::Fst<A>> s(f); !s.Done(); s.Next()) {
+        for (FstLib::ArcIterator<FstLib::Fst<A>> a(f, s.Value()); !a.Done(); a.Next()) {
+            const A&                arc = a.Value();
+            const typename A::Label l   = (inputLabel ? arc.ilabel : arc.olabel);
+            if (l > maxLabel)
+                maxLabel = l;
         }
     }
     return maxLabel;
 }
 
 template<class A>
-class InDegree
-{
+class InDegree {
     typedef A Arc;
+
 public:
-    InDegree(const FstLib::Fst<A> &f) { computeInDegree(f); }
+    InDegree(const FstLib::Fst<A>& f) {
+        computeInDegree(f);
+    }
 
     u32 operator[](u32 state) const {
         verify(state < inDegree_.size());
@@ -71,10 +71,10 @@ public:
     }
 
 private:
-    void computeInDegree(const FstLib::Fst<A> &f) {
-        for (FstLib::StateIterator< FstLib::Fst<A> > si(f); !si.Done(); si.Next()) {
-            for (FstLib::ArcIterator< FstLib::Fst<A> > ai(f, si.Value()); !ai.Done(); ai.Next()) {
-                const Arc &arc = ai.Value();
+    void computeInDegree(const FstLib::Fst<A>& f) {
+        for (FstLib::StateIterator<FstLib::Fst<A>> si(f); !si.Done(); si.Next()) {
+            for (FstLib::ArcIterator<FstLib::Fst<A>> ai(f, si.Value()); !ai.Done(); ai.Next()) {
+                const Arc& arc = ai.Value();
                 if (arc.nextstate >= inDegree_.size())
                     inDegree_.resize(arc.nextstate + 1, 0);
                 ++inDegree_[arc.nextstate];
@@ -85,5 +85,5 @@ private:
     std::vector<u32> inDegree_;
 };
 
-}
-#endif // _OPENFST_COUNT_HH
+}  // namespace OpenFst
+#endif  // _OPENFST_COUNT_HH

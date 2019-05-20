@@ -15,26 +15,24 @@
 #ifndef _OPENFST_INPUT_HH
 #define INPUT_HH_
 
-#include <OpenFst/Types.hh>
-#include <OpenFst/FstMapper.hh>
+#include <Fsa/Basic.hh>
+#include <Fsa/Resources.hh>
 #include <Fsa/Static.hh>
 #include <Fsa/Storage.hh>
-#include <Fsa/Resources.hh>
-#include <Fsa/Basic.hh>
+#include <OpenFst/FstMapper.hh>
+#include <OpenFst/Types.hh>
 
-namespace OpenFst
-{
+namespace OpenFst {
 
 template<class A>
-Core::Ref<Fsa::StaticAutomaton> convertToFsa(const FstLib::Fst<A> &f, Fsa::ConstSemiringRef s = Fsa::TropicalSemiring)
-{
-    FstMapperAutomaton<Fsa::Semiring, A> *mapper = new FstMapperAutomaton<Fsa::Semiring, A>(&f, s);
-    Fsa::ConstAutomatonRef mapperRef(mapper);
+Core::Ref<Fsa::StaticAutomaton> convertToFsa(const FstLib::Fst<A>& f, Fsa::ConstSemiringRef s = Fsa::TropicalSemiring) {
+    FstMapperAutomaton<Fsa::Semiring, A>* mapper = new FstMapperAutomaton<Fsa::Semiring, A>(&f, s);
+    Fsa::ConstAutomatonRef                mapperRef(mapper);
     return Fsa::staticCopy(mapperRef);
 }
 
-bool readOpenFst(const Fsa::Resources &resources, Fsa::StorageAutomaton *f, std::istream &i);
+bool readOpenFst(const Fsa::Resources& resources, Fsa::StorageAutomaton* f, std::istream& i);
 
-}
+}  // namespace OpenFst
 
 #endif /* _OPENFST_INPUT_HH */

@@ -15,11 +15,11 @@
 #ifndef _OPENFST_LABEL_MAP_HH
 #define _OPENFST_LABEL_MAP_HH
 
-#include <cstdlib>
-#include <vector>
 #include <Core/CompressedStream.hh>
 #include <Core/StringUtilities.hh>
 #include <OpenFst/Types.hh>
+#include <cstdlib>
+#include <vector>
 
 namespace OpenFst {
 
@@ -32,17 +32,19 @@ class LabelMap {
 public:
     LabelMap() {}
 
-    bool load(const std::string &filename) {
+    bool load(const std::string& filename) {
         Core::CompressedInputStream in(filename);
-        Label from, to;
-        if (!in) return false;
+        Label                       from, to;
+        if (!in)
+            return false;
         while (in) {
             std::string line;
             std::getline(in, line);
             Core::stripWhitespace(line);
             std::vector<std::string> fields = Core::split(line, "\t");
-            if (fields.size() != 2) continue;
-            to = std::atol(fields[0].c_str());
+            if (fields.size() != 2)
+                continue;
+            to   = std::atol(fields[0].c_str());
             from = std::atol(fields[1].c_str());
             if (from >= map_.size())
                 map_.resize(from + 1, 0);
@@ -54,12 +56,14 @@ public:
     Label mapLabel(OpenFst::Label from) const {
         return map_[from];
     }
-    bool empty() const { return map_.empty(); }
+    bool empty() const {
+        return map_.empty();
+    }
 
 private:
     std::vector<OpenFst::Label> map_;
 };
 
-}
+}  // namespace OpenFst
 
 #endif  // _OPENFST_LABEL_MAP_HH

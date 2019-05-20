@@ -20,10 +20,9 @@
 namespace OpenFst {
 
 template<class A>
-class WeightCompare
-{
+class WeightCompare {
 public:
-    bool operator()(const A &arc1, const A &arc2) const {
+    bool operator()(const A& arc1, const A& arc2) const {
         return arc1.weight.Value() < arc2.weight.Value();
     }
 
@@ -32,7 +31,6 @@ public:
     }
 };
 
-}
+}  // namespace OpenFst
 
-
-#endif // _OPENFST_ARC_SORT_HH
+#endif  // _OPENFST_ARC_SORT_HH

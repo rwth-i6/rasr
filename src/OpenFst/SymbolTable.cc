@@ -14,12 +14,10 @@
  */
 #include "SymbolTable.hh"
 
-namespace OpenFst
-{
+namespace OpenFst {
 
-SymbolTable* convertAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string &name, s32 keyOffset)
-{
-    SymbolTable *symbols = new SymbolTable(name);
+SymbolTable* convertAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string& name, s32 keyOffset) {
+    SymbolTable* symbols = new SymbolTable(name);
     symbols->AddSymbol(alphabet->specialSymbol(Fsa::Epsilon), Epsilon);
     for (Fsa::Alphabet::const_iterator i = alphabet->begin(); i != alphabet->end(); ++i) {
         symbols->AddSymbol(*i, convertLabelFromFsa(Fsa::LabelId(i)) + keyOffset);
@@ -27,15 +25,15 @@ SymbolTable* convertAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string &
     return symbols;
 }
 
-Fsa::ConstAlphabetRef convertAlphabet(const SymbolTable *symbolTable)
-{
-    if (!symbolTable) return Fsa::ConstAlphabetRef();
+Fsa::ConstAlphabetRef convertAlphabet(const SymbolTable* symbolTable) {
+    if (!symbolTable)
+        return Fsa::ConstAlphabetRef();
 
-    Fsa::StaticAlphabet *alphabet = new Fsa::StaticAlphabet();
+    Fsa::StaticAlphabet* alphabet = new Fsa::StaticAlphabet();
     for (FstLib::SymbolTableIterator i(*symbolTable); !i.Done(); i.Next()) {
         alphabet->addIndexedSymbol(i.Symbol(), convertLabelToFsa(i.Value()));
     }
     return Fsa::ConstAlphabetRef(alphabet);
 }
 
-}
+}  // namespace OpenFst

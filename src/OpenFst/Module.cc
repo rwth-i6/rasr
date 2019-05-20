@@ -12,16 +12,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <OpenFst/Module.hh>
-#include <OpenFst/Input.hh>
-#include <OpenFst/Output.hh>
 #include <Fsa/Resources.hh>
+#include <OpenFst/Input.hh>
+#include <OpenFst/Module.hh>
+#include <OpenFst/Output.hh>
 
 using namespace OpenFst;
 
-Module_::Module_()
-{
-    Fsa::Resources &r = Fsa::getResources();
+Module_::Module_() {
+    Fsa::Resources& r = Fsa::getResources();
     r.registerFormat(
             new Fsa::Resources::Format(
                     "fst",

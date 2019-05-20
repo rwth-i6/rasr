@@ -15,13 +15,13 @@
 #ifndef _SPARSE_SINGLE_VALUE_SPARSE_VECTOR_
 #define _SPARSE_SINGLE_VALUE_SPARSE_VECTOR_
 
-#include <vector>
 #include <Core/Debug.hh>
-#include "Core/Types.hh"
-#include "Core/BinaryStream.hh"
-#include "Core/XmlStream.hh"
 #include <Math/Vector.hh>
 #include <map>
+#include <vector>
+#include "Core/BinaryStream.hh"
+#include "Core/Types.hh"
+#include "Core/XmlStream.hh"
 
 namespace Sparse {
 
@@ -47,44 +47,44 @@ namespace Sparse {
 
 template<typename Content>
 class SingleValueSparseVector {
-
 public:
     typedef u32 index_type;
+
 private:
-    typedef std::vector<std::pair<index_type, Content > > InternalVector;
-    InternalVector v_;
+    typedef std::vector<std::pair<index_type, Content>> InternalVector;
+    InternalVector                                      v_;
     // dimension of the vector (including zero components)
     size_t size_;
     // value of the non-active elements (default 0)
     Content default_;
 
 public:
-
     template<class T, class V>
     class IteratorBase {
         typedef T InternalIterator;
         // typedef typename InternalIterator::value_type::second_type ValueType;
         // doesn't work because const pair<A,B>::second_type is not const
         typedef IteratorBase<T, V> Self;
+
     public:
-                typedef typename std::forward_iterator_tag iterator_category;
-                typedef V value_type;
-                typedef std::size_t difference_type;
-                typedef value_type* pointer;
-                typedef const value_type* const_pointer;
-                typedef value_type& reference;
-                typedef const value_type& const_reference;
+        typedef typename std::forward_iterator_tag iterator_category;
+        typedef V                                  value_type;
+        typedef std::size_t                        difference_type;
+        typedef value_type*                        pointer;
+        typedef const value_type*                  const_pointer;
+        typedef value_type&                        reference;
+        typedef const value_type&                  const_reference;
+
     private:
         // disallow basic and copy construtor
         IteratorBase();
 
-
     public:
-
-        IteratorBase(InternalIterator i) : index_(i) {}
+        IteratorBase(InternalIterator i)
+                : index_(i) {}
         template<class OT, class OV>
-        IteratorBase(const IteratorBase<OT, OV> &other) : index_(other.base()) {}
-
+        IteratorBase(const IteratorBase<OT, OV>& other)
+                : index_(other.base()) {}
 
         ~IteratorBase() {}
 
@@ -103,12 +103,12 @@ public:
         }
 
         template<class OT, class OV>
-        bool operator==(const IteratorBase<OT, OV> &other) const {
+        bool operator==(const IteratorBase<OT, OV>& other) const {
             return index_ == other.base();
         }
 
         template<class OT, class OV>
-        bool operator!=(const IteratorBase<OT, OV> &other) const {
+        bool operator!=(const IteratorBase<OT, OV>& other) const {
             return !operator==(other);
         }
 
@@ -116,7 +116,7 @@ public:
             return index_->second;
         }
 
-        Self& operator=(const Self &other) {
+        Self& operator=(const Self& other) {
             index_ = other.index_;
             return (*this);
         }
@@ -130,18 +130,22 @@ public:
     };
 
     typedef IteratorBase<typename InternalVector::iterator,
-    typename InternalVector::iterator::value_type::second_type> iterator;
+                         typename InternalVector::iterator::value_type::second_type>
+            iterator;
     typedef IteratorBase<typename InternalVector::const_iterator,
-    const typename InternalVector::const_iterator::value_type::second_type> const_iterator;
+                         const typename InternalVector::const_iterator::value_type::second_type>
+            const_iterator;
 
-    template<class T, class V> friend class IteratorBase;
+    template<class T, class V>
+    friend class IteratorBase;
 
 private:
     mutable typename InternalVector::iterator pos_;
-public:
-    SingleValueSparseVector(size_t size=0, Content defaultValue=0);
 
-    virtual ~SingleValueSparseVector() { }
+public:
+    SingleValueSparseVector(size_t size = 0, Content defaultValue = 0);
+
+    virtual ~SingleValueSparseVector() {}
 
 #if 0
     inline void operator=(const SingleValueSparseVector<Content>& sv) {
@@ -152,16 +156,14 @@ public:
     }
 #endif
 
-    inline SingleValueSparseVector(const SingleValueSparseVector<Content>& sv) :
-        v_(sv.v_),
-        size_(sv.size_),
-        default_(sv.default_),
-        pos_(v_.begin())
-        { }
-
+    inline SingleValueSparseVector(const SingleValueSparseVector<Content>& sv)
+            : v_(sv.v_),
+              size_(sv.size_),
+              default_(sv.default_),
+              pos_(v_.begin()) {}
 
     inline bool operator==(const SingleValueSparseVector& sv) {
-        return (v_ ==sv.v_ and size_ == sv.size_);
+        return (v_ == sv.v_ and size_ == sv.size_);
     }
 
     inline bool operator!=(const SingleValueSparseVector& sv) {
@@ -193,14 +195,18 @@ public:
      * @param i const_iterator pointing to the content.
      * @return reference to the const_iterator's position.
      */
-    inline const Content& operator[](const const_iterator& i) const {return *i;}
+    inline const Content& operator[](const const_iterator& i) const {
+        return *i;
+    }
 
     /**
      * complexity: constant
      * @param i iterator pointing to the content.
      @return content at the given iterator's position.
      */
-    inline Content& operator[](const iterator& i) {return *i;}
+    inline Content& operator[](const iterator& i) {
+        return *i;
+    }
 
     /**
      * complexity: linear
@@ -211,19 +217,22 @@ public:
         if (v_.empty() || v_.back().first < index)
             return default_;
         if (pos_->first > index) {
-            while (pos_ != v_.begin() && pos_->first > index) --pos_;
+            while (pos_ != v_.begin() && pos_->first > index)
+                --pos_;
         }
-        while (pos_ != v_.end() && pos_->first < index) ++pos_;
+        while (pos_ != v_.end() && pos_->first < index)
+            ++pos_;
         if (pos_->first == index) {
             if (pos_ == v_.end()) {
-                std::cerr << "Something wrong at SingleValueSparseVector::get(index) with index=" << index << " content of vector is: " <<std::endl;
-                for (const_iterator countI=this->begin(); countI!=this->end(); ++countI) {
+                std::cerr << "Something wrong at SingleValueSparseVector::get(index) with index=" << index << " content of vector is: " << std::endl;
+                for (const_iterator countI = this->begin(); countI != this->end(); ++countI) {
                     std::cerr << "pos=" << countI.pos() << " count=" << *countI << "  ";
                 }
                 std::cerr << std::endl;
             }
             return pos_->second;
-        } else {
+        }
+        else {
             if (pos_ != v_.begin())
                 --pos_;
             return default_;
@@ -239,12 +248,14 @@ public:
     inline Content& operator[](const index_type index) {
         if (v_.empty() || v_.back().first < index) {
             push_back(index, default_);
-            pos_=v_.end();
+            pos_ = v_.end();
             --pos_;
-        } else {
+        }
+        else {
             if (pos_->first > index)
                 pos_ = v_.begin();
-            while (pos_ != v_.end() && pos_->first < index) ++pos_;
+            while (pos_ != v_.end() && pos_->first < index)
+                ++pos_;
             if (pos_->first != index) {
                 pos_ = v_.insert(pos_, std::pair<index_type, Content>(index, default_));
             }
@@ -257,13 +268,15 @@ public:
      * sets all active elements to null
      * the size of the vector is unchanged
      */
-    void clear() { v_.clear(); }
+    void clear() {
+        v_.clear();
+    }
 
     /**
      * sets the value of non-active components
      */
     void setDefault(Content defaultValue) {
-        default_=defaultValue;
+        default_ = defaultValue;
     }
 
     /**
@@ -278,7 +291,7 @@ public:
      * @param new_size new dimension
      */
     void resize(size_t new_size) {
-        size_=new_size;
+        size_ = new_size;
     }
 
     /**
@@ -287,8 +300,8 @@ public:
      * @param null value of non-active components
      */
     void resize(size_t new_size, Content defaultValue) {
-        size_=new_size;
-        default_=defaultValue;
+        size_    = new_size;
+        default_ = defaultValue;
     }
 
     /**
@@ -323,7 +336,7 @@ public:
     /* Concatenates a sparse vector to the current sparse vector.
      * @param bsv vector to concatenate
      */
-    void concatenate(const SingleValueSparseVector<Content> &bsv);
+    void concatenate(const SingleValueSparseVector<Content>& bsv);
     /**
      * Concatenates a standard vector to the current sparse vector.
      * @param v Vector to concatenate.
@@ -336,21 +349,25 @@ public:
 
     /** Adds a block sparse vector to the recent one. */
     SingleValueSparseVector<Content>& operator+=(const SingleValueSparseVector<Content>&);
-#if 0 // not tested
+#if 0  // not tested
     SingleValueSparseVector<Content>& operator+=(const std::map<u32, Content>&);
 #endif
 
     /// in place weighted operator+=
-    template<typename C> SingleValueSparseVector<Content>& add(const Content &weight, const SingleValueSparseVector<C>&);
-    template<typename C> SingleValueSparseVector<Content>& add(const Content &weight, const std::map<u32, C>&);
+    template<typename C>
+    SingleValueSparseVector<Content>& add(const Content& weight, const SingleValueSparseVector<C>&);
+    template<typename C>
+    SingleValueSparseVector<Content>& add(const Content& weight, const std::map<u32, C>&);
 
-    virtual Core::XmlWriter& dump(Core::XmlWriter &o) const;
-    virtual bool read(Core::BinaryInputStream &i) ;
-    virtual bool write(Core::BinaryOutputStream &o) const ;
-    template<typename C> friend Core::BinaryInputStream&  operator>>(Core::BinaryInputStream&, SingleValueSparseVector<C>&);
-    template<typename C> friend Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&, const SingleValueSparseVector<C>&);
-    template<typename C> friend Core::XmlWriter& operator<<(Core::XmlWriter&, const SingleValueSparseVector<C>&);
-
+    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const;
+    virtual bool             read(Core::BinaryInputStream& i);
+    virtual bool             write(Core::BinaryOutputStream& o) const;
+    template<typename C>
+    friend Core::BinaryInputStream& operator>>(Core::BinaryInputStream&, SingleValueSparseVector<C>&);
+    template<typename C>
+    friend Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&, const SingleValueSparseVector<C>&);
+    template<typename C>
+    friend Core::XmlWriter& operator<<(Core::XmlWriter&, const SingleValueSparseVector<C>&);
 };
 
 #if 0
@@ -372,12 +389,11 @@ operator!=(const SingleValueSparseVector<Content>::iterator& x,
  * @param size Size.
  */
 template<typename Content>
-SingleValueSparseVector<Content>::SingleValueSparseVector(size_t size, Content defaultValue) :
-    v_(0),
-    size_(size),
-    default_(defaultValue),
-    pos_(v_.begin())
-    { }
+SingleValueSparseVector<Content>::SingleValueSparseVector(size_t size, Content defaultValue)
+        : v_(0),
+          size_(size),
+          default_(defaultValue),
+          pos_(v_.begin()) {}
 
 /**
  * Adds a new element.
@@ -392,7 +408,7 @@ void SingleValueSparseVector<Content>::push_back(index_type index, Content value
     std::pair<index_type, Content> newEntry(index, value);
     v_.push_back(newEntry);
     // pos_ might be invalid
-    pos_ = v_.begin();
+    pos_  = v_.begin();
     size_ = std::max((size_t)index + 1, size_);
 }
 
@@ -401,7 +417,7 @@ void SingleValueSparseVector<Content>::push_back(index_type index, Content value
  */
 template<typename Content>
 void SingleValueSparseVector<Content>::concatenate(const SingleValueSparseVector<Content>& bsv) {
-    size_t recentSize = size_;
+    size_t recentSize         = size_;
     size_t bsvNActiveElements = bsv.v_.size();
     for (size_t i = 0; i < bsvNActiveElements; ++i) {
         std::pair<index_type, Content> newEntry(bsv.v_[i].first + recentSize, bsv.v_[i].second);
@@ -421,7 +437,7 @@ template<typename Content>
 void SingleValueSparseVector<Content>::concatenate(const std::vector<Content>& v, u32 startPos) {
     require(startPos >= size_);
     size_t vSize = v.size();
-    for (size_t i=0; i < vSize; ++i) {
+    for (size_t i = 0; i < vSize; ++i) {
         std::pair<index_type, Content> newEntry(startPos + i, v[i]);
         v_.push_back(newEntry);
     }
@@ -431,59 +447,56 @@ void SingleValueSparseVector<Content>::concatenate(const std::vector<Content>& v
 }
 
 template<typename Content>
-SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator*=(const Content& factor){
-    for (size_t i = 0; i < v_.size(); ++i){
+SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator*=(const Content& factor) {
+    for (size_t i = 0; i < v_.size(); ++i) {
         v_[i].second *= factor;
     }
     return (*this);
 }
 
 template<typename Content>
-SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator+=(const SingleValueSparseVector<Content>& bsv){
+SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator+=(const SingleValueSparseVector<Content>& bsv) {
+    if (size_ != bsv.size_) {
+        Core::Application::us()->error() << "Addition size error: size = " << size_ << ", bsv.size = " << bsv.size_;
+        defect();
+    }
 
-        if (size_ != bsv.size_) {
-                Core::Application::us()->error() << "Addition size error: size = " << size_ << ", bsv.size = " << bsv.size_;
-                defect();
+    SingleValueSparseVector<Content> temp;
+    size_t                           thisIndex = 0, bsvIndex = 0;
+    while (thisIndex < v_.size() and bsvIndex < bsv.v_.size()) {
+        if (v_[thisIndex].first < bsv.v_[bsvIndex].first) {
+            temp.push_back(v_[thisIndex].first, v_[thisIndex].second);
+            ++thisIndex;
         }
-
-        SingleValueSparseVector<Content> temp;
-        size_t thisIndex = 0, bsvIndex = 0;
-        while (thisIndex < v_.size() and bsvIndex < bsv.v_.size()) {
-                if (v_[thisIndex].first < bsv.v_[bsvIndex].first) {
-                        temp.push_back(v_[thisIndex].first, v_[thisIndex].second);
-                        ++thisIndex;
-                }
-                else if (v_[thisIndex].first > bsv.v_[bsvIndex].first) {
-                        temp.push_back(bsv.v_[bsvIndex].first, bsv.v_[bsvIndex].second);
-                        ++bsvIndex;
-                }
-                else { //thisIter.pos() == bsvIter.pos()
-                        temp.push_back(v_[thisIndex].first, v_[thisIndex].second + bsv.v_[bsvIndex].second);
-                        ++thisIndex;
-                        ++bsvIndex;
-                }
+        else if (v_[thisIndex].first > bsv.v_[bsvIndex].first) {
+            temp.push_back(bsv.v_[bsvIndex].first, bsv.v_[bsvIndex].second);
+            ++bsvIndex;
         }
-        if (thisIndex == v_.size()) {
-                while (bsvIndex < bsv.v_.size()) {
-                        temp.push_back(bsv.v_[bsvIndex].first, bsv.v_[bsvIndex].second);
-                        ++bsvIndex;
-                }
+        else {  //thisIter.pos() == bsvIter.pos()
+            temp.push_back(v_[thisIndex].first, v_[thisIndex].second + bsv.v_[bsvIndex].second);
+            ++thisIndex;
+            ++bsvIndex;
         }
-        else {
-                while (thisIndex < v_.size()) {
-                        temp.push_back(v_[thisIndex].first, v_[thisIndex].second);
-                        ++thisIndex;
-                }
+    }
+    if (thisIndex == v_.size()) {
+        while (bsvIndex < bsv.v_.size()) {
+            temp.push_back(bsv.v_[bsvIndex].first, bsv.v_[bsvIndex].second);
+            ++bsvIndex;
         }
+    }
+    else {
+        while (thisIndex < v_.size()) {
+            temp.push_back(v_[thisIndex].first, v_[thisIndex].second);
+            ++thisIndex;
+        }
+    }
 
-
-        v_ = temp.v_;
-        pos_ = v_.begin();
-        return *this;
-
+    v_   = temp.v_;
+    pos_ = v_.begin();
+    return *this;
 }
 
-#if 0 // not tested
+#if 0  // not tested
 template<typename Content>
 SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator+=(const std::map<u32, Content>& bsv){
         SingleValueSparseVector<Content> temp;
@@ -524,102 +537,99 @@ SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator+=(c
 }
 #endif
 
-template<typename Content> template<typename C>
-SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Content &weight, const SingleValueSparseVector<C> &bsv) {
-        if (size_ != bsv.size()) {
-                Core::Application::us()->error() << "Addition size error: size = " << size_ << ", bsv.size = " << bsv.size();
-                defect();
-        }
+template<typename Content>
+template<typename C>
+SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Content& weight, const SingleValueSparseVector<C>& bsv) {
+    if (size_ != bsv.size()) {
+        Core::Application::us()->error() << "Addition size error: size = " << size_ << ", bsv.size = " << bsv.size();
+        defect();
+    }
 
-        size_t thisIndex = 0;
-        typename SingleValueSparseVector<C>::const_iterator bsvIter = bsv.begin();
-        while (thisIndex < v_.size() and bsvIter != bsv.end()) {
-                const Content weightupdate = weight*(*bsvIter);
-                if (v_[thisIndex].first < bsvIter.pos()) {
-                        ++thisIndex;
-                }
-                else if (v_[thisIndex].first > bsvIter.pos()) {
-                        v_.insert(v_.begin()+thisIndex, std::pair<index_type, Content>(bsvIter.pos(), weightupdate));
-                        ++bsvIter;
-                }
-                else { //thisIter.pos() == bsvIter.pos()
-                        v_[thisIndex].second += weightupdate;
-                        ++thisIndex;
-                        ++bsvIter;
-                }
+    size_t                                              thisIndex = 0;
+    typename SingleValueSparseVector<C>::const_iterator bsvIter   = bsv.begin();
+    while (thisIndex < v_.size() and bsvIter != bsv.end()) {
+        const Content weightupdate = weight * (*bsvIter);
+        if (v_[thisIndex].first < bsvIter.pos()) {
+            ++thisIndex;
         }
-        if (thisIndex == v_.size()) {
-                while (bsvIter != bsv.end()) {
-                        this->push_back(bsvIter.pos(), weight*(*bsvIter));
-                        ++bsvIter;
-                }
+        else if (v_[thisIndex].first > bsvIter.pos()) {
+            v_.insert(v_.begin() + thisIndex, std::pair<index_type, Content>(bsvIter.pos(), weightupdate));
+            ++bsvIter;
         }
+        else {  //thisIter.pos() == bsvIter.pos()
+            v_[thisIndex].second += weightupdate;
+            ++thisIndex;
+            ++bsvIter;
+        }
+    }
+    if (thisIndex == v_.size()) {
+        while (bsvIter != bsv.end()) {
+            this->push_back(bsvIter.pos(), weight * (*bsvIter));
+            ++bsvIter;
+        }
+    }
 
-        pos_ = v_.begin();
-        return *this;
+    pos_ = v_.begin();
+    return *this;
 }
 
-template<typename Content> template<typename C>
-SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Content &weight, const std::map<index_type, C> &bsv) {
-        size_t thisIndex = 0;
-        typename std::map<index_type, Content>::const_iterator bsvIter = bsv.begin();
-        while (thisIndex < v_.size() and bsvIter != bsv.end()) {
-                const Content weightupdate = weight * (bsvIter->second);
-                if (v_[thisIndex].first < bsvIter->first) {
-                        ++thisIndex;
-                }
-                else if (v_[thisIndex].first > bsvIter->first) {
-                        v_.insert(v_.begin()+thisIndex, std::pair<index_type, Content>(bsvIter->first, weightupdate)); // TODO: correct?
-                        ++bsvIter;
-                }
-                else { //thisIter.pos() == bsvIter.pos()
-                        v_[thisIndex].second += weightupdate;
-                        ++thisIndex;
-                        ++bsvIter;
-                }
+template<typename Content>
+template<typename C>
+SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Content& weight, const std::map<index_type, C>& bsv) {
+    size_t                                                 thisIndex = 0;
+    typename std::map<index_type, Content>::const_iterator bsvIter   = bsv.begin();
+    while (thisIndex < v_.size() and bsvIter != bsv.end()) {
+        const Content weightupdate = weight * (bsvIter->second);
+        if (v_[thisIndex].first < bsvIter->first) {
+            ++thisIndex;
         }
-        if (thisIndex == v_.size()) {
-                while (bsvIter != bsv.end()) {
-                        this->push_back(bsvIter->first, weight * (bsvIter->second));
-                        ++bsvIter;
-                }
+        else if (v_[thisIndex].first > bsvIter->first) {
+            v_.insert(v_.begin() + thisIndex, std::pair<index_type, Content>(bsvIter->first, weightupdate));  // TODO: correct?
+            ++bsvIter;
         }
+        else {  //thisIter.pos() == bsvIter.pos()
+            v_[thisIndex].second += weightupdate;
+            ++thisIndex;
+            ++bsvIter;
+        }
+    }
+    if (thisIndex == v_.size()) {
+        while (bsvIter != bsv.end()) {
+            this->push_back(bsvIter->first, weight * (bsvIter->second));
+            ++bsvIter;
+        }
+    }
 
-        pos_ = v_.begin();
-        return *this;
+    pos_ = v_.begin();
+    return *this;
 }
-
 
 /**
  * Dumps the sparse vector to an XML stream.
  * @param o XML output stream to write to.
  */
 template<typename Content>
-Core::XmlWriter& SingleValueSparseVector<Content>::dump(Core::XmlWriter &o) const {
+Core::XmlWriter& SingleValueSparseVector<Content>::dump(Core::XmlWriter& o) const {
     if (!v_.empty()) {
-        for (size_t i=0; i<v_.size(); ++i) {
-            o << Core::XmlEmpty("element")
-            + Core::XmlAttribute("position", v_[i].first)
-            + Core::XmlAttribute("value", v_[i].second);
+        for (size_t i = 0; i < v_.size(); ++i) {
+            o << Core::XmlEmpty("element") + Core::XmlAttribute("position", v_[i].first) + Core::XmlAttribute("value", v_[i].second);
         }
     }
     return o;
 }
-
-
 
 /**
  * Reads a sparse vector from a binary stream.
  * @param i Stream to read from.
  */
 template<typename Content>
-bool SingleValueSparseVector<Content>::read(Core::BinaryInputStream &i) {
+bool SingleValueSparseVector<Content>::read(Core::BinaryInputStream& i) {
     u32 size = 0, nActiveElements = 0;
     i >> size;
     i >> nActiveElements;
     size_ = size;
     v_.resize(nActiveElements);
-    for(size_t it = 0; it <nActiveElements; ++it) {
+    for (size_t it = 0; it < nActiveElements; ++it) {
         i >> v_[it].first;
         i >> v_[it].second;
     }
@@ -627,63 +637,59 @@ bool SingleValueSparseVector<Content>::read(Core::BinaryInputStream &i) {
     return i;
 }
 
-
-
 /**
  * Writes a sparse vector to a binary stream.
  * @param o Stream to write to.
  */
 template<typename Content>
-bool SingleValueSparseVector<Content>::write(Core::BinaryOutputStream &o) const {
-    o << (u32) size_;
-    o << (u32) v_.size();
-    for(size_t it = 0; it <v_.size(); ++it) {
+bool SingleValueSparseVector<Content>::write(Core::BinaryOutputStream& o) const {
+    o << (u32)size_;
+    o << (u32)v_.size();
+    for (size_t it = 0; it < v_.size(); ++it) {
         o << v_[it].first;
         o << v_[it].second;
     }
     return o;
 }
 
-
-
-template<typename Content> Core::BinaryInputStream& operator>>(Core::BinaryInputStream& i, SingleValueSparseVector<Content>& v) {
+template<typename Content>
+Core::BinaryInputStream& operator>>(Core::BinaryInputStream& i, SingleValueSparseVector<Content>& v) {
     v.read(i);
     return i;
 }
 
-template<typename Content> Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o, const SingleValueSparseVector<Content>& v) {
+template<typename Content>
+Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o, const SingleValueSparseVector<Content>& v) {
     v.write(o);
     return o;
 }
 
-
-template<typename Content> Core::XmlWriter& operator<<(Core::XmlWriter& o, const SingleValueSparseVector<Content>& v) {
+template<typename Content>
+Core::XmlWriter& operator<<(Core::XmlWriter& o, const SingleValueSparseVector<Content>& v) {
     v.dump(o);
     return o;
 }
 
-template<typename T,  typename P, typename Content>
-Math::Vector<T, P> operator+(const Math::Vector<T, P>&m, const SingleValueSparseVector<Content>& bsv) {
+template<typename T, typename P, typename Content>
+Math::Vector<T, P> operator+(const Math::Vector<T, P>& m, const SingleValueSparseVector<Content>& bsv) {
     typename SingleValueSparseVector<Content>::const_iterator iter = bsv.begin();
     typename SingleValueSparseVector<Content>::const_iterator end  = bsv.end();
-    Math::Vector<T, P> r(m);
+    Math::Vector<T, P>                                        r(m);
     for (; iter != end; ++iter)
         r[iter.pos()] += *iter;
-    return  r;
+    return r;
 }
 
-
-
-} // namespace Sparse
+}  // namespace Sparse
 
 namespace Core {
-template <typename T>
-class NameHelper<Sparse::SingleValueSparseVector<T> > : public std::string {
+template<typename T>
+class NameHelper<Sparse::SingleValueSparseVector<T>> : public std::string {
 public:
-    NameHelper() : std::string("single-value-sparse-vector-" + NameHelper<T>()) {}
+    NameHelper()
+            : std::string("single-value-sparse-vector-" + NameHelper<T>()) {}
 };
 
-
-} // Namespace
+}  // namespace Core
 
 #endif

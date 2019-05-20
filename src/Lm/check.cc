@@ -14,19 +14,19 @@
  */
 // $Id$
 
-#include <Core/Application.hh>
-#include <Bliss/Lexicon.hh>
 #include <Bliss/CorpusDescription.hh>
+#include <Bliss/Lexicon.hh>
+#include <Core/Application.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Output.hh>
-#include <vector>
 #include <cmath>
 #include <fstream>
+#include <vector>
 
-#include "Module.hh"
 #include "ClassLm.hh"
 #include "IndexMap.hh"
+#include "Module.hh"
 
 #include <Flf/Module.hh>
 #include <Flow/Module.hh>
@@ -39,17 +39,19 @@
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 
-
 class TestApplication : public Core::Application {
 private:
-  static const Core::ParameterString paramDumpLexiconFsa_;
-  static const Core::ParameterString paramDumpLmFsa_;
-  static const Core::ParameterString paramDrawLmFsa_;
+    static const Core::ParameterString paramDumpLexiconFsa_;
+    static const Core::ParameterString paramDumpLmFsa_;
+    static const Core::ParameterString paramDrawLmFsa_;
 
 public:
-    virtual std::string getUsage() const { return "short program to test Lm features\n"; }
+    virtual std::string getUsage() const {
+        return "short program to test Lm features\n";
+    }
 
-    TestApplication() : Core::Application() {
+    TestApplication()
+            : Core::Application() {
         INIT_MODULE(Lm);
         INIT_MODULE(Mm);
         INIT_MODULE(Mc);
@@ -64,17 +66,19 @@ public:
         setTitle("check");
     }
 
-    virtual int main(const std::vector<std::string> &arguments) {
+    virtual int main(const std::vector<std::string>& arguments) {
         // load lexicon
         Bliss::LexiconRef lex = Bliss::Lexicon::create(select("lexicon"));
-        if (!lex) criticalError("failed to load lexicon");
+        if (!lex)
+            criticalError("failed to load lexicon");
 
         // load language model
         Core::Ref<Lm::LanguageModel> lm = Lm::Module::instance().createLanguageModel(select("lm"), lex);
-        if (!lm) criticalError("failed to initialize language model");
+        if (!lm)
+            criticalError("failed to initialize language model");
 
         // check for class language model
-        Lm::ClassLm *classLm = dynamic_cast<Lm::ClassLm*>(lm.get());
+        Lm::ClassLm* classLm = dynamic_cast<Lm::ClassLm*>(lm.get());
         if (classLm) {
             log("class lm found");
             classLm->classMapping()->writeClasses(log());
@@ -84,7 +88,6 @@ public:
 
         return 0;
     }
-
 };
 
 APPLICATION(TestApplication)

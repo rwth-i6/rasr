@@ -17,34 +17,40 @@
 #ifndef _LM_INTERNAL_WORDLIST_HH
 #define _LM_INTERNAL_WORDLIST_HH
 
-#include "WordlistInterface.hh"
 #include <Core/Obstack.hh>
 #include <Core/Types.hh>
+#include "WordlistInterface.hh"
 
 namespace Lm {
 
-    class WordlistInterfaceLm::InternalWordlist {
-    private:
-        Core::Obstack<char> symbols;
-        std::vector<const char*> symbol;
+class WordlistInterfaceLm::InternalWordlist {
+private:
+    Core::Obstack<char>      symbols;
+    std::vector<const char*> symbol;
 
-    public:
-        void reserve(u32 n) { symbol.reserve(n); }
+public:
+    void reserve(u32 n) {
+        symbol.reserve(n);
+    }
 
-        void addWord(const char *synt) {
-            const char *sym = synt;
-            const char *sym_end = sym + strlen(synt);
-            symbol.push_back(symbols.add0(sym, sym_end));
-        }
+    void addWord(const char* synt) {
+        const char* sym     = synt;
+        const char* sym_end = sym + strlen(synt);
+        symbol.push_back(symbols.add0(sym, sym_end));
+    }
 
-        const char *word(InternalClassIndex c) const {
-            require(0 <= c &&  c < symbol.size());
-            return symbol[c];
-        }
-        const char *const *words() const { return &*symbol.begin(); }
-        u32 nWords() const { return symbol.size(); }
-    };
+    const char* word(InternalClassIndex c) const {
+        require(0 <= c && c < symbol.size());
+        return symbol[c];
+    }
+    const char* const* words() const {
+        return &*symbol.begin();
+    }
+    u32 nWords() const {
+        return symbol.size();
+    }
+};
 
-}
+}  // namespace Lm
 
-#endif // _LM_INTERNAL_WORDLIST_HH
+#endif  // _LM_INTERNAL_WORDLIST_HH

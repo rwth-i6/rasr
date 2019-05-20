@@ -20,43 +20,46 @@
 
 namespace Lm {
 
-    class FsaLm :
-        public LanguageModel
-    {
-    private:
-        typedef FsaLm Self;
-        static const Core::ParameterString paramFilename;
-        static Fsa::ConstStateRef invalidHistory;
+class FsaLm : public LanguageModel {
+private:
+    typedef FsaLm                      Self;
+    static const Core::ParameterString paramFilename;
+    static Fsa::ConstStateRef          invalidHistory;
 
-        Fsa::ConstAlphabetRef syntacticTokens_;
-        Fsa::ConstAutomatonRef fsa_;
+    Fsa::ConstAlphabetRef  syntacticTokens_;
+    Fsa::ConstAutomatonRef fsa_;
 
-        class HistoryManager;
-    public:
-        typedef Fsa::State HistoryDescriptor;
+    class HistoryManager;
 
-        FsaLm(const Core::Configuration &c, Bliss::LexiconRef);
-        virtual ~FsaLm();
-        virtual void load();
-        void setFsa(Fsa::ConstAutomatonRef);
-        virtual Fsa::ConstAutomatonRef getFsa() const { return fsa_; }
-        virtual History startHistory() const;
-        virtual History extendedHistory(const History&, Token w) const;
-        virtual Score score(const History&, Token w) const;
-        virtual Score sentenceEndScore(const History&) const;
+public:
+    typedef Fsa::State HistoryDescriptor;
 
-        /**
-         * Score for impossible events.
-         * Returning Core::Type<Score>::max easily causes search
-         * algorithms to fail.  The reason is that multiplication or
-         * addition to the maximum value results in 'inf' and a second
-         * aritmetic operation on 'inf' yields the value 'nan'.
-         * Unfortunatelly the comparison operator will not work
-         * normally on 'nan'.
-         */
-        static Score infinityScore() { return 1e9; }
-    };
+    FsaLm(const Core::Configuration& c, Bliss::LexiconRef);
+    virtual ~FsaLm();
+    virtual void                   load();
+    void                           setFsa(Fsa::ConstAutomatonRef);
+    virtual Fsa::ConstAutomatonRef getFsa() const {
+        return fsa_;
+    }
+    virtual History startHistory() const;
+    virtual History extendedHistory(const History&, Token w) const;
+    virtual Score   score(const History&, Token w) const;
+    virtual Score   sentenceEndScore(const History&) const;
 
-} // namespace Lm
+    /**
+     * Score for impossible events.
+     * Returning Core::Type<Score>::max easily causes search
+     * algorithms to fail.  The reason is that multiplication or
+     * addition to the maximum value results in 'inf' and a second
+     * aritmetic operation on 'inf' yields the value 'nan'.
+     * Unfortunatelly the comparison operator will not work
+     * normally on 'nan'.
+     */
+    static Score infinityScore() {
+        return 1e9;
+    }
+};
 
-#endif //_LM_FSA_LM_HH
+}  // namespace Lm
+
+#endif  //_LM_FSA_LM_HH

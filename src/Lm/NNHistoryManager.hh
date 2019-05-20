@@ -31,15 +31,15 @@ inline size_t token_id_sequence_hash(TokenIdSequence const& ts) {
 
 inline size_t token_id_sequence_ptr_eq(TokenIdSequence const* lhs, TokenIdSequence const* rhs) {
     if (lhs == rhs) {
-      return true;
+        return true;
     }
     if (lhs->size() != rhs->size()) {
-      return false;
+        return false;
     }
     for (size_t i = 0; i < lhs->size(); i++) {
-      if ((*lhs)[i] != (*rhs)[i]) {
-        return false;
-      }
+        if ((*lhs)[i] != (*rhs)[i]) {
+            return false;
+        }
     }
     return true;
 }
@@ -65,25 +65,25 @@ struct NNCacheBase {
 
 class NNHistoryManager : public HistoryManager {
 public:
-    typedef std::function<void(HistoryHandle)> OnReleaseHandler;
+    typedef std::function<void(HistoryHandle)>                                                                     OnReleaseHandler;
     typedef std::unordered_map<TokenIdSequence const*, NNCacheBase*, TokenIdSequencePtrHash, TokenIdSequencePtrEq> NNCacheMap;
-    typedef std::function<void(HistoryHandle)> VisitorFun;
+    typedef std::function<void(HistoryHandle)>                                                                     VisitorFun;
 
     NNHistoryManager();
     virtual ~NNHistoryManager();
 
     template<typename NNCache>
-    HistoryHandle get(TokenIdSequence const& hist);
-    void setOnReleaseHandler(OnReleaseHandler const& handler);
+    HistoryHandle     get(TokenIdSequence const& hist);
+    void              setOnReleaseHandler(OnReleaseHandler const& handler);
     NNCacheMap const& getNNCacheMap() const;
-    void visit(VisitorFun f) const;
+    void              visit(VisitorFun f) const;
 
     // implement HistoryManager interface
-    virtual HistoryHandle acquire     (HistoryHandle handle);
-    virtual void          release     (HistoryHandle handle);
-    virtual HistoryHash   hashKey     (HistoryHandle handle) const;
+    virtual HistoryHandle acquire(HistoryHandle handle);
+    virtual void          release(HistoryHandle handle);
+    virtual HistoryHash   hashKey(HistoryHandle handle) const;
     virtual bool          isEquivalent(HistoryHandle lhs, HistoryHandle rhs) const;
-    virtual std::string   format      (HistoryHandle handle) const;
+    virtual std::string   format(HistoryHandle handle) const;
 
 private:
     NNCacheMap nn_caches_;
@@ -94,7 +94,8 @@ private:
 
 // inline implementations
 
-inline NNHistoryManager::NNHistoryManager() : HistoryManager(), has_on_release_handler_(false), on_release_handler_() {
+inline NNHistoryManager::NNHistoryManager()
+        : HistoryManager(), has_on_release_handler_(false), on_release_handler_() {
 }
 
 inline NNHistoryManager::~NNHistoryManager() {
@@ -109,24 +110,23 @@ inline HistoryHandle NNHistoryManager::get(TokenIdSequence const& hist) {
     auto iter = nn_caches_.find(&hist);
     if (iter == nn_caches_.end()) {
         NNCacheBase* c = new NNCache();
-        c->ref_count = 0ul;
-        c->history = std::unique_ptr<TokenIdSequence>(new TokenIdSequence(hist));
-        auto r = nn_caches_.insert(std::make_pair(c->history.get(), c));
-        iter = r.first;
+        c->ref_count   = 0ul;
+        c->history     = std::unique_ptr<TokenIdSequence>(new TokenIdSequence(hist));
+        auto r         = nn_caches_.insert(std::make_pair(c->history.get(), c));
+        iter           = r.first;
     }
     return iter->second;
 }
 
 inline void NNHistoryManager::setOnReleaseHandler(OnReleaseHandler const& handler) {
     has_on_release_handler_ = true;
-    on_release_handler_ = handler;
+    on_release_handler_     = handler;
 }
 
 inline NNHistoryManager::NNCacheMap const& NNHistoryManager::getNNCacheMap() const {
     return nn_caches_;
 }
 
-} // namespace Lm
+}  // namespace Lm
 
 #endif /* _LM_NN_HISTORY_MANAGER_HH */
-

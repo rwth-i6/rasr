@@ -22,31 +22,29 @@
 using namespace Core;
 using namespace Lm;
 
-
 const Core::ParameterInt WordlistInterfaceLm::paramHistoryLimit(
-    "history-limit",
-    "maximum length of history considered (m-grammity - 1)",
-    historyLengthLimit, 0, historyLengthLimit);
+        "history-limit",
+        "maximum length of history considered (m-grammity - 1)",
+        historyLengthLimit, 0, historyLengthLimit);
 const Core::ParameterBool WordlistInterfaceLm::paramUseBackingOff(
-    "use-backing-off",
-    "use backing off to reduce length of histories",
-    false);
+        "use-backing-off",
+        "use backing off to reduce length of histories",
+        false);
 
-const char *WordlistInterfaceLm::internalClassName(InternalClassIndex c) const {
+const char* WordlistInterfaceLm::internalClassName(InternalClassIndex c) const {
     require(wl);
     return reinterpret_cast<const char*>(wl->word(c));
 }
 
 WordlistInterfaceLm::WordlistInterfaceLm(
-    const Core::Configuration &c,
-    Bliss::LexiconRef l):
-    Core::Component(c),
-    IndexMappedLm(c, l),
-    wl(0),
-    backingOffCounterBase_(0),
-    backingOffCounter_(0),
-    backingOffStatistics_(c, "backing-off-statistics", Core::Channel::disabled)
-{
+        const Core::Configuration& c,
+        Bliss::LexiconRef          l)
+        : Core::Component(c),
+          IndexMappedLm(c, l),
+          wl(0),
+          backingOffCounterBase_(0),
+          backingOffCounter_(0),
+          backingOffStatistics_(c, "backing-off-statistics", Core::Channel::disabled) {
     historyManager_ = this;
     setMaxHistoryLength(paramHistoryLimit(config));
     useBackingOff_ = paramUseBackingOff(config);
@@ -56,15 +54,17 @@ WordlistInterfaceLm::WordlistInterfaceLm(
     if (useBackingOff_) {
         log("using backing off");
         backingOffCounterBase_ =
-            new u32[(maxHistoryLength() + 1) * (maxHistoryLength() + 1)];
-        backingOffCounter_ = new u32ptr [maxHistoryLength() + 1];
+                new u32[(maxHistoryLength() + 1) * (maxHistoryLength() + 1)];
+        backingOffCounter_ = new u32ptr[maxHistoryLength() + 1];
         for (size_t i = 0; i < maxHistoryLength() + 1; ++i) {
             backingOffCounter_[i] = backingOffCounterBase_ +
-                i * maxHistoryLength();
+                                    i * maxHistoryLength();
             for (size_t j = 0; j < maxHistoryLength() + 1; ++j)
                 backingOffCounter_[i][j] = 0;
         }
-    } else log("not using backing off");
+    }
+    else
+        log("not using backing off");
 }
 
 WordlistInterfaceLm::~WordlistInterfaceLm() {
@@ -81,29 +81,30 @@ WordlistInterfaceLm::~WordlistInterfaceLm() {
         delete[] backingOffCounter_;
         delete[] backingOffCounterBase_;
     }
-    if (wl) delete wl;
+    if (wl)
+        delete wl;
 }
 
 void WordlistInterfaceLm::setSignificantHistoryLength(u32 l) {
-    log("language model file defines a %d-gram", l+1);
+    log("language model file defines a %d-gram", l + 1);
 
     if (l > historyLengthLimit)
-        warning("support for %d-grams is not implemented (increase WordlistInterfaceLm::historyLengthLimit)", l+1);
+        warning("support for %d-grams is not implemented (increase WordlistInterfaceLm::historyLengthLimit)", l + 1);
 
     if (l < maxHistoryLength())
         setMaxHistoryLength(l);
 
-    log("language model will be used as a %d-gram", maxHistoryLength()+1);
+    log("language model will be used as a %d-gram", maxHistoryLength() + 1);
 
     ensure(maxHistoryLength() <= l);
 }
 
 HistoryHash WordlistInterfaceLm::hashKey(HistoryHandle hd) const {
-    const HistoryDescriptor *cd = (const HistoryDescriptor*) hd;
+    const HistoryDescriptor* cd = (const HistoryDescriptor*)hd;
 
     u32 s = 0;
     for (unsigned int i = 0; i < cd->length; i++) {
-        s = (s << 8) + cd->history[i];
+        s     = (s << 8) + cd->history[i];
         u32 o = s & 0xff000000;
         if (o) {
             s = s ^ (o >> 24);
@@ -113,20 +114,21 @@ HistoryHash WordlistInterfaceLm::hashKey(HistoryHandle hd) const {
     return s;
 }
 
-bool WordlistInterfaceLm::isEquivalent(HistoryHandle hda, HistoryHandle hdb) const
-{
-    const HistoryDescriptor *cda = (const HistoryDescriptor*) hda;
-    const HistoryDescriptor *cdb = (const HistoryDescriptor*) hdb;
+bool WordlistInterfaceLm::isEquivalent(HistoryHandle hda, HistoryHandle hdb) const {
+    const HistoryDescriptor* cda = (const HistoryDescriptor*)hda;
+    const HistoryDescriptor* cdb = (const HistoryDescriptor*)hdb;
 
-    if (cda->length != cdb->length) return false;
+    if (cda->length != cdb->length)
+        return false;
     for (unsigned int i = 0; i < cda->length; i++)
-        if (cda->history[i] != cdb->history[i]) return false;
+        if (cda->history[i] != cdb->history[i])
+            return false;
     return true;
 }
 
 std::string WordlistInterfaceLm::format(HistoryHandle hd) const {
-    const HistoryDescriptor *cd = (const HistoryDescriptor*) hd;
-    std::string result;
+    const HistoryDescriptor* cd = (const HistoryDescriptor*)hd;
+    std::string              result;
     for (unsigned int i = 0; i < cd->length; i++) {
         result += Core::form("%d ", cd->history[i]);
     }
@@ -135,7 +137,7 @@ std::string WordlistInterfaceLm::format(HistoryHandle hd) const {
 
 History WordlistInterfaceLm::startHistory() const {
     require(sentenceBeginToken());
-    HistoryDescriptor *result = new HistoryDescriptor(std::min(u32(1), maxHistoryLength_));
+    HistoryDescriptor* result = new HistoryDescriptor(std::min(u32(1), maxHistoryLength_));
     if (result->length > 0)
         result->history[0] = internalClassIndex(sentenceBeginToken());
     if (useBackingOff_) {
@@ -147,17 +149,17 @@ History WordlistInterfaceLm::startHistory() const {
     return history(result);
 }
 
-u32 WordlistInterfaceLm::backingOffHistoryLength(const HistoryDescriptor *h) const {
+u32 WordlistInterfaceLm::backingOffHistoryLength(const HistoryDescriptor* h) const {
     return h->length;
 }
 
-History WordlistInterfaceLm::extendedHistory(const History &h, Token w) const {
-    const HistoryDescriptor *cd = descriptor<Self>(h);
+History WordlistInterfaceLm::extendedHistory(const History& h, Token w) const {
+    const HistoryDescriptor* cd = descriptor<Self>(h);
 
-    HistoryDescriptor *result = new HistoryDescriptor(std::min(cd->length + 1, maxHistoryLength_));
-    result->history[0] = internalClassIndex(w);
+    HistoryDescriptor* result = new HistoryDescriptor(std::min(cd->length + 1, maxHistoryLength_));
+    result->history[0]        = internalClassIndex(w);
     for (unsigned int i = 1; i < result->length; ++i)
-        result->history[i] = cd->history[i-1];
+        result->history[i] = cd->history[i - 1];
     if (useBackingOff_) {
         u32 length = backingOffHistoryLength(result);
         if (backingOffStatistics_.isOpen())
@@ -167,29 +169,31 @@ History WordlistInterfaceLm::extendedHistory(const History &h, Token w) const {
     return history(result);
 }
 
-History WordlistInterfaceLm::reducedHistory(const History &h, u32 limit) const {
-    const HistoryDescriptor *hd = descriptor<Self>(h);
+History WordlistInterfaceLm::reducedHistory(const History& h, u32 limit) const {
+    const HistoryDescriptor* hd = descriptor<Self>(h);
     if (limit >= hd->length) {
         return h;
-    } else {
+    }
+    else {
         if (limit > maxHistoryLength_)
             limit = maxHistoryLength_;
-        HistoryDescriptor *result = new HistoryDescriptor(limit);
+        HistoryDescriptor* result = new HistoryDescriptor(limit);
         for (unsigned int i = 0; i < result->length; ++i)
             result->history[i] = hd->history[i];
         return history(result);
     }
 }
 
-std::string WordlistInterfaceLm::formatHistory(const History &h) const {
-    if (!wl) return h.format();
+std::string WordlistInterfaceLm::formatHistory(const History& h) const {
+    if (!wl)
+        return h.format();
 
-    const HistoryDescriptor *hd = descriptor<Self>(h);
-    std::string result;
+    const HistoryDescriptor* hd = descriptor<Self>(h);
+    std::string              result;
     for (unsigned int i = 0; i < hd->length; i++) {
         result += Core::form("%s (%d), ",
-                              internalClassName(hd->history[i]),
-                              hd->history[i]);
+                             internalClassName(hd->history[i]),
+                             hd->history[i]);
     }
     return result;
 }

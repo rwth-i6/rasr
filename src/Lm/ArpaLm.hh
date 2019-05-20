@@ -17,98 +17,97 @@
 #ifndef _LM_ARPALM_HH
 #define _LM_ARPALM_HH
 
+#include <Core/Parameter.hh>
 #include "BackingOff.hh"
 #include "ClassLm.hh"
 #include "LanguageModel.hh"
-#include <Core/Parameter.hh>
 
 namespace Lm {
 
-    /**
-     * ARPA backing-off language model.
-     *
-     * Actually just a reader for the ARPA standard format introduced
-     * by Doug Paul.  The LM implementation is just inherited from
-     * BackingOffLm.
-     *
-     * Edited quote from documentation header by CMU software:
-     *
-     * p(w3|w1,w2) = if (trigram exists)       p_3(w1,w2,w3)
-     *          else if (bigram w1,w2 exists)  bo_wt_2(w1,w2)*p(w3|w2)
-     *          else                           p(w3|w2)
-     *
-     * p(w2|w1)    = if (bigram exists)         p_2(w1,w2)
-     *          else if (unigram w1 exists)     bo_wt_1(w1)*p_1(w2)
-     *          else                            p_1(w2)
-     *
-     * All probs and back-off weights (bo_wt) are given in log10 form.
-     * Missing back-off weights are set to zero.
-     *
-     * Data format:
-     *
-     * \data\
-     * ngram 1=nr            # number of unigrams
-     * ngram 2=nr            # number of bigrams
-     * ngram 3=nr            # number of trigrams
-     *
-     * \1-grams:
-     * p_1   w1      bo_wt_1
-     *
-     * \2-grams:
-     * p_2   w1 w2   bo_wt_2
-     *
-     * \3-grams:
-     * p_3   w1 w2 w3
-     *
-     * \end\
-     *
-     * Notes:
-     * - Format and implementation are not restricted to tri-grams.
-     * - Currently we assume that the LM file is in UTF-8 encoding.
-     */
+/**
+ * ARPA backing-off language model.
+ *
+ * Actually just a reader for the ARPA standard format introduced
+ * by Doug Paul.  The LM implementation is just inherited from
+ * BackingOffLm.
+ *
+ * Edited quote from documentation header by CMU software:
+ *
+ * p(w3|w1,w2) = if (trigram exists)       p_3(w1,w2,w3)
+ *          else if (bigram w1,w2 exists)  bo_wt_2(w1,w2)*p(w3|w2)
+ *          else                           p(w3|w2)
+ *
+ * p(w2|w1)    = if (bigram exists)         p_2(w1,w2)
+ *          else if (unigram w1 exists)     bo_wt_1(w1)*p_1(w2)
+ *          else                            p_1(w2)
+ *
+ * All probs and back-off weights (bo_wt) are given in log10 form.
+ * Missing back-off weights are set to zero.
+ *
+ * Data format:
+ *
+ * \data\
+ * ngram 1=nr            # number of unigrams
+ * ngram 2=nr            # number of bigrams
+ * ngram 3=nr            # number of trigrams
+ *
+ * \1-grams:
+ * p_1   w1      bo_wt_1
+ *
+ * \2-grams:
+ * p_2   w1 w2   bo_wt_2
+ *
+ * \3-grams:
+ * p_3   w1 w2 w3
+ *
+ * \end\
+ *
+ * Notes:
+ * - Format and implementation are not restricted to tri-grams.
+ * - Currently we assume that the LM file is in UTF-8 encoding.
+ */
 
-    class ArpaLm :
-        public BackingOffLm
-    {
-    private:
-        class InitData;
-        static const Core::ParameterString paramFilename;
-        static const Core::ParameterString paramEncoding;
-        static const Core::ParameterBool paramSkipInfScore;
-        static const Core::ParameterBool paramReverseLm;
-        static const f64 InfScore;
-        virtual void read();
-    public:
-        ArpaLm(const Core::Configuration&, Bliss::LexiconRef);
-        virtual ~ArpaLm();
-    };
+class ArpaLm : public BackingOffLm {
+private:
+    class InitData;
+    static const Core::ParameterString paramFilename;
+    static const Core::ParameterString paramEncoding;
+    static const Core::ParameterBool   paramSkipInfScore;
+    static const Core::ParameterBool   paramReverseLm;
+    static const f64                   InfScore;
+    virtual void                       read();
 
+public:
+    ArpaLm(const Core::Configuration&, Bliss::LexiconRef);
+    virtual ~ArpaLm();
+};
 
-    class ArpaClassLm : public ArpaLm, public ClassLm
-    {
-    private:
-        ConstClassMappingRef mapping_;
-    protected:
-        void loadClasses();
+class ArpaClassLm : public ArpaLm, public ClassLm {
+private:
+    ConstClassMappingRef mapping_;
 
-        virtual Token getSpecialToken(
-            const std::string &name, bool required = false) const;
+protected:
+    void loadClasses();
 
-    public:
-        ArpaClassLm(const Core::Configuration&, Bliss::LexiconRef);
-        virtual ~ArpaClassLm();
+    virtual Token getSpecialToken(
+            const std::string& name, bool required = false) const;
 
-        virtual ConstClassMappingRef classMapping() const
-            { return mapping_; }
+public:
+    ArpaClassLm(const Core::Configuration&, Bliss::LexiconRef);
+    virtual ~ArpaClassLm();
 
-        virtual History extendedHistory(const History&, Token t) const;
-        virtual Score score(const History&, Token t) const;
+    virtual ConstClassMappingRef classMapping() const {
+        return mapping_;
+    }
+
+    virtual History extendedHistory(const History&, Token t) const;
+    virtual Score   score(const History&, Token t) const;
 #if 0
         virtual void getBatch(const History &history, const CompiledBatchRequest *cbr, std::vector<f32> &result) const;
 #endif
-        virtual Fsa::ConstAutomatonRef getFsa() const;
-    };
+    virtual Fsa::ConstAutomatonRef getFsa() const;
+};
 
-} // namespace Lm
+}  // namespace Lm
 
-#endif // LM_ARPALM_HH
+#endif  // LM_ARPALM_HH

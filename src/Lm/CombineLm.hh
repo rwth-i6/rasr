@@ -26,43 +26,43 @@
 namespace Lm {
 
 class CombineLanguageModel : public LanguageModel, public SearchSpaceAwareLanguageModel {
-    public:
-        typedef LanguageModel Precursor;
+public:
+    typedef LanguageModel Precursor;
 
-        static Core::ParameterInt   paramNumLms;
-        static Core::ParameterBool  paramLinearCombination;
-        static Core::ParameterInt   paramLookaheadLM;
-        static Core::ParameterInt   paramRecombinationLM;
-        static Core::ParameterFloat paramSkipThreshold;
+    static Core::ParameterInt   paramNumLms;
+    static Core::ParameterBool  paramLinearCombination;
+    static Core::ParameterInt   paramLookaheadLM;
+    static Core::ParameterInt   paramRecombinationLM;
+    static Core::ParameterFloat paramSkipThreshold;
 
-        CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
-        virtual ~CombineLanguageModel();
+    CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
+    virtual ~CombineLanguageModel();
 
-        virtual Lm::Score sentenceBeginScore() const;
-        virtual void getDependencies(Core::DependencySet& dependencies) const;
+    virtual Lm::Score sentenceBeginScore() const;
+    virtual void      getDependencies(Core::DependencySet& dependencies) const;
 
-        virtual History startHistory() const;
-        virtual History extendedHistory(History const& history, Token w) const;
-        virtual History reducedHistory(History const& history, u32 limit) const;
-        virtual Score score(History const& history, Token w) const;
-        virtual Score sentenceEndScore(const History& history) const;
-        virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
-        virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
+    virtual History                        startHistory() const;
+    virtual History                        extendedHistory(History const& history, Token w) const;
+    virtual History                        reducedHistory(History const& history, u32 limit) const;
+    virtual Score                          score(History const& history, Token w) const;
+    virtual Score                          sentenceEndScore(const History& history) const;
+    virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
+    virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
 
-        virtual void startFrame(Search::TimeframeIndex time) const;
-        virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;
+    virtual void startFrame(Search::TimeframeIndex time) const;
+    virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;
 
-    private:
-        std::vector<Core::Ref<ScaledLanguageModel>>       lms_;
-        std::vector<Core::Ref<const LanguageModel>>       unscaled_lms_;
-        std::vector<SearchSpaceAwareLanguageModel const*> ssa_lms_;
-        std::vector<Score>                                skip_thresholds_;
+private:
+    std::vector<Core::Ref<ScaledLanguageModel>>       lms_;
+    std::vector<Core::Ref<const LanguageModel>>       unscaled_lms_;
+    std::vector<SearchSpaceAwareLanguageModel const*> ssa_lms_;
+    std::vector<Score>                                skip_thresholds_;
 
-        bool linear_combination_;
-        int  lookahead_lm_;
-        int  recombination_lm_;
+    bool linear_combination_;
+    int  lookahead_lm_;
+    int  recombination_lm_;
 };
 
-} // namespace Lm
+}  // namespace Lm
 
 #endif /* _LM_COMBINE_LM_HH */

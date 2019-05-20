@@ -12,9 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
-#include <Core/Application.hh>
 #include "Module.hh"
+#include <Core/Application.hh>
+#include <Modules.hh>
 #include "ClassLm.hh"
 #ifdef MODULE_LM_ARPA
 #include "ArpaLm.hh"
@@ -36,56 +36,55 @@
 using namespace Lm;
 
 namespace Lm {
-    enum LanguageModelType {
-        lmTypeArpa,
-        lmTypeArpaWithClasses,
-        lmTypeFsa,
-        lmTypeZerogram,
-        lmTypeFFNN,
-        lmTypeCombine,
-        lmTypeTFRNN
-    };
+enum LanguageModelType {
+    lmTypeArpa,
+    lmTypeArpaWithClasses,
+    lmTypeFsa,
+    lmTypeZerogram,
+    lmTypeFFNN,
+    lmTypeCombine,
+    lmTypeTFRNN
+};
 }
 
 const Core::Choice Module_::lmTypeChoice(
-    "ARPA",          lmTypeArpa,
-    "ARPA+classes",  lmTypeArpaWithClasses,
-    "fsa",           lmTypeFsa,
-    "zerogram",      lmTypeZerogram,
-    "ffnn",          lmTypeFFNN,
-    "combine",       lmTypeCombine,
-    "tfrnn",         lmTypeTFRNN,
-    Core::Choice::endMark());
+        "ARPA", lmTypeArpa,
+        "ARPA+classes", lmTypeArpaWithClasses,
+        "fsa", lmTypeFsa,
+        "zerogram", lmTypeZerogram,
+        "ffnn", lmTypeFFNN,
+        "combine", lmTypeCombine,
+        "tfrnn", lmTypeTFRNN,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
-    "type", &Module_::lmTypeChoice, "type of language model", lmTypeZerogram);
+        "type", &Module_::lmTypeChoice, "type of language model", lmTypeZerogram);
 
 Core::Ref<LanguageModel> Module_::createLanguageModel(
-    const Core::Configuration &c,
-    Bliss::LexiconRef l)
-{
+        const Core::Configuration& c,
+        Bliss::LexiconRef          l) {
     Core::Ref<LanguageModel> result;
 
     switch (lmTypeParam(c)) {
 #ifdef MODULE_LM_ARPA
-    case lmTypeArpa:            result = Core::ref(new ArpaLm(c, l));                       break;
-    case lmTypeArpaWithClasses: result = Core::ref(new ArpaClassLm(c, l));                  break;
+        case lmTypeArpa: result = Core::ref(new ArpaLm(c, l)); break;
+        case lmTypeArpaWithClasses: result = Core::ref(new ArpaClassLm(c, l)); break;
 #endif
 #ifdef MODULE_LM_FSA
-    case lmTypeFsa:             result = Core::ref(new FsaLm(c, l));                        break;
+        case lmTypeFsa: result = Core::ref(new FsaLm(c, l)); break;
 #endif
 #ifdef MODULE_LM_ZEROGRAM
-    case lmTypeZerogram:        result = Core::ref(new Zerogram(c, l));                     break;
+        case lmTypeZerogram: result = Core::ref(new Zerogram(c, l)); break;
 #endif
 #ifdef MODULE_LM_FFNN
-    case lmTypeFFNN:            result = Core::ref(new FFNeuralNetworkLanguageModel(c, l)); break;
+        case lmTypeFFNN: result = Core::ref(new FFNeuralNetworkLanguageModel(c, l)); break;
 #endif
-    case lmTypeCombine:         result = Core::ref(new CombineLanguageModel(c, l));         break;
+        case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN
-    case lmTypeTFRNN:           result = Core::ref(new TFRecurrentLanguageModel(c, l));     break;
+        case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
 #endif
-    default:
-        Core::Application::us()->criticalError("unknwon language model type: %d",  lmTypeParam(c));
+        default:
+            Core::Application::us()->criticalError("unknwon language model type: %d", lmTypeParam(c));
     }
     result->init();
     if (result->hasFatalErrors())
@@ -94,9 +93,6 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 }
 
 Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
-    const Core::Configuration &c, Core::Ref<LanguageModel> languageModel)
-{
-    return languageModel ?
-        Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) :
-        Core::Ref<ScaledLanguageModel>();
+        const Core::Configuration& c, Core::Ref<LanguageModel> languageModel) {
+    return languageModel ? Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) : Core::Ref<ScaledLanguageModel>();
 }

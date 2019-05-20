@@ -26,18 +26,18 @@ public:
     typedef AbstractNNLanguageModel Precursor;
     typedef f32                     FeatureType;
 
-    static Core::ParameterBool   paramExpandOneHot;
-    static Core::ParameterBool   paramEagerForwarding;
-    static Core::ParameterInt    paramContextSize;
-    static Core::ParameterInt    paramHistorySize;
-    static Core::ParameterInt    paramBufferSize;
+    static Core::ParameterBool paramExpandOneHot;
+    static Core::ParameterBool paramEagerForwarding;
+    static Core::ParameterInt  paramContextSize;
+    static Core::ParameterInt  paramHistorySize;
+    static Core::ParameterInt  paramBufferSize;
 
     FFNeuralNetworkLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
     virtual ~FFNeuralNetworkLanguageModel();
 
     virtual History startHistory() const;
     virtual History extendedHistory(History const&, Token w) const;
-    virtual Score score(History const&, Token w) const;
+    virtual Score   score(History const&, Token w) const;
 
 protected:
     virtual void load();
@@ -45,13 +45,13 @@ protected:
 private:
     bool   expand_one_hot_;
     bool   eager_forwarding_;
-    size_t context_size_; // number of words passed to the neural network
-    size_t history_size_; // length of history for recombination purposes (used to estimate runtime-performance for recurrent LMs)
+    size_t context_size_;  // number of words passed to the neural network
+    size_t history_size_;  // length of history for recombination purposes (used to estimate runtime-performance for recurrent LMs)
     size_t buffer_size_;
 
     mutable Nn::NeuralNetwork<FeatureType> nn_;
 };
 
-}
+}  // namespace Lm
 
-#endif // _LM_FF_NEURAL_NETWORK_LANGUAGE_MODEL_HH
+#endif  // _LM_FF_NEURAL_NETWORK_LANGUAGE_MODEL_HH

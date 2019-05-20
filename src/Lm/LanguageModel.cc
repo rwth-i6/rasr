@@ -20,36 +20,30 @@
 
 using namespace Lm;
 
-
 History::SentinelHistoryManager History::sentinel;
 
-LanguageModelAutomaton::LanguageModelAutomaton(Bliss::LexiconRef lexicon) :
-    lexicon_(lexicon),
-    alphabet_(lexicon->syntacticTokenAlphabet())
-{
+LanguageModelAutomaton::LanguageModelAutomaton(Bliss::LexiconRef lexicon)
+        : lexicon_(lexicon),
+          alphabet_(lexicon->syntacticTokenAlphabet()) {
     backOffLabel_ = Fsa::Epsilon;
 }
 
-LanguageModelAutomaton::LanguageModelAutomaton(Core::Ref<const LanguageModel> lm) :
-    lexicon_(lm->lexicon()),
-    alphabet_(lm->tokenAlphabet())
-{
+LanguageModelAutomaton::LanguageModelAutomaton(Core::Ref<const LanguageModel> lm)
+        : lexicon_(lm->lexicon()),
+          alphabet_(lm->tokenAlphabet()) {
     backOffLabel_ = Fsa::Epsilon;
 }
 
-LanguageModel::LanguageModel(
-    const Core::Configuration &c,
-    Bliss::LexiconRef l) :
-    Component(c),
-    historyManager_(0),
-    lexicon_(l),
-    tokenInventory_(0),
-    fallbackToken_(0),
-    sentenceBeginToken_(0),
-    sentenceEndToken_(0)
-{
-    tokenInventory_ = &l->syntacticTokenInventory();
-    tokenAlphabet_ = l->syntacticTokenAlphabet();
+LanguageModel::LanguageModel(const Core::Configuration& c, Bliss::LexiconRef l)
+        : Component(c),
+          historyManager_(0),
+          lexicon_(l),
+          tokenInventory_(0),
+          fallbackToken_(0),
+          sentenceBeginToken_(0),
+          sentenceEndToken_(0) {
+    tokenInventory_                = &l->syntacticTokenInventory();
+    tokenAlphabet_                 = l->syntacticTokenAlphabet();
     requiresSentenceBoundaryToken_ = false;
 }
 
@@ -71,24 +65,23 @@ private:
      * during lifetime of this alphabet.
      */
     Core::Ref<const LanguageModel> lm_;
+
 public:
-    TokenAlphabet(Core::Ref<const LanguageModel> lm) :
-        Bliss::TokenAlphabet(lm->tokenInventory()), lm_(lm) {}
+    TokenAlphabet(Core::Ref<const LanguageModel> lm)
+            : Bliss::TokenAlphabet(lm->tokenInventory()), lm_(lm) {}
     virtual ~TokenAlphabet() {}
 };
-void LanguageModel::setTokenInventory(const TokenInventory *_tokenInventory) {
+void LanguageModel::setTokenInventory(const TokenInventory* _tokenInventory) {
     tokenInventory_ = _tokenInventory;
-    tokenAlphabet_ = Fsa::ConstAlphabetRef(new TokenAlphabet(Core::ref(this)));
+    tokenAlphabet_  = Fsa::ConstAlphabetRef(new TokenAlphabet(Core::ref(this)));
 }
-void LanguageModel::setTokenInventoryAndAlphabet(const TokenInventory *_tokenInventory, Fsa::ConstAlphabetRef _tokenAlphabet) {
+void LanguageModel::setTokenInventoryAndAlphabet(const TokenInventory* _tokenInventory, Fsa::ConstAlphabetRef _tokenAlphabet) {
     tokenInventory_ = _tokenInventory;
-    tokenAlphabet_ = _tokenAlphabet;
+    tokenAlphabet_  = _tokenAlphabet;
 }
 
-const Bliss::SyntacticToken * LanguageModel::getSpecialSyntacticToken(
-    const std::string &name, bool required) const
-{
-    const Bliss::Lemma *lemma = lexicon()->specialLemma(name);
+const Bliss::SyntacticToken* LanguageModel::getSpecialSyntacticToken(const std::string& name, bool required) const {
+    const Bliss::Lemma* lemma = lexicon()->specialLemma(name);
 
     if (!lemma) {
         if (required) {
@@ -108,8 +101,8 @@ const Bliss::SyntacticToken * LanguageModel::getSpecialSyntacticToken(
         return 0;
     }
 
-    const Bliss::SyntacticTokenSequence & tokenSequence(
-        lemma->syntacticTokenSequence());
+    const Bliss::SyntacticTokenSequence& tokenSequence(
+            lemma->syntacticTokenSequence());
 
     if (tokenSequence.length() < 1) {
         if (required) {
@@ -120,7 +113,7 @@ const Bliss::SyntacticToken * LanguageModel::getSpecialSyntacticToken(
         return 0;
     }
 
-    const Bliss::SyntacticToken * token = tokenSequence[0];
+    const Bliss::SyntacticToken* token = tokenSequence[0];
 
     if (tokenSequence.length() > 1) {
         warning("Ambiguous \"%s\" lm token. "
@@ -133,9 +126,8 @@ const Bliss::SyntacticToken * LanguageModel::getSpecialSyntacticToken(
 }
 
 Token LanguageModel::getSpecialToken(
-    const std::string &name, bool required) const
-{
-    const Bliss::SyntacticToken *syntTok = getSpecialSyntacticToken(name, required);
+        const std::string& name, bool required) const {
+    const Bliss::SyntacticToken* syntTok = getSpecialSyntacticToken(name, required);
     if (!syntTok)
         return InvalidToken;
     Token tok = getToken(syntTok->symbol());
@@ -149,13 +141,14 @@ void LanguageModel::createSpecialTokens() {
     fallbackToken_ = getSpecialToken("unknown", false);
     if (lexicon()->specialLemma("sentence-boundary")) {
         sentenceBeginToken_ = sentenceEndToken_ = getSpecialToken("sentence-boundary", requiresSentenceBoundaryToken_);
-    } else {
+    }
+    else {
         sentenceBeginToken_ = getSpecialToken("sentence-begin", requiresSentenceBoundaryToken_);
         sentenceEndToken_   = getSpecialToken("sentence-end", requiresSentenceBoundaryToken_);
     }
     log("Sentence boundary: %s ... %s",
         (sentenceBeginToken_) ? sentenceBeginToken_->symbol().str() : "",
-        (sentenceEndToken_)   ? sentenceEndToken_  ->symbol().str() : "");
+        (sentenceEndToken_) ? sentenceEndToken_->symbol().str() : "");
 }
 
 Fsa::ConstAutomatonRef LanguageModel::getFsa() const {
@@ -163,29 +156,25 @@ Fsa::ConstAutomatonRef LanguageModel::getFsa() const {
     return Fsa::ConstAutomatonRef();
 }
 
-History LanguageModel::reducedHistory(const History &h, u32) const {
+History LanguageModel::reducedHistory(const History& h, u32) const {
     return h;
 }
 
-Lm::Score LanguageModel::sentenceEndScore(const History &h) const {
+Lm::Score LanguageModel::sentenceEndScore(const History& h) const {
     require(sentenceEndToken());
     return score(h, sentenceEndToken());
 }
 
 // ===========================================================================
-CompiledBatchRequest *LanguageModel::compileBatchRequest(const BatchRequest &request, Score scale) const {
-    NonCompiledBatchRequest *result = new NonCompiledBatchRequest(scale);
-    result->request = request;
+CompiledBatchRequest* LanguageModel::compileBatchRequest(const BatchRequest& request, Score scale) const {
+    NonCompiledBatchRequest* result = new NonCompiledBatchRequest(scale);
+    result->request                 = request;
     return result;
 }
 
-void LanguageModel::getBatch(
-    const History &history,
-    const CompiledBatchRequest *cbr,
-    std::vector<f32> &result) const
-{
-    const NonCompiledBatchRequest *ncbr = required_cast(const NonCompiledBatchRequest*, cbr);
-    const BatchRequest &request(ncbr->request);
+void LanguageModel::getBatch(const History& history, const CompiledBatchRequest* cbr, std::vector<f32>& result) const {
+    const NonCompiledBatchRequest* ncbr = required_cast(const NonCompiledBatchRequest*, cbr);
+    const BatchRequest&            request(ncbr->request);
 
     for (BatchRequest::const_iterator r = request.begin(); r != request.end(); ++r) {
         Score sco = 0.0;
@@ -193,10 +182,11 @@ void LanguageModel::getBatch(
             sco += score(history, r->tokens[0]);
             if (r->tokens.length() > 1) {
                 History h = extendedHistory(history, r->tokens[0]);
-                for (u32 ti = 1; ; ++ti) {
+                for (u32 ti = 1;; ++ti) {
                     Token st = r->tokens[ti];
                     sco += score(h, st);
-                    if (ti+1 >= r->tokens.length()) break;
+                    if (ti + 1 >= r->tokens.length())
+                        break;
                     h = extendedHistory(h, st);
                 }
             }

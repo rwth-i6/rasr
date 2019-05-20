@@ -17,62 +17,59 @@
 #ifndef _LM_CORPUSSTATISTICS_HH
 #define _LM_CORPUSSTATISTICS_HH
 
-#include "LanguageModel.hh"
-#include "ClassLm.hh"
 #include <Bliss/CorpusStatistics.hh>
 #include <Bliss/Lexicon.hh>
 #include <Bliss/Orthography.hh>
 #include <Core/Parameter.hh>
 #include <Core/Version.hh>
+#include "ClassLm.hh"
+#include "LanguageModel.hh"
 
 namespace Lm {
 
-    /**
-     * Corpus statistics for language model related information such
-     * as perplexity.
-     */
+/**
+ * Corpus statistics for language model related information such
+ * as perplexity.
+ */
 
-    class CorpusStatisticsVisitor :
-        public Bliss::CorpusStatisticsVisitor
-    {
-    public:
-        static const Core::ParameterBool paramIgnoreUnknowns;
-        static const Core::ParameterBool paramUseClassEmissionProbabilities;
+class CorpusStatisticsVisitor : public Bliss::CorpusStatisticsVisitor {
+public:
+    static const Core::ParameterBool paramIgnoreUnknowns;
+    static const Core::ParameterBool paramUseClassEmissionProbabilities;
 
-    private:
-        struct SentenceStatistics;
-        struct TextStatistics;
+private:
+    struct SentenceStatistics;
+    struct TextStatistics;
 
-    private:
-        Bliss::LexiconRef lexicon_;
-        Core::Ref<LanguageModel> lm_;
-        Lm::Score syntaxEmissionScale_;
-        Lm::ClassLm *classLm_;
-        Core::Ref<const Lm::ClassMapping> classMapping_;
-        Lm::Score classEmissionScale_;
+private:
+    Bliss::LexiconRef                 lexicon_;
+    Core::Ref<LanguageModel>          lm_;
+    Lm::Score                         syntaxEmissionScale_;
+    Lm::ClassLm*                      classLm_;
+    Core::Ref<const Lm::ClassMapping> classMapping_;
+    Lm::Score                         classEmissionScale_;
 
-        Core::XmlChannel sentenceChannel_;
-        Bliss::OrthographicParser orthographicParser_;
+    Core::XmlChannel          sentenceChannel_;
+    Bliss::OrthographicParser orthographicParser_;
 
-        bool ignoreUnk_;
-        TextStatistics *lmStats_, *cmStats_;
-        u32 what_;
+    bool            ignoreUnk_;
+    TextStatistics *lmStats_, *cmStats_;
+    u32             what_;
 
-    protected:
-        SentenceStatistics buildSentenceStatistics(
+protected:
+    SentenceStatistics buildSentenceStatistics(
             Fsa::ConstAutomatonRef sentence,
             Lm::Score syntaxEmissionScale, Lm::Score classEmissionScale);
-        void writeReport(Core::XmlWriter &xml, TextStatistics &stats) const;
+    void writeReport(Core::XmlWriter& xml, TextStatistics& stats) const;
 
-    public:
-        CorpusStatisticsVisitor(const Core::Configuration&, Bliss::LexiconRef);
-        ~CorpusStatisticsVisitor();
-        virtual void reset();
-        virtual void visitSpeechSegment(Bliss::SpeechSegment*);
-        virtual void writeReport(Core::XmlWriter&) const;
-    };
+public:
+    CorpusStatisticsVisitor(const Core::Configuration&, Bliss::LexiconRef);
+    ~CorpusStatisticsVisitor();
+    virtual void reset();
+    virtual void visitSpeechSegment(Bliss::SpeechSegment*);
+    virtual void writeReport(Core::XmlWriter&) const;
+};
 
+}  // namespace Lm
 
-} // namespace Lm
-
-#endif // _LM_CORPUSSTATISTICS_HH
+#endif  // _LM_CORPUSSTATISTICS_HH

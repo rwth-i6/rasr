@@ -15,15 +15,15 @@
 #define BackingOffInternalFriend BackingOffLm::Internal;
 
 #include "BackingOff.hh"
-#include "BackingOffInternal.hh"
 #include <Bliss/SyntacticTokenMap.hh>
 #include <Core/Directory.hh>
 #include <Core/IoUtilities.hh>
 #include <Fsa/Sort.hh>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "BackingOffInternal.hh"
 
 using namespace Lm;
 
@@ -55,18 +55,17 @@ using namespace Lm;
 
 using namespace BackingOffPrivate;
 
-const BackingOffLm::Node *BackingOffLm::Node::findChild(TokenIndex t) const {
+const BackingOffLm::Node* BackingOffLm::Node::findChild(TokenIndex t) const {
     return binarySearch(childrenBegin(), childrenEnd() - 1, t);
 }
 
-const BackingOffLm::WordScore *BackingOffLm::Node::findWordScore(
-    const WordScore *base, TokenIndex t) const
-{
+const BackingOffLm::WordScore* BackingOffLm::Node::findWordScore(
+        const WordScore* base, TokenIndex t) const {
     return binarySearch(scoresBegin(base), scoresEnd(base) - 1, t);
 }
 
 struct BackingOffLm::Internal::InitItemOrdering {
-    bool operator() (const InitItem &a, const InitItem &b) const {
+    bool operator()(const InitItem& a, const InitItem& b) const {
         if (a.history[0] && b.history[0])
             return (a.history[0]->id() < b.history[0]->id());
         if (!a.history[0] && !b.history[0]) {
@@ -81,26 +80,28 @@ struct BackingOffLm::Internal::InitItemOrdering {
 BackingOffLm::Internal::Internal() {
     nodes_ = nodesTail_ = nodesEnd_ = NULL;
     wordScores_ = wordScoresTail_ = wordScoresEnd_ = NULL;
-    mmap_ = NULL;
+    mmap_                                          = NULL;
 }
 
 void BackingOffLm::Internal::changeNodeCapacity(NodeIndex newCapacity) {
     require(!isMapped());
     require(newCapacity >= nNodes());
-    size_t nNodes = nodesTail_ - nodes_;
-    Node *newNodes =  (Node*) realloc(nodes_, newCapacity * sizeof(Node));
+    size_t nNodes   = nodesTail_ - nodes_;
+    Node*  newNodes = (Node*)realloc(nodes_, newCapacity * sizeof(Node));
     hope(newNodes != NULL /* memory allocation failed */);
     nodes_     = newNodes;
     nodesTail_ = nodes_ + nNodes;
     nodesEnd_  = nodes_ + newCapacity;
 }
 
-BackingOffLm::Node *BackingOffLm::Internal::newNode() {
+BackingOffLm::Node* BackingOffLm::Internal::newNode() {
     size_t spareCapacity = nodesEnd_ - nodesTail_;
     if (spareCapacity < 1) {
         spareCapacity = nNodes();
-        if (spareCapacity < 1<<12) spareCapacity = 1<<12;
-        if (spareCapacity > 1<<22) spareCapacity = 1<<22;
+        if (spareCapacity < 1 << 12)
+            spareCapacity = 1 << 12;
+        if (spareCapacity > 1 << 22)
+            spareCapacity = 1 << 22;
         changeNodeCapacity(nNodes() + spareCapacity);
     }
     ensure_(nodesTail_ < nodesEnd_);
@@ -108,25 +109,26 @@ BackingOffLm::Node *BackingOffLm::Internal::newNode() {
 }
 
 void BackingOffLm::Internal::changeWordScoreCapacity(
-    WordScoreIndex newCapacity)
-{
+        WordScoreIndex newCapacity) {
     require(!isMapped());
     require(newCapacity >= nWordScores());
-    size_t nWordScores = wordScoresTail_ - wordScores_;
-    WordScore *newWordScores =  (WordScore*) realloc(
-        wordScores_, newCapacity * sizeof(WordScore));
+    size_t     nWordScores   = wordScoresTail_ - wordScores_;
+    WordScore* newWordScores = (WordScore*)realloc(
+            wordScores_, newCapacity * sizeof(WordScore));
     hope(newWordScores != NULL /* memory allocation failed */);
     wordScores_     = newWordScores;
     wordScoresTail_ = wordScores_ + nWordScores;
     wordScoresEnd_  = wordScores_ + newCapacity;
 }
 
-BackingOffLm::WordScore *BackingOffLm::Internal::newWordScore() {
+BackingOffLm::WordScore* BackingOffLm::Internal::newWordScore() {
     size_t spareCapacity = wordScoresEnd_ - wordScoresTail_;
     if (spareCapacity < 1) {
         spareCapacity = nWordScores();
-        if (spareCapacity < 1<<14) spareCapacity = 1<<14;
-        if (spareCapacity > 1<<24) spareCapacity = 1<<24;
+        if (spareCapacity < 1 << 14)
+            spareCapacity = 1 << 14;
+        if (spareCapacity > 1 << 24)
+            spareCapacity = 1 << 24;
         changeWordScoreCapacity(nWordScores() + spareCapacity);
     }
     ensure_(wordScoresTail_ < wordScoresEnd_);
@@ -134,9 +136,8 @@ BackingOffLm::WordScore *BackingOffLm::Internal::newWordScore() {
 }
 
 void BackingOffLm::Internal::reserve(
-    NodeIndex nNodesNeeded,
-    WordScoreIndex nWordScoresNeeded)
-{
+        NodeIndex      nNodesNeeded,
+        WordScoreIndex nWordScoresNeeded) {
     require(nNodesNeeded >= nNodes());
     require(nWordScoresNeeded >= nWordScores());
     changeNodeCapacity(nNodesNeeded);
@@ -146,26 +147,28 @@ void BackingOffLm::Internal::reserve(
 BackingOffLm::Internal::~Internal() {
     if (isMapped()) {
         munmap(mmap_, mmapSize_);
-    } else {
+    }
+    else {
         ::free(nodes_);
         ::free(wordScores_);
     }
 }
 
 void BackingOffLm::Internal::mapToken(TokenIndex ti, Token t) {
-    if (ti >= TokenIndex(tokens_.size())) tokens_.resize(ti+1, 0);
+    if (ti >= TokenIndex(tokens_.size()))
+        tokens_.resize(ti + 1, 0);
     tokens_[ti] = t;
 }
 
 void BackingOffLm::Internal::makeRoot() {
-    Node *root = newNode();
+    Node* root          = newNode();
     root->token_        = -1;
     root->backOffScore_ = Core::Type<Score>::max;
     root->depth_        = 0;
     root->parent_       = 0;
 }
 
-void BackingOffLm::Internal::build(InitItem *begin, InitItem *end) {
+void BackingOffLm::Internal::build(InitItem* begin, InitItem* end) {
     init_ = new std::vector<InitItemRange>;
     makeRoot();
     InitItemRange init;
@@ -175,7 +178,8 @@ void BackingOffLm::Internal::build(InitItem *begin, InitItem *end) {
     for (NodeIndex n = 0; n < nNodes(); ++n)
         buildNode(n);
     finalize();
-    delete init_; init_ = 0;
+    delete init_;
+    init_ = 0;
 }
 
 void BackingOffLm::Internal::finalize() {
@@ -183,33 +187,33 @@ void BackingOffLm::Internal::finalize() {
     size_t spareCapacity = nodesEnd_ - nodesTail_;
     if ((spareCapacity < 1) || (spareCapacity > nNodes() / 16))
         changeNodeCapacity(nNodes() + 1);
-    Node *sentinel = nodesTail_;
+    Node* sentinel = nodesTail_;
     verify(sentinel < nodesEnd_);
     sentinel->firstChild_     = nNodes();
     sentinel->firstWordScore_ = nWordScores();
-    sentinel->token_        = -1;  // phony
-    sentinel->backOffScore_ = 0.0; // phony
-    sentinel->depth_        = 0;   // phony
-    sentinel->parent_       = nNodes(); // phony
+    sentinel->token_          = -1;        // phony
+    sentinel->backOffScore_   = 0.0;       // phony
+    sentinel->depth_          = 0;         // phony
+    sentinel->parent_         = nNodes();  // phony
 
     // create sentinel word score
     spareCapacity = wordScoresEnd_ - wordScoresTail_;
     if ((spareCapacity < 1) || (spareCapacity > nWordScores() / 16))
         changeWordScoreCapacity(nWordScores() + 1);
-    WordScore *wsSentinel = wordScoresTail_;
+    WordScore* wsSentinel = wordScoresTail_;
     verify(wsSentinel < wordScoresEnd_);
-    wsSentinel->token_ = -1;  // phony
-    wsSentinel->score_ = 0.0; // phony
+    wsSentinel->token_ = -1;   // phony
+    wsSentinel->score_ = 0.0;  // phony
 
     // make parent and child numbers relative
     for (NodeIndex ni = 0; ni <= nNodes(); ++ni) {
-        nodes_[ni].parent_      = ni - nodes_[ni].parent_;
+        nodes_[ni].parent_ = ni - nodes_[ni].parent_;
         nodes_[ni].firstChild_ -= ni;
     }
 }
 
 void BackingOffLm::Internal::buildNode(NodeIndex ni) {
-    Node *n = &nodes_[ni];
+    Node*     n = &nodes_[ni];
     InitItem *i = (*init_)[ni].begin, *end = (*init_)[ni].end;
 
     std::sort(i, end, InitItemOrdering());
@@ -217,27 +221,31 @@ void BackingOffLm::Internal::buildNode(NodeIndex ni) {
     n->firstWordScore_ = nWordScores();
     for (; i < end && i->history[0] == 0; ++i) {
         if (i->token) {
-            WordScore *ws = newWordScore();
-            ws->token_ = i->token->id();
-            ws->score_ = i->score;
-        } else {
+            WordScore* ws = newWordScore();
+            ws->token_    = i->token->id();
+            ws->score_    = i->score;
+        }
+        else {
             n->backOffScore_ = i->score;
         }
     }
 
-    n->firstChild_ = nNodes();
-    Node::Depth d = n->depth_ + 1;
+    n->firstChild_  = nNodes();
+    Node::Depth   d = n->depth_ + 1;
     InitItemRange init;
-    for (; i < end ;) {
+    for (; i < end;) {
         verify(i->history[0]);
-        Node *nn = newNode(); // CAVEAT: invalidates n
+        Node* nn          = newNode();  // CAVEAT: invalidates n
         nn->parent_       = ni;
         nn->depth_        = d;
         nn->token_        = (*i->history++)->id();
         nn->backOffScore_ = 0.0;
         init.begin        = i++;
-        while (i < end && (*i->history)->id() == nn->token_) { i->history++; ++i; }
-        init.end          = i;
+        while (i < end && (*i->history)->id() == nn->token_) {
+            i->history++;
+            ++i;
+        }
+        init.end = i;
         verify(nodeIndex(nn) == init_->size());
         init_->push_back(init);
     }
@@ -246,25 +254,25 @@ void BackingOffLm::Internal::buildNode(NodeIndex ni) {
 /**
  * Write back-off tree as DOT file for diagnostic purposes.
  */
-void BackingOffLm::Internal::draw(std::ostream &os, const std::string &title) const {
+void BackingOffLm::Internal::draw(std::ostream& os, const std::string& title) const {
     os << "digraph \"" << title << "\" {" << std::endl
        << "ranksep = 1.5" << std::endl
        << "rankdir = LR" << std::endl
        << "node [fontname=\"Helvetica\"]" << std::endl
        << "edge [fontname=\"Helvetica\"]" << std::endl;
 
-    for (const Node *n = nodes_; n != nodesTail_; ++n) {
+    for (const Node* n = nodes_; n != nodesTail_; ++n) {
         Token tok = token(n->token());
         os << Core::form("n%p [shape=square label=\"%d\\n%s\\nbo=%f",
-                         (void*) n,
+                         (void*)n,
                          nodeIndex(n),
                          (tok) ? tok->symbol().str() : "(null)",
                          n->backOffScore());
-        for (const WordScore *ws = scoresBegin(n); ws != scoresEnd(n); ++ws)
+        for (const WordScore* ws = scoresBegin(n); ws != scoresEnd(n); ++ws)
             os << Core::form("\\n%s: %f", token(ws->token())->symbol().str(), ws->score());
         os << "\"]\n";
         if (n->parent())
-            os << Core::form("n%p -> n%p\n", (void*) n, (void*) n->parent());
+            os << Core::form("n%p -> n%p\n", (void*)n, (void*)n->parent());
     }
     os << "}" << std::endl;
 }
@@ -291,38 +299,75 @@ namespace BackingOffPrivate {
 class ImageHeader {
 protected:
     struct Prefix {
-        char magicWord[8];
-        u32  endianessMark;
-        u32  versionMark;
-        static const char *magic;
-        static const u32 endianess;
+        char               magicWord[8];
+        u32                endianessMark;
+        u32                versionMark;
+        static const char* magic;
+        static const u32   endianess;
     };
-    ImageHeader() : data_(0) {}
+    ImageHeader()
+            : data_(0) {}
+
 private:
     ImageHeader* createData(int version) const;
-    ImageHeader *data_;
+    ImageHeader* data_;
 
 public:
-    explicit ImageHeader(int version) : data_(createData(version)) {}
-    virtual ~ImageHeader() { delete data_; }
-    virtual u64 nTokens() const { return data_->nTokens(); }
-    virtual u64 nNodes() const { return data_->nNodes(); }
-    virtual u64 nWordScores() const { return data_->nWordScores(); }
-    virtual u64 tokensOffset() const { return data_->tokensOffset(); }
-    virtual u64 nodesOffset() const { return data_->nodesOffset(); }
-    virtual u64 scoresOffset() const { return data_->scoresOffset(); }
-    virtual u64 end() const { return data_->end(); }
-    virtual void setTokens(u64 n) { data_->setTokens(n); }
-    virtual void setNodes(u64 n) { data_->setNodes(n); }
-    virtual void setWordScores(u64 n) { data_->setWordScores(n); }
-    virtual void setTokensOffset(u64 p) { data_->setTokensOffset(p); }
-    virtual void setNodesOffset(u64 p) { data_->setNodesOffset(p); }
-    virtual void setScoresOffset(u64 p) { data_->setScoresOffset(p); }
-    virtual void setEnd(u64 p) { data_->setEnd(p); }
-    virtual bool read(int fd, std::string &info);
-    virtual bool write(int fd) const;
-    virtual size_t size() const { return sizeof(Prefix) + data_->size(); }
-    virtual u32 version() const { return data_->version(); }
+    explicit ImageHeader(int version)
+            : data_(createData(version)) {}
+    virtual ~ImageHeader() {
+        delete data_;
+    }
+    virtual u64 nTokens() const {
+        return data_->nTokens();
+    }
+    virtual u64 nNodes() const {
+        return data_->nNodes();
+    }
+    virtual u64 nWordScores() const {
+        return data_->nWordScores();
+    }
+    virtual u64 tokensOffset() const {
+        return data_->tokensOffset();
+    }
+    virtual u64 nodesOffset() const {
+        return data_->nodesOffset();
+    }
+    virtual u64 scoresOffset() const {
+        return data_->scoresOffset();
+    }
+    virtual u64 end() const {
+        return data_->end();
+    }
+    virtual void setTokens(u64 n) {
+        data_->setTokens(n);
+    }
+    virtual void setNodes(u64 n) {
+        data_->setNodes(n);
+    }
+    virtual void setWordScores(u64 n) {
+        data_->setWordScores(n);
+    }
+    virtual void setTokensOffset(u64 p) {
+        data_->setTokensOffset(p);
+    }
+    virtual void setNodesOffset(u64 p) {
+        data_->setNodesOffset(p);
+    }
+    virtual void setScoresOffset(u64 p) {
+        data_->setScoresOffset(p);
+    }
+    virtual void setEnd(u64 p) {
+        data_->setEnd(p);
+    }
+    virtual bool   read(int fd, std::string& info);
+    virtual bool   write(int fd) const;
+    virtual size_t size() const {
+        return sizeof(Prefix) + data_->size();
+    }
+    virtual u32 version() const {
+        return data_->version();
+    }
 };
 
 template<class T, int v>
@@ -331,9 +376,9 @@ private:
     typedef T CountType;
     typedef T PositionType;
     struct Values {
-        CountType nTokens;
-        CountType nNodes;          // excluding sentinel
-        CountType nWordScores;     // excluding sentinel
+        CountType    nTokens;
+        CountType    nNodes;       // excluding sentinel
+        CountType    nWordScores;  // excluding sentinel
         PositionType tokensOffset;
         PositionType nodesOffset;
         PositionType scoresOffset;
@@ -341,33 +386,65 @@ private:
     };
     Values values_;
     enum { formatVersion = v };
+
 public:
-    virtual u64 nTokens() const { return values_.nTokens; }
-    virtual u64 nNodes() const { return values_.nNodes; }
-    virtual u64 nWordScores() const { return values_.nWordScores; }
-    virtual u64 tokensOffset() const { return values_.tokensOffset; }
-    virtual u64 nodesOffset() const { return values_.nodesOffset; }
-    virtual u64 scoresOffset() const { return values_.scoresOffset; }
-    virtual u64 end() const { return values_.end; }
-    virtual void setTokens(u64 n) { values_.nTokens = n; }
-    virtual void setNodes(u64 n) { values_.nNodes = n; }
-    virtual void setWordScores(u64 n) { values_.nWordScores = n; }
-    virtual void setTokensOffset(u64 p) { values_.tokensOffset = p; }
-    virtual void setNodesOffset(u64 p) { values_.nodesOffset = p; }
-    virtual void setScoresOffset(u64 p) { values_.scoresOffset = p; }
-    virtual void setEnd(u64 p) { values_.end = p; }
-    virtual bool read(int fd, std::string &info);
-    virtual bool write(int fd) const;
-    virtual size_t size() const { return sizeof(values_); }
-    virtual u32 version() const { return formatVersion; }
+    virtual u64 nTokens() const {
+        return values_.nTokens;
+    }
+    virtual u64 nNodes() const {
+        return values_.nNodes;
+    }
+    virtual u64 nWordScores() const {
+        return values_.nWordScores;
+    }
+    virtual u64 tokensOffset() const {
+        return values_.tokensOffset;
+    }
+    virtual u64 nodesOffset() const {
+        return values_.nodesOffset;
+    }
+    virtual u64 scoresOffset() const {
+        return values_.scoresOffset;
+    }
+    virtual u64 end() const {
+        return values_.end;
+    }
+    virtual void setTokens(u64 n) {
+        values_.nTokens = n;
+    }
+    virtual void setNodes(u64 n) {
+        values_.nNodes = n;
+    }
+    virtual void setWordScores(u64 n) {
+        values_.nWordScores = n;
+    }
+    virtual void setTokensOffset(u64 p) {
+        values_.tokensOffset = p;
+    }
+    virtual void setNodesOffset(u64 p) {
+        values_.nodesOffset = p;
+    }
+    virtual void setScoresOffset(u64 p) {
+        values_.scoresOffset = p;
+    }
+    virtual void setEnd(u64 p) {
+        values_.end = p;
+    }
+    virtual bool   read(int fd, std::string& info);
+    virtual bool   write(int fd) const;
+    virtual size_t size() const {
+        return sizeof(values_);
+    }
+    virtual u32 version() const {
+        return formatVersion;
+    }
 };
 
-const char *ImageHeader::Prefix::magic = "MB020205";
-const u32 ImageHeader::Prefix::endianess = 0x11223344;
+const char* ImageHeader::Prefix::magic     = "MB020205";
+const u32   ImageHeader::Prefix::endianess = 0x11223344;
 
-bool ImageHeader::read(int fd, std::string &info)
-{
-    Prefix prefix;
+bool ImageHeader::read(int fd, std::string& info) {
+    Prefix  prefix;
     ssize_t nBytes = sizeof(prefix);
     if (::read(fd, &prefix, nBytes) != nBytes) {
         info = "failed to read image header";
@@ -390,25 +467,23 @@ bool ImageHeader::read(int fd, std::string &info)
     return data_->read(fd, info);
 }
 
-bool ImageHeader::write(int fd) const
-{
+bool ImageHeader::write(int fd) const {
     Prefix prefix;
     ::memcpy(prefix.magicWord, Prefix::magic, 8);
     prefix.endianessMark = Prefix::endianess;
-    prefix.versionMark = version();
-    ssize_t nBytes = sizeof(prefix);
+    prefix.versionMark   = version();
+    ssize_t nBytes       = sizeof(prefix);
     if (::write(fd, &prefix, nBytes) != nBytes)
         return false;
     return data_->write(fd);
 }
 
 template<class T, int v>
-bool ImageHeaderImpl<T, v>::read(int fd, std::string &info)
-{
+bool ImageHeaderImpl<T, v>::read(int fd, std::string& info) {
     ssize_t nBytes = sizeof(values_);
     if (::read(fd, &values_, nBytes) != nBytes) {
         info = Core::form("failed to read image header (version=%d)",
-                version());
+                          version());
         return false;
     }
     if (values_.tokensOffset == 0) {
@@ -419,49 +494,45 @@ bool ImageHeaderImpl<T, v>::read(int fd, std::string &info)
 }
 
 template<class T, int v>
-bool ImageHeaderImpl<T, v>::write(int fd) const
-{
+bool ImageHeaderImpl<T, v>::write(int fd) const {
     ssize_t nBytes = sizeof(values_);
     return (::write(fd, &values_, nBytes) == nBytes);
 }
 
-ImageHeader* ImageHeader::createData(int version) const
-{
+ImageHeader* ImageHeader::createData(int version) const {
     // When changing the file format, increment the version number!
     // Backward compatibility of image files is typically not needed.
     // The next unused number is: 4
 
     typedef ImageHeaderImpl<u32, 1> ImageHeaderV1;
     typedef ImageHeaderImpl<u64, 3> ImageHeaderV3;
-    ImageHeader *data = 0;
-    switch(version) {
-    case 1:
-        data = new ImageHeaderV1();
-        break;
-    case 3:
-        data = new ImageHeaderV3();
-        break;
+    ImageHeader*                    data = 0;
+    switch (version) {
+        case 1:
+            data = new ImageHeaderV1();
+            break;
+        case 3:
+            data = new ImageHeaderV3();
+            break;
     }
     return data;
 }
 
-
-} // namespace BackingOffPrivate
-
+}  // namespace BackingOffPrivate
 
 bool BackingOffLm::Internal::writeImageTokenTable(int fd) const {
-    char *text, *textEnd, *textTail;
-    const char *str;
-    ssize_t len = 0;
+    char *      text, *textEnd, *textTail;
+    const char* str;
+    ssize_t     len = 0;
     str = text = textEnd = 0;
     for (u32 i = 0; i < tokens_.size();) {
         if (!str) {
             str = (tokens_[i]) ? tokens_[i]->symbol().str() : "";
             len = strlen(str);
         }
-        ssize_t bufferSize = (len > 1<<12) ? len : 1<<12;
+        ssize_t bufferSize = (len > 1 << 12) ? len : 1 << 12;
         if (textEnd - text < bufferSize) {
-            text = (char*) realloc(text, bufferSize);
+            text    = (char*)realloc(text, bufferSize);
             textEnd = text + bufferSize;
         }
         textTail = text;
@@ -469,7 +540,8 @@ bool BackingOffLm::Internal::writeImageTokenTable(int fd) const {
         while ((textEnd - textTail) >= (len + 1)) {
             strcpy(textTail, str);
             textTail += len + 1;
-            if (++i >= tokens_.size()) break;
+            if (++i >= tokens_.size())
+                break;
             str = (tokens_[i]) ? tokens_[i]->symbol().str() : "";
             len = strlen(str);
         }
@@ -484,21 +556,20 @@ bool BackingOffLm::Internal::writeImageTokenTable(int fd) const {
 }
 
 /**
- *
  * @return true if successful
  */
-bool BackingOffLm::Internal::writeImage(int fd, const std::string &info) const {
-    off_t position, pad;
-    ssize_t nBytes;
-    const u32 fileFormatVersion = 3;
+bool BackingOffLm::Internal::writeImage(int fd, const std::string& info) const {
+    off_t       position, pad;
+    ssize_t     nBytes;
+    const u32   fileFormatVersion = 3;
     ImageHeader header(fileFormatVersion);
-    header.setTokensOffset(0); // phony
+    header.setTokensOffset(0);  // phony
     header.setTokens(tokens_.size());
-    header.setNodesOffset(0); // phony
+    header.setNodesOffset(0);  // phony
     header.setNodes(nNodes());
-    header.setScoresOffset(0); // phony
+    header.setScoresOffset(0);  // phony
     header.setWordScores(nWordScores());
-    header.setEnd(0); // phony
+    header.setEnd(0);  // phony
 
     // write phony header
     if (!header.write(fd))
@@ -510,17 +581,18 @@ bool BackingOffLm::Internal::writeImage(int fd, const std::string &info) const {
         return false;
 
     // write token strings
-    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t)-1)
         return false;
     header.setTokensOffset(position);
-    if (!writeImageTokenTable(fd)) return false;
+    if (!writeImageTokenTable(fd))
+        return false;
 
     // write nodes
-    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t)-1)
         return false;
 
     pad = (position + 7) % 8;
-    if ((position = lseek(fd, pad, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, pad, SEEK_CUR)) == (off_t)-1)
         return false;
     header.setNodesOffset(position);
     u64 nNodeBytes = (nodesTail_ - nodes_ + 1) * sizeof(Node);
@@ -528,10 +600,10 @@ bool BackingOffLm::Internal::writeImage(int fd, const std::string &info) const {
         return false;
 
     // write word scores
-    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t)-1)
         return false;
     pad = (position + 7) % 8;
-    if ((position = lseek(fd, pad, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, pad, SEEK_CUR)) == (off_t)-1)
         return false;
     header.setScoresOffset(position);
     u64 nScoreBytes = (wordScoresTail_ - wordScores_ + 1) * sizeof(WordScore);
@@ -539,34 +611,32 @@ bool BackingOffLm::Internal::writeImage(int fd, const std::string &info) const {
         return false;
 
     // determine file size
-    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t) -1)
+    if ((position = lseek(fd, 0, SEEK_CUR)) == (off_t)-1)
         return false;
     header.setEnd(position);
 
     // write header
-    if ((position = lseek(fd, 0, SEEK_SET)) == (off_t) -1)
+    if ((position = lseek(fd, 0, SEEK_SET)) == (off_t)-1)
         return false;
     return header.write(fd);
 }
 
 /**
- *
  * @param info on success the info string from the header is returned
  * in @c info.  On failure a failure message is stored in info
  * @return true if successful
  */
 
 bool BackingOffLm::Internal::mountImage(
-    int fd, std::string &info,
-    const Bliss::TokenInventory &inventory)
-{
+        int fd, std::string& info,
+        const Bliss::TokenInventory& inventory) {
     ImageHeader header(0);
     if (!header.read(fd, info))
         return false;
     ::free(nodes_);
     ::free(wordScores_);
 
-    mmap_ = (char*) mmap(0, mmapSize_ = header.end(), PROT_READ, MAP_SHARED, fd, 0);
+    mmap_ = (char*)mmap(0, mmapSize_ = header.end(), PROT_READ, MAP_SHARED, fd, 0);
     if (mmap_ == MAP_FAILED) {
         info = "mapping of image failed";
         return false;
@@ -575,9 +645,9 @@ bool BackingOffLm::Internal::mountImage(
     info = std::string(mmap_ + header.size());
 
     tokens_.resize(header.nTokens());
-    char *str = mmap_ + header.tokensOffset();
+    char* str = mmap_ + header.tokensOffset();
     for (TokenIndex ti = 0; ti < TokenIndex(header.nTokens()); ++ti) {
-        const Bliss::Token *token = 0;
+        const Bliss::Token* token = 0;
         if (*str) {
             token = inventory[str];
             if (!token) {
@@ -591,17 +661,18 @@ bool BackingOffLm::Internal::mountImage(
                 munmap(mmap_, mmapSize_);
                 return false;
             }
-            while (*++str);
+            while (*++str)
+                ;
         }
         tokens_[ti] = token;
         ++str;
     }
 
-    nodes_ = (Node*) (mmap_ + header.nodesOffset());
+    nodes_     = (Node*)(mmap_ + header.nodesOffset());
     nodesTail_ = nodesEnd_ = nodes_ + header.nNodes();
     verify(nNodes() == header.nNodes());
 
-    wordScores_ = (WordScore*) (mmap_ + header.scoresOffset());
+    wordScores_     = (WordScore*)(mmap_ + header.scoresOffset());
     wordScoresTail_ = wordScoresEnd_ = wordScores_ + header.nWordScores();
     verify(nWordScores() == header.nWordScores());
 
@@ -612,25 +683,25 @@ bool BackingOffLm::Internal::mountImage(
 // ===========================================================================
 // decendants interface
 
-void BackingOffLm::initialize(InitItem *begin, InitItem *end) {
-    internal_ = Core::ref(new Internal);
+void BackingOffLm::initialize(InitItem* begin, InitItem* end) {
+    internal_       = Core::ref(new Internal);
     historyManager_ = internal_.get();
 
-    for (const InitItem *i = begin; i != end; ++i) {
+    for (const InitItem* i = begin; i != end; ++i) {
         if (i->token)
             internal_->mapToken(i->token->id(), i->token);
-        for (Token *h = i->history; *h; ++h)
+        for (Token* h = i->history; *h; ++h)
             internal_->mapToken((*h)->id(), *h);
     }
 
     u32 nNodes = 0, nWordScores = 0;
-    for (const InitItem *i = begin; i != end; ++i) {
+    for (const InitItem* i = begin; i != end; ++i) {
         if (i->token)
             ++nWordScores;
         else
             ++nNodes;
     }
-    nNodes += 2; // nNodes is just an educated guess, not a constraint
+    nNodes += 2;  // nNodes is just an educated guess, not a constraint
     internal_->reserve(nNodes, nWordScores);
     internal_->build(begin, end);
 
@@ -638,7 +709,7 @@ void BackingOffLm::initialize(InitItem *begin, InitItem *end) {
 }
 
 void BackingOffLm::initialize(Core::Ref<Internal> i) {
-    internal_ = i;
+    internal_       = i;
     historyManager_ = internal_.get();
     logInitialization();
 }
@@ -655,21 +726,19 @@ void BackingOffLm::logInitialization() const {
 // ===========================================================================
 // language model interface
 
-BackingOffLm::BackingOffLm(const Core::Configuration &c, Bliss::LexiconRef l) :
-    Core::Component(c),
-    LanguageModel(c, l)
-{
+BackingOffLm::BackingOffLm(const Core::Configuration& c, Bliss::LexiconRef l)
+        : Core::Component(c),
+          LanguageModel(c, l) {
     requireSentenceBoundaryToken();
 }
 
 BackingOffLm::~BackingOffLm() {}
 
 const Core::ParameterString BackingOffLm::paramImage(
-    "image",
-    "create and/or use language model binary image file");
+        "image",
+        "create and/or use language model binary image file");
 
 void BackingOffLm::load() {
-
     std::string image = paramImage(config);
     if (!image.size()) {
         read();
@@ -678,11 +747,12 @@ void BackingOffLm::load() {
 
     if (!Core::isRegularFile(image)) {
         read();
-        if (hasFatalErrors()) return;
+        if (hasFatalErrors())
+            return;
         log("writing image file to \"%s\" ...", image.c_str());
         int fd = open(image.c_str(),
-                      O_CREAT|O_WRONLY|O_TRUNC,
-                      S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+                      O_CREAT | O_WRONLY | O_TRUNC,
+                      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
         if (fd == -1) {
             error("Failed to open image file \"%s\" for writing", image.c_str());
             return;
@@ -696,7 +766,8 @@ void BackingOffLm::load() {
             error("failed to write image file");
             return;
         }
-    } else {
+    }
+    else {
         internal_ = Core::ref(new Internal);
     }
 
@@ -715,14 +786,14 @@ void BackingOffLm::load() {
     initialize(internal_);
 }
 
-Score BackingOffLm::sentenceBeginScore() const
-{
+Score BackingOffLm::sentenceBeginScore() const {
     return score(history(internal_->root()), sentenceBeginToken());
 }
 
-const BackingOffLm::Node *BackingOffLm::Internal::startHistory(TokenIndex w) const {
-    const Node *n = root()->findChild(w);
-    if (!n) n = root();
+const BackingOffLm::Node* BackingOffLm::Internal::startHistory(TokenIndex w) const {
+    const Node* n = root()->findChild(w);
+    if (!n)
+        n = root();
     return n;
 }
 
@@ -730,19 +801,18 @@ History BackingOffLm::startHistory() const {
     return history(internal_->startHistory(sentenceBeginToken()->id()));
 }
 
-const BackingOffLm::Node *BackingOffLm::Internal::extendedHistory(
-    const Node *old, TokenIndex w) const
-{
+const BackingOffLm::Node* BackingOffLm::Internal::extendedHistory(const Node* old, TokenIndex w) const {
     TokenIndex hist[old->depth() + 1];
-    for (const Node *n = old; n; n = n->parent())
+    for (const Node* n = old; n; n = n->parent())
         hist[n->depth()] = n->token();
     verify_(hist[0] == -1);
     hist[0] = w;
 
-    const Node *result = root();
+    const Node* result = root();
     for (Node::Depth d = 0; d <= old->depth(); ++d) {
-        const Node *n = result->findChild(hist[d]);
-        if (!n) break;
+        const Node* n = result->findChild(hist[d]);
+        if (!n)
+            break;
         result = n;
     }
     return result;
@@ -750,7 +820,7 @@ const BackingOffLm::Node *BackingOffLm::Internal::extendedHistory(
 
 void BackingOffLm::historyTokens(const History& h, const Bliss::Token** target, u32& size, u32 arraySize) const {
     size = 0;
-    for (const Node* n = descriptor<Self>(h); n;  (n = n->parent()) && size <   arraySize) {
+    for (const Node* n = descriptor<Self>(h); n; (n = n->parent()) && size < arraySize) {
         Token tok = internal_->token(n->token());
         if (tok) {
             target[size] = tok;
@@ -759,45 +829,45 @@ void BackingOffLm::historyTokens(const History& h, const Bliss::Token** target, 
     }
 }
 
-u32 BackingOffLm::historyLenght(const Lm::History& h) const
-{
-    const Node *n = descriptor<Self>(h);
-    if(!n)
-      return 0;
+u32 BackingOffLm::historyLenght(const Lm::History& h) const {
+    const Node* n = descriptor<Self>(h);
+    if (!n)
+        return 0;
     return n->depth();
 }
 
-History BackingOffLm::extendedHistory(const History &h, Token w) const {
+History BackingOffLm::extendedHistory(const History& h, Token w) const {
     return history(internal_->extendedHistory(descriptor<Self>(h), w->id()));
 }
 
-History BackingOffLm::reducedHistory(const History &h, u32 limit) const {
-    const Node *n = descriptor<Self>(h);
+History BackingOffLm::reducedHistory(const History& h, u32 limit) const {
+    const Node* n = descriptor<Self>(h);
     while (n->depth() > limit)
         n = n->parent();
     return history(n);
 }
 
-std::string BackingOffLm::Internal::formatHistory(const Node *h) {
+std::string BackingOffLm::Internal::formatHistory(const Node* h) {
     std::string result;
-    for (const Node *n = h; n;  n = n->parent()) {
+    for (const Node* n = h; n; n = n->parent()) {
         Token tok = token(n->token());
         if (tok) {
-            if (n != h) result += utf8::blank;
+            if (n != h)
+                result += utf8::blank;
             result += std::string(tok->symbol());
         }
     }
     return result;
 }
 
-std::string BackingOffLm::formatHistory(const History &h) const {
+std::string BackingOffLm::formatHistory(const History& h) const {
     return internal_->formatHistory(descriptor<Self>(h));
 }
 
-Lm::Score BackingOffLm::Internal::score(const Node *h, TokenIndex w) const {
+Lm::Score BackingOffLm::Internal::score(const Node* h, TokenIndex w) const {
     Score backOffScore = 0.0;
-    for (const Node *n = h; n;  n = n->parent()) {
-        const WordScore *ws = n->findWordScore(wordScores_, w);
+    for (const Node* n = h; n; n = n->parent()) {
+        const WordScore* ws = n->findWordScore(wordScores_, w);
         if (ws)
             return backOffScore + ws->score();
         backOffScore += n->backOffScore();
@@ -805,27 +875,25 @@ Lm::Score BackingOffLm::Internal::score(const Node *h, TokenIndex w) const {
     return backOffScore;
 }
 
-Lm::Score BackingOffLm::score(const History &h, Token w) const {
+Lm::Score BackingOffLm::score(const History& h, Token w) const {
     return internal_->score(descriptor<Self>(h), w->id());
 }
 
-Score BackingOffLm::getAccumulatedBackOffScore(const History &history, int limit) const
-{
-    const Node *hn = descriptor<Self>(history);
-  Score ret = 0;
-  for (const Node *n = hn; n; n = n->parent())
-    if( n->depth() >= limit )
-      ret += n->backOffScore();
-  return ret;
+Score BackingOffLm::getAccumulatedBackOffScore(const History& history, int limit) const {
+    const Node* hn  = descriptor<Self>(history);
+    Score       ret = 0;
+    for (const Node* n = hn; n; n = n->parent())
+        if (n->depth() >= limit)
+            ret += n->backOffScore();
+    return ret;
 }
 
-BackingOffLm::BackOffScores BackingOffLm::getBackOffScores(const Lm::History& history, int depth) const
-{
-    const Node *hn = descriptor<Self>(history);
-    const Node *nodes[hn->depth()+1];
-    for (const Node *n = hn; n; n = n->parent()) {
+BackingOffLm::BackOffScores BackingOffLm::getBackOffScores(const Lm::History& history, int depth) const {
+    const Node* hn = descriptor<Self>(history);
+    const Node* nodes[hn->depth() + 1];
+    for (const Node* n = hn; n; n = n->parent()) {
         Node::Depth d = n->depth();
-        nodes[d] = n;
+        nodes[d]      = n;
     }
 
     int nodeDepth = ((int)hn->depth()) - depth;
@@ -838,49 +906,49 @@ BackingOffLm::BackOffScores BackingOffLm::getBackOffScores(const Lm::History& hi
     ret.backOffScore = nodes[nodeDepth]->backOffScore();
     verify(ret.backOffScore != Core::Type<Score>::max);
     ret.start = internal_->scoresBegin(nodes[nodeDepth]);
-    ret.end = internal_->scoresEnd(nodes[nodeDepth]);
+    ret.end   = internal_->scoresEnd(nodes[nodeDepth]);
 
     return ret;
 }
 
 void BackingOffLm::getBatch(
-    const History &history,
-    const CompiledBatchRequest *cbr,
-    std::vector<f32> &result) const
-{
-    const Node *hn = descriptor<Self>(history);
-    const Node *nodes[hn->depth()+1];
-    Score backOffScore[hn->depth()+2];
-    backOffScore[hn->depth()+1] = 0.0;
-    for (const Node *n = hn; n; n = n->parent()) {
-        Node::Depth d = n->depth();
-        nodes[d] = n;
-        backOffScore[d] = n->backOffScore() + backOffScore[d+1];
+        const History&              history,
+        const CompiledBatchRequest* cbr,
+        std::vector<f32>&           result) const {
+    const Node* hn = descriptor<Self>(history);
+    const Node* nodes[hn->depth() + 1];
+    Score       backOffScore[hn->depth() + 2];
+    backOffScore[hn->depth() + 1] = 0.0;
+    for (const Node* n = hn; n; n = n->parent()) {
+        Node::Depth d   = n->depth();
+        nodes[d]        = n;
+        backOffScore[d] = n->backOffScore() + backOffScore[d + 1];
     }
 
     Bliss::SyntacticTokenMap<Score> scores(lexicon());
     scores.fill(backOffScore[0]);
     for (Node::Depth d = 0; d <= hn->depth(); ++d) {
-        const Node *n = nodes[d];
-        for (const WordScore *ws = internal_->scoresBegin(n); ws != internal_->scoresEnd(n); ++ws){
-            const Bliss::SyntacticToken *syntacticToken =
-                static_cast<const Bliss::SyntacticToken*>(lexicon()->syntacticTokenInventory()[ws->token()]);
-            scores[syntacticToken] = ws->score() + backOffScore[d+1];
+        const Node* n = nodes[d];
+        for (const WordScore* ws = internal_->scoresBegin(n); ws != internal_->scoresEnd(n); ++ws) {
+            const Bliss::SyntacticToken* syntacticToken =
+                    static_cast<const Bliss::SyntacticToken*>(lexicon()->syntacticTokenInventory()[ws->token()]);
+            scores[syntacticToken] = ws->score() + backOffScore[d + 1];
         }
     }
 
-    const NonCompiledBatchRequest *ncbr = required_cast(const NonCompiledBatchRequest*, cbr);
-    const BatchRequest &request(ncbr->request);
+    const NonCompiledBatchRequest* ncbr = required_cast(const NonCompiledBatchRequest*, cbr);
+    const BatchRequest&            request(ncbr->request);
     for (BatchRequest::const_iterator r = request.begin(); r != request.end(); ++r) {
         Score score = 0.0;
         if (r->tokens.length() >= 1) {
             score += scores[r->tokens[0]];
             if (r->tokens.length() > 1) {
-                const Node *h = internal_->extendedHistory(hn, r->tokens[0]->id());
-                for (u32 ti = 1; ; ++ti) {
-                    const Bliss::SyntacticToken *st = r->tokens[ti];
+                const Node* h = internal_->extendedHistory(hn, r->tokens[0]->id());
+                for (u32 ti = 1;; ++ti) {
+                    const Bliss::SyntacticToken* st = r->tokens[ti];
                     score += internal_->score(h, st->id());
-                    if (ti+1 >= r->tokens.length()) break;
+                    if (ti + 1 >= r->tokens.length())
+                        break;
                     h = internal_->extendedHistory(h, st->id());
                 }
             }
@@ -900,17 +968,17 @@ void BackingOffLm::getBatch(
 class BackingOffLm::Automaton : public LanguageModelAutomaton {
 private:
     Core::Ref<Internal> internal_;
-    const Node *initial_;
-    TokenIndex sentenceEndToken_;
+    const Node*         initial_;
+    TokenIndex          sentenceEndToken_;
+
 public:
-    Automaton(Core::Ref<const BackingOffLm> lm) :
-        LanguageModelAutomaton(static_cast<Core::Ref<const LanguageModel> >(lm)),
-        internal_(lm->internal_)
-    {
+    Automaton(Core::Ref<const BackingOffLm> lm)
+            : LanguageModelAutomaton(static_cast<Core::Ref<const LanguageModel>>(lm)),
+              internal_(lm->internal_) {
         addProperties(Fsa::PropertySortedByInput);
         setProperties(Fsa::PropertyLinear, Fsa::PropertyNone);
         setProperties(Fsa::PropertyAcyclic, Fsa::PropertyNone);
-        initial_ = internal_->startHistory(lm->sentenceBeginToken()->id());
+        initial_          = internal_->startHistory(lm->sentenceBeginToken()->id());
         sentenceEndToken_ = lm->sentenceEndToken()->id();
     }
     virtual ~Automaton() {}
@@ -920,27 +988,29 @@ public:
     }
 
     virtual Fsa::ConstStateRef getState(Fsa::StateId s) const {
-        const Node *node = internal_->node(s);
-        Fsa::State *state = new Fsa::State(s);
+        const Node* node  = internal_->node(s);
+        Fsa::State* state = new Fsa::State(s);
 
         // back-off
         if (node->backOffScore() < Core::Type<Score>::max) {
-            hope(node->parent()); // zero-gram backing-off not supported
+            hope(node->parent());  // zero-gram backing-off not supported
             state->newArc(
-                internal_->nodeIndex(node->parent()),
-                Fsa::Weight(node->backOffScore()),
-                backOffLabel_);
+                    internal_->nodeIndex(node->parent()),
+                    Fsa::Weight(node->backOffScore()),
+                    backOffLabel_);
         }
 
-        for (const WordScore *ws = internal_->scoresBegin(node); ws != internal_->scoresEnd(node); ++ws) {
-            if (ws->score() >= Core::Type<Score>::max) continue;
+        for (const WordScore* ws = internal_->scoresBegin(node); ws != internal_->scoresEnd(node); ++ws) {
+            if (ws->score() >= Core::Type<Score>::max)
+                continue;
             if (ws->token() == sentenceEndToken_) {
                 state->setFinal(Fsa::Weight(ws->score()));
-            } else {
+            }
+            else {
                 state->newArc(
-                    internal_->nodeIndex(internal_->extendedHistory(node, ws->token())),
-                    Fsa::Weight(ws->score()),
-                    internal_->token(ws->token())->id());
+                        internal_->nodeIndex(internal_->extendedHistory(node, ws->token())),
+                        Fsa::Weight(ws->score()),
+                        internal_->token(ws->token())->id());
             }
         }
 

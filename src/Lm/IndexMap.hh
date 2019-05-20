@@ -20,62 +20,61 @@
 
 namespace Lm {
 
-    class IndexMappedLm :
-        public LanguageModel
-    {
-    protected:
-        typedef u32 InternalClassIndex;
-        static const InternalClassIndex invalidClass;
-    private:
-        InternalClassIndex nInternalClasses_;
-        Bliss::TokenMap<InternalClassIndex> tokenMap_;
-        std::vector<Token> classMap_; // index: InternalClassIndex
-        std::vector<u32> classSizes_; // index: InternalClassIndex
-        std::vector<Score> classEmissionScores_;
+class IndexMappedLm : public LanguageModel {
+protected:
+    typedef u32                     InternalClassIndex;
+    static const InternalClassIndex invalidClass;
 
-        void checkForUnmappedTokens();
-        void checkForUnusedClasses();
-        void initClassEmissionScores();
+private:
+    InternalClassIndex                  nInternalClasses_;
+    Bliss::TokenMap<InternalClassIndex> tokenMap_;
+    std::vector<Token>                  classMap_;    // index: InternalClassIndex
+    std::vector<u32>                    classSizes_;  // index: InternalClassIndex
+    std::vector<Score>                  classEmissionScores_;
 
-    protected:
-        virtual const char *internalClassName(InternalClassIndex) const = 0;
+    void checkForUnmappedTokens();
+    void checkForUnusedClasses();
+    void initClassEmissionScores();
 
-        void initializeMapping(InternalClassIndex nInternalClasses);
-        InternalClassIndex newClass();
-        void mapToken(Token, InternalClassIndex idx);
-        bool isTokenMapped(Token t) const {
-            return tokenMap_[t] != invalidClass;
-        }
-        void finalizeMapping();
+protected:
+    virtual const char* internalClassName(InternalClassIndex) const = 0;
 
-        InternalClassIndex nInternalClasses() const {
-            return nInternalClasses_;
-        }
+    void               initializeMapping(InternalClassIndex nInternalClasses);
+    InternalClassIndex newClass();
+    void               mapToken(Token, InternalClassIndex idx);
+    bool               isTokenMapped(Token t) const {
+        return tokenMap_[t] != invalidClass;
+    }
+    void finalizeMapping();
 
-        InternalClassIndex internalClassIndex(Token t) const {
-            return tokenMap_[t];
-        }
+    InternalClassIndex nInternalClasses() const {
+        return nInternalClasses_;
+    }
 
-        Token externalToken(InternalClassIndex i) const {
-            require_(0 <= i && i < nInternalClasses_);
-            return classMap_[i];
-        }
+    InternalClassIndex internalClassIndex(Token t) const {
+        return tokenMap_[t];
+    }
 
-        bool isClassUsed(InternalClassIndex i) const {
-            require_(0 <= i && i < nInternalClasses_);
-            return (classSizes_[i] > 0);
-        }
+    Token externalToken(InternalClassIndex i) const {
+        require_(0 <= i && i < nInternalClasses_);
+        return classMap_[i];
+    }
 
-        Score classEmissionScore(InternalClassIndex c) const {
-            require_(0 <= c && c < nInternalClasses_);
-            return classEmissionScores_[c];
-        }
+    bool isClassUsed(InternalClassIndex i) const {
+        require_(0 <= i && i < nInternalClasses_);
+        return (classSizes_[i] > 0);
+    }
 
-    public:
-        IndexMappedLm(const Core::Configuration&, Bliss::LexiconRef);
-        virtual ~IndexMappedLm();
-    };
+    Score classEmissionScore(InternalClassIndex c) const {
+        require_(0 <= c && c < nInternalClasses_);
+        return classEmissionScores_[c];
+    }
 
-} // namespace Lm
+public:
+    IndexMappedLm(const Core::Configuration&, Bliss::LexiconRef);
+    virtual ~IndexMappedLm();
+};
 
-#endif // _LM_INDEX_MAPPED_HH
+}  // namespace Lm
+
+#endif  // _LM_INDEX_MAPPED_HH

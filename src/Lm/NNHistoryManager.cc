@@ -42,7 +42,7 @@ void NNHistoryManager::release(HistoryHandle handle) {
         require(iter != nn_caches_.end());
         NNCacheBase* to_delete = iter->second;
         nn_caches_.erase(iter);
-        delete to_delete; // might cause cascade of more deletions, thus put it at the end after we do not need iterator anymore
+        delete to_delete;  // might cause cascade of more deletions, thus put it at the end after we do not need iterator anymore
     }
 }
 
@@ -57,7 +57,7 @@ bool NNHistoryManager::isEquivalent(HistoryHandle lhs, HistoryHandle rhs) const 
 
 std::string NNHistoryManager::format(HistoryHandle handle) const {
     NNCacheBase const* c = reinterpret_cast<NNCacheBase const*>(handle);
-    std::stringstream ss;
+    std::stringstream  ss;
     ss << "NNHistory{ ";
     for (auto token_id : *(c->history)) {
         ss << token_id << " ";
@@ -66,5 +66,4 @@ std::string NNHistoryManager::format(HistoryHandle handle) const {
     return ss.str();
 }
 
-} // namespace Lm
-
+}  // namespace Lm

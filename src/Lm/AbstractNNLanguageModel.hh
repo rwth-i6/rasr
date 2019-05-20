@@ -61,7 +61,6 @@ inline void AbstractNNLanguageModel::useOutput(NNCacheWithStats const& cache, si
     }
 }
 
-} // namespace Lm
+}  // namespace Lm
 
-#endif // _LM_ABSTRACT_NN_LANGUAGE_MODEL_HH
-
+#endif  // _LM_ABSTRACT_NN_LANGUAGE_MODEL_HH

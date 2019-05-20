@@ -24,19 +24,17 @@
 #include <Lm/Compose.hh>
 #include <cmath>
 
-#include "Module.hh"
 #include "CorpusStatistics.hh"
+#include "Module.hh"
 
 using namespace Lm;
-
 
 const f32 ln2 = .69314718055994530942;
 
 static const u32 ReportLanguageModel = 1;
 static const u32 ReportClassModel    = 2;
 
-struct CorpusStatisticsVisitor::SentenceStatistics
-{
+struct CorpusStatisticsVisitor::SentenceStatistics {
     u32 nLemmas;
     u32 nSyntacticTokens;
     f32 avgEvaluationTokens;
@@ -45,40 +43,43 @@ struct CorpusStatisticsVisitor::SentenceStatistics
     f32 avgUnkEvaluationTokens;
     f64 score;
 
-    SentenceStatistics() :
-        nLemmas(0),
-        nSyntacticTokens(0),
-        avgEvaluationTokens(0.0),
-        nUnkLemmas(0),
-        nUnkSyntacticTokens(0),
-        avgUnkEvaluationTokens(0.0),
-        score(0.0) {}
+    SentenceStatistics()
+            : nLemmas(0),
+              nSyntacticTokens(0),
+              avgEvaluationTokens(0.0),
+              nUnkLemmas(0),
+              nUnkSyntacticTokens(0),
+              avgUnkEvaluationTokens(0.0),
+              score(0.0) {}
 
-    f32 lemmaPerplexity() const
-        { return (nLemmas)             ? exp(score / f32(nLemmas))           : Core::Type<f32>::max; }
-    f32 lemmaCrossEntropy() const
-        { return (nLemmas)             ? score / f32(nLemmas) / ln2          : Core::Type<f32>::max; }
-    f32 syntPerplexity() const
-        { return (nSyntacticTokens)    ? exp(score / f32(nSyntacticTokens))  : Core::Type<f32>::max; }
-    f32 syntCrossEntropy() const
-        { return (nSyntacticTokens)    ? score / f32(nSyntacticTokens) / ln2 : Core::Type<f32>::max; }
-    f32 evalPerplexity() const
-        { return (avgEvaluationTokens) ? exp(score / avgEvaluationTokens)    : Core::Type<f32>::max; }
-    f32 evalCrossEntropy() const
-        { return (avgEvaluationTokens) ? score / avgEvaluationTokens / ln2   : Core::Type<f32>::max; }
+    f32 lemmaPerplexity() const {
+        return (nLemmas) ? exp(score / f32(nLemmas)) : Core::Type<f32>::max;
+    }
+    f32 lemmaCrossEntropy() const {
+        return (nLemmas) ? score / f32(nLemmas) / ln2 : Core::Type<f32>::max;
+    }
+    f32 syntPerplexity() const {
+        return (nSyntacticTokens) ? exp(score / f32(nSyntacticTokens)) : Core::Type<f32>::max;
+    }
+    f32 syntCrossEntropy() const {
+        return (nSyntacticTokens) ? score / f32(nSyntacticTokens) / ln2 : Core::Type<f32>::max;
+    }
+    f32 evalPerplexity() const {
+        return (avgEvaluationTokens) ? exp(score / avgEvaluationTokens) : Core::Type<f32>::max;
+    }
+    f32 evalCrossEntropy() const {
+        return (avgEvaluationTokens) ? score / avgEvaluationTokens / ln2 : Core::Type<f32>::max;
+    }
 };
 
-
-struct CorpusStatisticsVisitor::TextStatistics :
-    public CorpusStatisticsVisitor::SentenceStatistics
-{
+struct CorpusStatisticsVisitor::TextStatistics : public CorpusStatisticsVisitor::SentenceStatistics {
     u32 nSentences;
 
-    TextStatistics() :
-        SentenceStatistics(),
-        nSentences(0) {}
+    TextStatistics()
+            : SentenceStatistics(),
+              nSentences(0) {}
 
-    void operator+= (const SentenceStatistics &stats) {
+    void operator+=(const SentenceStatistics& stats) {
         ++nSentences;
         nLemmas += stats.nLemmas;
         nSyntacticTokens += stats.nSyntacticTokens;
@@ -91,42 +92,43 @@ struct CorpusStatisticsVisitor::TextStatistics :
 };
 
 const Core::ParameterBool CorpusStatisticsVisitor::paramIgnoreUnknowns(
-    "ignore-unknowns",
-    "ignore lemmas containing unknown syntactic token(s)",
-    true);
+        "ignore-unknowns",
+        "ignore lemmas containing unknown syntactic token(s)",
+        true);
 
 const Core::ParameterBool CorpusStatisticsVisitor::paramUseClassEmissionProbabilities(
-    "use-class-emission-probabilities",
-    "use class emission probabilities",
-    true);
+        "use-class-emission-probabilities",
+        "use class emission probabilities",
+        true);
 
 CorpusStatisticsVisitor::CorpusStatisticsVisitor(
-    const Core::Configuration &c, Bliss::LexiconRef l) :
-    Bliss::CorpusStatisticsVisitor(c),
-    lexicon_(l),
-    sentenceChannel_(c, "sentence"),
-    orthographicParser_(c, l)
-{
+        const Core::Configuration& c, Bliss::LexiconRef l)
+        : Bliss::CorpusStatisticsVisitor(c),
+          lexicon_(l),
+          sentenceChannel_(c, "sentence"),
+          orthographicParser_(c, l) {
     lm_ = Lm::Module::instance().createLanguageModel(config, lexicon_);
     if (!lm_)
         criticalError("failed to initialize language model");
-    lmStats_ = cmStats_ = 0;
+    lmStats_ = cmStats_  = 0;
     syntaxEmissionScale_ = 1.0;
-    ignoreUnk_ = paramIgnoreUnknowns(config);
-    what_ = (paramUseClassEmissionProbabilities(config)) ?
-        ReportLanguageModel : ReportClassModel;
+    ignoreUnk_           = paramIgnoreUnknowns(config);
+    what_                = (paramUseClassEmissionProbabilities(config)) ? ReportLanguageModel : ReportClassModel;
     if (what_ & ReportClassModel) {
         classLm_ = dynamic_cast<Lm::ClassLm*>(lm_.get());
         if (classLm_) {
             log("class lm found");
-            classMapping_ = classLm_->classMapping();
+            classMapping_       = classLm_->classMapping();
             classEmissionScale_ = classLm_->classEmissionScale();
             Core::XmlChannel ch(select("classes"), "dump");
-            if (ch.isOpen()) classLm_->classMapping()->writeClasses(ch);
-        } else
+            if (ch.isOpen())
+                classLm_->classMapping()->writeClasses(ch);
+        }
+        else
             classEmissionScale_ = 0.0;
-    } else {
-        classLm_ = 0;
+    }
+    else {
+        classLm_            = 0;
         classEmissionScale_ = 0.0;
     }
     reset();
@@ -229,10 +231,9 @@ void CorpusStatisticsVisitor::reset() {
  * tokens.
  */
 CorpusStatisticsVisitor::SentenceStatistics CorpusStatisticsVisitor::buildSentenceStatistics(
-    Fsa::ConstAutomatonRef sentence,
-    Lm::Score syntaxEmissionScale,
-    Lm::Score classEmissionScale) {
-
+        Fsa::ConstAutomatonRef sentence,
+        Lm::Score              syntaxEmissionScale,
+        Lm::Score              classEmissionScale) {
     SentenceStatistics stats;
 
     // determine best lemma sequence (in case the orthography was ambigious)
@@ -247,51 +248,51 @@ CorpusStatisticsVisitor::SentenceStatistics CorpusStatisticsVisitor::buildSenten
     std::vector<Fsa::LabelId> labels;
     Fsa::getLinearInput(sentence, labels);
     Core::Ref<const Bliss::LemmaAlphabet> lemmaAlphabet = ref(dynamic_cast<const Bliss::LemmaAlphabet*>(sentence->getInputAlphabet().get()));
-    std::vector<const Bliss::Lemma*> lemmas;
-    for (std::vector<Fsa::LabelId>::const_iterator li = labels.begin() ; li != labels.end() ; ++li)
+    std::vector<const Bliss::Lemma*>      lemmas;
+    for (std::vector<Fsa::LabelId>::const_iterator li = labels.begin(); li != labels.end(); ++li)
         lemmas.push_back(lemmaAlphabet->lemma(*li));
 
     // process LM events
     History h = lm_->startHistory();
-    for (std::vector<const Bliss::Lemma*>::const_iterator ll = lemmas.begin() ; ll != lemmas.end() ; ++ll) {
-        const Bliss::SyntacticTokenSequence syntacticTokens((*ll)->syntacticTokenSequence());
-        u32 nSyntacticTokens = syntacticTokens.length();
-        u32 nEvaluationTokens = 0;
-        u32 nEvaluationTokenSequences = 0;
+    for (std::vector<const Bliss::Lemma*>::const_iterator ll = lemmas.begin(); ll != lemmas.end(); ++ll) {
+        const Bliss::SyntacticTokenSequence           syntacticTokens((*ll)->syntacticTokenSequence());
+        u32                                           nSyntacticTokens          = syntacticTokens.length();
+        u32                                           nEvaluationTokens         = 0;
+        u32                                           nEvaluationTokenSequences = 0;
         Bliss::Lemma::EvaluationTokenSequenceIterator e, e_end;
         for (Core::tie(e, e_end) = (*ll)->evaluationTokenSequences(); e != e_end; ++e) {
             nEvaluationTokens += e->length();
             ++nEvaluationTokenSequences;
         }
-        f32 avgEvaluationTokens = nEvaluationTokenSequences ?
-            f32(nEvaluationTokens) / f32(nEvaluationTokenSequences) : 0;
+        f32  avgEvaluationTokens = nEvaluationTokenSequences ? f32(nEvaluationTokens) / f32(nEvaluationTokenSequences) : 0;
         bool hasAnythingToReport = (nSyntacticTokens > 0) || (nEvaluationTokens > 0);
 
         if (sentenceChannel_.isOpen() && hasAnythingToReport)
             sentenceChannel_
-                << (Core::XmlOpen("lemma")
-                    +  Core::XmlAttribute("name", (*ll)->name().str()));
+                    << (Core::XmlOpen("lemma") + Core::XmlAttribute("name", (*ll)->name().str()));
         Lm::Score lemmaScore = 0.0;
-        bool isUnk = false;
+        bool      isUnk      = false;
         for (u32 ti = 0; ti < syntacticTokens.length(); ++ti) {
-            const Bliss::SyntacticToken *st = syntacticTokens[ti];
-            Lm::Score lmScore = lm_->score(h, st);
+            const Bliss::SyntacticToken* st      = syntacticTokens[ti];
+            Lm::Score                    lmScore = lm_->score(h, st);
             if (lmScore != Core::Type<Lm::Score>::max) {
                 lmScore += syntaxEmissionScale * st->classEmissionScore();
                 if (classMapping_)
                     lmScore += classEmissionScale * classMapping_->classEmissionScore(st);
-            } else
+            }
+            else
                 isUnk = true;
             if (sentenceChannel_.isOpen()) {
                 sentenceChannel_
-                    << Core::XmlOpen("event")
-                    << Core::XmlFull("token", st->symbol());
-                if (classMapping_) sentenceChannel_
-                    << Core::XmlFull("class", classMapping_->classToken(st)->symbol());
+                        << Core::XmlOpen("event")
+                        << Core::XmlFull("token", st->symbol());
+                if (classMapping_)
+                    sentenceChannel_
+                            << Core::XmlFull("class", classMapping_->classToken(st)->symbol());
                 sentenceChannel_
-                    << Core::XmlFull("history", lm_->formatHistory(h))
-                    << Core::XmlFull("lm-score", lmScore)
-                    << Core::XmlClose("event");
+                        << Core::XmlFull("history", lm_->formatHistory(h))
+                        << Core::XmlFull("lm-score", lmScore)
+                        << Core::XmlClose("event");
             }
             lemmaScore += lmScore;
             h = lm_->extendedHistory(h, st);
@@ -309,49 +310,44 @@ CorpusStatisticsVisitor::SentenceStatistics CorpusStatisticsVisitor::buildSenten
         }
         if (sentenceChannel_.isOpen() && hasAnythingToReport)
             sentenceChannel_
-                << Core::XmlFull("words", avgEvaluationTokens)
-                //		<< Core::XmlFull("score", stats.score)
-                << Core::XmlClose("lemma");
+                    << Core::XmlFull("words", avgEvaluationTokens)
+                    //		<< Core::XmlFull("score", stats.score)
+                    << Core::XmlClose("lemma");
     }
     Lm::Score exitScore = lm_->sentenceEndScore(h);
     stats.avgEvaluationTokens += 1.0;
     stats.score += exitScore;
     if (sentenceChannel_.isOpen()) {
         sentenceChannel_
-            << Core::XmlOpen("sentence-end")
-            << Core::XmlOpen("event");
+                << Core::XmlOpen("sentence-end")
+                << Core::XmlOpen("event");
         if (lm_->sentenceEndToken()) {
             sentenceChannel_
-                << Core::XmlFull("token", lm_->sentenceEndToken()->symbol());
-            if (classMapping_) sentenceChannel_
-                << Core::XmlFull("class", lm_->sentenceEndToken()->symbol());
-        } else
+                    << Core::XmlFull("token", lm_->sentenceEndToken()->symbol());
+            if (classMapping_)
+                sentenceChannel_
+                        << Core::XmlFull("class", lm_->sentenceEndToken()->symbol());
+        }
+        else
             sentenceChannel_
-                << Core::XmlFull("token", "n/a");
+                    << Core::XmlFull("token", "n/a");
         sentenceChannel_
-            << Core::XmlFull("history", lm_->formatHistory(h))
-            << Core::XmlFull("sentence-end-score", exitScore)
-            << Core::XmlClose("event")
-            << Core::XmlFull("words", 1)
-            //	    << Core::XmlFull("score", stats.score)
-            << Core::XmlClose("sentence-end");
+                << Core::XmlFull("history", lm_->formatHistory(h))
+                << Core::XmlFull("sentence-end-score", exitScore)
+                << Core::XmlClose("event")
+                << Core::XmlFull("words", 1)
+                //	    << Core::XmlFull("score", stats.score)
+                << Core::XmlClose("sentence-end");
     }
     if (sentenceChannel_.isOpen()) {
         sentenceChannel_
-            << (Core::XmlFull("log-likelihood", -stats.score)
-                + Core::XmlAttribute("base", "e"))
-            <<  Core::XmlFull("words", stats.avgEvaluationTokens)
-            << (Core::XmlFull("perplexity", stats.evalPerplexity())
-                + Core::XmlAttribute("base", "word"))
-            << (Core::XmlFull("cross-entropy", stats.evalCrossEntropy())
-                + Core::XmlAttribute("base", "word")
-                + Core::XmlAttribute("unit", "bit"))
-            <<  Core::XmlFull("events", stats.nSyntacticTokens)
-            << (Core::XmlFull("perplexity", stats.syntPerplexity())
-                + Core::XmlAttribute("base", "event"))
-            << (Core::XmlFull("cross-entropy", stats.syntCrossEntropy())
-                + Core::XmlAttribute("type", "event")
-                + Core::XmlAttribute("unit", "bit"));
+                << (Core::XmlFull("log-likelihood", -stats.score) + Core::XmlAttribute("base", "e"))
+                << Core::XmlFull("words", stats.avgEvaluationTokens)
+                << (Core::XmlFull("perplexity", stats.evalPerplexity()) + Core::XmlAttribute("base", "word"))
+                << (Core::XmlFull("cross-entropy", stats.evalCrossEntropy()) + Core::XmlAttribute("base", "word") + Core::XmlAttribute("unit", "bit"))
+                << Core::XmlFull("events", stats.nSyntacticTokens)
+                << (Core::XmlFull("perplexity", stats.syntPerplexity()) + Core::XmlAttribute("base", "event"))
+                << (Core::XmlFull("cross-entropy", stats.syntCrossEntropy()) + Core::XmlAttribute("type", "event") + Core::XmlAttribute("unit", "bit"));
     }
 
     // check against FSA result
@@ -365,60 +361,56 @@ CorpusStatisticsVisitor::SentenceStatistics CorpusStatisticsVisitor::buildSenten
     return stats;
 }
 
-void CorpusStatisticsVisitor::visitSpeechSegment(Bliss::SpeechSegment *segment) {
+void CorpusStatisticsVisitor::visitSpeechSegment(Bliss::SpeechSegment* segment) {
     sentenceChannel_
-        << Core::XmlOpen("orth") + Core::XmlAttribute("source", "reference")
-        << segment->orth()
-        << Core::XmlClose("orth");
+            << Core::XmlOpen("orth") + Core::XmlAttribute("source", "reference")
+            << segment->orth()
+            << Core::XmlClose("orth");
 
     Fsa::ConstAutomatonRef sentence = orthographicParser_.createLemmaAcceptor(segment->orth());
 
     if (what_ & ReportLanguageModel) {
         if (sentenceChannel_.isOpen())
             sentenceChannel_
-                << (Core::XmlOpen("sentence-statistics") + Core::XmlAttribute("model", "language model"));
+                    << (Core::XmlOpen("sentence-statistics") + Core::XmlAttribute("model", "language model"));
         SentenceStatistics lmStats = buildSentenceStatistics(sentence, syntaxEmissionScale_, classEmissionScale_);
-        if (lmStats.nLemmas > 0) *lmStats_ += lmStats;
-        else error("failed to determine best lemma sequence for orthography \"%s\"",
-                   segment->orth().c_str());
+        if (lmStats.nLemmas > 0)
+            *lmStats_ += lmStats;
+        else
+            error("failed to determine best lemma sequence for orthography \"%s\"",
+                  segment->orth().c_str());
         if (sentenceChannel_.isOpen())
             sentenceChannel_ << Core::XmlClose("sentence-statistics");
     }
     if (what_ & ReportClassModel) {
         if (sentenceChannel_.isOpen())
             sentenceChannel_
-                << (Core::XmlOpen("sentence-statistics") + Core::XmlAttribute("model", (classLm_ ? "class model" : "syntax model")));
+                    << (Core::XmlOpen("sentence-statistics") + Core::XmlAttribute("model", (classLm_ ? "class model" : "syntax model")));
         SentenceStatistics cmStats = buildSentenceStatistics(sentence, 0.0, 0.0);
-        if (cmStats.nLemmas > 0) *cmStats_ += cmStats;
-        else error("failed to determine best lemma sequence for orthography \"%s\"",
-                   segment->orth().c_str());
+        if (cmStats.nLemmas > 0)
+            *cmStats_ += cmStats;
+        else
+            error("failed to determine best lemma sequence for orthography \"%s\"",
+                  segment->orth().c_str());
         if (sentenceChannel_.isOpen())
             sentenceChannel_ << Core::XmlClose("sentence-statistics");
     }
 }
 
-void CorpusStatisticsVisitor::writeReport(Core::XmlWriter &xml, TextStatistics &stats) const {
-    xml << (Core::XmlFull("log-likelihood", -stats.score)
-            + Core::XmlAttribute("base", "e")
-            + Core::XmlAttribute("ignore-unknowns", (ignoreUnk_ ? "yes" : "no")))
-        <<  Core::XmlFull("sentences", stats.nSentences)
-        <<  Core::XmlFull("words", stats.avgEvaluationTokens)
-        <<  Core::XmlFull("unk-words", stats.avgUnkEvaluationTokens)
-        << (Core::XmlFull("perplexity", stats.evalPerplexity())
-            + Core::XmlAttribute("base", "word"))
-        << (Core::XmlFull("cross-entropy", stats.evalCrossEntropy())
-            + Core::XmlAttribute("base", "word")
-            + Core::XmlAttribute("unit", "bit"))
-        <<  Core::XmlFull("events", stats.nSyntacticTokens)
-        <<  Core::XmlFull("unk-events", stats.nUnkSyntacticTokens)
-        << (Core::XmlFull("perplexity", stats.syntPerplexity())
-            + Core::XmlAttribute("base", "event"))
-        << (Core::XmlFull("cross-entropy", stats.syntCrossEntropy())
-            + Core::XmlAttribute("base", "event")
-            + Core::XmlAttribute("unit", "bit"));
+void CorpusStatisticsVisitor::writeReport(Core::XmlWriter& xml, TextStatistics& stats) const {
+    xml << (Core::XmlFull("log-likelihood", -stats.score) + Core::XmlAttribute("base", "e") + Core::XmlAttribute("ignore-unknowns", (ignoreUnk_ ? "yes" : "no")))
+        << Core::XmlFull("sentences", stats.nSentences)
+        << Core::XmlFull("words", stats.avgEvaluationTokens)
+        << Core::XmlFull("unk-words", stats.avgUnkEvaluationTokens)
+        << (Core::XmlFull("perplexity", stats.evalPerplexity()) + Core::XmlAttribute("base", "word"))
+        << (Core::XmlFull("cross-entropy", stats.evalCrossEntropy()) + Core::XmlAttribute("base", "word") + Core::XmlAttribute("unit", "bit"))
+        << Core::XmlFull("events", stats.nSyntacticTokens)
+        << Core::XmlFull("unk-events", stats.nUnkSyntacticTokens)
+        << (Core::XmlFull("perplexity", stats.syntPerplexity()) + Core::XmlAttribute("base", "event"))
+        << (Core::XmlFull("cross-entropy", stats.syntCrossEntropy()) + Core::XmlAttribute("base", "event") + Core::XmlAttribute("unit", "bit"));
 }
 
-void CorpusStatisticsVisitor::writeReport(Core::XmlWriter &xml) const {
+void CorpusStatisticsVisitor::writeReport(Core::XmlWriter& xml) const {
     if (what_ & ReportLanguageModel) {
         xml << (Core::XmlOpen("statistics") + Core::XmlAttribute("model", "language model"));
         writeReport(xml, *lmStats_);

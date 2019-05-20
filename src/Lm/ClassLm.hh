@@ -15,108 +15,125 @@
 #ifndef _LM_CLASSLM_HH
 #define _LM_CLASSLM_HH
 
+#include <Bliss/Lexicon.hh>
+#include <Bliss/Symbol.hh>
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
-#include <Bliss/Lexicon.hh>
-#include <Bliss/Symbol.hh>
 
 #include "LanguageModel.hh"
 
 namespace Lm {
 
+/*
+ * class lm:
+ * p(lemma | history) = p(lemma| synt) * p(synt| class) * p(class| history)
+ */
+class ClassToken : public Bliss::Token {
+    friend class ClassMapping;
+
+private:
+    typedef std::vector<const Bliss::SyntacticToken*> SyntacticTokenList;
+
+public:
+    typedef SyntacticTokenList::const_iterator Iterator;
+
+private:
+    SyntacticTokenList syntacticTokens_;
+
+public:
+    ClassToken(Bliss::Symbol _symbol)
+            : Bliss::Token(_symbol) {}
+    Iterator begin() {
+        return syntacticTokens_.begin();
+    }
+    Iterator end() {
+        return syntacticTokens_.end();
+    }
+};
+
+class ClassMappingAutomaton;
+
+class ClassMapping : public Core::Component, public Core::ReferenceCounted {
+    friend class ClassMappingAutomaton;
+
+public:
+    static const Core::ParameterString paramClassFileName;
+    static const Core::ParameterString paramClassFileEncoding;
+
+private:
+    typedef std::vector<std::pair<ClassToken*, Score>> ClassMap;
+
+private:
+    Bliss::LexiconRef     lexicon_;
+    Bliss::SymbolSet      symbolSet_;
+    Bliss::TokenInventory tokenInventory_;
+    Fsa::ConstAlphabetRef tokenAlphabet_;
+    ClassMap              classMap_;
+
+protected:
+    ClassToken* addToken(const std::string& word);
+
+public:
+    ClassMapping(const Core::Configuration& config, Bliss::LexiconRef lexicon);
+
     /*
-      class lm:
-      p(lemma | history) = p(lemma| synt) * p(synt| class) * p(class| history)
-    */
-    class ClassToken : public Bliss::Token
-    {
-        friend class ClassMapping;
-    private:
-        typedef std::vector<const Bliss::SyntacticToken*> SyntacticTokenList;
-    public:
-        typedef SyntacticTokenList::const_iterator Iterator;
-    private:
-        SyntacticTokenList syntacticTokens_;
-    public:
-        ClassToken(Bliss::Symbol _symbol) : Bliss::Token(_symbol) {}
-        Iterator begin() { return syntacticTokens_.begin(); }
-        Iterator end() { return syntacticTokens_.end(); }
-    };
+     * class file format:
+     * # comment
+     * <syntactic token> <class> [q(<syntactic token>| <class>)]
+     *
+     * q(<syntactic token>| <class>) needs not be normalized; normalization is done after
+     * if no class emission probabilities are given, a uniform distribution is assumed
+     */
+    void load();
 
-    class ClassMappingAutomaton;
+    Bliss::LexiconRef lexicon() const {
+        return lexicon_;
+    }
+    const Bliss::TokenInventory& tokenInventory() const {
+        return tokenInventory_;
+    }
+    Fsa::ConstAlphabetRef tokenAlphabet() const {
+        return tokenAlphabet_;
+    }
+    Fsa::ConstAutomatonRef createSyntacticTokenToClassTokenTransducer() const;
 
-    class ClassMapping :
-        public Core::Component, public Core::ReferenceCounted
-    {
-        friend class ClassMappingAutomaton;
-    public:
-        static const Core::ParameterString paramClassFileName;
-        static const Core::ParameterString paramClassFileEncoding;
-    private:
-        typedef std::vector<std::pair<ClassToken*, Score> > ClassMap;
+    ClassToken* classToken(Token t) const {
+        return classMap_[t->id()].first;
+    }
+    Score classEmissionScore(Token t) const {
+        return classMap_[t->id()].second;
+    }
 
-    private:
-        Bliss::LexiconRef lexicon_;
-        Bliss::SymbolSet symbolSet_;
-        Bliss::TokenInventory tokenInventory_;
-        Fsa::ConstAlphabetRef tokenAlphabet_;
-        ClassMap classMap_;
+    std::pair<ClassToken*, Score> operator[](Token t) const {
+        return classMap_[t->id()];
+    }
 
-    protected:
-        ClassToken * addToken(const std::string &word);
+    void writeClasses(Core::XmlWriter& xml) const;
+};
+typedef Core::Ref<const ClassMapping> ConstClassMappingRef;
 
-    public:
-        ClassMapping(const Core::Configuration &config, Bliss::LexiconRef lexicon);
+class ClassLm : public virtual Core::Component {
+public:
+    static const Core::ParameterFloat paramClassEmissionScale;
 
-        /*
-          class file format:
-          # comment
-          <syntactic token> <class> [q(<syntactic token>| <class>)]
+private:
+    Score classEmissionScale_;
 
-          q(<syntactic token>| <class>) needs not be normalized; normalization is done after
-          if no class emission probabilities are given, a uniform distribution is assumed
-        */
-        void load();
+public:
+    ClassLm(const Core::Configuration& config);
+    virtual ~ClassLm();
 
-        Bliss::LexiconRef lexicon() const
-            { return lexicon_; }
-        const Bliss::TokenInventory & tokenInventory() const
-            { return tokenInventory_; }
-        Fsa::ConstAlphabetRef tokenAlphabet() const
-            { return tokenAlphabet_; }
-        Fsa::ConstAutomatonRef createSyntacticTokenToClassTokenTransducer() const;
+    Score classEmissionScale() const {
+        return classEmissionScale_;
+    }
+    void setClassEmissionScale(Score _classEmissionScale) {
+        classEmissionScale_ = _classEmissionScale;
+    }
 
-        ClassToken* classToken(Token t) const
-            { return classMap_[t->id()].first; }
-        Score classEmissionScore(Token t) const
-            { return classMap_[t->id()].second; }
+    virtual ConstClassMappingRef classMapping() const = 0;
+};
 
-        std::pair<ClassToken*, Score> operator[] (Token t) const
-            { return classMap_[t->id()]; }
+}  // namespace Lm
 
-        void writeClasses(Core::XmlWriter &xml) const;
-    };
-    typedef Core::Ref<const ClassMapping> ConstClassMappingRef;
-
-
-    class ClassLm : public virtual Core::Component {
-    public:
-        static const Core::ParameterFloat paramClassEmissionScale;
-    private:
-        Score classEmissionScale_;
-    public:
-        ClassLm(const Core::Configuration &config);
-        virtual ~ClassLm();
-
-        Score classEmissionScale() const
-            { return classEmissionScale_; }
-        void setClassEmissionScale(Score _classEmissionScale)
-            { classEmissionScale_ = _classEmissionScale; }
-
-        virtual ConstClassMappingRef classMapping() const = 0;
-    };
-
-} // namespace Lm
-
-#endif // _LM_CLASSLM_HH
+#endif  // _LM_CLASSLM_HH

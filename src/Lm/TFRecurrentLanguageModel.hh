@@ -19,11 +19,11 @@
 #include <future>
 #include <thread>
 
-#include <Core/readerwriterqueue.h>
 #include <Tensorflow/GraphLoader.hh>
 #include <Tensorflow/Module.hh>
 #include <Tensorflow/Session.hh>
 #include <Tensorflow/TensorMap.hh>
+#include <Core/readerwriterqueue.h>
 
 #include "AbstractNNLanguageModel.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
@@ -42,7 +42,7 @@ public:
         std::chrono::duration<double, std::milli> set_score_duration;
         std::chrono::duration<double, std::milli> set_new_state_duration;
 
-        TimeStatistics operator+(TimeStatistics const& other) const;
+        TimeStatistics  operator+(TimeStatistics const& other) const;
         TimeStatistics& operator+=(TimeStatistics const& other);
 
         void write(Core::XmlChannel& channel) const;
@@ -75,8 +75,8 @@ public:
     virtual History extendedHistory(History const& hist, Token w) const;
     virtual History extendedHistory(History const& hist, Bliss::Token::Id w) const;
     virtual History reducedHistory(History const& hist, u32 limit) const;
-    virtual Score score(History const& hist, Token w) const;
-    virtual bool scoreCached(History const& hist, Token w) const;
+    virtual Score   score(History const& hist, Token w) const;
+    virtual bool    scoreCached(History const& hist, Token w) const;
 
     virtual void startFrame(Search::TimeframeIndex time) const;
     virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;
@@ -112,7 +112,7 @@ private:
     std::vector<std::string> output_tensor_names_;
     std::vector<std::string> read_vars_tensor_names_;
 
-    History empty_history_; // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
+    History empty_history_;  // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
 
     mutable Core::XmlChannel       statistics_;
     mutable Search::TimeframeIndex current_time_;
@@ -135,11 +135,10 @@ private:
     mutable HistoryQueue                finished_queue_;
 
     void background_forward() const;
-    template <bool async>
+    template<bool async>
     void forward(Lm::History const* hist) const;
 };
 
-} // namespace Lm
+}  // namespace Lm
 
-#endif // _LM_TF_RECURRENT_LANGUAGE_MODEL_HH
-
+#endif  // _LM_TF_RECURRENT_LANGUAGE_MODEL_HH

@@ -19,60 +19,62 @@
 #include "Module.hh"
 
 namespace {
-    class CombineHistoryManager : public Lm::HistoryManager {
-    public:
-        CombineHistoryManager(size_t numLms) : Lm::HistoryManager(), numLms_(numLms) {
-        }
-        virtual ~CombineHistoryManager() = default;
+class CombineHistoryManager : public Lm::HistoryManager {
+public:
+    CombineHistoryManager(size_t numLms)
+            : Lm::HistoryManager(), numLms_(numLms) {
+    }
+    virtual ~CombineHistoryManager() = default;
 
-        virtual Lm::HistoryHandle acquire(Lm::HistoryHandle handle) {
-            Lm::History const* prev_hist = reinterpret_cast<Lm::History const*>(handle);
-            Lm::History*       new_hist  = new Lm::History[numLms_];
-            for (size_t i = 0ul; i < numLms_; i++) {
-                new_hist[i] = prev_hist[i];
+    virtual Lm::HistoryHandle acquire(Lm::HistoryHandle handle) {
+        Lm::History const* prev_hist = reinterpret_cast<Lm::History const*>(handle);
+        Lm::History*       new_hist  = new Lm::History[numLms_];
+        for (size_t i = 0ul; i < numLms_; i++) {
+            new_hist[i] = prev_hist[i];
+        }
+        return reinterpret_cast<Lm::HistoryHandle>(new_hist);
+    }
+
+    virtual void release(Lm::HistoryHandle handle) {
+        Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
+        delete[] hist;
+    }
+
+    virtual Lm::HistoryHash hashKey(Lm::HistoryHandle handle) const {
+        Lm::History const*           hist = reinterpret_cast<Lm::History const*>(handle);
+        std::vector<Lm::HistoryHash> hashes(numLms_);
+        for (size_t i = 0ul; i < numLms_; i++) {
+            hashes[i] = hist[i].hashKey();
+        }
+        return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(hashes.data()), hashes.size() * sizeof(Lm::HistoryHash), 0x305ff0a7);
+    }
+
+    virtual bool isEquivalent(Lm::HistoryHandle lhs, Lm::HistoryHandle rhs) const {
+        Lm::History const* lhs_hist = reinterpret_cast<Lm::History const*>(lhs);
+        Lm::History const* rhs_hist = reinterpret_cast<Lm::History const*>(rhs);
+        for (size_t i = 0ul; i < numLms_; i++) {
+            if (not(lhs_hist[i] == rhs_hist[i])) {
+                return false;
             }
-            return reinterpret_cast<Lm::HistoryHandle>(new_hist);
         }
+        return true;
+    }
 
-        virtual void release(Lm::HistoryHandle handle) {
-            Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
-            delete[] hist;
+    virtual std::string format(Lm::HistoryHandle handle) const {
+        Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
+        std::stringstream  ss;
+        ss << "CombinedHistory<";
+        for (size_t i = 0ul; i < numLms_; i++) {
+            ss << " h" << i << ": " << hist[i].format();
         }
+        ss << " >";
+        return ss.str();
+    }
 
-        virtual Lm::HistoryHash hashKey(Lm::HistoryHandle handle) const {
-            Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
-            std::vector<Lm::HistoryHash> hashes(numLms_);
-            for (size_t i = 0ul; i < numLms_; i++) {
-                hashes[i] = hist[i].hashKey();
-            }
-            return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(hashes.data()), hashes.size() * sizeof(Lm::HistoryHash), 0x305ff0a7);
-        }
-
-        virtual bool isEquivalent(Lm::HistoryHandle lhs, Lm::HistoryHandle rhs) const {
-            Lm::History const* lhs_hist = reinterpret_cast<Lm::History const*>(lhs);
-            Lm::History const* rhs_hist = reinterpret_cast<Lm::History const*>(rhs);
-            for (size_t i = 0ul; i < numLms_; i++) {
-                if (not (lhs_hist[i] == rhs_hist[i])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        virtual std::string format(Lm::HistoryHandle handle) const {
-            Lm::History const* hist = reinterpret_cast<Lm::History const*>(handle);
-            std::stringstream ss;
-            ss << "CombinedHistory<";
-            for (size_t i = 0ul; i < numLms_; i++) {
-                ss << " h" << i << ": " << hist[i].format();
-            }
-            ss << " >";
-            return ss.str();
-        }
-    private:
-        size_t numLms_;
-    };
-}
+private:
+    size_t numLms_;
+};
+}  // namespace
 
 namespace Lm {
 
@@ -88,12 +90,10 @@ Core::ParameterFloat CombineLanguageModel::paramSkipThreshold(
         "skip-threshold", "if this LM's (unscaled) score is greater than this threshold successive LMs are not evaluated", std::numeric_limits<Score>::max());
 
 CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
-                                          : Core::Component(c), CombineLanguageModel::Precursor(c, l),
-                                            lms_(), unscaled_lms_(), linear_combination_(paramLinearCombination(c)),
-                                            lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
+        : Core::Component(c), CombineLanguageModel::Precursor(c, l), lms_(), unscaled_lms_(), linear_combination_(paramLinearCombination(c)), lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
     size_t num_lms = paramNumLms(c);
     for (size_t i = 0ul; i < num_lms; i++) {
-        Core::Configuration sub_config = select(std::string("lm-") + std::to_string(i+1));
+        Core::Configuration sub_config = select(std::string("lm-") + std::to_string(i + 1));
         lms_.push_back(Module::instance().createScaledLanguageModel(sub_config, l));
         unscaled_lms_.push_back(lms_.back()->unscaled());
         ssa_lms_.push_back(dynamic_cast<SearchSpaceAwareLanguageModel const*>(unscaled_lms_.back().get()));
@@ -141,7 +141,7 @@ History CombineLanguageModel::startHistory() const {
 History CombineLanguageModel::extendedHistory(History const& history, Token w) const {
     require(history.isManagedBy(historyManager_));
     History const* prev_hist = reinterpret_cast<History const*>(history.handle());
-    History* new_hist = new History[lms_.size()];
+    History*       new_hist  = new History[lms_.size()];
     for (size_t i = 0ul; i < lms_.size(); i++) {
         new_hist[i] = lms_[i]->extendedHistory(prev_hist[i], w);
     }
@@ -153,7 +153,7 @@ History CombineLanguageModel::extendedHistory(History const& history, Token w) c
 History CombineLanguageModel::reducedHistory(History const& history, u32 limit) const {
     require(history.isManagedBy(historyManager_));
     History const* prev_hist = reinterpret_cast<History const*>(history.handle());
-    History* new_hist = new History[lms_.size()];
+    History*       new_hist  = new History[lms_.size()];
     for (size_t i = 0ul; i < lms_.size(); i++) {
         new_hist[i] = lms_[i]->reducedHistory(prev_hist[i], limit);
     }
@@ -164,15 +164,15 @@ History CombineLanguageModel::reducedHistory(History const& history, u32 limit) 
 
 Score CombineLanguageModel::score(History const& history, Token w) const {
     require(history.isManagedBy(historyManager_));
-    History const* hist = reinterpret_cast<History const*>(history.handle());
-    Score prev_score = 0.0;
-    bool  override_score = false;
+    History const* hist           = reinterpret_cast<History const*>(history.handle());
+    Score          prev_score     = 0.0;
+    bool           override_score = false;
     if (linear_combination_) {
         Score s(std::numeric_limits<Score>::infinity());
         for (size_t i = 0ul; i < lms_.size(); i++) {
             Score raw_score = 0.0;
             if (not override_score) {
-                raw_score = unscaled_lms_[i]->score(hist[i], w);
+                raw_score  = unscaled_lms_[i]->score(hist[i], w);
                 prev_score = raw_score;
                 override_score |= raw_score >= skip_thresholds_[i];
             }
@@ -191,7 +191,7 @@ Score CombineLanguageModel::score(History const& history, Token w) const {
         for (size_t i = 0ul; i < lms_.size(); i++) {
             Score raw_score = unscaled_lms_[i]->score(hist[i], w);
             if (not override_score) {
-                raw_score = unscaled_lms_[i]->score(hist[i], w);
+                raw_score  = unscaled_lms_[i]->score(hist[i], w);
                 prev_score = raw_score;
                 override_score |= raw_score >= skip_thresholds_[i];
             }
@@ -229,7 +229,7 @@ Score CombineLanguageModel::sentenceEndScore(const History& history) const {
 Core::Ref<const LanguageModel> CombineLanguageModel::lookaheadLanguageModel() const {
     if (lookahead_lm_ > 0) {
         require_le(static_cast<unsigned>(lookahead_lm_), unscaled_lms_.size());
-        return unscaled_lms_[lookahead_lm_-1];
+        return unscaled_lms_[lookahead_lm_ - 1];
     }
     return Core::Ref<LanguageModel>();
 }
@@ -237,7 +237,7 @@ Core::Ref<const LanguageModel> CombineLanguageModel::lookaheadLanguageModel() co
 Core::Ref<const LanguageModel> CombineLanguageModel::recombinationLanguageModel() const {
     if (recombination_lm_ > 0) {
         require_le(static_cast<unsigned>(recombination_lm_), unscaled_lms_.size());
-        return unscaled_lms_[recombination_lm_-1];
+        return unscaled_lms_[recombination_lm_ - 1];
     }
     return Core::Ref<LanguageModel>();
 }
@@ -259,4 +259,4 @@ void CombineLanguageModel::setInfo(History const& hist, SearchSpaceInformation c
     }
 }
 
-} // namespace Lm
+}  // namespace Lm

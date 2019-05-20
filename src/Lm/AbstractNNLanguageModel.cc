@@ -19,7 +19,7 @@
 
 namespace Lm {
 
-Core::ParameterBool   AbstractNNLanguageModel::paramCollectStatistics(
+Core::ParameterBool AbstractNNLanguageModel::paramCollectStatistics(
         "collect-statistics", "wether to collect runtime statistics", false);
 Core::ParameterString AbstractNNLanguageModel::paramVocabularyFile(
         "vocab-file", "vocabulary file", "");
@@ -27,9 +27,7 @@ Core::ParameterString AbstractNNLanguageModel::paramVocabUnknownWord(
         "vocab-unknown-word", "the word from the provided vocabulary file that will serve as unknown token", "");
 
 AbstractNNLanguageModel::AbstractNNLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
-                        : Core::Component(c), Precursor(c, l),
-                          collect_statistics_(paramCollectStatistics(c)), vocab_file_(paramVocabularyFile(c)), unknown_word_(paramVocabUnknownWord(config)),
-                          lexicon_(l), num_outputs_(0ul), lexicon_mapping_(), usage_histogram_() {
+        : Core::Component(c), Precursor(c, l), collect_statistics_(paramCollectStatistics(c)), vocab_file_(paramVocabularyFile(c)), unknown_word_(paramVocabUnknownWord(config)), lexicon_(l), num_outputs_(0ul), lexicon_mapping_(), usage_histogram_() {
     NNHistoryManager* hm = new NNHistoryManager();
     hm->setOnReleaseHandler(std::bind(&AbstractNNLanguageModel::onRelease, this, std::placeholders::_1));
     historyManager_ = hm;
@@ -45,24 +43,24 @@ void AbstractNNLanguageModel::loadVocabulary() {
     std::unordered_map<std::string, size_t> vocab_map;
 
     std::ifstream input(vocab_file_, std::ios::in);
-    std::string line;
+    std::string   line;
     while (input.good()) {
         std::getline(input, line);
         if (line.empty()) {
             continue;
         }
         std::stringstream ss(line);
-        std::string word;
-        size_t idx;
+        std::string       word;
+        size_t            idx;
         ss >> word;
         ss >> idx;
         vocab_map[word] = idx;
-        num_outputs_ = std::max(num_outputs_, idx);
+        num_outputs_    = std::max(num_outputs_, idx);
     }
     num_outputs_ += 1ul;  // largest id + 1
 
     size_t unknown_word_id = 0ul;
-    auto unk = vocab_map.find(unknown_word_);
+    auto   unk             = vocab_map.find(unknown_word_);
     if (unk != vocab_map.end()) {
         unknown_word_id = unk->second;
         log("unknown word: ") << unknown_word_ << " " << unknown_word_id;
@@ -88,9 +86,9 @@ void AbstractNNLanguageModel::loadVocabulary() {
 void AbstractNNLanguageModel::onRelease(HistoryHandle handle) {
     NNCacheWithStats const* c = reinterpret_cast<NNCacheWithStats const*>(handle);
     if (not c->output_used.empty()) {
-        unsigned used_outputs = std::accumulate(c->output_used.begin(), c->output_used.end(),
-                                                0u, [](unsigned sum, bool used){ return sum + (used ? 1u : 0u); });
-        size_t promille_used = static_cast<size_t>((1000.0 * used_outputs) / c->output_used.size());
+        unsigned used_outputs  = std::accumulate(c->output_used.begin(), c->output_used.end(),
+                                                0u, [](unsigned sum, bool used) { return sum + (used ? 1u : 0u); });
+        size_t   promille_used = static_cast<size_t>((1000.0 * used_outputs) / c->output_used.size());
         if (usage_histogram_.size() <= promille_used) {
             usage_histogram_.resize(promille_used + 1ul);
         }
@@ -100,13 +98,11 @@ void AbstractNNLanguageModel::onRelease(HistoryHandle handle) {
 
 void AbstractNNLanguageModel::logStatistics() const {
     Core::XmlChannel out(config, "statistics");
-    out << Core::XmlOpen("lm-usage-histogram")
-           + Core::XmlAttribute("size", usage_histogram_.size());
+    out << Core::XmlOpen("lm-usage-histogram") + Core::XmlAttribute("size", usage_histogram_.size());
     for (u32 h : usage_histogram_) {
         out << " " << h;
     }
     out << Core::XmlClose("lm-usage-histogram");
 }
 
-} // namespace Lm
-
+}  // namespace Lm

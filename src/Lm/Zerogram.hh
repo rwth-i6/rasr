@@ -22,21 +22,26 @@
 
 namespace Lm {
 
-    class Zerogram :
-        public LanguageModel,
-        private SingletonHistoryManager
-    {
-    private:
-        Score score_;
-        virtual std::string format(HistoryHandle) const;
-    public:
-        Zerogram(const Core::Configuration &c, Bliss::LexiconRef);
-        virtual Fsa::ConstAutomatonRef getFsa() const;
-        virtual History startHistory() const { return history(0); }
-        virtual History extendedHistory(const History &h, Token) const { return h; }
-        virtual Score score(const History&, Token) const { return score_; }
-    };
+class Zerogram : public LanguageModel,
+                 private SingletonHistoryManager {
+private:
+    Score               score_;
+    virtual std::string format(HistoryHandle) const;
 
-} // namespace Lm
+public:
+    Zerogram(const Core::Configuration& c, Bliss::LexiconRef);
+    virtual Fsa::ConstAutomatonRef getFsa() const;
+    virtual History                startHistory() const {
+        return history(0);
+    }
+    virtual History extendedHistory(const History& h, Token) const {
+        return h;
+    }
+    virtual Score score(const History&, Token) const {
+        return score_;
+    }
+};
 
-#endif //_LM_ZEROGRAM_HH
+}  // namespace Lm
+
+#endif  //_LM_ZEROGRAM_HH

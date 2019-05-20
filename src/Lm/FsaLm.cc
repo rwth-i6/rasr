@@ -12,16 +12,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "FsaLm.hh"
 #include <Bliss/Fsa.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Cache.hh>
+#include <Fsa/Determinize.hh>
 #include <Fsa/Input.hh>
 #include <Fsa/Sort.hh>
-#include <Fsa/Determinize.hh>
-#include "FsaLm.hh"
 
 using namespace Lm;
-
 
 const Core::ParameterString FsaLm::paramFilename("file", "name of fsa file file to load as language model");
 
@@ -30,26 +29,25 @@ Fsa::ConstStateRef FsaLm::invalidHistory(new Fsa::State(Fsa::InvalidStateId, Fsa
 class FsaLm::HistoryManager : public ReferenceCountingHistoryManager {
 protected:
     virtual HistoryHash hashKey(HistoryHandle hd) const {
-        const Fsa::State *state = (const Fsa::State*) hd;
+        const Fsa::State* state = (const Fsa::State*)hd;
         return state->id();
     }
 
     virtual bool isEquivalent(HistoryHandle hda, HistoryHandle hdb) const {
-        const Fsa::State *sa = (const Fsa::State*) hda;
-        const Fsa::State *sb = (const Fsa::State*) hdb;
+        const Fsa::State* sa = (const Fsa::State*)hda;
+        const Fsa::State* sb = (const Fsa::State*)hdb;
         return sa->id() == sb->id();
     }
 
     virtual std::string format(HistoryHandle hd) const {
-        const Fsa::State *state = (const Fsa::State*) hd;
+        const Fsa::State* state = (const Fsa::State*)hd;
         return Core::itoa(state->id());
     }
 };
 
-
 /*****************************************************************************/
-FsaLm::FsaLm(const Core::Configuration &c, Bliss::LexiconRef lexicon) :
-    Core::Component(c), LanguageModel(c, lexicon), syntacticTokens_(lexicon->syntacticTokenAlphabet())
+FsaLm::FsaLm(const Core::Configuration& c, Bliss::LexiconRef lexicon)
+        : Core::Component(c), LanguageModel(c, lexicon), syntacticTokens_(lexicon->syntacticTokenAlphabet())
 /*****************************************************************************/
 {
     historyManager_ = new HistoryManager;
@@ -68,9 +66,9 @@ void FsaLm::load()
 {
     const std::string filename(paramFilename(config));
     log("reading fsa as language model from file")
-        << " \"" << filename << "\" ...";
+            << " \"" << filename << "\" ...";
 
-    Fsa::StorageAutomaton *f = new Fsa::StaticAutomaton();
+    Fsa::StorageAutomaton* f = new Fsa::StaticAutomaton();
     if (!Fsa::read(f, filename)) {
         error("Failed to read FSA from file.");
         delete f;
@@ -99,7 +97,7 @@ History FsaLm::startHistory() const
 }
 
 /*****************************************************************************/
-History FsaLm::extendedHistory(const History &h, Token w) const
+History FsaLm::extendedHistory(const History& h, Token w) const
 /*****************************************************************************/
 {
     Fsa::ConstStateRef sp(descriptor<Self>(h));
@@ -109,7 +107,7 @@ History FsaLm::extendedHistory(const History &h, Token w) const
     }
     while (sp) {
         Fsa::Arc tmp;
-        tmp.input_ = w->id();
+        tmp.input_                   = w->id();
         Fsa::State::const_iterator a = sp->lower_bound(tmp, Fsa::byInput());
         if ((a == sp->end()) || (a->input() != w->id())) {
             a = sp->begin();
@@ -118,7 +116,8 @@ History FsaLm::extendedHistory(const History &h, Token w) const
                 return history(invalidHistory.get());
             }
             sp = fsa_->getState(a->target());
-        } else {
+        }
+        else {
             Fsa::ConstStateRef ts = fsa_->getState(a->target());
             ts->acquireReference();
             return history(ts.get());
@@ -128,7 +127,7 @@ History FsaLm::extendedHistory(const History &h, Token w) const
 }
 
 /*****************************************************************************/
-Lm::Score FsaLm::score(const History &h, Token w) const
+Lm::Score FsaLm::score(const History& h, Token w) const
 /*****************************************************************************/
 {
     if (w == sentenceEndToken())
@@ -141,7 +140,7 @@ Lm::Score FsaLm::score(const History &h, Token w) const
     Score score = 0.0;
     while (sp) {
         Fsa::Arc tmp;
-        tmp.input_ = w->id();
+        tmp.input_                   = w->id();
         Fsa::State::const_iterator a = sp->lower_bound(tmp, Fsa::byInput());
         if ((a == sp->end()) || (a->input() != w->id())) {
             a = sp->begin();
@@ -150,7 +149,8 @@ Lm::Score FsaLm::score(const History &h, Token w) const
             }
             sp = fsa_->getState(a->target());
             score += Score(a->weight());
-        } else {
+        }
+        else {
             return score + Score(a->weight());
         }
     }
@@ -158,7 +158,7 @@ Lm::Score FsaLm::score(const History &h, Token w) const
 }
 
 /*****************************************************************************/
-Lm::Score FsaLm::sentenceEndScore(const History &h) const
+Lm::Score FsaLm::sentenceEndScore(const History& h) const
 /*****************************************************************************/
 {
     Fsa::ConstStateRef sp(descriptor<Self>(h));

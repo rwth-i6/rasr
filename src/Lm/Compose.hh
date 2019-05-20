@@ -15,75 +15,73 @@
 #ifndef _LM_COMPOSE_HH
 #define _LM_COMPOSE_HH
 
-#include <Lm/ScaledLanguageModel.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Mapping.hh>
+#include <Lm/ScaledLanguageModel.hh>
 
 namespace Lm {
 
-    class ComposeAutomaton :
-        public Fsa::Automaton
-    {
-    public:
-        /**
-         * State in the original automaton.
-         * Given a state of the composition result, return the
-         * corresponding original state of the automaton (left).
-         */
-        virtual Fsa::StateId leftStateId(Fsa::StateId) const = 0;
-
-        /**
-         * Mapping returning the state's id in the left original automaton.
-         **/
-        Fsa::ConstMappingRef mapToLeft() const;
-
-        /**
-         * History in the language model.
-         * Given a state of the composition result, return the
-         * corresponding history of the language model (right).
-         */
-        virtual History history(Fsa::StateId) const = 0;
-    };
+class ComposeAutomaton : public Fsa::Automaton {
+public:
+    /**
+     * State in the original automaton.
+     * Given a state of the composition result, return the
+     * corresponding original state of the automaton (left).
+     */
+    virtual Fsa::StateId leftStateId(Fsa::StateId) const = 0;
 
     /**
-     * Add language model scores to a Fsa automaton.
-     *
-     * This is theoretically almost equivalent to using Fsa::compose()
-     * with the FSA representation of the language model obtained from
-     * getFsa(), but there are the following differences:
-     * - This function works for any LanguageModel, even if it does not
-     *   implement getFsa().
-     * - Since the LanguageModel interface presents a deterministic
-     *   epsilon-free automaton, this alogrithm is simpler.
-     * - No back-off paths are included.  So the result is also correct
-     *   if getFsa() suffers from the back-off arc shortcut phenomenon.
-     * - As a corrolary: If the (left) automaton is epsilon-free, so
-     *   is the result
-     *
-     * The alphabets of @c left should meet one of the following requirements:
-     * 1) The output alphabet is the lemma alphabet of the lexicon used
-     *    by the language model.
-     * 2) The input alphabet of @c left is the lemma pronunciation alphabet
-     *    of the lexicon used by the language model.
-     * In case of ties 1) is chosen.
+     * Mapping returning the state's id in the left original automaton.
+     **/
+    Fsa::ConstMappingRef mapToLeft() const;
+
+    /**
+     * History in the language model.
+     * Given a state of the composition result, return the
+     * corresponding history of the language model (right).
      */
-    Core::Ref<const ComposeAutomaton> compose(
-        Fsa::ConstAutomatonRef left,
+    virtual History history(Fsa::StateId) const = 0;
+};
+
+/**
+ * Add language model scores to a Fsa automaton.
+ *
+ * This is theoretically almost equivalent to using Fsa::compose()
+ * with the FSA representation of the language model obtained from
+ * getFsa(), but there are the following differences:
+ * - This function works for any LanguageModel, even if it does not
+ *   implement getFsa().
+ * - Since the LanguageModel interface presents a deterministic
+ *   epsilon-free automaton, this alogrithm is simpler.
+ * - No back-off paths are included.  So the result is also correct
+ *   if getFsa() suffers from the back-off arc shortcut phenomenon.
+ * - As a corrolary: If the (left) automaton is epsilon-free, so
+ *   is the result
+ *
+ * The alphabets of @c left should meet one of the following requirements:
+ * 1) The output alphabet is the lemma alphabet of the lexicon used
+ *    by the language model.
+ * 2) The input alphabet of @c left is the lemma pronunciation alphabet
+ *    of the lexicon used by the language model.
+ * In case of ties 1) is chosen.
+ */
+Core::Ref<const ComposeAutomaton> compose(
+        Fsa::ConstAutomatonRef             left,
         Core::Ref<const Lm::LanguageModel> right,
-        Score lmScale,
-        Score syntaxEmissionScale = 1.0);
+        Score                              lmScale,
+        Score                              syntaxEmissionScale = 1.0);
 
-    Core::Ref<const ComposeAutomaton> compose(
-        Fsa::ConstAutomatonRef left,
+Core::Ref<const ComposeAutomaton> compose(
+        Fsa::ConstAutomatonRef                   left,
         Core::Ref<const Lm::ScaledLanguageModel> right,
-        Score syntaxEmissionScale = 1.0);
+        Score                                    syntaxEmissionScale = 1.0);
 
-    Core::Ref<const ComposeAutomaton> composePron(
-        Fsa::ConstAutomatonRef left,
+Core::Ref<const ComposeAutomaton> composePron(
+        Fsa::ConstAutomatonRef                   left,
         Core::Ref<const Lm::ScaledLanguageModel> right,
-        Score pronunciationScale,
-        Score syntaxEmissionScale = 1.0);
+        Score                                    pronunciationScale,
+        Score                                    syntaxEmissionScale = 1.0);
 
-} // namespace Lm
+}  // namespace Lm
 
-#endif // _LM_COMPOSE_HH
+#endif  // _LM_COMPOSE_HH

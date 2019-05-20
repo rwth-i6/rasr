@@ -23,10 +23,10 @@
 #include "NNHistoryManager.hh"
 
 namespace {
-    struct ScoreCache : public Lm::NNCacheWithStats {
-        Math::FastVector<Lm::Score> scores;
-    };
-}
+struct ScoreCache : public Lm::NNCacheWithStats {
+    Math::FastVector<Lm::Score> scores;
+};
+}  // namespace
 
 namespace Lm {
 
@@ -42,10 +42,7 @@ Core::ParameterInt FFNeuralNetworkLanguageModel::paramBufferSize(
         "buffer-size", "buffer size", 32);
 
 FFNeuralNetworkLanguageModel::FFNeuralNetworkLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
-                            : Core::Component(c), FFNeuralNetworkLanguageModel::Precursor(c, l),
-                              expand_one_hot_(paramExpandOneHot(c)), eager_forwarding_(paramEagerForwarding(c)), context_size_(paramContextSize(c)),
-                              history_size_(std::max<int>(paramHistorySize(c), context_size_)), buffer_size_(paramBufferSize(c)),
-                              nn_(select("nn")) {
+        : Core::Component(c), FFNeuralNetworkLanguageModel::Precursor(c, l), expand_one_hot_(paramExpandOneHot(c)), eager_forwarding_(paramEagerForwarding(c)), context_size_(paramContextSize(c)), history_size_(std::max<int>(paramHistorySize(c), context_size_)), buffer_size_(paramBufferSize(c)), nn_(select("nn")) {
 }
 
 FFNeuralNetworkLanguageModel::~FFNeuralNetworkLanguageModel() {
@@ -55,22 +52,22 @@ FFNeuralNetworkLanguageModel::~FFNeuralNetworkLanguageModel() {
 
 History FFNeuralNetworkLanguageModel::startHistory() const {
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
-    TokenIdSequence ts(history_size_, lexicon_mapping_[sentenceBeginToken()->id()]);
+    TokenIdSequence   ts(history_size_, lexicon_mapping_[sentenceBeginToken()->id()]);
     return history(hm->get<ScoreCache>(ts));
 }
 
 History FFNeuralNetworkLanguageModel::extendedHistory(History const& hist, Token w) const {
     NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
     ScoreCache const* sc = reinterpret_cast<ScoreCache const*>(hist.handle());
-    TokenIdSequence ts(history_size_);
+    TokenIdSequence   ts(history_size_);
     std::copy(sc->history->begin(), sc->history->end() - 1, ts.begin() + 1);
     ts.front() = lexicon_mapping_[w->id()];
     return history(hm->get<ScoreCache>(ts));
 }
 
 Score FFNeuralNetworkLanguageModel::score(History const& hist, Token w) const {
-    ScoreCache const* sc = reinterpret_cast<ScoreCache const*>(hist.handle());
-    size_t output_idx = lexicon_mapping_[w->id()];
+    ScoreCache const* sc         = reinterpret_cast<ScoreCache const*>(hist.handle());
+    size_t            output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     if (not sc->scores.empty()) {
         return sc->scores[output_idx];
@@ -78,7 +75,7 @@ Score FFNeuralNetworkLanguageModel::score(History const& hist, Token w) const {
 
     std::vector<ScoreCache*> caches;
     if (eager_forwarding_) {
-        NNHistoryManager* hm = dynamic_cast<NNHistoryManager*>(historyManager_);
+        NNHistoryManager*                   hm = dynamic_cast<NNHistoryManager*>(historyManager_);
         NNHistoryManager::NNCacheMap const& cm = hm->getNNCacheMap();
         for (auto const& kv : cm) {
             ScoreCache* c = const_cast<ScoreCache*>(static_cast<ScoreCache const*>(kv.second));
@@ -91,7 +88,7 @@ Score FFNeuralNetworkLanguageModel::score(History const& hist, Token w) const {
         caches.push_back(const_cast<ScoreCache*>(sc));
     }
 
-    size_t vec_size = expand_one_hot_ ? context_size_ * num_outputs_ : context_size_;
+    size_t                   vec_size = expand_one_hot_ ? context_size_ * num_outputs_ : context_size_;
     Nn::Types<f32>::NnMatrix input(vec_size, caches.size());
     input.setToZero();
     for (size_t c = 0ul; c < caches.size(); c++) {
@@ -106,7 +103,8 @@ Score FFNeuralNetworkLanguageModel::score(History const& hist, Token w) const {
     }
     nn_.forward(input);
 
-    Nn::Types<f32>::NnMatrix& gpu_output = nn_.getTopLayerOutput();;
+    Nn::Types<f32>::NnMatrix& gpu_output = nn_.getTopLayerOutput();
+    ;
     gpu_output.finishComputation();
     Math::FastMatrix<f32>& cpu_output = gpu_output.asWritableCpuMatrix();
     require_eq(cpu_output.nRows(), num_outputs_);
@@ -135,4 +133,4 @@ void FFNeuralNetworkLanguageModel::load() {
     nn_.initializeNetwork(buffer_size_, stream_sizes);
 }
 
-} // namespace Lm
+}  // namespace Lm

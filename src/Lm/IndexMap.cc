@@ -14,18 +14,15 @@
  */
 // $Id$
 
-#include <cmath>
 #include <Core/Utility.hh>
+#include <cmath>
 
 #include "IndexMap.hh"
 
-
 using namespace Lm;
 
-
 const IndexMappedLm::InternalClassIndex IndexMappedLm::invalidClass =
-   Core::Type<IndexMappedLm::InternalClassIndex>::max;
-
+        Core::Type<IndexMappedLm::InternalClassIndex>::max;
 
 void IndexMappedLm::initializeMapping(InternalClassIndex nInternalClasses) {
     nInternalClasses_ = nInternalClasses;
@@ -64,9 +61,10 @@ void IndexMappedLm::checkForUnmappedTokens() {
     InternalClassIndex fallback = (fallbackToken()) ? tokenMap_[fallbackToken()] : invalidClass;
 
     for (size_t i = 0; i < nInternalClasses(); ++i)
-        if (classMap_[i] == 0) classMap_[i] = fallbackToken();
+        if (classMap_[i] == 0)
+            classMap_[i] = fallbackToken();
 
-    u32 nUnknowns = 0;
+    u32                                    nUnknowns = 0;
     Bliss::Lexicon::SyntacticTokenIterator s, s_end;
     for (Core::tie(s, s_end) = lexicon()->syntacticTokens(); s != s_end; ++s) {
         Token t = (*s);
@@ -78,19 +76,21 @@ void IndexMappedLm::checkForUnmappedTokens() {
                         internalClassName(fallback));
                 tokenMap_[t] = fallback;
                 classSizes_[tokenMap_[t]] += 1;
-            } else {
+            }
+            else {
                 error("Unknown syntactic token \"%s\" could not be mapped.",
                       (*s)->symbol().str());
             }
         }
     }
-    if (nUnknowns) warning(
-        "%d unknown syntactic tokens mapped to \"%s\".", nUnknowns,
-        internalClassName(fallback));
+    if (nUnknowns)
+        warning(
+                "%d unknown syntactic tokens mapped to \"%s\".", nUnknowns,
+                internalClassName(fallback));
 }
 
 void IndexMappedLm::checkForUnusedClasses() {
-    for (InternalClassIndex c = 0 ; c < nInternalClasses_ ; ++c) {
+    for (InternalClassIndex c = 0; c < nInternalClasses_; ++c) {
         if (classSizes_[c] == 0) {
             warning("Language model token \"%s\" not used.", internalClassName(c));
         }
@@ -99,7 +99,7 @@ void IndexMappedLm::checkForUnusedClasses() {
 
 void IndexMappedLm::initClassEmissionScores() {
     classEmissionScores_.resize(nInternalClasses_);
-    for (InternalClassIndex c = 0 ; c < nInternalClasses_ ; ++c) {
+    for (InternalClassIndex c = 0; c < nInternalClasses_; ++c) {
         if (classSizes_[c] > 0)
             classEmissionScores_[c] = ::log(classSizes_[c]);
         else
@@ -114,11 +114,10 @@ void IndexMappedLm::finalizeMapping() {
     log("number of internal word classes: %d", nInternalClasses());
 }
 
-IndexMappedLm::IndexMappedLm(const Core::Configuration &c, Bliss::LexiconRef l) :
-    Core::Component(c),
-    LanguageModel(c, l),
-    tokenMap_(l->syntacticTokenInventory())
-{
+IndexMappedLm::IndexMappedLm(const Core::Configuration& c, Bliss::LexiconRef l)
+        : Core::Component(c),
+          LanguageModel(c, l),
+          tokenMap_(l->syntacticTokenInventory()) {
     nInternalClasses_ = 0;
 }
 

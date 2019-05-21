@@ -12,35 +12,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/MapParser.hh>
-#include <Math/Vector.hh>
-#include <Math/Lapack/Lapack.hh>
 #include "MeanEstimator.hh"
+#include <Core/MapParser.hh>
+#include <Math/Lapack/Lapack.hh>
+#include <Math/Vector.hh>
 
 using namespace Speech;
 
-
 const Core::ParameterString MeanEstimator::paramFile(
-    "file", "output filename for mean");
+        "file", "output filename for mean");
 
-MeanEstimator::MeanEstimator(const Core::Configuration &c)
-    : Component(c), Extractor(c), Estimator(c), needResize_(true)
-{}
+MeanEstimator::MeanEstimator(const Core::Configuration& c)
+        : Component(c), Extractor(c), Estimator(c), needResize_(true) {}
 
-MeanEstimator::~MeanEstimator()
-{}
+MeanEstimator::~MeanEstimator() {}
 
-void MeanEstimator::processFeature(Core::Ref<const Feature> feature)
-{
+void MeanEstimator::processFeature(Core::Ref<const Feature> feature) {
     accumulate(*feature->mainStream());
 }
 
-void MeanEstimator::setFeatureDescription(const Mm::FeatureDescription &description)
-{
+void MeanEstimator::setFeatureDescription(const Mm::FeatureDescription& description) {
     description.verifyNumberOfStreams(1);
     size_t d;
     description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);
-    if(needResize_) {
+    if (needResize_) {
         setDimension(d);
         needResize_ = false;
     }

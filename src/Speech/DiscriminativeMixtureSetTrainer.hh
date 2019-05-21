@@ -15,50 +15,48 @@
 #ifndef _SPEECH_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH
 #define _SPEECH_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH
 
-#include "MixtureSetTrainer.hh"
-#include <Mm/DiscriminativeMixtureSetEstimator.hh>
 #include <Mm/ConvertMixtureSetEstimator.hh>
+#include <Mm/DiscriminativeMixtureSetEstimator.hh>
+#include "MixtureSetTrainer.hh"
 
-namespace Speech
-{
+namespace Speech {
 
-    /**
-     * discriminative mixture set trainer
-     */
-    class DiscriminativeMixtureSetTrainer : public MixtureSetTrainer
-    {
-        typedef MixtureSetTrainer Precursor;
-    public:
-        DiscriminativeMixtureSetTrainer(const Core::Configuration &);
-        virtual ~DiscriminativeMixtureSetTrainer();
+/**
+ * discriminative mixture set trainer
+ */
+class DiscriminativeMixtureSetTrainer : public MixtureSetTrainer {
+    typedef MixtureSetTrainer Precursor;
 
-        void accumulateDenominator(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w);
-        void accumulateObjectiveFunction(Mm::Score f);
+public:
+    DiscriminativeMixtureSetTrainer(const Core::Configuration&);
+    virtual ~DiscriminativeMixtureSetTrainer();
 
-        static DiscriminativeMixtureSetTrainer* createDiscriminativeMixtureSetTrainer(
-            const Core::Configuration &, bool iSmoothing);
-    };
+    void accumulateDenominator(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w);
+    void accumulateObjectiveFunction(Mm::Score f);
 
+    static DiscriminativeMixtureSetTrainer* createDiscriminativeMixtureSetTrainer(const Core::Configuration&, bool iSmoothing);
+};
 
-    /**
-     * Mixture set estimator to convert from one mixture set estimator to
-     * a maximum likelihood mixture set estimator.
-     * This is useful in the context of gradient-based optimization methods
-     * where the previous mixture set is required for re-estimation,
-     * like for example in discriminative training.
-     */
-    class ConvertMixtureSetTrainer : public MlMixtureSetTrainer
-    {
-        typedef MlMixtureSetTrainer Precursor;
-    protected:
-        virtual Mm::ConvertMixtureSetEstimator* createMixtureSetEstimator() const;
-    public:
-        ConvertMixtureSetTrainer(const Core::Configuration &);
-        virtual ~ConvertMixtureSetTrainer();
+/**
+ * Mixture set estimator to convert from one mixture set estimator to
+ * a maximum likelihood mixture set estimator.
+ * This is useful in the context of gradient-based optimization methods
+ * where the previous mixture set is required for re-estimation,
+ * like for example in discriminative training.
+ */
+class ConvertMixtureSetTrainer : public MlMixtureSetTrainer {
+    typedef MlMixtureSetTrainer Precursor;
 
-        virtual void read();
-    };
+protected:
+    virtual Mm::ConvertMixtureSetEstimator* createMixtureSetEstimator() const;
 
-}
+public:
+    ConvertMixtureSetTrainer(const Core::Configuration&);
+    virtual ~ConvertMixtureSetTrainer();
 
-#endif // _SPEECH_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH
+    virtual void read();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH

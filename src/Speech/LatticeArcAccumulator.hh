@@ -23,77 +23,92 @@
 
 namespace Speech {
 
-    /** LemmaPronunciationId_hash_map */
-    class LemmaPronunciationId_hash_map : public Core::HashMap<Fsa::LabelId,f32> {
-    public:
-        void init(Bliss::LexiconRef lexicon);
-        void read(const std::string &filename);
-        void write(const std::string &filename);
-    private:
-        Bliss::LexiconRef lexicon;
-    };
+/** LemmaPronunciationId_hash_map */
+class LemmaPronunciationId_hash_map : public Core::HashMap<Fsa::LabelId, f32> {
+public:
+    void init(Bliss::LexiconRef lexicon);
+    void read(const std::string& filename);
+    void write(const std::string& filename);
 
-    /** LatticeArcAccumulatorNode */
-    class LatticeArcAccumulatorNode : public Flow::SleeveNode {
-        typedef Flow::SleeveNode Precursor;
-    private:
-        static Core::ParameterString paramLexiconFilename;
-        static Core::ParameterString paramEncoding;
-        static Core::ParameterString paramPronunciationStatsFilenameRead;
-        static Core::ParameterString paramPronunciationStatsFilenameWrite;
-        static const Core::ParameterFloat paramMinimumPronWeight;
-        static const Core::ParameterFloat paramTauWeight;
-        f32 tau_;
-        f32 minimalPronWeight_;
-    protected:
-        std::string lexiconFilename_;
-        std::string pronunciationStatsFilenameRead_;
-        std::string pronunciationStatsFilenameWrite_;
-        std::string encoding_;
-        ModelCombinationRef modelCombination_;
-        bool needInit_;
-        LemmaPronunciationId_hash_map *arcAccumulator_;
-    public:
-        static std::string filterName() { return "lattice-arc-accumulator"; }
-        LatticeArcAccumulatorNode(const Core::Configuration&);
-        virtual ~LatticeArcAccumulatorNode();
-        virtual bool setParameter(const std::string &name, const std::string &value) { return false; }
-        bool updateWeightsMap(std::unordered_map<Fsa::LabelId, f32> &counts,
-                              std::unordered_map<Fsa::LabelId, f32> &weights,
-                              f32 tau = 1.0);
-        virtual bool configure();
-        virtual Flow::PortId getInput(const std::string &name) {
-            return name == "model-combination" ? 1 : 0; }
-        virtual bool work(Flow::PortId);
-    };
+private:
+    Bliss::LexiconRef lexicon;
+};
 
+/** LatticeArcAccumulatorNode */
+class LatticeArcAccumulatorNode : public Flow::SleeveNode {
+    typedef Flow::SleeveNode Precursor;
 
-    class ArcWeightAccumulator: public Fsa::DfsState {
-    private:
-        std::unordered_map<Fsa::LabelId, f32>* Sums_;
-    public:
-        ArcWeightAccumulator(Fsa::ConstAutomatonRef f, std::unordered_map<Fsa::LabelId, f32>* sums) : Fsa::DfsState(f), Sums_(sums) {
-            dfs();
+private:
+    static Core::ParameterString      paramLexiconFilename;
+    static Core::ParameterString      paramEncoding;
+    static Core::ParameterString      paramPronunciationStatsFilenameRead;
+    static Core::ParameterString      paramPronunciationStatsFilenameWrite;
+    static const Core::ParameterFloat paramMinimumPronWeight;
+    static const Core::ParameterFloat paramTauWeight;
+    f32                               tau_;
+    f32                               minimalPronWeight_;
+
+protected:
+    std::string                    lexiconFilename_;
+    std::string                    pronunciationStatsFilenameRead_;
+    std::string                    pronunciationStatsFilenameWrite_;
+    std::string                    encoding_;
+    ModelCombinationRef            modelCombination_;
+    bool                           needInit_;
+    LemmaPronunciationId_hash_map* arcAccumulator_;
+
+public:
+    static std::string filterName() {
+        return "lattice-arc-accumulator";
+    }
+    LatticeArcAccumulatorNode(const Core::Configuration&);
+    virtual ~LatticeArcAccumulatorNode();
+
+    virtual bool setParameter(const std::string& name, const std::string& value) {
+        return false;
+    }
+
+    bool updateWeightsMap(std::unordered_map<Fsa::LabelId, f32>& counts,
+                          std::unordered_map<Fsa::LabelId, f32>& weights,
+                          f32                                    tau = 1.0);
+
+    virtual bool configure();
+
+    virtual Flow::PortId getInput(const std::string& name) {
+        return name == "model-combination" ? 1 : 0;
+    }
+
+    virtual bool work(Flow::PortId);
+};
+
+class ArcWeightAccumulator : public Fsa::DfsState {
+private:
+    std::unordered_map<Fsa::LabelId, f32>* Sums_;
+
+public:
+    ArcWeightAccumulator(Fsa::ConstAutomatonRef f, std::unordered_map<Fsa::LabelId, f32>* sums)
+            : Fsa::DfsState(f), Sums_(sums) {
+        dfs();
+    }
+    virtual ~ArcWeightAccumulator() {}
+
+    void accumulateArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        f32 weight = f32(a.weight());
+        if (weight > Core::Type<f32>::epsilon) {
+            if ((*Sums_).count(a.input()) > 0)
+                (*Sums_)[a.input()] += weight;
+            else
+                (*Sums_)[a.input()] = weight;
         }
-        virtual ~ArcWeightAccumulator() {}
+    }
 
-        void accumulateArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-            f32 weight = f32(a.weight());
-            if(weight > Core::Type<f32>::epsilon) {
-                if((*Sums_).count(a.input()) > 0)
-                    (*Sums_)[a.input()] += weight;
-                else
-                    (*Sums_)[a.input()] = weight;
-            }
-        }
+    virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        accumulateArc(from, a);
+    }
+    virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        accumulateArc(from, a);
+    }
+};
+}  // namespace Speech
 
-        virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-            accumulateArc(from, a);
-        }
-        virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-            accumulateArc(from, a);
-        }
-    };
-}
-
-#endif // _SPEECH_LATTICE_ARC_ACCUMULATOR_HH
+#endif  // _SPEECH_LATTICE_ARC_ACCUMULATOR_HH

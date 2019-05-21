@@ -15,71 +15,80 @@
 #ifndef _SPEECH_CORPUS_VISITOR_HH
 #define _SPEECH_CORPUS_VISITOR_HH
 
-#include <Bliss/CorpusKey.hh>
-#include "DataSource.hh"
-#include <Core/ReferenceCounting.hh>
 #include <Bliss/CorpusDescription.hh>
+#include <Bliss/CorpusKey.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Flow/Network.hh>
+#include "DataSource.hh"
 
 namespace Speech {
 
-    class CorpusProcessor;
+class CorpusProcessor;
 
-    /**
-     * CorpusVisitor traverses the corpus description
-     * and configures the registered objects.
-     * Following types can be registered (sign on):
-     *  - CorpusProcessor
-     *  - DataSource
-     *  - CorpusKey
-     */
+/**
+ * CorpusVisitor traverses the corpus description
+ * and configures the registered objects.
+ * Following types can be registered (sign on):
+ *  - CorpusProcessor
+ *  - DataSource
+ *  - CorpusKey
+ */
 
-    class CorpusVisitor :
-        public Core::Component,
-        public Bliss::CorpusVisitor
-    {
-    private:
-        std::vector<Core::Ref<Bliss::CorpusKey> > corpusKeys_;
-        std::vector<Core::Ref<DataSource> > dataSources_;
-        std::vector<CorpusProcessor*> corpusProcessors_;
+class CorpusVisitor : public Core::Component,
+                      public Bliss::CorpusVisitor {
+private:
+    std::vector<Core::Ref<Bliss::CorpusKey>> corpusKeys_;
+    std::vector<Core::Ref<DataSource>>       dataSources_;
+    std::vector<CorpusProcessor*>            corpusProcessors_;
 
-        size_t recordingIndex_;
-        size_t segmentIndex_;
-    private:
-        template<class Reference>
-        void signOn(std::vector<Reference> &v, Reference r) {
-            require(!isSignedOn(v, r));
-            v.push_back(r);
-        }
-        template<class Reference>
-        bool isSignedOn(const std::vector<Reference> &v, Reference r) const {
-            return std::find(v.begin(), v.end(), r) != v.end();
-        }
-    protected:
-        virtual void enterCorpus(Bliss::Corpus*);
-        virtual void leaveCorpus(Bliss::Corpus*);
-        virtual void enterRecording(Bliss::Recording*);
-        virtual void leaveRecording(Bliss::Recording*);
-        virtual void visitSegment(Bliss::Segment*);
-        virtual void visitSpeechSegment(Bliss::SpeechSegment*);
-    public:
-        CorpusVisitor(const Core::Configuration &c);
+    size_t recordingIndex_;
+    size_t segmentIndex_;
 
-        virtual ~CorpusVisitor() {}
+private:
+    template<class Reference>
+    void signOn(std::vector<Reference>& v, Reference r) {
+        require(!isSignedOn(v, r));
+        v.push_back(r);
+    }
+    template<class Reference>
+    bool isSignedOn(const std::vector<Reference>& v, Reference r) const {
+        return std::find(v.begin(), v.end(), r) != v.end();
+    }
 
-        void signOn(CorpusProcessor* p) { signOn(corpusProcessors_, p); }
-        void signOn(Core::Ref<DataSource> d) { signOn(dataSources_, d); }
-        void signOn(Core::Ref<Bliss::CorpusKey> k) { signOn(corpusKeys_, k); }
+protected:
+    virtual void enterCorpus(Bliss::Corpus*);
+    virtual void leaveCorpus(Bliss::Corpus*);
+    virtual void enterRecording(Bliss::Recording*);
+    virtual void leaveRecording(Bliss::Recording*);
+    virtual void visitSegment(Bliss::Segment*);
+    virtual void visitSpeechSegment(Bliss::SpeechSegment*);
 
-        void clearRegistrations();
+public:
+    CorpusVisitor(const Core::Configuration& c);
 
-        bool isSignedOn(Core::Ref<DataSource> d) const { return this->isSignedOn(dataSources_, d); }
-    };
+    virtual ~CorpusVisitor() {}
 
-    // Note that recording/segment idx are not senseful here.
-    void setSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
-    void clearSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
+    void signOn(CorpusProcessor* p) {
+        signOn(corpusProcessors_, p);
+    }
+    void signOn(Core::Ref<DataSource> d) {
+        signOn(dataSources_, d);
+    }
+    void signOn(Core::Ref<Bliss::CorpusKey> k) {
+        signOn(corpusKeys_, k);
+    }
 
-} // namespace Speech
+    void clearRegistrations();
 
-#endif // _SPEECH_CORPUS_VISITOR_HH
+    bool isSignedOn(Core::Ref<DataSource> d) const {
+        return this->isSignedOn(dataSources_, d);
+    }
+};
+
+// Note that recording/segment idx are not senseful here.
+void setSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
+void clearSegmentParametersOnDataSource(Core::Ref<DataSource>, Bliss::Segment*);
+
+}  // namespace Speech
+
+#endif  // _SPEECH_CORPUS_VISITOR_HH

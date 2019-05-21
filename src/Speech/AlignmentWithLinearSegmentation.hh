@@ -19,48 +19,55 @@
 
 namespace Speech {
 
-    class LinearSegmenter : public Core::Component
-    {
-    public:
-        static const Core::ParameterInt paramMinimumSegmentLength;
-        static const Core::ParameterInt paramMaximumSegmentLength;
-        static const Core::ParameterBool paramShouldUseSietill;
-    public:
-        class Delimiter;
-    private:
-        Delimiter *delimiter_;
-        Am::AllophoneStateIndex silence_;
-        std::vector<Am::AllophoneStateIndex> states_;
-        u32 minimumSegmentLength_, maximumSegmentLength_;
-        const u32 maximumJump_;
-    public:
-        LinearSegmenter(const Core::Configuration&);
-        virtual ~LinearSegmenter();
+class LinearSegmenter : public Core::Component {
+public:
+    static const Core::ParameterInt  paramMinimumSegmentLength;
+    static const Core::ParameterInt  paramMaximumSegmentLength;
+    static const Core::ParameterBool paramShouldUseSietill;
 
-        void setSilence(Am::AllophoneStateIndex silence);
-        void setModel(Fsa::ConstAutomatonRef);
-        void feed(f32);
-        bool isAlignmentValid() const;
-        bool getAlignment(Alignment&) const;
-        u32 nFeatures() const;
-    };
+public:
+    class Delimiter;
 
-    class AlignmentWithLinearSegmentationNode : public AlignmentBaseNode {
-        typedef AlignmentBaseNode Precursor;
-    private:
-        LinearSegmenter segmenter_;
-    protected:
-        virtual void initialize();
-        virtual void createModel();
-    public:
-        static std::string filterName() { return "speech-linear-segmentation"; }
-        AlignmentWithLinearSegmentationNode(const Core::Configuration&);
-        virtual ~AlignmentWithLinearSegmentationNode() {}
+private:
+    Delimiter*                           delimiter_;
+    Am::AllophoneStateIndex              silence_;
+    std::vector<Am::AllophoneStateIndex> states_;
+    u32                                  minimumSegmentLength_, maximumSegmentLength_;
+    const u32                            maximumJump_;
 
-        virtual bool configure();
-        virtual bool work(Flow::PortId);
-    };
+public:
+    LinearSegmenter(const Core::Configuration&);
+    virtual ~LinearSegmenter();
 
-}
+    void setSilence(Am::AllophoneStateIndex silence);
+    void setModel(Fsa::ConstAutomatonRef);
+    void feed(f32);
+    bool isAlignmentValid() const;
+    bool getAlignment(Alignment&) const;
+    u32  nFeatures() const;
+};
 
-#endif // _SPEECH_ALIGNMENT_WITH_LINEAR_SEGMENTATION_HH
+class AlignmentWithLinearSegmentationNode : public AlignmentBaseNode {
+    typedef AlignmentBaseNode Precursor;
+
+private:
+    LinearSegmenter segmenter_;
+
+protected:
+    virtual void initialize();
+    virtual void createModel();
+
+public:
+    static std::string filterName() {
+        return "speech-linear-segmentation";
+    }
+    AlignmentWithLinearSegmentationNode(const Core::Configuration&);
+    virtual ~AlignmentWithLinearSegmentationNode() {}
+
+    virtual bool configure();
+    virtual bool work(Flow::PortId);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ALIGNMENT_WITH_LINEAR_SEGMENTATION_HH

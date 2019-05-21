@@ -19,70 +19,78 @@
 #include <Fsa/Output.hh>
 
 namespace Core {
-    class Archive;
-    class DependencySet;
-};
+class Archive;
+class DependencySet;
+};  // namespace Core
 
 namespace Speech {
 
-    /**
-     *  Cache for Fsa object.
-     *
-     *  Cache stores FSA objects in a archive.
-     *  Use 'find', to get an existing object.
-     *  Use 'insert' to add a new object.
-     *  Use 'get', to retrieve object which will be created if not existent.
-     *
-     *  Remark: This is a simple implementation, once Core::ObjectCache supports
-     *  reading of Core::Ref, this implementation could be easly merged with it.
-     */
-    class FsaCache : public Core::Component {
-    private:
-        static const Core::ParameterString paramPath;
-        static const Core::ParameterBool paramReadOnly;
-    private:
-        Core::Archive *archive_;
-        /** If valid, input alphabet of new transducers is overwritten by this one. */
-        Fsa::ConstAlphabetRef inputAlphabet_;
-        /** If valid, output alphabet of new transducers is overwritten by this one. */
-        Fsa::ConstAlphabetRef outputAlphabet_;
-        Fsa::StoredComponents whatToStore_;
-        bool readOnly_;
-    private:
-        Fsa::ConstAutomatonRef read(const std::string &id);
-        void write(const std::string &id, Fsa::ConstAutomatonRef);
-    public:
-        FsaCache(const Core::Configuration &, Fsa::StoredComponents = Fsa::storeAll);
-        virtual ~FsaCache();
+/**
+ *  Cache for Fsa object.
+ *
+ *  Cache stores FSA objects in a archive.
+ *  Use 'find', to get an existing object.
+ *  Use 'insert' to add a new object.
+ *  Use 'get', to retrieve object which will be created if not existent.
+ *
+ *  Remark: This is a simple implementation, once Core::ObjectCache supports
+ *  reading of Core::Ref, this implementation could be easly merged with it.
+ */
+class FsaCache : public Core::Component {
+private:
+    static const Core::ParameterString paramPath;
+    static const Core::ParameterBool   paramReadOnly;
 
-        bool setDependencies(const Core::DependencySet &);
+private:
+    Core::Archive* archive_;
+    /** If valid, input alphabet of new transducers is overwritten by this one. */
+    Fsa::ConstAlphabetRef inputAlphabet_;
+    /** If valid, output alphabet of new transducers is overwritten by this one. */
+    Fsa::ConstAlphabetRef outputAlphabet_;
+    Fsa::StoredComponents whatToStore_;
+    bool                  readOnly_;
 
-        /** Input alphabet of read transducer will be overwritten by @param input. */
-        void forceInputAlphabet(Fsa::ConstAlphabetRef input) { inputAlphabet_ = input; }
-        /** Output alphabet of read transducer will be overwritten by @param output. */
-        void forceOutputAlphabet(Fsa::ConstAlphabetRef output) { outputAlphabet_ = output; }
+private:
+    Fsa::ConstAutomatonRef read(const std::string& id);
+    void                   write(const std::string& id, Fsa::ConstAutomatonRef);
 
-        Fsa::ConstAutomatonRef find(const std::string &id) {
-            return archive_ ? read(id) : Fsa::ConstAutomatonRef();
-        }
-        void insert(const std::string &id, Fsa::ConstAutomatonRef f) {
-            if (!readOnly_ && archive_) write(id, f);
-        }
+public:
+    FsaCache(const Core::Configuration&, Fsa::StoredComponents = Fsa::storeAll);
+    virtual ~FsaCache();
 
-        template<class Builder> Fsa::ConstAutomatonRef get(Builder);
-    };
+    bool setDependencies(const Core::DependencySet&);
+
+    /** Input alphabet of read transducer will be overwritten by @param input. */
+    void forceInputAlphabet(Fsa::ConstAlphabetRef input) {
+        inputAlphabet_ = input;
+    }
+    /** Output alphabet of read transducer will be overwritten by @param output. */
+    void forceOutputAlphabet(Fsa::ConstAlphabetRef output) {
+        outputAlphabet_ = output;
+    }
+
+    Fsa::ConstAutomatonRef find(const std::string& id) {
+        return archive_ ? read(id) : Fsa::ConstAutomatonRef();
+    }
+    void insert(const std::string& id, Fsa::ConstAutomatonRef f) {
+        if (!readOnly_ && archive_)
+            write(id, f);
+    }
 
     template<class Builder>
-    Fsa::ConstAutomatonRef FsaCache::get(Builder builder)
-    {
-        Fsa::ConstAutomatonRef result;
-        const std::string &id(builder.id());
-        if (!(result = find(id))) {
-            log("Building transducer for \"%s\".", id.c_str());
-            insert(id, result = builder.build());
-        }
-        return result;
-    }
-} // namespace Speech
+    Fsa::ConstAutomatonRef get(Builder);
+};
 
-#endif // _SPEECH_FSA_CACHE_HH
+template<class Builder>
+Fsa::ConstAutomatonRef FsaCache::get(Builder builder) {
+    Fsa::ConstAutomatonRef result;
+    const std::string&     id(builder.id());
+    if (!(result = find(id))) {
+        log("Building transducer for \"%s\".", id.c_str());
+        insert(id, result = builder.build());
+    }
+    return result;
+}
+}  // namespace Speech
+
+#endif  // _SPEECH_FSA_CACHE_HH

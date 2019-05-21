@@ -16,43 +16,46 @@
 #define _SPEECH_LINEAR_FEATURE_TRANSFORM_ESTIMATOR_HH
 
 #include <Am/AcousticModel.hh>
-#include "AcousticModelTrainer.hh"
-#include <Mm/AffineFeatureTransformAccumulator.hh>
-#include <Mm/AffineFeatureTransformAccumulator.hh>
+#include <Bliss/CorpusKey.hh>
 #include <Core/ObjectCache.hh>
 #include <Math/Matrix.hh>
-#include <Bliss/CorpusKey.hh>
+#include <Mm/AffineFeatureTransformAccumulator.hh>
+#include "AcousticModelTrainer.hh"
 #include "Feature.hh"
 #include "KeyedEstimator.hh"
 
 namespace Speech {
 
-    /**
-     * AffineFeatureTransformEstimator
-     */
-    class AffineFeatureTransformEstimator : public KeyedEstimator {
-        typedef KeyedEstimator Precursor;
-        typedef Mm::AffineFeatureTransformAccumulator ConcreteAccumulator;
-    public:
-        static const Core::ParameterString paramInitialTransform;
-        static const Core::ParameterString paramInitialTransformDirectory;
-        static const Core::ParameterString paramTransformDirectory;
-        static const Core::ParameterInt paramEstimationIterations;
-        static const Core::ParameterFloat paramMinObservationWeight;
-        static const Core::Choice optimizationCriterionChoice;
-        static const Core::ParameterChoice paramOptimizationCriterion;
-    protected:
-        void createAccumulator(std::string key);
-        std::string transformExtension() const { return ".matrix"; }
-    public:
-        AffineFeatureTransformEstimator(const Core::Configuration &c, Operation op = estimate);
-        virtual ~AffineFeatureTransformEstimator();
+/**
+ * AffineFeatureTransformEstimator
+ */
+class AffineFeatureTransformEstimator : public KeyedEstimator {
+    typedef KeyedEstimator                        Precursor;
+    typedef Mm::AffineFeatureTransformAccumulator ConcreteAccumulator;
 
-        void postProcess();
-        void scoreTransforms();
-    };
+public:
+    static const Core::ParameterString paramInitialTransform;
+    static const Core::ParameterString paramInitialTransformDirectory;
+    static const Core::ParameterString paramTransformDirectory;
+    static const Core::ParameterInt    paramEstimationIterations;
+    static const Core::ParameterFloat  paramMinObservationWeight;
+    static const Core::Choice          optimizationCriterionChoice;
+    static const Core::ParameterChoice paramOptimizationCriterion;
 
+protected:
+    void        createAccumulator(std::string key);
+    std::string transformExtension() const {
+        return ".matrix";
+    }
 
-} // namespace Speech
+public:
+    AffineFeatureTransformEstimator(const Core::Configuration& c, Operation op = estimate);
+    virtual ~AffineFeatureTransformEstimator();
 
-#endif // _SPEECH_LINEAR_FEATURE_TRANSFORM_ESTIMATOR_HH
+    void postProcess();
+    void scoreTransforms();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_LINEAR_FEATURE_TRANSFORM_ESTIMATOR_HH

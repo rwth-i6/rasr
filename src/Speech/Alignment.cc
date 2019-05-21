@@ -29,7 +29,6 @@
 // #include <Core/CompressedStream.hh>
 // #include <Core/Archive.hh>
 
-
 using namespace Speech;
 
 /**
@@ -39,32 +38,34 @@ using namespace Speech;
  * states: start    start+1    t-1	t      t+1	   end-1      end
  */
 
-
 //=================================================================================
-
 
 /* Helper functions to realize a UTF-8-like encoding scheme for u32 values.
  * The best compression rate is achieved if there are many small values
  * and only some huge values.
  */
-void writePackedU32(Core::BinaryOutputStream &out, u32 value) {
+void writePackedU32(Core::BinaryOutputStream& out, u32 value) {
     do {
         if (value < 128) {
             out << (u8)value;
-        } else {
+        }
+        else {
             out << (u8)((value & 127) | 128);
         }
         value >>= 7;
-    } while(value);
+    } while (value);
 }
 
-u32 readPackedU32(Core::BinaryInputStream &in) {
-    u32 result = 0; u8 b; u8 s = 0;
+u32 readPackedU32(Core::BinaryInputStream& in) {
+    u32 result = 0;
+    u8  b;
+    u8  s = 0;
     do {
         in >> b;
         if (b & 128) {
             result |= ((b & 127) << s);
-        } else {
+        }
+        else {
             result |= (b << s);
         }
         s += 7;
@@ -72,14 +73,12 @@ u32 readPackedU32(Core::BinaryInputStream &in) {
     return result;
 }
 
-
 //=================================================================================
 
-
-const char *Alignment::magic = "ALIGNRLE";
-const char *Alignment::magic_alphabet = "AALPHRLE";
-const char *Alignment::magic_emission = "ALIGNEMI";
-const size_t Alignment::magicSize = 8;
+const char*  Alignment::magic          = "ALIGNRLE";
+const char*  Alignment::magic_alphabet = "AALPHRLE";
+const char*  Alignment::magic_emission = "ALIGNEMI";
+const size_t Alignment::magicSize      = 8;
 
 /*
  * Alignments use a simple run-length compression scheme.
@@ -97,15 +96,13 @@ const size_t Alignment::magicSize = 8;
  * the interval [0..1] and quantized by a u16 value.
  */
 
-Core::BinaryOutputStream &Speech::operator<<(Core::BinaryOutputStream &os, const Alignment &a)
-{
-    if (a.labelType() == Alignment::allophoneStateIds){
+Core::BinaryOutputStream& Speech::operator<<(Core::BinaryOutputStream& os, const Alignment& a) {
+    if (a.labelType() == Alignment::allophoneStateIds) {
         os.write(a.alphabet_ ? Alignment::magic_alphabet : Alignment::magic, Alignment::magicSize);
     }
-    else{
+    else {
         os.write(Alignment::magic_emission, Alignment::magicSize);
     }
-
 
     std::map<Fsa::LabelId, std::string> alphabet;
 
@@ -119,32 +116,37 @@ Core::BinaryOutputStream &Speech::operator<<(Core::BinaryOutputStream &os, const
             }
             s32 n;
 
-            if(a.alphabet_ && !alphabet.count(a[i].emission))
-            {
+            if (a.alphabet_ && !alphabet.count(a[i].emission)) {
                 std::string symbol = a.alphabet_->symbol(a[i].emission);
                 verify(symbol.length());
                 alphabet.insert(std::make_pair(a[i].emission, symbol));
             }
 
-            if (i+1 < s32(a.size()) && a[i].emission == a[i+1].emission) {
-                for (n = 1; i+n < s32(a.size()); ++n) {
-                    if (a[i+n].emission != a[i].emission) break;
-                    if (a[i+n].time != a[i].time + n) break;
-                    if (-n <= Core::Type<s8>::min) break;
+            if (i + 1 < s32(a.size()) && a[i].emission == a[i + 1].emission) {
+                for (n = 1; i + n < s32(a.size()); ++n) {
+                    if (a[i + n].emission != a[i].emission)
+                        break;
+                    if (a[i + n].time != a[i].time + n)
+                        break;
+                    if (-n <= Core::Type<s8>::min)
+                        break;
                 }
                 hope(a[i].emission <= Fsa::LastLabelId);
                 os << s8(-n) << u32(a[i].emission);
                 i += n;
-            } else {
-                for (n = 1; i+n < s32(a.size()); ++n) {
-                    if (a[i+n].emission == a[i+n-1].emission) break;
-                    if (a[i+n].time != a[i].time + n) break;
-                    if (n >= Core::Type<s8>::max) break;
+            }
+            else {
+                for (n = 1; i + n < s32(a.size()); ++n) {
+                    if (a[i + n].emission == a[i + n - 1].emission)
+                        break;
+                    if (a[i + n].time != a[i].time + n)
+                        break;
+                    if (n >= Core::Type<s8>::max)
+                        break;
                 }
                 os << s8(n);
                 while (n--) {
-                    if(a.alphabet_ && !alphabet.count(a[i].emission))
-                    {
+                    if (a.alphabet_ && !alphabet.count(a[i].emission)) {
                         std::string symbol = a.alphabet_->symbol(a[i].emission);
                         verify(symbol.length());
                         alphabet.insert(std::make_pair(a[i].emission, symbol));
@@ -155,55 +157,46 @@ Core::BinaryOutputStream &Speech::operator<<(Core::BinaryOutputStream &os, const
             }
             time += n;
         }
-    } else {
+    }
+    else {
         // compression scheme for weighted alignments
-#if 0
-        const u32 version = 1;
-#else
-        const u32 version = 2;
-#endif
+        const u32 version       = 2;
         const u32 highestBitU32 = 1 << 31;
-        os << u32(version | highestBitU32); // use highest bit to distinguish this scheme from the RLE scheme
+        os << u32(version | highestBitU32);  // use highest bit to distinguish this scheme from the RLE scheme
         writePackedU32(os, a.size());
         Alignment::const_iterator i, i_end, j;
-        i = j = a.begin();
-        i_end = a.end();
+        i = j                          = a.begin();
+        i_end                          = a.end();
         TimeframeIndex lastTimePlusOne = 0;
         while (i != i_end) {
             TimeframeIndex time = j->time;
-            while (i != i_end && i->time == time) ++i;
+            while (i != i_end && i->time == time)
+                ++i;
             u32 nItemsCurrentFrame = u32(i - j);
             if (time == lastTimePlusOne) {
-                writePackedU32(os, nItemsCurrentFrame*2);
-            } else {
-                writePackedU32(os, nItemsCurrentFrame*2+1);
+                writePackedU32(os, nItemsCurrentFrame * 2);
+            }
+            else {
+                writePackedU32(os, nItemsCurrentFrame * 2 + 1);
                 writePackedU32(os, time);
             }
             for (; j != i; ++j) {
-                if(a.alphabet_ && !alphabet.count(j->emission))
-                {
+                if (a.alphabet_ && !alphabet.count(j->emission)) {
                     std::string symbol = a.alphabet_->symbol(j->emission);
                     verify(symbol.length());
                     alphabet.insert(std::make_pair(j->emission, symbol));
                 }
 
                 writePackedU32(os, (u32)(j->emission));
-#if 0
-                require(0 <= j->weight && j->weight <= 1.0);
-                os << (u16)(j->weight * 65535);
-#else
                 f32 tmp = j->weight;
                 os << tmp;
-#endif
             }
-            lastTimePlusOne = time+1;
+            lastTimePlusOne = time + 1;
         }
     }
-    if(a.alphabet_)
-    {
+    if (a.alphabet_) {
         writePackedU32(os, alphabet.size());
-        for(std::map<Fsa::LabelId, std::string>::const_iterator it = alphabet.begin(); it != alphabet.end(); ++it)
-        {
+        for (std::map<Fsa::LabelId, std::string>::const_iterator it = alphabet.begin(); it != alphabet.end(); ++it) {
             writePackedU32(os, it->first);
             os << it->second;
         }
@@ -211,14 +204,13 @@ Core::BinaryOutputStream &Speech::operator<<(Core::BinaryOutputStream &os, const
     return os;
 }
 
-Core::BinaryInputStream &Speech::operator>>(Core::BinaryInputStream &is, Alignment &a)
-{
+Core::BinaryInputStream& Speech::operator>>(Core::BinaryInputStream& is, Alignment& a) {
     a.clear();
 
     char header[Alignment::magicSize];
     is.read(header, Alignment::magicSize);
-    bool matchedHeader = strncmp(header, Alignment::magic, Alignment::magicSize) == 0;
-    bool matchedAlphabetHeader = strncmp(header, Alignment::magic_alphabet, Alignment::magicSize) == 0;
+    bool matchedHeader              = strncmp(header, Alignment::magic, Alignment::magicSize) == 0;
+    bool matchedAlphabetHeader      = strncmp(header, Alignment::magic_alphabet, Alignment::magicSize) == 0;
     bool matchedEmissionLabelHeader = strncmp(header, Alignment::magic_emission, Alignment::magicSize) == 0;
 
     if (!matchedHeader && !matchedAlphabetHeader && !matchedEmissionLabelHeader) {
@@ -233,7 +225,7 @@ Core::BinaryInputStream &Speech::operator>>(Core::BinaryInputStream &is, Alignme
         // RLE scheme
         u32 time = 0;
         u32 mixture;
-        s8 n;
+        s8  n;
         for (; is && a.size() < size;) {
             is >> n;
             if (n > 0) {
@@ -242,25 +234,30 @@ Core::BinaryInputStream &Speech::operator>>(Core::BinaryInputStream &is, Alignme
                     is >> mixture;
                     a.push_back(AlignmentItem(time++, mixture));
                 }
-            } else if (n < 0) {
+            }
+            else if (n < 0) {
                 // repeat mixture N times
                 is >> mixture;
                 while (n++) {
                     a.push_back(AlignmentItem(time++, mixture));
                 }
-            } else /* if (n == 0) */ {
+            }
+            else /* if (n == 0) */ {
                 // change time index
                 is >> time;
             }
         }
-    } else {
+    }
+    else {
         // compression scheme for weighted alignments
-        u32 version = size; version &= (((u32)1 << 31) - 1);
+        u32 version = size;
+        version &= (((u32)1 << 31) - 1);
         require(version <= 2);
         a.resize(readPackedU32(is));
-        TimeframeIndex time = 0;
+        TimeframeIndex      time = 0;
         Alignment::iterator i, i_end;
-        i = a.begin(); i_end = a.end();
+        i     = a.begin();
+        i_end = a.end();
         while (i != i_end) {
             u32 nItemsCurrentFrame = readPackedU32(is);
             if (nItemsCurrentFrame & 1) {
@@ -269,13 +266,16 @@ Core::BinaryInputStream &Speech::operator>>(Core::BinaryInputStream &is, Alignme
             nItemsCurrentFrame /= 2;
             for (; nItemsCurrentFrame; --nItemsCurrentFrame, ++i) {
                 require(i != i_end);
-                i->time = time;
+                i->time     = time;
                 i->emission = readPackedU32(is);
                 if (version == 1) {
-                    u16 quantizedWeight; is >> quantizedWeight;
+                    u16 quantizedWeight;
+                    is >> quantizedWeight;
                     i->weight = (Mm::Weight)(quantizedWeight) / 65535;
-                } else if (version == 2) {
-                    f32 tmp; is >> tmp;
+                }
+                else if (version == 2) {
+                    f32 tmp;
+                    is >> tmp;
                     i->weight = tmp;
                 }
             }
@@ -283,40 +283,35 @@ Core::BinaryInputStream &Speech::operator>>(Core::BinaryInputStream &is, Alignme
         }
     }
 
-    if(matchedAlphabetHeader)
-    {
+    if (matchedAlphabetHeader) {
         u32 count = readPackedU32(is);
-        for(u32 i = 0; i < count; ++i)
-        {
-            u32 emission = readPackedU32(is);
+        for (u32 i = 0; i < count; ++i) {
+            u32         emission = readPackedU32(is);
             std::string target;
             is >> target;
             a.archiveAlphabet_.insert(std::make_pair(emission, target));
         }
-        for(Alignment::iterator it = a.begin(); it != a.end(); ++it)
+        for (Alignment::iterator it = a.begin(); it != a.end(); ++it)
             verify(a.archiveAlphabet_.count(it->emission));
-        if(a.alphabet_)
+        if (a.alphabet_)
             a.mapAlphabet(false);
     }
 
     return is;
 }
 
-void Alignment::mapAlphabet(bool skipMismatch)
-{
+void Alignment::mapAlphabet(bool skipMismatch) {
     verify(alphabet_);
     const Am::AllophoneStateAlphabet* alphabet = dynamic_cast<const Am::AllophoneStateAlphabet*>(alphabet_.get());
     verify(alphabet);
     std::set<std::string> missing;
-    u32 missingCount = 0;
-    for(Alignment::iterator it = begin(); it != end(); ++it)
-    {
+    u32                   missingCount = 0;
+    for (Alignment::iterator it = begin(); it != end(); ++it) {
         std::map<u32, std::string>::const_iterator mapIt = archiveAlphabet_.find(it->emission);
         verify(mapIt != archiveAlphabet_.end());
         verify(!mapIt->second.empty());
         it->emission = alphabet->index(mapIt->second, false);
-        if(it->emission == Fsa::InvalidLabelId)
-        {
+        if (it->emission == Fsa::InvalidLabelId) {
             missing.insert(mapIt->second);
             ++missingCount;
             continue;
@@ -325,24 +320,20 @@ void Alignment::mapAlphabet(bool skipMismatch)
         verify(alphabet_->symbol(it->emission) == mapIt->second);
     }
     archiveAlphabet_.clear();
-    if(missingCount)
-    {
+    if (missingCount) {
         {
             Core::Component::Message msg = Core::Application::us()->warning();
             msg << "failed mapping " << missingCount << " out of " << size() << " alignment-items\n";
             msg << "mismatched allophones:";
-            for(std::set<std::string>::const_iterator it = missing.begin(); it != missing.end(); ++it)
+            for (std::set<std::string>::const_iterator it = missing.begin(); it != missing.end(); ++it)
                 msg << " " << *it;
         }
-        if(!skipMismatch)
-        {
+        if (!skipMismatch) {
             Core::Application::us()->error("Alignment: mapping of some allophones failed, and skipping is disabled");
         }
         Alignment::iterator itOut = begin();
-        for(Alignment::iterator it = begin(); it != end(); ++it)
-        {
-            if(it->emission != Fsa::InvalidLabelId)
-            {
+        for (Alignment::iterator it = begin(); it != end(); ++it) {
+            if (it->emission != Fsa::InvalidLabelId) {
                 *itOut = *it;
                 ++itOut;
             }
@@ -351,17 +342,14 @@ void Alignment::mapAlphabet(bool skipMismatch)
     }
 }
 
-bool Alignment::setAlphabet(Core::Ref<const Fsa::Alphabet> alphabet, bool skipMismatch)
-{
-    if(alphabet_ == alphabet)
+bool Alignment::setAlphabet(Core::Ref<const Fsa::Alphabet> alphabet, bool skipMismatch) {
+    if (alphabet_ == alphabet)
         return false;
 
-    if(alphabet_)
-    {
+    if (alphabet_) {
         // Backup the relevant part of the old alphabet, to perform the mapping aftwards
         verify(archiveAlphabet_.empty());
-        for(Alignment::iterator it = begin(); it != end(); ++it)
-        {
+        for (Alignment::iterator it = begin(); it != end(); ++it) {
             std::string symbol = alphabet_->symbol(it->emission);
             verify(!symbol.empty());
             archiveAlphabet_.insert(std::make_pair(it->emission, symbol));
@@ -369,53 +357,49 @@ bool Alignment::setAlphabet(Core::Ref<const Fsa::Alphabet> alphabet, bool skipMi
     }
 
     alphabet_ = alphabet;
-    if(archiveAlphabet_.size())
-    {
+    if (archiveAlphabet_.size()) {
         mapAlphabet(skipMismatch);
         return true;
-    }else{
+    }
+    else {
         return false;
     }
 }
 
 Alignment::Alignment()
-: score_(Core::Type<Score>::max),
-  labelType_(allophoneStateIds)
-{}
+        : score_(Core::Type<Score>::max),
+          labelType_(allophoneStateIds) {}
 
-Alignment::Alignment(const Alignment &alignment)
-: Precursor(alignment),
-  score_(alignment.score_),
-  labelType_(alignment.labelType_)
-{}
+Alignment::Alignment(const Alignment& alignment)
+        : Precursor(alignment),
+          score_(alignment.score_),
+          labelType_(alignment.labelType_) {}
 
-void Alignment::write(std::ostream &os) const
-{
+void Alignment::write(std::ostream& os) const {
     for (const_iterator i = begin(); os && i != end(); ++i) {
-        os << "time = "	    << i->time << '\t'
+        os << "time = " << i->time << '\t'
            << "emission = ";
-        if(alphabet_)
-        {
+        if (alphabet_) {
             os << alphabet_->symbol(i->emission);
-        }else{
+        }
+        else {
             os << i->emission;
-
-        } os << ((i->weight != 1.0) ? Core::form("\tweight = %f", i->weight) : "")
+        }
+        os << ((i->weight != 1.0) ? Core::form("\tweight = %f", i->weight) : "")
            << std::endl;
     }
 }
 
-void Alignment::writeXml(Core::XmlWriter &os) const
-{
+void Alignment::writeXml(Core::XmlWriter& os) const {
     os << Core::XmlOpen("alignment");
     for (const_iterator i = begin(); os && i != end(); ++i) {
         os << Core::XmlOpen("align")
            << Core::XmlFull("time", i->time);
 
-        if(alphabet_)
-        {
+        if (alphabet_) {
             os << Core::XmlFull("emission", alphabet_->symbol(i->emission));
-        }else{
+        }
+        else {
             os << Core::XmlFull("emission", i->emission);
         }
 
@@ -426,14 +410,13 @@ void Alignment::writeXml(Core::XmlWriter &os) const
     os << Core::XmlClose("alignment");
 }
 
-Core::XmlWriter &Speech::operator<<(Core::XmlWriter &o, const Alignment &a)
-{
-    a.writeXml(o); return o;
+Core::XmlWriter& Speech::operator<<(Core::XmlWriter& o, const Alignment& a) {
+    a.writeXml(o);
+    return o;
 }
 
-
 struct SortByTimeAndDecreasingWeight {
-    bool operator()(const AlignmentItem &a, const AlignmentItem &b) {
+    bool operator()(const AlignmentItem& a, const AlignmentItem& b) {
         if (a.time < b.time or (a.time == b.time and a.weight > b.weight))
             return true;
         return false;
@@ -441,7 +424,7 @@ struct SortByTimeAndDecreasingWeight {
 };
 
 struct SortByTimeAndIncreasingWeight {
-    bool operator()(const AlignmentItem &a, const AlignmentItem &b) {
+    bool operator()(const AlignmentItem& a, const AlignmentItem& b) {
         if (a.time < b.time or (a.time == b.time and a.weight < b.weight))
             return true;
         return false;
@@ -449,55 +432,53 @@ struct SortByTimeAndIncreasingWeight {
 };
 
 struct SortByTimeAndEmission {
-    bool operator()(const AlignmentItem &a, const AlignmentItem &b) {
+    bool operator()(const AlignmentItem& a, const AlignmentItem& b) {
         if (a.time < b.time or (a.time == b.time and a.emission < b.emission))
             return true;
         return false;
     }
 };
 
-void Alignment::sortItems(bool byDecreasingWeight)
-{
+void Alignment::sortItems(bool byDecreasingWeight) {
     if (byDecreasingWeight) {
         std::sort(begin(), end(), SortByTimeAndDecreasingWeight());
-    } else {
+    }
+    else {
         std::sort(begin(), end(), SortByTimeAndIncreasingWeight());
     }
 }
 
-void Alignment::sortStableItems()
-{
+void Alignment::sortStableItems() {
     std::stable_sort(begin(), end(), SortByTimeAndEmission());
 }
 
-void Alignment::combineItems(Fsa::ConstSemiringRef sr)
-{
-    if (empty()) return;
+void Alignment::combineItems(Fsa::ConstSemiringRef sr) {
+    if (empty())
+        return;
     SortByTimeAndEmission comp;
     std::sort(begin(), end(), comp);
     Alignment::iterator in, last, in_end, out;
     out = last = begin();
-    in = last + 1;
-    in_end = end();
+    in         = last + 1;
+    in_end     = end();
     for (; in != in_end; ++in, ++last) {
         if (in->emission == last->emission and in->time == last->time) {
             out->weight = f32(sr->collect(Fsa::Weight(out->weight), Fsa::Weight(in->weight)));
-        } else {
+        }
+        else {
             *(++out) = *in;
         }
     }
-    erase(out+1, in_end);
+    erase(out + 1, in_end);
 }
 
-void Alignment::expm()
-{
+void Alignment::expm() {
     for (Alignment::iterator in = begin(); in != end(); ++in) {
         in->weight = std::isinf(in->weight) ? 0 : exp(-in->weight);
     }
 }
 
-void Alignment::addWeight(Mm::Weight weight)
-{
+void Alignment::addWeight(Mm::Weight weight) {
     for (Alignment::iterator in = begin(); in != end(); ++in) {
         in->weight += weight;
     }
@@ -506,7 +487,7 @@ void Alignment::addWeight(Mm::Weight weight)
 void Alignment::filterWeights(Mm::Weight minWeight, Mm::Weight maxWeight) {
     Alignment::iterator in, in_end, out;
     in = out = begin();
-    in_end = end();
+    in_end   = end();
     for (; in != in_end; ++in) {
         if (in->weight >= minWeight and in->weight <= maxWeight)
             *(out++) = *in;
@@ -517,7 +498,7 @@ void Alignment::filterWeights(Mm::Weight minWeight, Mm::Weight maxWeight) {
 void Alignment::filterWeightsGT(Mm::Weight minWeight) {
     Alignment::iterator in, in_end, out;
     in = out = begin();
-    in_end = end();
+    in_end   = end();
     for (; in != in_end; ++in) {
         if (in->weight > minWeight)
             *(out++) = *in;
@@ -527,7 +508,7 @@ void Alignment::filterWeightsGT(Mm::Weight minWeight) {
 
 void Alignment::gammaCorrection(Mc::Scale gamma) {
     Alignment::iterator in, in_end;
-    in = begin();
+    in     = begin();
     in_end = end();
     for (; in != in_end; ++in) {
         if (in->weight != 0.0)
@@ -536,9 +517,10 @@ void Alignment::gammaCorrection(Mc::Scale gamma) {
 }
 
 void Alignment::multiplyWeights(Mm::Weight c) {
-    if(c == 1.0) return;
+    if (c == 1.0)
+        return;
     Alignment::iterator in, in_end;
-    in = begin();
+    in     = begin();
     in_end = end();
     for (; in != in_end; ++in) {
         in->weight *= c;
@@ -546,16 +528,17 @@ void Alignment::multiplyWeights(Mm::Weight c) {
 }
 
 void Alignment::normalizeWeights() {
-    if (empty()) return;
+    if (empty())
+        return;
     Alignment::iterator in, in_end, out;
     in = out = begin();
-    in_end = end();
+    in_end   = end();
     while (in != in_end) {
         Mm::Weight weightCurrentFrame = 0.0;
         do {
             weightCurrentFrame += in->weight;
             ++in;
-        } while (in != in_end and in->time == (in-1)->time);
+        } while (in != in_end and in->time == (in - 1)->time);
         Mm::Weight inverseWeightCurrentFrame = (weightCurrentFrame != 0.0) ? (1 / weightCurrentFrame) : 1;
         for (; out != in; ++out) {
             out->weight *= inverseWeightCurrentFrame;
@@ -564,17 +547,18 @@ void Alignment::normalizeWeights() {
 }
 
 void Alignment::shiftMinToZeroWeights() {
-    if (empty()) return;
+    if (empty())
+        return;
     Alignment::iterator in, in_end, out;
     in = out = begin();
-    in_end = end();
+    in_end   = end();
     while (in != in_end) {
         Mm::Weight minWeight = Core::Type<Mm::Weight>::max;
         do {
-            if(minWeight > in->weight)
+            if (minWeight > in->weight)
                 minWeight = in->weight;
             ++in;
-        } while (in != in_end and in->time == (in-1)->time);
+        } while (in != in_end and in->time == (in - 1)->time);
         for (; out != in; ++out) {
             out->weight -= minWeight;
         }
@@ -583,7 +567,8 @@ void Alignment::shiftMinToZeroWeights() {
 
 void Alignment::clipWeights(Mm::Weight a, Mm::Weight b) {
     Alignment::iterator in, in_end;
-    in = begin(); in_end = end();
+    in     = begin();
+    in_end = end();
     for (; in != in_end; ++in) {
         if (in->weight < a)
             in->weight = a;
@@ -593,48 +578,53 @@ void Alignment::clipWeights(Mm::Weight a, Mm::Weight b) {
 }
 
 void Alignment::resetWeightsSmallerThan(Mm::Weight a, Mm::Weight b) {
-        Alignment::iterator in, in_end;
-        in = begin(); in_end = end();
-        for (; in != in_end; ++in) {
-                if (in->weight < a)
-                        in->weight = b;
-        }
+    Alignment::iterator in, in_end;
+    in     = begin();
+    in_end = end();
+    for (; in != in_end; ++in) {
+        if (in->weight < a)
+            in->weight = b;
+    }
 }
 
 void Alignment::resetWeightsLargerThan(Mm::Weight a, Mm::Weight b) {
-        Alignment::iterator in, in_end;
-        in = begin(); in_end = end();
-        for (; in != in_end; ++in) {
-                if (in->weight > a)
-                        in->weight = b;
-        }
+    Alignment::iterator in, in_end;
+    in     = begin();
+    in_end = end();
+    for (; in != in_end; ++in) {
+        if (in->weight > a)
+            in->weight = b;
+    }
 }
 
 bool Alignment::hasWeights() const {
     const_iterator in, in_end;
-    in = begin(); in_end = end();
+    in     = begin();
+    in_end = end();
     for (; in != in_end; ++in)
-        if (in->weight != 1.0) return true;
+        if (in->weight != 1.0)
+            return true;
     return false;
 }
 
-void Alignment::getFrames(std::vector<std::pair<Alignment::iterator, Alignment::iterator> > &rows)  {
+void Alignment::getFrames(std::vector<std::pair<Alignment::iterator, Alignment::iterator>>& rows) {
     rows.clear();
-    Alignment::iterator i = begin();
-    Alignment::iterator i_end = end();
+    Alignment::iterator i                   = begin();
+    Alignment::iterator i_end               = end();
     Alignment::iterator i_firstCurrentFrame = begin();
     while (i != i_end) {
-        while (i != i_end && i->time == i_firstCurrentFrame->time) ++i;
+        while (i != i_end && i->time == i_firstCurrentFrame->time)
+            ++i;
         rows.push_back(std::pair<Alignment::iterator, Alignment::iterator>(i_firstCurrentFrame, i));
         i_firstCurrentFrame = i;
     }
 }
 
-Alignment& Alignment::operator*=(const Alignment &a2) {
+Alignment& Alignment::operator*=(const Alignment& a2) {
     require(size() == a2.size());
-    Alignment::iterator in = begin();
-    Alignment::iterator in_end = end();
-    Alignment::const_iterator in2 = a2.begin();
+    Alignment::iterator       in     = begin();
+    Alignment::iterator       in_end = end();
+    Alignment::const_iterator in2    = a2.begin();
     for (; in != in_end; ++in, ++in2) {
         in->weight *= in2->weight;
     }
@@ -647,11 +637,11 @@ void Alignment::addTimeOffset(TimeframeIndex offset) {
     }
 }
 
-void Alignment::mapToEmissionIdLabels(const Core::Ref<Am::AcousticModel> &acousticModel){
+void Alignment::mapToEmissionIdLabels(const Core::Ref<Am::AcousticModel>& acousticModel) {
     require(acousticModel);
     if (labelType_ == emissionIds)
         return;
-    for(Alignment::iterator it = begin(); it != end(); ++it)
+    for (Alignment::iterator it = begin(); it != end(); ++it)
         it->emission = acousticModel->emissionIndex(it->emission);
     labelType_ = emissionIds;
     // alphabet has no meaning anymore, delete it

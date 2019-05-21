@@ -17,37 +17,35 @@
 #ifndef _SPEECH_ALIGNMENT_HH
 #define _SPEECH_ALIGNMENT_HH
 
-
-#include "Types.hh"
+#include <Am/AcousticModel.hh>
+#include <Am/ClassicStateModel.hh>
 #include <Core/BinaryStream.hh>
 #include <Core/XmlStream.hh>
-#include <Mm/Types.hh>
-#include <Mc/Types.hh>
 #include <Fsa/Semiring.hh>
-#include <Am/ClassicStateModel.hh>
-#include <Am/AcousticModel.hh>
-
+#include <Mc/Types.hh>
+#include <Mm/Types.hh>
+#include "Types.hh"
 
 namespace Speech {
 
 struct AlignmentItem {
     TimeframeIndex time;
-    Fsa::LabelId emission;
-    Mm::Weight weight;
-    AlignmentItem() : time(0), emission(0), weight(0) {}
-    AlignmentItem(TimeframeIndex t, Am::AllophoneStateIndex e, Mm::Weight w=1.0) :
-        time(t), emission(e), weight(w) {}
-    bool operator==(const AlignmentItem &other) const {
+    Fsa::LabelId   emission;
+    Mm::Weight     weight;
+    AlignmentItem()
+            : time(0), emission(0), weight(0) {}
+    AlignmentItem(TimeframeIndex t, Am::AllophoneStateIndex e, Mm::Weight w = 1.0)
+            : time(t), emission(e), weight(w) {}
+    bool operator==(const AlignmentItem& other) const {
         return (time == other.time && emission == other.emission && weight == other.weight);
     }
 };
 
-
 // ================================================================================
 
 class Alignment;
-Core::BinaryInputStream  &operator>>(Core::BinaryInputStream&,  Alignment&);
-Core::BinaryOutputStream &operator<<(Core::BinaryOutputStream&, const Alignment&);
+Core::BinaryInputStream&  operator>>(Core::BinaryInputStream&, Alignment&);
+Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&, const Alignment&);
 
 /*
  * Alignments are usually stored as a sequence of allophone state ids.
@@ -61,27 +59,34 @@ Core::BinaryOutputStream &operator<<(Core::BinaryOutputStream&, const Alignment&
 class Alignment : public std::vector<AlignmentItem> {
 public:
     typedef std::pair<Alignment::iterator, Alignment::iterator> Frame;
-    enum LabelType { allophoneStateIds, emissionIds};
+    enum LabelType { allophoneStateIds,
+                     emissionIds };
+
 private:
     typedef std::vector<AlignmentItem> Precursor;
-    static const char *magic;
-    static const char *magic_alphabet;
-    static const char *magic_emission;
-    static const size_t magicSize;
-    Score score_;
-    Core::Ref<const Fsa::Alphabet> alphabet_;
+    static const char*                 magic;
+    static const char*                 magic_alphabet;
+    static const char*                 magic_emission;
+    static const size_t                magicSize;
+    Score                              score_;
+    Core::Ref<const Fsa::Alphabet>     alphabet_;
     // If the archive was read, then this contains the read alphabet information (cleared when the mapping is applied)
     std::map<u32, std::string> archiveAlphabet_;
-    LabelType labelType_;
+    LabelType                  labelType_;
+
 public:
     Alignment();
 
-    Alignment(const Alignment &alignment);
+    Alignment(const Alignment& alignment);
 
-    void setScore(Score score) { score_ = score; }
+    void setScore(Score score) {
+        score_ = score;
+    }
 
     /** Returns the score of the alignment, if available. */
-    Score score() const { return score_; }
+    Score score() const {
+        return score_;
+    }
 
     /** Set a mapping alphabet. When this is set, the alphabet is used to robustly map
      *  allophone indices between different alphabets.
@@ -107,7 +112,7 @@ public:
     void addWeight(Mm::Weight weight);
 
     /** Filter alignment items by their weights. (>= min && <= max) */
-    void filterWeights(Mm::Weight minWeight, Mm::Weight maxWeight=1.0);
+    void filterWeights(Mm::Weight minWeight, Mm::Weight maxWeight = 1.0);
 
     /** Remove alignment items by their weights. (> min) */
     void filterWeightsGT(Mm::Weight minWeight);
@@ -119,13 +124,13 @@ public:
     void shiftMinToZeroWeights();
 
     /** Clip all weights into the interval [a..b] */
-    void clipWeights(Mm::Weight a=0.0, Mm::Weight b=1.0);
+    void clipWeights(Mm::Weight a = 0.0, Mm::Weight b = 1.0);
 
     /** */
-    void resetWeightsSmallerThan(Mm::Weight a=0.0, Mm::Weight b=0.0);
+    void resetWeightsSmallerThan(Mm::Weight a = 0.0, Mm::Weight b = 0.0);
 
     /** */
-    void resetWeightsLargerThan(Mm::Weight a=1.0, Mm::Weight b=1.0);
+    void resetWeightsLargerThan(Mm::Weight a = 1.0, Mm::Weight b = 1.0);
 
     /** Multiply all weights with the specified value */
     void multiplyWeights(Mm::Weight c);
@@ -135,42 +140,48 @@ public:
     void gammaCorrection(Mc::Scale gamma);
 
     /** For each time frame, get a pair of begin and end iterator */
-    void getFrames(std::vector<Frame> &rows) ;
+    void getFrames(std::vector<Frame>& rows);
 
     /** Component-wise weight multiplication */
     Alignment& operator*=(const Alignment&);
 
     /** get alignment labelType */
-    LabelType labelType() const { return labelType_; }
+    LabelType labelType() const {
+        return labelType_;
+    }
 
     /** set alignment labelType, only allowed for empty alignments, no mapping is performed */
-    void setLabelType(LabelType labeltype) { require_eq(this->size(), 0); labelType_ = labeltype; }
+    void setLabelType(LabelType labeltype) {
+        require_eq(this->size(), 0);
+        labelType_ = labeltype;
+    }
 
     /** change alignment label type to emission id,
      * all allophone state ids are mapped to emission ids */
-    void mapToEmissionIdLabels(const Core::Ref<Am::AcousticModel> &acousticModel);
+    void mapToEmissionIdLabels(const Core::Ref<Am::AcousticModel>& acousticModel);
 
-    friend Core::BinaryInputStream	&operator>>(Core::BinaryInputStream&,	     Alignment&);
-    friend Core::BinaryOutputStream &operator<<(Core::BinaryOutputStream&, const Alignment&);
-    void write(std::ostream&) const;
-    void writeXml(Core::XmlWriter&) const;
-    friend Core::XmlWriter &operator<<(Core::XmlWriter&, const Alignment&);
-    void addTimeOffset(TimeframeIndex);
+    friend Core::BinaryInputStream&  operator>>(Core::BinaryInputStream&, Alignment&);
+    friend Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&, const Alignment&);
+    void                             write(std::ostream&) const;
+    void                             writeXml(Core::XmlWriter&) const;
+    friend Core::XmlWriter&          operator<<(Core::XmlWriter&, const Alignment&);
+    void                             addTimeOffset(TimeframeIndex);
+
 private:
     void mapAlphabet(bool skipMismatch);
 };
 
-} // namespace Speech
+}  // namespace Speech
 
 namespace Core {
 
-template <>
+template<>
 class NameHelper<Speech::Alignment> : public std::string {
 public:
-    NameHelper() : std::string("flow-alignment") {}
+    NameHelper()
+            : std::string("flow-alignment") {}
 };
 
-} // namespace Core
+}  // namespace Core
 
-
-#endif // _SPEECH_ALIGNMENT_HH
+#endif  // _SPEECH_ALIGNMENT_HH

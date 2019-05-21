@@ -20,24 +20,25 @@
 
 namespace Speech {
 
-    class MeanEstimator :
-        public FeatureExtractor,
-        public Signal::MeanEstimator
-    {
-        typedef FeatureExtractor Extractor;
-        typedef Signal::MeanEstimator Estimator;
-    protected:
-        static const Core::ParameterString paramFile;
+class MeanEstimator : public FeatureExtractor,
+                      public Signal::MeanEstimator {
+    typedef FeatureExtractor      Extractor;
+    typedef Signal::MeanEstimator Estimator;
 
-        virtual void processFeature(Core::Ref<const Feature> feature);
-        virtual void setFeatureDescription(const Mm::FeatureDescription &description);
-    public:
-        MeanEstimator(const Core::Configuration &c);
-        ~MeanEstimator();
-    private:
-        bool needResize_;
-    };
+protected:
+    static const Core::ParameterString paramFile;
 
-} // namespace Speech
+    virtual void processFeature(Core::Ref<const Feature> feature);
+    virtual void setFeatureDescription(const Mm::FeatureDescription& description);
 
-#endif // _SPEECH_MEAN_ESTIMATOR_HH
+public:
+    MeanEstimator(const Core::Configuration& c);
+    ~MeanEstimator();
+
+private:
+    bool needResize_;
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_MEAN_ESTIMATOR_HH

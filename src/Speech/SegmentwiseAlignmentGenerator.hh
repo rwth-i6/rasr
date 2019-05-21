@@ -15,137 +15,150 @@
 #ifndef _SPEECH_SEGMENTWISE_ALIGNMENT_GENERATOR_HH
 #define _SPEECH_SEGMENTWISE_ALIGNMENT_GENERATOR_HH
 
-#include "Alignment.hh"
-#include "ModelCombination.hh"
-#include <Search/Aligner.hh>
-#include "SegmentwiseFeatureExtractor.hh"
 #include <Core/Archive.hh>
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
-#include <Core/ReferenceCounting.hh>
 #include <Core/Hash.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Fsa/Automaton.hh>
 #include <Lattice/Lattice.hh>
+#include <Search/Aligner.hh>
+#include "Alignment.hh"
+#include "ModelCombination.hh"
+#include "SegmentwiseFeatureExtractor.hh"
 
 namespace Am {
-    class AcousticModel;
+class AcousticModel;
 }
 
 namespace Bliss {
-    class SpeechSegment;
+class SpeechSegment;
 }
 
 namespace Core {
-    class Archive;
+class Archive;
 }
 
 namespace Lattice {
-    class ArchiveWriter;
+class ArchiveWriter;
 }
 
 namespace Speech {
-    class FsaCache;
+class FsaCache;
 }
 
 namespace Speech {
 
-    /** SegmentwiseAlignmentGenerator */
-    class SegmentwiseAlignmentGenerator : public Core::Component,
-                                          public Core::ReferenceCounted
-    {
-    private:
-        static const Core::ParameterString paramPortName;
-        static const Core::ParameterStringVector paramSilencesAndNoises;
-        static const Core::ParameterBool paramCheckCompatibility;
-    protected:
-        Flow::PortId portId_;
-        Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor_;
-        ConstSegmentwiseFeaturesRef  features_;
-        Core::Ref<const ModelCombination> modelCombination_;
-        AllophoneStateGraphBuilder *allophoneStateGraphBuilder_;
-        Search::Aligner aligner_;
-        Core::DependencySet dependencySet_;
-        bool checkCompatibility_;
-    protected:
-        FsaCache * createFsaCache(const Core::Configuration &config);
-        void getScorers(std::vector<Mm::FeatureScorer::Scorer> &) const;
-        void getScorers(TimeframeIndex tbeg, TimeframeIndex tend,
-                        std::vector<Mm::FeatureScorer::Scorer> &) const;
-        void update(const std::string &segmentId);
-    public:
-        SegmentwiseAlignmentGenerator(const Core::Configuration &, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
+/** SegmentwiseAlignmentGenerator */
+class SegmentwiseAlignmentGenerator : public Core::Component,
+                                      public Core::ReferenceCounted {
+private:
+    static const Core::ParameterString       paramPortName;
+    static const Core::ParameterStringVector paramSilencesAndNoises;
+    static const Core::ParameterBool         paramCheckCompatibility;
 
-        virtual ~SegmentwiseAlignmentGenerator();
+protected:
+    Flow::PortId                           portId_;
+    Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor_;
+    ConstSegmentwiseFeaturesRef            features_;
+    Core::Ref<const ModelCombination>      modelCombination_;
+    AllophoneStateGraphBuilder*            allophoneStateGraphBuilder_;
+    Search::Aligner                        aligner_;
+    Core::DependencySet                    dependencySet_;
+    bool                                   checkCompatibility_;
 
-        /**
-         * This segmentwise feature extractor provides the features, if set.
-         * Otherwise the features are set by setFeatures, see below.
-         */
-        virtual void setSegmentwiseFeatureExtractor(Core::Ref<SegmentwiseFeatureExtractor>);
-        /**
-         * The features can be also set directly. This, however, is only
-         * possible if @param segmentwiseFeatureExtractor_ is not set.
-         */
-        void setFeatures(ConstSegmentwiseFeaturesRef features)
-            { require(features); features_ = features; }
-        virtual const ConstSegmentwiseFeaturesRef features() const
-            { return segmentwiseFeatureExtractor_ ? segmentwiseFeatureExtractor_->features(portId_) : features_; }
+protected:
+    FsaCache* createFsaCache(const Core::Configuration& config);
+    void      getScorers(std::vector<Mm::FeatureScorer::Scorer>&) const;
+    void      getScorers(TimeframeIndex tbeg, TimeframeIndex tend, std::vector<Mm::FeatureScorer::Scorer>&) const;
+    void      update(const std::string& segmentId);
 
-        // call either or
-        virtual void setSpeechSegmentId(const std::string &);
-        virtual void setSpeechSegment(Bliss::SpeechSegment *);
+public:
+    SegmentwiseAlignmentGenerator(const Core::Configuration&, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
 
-        virtual void signOn(Speech::CorpusVisitor &corpusVisitor);
+    virtual ~SegmentwiseAlignmentGenerator();
 
-        Core::Ref<const ModelCombination> modelCombination() const { return modelCombination_; }
-        Core::Ref<Am::AcousticModel> acousticModel() const { return modelCombination_->acousticModel(); }
-        Fsa::ConstAlphabetRef allophoneStateAlphabet() const { return modelCombination_->acousticModel()->allophoneStateAlphabet(); }
+    /**
+     * This segmentwise feature extractor provides the features, if set.
+     * Otherwise the features are set by setFeatures, see below.
+     */
+    virtual void setSegmentwiseFeatureExtractor(Core::Ref<SegmentwiseFeatureExtractor>);
+    /**
+     * The features can be also set directly. This, however, is only
+     * possible if @param segmentwiseFeatureExtractor_ is not set.
+     */
+    void setFeatures(ConstSegmentwiseFeaturesRef features) {
+        require(features);
+        features_ = features;
+    }
+    virtual const ConstSegmentwiseFeaturesRef features() const {
+        return segmentwiseFeatureExtractor_ ? segmentwiseFeatureExtractor_->features(portId_) : features_;
+    }
 
-        const Core::DependencySet & dependencies() const { return dependencySet_; }
+    // call either or
+    virtual void setSpeechSegmentId(const std::string&);
+    virtual void setSpeechSegment(Bliss::SpeechSegment*);
 
-        AllophoneStateGraphBuilder *allophoneStateGraphBuilder() { return allophoneStateGraphBuilder_; }
-    };
+    virtual void signOn(Speech::CorpusVisitor& corpusVisitor);
 
+    Core::Ref<const ModelCombination> modelCombination() const {
+        return modelCombination_;
+    }
+    Core::Ref<Am::AcousticModel> acousticModel() const {
+        return modelCombination_->acousticModel();
+    }
+    Fsa::ConstAlphabetRef allophoneStateAlphabet() const {
+        return modelCombination_->acousticModel()->allophoneStateAlphabet();
+    }
 
-    /** OrthographyAlignmentGenerator */
-    class OrthographyAlignmentGenerator : public SegmentwiseAlignmentGenerator
-    {
-        typedef SegmentwiseAlignmentGenerator Precursor;
-    protected:
-        Core::Archive * createAlignmentCache(const Core::Configuration &config);
-        Lattice::ArchiveWriter * createLatticeArchive(const Core::Configuration &config);
+    const Core::DependencySet& dependencies() const {
+        return dependencySet_;
+    }
 
-        Fsa::ConstAutomatonRef getAlignmentFsa();
+    AllophoneStateGraphBuilder* allophoneStateGraphBuilder() {
+        return allophoneStateGraphBuilder_;
+    }
+};
 
-        void update(const std::string &segmentId, const std::string &orthography);
-        void setOrthography(const std::string &orthography);
+/** OrthographyAlignmentGenerator */
+class OrthographyAlignmentGenerator : public SegmentwiseAlignmentGenerator {
+    typedef SegmentwiseAlignmentGenerator Precursor;
 
-    protected:
-        FsaCache *transducerCache_;
-        FsaCache *modelAcceptorCache_;
-        Search::Aligner::WordLatticeBuilder *wordLatticeBuilder_;
-        Fsa::ConstAutomatonRef lemmaPronunciationToLemma_;
+protected:
+    Core::Archive*          createAlignmentCache(const Core::Configuration& config);
+    Lattice::ArchiveWriter* createLatticeArchive(const Core::Configuration& config);
 
-        Core::Archive *alignmentCache_;
+    Fsa::ConstAutomatonRef getAlignmentFsa();
 
-        std::string segmentId_;
-        std::string orthography_;
-        Fsa::ConstAutomatonRef alignmentFsa_;
-        bool isValid_;
+    void update(const std::string& segmentId, const std::string& orthography);
+    void setOrthography(const std::string& orthography);
 
-    public:
-        OrthographyAlignmentGenerator(const Core::Configuration &, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
-        virtual ~OrthographyAlignmentGenerator();
+protected:
+    FsaCache*                            transducerCache_;
+    FsaCache*                            modelAcceptorCache_;
+    Search::Aligner::WordLatticeBuilder* wordLatticeBuilder_;
+    Fsa::ConstAutomatonRef               lemmaPronunciationToLemma_;
 
-        // call either or
-        virtual void setSpeechSegmentId(const std::string &);
-        virtual void setSpeechSegment(Bliss::SpeechSegment *);
+    Core::Archive* alignmentCache_;
 
-        // if no orthography is given, the orthography form Bliss::SpeechSegment * is used
-        const Alignment* getAlignment(const std::string &orthography = "");
-        Lattice::ConstWordLatticeRef getWordLattice(const std::string &orthography = "");
-    };
+    std::string            segmentId_;
+    std::string            orthography_;
+    Fsa::ConstAutomatonRef alignmentFsa_;
+    bool                   isValid_;
 
-} // namespace Speech
+public:
+    OrthographyAlignmentGenerator(const Core::Configuration&, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
+    virtual ~OrthographyAlignmentGenerator();
 
-#endif // _SPEECH_SEGMENTWISE_ALIGNMENT_GENERATOR_HH
+    // call either or
+    virtual void setSpeechSegmentId(const std::string&);
+    virtual void setSpeechSegment(Bliss::SpeechSegment*);
+
+    // if no orthography is given, the orthography form Bliss::SpeechSegment * is used
+    const Alignment*             getAlignment(const std::string& orthography = "");
+    Lattice::ConstWordLatticeRef getWordLattice(const std::string& orthography = "");
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_SEGMENTWISE_ALIGNMENT_GENERATOR_HH

@@ -16,52 +16,39 @@
 
 using namespace Speech;
 
-
 // ----------------------------------------------------------------------------------------
 
-TextDependentScatterMatricesEstimator::TextDependentScatterMatricesEstimator(
-    const Core::Configuration &c) :
-    Component(c),
-    AcousticModelTrainer(c, Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition),
-    estimator_(new Signal::ScatterMatricesEstimator(c))
-{
+TextDependentScatterMatricesEstimator::TextDependentScatterMatricesEstimator(const Core::Configuration& c)
+        : Component(c),
+          AcousticModelTrainer(c, Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition),
+          estimator_(new Signal::ScatterMatricesEstimator(c)) {
     estimator_->setNumberOfClasses(acousticModel()->nEmissions());
 }
 
-
-TextDependentScatterMatricesEstimator::TextDependentScatterMatricesEstimator(
-    const Core::Configuration &c, Core::Ref<Signal::ScatterMatricesEstimator> estimator) :
-    Component(c),
-    AcousticModelTrainer(c, Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition),
-    estimator_(estimator)
-{
+TextDependentScatterMatricesEstimator::TextDependentScatterMatricesEstimator(const Core::Configuration& c, Core::Ref<Signal::ScatterMatricesEstimator> estimator)
+        : Component(c),
+          AcousticModelTrainer(c, Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition),
+          estimator_(estimator) {
     estimator_->setNumberOfClasses(acousticModel()->nEmissions());
 }
 
-void TextDependentScatterMatricesEstimator::setFeatureDescription(
-    const Mm::FeatureDescription &description)
-{
+void TextDependentScatterMatricesEstimator::setFeatureDescription(const Mm::FeatureDescription& description) {
     description.verifyNumberOfStreams(1);
-    size_t d; description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);
+    size_t d;
+    description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);
     estimator_->setDimension(d);
 }
 
 // ----------------------------------------------------------------------------------------
-TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(
-    const Core::Configuration &c) :
-    Component(c), LabeledFeatureProcessor(c),
-    estimator_(new Signal::ScatterMatricesEstimator(c))
-{}
+TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(const Core::Configuration& c)
+        : Component(c), LabeledFeatureProcessor(c), estimator_(new Signal::ScatterMatricesEstimator(c)) {}
 
-TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(
-    const Core::Configuration &c, Core::Ref<Signal::ScatterMatricesEstimator> estimator) :
-    Component(c), LabeledFeatureProcessor(c), estimator_(estimator)
-{}
+TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(const Core::Configuration& c, Core::Ref<Signal::ScatterMatricesEstimator> estimator)
+        : Component(c), LabeledFeatureProcessor(c), estimator_(estimator) {}
 
-void TextIndependentScatterMatricesEstimator::setFeatureDescription(
-    const Mm::FeatureDescription &description)
-{
+void TextIndependentScatterMatricesEstimator::setFeatureDescription(const Mm::FeatureDescription& description) {
     description.verifyNumberOfStreams(1);
-    size_t d; description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);
+    size_t d;
+    description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);
     estimator_->setDimension(d);
 }

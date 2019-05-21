@@ -15,38 +15,40 @@
 #ifndef _SPEECH_ALIGNER_MODEL_ACCEPTOR_HH
 #define _SPEECH_ALIGNER_MODEL_ACCEPTOR_HH
 
-#include "CorpusProcessor.hh"
-#include "AllophoneStateGraphBuilder.hh"
-#include <Fsa/Semiring.hh>
-#include <Fsa/Static.hh>
 #include <Am/AcousticModel.hh>
 #include <Am/ClassicStateModel.hh>
+#include <Fsa/Semiring.hh>
+#include <Fsa/Static.hh>
+#include "AllophoneStateGraphBuilder.hh"
+#include "CorpusProcessor.hh"
 
 namespace Speech {
-    class AllophoneStateGraphBuilder;
-    class FsaCache;
+class AllophoneStateGraphBuilder;
+class FsaCache;
+};  // namespace Speech
+
+namespace Speech {
+
+typedef f32                  AlignerScore;
+typedef Fsa::StaticAutomaton AlignerModelAcceptor;
+
+/**
+ *  AlignerModelAcceptorGenerator
+ */
+class AlignerModelAcceptorGenerator : public CorpusProcessor {
+    typedef CorpusProcessor Precursor;
+
+private:
+    AllophoneStateGraphBuilder* allophoneStateGraphBuilder_;
+    FsaCache*                   cache_;
+
+public:
+    AlignerModelAcceptorGenerator(const Core::Configuration&);
+    virtual ~AlignerModelAcceptorGenerator();
+
+    void enterSpeechSegment(Bliss::SpeechSegment*);
 };
 
-namespace Speech {
+}  // namespace Speech
 
-    typedef f32 AlignerScore;
-    typedef Fsa::StaticAutomaton AlignerModelAcceptor;
-
-    /**
-     *  AlignerModelAcceptorGenerator
-     */
-    class AlignerModelAcceptorGenerator : public CorpusProcessor {
-        typedef CorpusProcessor Precursor;
-    private:
-        AllophoneStateGraphBuilder *allophoneStateGraphBuilder_;
-        FsaCache *cache_;
-    public:
-        AlignerModelAcceptorGenerator(const Core::Configuration&);
-        virtual ~AlignerModelAcceptorGenerator();
-
-        void enterSpeechSegment(Bliss::SpeechSegment*);
-    };
-
-} // namespace Speech
-
-#endif // _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH
+#endif  // _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH

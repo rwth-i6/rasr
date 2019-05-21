@@ -16,18 +16,15 @@
 
 using namespace Speech;
 
-
-Core::Ref<const Mm::Feature::Vector> Feature::convert(Flow::DataPtr<FlowVector> &v)
-{
+Core::Ref<const Mm::Feature::Vector> Feature::convert(Flow::DataPtr<FlowVector>& v) {
     v.makePrivate();
-    Vector *r = new Mm::Feature::Vector;
+    Vector* r = new Mm::Feature::Vector;
     std::swap(*r, *v.get());
     delete v.release();
     return Core::ref(r);
 }
 
-void Feature::take(Flow::DataPtr<FlowVector> &v)
-{
+void Feature::take(Flow::DataPtr<FlowVector>& v) {
     require_(v);
 
     clear();
@@ -35,9 +32,7 @@ void Feature::take(Flow::DataPtr<FlowVector> &v)
     add(convert(v));
 }
 
-
-void Feature::take(Flow::DataPtr<FlowFeature> &f)
-{
+void Feature::take(Flow::DataPtr<FlowFeature>& f) {
     require_(f);
 
     /*
@@ -49,20 +44,19 @@ void Feature::take(Flow::DataPtr<FlowFeature> &f)
 
     clear();
     setTimestamp(*f);
-    for(size_t i = 0; i < f->size(); ++i)
+    for (size_t i = 0; i < f->size(); ++i)
         add(i, convert((*f)[i]));
 }
 
-
-bool Feature::take(Flow::DataPtr<Flow::Timestamp> &t)
-{
+bool Feature::take(Flow::DataPtr<Flow::Timestamp>& t) {
     if (t) {
         Flow::DataPtr<FlowVector> f(t);
         if (f) {
             t.reset();
             take(f);
             return true;
-        } else {
+        }
+        else {
             Flow::DataPtr<FlowFeature> f(t);
             if (f) {
                 t.reset();
@@ -74,8 +68,6 @@ bool Feature::take(Flow::DataPtr<Flow::Timestamp> &t)
     return false;
 }
 
-
-Mm::FeatureDescription* Feature::getDescription(const Core::Configurable &parent) const
-{
+Mm::FeatureDescription* Feature::getDescription(const Core::Configurable& parent) const {
     return new Mm::FeatureDescription(parent, *this);
 }

@@ -13,26 +13,26 @@
  *  limitations under the License.
  */
 #include "PhonemeSequenceAlignmentGenerator.hh"
-#include "FsaCache.hh"
+#include <Flf/FlfCore/Basic.hh>
+#include <Flf/FlfCore/Lattice.hh>
+#include <Flf/FlfCore/Traverse.hh>
 #include <Fsa/Automaton.hh>
 #include <Fsa/Basic.hh>
 #include <Fsa/Cache.hh>
 #include <Fsa/Properties.hh>
 #include <Fsa/Sssp.hh>
-#include <Flf/FlfCore/Lattice.hh>
-#include <Flf/FlfCore/Basic.hh>
-#include <Flf/FlfCore/Traverse.hh>
+#include "FsaCache.hh"
 
 using namespace Speech;
 
 const Core::ParameterString PhonemeSequenceAlignmentGenerator::Cache::paramCache(
-    "path",
-    "directory of observation-to-state alignments cache");
+        "path",
+        "directory of observation-to-state alignments cache");
 
 const Core::ParameterBool PhonemeSequenceAlignmentGenerator::Cache::paramReadOnly(
-    "read-only",
-    "if true cache is only read",
-    false);
+        "read-only",
+        "if true cache is only read",
+        false);
 
 const Core::Choice PhonemeSequenceAlignmentGenerator::Cache::choiceLabelType(
         "allophone-state-ids", Alignment::allophoneStateIds,
@@ -40,58 +40,57 @@ const Core::Choice PhonemeSequenceAlignmentGenerator::Cache::choiceLabelType(
         Core::Choice::endMark());
 
 const Core::ParameterChoice PhonemeSequenceAlignmentGenerator::Cache::paramLabelType(
-    "alignment-label-type",
-    &choiceLabelType,
-    "type of labels stored in cache",
-    Alignment::allophoneStateIds);
-
+        "alignment-label-type",
+        &choiceLabelType,
+        "type of labels stored in cache",
+        Alignment::allophoneStateIds);
 
 PhonemeSequenceAlignmentGenerator::Cache::Cache(
-    const Core::Configuration &c, const ModelCombination &modelCombination) :
-    Core::Component(c),
-    archive_(0),
-    dirty_(false),
-    labelType_(Alignment::LabelType(paramLabelType(c)))
-{
+        const Core::Configuration& c, const ModelCombination& modelCombination)
+        : Core::Component(c),
+          archive_(0),
+          dirty_(false),
+          labelType_(Alignment::LabelType(paramLabelType(c))) {
     initializeArchive(modelCombination);
 }
 
-PhonemeSequenceAlignmentGenerator::Cache::~Cache()
-{
-    if (!segmentId_.empty() && dirty()) write(segmentId_);
+PhonemeSequenceAlignmentGenerator::Cache::~Cache() {
+    if (!segmentId_.empty() && dirty())
+        write(segmentId_);
     clear();
     delete archive_;
 }
 
-void PhonemeSequenceAlignmentGenerator::Cache::setSpeechSegmentId(const std::string &segmentId)
-{
-    if (!segmentId_.empty() && dirty()) write(segmentId_);
+void PhonemeSequenceAlignmentGenerator::Cache::setSpeechSegmentId(const std::string& segmentId) {
+    if (!segmentId_.empty() && dirty())
+        write(segmentId_);
     clear();
     segmentId_ = segmentId;
-    if (archive_) read(segmentId_);
+    if (archive_)
+        read(segmentId_);
 }
 
 bool PhonemeSequenceAlignmentGenerator::Cache::findForReadAccess(
-    const Key &key, ConstAlignmentPtr *result)
-{
+        const Key& key, ConstAlignmentPtr* result) {
     AlignmentMap::iterator itAlignment = alignments_.find(key);
     if (itAlignment == alignments_.end()) {
         *result = 0;
         return false;
-    } else {
+    }
+    else {
         *result = itAlignment->second;
         return true;
     }
 }
 
-bool PhonemeSequenceAlignmentGenerator::Cache::insert(const Key &key, Alignment *alignment)
-{
+bool PhonemeSequenceAlignmentGenerator::Cache::insert(const Key& key, Alignment* alignment) {
     AlignmentMap::iterator itAlignment = alignments_.find(key);
     if (itAlignment == alignments_.end()) {
         alignments_[key] = alignment;
         setDirty();
         return true;
-    } else if (itAlignment->second->score() != alignment->score()) {
+    }
+    else if (itAlignment->second->score() != alignment->score()) {
         delete itAlignment->second;
         itAlignment->second = alignment;
         setDirty();
@@ -100,8 +99,7 @@ bool PhonemeSequenceAlignmentGenerator::Cache::insert(const Key &key, Alignment 
     return false;
 }
 
-void PhonemeSequenceAlignmentGenerator::Cache::initializeArchive(const ModelCombination &modelCombination)
-{
+void PhonemeSequenceAlignmentGenerator::Cache::initializeArchive(const ModelCombination& modelCombination) {
     verify(!archive_);
     Core::DependencySet dependencies;
     modelCombination.getDependencies(dependencies);
@@ -114,7 +112,7 @@ void PhonemeSequenceAlignmentGenerator::Cache::initializeArchive(const ModelComb
         else
             log("expecting an alignment archive with emission-id labels");
 
-        const bool readOnly = paramReadOnly(config);
+        const bool                readOnly   = paramReadOnly(config);
         Core::Archive::AccessMode accessMode = Core::Archive::AccessModeReadWrite;
         if (readOnly) {
             accessMode = Core::Archive::AccessModeRead;
@@ -127,36 +125,36 @@ void PhonemeSequenceAlignmentGenerator::Cache::initializeArchive(const ModelComb
             if (!archiveDependencies.read(config, ar)) {
                 error("Failed to read dependencies from alignment cache \"%s\".",
                       archive_->path().c_str());
-            } else if (archiveDependencies == dependencies) {
+            }
+            else if (archiveDependencies == dependencies) {
                 if (!readOnly) {
                     warning("Archive \"%s\" exists already and will be overwritten.",
                             archive_->path().c_str());
                 }
             }
-        } else {
+        }
+        else {
             Core::XmlOutputStream xw(new Core::ArchiveWriter(*archive_, "DEPENDENCIES"));
             dependencies.write(xw);
         }
     }
 }
 
-void PhonemeSequenceAlignmentGenerator::Cache::clear()
-{
+void PhonemeSequenceAlignmentGenerator::Cache::clear() {
     verify(!dirty());
     for (AlignmentMap::iterator it = alignments_.begin(); it != alignments_.end(); ++it)
         delete it->second;
     alignments_.clear();
 }
 
-void PhonemeSequenceAlignmentGenerator::Cache::read(const std::string &segmentId)
-{
+void PhonemeSequenceAlignmentGenerator::Cache::read(const std::string& segmentId) {
     verify(archive_);
     verify(!dirty());
     Core::ArchiveReader reader(*archive_, segmentId);
     if (reader.isOpen()) {
         Core::BinaryInputStream i(reader);
-        u32 size;
-        Key key;
+        u32                     size;
+        Key                     key;
         for (i >> size; i && alignments_.size() < size;) {
             i >> key;
             alignments_[key] = new Alignment();
@@ -170,7 +168,8 @@ void PhonemeSequenceAlignmentGenerator::Cache::read(const std::string &segmentId
         u32 nScores = 0, nMatchingScores = 0;
         for (i >> size; i && nScores < size; ++nScores) {
             i >> key;
-            f32 score; i >> score;
+            f32 score;
+            i >> score;
             AlignmentMap::iterator itAlignment = alignments_.find(key);
             if (itAlignment != alignments_.end()) {
                 itAlignment->second->setScore(score);
@@ -185,21 +184,20 @@ void PhonemeSequenceAlignmentGenerator::Cache::read(const std::string &segmentId
     }
 }
 
-void PhonemeSequenceAlignmentGenerator::Cache::write(const std::string &segmentId)
-{
+void PhonemeSequenceAlignmentGenerator::Cache::write(const std::string& segmentId) {
     verify(archive_);
     verify(dirty());
     if (archive_->hasAccess(Core::Archive::AccessModeWrite)) {
         Core::ArchiveWriter writer(*archive_, segmentId, false);
         if (writer.isOpen()) {
             Core::BinaryOutputStream o(writer);
-            o << (u32) alignments_.size();
-            if (labelType_ == Alignment::allophoneStateIds){
+            o << (u32)alignments_.size();
+            if (labelType_ == Alignment::allophoneStateIds) {
                 for (AlignmentMap::const_iterator it = alignments_.begin(); o && it != alignments_.end(); ++it)
                     o << it->first << *it->second;
             }
             else {
-                for (AlignmentMap::const_iterator it = alignments_.begin(); o && it != alignments_.end(); ++it){
+                for (AlignmentMap::const_iterator it = alignments_.begin(); o && it != alignments_.end(); ++it) {
                     Alignment tmpAlignment(*it->second);
                     tmpAlignment.mapToEmissionIdLabels(acousticModel_);
                     o << it->first << tmpAlignment;
@@ -209,104 +207,97 @@ void PhonemeSequenceAlignmentGenerator::Cache::write(const std::string &segmentI
                 error("could not write state lattice \"%s\" to cache \"%s\"", segmentId.c_str(),
                       archive_->path().c_str());
 
-            o << (u32) alignments_.size();
+            o << (u32)alignments_.size();
             for (AlignmentMap::const_iterator it = alignments_.begin(); o && it != alignments_.end(); ++it)
                 o << it->first << (f32)it->second->score();
             if (!o)
                 error("could not write state lattice \"%s\" to cache \"%s\"", segmentId.c_str(),
                       archive_->path().c_str());
-        } else {
+        }
+        else {
             error("could not open file \"%s\" for writing in cache \"%s\"",
                   segmentId.c_str(), archive_->path().c_str());
         }
-    } else {
+    }
+    else {
         warning("could not write state lattice because archive is read only");
     }
     resetDirty();
 }
 
-
-
 //===============================================================================================
 
 const Core::ParameterBool PhonemeSequenceAlignmentGenerator::paramAddEmissionScores(
-    "add-emission-scores",
-    "copy emission scores into alignment weights",
-    false);
+        "add-emission-scores",
+        "copy emission scores into alignment weights",
+        false);
 
 PhonemeSequenceAlignmentGenerator::PhonemeSequenceAlignmentGenerator(
-    const Core::Configuration &c, Core::Ref<const ModelCombination> mc) :
-    Precursor(c, mc),
-    useAlignmentCache_(true),
-    addEmissionScores_(paramAddEmissionScores(config)),
-    timeGetAlignment_(0)
-{
+        const Core::Configuration& c, Core::Ref<const ModelCombination> mc)
+        : Precursor(c, mc),
+          useAlignmentCache_(true),
+          addEmissionScores_(paramAddEmissionScores(config)),
+          timeGetAlignment_(0) {
     modelAcceptorCache_ = new FsaCache(select("model-acceptor-cache"), Fsa::storeStates);
-    alignmentCache_ = new Cache(select("alignment-cache"), *modelCombination());
+    alignmentCache_     = new Cache(select("alignment-cache"), *modelCombination());
 }
 
-PhonemeSequenceAlignmentGenerator::~PhonemeSequenceAlignmentGenerator()
-{
+PhonemeSequenceAlignmentGenerator::~PhonemeSequenceAlignmentGenerator() {
     delete modelAcceptorCache_;
     delete alignmentCache_;
 }
 
-void PhonemeSequenceAlignmentGenerator::update(const std::string &segmentId)
-{
+void PhonemeSequenceAlignmentGenerator::update(const std::string& segmentId) {
     alignmentCache_->setSpeechSegmentId(segmentId);
 }
 
 void PhonemeSequenceAlignmentGenerator::addEmissionScores(
-    Alignment &alignment,
-    std::vector<Mm::FeatureScorer::Scorer> &scorers)
-{
-    for (Alignment::iterator a = alignment.begin(); a != alignment.end(); ++ a) {
+        Alignment&                              alignment,
+        std::vector<Mm::FeatureScorer::Scorer>& scorers) {
+    for (Alignment::iterator a = alignment.begin(); a != alignment.end(); ++a) {
         a->weight = scorers[a->time]->score(acousticModel()->emissionIndex(a->emission));
     }
 }
 
-void PhonemeSequenceAlignmentGenerator::setSpeechSegment(Bliss::SpeechSegment *segment)
-{
-    if (segmentId_ != segment->fullName()){
+void PhonemeSequenceAlignmentGenerator::setSpeechSegment(Bliss::SpeechSegment* segment) {
+    if (segmentId_ != segment->fullName()) {
         segmentId_ = segment->fullName();
         Precursor::setSpeechSegment(segment);
         update(segment->fullName());
     }
 }
 
-void PhonemeSequenceAlignmentGenerator::setSpeechSegmentId(const std::string &segmentId) {
+void PhonemeSequenceAlignmentGenerator::setSpeechSegmentId(const std::string& segmentId) {
     Precursor::setSpeechSegmentId(segmentId);
     update(segmentId);
 }
 
 const Alignment* PhonemeSequenceAlignmentGenerator::getAlignment(
-    const Bliss::LemmaPronunciation &p, TimeframeIndex tbeg, TimeframeIndex tend)
-{
+        const Bliss::LemmaPronunciation& p, TimeframeIndex tbeg, TimeframeIndex tend) {
     return getAlignment(Bliss::Coarticulated<Bliss::LemmaPronunciation>(p), tbeg, tend);
 }
 
 const Alignment* PhonemeSequenceAlignmentGenerator::getAlignment(
-    const Bliss::Coarticulated<Bliss::LemmaPronunciation> &lemmaPronunciation,
-    TimeframeIndex tbeg, TimeframeIndex tend)
-{
+        const Bliss::Coarticulated<Bliss::LemmaPronunciation>& lemmaPronunciation,
+        TimeframeIndex tbeg, TimeframeIndex tend) {
     timeval start, end;
     timeval start2, end2;
     TIMER_START(start);
-    const Key key(lemmaPronunciation, tbeg, tend);
-    const Alignment *result = 0;
+    const Key        key(lemmaPronunciation, tbeg, tend);
+    const Alignment* result = 0;
     if (!useAlignmentCache_ or !alignmentCache_->findForReadAccess(key, &result)) {
         TIMER_START(start2);
         aligner_.setModel(
-            modelAcceptorCache_->get(allophoneStateGraphBuilder_->createFunctor(
-                                         Bliss::Coarticulated<Bliss::Pronunciation>(
-                                             *lemmaPronunciation.object().pronunciation(),
-                                             lemmaPronunciation.leftContext(),
-                                             lemmaPronunciation.rightContext()))),
-            acousticModel());
+                modelAcceptorCache_->get(allophoneStateGraphBuilder_->createFunctor(
+                        Bliss::Coarticulated<Bliss::Pronunciation>(
+                                *lemmaPronunciation.object().pronunciation(),
+                                lemmaPronunciation.leftContext(),
+                                lemmaPronunciation.rightContext()))),
+                acousticModel());
         std::vector<Mm::FeatureScorer::Scorer> scorers;
         getScorers(tbeg, tend, scorers);
         aligner_.feed(scorers);
-        Alignment *alignment = new Alignment;
+        Alignment* alignment = new Alignment;
         aligner_.getAlignment(*alignment);
 
         verify(alignment->empty() or (alignment->score() != Core::Type<Score>::max));
@@ -332,45 +323,41 @@ const Alignment* PhonemeSequenceAlignmentGenerator::getAlignment(
 }
 
 Score PhonemeSequenceAlignmentGenerator::alignmentScore(
-    const Bliss::Coarticulated<Bliss::LemmaPronunciation> &lemmaPronunciation,
-    TimeframeIndex tbeg, TimeframeIndex tend)
-{
+        const Bliss::Coarticulated<Bliss::LemmaPronunciation>& lemmaPronunciation,
+        TimeframeIndex tbeg, TimeframeIndex tend) {
     return getAlignment(lemmaPronunciation, tbeg, tend)->score();
 }
-
 
 /**
  * Transform a lattice containing the acoustic scores as arc weights
  * into an alignment fsa with posterior probabilities,
  * cf. Aligner::getAlignmentPosteriorFsa(Fsa::ConstAutomatonRef alignmentFsa).
  */
-class LatticeToAlignmentFsa : public Lattice::DfsState
-{
+class LatticeToAlignmentFsa : public Lattice::DfsState {
 private:
-    PhonemeSequenceAlignmentGenerator *alignmentGenerator_;
-    Fsa::StaticAutomaton *f_;
+    PhonemeSequenceAlignmentGenerator*             alignmentGenerator_;
+    Fsa::StaticAutomaton*                          f_;
     std::unordered_map<Fsa::LabelId, Fsa::LabelId> mapping_;
-    Alignment dummyAlignment_;
+    Alignment                                      dummyAlignment_;
+
 private:
     Fsa::State* boundaryState(Fsa::StateId s);
-    void insertAlignment(const Alignment *alignment, Fsa::StateId from, const Fsa::State::const_iterator &arc);
+    void        insertAlignment(const Alignment* alignment, Fsa::StateId from, const Fsa::State::const_iterator& arc);
+
 public:
     LatticeToAlignmentFsa(PhonemeSequenceAlignmentGenerator*);
     ~LatticeToAlignmentFsa() {}
 
-    virtual void discoverState(Fsa::ConstStateRef);
+    virtual void                                   discoverState(Fsa::ConstStateRef);
     std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> convert(Lattice::ConstWordLatticeRef);
 };
 
 LatticeToAlignmentFsa::LatticeToAlignmentFsa(
-    PhonemeSequenceAlignmentGenerator *alignmentGenerator)
-    :
-    alignmentGenerator_(alignmentGenerator),
-    f_(0)
-{}
+        PhonemeSequenceAlignmentGenerator* alignmentGenerator)
+        : alignmentGenerator_(alignmentGenerator),
+          f_(0) {}
 
-Fsa::State* LatticeToAlignmentFsa::boundaryState(Fsa::StateId s)
-{
+Fsa::State* LatticeToAlignmentFsa::boundaryState(Fsa::StateId s) {
     if (mapping_.find(s) == mapping_.end()) {
         mapping_[s] = f_->newState()->id();
         if (s == fsa_->initialStateId()) {
@@ -384,21 +371,21 @@ Fsa::State* LatticeToAlignmentFsa::boundaryState(Fsa::StateId s)
 }
 
 void LatticeToAlignmentFsa::insertAlignment(
-    const Alignment *alignment,
-    Fsa::StateId from,
-    const Fsa::State::const_iterator &arc)
-{
+        const Alignment*                  alignment,
+        Fsa::StateId                      from,
+        const Fsa::State::const_iterator& arc) {
     // assumption: Viterbi alignment
     if (alignment->size() == 1) {
         boundaryState(from)->newArc(boundaryState(arc->target())->id(), arc->weight(), alignment->front().emission);
-    } else if (alignment->size() > 1) {
-        Fsa::State *sp = boundaryState(from);
-        Fsa::State *_sp = f_->newState();
-        Alignment::const_iterator a = alignment->begin();
+    }
+    else if (alignment->size() > 1) {
+        Fsa::State*               sp  = boundaryState(from);
+        Fsa::State*               _sp = f_->newState();
+        Alignment::const_iterator a   = alignment->begin();
         sp->newArc(_sp->id(), arc->weight(), a->emission);
         sp = _sp;
-        ++ a;
-        for (; a != alignment->end() - 1; ++ a) {
+        ++a;
+        for (; a != alignment->end() - 1; ++a) {
             _sp = f_->newState();
             sp->newArc(_sp->id(), arc->weight(), a->emission);
             sp = _sp;
@@ -407,22 +394,22 @@ void LatticeToAlignmentFsa::insertAlignment(
     }
 }
 
-void LatticeToAlignmentFsa::discoverState(Fsa::ConstStateRef sp)
-{
+void LatticeToAlignmentFsa::discoverState(Fsa::ConstStateRef sp) {
     const TimeframeIndex begtime = wordBoundaries_->time(sp->id());
     require(begtime != InvalidTimeframeIndex);
-    const Bliss::LemmaPronunciationAlphabet *alphabet =
-        required_cast(const Bliss::LemmaPronunciationAlphabet*, fsa_->getInputAlphabet().get());
-    for (Fsa::State::const_iterator a = sp->begin(); a != sp->end(); ++ a) {
-        const Alignment *alignment = 0;
-        const Bliss::LemmaPronunciation *pronunciation = alphabet->lemmaPronunciation(a->input());
-        const TimeframeIndex endtime = wordBoundaries_->time(a->target());
+    const Bliss::LemmaPronunciationAlphabet* alphabet =
+            required_cast(const Bliss::LemmaPronunciationAlphabet*, fsa_->getInputAlphabet().get());
+    for (Fsa::State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
+        const Alignment*                 alignment     = 0;
+        const Bliss::LemmaPronunciation* pronunciation = alphabet->lemmaPronunciation(a->input());
+        const TimeframeIndex             endtime       = wordBoundaries_->time(a->target());
         if (pronunciation) {
             Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
-                *pronunciation, wordBoundaries_->transit(sp->id()).final,
-                wordBoundaries_->transit(fsa_->getState(a->target())->id()).initial);
+                    *pronunciation, wordBoundaries_->transit(sp->id()).final,
+                    wordBoundaries_->transit(fsa_->getState(a->target())->id()).initial);
             alignment = alignmentGenerator_->getAlignment(coarticulatedPronunciation, begtime, endtime);
-        } else {
+        }
+        else {
             dummyAlignment_.resize(endtime - begtime, AlignmentItem(InvalidTimeframeIndex, Fsa::Epsilon));
             alignment = &dummyAlignment_;
         }
@@ -431,21 +418,15 @@ void LatticeToAlignmentFsa::discoverState(Fsa::ConstStateRef sp)
 }
 
 std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> LatticeToAlignmentFsa::convert(
-    Lattice::ConstWordLatticeRef lattice)
-{
+        Lattice::ConstWordLatticeRef lattice) {
     Fsa::Weight totalInv;
-    fsa_ =
-        Fsa::cache(
-            Fsa::posterior64(
-                Fsa::changeSemiring(
-                    lattice->mainPart(),
-                    Fsa::LogSemiring),
-                totalInv));
+    fsa_ = Fsa::cache(Fsa::posterior64(Fsa::changeSemiring(lattice->mainPart(), Fsa::LogSemiring),
+                                       totalInv));
     if (fsa_->semiring()->compare(totalInv, fsa_->semiring()->zero()) == 0) {
         Core::Application::us()->warning("no valid path in fsa");
     }
     wordBoundaries_ = lattice->wordBoundaries();
-    f_ = new Fsa::StaticAutomaton;
+    f_              = new Fsa::StaticAutomaton;
     f_->setType(Fsa::TypeAcceptor);
     f_->setSemiring(Fsa::TropicalSemiring);
     f_->setInputAlphabet(alignmentGenerator_->allophoneStateAlphabet());
@@ -459,72 +440,60 @@ std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> LatticeToAlignmentFsa::convert(
 //Iteration over states (DfsState):
 //do coarticulated pronunciation alignment
 //for all outgoing arcs from a state (getAlignment(coarticulatedPronunciation, begtime, endtime))
-class LatticeToAlignment : public Flf::DfsState
-{
+class LatticeToAlignment : public Flf::DfsState {
 private:
-    PhonemeSequenceAlignmentGenerator *alignmentGenerator_;
-    Alignment latticeAlignment_;
+    PhonemeSequenceAlignmentGenerator* alignmentGenerator_;
+    Alignment                          latticeAlignment_;
+
 public:
     LatticeToAlignment(PhonemeSequenceAlignmentGenerator*, Flf::ConstLatticeRef);
     ~LatticeToAlignment() {}
 
     virtual void discoverState(Flf::ConstStateRef);
-    void getAlignment(Speech::Alignment&);
+    void         getAlignment(Speech::Alignment&);
 };
 
-LatticeToAlignment::LatticeToAlignment(
-    PhonemeSequenceAlignmentGenerator *alignmentGenerator, Flf::ConstLatticeRef lattice)
-    :
-    Flf::DfsState(lattice), alignmentGenerator_(alignmentGenerator)
-{}
+LatticeToAlignment::LatticeToAlignment(PhonemeSequenceAlignmentGenerator* alignmentGenerator, Flf::ConstLatticeRef lattice)
+        : Flf::DfsState(lattice), alignmentGenerator_(alignmentGenerator) {}
 
-void LatticeToAlignment::discoverState(Flf::ConstStateRef sp)
-{
+void LatticeToAlignment::discoverState(Flf::ConstStateRef sp) {
     const TimeframeIndex begtime = fsa_->boundary(sp->id()).time();
     if (begtime == InvalidTimeframeIndex) {
         return;
     }
-    const Bliss::LemmaPronunciationAlphabet *alphabet =
-        required_cast(const Bliss::LemmaPronunciationAlphabet*, fsa_->getInputAlphabet().get());
-    for (Flf::State::const_iterator arc = sp->begin(); arc != sp->end(); ++ arc) {
-        const Bliss::LemmaPronunciation *pronunciation = alphabet->lemmaPronunciation(arc->input());
+    const Bliss::LemmaPronunciationAlphabet* alphabet = required_cast(const Bliss::LemmaPronunciationAlphabet*, fsa_->getInputAlphabet().get());
+    for (Flf::State::const_iterator arc = sp->begin(); arc != sp->end(); ++arc) {
+        const Bliss::LemmaPronunciation* pronunciation = alphabet->lemmaPronunciation(arc->input());
         if (pronunciation) {
-            const TimeframeIndex endtime = fsa_->boundary(arc->target()).time();
-            Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(
-                *pronunciation, fsa_->boundary(sp->id()).transit().final,
-                fsa_->boundary(arc->target()).transit().initial);
-            const Alignment *arcAlignment =
-                alignmentGenerator_->getAlignment(coarticulatedPronunciation, begtime, endtime);
+            const TimeframeIndex                            endtime = fsa_->boundary(arc->target()).time();
+            Bliss::Coarticulated<Bliss::LemmaPronunciation> coarticulatedPronunciation(*pronunciation, fsa_->boundary(sp->id()).transit().final,
+                                                                                       fsa_->boundary(arc->target()).transit().initial);
+            const Alignment*                                arcAlignment = alignmentGenerator_->getAlignment(coarticulatedPronunciation, begtime, endtime);
             require(arcAlignment);
             const Mm::Weight arcWeight = f32(fsa_->semiring()->project(arc->weight()));
-            for (Alignment::const_iterator in = arcAlignment->begin(); in != arcAlignment->end(); ++ in) {
+            for (Alignment::const_iterator in = arcAlignment->begin(); in != arcAlignment->end(); ++in) {
                 latticeAlignment_.push_back(AlignmentItem((*in).time, (*in).emission, arcWeight));
             }
         }
     }
 }
 
-void LatticeToAlignment::getAlignment(Alignment &alignment)
-{
+void LatticeToAlignment::getAlignment(Alignment& alignment) {
     latticeAlignment_ = Alignment();
     dfs();
     alignment = latticeAlignment_;
     alignment.sortStableItems();
 }
 
-void PhonemeSequenceAlignmentGenerator::getAlignment(
-    Alignment &alignment, Lattice::ConstWordLatticeRef lattice)
-{
-    LatticeToAlignmentFsa c(this);
+void PhonemeSequenceAlignmentGenerator::getAlignment(Alignment& alignment, Lattice::ConstWordLatticeRef lattice) {
+    LatticeToAlignmentFsa                          c(this);
     std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> alignmentPosteriorFsa(c.convert(lattice));
     aligner_.selectMode(Search::Aligner::modeBaumWelch);
     aligner_.getAlignment(alignment, alignmentPosteriorFsa);
     aligner_.selectMode();
 }
 
-void PhonemeSequenceAlignmentGenerator::getAlignment(
-    Alignment &alignment, Flf::ConstLatticeRef lattice)
-{
+void PhonemeSequenceAlignmentGenerator::getAlignment(Alignment& alignment, Flf::ConstLatticeRef lattice) {
     LatticeToAlignment c(this, lattice);
     c.getAlignment(alignment);
 }
@@ -534,9 +503,9 @@ Alignment::LabelType PhonemeSequenceAlignmentGenerator::labelType() const {
 }
 
 void PhonemeSequenceAlignmentGenerator::finalize() const {
-        this->log() << Core::XmlOpen("time-segmentwise-alignments")
-        << Core::XmlFull("retrieve-alignment", timeGetAlignment_)
-        << Core::XmlFull("compute-alignment", timeComputeAlignment_)
-        << Core::XmlFull("write-alignment", timeWriteAlignment_)
-        << Core::XmlClose("time-segmentwise-alignments");
+    this->log() << Core::XmlOpen("time-segmentwise-alignments")
+                << Core::XmlFull("retrieve-alignment", timeGetAlignment_)
+                << Core::XmlFull("compute-alignment", timeComputeAlignment_)
+                << Core::XmlFull("write-alignment", timeWriteAlignment_)
+                << Core::XmlClose("time-segmentwise-alignments");
 }

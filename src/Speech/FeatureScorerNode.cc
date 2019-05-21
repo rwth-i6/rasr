@@ -13,24 +13,20 @@
  *  limitations under the License.
  */
 #include "FeatureScorerNode.hh"
-#include <Mm/Module.hh>
-#include <Flow/Vector.hh>
-#include <Flow/TypedAggregate.hh>
 #include <Flow/Registry.hh>
-
+#include <Flow/TypedAggregate.hh>
+#include <Flow/Vector.hh>
+#include <Mm/Module.hh>
 
 namespace Speech {
 
 FeatureScorerNode::FeatureScorerNode(const Core::Configuration& config)
-:
-    Component(config),
-    Precursor(config),
-    needInit_(true),
-    aggregatedFeatures_(false)
-{
-    fs_ = Mm::Module::instance().createFeatureScorer(
-        select("feature-scorer"),
-        Mm::Module::instance().readAbstractMixtureSet(select("mixture-set")));
+        : Component(config),
+          Precursor(config),
+          needInit_(true),
+          aggregatedFeatures_(false) {
+    fs_ = Mm::Module::instance().createFeatureScorer(select("feature-scorer"),
+                                                     Mm::Module::instance().readAbstractMixtureSet(select("mixture-set")));
     require(fs_);
 }
 
@@ -49,8 +45,8 @@ bool FeatureScorerNode::configure() {
     getInputAttributes(0, *attributes);
 
     // check the allowed data types (Vector + aggregate Vector)
-    if (! (configureDataType(attributes, Flow::Vector<FeatureType>::type()) ||
-            configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType> >::type())) ) {
+    if (!(configureDataType(attributes, Flow::Vector<FeatureType>::type()) ||
+          configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type()))) {
         return false;
     }
 
@@ -59,19 +55,18 @@ bool FeatureScorerNode::configure() {
     return putOutputAttributes(0, attributes);
 }
 
-
 /* same as Flow::Node::configureDatatype but without the error message
  * used for checking whether aggregated features or single feature stream is received
  * */
-bool FeatureScorerNode::configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype *d) {
+bool FeatureScorerNode::configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d) {
     // check for valid attribute reference
-    if (! a) {
+    if (!a) {
         return false;
     }
 
-    std::string dtn(a->get("datatype"));
+    std::string           dtn(a->get("datatype"));
     const Flow::Datatype* datatype(0);
-    if (! dtn.empty()) { // get the data type from the attributes
+    if (!dtn.empty()) {  // get the data type from the attributes
         datatype = Flow::Registry::instance().getDatatype(dtn);
     }
 
@@ -84,25 +79,23 @@ bool FeatureScorerNode::configureDataType(Core::Ref<const Flow::Attributes> a, c
     return true;
 }
 
-
 static const Mm::FeatureVector& convertFeature(const Flow::Vector<FeatureScorerNode::FeatureType>& feature) {
-    return (const Mm::FeatureVector&) feature;  // Mm::FeatureVector is just std::vector. we can just cast
+    return (const Mm::FeatureVector&)feature;  // Mm::FeatureVector is just std::vector. we can just cast
 }
 
-static Core::Ref<Mm::Feature> convertFeature(const Flow::TypedAggregate<Flow::Vector<FeatureScorerNode::FeatureType> >& feature) {
-    Core::Ref<Mm::Feature> fs_feature(new Mm::Feature(feature.size())); // multi-stream feature
+static Core::Ref<Mm::Feature> convertFeature(const Flow::TypedAggregate<Flow::Vector<FeatureScorerNode::FeatureType>>& feature) {
+    Core::Ref<Mm::Feature> fs_feature(new Mm::Feature(feature.size()));  // multi-stream feature
     for (u32 i = 0; i < feature.size(); ++i) {
         // Flow::DataPtr is incompatible with Core::Ref. Thus we need to make a copy.
-        fs_feature->set(i, Mm::Feature::convert((const Mm::FeatureVector&) *feature[i]));
+        fs_feature->set(i, Mm::Feature::convert((const Mm::FeatureVector&)*feature[i]));
     }
     return fs_feature;
 }
 
-
 bool FeatureScorerNode::putData(Mm::FeatureScorer::Scorer scorer) {
-    Flow::Vector<FeatureType> *out = NULL;
-    out = new Flow::Vector<FeatureType>(scorer->nEmissions());
-    for(u32 i = 0; i < scorer->nEmissions(); ++i) {
+    Flow::Vector<FeatureType>* out = NULL;
+    out                            = new Flow::Vector<FeatureType>(scorer->nEmissions());
+    for (u32 i = 0; i < scorer->nEmissions(); ++i) {
         // A FeatureScorer returns the scores in -log space.
         // This Flow node is expected to return the scores in +log space.
         out->at(i) = -scorer->score(i);
@@ -117,7 +110,6 @@ bool FeatureScorerNode::putData(Mm::FeatureScorer::Scorer scorer) {
     return Precursor::putData(0, out);
 }
 
-
 template<class T>  // T is Flow::Vector<FeatureType> or Flow::TypedAggregate<Flow::Vector<FeatureType> >
 bool FeatureScorerNode::work() {
     // The FeatureScorer interface, without buffering (!isBuffered()):
@@ -128,22 +120,22 @@ bool FeatureScorerNode::work() {
     // Then, while not bufferEmpty(), call flush() to get a scorer for each remaining frame.
     // Thus, in every case, we can read as much input as we can here.
 
-    while(true) {
+    while (true) {
         // pull feature from incoming connections
-        Flow::DataPtr<T> ptrFeatures; // features from the flow network (single feature stream or aggregated features)
-        if(!getData(0, ptrFeatures)) {
-            require(ptrFeatures == Flow::Data::eos()); // or what else can it be?
+        Flow::DataPtr<T> ptrFeatures;  // features from the flow network (single feature stream or aggregated features)
+        if (!getData(0, ptrFeatures)) {
+            require(ptrFeatures == Flow::Data::eos());  // or what else can it be?
             break;
         }
-        timeStamps_.push_back((Flow::Timestamp) *ptrFeatures.get());
+        timeStamps_.push_back((Flow::Timestamp)*ptrFeatures.get());
 
-        if(fs_->isBuffered() && !fs_->bufferFilled()) {
+        if (fs_->isBuffered() && !fs_->bufferFilled()) {
             // fill buffer
             fs_->addFeature(convertFeature(*ptrFeatures.get()));
         }
         else {
             Mm::FeatureScorer::Scorer scorer = fs_->getScorer(convertFeature(*ptrFeatures.get()));
-            if(!putData(scorer))
+            if (!putData(scorer))
                 return false;
         }
     }
@@ -153,38 +145,36 @@ bool FeatureScorerNode::work() {
     // and only then get out the scores. That is how the FeatureScores expects it.
     // In case of bidir-RNNs (e.g. via TrainerFeatureScorer via PythonTrainer),
     // it's important that way, because the NN forward will happen at the first flush() call.
-    if(fs_->isBuffered()) {
-        while(!fs_->bufferEmpty()) {
+    if (fs_->isBuffered()) {
+        while (!fs_->bufferEmpty()) {
             Mm::FeatureScorer::Scorer scorer = fs_->flush();
-            if(!putData(scorer))
+            if (!putData(scorer))
                 return false;
         }
     }
 
     require(timeStamps_.empty());
     // There might be different behavior for different FeatureScorer's.
-    fs_->finalize(); // finalize this segment
-    fs_->reset(); // for the next round
+    fs_->finalize();  // finalize this segment
+    fs_->reset();     // for the next round
 
     return Precursor::putData(0, Flow::Data::eos());
 }
 
-
 // overrides Flow::Node::work
 bool FeatureScorerNode::work(Flow::PortId /*output, expected to be zero*/) {
-    if(needInit_) {
+    if (needInit_) {
         // get data type of the flow stream
         Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
         getInputAttributes(0, *attributes);
-        aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType> >::type());
-        needInit_ = false;
+        aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type());
+        needInit_           = false;
     }
 
-    if(aggregatedFeatures_)
-        return work<Flow::TypedAggregate<Flow::Vector<FeatureType> > >();
+    if (aggregatedFeatures_)
+        return work<Flow::TypedAggregate<Flow::Vector<FeatureType>>>();
     else
-        return work<Flow::Vector<FeatureType> >();
+        return work<Flow::Vector<FeatureType>>();
 }
 
-
-}
+}  // namespace Speech

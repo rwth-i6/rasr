@@ -19,34 +19,34 @@
 
 namespace Speech {
 
-    /**
-     * discriminative mixture set trainer: EBW
-     */
-    class EbwDiscriminativeMixtureSetTrainer : public DiscriminativeMixtureSetTrainer
-    {
-        typedef DiscriminativeMixtureSetTrainer Precursor;
-    protected:
-        Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
-    public:
-        EbwDiscriminativeMixtureSetTrainer(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureSetTrainer();
-    };
+/**
+ * discriminative mixture set trainer: EBW
+ */
+class EbwDiscriminativeMixtureSetTrainer : public DiscriminativeMixtureSetTrainer {
+    typedef DiscriminativeMixtureSetTrainer Precursor;
 
-    /**
-     * EBW with i-smoothing
-     */
-    class EbwDiscriminativeMixtureSetTrainerWithISmoothing :
-        public DiscriminativeMixtureSetTrainer
-    {
-        typedef DiscriminativeMixtureSetTrainer Precursor;
-    protected:
-        Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
-    public:
-        EbwDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureSetTrainerWithISmoothing();
-    };
+protected:
+    Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
 
+public:
+    EbwDiscriminativeMixtureSetTrainer(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureSetTrainer();
+};
 
-}
+/**
+ * EBW with i-smoothing
+ */
+class EbwDiscriminativeMixtureSetTrainerWithISmoothing : public DiscriminativeMixtureSetTrainer {
+    typedef DiscriminativeMixtureSetTrainer Precursor;
 
-#endif // _SPEECH_EBW_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH
+protected:
+    Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
+
+public:
+    EbwDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureSetTrainerWithISmoothing();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_EBW_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH

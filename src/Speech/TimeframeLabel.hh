@@ -19,19 +19,22 @@
 
 namespace Speech {
 
-    typedef u32 TimeframeIndex;
+typedef u32 TimeframeIndex;
 
-    class TimeframeLabel {
-    public:
-        TimeframeIndex time_;
-        TimeframeLabel() {}
-        TimeframeLabel(TimeframeIndex time) : time_(time) {}
-        bool isDefault() const { return false; }
-        void writeXml(Core::XmlWriter &os) const {
-            os << Core::XmlFull("time", time_);
-        }
-    };
+class TimeframeLabel {
+public:
+    TimeframeIndex time_;
+    TimeframeLabel() {}
+    TimeframeLabel(TimeframeIndex time)
+            : time_(time) {}
+    bool isDefault() const {
+        return false;
+    }
+    void writeXml(Core::XmlWriter& os) const {
+        os << Core::XmlFull("time", time_);
+    }
+};
 
-} // namespace Speech
+}  // namespace Speech
 
-#endif //_SPEECH_TIMEFRAME_LABEL_HH
+#endif  //_SPEECH_TIMEFRAME_LABEL_HH

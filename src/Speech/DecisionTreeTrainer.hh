@@ -17,126 +17,92 @@
 
 #include <Am/AcousticModel.hh>
 #include <Am/ClassicDecisionTree.hh>
-#include <Cart/Properties.hh>
 #include <Cart/DecisionTreeTrainer.hh>
+#include <Cart/Properties.hh>
 #include <Mm/Types.hh>
 
 #include <Speech/AcousticModelTrainer.hh>
 
 namespace Speech {
-    class FeatureAccumulator : public AcousticModelTrainer {
-    protected:
-                typedef AcousticModelTrainer Precursor;
+class FeatureAccumulator : public AcousticModelTrainer {
+protected:
+    typedef AcousticModelTrainer Precursor;
 
-    protected:
-                Cart::ExampleList examples_;
-                f64 nObs_;
-                size_t nCols_;
-                Cart::PropertyMapRef map_;
+protected:
+    Cart::ExampleList    examples_;
+    f64                  nObs_;
+    size_t               nCols_;
+    Cart::PropertyMapRef map_;
 
-    protected:
-                Am::AllophoneState allophoneState(Am::AllophoneStateIndex id) {
-                        return acousticModel()->allophoneStateAlphabet()->allophoneState(id);
-                }
-                Cart::Example & example(Am::AllophoneStateIndex id);
+protected:
+    Am::AllophoneState allophoneState(Am::AllophoneStateIndex id) {
+        return acousticModel()->allophoneStateAlphabet()->allophoneState(id);
+    }
+    Cart::Example& example(Am::AllophoneStateIndex id);
 
-    public:
-                FeatureAccumulator(const Core::Configuration & config);
-                virtual ~FeatureAccumulator() {}
+public:
+    FeatureAccumulator(const Core::Configuration& config);
+    virtual ~FeatureAccumulator() {}
 
-                const Cart::PropertyMap & map() { return *map_; }
-                Cart::PropertyMapRef getMap() { return map_; }
-                const Cart::ExampleList & examples() { return examples_; }
+    const Cart::PropertyMap& map() {
+        return *map_;
+    }
+    Cart::PropertyMapRef getMap() {
+        return map_;
+    }
+    const Cart::ExampleList& examples() {
+        return examples_;
+    }
 
-                virtual void processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex id);
-                virtual void processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex id, Mm::Weight w);
+    virtual void processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex id);
+    virtual void processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex id, Mm::Weight w);
 
-                void write(std::ostream & out) const;
-                void writeXml(Core::XmlWriter & xml) const;
-    };
+    void write(std::ostream& out) const;
+    void writeXml(Core::XmlWriter& xml) const;
+};
 
+// tying of mixtures
+class StateTyingDecisionTreeTrainer : public Cart::DecisionTreeTrainer {
+protected:
+    typedef StateTyingDecisionTreeTrainer Self;
+    typedef Cart::DecisionTreeTrainer     Precursor;
 
-    // tying of mixtures
-    class StateTyingDecisionTreeTrainer :
-                public Cart::DecisionTreeTrainer {
-    protected:
-                typedef StateTyingDecisionTreeTrainer Self;
-                typedef Cart::DecisionTreeTrainer Precursor;
-
-    public:
-                class LogLikelihoodGain : public Cart::Scorer {
-                        typedef Cart::Scorer Precursor;
-                public:
-                        static const Core::ParameterFloat paramVarianceClipping;
-                        static const Core::ParameterBool paramDoParallel;
-                private:
-                        f64 minSigmaSquare_;
-                        mutable std::vector<f64> mu_;
-                        mutable std::vector<f64> sigmaSquare_;
-
-                protected:
-                        bool parallel_;
-
-                public:
-                        LogLikelihoodGain(const Core::Configuration &config);
-
-                        void write(std::ostream &os) const;
-
-                        // negated log-likelihood
-                        Cart::Score logLikelihood(Cart::ExamplePtrList::const_iterator begin, Cart::ExamplePtrList::const_iterator end) const;
-
-                        // compute a gain, not a distance, i.e. the higher the return score, the better
-                        Cart::Score operator()(
-                                const Cart::ExamplePtrRange &leftExamples, const Cart::ExamplePtrRange &rightExamples,
-                                const Cart::Score fatherLogLikelihood,
-                                Cart::Score &leftChildLogLikelihood, Cart::Score &rightChildLogLikelihood) const;
-                        void operator()(const Cart::ExamplePtrRange &examples, Cart::Score &score) const;
-                };
+public:
+    class LogLikelihoodGain : public Cart::Scorer {
+        typedef Cart::Scorer Precursor;
 
     public:
-                StateTyingDecisionTreeTrainer(const Core::Configuration & config);
-    };
+        static const Core::ParameterFloat paramVarianceClipping;
+        static const Core::ParameterBool  paramDoParallel;
 
-
-    // ============================================================================
-
-
-#if 0
-    class TransitionAccumulator : public Accumulator {
     private:
-                s16 nStates_;
-                s16 lastState_;
-    public:
-                TransitionAccumulator(const Core::Configuration & config);
-                void processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex id);
-    };
+        f64                      minSigmaSquare_;
+        mutable std::vector<f64> mu_;
+        mutable std::vector<f64> sigmaSquare_;
 
-    // tying of transition pdfs
-    class TdpTyingDecisionTreeTrainer :
-                public Cart::DecisionTreeTrainer {
     protected:
-                typedef TdpTyingDecisionTreeTrainer Self;
-                typedef Cart::DecisionTreeTrainer Precursor;
+        bool parallel_;
 
     public:
-                class LogLikelihood :
-                        public Cart::Scorer {
-                public:
-                        LogLikelihood() {}
+        LogLikelihoodGain(const Core::Configuration& config);
 
-                        Cart::Score operator()(Cart::ExamplePtrList::const_iterator begin, Cart::ExamplePtrList::const_iterator end) {
-                                //TODO
-                                defect();
-                                return Cart::Score(0);
-                        }
-                };
+        void write(std::ostream& os) const;
 
-    public:
-                TdpTyingDecisionTreeTrainer(const Core::Configuration & config) :
-                        Precursor(config, Cart::PropertyMapRef(new Cart::PropertyMap), new LogLikelihood, 0) {}
+        // negated log-likelihood
+        Cart::Score logLikelihood(Cart::ExamplePtrList::const_iterator begin, Cart::ExamplePtrList::const_iterator end) const;
+
+        // compute a gain, not a distance, i.e. the higher the return score, the better
+        Cart::Score operator()(
+                const Cart::ExamplePtrRange& leftExamples, const Cart::ExamplePtrRange& rightExamples,
+                const Cart::Score fatherLogLikelihood,
+                Cart::Score& leftChildLogLikelihood, Cart::Score& rightChildLogLikelihood) const;
+        void operator()(const Cart::ExamplePtrRange& examples, Cart::Score& score) const;
     };
-#endif
 
-} // namespace Speech
+public:
+    StateTyingDecisionTreeTrainer(const Core::Configuration& config);
+};
 
-#endif // _SPEECH_DECISION_TREE_TRAINER_HH
+}  // namespace Speech
+
+#endif  // _SPEECH_DECISION_TREE_TRAINER_HH

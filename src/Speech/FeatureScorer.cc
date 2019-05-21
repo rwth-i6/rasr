@@ -12,61 +12,53 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Flow/DataAdaptor.hh>
 #include "FeatureScorer.hh"
+#include <Flow/DataAdaptor.hh>
 #include "MixtureSetTrainer.hh"
 
 using namespace Speech;
 
-
 const Core::ParameterString FeatureScorer::paramWeightPortName(
-    "weight-port-name", "port name of flow network providing the score weights");
+        "weight-port-name", "port name of flow network providing the score weights");
 
 const Core::ParameterInt FeatureScorer::paramPrecision(
-    "output-precision", "precision of the output channel", 20);
+        "output-precision", "precision of the output channel", 20);
 
-FeatureScorer::FeatureScorer(const Core::Configuration &c) :
-    Component(c),
-    Precursor(c, Am::AcousticModel::complete),
-    weightScores_(false),
-    weightPort_(Flow::IllegalPortId),
-    corpusKey_(new Bliss::CorpusKey(select("corpus-key"))),
-    outputChannel_(c, "output", Core::Channel::disabled)
-{}
+FeatureScorer::FeatureScorer(const Core::Configuration& c)
+        : Component(c),
+          Precursor(c, Am::AcousticModel::complete),
+          weightScores_(false),
+          weightPort_(Flow::IllegalPortId),
+          corpusKey_(new Bliss::CorpusKey(select("corpus-key"))),
+          outputChannel_(c, "output", Core::Channel::disabled) {}
 
-FeatureScorer::~FeatureScorer()
-{}
+FeatureScorer::~FeatureScorer() {}
 
-void FeatureScorer::signOn(CorpusVisitor &corpusVisitor)
-{
+void FeatureScorer::signOn(CorpusVisitor& corpusVisitor) {
     corpusVisitor.signOn(corpusKey_);
     Precursor::signOn(corpusVisitor);
 }
 
-void FeatureScorer::setDataSource(Core::Ref<DataSource> dataSource)
-{
+void FeatureScorer::setDataSource(Core::Ref<DataSource> dataSource) {
     if (!paramWeightPortName(config).empty()) {
-
         require(dataSource);
         weightSource_ = dataSource;
 
         weightPort_ = weightSource_->getOutput(paramWeightPortName(config));
         if (weightPort_ == Flow::IllegalPortId) {
             criticalError("Flow network does not have an output named \"%s\"",
-                                  paramWeightPortName(config).c_str());
+                          paramWeightPortName(config).c_str());
         }
         weightScores_ = true;
     }
 }
 
-void FeatureScorer::enterSpeechSegment(Bliss::SpeechSegment *segment)
-{
+void FeatureScorer::enterSpeechSegment(Bliss::SpeechSegment* segment) {
     Precursor::enterSpeechSegment(segment);
     segmentAccumulator_.reset();
 }
 
-void FeatureScorer::leaveSpeechSegment(Bliss::SpeechSegment *segment)
-{
+void FeatureScorer::leaveSpeechSegment(Bliss::SpeechSegment* segment) {
     std::string key;
     corpusKey_->resolve(key);
 
@@ -77,17 +69,15 @@ void FeatureScorer::leaveSpeechSegment(Bliss::SpeechSegment *segment)
     Precursor::leaveSpeechSegment(segment);
 }
 
-void FeatureScorer::processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex e)
-{
+void FeatureScorer::processAlignedFeature(Core::Ref<const Feature> f, Am::AllophoneStateIndex e) {
     Mm::FeatureScorer::Scorer scorer = acousticModel()->featureScorer()->getScorer(f);
     segmentAccumulator_.accumulate(
-        scorer->score(acousticModel()->emissionIndex(e)), featureScoreWeight(f->timestamp()));
+            scorer->score(acousticModel()->emissionIndex(e)), featureScoreWeight(f->timestamp()));
 }
 
-FeatureScorer::Weight FeatureScorer::featureScoreWeight(const Flow::Timestamp &featureTimestamp)
-{
+FeatureScorer::Weight FeatureScorer::featureScoreWeight(const Flow::Timestamp& featureTimestamp) {
     if (weightScores_) {
-        Flow::DataPtr<Flow::DataAdaptor<Weight> > weight;
+        Flow::DataPtr<Flow::DataAdaptor<Weight>> weight;
         if (weightSource_->getData(weightPort_, weight)) {
             if (featureTimestamp.contains(*weight)) {
                 if ((*weight)() >= 0)
@@ -105,31 +95,28 @@ FeatureScorer::Weight FeatureScorer::featureScoreWeight(const Flow::Timestamp &f
     return 1;
 }
 
-void FeatureScorer::setFeatureDescription(const Mm::FeatureDescription &description)
-{
+void FeatureScorer::setFeatureDescription(const Mm::FeatureDescription& description) {
     if (!acousticModel()->isCompatible(description))
         acousticModel()->respondToDelayedErrors();
     Precursor::setFeatureDescription(description);
 }
 
-void FeatureScorer::setNumberOfLabels(size_t nLabels)
-{
+void FeatureScorer::setNumberOfLabels(size_t nLabels) {
     if (nLabels != acousticModel()->nEmissions()) {
         criticalError("Number of labels of alignment (%zd) do not match the number of mixtures (%d).",
                       nLabels, acousticModel()->nEmissions());
     }
 }
 
-void FeatureScorer::write()
-{
+void FeatureScorer::write() {
     if (outputChannel_.isOpen()) {
         outputChannel_.precision(paramPrecision(config));
 
         outputChannel_ << Core::XmlOpen("corpus-key-to-score-accumulator-map");
         CorpusKeyToScoreMap::const_iterator i;
-        for(i = corpusKeyToScoreMap_.begin(); i != corpusKeyToScoreMap_.end(); ++ i) {
+        for (i = corpusKeyToScoreMap_.begin(); i != corpusKeyToScoreMap_.end(); ++i) {
             outputChannel_ << Core::XmlOpen("score-accumulator") +
-                Core::XmlAttribute("corpus-key", i->first);
+                                      Core::XmlAttribute("corpus-key", i->first);
             outputChannel_ << Core::XmlOpen("weighted-sum-of-scores");
             outputChannel_ << std::setiosflags(std::ios::scientific) << i->second.weightedSum();
             outputChannel_ << Core::XmlClose("weighted-sum-of-scores");
@@ -139,7 +126,8 @@ void FeatureScorer::write()
             outputChannel_ << Core::XmlClose("score-accumulator");
         }
         outputChannel_ << Core::XmlClose("corpus-key-to-score-accumulator-map");
-    } else {
+    }
+    else {
         criticalError("Could not dump corpus-key-to-score-map since channel \"output\" is not open.");
     }
 }

@@ -13,15 +13,15 @@
  *  limitations under the License.
  */
 #include "SegmentwiseGmmTrainer.hh"
-#include <Fsa/Basic.hh>
-#include <Fsa/Cache.hh>
-#include <Fsa/Sssp.hh>
-#include <Lattice/Arithmetic.hh>
 #include <Core/Archive.hh>
 #include <Core/BinaryStream.hh>
 #include <Flow/Data.hh>
 #include <Flow/DataAdaptor.hh>
 #include <Flow/Datatype.hh>
+#include <Fsa/Basic.hh>
+#include <Fsa/Cache.hh>
+#include <Fsa/Sssp.hh>
+#include <Lattice/Arithmetic.hh>
 #include "AlignmentNode.hh"
 #include "Module.hh"
 
@@ -34,37 +34,29 @@ using namespace Speech;
  *  SegmentwiseGmmTrainer: base class
  */
 SegmentwiseGmmTrainer::SegmentwiseGmmTrainer(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    featureDescription_(*this),
-    initialized_(false),
-    mixtureSetTrainer_(0)
-{
+        const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          featureDescription_(*this),
+          initialized_(false),
+          mixtureSetTrainer_(0) {
     initializeMixtureSetTrainer();
 }
 
-SegmentwiseGmmTrainer::~SegmentwiseGmmTrainer()
-{
+SegmentwiseGmmTrainer::~SegmentwiseGmmTrainer() {
     delete mixtureSetTrainer_;
 }
 
-void SegmentwiseGmmTrainer::setFeatureDescription(const Mm::FeatureDescription &description)
-{
-    Core::Ref<const Mm::FeatureScorerScaling> featureScorer(
-        required_cast(
-            const Mm::FeatureScorerScaling*,
-            acousticModel()->featureScorer().get()));
+void SegmentwiseGmmTrainer::setFeatureDescription(const Mm::FeatureDescription& description) {
+    Core::Ref<const Mm::FeatureScorerScaling> featureScorer(required_cast(const Mm::FeatureScorerScaling*, acousticModel()->featureScorer().get()));
     if (!initialized_) {
         featureDescription_ = description;
         size_t dimension;
         featureDescription_.mainStream().getValue(Mm::FeatureDescription::nameDimension, dimension);
-        mixtureSetTrainer_->initializeAccumulation(
-            acousticModel()->nEmissions(),
-            dimension,
-            featureScorer->assigningFeatureScorer());
+        mixtureSetTrainer_->initializeAccumulation(acousticModel()->nEmissions(), dimension, featureScorer->assigningFeatureScorer());
         initialized_ = true;
-    } else {
+    }
+    else {
         if (featureDescription_ != description) {
             criticalError("change of features is not allowed");
         }
@@ -74,95 +66,80 @@ void SegmentwiseGmmTrainer::setFeatureDescription(const Mm::FeatureDescription &
 
 namespace InternalGmm {
 
-    class NumeratorAccumulator : public GmmAccumulator
-    {
-    protected:
-        virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
-            trainer_->accumulate(f, m, w);
-        }
-    public:
-        NumeratorAccumulator(const GmmAccumulator &accumulator) :
-            GmmAccumulator(accumulator) {}
-    };
+class NumeratorAccumulator : public GmmAccumulator {
+protected:
+    virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+        trainer_->accumulate(f, m, w);
+    }
 
-    class DenominatorAccumulator : public GmmAccumulator
-    {
-    protected:
-        virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
-            trainer_->accumulateDenominator(f, m, w);
-        }
-    public:
-        DenominatorAccumulator(const GmmAccumulator &accumulator) :
-            GmmAccumulator(accumulator) {}
-    };
+public:
+    NumeratorAccumulator(const GmmAccumulator& accumulator)
+            : GmmAccumulator(accumulator) {}
+};
 
-} // namespace InternalGmm
+class DenominatorAccumulator : public GmmAccumulator {
+protected:
+    virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+        trainer_->accumulateDenominator(f, m, w);
+    }
+
+public:
+    DenominatorAccumulator(const GmmAccumulator& accumulator)
+            : GmmAccumulator(accumulator) {}
+};
+
+}  // namespace InternalGmm
 
 using namespace InternalGmm;
 
-GmmAccumulator* SegmentwiseGmmTrainer::createAcc()
-{
-    return new GmmAccumulator(
-        segmentwiseFeatureExtractor()->features(portId()),
-        alignmentGenerator(),
-        mixtureSetTrainer_,
-        weightThreshold(),
-        acousticModel());
+GmmAccumulator* SegmentwiseGmmTrainer::createAcc() {
+    return new GmmAccumulator(segmentwiseFeatureExtractor()->features(portId()),
+                              alignmentGenerator(),
+                              mixtureSetTrainer_,
+                              weightThreshold(),
+                              acousticModel());
 }
 
-GmmAccumulator* SegmentwiseGmmTrainer::createNumAcc()
-{
+GmmAccumulator* SegmentwiseGmmTrainer::createNumAcc() {
     return new NumeratorAccumulator(*acc());
 }
 
-GmmAccumulator* SegmentwiseGmmTrainer::createDenAcc()
-{
+GmmAccumulator* SegmentwiseGmmTrainer::createDenAcc() {
     return new DenominatorAccumulator(*acc());
 }
 
-
-GmmAccumulator* SegmentwiseGmmTrainer::createMleAcc()
-{
+GmmAccumulator* SegmentwiseGmmTrainer::createMleAcc() {
     defect();
     return 0;
 }
 
-
-void SegmentwiseGmmTrainer::accumulateObjectiveFunction(f32 obj)
-{
+void SegmentwiseGmmTrainer::accumulateObjectiveFunction(f32 obj) {
     log("objective-function: ") << obj;
     mixtureSetTrainer_->accumulateObjectiveFunction(obj);
 }
 
-void SegmentwiseGmmTrainer::initializeMixtureSetTrainer()
-{
+void SegmentwiseGmmTrainer::initializeMixtureSetTrainer() {
     verify(!mixtureSetTrainer_);
-    mixtureSetTrainer_ =
-        Speech::Module::instance().createDiscriminativeMixtureSetTrainer(
-            select("mixture-set-trainer"));
+    mixtureSetTrainer_ = Speech::Module::instance().createDiscriminativeMixtureSetTrainer(select("mixture-set-trainer"));
 }
 
-void SegmentwiseGmmTrainer::leaveCorpus(Bliss::Corpus *corpus)
-{
+void SegmentwiseGmmTrainer::leaveCorpus(Bliss::Corpus* corpus) {
     if (corpus->level() == 0) {
         write();
     }
     Precursor::leaveCorpus(corpus);
 }
 
-
 /*
  *  SegmentwiseGmmTrainer: risk based
  */
 MinimumErrorSegmentwiseGmmTrainer::MinimumErrorSegmentwiseGmmTrainer(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+        const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
 void MinimumErrorSegmentwiseGmmTrainer::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     Precursor::processWordLattice(lattice, s);
     if (!lattice) {
         return;
@@ -176,35 +153,28 @@ void MinimumErrorSegmentwiseGmmTrainer::processWordLattice(
 
     // calculate the posterior automaton with expectation semiring of Q(Z), with Z = (P,P*A)
     // A = accuracies, P = scaled joint probabilities
-    Lattice::ConstWordLatticeRef denominator = Lattice::getPart(lattice, part_); // denominator = P-lattice
-    Fsa::Weight expectation; // expected accuracy (objective function of current sample)
+    Lattice::ConstWordLatticeRef denominator = Lattice::getPart(lattice, part_);  // denominator = P-lattice
+    Fsa::Weight                  expectation;                                     // expected accuracy (objective function of current sample)
 
-    Fsa::ConstAutomatonRef fsa =
-            Fsa::posteriorE(Fsa::changeSemiring(denominator->mainPart(), Fsa::LogSemiring),
-                    lattice->part(Lattice::WordLattice::accuracyFsa),
-                    expectation, true, posteriorTolerance());
+    Fsa::ConstAutomatonRef fsa = Fsa::posteriorE(Fsa::changeSemiring(denominator->mainPart(), Fsa::LogSemiring),
+                                                 lattice->part(Lattice::WordLattice::accuracyFsa),
+                                                 expectation, true, posteriorTolerance());
 
     /**
      * accumulation of the covariance Cov(A, gradient( log(P) ) )
      */
     // pass over all arcs with negative arc weights (negative accuracy = denominator)
-    accumulateDenominator(
-        Fsa::multiply(fsa, Fsa::Weight(f32(-1))),
-        denominator->wordBoundaries());
+    accumulateDenominator(Fsa::multiply(fsa, Fsa::Weight(f32(-1))), denominator->wordBoundaries());
     // pass over all arcs with positive arc weights (positive accuracy = numerator)
     accumulateNumerator(fsa, denominator->wordBoundaries());
     accumulateObjectiveFunction(expectation);
     resetAcc();
 }
 
-
 /**
  * factory
  */
-SegmentwiseGmmTrainer*
-SegmentwiseGmmTrainer::createSegmentwiseGmmTrainer(
-    const Core::Configuration &config)
-{
+SegmentwiseGmmTrainer* SegmentwiseGmmTrainer::createSegmentwiseGmmTrainer(const Core::Configuration& config) {
     /*! @todo: remove */
     return Speech::Module::instance().createSegmentwiseGmmTrainer(config);
 }

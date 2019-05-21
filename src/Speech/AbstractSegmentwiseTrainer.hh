@@ -15,77 +15,87 @@
 #ifndef _SPEECH_ABSTRACT_SEGMENTWISE_TRAINER_HH
 #define _SPEECH_ABSTRACT_SEGMENTWISE_TRAINER_HH
 
-#include "LatticeSetProcessor.hh"
 #include <Core/Parameter.hh>
 #include <Lattice/Lattice.hh>
+#include "LatticeSetProcessor.hh"
 
 namespace Bliss {
-    class OrthographicParser;
+class OrthographicParser;
 }
 
 namespace Speech {
 
-    /*
-     * AbstractSegmentwiseTrainer: abstract base class
-     * This is the interface for the discriminative
-     * accumulation of segmentwise training criteria,
-     * e.g. GHMMs/LHMMs with MPE, or CRF for tagging.
-     * Each model and criterion corresponds with a
-     * derived class.
-     */
-    class AbstractSegmentwiseTrainer : public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    public:
-        enum Criterion {
-            maximumMutualInformation,
-            weightedMaximumMutualInformation,
-            minimumClassificationError,
-            minimumError,
-            gisMinimumError,
-            logMinimumError,
-            contextPrior,
-            contextAccuracy,
-            weightedMinimumError,
-            legacyMinimumErrorWithISmoothing,
-            minimumErrorWithISmoothing,
-            logMinimumErrorWithISmoothing,
-            weightedMinimumErrorWithISmoothing,
-            corrective,
-            minimumLeastSquaredError,
-            plain};
-        static Core::Choice choiceCriterion;
-        static Core::ParameterChoice paramCriterion;
-    private:
-        static const Core::ParameterFloat paramWeightThreshold;
-        static const Core::ParameterInt paramPosteriorTolerance;
-        static Core::ParameterString paramLatticeName;
-    private:
-        Mm::Weight weightThreshold_;
-        s32 posteriorTolerance_;
-    protected:
-        Bliss::OrthographicParser *orthToLemma_;
-        Fsa::ConstAutomatonRef lemmaPronToLemma_;
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion_;
-        std::string part_;
-    protected:
-        Lattice::ConstWordLatticeRef extractNumerator(const std::string &orth, Lattice::ConstWordLatticeRef denominator) const;
-        Mm::Weight weightThreshold() const { return weightThreshold_; }
-    public:
-        s32 posteriorTolerance() const { return posteriorTolerance_; }
-    public:
-        AbstractSegmentwiseTrainer(const Core::Configuration &);
-        virtual ~AbstractSegmentwiseTrainer();
+/*
+ * AbstractSegmentwiseTrainer: abstract base class
+ * This is the interface for the discriminative
+ * accumulation of segmentwise training criteria,
+ * e.g. GHMMs/LHMMs with MPE, or CRF for tagging.
+ * Each model and criterion corresponds with a
+ * derived class.
+ */
+class AbstractSegmentwiseTrainer : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
 
-        /*
-         * Use this function for lexicon-based initialization.
-         * Lexicon must be global because otherwise pointer
-         * comparisons of the alphabets will fail etc.
-         */
-        virtual void initialize(Bliss::LexiconRef);
-
+public:
+    enum Criterion {
+        maximumMutualInformation,
+        weightedMaximumMutualInformation,
+        minimumClassificationError,
+        minimumError,
+        gisMinimumError,
+        logMinimumError,
+        contextPrior,
+        contextAccuracy,
+        weightedMinimumError,
+        legacyMinimumErrorWithISmoothing,
+        minimumErrorWithISmoothing,
+        logMinimumErrorWithISmoothing,
+        weightedMinimumErrorWithISmoothing,
+        corrective,
+        minimumLeastSquaredError,
+        plain
     };
+    static Core::Choice          choiceCriterion;
+    static Core::ParameterChoice paramCriterion;
 
-} // namespace Speech
+private:
+    static const Core::ParameterFloat paramWeightThreshold;
+    static const Core::ParameterInt   paramPosteriorTolerance;
+    static Core::ParameterString      paramLatticeName;
 
-#endif // _SPEECH_ABSTRACT_SEGMENTWISE_TRAINER_HH
+private:
+    Mm::Weight weightThreshold_;
+    s32        posteriorTolerance_;
+
+protected:
+    Bliss::OrthographicParser* orthToLemma_;
+    Fsa::ConstAutomatonRef     lemmaPronToLemma_;
+    Fsa::ConstAutomatonRef     lemmaToLemmaConfusion_;
+    std::string                part_;
+
+protected:
+    Lattice::ConstWordLatticeRef extractNumerator(const std::string& orth, Lattice::ConstWordLatticeRef denominator) const;
+    Mm::Weight                   weightThreshold() const {
+        return weightThreshold_;
+    }
+
+public:
+    s32 posteriorTolerance() const {
+        return posteriorTolerance_;
+    }
+
+public:
+    AbstractSegmentwiseTrainer(const Core::Configuration&);
+    virtual ~AbstractSegmentwiseTrainer();
+
+    /*
+     * Use this function for lexicon-based initialization.
+     * Lexicon must be global because otherwise pointer
+     * comparisons of the alphabets will fail etc.
+     */
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ABSTRACT_SEGMENTWISE_TRAINER_HH

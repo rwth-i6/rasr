@@ -15,58 +15,61 @@
 #ifndef _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH
 #define _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH
 
-#include "DataExtractor.hh"
+#include <Flow/DataAdaptor.hh>
 #include "AlignedFeatureProcessor.hh"
 #include "Alignment.hh"
-#include <Flow/DataAdaptor.hh>
+#include "DataExtractor.hh"
 
 namespace Speech {
 
-    /** AligningFeatureExtractor
-     */
-    class AligningFeatureExtractor : public FeatureExtractor
-    {
-        typedef FeatureExtractor Precursor;
-    public:
-        static const Core::ParameterString paramAlignmentPortName;
-        static const Core::ParameterBool paramEnforceWeightedProcessing;
-        static const Core::ParameterString paramAlignment2PortName;
-    protected:
-        AlignedFeatureProcessor &alignedFeatureProcessor_;
-        Flow::PortId alignmentPortId_;
-        TimeframeIndex currentFeatureId_;
-        Alignment::const_iterator currentAlignmentItem_;
-        bool processWeighted_;
-        Flow::DataPtr<Flow::DataAdaptor<Alignment> > alignmentRef_;
-        /** Fast access to the alignment object. */
-        const Alignment *alignment_;
+/** AligningFeatureExtractor
+ */
+class AligningFeatureExtractor : public FeatureExtractor {
+    typedef FeatureExtractor Precursor;
 
-        Flow::PortId alignment2PortId_;
-        Alignment::const_iterator currentAlignment2Item_;
-        Flow::DataPtr<Flow::DataAdaptor<Alignment> > alignment2Ref_;
-        /** Fast access to the alignment-2 object. */
-        const Alignment *alignment2_;
-    protected:
-        virtual void setFeatureDescription(const Mm::FeatureDescription &description);
-        virtual void processFeature(Core::Ref<const Feature> f);
-        void unaryProcessFeature(Core::Ref<const Feature> f);
-        void binaryProcessFeature(Core::Ref<const Feature> f);
-        bool initializeAlignment();
-    public:
-        AligningFeatureExtractor(const Core::Configuration&, AlignedFeatureProcessor&);
-        ~AligningFeatureExtractor();
+public:
+    static const Core::ParameterString paramAlignmentPortName;
+    static const Core::ParameterBool   paramEnforceWeightedProcessing;
+    static const Core::ParameterString paramAlignment2PortName;
 
-        virtual void signOn(CorpusVisitor&);
+protected:
+    AlignedFeatureProcessor&                    alignedFeatureProcessor_;
+    Flow::PortId                                alignmentPortId_;
+    TimeframeIndex                              currentFeatureId_;
+    Alignment::const_iterator                   currentAlignmentItem_;
+    bool                                        processWeighted_;
+    Flow::DataPtr<Flow::DataAdaptor<Alignment>> alignmentRef_;
+    /** Fast access to the alignment object. */
+    const Alignment* alignment_;
 
-        virtual void enterCorpus(Bliss::Corpus*);
-        virtual void leaveCorpus(Bliss::Corpus*);
-        virtual void enterSegment(Bliss::Segment*);
-        virtual void leaveSegment(Bliss::Segment*);
-        virtual void enterSpeechSegment(Bliss::SpeechSegment*);
-        virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
-        virtual void processSegment(Bliss::Segment*);
-    };
+    Flow::PortId                                alignment2PortId_;
+    Alignment::const_iterator                   currentAlignment2Item_;
+    Flow::DataPtr<Flow::DataAdaptor<Alignment>> alignment2Ref_;
+    /** Fast access to the alignment-2 object. */
+    const Alignment* alignment2_;
 
-} // namespace Speech
+protected:
+    virtual void setFeatureDescription(const Mm::FeatureDescription& description);
+    virtual void processFeature(Core::Ref<const Feature> f);
+    void         unaryProcessFeature(Core::Ref<const Feature> f);
+    void         binaryProcessFeature(Core::Ref<const Feature> f);
+    bool         initializeAlignment();
 
-#endif // _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH
+public:
+    AligningFeatureExtractor(const Core::Configuration&, AlignedFeatureProcessor&);
+    ~AligningFeatureExtractor();
+
+    virtual void signOn(CorpusVisitor&);
+
+    virtual void enterCorpus(Bliss::Corpus*);
+    virtual void leaveCorpus(Bliss::Corpus*);
+    virtual void enterSegment(Bliss::Segment*);
+    virtual void leaveSegment(Bliss::Segment*);
+    virtual void enterSpeechSegment(Bliss::SpeechSegment*);
+    virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
+    virtual void processSegment(Bliss::Segment*);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ALIGNING_FEATURE_EXTRACTOR_HH

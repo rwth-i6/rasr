@@ -13,13 +13,13 @@
  *  limitations under the License.
  */
 #include "CovarianceEstimator.hh"
-#include <Math/Vector.hh>
 #include <Math/Module.hh>
+#include <Math/Vector.hh>
 
 using namespace Speech;
 
-CovarianceEstimator::CovarianceEstimator(const Core::Configuration &c) :
-    Component(c), Extractor(c), Estimator(c), needResize_(true) {
+CovarianceEstimator::CovarianceEstimator(const Core::Configuration& c)
+        : Component(c), Extractor(c), Estimator(c), needResize_(true) {
 }
 
 void CovarianceEstimator::processFeature(Core::Ref<const Speech::Feature> feature) {
@@ -28,7 +28,7 @@ void CovarianceEstimator::processFeature(Core::Ref<const Speech::Feature> featur
     }
 }
 
-void CovarianceEstimator::setFeatureDescription(const Mm::FeatureDescription &description) {
+void CovarianceEstimator::setFeatureDescription(const Mm::FeatureDescription& description) {
     description.verifyNumberOfStreams(1);
     size_t d;
     description.mainStream().getValue(Mm::FeatureDescription::nameDimension, d);

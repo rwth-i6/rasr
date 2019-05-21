@@ -17,29 +17,26 @@
 #include <Core/Application.hh>
 #include <Flow/Module.hh>
 #include <Flow/Registry.hh>
-#include <Lm/Module.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Output.hh>
+#include <Lm/Module.hh>
 #include <Speech/ModelCombination.hh>
 #include <Speech/Module.hh>
 
-//#include "FsmSpeechRecognizer.hh"
-
 class TestApplication : Core::Application {
 public:
-    std::string getUsage() const { return "short program to test speech toolkit\n"; }
+    std::string getUsage() const {
+        return "short program to test speech toolkit\n";
+    }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         INIT_MODULE(Lm)
         INIT_MODULE(Am)
         INIT_MODULE(Flow)
         INIT_MODULE(Speech)
-        //	Speech::ModelCombination modelCombination(select("model-combination"));
-        //	Speech::FsaSearch recognizer(select("recognizer"), modelCombination);
         Flow::Registry::instance().dumpFilters(clog());
         return 0;
     }
-
 };
 
 APPLICATION(TestApplication)

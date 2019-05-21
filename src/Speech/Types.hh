@@ -19,10 +19,10 @@
 
 namespace Speech {
 
-    typedef f32 Score;
-    typedef u32 TimeframeIndex;
-    static constexpr TimeframeIndex InvalidTimeframeIndex = Core::Type<u32>::max;
+typedef f32                     Score;
+typedef u32                     TimeframeIndex;
+static constexpr TimeframeIndex InvalidTimeframeIndex = Core::Type<u32>::max;
 
-}
+}  // namespace Speech
 
-#endif // _SPEECH_TYPES_HH
+#endif  // _SPEECH_TYPES_HH

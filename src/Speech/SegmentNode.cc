@@ -13,29 +13,26 @@
  *  limitations under the License.
  */
 #include "SegmentNode.hh"
-#include "SegmentwiseFeatures.hh"
 #include <Flow/DataAdaptor.hh>
+#include "SegmentwiseFeatures.hh"
 
 using namespace Speech;
 
 /** SegmentNode
  */
 const Core::ParameterString SegmentNode::paramSegmentId(
-    "id",
-    "segment identifier for caches etc.");
+        "id",
+        "segment identifier for caches etc.");
 
-SegmentNode::SegmentNode(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    needInit_(true),
-    segmentId_(paramSegmentId(config))
-{
+SegmentNode::SegmentNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          needInit_(true),
+          segmentId_(paramSegmentId(config)) {
     addInputs(1);
 }
 
-bool SegmentNode::setParameter(const std::string &name, const std::string &value)
-{
+bool SegmentNode::setParameter(const std::string& name, const std::string& value) {
     if (paramSegmentId.match(name)) {
         segmentId_ = paramSegmentId(value);
         return true;
@@ -43,8 +40,7 @@ bool SegmentNode::setParameter(const std::string &name, const std::string &value
     return Precursor::setParameter(name, value);
 }
 
-bool SegmentNode::configure()
-{
+bool SegmentNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<ModelCombinationRef>::type())) {
@@ -53,16 +49,14 @@ bool SegmentNode::configure()
     return true;
 }
 
-bool SegmentNode::work(Flow::PortId)
-{
+bool SegmentNode::work(Flow::PortId) {
     if (needInit_) {
-        Flow::DataPtr<Flow::DataAdaptor<ModelCombinationRef> > in;
+        Flow::DataPtr<Flow::DataAdaptor<ModelCombinationRef>> in;
         if (!getData(0, in)) {
             error("could not read port 0");
             return false;
         }
         initialize(in->data());
-        //		require(!getData(0, in));
     }
     return true;
 }
@@ -74,22 +68,17 @@ bool SegmentNode::work(Flow::PortId)
 const Core::ParameterBool SegmentwiseFeaturesNode::paramNoDependencyCheck(
         "no-dependency-check",
         "do not check any dependencies",
-        false
-        );
+        false);
 
-
-SegmentwiseFeaturesNode::SegmentwiseFeaturesNode(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    noDependencyCheck_(paramNoDependencyCheck(c))
-{
+SegmentwiseFeaturesNode::SegmentwiseFeaturesNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          noDependencyCheck_(paramNoDependencyCheck(c)) {
     addInputs(1);
     addOutputs(1);
 }
 
-bool SegmentwiseFeaturesNode::configure()
-{
+bool SegmentwiseFeaturesNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Feature::FlowFeature::type())) {
@@ -100,16 +89,15 @@ bool SegmentwiseFeaturesNode::configure()
     return Precursor::configure() && putOutputAttributes(0, attributes);
 }
 
-bool SegmentwiseFeaturesNode::work(Flow::PortId p)
-{
+bool SegmentwiseFeaturesNode::work(Flow::PortId p) {
     if (!Precursor::work(p)) {
         return false;
     }
-    Flow::DataPtr<Feature::FlowFeature> in;
-    Flow::DataAdaptor<ConstSegmentwiseFeaturesRef> *out = new Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>();
+    Flow::DataPtr<Feature::FlowFeature>             in;
+    Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>* out = new Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>();
     out->invalidateTimestamp();
     SegmentwiseFeaturesRef features(new SegmentwiseFeatures);
-    bool firstFeature = true;
+    bool                   firstFeature = true;
     while (getData(1, in)) {
         Core::Ref<Feature> feature(new Feature(in));
         if (firstFeature) {
@@ -123,23 +111,22 @@ bool SegmentwiseFeaturesNode::work(Flow::PortId p)
     if (features->empty()) {
         out->invalidateTimestamp();
         return false;
-    } else {
+    }
+    else {
         out->data() = features;
         return putData(0, out) && putData(0, in.get());
     }
 }
 
-void SegmentwiseFeaturesNode::checkFeatureDependencies(const Mm::Feature &feature) const
-{
+void SegmentwiseFeaturesNode::checkFeatureDependencies(const Mm::Feature& feature) const {
     Mm::FeatureDescription description(*this, feature);
     if (acousticModel_ && !acousticModel_->isCompatible(description)) {
         acousticModel_->respondToDelayedErrors();
     }
 }
 
-void SegmentwiseFeaturesNode::initialize(ModelCombinationRef modelCombination)
-{
+void SegmentwiseFeaturesNode::initialize(ModelCombinationRef modelCombination) {
     Precursor::initialize(modelCombination);
     acousticModel_ = modelCombination->acousticModel();
-    needInit_ = false;
+    needInit_      = false;
 }

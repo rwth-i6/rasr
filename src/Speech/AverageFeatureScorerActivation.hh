@@ -21,34 +21,35 @@
 
 namespace Speech {
 
-    /* This class computes the average scores given by a Feature scorer,
-     * this can be useful to compute soft priors */
-    class AverageFeatureScorerActivation : public FeatureExtractor {
-    public:
-        typedef FeatureExtractor Precursor;
-        typedef Mm::Score Score;
+/* This class computes the average scores given by a Feature scorer,
+ * this can be useful to compute soft priors */
+class AverageFeatureScorerActivation : public FeatureExtractor {
+public:
+    typedef FeatureExtractor Precursor;
+    typedef Mm::Score        Score;
 
-        static const Core::ParameterInt  paramPrecision;
-        static const Core::ParameterBool paramTransformToProbabilities;
+    static const Core::ParameterInt  paramPrecision;
+    static const Core::ParameterBool paramTransformToProbabilities;
 
-        AverageFeatureScorerActivation(const Core::Configuration &configuration, bool loadFromFile=true);
-        virtual ~AverageFeatureScorerActivation();
+    AverageFeatureScorerActivation(const Core::Configuration& configuration, bool loadFromFile = true);
+    virtual ~AverageFeatureScorerActivation();
 
-        virtual void leaveSpeechSegment(Bliss::SpeechSegment *segment);
-        virtual void processFeature(Core::Ref<const Feature>);
+    virtual void leaveSpeechSegment(Bliss::SpeechSegment* segment);
+    virtual void processFeature(Core::Ref<const Feature>);
 
-        void write();
-    private:
-        bool transform_to_probabilities_;
+    void write();
 
-        Core::Ref<Mm::ScaledFeatureScorer> feature_scorer_;
-        std::vector<Mm::FeatureScorer::Scorer> scorers_;
-        u32 n_frames_;
-        std::vector<Score> scores_;
+private:
+    bool transform_to_probabilities_;
 
-        Core::XmlChannel outputChannel_;
-    };
+    Core::Ref<Mm::ScaledFeatureScorer>     feature_scorer_;
+    std::vector<Mm::FeatureScorer::Scorer> scorers_;
+    u32                                    n_frames_;
+    std::vector<Score>                     scores_;
 
-} // namespace Speech
+    Core::XmlChannel outputChannel_;
+};
 
-#endif // _SPEECH_AVERAGE_FEATURE_SCORER_ACTIVATION_HH
+}  // namespace Speech
+
+#endif  // _SPEECH_AVERAGE_FEATURE_SCORER_ACTIVATION_HH

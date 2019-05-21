@@ -15,43 +15,47 @@
 #ifndef _SPEECH_AUXILIARY_SEGMENTWISE_TRAINER_HH
 #define _SPEECH_AUXILIARY_SEGMENTWISE_TRAINER_HH
 
+#include <Bliss/CorpusDescription.hh>
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
 #include <Flow/Cache.hh>
-#include "Alignment.hh"
-#include <Bliss/CorpusDescription.hh>
 #include <Fsa/Automaton.hh>
+#include "Alignment.hh"
 
 namespace Speech {
 
-    /**
-     *  used for MCE
-     */
-    class SigmoidFunction : public Core::Component
-    {
-        typedef Core::Component Precursor;
-    private:
-        static const Core::ParameterFloat paramBeta;
-    private:
-        f32 beta_;
-    private:
-        f32 argument(const Fsa::Weight &totalInvNum, const Fsa::Weight &totalInvDen) const;
-    public:
-        SigmoidFunction(const Core::Configuration &);
+/**
+ *  used for MCE
+ */
+class SigmoidFunction : public Core::Component {
+    typedef Core::Component Precursor;
 
-        Fsa::Weight f(const Fsa::Weight &totalInvNum, const Fsa::Weight &totalInvDen) const;
-        Fsa::Weight df(const Fsa::Weight &totalInvNum, const Fsa::Weight &totalInvDen) const;
-    };
+private:
+    static const Core::ParameterFloat paramBeta;
 
-    struct PosteriorFsa
-    {
-        Fsa::ConstAutomatonRef fsa;
-        Fsa::Weight totalInv;
-        operator bool() const { return fsa; }
-    };
+private:
+    f32 beta_;
 
-    Fsa::ConstAutomatonRef getDenominatorWeights(PosteriorFsa num, PosteriorFsa den);
+private:
+    f32 argument(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const;
 
-} // namespace Speech
+public:
+    SigmoidFunction(const Core::Configuration&);
 
-#endif // _SPEECH_AUXILIARY_SEGMENTWISE_TRAINER_HH
+    Fsa::Weight f(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const;
+    Fsa::Weight df(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const;
+};
+
+struct PosteriorFsa {
+    Fsa::ConstAutomatonRef fsa;
+    Fsa::Weight            totalInv;
+    operator bool() const {
+        return fsa;
+    }
+};
+
+Fsa::ConstAutomatonRef getDenominatorWeights(PosteriorFsa num, PosteriorFsa den);
+
+}  // namespace Speech
+
+#endif  // _SPEECH_AUXILIARY_SEGMENTWISE_TRAINER_HH

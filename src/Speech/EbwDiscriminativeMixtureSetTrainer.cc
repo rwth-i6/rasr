@@ -20,34 +20,27 @@ using namespace Speech;
 /**
  *  EBW without i-smoothing
  */
-EbwDiscriminativeMixtureSetTrainer::EbwDiscriminativeMixtureSetTrainer(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+EbwDiscriminativeMixtureSetTrainer::EbwDiscriminativeMixtureSetTrainer(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-EbwDiscriminativeMixtureSetTrainer::~EbwDiscriminativeMixtureSetTrainer()
-{}
+EbwDiscriminativeMixtureSetTrainer::~EbwDiscriminativeMixtureSetTrainer() {}
 
 Mm::DiscriminativeMixtureSetEstimator*
-EbwDiscriminativeMixtureSetTrainer::createMixtureSetEstimator() const
-{
+        EbwDiscriminativeMixtureSetTrainer::createMixtureSetEstimator() const {
     return new Mm::EbwDiscriminativeMixtureSetEstimator(config);
 }
-
 
 /**
  *  EBW with i-smoothing
  */
-EbwDiscriminativeMixtureSetTrainerWithISmoothing::EbwDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+EbwDiscriminativeMixtureSetTrainerWithISmoothing::EbwDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-EbwDiscriminativeMixtureSetTrainerWithISmoothing::~EbwDiscriminativeMixtureSetTrainerWithISmoothing()
-{}
+EbwDiscriminativeMixtureSetTrainerWithISmoothing::~EbwDiscriminativeMixtureSetTrainerWithISmoothing() {}
 
 Mm::DiscriminativeMixtureSetEstimator*
-EbwDiscriminativeMixtureSetTrainerWithISmoothing::createMixtureSetEstimator() const
-{
+        EbwDiscriminativeMixtureSetTrainerWithISmoothing::createMixtureSetEstimator() const {
     return new Mm::EbwDiscriminativeMixtureSetEstimatorWithISmoothing(config);
 }

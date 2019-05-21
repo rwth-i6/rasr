@@ -21,19 +21,19 @@ using namespace Speech;
 const Core::ParameterInt  AverageFeatureScorerActivation::paramPrecision("output-precision", "precision of the output channel", 20);
 const Core::ParameterBool AverageFeatureScorerActivation::paramTransformToProbabilities("transform-to-probabilities", "wether to transform scores into probability domain", true);
 
-AverageFeatureScorerActivation::AverageFeatureScorerActivation(const Core::Configuration &config, bool loadFromFile) :
-    Core::Component(config), Precursor(config, loadFromFile),
-    transform_to_probabilities_(paramTransformToProbabilities(config)),
-    feature_scorer_(Mm::Module::instance().createScaledFeatureScorer(select("mixture-set"),
-                                                                     Core::Ref<Mm::AbstractMixtureSet>(Mm::Module::instance().readMixtureSet(select("mixture-set"))))),
-    scorers_(),
-    n_frames_(0u),
-    scores_(0ul),
-    outputChannel_(config, "output", Core::Channel::disabled) {}
+AverageFeatureScorerActivation::AverageFeatureScorerActivation(const Core::Configuration& config, bool loadFromFile)
+        : Core::Component(config),
+          Precursor(config, loadFromFile),
+          transform_to_probabilities_(paramTransformToProbabilities(config)),
+          feature_scorer_(Mm::Module::instance().createScaledFeatureScorer(select("mixture-set"), Core::Ref<Mm::AbstractMixtureSet>(Mm::Module::instance().readMixtureSet(select("mixture-set"))))),
+          scorers_(),
+          n_frames_(0u),
+          scores_(0ul),
+          outputChannel_(config, "output", Core::Channel::disabled) {}
 
 AverageFeatureScorerActivation::~AverageFeatureScorerActivation() {}
 
-void AverageFeatureScorerActivation::leaveSpeechSegment(Bliss::SpeechSegment *segment) {
+void AverageFeatureScorerActivation::leaveSpeechSegment(Bliss::SpeechSegment* segment) {
     for (size_t i = 0ul; i < scorers_.size(); i++) {
         if (scores_.empty()) {
             scores_.resize(scorers_[i]->nEmissions(), 0.0);
@@ -74,7 +74,8 @@ void AverageFeatureScorerActivation::write() {
             outputChannel_ << Core::XmlClose("score");
         }
         outputChannel_ << Core::XmlClose("activations");
-    } else {
+    }
+    else {
         criticalError("Could not dump scores since channel \"output\" is not open.");
     }
 }

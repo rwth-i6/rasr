@@ -15,119 +15,129 @@
 #ifndef _SPEECH_WORD_LATTICE_EXTRACTOR_HH
 #define _SPEECH_WORD_LATTICE_EXTRACTOR_HH
 
-#include "CorpusProcessor.hh"
-#include "LatticeSetProcessor.hh"
+#include <Core/ReferenceCounting.hh>
+#include <Fsa/Automaton.hh>
 #include <Lattice/Archive.hh>
 #include <Lattice/Lattice.hh>
-#include <Fsa/Automaton.hh>
-#include <Core/ReferenceCounting.hh>
 #include <Modules.hh>
+#include "CorpusProcessor.hh"
+#include "LatticeSetProcessor.hh"
 
 namespace Bliss {
-    class SpeechSegment;
-    class OrthographicParser;
-}
+class SpeechSegment;
+class OrthographicParser;
+}  // namespace Bliss
 
 namespace Lm {
-    class LanguageModel;
+class LanguageModel;
 }
 
-namespace Speech
-{
+namespace Speech {
 
-    /**
-     * WordLatticeUnion
-     */
-    class WordLatticeUnion : public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    private:
-        static const Core::ParameterString paramFsaPrefix;
-    protected:
-        std::string prefix_;
-        Lattice::ArchiveReader *numeratorArchiveReader_;
-    protected:
-        const std::string &prefix() const { return prefix_; }
-    public:
-        WordLatticeUnion(const Core::Configuration &);
-        virtual ~WordLatticeUnion();
+/**
+ * WordLatticeUnion
+ */
+class WordLatticeUnion : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
+private:
+    static const Core::ParameterString paramFsaPrefix;
 
-    /**
-     * BaseWordLatticeMerger
-     */
-    class BaseWordLatticeMerger : public WordLatticeUnion
-    {
-        typedef WordLatticeUnion Precursor;
-    private:
-        static const Core::ParameterBool paramMergeOnlyIfSpokenNotInLattice;
-    protected:
-        bool mergeOnlyIfSpokenNotInLattice_;
-        Bliss::OrthographicParser *orthToLemma_;
-        Fsa::ConstAutomatonRef lemmaPronToLemma_;
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion_;
-    protected:
-        bool needsMerging(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *) const;
-    public:
-        BaseWordLatticeMerger(const Core::Configuration &);
-        virtual ~BaseWordLatticeMerger();
+protected:
+    std::string             prefix_;
+    Lattice::ArchiveReader* numeratorArchiveReader_;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *) {}
-        virtual void initialize(Bliss::LexiconRef);
-    };
+protected:
+    const std::string& prefix() const {
+        return prefix_;
+    }
 
-    /**
-     * WordLatticeMerger
-     */
-    class WordLatticeMerger : public BaseWordLatticeMerger
-    {
-        typedef BaseWordLatticeMerger Precursor;
-    private:
-        Core::Ref<const Lm::LanguageModel> languageModel_;
-    public:
-        WordLatticeMerger(const Core::Configuration &);
-        virtual ~WordLatticeMerger() {}
+public:
+    WordLatticeUnion(const Core::Configuration&);
+    virtual ~WordLatticeUnion();
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
 
-    class SpokenAndCompetingListProcessor : public BaseWordLatticeMerger
-    {
-        typedef BaseWordLatticeMerger Precursor;
-    private:
-        static const Core::ParameterInt paramNumberOfHypotheses;
-    private:
-        u32 numberOfHypotheses_;
-    public:
-        SpokenAndCompetingListProcessor(const Core::Configuration &);
-        virtual ~SpokenAndCompetingListProcessor() {}
+/**
+ * BaseWordLatticeMerger
+ */
+class BaseWordLatticeMerger : public WordLatticeUnion {
+    typedef WordLatticeUnion Precursor;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-    };
+private:
+    static const Core::ParameterBool paramMergeOnlyIfSpokenNotInLattice;
 
-    /**
-     * NumeratorFromDenominatorExtractor
-     */
-    class NumeratorFromDenominatorExtractor :
-        public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    private:
-        Bliss::OrthographicParser *orthToLemma_;
-        Fsa::ConstAutomatonRef lemmaPronToLemma_;
-        Fsa::ConstAutomatonRef lemmaToLemmaConfusion_;
-    public:
-        NumeratorFromDenominatorExtractor(const Core::Configuration &);
-        virtual ~NumeratorFromDenominatorExtractor();
+protected:
+    bool                       mergeOnlyIfSpokenNotInLattice_;
+    Bliss::OrthographicParser* orthToLemma_;
+    Fsa::ConstAutomatonRef     lemmaPronToLemma_;
+    Fsa::ConstAutomatonRef     lemmaToLemmaConfusion_;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
+protected:
+    bool needsMerging(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*) const;
 
-} // namespace Speech
+public:
+    BaseWordLatticeMerger(const Core::Configuration&);
+    virtual ~BaseWordLatticeMerger();
 
-#endif // _SPEECH_WORD_LATTICE_EXTRACTOR_HH
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*) {}
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+/**
+ * WordLatticeMerger
+ */
+class WordLatticeMerger : public BaseWordLatticeMerger {
+    typedef BaseWordLatticeMerger Precursor;
+
+private:
+    Core::Ref<const Lm::LanguageModel> languageModel_;
+
+public:
+    WordLatticeMerger(const Core::Configuration&);
+    virtual ~WordLatticeMerger() {}
+
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+class SpokenAndCompetingListProcessor : public BaseWordLatticeMerger {
+    typedef BaseWordLatticeMerger Precursor;
+
+private:
+    static const Core::ParameterInt paramNumberOfHypotheses;
+
+private:
+    u32 numberOfHypotheses_;
+
+public:
+    SpokenAndCompetingListProcessor(const Core::Configuration&);
+    virtual ~SpokenAndCompetingListProcessor() {}
+
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+};
+
+/**
+ * NumeratorFromDenominatorExtractor
+ */
+class NumeratorFromDenominatorExtractor : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
+
+private:
+    Bliss::OrthographicParser* orthToLemma_;
+    Fsa::ConstAutomatonRef     lemmaPronToLemma_;
+    Fsa::ConstAutomatonRef     lemmaToLemmaConfusion_;
+
+public:
+    NumeratorFromDenominatorExtractor(const Core::Configuration&);
+    virtual ~NumeratorFromDenominatorExtractor();
+
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_WORD_LATTICE_EXTRACTOR_HH

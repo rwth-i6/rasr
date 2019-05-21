@@ -14,32 +14,30 @@
  */
 #include "HistogramEstimator.hh"
 
-
 using namespace Speech;
 
 const Core::ParameterFloat HistogramEstimator::paramBucketSize(
-    "bucket-size", "bucket size in the histogram", 0.0002);
+        "bucket-size", "bucket size in the histogram", 0.0002);
 
-HistogramEstimator::HistogramEstimator(const Core::Configuration &c) :
-    Component(c),
-    Precursor(c),
-    corpusKey_(new Bliss::CorpusKey(select("corpus-key"))),
-    currentHistogramVector_(0),
-    featureDimension_(0),
-    bucketSize_(paramBucketSize(c)),
-    histogramVectorCache_(select("histograms-cache"))
-{}
+HistogramEstimator::HistogramEstimator(const Core::Configuration& c)
+        : Component(c),
+          Precursor(c),
+          corpusKey_(new Bliss::CorpusKey(select("corpus-key"))),
+          currentHistogramVector_(0),
+          featureDimension_(0),
+          bucketSize_(paramBucketSize(c)),
+          histogramVectorCache_(select("histograms-cache")) {}
 
-void HistogramEstimator::signOn(CorpusVisitor &corpusVisitor)
-{
+void HistogramEstimator::signOn(CorpusVisitor& corpusVisitor) {
     corpusVisitor.signOn(corpusKey_);
     Precursor::signOn(corpusVisitor);
 }
 
-void HistogramEstimator::setFeatureVectorDescription(const Mm::FeatureDescription::Stream &description)
-{
-    size_t dimension; description.getValue(Mm::FeatureDescription::nameDimension, dimension);
-    std::string key; corpusKey_->resolve(key);
+void HistogramEstimator::setFeatureVectorDescription(const Mm::FeatureDescription::Stream& description) {
+    size_t dimension;
+    description.getValue(Mm::FeatureDescription::nameDimension, dimension);
+    std::string key;
+    corpusKey_->resolve(key);
 
     currentHistogramVector_ = histogramVectorCache_.findForWriteAccess(key);
 

@@ -13,61 +13,57 @@
  *  limitations under the License.
  */
 #include "AlignmentNode.hh"
-#include "AllophoneStateGraphBuilder.hh"
-#include <Core/Directory.hh>
-#include <Flow/DataAdaptor.hh>
-#include "FsaCache.hh"
 #include <Bliss/Orthography.hh>
-#include <Fsa/Best.hh>
+#include <Core/Directory.hh>
+#include <Core/Hash.hh>
+#include <Flow/DataAdaptor.hh>
 #include <Fsa/Basic.hh>
+#include <Fsa/Best.hh>
 #include <Fsa/Compose.hh>
+#include <Fsa/Determinize.hh>
+#include <Fsa/Minimize.hh>
 #include <Fsa/Output.hh>
 #include <Fsa/Project.hh>
 #include <Fsa/Rational.hh>
-#include <Fsa/Determinize.hh>
-#include <Fsa/Minimize.hh>
 #include <Fsa/RemoveEpsilons.hh>
-#include <Core/Hash.hh>
 #include <Lattice/Archive.hh>
 #include <Lattice/Utilities.hh>
 #include <Mm/FeatureScorer.hh>
+#include "AllophoneStateGraphBuilder.hh"
+#include "FsaCache.hh"
 
 using namespace Speech;
 using Search::Aligner;
 
-
 /** AlignmentBaseNode
  */
 const Core::ParameterString AlignmentBaseNode::paramSegmentId(
-    "id", "segment identifier for model acceptor cache.");
+        "id", "segment identifier for model acceptor cache.");
 const Core::ParameterString AlignmentBaseNode::paramOrthography(
-    "orthography", "orthography of current segment");
+        "orthography", "orthography of current segment");
 const Core::ParameterString AlignmentBaseNode::paramLeftContextOrthography(
-    "left-context-orthography", "orphography of optional words on the left-hand side");
+        "left-context-orthography", "orphography of optional words on the left-hand side");
 const Core::ParameterString AlignmentBaseNode::paramRightContextOrthography(
-    "right-context-orthography", "orphography of optional words on the right-hand side");
+        "right-context-orthography", "orphography of optional words on the right-hand side");
 
-AlignmentBaseNode::AlignmentBaseNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    allophoneStateGraphBuilder_(0),
-    modelCache_(0),
-    needInit_(true)
-{
+AlignmentBaseNode::AlignmentBaseNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          allophoneStateGraphBuilder_(0),
+          modelCache_(0),
+          needInit_(true) {
     segmentId_               = paramSegmentId(c);
     orthography_             = paramOrthography(c);
     leftContextOrthography_  = paramLeftContextOrthography(c);
     rightContextOrthography_ = paramRightContextOrthography(c);
 }
 
-AlignmentBaseNode::~AlignmentBaseNode()
-{
+AlignmentBaseNode::~AlignmentBaseNode() {
     delete modelCache_;
     delete allophoneStateGraphBuilder_;
 }
 
-bool AlignmentBaseNode::setParameter(const std::string &name, const std::string &value)
-{
+bool AlignmentBaseNode::setParameter(const std::string& name, const std::string& value) {
     if (paramSegmentId.match(name))
         segmentId_ = paramSegmentId(value);
     else if (paramOrthography.match(name))
@@ -81,17 +77,16 @@ bool AlignmentBaseNode::setParameter(const std::string &name, const std::string 
     return true;
 }
 
-bool AlignmentBaseNode::configure(const Flow::Datatype *type)
-{
+bool AlignmentBaseNode::configure(const Flow::Datatype* type) {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(0, *attributes);
-    if (!configureDatatype(attributes, type)) return false;
+    if (!configureDatatype(attributes, type))
+        return false;
     attributes->set("datatype", Flow::DataAdaptor<Alignment>::type()->name());
     return AlignmentBaseNode::configure() && putOutputAttributes(0, attributes);
 }
 
-bool AlignmentBaseNode::configure()
-{
+bool AlignmentBaseNode::configure() {
     if (segmentId_.empty()) {
         error("Segment identifier is not given.");
         return false;
@@ -103,75 +98,70 @@ bool AlignmentBaseNode::configure()
     return true;
 }
 
-
 // ================================================================================
-
 
 /** AlignmentNode
  */
 const Core::ParameterBool AlignmentNode::paramStoreLattices(
-    "store-lattices", "store word lattices in archive", false);
+        "store-lattices", "store word lattices in archive", false);
 
 const Core::ParameterBool AlignmentNode::paramUseTracebacks(
-    "use-tracebacks", "align to tracebacks from archive instead of orthography", false);
+        "use-tracebacks", "align to tracebacks from archive instead of orthography", false);
 
 const Core::ParameterBool AlignmentNode::paramWriteAlphabet(
-    "write-alignment-alphabet", "write alphabet information into written alignments", true);
+        "write-alignment-alphabet", "write alphabet information into written alignments", true);
 
 const Core::Choice AlignmentNode::choicePhonemeSequenceSet(
-    "lemma-loop", lemmaLoop,
-    "phone-loop", phoneLoop,
-    "orthography", orthography,
-    Core::Choice::endMark());
+        "lemma-loop", lemmaLoop,
+        "phone-loop", phoneLoop,
+        "orthography", orthography,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice AlignmentNode::paramPhonemeSequenceSet(
-    "phoneme-sequence-set",
-    &choicePhonemeSequenceSet,
-    "determines the set of phoneme sequences entering the alignment",
-    orthography);
+        "phoneme-sequence-set",
+        &choicePhonemeSequenceSet,
+        "determines the set of phoneme sequences entering the alignment",
+        orthography);
 
 const Core::ParameterBool AlignmentNode::paramNoDependencyCheck(
         "no-dependency-check",
         "do not check any dependencies",
-        false
-        );
+        false);
 
-AlignmentNode::AlignmentNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    wordLatticeBuilder_(0),
-    phonemeSequenceSet_((PhonemeSequenceSet)paramPhonemeSequenceSet(config)),
-    noDependencyCheck_(paramNoDependencyCheck(c)),
-    tracebackChannel_(config, "traceback"),
-    latticeArchiveWriter_(0),
-    tracebackArchiveReader_(0),
-    transducerCache_(0),
-    aligner_(select("aligner")),
-    writeAlphabet_(false)
-{}
+AlignmentNode::AlignmentNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          wordLatticeBuilder_(0),
+          phonemeSequenceSet_((PhonemeSequenceSet)paramPhonemeSequenceSet(config)),
+          noDependencyCheck_(paramNoDependencyCheck(c)),
+          tracebackChannel_(config, "traceback"),
+          latticeArchiveWriter_(0),
+          tracebackArchiveReader_(0),
+          transducerCache_(0),
+          aligner_(select("aligner")),
+          writeAlphabet_(false) {}
 
-AlignmentNode::~AlignmentNode()
-{
+AlignmentNode::~AlignmentNode() {
     delete transducerCache_;
     delete latticeArchiveWriter_;
     delete tracebackArchiveReader_;
     delete wordLatticeBuilder_;
 }
 
-bool AlignmentNode::configure()
-{
-    if (!Precursor::configure(Feature::FlowFeature::type())) return false;
-    if (needInit_) initialize();
+bool AlignmentNode::configure() {
+    if (!Precursor::configure(Feature::FlowFeature::type()))
+        return false;
+    if (needInit_)
+        initialize();
     createModel();
     return true;
 }
 
-void AlignmentNode::createModel()
-{
+void AlignmentNode::createModel() {
     verify(modelCache_);
     verify(allophoneStateGraphBuilder_);
 
-    Fsa::ConstAutomatonRef transducer; // allophone state to lemma-pronunciation transducer
+    Fsa::ConstAutomatonRef transducer;  // allophone state to lemma-pronunciation transducer
     if (wordLatticeBuilder_) {
         if (phonemeSequenceSet_ != orthography) {
             criticalError("model type must be forced-alignment");
@@ -187,31 +177,30 @@ void AlignmentNode::createModel()
     Fsa::ConstAutomatonRef model = modelCache_->find(segmentId_);
     if (!model) {
         if (tracebackArchiveReader_) {
-            Lattice::ConstWordLatticeRef lattice= tracebackArchiveReader_->get(segmentId_);
-            transducer= allophoneStateGraphBuilder_->buildTransducer(
-                Fsa::projectInput(
-                    Fsa::composeMatching(
-                        Fsa::invert(lemmaPronunciationToLemma_),
-                        lattice->part(Lattice::WordLattice::acousticFsa))));
+            Lattice::ConstWordLatticeRef lattice = tracebackArchiveReader_->get(segmentId_);
+            transducer                           = allophoneStateGraphBuilder_->buildTransducer(
+                    Fsa::projectInput(
+                            Fsa::composeMatching(Fsa::invert(lemmaPronunciationToLemma_),
+                                                 lattice->part(Lattice::WordLattice::acousticFsa))));
         }
         if (transducer) {
-            model = modelCache_->get(
-                allophoneStateGraphBuilder_->createFinalizationFunctor(segmentId_, transducer));
-        } else if (phonemeSequenceSet_ == orthography) {
-            model = modelCache_->get(
-                allophoneStateGraphBuilder_->createFunctor(segmentId_, orthography_, leftContextOrthography_, rightContextOrthography_));
-        } else if (phonemeSequenceSet_ == lemmaLoop || phonemeSequenceSet_ == phoneLoop) {
+            model = modelCache_->get(allophoneStateGraphBuilder_->createFinalizationFunctor(segmentId_, transducer));
+        }
+        else if (phonemeSequenceSet_ == orthography) {
+            model = modelCache_->get(allophoneStateGraphBuilder_->createFunctor(segmentId_, orthography_, leftContextOrthography_, rightContextOrthography_));
+        }
+        else if (phonemeSequenceSet_ == lemmaLoop || phonemeSequenceSet_ == phoneLoop) {
             model = aligner_.getModel();
             if (!model) {
                 if (phonemeSequenceSet_ == lemmaLoop) {
-                    model = modelCache_->get(
-                        allophoneStateGraphBuilder_->createFunctor(segmentId_, AllophoneStateGraphBuilder::lemma));
-                } else {
-                    model = modelCache_->get(
-                        allophoneStateGraphBuilder_->createFunctor(segmentId_, AllophoneStateGraphBuilder::phone));
+                    model = modelCache_->get(allophoneStateGraphBuilder_->createFunctor(segmentId_, AllophoneStateGraphBuilder::lemma));
+                }
+                else {
+                    model = modelCache_->get(allophoneStateGraphBuilder_->createFunctor(segmentId_, AllophoneStateGraphBuilder::phone));
                 }
             }
-        } else {
+        }
+        else {
             criticalError("cannot create/set model");
         }
     }
@@ -222,16 +211,15 @@ void AlignmentNode::createModel()
     aligner_.setModel(model, acousticModel_);
 }
 
-void AlignmentNode::initialize()
-{
+void AlignmentNode::initialize() {
     ModelCombination modelCombination(select("model-combination"), ModelCombination::useAcousticModel);
     modelCombination.load();
     acousticModel_ = modelCombination.acousticModel();
     verify(!allophoneStateGraphBuilder_);
     allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(
-        select("allophone-state-graph-builder"),
-        modelCombination.lexicon(),
-        modelCombination.acousticModel());
+            select("allophone-state-graph-builder"),
+            modelCombination.lexicon(),
+            modelCombination.acousticModel());
 
     Core::DependencySet dependencies;
     modelCombination.getDependencies(dependencies);
@@ -245,16 +233,16 @@ void AlignmentNode::initialize()
     verify(!latticeArchiveWriter_);
     verify(!tracebackArchiveReader_);
     if (tracebackChannel_.isOpen() || paramStoreLattices(config)) {
-        wordLatticeBuilder_ = new Aligner::WordLatticeBuilder(
-            select("word-lattice-builder"),
-            modelCombination.lexicon(),
-            acousticModel_);
+        wordLatticeBuilder_ = new Aligner::WordLatticeBuilder(select("word-lattice-builder"),
+                                                              modelCombination.lexicon(),
+                                                              acousticModel_);
 
         if (paramStoreLattices(config)) {
             log("opening lattice archive");
             latticeArchiveWriter_ = Lattice::Archive::openForWriting(select("lattice-archive"), modelCombination.lexicon());
             if (latticeArchiveWriter_->hasFatalErrors()) {
-                delete latticeArchiveWriter_; latticeArchiveWriter_ = 0;
+                delete latticeArchiveWriter_;
+                latticeArchiveWriter_ = 0;
             }
         }
         Core::DependencySet dependencies;
@@ -268,11 +256,12 @@ void AlignmentNode::initialize()
     if (paramUseTracebacks(config)) {
         log("opening traceback archive");
         tracebackArchiveReader_ = Lattice::Archive::openForReading(select("traceback-archive"),
-                modelCombination.lexicon());
+                                                                   modelCombination.lexicon());
         if (tracebackArchiveReader_->hasFatalErrors()) {
-            delete tracebackArchiveReader_; tracebackArchiveReader_ = 0;
+            delete tracebackArchiveReader_;
+            tracebackArchiveReader_ = 0;
         }
-        lemmaPronunciationToLemma_= modelCombination.lexicon()->createLemmaPronunciationToLemmaTransducer();
+        lemmaPronunciationToLemma_ = modelCombination.lexicon()->createLemmaPronunciationToLemmaTransducer();
     }
 
     writeAlphabet_ = paramWriteAlphabet(config);
@@ -280,16 +269,15 @@ void AlignmentNode::initialize()
     needInit_ = false;
 }
 
-bool AlignmentNode::work(Flow::PortId p)
-{
-    Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>();
+bool AlignmentNode::work(Flow::PortId p) {
+    Flow::DataAdaptor<Alignment>* alignment = new Flow::DataAdaptor<Alignment>();
     alignment->invalidateTimestamp();
 
     if (writeAlphabet_)
         alignment->data().setAlphabet(acousticModel_->allophoneStateAlphabet());
 
-    bool firstFeature = true;
-    Flow::DataPtr<Feature::FlowFeature> in;
+    bool                                   firstFeature = true;
+    Flow::DataPtr<Feature::FlowFeature>    in;
     std::vector<Mm::FeatureScorer::Scorer> scorers;
     // reset feature scorer for usage with embedded flow files
     acousticModel_->featureScorer()->reset();
@@ -302,7 +290,8 @@ bool AlignmentNode::work(Flow::PortId p)
         }
         if (featureScorer->isBuffered() && !featureScorer->bufferFilled()) {
             featureScorer->addFeature(feature);
-        } else {
+        }
+        else {
             scorers.push_back(featureScorer->getScorer(feature));
         }
         alignment->expandTimestamp(feature->timestamp());
@@ -337,17 +326,15 @@ bool AlignmentNode::work(Flow::PortId p)
     return putData(0, alignment) && putData(0, in.get());
 }
 
-void AlignmentNode::checkFeatureDependencies(const Mm::Feature &feature) const
-{
-        if(!noDependencyCheck_){
-                Mm::FeatureDescription description(*this, feature);
-                if (!acousticModel_->isCompatible(description))
-                        acousticModel_->respondToDelayedErrors();
-        }
+void AlignmentNode::checkFeatureDependencies(const Mm::Feature& feature) const {
+    if (!noDependencyCheck_) {
+        Mm::FeatureDescription description(*this, feature);
+        if (!acousticModel_->isCompatible(description))
+            acousticModel_->respondToDelayedErrors();
+    }
 }
 
-void AlignmentNode::createWordLattice(Fsa::ConstAutomatonRef alignmentFsa) const
-{
+void AlignmentNode::createWordLattice(Fsa::ConstAutomatonRef alignmentFsa) const {
     verify(wordLatticeBuilder_);
 
     Lattice::ConstWordLatticeRef wordLattice(wordLatticeBuilder_->build(alignmentFsa));
@@ -363,74 +350,66 @@ void AlignmentNode::createWordLattice(Fsa::ConstAutomatonRef alignmentFsa) const
         error("Failed to generate word lattice for the segment '%s'.", segmentId_.c_str());
 }
 
-
-void AlignmentNode::logTraceback(Lattice::ConstWordLatticeRef wordLattice) const
-{
-    Fsa::ConstAutomatonRef fn = wordLattice->part(Lattice::WordLattice::acousticFsa);
-    Fsa::ConstStateRef state = fn->getState(fn->initialStateId());
-    Fsa::ConstAlphabetRef ia = fn->getInputAlphabet();
+void AlignmentNode::logTraceback(Lattice::ConstWordLatticeRef wordLattice) const {
+    Fsa::ConstAutomatonRef fn    = wordLattice->part(Lattice::WordLattice::acousticFsa);
+    Fsa::ConstStateRef     state = fn->getState(fn->initialStateId());
+    Fsa::ConstAlphabetRef  ia    = fn->getInputAlphabet();
 
     u32 previousIndex = wordLattice->time(state->id());
     tracebackChannel_ << Core::XmlOpen("traceback") + Core::XmlAttribute("type", "xml") + Core::XmlAttribute("segment", segmentId_);
-    while( !state->isFinal() ) {
+    while (!state->isFinal()) {
         u32 index = wordLattice->time(state->begin()->target());
         tracebackChannel_ << Core::XmlOpen("item") + Core::XmlAttribute("type", "lemma-pronunciation")
                           << Core::XmlFull("lemma-pronunciation", ia->symbol(state->begin()->input()))
                           << Core::XmlFull("score", f32(state->begin()->weight())) + Core::XmlAttribute("type", "acoustic")
                           << Core::XmlEmpty("samples") + Core::XmlAttribute("start", f32(featureTimes_[previousIndex].startTime())) +
-            Core::XmlAttribute("end", f32(featureTimes_[index - 1].endTime()))
+                                     Core::XmlAttribute("end", f32(featureTimes_[index - 1].endTime()))
                           << Core::XmlEmpty("features") + Core::XmlAttribute("start", previousIndex) +
-            Core::XmlAttribute("end", index - 1)
+                                     Core::XmlAttribute("end", index - 1)
                           << Core::XmlClose("item");
         previousIndex = wordLattice->time(state->begin()->target());
-        state = fn->getState(state->begin()->target());
+        state         = fn->getState(state->begin()->target());
     }
     tracebackChannel_ << Core::XmlClose("traceback");
 }
 
-
 /** AlignmentDumpNode
  */
 const Core::ParameterString AlignmentDumpNode::paramFilename(
-    "file", "text file for alignment dump", "");
+        "file", "text file for alignment dump", "");
 
 const Core::ParameterString AlignmentDumpNode::paramSegmentId(
-    "id", "segment identifier for plaintext archive.");
+        "id", "segment identifier for plaintext archive.");
 
-
-AlignmentDumpNode::AlignmentDumpNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    archive_(0),
-    writer_(0),
-    reader_(0),
-    archiveExists_(false),
-    attributesParser_(select("attributes-parser"))
-{
+AlignmentDumpNode::AlignmentDumpNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          archive_(0),
+          writer_(0),
+          reader_(0),
+          archiveExists_(false),
+          attributesParser_(select("attributes-parser")) {
     addInputs(2);
     addOutputs(1);
-    ModelCombination modelCombination(
-        select("model-combination"), ModelCombination::useAcousticModel,
-        Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying | Am::AcousticModel::noStateTransition);
+    ModelCombination modelCombination(select("model-combination"), ModelCombination::useAcousticModel,
+                                      Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying | Am::AcousticModel::noStateTransition);
     modelCombination.load();
     acousticModel_ = modelCombination.acousticModel();
-    filename_ = paramFilename(c);
-    segmentId_ = paramSegmentId(c);
+    filename_      = paramFilename(c);
+    segmentId_     = paramSegmentId(c);
 }
 
-AlignmentDumpNode::~AlignmentDumpNode()
-{
+AlignmentDumpNode::~AlignmentDumpNode() {
     delete archive_;
     archive_ = 0;
 }
 
-bool AlignmentDumpNode::hasParameters(const std::string &s)
-{
+bool AlignmentDumpNode::hasParameters(const std::string& s) {
     std::vector<std::string> requiredParams;
     Core::strconv(s, requiredParams);
     for (std::vector<std::string>::const_iterator i = requiredParams.begin(); i != requiredParams.end(); ++i)
         if (parameters_.find(*i) == parameters_.end()) {
-            warning("required parameter '%s' is missing.", i->c_str() );
+            warning("required parameter '%s' is missing.", i->c_str());
             return false;
         }
     return true;
@@ -456,13 +435,14 @@ bool AlignmentDumpNode::configure() {
                 attributes->set("datatype", Flow::DataAdaptor<Alignment>::type()->name());
             }
         }
-    } else if (inputConnected(0)) {
+    }
+    else if (inputConnected(0)) {
         attributes = Core::ref(new Flow::Attributes);
         getInputAttributes(0, *attributes);
         if (!configureDatatype(attributes, Flow::DataAdaptor<Alignment>::type()))
             return false;
-
-    } else
+    }
+    else
         attributes = Core::ref(new Flow::Attributes());
 
     if (writer_) {
@@ -476,41 +456,45 @@ bool AlignmentDumpNode::configure() {
         attributes->set("datatype", Flow::DataAdaptor<Alignment>::type()->name());
     }
     return putOutputAttributes(0, attributes);
-
 }
 
-Core::ArchiveWriter* AlignmentDumpNode::newWriter(const std::string &name) {
+Core::ArchiveWriter* AlignmentDumpNode::newWriter(const std::string& name) {
     verify(archive_);
-    Core::ArchiveWriter *writer = new Core::ArchiveWriter(*archive_, name, false);
-    if (writer->isOpen()) return writer;
+    Core::ArchiveWriter* writer = new Core::ArchiveWriter(*archive_, name, false);
+    if (writer->isOpen())
+        return writer;
     delete writer;
     return 0;
 }
 
-Core::ArchiveReader* AlignmentDumpNode::newReader(const std::string &name) {
+Core::ArchiveReader* AlignmentDumpNode::newReader(const std::string& name) {
     verify(archive_);
-    Core::ArchiveReader *reader = new Core::ArchiveReader(*archive_, name);
-    if (reader->isOpen()) return reader;
+    Core::ArchiveReader* reader = new Core::ArchiveReader(*archive_, name);
+    if (reader->isOpen())
+        return reader;
     delete reader;
     return 0;
 }
 
 bool AlignmentDumpNode::open(Core::Archive::AccessMode _access) {
-    if (isOpen()) close();
+    if (isOpen())
+        close();
     if (filename_.empty() ||
         (!Core::isValidPath(filename_) &&
-         !(_access & Core::Archive::AccessModeWrite))) return false;
+         !(_access & Core::Archive::AccessModeWrite)))
+        return false;
     archive_ = Core::Archive::create(config, filename_, _access);
     return isOpen();
 }
 
 void AlignmentDumpNode::close() {
-    if (!isOpen()) return;
-    delete archive_; archive_ = 0;
+    if (!isOpen())
+        return;
+    delete archive_;
+    archive_ = 0;
 }
 
-
-bool AlignmentDumpNode::createContext(const std::string &id) {
+bool AlignmentDumpNode::createContext(const std::string& id) {
     reader_ = 0;
 
     // Open archive first only for reading. independent if node has an input.
@@ -518,8 +502,9 @@ bool AlignmentDumpNode::createContext(const std::string &id) {
         if (!open(Core::Archive::AccessModeRead)) {
             // Report error only if node has no input.
             if (!inputConnected(0)) {
-                error("Failed to open archive '%s' for reading and "	\
-                      "node has no input.", filename_.c_str());
+                error("Failed to open archive '%s' for reading and "
+                      "node has no input.",
+                      filename_.c_str());
                 return false;
             }
         }
@@ -529,7 +514,8 @@ bool AlignmentDumpNode::createContext(const std::string &id) {
         archiveExists_ = archive_->hasFile(segmentId_ = id);
     if (archiveExists_) {
         return true;
-    } else if (inputConnected(0)) {
+    }
+    else if (inputConnected(0)) {
         // Open archive for writing only on demand.
         if (!hasAccess(Core::Archive::AccessModeWrite)) {
             if (!open(Core::Archive::AccessModeRead | Core::Archive::AccessModeWrite)) {
@@ -549,11 +535,9 @@ bool AlignmentDumpNode::createContext(const std::string &id) {
           "Neither archive entry nor input available.",
           id.c_str());
     return false;
-
 }
 
-
-bool AlignmentDumpNode::setParameter(const std::string &name, const std::string &value) {
+bool AlignmentDumpNode::setParameter(const std::string& name, const std::string& value) {
     parameters_[name] = value;
     if (paramFilename.match(name))
         filename_ = paramFilename(value);
@@ -565,10 +549,9 @@ bool AlignmentDumpNode::setParameter(const std::string &name, const std::string 
 }
 
 bool AlignmentDumpNode::work(Flow::PortId p) {
-
     // converts standard alignment to plain text alignment
     if (alignmentType_ == standard) {
-        Flow::DataPtr<Flow::DataAdaptor<Alignment> > in;
+        Flow::DataPtr<Flow::DataAdaptor<Alignment>> in;
 
         if (!writer_) {
             if (segmentId_.empty())
@@ -579,13 +562,13 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
         o.setEncoding("UTF-8");
 
         while (getData(0, in)) {
-            Alignment &a = in->data();
+            Alignment& a = in->data();
 
             // dump segment information
-            std::string plainData ="";
+            std::string plainData = "";
 
-            TimeframeIndex time = 0;
-            Alignment::const_iterator i,j;
+            TimeframeIndex            time = 0;
+            Alignment::const_iterator i, j;
 
             // dump alignment
             std::vector<Alignment::Frame> frames;
@@ -602,18 +585,20 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
                             if (!o)
                                 error("could not write data \"%s\" to archive \"%s\"", segmentId_.c_str(),
                                       archive_->path().c_str());
-                        } else {
+                        }
+                        else {
                             error("could not open file \"%s\" for writing in archive \"%s\"",
                                   segmentId_.c_str(), archive_->path().c_str());
                         }
-                    } else {
+                    }
+                    else {
                         error("Feature stream and alignment not synchronized at time %d.", time);
                     }
                 }
 
                 // print alignment items
                 Alignment::iterator j, j_end;
-                for (Core::tie(j,j_end) = *i; j != j_end; ++j) {
+                for (Core::tie(j, j_end) = *i; j != j_end; ++j) {
                     plainData = Core::form("%s %g\n",
                                            acousticModel_->allophoneStateAlphabet()->symbol(j->emission).c_str(),
                                            j->weight);
@@ -622,7 +607,8 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
                         if (!o)
                             error("could not write data \"%s\" to archive \"%s\"", segmentId_.c_str(),
                                   archive_->path().c_str());
-                    } else {
+                    }
+                    else {
                         error("could not open file \"%s\" for writing in archive \"%s\"",
                               segmentId_.c_str(), archive_->path().c_str());
                     }
@@ -641,7 +627,8 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
         return putData(0, in.get());
 
         //converts plain Text alignments to standard alignments
-    } else if (alignmentType_ == plainText) {
+    }
+    else if (alignmentType_ == plainText) {
         if (!reader_)
             reader_ = newReader(segmentId_);
 
@@ -658,26 +645,25 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
         require(i.good());
         i.setEncoding("UTF-8");
 
-        Flow::DataPtr<Flow::DataAdaptor<std::string> > in;
-        Alignment a;
+        Flow::DataPtr<Flow::DataAdaptor<std::string>> in;
+        Alignment                                     a;
 
-        TimeframeIndex timeFrame = 0;
-        f64 weight = 0;
-        f64 startTime = 0.0;
-        f64 endTime = 0.0;
-        std::string allophoneString = "";
+        TimeframeIndex timeFrame       = 0;
+        f64            weight          = 0;
+        f64            startTime       = 0.0;
+        f64            endTime         = 0.0;
+        std::string    allophoneString = "";
 
-        f64 previousStartTime = 0.0;
-        f64 previousEndTime = 0.0;
-        f64 timeStampStart = 0.0;
-        f64 timeStampEnd = 0.0;
-        bool firstSegment = true;
-        bool singleSegment = true;
+        f64  previousStartTime = 0.0;
+        f64  previousEndTime   = 0.0;
+        f64  timeStampStart    = 0.0;
+        f64  timeStampEnd      = 0.0;
+        bool firstSegment      = true;
+        bool singleSegment     = true;
 
         std::string line;
 
         while (Core::getline(i, line) != EOF) {
-
             previousEndTime = endTime;
 
             std::vector<std::string> fields = Core::split(line, " ");
@@ -689,16 +675,15 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
 
             if (timeFrame == 0 && firstSegment) {
                 timeStampStart = startTime;
-                firstSegment = false;
+                firstSegment   = false;
             }
 
             else if (timeFrame == 0 && !firstSegment) {
-
-                singleSegment = false;
+                singleSegment     = false;
                 previousStartTime = timeStampStart;
-                timeStampEnd = previousEndTime;
+                timeStampEnd      = previousEndTime;
 
-                Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>(a);
+                Flow::DataAdaptor<Alignment>* alignment = new Flow::DataAdaptor<Alignment>(a);
                 alignment->setTimestamp(Flow::Timestamp(previousStartTime, timeStampEnd));
                 putData(0, alignment);
 
@@ -710,18 +695,19 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
         }
         i.close();
         if (singleSegment) {
-            timeStampEnd = endTime;
-            Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>(a);
+            timeStampEnd                            = endTime;
+            Flow::DataAdaptor<Alignment>* alignment = new Flow::DataAdaptor<Alignment>(a);
             alignment->setTimestamp(Flow::Timestamp(timeStampStart, timeStampEnd));
             return putData(0, alignment);
         }
         else {
-            timeStampEnd = endTime;
-            Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>(a);
+            timeStampEnd                            = endTime;
+            Flow::DataAdaptor<Alignment>* alignment = new Flow::DataAdaptor<Alignment>(a);
             alignment->setTimestamp(Flow::Timestamp(timeStampStart, timeStampEnd));
             return putData(0, alignment);
         }
-    } else {
+    }
+    else {
         criticalError("Input format must either be standard or plain text");
         return false;
     }

@@ -14,35 +14,34 @@
  */
 // $Id$
 
+#include "CorpusVisitor.hh"
 #include <Core/XmlStream.hh>
 #include <Flow/Network.hh>
 #include "CorpusProcessor.hh"
-#include "CorpusVisitor.hh"
 
 using namespace Core;
 
 namespace Speech {
 
-
 /** Parameter adaptor functions and functors for passing corpus section parameters to
  *  DatasSource objects,
  */
 class DataSourceParameterAdaptor {
-    std::vector<Core::Ref<DataSource> > &dataSources_;
+    std::vector<Core::Ref<DataSource>>& dataSources_;
+
 public:
+    DataSourceParameterAdaptor(std::vector<Core::Ref<DataSource>>& dataSources)
+            : dataSources_(dataSources) {}
 
-    DataSourceParameterAdaptor(std::vector<Core::Ref<DataSource> > &dataSources) :
-        dataSources_(dataSources) {}
-
-    void set(const std::string &name, const std::string &value) {
-        std::vector<Core::Ref<DataSource> >::iterator dataSource;
-        for(dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++ dataSource)
+    void set(const std::string& name, const std::string& value) {
+        std::vector<Core::Ref<DataSource>>::iterator dataSource;
+        for (dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++dataSource)
             (*dataSource)->setParameter(name, value);
     }
 
-    void clear(const std::string &name) {
-        std::vector<Core::Ref<DataSource> >::iterator dataSource;
-        for(dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++ dataSource)
+    void clear(const std::string& name) {
+        std::vector<Core::Ref<DataSource>>::iterator dataSource;
+        for (dataSource = dataSources_.begin(); dataSource != dataSources_.end(); ++dataSource)
             (*dataSource)->setParameter(name, "");
     }
 };
@@ -51,29 +50,30 @@ public:
  *  CorpusKeys objects.
  */
 class StringExpressionAdaptor {
-    std::vector<Core::Ref<Bliss::CorpusKey> > &corpusKeys_;
-public:
-    StringExpressionAdaptor(std::vector<Core::Ref<Bliss::CorpusKey> > &corpusKeys) :
-        corpusKeys_(corpusKeys) {}
+    std::vector<Core::Ref<Bliss::CorpusKey>>& corpusKeys_;
 
-    void set(const std::string &name, const std::string &value) {
-        std::vector<Core::Ref<Bliss::CorpusKey> >::iterator corpusKey;
-        for(corpusKey = corpusKeys_.begin(); corpusKey != corpusKeys_.end(); ++ corpusKey)
+public:
+    StringExpressionAdaptor(std::vector<Core::Ref<Bliss::CorpusKey>>& corpusKeys)
+            : corpusKeys_(corpusKeys) {}
+
+    void set(const std::string& name, const std::string& value) {
+        std::vector<Core::Ref<Bliss::CorpusKey>>::iterator corpusKey;
+        for (corpusKey = corpusKeys_.begin(); corpusKey != corpusKeys_.end(); ++corpusKey)
             (*corpusKey)->setVariable(name, value);
     }
 
-    void clear(const std::string &name) {
-        std::vector<Core::Ref<Bliss::CorpusKey> >::iterator corpusKey;
-        for(corpusKey = corpusKeys_.begin(); corpusKey != corpusKeys_.end(); ++ corpusKey)
+    void clear(const std::string& name) {
+        std::vector<Core::Ref<Bliss::CorpusKey>>::iterator corpusKey;
+        for (corpusKey = corpusKeys_.begin(); corpusKey != corpusKeys_.end(); ++corpusKey)
             (*corpusKey)->clear(name);
     }
 };
 
 template<class ParameterAdaptor>
-void setParameter(size_t index, Bliss::Recording *recording, ParameterAdaptor parameterAdaptor)
-{
+void setParameter(size_t index, Bliss::Recording* recording, ParameterAdaptor parameterAdaptor) {
     std::string inputFile(recording->video());
-    if (inputFile.empty()) inputFile = recording->audio();
+    if (inputFile.empty())
+        inputFile = recording->audio();
     parameterAdaptor.set("input-file", inputFile);
     if (!recording->audio().empty()) {
         parameterAdaptor.set("input-audio-file", recording->audio());
@@ -87,8 +87,7 @@ void setParameter(size_t index, Bliss::Recording *recording, ParameterAdaptor pa
 }
 
 template<class ParameterAdaptor>
-void setParameter(size_t index, Bliss::Segment *segment, ParameterAdaptor parameterAdaptor)
-{
+void setParameter(size_t index, Bliss::Segment* segment, ParameterAdaptor parameterAdaptor) {
     parameterAdaptor.set("id", segment->fullName());
     parameterAdaptor.set("segment-index", Core::form("%zd", index));
     parameterAdaptor.set("segment-type", std::string(Bliss::Segment::typeId[segment->type()]));
@@ -100,27 +99,24 @@ void setParameter(size_t index, Bliss::Segment *segment, ParameterAdaptor parame
     // disassemble segment fullname: .../segment-1/segment-0 and corpus-0/corpus-1/...
     parameterAdaptor.set("segment", segment->fullName());
     parameterAdaptor.set("segment-0", segment->name());
-    u32 segmentLevel = 1;
-    Bliss::CorpusSection *corpusSection = segment->parent();
-    while(corpusSection) {
+    u32                   segmentLevel  = 1;
+    Bliss::CorpusSection* corpusSection = segment->parent();
+    while (corpusSection) {
         parameterAdaptor.set("corpus-" + Core::form("%d", corpusSection->level()),
                              corpusSection->name());
         parameterAdaptor.set("segment-" + Core::form("%d", segmentLevel),
                              corpusSection->name());
         corpusSection = corpusSection->parent();
-        segmentLevel ++;
+        segmentLevel++;
     }
-
 }
 
 template<class ParameterAdaptor>
-void clearParameter(Bliss::Segment *segment, ParameterAdaptor parameterAdaptor)
-{
+void clearParameter(Bliss::Segment* segment, ParameterAdaptor parameterAdaptor) {
 }
 
 template<class ParameterAdaptor>
-void setParameter(size_t index, Bliss::SpeechSegment *speechSegment, ParameterAdaptor parameterAdaptor)
-{
+void setParameter(size_t index, Bliss::SpeechSegment* speechSegment, ParameterAdaptor parameterAdaptor) {
     setParameter(index, (Bliss::Segment*)speechSegment, parameterAdaptor);
     if (speechSegment->speaker() != 0) {
         parameterAdaptor.set("speaker", speechSegment->speaker()->name());
@@ -132,8 +128,7 @@ void setParameter(size_t index, Bliss::SpeechSegment *speechSegment, ParameterAd
 }
 
 template<class ParameterAdaptor>
-void clearParameter(Bliss::SpeechSegment *speechSegment, ParameterAdaptor parameterAdaptor)
-{
+void clearParameter(Bliss::SpeechSegment* speechSegment, ParameterAdaptor parameterAdaptor) {
     parameterAdaptor.clear("speaker");
     parameterAdaptor.clear("gender");
     parameterAdaptor.clear("orthography");
@@ -145,83 +140,75 @@ void clearParameter(Bliss::SpeechSegment *speechSegment, ParameterAdaptor parame
 // CorpusVisitor
 ////////////////
 
-CorpusVisitor::CorpusVisitor(const Core::Configuration &c) :
-    Core::Component(c),
-    recordingIndex_(0),
-    segmentIndex_(0)
-{}
+CorpusVisitor::CorpusVisitor(const Core::Configuration& c)
+        : Core::Component(c),
+          recordingIndex_(0),
+          segmentIndex_(0) {}
 
-void CorpusVisitor::enterCorpus(Bliss::Corpus *corpus)
-{
+void CorpusVisitor::enterCorpus(Bliss::Corpus* corpus) {
     Bliss::CorpusVisitor::enterCorpus(corpus);
     recordingIndex_ = 0;
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->enterCorpus(corpus);
 }
 
-void CorpusVisitor::leaveCorpus(Bliss::Corpus *corpus)
-{
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+void CorpusVisitor::leaveCorpus(Bliss::Corpus* corpus) {
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->leaveCorpus(corpus);
 
     Bliss::CorpusVisitor::leaveCorpus(corpus);
 }
 
-void CorpusVisitor::enterRecording(Bliss::Recording *recording)
-{
+void CorpusVisitor::enterRecording(Bliss::Recording* recording) {
     Bliss::CorpusVisitor::enterRecording(recording);
     segmentIndex_ = 0;
 
     setParameter(recordingIndex_, recording, DataSourceParameterAdaptor(dataSources_));
     setParameter(recordingIndex_, recording, StringExpressionAdaptor(corpusKeys_));
 
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->enterRecording(recording);
 }
 
-void CorpusVisitor::leaveRecording(Bliss::Recording *recording)
-{
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+void CorpusVisitor::leaveRecording(Bliss::Recording* recording) {
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->leaveRecording(recording);
 
-    ++ recordingIndex_;
+    ++recordingIndex_;
     Bliss::CorpusVisitor::leaveRecording(recording);
 }
 
-void CorpusVisitor::visitSegment(Bliss::Segment *segment)
-{
+void CorpusVisitor::visitSegment(Bliss::Segment* segment) {
     setParameter(segmentIndex_, segment, DataSourceParameterAdaptor(dataSources_));
     setParameter(segmentIndex_, segment, StringExpressionAdaptor(corpusKeys_));
 
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->enterSegment(segment);
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->processSegment(segment);
-    for(size_t i = 0; i < corpusProcessors_.size(); ++ i)
+    for (size_t i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->leaveSegment(segment);
-    ++ segmentIndex_;
+    ++segmentIndex_;
 }
 
-void CorpusVisitor::visitSpeechSegment(Bliss::SpeechSegment *speechSegment)
-{
+void CorpusVisitor::visitSpeechSegment(Bliss::SpeechSegment* speechSegment) {
     setParameter(segmentIndex_, speechSegment, DataSourceParameterAdaptor(dataSources_));
     setParameter(segmentIndex_, speechSegment, StringExpressionAdaptor(corpusKeys_));
 
     size_t i;
-    for(i = 0; i < corpusProcessors_.size(); ++ i)
+    for (i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->enterSpeechSegment(speechSegment);
-    for(i = 0; i < corpusProcessors_.size(); ++ i)
+    for (i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->processSpeechSegment(speechSegment);
-    for(i = 0; i < corpusProcessors_.size(); ++ i)
+    for (i = 0; i < corpusProcessors_.size(); ++i)
         corpusProcessors_[i]->leaveSpeechSegment(speechSegment);
 
     clearParameter(speechSegment, DataSourceParameterAdaptor(dataSources_));
     clearParameter(speechSegment, StringExpressionAdaptor(corpusKeys_));
-    ++ segmentIndex_;
+    ++segmentIndex_;
 }
 
-void CorpusVisitor::clearRegistrations()
-{
+void CorpusVisitor::clearRegistrations() {
     corpusKeys_.clear();
     dataSources_.clear();
     corpusProcessors_.clear();
@@ -229,16 +216,16 @@ void CorpusVisitor::clearRegistrations()
 
 class SingleDataSourceParameterAdaptor {
     DataSource* dataSource_;
+
 public:
+    SingleDataSourceParameterAdaptor(DataSource* dataSource)
+            : dataSource_(dataSource) {}
 
-    SingleDataSourceParameterAdaptor(DataSource* dataSource) :
-        dataSource_(dataSource) {}
-
-    void set(const std::string &name, const std::string &value) {
+    void set(const std::string& name, const std::string& value) {
         dataSource_->setParameter(name, value);
     }
 
-    void clear(const std::string &name) {
+    void clear(const std::string& name) {
         dataSource_->setParameter(name, "");
     }
 };
@@ -251,7 +238,7 @@ void setSegmentParametersOnDataSource(Core::Ref<DataSource> dataSource, Bliss::S
 
     setParameter(/*recording idx*/ 0, recording, SingleDataSourceParameterAdaptor(dataSource.get()));
     auto* speechSegment = dynamic_cast<Bliss::SpeechSegment*>(segment);
-    if(speechSegment)
+    if (speechSegment)
         setParameter(/*segment idx*/ 0, speechSegment, SingleDataSourceParameterAdaptor(dataSource.get()));
     else
         setParameter(/*segment idx*/ 0, segment, SingleDataSourceParameterAdaptor(dataSource.get()));
@@ -262,10 +249,10 @@ void clearSegmentParametersOnDataSource(Core::Ref<DataSource> dataSource, Bliss:
     verify(dataSource.get());
 
     auto* speechSegment = dynamic_cast<Bliss::SpeechSegment*>(segment);
-    if(speechSegment)
+    if (speechSegment)
         clearParameter(speechSegment, SingleDataSourceParameterAdaptor(dataSource.get()));
     else
         clearParameter(segment, SingleDataSourceParameterAdaptor(dataSource.get()));
 }
 
-}
+}  // namespace Speech

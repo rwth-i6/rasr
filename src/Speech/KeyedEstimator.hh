@@ -16,66 +16,70 @@
 #define _SPEECH_KEYED_ESTIMATOR_HH
 
 #include <Am/AcousticModel.hh>
-#include "AcousticModelTrainer.hh"
-#include <Mm/AffineFeatureTransformAccumulator.hh>
-#include <Core/ObjectCache.hh>
-#include <Core/IoRef.hh>
-#include <Mm/AbstractAdaptationAccumulator.hh>
-#include <Math/Matrix.hh>
 #include <Bliss/CorpusKey.hh>
+#include <Core/IoRef.hh>
+#include <Core/ObjectCache.hh>
+#include <Math/Matrix.hh>
+#include <Mm/AbstractAdaptationAccumulator.hh>
+#include <Mm/AffineFeatureTransformAccumulator.hh>
+#include "AcousticModelTrainer.hh"
 #include "Feature.hh"
 
 namespace Speech {
 
-    /**
-     * KeyedEstimator
-     */
-    class KeyedEstimator : public AcousticModelTrainer {
-        typedef AcousticModelTrainer Precursor;
-    public:
-        typedef Core::IoRef<Mm::AbstractAdaptationAccumulator> Accumulator;
-        typedef Core::ObjectCache< Core::MruObjectCacheList<
+/**
+ * KeyedEstimator
+ */
+class KeyedEstimator : public AcousticModelTrainer {
+    typedef AcousticModelTrainer Precursor;
+
+public:
+    typedef Core::IoRef<Mm::AbstractAdaptationAccumulator> Accumulator;
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string,
             Accumulator,
             Core::StringHash,
-            Core::StringEquality
-        > > AccumulatorCache;
-        enum Operation {estimate, calculate, combines};
-    public:
-        static const Core::ParameterFloat paramCombinationWeight;
-        static const Core::ParameterInt paramFeatureStream;
-        static const Core::ParameterString paramCorpusKeyMap;
-    protected:
-        Core::Ref<Bliss::CorpusKey> corpusKey_;
-        Core::StringHashMap<std::string> corpusKeyMap_;
-        size_t featureDimension_;
-        size_t modelDimension_;
-        size_t featureStream_;
-        Operation operation_;
-        Accumulator *currentAccumulator_;
-        AccumulatorCache accumulatorCache_;
-        AccumulatorCache* accumulatorCacheToAdd_;
-        Core::Ref<const Mm::AssigningFeatureScorer> assigningFeatureScorer_;
-        Core::Ref<Mm::MixtureSet> mixtureSet_;
-    protected:
-        virtual void createAccumulator(std::string key) = 0;
-        void loadMixtureSet();
-        void createAssigningFeatureScorer();
-        void loadCorpusKeyMap();
-    public:
-        KeyedEstimator(const Core::Configuration &c, Operation op = estimate);
-        virtual ~KeyedEstimator();
+            Core::StringEquality>>
+            AccumulatorCache;
+    enum Operation { estimate,
+                     calculate,
+                     combines };
 
-        virtual void signOn(CorpusVisitor &corpusVisitor);
-        virtual void setFeatureDescription(const Mm::FeatureDescription &);
-        virtual void processAlignedFeature(
-                Core::Ref<const Feature>, Am::AllophoneStateIndex);
-        virtual void processAlignedFeature(
-                Core::Ref<const Feature>, Am::AllophoneStateIndex, Mm::Weight);
-        virtual void combine();
-    };
+public:
+    static const Core::ParameterFloat  paramCombinationWeight;
+    static const Core::ParameterInt    paramFeatureStream;
+    static const Core::ParameterString paramCorpusKeyMap;
 
+protected:
+    Core::Ref<Bliss::CorpusKey>                 corpusKey_;
+    Core::StringHashMap<std::string>            corpusKeyMap_;
+    size_t                                      featureDimension_;
+    size_t                                      modelDimension_;
+    size_t                                      featureStream_;
+    Operation                                   operation_;
+    Accumulator*                                currentAccumulator_;
+    AccumulatorCache                            accumulatorCache_;
+    AccumulatorCache*                           accumulatorCacheToAdd_;
+    Core::Ref<const Mm::AssigningFeatureScorer> assigningFeatureScorer_;
+    Core::Ref<Mm::MixtureSet>                   mixtureSet_;
 
-} // namespace Speech
+protected:
+    virtual void createAccumulator(std::string key) = 0;
+    void         loadMixtureSet();
+    void         createAssigningFeatureScorer();
+    void         loadCorpusKeyMap();
 
-#endif // _SPEECH_KEYED_ESTIMATOR_HH
+public:
+    KeyedEstimator(const Core::Configuration& c, Operation op = estimate);
+    virtual ~KeyedEstimator();
+
+    virtual void signOn(CorpusVisitor& corpusVisitor);
+    virtual void setFeatureDescription(const Mm::FeatureDescription&);
+    virtual void processAlignedFeature(Core::Ref<const Feature>, Am::AllophoneStateIndex);
+    virtual void processAlignedFeature(Core::Ref<const Feature>, Am::AllophoneStateIndex, Mm::Weight);
+    virtual void combine();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_KEYED_ESTIMATOR_HH

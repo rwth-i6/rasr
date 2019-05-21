@@ -15,62 +15,58 @@
 #include "NBestListExtractor.hh"
 #include <Fsa/Basic.hh>
 #include <Fsa/Best.hh>
-#include <Lattice/Posterior.hh>
 #include <Fsa/Output.hh>
+#include <Lattice/Posterior.hh>
 
 using namespace Speech;
-
 
 /**
  * NBestListExtractor
  */
 const Core::ParameterInt NBestListExtractor::paramNumberOfHypotheses(
-    "number-of-hypotheses",
-    "number of hypotheses in n-best list",
-    100,
-    0);
+        "number-of-hypotheses",
+        "number of hypotheses in n-best list",
+        100,
+        0);
 
 const Core::ParameterFloat NBestListExtractor::paramMinPruningThreshold(
-    "min-pruning",
-    "minimum (start) threshold used for posterior pruning of word lattices",
-    Core::Type<f32>::max);
+        "min-pruning",
+        "minimum (start) threshold used for posterior pruning of word lattices",
+        Core::Type<f32>::max);
 
 const Core::ParameterFloat NBestListExtractor::paramMaxPruningThreshold(
-    "max-pruning",
-    "maximum threshold used for posterior pruning of word lattices",
-    Core::Type<f32>::max);
+        "max-pruning",
+        "maximum threshold used for posterior pruning of word lattices",
+        Core::Type<f32>::max);
 
 const Core::ParameterFloat NBestListExtractor::paramPruningIncrement(
-    "pruning-increment",
-    "increment current threshold by this value",
-    5,
-    1);
+        "pruning-increment",
+        "increment current threshold by this value",
+        5,
+        1);
 
 const Core::ParameterBool NBestListExtractor::paramWorkOnOutput(
-    "work-on-output",
-    "score based on output (default: input==false)",
-    false);
+        "work-on-output",
+        "score based on output (default: input==false)",
+        false);
 
 const Core::ParameterBool NBestListExtractor::paramLatticeIsDeterministic(
-    "lattice-is-deterministic",
-    "input lattices are deterministic",
-    true);
+        "lattice-is-deterministic",
+        "input lattices are deterministic",
+        true);
 
 const Core::ParameterBool NBestListExtractor::paramHasFailArcs(
-    "has-fail-arcs",
-    "Used Automata have fail arcs",
-    false);
+        "has-fail-arcs",
+        "Used Automata have fail arcs",
+        false);
 
 const Core::ParameterBool NBestListExtractor::paramNormalize(
         "normalize",
         "get normalization",
         false);
 
-NBestListExtractor::NBestListExtractor(
-    const Core::Configuration &c)
-    :
-    Core::Component(c)
-{
+NBestListExtractor::NBestListExtractor(const Core::Configuration& c)
+        : Core::Component(c) {
     setNumberOfHypotheses(paramNumberOfHypotheses(config));
     setMinPruningThreshold(paramMinPruningThreshold(config));
     setMaxPruningThreshold(paramMaxPruningThreshold(config));
@@ -81,37 +77,27 @@ NBestListExtractor::NBestListExtractor(
     setNormalize(paramNormalize(config));
 }
 
-NBestListExtractor::~NBestListExtractor()
-{}
+NBestListExtractor::~NBestListExtractor() {}
 
 /**
  * NBestListLatticeProcessor
  */
-NBestListLatticeProcessor::NBestListLatticeProcessor(
-    const Core::Configuration &c)
-    :
-    Core::Component(c),
-    Precursor(c),
-    statisticsChannel_(config, "statistics"),
-    extractor_(config)
-{}
+NBestListLatticeProcessor::NBestListLatticeProcessor(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          statisticsChannel_(config, "statistics"),
+          extractor_(config) {}
 
-NBestListLatticeProcessor::~NBestListLatticeProcessor()
-{}
+NBestListLatticeProcessor::~NBestListLatticeProcessor() {}
 
-void NBestListLatticeProcessor::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void NBestListLatticeProcessor::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     Lattice::ConstWordLatticeRef nBestList = extractor_.getNBestList(lattice);
     if (statisticsChannel_.isOpen()) {
-        Fsa::ConstAutomatonRef list = nBestList->mainPart();
-        Fsa::ConstStateRef hypotheses = list->getState(list->initialStateId());
-        statisticsChannel_ << Core::XmlOpen("n-best-list-statistics")
-            + Core::XmlAttribute("size", hypotheses->nArcs());
-        for (Fsa::State::const_iterator it = hypotheses->begin(); it != hypotheses->end(); ++ it) {
-            statisticsChannel_ << Core::XmlOpen("hypothesis")
-                + Core::XmlAttribute("rank", it->target())
-                + Core::XmlAttribute("score", f32(Fsa::bestscore(Fsa::partial(list, it->target()))));
+        Fsa::ConstAutomatonRef list       = nBestList->mainPart();
+        Fsa::ConstStateRef     hypotheses = list->getState(list->initialStateId());
+        statisticsChannel_ << Core::XmlOpen("n-best-list-statistics") + Core::XmlAttribute("size", hypotheses->nArcs());
+        for (Fsa::State::const_iterator it = hypotheses->begin(); it != hypotheses->end(); ++it) {
+            statisticsChannel_ << Core::XmlOpen("hypothesis") + Core::XmlAttribute("rank", it->target()) + Core::XmlAttribute("score", f32(Fsa::bestscore(Fsa::partial(list, it->target()))));
             statisticsChannel_ << Core::XmlClose("hypothesis");
         }
         statisticsChannel_ << Core::XmlClose("n-best-list-statistics");
@@ -119,8 +105,7 @@ void NBestListLatticeProcessor::processWordLattice(
     Precursor::processWordLattice(nBestList, s);
 }
 
-void NBestListLatticeProcessor::initialize(Bliss::LexiconRef lexicon)
-{
+void NBestListLatticeProcessor::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
     extractor_.initialize(lexicon);
 }

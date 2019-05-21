@@ -16,49 +16,55 @@
 #define _SPEECH_MODEL_TRANSFORM_ESTIMATOR_HH
 
 #include <Am/AcousticModel.hh>
-#include "AcousticModelTrainer.hh"
-#include <Mm/AffineFeatureTransformAccumulator.hh>
-#include <Core/ObjectCache.hh>
-#include <Core/IoRef.hh>
-#include <Mm/MllrAdaptation.hh>
 #include <Am/AdaptationTree.hh>
-#include <Math/Matrix.hh>
 #include <Bliss/CorpusKey.hh>
+#include <Core/IoRef.hh>
+#include <Core/ObjectCache.hh>
+#include <Math/Matrix.hh>
+#include <Mm/AffineFeatureTransformAccumulator.hh>
+#include <Mm/MllrAdaptation.hh>
+#include "AcousticModelTrainer.hh"
 #include "Feature.hh"
 #include "KeyedEstimator.hh"
 
 namespace Speech {
 
-    /**
-     * ModelTransformEstimator
-     */
-    class ModelTransformEstimator : public KeyedEstimator {
-        typedef KeyedEstimator Precursor;
-        typedef Mm::AdaptorEstimator ConcreteAccumulator;
-    public:
-        static const Core::Choice mllrModelingChoice;
-        static const Core::ParameterChoice paramMllrModeling;
-        enum MllrModelingMode {fullMllr, semiTiedMllr, bandMllr, shiftMllr};
-    private:
-        Core::Ref<Am::AdaptationTree> adaptationTree_;
-        MllrModelingMode mllrModeling_;
+/**
+ * ModelTransformEstimator
+ */
+class ModelTransformEstimator : public KeyedEstimator {
+    typedef KeyedEstimator       Precursor;
+    typedef Mm::AdaptorEstimator ConcreteAccumulator;
 
-        typedef Core::ObjectCache<Core::MruObjectCacheList<
+public:
+    static const Core::Choice          mllrModelingChoice;
+    static const Core::ParameterChoice paramMllrModeling;
+    enum MllrModelingMode { fullMllr,
+                            semiTiedMllr,
+                            bandMllr,
+                            shiftMllr };
+
+private:
+    Core::Ref<Am::AdaptationTree> adaptationTree_;
+    MllrModelingMode              mllrModeling_;
+
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string,
             Core::IoRef<Mm::Adaptor>,
             Core::StringHash,
-            Core::StringEquality
-        > > AdaptorCache;
-    protected:
-        void createAccumulator(std::string key);
-    public:
-        ModelTransformEstimator(const Core::Configuration &c, Operation op = estimate);
-        virtual ~ModelTransformEstimator();
+            Core::StringEquality>>
+            AdaptorCache;
 
-        void postProcess();
-    };
+protected:
+    void createAccumulator(std::string key);
 
+public:
+    ModelTransformEstimator(const Core::Configuration& c, Operation op = estimate);
+    virtual ~ModelTransformEstimator();
 
-} // namespace Speech
+    void postProcess();
+};
 
-#endif // _SPEECH_MODEL_TRANSFORM_ESTIMATOR_HH
+}  // namespace Speech
+
+#endif  // _SPEECH_MODEL_TRANSFORM_ESTIMATOR_HH

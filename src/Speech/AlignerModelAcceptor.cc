@@ -18,23 +18,19 @@
 
 using namespace Speech;
 
-
-AlignerModelAcceptorGenerator::AlignerModelAcceptorGenerator(const Core::Configuration &c) :
-    Component(c),
-    Precursor(c),
-    allophoneStateGraphBuilder_(0),
-    cache_(0)
-{
-    ModelCombination modelCombination(
-        select("model-combination"),
-        ModelCombination::useAcousticModel,
-        Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying);
+AlignerModelAcceptorGenerator::AlignerModelAcceptorGenerator(const Core::Configuration& c)
+        : Component(c),
+          Precursor(c),
+          allophoneStateGraphBuilder_(0),
+          cache_(0) {
+    ModelCombination modelCombination(select("model-combination"),
+                                      ModelCombination::useAcousticModel,
+                                      Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying);
     modelCombination.load();
 
-    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(
-        select("allophone-state-graph-builder"),
-        modelCombination.lexicon(),
-        modelCombination.acousticModel());
+    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
+                                                                 modelCombination.lexicon(),
+                                                                 modelCombination.acousticModel());
 
     cache_ = new FsaCache(select("model-acceptor-cache"), Fsa::storeStates);
     Core::DependencySet dependencies;
@@ -42,14 +38,12 @@ AlignerModelAcceptorGenerator::AlignerModelAcceptorGenerator(const Core::Configu
     cache_->setDependencies(dependencies);
 }
 
-AlignerModelAcceptorGenerator::~AlignerModelAcceptorGenerator()
-{
+AlignerModelAcceptorGenerator::~AlignerModelAcceptorGenerator() {
     delete cache_;
     delete allophoneStateGraphBuilder_;
 }
 
-void AlignerModelAcceptorGenerator::enterSpeechSegment(Bliss::SpeechSegment *s)
-{
+void AlignerModelAcceptorGenerator::enterSpeechSegment(Bliss::SpeechSegment* s) {
     require(s != 0);
 
     Precursor::enterSpeechSegment(s);

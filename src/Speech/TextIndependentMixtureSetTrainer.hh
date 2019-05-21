@@ -20,28 +20,30 @@
 
 namespace Speech {
 
-    /** LabelingFeatureExtractor
-     */
-    class TextIndependentMixtureSetTrainer :
-        public LabeledFeatureProcessor,
-        public MlMixtureSetTrainer
-    {
-    private:
-        LabelIndex nLabels_;
-        Mm::FeatureDescription featureDescription_;
-        bool initialized_;
-    protected:
-        virtual void setFeatureDescription(const Mm::FeatureDescription &description);
-        virtual void setLabels(const std::vector<std::string> &labels) { nLabels_ = labels.size(); }
+/** LabelingFeatureExtractor
+ */
+class TextIndependentMixtureSetTrainer : public LabeledFeatureProcessor,
+                                         public MlMixtureSetTrainer {
+private:
+    LabelIndex             nLabels_;
+    Mm::FeatureDescription featureDescription_;
+    bool                   initialized_;
 
-        virtual void processLabeledFeature(Core::Ref<const Feature> feature, LabelIndex labelIndex) {
-            accumulate(feature->mainStream(), labelIndex);
-        }
-    public:
-        TextIndependentMixtureSetTrainer(const Core::Configuration &c);
-        ~TextIndependentMixtureSetTrainer();
-    };
+protected:
+    virtual void setFeatureDescription(const Mm::FeatureDescription& description);
+    virtual void setLabels(const std::vector<std::string>& labels) {
+        nLabels_ = labels.size();
+    }
 
-} // namespace Speech
+    virtual void processLabeledFeature(Core::Ref<const Feature> feature, LabelIndex labelIndex) {
+        accumulate(feature->mainStream(), labelIndex);
+    }
 
-#endif // _SPEECH_TEXT_INDEPENDENT_MIXTURE_SET_TRAINER_HH
+public:
+    TextIndependentMixtureSetTrainer(const Core::Configuration& c);
+    ~TextIndependentMixtureSetTrainer();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_TEXT_INDEPENDENT_MIXTURE_SET_TRAINER_HH

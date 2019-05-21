@@ -15,50 +15,50 @@
 #ifndef _SPEECH_NBEST_LIST_EXTRACTOR_HH
 #define _SPEECH_NBEST_LIST_EXTRACTOR_HH
 
-#include "LatticeSetProcessor.hh"
 #include <Core/Parameter.hh>
 #include <Lattice/Best.hh>
+#include "LatticeSetProcessor.hh"
 
 namespace Speech {
 
-    class NBestListExtractor :
-        public Core::Component, Lattice::NBestListExtractor
-    {
-    private:
-        static const Core::ParameterInt paramNumberOfHypotheses;
-        static const Core::ParameterFloat paramMinPruningThreshold;
-        static const Core::ParameterFloat paramMaxPruningThreshold;
-        static const Core::ParameterFloat paramPruningIncrement;
-        static const Core::ParameterBool paramWorkOnOutput;
-        static const Core::ParameterBool paramLatticeIsDeterministic;
-        static const Core::ParameterBool paramHasFailArcs;
-        static const Core::ParameterBool paramNormalize;
-    public:
-        NBestListExtractor(const Core::Configuration &);
-        virtual ~NBestListExtractor();
+class NBestListExtractor : public Core::Component, Lattice::NBestListExtractor {
+private:
+    static const Core::ParameterInt   paramNumberOfHypotheses;
+    static const Core::ParameterFloat paramMinPruningThreshold;
+    static const Core::ParameterFloat paramMaxPruningThreshold;
+    static const Core::ParameterFloat paramPruningIncrement;
+    static const Core::ParameterBool  paramWorkOnOutput;
+    static const Core::ParameterBool  paramLatticeIsDeterministic;
+    static const Core::ParameterBool  paramHasFailArcs;
+    static const Core::ParameterBool  paramNormalize;
 
-        void initialize(Bliss::LexiconRef lexicon) {
-            Lattice::NBestListExtractor::initialize(lexicon);
-        }
-        Lattice::ConstWordLatticeRef getNBestList(Lattice::ConstWordLatticeRef l) {
-            return Lattice::NBestListExtractor::getNBestList(l);
-        }
-    };
+public:
+    NBestListExtractor(const Core::Configuration&);
+    virtual ~NBestListExtractor();
 
-    class NBestListLatticeProcessor : public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    private:
-        mutable Core::XmlChannel statisticsChannel_;
-        NBestListExtractor extractor_;
-    public:
-        NBestListLatticeProcessor(const Core::Configuration &);
-        virtual ~NBestListLatticeProcessor();
+    void initialize(Bliss::LexiconRef lexicon) {
+        Lattice::NBestListExtractor::initialize(lexicon);
+    }
+    Lattice::ConstWordLatticeRef getNBestList(Lattice::ConstWordLatticeRef l) {
+        return Lattice::NBestListExtractor::getNBestList(l);
+    }
+};
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
+class NBestListLatticeProcessor : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
 
-} // namespace Speech
+private:
+    mutable Core::XmlChannel statisticsChannel_;
+    NBestListExtractor       extractor_;
 
-#endif // _SPEECH_NBEST_LIST_EXTRACTOR_HH
+public:
+    NBestListLatticeProcessor(const Core::Configuration&);
+    virtual ~NBestListLatticeProcessor();
+
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_NBEST_LIST_EXTRACTOR_HH

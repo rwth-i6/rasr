@@ -15,34 +15,41 @@
 #ifndef _SPEECH_STATE_POSTERIOR_FEATURE_SCORER_NODE_HH_
 #define _SPEECH_STATE_POSTERIOR_FEATURE_SCORER_NODE_HH_
 
-#include <Core/Types.hh>
 #include <Core/BinaryStream.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
+#include <Core/Types.hh>
 #include <Flow/Node.hh>
 #include <Mm/StatePosteriorFeatureScorer.hh>
 #include <Sparse/Vector.hh>
 
 namespace Speech {
 
-    class StatePosteriorFeatureScorerNode : public Flow::SleeveNode {
-        typedef Flow::SleeveNode Precursor;
-        typedef Mm::StatePosteriorFeatureScorer::CachedStatePosteriorContextScorer StatePosteriorScorer;
-        typedef Mm::StatePosteriorFeatureScorer::PosteriorsAndDensities PosteriorsAndDensities;
-    public:
-        typedef Sparse::Vector<f32>  FlowScoreVector;
-        typedef Sparse::SingleValueSparseVector<f32>  ScoreVector;
-    private:
-        Mm::StatePosteriorFeatureScorer* fs_;
-    public:
-        StatePosteriorFeatureScorerNode(const Core::Configuration& config);
-        virtual ~StatePosteriorFeatureScorerNode() {delete fs_; }
-        static std::string filterName() {return "state-posterior-feature-scorer"; }
+class StatePosteriorFeatureScorerNode : public Flow::SleeveNode {
+    typedef Flow::SleeveNode                                                   Precursor;
+    typedef Mm::StatePosteriorFeatureScorer::CachedStatePosteriorContextScorer StatePosteriorScorer;
+    typedef Mm::StatePosteriorFeatureScorer::PosteriorsAndDensities            PosteriorsAndDensities;
 
-        virtual bool configure();
-        virtual bool work(Flow::PortId p);
-    };
+public:
+    typedef Sparse::Vector<f32>                  FlowScoreVector;
+    typedef Sparse::SingleValueSparseVector<f32> ScoreVector;
 
-} // namespace Speech
+private:
+    Mm::StatePosteriorFeatureScorer* fs_;
 
-#endif //  _SPEECH_STATE_POSTERIOR_FEATURE_SCORER_NODE_HH_
+public:
+    StatePosteriorFeatureScorerNode(const Core::Configuration& config);
+    virtual ~StatePosteriorFeatureScorerNode() {
+        delete fs_;
+    }
+    static std::string filterName() {
+        return "state-posterior-feature-scorer";
+    }
+
+    virtual bool configure();
+    virtual bool work(Flow::PortId p);
+};
+
+}  // namespace Speech
+
+#endif  //  _SPEECH_STATE_POSTERIOR_FEATURE_SCORER_NODE_HH_

@@ -20,21 +20,18 @@ using namespace Speech;
 /**
  * Cluster mixture set trainer
  */
-ClusterMixtureSetTrainer::ClusterMixtureSetTrainer(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{
+ClusterMixtureSetTrainer::ClusterMixtureSetTrainer(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {
     estimator_ = 0;
 }
 
-ClusterMixtureSetTrainer::~ClusterMixtureSetTrainer()
-{}
+ClusterMixtureSetTrainer::~ClusterMixtureSetTrainer() {}
 
-void ClusterMixtureSetTrainer::cluster()
-{
-    Core::Ref<Mm::MixtureSet> originalMixtureSet  = estimate();
+void ClusterMixtureSetTrainer::cluster() {
+    Core::Ref<Mm::MixtureSet> originalMixtureSet = estimate();
     Core::Ref<Mm::MixtureSet> clusteredMixtureSet =
-        Core::ref(originalMixtureSet->createOneMixtureClusterCopy(select("clustering")));
+            Core::ref(originalMixtureSet->createOneMixtureClusterCopy(select("clustering")));
     if (estimator_ and (typeid(estimator_) == typeid(Mm::ConvertMixtureSetEstimator*))) {
         Mm::ConvertMixtureSetEstimator& estim = *(dynamic_cast<Mm::ConvertMixtureSetEstimator*>(estimator_));
         estim.setMixtureSet(clusteredMixtureSet);

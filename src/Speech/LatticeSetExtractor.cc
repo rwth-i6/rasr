@@ -14,14 +14,14 @@
  */
 #include "LatticeSetExtractor.hh"
 
-#include <sstream>
-#include <sys/time.h>
 #include <Core/Utility.hh>
 #include <Math/CudaDataStructure.hh>
 #include <Modules.hh>
+#include <sstream>
+#include <sys/time.h>
 
-#include "SegmentwiseFeatureExtractor.hh"
 #include "PhonemeSequenceAlignmentGenerator.hh"
+#include "SegmentwiseFeatureExtractor.hh"
 
 #ifdef MODULE_SPEECH_DT_ADVANCED
 #include "AdvancedLatticeExtractor.hh"
@@ -37,129 +37,122 @@ using namespace Speech;
  *  LatticeSetExtractor
  */
 const Core::ParameterStringVector LatticeSetExtractor::paramAcousticExtractors(
-    "acoustic-rescorers",
-    "set of lattice extractors, type=acoustic",
-    ",");
-
+        "acoustic-rescorers",
+        "set of lattice extractors, type=acoustic",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramEmissionExtractors(
-    "emission-rescorers",
-    "set of lattice extractors, type=emission",
-    ",");
+        "emission-rescorers",
+        "set of lattice extractors, type=emission",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramNnEmissionExtractors(
-    "nn-emission-rescorers",
-    "set of lattice extractors, type=nn-emission",
-    ",");
+        "nn-emission-rescorers",
+        "set of lattice extractors, type=nn-emission",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramTdpExtractors(
-    "tdp-rescorers",
-    "set of lattice extractors, type=tdp",
-    ",");
+        "tdp-rescorers",
+        "set of lattice extractors, type=tdp",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramPronunciationExtractors(
-    "pronunciation-rescorers",
-    "set of lattice extractors, type=pronunciation",
-    ",");
+        "pronunciation-rescorers",
+        "set of lattice extractors, type=pronunciation",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramLmExtractors(
-    "lm-rescorers",
-    "set of lattice extractors, type=lm",
-    ",");
+        "lm-rescorers",
+        "set of lattice extractors, type=lm",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramCombinedLmExtractors(
-    "combined-lm-rescorers",
-    "set of lattice extractors, type=combined-lm",
-    ",");
+        "combined-lm-rescorers",
+        "set of lattice extractors, type=combined-lm",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramRestorers(
-    "restorers",
-    "set of lattice extractors, type=restorer",
-    ",");
+        "restorers",
+        "set of lattice extractors, type=restorer",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramReaders(
-    "readers",
-    "set of lattice extractors, type=reader",
-    ",");
+        "readers",
+        "set of lattice extractors, type=reader",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramDistanceExtractors(
-    "distance-rescorers",
-    "set of lattice extractors, type=distance",
-    ",");
+        "distance-rescorers",
+        "set of lattice extractors, type=distance",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramPosteriorExtractors(
-    "posterior-rescorers",
-    "set of lattice extractors, type=posterior",
-    ",");
+        "posterior-rescorers",
+        "set of lattice extractors, type=posterior",
+        ",");
 
 const Core::ParameterStringVector LatticeSetExtractor::paramPassExtractors(
-    "pass-extractors",
-    "set of lattice extractors, type=pass",
-    ",");
+        "pass-extractors",
+        "set of lattice extractors, type=pass",
+        ",");
 
-LatticeSetExtractor::LatticeSetExtractor(const Core::Configuration &c) :
-    Precursor(c)
-{}
+LatticeSetExtractor::LatticeSetExtractor(const Core::Configuration& c)
+        : Precursor(c) {}
 
 /**
  *  LatticeSetGenerator
  */
 Core::Choice LatticeSetGenerator::choiceSearchType(
-    "exact-match", exactMatch,
-    "full-search", fullSearch,
-    Core::Choice::endMark());
+        "exact-match", exactMatch,
+        "full-search", fullSearch,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice LatticeSetGenerator::paramSearchType(
-    "search-type",
-    &choiceSearchType,
-    "choose between exact match (word boundaries are given) and full search",
-    exactMatch);
+        "search-type",
+        &choiceSearchType,
+        "choose between exact match (word boundaries are given) and full search",
+        exactMatch);
 
 const Core::ParameterBool LatticeSetGenerator::paramShareAcousticModel(
-    "share-acoustic-model",
-    "if alignment generator and rescorer have the same acoustic model, they can share it",
-    false);
+        "share-acoustic-model",
+        "if alignment generator and rescorer have the same acoustic model, they can share it",
+        false);
 
 const Core::ParameterBool LatticeSetGenerator::paramLoadAcoustics(
-    "load-acoustics",
-    "load acoustics (e.g. alignment generator), used for pass rescorer only",
-    false);
+        "load-acoustics",
+        "load acoustics (e.g. alignment generator), used for pass rescorer only",
+        false);
 
-LatticeSetGenerator::LatticeSetGenerator(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    LatticeSetExtractor(c)
-{}
+LatticeSetGenerator::LatticeSetGenerator(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          LatticeSetExtractor(c) {}
 
-LatticeSetGenerator::~LatticeSetGenerator()
-{
+LatticeSetGenerator::~LatticeSetGenerator() {
     for (LatticeExtractors::iterator it = extractors_.begin();
-         it != extractors_.end(); ++ it) {
+         it != extractors_.end(); ++it) {
         delete *it;
     }
 }
 
-Core::Ref<SegmentwiseFeatureExtractor> LatticeSetGenerator::segmentwiseFeatureExtractor()
-{
+Core::Ref<SegmentwiseFeatureExtractor> LatticeSetGenerator::segmentwiseFeatureExtractor() {
     if (!segmentwiseFeatureExtractor_) {
         segmentwiseFeatureExtractor_ =
-            Core::ref(new SegmentwiseFeatureExtractor(select("segmentwise-feature-extraction")));
+                Core::ref(new SegmentwiseFeatureExtractor(select("segmentwise-feature-extraction")));
     }
     return segmentwiseFeatureExtractor_;
 }
 
-LatticeSetGenerator::AlignmentGeneratorRef LatticeSetGenerator::alignmentGenerator()
-{
+LatticeSetGenerator::AlignmentGeneratorRef LatticeSetGenerator::alignmentGenerator() {
     if (!alignmentGenerator_) {
         alignmentGenerator_ =
-            Core::ref(new PhonemeSequenceAlignmentGenerator(select("segmentwise-alignment")));
+                Core::ref(new PhonemeSequenceAlignmentGenerator(select("segmentwise-alignment")));
         alignmentGenerator_->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
     }
     return alignmentGenerator_;
 }
 
-void LatticeSetGenerator::initializeExtractors()
-{
+void LatticeSetGenerator::initializeExtractors() {
     verify(extractors_.empty());
 
     appendAcousticRescorers();
@@ -187,53 +180,52 @@ void LatticeSetGenerator::initializeExtractors()
     timeRescorers_.resize(extractors_.size(), 0);
 }
 
-void LatticeSetGenerator::appendAcousticRescorers()
-{
+void LatticeSetGenerator::appendAcousticRescorers() {
     std::vector<std::string> acousticNames = paramAcousticExtractors(config);
     for (std::vector<std::string>::iterator name = acousticNames.begin();
-         name != acousticNames.end(); ++ name) {
+         name != acousticNames.end(); ++name) {
         switch (paramSearchType(select(*name))) {
-        case exactMatch: {
-            AcousticLatticeRescorer *rescorer;
-            if (paramShareAcousticModel(config)) {
-                rescorer = new AlignmentLatticeRescorer(select(*name));
-            }
+            case exactMatch: {
+                AcousticLatticeRescorer* rescorer;
+                if (paramShareAcousticModel(config)) {
+                    rescorer = new AlignmentLatticeRescorer(select(*name));
+                }
 #ifdef MODULE_SPEECH_DT_ADVANCED
-            else {
-                CombinedAcousticLatticeRescorer *r =
-                    new CombinedAcousticLatticeRescorer(select(*name));
-                r->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
-                rescorer = r;
-            }
+                else {
+                    CombinedAcousticLatticeRescorer* r =
+                            new CombinedAcousticLatticeRescorer(select(*name));
+                    r->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
+                    rescorer = r;
+                }
 #endif
-            rescorer->setAlignmentGenerator(alignmentGenerator());
-            extractors_.push_back(rescorer);
-            log("\"%s\" appended (acoustic-rescorer, exact match)", name->c_str());
-        } break;
+                rescorer->setAlignmentGenerator(alignmentGenerator());
+                extractors_.push_back(rescorer);
+                log("\"%s\" appended (acoustic-rescorer, exact match)", name->c_str());
+            } break;
 #ifdef MODULE_SPEECH_DT_ADVANCED
-        case fullSearch: {
-            RecognizerWithConstrainedLanguageModel *rescorer =
-                new RecognizerWithConstrainedLanguageModel(select(*name), lexicon_);
-            rescorer->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
-            extractors_.push_back(rescorer);
-            log("\"%s\" appended (acoustic-rescorer, full search)", name->c_str());
-        } break;
+            case fullSearch: {
+                RecognizerWithConstrainedLanguageModel* rescorer =
+                        new RecognizerWithConstrainedLanguageModel(select(*name), lexicon_);
+                rescorer->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
+                extractors_.push_back(rescorer);
+                log("\"%s\" appended (acoustic-rescorer, full search)", name->c_str());
+            } break;
 #endif
         }
     }
 }
 
-void LatticeSetGenerator::appendEmissionRescorers()
-{
+void LatticeSetGenerator::appendEmissionRescorers() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> emissionNames = paramEmissionExtractors(config);
     for (std::vector<std::string>::iterator name = emissionNames.begin();
-         name != emissionNames.end(); ++ name) {
-        EmissionLatticeRescorer *rescorer;
+         name != emissionNames.end(); ++name) {
+        EmissionLatticeRescorer* rescorer;
         if (paramShareAcousticModel(config)) {
             rescorer = new EmissionLatticeRescorer(
-                select(*name), alignmentGenerator()->acousticModel());
-        } else {
+                    select(*name), alignmentGenerator()->acousticModel());
+        }
+        else {
             rescorer = new EmissionLatticeRescorer(select(*name));
         }
         rescorer->setAlignmentGenerator(alignmentGenerator());
@@ -246,12 +238,11 @@ void LatticeSetGenerator::appendEmissionRescorers()
 #endif
 }
 
-void LatticeSetGenerator::appendNnEmissionRescorers()
-{
+void LatticeSetGenerator::appendNnEmissionRescorers() {
 #ifdef MODULE_NN_SEQUENCE_TRAINING
     std::vector<std::string> emissionNames = paramNnEmissionExtractors(config);
-    for (std::vector<std::string>::iterator name = emissionNames.begin(); name != emissionNames.end(); ++ name) {
-        Nn::EmissionLatticeRescorer *rescorer = new Nn::EmissionLatticeRescorer(select(*name));
+    for (std::vector<std::string>::iterator name = emissionNames.begin(); name != emissionNames.end(); ++name) {
+        Nn::EmissionLatticeRescorer* rescorer = new Nn::EmissionLatticeRescorer(select(*name));
         rescorer->setAlignmentGenerator(alignmentGenerator());
         rescorer->setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor());
         extractors_.push_back(rescorer);
@@ -262,14 +253,13 @@ void LatticeSetGenerator::appendNnEmissionRescorers()
 #endif
 }
 
-void LatticeSetGenerator::appendTdpRescorers()
-{
+void LatticeSetGenerator::appendTdpRescorers() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> tdpNames = paramTdpExtractors(config);
     for (std::vector<std::string>::iterator name = tdpNames.begin();
-         name != tdpNames.end(); ++ name) {
-        TdpLatticeRescorer *rescorer =
-            new TdpLatticeRescorer(select(*name));
+         name != tdpNames.end(); ++name) {
+        TdpLatticeRescorer* rescorer =
+                new TdpLatticeRescorer(select(*name));
         rescorer->setAlignmentGenerator(alignmentGenerator());
         extractors_.push_back(rescorer);
         log("\"%s\" appended (tdp-rescorer)", name->c_str());
@@ -279,15 +269,14 @@ void LatticeSetGenerator::appendTdpRescorers()
 #endif
 }
 
-void LatticeSetGenerator::appendPronunciationRescorers()
-{
+void LatticeSetGenerator::appendPronunciationRescorers() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> pronunciationNames =
-        paramPronunciationExtractors(config);
+            paramPronunciationExtractors(config);
     for (std::vector<std::string>::const_iterator name = pronunciationNames.begin();
-         name != pronunciationNames.end(); ++ name) {
-        PronunciationLatticeRescorer *rescorer =
-            new PronunciationLatticeRescorer(select(*name));
+         name != pronunciationNames.end(); ++name) {
+        PronunciationLatticeRescorer* rescorer =
+                new PronunciationLatticeRescorer(select(*name));
         extractors_.push_back(rescorer);
         log("\"%s\" appended (pronunciation-rescorer)", name->c_str());
     }
@@ -296,40 +285,36 @@ void LatticeSetGenerator::appendPronunciationRescorers()
 #endif
 }
 
-
-void LatticeSetGenerator::appendLmRescorers()
-{
+void LatticeSetGenerator::appendLmRescorers() {
     std::vector<std::string> lmNames = paramLmExtractors(config);
     for (std::vector<std::string>::const_iterator name = lmNames.begin();
-         name != lmNames.end(); ++ name) {
-        LmLatticeRescorer *rescorer =
-            new LmLatticeRescorer(select(*name));
+         name != lmNames.end(); ++name) {
+        LmLatticeRescorer* rescorer =
+                new LmLatticeRescorer(select(*name));
         extractors_.push_back(rescorer);
         log("\"%s\" appended (lm-rescorer)", name->c_str());
     }
 }
 
-void LatticeSetGenerator::appendCombinedLmRescorers()
-{
+void LatticeSetGenerator::appendCombinedLmRescorers() {
     std::vector<std::string> combinedLmNames =
-        paramCombinedLmExtractors(config);
+            paramCombinedLmExtractors(config);
     for (std::vector<std::string>::iterator name = combinedLmNames.begin();
-         name != combinedLmNames.end(); ++ name) {
-        CombinedLmLatticeRescorer *rescorer =
-            new CombinedLmLatticeRescorer(select(*name));
+         name != combinedLmNames.end(); ++name) {
+        CombinedLmLatticeRescorer* rescorer =
+                new CombinedLmLatticeRescorer(select(*name));
         extractors_.push_back(rescorer);
         log("\"%s\" appended (combined-lm-rescorer)", name->c_str());
     }
 }
 
-void LatticeSetGenerator::appendRestorers()
-{
+void LatticeSetGenerator::appendRestorers() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> restorerNames = paramRestorers(config);
     for (std::vector<std::string>::const_iterator name = restorerNames.begin();
-         name != restorerNames.end(); ++ name) {
-        LatticeRescorer *restorer =
-            new RestoreScoresLatticeRescorer(select(*name), lexicon_);
+         name != restorerNames.end(); ++name) {
+        LatticeRescorer* restorer =
+                new RestoreScoresLatticeRescorer(select(*name), lexicon_);
         restorer->respondToDelayedErrors();
         extractors_.push_back(restorer);
         log("\"%s\" appended (restorer)", name->c_str());
@@ -339,39 +324,38 @@ void LatticeSetGenerator::appendRestorers()
 #endif
 }
 
-
-void LatticeSetGenerator::appendReaders()
-{
+void LatticeSetGenerator::appendReaders() {
     std::vector<std::string> readerNames = paramReaders(config);
     for (std::vector<std::string>::const_iterator name = readerNames.begin();
-         name != readerNames.end(); ++ name) {
-        LatticeReader *reader =
-            new LatticeReader(select(*name), lexicon_);
+         name != readerNames.end(); ++name) {
+        LatticeReader* reader =
+                new LatticeReader(select(*name), lexicon_);
         reader->respondToDelayedErrors();
         extractors_.push_back(reader);
         log("\"%s\" appended (reader)", name->c_str());
     }
 }
 
-void LatticeSetGenerator::appendDistanceRescorers()
-{
+void LatticeSetGenerator::appendDistanceRescorers() {
     std::vector<std::string> distanceRescorersNames = paramDistanceExtractors(config);
     for (std::vector<std::string>::const_iterator name = distanceRescorersNames.begin();
-         name != distanceRescorersNames.end(); ++ name) {
-        LatticeRescorer *rescorer =
-            DistanceLatticeRescorer::createDistanceLatticeRescorer(
-                select(*name), lexicon_);
+         name != distanceRescorersNames.end(); ++name) {
+        LatticeRescorer* rescorer =
+                DistanceLatticeRescorer::createDistanceLatticeRescorer(
+                        select(*name), lexicon_);
         if (!rescorer) {
             error("Unknown distance type for rescorer.");
         }
         if (dynamic_cast<ApproximatePhoneAccuracyLatticeRescorer*>(rescorer)) {
             dynamic_cast<ApproximatePhoneAccuracyLatticeRescorer*>(
-                rescorer)->setAlignmentGenerator(alignmentGenerator());
+                    rescorer)
+                    ->setAlignmentGenerator(alignmentGenerator());
         }
 #ifdef MODULE_SPEECH_DT_ADVANCED
         else if (dynamic_cast<FrameStateAccuracyLatticeRescorer*>(rescorer)) {
             dynamic_cast<FrameStateAccuracyLatticeRescorer*>(
-                rescorer)->setAlignmentGenerator(alignmentGenerator());
+                    rescorer)
+                    ->setAlignmentGenerator(alignmentGenerator());
         }
 #endif
         rescorer->respondToDelayedErrors();
@@ -380,15 +364,14 @@ void LatticeSetGenerator::appendDistanceRescorers()
     }
 }
 
-void LatticeSetGenerator::appendPosteriorRescorers()
-{
+void LatticeSetGenerator::appendPosteriorRescorers() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> posteriorRescorersNames = paramPosteriorExtractors(config);
     for (std::vector<std::string>::const_iterator name = posteriorRescorersNames.begin();
-         name != posteriorRescorersNames.end(); ++ name) {
-        LatticeRescorer *rescorer =
-            PosteriorLatticeRescorer::createPosteriorLatticeRescorer(
-                select(*name), lexicon_);
+         name != posteriorRescorersNames.end(); ++name) {
+        LatticeRescorer* rescorer =
+                PosteriorLatticeRescorer::createPosteriorLatticeRescorer(
+                        select(*name), lexicon_);
         if (!rescorer) {
             error("Unknown posterior type for rescorer.");
         }
@@ -401,19 +384,18 @@ void LatticeSetGenerator::appendPosteriorRescorers()
 #endif
 }
 
-
-void LatticeSetGenerator::appendPassRescorers()
-{
+void LatticeSetGenerator::appendPassRescorers() {
     std::vector<std::string> passNames = paramPassExtractors(config);
     for (std::vector<std::string>::const_iterator name = passNames.begin();
-         name != passNames.end(); ++ name) {
-        LatticeExtractor *pass = 0;
+         name != passNames.end(); ++name) {
+        LatticeExtractor* pass = 0;
 #ifdef MODULE_SPEECH_DT_ADVANCED
         if (paramLoadAcoustics(select(*name))) {
-            AcousticLatticeRescorer *tmp = new AcousticLatticeRescorer(select(*name));
+            AcousticLatticeRescorer* tmp = new AcousticLatticeRescorer(select(*name));
             tmp->setAlignmentGenerator(alignmentGenerator());
             pass = tmp;
-        } else
+        }
+        else
 #endif
             pass = new LatticeExtractor(select(*name));
 
@@ -423,13 +405,12 @@ void LatticeSetGenerator::appendPassRescorers()
     }
 }
 
-void LatticeSetGenerator::signOn(CorpusVisitor &corpusVisitor)
-{
+void LatticeSetGenerator::signOn(CorpusVisitor& corpusVisitor) {
     if (segmentwiseFeatureExtractor_) {
         segmentwiseFeatureExtractor_->signOn(corpusVisitor);
         segmentwiseFeatureExtractor_->respondToDelayedErrors();
     }
-    for (LatticeExtractors::iterator it = extractors_.begin(); it != extractors_.end(); ++ it) {
+    for (LatticeExtractors::iterator it = extractors_.begin(); it != extractors_.end(); ++it) {
         (*it)->signOn(corpusVisitor);
     }
     if (alignmentGenerator_) {
@@ -439,18 +420,18 @@ void LatticeSetGenerator::signOn(CorpusVisitor &corpusVisitor)
 }
 
 void LatticeSetGenerator::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     if (!segmentwiseFeatureExtractor_ || segmentwiseFeatureExtractor_->valid()) {
         timeval start, end;
-        int i = 0;
+        int     i = 0;
         TIMER_START(start)
         Core::Ref<Lattice::WordLattice> rescored(new Lattice::WordLattice);
-        for (LatticeExtractors::iterator it = extractors_.begin(); it != extractors_.end(); ++ it, ++i) {
+        for (LatticeExtractors::iterator it = extractors_.begin(); it != extractors_.end(); ++it, ++i) {
             timeval startRescorer, endRescorer;
             TIMER_START(startRescorer)
             Lattice::ConstWordLatticeRef r = (*it)->extract(lattice, s);
-            if (!r) continue;
+            if (!r)
+                continue;
             if (!rescored->wordBoundaries()) {
                 rescored->setWordBoundaries(r->wordBoundaries());
             }
@@ -459,7 +440,8 @@ void LatticeSetGenerator::processWordLattice(
         }
         TIMER_GPU_STOP(start, end, true, timeProcessSegment_)
         Precursor::processWordLattice(rescored, s);
-    } else {
+    }
+    else {
         warning("invalid segmentwise feature extractor");
         Precursor::processWordLattice(Lattice::ConstWordLatticeRef(), s);
     }
@@ -468,15 +450,14 @@ void LatticeSetGenerator::processWordLattice(
 void LatticeSetGenerator::logComputationTime() const {
     int i = 0;
     log() << Core::XmlOpen("time-rescorers");
-    for (LatticeExtractors::const_iterator it = extractors_.begin(); it != extractors_.end(); ++ it, ++i)
+    for (LatticeExtractors::const_iterator it = extractors_.begin(); it != extractors_.end(); ++it, ++i)
         log() << Core::XmlFull("rescorer:" + (*it)->name(), timeRescorers_[i]);
     log() << Core::XmlClose("time-rescorers");
     alignmentGenerator_->finalize();
     LatticeSetProcessor::logComputationTime();
 }
 
-void LatticeSetGenerator::initialize(Bliss::LexiconRef lexicon)
-{
+void LatticeSetGenerator::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
     lexicon_ = lexicon;
     if (!lexicon_) {
@@ -494,8 +475,7 @@ void LatticeSetGenerator::initialize(Bliss::LexiconRef lexicon)
 }
 
 void LatticeSetGenerator::setSegmentwiseFeatureExtractor(
-    Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor)
-{
+        Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor) {
     if (!segmentwiseFeatureExtractor_) {
         segmentwiseFeatureExtractor_ = segmentwiseFeatureExtractor;
     }
@@ -503,15 +483,14 @@ void LatticeSetGenerator::setSegmentwiseFeatureExtractor(
 }
 
 void LatticeSetGenerator::setAlignmentGenerator(
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     if (!alignmentGenerator_) {
         alignmentGenerator_ = alignmentGenerator;
     }
     Precursor::setAlignmentGenerator(alignmentGenerator);
 }
 
-void LatticeSetGenerator::leaveCorpus(Bliss::Corpus *corpus){
+void LatticeSetGenerator::leaveCorpus(Bliss::Corpus* corpus) {
     LatticeSetProcessor::leaveCorpus(corpus);
     if (corpus->level() == 0) {
         for (LatticeExtractors::iterator extr = extractors_.begin(); extr != extractors_.end(); extr++)
@@ -522,20 +501,17 @@ void LatticeSetGenerator::leaveCorpus(Bliss::Corpus *corpus){
 /**
  *  LatticeSetReader
  */
-LatticeSetReader::LatticeSetReader(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    LatticeSetExtractor(c),
-    archiveReader_(0)
-{}
+LatticeSetReader::LatticeSetReader(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          LatticeSetExtractor(c),
+          archiveReader_(0) {}
 
-LatticeSetReader::~LatticeSetReader()
-{
+LatticeSetReader::~LatticeSetReader() {
     delete archiveReader_;
 }
 
-void LatticeSetReader::initializeReaders()
-{
+void LatticeSetReader::initializeReaders() {
     appendAcousticReaders();
 #ifdef MODULE_SPEECH_DT_ADVANCED
     appendEmissionReaders();
@@ -548,37 +524,33 @@ void LatticeSetReader::initializeReaders()
     appendPassReaders();
 }
 
-void LatticeSetReader::appendAcousticReaders()
-{
+void LatticeSetReader::appendAcousticReaders() {
     std::vector<std::string> acousticNames = paramAcousticExtractors(config);
     for (std::vector<std::string>::iterator name = acousticNames.begin();
-         name != acousticNames.end(); ++ name) {
+         name != acousticNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (acoustic-reader)", name->c_str());
     }
 }
 
-void LatticeSetReader::appendEmissionReaders()
-{
+void LatticeSetReader::appendEmissionReaders() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> emissionNames = paramEmissionExtractors(config);
     for (std::vector<std::string>::iterator name = emissionNames.begin();
-         name != emissionNames.end(); ++ name) {
+         name != emissionNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (emission-reader)", name->c_str());
     }
 #else
     criticalError("%s requires MODULE_SPEECH_DT_ADVANCED", __PRETTY_FUNCTION__);
 #endif
-
 }
 
-void LatticeSetReader::appendTdpReaders()
-{
+void LatticeSetReader::appendTdpReaders() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> tdpNames = paramTdpExtractors(config);
     for (std::vector<std::string>::iterator name = tdpNames.begin();
-         name != tdpNames.end(); ++ name) {
+         name != tdpNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (tdp-reader)", name->c_str());
     }
@@ -587,13 +559,12 @@ void LatticeSetReader::appendTdpReaders()
 #endif
 }
 
-void LatticeSetReader::appendPronunciationReaders()
-{
+void LatticeSetReader::appendPronunciationReaders() {
 #ifdef MODULE_SPEECH_DT_ADVANCED
     std::vector<std::string> pronunciationNames =
-        paramPronunciationExtractors(config);
+            paramPronunciationExtractors(config);
     for (std::vector<std::string>::iterator name = pronunciationNames.begin();
-         name != pronunciationNames.end(); ++ name) {
+         name != pronunciationNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (pronunciation-reader)", name->c_str());
     }
@@ -602,50 +573,44 @@ void LatticeSetReader::appendPronunciationReaders()
 #endif
 }
 
-
-void LatticeSetReader::appendLmReaders()
-{
+void LatticeSetReader::appendLmReaders() {
     std::vector<std::string> lmNames = paramLmExtractors(config);
     for (std::vector<std::string>::iterator name = lmNames.begin();
-         name != lmNames.end(); ++ name) {
+         name != lmNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (lm-reader)", name->c_str());
     }
 }
 
-void LatticeSetReader::appendCombinedLmReaders()
-{
+void LatticeSetReader::appendCombinedLmReaders() {
     std::vector<std::string> combinedLmNames =
-        paramCombinedLmExtractors(config);
+            paramCombinedLmExtractors(config);
     for (std::vector<std::string>::iterator name = combinedLmNames.begin();
-         name != combinedLmNames.end(); ++ name) {
+         name != combinedLmNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (combined-lm-reader)", name->c_str());
     }
 }
 
-void LatticeSetReader::appendReaders()
-{
+void LatticeSetReader::appendReaders() {
     std::vector<std::string> readerNames = paramReaders(config);
     for (std::vector<std::string>::const_iterator name = readerNames.begin();
-         name != readerNames.end(); ++ name) {
+         name != readerNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (reader)", name->c_str());
     }
 }
 
-void LatticeSetReader::appendPassReaders()
-{
+void LatticeSetReader::appendPassReaders() {
     std::vector<std::string> passNames = paramPassExtractors(config);
     for (std::vector<std::string>::const_iterator name = passNames.begin();
-         name != passNames.end(); ++ name) {
+         name != passNames.end(); ++name) {
         readers_.push_back(*name);
         log("\"%s\" appended (pass)", name->c_str());
     }
 }
 
-void LatticeSetReader::leaveSpeechSegment(Bliss::SpeechSegment *s)
-{
+void LatticeSetReader::leaveSpeechSegment(Bliss::SpeechSegment* s) {
     require(archiveReader_);
     timeval start, end;
     TIMER_START(start)
@@ -653,22 +618,23 @@ void LatticeSetReader::leaveSpeechSegment(Bliss::SpeechSegment *s)
     TIMER_GPU_STOP(start, end, true, timeProcessSegment_)
     if (lattice && lattice->nParts() == readers_.size()) {
         processWordLattice(lattice, s);
-    } else {
+    }
+    else {
         log("skip this segment because not all lattice parts could be read");
     }
     Precursor::leaveSpeechSegment(s);
 }
 
-void LatticeSetReader::initialize(Bliss::LexiconRef lexicon)
-{
+void LatticeSetReader::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
     initializeReaders();
 
     verify(!archiveReader_);
     archiveReader_ = Lattice::Archive::openForReading(
-        select("lattice-archive"), lexicon);
+            select("lattice-archive"), lexicon);
     if (!archiveReader_ || archiveReader_->hasFatalErrors()) {
-        delete archiveReader_; archiveReader_ = 0;
+        delete archiveReader_;
+        archiveReader_ = 0;
         error("failed to open lattice archive");
         return;
     }
@@ -677,36 +643,32 @@ void LatticeSetReader::initialize(Bliss::LexiconRef lexicon)
 /**
  *  LatticeSetWriter
  */
-LatticeSetWriter::LatticeSetWriter(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    archiveWriter_(0)
-{}
+LatticeSetWriter::LatticeSetWriter(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          archiveWriter_(0) {}
 
-LatticeSetWriter::~LatticeSetWriter()
-{
+LatticeSetWriter::~LatticeSetWriter() {
     delete archiveWriter_;
 }
 
 void LatticeSetWriter::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     verify(archiveWriter_);
     archiveWriter_->store(s->fullName(), lattice);
     Precursor::processWordLattice(lattice, s);
 }
 
-void LatticeSetWriter::initialize(Bliss::LexiconRef lexicon)
-{
+void LatticeSetWriter::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     verify(!archiveWriter_);
     archiveWriter_ = Lattice::Archive::openForWriting(
-        select("lattice-archive"), lexicon);
+            select("lattice-archive"), lexicon);
     if (!archiveWriter_ || archiveWriter_->hasFatalErrors()) {
-        delete archiveWriter_; archiveWriter_ = 0;
+        delete archiveWriter_;
+        archiveWriter_ = 0;
         error("failed to open lattice archive");
         return;
     }
-
 }

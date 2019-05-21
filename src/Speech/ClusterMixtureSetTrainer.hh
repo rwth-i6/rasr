@@ -19,19 +19,18 @@
 
 namespace Speech {
 
-    /**
-     * Mixture set estimator to cluster a mixture set.
-     */
-    class ClusterMixtureSetTrainer : public ConvertMixtureSetTrainer
-    {
-        typedef ConvertMixtureSetTrainer Precursor;
+/**
+ * Mixture set estimator to cluster a mixture set.
+ */
+class ClusterMixtureSetTrainer : public ConvertMixtureSetTrainer {
+    typedef ConvertMixtureSetTrainer Precursor;
 
-    public:
-        ClusterMixtureSetTrainer(const Core::Configuration &);
-        virtual ~ClusterMixtureSetTrainer();
-        virtual void cluster();
-    };
+public:
+    ClusterMixtureSetTrainer(const Core::Configuration&);
+    virtual ~ClusterMixtureSetTrainer();
+    virtual void cluster();
+};
 
-}
+}  // namespace Speech
 
-#endif // _SPEECH_CLUSTER_MIXTURE_SET_TRAINER_HH
+#endif  // _SPEECH_CLUSTER_MIXTURE_SET_TRAINER_HH

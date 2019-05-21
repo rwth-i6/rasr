@@ -18,7 +18,6 @@
 #include <Flow/DataAdaptor.hh>
 #include <Flow/Datatype.hh>
 #include "AlignmentNode.hh"
-#include <Flow/DataAdaptor.hh>
 
 using namespace Speech;
 
@@ -26,20 +25,16 @@ using namespace Speech;
  *  SigmoidFunction used for MCE
  */
 const Core::ParameterFloat SigmoidFunction::paramBeta(
-    "beta",
-    "sets the value of the sigmoidal smoothing function",
-    0.0004,
-    Core::Type<f32>::delta);
+        "beta",
+        "sets the value of the sigmoidal smoothing function",
+        0.0004,
+        Core::Type<f32>::delta);
 
-SigmoidFunction::SigmoidFunction(const Core::Configuration &c) :
-    Precursor(c),
-    beta_(paramBeta(config))
-{}
+SigmoidFunction::SigmoidFunction(const Core::Configuration& c)
+        : Precursor(c),
+          beta_(paramBeta(config)) {}
 
-f32 SigmoidFunction::argument(
-    const Fsa::Weight &totalInvNum,
-    const Fsa::Weight &totalInvDen) const
-{
+f32 SigmoidFunction::argument(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const {
     f32 x = Core::Type<f32>::max;
     if ((f32(totalInvDen) - f32(totalInvNum)) > Core::Type<f64>::delta) {
         x = f32(totalInvNum);
@@ -48,18 +43,12 @@ f32 SigmoidFunction::argument(
     return x;
 }
 
-Fsa::Weight SigmoidFunction::f(
-    const Fsa::Weight &totalInvNum,
-    const Fsa::Weight &totalInvDen) const
-{
+Fsa::Weight SigmoidFunction::f(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const {
     f32 x = argument(totalInvNum, totalInvDen);
     return Fsa::Weight((tanh(beta_ * x) + 1) / 2 / beta_);
 }
 
-Fsa::Weight SigmoidFunction::df(
-    const Fsa::Weight &totalInvNum,
-    const Fsa::Weight &totalInvDen) const
-{
+Fsa::Weight SigmoidFunction::df(const Fsa::Weight& totalInvNum, const Fsa::Weight& totalInvDen) const {
     f32 x = argument(totalInvNum, totalInvDen);
     f32 f = tanh(beta_ * x);
     return Fsa::Weight(1 - f * f);
@@ -67,45 +56,47 @@ Fsa::Weight SigmoidFunction::df(
 
 namespace Speech {
 
-    /**
-     *  DenominatorWeightsAutomaton
-     */
-    class DenominatorWeightsAutomaton : public Fsa::ModifyAutomaton
-    {
-        typedef Fsa::ModifyAutomaton Precursor;
-    private:
-        Fsa::ConstAutomatonRef fsaNum_;
-        Fsa::Weight totalInv_;
-    public:
-        DenominatorWeightsAutomaton(PosteriorFsa num, PosteriorFsa den) :
-            Precursor(Fsa::extend(den.fsa, den.fsa->semiring()->invert(den.totalInv))),
-            fsaNum_(Fsa::extend(num.fsa, den.fsa->semiring()->invert(num.totalInv))) {
-            totalInv_ = semiring()->extend(den.totalInv, Fsa::Weight(log1p(-exp(f32(num.totalInv) - f32(den.totalInv)))));
-        }
-        virtual ~DenominatorWeightsAutomaton() {}
+/**
+ *  DenominatorWeightsAutomaton
+ */
+class DenominatorWeightsAutomaton : public Fsa::ModifyAutomaton {
+    typedef Fsa::ModifyAutomaton Precursor;
 
-        virtual std::string describe() const { return "denominator-weights(" + fsa_->describe() + ")"; }
-        virtual void modifyState(Fsa::State *sp) const {
-            Fsa::ConstStateRef spNum = fsaNum_->getState(sp->id());
-            Fsa::State::const_iterator aNum = spNum->begin();
-            for (Fsa::State::iterator a = sp->begin(); a != sp->end(); ++ a, ++ aNum) {
-                /*
-                 * a->weight() contains the unnormalized denominator arc posterior probability.
-                 */
-                if (semiring()->compare(aNum->weight(), semiring()->zero()) < 0) {
-                    a->weight_ =
-                        semiring()->extend(
-                            a->weight(),
-                            Fsa::Weight(-log1p(-exp(f32(a->weight()) - f32(aNum->weight())))));
-                }
-                a->weight_ = semiring()->extend(a->weight(), totalInv_);
-            }
-        }
-    };
+private:
+    Fsa::ConstAutomatonRef fsaNum_;
+    Fsa::Weight            totalInv_;
 
-    Fsa::ConstAutomatonRef getDenominatorWeights(PosteriorFsa num, PosteriorFsa den)
-    {
-        return Fsa::ConstAutomatonRef(new DenominatorWeightsAutomaton(num, den));
+public:
+    DenominatorWeightsAutomaton(PosteriorFsa num, PosteriorFsa den)
+            : Precursor(Fsa::extend(den.fsa, den.fsa->semiring()->invert(den.totalInv))),
+              fsaNum_(Fsa::extend(num.fsa, den.fsa->semiring()->invert(num.totalInv))) {
+        totalInv_ = semiring()->extend(den.totalInv, Fsa::Weight(log1p(-exp(f32(num.totalInv) - f32(den.totalInv)))));
     }
+    virtual ~DenominatorWeightsAutomaton() {}
 
-} //namespace Speech
+    virtual std::string describe() const {
+        return "denominator-weights(" + fsa_->describe() + ")";
+    }
+    virtual void modifyState(Fsa::State* sp) const {
+        Fsa::ConstStateRef         spNum = fsaNum_->getState(sp->id());
+        Fsa::State::const_iterator aNum  = spNum->begin();
+        for (Fsa::State::iterator a = sp->begin(); a != sp->end(); ++a, ++aNum) {
+            /*
+             * a->weight() contains the unnormalized denominator arc posterior probability.
+             */
+            if (semiring()->compare(aNum->weight(), semiring()->zero()) < 0) {
+                a->weight_ =
+                        semiring()->extend(
+                                a->weight(),
+                                Fsa::Weight(-log1p(-exp(f32(a->weight()) - f32(aNum->weight())))));
+            }
+            a->weight_ = semiring()->extend(a->weight(), totalInv_);
+        }
+    }
+};
+
+Fsa::ConstAutomatonRef getDenominatorWeights(PosteriorFsa num, PosteriorFsa den) {
+    return Fsa::ConstAutomatonRef(new DenominatorWeightsAutomaton(num, den));
+}
+
+}  //namespace Speech

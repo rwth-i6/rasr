@@ -15,84 +15,90 @@
 #ifndef _SPEECH_FEATURE_SHIFT_ADAPTOR_HH
 #define _SPEECH_FEATURE_SHIFT_ADAPTOR_HH
 
-#include <Core/ReferenceCounting.hh>
 #include <Core/IoRef.hh>
 #include <Core/ObjectCache.hh>
+#include <Core/ReferenceCounting.hh>
+#include <Flow/DataAdaptor.hh>
 #include <Flow/Node.hh>
 #include <Flow/Vector.hh>
-#include <Flow/DataAdaptor.hh>
 #include <Mm/MllrAdaptation.hh>
 #include "AlignmentNode.hh"
 
 namespace Speech {
 
-    /**
-     *  Apply shift adaptor in reverse to a feature stream, using a given
-     *  alignment to choose regression class.
-     */
-    class FeatureShiftAdaptor : public Flow::Node {
-    private:
-        u32 featureIndex_;
-        Flow::DataPtr<Flow::DataAdaptor<Alignment> > alignment_;
-    private:
-        void updateAlignment(const Flow::Timestamp &);
-    protected:
-        typedef Core::ObjectCache<Core::MruObjectCacheList<
+/**
+ *  Apply shift adaptor in reverse to a feature stream, using a given
+ *  alignment to choose regression class.
+ */
+class FeatureShiftAdaptor : public Flow::Node {
+private:
+    u32                                         featureIndex_;
+    Flow::DataPtr<Flow::DataAdaptor<Alignment>> alignment_;
+
+private:
+    void updateAlignment(const Flow::Timestamp&);
+
+protected:
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string,
             Core::IoRef<Mm::Adaptor>,
             Core::StringHash,
-            Core::StringEquality
-        > > AdaptorCache;
+            Core::StringEquality>>
+            AdaptorCache;
 
-        typedef Core::ObjectCache<Core::MruObjectCacheList<
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string,
             Core::IoRef<Mm::AdaptorEstimator>,
             Core::StringHash,
-            Core::StringEquality
-        > > AdaptorEstimatorCache;
+            Core::StringEquality>>
+            AdaptorEstimatorCache;
 
-        Core::Configuration adaptationConfiguration_;
+    Core::Configuration adaptationConfiguration_;
 
-        AdaptorCache adaptorCache_;
-        AdaptorEstimatorCache adaptorEstimatorCache_;
+    AdaptorCache          adaptorCache_;
+    AdaptorEstimatorCache adaptorEstimatorCache_;
 
-        bool useCorpusKey_;
+    bool useCorpusKey_;
 
-        Core::Ref<Bliss::CorpusKey> corpusKey_;
-        Core::StringHashMap<std::string> corpusKeyMap_;
+    Core::Ref<Bliss::CorpusKey>      corpusKey_;
+    Core::StringHashMap<std::string> corpusKeyMap_;
 
-        std::string currentKey_;
-        std::string currentMappedKey_;
+    std::string currentKey_;
+    std::string currentMappedKey_;
 
-        Core::Ref<Am::AdaptationTree> adaptationTree_;
+    Core::Ref<Am::AdaptationTree> adaptationTree_;
 
-        Core::Ref<const Am::AcousticModel> acousticModel_;
+    Core::Ref<const Am::AcousticModel> acousticModel_;
 
-        Core::Ref<Mm::Adaptor> currentAdaptor_;
+    Core::Ref<Mm::Adaptor> currentAdaptor_;
 
-        void loadCorpusKeyMap();
+    void loadCorpusKeyMap();
 
-    public:
-        static const Core::ParameterString paramCorpusKeyMap;
-        static const Core::ParameterString paramKey;
-        static const Core::ParameterBool paramReuseAdaptors;
-    public:
+public:
+    static const Core::ParameterString paramCorpusKeyMap;
+    static const Core::ParameterString paramKey;
+    static const Core::ParameterBool   paramReuseAdaptors;
 
-        FeatureShiftAdaptor(const Core::Configuration &);
-        static std::string filterName() { return "speech-feature-shift-adaptor"; }
+public:
+    FeatureShiftAdaptor(const Core::Configuration&);
+    static std::string filterName() {
+        return "speech-feature-shift-adaptor";
+    }
 
-        virtual Flow::PortId getInput(const std::string &name) {
-            return name == "alignment" ? 1 : 0; }
-        virtual Flow::PortId getOutput(const std::string &name) {
-            return 0; }
+    virtual Flow::PortId getInput(const std::string& name) {
+        return name == "alignment" ? 1 : 0;
+    }
+    virtual Flow::PortId getOutput(const std::string& name) {
+        return 0;
+    }
 
-        bool setKey(const std::string &key);
+    bool setKey(const std::string& key);
 
-        virtual bool configure();
-        virtual bool work(Flow::PortId out);
-        virtual bool setParameter(const std::string &name, const std::string &value);
-    };
+    virtual bool configure();
+    virtual bool work(Flow::PortId out);
+    virtual bool setParameter(const std::string& name, const std::string& value);
+};
 
-} // namespace Speech
+}  // namespace Speech
 
-#endif // _SPEECH_FEATURE_SHIFT_ADAPTOR_HH
+#endif  // _SPEECH_FEATURE_SHIFT_ADAPTOR_HH

@@ -20,22 +20,23 @@
 
 namespace Speech {
 
-class CovarianceEstimator :
-public FeatureExtractor,
-public Signal::TotalScatterMatrixEstimator
-{
-    typedef FeatureExtractor Extractor;
+class CovarianceEstimator : public FeatureExtractor,
+                            public Signal::TotalScatterMatrixEstimator {
+    typedef FeatureExtractor                    Extractor;
     typedef Signal::TotalScatterMatrixEstimator Estimator;
+
 protected:
     virtual void processFeature(Core::Ref<const Feature> feature);
-    virtual void setFeatureDescription(const Mm::FeatureDescription &description);
+    virtual void setFeatureDescription(const Mm::FeatureDescription& description);
+
 public:
-    CovarianceEstimator(const Core::Configuration &c);
+    CovarianceEstimator(const Core::Configuration& c);
     ~CovarianceEstimator() {}
+
 private:
     bool needResize_;
 };
 
-} // namespace Speech
+}  // namespace Speech
 
-#endif // _SPEECH_COVARIANCE_ESTIMATOR_HH
+#endif  // _SPEECH_COVARIANCE_ESTIMATOR_HH

@@ -23,82 +23,75 @@ const Core::ParameterBool DataSource::paramNoProgressIndication(
 const Core::ParameterBool DataSource::paramPushSinks(
         "push-sinks", "whether data should be pushed into all network sinks", true);
 
-DataSource::DataSource(const Core::Configuration &c, bool loadFromFile) :
-    Component(c),
-    Precursor(c, loadFromFile),
-    mainPortId_(Flow::IllegalPortId),
-    startTime_(Core::Type<Flow::Time>::max),
-    endTime_(Core::Type<Flow::Time>::min),
-    progressIndicator_("", "ms"),
-    noProgressIndication_(paramNoProgressIndication(c)),
-    pushSinks_(paramPushSinks(c))
-{
+DataSource::DataSource(const Core::Configuration& c, bool loadFromFile)
+        : Component(c),
+          Precursor(c, loadFromFile),
+          mainPortId_(Flow::IllegalPortId),
+          startTime_(Core::Type<Flow::Time>::max),
+          endTime_(Core::Type<Flow::Time>::min),
+          progressIndicator_("", "ms"),
+          noProgressIndication_(paramNoProgressIndication(c)),
+          pushSinks_(paramPushSinks(c)) {
     std::string name(paramMainStreamName(c));
     mainPortId_ = getOutput(name);
 
-    if (mainPortId_ == Flow::IllegalPortId){
-                error("Flow network does not have an output named \"%s\"", name.c_str());
+    if (mainPortId_ == Flow::IllegalPortId) {
+        error("Flow network does not have an output named \"%s\"", name.c_str());
     }
 }
 
-DataSource::~DataSource()
-{}
+DataSource::~DataSource() {}
 
-void DataSource::initialize(Bliss::Segment *s)
-{
-        if(pushSinks_)
-            go();
-        if(!noProgressIndication_){
-                progressIndicator_.setTask(s->fullName());
-                progressIndicator_.start();
-                progressIndicator_.setTotal(int(segmentDuration(s) * 1000.0));
-        }
+void DataSource::initialize(Bliss::Segment* s) {
+    if (pushSinks_)
+        go();
+    if (!noProgressIndication_) {
+        progressIndicator_.setTask(s->fullName());
+        progressIndicator_.start();
+        progressIndicator_.setTotal(int(segmentDuration(s) * 1000.0));
+    }
 
     std::fill(nFrames_.begin(), nFrames_.end(), 0);
 
     startTime_ = Core::Type<Flow::Time>::max;
-    endTime_ = Core::Type<Flow::Time>::min;
+    endTime_   = Core::Type<Flow::Time>::min;
 }
 
-Flow::Time DataSource::segmentDuration(Bliss::Segment *s)
-{
+Flow::Time DataSource::segmentDuration(Bliss::Segment* s) {
     std::istringstream durationAttr(getAttribute(mainPortId_, "total-duration"));
-    Flow::Time duration;
+    Flow::Time         duration;
     if (durationAttr >> duration)
-                return std::min(s->end(), duration) - s->start();
+        return std::min(s->end(), duration) - s->start();
     return s->end() - s->start();
 }
 
-void DataSource::finalize()
-{
-        if(pushSinks_)
-            go();
-        if(!noProgressIndication_){
-                progressIndicator_.finish(false);
-        }
+void DataSource::finalize() {
+    if (pushSinks_)
+        go();
+    if (!noProgressIndication_) {
+        progressIndicator_.finish(false);
+    }
 }
 
-void DataSource::updateProgressStatus(Flow::PortId portId, const Flow::DataPtr<Flow::Data> d)
-{
+void DataSource::updateProgressStatus(Flow::PortId portId, const Flow::DataPtr<Flow::Data> d) {
     if (portId == mainPortId_) {
-                Flow::DataPtr<Flow::Timestamp> t(d);
-                if (t) {
-                        if (startTime_ > t->startTime())
-                                startTime_ =  t->startTime();
-                        if (endTime_ <  t->endTime())
-                                endTime_ =  t->endTime();
-                        if(!noProgressIndication_){
-                                progressIndicator_.notify(int(roundf((endTime_ - startTime_) * 1000.0)));
-                        }
-                }
+        Flow::DataPtr<Flow::Timestamp> t(d);
+        if (t) {
+            if (startTime_ > t->startTime())
+                startTime_ = t->startTime();
+            if (endTime_ < t->endTime())
+                endTime_ = t->endTime();
+            if (!noProgressIndication_) {
+                progressIndicator_.notify(int(roundf((endTime_ - startTime_) * 1000.0)));
+            }
+        }
     }
     if (portId >= (Flow::PortId)nFrames_.size())
-                nFrames_.resize(portId + 1, 0);
-    ++ nFrames_[portId];
+        nFrames_.resize(portId + 1, 0);
+    ++nFrames_[portId];
 }
 
-bool DataSource::getData(Flow::PortId portId, Core::Ref<Feature> &feature)
-{
+bool DataSource::getData(Flow::PortId portId, Core::Ref<Feature>& feature) {
     Flow::DataPtr<Flow::Timestamp> out;
     while (getData(portId, out)) {
         if (convert(out, feature))
@@ -107,11 +100,10 @@ bool DataSource::getData(Flow::PortId portId, Core::Ref<Feature> &feature)
     return false;
 }
 
-bool DataSource::convert(Flow::DataPtr<Flow::Timestamp> from, Core::Ref<Feature> &to)
-{
+bool DataSource::convert(Flow::DataPtr<Flow::Timestamp> from, Core::Ref<Feature>& to) {
     to = Core::ref(new Feature());
     if (to->take(from))
-                return true;
+        return true;
     error("Received Flow packet has an unknown type. It will be ignored.");
     return false;
 }

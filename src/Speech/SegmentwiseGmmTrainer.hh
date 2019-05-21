@@ -15,71 +15,72 @@
 #ifndef _SPEECH_SEGMENTWISE_GMM_TRAINER_HH
 #define _SPEECH_SEGMENTWISE_GMM_TRAINER_HH
 
+#include <Lattice/Accumulator.hh>
 #include "AcousticSegmentwiseTrainer.hh"
 #include "DiscriminativeMixtureSetTrainer.hh"
-#include <Lattice/Accumulator.hh>
 
 namespace Speech {
 
-    typedef Lattice::CachedAcousticAccumulator<DiscriminativeMixtureSetTrainer> GmmAccumulator;
+typedef Lattice::CachedAcousticAccumulator<DiscriminativeMixtureSetTrainer> GmmAccumulator;
 
-    /*
-     * SegmentwiseGmmTrainer
-     * This is the interface for the discriminative
-     * GHMM training for different training criteria.
-     * Each criterion corresponds with a separate derived
-     * class.
-     */
-    class SegmentwiseGmmTrainer : public AcousticSegmentwiseTrainer<GmmAccumulator>
-    {
-        typedef AcousticSegmentwiseTrainer<GmmAccumulator> Precursor;
-    private:
-        Mm::FeatureDescription featureDescription_;
-    protected:
-        bool initialized_;
-        DiscriminativeMixtureSetTrainer *mixtureSetTrainer_;
-    protected:
-        virtual void setFeatureDescription(const Mm::FeatureDescription &);
-        virtual GmmAccumulator* createAcc();
-        virtual GmmAccumulator* createNumAcc();
-        virtual GmmAccumulator* createDenAcc();
-        virtual GmmAccumulator* createMleAcc();
+/*
+ * SegmentwiseGmmTrainer
+ * This is the interface for the discriminative
+ * GHMM training for different training criteria.
+ * Each criterion corresponds with a separate derived
+ * class.
+ */
+class SegmentwiseGmmTrainer : public AcousticSegmentwiseTrainer<GmmAccumulator> {
+    typedef AcousticSegmentwiseTrainer<GmmAccumulator> Precursor;
 
-        void accumulateObjectiveFunction(f32);
-        void initializeMixtureSetTrainer();
-    public:
-        SegmentwiseGmmTrainer(
-            const Core::Configuration &);
-        virtual ~SegmentwiseGmmTrainer();
+private:
+    Mm::FeatureDescription featureDescription_;
 
-        virtual void leaveCorpus(Bliss::Corpus *);
+protected:
+    bool                             initialized_;
+    DiscriminativeMixtureSetTrainer* mixtureSetTrainer_;
 
-        virtual void write() const { mixtureSetTrainer_->write(); }
+protected:
+    virtual void            setFeatureDescription(const Mm::FeatureDescription&);
+    virtual GmmAccumulator* createAcc();
+    virtual GmmAccumulator* createNumAcc();
+    virtual GmmAccumulator* createDenAcc();
+    virtual GmmAccumulator* createMleAcc();
 
-        static SegmentwiseGmmTrainer*
-        createSegmentwiseGmmTrainer(const Core::Configuration &);
-    };
+    void accumulateObjectiveFunction(f32);
+    void initializeMixtureSetTrainer();
 
+public:
+    SegmentwiseGmmTrainer(const Core::Configuration&);
+    virtual ~SegmentwiseGmmTrainer();
 
-    /*
-     * SegmentwiseGmmTrainer: risk based
-     * All risk-based training criteria can be
-     * optimized by this class.
-     * Assumption: risk transducer is passed in
-     * addition to total scores.
-     * see Heigold et al., Modified MMI/MPE, ICML 2008, for a description of the transducer based gradient accumulation
-     *
-     */
-    class MinimumErrorSegmentwiseGmmTrainer : public SegmentwiseGmmTrainer
-    {
-        typedef SegmentwiseGmmTrainer Precursor;
-    public:
-        MinimumErrorSegmentwiseGmmTrainer(const Core::Configuration &);
-        virtual ~MinimumErrorSegmentwiseGmmTrainer() {}
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-    };
+    virtual void leaveCorpus(Bliss::Corpus*);
 
+    virtual void write() const {
+        mixtureSetTrainer_->write();
+    }
 
-} //namespace Speech
+    static SegmentwiseGmmTrainer* createSegmentwiseGmmTrainer(const Core::Configuration&);
+};
 
-#endif // u_SPEECH_SEGMENTWISE_GMM_TRAINER_HH
+/*
+ * SegmentwiseGmmTrainer: risk based
+ * All risk-based training criteria can be
+ * optimized by this class.
+ * Assumption: risk transducer is passed in
+ * addition to total scores.
+ * see Heigold et al., Modified MMI/MPE, ICML 2008, for a description of the transducer based gradient accumulation
+ *
+ */
+class MinimumErrorSegmentwiseGmmTrainer : public SegmentwiseGmmTrainer {
+    typedef SegmentwiseGmmTrainer Precursor;
+
+public:
+    MinimumErrorSegmentwiseGmmTrainer(const Core::Configuration&);
+    virtual ~MinimumErrorSegmentwiseGmmTrainer() {}
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+};
+
+}  //namespace Speech
+
+#endif  // u_SPEECH_SEGMENTWISE_GMM_TRAINER_HH

@@ -20,34 +20,27 @@ using namespace Speech;
 /**
  *  Rprop without i-smoothing
  */
-RpropDiscriminativeMixtureSetTrainer::RpropDiscriminativeMixtureSetTrainer(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+RpropDiscriminativeMixtureSetTrainer::RpropDiscriminativeMixtureSetTrainer(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-RpropDiscriminativeMixtureSetTrainer::~RpropDiscriminativeMixtureSetTrainer()
-{}
+RpropDiscriminativeMixtureSetTrainer::~RpropDiscriminativeMixtureSetTrainer() {}
 
 Mm::DiscriminativeMixtureSetEstimator*
-RpropDiscriminativeMixtureSetTrainer::createMixtureSetEstimator() const
-{
+        RpropDiscriminativeMixtureSetTrainer::createMixtureSetEstimator() const {
     return new Mm::RpropDiscriminativeMixtureSetEstimator(config);
 }
-
 
 /**
  *  Rprop with i-smoothing
  */
-RpropDiscriminativeMixtureSetTrainerWithISmoothing::RpropDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+RpropDiscriminativeMixtureSetTrainerWithISmoothing::RpropDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-RpropDiscriminativeMixtureSetTrainerWithISmoothing::~RpropDiscriminativeMixtureSetTrainerWithISmoothing()
-{}
+RpropDiscriminativeMixtureSetTrainerWithISmoothing::~RpropDiscriminativeMixtureSetTrainerWithISmoothing() {}
 
 Mm::DiscriminativeMixtureSetEstimator*
-RpropDiscriminativeMixtureSetTrainerWithISmoothing::createMixtureSetEstimator() const
-{
+        RpropDiscriminativeMixtureSetTrainerWithISmoothing::createMixtureSetEstimator() const {
     return new Mm::RpropDiscriminativeMixtureSetEstimatorWithISmoothing(config);
 }

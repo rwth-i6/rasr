@@ -18,223 +18,218 @@
 #include "AccuracyFsaBuilder.hh"
 #include "Confidences.hh"
 
-
 namespace Lattice {
-    class SmoothingFunction;
+class SmoothingFunction;
 }
 
 namespace Speech {
 
-    class LevenshteinNBestListBuilder :
-        public MetricFsaBuilder<Fsa::ConstAutomatonRef>
-    {
-        typedef MetricFsaBuilder<Fsa::ConstAutomatonRef> Precursor;
-    private:
-        Bliss::Evaluator *evaluator_;
-    public:
-        LevenshteinNBestListBuilder(const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        ~LevenshteinNBestListBuilder();
+class LevenshteinNBestListBuilder : public MetricFsaBuilder<Fsa::ConstAutomatonRef> {
+    typedef MetricFsaBuilder<Fsa::ConstAutomatonRef> Precursor;
 
-        virtual Fsa::ConstAutomatonRef build(Fsa::ConstAutomatonRef);
-        Functor createFunctor(const std::string &id,
-                              const std::string &orth,
-                              Fsa::ConstAutomatonRef list);
-    };
+private:
+    Bliss::Evaluator* evaluator_;
 
-    class OrthographyApproximatePhoneAccuracyMaskLatticeBuilder :
-        public OrthographyTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
-        ConfidenceArchive *confidenceArchive_;
-        Confidences *confidences_;
-    public:
-        OrthographyApproximatePhoneAccuracyMaskLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~OrthographyApproximatePhoneAccuracyMaskLatticeBuilder();
+public:
+    LevenshteinNBestListBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    ~LevenshteinNBestListBuilder();
 
-        Functor createFunctor(const std::string &id,
-                              const std::string &segmentId,
-                              Lattice::ConstWordLatticeRef lattice,
-                              Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+    virtual Fsa::ConstAutomatonRef build(Fsa::ConstAutomatonRef);
+    Functor                        createFunctor(const std::string&     id,
+                                                 const std::string&     orth,
+                                                 Fsa::ConstAutomatonRef list);
+};
 
-    class OrthographyFrameStateAccuracyLatticeBuilder :
-        public OrthographyTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        Core::Ref<const Bliss::Lexicon> lexicon_;
-        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
-    public:
-        OrthographyFrameStateAccuracyLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~OrthographyFrameStateAccuracyLatticeBuilder() {}
+class OrthographyApproximatePhoneAccuracyMaskLatticeBuilder : public OrthographyTimeAlignmentBasedMetricLatticeBuilder {
+    typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
 
-        Functor createFunctor(const std::string &id,
-                              const std::string &segmentId,
-                              Lattice::ConstWordLatticeRef lattice,
-                              Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+private:
+    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
+    ConfidenceArchive*                           confidenceArchive_;
+    Confidences*                                 confidences_;
 
-    class ArchiveFrameStateAccuracyLatticeBuilder :
-        public ArchiveTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef ArchiveTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
-    public:
-        ArchiveFrameStateAccuracyLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~ArchiveFrameStateAccuracyLatticeBuilder() {}
+public:
+    OrthographyApproximatePhoneAccuracyMaskLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~OrthographyApproximatePhoneAccuracyMaskLatticeBuilder();
 
-        Functor createFunctor(const std::string &id,
-                              const std::string &segmentId,
-                              Lattice::ConstWordLatticeRef lattice,
-                              Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+    Functor                        createFunctor(const std::string&                           id,
+                                                 const std::string&                           segmentId,
+                                                 Lattice::ConstWordLatticeRef                 lattice,
+                                                 Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
 
-    class OrthographySmoothedFrameStateAccuracyLatticeBuilder :
-        public OrthographyTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
-        Lattice::SmoothingFunction *smoothing_;
-    public:
-        OrthographySmoothedFrameStateAccuracyLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~OrthographySmoothedFrameStateAccuracyLatticeBuilder();
+class OrthographyFrameStateAccuracyLatticeBuilder : public OrthographyTimeAlignmentBasedMetricLatticeBuilder {
+    typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
 
-        Functor createFunctor(const std::string &id,
-                              const std::string &segmentId,
-                              Lattice::ConstWordLatticeRef lattice,
-                              Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+private:
+    Core::Ref<const Bliss::Lexicon>              lexicon_;
+    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
 
-    /**
-     * frame word accuracy
-     */
-    class OrthographyFrameWordAccuracyLatticeBuilder :
-        public OrthographyTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        static const Core::ParameterFloat paramNormalization;
-    private:
-        f32 normalization_;
-    public:
-        OrthographyFrameWordAccuracyLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~OrthographyFrameWordAccuracyLatticeBuilder() {}
+public:
+    OrthographyFrameStateAccuracyLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~OrthographyFrameStateAccuracyLatticeBuilder() {}
 
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+    Functor                        createFunctor(const std::string&                           id,
+                                                 const std::string&                           segmentId,
+                                                 Lattice::ConstWordLatticeRef                 lattice,
+                                                 Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
 
-    /**
-     * frame phone accuracy
-     */
-    class OrthographyFramePhoneAccuracyLatticeBuilder :
-        public OrthographyTimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        static const Core::ParameterFloat paramNormalization;
-    private:
-        f32 normalization_;
-        Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
-    public:
-        OrthographyFramePhoneAccuracyLatticeBuilder(
-            const Core::Configuration &, Core::Ref<const Bliss::Lexicon>);
-        virtual ~OrthographyFramePhoneAccuracyLatticeBuilder() {}
+class ArchiveFrameStateAccuracyLatticeBuilder : public ArchiveTimeAlignmentBasedMetricLatticeBuilder {
+    typedef ArchiveTimeAlignmentBasedMetricLatticeBuilder Precursor;
 
-        Functor createFunctor(const std::string &id,
-                              const std::string &segmentId,
-                              Lattice::ConstWordLatticeRef lattice,
-                              Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+private:
+    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
 
-   /**
-     * frame phone accuracy
-     */
-    class FramePhoneAccuracyLatticeBuilder :
-        public TimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        static const Core::ParameterFloat paramNormalization;
-    private:
-        f32 normalization_;
-        AlignmentGeneratorRef alignmentGenerator_;
-    public:
-        FramePhoneAccuracyLatticeBuilder(
-            const Core::Configuration &, Bliss::LexiconRef);
+public:
+    ArchiveFrameStateAccuracyLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~ArchiveFrameStateAccuracyLatticeBuilder() {}
 
-        Functor createFunctor(const std::string &id,
-                              Lattice::ConstWordLatticeRef reference,
-                              Lattice::ConstWordLatticeRef lattice,
-                              AlignmentGeneratorRef alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+    Functor                        createFunctor(const std::string&                           id,
+                                                 const std::string&                           segmentId,
+                                                 Lattice::ConstWordLatticeRef                 lattice,
+                                                 Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
 
-    /**
-     * soft frame phone accuracy
-     */
-    class SoftFramePhoneAccuracyLatticeBuilder :
-        public TimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        AlignmentGeneratorRef alignmentGenerator_;
-        const Alignment *forcedAlignment_;
-    protected:
-        void setReference(const Alignment *forcedAlignment);
-    public:
-        SoftFramePhoneAccuracyLatticeBuilder(
-            const Core::Configuration &, Bliss::LexiconRef);
+class OrthographySmoothedFrameStateAccuracyLatticeBuilder : public OrthographyTimeAlignmentBasedMetricLatticeBuilder {
+    typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
 
-        Functor createFunctor(const std::string &id,
-                              Lattice::ConstWordLatticeRef reference,
-                              Lattice::ConstWordLatticeRef lattice,
-                              AlignmentGeneratorRef alignmentGenerator);
-        Functor createFunctor(const std::string &id,
-                              const Alignment *forcedAlignment,
-                              Lattice::ConstWordLatticeRef lattice,
-                              AlignmentGeneratorRef alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+private:
+    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
+    Lattice::SmoothingFunction*                  smoothing_;
 
-    /**
-     * weighted frame phone accuracy
-     */
-    class WeightedFramePhoneAccuracyLatticeBuilder :
-        public TimeAlignmentBasedMetricLatticeBuilder
-    {
-        typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
-    private:
-        static const Core::ParameterFloat paramBeta;
-        static const Core::ParameterFloat paramMargin;
-    private:
-        f32 beta_;
-        f32 margin_;
-        AlignmentGeneratorRef alignmentGenerator_;
-    public:
-        WeightedFramePhoneAccuracyLatticeBuilder(
-            const Core::Configuration &, Bliss::LexiconRef);
+public:
+    OrthographySmoothedFrameStateAccuracyLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~OrthographySmoothedFrameStateAccuracyLatticeBuilder();
 
-        Functor createFunctor(const std::string &id,
-                              Lattice::ConstWordLatticeRef reference,
-                              Lattice::ConstWordLatticeRef lattice,
-                              AlignmentGeneratorRef alignmentGenerator);
-        virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
-    };
+    Functor                        createFunctor(const std::string&                           id,
+                                                 const std::string&                           segmentId,
+                                                 Lattice::ConstWordLatticeRef                 lattice,
+                                                 Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
 
-} // namespace Speech
+/**
+ * frame word accuracy
+ */
+class OrthographyFrameWordAccuracyLatticeBuilder : public OrthographyTimeAlignmentBasedMetricLatticeBuilder {
+    typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
 
-#endif // _SPEECH_ADVANCED_ACCURACY_FSA_BUILDER_HH
+private:
+    static const Core::ParameterFloat paramNormalization;
+
+private:
+    f32 normalization_;
+
+public:
+    OrthographyFrameWordAccuracyLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~OrthographyFrameWordAccuracyLatticeBuilder() {}
+
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
+
+/**
+ * frame phone accuracy
+ */
+class OrthographyFramePhoneAccuracyLatticeBuilder : public OrthographyTimeAlignmentBasedMetricLatticeBuilder {
+    typedef OrthographyTimeAlignmentBasedMetricLatticeBuilder Precursor;
+
+private:
+    static const Core::ParameterFloat paramNormalization;
+
+private:
+    f32                                          normalization_;
+    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator_;
+
+public:
+    OrthographyFramePhoneAccuracyLatticeBuilder(const Core::Configuration&, Core::Ref<const Bliss::Lexicon>);
+    virtual ~OrthographyFramePhoneAccuracyLatticeBuilder() {}
+
+    Functor                        createFunctor(const std::string&                           id,
+                                                 const std::string&                           segmentId,
+                                                 Lattice::ConstWordLatticeRef                 lattice,
+                                                 Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
+
+/**
+ * frame phone accuracy
+ */
+class FramePhoneAccuracyLatticeBuilder : public TimeAlignmentBasedMetricLatticeBuilder {
+    typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
+
+private:
+    static const Core::ParameterFloat paramNormalization;
+
+private:
+    f32                   normalization_;
+    AlignmentGeneratorRef alignmentGenerator_;
+
+public:
+    FramePhoneAccuracyLatticeBuilder(const Core::Configuration&, Bliss::LexiconRef);
+
+    Functor                        createFunctor(const std::string&           id,
+                                                 Lattice::ConstWordLatticeRef reference,
+                                                 Lattice::ConstWordLatticeRef lattice,
+                                                 AlignmentGeneratorRef        alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
+
+/**
+ * soft frame phone accuracy
+ */
+class SoftFramePhoneAccuracyLatticeBuilder : public TimeAlignmentBasedMetricLatticeBuilder {
+    typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
+
+private:
+    AlignmentGeneratorRef alignmentGenerator_;
+    const Alignment*      forcedAlignment_;
+
+protected:
+    void setReference(const Alignment* forcedAlignment);
+
+public:
+    SoftFramePhoneAccuracyLatticeBuilder(const Core::Configuration&, Bliss::LexiconRef);
+
+    Functor                        createFunctor(const std::string&           id,
+                                                 Lattice::ConstWordLatticeRef reference,
+                                                 Lattice::ConstWordLatticeRef lattice,
+                                                 AlignmentGeneratorRef        alignmentGenerator);
+    Functor                        createFunctor(const std::string&           id,
+                                                 const Alignment*             forcedAlignment,
+                                                 Lattice::ConstWordLatticeRef lattice,
+                                                 AlignmentGeneratorRef        alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
+
+/**
+ * weighted frame phone accuracy
+ */
+class WeightedFramePhoneAccuracyLatticeBuilder : public TimeAlignmentBasedMetricLatticeBuilder {
+    typedef TimeAlignmentBasedMetricLatticeBuilder Precursor;
+
+private:
+    static const Core::ParameterFloat paramBeta;
+    static const Core::ParameterFloat paramMargin;
+
+private:
+    f32                   beta_;
+    f32                   margin_;
+    AlignmentGeneratorRef alignmentGenerator_;
+
+public:
+    WeightedFramePhoneAccuracyLatticeBuilder(const Core::Configuration&, Bliss::LexiconRef);
+
+    Functor                        createFunctor(const std::string&           id,
+                                                 Lattice::ConstWordLatticeRef reference,
+                                                 Lattice::ConstWordLatticeRef lattice,
+                                                 AlignmentGeneratorRef        alignmentGenerator);
+    virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ADVANCED_ACCURACY_FSA_BUILDER_HH

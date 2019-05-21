@@ -14,12 +14,11 @@
  */
 #include "AffineFeatureTransformEstimator.hh"
 #include <Core/Directory.hh>
-#include <Math/Module.hh>
 #include <Core/MapParser.hh>
+#include <Math/Module.hh>
 #include <Mm/MixtureSet.hh>
 
 using namespace Speech;
-
 
 const Core::ParameterString AffineFeatureTransformEstimator::paramInitialTransform(
         "initial-transform", "name of initial value for transforms", "");
@@ -45,26 +44,21 @@ const Core::ParameterChoice AffineFeatureTransformEstimator::paramOptimizationCr
         "optimization-criterion", &optimizationCriterionChoice,
         "criterion used for transform scoring", ConcreteAccumulator::mmiPrime);
 
-AffineFeatureTransformEstimator::AffineFeatureTransformEstimator(const Core::Configuration &c, Operation op) :
-    Component(c),
-    Precursor(c, op)
-{
-    Core::IoRef<Mm::AbstractAdaptationAccumulator>::registerClass
-        <ConcreteAccumulator>();
+AffineFeatureTransformEstimator::AffineFeatureTransformEstimator(const Core::Configuration& c, Operation op)
+        : Component(c),
+          Precursor(c, op) {
+    Core::IoRef<Mm::AbstractAdaptationAccumulator>::registerClass<ConcreteAccumulator>();
 }
 
-AffineFeatureTransformEstimator::~AffineFeatureTransformEstimator()
-{ }
+AffineFeatureTransformEstimator::~AffineFeatureTransformEstimator() {}
 
-void AffineFeatureTransformEstimator::createAccumulator(std::string key)
-{
-    currentAccumulator_= new Accumulator(
-        new ConcreteAccumulator(featureDimension_, modelDimension_, key));
+void AffineFeatureTransformEstimator::createAccumulator(std::string key) {
+    currentAccumulator_ = new Accumulator(
+            new ConcreteAccumulator(featureDimension_, modelDimension_, key));
 }
 
-void AffineFeatureTransformEstimator::postProcess()
-{
-    std::string outputDirectory= paramTransformDirectory(config);
+void AffineFeatureTransformEstimator::postProcess() {
+    std::string outputDirectory = paramTransformDirectory(config);
     if (paramEstimationIterations(config) > 0)
         Core::createDirectory(outputDirectory);
 
@@ -78,12 +72,12 @@ void AffineFeatureTransformEstimator::postProcess()
     else if (initialFile)
         if (!Math::Module::instance().formats().read(paramInitialTransform(config), initialTransform))
             error("Failed to read matrix from file '%s'.",
-                    paramInitialTransform(config).c_str());
+                  paramInitialTransform(config).c_str());
 
-    std::set<std::string> seenKeys= accumulatorCache_.keys();
+    std::set<std::string> seenKeys = accumulatorCache_.keys();
     log("number of keys: %zu", seenKeys.size());
 
-    for (std::set<std::string>::iterator key= seenKeys.begin(); key!=seenKeys.end(); ++key) {
+    for (std::set<std::string>::iterator key = seenKeys.begin(); key != seenKeys.end(); ++key) {
         /*! @todo this is a more or less diry hack.
           what we want to do here is to modify the object
           without writing the modification back to cache
@@ -91,41 +85,41 @@ void AffineFeatureTransformEstimator::postProcess()
         currentAccumulator_ = const_cast<Accumulator*>(accumulatorCache_.findForReadAccess(*key));
         verify(currentAccumulator_);
 
-        ConcreteAccumulator *concreteCurrentAccumulator =
-            dynamic_cast<ConcreteAccumulator*>(&**currentAccumulator_);
+        ConcreteAccumulator* concreteCurrentAccumulator =
+                dynamic_cast<ConcreteAccumulator*>(&**currentAccumulator_);
 
         concreteCurrentAccumulator->finalize();
         if (paramEstimationIterations(config) > 0) {
             ConcreteAccumulator::Transform transform;
             if (initialDirectory) {
                 if (!Math::Module::instance().formats().read(Core::joinPaths(
-                        paramInitialTransformDirectory(config),
-                            *key + transformExtension()),
-                        initialTransform))
-                {
+                                                                     paramInitialTransformDirectory(config),
+                                                                     *key + transformExtension()),
+                                                             initialTransform)) {
                     error("Failed to read matrix from file '%s'.",
-                            Core::joinPaths(paramInitialTransformDirectory(config),
-                                *key + transformExtension()).c_str() );
+                          Core::joinPaths(paramInitialTransformDirectory(config),
+                                          *key + transformExtension())
+                                  .c_str());
                     initialTransform.clear();
                 }
-                transform=
-                    concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
-                                                         paramMinObservationWeight(config),
-                                                         static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)),
-                                                         initialTransform);
+                transform =
+                        concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
+                                                             paramMinObservationWeight(config),
+                                                             static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)),
+                                                             initialTransform);
             }
             else if (initialFile) {
-                transform=
-                    concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
-                                                         paramMinObservationWeight(config),
-                                                         static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)),
-                                                         initialTransform);
+                transform =
+                        concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
+                                                             paramMinObservationWeight(config),
+                                                             static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)),
+                                                             initialTransform);
             }
             else {
-                transform=
-                    concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
-                                                         paramMinObservationWeight(config),
-                                                         static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)));
+                transform =
+                        concreteCurrentAccumulator->estimate(paramEstimationIterations(config),
+                                                             paramMinObservationWeight(config),
+                                                             static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)));
             }
             std::string filename = Core::joinPaths(outputDirectory, *key + transformExtension());
             if (!Core::createDirectory(Core::directoryName(filename))) {
@@ -141,35 +135,34 @@ void AffineFeatureTransformEstimator::postProcess()
     }
 }
 
-void AffineFeatureTransformEstimator::scoreTransforms()
-{
-    std::string transformDirectory= paramTransformDirectory(config);
+void AffineFeatureTransformEstimator::scoreTransforms() {
+    std::string transformDirectory = paramTransformDirectory(config);
 
-    std::vector<std::pair<std::string, ConcreteAccumulator::Transform> > transforms;
+    std::vector<std::pair<std::string, ConcreteAccumulator::Transform>> transforms;
 
     Core::DirectoryFileIterator::FileExtensionFilter filter(transformExtension());
 
     for (Core::DirectoryFileIterator file(transformDirectory, &filter); file; ++file) {
         ConcreteAccumulator::Transform transform;
         Math::Module::instance().formats().read(Core::joinPaths(transformDirectory, file.path()), transform);
-        std::string fileKey(file.path().substr(0,file.path().size()-std::string(transformExtension()).size()));
+        std::string fileKey(file.path().substr(0, file.path().size() - std::string(transformExtension()).size()));
         transforms.push_back(std::make_pair(fileKey, transform));
     }
 
-    std::set<std::string> seenKeys= accumulatorCache_.keys();
-    for (std::set<std::string>::iterator key= seenKeys.begin(); key!=seenKeys.end(); ++key) {
+    std::set<std::string> seenKeys = accumulatorCache_.keys();
+    for (std::set<std::string>::iterator key = seenKeys.begin(); key != seenKeys.end(); ++key) {
         currentAccumulator_ = const_cast<Accumulator*>(accumulatorCache_.findForReadAccess(*key));
         verify(currentAccumulator_);
 
-        ConcreteAccumulator *concreteCurrentAccumulator =
-            dynamic_cast<ConcreteAccumulator*>(&**currentAccumulator_);
+        ConcreteAccumulator* concreteCurrentAccumulator =
+                dynamic_cast<ConcreteAccumulator*>(&**currentAccumulator_);
 
         concreteCurrentAccumulator->finalize();
 
-        for (size_t i=0; i<transforms.size(); i++) {
+        for (size_t i = 0; i < transforms.size(); i++) {
             // TODO: Nicer logging!
-            Mm::Sum score=concreteCurrentAccumulator->score(transforms[i].second,
-                                                            static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)));
+            Mm::Sum score = concreteCurrentAccumulator->score(transforms[i].second,
+                                                              static_cast<ConcreteAccumulator::Criterion>(paramOptimizationCriterion(config)));
             std::cerr << *key << " " << transforms[i].first << " " << score << std::endl;
             log("Score, corpus-key=\"%s\" transform=\"%s\": %f", key->c_str(), transforms[i].first.c_str(), score);
         }

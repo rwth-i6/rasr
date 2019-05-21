@@ -21,50 +21,55 @@
 #include "Alignment.hh"
 
 namespace Bliss {
-    class SpeechSegment;
+class SpeechSegment;
 }
 
 namespace Speech {
 
-    /**
-     *  used for weighted accumulation
-     */
-    class Confidences : public Core::Component
-    {
-        typedef Core::Component Precursor;
-    private:
-        static const Core::ParameterFloat paramThreshold;
-    private:
-        const Alignment *alignment_;
-        Mm::Weight threshold_;
-        struct Statistics { u32 nZero, nOne; } statistics_;
-    private:
-        void updateStatistics(const Alignment &);
-        void dumpStatistics();
-    public:
-        Confidences(const Core::Configuration &);
-        ~Confidences();
+/**
+ *  used for weighted accumulation
+ */
+class Confidences : public Core::Component {
+    typedef Core::Component Precursor;
 
-        void clear();
-        void setAlignment(const Alignment *);
-        Mm::Weight operator[](TimeframeIndex) const;
-        bool isValid() const;
-    };
+private:
+    static const Core::ParameterFloat paramThreshold;
 
-    /**
-     *  used for weighted accumulation
-     */
-    class ConfidenceArchive : public Flow::Cache
-    {
-        typedef Flow::Cache Precursor;
-    public:
-        ConfidenceArchive(const Core::Configuration &);
-        virtual ~ConfidenceArchive();
+private:
+    const Alignment* alignment_;
+    Mm::Weight       threshold_;
+    struct Statistics {
+        u32 nZero, nOne;
+    } statistics_;
 
-        void get(Confidences &, const std::string &);
-        void get(Confidences &, Bliss::SpeechSegment *);
-    };
+private:
+    void updateStatistics(const Alignment&);
+    void dumpStatistics();
 
-}
+public:
+    Confidences(const Core::Configuration&);
+    ~Confidences();
 
-#endif // _SPEECH_CONFIDENCES_HH
+    void       clear();
+    void       setAlignment(const Alignment*);
+    Mm::Weight operator[](TimeframeIndex) const;
+    bool       isValid() const;
+};
+
+/**
+ *  used for weighted accumulation
+ */
+class ConfidenceArchive : public Flow::Cache {
+    typedef Flow::Cache Precursor;
+
+public:
+    ConfidenceArchive(const Core::Configuration&);
+    virtual ~ConfidenceArchive();
+
+    void get(Confidences&, const std::string&);
+    void get(Confidences&, Bliss::SpeechSegment*);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_CONFIDENCES_HH

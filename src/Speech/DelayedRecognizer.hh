@@ -19,12 +19,10 @@
 
 namespace Speech {
 
-
 // Handles delayed feeding of features into a search-algorithm for buffered feature scorers and acoustic look-ahead
-class RecognizerDelayHandler
-{
+class RecognizerDelayHandler {
 public:
-    RecognizerDelayHandler(Search::SearchAlgorithm* recognizer, Core::Ref <Am::AcousticModel> acousticModel, Core::Ref<Mm::ContextScorerCache> cache = Core::Ref<Mm::ContextScorerCache>());
+    RecognizerDelayHandler(Search::SearchAlgorithm* recognizer, Core::Ref<Am::AcousticModel> acousticModel, Core::Ref<Mm::ContextScorerCache> cache = Core::Ref<Mm::ContextScorerCache>());
 
     // Should be called whenever a new segment is started
     void reset();
@@ -37,27 +35,26 @@ private:
     void setLookAhead();
     void initializeBatchScorer();
 
-    Search::SearchAlgorithm* recognizer_;
-    Core::Ref <Am::AcousticModel> acousticModel_;
+    Search::SearchAlgorithm*     recognizer_;
+    Core::Ref<Am::AcousticModel> acousticModel_;
     // All features that are currently buffered in the feature scorer
-    typedef std::deque<Core::Ref<const Feature> > FeatureBuffer;
-    FeatureBuffer featureBuffer_;
-    u32 bufferSize_, featureScorerOffset_;
-    bool initializeScorer_;
-    Core::Ref<Mm::ContextScorerCache> cache_;
+    typedef std::deque<Core::Ref<const Feature>> FeatureBuffer;
+    FeatureBuffer                                featureBuffer_;
+    u32                                          bufferSize_, featureScorerOffset_;
+    bool                                         initializeScorer_;
+    Core::Ref<Mm::ContextScorerCache>            cache_;
 };
 
 /**
  * Recognizer with a delay in output, used for search algorithms
  * with an acoustic look-ahead.
  */
-class DelayedRecognizer : public OfflineRecognizer
-{
+class DelayedRecognizer : public OfflineRecognizer {
 public:
     DelayedRecognizer(const Core::Configuration&);
     virtual ~DelayedRecognizer() {}
 
-    virtual void signOn(CorpusVisitor &corpusVisitor);
+    virtual void signOn(CorpusVisitor& corpusVisitor);
     virtual void enterSpeechSegment(Bliss::SpeechSegment*);
     virtual void processFeature(Core::Ref<const Feature>);
     virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
@@ -66,6 +63,6 @@ protected:
     RecognizerDelayHandler delay_;
 };
 
-} // namespace Speech
+}  // namespace Speech
 
 #endif /* _SPEECH_DELAYED_RECOGNIZER_HH */

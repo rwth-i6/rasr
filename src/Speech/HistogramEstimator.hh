@@ -21,37 +21,47 @@
 
 namespace Speech {
 
-    /** HistogramEstimator */
-    class HistogramEstimator : public FeatureVectorExtractor {
-        typedef FeatureVectorExtractor Precursor;
-    public:
-        typedef f32 Value;
-    public:
-        static const Core::ParameterFloat paramBucketSize;
-    private:
-        Core::Ref<Bliss::CorpusKey> corpusKey_;
-        typedef Signal::HistogramVector<Value> HistogramVector;
-        HistogramVector *currentHistogramVector_;
+/** HistogramEstimator */
+class HistogramEstimator : public FeatureVectorExtractor {
+    typedef FeatureVectorExtractor Precursor;
 
-        size_t featureDimension_;
-        Value bucketSize_;
-        typedef Core::ObjectCache<Core::MruObjectCacheList<
-            std::string, HistogramVector, Core::StringHash, Core::StringEquality> >
-        HistogramVectorCache;
-        HistogramVectorCache histogramVectorCache_;
-    private:
-        Signal::HistogramVector<Value>* histogramVector(size_t featureDimension);
-    protected:
-        virtual void setFeatureVectorDescription(const Mm::FeatureDescription::Stream &);
-        virtual void processFeatureVector(Core::Ref<const Feature::Vector> f) {
-            verify_(currentHistogramVector_ != 0); currentHistogramVector_->accumulate(*f);
-        }
-    public:
-        HistogramEstimator(const Core::Configuration&);
-        virtual void signOn(CorpusVisitor&);
+public:
+    typedef f32 Value;
 
-        void clear() { histogramVectorCache_.clear(); currentHistogramVector_ = 0; }
-    };
-} // namespace Speech
+public:
+    static const Core::ParameterFloat paramBucketSize;
 
-#endif // _SPEECH_HISTOGRAM_ESTIMATOR_HH
+private:
+    Core::Ref<Bliss::CorpusKey>            corpusKey_;
+    typedef Signal::HistogramVector<Value> HistogramVector;
+    HistogramVector*                       currentHistogramVector_;
+
+    size_t featureDimension_;
+    Value  bucketSize_;
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
+            std::string, HistogramVector, Core::StringHash, Core::StringEquality>>
+            HistogramVectorCache;
+    HistogramVectorCache histogramVectorCache_;
+
+private:
+    Signal::HistogramVector<Value>* histogramVector(size_t featureDimension);
+
+protected:
+    virtual void setFeatureVectorDescription(const Mm::FeatureDescription::Stream&);
+    virtual void processFeatureVector(Core::Ref<const Feature::Vector> f) {
+        verify_(currentHistogramVector_ != 0);
+        currentHistogramVector_->accumulate(*f);
+    }
+
+public:
+    HistogramEstimator(const Core::Configuration&);
+    virtual void signOn(CorpusVisitor&);
+
+    void clear() {
+        histogramVectorCache_.clear();
+        currentHistogramVector_ = 0;
+    }
+};
+}  // namespace Speech
+
+#endif  // _SPEECH_HISTOGRAM_ESTIMATOR_HH

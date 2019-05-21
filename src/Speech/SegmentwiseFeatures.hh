@@ -17,30 +17,29 @@
 
 #include "Feature.hh"
 
-namespace Speech
-{
-    class SegmentwiseFeatures :
-        public std::vector<Core::Ref<Feature> >,
-        public Core::ReferenceCounted
-    {
-    public:
-        void feed(Core::Ref<Feature> f) { push_back(f); }
-    };
-    typedef Core::Ref<SegmentwiseFeatures> SegmentwiseFeaturesRef;
-    typedef Core::Ref<const SegmentwiseFeatures> ConstSegmentwiseFeaturesRef;
+namespace Speech {
+class SegmentwiseFeatures : public std::vector<Core::Ref<Feature>>,
+                            public Core::ReferenceCounted {
+public:
+    void feed(Core::Ref<Feature> f) {
+        push_back(f);
+    }
+};
+typedef Core::Ref<SegmentwiseFeatures>       SegmentwiseFeaturesRef;
+typedef Core::Ref<const SegmentwiseFeatures> ConstSegmentwiseFeaturesRef;
 
-} // namespace Speech
+}  // namespace Speech
 
 namespace Core {
 
-    /*! @todo the string representation of Speech::ConstSegmentwiseFeaturesRef should be speech-... */
-    template <>
-    class NameHelper<Speech::ConstSegmentwiseFeaturesRef> : public std::string {
-    public:
-        NameHelper() : std::string("flow-const-segmentwise-features-ref") {}
-    };
+/*! @todo the string representation of Speech::ConstSegmentwiseFeaturesRef should be speech-... */
+template<>
+class NameHelper<Speech::ConstSegmentwiseFeaturesRef> : public std::string {
+public:
+    NameHelper()
+            : std::string("flow-const-segmentwise-features-ref") {}
+};
 
-} // namespace Core
+}  // namespace Core
 
-
-#endif // _SPEECH_SEGMENTWISE_FEATURES_HH
+#endif  // _SPEECH_SEGMENTWISE_FEATURES_HH

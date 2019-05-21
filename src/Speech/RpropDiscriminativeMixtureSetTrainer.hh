@@ -19,34 +19,34 @@
 
 namespace Speech {
 
-    /**
-     * discriminative mixture set trainer: Rprop
-     */
-    class RpropDiscriminativeMixtureSetTrainer : public DiscriminativeMixtureSetTrainer
-    {
-        typedef DiscriminativeMixtureSetTrainer Precursor;
-    protected:
-        Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
-    public:
-        RpropDiscriminativeMixtureSetTrainer(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureSetTrainer();
-    };
+/**
+ * discriminative mixture set trainer: Rprop
+ */
+class RpropDiscriminativeMixtureSetTrainer : public DiscriminativeMixtureSetTrainer {
+    typedef DiscriminativeMixtureSetTrainer Precursor;
 
-    /**
-     * Rprop with i-smoothing
-     */
-    class RpropDiscriminativeMixtureSetTrainerWithISmoothing :
-        public DiscriminativeMixtureSetTrainer
-    {
-        typedef DiscriminativeMixtureSetTrainer Precursor;
-    protected:
-        Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
-    public:
-        RpropDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureSetTrainerWithISmoothing();
-    };
+protected:
+    Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
 
+public:
+    RpropDiscriminativeMixtureSetTrainer(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureSetTrainer();
+};
 
-}
+/**
+ * Rprop with i-smoothing
+ */
+class RpropDiscriminativeMixtureSetTrainerWithISmoothing : public DiscriminativeMixtureSetTrainer {
+    typedef DiscriminativeMixtureSetTrainer Precursor;
 
-#endif // _SPEECH_RPROP_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH
+protected:
+    Mm::DiscriminativeMixtureSetEstimator* createMixtureSetEstimator() const;
+
+public:
+    RpropDiscriminativeMixtureSetTrainerWithISmoothing(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureSetTrainerWithISmoothing();
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_RPROP_DISCRIMINATIVE_MIXTURE_SET_TRAINER_HH

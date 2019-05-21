@@ -20,35 +20,37 @@
 #include <Mm/FeatureScorer.hh>
 #include <deque>
 
-
 namespace Speech {
 
 class FeatureScorerNode : public Flow::SleeveNode {
     typedef Flow::SleeveNode Precursor;
+
 public:
     typedef Mm::FeatureType FeatureType;
+
 private:
     Core::Ref<Mm::FeatureScorer> fs_;
-    bool needInit_;
-    bool aggregatedFeatures_; // features are aggregated (multiple input streams)
-    std::deque<Flow::Timestamp> timeStamps_; // flow timestamps corresponding to feature vectors
+    bool                         needInit_;
+    bool                         aggregatedFeatures_;  // features are aggregated (multiple input streams)
+    std::deque<Flow::Timestamp>  timeStamps_;          // flow timestamps corresponding to feature vectors
 public:
     FeatureScorerNode(const Core::Configuration& config);
     virtual ~FeatureScorerNode();
-    static std::string filterName() { return "feature-scorer"; }
+    static std::string filterName() {
+        return "feature-scorer";
+    }
 
     virtual bool configure();
     virtual bool work(Flow::PortId p);
 
 protected:
     // checks whether we have aggregated or simple Flow features
-    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype *d);
+    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d);
     bool putData(Mm::FeatureScorer::Scorer scorer);
-    template<class T> bool work();
-
+    template<class T>
+    bool work();
 };
 
-} // namespace Speech
+}  // namespace Speech
 
-
-#endif // _SPEECH_FEATURESCORERNODE_HH
+#endif  // _SPEECH_FEATURESCORERNODE_HH

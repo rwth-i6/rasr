@@ -15,20 +15,20 @@
 #ifndef _SPEECH_RECOGNIZER_HH
 #define _SPEECH_RECOGNIZER_HH
 
-#include <Modules.hh>
-#include "DataExtractor.hh"
-#include <Search/Search.hh>
 #include <Core/Choice.hh>
 #include <Lattice/Archive.hh>
 #include <Mm/Types.hh>
+#include <Modules.hh>
+#include <Search/Search.hh>
+#include "DataExtractor.hh"
 
 namespace Bliss {
-    class Evaluator;
-    class Lexicon;
-    class OrthographicParser;
-}
+class Evaluator;
+class Lexicon;
+class OrthographicParser;
+}  // namespace Bliss
 namespace Am {
-    class AcousticModel;
+class AcousticModel;
 }
 
 namespace Search {
@@ -37,100 +37,102 @@ class LatticeHandler;
 
 namespace Speech {
 
-    class ModelCombination;
+class ModelCombination;
 
+class Recognizer : public virtual Core::Component {
+public:
+    static const Core::Choice          searchTypeChoice_;
+    static const Core::ParameterChoice paramSearch;
 
-    class Recognizer : public virtual Core::Component {
-    public:
+protected:
+    typedef Search::SearchAlgorithm::Traceback Traceback;
+    Core::Ref<const Bliss::Lexicon>            lexicon_;
+    Core::Ref<Am::AcousticModel>               acousticModel_;
+    Search::SearchAlgorithm*                   recognizer_;
 
-        static const Core::Choice searchTypeChoice_;
-        static const Core::ParameterChoice paramSearch;
-    protected:
-        typedef Search::SearchAlgorithm::Traceback Traceback;
-        Core::Ref<const Bliss::Lexicon> lexicon_;
-        Core::Ref<Am::AcousticModel> acousticModel_;
-        Search::SearchAlgorithm *recognizer_;
-    protected:
-        void initializeRecognizer(Am::AcousticModel::Mode acousticModelMode);
-        void initializeRecognizer(const Speech::ModelCombination&);
-        virtual void createRecognizer();
-    public:
-        Recognizer(const Core::Configuration&);
-        virtual ~Recognizer();
-    };
+protected:
+    void         initializeRecognizer(Am::AcousticModel::Mode acousticModelMode);
+    void         initializeRecognizer(const Speech::ModelCombination&);
+    virtual void createRecognizer();
 
+public:
+    Recognizer(const Core::Configuration&);
+    virtual ~Recognizer();
+};
 
-    class OfflineRecognizer :
-        public FeatureExtractor,
-        public Recognizer
-    {
-        typedef FeatureExtractor Precursor;
-    private:
-        static const Core::ParameterBool paramStoreLattices;
-        static const Core::ParameterBool paramStoreTracebacks;
-        static const Core::ParameterBool paramTimeConditionedLattice;
-        static const Core::ParameterString paramLayerName;
-        static const Core::ParameterFloat paramPartialResultInterval;
-        static const Core::ParameterBool paramEvaluteResult;
-        static const Core::ParameterBool paramNoDependencyCheck;
+class OfflineRecognizer : public FeatureExtractor,
+                          public Recognizer {
+    typedef FeatureExtractor Precursor;
 
-        std::vector<Flow::Timestamp> featureTimes_;
-        Flow::Time partialResultInterval_;
-        Flow::Time lastPartialResult_;
-        Traceback traceback_;
+private:
+    static const Core::ParameterBool   paramStoreLattices;
+    static const Core::ParameterBool   paramStoreTracebacks;
+    static const Core::ParameterBool   paramTimeConditionedLattice;
+    static const Core::ParameterString paramLayerName;
+    static const Core::ParameterFloat  paramPartialResultInterval;
+    static const Core::ParameterBool   paramEvaluteResult;
+    static const Core::ParameterBool   paramNoDependencyCheck;
 
-    protected:
-        bool shouldEvaluateResult_, shouldStoreLattice_;
-        Bliss::Evaluator *evaluator_;
-        Search::LatticeHandler *latticeHandler_;
-        Lattice::ArchiveWriter *tracebackArchiveWriter_;
-        Core::XmlChannel tracebackChannel_;
-        bool  timeConditionedLattice_;
-        std::string layerName_;
+    std::vector<Flow::Timestamp> featureTimes_;
+    Flow::Time                   partialResultInterval_;
+    Flow::Time                   lastPartialResult_;
+    Traceback                    traceback_;
 
-        void processResult(Bliss::SpeechSegment *s);
-        void logTraceback(const Traceback &);
-        void addPartialToTraceback(Traceback &partialTraceback);
-        void processFeatureTimestamp(const Flow::Timestamp &timestamp);
-        void finishSegment(Bliss::SpeechSegment *segment);
+protected:
+    bool                    shouldEvaluateResult_, shouldStoreLattice_;
+    Bliss::Evaluator*       evaluator_;
+    Search::LatticeHandler* latticeHandler_;
+    Lattice::ArchiveWriter* tracebackArchiveWriter_;
+    Core::XmlChannel        tracebackChannel_;
+    bool                    timeConditionedLattice_;
+    std::string             layerName_;
 
-    private:
-        bool noDependencyCheck_;
+    void processResult(Bliss::SpeechSegment* s);
+    void logTraceback(const Traceback&);
+    void addPartialToTraceback(Traceback& partialTraceback);
+    void processFeatureTimestamp(const Flow::Timestamp& timestamp);
+    void finishSegment(Bliss::SpeechSegment* segment);
 
-    public:
-        OfflineRecognizer(const Core::Configuration&,
-                          Am::AcousticModel::Mode = Am::AcousticModel::complete);
-        virtual ~OfflineRecognizer();
+private:
+    bool noDependencyCheck_;
 
-        virtual void signOn(CorpusVisitor &corpusVisitor);
-        virtual void processResultAndLogStatistics(Bliss::SpeechSegment *s);
-        virtual void enterSpeechSegment(Bliss::SpeechSegment*);
-        virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
-        virtual void leaveSegment(Bliss::Segment*);
+public:
+    OfflineRecognizer(const Core::Configuration&,
+                      Am::AcousticModel::Mode = Am::AcousticModel::complete);
+    virtual ~OfflineRecognizer();
 
-        virtual void processFeature(Core::Ref<const Feature>);
-        virtual void setFeatureDescription(const Mm::FeatureDescription &);
-    };
+    virtual void signOn(CorpusVisitor& corpusVisitor);
+    virtual void processResultAndLogStatistics(Bliss::SpeechSegment* s);
+    virtual void enterSpeechSegment(Bliss::SpeechSegment*);
+    virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
+    virtual void leaveSegment(Bliss::Segment*);
 
-    class ConstrainedOfflineRecognizer : public OfflineRecognizer {
-        typedef OfflineRecognizer Precursor;
-    public:
-        static const Core::ParameterBool paramUseLanguageModel;
-        static const Core::ParameterFloat paramScale;
-        static const Core::ParameterString paramFsaPrefix;
-    private:
-        Lattice::ArchiveReader *latticeArchiveReader_;
-        Fsa::ConstAutomatonRef lemmaPronunciationToLemmaTransducer_;
-        Fsa::ConstAutomatonRef lemmaToSyntacticTokenTransducer_;
-        Fsa::ConstAutomatonRef lmFsa_;
-        Fsa::Weight scale_;
-        const std::string fsaPrefix_;
-    public:
-        ConstrainedOfflineRecognizer(const Core::Configuration&,
-                                     Am::AcousticModel::Mode = Am::AcousticModel::complete);
-        virtual ~ConstrainedOfflineRecognizer();
+    virtual void processFeature(Core::Ref<const Feature>);
+    virtual void setFeatureDescription(const Mm::FeatureDescription&);
+};
 
-        virtual void enterSpeechSegment(Bliss::SpeechSegment*);
-    };
-}
-#endif //_SPEECH_RECOGNIZER_HH
+class ConstrainedOfflineRecognizer : public OfflineRecognizer {
+    typedef OfflineRecognizer Precursor;
+
+public:
+    static const Core::ParameterBool   paramUseLanguageModel;
+    static const Core::ParameterFloat  paramScale;
+    static const Core::ParameterString paramFsaPrefix;
+
+private:
+    Lattice::ArchiveReader* latticeArchiveReader_;
+    Fsa::ConstAutomatonRef  lemmaPronunciationToLemmaTransducer_;
+    Fsa::ConstAutomatonRef  lemmaToSyntacticTokenTransducer_;
+    Fsa::ConstAutomatonRef  lmFsa_;
+    Fsa::Weight             scale_;
+    const std::string       fsaPrefix_;
+
+public:
+    ConstrainedOfflineRecognizer(const Core::Configuration&,
+                                 Am::AcousticModel::Mode = Am::AcousticModel::complete);
+    virtual ~ConstrainedOfflineRecognizer();
+
+    virtual void enterSpeechSegment(Bliss::SpeechSegment*);
+};
+}  // namespace Speech
+#endif  //_SPEECH_RECOGNIZER_HH

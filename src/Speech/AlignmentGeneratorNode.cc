@@ -19,17 +19,14 @@ using namespace Speech;
 
 /** AlignmentGeneratorNode
  */
-AlignmentGeneratorNode::AlignmentGeneratorNode(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{
+AlignmentGeneratorNode::AlignmentGeneratorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {
     addInputs(1);
     addOutputs(1);
 }
 
-bool AlignmentGeneratorNode::configure()
-{
+bool AlignmentGeneratorNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes);
     getInputAttributes(1, *attributes);
     if (!configureDatatype(attributes, Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>::type())) {
@@ -40,31 +37,26 @@ bool AlignmentGeneratorNode::configure()
     return Precursor::configure() && putOutputAttributes(0, attributes);
 }
 
-bool AlignmentGeneratorNode::work(Flow::PortId p)
-{
+bool AlignmentGeneratorNode::work(Flow::PortId p) {
     if (!Precursor::work(p)) {
         return false;
     }
 
-    Flow::DataPtr<Flow::DataAdaptor<ConstSegmentwiseFeaturesRef> > in;
+    Flow::DataPtr<Flow::DataAdaptor<ConstSegmentwiseFeaturesRef>> in;
     if (!getData(1, in)) {
         error("could not read port 1");
         return putData(0, in.get());
     }
     alignmentGenerator_->setSpeechSegmentId(segmentId());
     alignmentGenerator_->setFeatures(in->data());
-    Flow::DataAdaptor<AlignmentGeneratorRef> *out = new Flow::DataAdaptor<AlignmentGeneratorRef>();
-    out->data() = alignmentGenerator_;
+    Flow::DataAdaptor<AlignmentGeneratorRef>* out = new Flow::DataAdaptor<AlignmentGeneratorRef>();
+    out->data()                                   = alignmentGenerator_;
     require(!getData(1, in));
     return putData(0, out) && putData(0, in.get());
 }
 
-void AlignmentGeneratorNode::initialize(ModelCombinationRef modelCombination)
-{
+void AlignmentGeneratorNode::initialize(ModelCombinationRef modelCombination) {
     Precursor::initialize(modelCombination);
-    alignmentGenerator_ = Core::ref(
-        new PhonemeSequenceAlignmentGenerator(
-            select("segmentwise-alignment"),
-            modelCombination));
-    needInit_ = false;
+    alignmentGenerator_ = Core::ref(new PhonemeSequenceAlignmentGenerator(select("segmentwise-alignment"), modelCombination));
+    needInit_           = false;
 }

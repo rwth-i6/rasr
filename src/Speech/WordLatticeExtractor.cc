@@ -24,8 +24,8 @@
 #include <Lattice/Rational.hh>
 #include <Lattice/Static.hh>
 #include <Lm/Module.hh>
-#include "LatticeExtractor.hh"
 #include "DataExtractor.hh"
+#include "LatticeExtractor.hh"
 
 using namespace Speech;
 
@@ -33,32 +33,30 @@ using namespace Speech;
  * WordLatticeUnion
  */
 const Core::ParameterString WordLatticeUnion::paramFsaPrefix(
-    "fsa-prefix",
-    "prefix of automaton in archive",
-    Lattice::WordLattice::acousticFsa);
+        "fsa-prefix",
+        "prefix of automaton in archive",
+        Lattice::WordLattice::acousticFsa);
 
-WordLatticeUnion::WordLatticeUnion(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    prefix_(paramFsaPrefix(config)),
-    numeratorArchiveReader_(0)
-{}
+WordLatticeUnion::WordLatticeUnion(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          prefix_(paramFsaPrefix(config)),
+          numeratorArchiveReader_(0) {}
 
-WordLatticeUnion::~WordLatticeUnion()
-{
+WordLatticeUnion::~WordLatticeUnion() {
     delete numeratorArchiveReader_;
 }
 
-void WordLatticeUnion::initialize(Bliss::LexiconRef lexicon)
-{
+void WordLatticeUnion::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     verify(!numeratorArchiveReader_);
     if (!Lattice::Archive::paramPath(select("numerator-lattice-archive")).empty()) {
         numeratorArchiveReader_ = Lattice::Archive::openForReading(
-            select("numerator-lattice-archive"), lexicon);
+                select("numerator-lattice-archive"), lexicon);
         if (!numeratorArchiveReader_ or numeratorArchiveReader_->hasFatalErrors()) {
-            delete numeratorArchiveReader_; numeratorArchiveReader_ = 0;
+            delete numeratorArchiveReader_;
+            numeratorArchiveReader_ = 0;
             error("failed to open lattice archive");
             return;
         }
@@ -66,8 +64,7 @@ void WordLatticeUnion::initialize(Bliss::LexiconRef lexicon)
 }
 
 void WordLatticeUnion::processWordLattice(
-    Lattice::ConstWordLatticeRef denominator, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef denominator, Bliss::SpeechSegment* s) {
     if (denominator and denominator->nParts() == 1) {
         Lattice::ConstWordLatticeRef numerator;
         if (numeratorArchiveReader_) {
@@ -75,13 +72,15 @@ void WordLatticeUnion::processWordLattice(
         }
         if (numerator) {
             denominator = Lattice::unite(denominator, numerator);
-        } else {
+        }
+        else {
             warning(
-                "no union for '%s' because there is no numerator lattice",
-                s->fullName().c_str());
+                    "no union for '%s' because there is no numerator lattice",
+                    s->fullName().c_str());
         }
         Precursor::processWordLattice(denominator, s);
-    } else {
+    }
+    else {
         warning("no union for '%s' because of empty denominator lattice",
                 s->fullName().c_str());
     }
@@ -91,31 +90,28 @@ void WordLatticeUnion::processWordLattice(
  * BaseWordLatticeMerger
  */
 const Core::ParameterBool BaseWordLatticeMerger::paramMergeOnlyIfSpokenNotInLattice(
-    "merge-only-if-spoken-not-in-lattice",
-    "merge denominator and numerator lattice only if spoken sentence is not in denominator lattice",
-    true);
+        "merge-only-if-spoken-not-in-lattice",
+        "merge denominator and numerator lattice only if spoken sentence is not in denominator lattice",
+        true);
 
-BaseWordLatticeMerger::BaseWordLatticeMerger(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    mergeOnlyIfSpokenNotInLattice_(paramMergeOnlyIfSpokenNotInLattice(config)),
-    orthToLemma_(0)
-{}
+BaseWordLatticeMerger::BaseWordLatticeMerger(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          mergeOnlyIfSpokenNotInLattice_(paramMergeOnlyIfSpokenNotInLattice(config)),
+          orthToLemma_(0) {}
 
-BaseWordLatticeMerger::~BaseWordLatticeMerger()
-{
+BaseWordLatticeMerger::~BaseWordLatticeMerger() {
     delete orthToLemma_;
 }
 
 bool BaseWordLatticeMerger::needsMerging(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s) const
-{
+        Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) const {
     if (mergeOnlyIfSpokenNotInLattice_) {
         verify(orthToLemma_);
         Lattice::ConstWordLatticeRef spokenFromLattice =
-            Lattice::extractNumerator(
-                s->orth(), lattice, orthToLemma_, lemmaPronToLemma_,
-                lemmaToLemmaConfusion_);
+                Lattice::extractNumerator(
+                        s->orth(), lattice, orthToLemma_, lemmaPronToLemma_,
+                        lemmaToLemmaConfusion_);
         if (spokenFromLattice and
             spokenFromLattice->mainPart() and
             !Fsa::isEmpty(spokenFromLattice->mainPart())) {
@@ -125,42 +121,39 @@ bool BaseWordLatticeMerger::needsMerging(
     return true;
 }
 
-void BaseWordLatticeMerger::initialize(Bliss::LexiconRef lexicon)
-{
+void BaseWordLatticeMerger::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     if (mergeOnlyIfSpokenNotInLattice_) {
         verify(!orthToLemma_);
-        orthToLemma_ = new Bliss::OrthographicParser(select("orthographic-parser"), lexicon);
+        orthToLemma_      = new Bliss::OrthographicParser(select("orthographic-parser"), lexicon);
         lemmaPronToLemma_ = lexicon->createLemmaPronunciationToLemmaTransducer();
 
         Fsa::ConstAutomatonRef lemmaToEval = lexicon->createLemmaToEvaluationTokenTransducer();
-        lemmaToLemmaConfusion_ = Fsa::composeMatching(lemmaToEval, Fsa::invert(lemmaToEval));
-        lemmaToLemmaConfusion_ = Fsa::cache(lemmaToLemmaConfusion_);
+        lemmaToLemmaConfusion_             = Fsa::composeMatching(lemmaToEval, Fsa::invert(lemmaToEval));
+        lemmaToLemmaConfusion_             = Fsa::cache(lemmaToLemmaConfusion_);
     }
 }
 
 /**
  * WordLatticeMerger
  */
-WordLatticeMerger::WordLatticeMerger(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+WordLatticeMerger::WordLatticeMerger(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void WordLatticeMerger::initialize(Bliss::LexiconRef lexicon)
-{
+void WordLatticeMerger::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     verify(!languageModel_);
     languageModel_ = Lm::Module::instance().createLanguageModel(select("lm"), lexicon);
-    if (!languageModel_) criticalError("failed to initialize language model");
+    if (!languageModel_)
+        criticalError("failed to initialize language model");
 }
 
 void WordLatticeMerger::processWordLattice(
-    Lattice::ConstWordLatticeRef denominator,
-    Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef denominator,
+        Bliss::SpeechSegment*        s) {
     if (denominator and denominator->nParts() == 1) {
         if (needsMerging(denominator, s)) {
             Lattice::ConstWordLatticeRef numerator;
@@ -170,14 +163,14 @@ void WordLatticeMerger::processWordLattice(
             if (numerator) {
                 log("merging of reference required");
                 denominator = Lattice::merge(denominator, numerator, languageModel_);
-            } else {
-                warning(
-                    "no merge for '%s' because there is no numerator lattice",
-                    s->fullName().c_str());
+            }
+            else {
+                warning("no merge for '%s' because there is no numerator lattice", s->fullName().c_str());
             }
         }
         LatticeSetProcessor::processWordLattice(denominator, s);
-    } else {
+    }
+    else {
         warning("no merge for '%s' because of empty denominator lattice",
                 s->fullName().c_str());
     }
@@ -187,42 +180,39 @@ void WordLatticeMerger::processWordLattice(
  * SpokenAndCompetingListProcessor
  */
 const Core::ParameterInt SpokenAndCompetingListProcessor::paramNumberOfHypotheses(
-    "number-of-hypotheses",
-    "target number of hypotheses after merge",
-    -1);
+        "number-of-hypotheses",
+        "target number of hypotheses after merge",
+        -1);
 
 SpokenAndCompetingListProcessor::SpokenAndCompetingListProcessor(
-    const Core::Configuration &c)
-    :
-    Core::Component(c),
-    Precursor(c),
-    numberOfHypotheses_((u32)paramNumberOfHypotheses(c))
-{
+        const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          numberOfHypotheses_((u32)paramNumberOfHypotheses(c)) {
     mergeOnlyIfSpokenNotInLattice_ = true;
 }
 
 void SpokenAndCompetingListProcessor::processWordLattice(
-    Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment* s) {
     if (l) {
         Core::Vector<Lattice::ConstWordLatticeRef> hypotheses;
 
         // add spoken hypothesis from archive
         require(numeratorArchiveReader_);
         hypotheses.push_back(
-            numeratorArchiveReader_->get(
-                s->fullName(),
-                prefix()));
+                numeratorArchiveReader_->get(
+                        s->fullName(),
+                        prefix()));
         if (!Fsa::isLinear(hypotheses.back()->mainPart())) {
             criticalError("numerator must be linear");
         }
 
         // add competing hypotheses from @input l
         Fsa::ConstStateRef lSp =
-            l->mainPart()->getState(l->mainPart()->initialStateId());
+                l->mainPart()->getState(l->mainPart()->initialStateId());
         for (Fsa::State::const_iterator hIt = lSp->begin();
              (hypotheses.size() < numberOfHypotheses_) and (hIt != lSp->end());
-             ++ hIt) {
+             ++hIt) {
             Lattice::ConstWordLatticeRef h = Lattice::partial(l, hIt->target(), hIt->weight());
             if (needsMerging(h, s)) {
                 hypotheses.push_back(h);
@@ -230,55 +220,51 @@ void SpokenAndCompetingListProcessor::processWordLattice(
         }
 
         // combine hypotheses in single lattice
-        for (u32 n = 0; n < hypotheses.size(); ++ n) {
+        for (u32 n = 0; n < hypotheses.size(); ++n) {
             hypotheses[n] =
-                Lattice::staticCopy(
-                    Lattice::normalize(
-                        hypotheses[n]));
+                    Lattice::staticCopy(
+                            Lattice::normalize(
+                                    hypotheses[n]));
         }
         Lattice::ConstWordLatticeRef result = Lattice::unite(hypotheses);
 
         // pass result to next node
         LatticeSetProcessor::processWordLattice(result, s);
-    } else {
-        warning("no move for '%s' because of empty n-best list",
-                s->fullName().c_str());
+    }
+    else {
+        warning("no move for '%s' because of empty n-best list", s->fullName().c_str());
     }
 }
 
 /**
  * NumeratorFromDenominatorExtractor
  */
-NumeratorFromDenominatorExtractor::NumeratorFromDenominatorExtractor(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    orthToLemma_(0)
-{}
+NumeratorFromDenominatorExtractor::NumeratorFromDenominatorExtractor(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          orthToLemma_(0) {}
 
-NumeratorFromDenominatorExtractor::~NumeratorFromDenominatorExtractor()
-{
+NumeratorFromDenominatorExtractor::~NumeratorFromDenominatorExtractor() {
     delete orthToLemma_;
 }
 
-void NumeratorFromDenominatorExtractor::initialize(Bliss::LexiconRef lexicon)
-{
+void NumeratorFromDenominatorExtractor::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     verify(!orthToLemma_);
-    orthToLemma_ = new Bliss::OrthographicParser(select("orthographic-parser"), lexicon);
+    orthToLemma_      = new Bliss::OrthographicParser(select("orthographic-parser"), lexicon);
     lemmaPronToLemma_ = lexicon->createLemmaPronunciationToLemmaTransducer();
 
     Fsa::ConstAutomatonRef lemmaToEval = lexicon->createLemmaToEvaluationTokenTransducer();
-    lemmaToLemmaConfusion_ = Fsa::composeMatching(lemmaToEval, Fsa::invert(lemmaToEval));
-    lemmaToLemmaConfusion_ = Fsa::cache(lemmaToLemmaConfusion_);
+    lemmaToLemmaConfusion_             = Fsa::composeMatching(lemmaToEval, Fsa::invert(lemmaToEval));
+    lemmaToLemmaConfusion_             = Fsa::cache(lemmaToLemmaConfusion_);
 }
 
 void NumeratorFromDenominatorExtractor::processWordLattice(
-    Lattice::ConstWordLatticeRef denominator, Bliss::SpeechSegment *s)
-{
+        Lattice::ConstWordLatticeRef denominator, Bliss::SpeechSegment* s) {
     Lattice::ConstWordLatticeRef numeratorFromDenominator =
-        Lattice::extractNumerator(s->orth(), denominator,
-                                  orthToLemma_, lemmaPronToLemma_,
-                                  lemmaToLemmaConfusion_);
+            Lattice::extractNumerator(s->orth(), denominator,
+                                      orthToLemma_, lemmaPronToLemma_,
+                                      lemmaToLemmaConfusion_);
     Precursor::processWordLattice(numeratorFromDenominator, s);
 }

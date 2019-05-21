@@ -13,43 +13,42 @@
  *  limitations under the License.
  */
 #include "AlignmentFromLattice.hh"
-#include <Flow/DataAdaptor.hh>
 #include <Flf/FlfCore/Lattice.hh>
+#include <Flow/DataAdaptor.hh>
 
 using namespace Speech;
 
 const Core::ParameterString AlignmentFromLatticeNode::paramSegmentId(
-    "id",
-    "segment identifier for caches.");
+        "id",
+        "segment identifier for caches.");
 
 const Core::ParameterBool AlignmentFromLatticeNode::paramWriteAlphabet(
-    "write-alignment-alphabet", "write alphabet information into written alignments", true);
+        "write-alignment-alphabet", "write alphabet information into written alignments", true);
 
-AlignmentFromLatticeNode::AlignmentFromLatticeNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    writeAlphabet_(paramWriteAlphabet(c)),
-    needInit_(true)
-{
+AlignmentFromLatticeNode::AlignmentFromLatticeNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          writeAlphabet_(paramWriteAlphabet(c)),
+          needInit_(true) {
     addInputs(3);
     addOutputs(1);
     segmentId_ = paramSegmentId(config);
 }
 
-bool AlignmentFromLatticeNode::setParameter(const std::string &name, const std::string &value)
-{
+bool AlignmentFromLatticeNode::setParameter(const std::string& name, const std::string& value) {
     if (paramSegmentId.match(name)) {
         segmentId_ = paramSegmentId(value);
-    } else if (paramWriteAlphabet.match(name)) {
+    }
+    else if (paramWriteAlphabet.match(name)) {
         writeAlphabet_ = paramWriteAlphabet(value);
-    } else {
+    }
+    else {
         return false;
     }
     return true;
 }
 
-bool AlignmentFromLatticeNode::configure()
-{
+bool AlignmentFromLatticeNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
 
     getInputAttributes(1, *attributes);
@@ -66,21 +65,17 @@ bool AlignmentFromLatticeNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-void AlignmentFromLatticeNode::initialize()
-{
+void AlignmentFromLatticeNode::initialize() {
     verify(!alignmentGenerator_);
     alignmentGenerator_ = Core::Ref<PhonemeSequenceAlignmentGenerator>(
-        new PhonemeSequenceAlignmentGenerator(
-            select("segmentwise-alignment"),
-            modelCombination_));
+            new PhonemeSequenceAlignmentGenerator(select("segmentwise-alignment"), modelCombination_));
     respondToDelayedErrors();
     needInit_ = false;
 }
 
-bool AlignmentFromLatticeNode::work(Flow::PortId p)
-{
+bool AlignmentFromLatticeNode::work(Flow::PortId p) {
     if (needInit_) {
-        Flow::DataPtr<Flow::DataAdaptor<ModelCombinationRef> > in;
+        Flow::DataPtr<Flow::DataAdaptor<ModelCombinationRef>> in;
         getData(2, in);
         modelCombination_ = in->data();
         initialize();
@@ -88,7 +83,7 @@ bool AlignmentFromLatticeNode::work(Flow::PortId p)
 
     verify(alignmentGenerator_);
 
-    Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>();
+    Flow::DataAdaptor<Alignment>* alignment = new Flow::DataAdaptor<Alignment>();
     alignment->invalidateTimestamp();
 
     Flow::DataPtr<Feature::FlowFeature> in;
@@ -101,14 +96,14 @@ bool AlignmentFromLatticeNode::work(Flow::PortId p)
     }
     alignmentGenerator_->setFeatures(features);
 
-    Flow::DataPtr<Flow::DataAdaptor<Flf::ConstLatticeRef> > lin;
-    Flf::ConstLatticeRef lattice;
+    Flow::DataPtr<Flow::DataAdaptor<Flf::ConstLatticeRef>> lin;
+    Flf::ConstLatticeRef                                   lattice;
     while (getData(0, lin)) {
         lattice = lin->data();
     }
     alignmentGenerator_->getAlignment(alignment->data(), lattice);
 
-    if(writeAlphabet_)
+    if (writeAlphabet_)
         alignment->data().setAlphabet(modelCombination_->acousticModel()->allophoneStateAlphabet());
 
     return putData(0, alignment) && putData(0, in.get());

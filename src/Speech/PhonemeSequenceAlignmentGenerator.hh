@@ -15,171 +15,182 @@
 #ifndef _SPEECH_PHONEME_SEQUENCE_ALIGNMENT_GENERATOR_HH
 #define _SPEECH_PHONEME_SEQUENCE_ALIGNMENT_GENERATOR_HH
 
-#include "SegmentwiseAlignmentGenerator.hh"
 #include <Flf/FlfCore/Lattice.hh>
+#include "SegmentwiseAlignmentGenerator.hh"
 
-namespace Speech
-{
-    /**
-     * PhonemeSequenceAlignmentGenerator
-     * Used in combination with lattice rescoring.
-     * Calculates the alignment for each arc,
-     * assuming that the word boundaries are known.
-     */
-    class PhonemeSequenceAlignmentGenerator : public SegmentwiseAlignmentGenerator
-    {
-        typedef SegmentwiseAlignmentGenerator Precursor;
-    private:
-        static const Core::ParameterBool paramAddEmissionScores;
-    public:
-        struct Key {
-            Fsa::LabelId _id;
-            TimeframeIndex _tbeg;
-            TimeframeIndex _tend;
-            Bliss::Phoneme::Id _leftContext;
-            Bliss::Phoneme::Id _rightContext;
+namespace Speech {
+/**
+ * PhonemeSequenceAlignmentGenerator
+ * Used in combination with lattice rescoring.
+ * Calculates the alignment for each arc,
+ * assuming that the word boundaries are known.
+ */
+class PhonemeSequenceAlignmentGenerator : public SegmentwiseAlignmentGenerator {
+    typedef SegmentwiseAlignmentGenerator Precursor;
 
-            Key() {}
-            Key(const Bliss::Coarticulated<Bliss::LemmaPronunciation> &p,
-                TimeframeIndex tbeg, TimeframeIndex tend) :
-                _id(p.object().id()), _tbeg(tbeg), _tend(tend),
-                _leftContext(p.leftContext()), _rightContext(p.rightContext()) {}
-            std::string string() const {
-                return Core::form("%d|%d|%d|%d|%d", _id, _tbeg, _tend, _leftContext, _rightContext);
-            }
-            bool operator==(const Key &rhs) const {
-                return ((_id == rhs._id) && (_tbeg == rhs._tbeg)
-                        && (_tend == rhs._tend)
-                        && (_leftContext == rhs._leftContext)
-                        && (_rightContext == rhs._rightContext));
-            }
+private:
+    static const Core::ParameterBool paramAddEmissionScores;
 
-            friend Core::BinaryInputStream& operator>>(Core::BinaryInputStream &i, Key &key) {
-                return (i >> key._id >> key._tbeg >> key._tend >> key._leftContext >> key._rightContext);
-            }
-            friend Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream &o, const Key &key) {
-                return (o << key._id << key._tbeg << key._tend << key._leftContext << key._rightContext);
-            }
-        };
+public:
+    struct Key {
+        Fsa::LabelId       _id;
+        TimeframeIndex     _tbeg;
+        TimeframeIndex     _tend;
+        Bliss::Phoneme::Id _leftContext;
+        Bliss::Phoneme::Id _rightContext;
 
-        struct KeyHash {
-            size_t operator() (const Key &key) const {
-                return (key._id & 0x0FFF)
-                    | ((key._tbeg & 0x03FF) << 12)
-                    | ((key._tend & 0x03FF) << 22);
-            }
-        };
-
-        struct KeyEquality : std::binary_function<const char*, const char*, bool> {
-            bool operator() (const Key &k1, const Key &k2) const {
-                return (k1 == k2);
-            }
-        };
-
-        class Cache : public Core::Component
-        {
-            typedef std::unordered_map<Key, Alignment*, KeyHash, KeyEquality> AlignmentMap;
-            typedef std::unordered_map<Key, Score, KeyHash, KeyEquality> ScoreMap;
-            typedef const Alignment* ConstAlignmentPtr;
-        private:
-            static const Core::ParameterString paramCache;
-            static const Core::ParameterBool paramReadOnly;
-            static const Core::Choice choiceLabelType;
-            static const Core::ParameterChoice paramLabelType;
-        private:
-            Core::Archive *archive_;
-            bool dirty_;
-            AlignmentMap alignments_;
-            std::string segmentId_;
-            // required if emission ids are stored
-            Core::Ref<Am::AcousticModel> acousticModel_;
-            const Alignment::LabelType labelType_;
-        private:
-            void initializeArchive(const ModelCombination &);
-            void clear();
-            void read(const std::string &);
-            void write(const std::string &);
-            bool dirty() const { return (archive_ != 0) && dirty_; }
-            void setDirty() { if (archive_ != 0) dirty_ = true; }
-            void resetDirty() { if (archive_ != 0) dirty_ = false; }
-        public:
-            Cache(const Core::Configuration &, const ModelCombination &);
-            ~Cache();
-            void setSpeechSegmentId(const std::string &segmentId);
-            bool findForReadAccess(const Key &key, ConstAlignmentPtr *result);
-            bool insert(const Key &, Alignment *);
-            Alignment::LabelType labelType() const { return labelType_; }
-        };
-    protected:
-        FsaCache *modelAcceptorCache_;
-        Cache *alignmentCache_;
-        bool useAlignmentCache_;
-        bool addEmissionScores_;
-        std::string segmentId_;
-    private:
-        f32 timeGetAlignment_;
-        f32 timeComputeAlignment_;
-        f32 timeReadAlignment_;
-        f32 timeWriteAlignment_;
-    protected:
-        void update(const std::string &segmentId);
-        void addEmissionScores(Alignment &, std::vector<Mm::FeatureScorer::Scorer> &);
-    public:
-        PhonemeSequenceAlignmentGenerator(const Core::Configuration &, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
-        virtual ~PhonemeSequenceAlignmentGenerator();
-
-        // call either or
-        virtual void setSpeechSegmentId(const std::string &);
-        virtual void setSpeechSegment(Bliss::SpeechSegment *);
-
-        /**
-         * Alignment of time frame indices between acoustic features and HMM states
-         * features:    tbeg               t-1      t      t+1         tend-1
-         *   INITIAL O---------O-->   --O-------O-------O----->    --O---------O FINAL
-         * states: tbeg     tbeg+1     t-1      t      t+1         tend-1     tend
-         *
-         * Note: the alignment times are corrected so that they start with tbeg.
-         */
-        const Alignment* getAlignment(const Bliss::LemmaPronunciation &,
-                                      TimeframeIndex tbeg, TimeframeIndex tend);
-        const Alignment* getAlignment(const Bliss::Coarticulated<Bliss::LemmaPronunciation> &,
-                                      TimeframeIndex tbeg, TimeframeIndex tend);
-        void useAlignmentCache(bool use) {
-            useAlignmentCache_ = use;
+        Key() {}
+        Key(const Bliss::Coarticulated<Bliss::LemmaPronunciation>& p,
+            TimeframeIndex tbeg, TimeframeIndex tend)
+                : _id(p.object().id()), _tbeg(tbeg), _tend(tend), _leftContext(p.leftContext()), _rightContext(p.rightContext()) {}
+        std::string string() const {
+            return Core::form("%d|%d|%d|%d|%d", _id, _tbeg, _tend, _leftContext, _rightContext);
+        }
+        bool operator==(const Key& rhs) const {
+            return ((_id == rhs._id) && (_tbeg == rhs._tbeg) && (_tend == rhs._tend) && (_leftContext == rhs._leftContext) && (_rightContext == rhs._rightContext));
         }
 
-        /**
-         * @param lattice is assumed to contain the acoustic scores
-         * according to @param this.
-         * @param alignment is a weighted alignment.
-         */
-        void getAlignment(Alignment &alignment, Lattice::ConstWordLatticeRef lattice);
-        void getAlignment(Alignment &alignment, Flf::ConstLatticeRef lattice);
-
-        /**
-         * Score from alignment using the given arc (aka acoustic score).
-         * The scores/alignments are not cached.
-         */
-        Score alignmentScore(const Bliss::Coarticulated<Bliss::LemmaPronunciation> &,
-                             TimeframeIndex tbeg, TimeframeIndex tend);
-
-        Alignment::LabelType labelType() const;
-
-        virtual void finalize() const;
+        friend Core::BinaryInputStream& operator>>(Core::BinaryInputStream& i, Key& key) {
+            return (i >> key._id >> key._tbeg >> key._tend >> key._leftContext >> key._rightContext);
+        }
+        friend Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o, const Key& key) {
+            return (o << key._id << key._tbeg << key._tend << key._leftContext << key._rightContext);
+        }
     };
 
-    typedef Core::Ref<PhonemeSequenceAlignmentGenerator> AlignmentGeneratorRef;
+    struct KeyHash {
+        size_t operator()(const Key& key) const {
+            return (key._id & 0x0FFF) | ((key._tbeg & 0x03FF) << 12) | ((key._tend & 0x03FF) << 22);
+        }
+    };
 
-}
+    struct KeyEquality : std::binary_function<const char*, const char*, bool> {
+        bool operator()(const Key& k1, const Key& k2) const {
+            return (k1 == k2);
+        }
+    };
+
+    class Cache : public Core::Component {
+        typedef std::unordered_map<Key, Alignment*, KeyHash, KeyEquality> AlignmentMap;
+        typedef std::unordered_map<Key, Score, KeyHash, KeyEquality>      ScoreMap;
+        typedef const Alignment*                                          ConstAlignmentPtr;
+
+    private:
+        static const Core::ParameterString paramCache;
+        static const Core::ParameterBool   paramReadOnly;
+        static const Core::Choice          choiceLabelType;
+        static const Core::ParameterChoice paramLabelType;
+
+    private:
+        Core::Archive* archive_;
+        bool           dirty_;
+        AlignmentMap   alignments_;
+        std::string    segmentId_;
+        // required if emission ids are stored
+        Core::Ref<Am::AcousticModel> acousticModel_;
+        const Alignment::LabelType   labelType_;
+
+    private:
+        void initializeArchive(const ModelCombination&);
+        void clear();
+        void read(const std::string&);
+        void write(const std::string&);
+        bool dirty() const {
+            return (archive_ != 0) && dirty_;
+        }
+        void setDirty() {
+            if (archive_ != 0)
+                dirty_ = true;
+        }
+        void resetDirty() {
+            if (archive_ != 0)
+                dirty_ = false;
+        }
+
+    public:
+        Cache(const Core::Configuration&, const ModelCombination&);
+        ~Cache();
+        void                 setSpeechSegmentId(const std::string& segmentId);
+        bool                 findForReadAccess(const Key& key, ConstAlignmentPtr* result);
+        bool                 insert(const Key&, Alignment*);
+        Alignment::LabelType labelType() const {
+            return labelType_;
+        }
+    };
+
+protected:
+    FsaCache*   modelAcceptorCache_;
+    Cache*      alignmentCache_;
+    bool        useAlignmentCache_;
+    bool        addEmissionScores_;
+    std::string segmentId_;
+
+private:
+    f32 timeGetAlignment_;
+    f32 timeComputeAlignment_;
+    f32 timeReadAlignment_;
+    f32 timeWriteAlignment_;
+
+protected:
+    void update(const std::string& segmentId);
+    void addEmissionScores(Alignment&, std::vector<Mm::FeatureScorer::Scorer>&);
+
+public:
+    PhonemeSequenceAlignmentGenerator(const Core::Configuration&, Core::Ref<const ModelCombination> = Core::Ref<const ModelCombination>());
+    virtual ~PhonemeSequenceAlignmentGenerator();
+
+    // call either or
+    virtual void setSpeechSegmentId(const std::string&);
+    virtual void setSpeechSegment(Bliss::SpeechSegment*);
+
+    /**
+     * Alignment of time frame indices between acoustic features and HMM states
+     * features:    tbeg               t-1      t      t+1         tend-1
+     *   INITIAL O---------O-->   --O-------O-------O----->    --O---------O FINAL
+     * states: tbeg     tbeg+1     t-1      t      t+1         tend-1     tend
+     *
+     * Note: the alignment times are corrected so that they start with tbeg.
+     */
+    const Alignment* getAlignment(const Bliss::LemmaPronunciation&,
+                                  TimeframeIndex tbeg, TimeframeIndex tend);
+    const Alignment* getAlignment(const Bliss::Coarticulated<Bliss::LemmaPronunciation>&,
+                                  TimeframeIndex tbeg, TimeframeIndex tend);
+    void             useAlignmentCache(bool use) {
+        useAlignmentCache_ = use;
+    }
+
+    /**
+     * @param lattice is assumed to contain the acoustic scores
+     * according to @param this.
+     * @param alignment is a weighted alignment.
+     */
+    void getAlignment(Alignment& alignment, Lattice::ConstWordLatticeRef lattice);
+    void getAlignment(Alignment& alignment, Flf::ConstLatticeRef lattice);
+
+    /**
+     * Score from alignment using the given arc (aka acoustic score).
+     * The scores/alignments are not cached.
+     */
+    Score alignmentScore(const Bliss::Coarticulated<Bliss::LemmaPronunciation>&,
+                         TimeframeIndex tbeg, TimeframeIndex tend);
+
+    Alignment::LabelType labelType() const;
+
+    virtual void finalize() const;
+};
+
+typedef Core::Ref<PhonemeSequenceAlignmentGenerator> AlignmentGeneratorRef;
+
+}  // namespace Speech
 
 namespace Core {
-    template <>
-    class NameHelper<Speech::AlignmentGeneratorRef> : public std::string {
-    public:
-        NameHelper() : std::string("flow-alignment-generator-ref") {}
-    };
+template<>
+class NameHelper<Speech::AlignmentGeneratorRef> : public std::string {
+public:
+    NameHelper()
+            : std::string("flow-alignment-generator-ref") {}
+};
 
-} // namespace Core
+}  // namespace Core
 
-
-#endif // _SPEECH_PHONEME_SEQUENCE_ALIGNMENT_GENERATOR_HH
+#endif  // _SPEECH_PHONEME_SEQUENCE_ALIGNMENT_GENERATOR_HH

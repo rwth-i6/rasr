@@ -15,57 +15,56 @@
 #ifndef _SPEECH_MODULE_HH
 #define _SPEECH_MODULE_HH
 
+#include <Core/Singleton.hh>
 #include <Modules.hh>
 #include <Speech/Recognizer.hh>
-#include <Core/Singleton.hh>
 
 namespace Search {
-    class SearchAlgorithm;
+class SearchAlgorithm;
 }
 
 namespace Speech {
 
-    class AligningFeatureExtractor;
-    class MixtureSetTrainer;
-    class AlignedFeatureProcessor;
-    class AligningFeatureExtractor;
-    class DataSource;
+class AligningFeatureExtractor;
+class MixtureSetTrainer;
+class AlignedFeatureProcessor;
+class AligningFeatureExtractor;
+class DataSource;
 
 #ifdef MODULE_SPEECH_DT
-    class DiscriminativeMixtureSetTrainer;
-    class SegmentwiseGmmTrainer;
-    class LatticeRescorer;
+class DiscriminativeMixtureSetTrainer;
+class SegmentwiseGmmTrainer;
+class LatticeRescorer;
 #endif
 
-    class Module_ {
-    public:
-        Module_();
+class Module_ {
+public:
+    Module_();
 
-        /**
-         * Creates and initializes a AligningFeatureExtractor as configured.
-         * @return a newly created instance of AligningFeatureExtractor or 0 if
-         * an error occured.
-         */
-        AligningFeatureExtractor *createAligningFeatureExtractor(
-            const Core::Configuration&, AlignedFeatureProcessor&) const;
+    /**
+     * Creates and initializes a AligningFeatureExtractor as configured.
+     * @return a newly created instance of AligningFeatureExtractor or 0 if
+     * an error occured.
+     */
+    AligningFeatureExtractor* createAligningFeatureExtractor(const Core::Configuration&, AlignedFeatureProcessor&) const;
 
-        MixtureSetTrainer* createMixtureSetTrainer(const Core::Configuration &configuration) const;
+    MixtureSetTrainer* createMixtureSetTrainer(const Core::Configuration& configuration) const;
 
-        /**
-         * create a Sparse::DataSource object if possible, otherwise create a
-         * Speech::DataSource object.
-         */
-        DataSource* createDataSource(const Core::Configuration &configuration, bool loadFromFile=true) const;
+    /**
+     * create a Sparse::DataSource object if possible, otherwise create a
+     * Speech::DataSource object.
+     */
+    DataSource* createDataSource(const Core::Configuration& configuration, bool loadFromFile = true) const;
 
 #ifdef MODULE_SPEECH_DT
-        DiscriminativeMixtureSetTrainer* createDiscriminativeMixtureSetTrainer(const Core::Configuration &configuration) const;
-        SegmentwiseGmmTrainer* createSegmentwiseGmmTrainer(const Core::Configuration &configuration) const;
-        LatticeRescorer* createDistanceLatticeRescorer(const Core::Configuration &configuration,
-                                                       Bliss::LexiconRef lexicon) const;
+    DiscriminativeMixtureSetTrainer* createDiscriminativeMixtureSetTrainer(const Core::Configuration& configuration) const;
+    SegmentwiseGmmTrainer*           createSegmentwiseGmmTrainer(const Core::Configuration& configuration) const;
+    LatticeRescorer*                 createDistanceLatticeRescorer(const Core::Configuration& configuration,
+                                                                   Bliss::LexiconRef          lexicon) const;
 #endif
-    };
+};
 
-    typedef Core::SingletonHolder<Module_> Module;
-}
+typedef Core::SingletonHolder<Module_> Module;
+}  // namespace Speech
 
-#endif // _SPEECH_MODULE_HH
+#endif  // _SPEECH_MODULE_HH

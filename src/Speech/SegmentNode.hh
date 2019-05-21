@@ -15,52 +15,62 @@
 #ifndef _SPEECH_SEGMENT_NODE_HH
 #define _SPEECH_SEGMENT_NODE_HH
 
-#include "ModelCombination.hh"
-#include <Flow/Node.hh>
 #include <Am/AcousticModel.hh>
+#include <Flow/Node.hh>
+#include "ModelCombination.hh"
 
-namespace Speech
-{
-    /** SegmentNode */
-    class SegmentNode : public Flow::SleeveNode
-    {
-        typedef Flow::SleeveNode Precursor;
-    private:
-        static const Core::ParameterString paramSegmentId;
-    protected:
-        bool needInit_;
-        std::string segmentId_;
-    protected:
-        const std::string& segmentId() const { return segmentId_; }
-        virtual void initialize(ModelCombinationRef) {}
-    public:
-        SegmentNode(const Core::Configuration &);
+namespace Speech {
+/** SegmentNode */
+class SegmentNode : public Flow::SleeveNode {
+    typedef Flow::SleeveNode Precursor;
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-        virtual bool work(Flow::PortId);
-    };
+private:
+    static const Core::ParameterString paramSegmentId;
 
-    /** SegmentwiseFeaturesNode */
-    class SegmentwiseFeaturesNode : public SegmentNode
-    {
-        typedef SegmentNode Precursor;
-    private:
-        Core::Ref<const Am::AcousticModel> acousticModel_;
-        static const Core::ParameterBool paramNoDependencyCheck;
-        const bool noDependencyCheck_;
-    private:
-        void checkFeatureDependencies(const Mm::Feature &) const;
-    protected:
-        virtual void initialize(ModelCombinationRef);
-    public:
-        static std::string filterName() { return "speech-segmentwise-features"; }
-        SegmentwiseFeaturesNode(const Core::Configuration &);
-        virtual Flow::PortId getInput(const std::string &name) {
-            return name == "model-combination" ? 0 : 1; }
-        virtual bool configure();
-        virtual bool work(Flow::PortId);
-    };
-}
+protected:
+    bool        needInit_;
+    std::string segmentId_;
 
-#endif // _SPEECH_SEGMENT_NODE_HH
+protected:
+    const std::string& segmentId() const {
+        return segmentId_;
+    }
+    virtual void initialize(ModelCombinationRef) {}
+
+public:
+    SegmentNode(const Core::Configuration&);
+
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+    virtual bool work(Flow::PortId);
+};
+
+/** SegmentwiseFeaturesNode */
+class SegmentwiseFeaturesNode : public SegmentNode {
+    typedef SegmentNode Precursor;
+
+private:
+    Core::Ref<const Am::AcousticModel> acousticModel_;
+    static const Core::ParameterBool   paramNoDependencyCheck;
+    const bool                         noDependencyCheck_;
+
+private:
+    void checkFeatureDependencies(const Mm::Feature&) const;
+
+protected:
+    virtual void initialize(ModelCombinationRef);
+
+public:
+    static std::string filterName() {
+        return "speech-segmentwise-features";
+    }
+    SegmentwiseFeaturesNode(const Core::Configuration&);
+    virtual Flow::PortId getInput(const std::string& name) {
+        return name == "model-combination" ? 0 : 1;
+    }
+    virtual bool configure();
+    virtual bool work(Flow::PortId);
+};
+}  // namespace Speech
+
+#endif  // _SPEECH_SEGMENT_NODE_HH

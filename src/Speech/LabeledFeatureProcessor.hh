@@ -19,49 +19,51 @@
 
 namespace Speech {
 
-    /** LabeledFeatureProcessor is base class for algorithms processing labeled feature vectors.
+/** LabeledFeatureProcessor is base class for algorithms processing labeled feature vectors.
+ */
+class LabeledFeatureProcessor : virtual public Core::Component {
+public:
+    typedef u32 LabelIndex;
+
+public:
+    LabeledFeatureProcessor(const Core::Configuration& c)
+            : Component(c) {}
+    virtual ~LabeledFeatureProcessor() {}
+
+    /** Override this function to sign on to services of the corpus visitor.
+     *  Note: call the signOn function of your predecessor.
      */
-    class LabeledFeatureProcessor : virtual public Core::Component {
-    public:
-        typedef u32 LabelIndex;
-    public:
-        LabeledFeatureProcessor(const Core::Configuration &c) : Component(c) {}
-        virtual ~LabeledFeatureProcessor() {}
+    virtual void signOn(CorpusVisitor& corpusVisitor) {}
 
-        /** Override this function to sign on to services of the corpus visitor.
-         *  Note: call the signOn function of your predecessor.
-         */
-        virtual void signOn(CorpusVisitor &corpusVisitor) {}
+    /** Override this function to perform preparations before first aligned features arrive.
+     */
+    virtual void enterSegment(Bliss::Segment*) {}
+    /** Override this function to perform post processing after the last aligned features of the segment.
+     */
+    virtual void leaveSegment(Bliss::Segment*) {}
+    /** Override this function to perform preparations before first aligned features arrive.
+     */
+    virtual void enterSpeechSegment(Bliss::SpeechSegment*) {}
+    /** Override this function to perform post processing after the last aligned features of the segment.
+     */
+    virtual void leaveSpeechSegment(Bliss::SpeechSegment*) {}
 
-        /** Override this function to perform preparations before first aligned features arrive.
-         */
-        virtual void enterSegment(Bliss::Segment*) {}
-        /** Override this function to perform post processing after the last aligned features of the segment.
-         */
-        virtual void leaveSegment(Bliss::Segment*) {}
-        /** Override this function to perform preparations before first aligned features arrive.
-         */
-        virtual void enterSpeechSegment(Bliss::SpeechSegment*) {}
-        /** Override this function to perform post processing after the last aligned features of the segment.
-         */
-        virtual void leaveSpeechSegment(Bliss::SpeechSegment*) {}
+    /** Override this function to implement the processing of aligned feature vectors.
+     */
+    virtual void processLabeledFeature(Core::Ref<const Feature>, LabelIndex) {}
 
-        /** Override this function to implement the processing of aligned feature vectors.
-         */
-        virtual void processLabeledFeature(Core::Ref<const Feature>, LabelIndex) {}
+    /** Override this function to obtain the data source of corpus processor which
+     *  produces the labels.
+     */
+    virtual void setDataSource(Core::Ref<DataSource>) {}
+    /** Override this function to achieve the attributes of the feature streams.
+     *  This function is called once before the first feature vector is processed.
+     */
+    virtual void setFeatureDescription(const Mm::FeatureDescription&) {}
+    /** Override this function to achieve the labels. */
+    virtual void setLabels(const std::vector<std::string>&) {}
+};
 
-        /** Override this function to obtain the data source of corpus processor which
-         *  produces the labels.
-         */
-        virtual void setDataSource(Core::Ref<DataSource>) {}
-        /** Override this function to achieve the attributes of the feature streams.
-         *  This function is called once before the first feature vector is processed.
-         */
-        virtual void setFeatureDescription(const Mm::FeatureDescription &) {}
-        /** Override this function to achieve the labels. */
-        virtual void setLabels(const std::vector<std::string>&) {}
-    };
+}  // namespace Speech
 
-} // namespace Speech
-
-#endif // _SPEECH_LABELED_FEATURE_PROCESSOR_HH
+#endif  // _SPEECH_LABELED_FEATURE_PROCESSOR_HH

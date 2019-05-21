@@ -12,24 +12,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Flow/Types.hh>
 #include "CorpusProcessor.hh"
+#include <Flow/Types.hh>
 
 using namespace Speech;
 
+CorpusProcessor::CorpusProcessor(const Core::Configuration& c)
+        : Component(c),
+          channelTimer_(c, "real-time-factor") {}
 
-CorpusProcessor::CorpusProcessor(const Core::Configuration &c) :
-    Component(c),
-    channelTimer_(c, "real-time-factor")
-{}
+CorpusProcessor::~CorpusProcessor() {}
 
-
-CorpusProcessor::~CorpusProcessor()
-{}
-
-
-void CorpusProcessor::signOn(CorpusVisitor &corpusVisitor)
-{
+void CorpusProcessor::signOn(CorpusVisitor& corpusVisitor) {
     corpusVisitor.signOn(this);
 }
 
@@ -42,13 +36,13 @@ void CorpusProcessor::enterSegment(Bliss::Segment*) {
     timer_.start();
 }
 
-void CorpusProcessor::enterSpeechSegment(Bliss::SpeechSegment *speechSegment) {
+void CorpusProcessor::enterSpeechSegment(Bliss::SpeechSegment* speechSegment) {
     enterSegment(speechSegment);
 }
 
 void CorpusProcessor::processSegment(Bliss::Segment*) {}
 
-void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment *speechSegment) {
+void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment* speechSegment) {
     processSegment(speechSegment);
 }
 
@@ -57,22 +51,19 @@ void CorpusProcessor::reportRealTime(Flow::Time realTime) {
     if (channelTimer_.isOpen()) {
         timer_.write(channelTimer_);
         channelTimer_
-            << Core::XmlFull("real-time", realTime)
-            << Core::XmlFull("real-time-factor", timer_.user() / realTime)
-             + Core::XmlAttribute("reference", "user time")
-            << Core::XmlFull("real-time-factor", timer_.elapsed() / realTime)
-             + Core::XmlAttribute("reference", "elapsed time");
+                << Core::XmlFull("real-time", realTime)
+                << Core::XmlFull("real-time-factor", timer_.user() / realTime) + Core::XmlAttribute("reference", "user time")
+                << Core::XmlFull("real-time-factor", timer_.elapsed() / realTime) + Core::XmlAttribute("reference", "elapsed time");
     }
 }
 
-void CorpusProcessor::leaveSegment(Bliss::Segment *s)
-{
+void CorpusProcessor::leaveSegment(Bliss::Segment* s) {
     if (timer_.isRunning()) {
         timer_.stop();
         timer_.write(channelTimer_);
     }
 }
 
-void CorpusProcessor::leaveSpeechSegment(Bliss::SpeechSegment *speechSegment) {
+void CorpusProcessor::leaveSpeechSegment(Bliss::SpeechSegment* speechSegment) {
     leaveSegment(speechSegment);
 }

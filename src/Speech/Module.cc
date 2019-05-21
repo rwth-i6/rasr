@@ -13,24 +13,24 @@
  *  limitations under the License.
  */
 #include "Module.hh"
+#include <Flow/DataAdaptor.hh>
+#include <Flow/Registry.hh>
+#include <Mm/Module.hh>
 #include "AligningFeatureExtractor.hh"
 #include "AlignmentNode.hh"
 #include "AlignmentWithLinearSegmentation.hh"
-#include "FeatureScorerNode.hh"
 #include "DataSource.hh"
-#include "TextDependentSequenceFiltering.hh"
+#include "FeatureScorerNode.hh"
 #include "MixtureSetTrainer.hh"
-#include <Flow/Registry.hh>
-#include <Flow/DataAdaptor.hh>
-#include <Mm/Module.hh>
+#include "TextDependentSequenceFiltering.hh"
 #ifdef MODULE_SPEECH_ALIGNMENT_FLOW_NODES
 #include "AlignmentGeneratorNode.hh"
 #include "AlignmentTransformNode.hh"
 #endif
 #ifdef MODULE_SPEECH_LATTICE_FLOW_NODES
 #include "AlignmentFromLattice.hh"
-#include "LatticeNodes.hh"
 #include "LatticeArcAccumulator.hh"
+#include "LatticeNodes.hh"
 #endif
 #ifdef MODULE_SPEECH_LATTICE_RESCORING
 #include "LatticeRescorerNodes.hh"
@@ -39,8 +39,8 @@
 #ifdef MODULE_SPEECH_DT
 #include "DiscriminativeMixtureSetTrainer.hh"
 #include "EbwDiscriminativeMixtureSetTrainer.hh"
-#include "RpropDiscriminativeMixtureSetTrainer.hh"
 #include "LatticeExtractor.hh"
+#include "RpropDiscriminativeMixtureSetTrainer.hh"
 #include "SegmentwiseGmmTrainer.hh"
 #endif
 #ifdef MODULE_SPEECH_DT_ADVANCED
@@ -56,14 +56,13 @@
 
 using namespace Speech;
 
-Module_::Module_()
-{
-    Flow::Registry::Instance &registry = Flow::Registry::instance();
+Module_::Module_() {
+    Flow::Registry::Instance& registry = Flow::Registry::instance();
     registry.registerFilter<AlignmentNode>();
     registry.registerFilter<AlignmentDumpNode>();
     registry.registerFilter<AlignmentWithLinearSegmentationNode>();
     registry.registerFilter<FeatureScorerNode>();
-    registry.registerDatatype<Flow::DataAdaptor<Alignment> >();
+    registry.registerDatatype<Flow::DataAdaptor<Alignment>>();
 
 #ifdef MODULE_SPEECH_ALIGNMENT_FLOW_NODES
     registry.registerFilter<AlignmentAddWeightNode>();
@@ -78,7 +77,7 @@ Module_::Module_()
     registry.registerFilter<AlignmentResetWeightsNode>();
     registry.registerFilter<AlignmentMapAlphabet>();
     registry.registerFilter<SetAlignmentWeightsByTiedStateAlignmentWeightsNode>();
-    registry.registerDatatype<Flow::DataAdaptor<AlignmentGeneratorRef> >();
+    registry.registerDatatype<Flow::DataAdaptor<AlignmentGeneratorRef>>();
 #endif
 
 #ifdef MODULE_SPEECH_LATTICE_FLOW_NODES
@@ -91,7 +90,7 @@ Module_::Module_()
     registry.registerFilter<LatticeWordPosteriorNode>();
     registry.registerFilter<ModelCombinationNode>();
     registry.registerFilter<LatticeArcAccumulatorNode>();
-    registry.registerDatatype<Flow::DataAdaptor<ModelCombinationRef> >();
+    registry.registerDatatype<Flow::DataAdaptor<ModelCombinationRef>>();
 #endif
 
 #ifdef MODULE_SPEECH_LATTICE_RESCORING
@@ -115,191 +114,181 @@ Module_::Module_()
 #endif
 }
 
-
-AligningFeatureExtractor *Module_::createAligningFeatureExtractor(
-    const Core::Configuration& configuration, AlignedFeatureProcessor &featureProcessor) const
-{
+AligningFeatureExtractor* Module_::createAligningFeatureExtractor(
+        const Core::Configuration& configuration, AlignedFeatureProcessor& featureProcessor) const {
     return new Speech::AligningFeatureExtractor(configuration, featureProcessor);
 }
 
-MixtureSetTrainer* Module_::createMixtureSetTrainer(const Core::Configuration &configuration) const
-{
-    Speech::MixtureSetTrainer *result = 0;
-    switch(Mm::Module_::paramEstimatorType(configuration)) {
-    case Mm::Module_::maximumLikelihood:
-        result = new MlMixtureSetTrainer(configuration);
-        break;
+MixtureSetTrainer* Module_::createMixtureSetTrainer(const Core::Configuration& configuration) const {
+    Speech::MixtureSetTrainer* result = 0;
+    switch (Mm::Module_::paramEstimatorType(configuration)) {
+        case Mm::Module_::maximumLikelihood:
+            result = new MlMixtureSetTrainer(configuration);
+            break;
 #ifdef MODULE_SPEECH_DT
-    case Mm::Module_::discriminative:
-    case Mm::Module_::discriminativeWithISmoothing:
+        case Mm::Module_::discriminative:
+        case Mm::Module_::discriminativeWithISmoothing:
 #endif
 #if defined(MODULE_SPEECH_DT)
-        result = createDiscriminativeMixtureSetTrainer(configuration);
-        break;
+            result = createDiscriminativeMixtureSetTrainer(configuration);
+            break;
 #endif
-    default:
-        defect();
-        break;
+        default:
+            defect();
+            break;
     }
     return result;
 }
 
-Speech::DataSource* Module_::createDataSource(const Core::Configuration &c, bool loadFromFile) const
-{
+Speech::DataSource* Module_::createDataSource(const Core::Configuration& c, bool loadFromFile) const {
     return new Speech::DataSource(c, loadFromFile);
 }
 
 #ifdef MODULE_SPEECH_DT
 DiscriminativeMixtureSetTrainer* Module_::createDiscriminativeMixtureSetTrainer(
-    const Core::Configuration &configuration) const
-{
-    Speech::DiscriminativeMixtureSetTrainer *result = 0;
+        const Core::Configuration& configuration) const {
+    Speech::DiscriminativeMixtureSetTrainer* result = 0;
 
-     switch(Mm::Module_::paramEstimatorType(configuration)) {
+    switch (Mm::Module_::paramEstimatorType(configuration)) {
 #ifdef MODULE_MM_DT
-    case Mm::Module_::discriminative:
-        result = new EbwDiscriminativeMixtureSetTrainer(configuration);
-        break;
-    case Mm::Module_::discriminativeWithISmoothing:
-        result = new EbwDiscriminativeMixtureSetTrainerWithISmoothing(configuration);
-        break;
+        case Mm::Module_::discriminative:
+            result = new EbwDiscriminativeMixtureSetTrainer(configuration);
+            break;
+        case Mm::Module_::discriminativeWithISmoothing:
+            result = new EbwDiscriminativeMixtureSetTrainerWithISmoothing(configuration);
+            break;
 #endif
-    default:
-        defect();
-        break;
+        default:
+            defect();
+            break;
     }
     return result;
 }
 
-
 SegmentwiseGmmTrainer* Module_::createSegmentwiseGmmTrainer(
-    const Core::Configuration &config) const
-{
+        const Core::Configuration& config) const {
     switch (AbstractSegmentwiseTrainer::paramCriterion(config)) {
-        // standard error-based training criteria without and with
-        // I-smoothing, e.g. MPE
-    case AbstractSegmentwiseTrainer::minimumError:
-    case AbstractSegmentwiseTrainer::minimumErrorWithISmoothing:
-        return new MinimumErrorSegmentwiseGmmTrainer(config);
-        break;
-
-    default:
-        defect();
-        break;
+            // standard error-based training criteria without and with
+            // I-smoothing, e.g. MPE
+        case AbstractSegmentwiseTrainer::minimumError:
+        case AbstractSegmentwiseTrainer::minimumErrorWithISmoothing:
+            return new MinimumErrorSegmentwiseGmmTrainer(config);
+            break;
+        default:
+            defect();
+            break;
     }
     return 0;
 }
 
 LatticeRescorer* Module_::createDistanceLatticeRescorer(
-    const Core::Configuration &config, Bliss::LexiconRef lexicon) const
-{
+        const Core::Configuration& config, Bliss::LexiconRef lexicon) const {
     DistanceLatticeRescorer::DistanceType type =
-        static_cast<DistanceLatticeRescorer::DistanceType>(
-            DistanceLatticeRescorer::paramDistanceType(config));
+            static_cast<DistanceLatticeRescorer::DistanceType>(
+                    DistanceLatticeRescorer::paramDistanceType(config));
     DistanceLatticeRescorer::SpokenSource source =
-        static_cast<DistanceLatticeRescorer::SpokenSource>(
-            DistanceLatticeRescorer::paramSpokenSource(config));
-    LatticeRescorer *rescorer = 0;
+            static_cast<DistanceLatticeRescorer::SpokenSource>(
+                    DistanceLatticeRescorer::paramSpokenSource(config));
+    LatticeRescorer* rescorer = 0;
     switch (type) {
-    case DistanceLatticeRescorer::approximateWordAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyApproximateWordAccuracyLatticeRescorer(config, lexicon);
+        case DistanceLatticeRescorer::approximateWordAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyApproximateWordAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                case DistanceLatticeRescorer::archive:
+                    rescorer = new ArchiveApproximateWordAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
             break;
-        case DistanceLatticeRescorer::archive:
-            rescorer = new ArchiveApproximateWordAccuracyLatticeRescorer(config, lexicon);
+        case DistanceLatticeRescorer::approximatePhoneAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyApproximatePhoneAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                case DistanceLatticeRescorer::archive:
+                    rescorer = new ArchiveApproximatePhoneAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
             break;
-        default:
-            defect();
-            break;
-        }
-        break;
-    case DistanceLatticeRescorer::approximatePhoneAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyApproximatePhoneAccuracyLatticeRescorer(config, lexicon);
-            break;
-        case DistanceLatticeRescorer::archive:
-            rescorer = new ArchiveApproximatePhoneAccuracyLatticeRescorer(config, lexicon);
-            break;
-        default:
-            defect();
-            break;
-        }
-        break;
 #ifdef MODULE_SPEECH_DT_ADVANCED
-    case DistanceLatticeRescorer::approximatePhoneAccuracyMask:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyApproximatePhoneAccuracyMaskLatticeRescorer(config, lexicon);
+        case DistanceLatticeRescorer::approximatePhoneAccuracyMask:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyApproximatePhoneAccuracyMaskLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
             break;
+        case DistanceLatticeRescorer::frameStateAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyFrameStateAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                case DistanceLatticeRescorer::archive:
+                    rescorer = new ArchiveFrameStateAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
+            break;
+        case DistanceLatticeRescorer::smoothedFrameStateAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographySmoothedFrameStateAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
+            break;
+        case DistanceLatticeRescorer::levenshteinOnList:
+            require(source == DistanceLatticeRescorer::orthography);
+            rescorer = new LevenshteinListRescorer(config, lexicon);
+            break;
+        case DistanceLatticeRescorer::wordAccuracy:
+            require(source == DistanceLatticeRescorer::orthography);
+            rescorer = new WordAccuracyLatticeRescorer(config, lexicon);
+            break;
+        case DistanceLatticeRescorer::phonemeAccuracy:
+            require(source == DistanceLatticeRescorer::orthography);
+            rescorer = new PhonemeAccuracyLatticeRescorer(config, lexicon);
+            break;
+        case DistanceLatticeRescorer::frameWordAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyFrameWordAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
+            break;
+        case DistanceLatticeRescorer::framePhoneAccuracy:
+            switch (source) {
+                case DistanceLatticeRescorer::orthography:
+                    rescorer = new OrthographyFramePhoneAccuracyLatticeRescorer(config, lexicon);
+                    break;
+                default:
+                    defect();
+                    break;
+            }
+            break;
+#endif  // MODULE_SPEECH_DT_ADVANCED
         default:
             defect();
             break;
-        }
-        break;
-    case DistanceLatticeRescorer::frameStateAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyFrameStateAccuracyLatticeRescorer(config, lexicon);
-            break;
-        case DistanceLatticeRescorer::archive:
-            rescorer = new ArchiveFrameStateAccuracyLatticeRescorer(config, lexicon);
-            break;
-        default:
-            defect();
-            break;
-        }
-        break;
-    case DistanceLatticeRescorer::smoothedFrameStateAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographySmoothedFrameStateAccuracyLatticeRescorer(config, lexicon);
-            break;
-        default:
-            defect();
-            break;
-        }
-        break;
-    case DistanceLatticeRescorer::levenshteinOnList:
-        require(source == DistanceLatticeRescorer::orthography);
-        rescorer = new LevenshteinListRescorer(config, lexicon);
-        break;
-    case DistanceLatticeRescorer::wordAccuracy:
-        require(source == DistanceLatticeRescorer::orthography);
-        rescorer = new WordAccuracyLatticeRescorer(config, lexicon);
-        break;
-    case DistanceLatticeRescorer::phonemeAccuracy:
-        require(source == DistanceLatticeRescorer::orthography);
-        rescorer = new PhonemeAccuracyLatticeRescorer(config, lexicon);
-        break;
-    case DistanceLatticeRescorer::frameWordAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyFrameWordAccuracyLatticeRescorer(config, lexicon);
-            break;
-        default:
-            defect();
-            break;
-        }
-        break;
-    case DistanceLatticeRescorer::framePhoneAccuracy:
-        switch (source) {
-        case DistanceLatticeRescorer::orthography:
-            rescorer = new OrthographyFramePhoneAccuracyLatticeRescorer(config, lexicon);
-            break;
-        default:
-            defect();
-            break;
-        }
-        break;
-#endif // MODULE_SPEECH_DT_ADVANCED
-    default:
-        defect();
-        break;
     }
     return rescorer;
-
 }
 
-#endif // MODULE_SPEECH_DT
+#endif  // MODULE_SPEECH_DT

@@ -18,66 +18,67 @@
 #include "WordLatticeExtractor.hh"
 
 namespace Speech {
-    class RecognizerWithConstrainedLanguageModel;
-    class SegmentwiseFeatureExtractor;
-}
+class RecognizerWithConstrainedLanguageModel;
+class SegmentwiseFeatureExtractor;
+}  // namespace Speech
 
 namespace Speech {
 
-    /**
-     *  WordLatticeWithoutRedundantSilencesAndNoises
-     */
-    class WordLatticeWithoutRedundantSilencesAndNoises :
-        public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    private:
-        static const Core::ParameterBool paramShouldPruneSoftly;
-    private:
-        Bliss::LexiconRef lexicon_;
-        bool shouldPruneSoftly_;
-    public:
-        WordLatticeWithoutRedundantSilencesAndNoises(const Core::Configuration &);
-        virtual ~WordLatticeWithoutRedundantSilencesAndNoises();
+/**
+ *  WordLatticeWithoutRedundantSilencesAndNoises
+ */
+class WordLatticeWithoutRedundantSilencesAndNoises : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
+private:
+    static const Core::ParameterBool paramShouldPruneSoftly;
 
-    /**
-     *  Time-conditioned
-     */
-    class TimeConditionedLatticeSetProcessor :
-        public LatticeSetProcessor
-    {
-        typedef LatticeSetProcessor Precursor;
-    public:
-        TimeConditionedLatticeSetProcessor(const Core::Configuration &);
-        virtual ~TimeConditionedLatticeSetProcessor();
+private:
+    Bliss::LexiconRef lexicon_;
+    bool              shouldPruneSoftly_;
 
-        virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-        virtual void setWordLatticeDescription(const Lattice::WordLatticeDescription &);
-    };
+public:
+    WordLatticeWithoutRedundantSilencesAndNoises(const Core::Configuration&);
+    virtual ~WordLatticeWithoutRedundantSilencesAndNoises();
 
-    /**
-     *  NumeratorLatticeGenerator
-     */
-    class NumeratorLatticeGenerator :
-        public LatticeSetProcessorRoot
-    {
-        typedef LatticeSetProcessorRoot Precursor;
-    private:
-        RecognizerWithConstrainedLanguageModel *recognizer_;
-        Bliss::OrthographicParser *orthToLemma_;
-        Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor_;
-    public:
-        NumeratorLatticeGenerator(const Core::Configuration &);
-        virtual ~NumeratorLatticeGenerator();
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
 
-        virtual void signOn(CorpusVisitor &);
-        virtual void leaveSpeechSegment(Bliss::SpeechSegment *);
-        virtual void initialize(Bliss::LexiconRef);
-    };
-}
+/**
+ *  Time-conditioned
+ */
+class TimeConditionedLatticeSetProcessor : public LatticeSetProcessor {
+    typedef LatticeSetProcessor Precursor;
 
-#endif // _SPEECH_ADVANCED_WORD_LATTICE_EXTRACTOR_HH
+public:
+    TimeConditionedLatticeSetProcessor(const Core::Configuration&);
+    virtual ~TimeConditionedLatticeSetProcessor();
+
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    virtual void setWordLatticeDescription(const Lattice::WordLatticeDescription&);
+};
+
+/**
+ *  NumeratorLatticeGenerator
+ */
+class NumeratorLatticeGenerator : public LatticeSetProcessorRoot {
+    typedef LatticeSetProcessorRoot Precursor;
+
+private:
+    RecognizerWithConstrainedLanguageModel* recognizer_;
+    Bliss::OrthographicParser*              orthToLemma_;
+    Core::Ref<SegmentwiseFeatureExtractor>  segmentwiseFeatureExtractor_;
+
+public:
+    NumeratorLatticeGenerator(const Core::Configuration&);
+    virtual ~NumeratorLatticeGenerator();
+
+    virtual void signOn(CorpusVisitor&);
+    virtual void leaveSpeechSegment(Bliss::SpeechSegment*);
+    virtual void initialize(Bliss::LexiconRef);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ADVANCED_WORD_LATTICE_EXTRACTOR_HH

@@ -34,12 +34,12 @@ using namespace Speech;
 /**
  * LevenshteinNBestListBuilder
  */
-class LevenshteinNBestList : public Fsa::SlaveAutomaton
-{
+class LevenshteinNBestList : public Fsa::SlaveAutomaton {
 private:
-    Bliss::Evaluator *evaluator_;
+    Bliss::Evaluator* evaluator_;
+
 public:
-    LevenshteinNBestList(Fsa::ConstAutomatonRef, Bliss::Evaluator *);
+    LevenshteinNBestList(Fsa::ConstAutomatonRef, Bliss::Evaluator*);
     virtual ~LevenshteinNBestList() {}
 
     virtual std::string describe() const {
@@ -48,24 +48,19 @@ public:
     virtual Fsa::ConstStateRef getState(Fsa::StateId s) const;
 };
 
-LevenshteinNBestList::LevenshteinNBestList(
-    Fsa::ConstAutomatonRef list,
-    Bliss::Evaluator *evaluator)
-    :
-    Fsa::SlaveAutomaton(Fsa::multiply(list, Fsa::Weight(0.0))),
-    evaluator_(evaluator)
-{}
+LevenshteinNBestList::LevenshteinNBestList(Fsa::ConstAutomatonRef list, Bliss::Evaluator* evaluator)
+        : Fsa::SlaveAutomaton(Fsa::multiply(list, Fsa::Weight(0.0))),
+          evaluator_(evaluator) {}
 
-Fsa::ConstStateRef LevenshteinNBestList::getState(Fsa::StateId s) const
-{
+Fsa::ConstStateRef LevenshteinNBestList::getState(Fsa::StateId s) const {
     if (s == fsa_->initialStateId()) {
-        Fsa::State *hypotheses = new Fsa::State(*fsa_->getState(s));
+        Fsa::State* hypotheses = new Fsa::State(*fsa_->getState(s));
         for (Fsa::State::iterator hyp = hypotheses->begin();
-             hyp != hypotheses->end(); ++ hyp) {
+             hyp != hypotheses->end(); ++hyp) {
             Fsa::ConstAutomatonRef hypothesis =
-                Fsa::projectInput(Fsa::partial(fsa_, hyp->target()));
+                    Fsa::projectInput(Fsa::partial(fsa_, hyp->target()));
             f32 distance = evaluator_->evaluate(
-                hypothesis, hypothesis->describe());
+                    hypothesis, hypothesis->describe());
             hyp->weight_ = Fsa::Weight(distance);
         }
         return Fsa::ConstStateRef(hypotheses);
@@ -73,66 +68,51 @@ Fsa::ConstStateRef LevenshteinNBestList::getState(Fsa::StateId s) const
     return fsa_->getState(s);
 }
 
-LevenshteinNBestListBuilder::LevenshteinNBestListBuilder(
-    const Core::Configuration &c, Bliss::LexiconRef lexicon) :
-    Precursor(c),
-    evaluator_(0)
-{
+LevenshteinNBestListBuilder::LevenshteinNBestListBuilder(const Core::Configuration& c, Bliss::LexiconRef lexicon)
+        : Precursor(c),
+          evaluator_(0) {
     verify(!evaluator_);
     evaluator_ = new Bliss::Evaluator(select("evaluation"), lexicon);
 }
 
-LevenshteinNBestListBuilder::~LevenshteinNBestListBuilder()
-{
+LevenshteinNBestListBuilder::~LevenshteinNBestListBuilder() {
     delete evaluator_;
 }
 
-Fsa::ConstAutomatonRef LevenshteinNBestListBuilder::build(
-    Fsa::ConstAutomatonRef list)
-{
+Fsa::ConstAutomatonRef LevenshteinNBestListBuilder::build(Fsa::ConstAutomatonRef list) {
     if (list) {
         return Fsa::ConstAutomatonRef(new LevenshteinNBestList(list, evaluator_));
     }
     return Fsa::ConstAutomatonRef();
 }
 
-LevenshteinNBestListBuilder::Functor LevenshteinNBestListBuilder::createFunctor(
-    const std::string &id,
-    const std::string &orth,
-    Fsa::ConstAutomatonRef list)
-{
+LevenshteinNBestListBuilder::Functor LevenshteinNBestListBuilder::createFunctor(const std::string& id, const std::string& orth, Fsa::ConstAutomatonRef list) {
     evaluator_->setReferenceTranscription(orth);
     return Functor(*this, id, list);
 }
 
-
 /**
  * OrthographyApproximatePhoneAccuracyMaskLatticeBuilder
  */
-OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::OrthographyApproximatePhoneAccuracyMaskLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon),
-    confidenceArchive_(new ConfidenceArchive(select("confidence-archive"))),
-    confidences_(new Confidences(select("confidences")))
-{
+OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::OrthographyApproximatePhoneAccuracyMaskLatticeBuilder(const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon),
+          confidenceArchive_(new ConfidenceArchive(select("confidence-archive"))),
+          confidences_(new Confidences(select("confidences"))) {
     tokenType_ = phoneType;
     initializeShortPauses(lexicon);
 }
 
-OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::~OrthographyApproximatePhoneAccuracyMaskLatticeBuilder()
-{
+OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::~OrthographyApproximatePhoneAccuracyMaskLatticeBuilder() {
     delete confidenceArchive_;
     delete confidences_;
 }
 
 OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::Functor
-OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::createFunctor(
-    const std::string &id,
-    const std::string &orth,
-    Lattice::ConstWordLatticeRef lattice,
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::createFunctor(
+                const std::string&                           id,
+                const std::string&                           orth,
+                Lattice::ConstWordLatticeRef                 lattice,
+                Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     alignmentGenerator_ = alignmentGenerator;
 
     verify(confidenceArchive_ and confidences_);
@@ -141,16 +121,17 @@ OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::createFunctor(
     return Precursor::createFunctor(id, orth, lattice);
 }
 
-Fsa::ConstAutomatonRef OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
         require(confidences_->isValid());
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getApproximatePhoneAccuracyMask(
-                lattice, reference_, *confidences_, shortPauses_, alignmentGenerator_);
+        Lattice::ConstWordLatticeRef result = Lattice::getApproximatePhoneAccuracyMask(lattice,
+                                                                                       reference_,
+                                                                                       *confidences_,
+                                                                                       shortPauses_,
+                                                                                       alignmentGenerator_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Approximate phone accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -159,34 +140,29 @@ Fsa::ConstAutomatonRef OrthographyApproximatePhoneAccuracyMaskLatticeBuilder::bu
 /**
  * ArchiveFrameStateAccuracyLatticeBuilder
  */
-ArchiveFrameStateAccuracyLatticeBuilder::ArchiveFrameStateAccuracyLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon)
-{
+ArchiveFrameStateAccuracyLatticeBuilder::ArchiveFrameStateAccuracyLatticeBuilder(const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon) {
     tokenType_ = stateType;
 }
 
 ArchiveFrameStateAccuracyLatticeBuilder::Functor
-ArchiveFrameStateAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    const std::string &segmentId,
-    Lattice::ConstWordLatticeRef lattice,
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        ArchiveFrameStateAccuracyLatticeBuilder::createFunctor(
+                const std::string&                           id,
+                const std::string&                           segmentId,
+                Lattice::ConstWordLatticeRef                 lattice,
+                Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     alignmentGenerator_ = alignmentGenerator;
     return Precursor::createFunctor(id, segmentId, lattice);
 }
 
-Fsa::ConstAutomatonRef ArchiveFrameStateAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef ArchiveFrameStateAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
         Lattice::ConstWordLatticeRef result =
-            Lattice::getFrameStateAccuracy(
-                lattice, reference_, shortPauses_, alignmentGenerator_);
+                Lattice::getFrameStateAccuracy(
+                        lattice, reference_, shortPauses_, alignmentGenerator_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Frame state accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -195,24 +171,20 @@ Fsa::ConstAutomatonRef ArchiveFrameStateAccuracyLatticeBuilder::build(
 /**
  * OrthographyFrameStateAccuracyLatticeBuilder
  */
-OrthographyFrameStateAccuracyLatticeBuilder::OrthographyFrameStateAccuracyLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon),
-    lexicon_(lexicon)
-{
+OrthographyFrameStateAccuracyLatticeBuilder::OrthographyFrameStateAccuracyLatticeBuilder(const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon),
+          lexicon_(lexicon) {
     tokenType_ = stateType;
     // see @function createFunctor
-    //    initializeShortPauses(lexicon);
+    // initializeShortPauses(lexicon);
 }
 
 OrthographyFrameStateAccuracyLatticeBuilder::Functor
-OrthographyFrameStateAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    const std::string &orth,
-    Lattice::ConstWordLatticeRef lattice,
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        OrthographyFrameStateAccuracyLatticeBuilder::createFunctor(
+                const std::string&                           id,
+                const std::string&                           orth,
+                Lattice::ConstWordLatticeRef                 lattice,
+                Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     alignmentGenerator_ = alignmentGenerator;
     if (shortPauses_.begin() == shortPauses_.end()) {
         shortPauses_.insert(Fsa::InvalidLabelId);
@@ -222,14 +194,16 @@ OrthographyFrameStateAccuracyLatticeBuilder::createFunctor(
                 std::string silence(shortPausesLemmata.front());
                 Core::normalizeWhitespace(silence);
                 log("Append short pause lemma \"") << silence << "\"";
-                const Bliss::Lemma *lemma = lexicon_->lemma(silence);
+                const Bliss::Lemma* lemma = lexicon_->lemma(silence);
                 if (lemma == lexicon_->specialLemma("silence")) {
                     const Fsa::LabelId silAlloStateId = alignmentGenerator_->acousticModel()->silenceAllophoneStateIndex();
                     shortPauses_.insert(silAlloStateId);
-                } else {
+                }
+                else {
                     error("Lemma must be the special lemma \"silence\"");
                 }
-            } else {
+            }
+            else {
                 error("Lemma can be only the special lemma \"silence\"");
             }
         }
@@ -237,15 +211,15 @@ OrthographyFrameStateAccuracyLatticeBuilder::createFunctor(
     return Precursor::createFunctor(id, orth, lattice);
 }
 
-Fsa::ConstAutomatonRef OrthographyFrameStateAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef OrthographyFrameStateAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getFrameStateAccuracy(
-                lattice, reference_, shortPauses_, alignmentGenerator_);
+        Lattice::ConstWordLatticeRef result = Lattice::getFrameStateAccuracy(lattice,
+                                                                             reference_,
+                                                                             shortPauses_,
+                                                                             alignmentGenerator_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Frame state accuracies cannot be calculated because of empty reference.");
         return Fsa::ConstAutomatonRef();
     }
@@ -255,11 +229,9 @@ Fsa::ConstAutomatonRef OrthographyFrameStateAccuracyLatticeBuilder::build(
  * OrthographySmoothedFrameStateAccuracyLatticeBuilder
 */
 OrthographySmoothedFrameStateAccuracyLatticeBuilder::OrthographySmoothedFrameStateAccuracyLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon),
-    smoothing_(Lattice::SmoothingFunction::createSmoothingFunction(select("smoothing-function")))
-{
+        const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon),
+          smoothing_(Lattice::SmoothingFunction::createSmoothingFunction(select("smoothing-function"))) {
     tokenType_ = stateType;
     initializeShortPauses(lexicon);
 
@@ -268,18 +240,16 @@ OrthographySmoothedFrameStateAccuracyLatticeBuilder::OrthographySmoothedFrameSta
     }
 }
 
-OrthographySmoothedFrameStateAccuracyLatticeBuilder::~OrthographySmoothedFrameStateAccuracyLatticeBuilder()
-{
+OrthographySmoothedFrameStateAccuracyLatticeBuilder::~OrthographySmoothedFrameStateAccuracyLatticeBuilder() {
     smoothing_->dumpStatistics(clog());
 }
 
 OrthographySmoothedFrameStateAccuracyLatticeBuilder::Functor
-OrthographySmoothedFrameStateAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    const std::string &orth,
-    Lattice::ConstWordLatticeRef lattice,
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        OrthographySmoothedFrameStateAccuracyLatticeBuilder::createFunctor(
+                const std::string&                           id,
+                const std::string&                           orth,
+                Lattice::ConstWordLatticeRef                 lattice,
+                Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     alignmentGenerator_ = alignmentGenerator;
     /*
      * It is assumed that @param lattice contains the
@@ -290,27 +260,25 @@ OrthographySmoothedFrameStateAccuracyLatticeBuilder::createFunctor(
      * are calculated before passing the lattice
      * for initialization.
      */
-    Lattice::ConstWordLatticeRef post =
-        Lattice::expm(
+    Lattice::ConstWordLatticeRef post = Lattice::expm(
             Lattice::changeSemiring(
-                Lattice::posterior(
-                    Lattice::changeSemiring(
-                        lattice,
-                        Fsa::LogSemiring)),
-                lattice->mainPart()->semiring()));
+                    Lattice::posterior(
+                            Lattice::changeSemiring(
+                                    lattice,
+                                    Fsa::LogSemiring)),
+                    lattice->mainPart()->semiring()));
     return Precursor::createFunctor(id, orth, post);
 }
 
-Fsa::ConstAutomatonRef OrthographySmoothedFrameStateAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef OrthographySmoothedFrameStateAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
         verify(smoothing_);
         Lattice::ConstWordLatticeRef result =
-            Lattice::getSmoothedFrameStateAccuracy(
-                lattice, reference_, alignmentGenerator_, *smoothing_);
+                Lattice::getSmoothedFrameStateAccuracy(
+                        lattice, reference_, alignmentGenerator_, *smoothing_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Smoothed frame state accuracies cannot be calculated because of empty reference.");
         return Fsa::ConstAutomatonRef();
     }
@@ -320,16 +288,13 @@ Fsa::ConstAutomatonRef OrthographySmoothedFrameStateAccuracyLatticeBuilder::buil
  * OrthographyFrameWordAccuracyLatticeBuilder
  */
 const Core::ParameterFloat OrthographyFrameWordAccuracyLatticeBuilder::paramNormalization(
-    "normalization-scale",
-    "normalization scale for computing timeframe accuracy",
-    1, 0, 1);
+        "normalization-scale",
+        "normalization scale for computing timeframe accuracy",
+        1, 0, 1);
 
-OrthographyFrameWordAccuracyLatticeBuilder::OrthographyFrameWordAccuracyLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon),
-    normalization_(paramNormalization(config))
-{
+OrthographyFrameWordAccuracyLatticeBuilder::OrthographyFrameWordAccuracyLatticeBuilder(const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon),
+          normalization_(paramNormalization(config)) {
     tokenType_ = (TokenType)paramTokenType(config);
     if (tokenType_ != lemmaPronunciationType && tokenType_ != lemmaType) {
         criticalError("Invalid token type");
@@ -337,15 +302,16 @@ OrthographyFrameWordAccuracyLatticeBuilder::OrthographyFrameWordAccuracyLatticeB
     initializeShortPauses(lexicon);
 }
 
-Fsa::ConstAutomatonRef OrthographyFrameWordAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef OrthographyFrameWordAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getWordTimeframeAccuracy(
-                lattice, reference_, shortPauses_, tokenType_ == lemmaType, normalization_);
+        Lattice::ConstWordLatticeRef result = Lattice::getWordTimeframeAccuracy(lattice,
+                                                                                reference_,
+                                                                                shortPauses_,
+                                                                                tokenType_ == lemmaType,
+                                                                                normalization_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Word timeframe accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -354,34 +320,27 @@ Fsa::ConstAutomatonRef OrthographyFrameWordAccuracyLatticeBuilder::build(
 /**
  * OrthographyFramePhoneAccuracyLatticeBuilder
  */
-OrthographyFramePhoneAccuracyLatticeBuilder::OrthographyFramePhoneAccuracyLatticeBuilder(
-    const Core::Configuration &c, Core::Ref<const Bliss::Lexicon> lexicon)
-    :
-    Precursor(c, lexicon)
-{
+OrthographyFramePhoneAccuracyLatticeBuilder::OrthographyFramePhoneAccuracyLatticeBuilder(const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
+        : Precursor(c, lexicon) {
     tokenType_ = stateType;
 }
 
 OrthographyFramePhoneAccuracyLatticeBuilder::Functor
-OrthographyFramePhoneAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    const std::string &orth,
-    Lattice::ConstWordLatticeRef lattice,
-    Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+        OrthographyFramePhoneAccuracyLatticeBuilder::createFunctor(
+                const std::string&                           id,
+                const std::string&                           orth,
+                Lattice::ConstWordLatticeRef                 lattice,
+                Core::Ref<PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     alignmentGenerator_ = alignmentGenerator;
     return Precursor::createFunctor(id, orth, lattice);
 }
 
-Fsa::ConstAutomatonRef OrthographyFramePhoneAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef OrthographyFramePhoneAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getFramePhoneAccuracy(
-                lattice, reference_, shortPauses_, alignmentGenerator_, normalization_);
+        Lattice::ConstWordLatticeRef result = Lattice::getFramePhoneAccuracy(lattice, reference_, shortPauses_, alignmentGenerator_, normalization_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Frame state accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -391,41 +350,38 @@ Fsa::ConstAutomatonRef OrthographyFramePhoneAccuracyLatticeBuilder::build(
  * FramePhoneAccuracyLatticeBuilder
  */
 const Core::ParameterFloat FramePhoneAccuracyLatticeBuilder::paramNormalization(
-    "normalization-scale",
-    "normalization scale for computing frame phone accuracy",
-    0, 0, 1);
+        "normalization-scale",
+        "normalization scale for computing frame phone accuracy",
+        0, 0, 1);
 
-FramePhoneAccuracyLatticeBuilder::FramePhoneAccuracyLatticeBuilder(
-    const Core::Configuration &c, Bliss::LexiconRef lexicon)
-    :
-    Precursor(c, lexicon),
-    normalization_(paramNormalization(config))
-{
+FramePhoneAccuracyLatticeBuilder::FramePhoneAccuracyLatticeBuilder(const Core::Configuration& c, Bliss::LexiconRef lexicon)
+        : Precursor(c, lexicon),
+          normalization_(paramNormalization(config)) {
     tokenType_ = phoneType;
     initializeShortPauses(lexicon);
 }
 
 FramePhoneAccuracyLatticeBuilder::Functor
-FramePhoneAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    Lattice::ConstWordLatticeRef reference,
-    Lattice::ConstWordLatticeRef lattice,
-    AlignmentGeneratorRef alignmentGenerator)
-{
+        FramePhoneAccuracyLatticeBuilder::createFunctor(
+                const std::string&           id,
+                Lattice::ConstWordLatticeRef reference,
+                Lattice::ConstWordLatticeRef lattice,
+                AlignmentGeneratorRef        alignmentGenerator) {
     setReference(reference);
     alignmentGenerator_ = alignmentGenerator;
     return Functor(*this, id, lattice);
 }
 
-Fsa::ConstAutomatonRef FramePhoneAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef FramePhoneAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getFramePhoneAccuracy(
-                lattice, reference_, shortPauses_, alignmentGenerator_, normalization_);
+        Lattice::ConstWordLatticeRef result = Lattice::getFramePhoneAccuracy(lattice,
+                                                                             reference_,
+                                                                             shortPauses_,
+                                                                             alignmentGenerator_,
+                                                                             normalization_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Frame phone accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -434,18 +390,13 @@ Fsa::ConstAutomatonRef FramePhoneAccuracyLatticeBuilder::build(
 /**
  * SoftFramePhoneAccuracyLatticeBuilder
  */
-SoftFramePhoneAccuracyLatticeBuilder::SoftFramePhoneAccuracyLatticeBuilder(
-    const Core::Configuration &c, Bliss::LexiconRef lexicon)
-    :
-    Precursor(c, lexicon)
-{
+SoftFramePhoneAccuracyLatticeBuilder::SoftFramePhoneAccuracyLatticeBuilder(const Core::Configuration& c, Bliss::LexiconRef lexicon)
+        : Precursor(c, lexicon) {
     tokenType_ = phoneType;
     initializeShortPauses(lexicon);
 }
 
-void SoftFramePhoneAccuracyLatticeBuilder::setReference(
-    const Alignment *forcedAlignment)
-{
+void SoftFramePhoneAccuracyLatticeBuilder::setReference(const Alignment* forcedAlignment) {
     reference_.reset();
     forcedAlignment_ = 0;
     if (forcedAlignment) {
@@ -454,12 +405,11 @@ void SoftFramePhoneAccuracyLatticeBuilder::setReference(
 }
 
 SoftFramePhoneAccuracyLatticeBuilder::Functor
-SoftFramePhoneAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    Lattice::ConstWordLatticeRef reference,
-    Lattice::ConstWordLatticeRef lattice,
-    AlignmentGeneratorRef alignmentGenerator)
-{
+        SoftFramePhoneAccuracyLatticeBuilder::createFunctor(
+                const std::string&           id,
+                Lattice::ConstWordLatticeRef reference,
+                Lattice::ConstWordLatticeRef lattice,
+                AlignmentGeneratorRef        alignmentGenerator) {
     forcedAlignment_ = 0;
     Precursor::setReference(reference);
     alignmentGenerator_ = alignmentGenerator;
@@ -467,27 +417,32 @@ SoftFramePhoneAccuracyLatticeBuilder::createFunctor(
 }
 
 SoftFramePhoneAccuracyLatticeBuilder::Functor
-SoftFramePhoneAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    const Alignment *forcedAlignment,
-    Lattice::ConstWordLatticeRef lattice,
-    AlignmentGeneratorRef alignmentGenerator)
-{
+        SoftFramePhoneAccuracyLatticeBuilder::createFunctor(
+                const std::string&           id,
+                const Alignment*             forcedAlignment,
+                Lattice::ConstWordLatticeRef lattice,
+                AlignmentGeneratorRef        alignmentGenerator) {
     setReference(forcedAlignment);
     alignmentGenerator_ = alignmentGenerator;
     return Functor(*this, id, lattice);
 }
 
-Fsa::ConstAutomatonRef SoftFramePhoneAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef SoftFramePhoneAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        return Lattice::getSoftFramePhoneAccuracy(
-            lattice, reference_, shortPauses_, alignmentGenerator_)->mainPart();
-    } else if (forcedAlignment_) {
-        return Lattice::getSoftFramePhoneAccuracy(
-            lattice, *forcedAlignment_, shortPauses_, alignmentGenerator_)->mainPart();
-    } else {
+        return Lattice::getSoftFramePhoneAccuracy(lattice,
+                                                  reference_,
+                                                  shortPauses_,
+                                                  alignmentGenerator_)
+                ->mainPart();
+    }
+    else if (forcedAlignment_) {
+        return Lattice::getSoftFramePhoneAccuracy(lattice,
+                                                  *forcedAlignment_,
+                                                  shortPauses_,
+                                                  alignmentGenerator_)
+                ->mainPart();
+    }
+    else {
         warning("Soft frame phone accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }
@@ -497,47 +452,46 @@ Fsa::ConstAutomatonRef SoftFramePhoneAccuracyLatticeBuilder::build(
  * WeightedFramePhoneAccuracyLatticeBuilder
  */
 const Core::ParameterFloat WeightedFramePhoneAccuracyLatticeBuilder::paramBeta(
-    "beta",
-    "parameter to control smoothness of sigmoid function",
-    1, 0);
+        "beta",
+        "parameter to control smoothness of sigmoid function",
+        1, 0);
 
 const Core::ParameterFloat WeightedFramePhoneAccuracyLatticeBuilder::paramMargin(
-    "margin",
-    "parameter to control margin, i.e., offset of sigmoid function",
-    0);
+        "margin",
+        "parameter to control margin, i.e., offset of sigmoid function",
+        0);
 
 WeightedFramePhoneAccuracyLatticeBuilder::WeightedFramePhoneAccuracyLatticeBuilder(
-    const Core::Configuration &c, Bliss::LexiconRef lexicon)
-    :
-    Precursor(c, lexicon),
-    beta_(paramBeta(config)),
-    margin_(paramMargin(config))
-{
+        const Core::Configuration& c, Bliss::LexiconRef lexicon)
+        : Precursor(c, lexicon),
+          beta_(paramBeta(config)),
+          margin_(paramMargin(config)) {
     tokenType_ = phoneType;
     initializeShortPauses(lexicon);
 }
 
 WeightedFramePhoneAccuracyLatticeBuilder::Functor
-WeightedFramePhoneAccuracyLatticeBuilder::createFunctor(
-    const std::string &id,
-    Lattice::ConstWordLatticeRef reference,
-    Lattice::ConstWordLatticeRef lattice,
-    AlignmentGeneratorRef alignmentGenerator)
-{
+        WeightedFramePhoneAccuracyLatticeBuilder::createFunctor(
+                const std::string&           id,
+                Lattice::ConstWordLatticeRef reference,
+                Lattice::ConstWordLatticeRef lattice,
+                AlignmentGeneratorRef        alignmentGenerator) {
     setReference(reference);
     alignmentGenerator_ = alignmentGenerator;
     return Functor(*this, id, lattice);
 }
 
-Fsa::ConstAutomatonRef WeightedFramePhoneAccuracyLatticeBuilder::build(
-    Lattice::ConstWordLatticeRef lattice)
-{
+Fsa::ConstAutomatonRef WeightedFramePhoneAccuracyLatticeBuilder::build(Lattice::ConstWordLatticeRef lattice) {
     if (reference_) {
-        Lattice::ConstWordLatticeRef result =
-            Lattice::getWeightedFramePhoneAccuracy(
-                lattice, reference_, shortPauses_, alignmentGenerator_, beta_, margin_);
+        Lattice::ConstWordLatticeRef result = Lattice::getWeightedFramePhoneAccuracy(lattice,
+                                                                                     reference_,
+                                                                                     shortPauses_,
+                                                                                     alignmentGenerator_,
+                                                                                     beta_,
+                                                                                     margin_);
         return result->mainPart();
-    } else {
+    }
+    else {
         warning("Weighted frame phone accuracies cannot be calculated because reference is empty.");
         return Fsa::ConstAutomatonRef();
     }

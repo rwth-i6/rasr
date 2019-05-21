@@ -20,59 +20,53 @@
 #include <Nn/SegmentwiseNnTrainer.hh>
 #endif
 
-
 using namespace Speech;
 
 /**
  *  AbstractSegmentwiseTrainer: base class
  */
 Core::ParameterString AbstractAcousticSegmentwiseTrainer::paramPortName(
-    "port-name",
-    "port name for posteriors",
-    "features");
+        "port-name",
+        "port name for posteriors",
+        "features");
 
 Core::ParameterString AbstractAcousticSegmentwiseTrainer::paramSparsePortName(
-    "sparse-port-name",
-    "sparse port name for posteriors",
-    "");
+        "sparse-port-name",
+        "sparse port name for posteriors",
+        "");
 
 Core::ParameterString AbstractAcousticSegmentwiseTrainer::paramAccumulationPortName(
-    "accumulation-port-name",
-    "port name for accumulation",
-    "features");
+        "accumulation-port-name",
+        "port name for accumulation",
+        "features");
 
 Core::ParameterString AbstractAcousticSegmentwiseTrainer::paramAccumulationSparsePortName(
-    "accumulation-sparse-port-name",
-    "sparse port name for accumulation",
-    "");
+        "accumulation-sparse-port-name",
+        "sparse port name for accumulation",
+        "");
 
 AbstractAcousticSegmentwiseTrainer::AbstractAcousticSegmentwiseTrainer(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    portId_(Flow::IllegalPortId),
-    sparsePortId_(Flow::IllegalPortId),
-    accumulationPortId_(Flow::IllegalPortId),
-    accumulationSparsePortId_(Flow::IllegalPortId)
-{}
+        const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          portId_(Flow::IllegalPortId),
+          sparsePortId_(Flow::IllegalPortId),
+          accumulationPortId_(Flow::IllegalPortId),
+          accumulationSparsePortId_(Flow::IllegalPortId) {}
 
-AbstractAcousticSegmentwiseTrainer::~AbstractAcousticSegmentwiseTrainer()
-{}
+AbstractAcousticSegmentwiseTrainer::~AbstractAcousticSegmentwiseTrainer() {}
 
-ConstSegmentwiseFeaturesRef AbstractAcousticSegmentwiseTrainer::features(
-    Flow::PortId portId, Flow::PortId sparsePortId) const
-{
+ConstSegmentwiseFeaturesRef AbstractAcousticSegmentwiseTrainer::features(Flow::PortId portId, Flow::PortId sparsePortId) const {
     if (segmentwiseFeatureExtractor()) {
         return segmentwiseFeatureExtractor()->features(portId);
-    } else {
+    }
+    else {
         return ConstSegmentwiseFeaturesRef();
     }
 }
 
-
-void AbstractAcousticSegmentwiseTrainer::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void AbstractAcousticSegmentwiseTrainer::processWordLattice(Lattice::ConstWordLatticeRef lattice,
+                                                            Bliss::SpeechSegment*        s) {
     Mm::FeatureDescription description(*this);
     if (features() and !features()->empty()) {
         description = Mm::FeatureDescription(*this, *features()->front());
@@ -80,12 +74,10 @@ void AbstractAcousticSegmentwiseTrainer::processWordLattice(
     setFeatureDescription(description);
 }
 
-void AbstractAcousticSegmentwiseTrainer::setSegmentwiseFeatureExtractor(
-    Core::Ref<Speech::SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor)
-{
+void AbstractAcousticSegmentwiseTrainer::setSegmentwiseFeatureExtractor(Core::Ref<Speech::SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor) {
     require(segmentwiseFeatureExtractor);
     segmentwiseFeatureExtractor_ = segmentwiseFeatureExtractor;
-    const std::string portName = paramPortName(config);
+    const std::string portName   = paramPortName(config);
     if (!portName.empty()) {
         portId_ = segmentwiseFeatureExtractor_->addPort(portName);
         if (portId_ == Flow::IllegalPortId) {
@@ -102,9 +94,7 @@ void AbstractAcousticSegmentwiseTrainer::setSegmentwiseFeatureExtractor(
     Precursor::setSegmentwiseFeatureExtractor(segmentwiseFeatureExtractor_);
 }
 
-void AbstractAcousticSegmentwiseTrainer::setAlignmentGenerator(
-    Core::Ref<Speech::PhonemeSequenceAlignmentGenerator> alignmentGenerator)
-{
+void AbstractAcousticSegmentwiseTrainer::setAlignmentGenerator(Core::Ref<Speech::PhonemeSequenceAlignmentGenerator> alignmentGenerator) {
     require(alignmentGenerator);
     alignmentGenerator_ = alignmentGenerator;
     Precursor::setAlignmentGenerator(alignmentGenerator);
@@ -114,39 +104,34 @@ void AbstractAcousticSegmentwiseTrainer::setAlignmentGenerator(
  * factory
  */
 Core::Choice AbstractAcousticSegmentwiseTrainer::choiceModelType(
-    "gaussian-mixture", gaussianMixture,
-    "neural-network", neuralNetwork,
-    Core::Choice::endMark());
+        "gaussian-mixture", gaussianMixture,
+        "neural-network", neuralNetwork,
+        Core::Choice::endMark());
 
 Core::ParameterChoice AbstractAcousticSegmentwiseTrainer::paramModelType(
-    "model-type",
-    &choiceModelType,
-    "type of model",
-    gaussianMixture);
+        "model-type",
+        &choiceModelType,
+        "type of model",
+        gaussianMixture);
 
 Core::ParameterBool AbstractAcousticSegmentwiseTrainer::paramSinglePrecision(
-    "single-precision", "use single precision NN sequence trainer", true);
+        "single-precision", "use single precision NN sequence trainer", true);
 
-
-AbstractAcousticSegmentwiseTrainer*
-AbstractAcousticSegmentwiseTrainer::createAbstractAcousticSegmentwiseTrainer(
-    const Core::Configuration &config)
-{
+AbstractAcousticSegmentwiseTrainer* AbstractAcousticSegmentwiseTrainer::createAbstractAcousticSegmentwiseTrainer(const Core::Configuration& config) {
     switch (paramModelType(config)) {
-    case gaussianMixture:
-        return SegmentwiseGmmTrainer::createSegmentwiseGmmTrainer(config);
-        break;
+        case gaussianMixture:
+            return SegmentwiseGmmTrainer::createSegmentwiseGmmTrainer(config);
+            break;
 #ifdef MODULE_NN_SEQUENCE_TRAINING
-    case neuralNetwork:
-        if (paramSinglePrecision(config))
-            return Nn::SegmentwiseNnTrainer<f32>::createSegmentwiseNnTrainer(config);
-        else
-            Core::Application::us()->criticalError("double precision sequence training not implemented yet");
-//	    return Nn::SegmentwiseNnTrainer<f64>::createSegmentwiseNnTrainer(config);
-        break;
+        case neuralNetwork:
+            if (paramSinglePrecision(config))
+                return Nn::SegmentwiseNnTrainer<f32>::createSegmentwiseNnTrainer(config);
+            else
+                Core::Application::us()->criticalError("double precision sequence training not implemented yet");
+            break;
 #endif
-    default:
-        defect();
+        default:
+            defect();
     }
     return 0;
 }

@@ -24,12 +24,12 @@
 #include <Lattice/Arithmetic.hh>
 #include <Lattice/Basic.hh>
 #include <Lattice/Cache.hh>
-#include <Lattice/Static.hh>
 #include <Lattice/Compose.hh>
+#include <Lattice/RemoveEpsilons.hh>
+#include <Lattice/Static.hh>
 #include <Lattice/Utilities.hh>
 #include "DataExtractor.hh"
 #include "PhonemeSequenceAlignmentGenerator.hh"
-#include <Lattice/RemoveEpsilons.hh>
 
 using namespace Speech;
 
@@ -37,71 +37,62 @@ using namespace Speech;
  * ChangeSemiringLatticeProcessorNode
  */
 Core::Choice ChangeSemiringLatticeProcessorNode::choiceSemiringType(
-    "unknown", Fsa::SemiringTypeUnknown,
-    "log", Fsa::SemiringTypeLog,
-    "tropical", Fsa::SemiringTypeTropical,
-    "tropical-integer", Fsa::SemiringTypeTropicalInteger,
-    "count", Fsa::SemiringTypeCount,
-    "probability", Fsa::SemiringTypeProbability,
-    Core::Choice::endMark());
+        "unknown", Fsa::SemiringTypeUnknown,
+        "log", Fsa::SemiringTypeLog,
+        "tropical", Fsa::SemiringTypeTropical,
+        "tropical-integer", Fsa::SemiringTypeTropicalInteger,
+        "count", Fsa::SemiringTypeCount,
+        "probability", Fsa::SemiringTypeProbability,
+        Core::Choice::endMark());
 
 Core::ParameterChoice ChangeSemiringLatticeProcessorNode::paramSemiringType(
-    "semiring-type",
-    &choiceSemiringType,
-    "type of semiring",
-    Fsa::SemiringTypeUnknown);
+        "semiring-type",
+        &choiceSemiringType,
+        "type of semiring",
+        Fsa::SemiringTypeUnknown);
 
-ChangeSemiringLatticeProcessorNode::ChangeSemiringLatticeProcessorNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    semiring_(Fsa::getSemiring((Fsa::SemiringType)paramSemiringType(c)))
-{
-        if (semiring_ == Fsa::UnknownSemiring)
-                error("Parameter 'semiring-type' needs to be set");
+ChangeSemiringLatticeProcessorNode::ChangeSemiringLatticeProcessorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          semiring_(Fsa::getSemiring((Fsa::SemiringType)paramSemiringType(c))) {
+    if (semiring_ == Fsa::UnknownSemiring)
+        error("Parameter 'semiring-type' needs to be set");
 }
 
-void ChangeSemiringLatticeProcessorNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
-    Precursor::processWordLattice(
-        Lattice::changeSemiring(
-            lattice,
-            semiring_),
-        s);
+void ChangeSemiringLatticeProcessorNode::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
+    Precursor::processWordLattice(Lattice::changeSemiring(lattice, semiring_), s);
 }
 
 /**
  * MultiplyLatticeProcessorNode
  */
 const Core::ParameterFloat MultiplyLatticeProcessorNode::paramFactor(
-    "factor",
-    "multiply all scores with this factor",
-    1);
+        "factor",
+        "multiply all scores with this factor",
+        1);
 
 const Core::ParameterFloatVector MultiplyLatticeProcessorNode::paramFactors(
-    "factors",
-    "multiply scores componentwise with this factors");
+        "factors",
+        "multiply scores componentwise with this factors");
 
-MultiplyLatticeProcessorNode::MultiplyLatticeProcessorNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    factor_(Fsa::Weight(paramFactor(config)))
-{
+MultiplyLatticeProcessorNode::MultiplyLatticeProcessorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          factor_(Fsa::Weight(paramFactor(config))) {
     std::vector<f64> factors = paramFactors(config);
-    for (u32 i = 0; i < factors.size(); ++ i) {
+    for (u32 i = 0; i < factors.size(); ++i) {
         factors_.push_back(Fsa::Weight(f32(factors[i])));
     }
 }
 
-void MultiplyLatticeProcessorNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void MultiplyLatticeProcessorNode::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     Lattice::ConstWordLatticeRef result = lattice;
     if (factors_.empty()) {
         if (f32(factor_) != 1) {
             result = Lattice::multiply(lattice, factor_);
         }
-    } else {
+    }
+    else {
         if (factors_.size() != lattice->nParts()) {
             criticalError("mismatch in number of factors and number of lattice parts");
         }
@@ -110,18 +101,15 @@ void MultiplyLatticeProcessorNode::processWordLattice(
     Precursor::processWordLattice(result, s);
 }
 
-
 /**
  * ExtendBestPathLatticeProcessorNode
  */
-ExtendBestPathLatticeProcessorNode::ExtendBestPathLatticeProcessorNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+ExtendBestPathLatticeProcessorNode::ExtendBestPathLatticeProcessorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void ExtendBestPathLatticeProcessorNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void ExtendBestPathLatticeProcessorNode::processWordLattice(Lattice::ConstWordLatticeRef lattice,
+                                                            Bliss::SpeechSegment*        s) {
     Fsa::Weight minimum(-f32(Fsa::bestscore(lattice->mainPart())));
     Precursor::processWordLattice(Lattice::extendFinal(lattice, minimum), s);
 }
@@ -129,19 +117,15 @@ void ExtendBestPathLatticeProcessorNode::processWordLattice(
 /**
  * MapToNonCoarticulationLatticeProcessorNode
  */
-MapToNonCoarticulationLatticeProcessorNode::MapToNonCoarticulationLatticeProcessorNode(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+MapToNonCoarticulationLatticeProcessorNode::MapToNonCoarticulationLatticeProcessorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void MapToNonCoarticulationLatticeProcessorNode::processWordLattice(
-    Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment *s)
-{
-    Core::Ref<Lattice::WordLattice> result(new Lattice::WordLattice(*l));
-    Core::Ref<Lattice::WordBoundaries> r(new Lattice::WordBoundaries(*l->wordBoundaries()));
+void MapToNonCoarticulationLatticeProcessorNode::processWordLattice(Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment* s) {
+    Core::Ref<Lattice::WordLattice>      result(new Lattice::WordLattice(*l));
+    Core::Ref<Lattice::WordBoundaries>   r(new Lattice::WordBoundaries(*l->wordBoundaries()));
     const Lattice::WordBoundary::Transit nonCoarticulation;
-    for (u32 i = 0; i < r->size(); ++ i) {
+    for (u32 i = 0; i < r->size(); ++i) {
         (*r)[i].setTransit(nonCoarticulation);
     }
     result->setWordBoundaries(r);
@@ -151,88 +135,46 @@ void MapToNonCoarticulationLatticeProcessorNode::processWordLattice(
 /**
  * TokenMappingLatticeProcessorNode
  */
-TokenMappingLatticeProcessorNode::TokenMappingLatticeProcessorNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+TokenMappingLatticeProcessorNode::TokenMappingLatticeProcessorNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
 void TokenMappingLatticeProcessorNode::initialize(
-    Bliss::LexiconRef lexicon)
-{
+        Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     require(lexicon);
-    lexicon_ = lexicon;
-    lemmaPronToLemma_ =
-        Fsa::cache(
-            Fsa::multiply(
-                lexicon->createLemmaPronunciationToLemmaTransducer(),
-                Fsa::Weight(f32(0))));
+    lexicon_          = lexicon;
+    lemmaPronToLemma_ = Fsa::cache(Fsa::multiply(lexicon->createLemmaPronunciationToLemmaTransducer(),
+                                                 Fsa::Weight(f32(0))));
 }
 
 /**
  * LemmaPronunciationToEvaluationToken
  */
-LemmaPronunciationToEvaluationToken::LemmaPronunciationToEvaluationToken(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+LemmaPronunciationToEvaluationToken::LemmaPronunciationToEvaluationToken(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void LemmaPronunciationToEvaluationToken::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void LemmaPronunciationToEvaluationToken::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     if (lattice->mainPart()->getInputAlphabet() != lexicon_->lemmaPronunciationAlphabet()) {
         criticalError("Input alphabet must be the lemma pronuncation alphabet.");
     }
 
-    Fsa::ConstAutomatonRef evalFsa =
-        Fsa::cache(
+    Fsa::ConstAutomatonRef evalFsa = Fsa::cache(
             Fsa::projectOutput(
-                Fsa::composeMatching(
                     Fsa::composeMatching(
-                        lattice->mainPart(),
-                        Fsa::multiply(
-                            lemmaPronToLemma_,
-                            Fsa::Weight(0.0))),
-                    Fsa::multiply(
-                        lemmaToEval_,
-                        Fsa::Weight(0.0)))));
+                            Fsa::composeMatching(lattice->mainPart(),
+                                                 Fsa::multiply(lemmaPronToLemma_, Fsa::Weight(0.0))),
+                            Fsa::multiply(lemmaToEval_, Fsa::Weight(0.0)))));
     Core::Ref<Lattice::WordLattice> eval(new Lattice::WordLattice);
     eval->setFsa(evalFsa, lattice->mainName());
-
-//     Fsa::ConstAutomatonRef lemmaPronToEval =
-// 	Fsa::composeMatching(
-// 	    Fsa::composeMatching(
-// 		lattice->mainPart(),
-// 		Fsa::multiply(
-// 		    lemmaPronToLemma_,
-// 		    Fsa::Weight(f32(0)))),
-// 	    Fsa::multiply(
-// 		lemmaToEval_,
-// 		Fsa::Weight(f32(0))));
-// #if 1
-//     Core::Ref<Lattice::WordLattice> eval(new Lattice::WordLattice);
-//     eval->setFsa(
-// 	Fsa::cache(
-// 	    Fsa::determinize(
-// 		Fsa::removeEpsilons(
-// 		    Fsa::cache(
-// 			Fsa::projectOutput(
-// 			    lemmaPronToEval))))),
-// 	lattice->mainName());
-// #else
-//     lemmaPronToEval = Fsa::multiply(lemmaPronToEval, Fsa::Weight(0.0));
-//     Lattice::ConstWordLatticeRef mapped =
-// 	Lattice::composeMatching(lattice, lemmaPronToEval);
-//     mapped = Lattice::projectOutput(mapped);
-// #endif
 
     Precursor::processWordLattice(eval, s);
 }
 
 void LemmaPronunciationToEvaluationToken::initialize(
-    Bliss::LexiconRef lexicon)
-{
+        Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
     lemmaToEval_ = lexicon->createLemmaToEvaluationTokenTransducer();
@@ -241,71 +183,45 @@ void LemmaPronunciationToEvaluationToken::initialize(
 /**
  * LemmaPronunciationToSyntacticToken
  */
-LemmaPronunciationToSyntacticToken::LemmaPronunciationToSyntacticToken(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+LemmaPronunciationToSyntacticToken::LemmaPronunciationToSyntacticToken(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void LemmaPronunciationToSyntacticToken::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void LemmaPronunciationToSyntacticToken::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     if (lattice->mainPart()->getInputAlphabet() != lexicon_->lemmaPronunciationAlphabet()) {
         criticalError("Input alphabet must be the lemma pronuncation alphabet.");
     }
 
-    Fsa::ConstAutomatonRef lemmaPronToSynt =
-        Fsa::composeMatching(
-            Fsa::composeMatching(
-                lattice->mainPart(),
-                lemmaPronToLemma_),
-            lemmaToSynt_);
+    Fsa::ConstAutomatonRef lemmaPronToSynt = Fsa::composeMatching(Fsa::composeMatching(lattice->mainPart(),
+                                                                                       lemmaPronToLemma_),
+                                                                  lemmaToSynt_);
 
     Core::Ref<Lattice::WordLattice> synt(new Lattice::WordLattice);
-#if 0
     synt->setFsa(
-        Fsa::cache(
-            Fsa::determinize(
-                Fsa::removeEpsilons(
-                    Fsa::cache(
-                        Fsa::projectOutput(
-                            lemmaPronToSynt))))),
-        lattice->mainName());
-#else
-    synt->setFsa(
-        Fsa::cache(
-            Fsa::removeEpsilons(
-                Fsa::cache(
-                    Fsa::projectOutput(
-                        lemmaPronToSynt)))),
-        lattice->mainName());
-#endif
+            Fsa::cache(
+                    Fsa::removeEpsilons(
+                            Fsa::cache(
+                                    Fsa::projectOutput(
+                                            lemmaPronToSynt)))),
+            lattice->mainName());
 
     Precursor::processWordLattice(synt, s);
 }
 
-void LemmaPronunciationToSyntacticToken::initialize(
-    Bliss::LexiconRef lexicon)
-{
+void LemmaPronunciationToSyntacticToken::initialize(Bliss::LexiconRef lexicon) {
     Precursor::initialize(lexicon);
 
-    lemmaToSynt_ =
-        Fsa::cache(
-            Fsa::multiply(
-                lexicon->createLemmaToSyntacticTokenTransducer(),
-                Fsa::Weight(f32(0))));
+    lemmaToSynt_ = Fsa::cache(Fsa::multiply(lexicon->createLemmaToSyntacticTokenTransducer(), Fsa::Weight(f32(0))));
 }
 
 /**
  * DumpWordBoundariesNode
  */
-DumpWordBoundariesNode::DumpWordBoundariesNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{}
+DumpWordBoundariesNode::DumpWordBoundariesNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-void DumpWordBoundariesNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void DumpWordBoundariesNode::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     if (lattice && lattice->wordBoundaries()) {
         Lattice::dumpWordBoundaries(lattice->wordBoundaries(), clog());
     }
@@ -316,23 +232,20 @@ void DumpWordBoundariesNode::processWordLattice(
  * MinimumMaximumWeightNode
  */
 const Core::ParameterFloat MinimumMaximumWeightNode::paramMinimumErrorLevel(
-    "error-level", "if minimum is below this value, error is generated",
-    Core::Type<f32>::min);
+        "error-level", "if minimum is below this value, error is generated",
+        Core::Type<f32>::min);
 
 const Core::ParameterFloat MinimumMaximumWeightNode::paramMaximumErrorLevel(
-    "error-level", "if maximum exceeds this value, error is generated",
-    Core::Type<f32>::max);
+        "error-level", "if maximum exceeds this value, error is generated",
+        Core::Type<f32>::max);
 
-MinimumMaximumWeightNode::MinimumMaximumWeightNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    errorLevel_(paramMinimumErrorLevel(config), paramMaximumErrorLevel(config)),
-    minMax_(Core::Type<f32>::max, Core::Type<f32>::min)
-{}
+MinimumMaximumWeightNode::MinimumMaximumWeightNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          errorLevel_(paramMinimumErrorLevel(config), paramMaximumErrorLevel(config)),
+          minMax_(Core::Type<f32>::max, Core::Type<f32>::min) {}
 
-void MinimumMaximumWeightNode::accumulate(
-    const std::pair<Fsa::Weight,Fsa::Weight> &minMax)
-{
+void MinimumMaximumWeightNode::accumulate(const std::pair<Fsa::Weight, Fsa::Weight>& minMax) {
     minMax_.first = minMax_.first < f32(minMax.first) ? minMax_.first : f32(minMax.first);
     if (f32(minMax.first) < errorLevel_.first) {
         error("Minimum exceeded the error level %f\n", errorLevel_.first) << f32(minMax.first);
@@ -343,8 +256,7 @@ void MinimumMaximumWeightNode::accumulate(
     }
 }
 
-void MinimumMaximumWeightNode::leaveCorpus(Bliss::Corpus *corpus)
-{
+void MinimumMaximumWeightNode::leaveCorpus(Bliss::Corpus* corpus) {
     if (corpus->level() == 0) {
         if (f32(minMax_.first) < errorLevel_.first) {
             error("Minimum exceeded the error level %f\n", errorLevel_.first) << f32(minMax_.first);
@@ -355,9 +267,7 @@ void MinimumMaximumWeightNode::leaveCorpus(Bliss::Corpus *corpus)
     }
 }
 
-void MinimumMaximumWeightNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *s)
-{
+void MinimumMaximumWeightNode::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* s) {
     if (lattice && lattice->mainPart()) {
         accumulate(Lattice::minMaxWeights(lattice));
     }
@@ -367,20 +277,17 @@ void MinimumMaximumWeightNode::processWordLattice(
 /**
  * ExpmNode
  */
-ExpmNode::ExpmNode(const Core::Configuration& c):
-    Core::Component(c),
-    Precursor(c)
-{}
+ExpmNode::ExpmNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-ExpmNode::~ExpmNode()
-{}
+ExpmNode::~ExpmNode() {}
 
-void ExpmNode::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *segment)
-{
+void ExpmNode::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment) {
     if (lattice) {
         Precursor::processWordLattice(Lattice::expm(lattice), segment);
-    } else {
+    }
+    else {
         error("skip segment because lattice is empty");
     }
 }
@@ -388,20 +295,17 @@ void ExpmNode::processWordLattice(
 /**
  * epsilon removal
  */
-EpsilonRemoval::EpsilonRemoval(const Core::Configuration& c):
-    Core::Component(c),
-    Precursor(c)
-{}
+EpsilonRemoval::EpsilonRemoval(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
-EpsilonRemoval::~EpsilonRemoval()
-{}
+EpsilonRemoval::~EpsilonRemoval() {}
 
-void EpsilonRemoval::processWordLattice(
-    Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *segment)
-{
+void EpsilonRemoval::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment) {
     if (lattice) {
         Precursor::processWordLattice(Lattice::removeEpsilons(lattice), segment);
-    } else {
+    }
+    else {
         error("skip segment because lattice is empty");
     }
 }

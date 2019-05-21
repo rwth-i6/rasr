@@ -15,30 +15,33 @@
 #ifndef _SPEECH_ALIGNMENT_GENERATOR_NODE_HH
 #define _SPEECH_ALIGNMENT_GENERATOR_NODE_HH
 
-#include "SegmentNode.hh"
 #include "PhonemeSequenceAlignmentGenerator.hh"
+#include "SegmentNode.hh"
 
-namespace Speech
-{
+namespace Speech {
 
-    /** AlignmentGeneratorNode */
-    class AlignmentGeneratorNode : public SegmentNode
-    {
-        typedef SegmentNode Precursor;
-    private:
-        AlignmentGeneratorRef alignmentGenerator_;
-    protected:
-        virtual void initialize(ModelCombinationRef);
-    public:
-        static std::string filterName() { return "speech-lattice-alignment-generator"; }
-        AlignmentGeneratorNode(const Core::Configuration &);
-        virtual Flow::PortId getInput(const std::string &name) {
-            return name == "model-combination" ? 0 : 1; }
-        virtual bool configure();
-        virtual bool work(Flow::PortId);
-    };
+/** AlignmentGeneratorNode */
+class AlignmentGeneratorNode : public SegmentNode {
+    typedef SegmentNode Precursor;
 
+private:
+    AlignmentGeneratorRef alignmentGenerator_;
 
-}
+protected:
+    virtual void initialize(ModelCombinationRef);
 
-#endif // _SPEECH_ALIGNMENT_GENERATOR_NODE_HH
+public:
+    static std::string filterName() {
+        return "speech-lattice-alignment-generator";
+    }
+    AlignmentGeneratorNode(const Core::Configuration&);
+    virtual Flow::PortId getInput(const std::string& name) {
+        return name == "model-combination" ? 0 : 1;
+    }
+    virtual bool configure();
+    virtual bool work(Flow::PortId);
+};
+
+}  // namespace Speech
+
+#endif  // _SPEECH_ALIGNMENT_GENERATOR_NODE_HH

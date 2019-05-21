@@ -12,13 +12,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tProperties.hh"
 #include "Properties.hh"
+#include "tProperties.hh"
 
 namespace Fsa {
-    Fsa::Property getProperties(ConstAutomatonRef f, Fsa::Property requested)
-    { return Ftl::getProperties<Automaton>(f, requested); }
+Fsa::Property getProperties(ConstAutomatonRef f, Fsa::Property requested) {
+    return Ftl::getProperties<Automaton>(f, requested);
+}
 
-    bool hasProperties(ConstAutomatonRef f, Property properties)
-    { return Ftl::hasProperties<Automaton>(f, properties); }
-} // namespace Fsa
+bool hasProperties(ConstAutomatonRef f, Property properties) {
+    return Ftl::hasProperties<Automaton>(f, properties);
+}
+}  // namespace Fsa

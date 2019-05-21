@@ -19,20 +19,20 @@
 
 namespace Fsa {
 
-    // create levenshtein alignment graph
-    ConstAutomatonRef levenshtein(ConstAutomatonRef ref, ConstAutomatonRef test,
-                                  f32 delCost = 1.0, f32 insCost = 1.0, f32 subCost = 1.0, f32 corCost = 0.0);
+// create levenshtein alignment graph
+ConstAutomatonRef levenshtein(ConstAutomatonRef ref, ConstAutomatonRef test,
+                              f32 delCost = 1.0, f32 insCost = 1.0, f32 subCost = 1.0, f32 corCost = 0.0);
 
-    struct LevenshteinInfo {
-        size_t del_;
-        size_t ins_;
-        size_t sub_;
-        size_t total_;
-    };
+struct LevenshteinInfo {
+    size_t del_;
+    size_t ins_;
+    size_t sub_;
+    size_t total_;
+};
 
-    // calculate standard levenshtein statistics
-    LevenshteinInfo levenshteinInfo(ConstAutomatonRef levensh);
+// calculate standard levenshtein statistics
+LevenshteinInfo levenshteinInfo(ConstAutomatonRef levensh);
 
-} // namespace
+}  // namespace Fsa
 
-#endif // _FSA_LEVENSHTEIN_HH
+#endif  // _FSA_LEVENSHTEIN_HH

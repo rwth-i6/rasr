@@ -26,106 +26,126 @@
 #include "tStorage.hh"
 
 namespace Ftl {
-    template<class _Automaton>
-    class Resources {
-        typedef Resources<_Automaton> Self;
-    public:
-        typedef _Automaton Automaton;
-        typedef typename _Automaton::ConstRef _ConstAutomatonRef;
-        typedef typename _Automaton::ConstSemiringRef _ConstSemiringRef;
-        typedef StorageAutomaton<_Automaton> _StorageAutomaton;
+template<class _Automaton>
+class Resources {
+    typedef Resources<_Automaton> Self;
 
-        typedef bool (*Writer)(const Self &, _ConstAutomatonRef, std::ostream &, Fsa::StoredComponents, bool progress);
-        typedef bool (*Reader)(const Self &, _StorageAutomaton*, std::istream &);
-        struct Format {
-            const std::string name;
-            std::string desc;
-            Reader reader;
-            Writer writer;
-            Format(const std::string &name, const std::string &desc) :
-                name(name), desc(desc), reader(0), writer(0) {}
-            Format(const std::string &name, const std::string &desc, Reader reader, Writer writer) :
-                name(name), desc(desc), reader(reader), writer(writer) {}
-        };
+public:
+    typedef _Automaton                            Automaton;
+    typedef typename _Automaton::ConstRef         _ConstAutomatonRef;
+    typedef typename _Automaton::ConstSemiringRef _ConstSemiringRef;
+    typedef StorageAutomaton<_Automaton>          _StorageAutomaton;
 
-    private:
-        typedef std::unordered_map<std::string, _ConstSemiringRef, Core::StringHash> SemiringMap;
-        typedef std::unordered_map<std::string, u32, Core::StringHash> NameToTypeMap;;
-        typedef std::unordered_map<u32, std::string>                   TypeToNameMap;
-
-        typedef std::unordered_map<std::string, Format*, Core::StringHash> FormatMap;
-
-    private:
-        const Core::Configuration *config_;
-        SemiringMap semirings_;
-        _ConstSemiringRef defaultSemiring_;
-        NameToTypeMap nameToType_;
-        TypeToNameMap typeToName_;
-
-        FormatMap formats_;
-        Format *defaultFormat_;
-    public:
-        Resources() : config_(new Core::Configuration()) { defaultFormat_ = 0; }
-        Resources(const Core::Configuration &config) : config_(&config) { defaultFormat_ = 0; }
-
-        const Core::Configuration & getConfiguration() const { return *config_; }
-
-        bool registerSemiring(const std::string &name, _ConstSemiringRef semiring, bool isDefault = false) {
-            if (isDefault) defaultSemiring_ = semiring;
-            return semirings_.insert(std::make_pair(name, semiring)).second;
-        }
-        bool registerSemiring(_ConstSemiringRef semiring, bool isDefault = false) {
-            return registerSemiring(semiring->name(), semiring, isDefault);
-        }
-        _ConstSemiringRef getSemiring(const std::string &name) const {
-            typename SemiringMap::const_iterator it = semirings_.find(name);
-            if (it == semirings_.end()) return _ConstSemiringRef();
-            else return it->second;
-        }
-        _ConstSemiringRef getDefaultSemiring() const {
-            return defaultSemiring_;
-        }
-        /**
-         * \note for backward compatibility only
-         */
-        bool registerSemiring(Fsa::SemiringType type, _ConstSemiringRef semiring, bool isDefault = false) {
-            verify(type != Fsa::SemiringTypeUnknown);
-            typeToName_.insert(std::make_pair(u32(type), semiring->name())).second;
-            nameToType_.insert(std::make_pair(semiring->name(), u32(type))).second;
-            return registerSemiring(semiring, isDefault);
-        }
-        _ConstSemiringRef getSemiring(Fsa::SemiringType type) const {
-            TypeToNameMap::const_iterator it = typeToName_.find(u32(type));
-            if (it == typeToName_.end()) return _ConstSemiringRef();
-            else return getSemiring(it->second);
-        }
-        Fsa::SemiringType getSemiringType(_ConstSemiringRef semiring) const {
-            NameToTypeMap::const_iterator it = nameToType_.find(semiring->name());
-            if (it == nameToType_.end()) return Fsa::SemiringTypeUnknown;
-            else return Fsa::SemiringType(it->second);
-        }
-
-
-        bool registerFormat(const std::string &name, Format *format, bool isDefault = false) {
-            if (isDefault) defaultFormat_ = format;
-            return formats_.insert(std::make_pair(name, format)).second;
-        }
-        bool registerFormat(Format *format, bool isDefault = false) {
-            return registerFormat(format->name, format, isDefault);
-        }
-        Format* getFormat(const std::string &name) const {
-            typename FormatMap::const_iterator it = formats_.find(name);
-            if (it == formats_.end()) return 0;
-            else return it->second;
-        }
-        Format* getDefaultFormat() const {
-            return defaultFormat_;
-        }
-
-        void dump(std::ostream &o) const;
+    typedef bool (*Writer)(const Self&, _ConstAutomatonRef, std::ostream&, Fsa::StoredComponents, bool progress);
+    typedef bool (*Reader)(const Self&, _StorageAutomaton*, std::istream&);
+    struct Format {
+        const std::string name;
+        std::string       desc;
+        Reader            reader;
+        Writer            writer;
+        Format(const std::string& name, const std::string& desc)
+                : name(name), desc(desc), reader(0), writer(0) {}
+        Format(const std::string& name, const std::string& desc, Reader reader, Writer writer)
+                : name(name), desc(desc), reader(reader), writer(writer) {}
     };
-} // namespace Ftl
+
+private:
+    typedef std::unordered_map<std::string, _ConstSemiringRef, Core::StringHash> SemiringMap;
+    typedef std::unordered_map<std::string, u32, Core::StringHash>               NameToTypeMap;
+    ;
+    typedef std::unordered_map<u32, std::string> TypeToNameMap;
+
+    typedef std::unordered_map<std::string, Format*, Core::StringHash> FormatMap;
+
+private:
+    const Core::Configuration* config_;
+    SemiringMap                semirings_;
+    _ConstSemiringRef          defaultSemiring_;
+    NameToTypeMap              nameToType_;
+    TypeToNameMap              typeToName_;
+
+    FormatMap formats_;
+    Format*   defaultFormat_;
+
+public:
+    Resources()
+            : config_(new Core::Configuration()) {
+        defaultFormat_ = 0;
+    }
+    Resources(const Core::Configuration& config)
+            : config_(&config) {
+        defaultFormat_ = 0;
+    }
+
+    const Core::Configuration& getConfiguration() const {
+        return *config_;
+    }
+
+    bool registerSemiring(const std::string& name, _ConstSemiringRef semiring, bool isDefault = false) {
+        if (isDefault)
+            defaultSemiring_ = semiring;
+        return semirings_.insert(std::make_pair(name, semiring)).second;
+    }
+    bool registerSemiring(_ConstSemiringRef semiring, bool isDefault = false) {
+        return registerSemiring(semiring->name(), semiring, isDefault);
+    }
+    _ConstSemiringRef getSemiring(const std::string& name) const {
+        typename SemiringMap::const_iterator it = semirings_.find(name);
+        if (it == semirings_.end())
+            return _ConstSemiringRef();
+        else
+            return it->second;
+    }
+    _ConstSemiringRef getDefaultSemiring() const {
+        return defaultSemiring_;
+    }
+    /**
+     * \note for backward compatibility only
+     */
+    bool registerSemiring(Fsa::SemiringType type, _ConstSemiringRef semiring, bool isDefault = false) {
+        verify(type != Fsa::SemiringTypeUnknown);
+        typeToName_.insert(std::make_pair(u32(type), semiring->name())).second;
+        nameToType_.insert(std::make_pair(semiring->name(), u32(type))).second;
+        return registerSemiring(semiring, isDefault);
+    }
+    _ConstSemiringRef getSemiring(Fsa::SemiringType type) const {
+        TypeToNameMap::const_iterator it = typeToName_.find(u32(type));
+        if (it == typeToName_.end())
+            return _ConstSemiringRef();
+        else
+            return getSemiring(it->second);
+    }
+    Fsa::SemiringType getSemiringType(_ConstSemiringRef semiring) const {
+        NameToTypeMap::const_iterator it = nameToType_.find(semiring->name());
+        if (it == nameToType_.end())
+            return Fsa::SemiringTypeUnknown;
+        else
+            return Fsa::SemiringType(it->second);
+    }
+
+    bool registerFormat(const std::string& name, Format* format, bool isDefault = false) {
+        if (isDefault)
+            defaultFormat_ = format;
+        return formats_.insert(std::make_pair(name, format)).second;
+    }
+    bool registerFormat(Format* format, bool isDefault = false) {
+        return registerFormat(format->name, format, isDefault);
+    }
+    Format* getFormat(const std::string& name) const {
+        typename FormatMap::const_iterator it = formats_.find(name);
+        if (it == formats_.end())
+            return 0;
+        else
+            return it->second;
+    }
+    Format* getDefaultFormat() const {
+        return defaultFormat_;
+    }
+
+    void dump(std::ostream& o) const;
+};
+}  // namespace Ftl
 
 #include "tResources.cc"
 
-#endif // _T_FSA_RESOURCES_HH
+#endif  // _T_FSA_RESOURCES_HH

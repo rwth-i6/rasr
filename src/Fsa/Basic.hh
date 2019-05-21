@@ -28,40 +28,40 @@
  * tAlphabet
  */
 namespace Fsa {
-    ConstAutomatonRef mapInput(ConstAutomatonRef f, ConstAlphabetRef alphabet, u32 reportUnknowns = 10);
-    ConstAutomatonRef mapOutput(ConstAutomatonRef f, ConstAlphabetRef alphabet, u32 reportUnknowns = 10);
-    ConstAutomatonRef mapInputOutput(ConstAutomatonRef, ConstAlphabetRef, u32 reportUnknowns = 10);
-    ConstAutomatonRef mapInput(ConstAutomatonRef f, const AlphabetMapping&);
-    ConstAutomatonRef mapOutput(ConstAutomatonRef f, const AlphabetMapping&);
-    ConstAutomatonRef mapInputOutput(ConstAutomatonRef, const AlphabetMapping&);
-} // namespace Fsa
+ConstAutomatonRef mapInput(ConstAutomatonRef f, ConstAlphabetRef alphabet, u32 reportUnknowns = 10);
+ConstAutomatonRef mapOutput(ConstAutomatonRef f, ConstAlphabetRef alphabet, u32 reportUnknowns = 10);
+ConstAutomatonRef mapInputOutput(ConstAutomatonRef, ConstAlphabetRef, u32 reportUnknowns = 10);
+ConstAutomatonRef mapInput(ConstAutomatonRef f, const AlphabetMapping&);
+ConstAutomatonRef mapOutput(ConstAutomatonRef f, const AlphabetMapping&);
+ConstAutomatonRef mapInputOutput(ConstAutomatonRef, const AlphabetMapping&);
+}  // namespace Fsa
 
 /*
  * tBasic
  */
 namespace Fsa {
-    ConstAutomatonRef normalize(ConstAutomatonRef f);
-    ConstAutomatonRef trim(ConstAutomatonRef f, bool progress = false);
-    ConstAutomatonRef partial(ConstAutomatonRef f, StateId initial);
-    ConstAutomatonRef partial(ConstAutomatonRef f, StateId initial, Weight additionalFinalWeight);
-    ConstAutomatonRef hypothesis(ConstAutomatonRef f, StateId n);
-    ConstAutomatonRef changeSemiring(ConstAutomatonRef f, ConstSemiringRef semiring);
-    ConstMappingRef mapNormalized(ConstAutomatonRef f);
-} // namespace Fsa
+ConstAutomatonRef normalize(ConstAutomatonRef f);
+ConstAutomatonRef trim(ConstAutomatonRef f, bool progress = false);
+ConstAutomatonRef partial(ConstAutomatonRef f, StateId initial);
+ConstAutomatonRef partial(ConstAutomatonRef f, StateId initial, Weight additionalFinalWeight);
+ConstAutomatonRef hypothesis(ConstAutomatonRef f, StateId n);
+ConstAutomatonRef changeSemiring(ConstAutomatonRef f, ConstSemiringRef semiring);
+ConstMappingRef   mapNormalized(ConstAutomatonRef f);
+}  // namespace Fsa
 
 /*
  * tInfo
  */
 namespace Fsa {
-    AutomatonCounts count(ConstAutomatonRef f, bool progress = false);
-    bool isEmpty(ConstAutomatonRef f);
-    Core::Vector<u32> inDegree(ConstAutomatonRef f, bool progress = false);
-    size_t countLinearStates(ConstAutomatonRef f, bool progress = false);
-    size_t countInput(ConstAutomatonRef f, LabelId label, bool progress = false);
-    size_t countOutput(ConstAutomatonRef f, LabelId label, bool progress = false);
-    void info(ConstAutomatonRef f, Core::XmlWriter &o, bool progress = false);
-    void cheapInfo(ConstAutomatonRef f, Core::XmlWriter &o);
-    void memoryInfo(ConstAutomatonRef f, Core::XmlWriter &o);
-} // namespace Fsa
+AutomatonCounts   count(ConstAutomatonRef f, bool progress = false);
+bool              isEmpty(ConstAutomatonRef f);
+Core::Vector<u32> inDegree(ConstAutomatonRef f, bool progress = false);
+size_t            countLinearStates(ConstAutomatonRef f, bool progress = false);
+size_t            countInput(ConstAutomatonRef f, LabelId label, bool progress = false);
+size_t            countOutput(ConstAutomatonRef f, LabelId label, bool progress = false);
+void              info(ConstAutomatonRef f, Core::XmlWriter& o, bool progress = false);
+void              cheapInfo(ConstAutomatonRef f, Core::XmlWriter& o);
+void              memoryInfo(ConstAutomatonRef f, Core::XmlWriter& o);
+}  // namespace Fsa
 
-#endif // _FSA_BASIC_HH
+#endif  // _FSA_BASIC_HH

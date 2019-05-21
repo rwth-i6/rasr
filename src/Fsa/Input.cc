@@ -12,13 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <cstring>
 #include <Core/Application.hh>
 #include <Core/CompressedStream.hh>
 #include <Core/Unicode.hh>
 #include <Core/Utility.hh>
+#include <cstring>
 
-#include "tInput.hh"
 #include "Alphabet.hh"
 #include "Input.hh"
 #include "Output.hh"
@@ -27,104 +26,49 @@
 #include "Static.hh"
 #include "Storage.hh"
 #include "Types.hh"
-
-
+#include "tInput.hh"
 
 namespace Fsa {
-    ConstAutomatonRef read(const std::string &argument, ConstSemiringRef semiring) {
-        StorageAutomaton *f;
-        std::string tmp = argument;
-        if (std::string(tmp, 0, 7) == "packed:") {
-            f = new PackedAutomaton();
-            tmp = std::string(tmp, 7);
-        } else f = new StaticAutomaton();
-        f->setSemiring(semiring);
-        if (!read(f, tmp)) {
-            Core::Application::us()->error("could not load fsa '%s'.", tmp.c_str());
-            delete f;
-            return ConstAutomatonRef();
-        }
-        return ConstAutomatonRef(f);
+ConstAutomatonRef read(const std::string& argument, ConstSemiringRef semiring) {
+    StorageAutomaton* f;
+    std::string       tmp = argument;
+    if (std::string(tmp, 0, 7) == "packed:") {
+        f   = new PackedAutomaton();
+        tmp = std::string(tmp, 7);
     }
-
-    bool read(StorageAutomaton *f, const std::string &file)
-    { return Ftl::read<Automaton>(getResources(), f, file); }
-
-    bool read(StorageAutomaton *f, const std::string &format, std::istream &i)
-    { return Ftl::read<Automaton>(getResources(), f, format, i); }
-
-    bool readAtt(StorageAutomaton *f, std::istream &i)
-    { return Ftl::readAtt<Automaton>(getResources(), f, i); }
-
-    bool readBinary(StorageAutomaton *f, std::istream &i)
-    { return Ftl::readBinary<Automaton>(getResources(), f, i); }
-
-    bool readLinear(StorageAutomaton *f, std::istream &i)
-    { return Ftl::readLinear<Automaton>(getResources(), f, i); }
-
-    bool readXml(StorageAutomaton *f, std::istream &i)
-    { return Ftl::readXml<Automaton>(getResources(), f, i); }
-
-#if 0
-    bool readHtk(StorageAutomaton *f, std::istream &i) {
-        Core::Configuration config;
-        Lattice::HtkReader reader(config, 1.0, 0.0, 0.0, true);
-        return reader.read(i, f);
+    else
+        f = new StaticAutomaton();
+    f->setSemiring(semiring);
+    if (!read(f, tmp)) {
+        Core::Application::us()->error("could not load fsa '%s'.", tmp.c_str());
+        delete f;
+        return ConstAutomatonRef();
     }
+    return ConstAutomatonRef(f);
+}
 
-#include <unistd.h>
-#include <sys/mman.h>
+bool read(StorageAutomaton* f, const std::string& file) {
+    return Ftl::read<Automaton>(getResources(), f, file);
+}
 
-    class Mmapped : public Automaton {
-    private:
-        int fd_;
-        void *file_;
-        size_t length_;
-        off_t inputOffset_, outputOffset_;
-    public:
-        Mmapped(const std::string &file) {
-            char magic[8];
-            bi.read(magic, 8);
-            if (strcmp(magic, "RWTHFSA") != 0) return false;
+bool read(StorageAutomaton* f, const std::string& format, std::istream& i) {
+    return Ftl::read<Automaton>(getResources(), f, format, i);
+}
 
-            u32 tmp;
-            bi >> tmp;
-            setType(Type(tmp));
-            bi >> tmp;
-            tmp |= PropertyStorage;
-            setProperties(tmp, PropertyAll);
-            bi >> tmp;
-            setSemiring(getSemiring(SemiringType(tmp)));
+bool readAtt(StorageAutomaton* f, std::istream& i) {
+    return Ftl::readAtt<Automaton>(getResources(), f, i);
+}
 
-            StaticAlphabet *a = new StaticAlphabet();
-            if (!a->read(bi)) return false;
-            if (type() == TypeTransducer) {
-                a = new StaticAlphabet();
-                if (!a->read(bi)) return false;
-            }
+bool readBinary(StorageAutomaton* f, std::istream& i) {
+    return Ftl::readBinary<Automaton>(getResources(), f, i);
+}
 
-            // mmap rest of file
-            fd_ = open(path);
-            if (fd_ >= 0) {
-                length_ = ;
-                file_ = mmap(0, length_, PROT_READ, MAP_SHARED, fd_, 0);
-            } else std::cerr << "could not open file '" << file << "' as fsa (mmapped)." << std::endl;
-        }
-        virtual ~Mmapped() {
-            if (fd_) {
-                munmap(file_, length_);
-                close(fd_);
-            }
-        }
+bool readLinear(StorageAutomaton* f, std::istream& i) {
+    return Ftl::readLinear<Automaton>(getResources(), f, i);
+}
 
-        virtual ConstAlphabetRef getInputAlphabet() const { return MmappedAlphabet(fd_, inputOffset_); }
-        virtual ConstAlphabetRef getOutputAlphabet() const { return MmappedAlphabet(fd_, outputOffset_); }
-        virtual ConstStateRef getState(StateId s) {
-            if (s < nStates_) return states_[id];
-            return 0;
-        }
-        virtual void releaseState(StateId s) {}
-    };
-#endif
+bool readXml(StorageAutomaton* f, std::istream& i) {
+    return Ftl::readXml<Automaton>(getResources(), f, i);
+}
 
-} // namespace Fsa
+}  // namespace Fsa

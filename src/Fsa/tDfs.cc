@@ -17,97 +17,112 @@
 #include "tDfs.hh"
 
 namespace Ftl {
-    template<class _Automaton>
-    void DfsState<_Automaton>::dfs(Core::ProgressIndicator *progress) {
-        Fsa::Stack<Fsa::StateId> S;
-        Fsa::StateId initial = fsa_->initialStateId();
-        Fsa::StateId init = initial | White;
-        info_.erase(info_.begin(), info_.end());
-        if (initial != Fsa::InvalidStateId) {
-            info_.grow(initial, init);
-            S.push(initial);
-        }
-        if (progress) progress->start(info_.size());
-        while (!S.isEmpty()) {
-            Fsa::StateId s = S.top();
-            if (color(s) == White) {
-                setColor(s, Gray);
-                _ConstStateRef sp = fsa_->getState(s);
-                if (sp) {
-                    discoverState(sp);
-                    for (typename _State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
-                        info_.grow(a->target(), init);
-                        if (progress) progress->setTotal(a->target());
-                        if (color(a->target()) == White) {
-                            setPredecessor(a->target(), s);
-                            exploreTreeArc(sp, *a);
-                            S.push(a->target());
-                        } else exploreNonTreeArc(sp, *a);
-                    }
-                } else std::cerr << "unreachable state " << s << " encountered during dfs" << std::endl;
-            } else {
-                if (color(s) == Gray) {
-                    setColor(s, Black);
-                    finishState(s);
-                    if (progress) progress->notify();
-                }
-                S.pop();
-            }
-        }
-        finish();
-        if (progress) progress->finish();
+template<class _Automaton>
+void DfsState<_Automaton>::dfs(Core::ProgressIndicator* progress) {
+    Fsa::Stack<Fsa::StateId> S;
+    Fsa::StateId             initial = fsa_->initialStateId();
+    Fsa::StateId             init    = initial | White;
+    info_.erase(info_.begin(), info_.end());
+    if (initial != Fsa::InvalidStateId) {
+        info_.grow(initial, init);
+        S.push(initial);
     }
-
-
-    template<class _Automaton>
-    void DfsState<_Automaton>::recursiveDfs(Core::ProgressIndicator *progress) {
-        Fsa::Stack<Fsa::StateId> S;
-        Fsa::Stack<size_t> A;
-        Fsa::StateId init = fsa_->initialStateId() | White;
-        info_.erase(info_.begin(), info_.end());
-        if (fsa_->initialStateId() != Fsa::InvalidStateId) {
-            info_.grow(fsa_->initialStateId(), init);
-            S.push(fsa_->initialStateId());
-        }
-        if (progress) progress->start(info_.size());
-        while (!S.isEmpty()) {
-            Fsa::StateId s = S.top();
+    if (progress)
+        progress->start(info_.size());
+    while (!S.isEmpty()) {
+        Fsa::StateId s = S.top();
+        if (color(s) == White) {
+            setColor(s, Gray);
             _ConstStateRef sp = fsa_->getState(s);
-            if (!sp) {
-                std::cerr << "unreachable state " << s << " encountered during dfs" << std::endl;
-                S.pop();
-                continue;
-            }
-            if (color(s) == White) {
-                setColor(s, Gray);
+            if (sp) {
                 discoverState(sp);
-                A.push(0);
-            }
-            require(S.size() == A.size());
-            size_t a = A.top(); A.pop();
-            if (a != 0)
-                finishArc(sp, *(sp->begin() + a-1));
-            if (a != sp->nArcs()) {
-                typename _State::const_iterator ai = sp->begin() + a;
-                info_.grow(ai->target(), init);
-                if (progress) progress->setTotal(ai->target());
-                if (color(ai->target()) == White) {
-                    exploreTreeArc(sp, *ai);
-                    setPredecessor(ai->target(), s);
-                    S.push(ai->target());
-                } else {
-                    exploreNonTreeArc(sp, *ai);
+                for (typename _State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
+                    info_.grow(a->target(), init);
+                    if (progress)
+                        progress->setTotal(a->target());
+                    if (color(a->target()) == White) {
+                        setPredecessor(a->target(), s);
+                        exploreTreeArc(sp, *a);
+                        S.push(a->target());
+                    }
+                    else
+                        exploreNonTreeArc(sp, *a);
                 }
-                A.push(++a);
-            } else {
+            }
+            else
+                std::cerr << "unreachable state " << s << " encountered during dfs" << std::endl;
+        }
+        else {
+            if (color(s) == Gray) {
                 setColor(s, Black);
                 finishState(s);
-                if (progress) progress->notify();
-                S.pop();
+                if (progress)
+                    progress->notify();
             }
+            S.pop();
         }
-        finish();
-        if (progress) progress->finish();
     }
+    finish();
+    if (progress)
+        progress->finish();
+}
 
-} // namespace Ftl
+template<class _Automaton>
+void DfsState<_Automaton>::recursiveDfs(Core::ProgressIndicator* progress) {
+    Fsa::Stack<Fsa::StateId> S;
+    Fsa::Stack<size_t>       A;
+    Fsa::StateId             init = fsa_->initialStateId() | White;
+    info_.erase(info_.begin(), info_.end());
+    if (fsa_->initialStateId() != Fsa::InvalidStateId) {
+        info_.grow(fsa_->initialStateId(), init);
+        S.push(fsa_->initialStateId());
+    }
+    if (progress)
+        progress->start(info_.size());
+    while (!S.isEmpty()) {
+        Fsa::StateId   s  = S.top();
+        _ConstStateRef sp = fsa_->getState(s);
+        if (!sp) {
+            std::cerr << "unreachable state " << s << " encountered during dfs" << std::endl;
+            S.pop();
+            continue;
+        }
+        if (color(s) == White) {
+            setColor(s, Gray);
+            discoverState(sp);
+            A.push(0);
+        }
+        require(S.size() == A.size());
+        size_t a = A.top();
+        A.pop();
+        if (a != 0)
+            finishArc(sp, *(sp->begin() + a - 1));
+        if (a != sp->nArcs()) {
+            typename _State::const_iterator ai = sp->begin() + a;
+            info_.grow(ai->target(), init);
+            if (progress)
+                progress->setTotal(ai->target());
+            if (color(ai->target()) == White) {
+                exploreTreeArc(sp, *ai);
+                setPredecessor(ai->target(), s);
+                S.push(ai->target());
+            }
+            else {
+                exploreNonTreeArc(sp, *ai);
+            }
+            A.push(++a);
+        }
+        else {
+            setColor(s, Black);
+            finishState(s);
+            if (progress)
+                progress->notify();
+            S.pop();
+        }
+    }
+    finish();
+    if (progress)
+        progress->finish();
+}
+
+}  // namespace Ftl

@@ -15,32 +15,31 @@
 #ifndef _FSA_RATIONAL_HH
 #define _FSA_RATIONAL_HH
 
-#include "Automaton.hh"
 #include <Core/Vector.hh>
+#include "Automaton.hh"
 #include "Mapping.hh"
 
 namespace Fsa {
 
-    ConstAutomatonRef identity(ConstAlphabetRef, ConstSemiringRef);
-    ConstAutomatonRef closure(ConstAutomatonRef f);
-    ConstAutomatonRef kleeneClosure(ConstAutomatonRef f);
-    ConstAutomatonRef complement(ConstAutomatonRef f);
-    ConstAutomatonRef concat(const Core::Vector<ConstAutomatonRef> &f);
-    ConstAutomatonRef concat(ConstAutomatonRef, ConstAutomatonRef);
-    ConstAutomatonRef unite(const Core::Vector<ConstAutomatonRef> &f,
-                            const Core::Vector<Weight> &initialWeights = Core::Vector<Weight>());
-    ConstAutomatonRef unite(ConstAutomatonRef, ConstAutomatonRef);
-    ConstMappingRef mapToSubAutomaton(ConstAutomatonRef f, u32 subAutomaton);
-    ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef> &f);
-    ConstAutomatonRef fuse(ConstAutomatonRef, ConstAutomatonRef);
-    ConstAutomatonRef transpose(ConstAutomatonRef f, bool progress = false);
+ConstAutomatonRef identity(ConstAlphabetRef, ConstSemiringRef);
+ConstAutomatonRef closure(ConstAutomatonRef f);
+ConstAutomatonRef kleeneClosure(ConstAutomatonRef f);
+ConstAutomatonRef complement(ConstAutomatonRef f);
+ConstAutomatonRef concat(const Core::Vector<ConstAutomatonRef>& f);
+ConstAutomatonRef concat(ConstAutomatonRef, ConstAutomatonRef);
+ConstAutomatonRef unite(const Core::Vector<ConstAutomatonRef>& f,
+                        const Core::Vector<Weight>&            initialWeights = Core::Vector<Weight>());
+ConstAutomatonRef unite(ConstAutomatonRef, ConstAutomatonRef);
+ConstMappingRef   mapToSubAutomaton(ConstAutomatonRef f, u32 subAutomaton);
+ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef>& f);
+ConstAutomatonRef fuse(ConstAutomatonRef, ConstAutomatonRef);
+ConstAutomatonRef transpose(ConstAutomatonRef f, bool progress = false);
 
+ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef>& f);
+ConstAutomatonRef fuse(ConstAutomatonRef, ConstAutomatonRef);
 
-    ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef> &f);
-    ConstAutomatonRef fuse(ConstAutomatonRef, ConstAutomatonRef);
+ConstAutomatonRef allPrefixes(ConstAutomatonRef);
+ConstAutomatonRef allSuffixes(ConstAutomatonRef);
+}  // namespace Fsa
 
-    ConstAutomatonRef allPrefixes(ConstAutomatonRef);
-    ConstAutomatonRef allSuffixes(ConstAutomatonRef);
-} // namespace Fsa
-
-#endif // _FSA_RATIONAL_HH
+#endif  // _FSA_RATIONAL_HH

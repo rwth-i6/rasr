@@ -19,7 +19,7 @@
 #include "Automaton.hh"
 
 namespace Fsa {
-    ConstAutomatonRef cache(ConstAutomatonRef f, u32 maxAge = 10000);
-} // namespace Fsa
+ConstAutomatonRef cache(ConstAutomatonRef f, u32 maxAge = 10000);
+}  // namespace Fsa
 
-#endif // _FSA_CACHE_HH
+#endif  // _FSA_CACHE_HH

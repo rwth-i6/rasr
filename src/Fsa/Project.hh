@@ -18,9 +18,9 @@
 #include "Automaton.hh"
 
 namespace Fsa {
-    ConstAutomatonRef projectInput(ConstAutomatonRef f);
-    ConstAutomatonRef projectOutput(ConstAutomatonRef f);
-    ConstAutomatonRef invert(ConstAutomatonRef f);
-} // namespace Fsa
+ConstAutomatonRef projectInput(ConstAutomatonRef f);
+ConstAutomatonRef projectOutput(ConstAutomatonRef f);
+ConstAutomatonRef invert(ConstAutomatonRef f);
+}  // namespace Fsa
 
-#endif // _FSA_PROJECT_HH
+#endif  // _FSA_PROJECT_HH

@@ -18,70 +18,108 @@
 #include <Core/Choice.hh>
 #include <Core/Types.hh>
 
-#include "tSemiring.hh"
 #include "Semiring.hh"
+#include "tSemiring.hh"
 
 namespace Fsa {
-    class Weight64 {
-        friend class Ftl::Semiring<Weight64>;
-    private:
+class Weight64 {
+    friend class Ftl::Semiring<Weight64>;
+
+private:
     union Value {
         s64 s;
         u64 u;
         f64 f;
     };
-        Value value_;
+    Value value_;
 
-    public:
-        Weight64() {}
-        explicit Weight64(s32 value) { value_.s = value; }
-        explicit Weight64(u32 value) { value_.u = value; }
-        explicit Weight64(f32 value) { value_.f = value; }
-        explicit Weight64(double value) { value_.f = value; }
-        // TODO: better implementation
-        explicit Weight64(Weight &w) { value_.f = (f32)w; }
+public:
+    Weight64() {}
+    explicit Weight64(s32 value) {
+        value_.s = value;
+    }
+    explicit Weight64(u32 value) {
+        value_.u = value;
+    }
+    explicit Weight64(f32 value) {
+        value_.f = value;
+    }
+    explicit Weight64(double value) {
+        value_.f = value;
+    }
+    // TODO: better implementation
+    explicit Weight64(Weight& w) {
+        value_.f = (f32)w;
+    }
 
-        operator int() { return value_.s; }
-        operator int() const { return value_.s; }
-        operator long() { return value_.s; }
-        operator long() const { return value_.s; }
-        operator u32() { return value_.u; }
-        operator u32() const { return value_.u; }
-        operator u64() { return value_.u; }
-        operator u64() const { return value_.u; }
-        operator float() { return value_.f; }
-        operator float() const { return value_.f; }
-        const Weight64& operator= (const Weight64 &w) { value_ = w.value_; return *this; }
-        operator double() { return value_.f; }
-        operator double() const { return value_.f; }
-        // TODO: better implementation
-        operator Weight() const {
-                if (value_.f == Core::Type<f64>::max) // Match case zero in LogSemiring
-                        return Weight(Core::Type<f32>::max);
-                if (value_.f == Core::Type<f64>::min) // Match case invalid in LogSemiring
-                        return Weight(Core::Type<f32>::min);
-                return Weight(value_.f);
-        }
+    operator int() {
+        return value_.s;
+    }
+    operator int() const {
+        return value_.s;
+    }
+    operator long() {
+        return value_.s;
+    }
+    operator long() const {
+        return value_.s;
+    }
+    operator u32() {
+        return value_.u;
+    }
+    operator u32() const {
+        return value_.u;
+    }
+    operator u64() {
+        return value_.u;
+    }
+    operator u64() const {
+        return value_.u;
+    }
+    operator float() {
+        return value_.f;
+    }
+    operator float() const {
+        return value_.f;
+    }
+    const Weight64& operator=(const Weight64& w) {
+        value_ = w.value_;
+        return *this;
+    }
+    operator double() {
+        return value_.f;
+    }
+    operator double() const {
+        return value_.f;
+    }
+    // TODO: better implementation
+    operator Weight() const {
+        if (value_.f == Core::Type<f64>::max)  // Match case zero in LogSemiring
+            return Weight(Core::Type<f32>::max);
+        if (value_.f == Core::Type<f64>::min)  // Match case invalid in LogSemiring
+            return Weight(Core::Type<f32>::min);
+        return Weight(value_.f);
+    }
 
-        bool operator== (const Weight64 &w) const {
-                return memcmp(&value_, &w.value_, sizeof(Value)) == 0;
-        }
+    bool operator==(const Weight64& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) == 0;
+    }
 
-        bool operator!= (const Weight64 &w) const {
-                return memcmp(&value_, &w.value_, sizeof(Value)) != 0;
-        }
+    bool operator!=(const Weight64& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) != 0;
+    }
 
-        bool operator< (const Weight64 &w) const {
-                return memcmp(&value_, &w.value_, sizeof(Value)) < 0;
-        }
-    };
+    bool operator<(const Weight64& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) < 0;
+    }
+};
 
-    typedef Ftl::Accumulator<Weight64> Accumulator64;
-    typedef Ftl::Semiring<Weight64> Semiring64;
-    typedef Semiring64::Ref Semiring64Ref;
-    typedef Semiring64::ConstRef ConstSemiring64Ref;
+typedef Ftl::Accumulator<Weight64> Accumulator64;
+typedef Ftl::Semiring<Weight64>    Semiring64;
+typedef Semiring64::Ref            Semiring64Ref;
+typedef Semiring64::ConstRef       ConstSemiring64Ref;
 
-    extern ConstSemiring64Ref LogSemiring64;
-} // namespace Fsa
+extern ConstSemiring64Ref LogSemiring64;
+}  // namespace Fsa
 
-#endif // _FSA_SEMIRING64_HH
+#endif  // _FSA_SEMIRING64_HH

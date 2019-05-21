@@ -15,57 +15,58 @@
 #ifndef _T_FSA_ACCESSIBLE_CC
 #define _T_FSA_ACCESSIBLE_CC
 
-#include "tAutomaton.hh"
 #include "tAccessible.hh"
+#include "tAutomaton.hh"
 
 namespace Ftl {
 
-    template<class _Automaton>
-    CoaccessibleDfsState<_Automaton>::CoaccessibleDfsState(_ConstAutomatonRef f) :
-        Precursor(f), time_(0), scc_(0) {}
+template<class _Automaton>
+CoaccessibleDfsState<_Automaton>::CoaccessibleDfsState(_ConstAutomatonRef f)
+        : Precursor(f), time_(0), scc_(0) {}
 
-    template<class _Automaton>
-    void CoaccessibleDfsState<_Automaton>::discoverState(_ConstStateRef sp) {
-        Fsa::StateId s = sp->id();
-        unfinished_.push(s);
-        roots_.push(s);
-        flags_.grow(s, 0);
-        flags_[s] = time_++ | FlagUnfinished; // | FlagAccessible; // states are accessible by default
-        if (sp->isFinal()) flags_[s] |= FlagCoaccessible;
-        flags_[this->predecessor(s)] |= flags_[s] & FlagCoaccessible;
-    }
+template<class _Automaton>
+void CoaccessibleDfsState<_Automaton>::discoverState(_ConstStateRef sp) {
+    Fsa::StateId s = sp->id();
+    unfinished_.push(s);
+    roots_.push(s);
+    flags_.grow(s, 0);
+    flags_[s] = time_++ | FlagUnfinished;  // | FlagAccessible; // states are accessible by default
+    if (sp->isFinal())
+        flags_[s] |= FlagCoaccessible;
+    flags_[this->predecessor(s)] |= flags_[s] & FlagCoaccessible;
+}
 
-    template<class _Automaton>
-    void CoaccessibleDfsState<_Automaton>::finishState(Fsa::StateId s) {
-        if (s == roots_.top()) {
-            // if any state of the scc is coaccessible we mark the whole scc
-            Fsa::StateId w, coaccessible = flags_[s] & FlagCoaccessible;
-            if (!coaccessible) {
-                for (Fsa::Stack<Fsa::StateId>::const_iterator i = unfinished_.begin(); *i != s; ++i)
-                    if (flags_[*i] & FlagCoaccessible) {
-                        coaccessible = FlagCoaccessible;
-                        break;
-                    }
-            }
-            do {
-                w = unfinished_.pop();
-                flags_[w] &= ~FlagUnfinished;
-                flags_[w] |= coaccessible;
-                flags_[this->predecessor(w)] |= flags_[w] & FlagCoaccessible;
-            } while (s != w);
-            roots_.pop();
-            ++scc_;
+template<class _Automaton>
+void CoaccessibleDfsState<_Automaton>::finishState(Fsa::StateId s) {
+    if (s == roots_.top()) {
+        // if any state of the scc is coaccessible we mark the whole scc
+        Fsa::StateId w, coaccessible = flags_[s] & FlagCoaccessible;
+        if (!coaccessible) {
+            for (Fsa::Stack<Fsa::StateId>::const_iterator i = unfinished_.begin(); *i != s; ++i)
+                if (flags_[*i] & FlagCoaccessible) {
+                    coaccessible = FlagCoaccessible;
+                    break;
+                }
         }
+        do {
+            w = unfinished_.pop();
+            flags_[w] &= ~FlagUnfinished;
+            flags_[w] |= coaccessible;
+            flags_[this->predecessor(w)] |= flags_[w] & FlagCoaccessible;
+        } while (s != w);
+        roots_.pop();
+        ++scc_;
     }
+}
 
-    template<class _Automaton>
-    void CoaccessibleDfsState<_Automaton>::exploreNonTreeArc(_ConstStateRef from, const _Arc &a) {
-            flags_[from->id()] |= flags_[a.target()] & FlagCoaccessible;
-            if (flags_[a.target()] & FlagUnfinished)
-                while ((flags_[roots_.top()] & ~FlagAll) > (flags_[a.target()] & ~FlagAll))
-                    roots_.pop();
-    }
+template<class _Automaton>
+void CoaccessibleDfsState<_Automaton>::exploreNonTreeArc(_ConstStateRef from, const _Arc& a) {
+    flags_[from->id()] |= flags_[a.target()] & FlagCoaccessible;
+    if (flags_[a.target()] & FlagUnfinished)
+        while ((flags_[roots_.top()] & ~FlagAll) > (flags_[a.target()] & ~FlagAll))
+            roots_.pop();
+}
 
-} // namespace Ftl
+}  // namespace Ftl
 
-#endif // _T_FSA_ACCESSIBLE_CC
+#endif  // _T_FSA_ACCESSIBLE_CC

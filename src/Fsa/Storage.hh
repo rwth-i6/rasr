@@ -15,24 +15,24 @@
 #ifndef _FSA_STORAGE_HH
 #define _FSA_STORAGE_HH
 
-#include "tStorage.hh"
 #include "Automaton.hh"
 #include "Types.hh"
+#include "tStorage.hh"
 
 namespace Fsa {
-    typedef Ftl::StorageAutomaton<Automaton> StorageAutomaton;
+typedef Ftl::StorageAutomaton<Automaton> StorageAutomaton;
 
-    void copy(StorageAutomaton *f, ConstAutomatonRef f2);
-    void copy(StorageAutomaton *f, const std::string &str);
+void copy(StorageAutomaton* f, ConstAutomatonRef f2);
+void copy(StorageAutomaton* f, const std::string& str);
 
-} // namespace Fsa
+}  // namespace Fsa
 
 // According to the ISO C++ standard 14.7.3/2:
 // Explicit template specializations have to be declared in
 // the same namespace of which the template is a member
 namespace Ftl {
-    template<>
-    StorageAutomaton<Fsa::Automaton>::StorageAutomaton(Fsa::Type type);
-} // namespace Ftl
+template<>
+StorageAutomaton<Fsa::Automaton>::StorageAutomaton(Fsa::Type type);
+}  // namespace Ftl
 
-#endif // _FSA_STORAGE_HH
+#endif  // _FSA_STORAGE_HH

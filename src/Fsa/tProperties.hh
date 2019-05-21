@@ -18,34 +18,34 @@
 #include "Types.hh"
 
 namespace Ftl {
-    /**
-     * Get properties.
-     * If necessary the requested properties are computed using
-     * isAcyclic() or isLinear().
-     * @see Fsa/Types.hh
-     * @param f automaton to get the properties for
-     * @param properties the properties to get
-     * @return properties of the automaton
-     **/
-    template<class _Automaton>
-    Fsa::Property getProperties(typename _Automaton::ConstRef f, Fsa::Property properties = Fsa::PropertyAll);
+/**
+ * Get properties.
+ * If necessary the requested properties are computed using
+ * isAcyclic() or isLinear().
+ * @see Fsa/Types.hh
+ * @param f automaton to get the properties for
+ * @param properties the properties to get
+ * @return properties of the automaton
+ **/
+template<class _Automaton>
+Fsa::Property getProperties(typename _Automaton::ConstRef f, Fsa::Property properties = Fsa::PropertyAll);
 
-    /**
-     * Test properties.
-     * If necessary the requested properties are computed.
-     * This is a convienance function to getProperties().
-     * @see Fsa/Types.hh
-     * @param f automaton to test the properties for
-     * @param properties the properties to test for
-     * @return true if the automaton has any of the properties
-     * passed to the funtion.
-     **/
-    template<class _Automaton>
-    bool hasProperties(typename _Automaton::ConstRef f, Fsa::Property properties) {
-        return getProperties<_Automaton>(f, properties) & properties;
-    }
-} // namespace Ftl
+/**
+ * Test properties.
+ * If necessary the requested properties are computed.
+ * This is a convienance function to getProperties().
+ * @see Fsa/Types.hh
+ * @param f automaton to test the properties for
+ * @param properties the properties to test for
+ * @return true if the automaton has any of the properties
+ * passed to the funtion.
+ **/
+template<class _Automaton>
+bool hasProperties(typename _Automaton::ConstRef f, Fsa::Property properties) {
+    return getProperties<_Automaton>(f, properties) & properties;
+}
+}  // namespace Ftl
 
 #include "tProperties.cc"
 
-#endif // _T_FSA_PROPERTIES_HH
+#endif  // _T_FSA_PROPERTIES_HH

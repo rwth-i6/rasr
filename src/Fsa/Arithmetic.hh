@@ -18,27 +18,27 @@
 #include "Automaton.hh"
 
 namespace Fsa {
-    ConstAutomatonRef collect(ConstAutomatonRef f, Weight value);
-    ConstAutomatonRef extend(ConstAutomatonRef f, Weight value);
+ConstAutomatonRef collect(ConstAutomatonRef f, Weight value);
+ConstAutomatonRef extend(ConstAutomatonRef f, Weight value);
 
-    /**
-     * Multiply each arc weight with the specified weight. Currently, this is only
-     * possibly in real-valued semirings like the log or tropical semiring.
-     * Category: on-demand
-     * Complexity: O(V + E)
-     * @param f the input automaton
-     * @param value the weight
-     * @return returns an automaton with all arc weights being multiplied by value
-     **/
-    ConstAutomatonRef multiply(ConstAutomatonRef f, Weight value);
-    ConstAutomatonRef expm(ConstAutomatonRef f);
-    ConstAutomatonRef logm(ConstAutomatonRef f);
+/**
+ * Multiply each arc weight with the specified weight. Currently, this is only
+ * possibly in real-valued semirings like the log or tropical semiring.
+ * Category: on-demand
+ * Complexity: O(V + E)
+ * @param f the input automaton
+ * @param value the weight
+ * @return returns an automaton with all arc weights being multiplied by value
+ **/
+ConstAutomatonRef multiply(ConstAutomatonRef f, Weight value);
+ConstAutomatonRef expm(ConstAutomatonRef f);
+ConstAutomatonRef logm(ConstAutomatonRef f);
 
-    ConstAutomatonRef extend(ConstAutomatonRef f1, ConstAutomatonRef f2);
-    ConstAutomatonRef extendFinal(ConstAutomatonRef f, Weight value);
+ConstAutomatonRef extend(ConstAutomatonRef f1, ConstAutomatonRef f2);
+ConstAutomatonRef extendFinal(ConstAutomatonRef f, Weight value);
 
-    ConstAutomatonRef isGreaterEqual(ConstAutomatonRef f, Weight threshold);
+ConstAutomatonRef isGreaterEqual(ConstAutomatonRef f, Weight threshold);
 
-} // namespace Fsa
+}  // namespace Fsa
 
-#endif // _FSA_ARITHMETIC_H
+#endif  // _FSA_ARITHMETIC_H

@@ -18,13 +18,13 @@
 #include <Core/ReferenceCounting.hh>
 
 namespace Ftl {
-    template<class _Automaton>
-    Core::Ref<const _Automaton> removeEpsilons(Core::Ref<const _Automaton> f);
-        template<class _Automaton>
-        Core::Ref<const _Automaton> removeSimpleEpsilonArcs(Core::Ref<const _Automaton> f);
+template<class _Automaton>
+Core::Ref<const _Automaton> removeEpsilons(Core::Ref<const _Automaton> f);
+template<class _Automaton>
+Core::Ref<const _Automaton> removeSimpleEpsilonArcs(Core::Ref<const _Automaton> f);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tRemoveEpsilons.cc"
 
-#endif // _T_FSA_REMOVE_EPSILONS_HH
+#endif  // _T_FSA_REMOVE_EPSILONS_HH

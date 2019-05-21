@@ -12,26 +12,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tDeterminize.hh"
 #include "Determinize.hh"
+#include "tDeterminize.hh"
 
 namespace Fsa {
 
-    ConstAutomatonRef localDeterminize(ConstAutomatonRef f)
-    { return Ftl::localDeterminize<Automaton>(f); }
+ConstAutomatonRef localDeterminize(ConstAutomatonRef f) {
+    return Ftl::localDeterminize<Automaton>(f);
+}
 
-    ConstAutomatonRef determinize(ConstAutomatonRef f, bool disambiguate)
-    { return Ftl::determinize<Automaton>(f, disambiguate); }
+ConstAutomatonRef determinize(ConstAutomatonRef f, bool disambiguate) {
+    return Ftl::determinize<Automaton>(f, disambiguate);
+}
 
-    ConstAutomatonRef removeDisambiguationSymbols(ConstAutomatonRef f)
-    { return Ftl::removeDisambiguationSymbols<Automaton>(f); }
+ConstAutomatonRef removeDisambiguationSymbols(ConstAutomatonRef f) {
+    return Ftl::removeDisambiguationSymbols<Automaton>(f);
+}
 
-    ConstAutomatonRef removeInputDisambiguationSymbols(ConstAutomatonRef f)
-    { return Ftl::removeInputDisambiguationSymbols<Automaton>(f); }
+ConstAutomatonRef removeInputDisambiguationSymbols(ConstAutomatonRef f) {
+    return Ftl::removeInputDisambiguationSymbols<Automaton>(f);
+}
 
-    ConstAutomatonRef replaceDisambiguationSymbols(ConstAutomatonRef f, LabelId ll)
-    { return Ftl::replaceDisambiguationSymbols<Automaton>(f, ll); }
+ConstAutomatonRef replaceDisambiguationSymbols(ConstAutomatonRef f, LabelId ll) {
+    return Ftl::replaceDisambiguationSymbols<Automaton>(f, ll);
+}
 
-    ConstAutomatonRef replaceInputDisambiguationSymbols(ConstAutomatonRef f, LabelId ll)
-    { return Ftl::replaceInputDisambiguationSymbols<Automaton>(f, ll); }
-} // namespace Fsa
+ConstAutomatonRef replaceInputDisambiguationSymbols(ConstAutomatonRef f, LabelId ll) {
+    return Ftl::replaceInputDisambiguationSymbols<Automaton>(f, ll);
+}
+}  // namespace Fsa

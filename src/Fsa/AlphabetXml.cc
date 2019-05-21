@@ -16,47 +16,48 @@
 
 namespace Fsa {
 
-    void AlphabetXmlParser::symbolStart(const Core::XmlAttributes atts) {
-        const char *indexStr = atts["index"];
-        if (indexStr) {
-            char *end;
-            index_ = strtoll((const char*) indexStr, &end, 0);
-            if (*end != '\0') parser()->error("invalid index \"%s\"", indexStr);
-            else if ((index_ < 0) || (LabelId(index_) > Core::Type<LabelId>::max))
-                parser()->error("index %ld out of range (%d..%d)", index_,
-                                Core::Type<LabelId>::min, Core::Type<LabelId>::max);
-        } else parser()->error("no index specified");
-        symbol_.resize(0);
-        isDisambiguator_ = false;
+void AlphabetXmlParser::symbolStart(const Core::XmlAttributes atts) {
+    const char* indexStr = atts["index"];
+    if (indexStr) {
+        char* end;
+        index_ = strtoll((const char*)indexStr, &end, 0);
+        if (*end != '\0')
+            parser()->error("invalid index \"%s\"", indexStr);
+        else if ((index_ < 0) || (LabelId(index_) > Core::Type<LabelId>::max))
+            parser()->error("index %ld out of range (%d..%d)", index_,
+                            Core::Type<LabelId>::min, Core::Type<LabelId>::max);
     }
+    else
+        parser()->error("no index specified");
+    symbol_.resize(0);
+    isDisambiguator_ = false;
+}
 
-    void AlphabetXmlParser::symbolEnd() {
-        Core::stripWhitespace(symbol_);
-        if (a_->hasIndex(index_)) parser()->error("ignoring duplicate index %ld", long(index_));
-        else a_->addIndexedSymbol(symbol_, index_, isDisambiguator_);
-    }
+void AlphabetXmlParser::symbolEnd() {
+    Core::stripWhitespace(symbol_);
+    if (a_->hasIndex(index_))
+        parser()->error("ignoring duplicate index %ld", long(index_));
+    else
+        a_->addIndexedSymbol(symbol_, index_, isDisambiguator_);
+}
 
-    void AlphabetXmlParser::symbolDisambiguatorStart(const Core::XmlAttributes atts) {
-        isDisambiguator_ = true;
-    }
+void AlphabetXmlParser::symbolDisambiguatorStart(const Core::XmlAttributes atts) {
+    isDisambiguator_ = true;
+}
 
-    void AlphabetXmlParser::alphabetCharacters(const char *ch, int len) {
-        symbol_.append((char*)(ch), len);
-    }
+void AlphabetXmlParser::alphabetCharacters(const char* ch, int len) {
+    symbol_.append((char*)(ch), len);
+}
 
-    AlphabetXmlParser::AlphabetXmlParser(
-        const char *name, Core::XmlContext *context, Core::Ref<StaticAlphabet> a)
-        :
-        Core::XmlRegularElement(name, context), a_(a)
-    {
-        XmlElement *symbol = new Core::XmlMixedElementRelay
-            ("symbol", this, startHandler(&Self::symbolStart), endHandler(&Self::symbolEnd),
-             charactersHandler(&Self::alphabetCharacters),
-             XML_CHILD(new Core::XmlEmptyElementRelay
-                       ("disambiguator", this, startHandler(&Self::symbolDisambiguatorStart))),
-             XML_NO_MORE_CHILDREN);
-        addTransition(initial, initial, symbol);
-        addFinalState(initial);
-    }
+AlphabetXmlParser::AlphabetXmlParser(
+        const char* name, Core::XmlContext* context, Core::Ref<StaticAlphabet> a)
+        : Core::XmlRegularElement(name, context), a_(a) {
+    XmlElement* symbol = new Core::XmlMixedElementRelay("symbol", this, startHandler(&Self::symbolStart), endHandler(&Self::symbolEnd),
+                                                        charactersHandler(&Self::alphabetCharacters),
+                                                        XML_CHILD(new Core::XmlEmptyElementRelay("disambiguator", this, startHandler(&Self::symbolDisambiguatorStart))),
+                                                        XML_NO_MORE_CHILDREN);
+    addTransition(initial, initial, symbol);
+    addFinalState(initial);
+}
 
-} // namespace Fsa
+}  // namespace Fsa

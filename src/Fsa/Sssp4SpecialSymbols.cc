@@ -20,35 +20,34 @@
  */
 
 #include "Sssp4SpecialSymbols.hh"
-#include "tSssp4SpecialSymbols.hh"
 #include "Semiring64.hh"
+#include "tSssp4SpecialSymbols.hh"
 
 namespace Fsa {
 
-
-        ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f) {
-                return Ftl::posterior4SpecialSymbols<Automaton>(f);
-        }
-
-        ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f, Weight &totalInv, s32 tol) {
-                if (f->semiring() != Fsa::LogSemiring)
-                        return Ftl::posterior4SpecialSymbols<Automaton>(f, totalInv, tol);
-                else
-                        return Ftl::posterior4SpecialSymbols<Automaton, Semiring64, Weight64>(f, totalInv, tol);
-        }
-
-        ConstAutomatonRef best4SpecialSymbols(ConstAutomatonRef f) {
-                return Ftl::best4SpecialSymbols<Automaton>(f);
-        }
-
-        ConstAutomatonRef removeFailure4SpecialSymbols(ConstAutomatonRef f) {
-                return Ftl::removeFailure4SpecialSymbols<Automaton>(f);
-        }
-
-        ConstAutomatonRef posteriorPrune4SpecialSymbols(ConstAutomatonRef f, const Weight &threshold, bool relative) {
-                if (f->semiring() != Fsa::LogSemiring)
-                        return Ftl::prunePosterior4SpecialSymbols<Automaton>(f, threshold, relative);
-                else
-                        return Ftl::prunePosterior4SpecialSymbols<Automaton, Semiring64, Weight64>(f, threshold, relative);
-        }
+ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f) {
+    return Ftl::posterior4SpecialSymbols<Automaton>(f);
 }
+
+ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f, Weight& totalInv, s32 tol) {
+    if (f->semiring() != Fsa::LogSemiring)
+        return Ftl::posterior4SpecialSymbols<Automaton>(f, totalInv, tol);
+    else
+        return Ftl::posterior4SpecialSymbols<Automaton, Semiring64, Weight64>(f, totalInv, tol);
+}
+
+ConstAutomatonRef best4SpecialSymbols(ConstAutomatonRef f) {
+    return Ftl::best4SpecialSymbols<Automaton>(f);
+}
+
+ConstAutomatonRef removeFailure4SpecialSymbols(ConstAutomatonRef f) {
+    return Ftl::removeFailure4SpecialSymbols<Automaton>(f);
+}
+
+ConstAutomatonRef posteriorPrune4SpecialSymbols(ConstAutomatonRef f, const Weight& threshold, bool relative) {
+    if (f->semiring() != Fsa::LogSemiring)
+        return Ftl::prunePosterior4SpecialSymbols<Automaton>(f, threshold, relative);
+    else
+        return Ftl::prunePosterior4SpecialSymbols<Automaton, Semiring64, Weight64>(f, threshold, relative);
+}
+}  // namespace Fsa

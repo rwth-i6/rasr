@@ -17,58 +17,58 @@
 
 namespace Ftl {
 
-    /**
-     * Collect each arc weight with the specified weight.
-     * Category: on-demand
-     * Complexity: O(V + E)
-     * @param f the input automaton
-     * @param value the weight
-     * @return returns an automaton with all arc weights being collected with value
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef collect(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
+/**
+ * Collect each arc weight with the specified weight.
+ * Category: on-demand
+ * Complexity: O(V + E)
+ * @param f the input automaton
+ * @param value the weight
+ * @return returns an automaton with all arc weights being collected with value
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef collect(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
 
-    /**
-     * Extend each arc weight with the specified weight.
-     * Category: on-demand
-     * Complexity: O(V + E)
-     * @param f the input automaton
-     * @param value the weight
-     * @return returns an automaton with all arc weights being extended by value
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef extend(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
+/**
+ * Extend each arc weight with the specified weight.
+ * Category: on-demand
+ * Complexity: O(V + E)
+ * @param f the input automaton
+ * @param value the weight
+ * @return returns an automaton with all arc weights being extended by value
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef extend(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
 
-    /**
-     * Extend each final state weight with the specified weight.
-     * Category: on-demand
-     * Complexity: O(V + E)
-     * @param f the input automaton
-     * @param value the weight
-     * @return returns an automaton with all final state weights being extended by value
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef extendFinal(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
+/**
+ * Extend each final state weight with the specified weight.
+ * Category: on-demand
+ * Complexity: O(V + E)
+ * @param f the input automaton
+ * @param value the weight
+ * @return returns an automaton with all final state weights being extended by value
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef extendFinal(typename _Automaton::ConstRef f, typename _Automaton::Weight value);
 
-    /**
-     * Modify each weight using the given functor of type Modifier.
-     *
-     * concept Modifier {
-     *     Weight operator() (const Weight &) const;
-     *     std::string describe() const;
-     * }
-     *
-     * Category: on-demand
-     * Complexity: O(V + E)
-     * @param f the input automaton
-     * @param value the weight
-     * @return returns an automaton with all arc weights being multiplied by value
-     **/
-    template<class _Automaton, class Modifier>
-    typename _Automaton::ConstRef modify(typename _Automaton::ConstRef f, const Modifier &modifier = Modifier());
+/**
+ * Modify each weight using the given functor of type Modifier.
+ *
+ * concept Modifier {
+ *     Weight operator() (const Weight &) const;
+ *     std::string describe() const;
+ * }
+ *
+ * Category: on-demand
+ * Complexity: O(V + E)
+ * @param f the input automaton
+ * @param value the weight
+ * @return returns an automaton with all arc weights being multiplied by value
+ **/
+template<class _Automaton, class Modifier>
+typename _Automaton::ConstRef modify(typename _Automaton::ConstRef f, const Modifier& modifier = Modifier());
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tArithmetic.cc"
 
-#endif // _T_FSA_ARITHMETIC_H
+#endif  // _T_FSA_ARITHMETIC_H

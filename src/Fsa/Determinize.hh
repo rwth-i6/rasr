@@ -18,12 +18,12 @@
 #include "Automaton.hh"
 
 namespace Fsa {
-    ConstAutomatonRef localDeterminize(ConstAutomatonRef f);
-    ConstAutomatonRef determinize(ConstAutomatonRef f, bool disambiguate = false);
-    ConstAutomatonRef removeDisambiguationSymbols(ConstAutomatonRef f);
-    ConstAutomatonRef removeInputDisambiguationSymbols(ConstAutomatonRef f);
-    ConstAutomatonRef replaceDisambiguationSymbols(ConstAutomatonRef, LabelId);
-    ConstAutomatonRef replaceInputDisambiguationSymbols(ConstAutomatonRef, LabelId);
-} // namespace Fsa
+ConstAutomatonRef localDeterminize(ConstAutomatonRef f);
+ConstAutomatonRef determinize(ConstAutomatonRef f, bool disambiguate = false);
+ConstAutomatonRef removeDisambiguationSymbols(ConstAutomatonRef f);
+ConstAutomatonRef removeInputDisambiguationSymbols(ConstAutomatonRef f);
+ConstAutomatonRef replaceDisambiguationSymbols(ConstAutomatonRef, LabelId);
+ConstAutomatonRef replaceInputDisambiguationSymbols(ConstAutomatonRef, LabelId);
+}  // namespace Fsa
 
-#endif // _FSA_DETERMINIZE_HH
+#endif  // _FSA_DETERMINIZE_HH

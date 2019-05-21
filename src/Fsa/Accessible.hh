@@ -15,11 +15,11 @@
 #ifndef _FSA_ACCESSIBLE_HH
 #define _FSA_ACCESSIBLE_HH
 
-#include "tAccessible.hh"
 #include "Automaton.hh"
+#include "tAccessible.hh"
 
 namespace Fsa {
-    typedef Ftl::CoaccessibleDfsState<Automaton> CoaccessibleDfsState;
+typedef Ftl::CoaccessibleDfsState<Automaton> CoaccessibleDfsState;
 };
 
-#endif // _FSA_ACCESSIBLE_HH
+#endif  // _FSA_ACCESSIBLE_HH

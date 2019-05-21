@@ -20,33 +20,40 @@
 #include "Types.hh"
 
 namespace Ftl {
-    /**
-     * visualization
-     **/
-    template<class _Automaton>
-    class DrawDotDfsState;
+/**
+ * visualization
+ **/
+template<class _Automaton>
+class DrawDotDfsState;
 
-    template<class _Automaton>
-    class DotDrawer {
-    private:
-        friend class DrawDotDfsState<_Automaton>;
-        std::ostream &os_;
-        Fsa::Hint hints_;
-        bool progress_;
-    public:
-        DotDrawer(std::ostream&, Fsa::Hint hints = Fsa::HintNone, bool progress = false);
-        void setHint(Fsa::Hint hint)    { hints_ |= hint;  }
-        void unsetHint(Fsa::Hint hint)  { hints_ &= ~hint; }
-        void progress(bool bb)          { progress_ = bb;  }
-        bool draw(typename _Automaton::ConstRef);
-    };
+template<class _Automaton>
+class DotDrawer {
+private:
+    friend class DrawDotDfsState<_Automaton>;
+    std::ostream& os_;
+    Fsa::Hint     hints_;
+    bool          progress_;
 
-    template<class _Automaton>
-    bool drawDot(typename _Automaton::ConstRef f, std::ostream &o, Fsa::Hint hint = Fsa::HintNone, bool progress = false);
-    template<class _Automaton>
-    bool drawDot(typename _Automaton::ConstRef f, const std::string &file, Fsa::Hint hint = Fsa::HintNone, bool progress = false);
-} // namespace Ftl
+public:
+    DotDrawer(std::ostream&, Fsa::Hint hints = Fsa::HintNone, bool progress = false);
+    void setHint(Fsa::Hint hint) {
+        hints_ |= hint;
+    }
+    void unsetHint(Fsa::Hint hint) {
+        hints_ &= ~hint;
+    }
+    void progress(bool bb) {
+        progress_ = bb;
+    }
+    bool draw(typename _Automaton::ConstRef);
+};
+
+template<class _Automaton>
+bool drawDot(typename _Automaton::ConstRef f, std::ostream& o, Fsa::Hint hint = Fsa::HintNone, bool progress = false);
+template<class _Automaton>
+bool drawDot(typename _Automaton::ConstRef f, const std::string& file, Fsa::Hint hint = Fsa::HintNone, bool progress = false);
+}  // namespace Ftl
 
 #include "tDraw.cc"
 
-#endif // _T_FSA_DRAW_HH
+#endif  // _T_FSA_DRAW_HH

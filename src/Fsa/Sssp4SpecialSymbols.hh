@@ -22,48 +22,48 @@
 #ifndef _FSA_SSSP4SPECIALSYMBOLS_HH_
 #define _FSA_SSSP4SPECIALSYMBOLS_HH_
 
-#include "hSssp.hh"
 #include "Automaton.hh"
 #include "Types.hh"
+#include "hSssp.hh"
 
 namespace Fsa {
-    typedef Ftl::StatePotentials<Weight> StatePotentials;
+typedef Ftl::StatePotentials<Weight> StatePotentials;
 
-    /**
-     * Super posterior
-     *
-     * Features:
-     * 	- FAIL arcs
-     *  - efficient implementations for Tropical and LogSemiring
-     *  - 64 bit precision for LogSemiring
-     *  - general implementation for every Semiring
-     *
-     * Assumptions:
-     *  - only one FAIL arc per state
-     *  - FAIL state include all arcs their parents have (weight is not important)
-     *  - no cycles
-     *
-     * Drawbacks:
-     *  - very hard to read :-(
-     */
-    ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f);
+/**
+ * Super posterior
+ *
+ * Features:
+ * 	- FAIL arcs
+ *  - efficient implementations for Tropical and LogSemiring
+ *  - 64 bit precision for LogSemiring
+ *  - general implementation for every Semiring
+ *
+ * Assumptions:
+ *  - only one FAIL arc per state
+ *  - FAIL state include all arcs their parents have (weight is not important)
+ *  - no cycles
+ *
+ * Drawbacks:
+ *  - very hard to read :-(
+ */
+ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f);
 
-    /**
-     * same as posterior4SpecialSymbols, but return total flow of automaton
-     * and prints a warning if the tolerance tol is exceeded.
-     */
-    ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f, Weight &totalInv, s32 tol = 100);
+/**
+ * same as posterior4SpecialSymbols, but return total flow of automaton
+ * and prints a warning if the tolerance tol is exceeded.
+ */
+ConstAutomatonRef posterior4SpecialSymbols(ConstAutomatonRef f, Weight& totalInv, s32 tol = 100);
 
-    /**
-     * Super best
-     *
-     * same features/assumptions as posterior4SpecialSymbols
-     */
-    ConstAutomatonRef best4SpecialSymbols(ConstAutomatonRef f);
+/**
+ * Super best
+ *
+ * same features/assumptions as posterior4SpecialSymbols
+ */
+ConstAutomatonRef best4SpecialSymbols(ConstAutomatonRef f);
 
-    ConstAutomatonRef removeFailure4SpecialSymbols(ConstAutomatonRef f);
+ConstAutomatonRef removeFailure4SpecialSymbols(ConstAutomatonRef f);
 
-    ConstAutomatonRef posteriorPrune4SpecialSymbols(ConstAutomatonRef f, const Weight &threshold, bool relative = true);
-}
+ConstAutomatonRef posteriorPrune4SpecialSymbols(ConstAutomatonRef f, const Weight& threshold, bool relative = true);
+}  // namespace Fsa
 
 #endif /* _FSA_SSSP4SPECIALSYMBOLS_HH_ */

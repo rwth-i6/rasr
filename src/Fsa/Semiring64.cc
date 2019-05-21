@@ -12,16 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tRealSemiring.hh"
 #include "Semiring64.hh"
+#include "tRealSemiring.hh"
 
 namespace Fsa {
-        typedef Ftl::LogSemiring<Weight64, f64> LogSemiring64_;
+typedef Ftl::LogSemiring<Weight64, f64> LogSemiring64_;
 
-    class PredefinedLogSemiring64_ : public LogSemiring64_ {
-    public:
-        PredefinedLogSemiring64_() : LogSemiring64_(1) {}
-        std::string name() const { return "log64"; }
-    };
-    ConstSemiring64Ref LogSemiring64 = ConstSemiring64Ref(new PredefinedLogSemiring64_());
-} // namespace Fsa
+class PredefinedLogSemiring64_ : public LogSemiring64_ {
+public:
+    PredefinedLogSemiring64_()
+            : LogSemiring64_(1) {}
+    std::string name() const {
+        return "log64";
+    }
+};
+ConstSemiring64Ref LogSemiring64 = ConstSemiring64Ref(new PredefinedLogSemiring64_());
+}  // namespace Fsa

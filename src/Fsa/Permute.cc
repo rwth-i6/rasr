@@ -16,29 +16,31 @@
 
 namespace Fsa {
 
-    template<class T> ConstAutomatonRef permute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        if (windowSize == 0) return f;
-        return ConstAutomatonRef(new T(f, windowSize, distortionLimit, new NoProcessing));
-    }
+template<class T>
+ConstAutomatonRef permute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    if (windowSize == 0)
+        return f;
+    return ConstAutomatonRef(new T(f, windowSize, distortionLimit, new NoProcessing));
+}
 
-    ConstAutomatonRef permute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        return permute<IBMPermuteAutomaton<NoProcessing> >(f, windowSize, distortionLimit);
-    }
+ConstAutomatonRef permute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    return permute<IBMPermuteAutomaton<NoProcessing>>(f, windowSize, distortionLimit);
+}
 
-    ConstAutomatonRef localPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        return permute<LocalPermuteAutomaton<NoProcessing> >(f, windowSize, distortionLimit);
-    }
+ConstAutomatonRef localPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    return permute<LocalPermuteAutomaton<NoProcessing>>(f, windowSize, distortionLimit);
+}
 
-    ConstAutomatonRef inverseIBMPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        return permute<InverseIBMPermuteAutomaton<NoProcessing> >(f, windowSize, distortionLimit);
-    }
+ConstAutomatonRef inverseIBMPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    return permute<InverseIBMPermuteAutomaton<NoProcessing>>(f, windowSize, distortionLimit);
+}
 
-    ConstAutomatonRef doubleLocalPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        return permute<DoubleLocalPermuteAutomaton<NoProcessing> >(f, windowSize, distortionLimit);
-    }
+ConstAutomatonRef doubleLocalPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    return permute<DoubleLocalPermuteAutomaton<NoProcessing>>(f, windowSize, distortionLimit);
+}
 
-    ConstAutomatonRef ITGPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
-        return permute<ITGPermuteAutomaton<NoProcessing> >(f, windowSize, distortionLimit);
-    }
+ConstAutomatonRef ITGPermute(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit) {
+    return permute<ITGPermuteAutomaton<NoProcessing>>(f, windowSize, distortionLimit);
+}
 
-} // namespace Fsa
+}  // namespace Fsa

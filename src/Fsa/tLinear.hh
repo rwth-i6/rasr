@@ -20,36 +20,36 @@
 
 namespace Ftl {
 
-    /**
-     * Test if automaton is linear explicitly.
-     * You should use hasProperty() to avoid redundant checks.
-     */
-    template<class _Automaton>
-    bool isLinear(typename _Automaton::ConstRef);
+/**
+ * Test if automaton is linear explicitly.
+ * You should use hasProperty() to avoid redundant checks.
+ */
+template<class _Automaton>
+bool isLinear(typename _Automaton::ConstRef);
 
-    /**
-     * Convert linear automaton to vector of input symbols.
-     * The automaton must be linear.  Epsilon labels are suppressed.
-     */
-    template<class _Automaton>
-    void getLinearInput(typename _Automaton::ConstRef, std::vector<Fsa::LabelId> &result);
+/**
+ * Convert linear automaton to vector of input symbols.
+ * The automaton must be linear.  Epsilon labels are suppressed.
+ */
+template<class _Automaton>
+void getLinearInput(typename _Automaton::ConstRef, std::vector<Fsa::LabelId>& result);
 
-    /**
-     * Convert linear automaton to vector of output symbols.
-     * The automaton must be linear.  Epsilon labels are suppressed.
-     */
-    template<class _Automaton>
-    void getLinearOutput(typename _Automaton::ConstRef, std::vector<Fsa::LabelId> &result);
+/**
+ * Convert linear automaton to vector of output symbols.
+ * The automaton must be linear.  Epsilon labels are suppressed.
+ */
+template<class _Automaton>
+void getLinearOutput(typename _Automaton::ConstRef, std::vector<Fsa::LabelId>& result);
 
-    /**
-     * Compute total weight of linear automaton.
-     * The automaton must be linear.
-     */
-    template<class _Automaton>
-    typename _Automaton::Weight getLinearWeight(typename _Automaton::ConstRef);
+/**
+ * Compute total weight of linear automaton.
+ * The automaton must be linear.
+ */
+template<class _Automaton>
+typename _Automaton::Weight getLinearWeight(typename _Automaton::ConstRef);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tLinear.cc"
 
-#endif // _T_FSA_LINEAR_HH
+#endif  // _T_FSA_LINEAR_HH

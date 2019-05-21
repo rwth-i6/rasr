@@ -12,17 +12,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tMinimize.hh"
 #include "Minimize.hh"
+#include "tMinimize.hh"
 
 namespace Fsa {
 
-    ConstAutomatonRef minimize(ConstAutomatonRef f, bool progress)
-    { return Ftl::minimize<Automaton>(f, progress); }
+ConstAutomatonRef minimize(ConstAutomatonRef f, bool progress) {
+    return Ftl::minimize<Automaton>(f, progress);
+}
 
-    ConstAutomatonRef minimize(ConstAutomatonRef f, Fsa::OptimizationHint hint, bool progress)
-    { return Ftl::minimize<Automaton>(f, hint, progress); }
+ConstAutomatonRef minimize(ConstAutomatonRef f, Fsa::OptimizationHint hint, bool progress) {
+    return Ftl::minimize<Automaton>(f, hint, progress);
+}
 
-    ConstAutomatonRef minimizeSimple(ConstAutomatonRef f)
-    { return Ftl::minimizeSimple<Automaton>(f); }
-} // namespace Fsa
+ConstAutomatonRef minimizeSimple(ConstAutomatonRef f) {
+    return Ftl::minimizeSimple<Automaton>(f);
+}
+}  // namespace Fsa

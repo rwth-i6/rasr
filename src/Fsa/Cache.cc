@@ -12,10 +12,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tCache.hh"
 #include "Cache.hh"
+#include "tCache.hh"
 
 namespace Fsa {
-    ConstAutomatonRef cache(ConstAutomatonRef f, u32 maxAge)
-    { return Ftl::cache<Automaton>(f, maxAge); }
-} // namespace Fsa
+ConstAutomatonRef cache(ConstAutomatonRef f, u32 maxAge) {
+    return Ftl::cache<Automaton>(f, maxAge);
+}
+}  // namespace Fsa

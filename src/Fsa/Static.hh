@@ -24,16 +24,16 @@
 #include "tStatic.hh"
 
 namespace Fsa {
-    typedef Ftl::StaticAutomaton<Automaton> StaticAutomaton;
+typedef Ftl::StaticAutomaton<Automaton> StaticAutomaton;
 
-    void removeNonAccessibleStates(Core::Ref<StaticAutomaton> s);
-    void trimInPlace(Core::Ref<StaticAutomaton>);
-    void removeInvalidArcsInPlace(Core::Ref<StaticAutomaton>);
+void removeNonAccessibleStates(Core::Ref<StaticAutomaton> s);
+void trimInPlace(Core::Ref<StaticAutomaton>);
+void removeInvalidArcsInPlace(Core::Ref<StaticAutomaton>);
 
-    Core::Ref<StaticAutomaton> staticCopy(ConstAutomatonRef);
-    Core::Ref<StaticAutomaton> staticCompactCopy(ConstAutomatonRef);
-    Core::Ref<StaticAutomaton> staticCopy(const std::string &, ConstSemiringRef semiring = UnknownSemiring);
+Core::Ref<StaticAutomaton> staticCopy(ConstAutomatonRef);
+Core::Ref<StaticAutomaton> staticCompactCopy(ConstAutomatonRef);
+Core::Ref<StaticAutomaton> staticCopy(const std::string&, ConstSemiringRef semiring = UnknownSemiring);
 
-} // namespace Fsa
+}  // namespace Fsa
 
-#endif // _FSA_STATIC_HH
+#endif  // _FSA_STATIC_HH

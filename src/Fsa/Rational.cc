@@ -14,64 +14,64 @@
  */
 #include <Core/ProgressIndicator.hh>
 
-#include "tRational.hh"
 #include "Rational.hh"
 #include "Types.hh"
+#include "tRational.hh"
 
 namespace Fsa {
-    ConstAutomatonRef identity(ConstAlphabetRef ab, ConstSemiringRef sr) {
-        return Ftl::identity<Automaton>(ab, sr);
-    }
+ConstAutomatonRef identity(ConstAlphabetRef ab, ConstSemiringRef sr) {
+    return Ftl::identity<Automaton>(ab, sr);
+}
 
-    ConstAutomatonRef closure(ConstAutomatonRef f) {
-        return Ftl::closure<Automaton>(f);
-    }
+ConstAutomatonRef closure(ConstAutomatonRef f) {
+    return Ftl::closure<Automaton>(f);
+}
 
-    ConstAutomatonRef kleeneClosure(ConstAutomatonRef f) {
-        return Ftl::kleeneClosure<Automaton>(f);
-    }
+ConstAutomatonRef kleeneClosure(ConstAutomatonRef f) {
+    return Ftl::kleeneClosure<Automaton>(f);
+}
 
-    ConstAutomatonRef complement(ConstAutomatonRef f) {
-        return Ftl::complement<Automaton>(f);
-    }
+ConstAutomatonRef complement(ConstAutomatonRef f) {
+    return Ftl::complement<Automaton>(f);
+}
 
-    ConstAutomatonRef concat(const Core::Vector<ConstAutomatonRef> &f) {
-        return Ftl::concat<Automaton>(f);
-    }
+ConstAutomatonRef concat(const Core::Vector<ConstAutomatonRef>& f) {
+    return Ftl::concat<Automaton>(f);
+}
 
-    ConstAutomatonRef concat(ConstAutomatonRef f1, ConstAutomatonRef f2) {
-        return Ftl::concat<Automaton>(f1, f2);
-    }
+ConstAutomatonRef concat(ConstAutomatonRef f1, ConstAutomatonRef f2) {
+    return Ftl::concat<Automaton>(f1, f2);
+}
 
-    ConstAutomatonRef unite(const Core::Vector<ConstAutomatonRef> &f, const Core::Vector<Weight> &initialWeights) {
-        return Ftl::unite<Automaton>(f, initialWeights);
-    }
+ConstAutomatonRef unite(const Core::Vector<ConstAutomatonRef>& f, const Core::Vector<Weight>& initialWeights) {
+    return Ftl::unite<Automaton>(f, initialWeights);
+}
 
-    ConstAutomatonRef unite(ConstAutomatonRef f1, ConstAutomatonRef f2) {
-        return Ftl::unite<Automaton>(f1, f2);
-    }
+ConstAutomatonRef unite(ConstAutomatonRef f1, ConstAutomatonRef f2) {
+    return Ftl::unite<Automaton>(f1, f2);
+}
 
-    ConstMappingRef mapToSubAutomaton(ConstAutomatonRef f, u32 subAutomaton) {
-        return Ftl::mapToSubAutomaton<Automaton>(f, subAutomaton);
-    }
+ConstMappingRef mapToSubAutomaton(ConstAutomatonRef f, u32 subAutomaton) {
+    return Ftl::mapToSubAutomaton<Automaton>(f, subAutomaton);
+}
 
-    ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef> &f) {
-        return Ftl::fuse<Automaton>(f);
-    }
+ConstAutomatonRef fuse(const Core::Vector<ConstAutomatonRef>& f) {
+    return Ftl::fuse<Automaton>(f);
+}
 
-    ConstAutomatonRef fuse(ConstAutomatonRef f1, ConstAutomatonRef f2) {
-        return Ftl::fuse<Automaton>(f1, f2);
-    }
+ConstAutomatonRef fuse(ConstAutomatonRef f1, ConstAutomatonRef f2) {
+    return Ftl::fuse<Automaton>(f1, f2);
+}
 
-    ConstAutomatonRef transpose(ConstAutomatonRef f, bool progress) {
-        return Ftl::transpose<Automaton>(f, progress);
-    }
+ConstAutomatonRef transpose(ConstAutomatonRef f, bool progress) {
+    return Ftl::transpose<Automaton>(f, progress);
+}
 
-    ConstAutomatonRef allPrefixes(ConstAutomatonRef f) {
-        return Ftl::allPrefixes<Automaton>(f);
-    }
+ConstAutomatonRef allPrefixes(ConstAutomatonRef f) {
+    return Ftl::allPrefixes<Automaton>(f);
+}
 
-    ConstAutomatonRef allSuffixes(ConstAutomatonRef f) {
-        return Ftl::allSuffixes<Automaton>(f);
-    }
-} // namespace Fsa
+ConstAutomatonRef allSuffixes(ConstAutomatonRef f) {
+    return Ftl::allSuffixes<Automaton>(f);
+}
+}  // namespace Fsa

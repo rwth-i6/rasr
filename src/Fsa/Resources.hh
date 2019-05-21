@@ -15,12 +15,12 @@
 #ifndef _FSA_RESOURCES_HH
 #define _FSA_RESOURCES_HH
 
-#include "tResources.hh"
 #include "Automaton.hh"
+#include "tResources.hh"
 
 namespace Fsa {
-    typedef Ftl::Resources<Automaton> Resources;
-    extern Resources& getResources();
-} // namespace Fsa
+typedef Ftl::Resources<Automaton> Resources;
+extern Resources&                 getResources();
+}  // namespace Fsa
 
-#endif // _FSA_RESOURCES_HH
+#endif  // _FSA_RESOURCES_HH

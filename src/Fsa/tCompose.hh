@@ -18,67 +18,64 @@
 #include "Mapping.hh"
 
 namespace Ftl {
-    /**
-     * Calculates the composition result of two input transducers
-     * using the matching epsilon filter. This is not guaranteed to do
-     * the same than what the AT&T FSM library matching composition
-     * filter does although we haven't seen a case yet where results
-     * were different.
-     * @param fl "left" automaton
-     * @param fr "right" automaton
-     * @param reportUnknowns tell the user (on stdout) wether mapping
-     *   of alphabet symbols reveiled unknowns in the "right" automaton
-     * @return the result automaton of the composition (an acceptor in
-     *   the case of two input acceptors, a transducer in all other
-     *   cases)
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef composeMatching
-    (typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr, bool reportUnknowns = true);
+/**
+ * Calculates the composition result of two input transducers
+ * using the matching epsilon filter. This is not guaranteed to do
+ * the same than what the AT&T FSM library matching composition
+ * filter does although we haven't seen a case yet where results
+ * were different.
+ * @param fl "left" automaton
+ * @param fr "right" automaton
+ * @param reportUnknowns tell the user (on stdout) wether mapping
+ *   of alphabet symbols reveiled unknowns in the "right" automaton
+ * @return the result automaton of the composition (an acceptor in
+ *   the case of two input acceptors, a transducer in all other
+ *   cases)
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef composeMatching(typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr, bool reportUnknowns = true);
 
-    /**
-     * Calculates the composition result of two input transducers
-     * using a so-called sequencing epsilon filter. This is not
-     * guaranteed to do the same than what the AT&T FSM library
-     * sequencing composition filter does although we haven't seen a
-     * case yet where results were different.
-     * @param fl "left" automaton
-     * @param fr "right" automaton
-     * @param reportUnknowns tell the user (on stdout) wether mapping
-     *   of alphabet symbols reveiled unknowns in the "right" automaton
-     * @return the result automaton of the composition (an acceptor in
-     *   the case of two input acceptors, a transducer in all other
-     *   cases)
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef composeSequencing
-    (typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr, bool reportUnknowns = true);
+/**
+ * Calculates the composition result of two input transducers
+ * using a so-called sequencing epsilon filter. This is not
+ * guaranteed to do the same than what the AT&T FSM library
+ * sequencing composition filter does although we haven't seen a
+ * case yet where results were different.
+ * @param fl "left" automaton
+ * @param fr "right" automaton
+ * @param reportUnknowns tell the user (on stdout) wether mapping
+ *   of alphabet symbols reveiled unknowns in the "right" automaton
+ * @return the result automaton of the composition (an acceptor in
+ *   the case of two input acceptors, a transducer in all other
+ *   cases)
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef composeSequencing(typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr, bool reportUnknowns = true);
 
-    /**
-     * Calculates an automaton that represents a language equal to the
-     * difference of the two input languages L = L_l \ L_r.
-     * @param fl "left" automaton
-     * @param fr "right" automaton
-     * @return the result automaton of the difference operation
-     **/
-    template<class _Automaton>
-    typename _Automaton::ConstRef difference
-    (typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr);
+/**
+ * Calculates an automaton that represents a language equal to the
+ * difference of the two input languages L = L_l \ L_r.
+ * @param fl "left" automaton
+ * @param fr "right" automaton
+ * @return the result automaton of the difference operation
+ **/
+template<class _Automaton>
+typename _Automaton::ConstRef difference(typename _Automaton::ConstRef fl, typename _Automaton::ConstRef fr);
 
-    /**
-     * Mapping returning the state's id in the left original automaton.
-     **/
-    template<class _Automaton>
-    Fsa::ConstMappingRef mapToLeft(typename _Automaton::ConstRef f);
+/**
+ * Mapping returning the state's id in the left original automaton.
+ **/
+template<class _Automaton>
+Fsa::ConstMappingRef mapToLeft(typename _Automaton::ConstRef f);
 
-    /**
-     * Mapping returning the state's id in the right original automaton.
-     **/
-    template<class _Automaton>
-    Fsa::ConstMappingRef mapToRight(typename _Automaton::ConstRef f);
+/**
+ * Mapping returning the state's id in the right original automaton.
+ **/
+template<class _Automaton>
+Fsa::ConstMappingRef mapToRight(typename _Automaton::ConstRef f);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tCompose.cc"
 
-#endif // _T_FSA_COMPOSE_HH
+#endif  // _T_FSA_COMPOSE_HH

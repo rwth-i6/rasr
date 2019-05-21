@@ -20,24 +20,22 @@
 
 using namespace Fsa;
 
-
 // -----------------------------------------------------------------------------
 const Core::ParameterString Archive::paramAlphabetFilename(
-    "alphabet-filename",
-    "filename of alphabet",
-    "alphabets.binfsa.gz");
+        "alphabet-filename",
+        "filename of alphabet",
+        "alphabets.binfsa.gz");
 
 const Core::ParameterString Archive::paramPath(
-    "path",
-    "where to store the automaton archive");
+        "path",
+        "where to store the automaton archive");
 
 Archive::Archive(
-    const Core::Configuration &config,
-    const std::string &path,
-    Core::Archive::AccessMode accessMode) :
-    Core::Component(config),
-    archive_(0)
-{
+        const Core::Configuration& config,
+        const std::string&         path,
+        Core::Archive::AccessMode  accessMode)
+        : Core::Component(config),
+          archive_(0) {
     std::string pathname = path;
     if (!pathname.size())
         pathname = paramPath(config);
@@ -55,35 +53,33 @@ Archive::~Archive() {
 }
 // -----------------------------------------------------------------------------
 
-
 // -----------------------------------------------------------------------------
 const Core::ParameterInt ArchiveReader::paramReportUnknowns(
-    "report-unknowns",
-    "maximum number of unknown symbols that should be reported",
-    10,
-    0);
+        "report-unknowns",
+        "maximum number of unknown symbols that should be reported",
+        10,
+        0);
 
 const Core::ParameterInt ArchiveReader::paramMapUnknownsToIndex(
-    "map-unknowns-to-index",
-    "unknown indices are mapped to this index",
-    InvalidLabelId);
+        "map-unknowns-to-index",
+        "unknown indices are mapped to this index",
+        InvalidLabelId);
 
 ArchiveReader::ArchiveReader(
-    const Core::Configuration &config,
-    const std::string &pathname)
-    :
-    Archive(config, pathname, Core::Archive::AccessModeRead),
-    reportUnknowns_(paramReportUnknowns(config)),
-    unknownId_(paramMapUnknownsToIndex(config))
-{
-    if (!archive_) return;
+        const Core::Configuration& config,
+        const std::string&         pathname)
+        : Archive(config, pathname, Core::Archive::AccessModeRead),
+          reportUnknowns_(paramReportUnknowns(config)),
+          unknownId_(paramMapUnknownsToIndex(config)) {
+    if (!archive_)
+        return;
     loadAlphabets();
 }
 
-ArchiveReader::ArchiveReader(const Core::Configuration &config) :
-    Archive(config, "", Core::Archive::AccessModeRead)
-{
-    if (!archive_) return;
+ArchiveReader::ArchiveReader(const Core::Configuration& config)
+        : Archive(config, "", Core::Archive::AccessModeRead) {
+    if (!archive_)
+        return;
     loadAlphabets();
 }
 
@@ -94,7 +90,7 @@ void ArchiveReader::loadAlphabets() {
               alphabetFilename.c_str());
         return;
     }
-    StaticAutomaton staticAutomaton;
+    StaticAutomaton     staticAutomaton;
     Core::ArchiveReader is(*archive_, alphabetFilename);
     if (!readBinary(&staticAutomaton, is)) {
         error("failed to read alphabets from archive");
@@ -111,24 +107,23 @@ void ArchiveReader::setSemiring(ConstSemiringRef targetSemiring) {
 
 void ArchiveReader::mapInput(ConstAlphabetRef targetAlphabet) {
     mapAlphabet(
-        inputAlphabet_,
-        targetAlphabet,
-        inputMapping_,
-        unknownId_,
-        reportUnknowns_);
+            inputAlphabet_,
+            targetAlphabet,
+            inputMapping_,
+            unknownId_,
+            reportUnknowns_);
 }
 
 void ArchiveReader::mapOutput(ConstAlphabetRef targetAlphabet) {
     mapAlphabet(
-        outputAlphabet_,
-        targetAlphabet,
-        outputMapping_,
-        unknownId_,
-        reportUnknowns_);
+            outputAlphabet_,
+            targetAlphabet,
+            outputMapping_,
+            unknownId_,
+            reportUnknowns_);
 }
 
-ConstAutomatonRef ArchiveReader::get(const std::string & id)
-{
+ConstAutomatonRef ArchiveReader::get(const std::string& id) {
     require(archive_);
     Core::Ref<StorageAutomaton> storage(new StaticAutomaton);
 
@@ -155,9 +150,10 @@ ConstAutomatonRef ArchiveReader::get(const std::string & id)
 
     ConstAutomatonRef result = storage;
     if (result->type() == TypeTransducer) {
-        result = Fsa::mapInput (result, inputMapping_);
+        result = Fsa::mapInput(result, inputMapping_);
         result = Fsa::mapOutput(result, outputMapping_);
-    } else if (result->type() == TypeAcceptor) {
+    }
+    else if (result->type() == TypeAcceptor) {
         if (inputMapping_.to()) {
             result = mapInputOutput(result, inputMapping_);
         }
@@ -167,28 +163,23 @@ ConstAutomatonRef ArchiveReader::get(const std::string & id)
 }
 // -----------------------------------------------------------------------------
 
-
 // -----------------------------------------------------------------------------
 ArchiveWriter::ArchiveWriter(
-    const Core::Configuration & config,
-    const std::string & pathname,
-    ConstAlphabetRef inputAlphabet,
-    ConstAlphabetRef outputAlphabet)
-    :
-    Archive(config, pathname, Core::Archive::AccessModeWrite)
-{
+        const Core::Configuration& config,
+        const std::string&         pathname,
+        ConstAlphabetRef           inputAlphabet,
+        ConstAlphabetRef           outputAlphabet)
+        : Archive(config, pathname, Core::Archive::AccessModeWrite) {
     inputAlphabet_  = inputAlphabet;
     outputAlphabet_ = outputAlphabet;
     storeAlphabets();
 }
 
 ArchiveWriter::ArchiveWriter(
-    const Core::Configuration & config,
-    ConstAlphabetRef inputAlphabet,
-    ConstAlphabetRef outputAlphabet)
-    :
-    Archive(config, "", Core::Archive::AccessModeWrite)
-{
+        const Core::Configuration& config,
+        ConstAlphabetRef           inputAlphabet,
+        ConstAlphabetRef           outputAlphabet)
+        : Archive(config, "", Core::Archive::AccessModeWrite) {
     inputAlphabet_  = inputAlphabet;
     outputAlphabet_ = outputAlphabet;
     storeAlphabets();
@@ -198,17 +189,17 @@ void ArchiveWriter::storeAlphabets() {
     Core::Ref<StorageAutomaton> f(new StaticAutomaton(TypeTransducer));
     f->setInputAlphabet(inputAlphabet_);
     f->setOutputAlphabet(outputAlphabet_);
-    const std::string alphabetFilename = paramAlphabetFilename(config);
+    const std::string   alphabetFilename = paramAlphabetFilename(config);
     Core::ArchiveWriter os(*archive_, alphabetFilename, true);
     writeBinary(f, os, Fsa::storeAlphabets);
     if (!os)
         error("Failed to write alphabets to \"%s\"", alphabetFilename.c_str());
 }
 
-void ArchiveWriter::store(const std::string &id, ConstAutomatonRef f) {
+void ArchiveWriter::store(const std::string& id, ConstAutomatonRef f) {
     require(archive_);
     StoredComponents what = storeAll;
-    if (f->inputAlphabet()  == inputAlphabet_)
+    if (f->inputAlphabet() == inputAlphabet_)
         what &= ~storeInputAlphabet;
     if (what & storeInputAlphabet)
         warning("store input alphabet");

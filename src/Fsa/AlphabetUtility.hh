@@ -15,25 +15,24 @@
 #ifndef _FSA_ALPHABET_UTILITY_HH
 #define _FSA_ALPHABET_UTILITY_HH
 
+#include <Core/Vector.hh>
 #include "Alphabet.hh"
 #include "Types.hh"
-#include <Core/Vector.hh>
 
-namespace Fsa
-{
+namespace Fsa {
 /**
  * An object the contains all information that is gathered by the count
  * function for alphabets.
  **/
-class AlphabetCounts
-{
+class AlphabetCounts {
 public:
-        LabelId maxLabelId_;
-        LabelId nLabels_;
-        LabelId nDisambiguators_;
+    LabelId maxLabelId_;
+    LabelId nLabels_;
+    LabelId nDisambiguators_;
+
 public:
-        AlphabetCounts() :
-                maxLabelId_(0), nLabels_(0), nDisambiguators_(0) {}
+    AlphabetCounts()
+            : maxLabelId_(0), nLabels_(0), nDisambiguators_(0) {}
 };
 
 /**
@@ -63,86 +62,79 @@ LabelId countDisambiguators(ConstAlphabetRef a);
  *    mapping (injective, one-to-one, etc.)
  * 2. seemlessly support all special labels
  **/
-class AlphabetMapping : public Core::Vector<LabelId>
-{
+class AlphabetMapping : public Core::Vector<LabelId> {
 public:
-        typedef u8 Type;
-        static const Type typeUnmapped = 0x01; /**< all symbols have the same index in FROM and TO */
-        static const Type typeComplete = 0x02; /**< all symbols in FROM are also in TO */
-        static const Type typeIdentity = 0x04; /**< FROM and TO are identical (not just equal) */
+    typedef u8        Type;
+    static const Type typeUnmapped = 0x01; /**< all symbols have the same index in FROM and TO */
+    static const Type typeComplete = 0x02; /**< all symbols in FROM are also in TO */
+    static const Type typeIdentity = 0x04; /**< FROM and TO are identical (not just equal) */
 
 private:
-        friend void mapAlphabet(ConstAlphabetRef, ConstAlphabetRef,
-                        AlphabetMapping&, LabelId, u32);
-        ConstAlphabetRef from_, to_;
-        Type type_;
-        LabelId unkId_;
+    friend void      mapAlphabet(ConstAlphabetRef, ConstAlphabetRef,
+                                 AlphabetMapping&, LabelId, u32);
+    ConstAlphabetRef from_, to_;
+    Type             type_;
+    LabelId          unkId_;
 
 public:
-        AlphabetMapping();
-        void clear();
-        AlphabetMapping &operator=(const AlphabetMapping&);
+    AlphabetMapping();
+    void             clear();
+    AlphabetMapping& operator=(const AlphabetMapping&);
 
-        /**
-         * @return the type of the mapping
-         **/
-        Type type() const
-        {
-                return type_;
-        }
+    /**
+     * @return the type of the mapping
+     **/
+    Type type() const {
+        return type_;
+    }
 
-        /**
-         * @return true if this mapping requires an automaton to be
-         * modified.  False if this is a trivial mapping where all
-         * label ids remain unchanged.
-         **/
-        bool isModifyingType() const
-        {
-                return (type_ & (typeUnmapped|typeComplete)) != (typeUnmapped
-                                |typeComplete);
-        }
+    /**
+     * @return true if this mapping requires an automaton to be
+     * modified.  False if this is a trivial mapping where all
+     * label ids remain unchanged.
+     **/
+    bool isModifyingType() const {
+        return (type_ & (typeUnmapped | typeComplete)) != (typeUnmapped | typeComplete);
+    }
 
-        /**
-         * @return a reference to the alphabet from which to map
-         **/
-        ConstAlphabetRef from() const
-        {
-                return from_;
-        }
+    /**
+     * @return a reference to the alphabet from which to map
+     **/
+    ConstAlphabetRef from() const {
+        return from_;
+    }
 
-        /**
-         * @return a reference to the alphabet to which we map
-         **/
-        ConstAlphabetRef to() const
-        {
-                return to_;
-        }
+    /**
+     * @return a reference to the alphabet to which we map
+     **/
+    ConstAlphabetRef to() const {
+        return to_;
+    }
 
-        /**
-         * Add a mapping for a single label id.
-         **/
-        void map(LabelId from, LabelId to);
+    /**
+     * Add a mapping for a single label id.
+     **/
+    void map(LabelId from, LabelId to);
 
-        /**
-         * Add a mapping to delete a single label id.
-         **/
-        void del(LabelId);
+    /**
+     * Add a mapping to delete a single label id.
+     **/
+    void del(LabelId);
 
-        /**
-         * Request the target label id for a source label id. This
-         * method is aware of special label ids and does not map them.
-         * @return the target label id
-         **/
-        const LabelId operator[](LabelId i) const
-        {
-                if (!isModifyingType())
-                        return i;
-                if ((i < FirstLabelId) || (LastLabelId < i))
-                        return i;
-                if (size_t(i) >= size())
-                        return unkId_;
-                return Core::Vector<LabelId>::operator[](i);
-        }
+    /**
+     * Request the target label id for a source label id. This
+     * method is aware of special label ids and does not map them.
+     * @return the target label id
+     **/
+    const LabelId operator[](LabelId i) const {
+        if (!isModifyingType())
+            return i;
+        if ((i < FirstLabelId) || (LastLabelId < i))
+            return i;
+        if (size_t(i) >= size())
+            return unkId_;
+        return Core::Vector<LabelId>::operator[](i);
+    }
 };
 
 /**
@@ -159,7 +151,7 @@ public:
  *    overhead due to temporary object creation)
  * @param reportUnknowns maximum number of unknown symbols that should be reported
  **/
-void mapAlphabet(ConstAlphabetRef from, ConstAlphabetRef to, AlphabetMapping &mapping,
-                LabelId unknownId = InvalidLabelId, u32 reportUnknowns = 0);
-} // namespace Fsa
-#endif // _FSA_ALPHABET_UTILITY_HH
+void mapAlphabet(ConstAlphabetRef from, ConstAlphabetRef to, AlphabetMapping& mapping,
+                 LabelId unknownId = InvalidLabelId, u32 reportUnknowns = 0);
+}  // namespace Fsa
+#endif  // _FSA_ALPHABET_UTILITY_HH

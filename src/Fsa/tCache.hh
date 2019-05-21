@@ -20,23 +20,23 @@
 
 namespace Ftl {
 
-    /**
-     * Caches states of an automaton. Helps to substantially reduce
-     * computational complexity by using more memory. Caching is only
-     * done for none-storage (e.g. static or packed) and non-cache
-     * automata. Currently complete states together with their
-     * associated outgoing arcs are cached. Uses a simple 8-bit depth
-     * ageing algorithm.
-     * @param f the automaton we want to cache
-     * @param maxAge the number of calls to getState() necessary to
-     *   trigger one ageing step
-     * @return the cached automaton
-     **/
-    template<class _Automaton>
-    Core::Ref<const _Automaton> cache(Core::Ref<const _Automaton> f, u32 maxAge = 10000);
+/**
+ * Caches states of an automaton. Helps to substantially reduce
+ * computational complexity by using more memory. Caching is only
+ * done for none-storage (e.g. static or packed) and non-cache
+ * automata. Currently complete states together with their
+ * associated outgoing arcs are cached. Uses a simple 8-bit depth
+ * ageing algorithm.
+ * @param f the automaton we want to cache
+ * @param maxAge the number of calls to getState() necessary to
+ *   trigger one ageing step
+ * @return the cached automaton
+ **/
+template<class _Automaton>
+Core::Ref<const _Automaton> cache(Core::Ref<const _Automaton> f, u32 maxAge = 10000);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tCache.cc"
 
-#endif // _T_FSA_CACHE_HH
+#endif  // _T_FSA_CACHE_HH

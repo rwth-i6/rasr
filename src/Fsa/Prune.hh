@@ -19,16 +19,16 @@
 #include "Sssp.hh"
 
 namespace Fsa {
-        /**
-         * Pruning based on posteriors. If the posterior of an arc is below the minimum posterior of the automaton, it is omitted.
-         * Minimum is defined as minimum of all arcs extended by the threshold if relative==true,
-         * else minimum is defined as the backward potential of the initial state extended by the threshold.
-         *
-         * prunePosterior(ConstAutomatonRef, const Weight &threshold, bool relative = true) is used by command "prune" of the Fsa tool and the Lattice Processor.
-         */
-    ConstAutomatonRef prunePosterior(ConstAutomatonRef f, const Weight &threshold, bool relative = true);
-    ConstAutomatonRef prunePosterior(ConstAutomatonRef f, const Weight &threshold,const StatePotentials &fw, const StatePotentials& bw, bool relative = true);
-    ConstAutomatonRef pruneSync(ConstAutomatonRef f, const Weight &threshold);
-} // namespace Fsa
+/**
+ * Pruning based on posteriors. If the posterior of an arc is below the minimum posterior of the automaton, it is omitted.
+ * Minimum is defined as minimum of all arcs extended by the threshold if relative==true,
+ * else minimum is defined as the backward potential of the initial state extended by the threshold.
+ *
+ * prunePosterior(ConstAutomatonRef, const Weight &threshold, bool relative = true) is used by command "prune" of the Fsa tool and the Lattice Processor.
+ */
+ConstAutomatonRef prunePosterior(ConstAutomatonRef f, const Weight& threshold, bool relative = true);
+ConstAutomatonRef prunePosterior(ConstAutomatonRef f, const Weight& threshold, const StatePotentials& fw, const StatePotentials& bw, bool relative = true);
+ConstAutomatonRef pruneSync(ConstAutomatonRef f, const Weight& threshold);
+}  // namespace Fsa
 
-#endif // _FSA_PRUNE_HH
+#endif  // _FSA_PRUNE_HH

@@ -15,109 +15,109 @@
 #ifndef _FSA_UTILITY_HH
 #define _FSA_UTILITY_HH
 
-#include <cstdlib>
 #include <Core/Types.hh>
+#include <Core/Vector.hh>
+#include <cstdlib>
 #include "Alphabet.hh"
 #include "Hash.hh"
 #include "Types.hh"
-#include <Core/Vector.hh>
 
 namespace Fsa {
 
-        u32 estimateBytes(u32 x);
-        void setBytes(Core::Vector<u8>::iterator i, u32 x, int nBytes);
-        void appendBytes(Core::Vector<u8> &v, u32 x, int nBytes);
-        u32 getBytesAndIncrement(Core::Vector<u8>::const_iterator &a, int nBytes);
-        u32 getBytes(Core::Vector<u8>::const_iterator a, int nBytes);
+u32  estimateBytes(u32 x);
+void setBytes(Core::Vector<u8>::iterator i, u32 x, int nBytes);
+void appendBytes(Core::Vector<u8>& v, u32 x, int nBytes);
+u32  getBytesAndIncrement(Core::Vector<u8>::const_iterator& a, int nBytes);
+u32  getBytes(Core::Vector<u8>::const_iterator a, int nBytes);
 
-        class LabelIdStrings {
-        public:
-                typedef u32 Id;
-                typedef std::vector<Id> IdList;
-                static const Id Empty;
-                static const Id Invalid;
-                typedef Core::Vector<LabelId> LabelIdList;
-                typedef LabelIdList::const_iterator const_iterator;
+class LabelIdStrings {
+public:
+    typedef u32                         Id;
+    typedef std::vector<Id>             IdList;
+    static const Id                     Empty;
+    static const Id                     Invalid;
+    typedef Core::Vector<LabelId>       LabelIdList;
+    typedef LabelIdList::const_iterator const_iterator;
 
-        private:
-                struct StringHashKey_ {
-                        LabelIdStrings &s_;
-                        StringHashKey_(LabelIdStrings &s) :
-                                s_(s) {
-                        }
-                        u32 operator()(Id s) {
-                                u32 value = 0;
-                                for (const_iterator i = s_.begin(s); *i != InvalidLabelId; ++i)
-                                        value = 337 * value + abs(*i);
-                                return value;
-                        }
-                };
-                struct StringHashEqual_ {
-                        LabelIdStrings &s_;
-                        StringHashEqual_(LabelIdStrings &s) :
-                                s_(s) {
-                        }
-                        bool operator()(Id s1, Id s2) const {
-                                const_iterator i1 = s_.begin(s1), i2 = s_.begin(s2);
-                                for (; (*i1 != InvalidLabelId) && (*i1 == *i2); ++i1, ++i2);
-                                if (*i1 == *i2) return true; //check for different length
-                                // return (*i1 == InvalidLabelId) && (*i2 == InvalidLabelId);
-                                return false;
-                        }
-                };
-                typedef Hash<Id, StringHashKey_, StringHashEqual_> HashedStrings;
-                HashedStrings hashedStrings_;
-                LabelIdList strings_;
+private:
+    struct StringHashKey_ {
+        LabelIdStrings& s_;
+        StringHashKey_(LabelIdStrings& s)
+                : s_(s) {
+        }
+        u32 operator()(Id s) {
+            u32 value = 0;
+            for (const_iterator i = s_.begin(s); *i != InvalidLabelId; ++i)
+                value = 337 * value + abs(*i);
+            return value;
+        }
+    };
+    struct StringHashEqual_ {
+        LabelIdStrings& s_;
+        StringHashEqual_(LabelIdStrings& s)
+                : s_(s) {
+        }
+        bool operator()(Id s1, Id s2) const {
+            const_iterator i1 = s_.begin(s1), i2 = s_.begin(s2);
+            for (; (*i1 != InvalidLabelId) && (*i1 == *i2); ++i1, ++i2)
+                ;
+            if (*i1 == *i2)
+                return true;  //check for different length
+            return false;
+        }
+    };
+    typedef Hash<Id, StringHashKey_, StringHashEqual_> HashedStrings;
+    HashedStrings                                      hashedStrings_;
+    LabelIdList                                        strings_;
 
-        public:
-                LabelIdStrings() :
-                        hashedStrings_(StringHashKey_(*this), StringHashEqual_(*this)) {
-                        // strings_.push_back(InvalidLabelId);
-                }
+public:
+    LabelIdStrings()
+            : hashedStrings_(StringHashKey_(*this), StringHashEqual_(*this)) {
+    }
 
-                Id start() const {
-                        return strings_.size();
-                }
+    Id start() const {
+        return strings_.size();
+    }
 
-                Id insert(Id start) {
-                        std::pair<HashedStrings::Cursor, bool> found = hashedStrings_.insertExisting(start);
-                        return hashedStrings_[found.first];
-                }
+    Id insert(Id start) {
+        std::pair<HashedStrings::Cursor, bool> found = hashedStrings_.insertExisting(start);
+        return hashedStrings_[found.first];
+    }
 
-                Id stop(Id start) {
-                        strings_.push_back(InvalidLabelId);
-                        std::pair<HashedStrings::Cursor, bool> found =
-                                        hashedStrings_.insertExisting(start);
-                        if (found.second)
-                                discard(start);
-                        return hashedStrings_[found.first];
-                }
+    Id stop(Id start) {
+        strings_.push_back(InvalidLabelId);
+        std::pair<HashedStrings::Cursor, bool> found =
+                hashedStrings_.insertExisting(start);
+        if (found.second)
+            discard(start);
+        return hashedStrings_[found.first];
+    }
 
-                void append(LabelId l) {
-                        strings_.push_back(l);
-                }
+    void append(LabelId l) {
+        strings_.push_back(l);
+    }
 
-                Id append(Core::Vector<LabelId>::const_iterator i);
+    Id append(Core::Vector<LabelId>::const_iterator i);
 
-                void discard(Id start) {
-                        strings_.resize(start);
-                }
+    void discard(Id start) {
+        strings_.resize(start);
+    }
 
-                const_iterator begin(Id s) const {
-                        return strings_.begin() + s;
-                }
+    const_iterator begin(Id s) const {
+        return strings_.begin() + s;
+    }
 
-                u32 length(Id s) const;
+    u32 length(Id s) const;
 
-                void dump(std::ostream &o, Id id,
-                                ConstAlphabetRef alphabet = ConstAlphabetRef()) const;
+    void dump(std::ostream& o, Id id,
+              ConstAlphabetRef alphabet = ConstAlphabetRef()) const;
 
-                size_t getMemoryUsed() const;
-        };
+    size_t getMemoryUsed() const;
+};
 
-        typedef std::pair<std::string, std::string> QualifiedFilename;
-        QualifiedFilename splitQualifiedFilename(const std::string &file,
-                        const std::string &defaultFormat = "");
-} // namespace Fsa
+typedef std::pair<std::string, std::string> QualifiedFilename;
+QualifiedFilename                           splitQualifiedFilename(const std::string& file,
+                                                                   const std::string& defaultFormat = "");
+}  // namespace Fsa
 
-#endif // _FSA_UTILITY_HH
+#endif  // _FSA_UTILITY_HH

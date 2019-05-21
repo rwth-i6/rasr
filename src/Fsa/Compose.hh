@@ -19,11 +19,11 @@
 #include "Mapping.hh"
 
 namespace Fsa {
-    ConstAutomatonRef composeMatching(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns = true);
-    ConstAutomatonRef composeSequencing(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns = true);
-    ConstAutomatonRef difference(ConstAutomatonRef fl, ConstAutomatonRef fr);
-    ConstMappingRef mapToLeft(ConstAutomatonRef f);
-    ConstMappingRef mapToRight(ConstAutomatonRef f);
-} // namespace Fsa
+ConstAutomatonRef composeMatching(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns = true);
+ConstAutomatonRef composeSequencing(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns = true);
+ConstAutomatonRef difference(ConstAutomatonRef fl, ConstAutomatonRef fr);
+ConstMappingRef   mapToLeft(ConstAutomatonRef f);
+ConstMappingRef   mapToRight(ConstAutomatonRef f);
+}  // namespace Fsa
 
-#endif // _FSA_COMPOSE_HH
+#endif  // _FSA_COMPOSE_HH

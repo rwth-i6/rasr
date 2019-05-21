@@ -17,14 +17,14 @@
 #ifndef _FSA_LINEAR_HH
 #define _FSA_LINEAR_HH
 
-#include "Automaton.hh"
 #include <vector>
+#include "Automaton.hh"
 
 namespace Fsa {
-    bool isLinear(ConstAutomatonRef);
-    void getLinearInput(ConstAutomatonRef, std::vector<LabelId> &result);
-    void getLinearOutput(ConstAutomatonRef, std::vector<LabelId> &result);
-    Weight getLinearWeight(ConstAutomatonRef);
-} // namespace Fsa
+bool   isLinear(ConstAutomatonRef);
+void   getLinearInput(ConstAutomatonRef, std::vector<LabelId>& result);
+void   getLinearOutput(ConstAutomatonRef, std::vector<LabelId>& result);
+Weight getLinearWeight(ConstAutomatonRef);
+}  // namespace Fsa
 
-#endif // _FSA_LINEAR_HH
+#endif  // _FSA_LINEAR_HH

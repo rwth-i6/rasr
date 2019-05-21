@@ -12,22 +12,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tBest.hh"
 #include "Best.hh"
+#include "tBest.hh"
 
 namespace Fsa {
-    Weight bestscore(ConstAutomatonRef f)
-    { return Ftl::bestscore<Automaton>(f); }
+Weight bestscore(ConstAutomatonRef f) {
+    return Ftl::bestscore<Automaton>(f);
+}
 
-    ConstAutomatonRef best(ConstAutomatonRef f)
-    { return Ftl::best<Automaton>(f); }
+ConstAutomatonRef best(ConstAutomatonRef f) {
+    return Ftl::best<Automaton>(f);
+}
 
-    ConstAutomatonRef best(ConstAutomatonRef f, const StatePotentials &backward)
-    { return Ftl::best<Automaton>(f, backward); }
+ConstAutomatonRef best(ConstAutomatonRef f, const StatePotentials& backward) {
+    return Ftl::best<Automaton>(f, backward);
+}
 
-    ConstAutomatonRef nbest(ConstAutomatonRef f, size_t n, bool bestSequences)
-    { return Ftl::nbest<Automaton>(f, n, bestSequences); }
+ConstAutomatonRef nbest(ConstAutomatonRef f, size_t n, bool bestSequences) {
+    return Ftl::nbest<Automaton>(f, n, bestSequences);
+}
 
-    ConstAutomatonRef firstbest(ConstAutomatonRef f)
-    { return Ftl::firstbest<Automaton>(f); }
-} // namespace Fsa
+ConstAutomatonRef firstbest(ConstAutomatonRef f) {
+    return Ftl::firstbest<Automaton>(f);
+}
+}  // namespace Fsa

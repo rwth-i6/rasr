@@ -15,12 +15,11 @@
 #ifndef _FSA_DFS_HH
 #define _FSA_DFS_HH
 
-#include "tDfs.hh"
 #include "Automaton.hh"
-
+#include "tDfs.hh"
 
 namespace Fsa {
-    typedef Ftl::DfsState<Fsa::Automaton> DfsState;
-} // namespace Fsa
+typedef Ftl::DfsState<Fsa::Automaton> DfsState;
+}  // namespace Fsa
 
-#endif // _FSA_DFS_HH
+#endif  // _FSA_DFS_HH

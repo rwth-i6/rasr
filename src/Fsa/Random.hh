@@ -19,26 +19,26 @@
 
 namespace Fsa {
 
-    /**
-     * Create a random path.
-     * @param f the automaton
-     * @param weight control how much transition weights affect
-     * sampling probability.  When @c weight equals zero, all arcs
-     * have equal probability.  Values other than zero, are allowed
-     * only for log-semirings: Then p(arc) is proportional to exp( -
-     * arc.weight * weight).
-     * @param maximumSize maximum size of result.  (Some
-     * algrithms may enter a non-terminaint loop, e.g. when the input
-     * automaton is not trimmed.)  When @c maximumSize greater than 0,
-     * the result automaton contains at most @c maximumSize states.
-     * @return a linear automaton representing a randomly chosen path
-     * through @c f.
-     */
-    ConstAutomatonRef random(
+/**
+ * Create a random path.
+ * @param f the automaton
+ * @param weight control how much transition weights affect
+ * sampling probability.  When @c weight equals zero, all arcs
+ * have equal probability.  Values other than zero, are allowed
+ * only for log-semirings: Then p(arc) is proportional to exp( -
+ * arc.weight * weight).
+ * @param maximumSize maximum size of result.  (Some
+ * algrithms may enter a non-terminaint loop, e.g. when the input
+ * automaton is not trimmed.)  When @c maximumSize greater than 0,
+ * the result automaton contains at most @c maximumSize states.
+ * @return a linear automaton representing a randomly chosen path
+ * through @c f.
+ */
+ConstAutomatonRef random(
         ConstAutomatonRef f,
-        f32 weight = 0.0,
-        u32 maximumSize = 0);
+        f32               weight      = 0.0,
+        u32               maximumSize = 0);
 
-} // namespace Fsa
+}  // namespace Fsa
 
-#endif //  _FSA_RANDOM_HH
+#endif  //  _FSA_RANDOM_HH

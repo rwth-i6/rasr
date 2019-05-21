@@ -19,32 +19,32 @@
 #include "tStorage.hh"
 
 namespace Ftl {
-    template<class _Automaton>
-    typename _Automaton::ConstRef read(const Resources<_Automaton> &resources, const std::string &format, std::istream &i);
+template<class _Automaton>
+typename _Automaton::ConstRef read(const Resources<_Automaton>& resources, const std::string& format, std::istream& i);
 
-    template<class _Automaton>
-    bool read(const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, const std::string &format, std::istream &i);
+template<class _Automaton>
+bool read(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, const std::string& format, std::istream& i);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef read(const Resources<_Automaton> &resources, const std::string &file);
+template<class _Automaton>
+typename _Automaton::ConstRef read(const Resources<_Automaton>& resources, const std::string& file);
 
-    template<class _Automaton>
-    bool read(      const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, const std::string &file);
+template<class _Automaton>
+bool read(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, const std::string& file);
 
-    template<class _Automaton>
-    bool readAtt(   const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, std::istream &i);
+template<class _Automaton>
+bool readAtt(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, std::istream& i);
 
-    template<class _Automaton>
-    bool readBinary(const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, std::istream &i);
+template<class _Automaton>
+bool readBinary(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, std::istream& i);
 
-    template<class _Automaton>
-    bool readLinear(const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, std::istream &i);
+template<class _Automaton>
+bool readLinear(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, std::istream& i);
 
-    template<class _Automaton>
-    bool readXml(   const Resources<_Automaton> &resources, StorageAutomaton<_Automaton> *f, std::istream &i);
+template<class _Automaton>
+bool readXml(const Resources<_Automaton>& resources, StorageAutomaton<_Automaton>* f, std::istream& i);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tInput.cc"
 
-#endif // _T_FSA_INPUT_HH
+#endif  // _T_FSA_INPUT_HH

@@ -13,27 +13,31 @@
  *  limitations under the License.
  */
 #include "Static.hh"
-#include "tStaticAlgorithm.hh"
 #include "tCopy.hh"
+#include "tStaticAlgorithm.hh"
 
 namespace Fsa {
-    void removeNonAccessibleStates(Core::Ref<StaticAutomaton> s)
-    { Ftl::removeNonAccessibleStates<Automaton>(s); }
+void removeNonAccessibleStates(Core::Ref<StaticAutomaton> s) {
+    Ftl::removeNonAccessibleStates<Automaton>(s);
+}
 
-    void trimInPlace(Core::Ref<StaticAutomaton> s) {
-        Ftl::trimInPlace<Automaton>(s);
-    }
+void trimInPlace(Core::Ref<StaticAutomaton> s) {
+    Ftl::trimInPlace<Automaton>(s);
+}
 
-    void removeInvalidArcsInPlace(Core::Ref<StaticAutomaton> s) {
-        Ftl::removeInvalidArcsInPlace<Automaton>(s);
-    }
+void removeInvalidArcsInPlace(Core::Ref<StaticAutomaton> s) {
+    Ftl::removeInvalidArcsInPlace<Automaton>(s);
+}
 
-    Core::Ref<StaticAutomaton> staticCopy(ConstAutomatonRef f)
-    { return Ftl::staticCopy<Automaton>(f); }
+Core::Ref<StaticAutomaton> staticCopy(ConstAutomatonRef f) {
+    return Ftl::staticCopy<Automaton>(f);
+}
 
-    Core::Ref<StaticAutomaton> staticCompactCopy(ConstAutomatonRef f)
-    { return Ftl::staticCompactCopy<Automaton>(f); }
+Core::Ref<StaticAutomaton> staticCompactCopy(ConstAutomatonRef f) {
+    return Ftl::staticCompactCopy<Automaton>(f);
+}
 
-    Core::Ref<StaticAutomaton> staticCopy(const std::string &str, ConstSemiringRef semiring)
-    { return Ftl::staticCopy<Automaton>(str, semiring); }
-} // namespace Fsa
+Core::Ref<StaticAutomaton> staticCopy(const std::string& str, ConstSemiringRef semiring) {
+    return Ftl::staticCopy<Automaton>(str, semiring);
+}
+}  // namespace Fsa

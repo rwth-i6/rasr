@@ -12,16 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tSort.hh"
 #include "Sort.hh"
+#include "tSort.hh"
 
 namespace Fsa {
-    ConstAutomatonRef sort(ConstAutomatonRef f, SortType type)
-    { return Ftl::sort<Automaton>(f, type); }
+ConstAutomatonRef sort(ConstAutomatonRef f, SortType type) {
+    return Ftl::sort<Automaton>(f, type);
+}
 
-    StateMap topologicallySort(ConstAutomatonRef f, bool progress)
-    { return Ftl::topologicallySort<Automaton>(f, progress); }
+StateMap topologicallySort(ConstAutomatonRef f, bool progress) {
+    return Ftl::topologicallySort<Automaton>(f, progress);
+}
 
-    bool isAcyclic(ConstAutomatonRef f)
-    { return Ftl::isAcyclic<Automaton>(f); }
-} // namespace Fsa
+bool isAcyclic(ConstAutomatonRef f) {
+    return Ftl::isAcyclic<Automaton>(f);
+}
+}  // namespace Fsa

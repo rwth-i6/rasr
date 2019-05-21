@@ -15,57 +15,56 @@
 #ifndef _T_FSA_RATIONAL_HH
 #define _T_FSA_RATIONAL_HH
 
-#include "Alphabet.hh"
 #include <Core/Vector.hh>
+#include "Alphabet.hh"
 #include "Mapping.hh"
 
 namespace Ftl {
-    template<class _Automaton>
-    typename _Automaton::ConstRef identity(Fsa::ConstAlphabetRef, typename _Automaton::ConstSemiringRef);
-    template<class _Automaton>
-    typename _Automaton::ConstRef closure(typename _Automaton::ConstRef f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef kleeneClosure(typename _Automaton::ConstRef f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef complement(typename _Automaton::ConstRef f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef concat(const Core::Vector<typename _Automaton::ConstRef> &f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef concat(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
-    template<class _Automaton>
-    typename _Automaton::ConstRef unite(const Core::Vector<typename _Automaton::ConstRef> &f,
-                                        const Core::Vector<typename _Automaton::Weight> &initialWeights
-                                        = Core::Vector<typename _Automaton::Weight>());
-    template<class _Automaton>
-    typename _Automaton::ConstRef unite(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
-    /**
-     * Mapping returning the state's id in the respective original sub-automaton.
-     **/
-    template<class _Automaton>
-    Fsa::ConstMappingRef mapToSubAutomaton(typename _Automaton::ConstRef f, u32 subAutomaton);
-    /**
-       * Fuse initial states.  The result automaton will contain the
-       * union of the states of the source automata, except for their
-       * initial states.  The initial state of all source automata will
-       * be merged into a single initial state.  For certain (but
-       * common) cases this is equivalent to closure(unite()), but does
-       * not produce the nasty epsilon loops.
-       */
-    template<class _Automaton>
-    typename _Automaton::ConstRef fuse(const Core::Vector<typename _Automaton::ConstRef> &f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef fuse(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
+template<class _Automaton>
+typename _Automaton::ConstRef identity(Fsa::ConstAlphabetRef, typename _Automaton::ConstSemiringRef);
+template<class _Automaton>
+typename _Automaton::ConstRef closure(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef kleeneClosure(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef complement(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef concat(const Core::Vector<typename _Automaton::ConstRef>& f);
+template<class _Automaton>
+typename _Automaton::ConstRef concat(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
+template<class _Automaton>
+typename _Automaton::ConstRef unite(const Core::Vector<typename _Automaton::ConstRef>& f,
+                                    const Core::Vector<typename _Automaton::Weight>&   initialWeights = Core::Vector<typename _Automaton::Weight>());
+template<class _Automaton>
+typename _Automaton::ConstRef unite(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
+/**
+ * Mapping returning the state's id in the respective original sub-automaton.
+ **/
+template<class _Automaton>
+Fsa::ConstMappingRef mapToSubAutomaton(typename _Automaton::ConstRef f, u32 subAutomaton);
+/**
+ * Fuse initial states.  The result automaton will contain the
+ * union of the states of the source automata, except for their
+ * initial states.  The initial state of all source automata will
+ * be merged into a single initial state.  For certain (but
+ * common) cases this is equivalent to closure(unite()), but does
+ * not produce the nasty epsilon loops.
+ */
+template<class _Automaton>
+typename _Automaton::ConstRef fuse(const Core::Vector<typename _Automaton::ConstRef>& f);
+template<class _Automaton>
+typename _Automaton::ConstRef fuse(typename _Automaton::ConstRef, typename _Automaton::ConstRef);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef transpose(typename _Automaton::ConstRef f, bool progress = false);
+template<class _Automaton>
+typename _Automaton::ConstRef transpose(typename _Automaton::ConstRef f, bool progress = false);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef allPrefixes(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef allPrefixes(typename _Automaton::ConstRef f);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef allSuffixes(typename _Automaton::ConstRef f);
-} // namespace Ftl
+template<class _Automaton>
+typename _Automaton::ConstRef allSuffixes(typename _Automaton::ConstRef f);
+}  // namespace Ftl
 
 #include "tRational.cc"
 
-#endif // _T_FSA_RATIONAL_HH
+#endif  // _T_FSA_RATIONAL_HH

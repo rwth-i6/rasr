@@ -12,29 +12,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tCopy.hh"
 #include "Storage.hh"
+#include "tCopy.hh"
 
 namespace Ftl {
-    template<>
-    StorageAutomaton<Fsa::Automaton>::StorageAutomaton(Fsa::Type type) :
-        type_(type),
-        semiring_(Fsa::UnknownSemiring),
-        initial_(Fsa::InvalidStateId)
-    {
-        // Inconsistent with generic Ftl::StorageAutomaton::StorageAutomaton !
-        // There we set both Fsa::PropertyStorage and Fsa::PropertyCached to true.
-        // The only position in Fsa where Fsa::PropertyCached is used, is
-        // Ftl::cache(...) and there both bits are checked.
-        /*! @todo: check what is correct here */
-        Fsa::Automaton::setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyStorage);
-    }
+template<>
+StorageAutomaton<Fsa::Automaton>::StorageAutomaton(Fsa::Type type)
+        : type_(type),
+          semiring_(Fsa::UnknownSemiring),
+          initial_(Fsa::InvalidStateId) {
+    // Inconsistent with generic Ftl::StorageAutomaton::StorageAutomaton !
+    // There we set both Fsa::PropertyStorage and Fsa::PropertyCached to true.
+    // The only position in Fsa where Fsa::PropertyCached is used, is
+    // Ftl::cache(...) and there both bits are checked.
+    /*! @todo: check what is correct here */
+    Fsa::Automaton::setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyStorage);
 }
-namespace Fsa
-{
-    void copy(StorageAutomaton *f, ConstAutomatonRef f2)
-    { Ftl::copy<Automaton>(f, f2); }
-    void copy(StorageAutomaton *f, const std::string &str)
-    { Ftl::copy<Automaton>(f, str); }
+}  // namespace Ftl
+namespace Fsa {
+void copy(StorageAutomaton* f, ConstAutomatonRef f2) {
+    Ftl::copy<Automaton>(f, f2);
+}
+void copy(StorageAutomaton* f, const std::string& str) {
+    Ftl::copy<Automaton>(f, str);
+}
 
-} // namespace Fsa
+}  // namespace Fsa

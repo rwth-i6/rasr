@@ -12,14 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tRemoveEpsilons.hh"
 #include "RemoveEpsilons.hh"
+#include "tRemoveEpsilons.hh"
 
 namespace Fsa {
-    ConstAutomatonRef removeEpsilons(ConstAutomatonRef f)
-    { return Ftl::removeEpsilons<Automaton>(f); }
+ConstAutomatonRef removeEpsilons(ConstAutomatonRef f) {
+    return Ftl::removeEpsilons<Automaton>(f);
+}
 
-    ConstAutomatonRef removeSimpleEpsilonArcs(ConstAutomatonRef f)
-    { return Ftl::removeSimpleEpsilonArcs<Automaton>(f); }
+ConstAutomatonRef removeSimpleEpsilonArcs(ConstAutomatonRef f) {
+    return Ftl::removeSimpleEpsilonArcs<Automaton>(f);
+}
 
-} // namespace Fsa
+}  // namespace Fsa

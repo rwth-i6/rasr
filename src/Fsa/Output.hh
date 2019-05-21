@@ -19,43 +19,32 @@
 #include "Types.hh"
 
 namespace Fsa {
-    /**
-     * storage
-     **/
-    bool write(      ConstAutomatonRef f, const std::string &format, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool write(      ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+/**
+ * storage
+ **/
+bool write(ConstAutomatonRef f, const std::string& format, std::ostream& o, StoredComponents what = storeAll, bool progress = false);
+bool write(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    bool writeAtt(   ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeAtt(   ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+bool writeAtt(ConstAutomatonRef f, std::ostream& o, StoredComponents what = storeAll, bool progress = false);
+bool writeAtt(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    bool writeBinary(ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeBinary(ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+bool writeBinary(ConstAutomatonRef f, std::ostream& o, StoredComponents what = storeAll, bool progress = false);
+bool writeBinary(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    bool writeLinear(ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false, bool printAll=false);
-    bool writeLinear(ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+bool writeLinear(ConstAutomatonRef f, std::ostream& o, StoredComponents what = storeAll, bool progress = false, bool printAll = false);
+bool writeLinear(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    bool writeXml(   ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeXml(   ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+bool writeXml(ConstAutomatonRef f, std::ostream& o, StoredComponents what = storeAll, bool progress = false);
+bool writeXml(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    bool writeTrXml(  ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeTrXml(  ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
+bool writeTrXml(ConstAutomatonRef f, std::ostream& o, StoredComponents what = storeAll, bool progress = false);
+bool writeTrXml(ConstAutomatonRef f, const std::string& file, StoredComponents what = storeAll, bool progress = false);
 
-    /*
-    bool writeMmap(  ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeMmap(  ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
-    */
+/**
+ * visualization
+ **/
+bool drawDot(ConstAutomatonRef f, std::ostream& o, Hint hint = HintNone, bool progress = false);
+bool drawDot(ConstAutomatonRef f, const std::string& file, Hint hint = HintNone, bool progress = false);
+}  // namespace Fsa
 
-    /*
-    bool writeHtk(   ConstAutomatonRef f, std::ostream &o, StoredComponents what = storeAll, bool progress = false);
-    bool writeHtk(   ConstAutomatonRef f, const std::string &file, StoredComponents what = storeAll, bool progress = false);
-    */
-
-
-    /**
-     * visualization
-     **/
-    bool drawDot(ConstAutomatonRef f, std::ostream &o, Hint hint = HintNone, bool progress = false);
-    bool drawDot(ConstAutomatonRef f, const std::string &file, Hint hint = HintNone, bool progress = false);
-} // namespace Fsa
-
-#endif // _FSA_OUTPUT_HH
+#endif  // _FSA_OUTPUT_HH

@@ -19,17 +19,17 @@
 
 namespace Ftl {
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef minimize(typename _Automaton::ConstRef f, bool progress = false);
+template<class _Automaton>
+typename _Automaton::ConstRef minimize(typename _Automaton::ConstRef f, bool progress = false);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef minimize(typename _Automaton::ConstRef f, Fsa::OptimizationHint hint, bool progress = false);
+template<class _Automaton>
+typename _Automaton::ConstRef minimize(typename _Automaton::ConstRef f, Fsa::OptimizationHint hint, bool progress = false);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef minimizeSimple(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef minimizeSimple(typename _Automaton::ConstRef f);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tMinimize.cc"
 
-#endif // _T_FSA_MINIMIZE_HH
+#endif  // _T_FSA_MINIMIZE_HH

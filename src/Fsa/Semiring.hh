@@ -21,60 +21,84 @@
 #include "tSemiring.hh"
 
 namespace Fsa {
-    class Weight {
-        friend class Ftl::Semiring<Weight>;
-    private:
-        union Value {
-            s32 s;
-            u32 u;
-            f32 f;
-        };
-        Value value_;
+class Weight {
+    friend class Ftl::Semiring<Weight>;
 
-    public:
-        Weight() {}
-        explicit Weight(s32 value) { value_.s = value; }
-        explicit Weight(u32 value) { value_.u = value; }
-        explicit Weight(f32 value) { value_.f = value; }
-        explicit Weight(double value) { value_.f = value; }
-
-        operator int() { return value_.s; }
-        operator int() const { return value_.s; }
-        operator u32() { return value_.u; }
-        operator u32() const { return value_.u; }
-        operator float() { return value_.f; }
-        operator float() const { return value_.f; }
-        const Weight& operator= (const Weight &w) { value_ = w.value_; return *this; }
-
-        bool operator== (const Weight &w) const {
-            return memcmp(&value_, &w.value_, sizeof(Value)) == 0;
-        }
-
-        bool operator!= (const Weight &w) const {
-            return memcmp(&value_, &w.value_, sizeof(Value)) != 0;
-        }
-
-        bool operator< (const Weight &w) const {
-            return memcmp(&value_, &w.value_, sizeof(Value)) < 0;
-        }
+private:
+    union Value {
+        s32 s;
+        u32 u;
+        f32 f;
     };
+    Value value_;
 
-    typedef Ftl::Accumulator<Weight> Accumulator;
-    typedef Ftl::Semiring<Weight> Semiring;
-    typedef Semiring::Ref SemiringRef;
-    typedef Semiring::ConstRef ConstSemiringRef;
+public:
+    Weight() {}
+    explicit Weight(s32 value) {
+        value_.s = value;
+    }
+    explicit Weight(u32 value) {
+        value_.u = value;
+    }
+    explicit Weight(f32 value) {
+        value_.f = value;
+    }
+    explicit Weight(double value) {
+        value_.f = value;
+    }
 
-    extern ConstSemiringRef UnknownSemiring;
-    extern ConstSemiringRef LogSemiring;
-    extern ConstSemiringRef TropicalSemiring;
-    extern ConstSemiringRef TropicalIntegerSemiring;
-    extern ConstSemiringRef CountSemiring;
-    extern ConstSemiringRef ProbabilitySemiring;
+    operator int() {
+        return value_.s;
+    }
+    operator int() const {
+        return value_.s;
+    }
+    operator u32() {
+        return value_.u;
+    }
+    operator u32() const {
+        return value_.u;
+    }
+    operator float() {
+        return value_.f;
+    }
+    operator float() const {
+        return value_.f;
+    }
+    const Weight& operator=(const Weight& w) {
+        value_ = w.value_;
+        return *this;
+    }
 
-    extern Core::Choice SemiringTypeChoice;
+    bool operator==(const Weight& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) == 0;
+    }
 
-    extern ConstSemiringRef getSemiring(SemiringType type);
-    extern SemiringType getSemiringType(ConstSemiringRef semiring);
-} // namespace Fsa
+    bool operator!=(const Weight& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) != 0;
+    }
 
-#endif // _FSA_SEMIRING_HH
+    bool operator<(const Weight& w) const {
+        return memcmp(&value_, &w.value_, sizeof(Value)) < 0;
+    }
+};
+
+typedef Ftl::Accumulator<Weight> Accumulator;
+typedef Ftl::Semiring<Weight>    Semiring;
+typedef Semiring::Ref            SemiringRef;
+typedef Semiring::ConstRef       ConstSemiringRef;
+
+extern ConstSemiringRef UnknownSemiring;
+extern ConstSemiringRef LogSemiring;
+extern ConstSemiringRef TropicalSemiring;
+extern ConstSemiringRef TropicalIntegerSemiring;
+extern ConstSemiringRef CountSemiring;
+extern ConstSemiringRef ProbabilitySemiring;
+
+extern Core::Choice SemiringTypeChoice;
+
+extern ConstSemiringRef getSemiring(SemiringType type);
+extern SemiringType     getSemiringType(ConstSemiringRef semiring);
+}  // namespace Fsa
+
+#endif  // _FSA_SEMIRING_HH

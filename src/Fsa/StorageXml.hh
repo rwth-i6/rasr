@@ -21,39 +21,39 @@
 
 namespace Fsa {
 
-    class StorageAutomatonXmlParser : public Core::XmlSchemaParser {
-    private:
-        typedef StorageAutomatonXmlParser Self;
-        StorageAutomaton *fsa_;
-        State *state_;
-        Arc* arc_;
-        std::string content_;
-        std::string contentFinalWeight_;
+class StorageAutomatonXmlParser : public Core::XmlSchemaParser {
+private:
+    typedef StorageAutomatonXmlParser Self;
+    StorageAutomaton*                 fsa_;
+    State*                            state_;
+    Arc*                              arc_;
+    std::string                       content_;
+    std::string                       contentFinalWeight_;
 
-        void startFsa(const Core::XmlAttributes atts);
-        void startState(const Core::XmlAttributes atts);
-        void endState();
-        void startUser(const Core::XmlAttributes atts);
-        void startFinal(const Core::XmlAttributes atts);
-        void startFinalWeight(const Core::XmlAttributes atts);
-        void endFinalWeight();
-        void charactersFinalWeight(const char *ch, int len);
-        void startArc(const Core::XmlAttributes atts);
-        void charactersArc(const char *ch, int len);
-        void startIn(const Core::XmlAttributes atts);
-        void endIn();
-        void startOut(const Core::XmlAttributes atts);
-        void endOut();
-        void startArcWeight(const Core::XmlAttributes atts);
-        void endArcWeight();
+    void startFsa(const Core::XmlAttributes atts);
+    void startState(const Core::XmlAttributes atts);
+    void endState();
+    void startUser(const Core::XmlAttributes atts);
+    void startFinal(const Core::XmlAttributes atts);
+    void startFinalWeight(const Core::XmlAttributes atts);
+    void endFinalWeight();
+    void charactersFinalWeight(const char* ch, int len);
+    void startArc(const Core::XmlAttributes atts);
+    void charactersArc(const char* ch, int len);
+    void startIn(const Core::XmlAttributes atts);
+    void endIn();
+    void startOut(const Core::XmlAttributes atts);
+    void endOut();
+    void startArcWeight(const Core::XmlAttributes atts);
+    void endArcWeight();
 
-    public:
-        StorageAutomatonXmlParser(const Core::Configuration &c, StorageAutomaton *fsa);
-        bool parseString(const std::string &str);
-        bool parseStream(std::istream &i);
-        bool parseFile(const std::string &filename);
-    };
+public:
+    StorageAutomatonXmlParser(const Core::Configuration& c, StorageAutomaton* fsa);
+    bool parseString(const std::string& str);
+    bool parseStream(std::istream& i);
+    bool parseFile(const std::string& filename);
+};
 
-} // namespace Fsa
+}  // namespace Fsa
 
-#endif // _FSA_STORAGE_XML_HH
+#endif  // _FSA_STORAGE_XML_HH

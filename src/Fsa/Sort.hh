@@ -20,16 +20,16 @@
 #include "hSort.hh"
 
 namespace Fsa {
-    typedef Ftl::byArc<Automaton> byArc;
-    typedef Ftl::byInput<Automaton> byInput;
-    typedef Ftl::byInputAndTarget<Automaton> byInputTarget;
-    typedef Ftl::byOutput<Automaton> byOutput;
-    typedef Ftl::byInputAndOutputAndTarget<Automaton> byInputAndOutputAndTarget;
-    typedef Ftl::byWeight<Automaton> byWeight;
+typedef Ftl::byArc<Automaton>                     byArc;
+typedef Ftl::byInput<Automaton>                   byInput;
+typedef Ftl::byInputAndTarget<Automaton>          byInputTarget;
+typedef Ftl::byOutput<Automaton>                  byOutput;
+typedef Ftl::byInputAndOutputAndTarget<Automaton> byInputAndOutputAndTarget;
+typedef Ftl::byWeight<Automaton>                  byWeight;
 
-    ConstAutomatonRef sort(ConstAutomatonRef f, SortType type);
-    StateMap topologicallySort(ConstAutomatonRef f, bool progress = false);
-    bool isAcyclic(ConstAutomatonRef);
-} // namespace Fsa
+ConstAutomatonRef sort(ConstAutomatonRef f, SortType type);
+StateMap          topologicallySort(ConstAutomatonRef f, bool progress = false);
+bool              isAcyclic(ConstAutomatonRef);
+}  // namespace Fsa
 
-#endif // _FSA_SORT_HH
+#endif  // _FSA_SORT_HH

@@ -17,62 +17,62 @@
 
 #include <iostream>
 
-#include "tResources.hh"
 #include "Types.hh"
+#include "tResources.hh"
 
 namespace Ftl {
 
-    /**
-     * storage
-     **/
-    template<class _Automaton>
-    bool write(      const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &format, std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool write(      const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+/**
+ * storage
+ **/
+template<class _Automaton>
+bool write(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+           const std::string& format, std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool write(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+           const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-    template<class _Automaton>
-    bool writeAtt(   const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool writeAtt(   const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeAtt(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+              std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeAtt(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+              const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-    template<class _Automaton>
-    bool writeBinary(const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool writeBinary(const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeBinary(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                 std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeBinary(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                 const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-    // default parameters do not work here because of Fsa::getResources()
-    template<class _Automaton>
-    bool writeLinear(const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     std::ostream &o, Fsa::StoredComponents what, bool progress, bool printAll);
-    template<class _Automaton>
-    bool writeLinear(const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                 std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool writeLinear(const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+// default parameters do not work here because of Fsa::getResources()
+template<class _Automaton>
+bool writeLinear(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                 std::ostream& o, Fsa::StoredComponents what, bool progress, bool printAll);
+template<class _Automaton>
+bool writeLinear(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                 std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeLinear(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                 const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-    template<class _Automaton>
-    bool writeXml(   const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool writeXml(   const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeXml(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+              std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeXml(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+              const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-    template<class _Automaton>
-    bool writeTrXml( const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     std::ostream &o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
-    template<class _Automaton>
-    bool writeTrXml( const Resources<_Automaton> &resources, typename _Automaton::ConstRef f,
-                     const std::string &file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeTrXml(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                std::ostream& o, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
+template<class _Automaton>
+bool writeTrXml(const Resources<_Automaton>& resources, typename _Automaton::ConstRef f,
+                const std::string& file, Fsa::StoredComponents what = Fsa::storeAll, bool progress = false);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tOutput.cc"
 
-#endif // _T_FSA_OUTPUT_HH
+#endif  // _T_FSA_OUTPUT_HH

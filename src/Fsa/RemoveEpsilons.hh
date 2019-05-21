@@ -18,8 +18,8 @@
 #include "Automaton.hh"
 
 namespace Fsa {
-    ConstAutomatonRef removeEpsilons(ConstAutomatonRef f);
-    ConstAutomatonRef removeSimpleEpsilonArcs(ConstAutomatonRef f);
-} // namespace Fsa
+ConstAutomatonRef removeEpsilons(ConstAutomatonRef f);
+ConstAutomatonRef removeSimpleEpsilonArcs(ConstAutomatonRef f);
+}  // namespace Fsa
 
-#endif // _FSA_REMOVE_EPSILONS_HH
+#endif  // _FSA_REMOVE_EPSILONS_HH

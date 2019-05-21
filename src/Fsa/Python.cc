@@ -12,33 +12,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <strstream>
+#include "Python.hh"
 #include <Core/Application.hh>
+#include <strstream>
 #include "Basic.hh"
 #include "Input.hh"
 #include "Output.hh"
 #include "Packed.hh"
-#include "Python.hh"
 #include "Static.hh"
 
 namespace {
 
-    class FsaLibrary : public Core::Application {
-    public:
-        FsaLibrary() {
-            setTitle("sprint-fsa-python");
-            setDefaultLoadConfigurationFile(false);
-            openLogging();
-        }
-        virtual ~FsaLibrary() {
-            closeLogging(false);
-        }
-        virtual int main(const std::vector<std::string> &arguments) {
-            return EXIT_SUCCESS;
-        }
-    } app;
+class FsaLibrary : public Core::Application {
+public:
+    FsaLibrary() {
+        setTitle("sprint-fsa-python");
+        setDefaultLoadConfigurationFile(false);
+        openLogging();
+    }
+    virtual ~FsaLibrary() {
+        closeLogging(false);
+    }
+    virtual int main(const std::vector<std::string>& arguments) {
+        return EXIT_SUCCESS;
+    }
+} app;
 
-}
+}  // namespace
 
 const std::string info(Fsa::ConstAutomatonRef f, bool progress) {
     std::ostrstream o;
@@ -60,13 +60,16 @@ const std::string draw(Fsa::ConstAutomatonRef f, bool dumpStates, bool progress)
     return o.str();
 }
 
-Fsa::ConstAutomatonRef read(const std::string &file) {
-    Fsa::StorageAutomaton *f;
-    std::string tmp = file;
+Fsa::ConstAutomatonRef read(const std::string& file) {
+    Fsa::StorageAutomaton* f;
+    std::string            tmp = file;
     if (std::string(tmp, 0, 7) == "packed:") {
-        f = new Fsa::PackedAutomaton();
+        f   = new Fsa::PackedAutomaton();
         tmp = std::string(tmp, 7);
-    } else f = new Fsa::StaticAutomaton();
-    if (Fsa::read(f, tmp)) return Fsa::ConstAutomatonRef(f);
+    }
+    else
+        f = new Fsa::StaticAutomaton();
+    if (Fsa::read(f, tmp))
+        return Fsa::ConstAutomatonRef(f);
     return Fsa::ConstAutomatonRef();
 }

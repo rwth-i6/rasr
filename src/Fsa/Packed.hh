@@ -19,38 +19,45 @@
 
 namespace Fsa {
 
-    class PackedAutomaton : public StorageAutomaton {
-    private:
-        struct PackedState {
-            size_t start_;
-            PackedState(size_t start) : start_(start) {}
-        };
-        Core::Vector<u8> arcs_;
-        Core::Vector<PackedState> states_;
-        size_t nArcs_, nStates_, pArcs_, pStates_;
-
-    public:
-        PackedAutomaton();
-        PackedAutomaton(const std::string &str);
-        virtual ~PackedAutomaton();
-        virtual void clear();
-        virtual bool hasState(StateId sid) const;
-        virtual void setState(State *sp);
-        virtual void deleteState(StateId);
-        virtual ConstStateRef getState(StateId s) const;
-        virtual StateId maxStateId() const { return states_.size() - 1; }
-        virtual StateId size() const { return states_.size(); }
-        virtual void normalize() {}
-        virtual size_t getMemoryUsed() const;
-        float getStateRatio() const;
-        float getArcRatio() const;
-        float getRatio() const;
-        void dumpMemoryUsage(Core::XmlWriter &o) const;
-        virtual std::string describe() const { return "packed"; }
+class PackedAutomaton : public StorageAutomaton {
+private:
+    struct PackedState {
+        size_t start_;
+        PackedState(size_t start)
+                : start_(start) {}
     };
+    Core::Vector<u8>          arcs_;
+    Core::Vector<PackedState> states_;
+    size_t                    nArcs_, nStates_, pArcs_, pStates_;
 
-    Core::Ref<PackedAutomaton> packedCopy(ConstAutomatonRef);
+public:
+    PackedAutomaton();
+    PackedAutomaton(const std::string& str);
+    virtual ~PackedAutomaton();
+    virtual void          clear();
+    virtual bool          hasState(StateId sid) const;
+    virtual void          setState(State* sp);
+    virtual void          deleteState(StateId);
+    virtual ConstStateRef getState(StateId s) const;
+    virtual StateId       maxStateId() const {
+        return states_.size() - 1;
+    }
+    virtual StateId size() const {
+        return states_.size();
+    }
+    virtual void        normalize() {}
+    virtual size_t      getMemoryUsed() const;
+    float               getStateRatio() const;
+    float               getArcRatio() const;
+    float               getRatio() const;
+    void                dumpMemoryUsage(Core::XmlWriter& o) const;
+    virtual std::string describe() const {
+        return "packed";
+    }
+};
 
-} // namespace Fsa
+Core::Ref<PackedAutomaton> packedCopy(ConstAutomatonRef);
 
-#endif // _FSA_PACKED_HH
+}  // namespace Fsa
+
+#endif  // _FSA_PACKED_HH

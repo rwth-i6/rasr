@@ -17,22 +17,22 @@
 #include "tSort.hh"
 
 namespace Ftl {
-    template<class _Automaton>
-    Fsa::Property getProperties(typename _Automaton::ConstRef f, Fsa::Property requested) {
-        // linear
-        if (requested & Fsa::PropertyLinear & ~f->knownProperties()) {
-            if (isLinear<_Automaton>(f))
-                f->setProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic, Fsa::PropertyAll);
-            else
-                f->setProperties(Fsa::PropertyLinear, Fsa::PropertyNone);
-        }
-        // acyclic
-        if (requested & Fsa::PropertyAcyclic & ~f->knownProperties()) {
-            if (isAcyclic<_Automaton>(f))
-                f->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyAll);
-            else
-                f->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyNone);
-        }
-        return requested & f->properties() & f->knownProperties();
+template<class _Automaton>
+Fsa::Property getProperties(typename _Automaton::ConstRef f, Fsa::Property requested) {
+    // linear
+    if (requested & Fsa::PropertyLinear & ~f->knownProperties()) {
+        if (isLinear<_Automaton>(f))
+            f->setProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic, Fsa::PropertyAll);
+        else
+            f->setProperties(Fsa::PropertyLinear, Fsa::PropertyNone);
     }
-} // namespace Ftl
+    // acyclic
+    if (requested & Fsa::PropertyAcyclic & ~f->knownProperties()) {
+        if (isAcyclic<_Automaton>(f))
+            f->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyAll);
+        else
+            f->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyNone);
+    }
+    return requested & f->properties() & f->knownProperties();
+}
+}  // namespace Ftl

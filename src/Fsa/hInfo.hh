@@ -18,26 +18,27 @@
 #include "Types.hh"
 
 namespace Fsa {
-    /**
-     * An object the contains all information that is gathered by the count
-     * function for automata.
-     **/
-    class AutomatonCounts {
-    public:
-        StateId maxStateId_;
-        StateId nStates_;
-        StateId nFinals_;
-        size_t nArcs_;
-        size_t nIoEps_;
-        size_t nIEps_;
-        size_t nOEps_;
-        size_t nIoFail_;
-        size_t nIFail_;
-        size_t nOFail_;
-    public:
-        AutomatonCounts() :
-            maxStateId_(InvalidStateId), nStates_(0), nFinals_(0), nArcs_(0), nIoEps_(0), nIEps_(0), nOEps_(0), nIoFail_(0), nIFail_(0), nOFail_(0) {}
-    };
-} // namespace Fsa
+/**
+ * An object the contains all information that is gathered by the count
+ * function for automata.
+ **/
+class AutomatonCounts {
+public:
+    StateId maxStateId_;
+    StateId nStates_;
+    StateId nFinals_;
+    size_t  nArcs_;
+    size_t  nIoEps_;
+    size_t  nIEps_;
+    size_t  nOEps_;
+    size_t  nIoFail_;
+    size_t  nIFail_;
+    size_t  nOFail_;
 
-#endif // _H_FSA_INFO_HH
+public:
+    AutomatonCounts()
+            : maxStateId_(InvalidStateId), nStates_(0), nFinals_(0), nArcs_(0), nIoEps_(0), nIEps_(0), nOEps_(0), nIoFail_(0), nIFail_(0), nOFail_(0) {}
+};
+}  // namespace Fsa
+
+#endif  // _H_FSA_INFO_HH

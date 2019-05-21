@@ -25,85 +25,86 @@
 #include "Semiring.hh"
 #include "Storage.hh"
 
-
 namespace Fsa {
-    class Archive :
-        public Core::Component
-    {
-    public:
-        typedef Core::Archive::const_iterator const_iterator;
+class Archive : public Core::Component {
+public:
+    typedef Core::Archive::const_iterator const_iterator;
 
-        static const Core::ParameterString paramAlphabetFilename;
-        static const Core::ParameterString paramPath;
+    static const Core::ParameterString paramAlphabetFilename;
+    static const Core::ParameterString paramPath;
 
-    protected:
-        Core::Archive *archive_;
-        ConstAlphabetRef inputAlphabet_;
-        ConstAlphabetRef outputAlphabet_;
+protected:
+    Core::Archive*   archive_;
+    ConstAlphabetRef inputAlphabet_;
+    ConstAlphabetRef outputAlphabet_;
 
-    public:
-        Archive(
-            const Core::Configuration &config,
-            const std::string &pathname,
-            Core::Archive::AccessMode accessMode);
+public:
+    Archive(
+            const Core::Configuration& config,
+            const std::string&         pathname,
+            Core::Archive::AccessMode  accessMode);
 
-        ~Archive();
+    ~Archive();
 
-        Core::Archive *archive() { return archive_; }
+    Core::Archive* archive() {
+        return archive_;
+    }
 
-        bool hasFile(const std::string & file) {
-            require(archive_);
-            return archive_->hasFile(file);
-        }
-        const_iterator files() {
-            require(archive_);
-            return archive_->files();
-        }
-    };
+    bool hasFile(const std::string& file) {
+        require(archive_);
+        return archive_->hasFile(file);
+    }
+    const_iterator files() {
+        require(archive_);
+        return archive_->files();
+    }
+};
 
-    class ArchiveReader : public Archive {
-    private:
-        static const Core::ParameterInt paramReportUnknowns;
-        static const Core::ParameterInt paramMapUnknownsToIndex;
-    private:
-        ConstSemiringRef semiring_;
-        AlphabetMapping  inputMapping_;
-        AlphabetMapping  outputMapping_;
-        u32 reportUnknowns_;
-        LabelId unknownId_;
-        void loadAlphabets();
-    public:
-        ArchiveReader(
-            const Core::Configuration &config,
-            const std::string &pathname);
-        ArchiveReader(
-            const Core::Configuration &config);
+class ArchiveReader : public Archive {
+private:
+    static const Core::ParameterInt paramReportUnknowns;
+    static const Core::ParameterInt paramMapUnknownsToIndex;
 
-        void setSemiring(ConstSemiringRef);
-        void mapInput(ConstAlphabetRef);
-        void mapOutput(ConstAlphabetRef);
+private:
+    ConstSemiringRef semiring_;
+    AlphabetMapping  inputMapping_;
+    AlphabetMapping  outputMapping_;
+    u32              reportUnknowns_;
+    LabelId          unknownId_;
+    void             loadAlphabets();
 
-        ConstAutomatonRef get(const std::string &id);
-    };
+public:
+    ArchiveReader(
+            const Core::Configuration& config,
+            const std::string&         pathname);
+    ArchiveReader(
+            const Core::Configuration& config);
 
-    class ArchiveWriter : public Archive {
-    private:
-        void storeAlphabets();
-    public:
-        ArchiveWriter(
-            const Core::Configuration &config,
-            const std::string &pathname,
-            ConstAlphabetRef inputAlphabet,
-            ConstAlphabetRef outputAlphabet = ConstAlphabetRef());
-        ArchiveWriter(
-            const Core::Configuration &config,
-            ConstAlphabetRef inputAlphabet,
-            ConstAlphabetRef outputAlphabet = ConstAlphabetRef());
+    void setSemiring(ConstSemiringRef);
+    void mapInput(ConstAlphabetRef);
+    void mapOutput(ConstAlphabetRef);
 
-        void store(const std::string &id, ConstAutomatonRef lattice);
-    };
+    ConstAutomatonRef get(const std::string& id);
+};
 
+class ArchiveWriter : public Archive {
+private:
+    void storeAlphabets();
 
-} // namespace Fsa
+public:
+    ArchiveWriter(
+            const Core::Configuration& config,
+            const std::string&         pathname,
+            ConstAlphabetRef           inputAlphabet,
+            ConstAlphabetRef           outputAlphabet = ConstAlphabetRef());
+    ArchiveWriter(
+            const Core::Configuration& config,
+            ConstAlphabetRef           inputAlphabet,
+            ConstAlphabetRef           outputAlphabet = ConstAlphabetRef());
 
-#endif // _FSA_ARCHIVE_HH
+    void store(const std::string& id, ConstAutomatonRef lattice);
+};
+
+}  // namespace Fsa
+
+#endif  // _FSA_ARCHIVE_HH

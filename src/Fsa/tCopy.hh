@@ -17,28 +17,34 @@
 
 #include <Core/ReferenceCounting.hh>
 #include "Hash.hh"
-#include "tStorage.hh"
 #include "tStatic.hh"
+#include "tStorage.hh"
 
 namespace Ftl {
 
-        template<class _Automaton> void copy(StorageAutomaton<_Automaton> *f,
-                        typename _Automaton::ConstRef f2);
-        template<class _Automaton> void copy(StorageAutomaton<_Automaton> *f,
-                        const std::string &str);
-        template<class _Automaton> void copy(StorageAutomaton<_Automaton> *f,
-                        const Fsa::Hash<std::string, Core::StringHash> &tokens,
-                        u32 sausage = 0);
+template<class _Automaton>
+void copy(StorageAutomaton<_Automaton>* f,
+          typename _Automaton::ConstRef f2);
+template<class _Automaton>
+void copy(StorageAutomaton<_Automaton>* f,
+          const std::string&            str);
+template<class _Automaton>
+void copy(StorageAutomaton<_Automaton>*                   f,
+          const Fsa::Hash<std::string, Core::StringHash>& tokens,
+          u32                                             sausage = 0);
 
-        template<class _Automaton> Core::Ref<StaticAutomaton<_Automaton> >
-                        staticCopy(typename _Automaton::ConstRef);
-        template<class _Automaton> Core::Ref<StaticAutomaton<_Automaton> >
-                        staticCompactCopy(typename _Automaton::ConstRef);
-        template<class _Automaton> Core::Ref<StaticAutomaton<_Automaton> >
-                        staticCopy(const std::string &str,
-                                        typename _Automaton::ConstSemiringRef);
-} // namespace Ftl
+template<class _Automaton>
+Core::Ref<StaticAutomaton<_Automaton>>
+        staticCopy(typename _Automaton::ConstRef);
+template<class _Automaton>
+Core::Ref<StaticAutomaton<_Automaton>>
+        staticCompactCopy(typename _Automaton::ConstRef);
+template<class _Automaton>
+Core::Ref<StaticAutomaton<_Automaton>>
+        staticCopy(const std::string& str,
+                   typename _Automaton::ConstSemiringRef);
+}  // namespace Ftl
 
 #include "tCopy.cc"
 
-#endif // _T_FSA_COPY_HH
+#endif  // _T_FSA_COPY_HH

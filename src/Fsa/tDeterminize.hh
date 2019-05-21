@@ -19,24 +19,24 @@
 
 namespace Ftl {
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef localDeterminize(typename _Automaton::ConstRef);
+template<class _Automaton>
+typename _Automaton::ConstRef localDeterminize(typename _Automaton::ConstRef);
 
-    template<class _Automaton>
-    typename _Automaton::ConstRef determinize(typename _Automaton::ConstRef, bool disambiguate = false);
-    template<class _Automaton>
-    typename _Automaton::ConstRef localDeterminize(typename _Automaton::ConstRef f);
-    template<class _Automaton>
-    typename _Automaton::ConstRef removeDisambiguationSymbols(typename _Automaton::ConstRef);
-    template<class _Automaton>
-    typename _Automaton::ConstRef removeInputDisambiguationSymbols(typename _Automaton::ConstRef);
-    template<class _Automaton>
-    typename _Automaton::ConstRef replaceDisambiguationSymbols(typename _Automaton::ConstRef, Fsa::LabelId);
-    template<class _Automaton>
-    typename _Automaton::ConstRef replaceInputDisambiguationSymbols(typename _Automaton::ConstRef, Fsa::LabelId);
+template<class _Automaton>
+typename _Automaton::ConstRef determinize(typename _Automaton::ConstRef, bool disambiguate = false);
+template<class _Automaton>
+typename _Automaton::ConstRef localDeterminize(typename _Automaton::ConstRef f);
+template<class _Automaton>
+typename _Automaton::ConstRef removeDisambiguationSymbols(typename _Automaton::ConstRef);
+template<class _Automaton>
+typename _Automaton::ConstRef removeInputDisambiguationSymbols(typename _Automaton::ConstRef);
+template<class _Automaton>
+typename _Automaton::ConstRef replaceDisambiguationSymbols(typename _Automaton::ConstRef, Fsa::LabelId);
+template<class _Automaton>
+typename _Automaton::ConstRef replaceInputDisambiguationSymbols(typename _Automaton::ConstRef, Fsa::LabelId);
 
-} // namespace Ftl
+}  // namespace Ftl
 
 #include "tDeterminize.cc"
 
-#endif // _T_FSA_DETERMINIZE_HH
+#endif  // _T_FSA_DETERMINIZE_HH

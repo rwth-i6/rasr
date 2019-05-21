@@ -12,22 +12,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "tCompose.hh"
 #include "Compose.hh"
+#include "tCompose.hh"
 
 namespace Fsa {
-    ConstAutomatonRef composeMatching(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns)
-    { return Ftl::composeMatching<Automaton>(fl, fr, reportUnknowns); }
+ConstAutomatonRef composeMatching(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns) {
+    return Ftl::composeMatching<Automaton>(fl, fr, reportUnknowns);
+}
 
-    ConstAutomatonRef composeSequencing(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns)
-    { return Ftl::composeSequencing<Automaton>(fl, fr, reportUnknowns); }
+ConstAutomatonRef composeSequencing(ConstAutomatonRef fl, ConstAutomatonRef fr, bool reportUnknowns) {
+    return Ftl::composeSequencing<Automaton>(fl, fr, reportUnknowns);
+}
 
-    ConstAutomatonRef difference(ConstAutomatonRef fl, ConstAutomatonRef fr)
-    { return Ftl::difference<Automaton>(fl, fr); }
+ConstAutomatonRef difference(ConstAutomatonRef fl, ConstAutomatonRef fr) {
+    return Ftl::difference<Automaton>(fl, fr);
+}
 
-    ConstMappingRef mapToLeft(ConstAutomatonRef f)
-    { return Ftl::mapToLeft<Automaton>(f); }
+ConstMappingRef mapToLeft(ConstAutomatonRef f) {
+    return Ftl::mapToLeft<Automaton>(f);
+}
 
-    ConstMappingRef mapToRight(ConstAutomatonRef f)
-    { return Ftl::mapToRight<Automaton>(f); }
-} // namespace Fsa
+ConstMappingRef mapToRight(ConstAutomatonRef f) {
+    return Ftl::mapToRight<Automaton>(f);
+}
+}  // namespace Fsa

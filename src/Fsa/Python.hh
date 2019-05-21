@@ -18,9 +18,9 @@
 #include <string>
 #include "Automaton.hh"
 
-const std::string info(Fsa::ConstAutomatonRef f, bool progress = false);
-const std::string meminfo(Fsa::ConstAutomatonRef f);
-const std::string draw(Fsa::ConstAutomatonRef f, bool dumpStates = false, bool progress = false);
-Fsa::ConstAutomatonRef read(const std::string &file);
+const std::string      info(Fsa::ConstAutomatonRef f, bool progress = false);
+const std::string      meminfo(Fsa::ConstAutomatonRef f);
+const std::string      draw(Fsa::ConstAutomatonRef f, bool dumpStates = false, bool progress = false);
+Fsa::ConstAutomatonRef read(const std::string& file);
 
-#endif // _FSA_PYTHON_HH
+#endif  // _FSA_PYTHON_HH

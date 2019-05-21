@@ -15,75 +15,72 @@
 #ifndef _FSA_SSSP_HH
 #define _FSA_SSSP_HH
 
-#include "hSssp.hh"
 #include "Automaton.hh"
 #include "Types.hh"
+#include "hSssp.hh"
 
 namespace Fsa {
-    typedef Ftl::StatePotentials<Weight> StatePotentials;
+typedef Ftl::StatePotentials<Weight> StatePotentials;
 
-    typedef Ftl::SsspArcFilter<Automaton> SsspArcFilter;
-    typedef Ftl::IsInputLabel<Automaton> IsInputLabel;
-    typedef Ftl::AreBothLabels<Automaton> AreBothLabels;
+typedef Ftl::SsspArcFilter<Automaton> SsspArcFilter;
+typedef Ftl::IsInputLabel<Automaton>  IsInputLabel;
+typedef Ftl::AreBothLabels<Automaton> AreBothLabels;
 
-    StatePotentials sssp(ConstAutomatonRef f, StateId start,
-                         const SsspArcFilter &arcFilter = SsspArcFilter(), bool progress = false);
-    StatePotentials sssp(ConstAutomatonRef f, bool progress = false);
+StatePotentials sssp(ConstAutomatonRef f, StateId start,
+                     const SsspArcFilter& arcFilter = SsspArcFilter(), bool progress = false);
+StatePotentials sssp(ConstAutomatonRef f, bool progress = false);
 
-    ConstAutomatonRef pushToInitial(ConstAutomatonRef f, bool progress = false);
-    ConstAutomatonRef pushToFinal(ConstAutomatonRef f, bool progress = false);
+ConstAutomatonRef pushToInitial(ConstAutomatonRef f, bool progress = false);
+ConstAutomatonRef pushToFinal(ConstAutomatonRef f, bool progress = false);
 
-    ConstAutomatonRef posterior(ConstAutomatonRef f);
-    ConstAutomatonRef posterior(ConstAutomatonRef f, const StatePotentials &forward);
-    ConstAutomatonRef posterior(ConstAutomatonRef f, Weight &totalInv);
+ConstAutomatonRef posterior(ConstAutomatonRef f);
+ConstAutomatonRef posterior(ConstAutomatonRef f, const StatePotentials& forward);
+ConstAutomatonRef posterior(ConstAutomatonRef f, Weight& totalInv);
 
-    size_t countPaths(ConstAutomatonRef f);
+size_t countPaths(ConstAutomatonRef f);
 
-} // namespace Fsa
-
-
+}  // namespace Fsa
 
 namespace Fsa {
 
-    typedef Core::Vector<f64> StatePotentials64;
+typedef Core::Vector<f64> StatePotentials64;
 
-    void sssp64(ConstAutomatonRef f, StatePotentials64 &);
+void sssp64(ConstAutomatonRef f, StatePotentials64&);
 
-    /*
-     * numerically more stable version of posterior
-     * supports only LogSemiring
-     * calculate a->weight_ = sum_{path goes through arc a} p(path) / Z
-     * and Z = sum_{path} exp(-f(path))
-     */
-    ConstAutomatonRef posterior64(ConstAutomatonRef f, s32 tol = 100);
-    ConstAutomatonRef posterior64(ConstAutomatonRef f, Weight &totalInv, s32 tol = 100);
-    ConstAutomatonRef posterior64(ConstAutomatonRef f, f64 &totalInv, s32 tol = 100);
-    ConstAutomatonRef posterior64(ConstAutomatonRef f, Weight &total, bool normalize, s32 tol = 100);
+/*
+ * numerically more stable version of posterior
+ * supports only LogSemiring
+ * calculate a->weight_ = sum_{path goes through arc a} p(path) / Z
+ * and Z = sum_{path} exp(-f(path))
+ */
+ConstAutomatonRef posterior64(ConstAutomatonRef f, s32 tol = 100);
+ConstAutomatonRef posterior64(ConstAutomatonRef f, Weight& totalInv, s32 tol = 100);
+ConstAutomatonRef posterior64(ConstAutomatonRef f, f64& totalInv, s32 tol = 100);
+ConstAutomatonRef posterior64(ConstAutomatonRef f, Weight& total, bool normalize, s32 tol = 100);
 
-    void ssspE(ConstAutomatonRef, ConstAutomatonRef, StatePotentials64&, StatePotentials64&);
-    void ssspE(ConstAutomatonRef, ConstAutomatonRef, StatePotentials64&, StatePotentials64&, StatePotentials64&,f32);
+void ssspE(ConstAutomatonRef, ConstAutomatonRef, StatePotentials64&, StatePotentials64&);
+void ssspE(ConstAutomatonRef, ConstAutomatonRef, StatePotentials64&, StatePotentials64&, StatePotentials64&, f32);
 
-    /*
-     * calculate posterior automaton with expectation semiring, i.e.
-     * first and second automata represent first and second component
-     * of this multiplex semiring.
-     */
-    ConstAutomatonRef posteriorE(
-        ConstAutomatonRef f, ConstAutomatonRef r, Weight &expectation,
+/*
+ * calculate posterior automaton with expectation semiring, i.e.
+ * first and second automata represent first and second component
+ * of this multiplex semiring.
+ */
+ConstAutomatonRef posteriorE(
+        ConstAutomatonRef f, ConstAutomatonRef r, Weight& expectation,
         bool vNormalized = true, s32 tol = 100);
 
-    ConstAutomatonRef posteriorE(
-        ConstAutomatonRef f, ConstAutomatonRef r, Weight &expectation, Weight &totalInv,
+ConstAutomatonRef posteriorE(
+        ConstAutomatonRef f, ConstAutomatonRef r, Weight& expectation, Weight& totalInv,
         bool vNormalized = true, s32 tol = 100);
 
+/*
+ * calculate expectation of random variable r given the probability model f
+ * the same as @param expectation in function posteriorE()
+ * (but more efficient)
+ */
+Weight expectation(ConstAutomatonRef f, ConstAutomatonRef r);
 
-    /*
-     * calculate expectation of random variable r given the probability model f
-     * the same as @param expectation in function posteriorE()
-     * (but more efficient)
-     */
-    Weight expectation(ConstAutomatonRef f, ConstAutomatonRef r);
+}  // namespace Fsa
 
-} // namespace Fsa
-
-#endif // _FSA_SSSP_HH
+#endif  // _FSA_SSSP_HH

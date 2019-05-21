@@ -12,50 +12,53 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Resources.hh"
 #include <Core/Application.hh>
 #include "tInput.hh"
 #include "tOutput.hh"
-#include "Resources.hh"
 
 namespace Fsa {
-    namespace { Resources *r = 0; }
-    Resources & getResources() {
-        if (!r) {
-            r = new Resources(Core::Application::us()->getConfiguration());
-            for (Core::Choice::const_iterator it = SemiringTypeChoice.begin();
-                 it != SemiringTypeChoice.end(); ++it) {
-                ConstSemiringRef semiring = getSemiring(SemiringType(it->value()));
-                r->registerSemiring(semiring);
-                r->registerSemiring(Fsa::SemiringType(it->value()), semiring);
-            }
-            r->registerSemiring(TropicalSemiring, true);
-            r->registerFormat(
-                new Resources::Format(
-                    "att",
-                    "AT&T's ascii based format",
-                    Ftl::readAtt<Automaton>, Ftl::writeAtt<Automaton>));
-            r->registerFormat(
-                new Resources::Format(
-                    "bin",
-                    "binary format",
-                    Ftl::readBinary<Automaton>, Ftl::writeBinary<Automaton>));
-            r->registerFormat(
-                new Resources::Format(
-                    "lin",
-                    "ascii based format, only for linear automatons",
-                    Ftl::readLinear<Automaton>, Ftl::writeLinear<Automaton>));
-            r->registerFormat(
-                new Resources::Format(
-                    "xml",
-                    "xml based standard format",
-                    Ftl::readXml<Automaton>, Ftl::writeXml<Automaton>), true);
-            r->registerFormat(
-                new Resources::Format(
-                    "trxml",
-                    "xml based format used by the translators group",
-                    0, Ftl::writeTrXml<Automaton>));
+namespace {
+Resources* r = 0;
+}
+Resources& getResources() {
+    if (!r) {
+        r = new Resources(Core::Application::us()->getConfiguration());
+        for (Core::Choice::const_iterator it = SemiringTypeChoice.begin();
+             it != SemiringTypeChoice.end(); ++it) {
+            ConstSemiringRef semiring = getSemiring(SemiringType(it->value()));
+            r->registerSemiring(semiring);
+            r->registerSemiring(Fsa::SemiringType(it->value()), semiring);
         }
-        return *r;
+        r->registerSemiring(TropicalSemiring, true);
+        r->registerFormat(
+                new Resources::Format(
+                        "att",
+                        "AT&T's ascii based format",
+                        Ftl::readAtt<Automaton>, Ftl::writeAtt<Automaton>));
+        r->registerFormat(
+                new Resources::Format(
+                        "bin",
+                        "binary format",
+                        Ftl::readBinary<Automaton>, Ftl::writeBinary<Automaton>));
+        r->registerFormat(
+                new Resources::Format(
+                        "lin",
+                        "ascii based format, only for linear automatons",
+                        Ftl::readLinear<Automaton>, Ftl::writeLinear<Automaton>));
+        r->registerFormat(
+                new Resources::Format(
+                        "xml",
+                        "xml based standard format",
+                        Ftl::readXml<Automaton>, Ftl::writeXml<Automaton>),
+                true);
+        r->registerFormat(
+                new Resources::Format(
+                        "trxml",
+                        "xml based format used by the translators group",
+                        0, Ftl::writeTrXml<Automaton>));
     }
+    return *r;
+}
 
-} // namespace Fsa
+}  // namespace Fsa

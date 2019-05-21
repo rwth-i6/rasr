@@ -19,31 +19,31 @@
 #include "FwdBwd.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    class TimeAlignmentBuilder;
-    typedef Core::Ref<TimeAlignmentBuilder> TimeAlignmentBuilderRef;
-    class TimeAlignmentBuilder : public Core::ReferenceCounted {
-    private:
-        class Internal;
-    private:
-        Internal *internal_;
-    public:
-        TimeAlignmentBuilder(const Core::Configuration &config, FwdBwdBuilderRef fbBuilder);
-        ~TimeAlignmentBuilder();
-        void dump(std::ostream &os) const;
-        void dumpStatistics();
-        ConstLatticeRef align(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef);
-        ConstLatticeRef align(ConstLatticeRef lHyp, ConstLatticeRef lRef);
-        ConstLatticeRef align(ConstLatticeRef lHyp, ConstLatticeRef lRef, ConstPosteriorCnRef cnRef);
+class TimeAlignmentBuilder;
+typedef Core::Ref<TimeAlignmentBuilder> TimeAlignmentBuilderRef;
+class TimeAlignmentBuilder : public Core::ReferenceCounted {
+private:
+    class Internal;
 
-        static TimeAlignmentBuilderRef create(const Core::Configuration &config, FwdBwdBuilderRef fbBuilder = FwdBwdBuilderRef());
-    };
+private:
+    Internal* internal_;
 
-    NodeRef createTimeAlignmentNode(const std::string &name, const Core::Configuration &config);
+public:
+    TimeAlignmentBuilder(const Core::Configuration& config, FwdBwdBuilderRef fbBuilder);
+    ~TimeAlignmentBuilder();
+    void            dump(std::ostream& os) const;
+    void            dumpStatistics();
+    ConstLatticeRef align(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef);
+    ConstLatticeRef align(ConstLatticeRef lHyp, ConstLatticeRef lRef);
+    ConstLatticeRef align(ConstLatticeRef lHyp, ConstLatticeRef lRef, ConstPosteriorCnRef cnRef);
 
-} // namespace Flf
+    static TimeAlignmentBuilderRef create(const Core::Configuration& config, FwdBwdBuilderRef fbBuilder = FwdBwdBuilderRef());
+};
 
+NodeRef createTimeAlignmentNode(const std::string& name, const Core::Configuration& config);
 
-#endif // _FLF_TIME_ALIGNMENT_HH
+}  // namespace Flf
+
+#endif  // _FLF_TIME_ALIGNMENT_HH

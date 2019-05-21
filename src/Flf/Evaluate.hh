@@ -18,12 +18,11 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    void evaluate(ConstLatticeRef l, const std::string &ref);
-    NodeRef createEvaluatorNode(const std::string &name, const Core::Configuration &config);
+void    evaluate(ConstLatticeRef l, const std::string& ref);
+NodeRef createEvaluatorNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace
+}  // namespace Flf
 
-#endif // _FLF_EVALUATE_HH
+#endif  // _FLF_EVALUATE_HH

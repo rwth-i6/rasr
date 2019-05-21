@@ -20,42 +20,41 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    class TimeframeError;
-    typedef Core::Ref<TimeframeError> TimeframeErrorRef;
-    class TimeframeError : public Core::ReferenceCounted {
-    public:
+class TimeframeError;
+typedef Core::Ref<TimeframeError> TimeframeErrorRef;
+class TimeframeError : public Core::ReferenceCounted {
+public:
+public:
+    Score alpha;
 
-    public:
-        Score alpha;
+    Score nWords;
+    Score nFrames;
+    Score nFrameErrors;
+    Score nSmoothedFrames;
+    Score nSmoothedFrameErrors;
 
-        Score nWords;
-        Score nFrames;
-        Score nFrameErrors;
-        Score nSmoothedFrames;
-        Score nSmoothedFrameErrors;
-    private:
-        TimeframeError(Score alpha);
-    public:
-        void add(const TimeframeError &);
-        void add(ConstLatticeRef lHyp, ConstLatticeRef lRef);
-        void add(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef);
+private:
+    TimeframeError(Score alpha);
 
-        Score error() const;
-        Score smoothedError() const;
+public:
+    void add(const TimeframeError&);
+    void add(ConstLatticeRef lHyp, ConstLatticeRef lRef);
+    void add(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef);
 
-        // static builder method
-        static TimeframeErrorRef create(Score alpha = 0.05);
-        static TimeframeErrorRef create(ConstLatticeRef lHyp, ConstLatticeRef lRef, Score alpha = 0.05);
-        static TimeframeErrorRef create(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef, Score alpha = 0.05);
-    };
-    NodeRef createTimeframeErrorNode(const std::string &name, const Core::Configuration &config);
+    Score error() const;
+    Score smoothedError() const;
 
+    // static builder method
+    static TimeframeErrorRef create(Score alpha = 0.05);
+    static TimeframeErrorRef create(ConstLatticeRef lHyp, ConstLatticeRef lRef, Score alpha = 0.05);
+    static TimeframeErrorRef create(ConstLatticeRef lHyp, ConstPosteriorCnRef cnRef, Score alpha = 0.05);
+};
+NodeRef createTimeframeErrorNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createMinimumFrameWerDecoderNode(const std::string &name, const Core::Configuration &config);
+NodeRef createMinimumFrameWerDecoderNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_TIMEFRAME_ERROR_HH
+#endif  // _FLF_TIMEFRAME_ERROR_HH

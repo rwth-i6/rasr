@@ -20,150 +20,180 @@
 
 #include "Types.hh"
 
-
 namespace Flf {
 
-    typedef f32 Score;
-    typedef Core::Vector<Score> ScoreList;
-    typedef size_t ScoreId;
-    typedef Core::Vector<ScoreId> ScoreIdList;
+typedef f32                   Score;
+typedef Core::Vector<Score>   ScoreList;
+typedef size_t                ScoreId;
+typedef Core::Vector<ScoreId> ScoreIdList;
 
-    typedef f64 Probability;
-    typedef Core::Vector<Probability> ProbabilityList;
+typedef f64                       Probability;
+typedef Core::Vector<Probability> ProbabilityList;
 
-    /**
-     * fixed dimension scores + reference counting
-     *
-     * tradeoff between security/comfort, speed, and memory requirements
-    **/
-    class Semiring;
-    class ScoresRef;
+/**
+ * fixed dimension scores + reference counting
+ *
+ * tradeoff between security/comfort, speed, and memory requirements
+ **/
+class Semiring;
+class ScoresRef;
 
-    class Scores {
-        friend class Semiring;
-        friend class ScoresRef;
-    public:
-        typedef Score * iterator;
-        typedef const Score * const_iterator;
-    protected:
-        Scores() : nRef_(0) {}
-        Scores(const Scores &a) : nRef_(0) {}
-    public:
+class Scores {
+    friend class Semiring;
+    friend class ScoresRef;
 
+public:
+    typedef Score*       iterator;
+    typedef const Score* const_iterator;
+
+protected:
+    Scores()
+            : nRef_(0) {}
+    Scores(const Scores& a)
+            : nRef_(0) {}
+
+public:
 #ifdef MEM_DBG
-        static u32 nScores;
-        void * operator new(size_t size, size_t n);
-        void operator delete(void *ptr);
+    static u32 nScores;
+    void*      operator new(size_t size, size_t n);
+    void       operator delete(void* ptr);
 #else
-        void * operator new(size_t size, size_t n) {
-            return ::malloc(size + n * sizeof(Score));
-        }
-        void operator delete(void *ptr) {
-            ::free(ptr);
-        }
+    void* operator new(size_t size, size_t n) {
+        return ::malloc(size + n * sizeof(Score));
+    }
+    void operator delete(void* ptr) {
+        ::free(ptr);
+    }
 #endif
 
-        iterator begin() { return reinterpret_cast<iterator>(this+1); }
-        const_iterator begin() const { return reinterpret_cast<const_iterator>(this+1); }
-        // end = begin() + n
+    iterator begin() {
+        return reinterpret_cast<iterator>(this + 1);
+    }
+    const_iterator begin() const {
+        return reinterpret_cast<const_iterator>(this + 1);
+    }
 
-        Score& operator[] (ScoreId i) { return begin()[i]; }
-        Score  operator[] (ScoreId i) const { return begin()[i]; }
-        Score get(ScoreId i) const { return begin()[i]; }
-        void set(ScoreId i, const Score &s) const { const_cast<Scores*>(this)->begin()[i] = s; }
-        void add(ScoreId i, const Score &s) const { const_cast<Scores*>(this)->begin()[i] += s; }
-        void multiply(ScoreId i, const Score &s) const { const_cast<Scores*>(this)->begin()[i] *= s; }
+    Score& operator[](ScoreId i) {
+        return begin()[i];
+    }
+    Score operator[](ScoreId i) const {
+        return begin()[i];
+    }
+    Score get(ScoreId i) const {
+        return begin()[i];
+    }
+    void set(ScoreId i, const Score& s) const {
+        const_cast<Scores*>(this)->begin()[i] = s;
+    }
+    void add(ScoreId i, const Score& s) const {
+        const_cast<Scores*>(this)->begin()[i] += s;
+    }
+    void multiply(ScoreId i, const Score& s) const {
+        const_cast<Scores*>(this)->begin()[i] *= s;
+    }
 
-        // linear combination
-        // Remark:
-        // 1) 0.0 * inf := 0.0, i.e. a scale of 0.0 masks the weight
-        // 2) s * Zero := Zero, s * One = One, i.e. Zero and One are defined independently from the scale
-        Score project(const ScoreList &scales) const;
+    // linear combination
+    // Remark:
+    // 1) 0.0 * inf := 0.0, i.e. a scale of 0.0 masks the weight
+    // 2) s * Zero := Zero, s * One = One, i.e. Zero and One are defined independently from the scale
+    Score project(const ScoreList& scales) const;
 
-        /*
-          ReferenceCounting
-        */
-    private:
-        mutable u32 nRef_;
-        Scores(u32 nRef) : nRef_(nRef) {}
-        static inline Scores *sentinel() {
-            static Scores sentinel_(u32(1));
-            return &sentinel_;
-        }
-        static inline bool isSentinel(const Scores *obj) {
-            return obj == sentinel();
-        }
-        static inline bool isNotSentinel(const Scores *obj) {
-            return obj != sentinel();
-        }
-    public:
-        u32 refCount() const { return nRef_; }
-        void acquireReference() const { ++nRef_; }
-        bool releaseReference() const { return (!--nRef_); }
-    };
+    /*
+     * ReferenceCounting
+     */
+private:
+    mutable u32 nRef_;
+    Scores(u32 nRef)
+            : nRef_(nRef) {}
+    static inline Scores* sentinel() {
+        static Scores sentinel_(u32(1));
+        return &sentinel_;
+    }
+    static inline bool isSentinel(const Scores* obj) {
+        return obj == sentinel();
+    }
+    static inline bool isNotSentinel(const Scores* obj) {
+        return obj != sentinel();
+    }
 
-    class ScoresRef {
-    private:
-        Scores *obj_;
-    private:
-        inline void set(Scores *obj) {
-            obj->acquireReference();
-            if (obj_->releaseReference()) {
-                verify_(Scores::isNotSentinel(obj_));
-                delete obj_;
-            }
-            obj_ = obj;
-        }
-    public:
-        ScoresRef() : obj_(Scores::sentinel()) {
-            obj_->acquireReference();
-        }
-        explicit ScoresRef(Scores *obj) : obj_(obj) {
-            require_(obj);
-            obj_->acquireReference();
-        }
-        ScoresRef(const ScoresRef &ref) : obj_(ref.obj_) {
-            obj_->acquireReference();
-        }
-        ~ScoresRef() {
-            if (obj_->releaseReference()) {
-                verify_(obj_ != Scores::sentinel());
-                delete obj_;
-                //		::free(obj_);
-            }
-        }
-        operator bool() const {
-            return Scores::isNotSentinel(obj_);
-        }
-        ScoresRef & operator=(const ScoresRef &ref) {
-            set(ref.obj_);
-            return *this;
-        }
-        bool operator==(const ScoresRef &ref) const {
-            return obj_ == ref.obj_;
-        }
-        bool operator!=(const ScoresRef &ref) const {
-            return obj_ != ref.obj_;
-        }
-        bool operator!() const {
-            return Scores::isSentinel(obj_);
-        }
-        Scores & operator* () const {
-            require_(Scores::isNotSentinel(obj_));
-            return *obj_;
-        }
-        Scores * operator-> () const {
-            require_(Scores::isNotSentinel(obj_));
-            return obj_;
-        }
-        Scores * get() const {
-            return Scores::isNotSentinel(obj_) ? obj_ : 0;
-        }
-        void reset() {
-            set(Scores::sentinel());
-        }
-    };
+public:
+    u32 refCount() const {
+        return nRef_;
+    }
+    void acquireReference() const {
+        ++nRef_;
+    }
+    bool releaseReference() const {
+        return (!--nRef_);
+    }
+};
 
-} // namespace Flf
+class ScoresRef {
+private:
+    Scores* obj_;
 
-#endif // _FLF_CORE_WEIGHT_HH
+private:
+    inline void set(Scores* obj) {
+        obj->acquireReference();
+        if (obj_->releaseReference()) {
+            verify_(Scores::isNotSentinel(obj_));
+            delete obj_;
+        }
+        obj_ = obj;
+    }
+
+public:
+    ScoresRef()
+            : obj_(Scores::sentinel()) {
+        obj_->acquireReference();
+    }
+    explicit ScoresRef(Scores* obj)
+            : obj_(obj) {
+        require_(obj);
+        obj_->acquireReference();
+    }
+    ScoresRef(const ScoresRef& ref)
+            : obj_(ref.obj_) {
+        obj_->acquireReference();
+    }
+    ~ScoresRef() {
+        if (obj_->releaseReference()) {
+            verify_(obj_ != Scores::sentinel());
+            delete obj_;
+        }
+    }
+    operator bool() const {
+        return Scores::isNotSentinel(obj_);
+    }
+    ScoresRef& operator=(const ScoresRef& ref) {
+        set(ref.obj_);
+        return *this;
+    }
+    bool operator==(const ScoresRef& ref) const {
+        return obj_ == ref.obj_;
+    }
+    bool operator!=(const ScoresRef& ref) const {
+        return obj_ != ref.obj_;
+    }
+    bool operator!() const {
+        return Scores::isSentinel(obj_);
+    }
+    Scores& operator*() const {
+        require_(Scores::isNotSentinel(obj_));
+        return *obj_;
+    }
+    Scores* operator->() const {
+        require_(Scores::isNotSentinel(obj_));
+        return obj_;
+    }
+    Scores* get() const {
+        return Scores::isNotSentinel(obj_) ? obj_ : 0;
+    }
+    void reset() {
+        set(Scores::sentinel());
+    }
+};
+
+}  // namespace Flf
+
+#endif  // _FLF_CORE_WEIGHT_HH

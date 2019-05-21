@@ -19,79 +19,77 @@
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    const std::string & Segment::segmentIdOrDie() const {
-        if (!hasSegmentId())
-            Core::Application::us()->criticalError(
+// -------------------------------------------------------------------------
+const std::string& Segment::segmentIdOrDie() const {
+    if (!hasSegmentId())
+        Core::Application::us()->criticalError(
                 "Segment: Segment id is not provided.");
-        return segmentId();
+    return segmentId();
+}
+
+void Segment::setBlissSpeechSegment(const Bliss::SpeechSegment* blissSpeechSegment) {
+    blissSpeechSegment_ = blissSpeechSegment;
+    if (blissSpeechSegment_->recording())
+        setAudioFilename(blissSpeechSegment_->recording()->audio());
+    setStartTime(blissSpeechSegment_->start());
+    setEndTime(blissSpeechSegment_->end());
+    setTrack(blissSpeechSegment_->track());
+    setOrthography(blissSpeechSegment_->orth());
+    if (blissSpeechSegment_->speaker())
+        setSpeakerId(blissSpeechSegment_->speaker()->name());
+    if (blissSpeechSegment_->condition())
+        setConditionId(blissSpeechSegment_->condition()->name());
+    if (blissSpeechSegment_->recording())
+        setRecordingId(blissSpeechSegment_->recording()->name());
+    setSegmentId(blissSpeechSegment_->fullName());
+}
+
+const Bliss::SpeechSegment* Segment::blissSpeechSegmentOrDie() const {
+    if (!hasBlissSpeechSegment())
+        Core::Application::us()->criticalError("Segment: Bliss speech segment is not provided.");
+    return blissSpeechSegment();
+}
+// -------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
+s32 nFrames(f32 startTime, f32 endTime) {
+    return s32(Core::round((endTime - startTime) * 100.0));
+}
+s32 nFrames(ConstSegmentRef segment) {
+    verify(segment->hasStartTime() && segment->hasEndTime());
+    return nFrames(segment->startTime(), segment->endTime());
+}
+// -------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
+std::ostream& printAsText(std::ostream& os, ConstSegmentRef segment) {
+    if (segment) {
+        if (segment->hasSegmentId())
+            os << segment->segmentId();
+        else if (segment->hasRecordingId())
+            os << segment->recordingId();
+        else
+            os << "segment";
+        os << " (";
+        if (segment->hasStartTime())
+            os << segment->startTime();
+        else
+            os << "-inf";
+        os << "-";
+        if (segment->hasEndTime())
+            os << segment->endTime();
+        else
+            os << "inf";
+        os << ")";
     }
+    else
+        os << "# unknown (-inf-inf)";
+    return os;
+}
 
-    void Segment::setBlissSpeechSegment(const Bliss::SpeechSegment *blissSpeechSegment) {
-        blissSpeechSegment_ = blissSpeechSegment;
-        if (blissSpeechSegment_->recording())
-            setAudioFilename(blissSpeechSegment_->recording()->audio());
-        setStartTime(blissSpeechSegment_->start());
-        setEndTime(blissSpeechSegment_->end());
-        setTrack(blissSpeechSegment_->track());
-        setOrthography(blissSpeechSegment_->orth());
-        if (blissSpeechSegment_->speaker())
-            setSpeakerId(blissSpeechSegment_->speaker()->name());
-        if (blissSpeechSegment_->condition())
-            setConditionId(blissSpeechSegment_->condition()->name());
-        if (blissSpeechSegment_->recording())
-            setRecordingId(blissSpeechSegment_->recording()->name());
-        setSegmentId(blissSpeechSegment_->fullName());
-    }
+void printSegmentHeader(std::ostream& os, ConstSegmentRef segment, const std::string& head) {
+    printAsText(os << head, segment) << std::endl;
+}
+// -------------------------------------------------------------------------
 
-    const Bliss::SpeechSegment * Segment::blissSpeechSegmentOrDie() const {
-        if (!hasBlissSpeechSegment())
-            Core::Application::us()->criticalError(
-                "Segment: Bliss speech segment is not provided.");
-        return blissSpeechSegment();
-    }
-    // -------------------------------------------------------------------------
-
-
-    // -------------------------------------------------------------------------
-    s32 nFrames(f32 startTime, f32 endTime) {
-        return s32(Core::round((endTime - startTime) * 100.0));
-    }
-    s32 nFrames(ConstSegmentRef segment) {
-        verify(segment->hasStartTime() && segment->hasEndTime());
-        return nFrames(segment->startTime(), segment->endTime());
-    }
-    // -------------------------------------------------------------------------
-
-
-    // -------------------------------------------------------------------------
-    std::ostream & printAsText(std::ostream &os, ConstSegmentRef segment) {
-        if (segment) {
-            if (segment->hasSegmentId())
-                os << segment->segmentId();
-            else if (segment->hasRecordingId())
-                os << segment->recordingId();
-            else
-                os << "segment";
-            os << " (";
-            if (segment->hasStartTime())
-                os << segment->startTime();
-            else
-                os << "-inf";
-            os << "-";
-            if (segment->hasEndTime())
-                os << segment->endTime();
-            else
-                os << "inf";
-            os << ")";
-        } else
-            os << "# unknown (-inf-inf)";
-        return os;
-    }
-
-    void printSegmentHeader(std::ostream &os, ConstSegmentRef segment, const std::string &head) {
-        printAsText(os << head, segment) << std::endl;
-    }
-    // -------------------------------------------------------------------------
-
-} // namespace Flf
+}  // namespace Flf

@@ -14,29 +14,30 @@
  */
 #include <Core/Application.hh>
 
-#include "FlfCore/Ftl.hh"
 #include "Draw.hh"
+#include "FlfCore/Ftl.hh"
 
 namespace Flf {
 
-    /**
-     * visualization
-     **/
-    bool drawDot(ConstLatticeRef l, std::ostream &o, Fsa::Hint hint, bool progress) {
-        if (!l) {
-            Core::Application::us()->warning("Cannot draw lattice, because the lattice is empty.");
-            return false;
-        } else
-            return FtlWrapper::drawDot(l, o, hint, progress);
-
+/**
+ * visualization
+ **/
+bool drawDot(ConstLatticeRef l, std::ostream& o, Fsa::Hint hint, bool progress) {
+    if (!l) {
+        Core::Application::us()->warning("Cannot draw lattice, because the lattice is empty.");
+        return false;
     }
+    else
+        return FtlWrapper::drawDot(l, o, hint, progress);
+}
 
-    bool drawDot(ConstLatticeRef l, const std::string &file, Fsa::Hint hint, bool progress) {
-        if (!l) {
-            Core::Application::us()->warning("Cannot draw lattice, because the lattice is empty.");
-            return false;
-        } else
-            return FtlWrapper::drawDot(l, file, hint, progress);
+bool drawDot(ConstLatticeRef l, const std::string& file, Fsa::Hint hint, bool progress) {
+    if (!l) {
+        Core::Application::us()->warning("Cannot draw lattice, because the lattice is empty.");
+        return false;
     }
+    else
+        return FtlWrapper::drawDot(l, file, hint, progress);
+}
 
-} // namespace Flf
+}  // namespace Flf

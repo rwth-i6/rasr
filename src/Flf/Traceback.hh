@@ -20,8 +20,8 @@
 
 namespace Flf {
 
-    NodeRef createDumpTracebackNode(const std::string &name, const Core::Configuration &config);
+NodeRef createDumpTracebackNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_TRACEBACK_HH
+#endif  // _FLF_TRACEBACK_HH

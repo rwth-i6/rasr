@@ -20,14 +20,14 @@
 
 namespace Flf {
 
-    ConstLatticeRef filterByInput(ConstLatticeRef l, Fsa::LabelId input);
-    ConstLatticeRef filterByInput(ConstLatticeRef l, const std::string &);
+ConstLatticeRef filterByInput(ConstLatticeRef l, Fsa::LabelId input);
+ConstLatticeRef filterByInput(ConstLatticeRef l, const std::string&);
 
-    ConstLatticeRef filterByOutput(ConstLatticeRef l, Fsa::LabelId output);
-    ConstLatticeRef filterByOutput(ConstLatticeRef l, const std::string &);
+ConstLatticeRef filterByOutput(ConstLatticeRef l, Fsa::LabelId output);
+ConstLatticeRef filterByOutput(ConstLatticeRef l, const std::string&);
 
-    NodeRef createFilterArcNode(const std::string &name, const Core::Configuration &config);
+NodeRef createFilterArcNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_FILTER_HH
+#endif  // _FLF_FILTER_HH

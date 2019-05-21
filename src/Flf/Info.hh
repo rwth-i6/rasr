@@ -21,19 +21,18 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    bool isEmpty(ConstLatticeRef l);
+bool isEmpty(ConstLatticeRef l);
 
-    typedef Fsa::AutomatonCounts LatticeCounts;
-    LatticeCounts count(ConstLatticeRef l, bool progress = false);
-    size_t countInput(ConstLatticeRef l, Fsa::LabelId label, bool progress = false);
-    size_t countOutput(ConstLatticeRef l, Fsa::LabelId label, bool progress = false);
+typedef Fsa::AutomatonCounts LatticeCounts;
+LatticeCounts                count(ConstLatticeRef l, bool progress = false);
+size_t                       countInput(ConstLatticeRef l, Fsa::LabelId label, bool progress = false);
+size_t                       countOutput(ConstLatticeRef l, Fsa::LabelId label, bool progress = false);
 
-    void info(ConstLatticeRef l, Core::XmlWriter &o, InfoType infoType = InfoTypeNormal);
-    NodeRef createInfoNode(const std::string &name, const Core::Configuration &config);
+void    info(ConstLatticeRef l, Core::XmlWriter& o, InfoType infoType = InfoTypeNormal);
+NodeRef createInfoNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_INFO_HH
+#endif  // _FLF_INFO_HH

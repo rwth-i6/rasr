@@ -21,31 +21,29 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    typedef Core::Ref<const Lm::LanguageModel> ConstLanguageModelRef;
-    typedef Core::Ref<const Lm::ScaledLanguageModel> ConstScaledLanguageModelRef;
+typedef Core::Ref<const Lm::LanguageModel>       ConstLanguageModelRef;
+typedef Core::Ref<const Lm::ScaledLanguageModel> ConstScaledLanguageModelRef;
 
+/**
+ * composition of lattice and lm
+ *
+ * For more information please read Lm/Compose.hh.
+ *
+ * The result is almost equvivalent to the lm-rescorer implementation in
+ * LanguageModelRescorer.hh; a slight difference concers the syntax-emission-probabilities
+ * (see the comments in Compose.cc).
+ *
+ * Additional features:
+ * - the result of the composition has exactly as many final states as the input lattice
+ **/
 
-    /**
-     * composition of lattice and lm
-     *
-     * For more information please read Lm/Compose.hh.
-     *
-     * The result is almost equvivalent to the lm-rescorer implementation in
-     * LanguageModelRescorer.hh; a slight difference concers the syntax-emission-probabilities
-     * (see the comments in Compose.cc).
-     *
-     * Additional features:
-     * - the result of the composition has exactly as many final states as the input lattice
-     **/
+ConstLatticeRef composeWithLm(ConstLatticeRef l, ConstLanguageModelRef lm, ScoreId id,
+                              Score scale = Semiring::DefaultScale, bool forceSentenceEnd = false);
 
-    ConstLatticeRef composeWithLm(ConstLatticeRef l, ConstLanguageModelRef lm, ScoreId id,
-                                  Score scale = Semiring::DefaultScale, bool forceSentenceEnd = false);
+NodeRef createComposeWithLmNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createComposeWithLmNode(const std::string &name, const Core::Configuration &config);
+}  // namespace Flf
 
-} // namespace Flf
-
-#endif // _FLF_LANGUAGE_MODEL_HH
+#endif  // _FLF_LANGUAGE_MODEL_HH

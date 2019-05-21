@@ -21,28 +21,30 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    class LayeredComponent : public virtual Core::Component {
-        static const Core::ParameterString paramName;
-        static const Core::ParameterBool paramUse;
-    private:
-        std::string layerName_;
-        bool useLayer_;
-    protected:
-        void openLayer(const std::string &name = "");
-        void closeLayer();
-    public:
-        LayeredComponent(const Core::Configuration &config, const std::string &layerName = "");
-        virtual ~LayeredComponent() {}
-    };
+class LayeredComponent : public virtual Core::Component {
+    static const Core::ParameterString paramName;
+    static const Core::ParameterBool   paramUse;
 
-    /*
-      - embeds log data into layer-tags
-    */
-    NodeRef createLayerStartNode(const std::string &name, const Core::Configuration &config);
-    NodeRef createLayerEndNode(const std::string &name, const Core::Configuration &config);
+private:
+    std::string layerName_;
+    bool        useLayer_;
 
-} // namespace Flf
-#endif // _FLF_FORMATTINGS_HH
+protected:
+    void openLayer(const std::string& name = "");
+    void closeLayer();
+
+public:
+    LayeredComponent(const Core::Configuration& config, const std::string& layerName = "");
+    virtual ~LayeredComponent() {}
+};
+
+/*
+ * - embeds log data into layer-tags
+ */
+NodeRef createLayerStartNode(const std::string& name, const Core::Configuration& config);
+NodeRef createLayerEndNode(const std::string& name, const Core::Configuration& config);
+
+}  // namespace Flf
+#endif  // _FLF_FORMATTINGS_HH

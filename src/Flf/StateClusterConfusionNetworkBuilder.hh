@@ -16,17 +16,17 @@
 #define _FLF_STATE_CLUSTER_CONFUSION_NETWORK_HH
 
 /**
-   CN construction algorithm based on a state clustering,
-   for details see my thesis, chapter 4.4.3 (The State-Cluster CN Construction Algorithm)
-**/
+ * CN construction algorithm based on a state clustering,
+ * for details see my thesis, chapter 4.4.3 (The State-Cluster CN Construction Algorithm)
+ **/
 
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
 namespace Flf {
 
-    NodeRef createStateClusterCnBuilderNode(const std::string &name, const Core::Configuration &config);
+NodeRef createStateClusterCnBuilderNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace
+}  // namespace Flf
 
-#endif // _FLF_STATE_CLUSTER_CONFUSION_NETWORK_HH
+#endif  // _FLF_STATE_CLUSTER_CONFUSION_NETWORK_HH

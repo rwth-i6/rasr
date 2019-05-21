@@ -19,30 +19,30 @@
 #include "Network.hh"
 
 namespace Lm {
-    class LanguageModel;
+class LanguageModel;
 }
 
 namespace Bliss {
-    class Lemma;
+class Lemma;
 }
 
 namespace Flf {
-    /**
-     * Performs a time-synchronous rescoring.
-     * The input lattice may be a mesh lattice, in which case
-     * a huge lattice may be expanded. Pruning must be used to
-     * prevent the resulting lattice from exploding in that case.
-     *
-     * wordEndBeam and wordEndLimit are equivalent to word end pruning used during
-     * standard decoding (wordEndBeam is relative to the LM scale)
-     * */
-    ConstLatticeRef decodeRescoreLm(ConstLatticeRef lat, Core::Ref<Lm::LanguageModel> lm,
-                                  float wordEndBeam = 20,
-                                  u32 wordEndLimit = 50000,
-                                  const std::vector<const Bliss::Lemma*>& prefix = std::vector<const Bliss::Lemma*>(),
-                                  const std::vector<const Bliss::Lemma*>& suffix = std::vector<const Bliss::Lemma*>());
+/**
+ * Performs a time-synchronous rescoring.
+ * The input lattice may be a mesh lattice, in which case
+ * a huge lattice may be expanded. Pruning must be used to
+ * prevent the resulting lattice from exploding in that case.
+ *
+ * wordEndBeam and wordEndLimit are equivalent to word end pruning used during
+ * standard decoding (wordEndBeam is relative to the LM scale)
+ **/
+ConstLatticeRef decodeRescoreLm(ConstLatticeRef lat, Core::Ref<Lm::LanguageModel> lm,
+                                float                                   wordEndBeam  = 20,
+                                u32                                     wordEndLimit = 50000,
+                                const std::vector<const Bliss::Lemma*>& prefix       = std::vector<const Bliss::Lemma*>(),
+                                const std::vector<const Bliss::Lemma*>& suffix       = std::vector<const Bliss::Lemma*>());
 
-    NodeRef createDecodeRescoreLmNode(const std::string &name, const Core::Configuration &config);
-} // namespace Flf
+NodeRef createDecodeRescoreLmNode(const std::string& name, const Core::Configuration& config);
+}  // namespace Flf
 
 #endif

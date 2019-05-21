@@ -12,47 +12,50 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
 #include <Core/Application.hh>
 #include <Search/Module.hh>
-#include "Module.hh"
-#include "Lexicon.hh"
 #include "LatticeHandler.hh"
+#include "Lexicon.hh"
 
 namespace Flf {
 
-    Module_::Module_() : lexicon_(0), network_(0), processor_(0) {}
-    Module_::~Module_() { delete lexicon_; }
+Module_::Module_()
+        : lexicon_(0), network_(0), processor_(0) {}
+Module_::~Module_() {
+    delete lexicon_;
+}
 
-    void Module_::init() {
-        lexicon_ = new Lexicon(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon"));
-    }
+void Module_::init() {
+    lexicon_ = new Lexicon(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon"));
+}
 
-    const Lexicon *Module_::lexicon() {
-        return lexicon_;
-    }
+const Lexicon* Module_::lexicon() {
+    return lexicon_;
+}
 
-    void Module_::setLexicon(Lexicon *l) {
-        lexicon_ = l;
-    }
+void Module_::setLexicon(Lexicon* l) {
+    lexicon_ = l;
+}
 
-    Network *Module_::network() {
-        return network_;
-    }
+Network* Module_::network() {
+    return network_;
+}
 
-    void Module_::setNetwork(Network *n) {
-        network_ = n;
-    }
+void Module_::setNetwork(Network* n) {
+    network_ = n;
+}
 
-    Processor *Module_::processor() {
-        return processor_;
-    }
+Processor* Module_::processor() {
+    return processor_;
+}
 
-    void Module_::setProcessor(Processor *p) {
-        processor_ = p;
-    }
+void Module_::setProcessor(Processor* p) {
+    processor_ = p;
+}
 
-    Flf::LatticeHandler* Module_::createLatticeHandler(const Core::Configuration &c) const {
-        return new Flf::LatticeHandler(c, Search::Module::instance().createLatticeHandler(c));
-    }
+Flf::LatticeHandler* Module_::createLatticeHandler(const Core::Configuration& c) const {
+    return new Flf::LatticeHandler(c, Search::Module::instance().createLatticeHandler(c));
+}
 
-} // namespace Flf
+}  // namespace Flf

@@ -18,16 +18,12 @@
 
 namespace Flf {
 
-
-
-bool FlfLatticeAdaptor::write(const std::string &id, Search::LatticeHandler *handler) const
-{
+bool FlfLatticeAdaptor::write(const std::string& id, Search::LatticeHandler* handler) const {
     return handler->write(id, *this);
 }
 
-FlfLatticeAdaptor::ConstWordLatticeRef FlfLatticeAdaptor::wordLattice(const Search::LatticeHandler *handler) const
-{
+FlfLatticeAdaptor::ConstWordLatticeRef FlfLatticeAdaptor::wordLattice(const Search::LatticeHandler* handler) const {
     return handler->convert(*this);
 }
 
-} // namespace Flf
+}  // namespace Flf

@@ -23,12 +23,13 @@ namespace Flf {
 class LatticeArchiveReader;
 class LatticeArchiveWriter;
 
-class LatticeHandler : public Search::LatticeHandler
-{
+class LatticeHandler : public Search::LatticeHandler {
 public:
-    LatticeHandler(const Core::Configuration &c, Search::LatticeHandler *parent)
-        : Search::LatticeHandler(c),
-          parent_(parent), reader_(0), writer_(0) {}
+    LatticeHandler(const Core::Configuration& c, Search::LatticeHandler* parent)
+            : Search::LatticeHandler(c),
+              parent_(parent),
+              reader_(0),
+              writer_(0) {}
 
     virtual ~LatticeHandler();
 
@@ -39,34 +40,32 @@ public:
         return parent_->lexicon();
     }
 
-
-    bool write(const std::string &id, const WordLatticeAdaptor &l) {
+    bool write(const std::string& id, const WordLatticeAdaptor& l) {
         return parent_->write(id, l);
     }
-    bool write(const std::string &id, const FlfLatticeAdaptor &l);
-    bool write(const std::string &id, const WfstLatticeAdaptor &l) {
+    bool write(const std::string& id, const FlfLatticeAdaptor& l);
+    bool write(const std::string& id, const WfstLatticeAdaptor& l) {
         return parent_->write(id, l);
     }
 
-    Core::Ref<Search::LatticeAdaptor> read(const std::string &id, const std::string &name);
+    Core::Ref<Search::LatticeAdaptor> read(const std::string& id, const std::string& name);
 
-    ConstWordLatticeRef convert(const WordLatticeAdaptor &l) const {
+    ConstWordLatticeRef convert(const WordLatticeAdaptor& l) const {
         return parent_->convert(l);
     }
-    ConstWordLatticeRef convert(const FlfLatticeAdaptor &l) const;
-    ConstWordLatticeRef convert(const WfstLatticeAdaptor &l) const {
+    ConstWordLatticeRef convert(const FlfLatticeAdaptor& l) const;
+    ConstWordLatticeRef convert(const WfstLatticeAdaptor& l) const {
         return parent_->convert(l);
     }
 
 private:
-    bool createReader();
-    bool createWriter();
-    Search::LatticeHandler *parent_;
-    LatticeArchiveReader *reader_;
-    LatticeArchiveWriter *writer_;
+    bool                    createReader();
+    bool                    createWriter();
+    Search::LatticeHandler* parent_;
+    LatticeArchiveReader*   reader_;
+    LatticeArchiveWriter*   writer_;
 };
 
-} // namespace Flf
+}  // namespace Flf
 
-
-#endif // _FLF_LATTICE_HANDLER_HH
+#endif  // _FLF_LATTICE_HANDLER_HH

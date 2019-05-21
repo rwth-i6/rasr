@@ -7,58 +7,60 @@
 #include "RescoreInternal.hh"
 
 namespace Flf {
-    class PushForwardRescorer : public Core::Component {
-    public:
-        typedef Core::Component Precursor;
+class PushForwardRescorer : public Core::Component {
+public:
+    typedef Core::Component Precursor;
 
-        enum RescorerType {
-            singleBestRescoringType,
-            replacementApproximationRescoringType,
-            tracebackApproximationRescoringType
-        };
-
-        static const Core::Choice          rescorerTypeChoice;
-        static const Core::ParameterChoice paramRescorerType;
-        static const Core::ParameterInt    paramMaxHypothesis;
-        static const Core::ParameterFloat  paramPruningThreshold;
-        static const Core::ParameterInt    paramHistoryLimit;
-        static const Core::ParameterFloat  paramLookaheadScale;
-
-        PushForwardRescorer(Core::Configuration const& config, Core::Ref<Lm::LanguageModel> lm);
-        ~PushForwardRescorer() = default;
-
-        virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id);
-
-    private:
-        Core::Ref<Lm::LanguageModel> lm_;
-        RescorerType                 rescoring_type_;
-        unsigned                     max_hyps_;
-        Flf::Score                   pruning_threshold_;
-        unsigned                     history_limit_;
-        Flf::Score                   lookahead_scale_;
+    enum RescorerType {
+        singleBestRescoringType,
+        replacementApproximationRescoringType,
+        tracebackApproximationRescoringType
     };
 
-    class PushForwardRescoringNode : public RescoreSingleDimensionNode {
-    public:
-        typedef RescoreSingleDimensionNode Precursor;
+    static const Core::Choice          rescorerTypeChoice;
+    static const Core::ParameterChoice paramRescorerType;
+    static const Core::ParameterInt    paramMaxHypothesis;
+    static const Core::ParameterFloat  paramPruningThreshold;
+    static const Core::ParameterInt    paramHistoryLimit;
+    static const Core::ParameterFloat  paramLookaheadScale;
 
-        PushForwardRescoringNode(std::string const& name, Core::Configuration const& config);
-        virtual ~PushForwardRescoringNode() = default;
+    PushForwardRescorer(Core::Configuration const& config, Core::Ref<Lm::LanguageModel> lm);
+    ~PushForwardRescorer() = default;
 
-        virtual void init(std::vector<std::string> const& arguments);
+    virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id);
 
-        virtual void sync() {
-            rescored_lattice_.reset();
-        }
-    protected:
-        virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id);
-    private:
-        std::unique_ptr<PushForwardRescorer> rescorer_;
+private:
+    Core::Ref<Lm::LanguageModel> lm_;
+    RescorerType                 rescoring_type_;
+    unsigned                     max_hyps_;
+    Flf::Score                   pruning_threshold_;
+    unsigned                     history_limit_;
+    Flf::Score                   lookahead_scale_;
+};
 
-        ConstLatticeRef rescored_lattice_;
-    };
+class PushForwardRescoringNode : public RescoreSingleDimensionNode {
+public:
+    typedef RescoreSingleDimensionNode Precursor;
 
-    NodeRef createPushForwardRescoringNode(std::string const& name, Core::Configuration const& config);
-} // namespace Flf
+    PushForwardRescoringNode(std::string const& name, Core::Configuration const& config);
+    virtual ~PushForwardRescoringNode() = default;
 
-#endif // _FLF_PUSH_FORWARD_RESCORING_HH
+    virtual void init(std::vector<std::string> const& arguments);
+
+    virtual void sync() {
+        rescored_lattice_.reset();
+    }
+
+protected:
+    virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id);
+
+private:
+    std::unique_ptr<PushForwardRescorer> rescorer_;
+
+    ConstLatticeRef rescored_lattice_;
+};
+
+NodeRef createPushForwardRescoringNode(std::string const& name, Core::Configuration const& config);
+}  // namespace Flf
+
+#endif  // _FLF_PUSH_FORWARD_RESCORING_HH

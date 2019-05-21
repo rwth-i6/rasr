@@ -16,36 +16,39 @@
 #define _FLF_PIVOT_ARC_CONFUSION_NETWORK_BUILDER_HH
 
 /**
-   CN construction algorithm based on a direct arc clustering driven by a pivot element,
-   for details see my thesis, chapter 4.4.2 (The Arc-Cluster CN Construction Algorithm)
-**/
+ * CN construction algorithm based on a direct arc clustering driven by a pivot element,
+ * for details see my thesis, chapter 4.4.2 (The Arc-Cluster CN Construction Algorithm)
+ **/
 
-#include "FlfCore/Lattice.hh"
 #include "ConfusionNetwork.hh"
+#include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
 namespace Flf {
 
-        class PivotArcCnFactory : public ConfusionNetworkFactory {
-                friend class ConfusionNetworkFactory;
-        private:
-                struct Internal;
-                Internal *internal_;
-        protected:
-                PivotArcCnFactory(const Core::Configuration &config);
-                PivotArcCnFactory();
-        public:
-                virtual ~PivotArcCnFactory();
-                virtual void dump(std::ostream &os) const;
-                virtual void build(ConstLatticeRef l, ConstFwdBwdRef fb);
-                virtual void reset();
+class PivotArcCnFactory : public ConfusionNetworkFactory {
+    friend class ConfusionNetworkFactory;
 
-                virtual ConstConfusionNetworkRef getCn(ScoreId posteriorId, bool mapping) const;
-                virtual std::pair<ConstConfusionNetworkRef, ConstLatticeRef> getNormalizedCn(ScoreId confidenceId, bool mapping) const;
-        };
+private:
+    struct Internal;
+    Internal* internal_;
 
-    NodeRef createPivotArcCnBuilderNode(const std::string &name, const Core::Configuration &config);
+protected:
+    PivotArcCnFactory(const Core::Configuration& config);
+    PivotArcCnFactory();
 
-} // namespace
+public:
+    virtual ~PivotArcCnFactory();
+    virtual void dump(std::ostream& os) const;
+    virtual void build(ConstLatticeRef l, ConstFwdBwdRef fb);
+    virtual void reset();
 
-#endif // _FLF_PIVOT_ARC_CONFUSION_NETWORK_BUILDER_HH
+    virtual ConstConfusionNetworkRef                             getCn(ScoreId posteriorId, bool mapping) const;
+    virtual std::pair<ConstConfusionNetworkRef, ConstLatticeRef> getNormalizedCn(ScoreId confidenceId, bool mapping) const;
+};
+
+NodeRef createPivotArcCnBuilderNode(const std::string& name, const Core::Configuration& config);
+
+}  // namespace Flf
+
+#endif  // _FLF_PIVOT_ARC_CONFUSION_NETWORK_BUILDER_HH

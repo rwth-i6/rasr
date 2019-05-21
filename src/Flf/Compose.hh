@@ -22,47 +22,43 @@
 
 namespace Flf {
 
-    /**
-     * - set weight of arcs and states in l to l->semiring()->one() (or to semiring->one(), if a semiring is given)
-     * - remove word boundaries
-     *
-     * application: intersections, i.e. composition of a weighted and an unweighted transducer
-     **/
-    ConstLatticeRef unweight(ConstLatticeRef l, ConstSemiringRef semiring = ConstSemiringRef());
+/**
+ * - set weight of arcs and states in l to l->semiring()->one() (or to semiring->one(), if a semiring is given)
+ * - remove word boundaries
+ *
+ * application: intersections, i.e. composition of a weighted and an unweighted transducer
+ **/
+ConstLatticeRef unweight(ConstLatticeRef l, ConstSemiringRef semiring = ConstSemiringRef());
 
+/**
+ * compose two lattices
+ **/
+ConstLatticeRef composeMatching(ConstLatticeRef l, ConstLatticeRef r);
+NodeRef         createComposeMatchingNode(const std::string& name, const Core::Configuration& config);
 
-    /**
-     * compose two lattices
-     **/
-    ConstLatticeRef composeMatching(ConstLatticeRef l, ConstLatticeRef r);
-    NodeRef createComposeMatchingNode(const std::string &name, const Core::Configuration &config);
+ConstLatticeRef composeSequencing(ConstLatticeRef l, ConstLatticeRef r);
+NodeRef         createComposeSequencingNode(const std::string& name, const Core::Configuration& config);
 
-    ConstLatticeRef composeSequencing(ConstLatticeRef l, ConstLatticeRef r);
-    NodeRef createComposeSequencingNode(const std::string &name, const Core::Configuration &config);
+/**
+ * difference between two lattices
+ **/
+ConstLatticeRef differ(ConstLatticeRef l, ConstLatticeRef r);
+NodeRef         createDifferenceNode(const std::string& name, const Core::Configuration& config);
 
+/**
+ * intersection of two lattices;
+ * extend or append scores
+ **/
+ConstLatticeRef intersect(ConstLatticeRef l, ConstLatticeRef r, bool appendScores = false);
+NodeRef         createIntersectionNode(const std::string& name, const Core::Configuration& config);
 
-    /**
-     * difference between two lattices
-     **/
-    ConstLatticeRef differ(ConstLatticeRef l, ConstLatticeRef r);
-    NodeRef createDifferenceNode(const std::string &name, const Core::Configuration &config);
+/**
+ * composition of lattice and fsa
+ **/
+ConstLatticeRef composeWithFsa(ConstLatticeRef l, Fsa::ConstAutomatonRef f, Score scale);
+ConstLatticeRef composeWithFsa(ConstLatticeRef l, Fsa::ConstAutomatonRef f, ScoreId id, Score scale = Semiring::DefaultScale);
+NodeRef         createComposeWithFsaNode(const std::string& name, const Core::Configuration& config);
 
+}  // namespace Flf
 
-    /**
-     * intersection of two lattices;
-     * extend or append scores
-     **/
-    ConstLatticeRef intersect(ConstLatticeRef l, ConstLatticeRef r, bool appendScores = false);
-    NodeRef createIntersectionNode(const std::string &name, const Core::Configuration &config);
-
-
-    /**
-     * composition of lattice and fsa
-     **/
-    ConstLatticeRef composeWithFsa(ConstLatticeRef l, Fsa::ConstAutomatonRef f, Score scale);
-    ConstLatticeRef composeWithFsa(ConstLatticeRef l, Fsa::ConstAutomatonRef f, ScoreId id, Score scale = Semiring::DefaultScale);
-    NodeRef createComposeWithFsaNode(const std::string &name, const Core::Configuration &config);
-
-} // namespace Flf
-
-#endif // _FLF_COMPOSE_HH
+#endif  // _FLF_COMPOSE_HH

@@ -18,114 +18,109 @@
 
 #include "CorpusProcessor.hh"
 
-
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    Processor* CorpusProcessor::create(const Core::Configuration &config, Network *network) {
-        SpeechSegmentNodeList *speechSegNodes = new SpeechSegmentNodeList();
-        for (Network::NodeList::iterator it = network->nodes().begin();
-             it != network->nodes().end(); ++it) {
-            SpeechSegmentNode *speechSegNode = dynamic_cast<SpeechSegmentNode*>(it->get());
-            if (speechSegNode)
-                speechSegNodes->push_back(speechSegNode);
-        }
-        if (speechSegNodes->empty()) {
-            delete speechSegNodes;
-            return 0;
-        } else {
-            Core::Application::us()->log("CorpusProcessor: Process network.");
-            return new CorpusProcessor(config, network, speechSegNodes);
-        }
+// -------------------------------------------------------------------------
+Processor* CorpusProcessor::create(const Core::Configuration& config, Network* network) {
+    SpeechSegmentNodeList* speechSegNodes = new SpeechSegmentNodeList();
+    for (Network::NodeList::iterator it = network->nodes().begin();
+         it != network->nodes().end(); ++it) {
+        SpeechSegmentNode* speechSegNode = dynamic_cast<SpeechSegmentNode*>(it->get());
+        if (speechSegNode)
+            speechSegNodes->push_back(speechSegNode);
     }
-
-    CorpusProcessor::CorpusProcessor(
-        const Core::Configuration &config,
-        Network *network, SpeechSegmentNodeList *speechSegNodes) :
-        Core::Component(config),
-        Processor(config, network),
-        Speech::CorpusProcessor(config),
-        corpusVisitor_(0),
-        speechSegNodes_(speechSegNodes),
-        good_(true) {
+    if (speechSegNodes->empty()) {
+        delete speechSegNodes;
+        return 0;
     }
-
-    CorpusProcessor::~CorpusProcessor() {
-        delete speechSegNodes_;
-        delete corpusVisitor_;
+    else {
+        Core::Application::us()->log("CorpusProcessor: Process network.");
+        return new CorpusProcessor(config, network, speechSegNodes);
     }
+}
 
-    bool CorpusProcessor::init(const std::vector<std::string> &arguments) {
-        corpusVisitor_ = new Speech::CorpusVisitor(config);
-        signOn(*corpusVisitor_);
-        return Processor::init(arguments);
-    }
+CorpusProcessor::CorpusProcessor(const Core::Configuration& config, Network* network, SpeechSegmentNodeList* speechSegNodes)
+        : Core::Component(config),
+          Processor(config, network),
+          Speech::CorpusProcessor(config),
+          corpusVisitor_(0),
+          speechSegNodes_(speechSegNodes),
+          good_(true) {
+}
 
-    void CorpusProcessor::run() {
-        Bliss::CorpusDescription corpusDescription(select("corpus"));
-        corpusDescription.accept(corpusVisitor_);
-    }
+CorpusProcessor::~CorpusProcessor() {
+    delete speechSegNodes_;
+    delete corpusVisitor_;
+}
 
-    void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment *segment) {
-        if (!good_)
-            criticalError("At least one source node is out of data.");
+bool CorpusProcessor::init(const std::vector<std::string>& arguments) {
+    corpusVisitor_ = new Speech::CorpusVisitor(config);
+    signOn(*corpusVisitor_);
+    return Processor::init(arguments);
+}
+
+void CorpusProcessor::run() {
+    Bliss::CorpusDescription corpusDescription(select("corpus"));
+    corpusDescription.accept(corpusVisitor_);
+}
+
+void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment* segment) {
+    if (!good_)
+        criticalError("At least one source node is out of data.");
+    for (SpeechSegmentNodeList::iterator it = speechSegNodes_->begin();
+         it != speechSegNodes_->end(); ++it)
+        (*it)->setSpeechSegment(segment);
+
+    bool repeat = true;
+    while (repeat) {
+        repeat = false;
+        crawler_->reset();
+        network_->pull();
+        good_ = network_->sync(*crawler_);
         for (SpeechSegmentNodeList::iterator it = speechSegNodes_->begin();
              it != speechSegNodes_->end(); ++it)
-            (*it)->setSpeechSegment(segment);
-
-        bool repeat = true;
-        while (repeat)
-        {
-            repeat = false;
-            crawler_->reset();
-            network_->pull();
-            good_ = network_->sync(*crawler_);
-            for (SpeechSegmentNodeList::iterator it = speechSegNodes_->begin();
-             it != speechSegNodes_->end(); ++it)
-                 if (!(*it)->synced())
-                 {
-                     log() << "repeating segment";
-                     repeat = true;
-                 }
-        }
+            if (!(*it)->synced()) {
+                log() << "repeating segment";
+                repeat = true;
+            }
     }
-    // -------------------------------------------------------------------------
+}
+// -------------------------------------------------------------------------
 
+// -------------------------------------------------------------------------
+SpeechSegmentNode::SpeechSegmentNode(const std::string& name, const Core::Configuration& config)
+        : Node(name, config), blissSpeechSegment_(0) {}
 
-    // -------------------------------------------------------------------------
-    SpeechSegmentNode::SpeechSegmentNode(const std::string &name, const Core::Configuration &config) :
-        Node(name, config), blissSpeechSegment_(0) {}
+void SpeechSegmentNode::init(const std::vector<std::string>& arguments) {
+    if (!in().empty())
+        error("SpeechSegmentNode: Do not expect incoming links.");
+}
 
-    void SpeechSegmentNode::init(const std::vector<std::string> &arguments) {
-        if (!in().empty())
-            error("SpeechSegmentNode: Do not expect incoming links.");
-    }
+void SpeechSegmentNode::sync() {
+    blissSpeechSegment_ = 0;
+    segment_.reset();
+}
 
-    void SpeechSegmentNode::sync() {
-        blissSpeechSegment_ = 0;
-        segment_.reset();
-    }
-
-    ConstSegmentRef SpeechSegmentNode::sendSegment(Port to) {
-        verify(to == 0);
-        if (!segment_) {
-            if (!blissSpeechSegment_)
-                criticalError("SpeechSegmentNode: Bliss speech segment not set");
-            segment_ = ConstSegmentRef(new Segment(blissSpeechSegment_));
-        }
-        return segment_;
-    }
-
-    const void * SpeechSegmentNode::sendData(Port to) {
-        verify(to == 1);
+ConstSegmentRef SpeechSegmentNode::sendSegment(Port to) {
+    verify(to == 0);
+    if (!segment_) {
         if (!blissSpeechSegment_)
             criticalError("SpeechSegmentNode: Bliss speech segment not set");
-        return blissSpeechSegment_;
+        segment_ = ConstSegmentRef(new Segment(blissSpeechSegment_));
     }
+    return segment_;
+}
 
-    NodeRef createSpeechSegmentNode(const std::string &name, const Core::Configuration &config) {
-        return NodeRef(new SpeechSegmentNode(name, config));
-    }
-    // -------------------------------------------------------------------------
+const void* SpeechSegmentNode::sendData(Port to) {
+    verify(to == 1);
+    if (!blissSpeechSegment_)
+        criticalError("SpeechSegmentNode: Bliss speech segment not set");
+    return blissSpeechSegment_;
+}
 
-} // namespace Flf
+NodeRef createSpeechSegmentNode(const std::string& name, const Core::Configuration& config) {
+    return NodeRef(new SpeechSegmentNode(name, config));
+}
+// -------------------------------------------------------------------------
+
+}  // namespace Flf

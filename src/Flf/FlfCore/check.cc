@@ -30,8 +30,8 @@ public:
         return "...";
     }
 
-    int main(const std::vector<std::string> &arguments) {
-        std::ifstream fis(arguments[0].c_str());
+    int main(const std::vector<std::string>& arguments) {
+        std::ifstream         fis(arguments[0].c_str());
         Flf::ConstSemiringRef semiring = Flf::Semiring::read(fis);
 
         std::cout << semiring->name() << std::endl;
@@ -43,6 +43,6 @@ public:
         return 0;
     }
 
-} app; // <- You have to create ONE instance of the application
+} app;  // <- You have to create ONE instance of the application
 
 APPLICATION(MyApplication)

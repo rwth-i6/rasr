@@ -18,11 +18,10 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    NodeRef createRecognizerNode(const std::string &name, const Core::Configuration &config);
+NodeRef createRecognizerNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_RECOGNIZER_HH
+#endif  // _FLF_RECOGNIZER_HH

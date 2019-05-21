@@ -19,56 +19,52 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
-    /**
-     * Reduce many scores to a single score.
-     **/
-    // ConstLatticeRef reduce(ConstLatticeRef l, const ScoreIdList &fromIds, ScoreId toId, RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createReduceScoresNode(const std::string &name, const Core::Configuration &config);
+/**
+ * Reduce many scores to a single score.
+ **/
+// ConstLatticeRef reduce(ConstLatticeRef l, const ScoreIdList &fromIds, ScoreId toId, RescoreMode rescoreMode = RescoreModeClone);
+NodeRef createReduceScoresNode(const std::string& name, const Core::Configuration& config);
 
+/**
+ * arithmetic operations nodes
+ **/
+/**
+ * f(x,c) = x + c
+ **/
+ConstLatticeRef add(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
+NodeRef         createAddNode(const std::string& name, const Core::Configuration& config);
+/**
+ * f(x,c) = c * x
+ **/
+ConstLatticeRef multiply(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
+NodeRef         createMultiplyNode(const std::string& name, const Core::Configuration& config);
+/**
+ * f(x,c) = exp(c * x)
+ **/
+ConstLatticeRef exp(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
+NodeRef         createExpNode(const std::string& name, const Core::Configuration& config);
+/**
+ * f(x,c) = c * log(x)
+ **/
+ConstLatticeRef log(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
+NodeRef         createLogNode(const std::string& name, const Core::Configuration& config);
 
-    /**
-     * arithmetic operations nodes
-     **/
-    /**
-     * f(x,c) = x + c
-     **/
-    ConstLatticeRef add(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createAddNode(const std::string &name, const Core::Configuration &config);
-    /**
-     * f(x,c) = c * x
-     **/
-    ConstLatticeRef multiply(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createMultiplyNode(const std::string &name, const Core::Configuration &config);
-    /**
-     * f(x,c) = exp(c * x)
-     **/
-    ConstLatticeRef exp(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createExpNode(const std::string &name, const Core::Configuration &config);
-    /**
-     * f(x,c) = c * log(x)
-     **/
-    ConstLatticeRef log(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createLogNode(const std::string &name, const Core::Configuration &config);
+/**
+ * extend by fixed or lemma dependent penalties
+ **/
+NodeRef createExtendByPenaltyNode(const std::string& name, const Core::Configuration& config);
 
-
-    /**
-     * extend by fixed or lemma dependent penalties
-     **/
-    NodeRef createExtendByPenaltyNode(const std::string &name, const Core::Configuration &config);
-
-
-    /**
-     * extend by pronunciation score
-     **/
-    ConstLatticeRef extendByPronunciationScore(
-        ConstLatticeRef l,
+/**
+ * extend by pronunciation score
+ **/
+ConstLatticeRef extendByPronunciationScore(
+        ConstLatticeRef                                    l,
         Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpAlphabet,
-        ScoreId id,  Score scale,
+        ScoreId id, Score scale,
         RescoreMode rescoreMode = RescoreModeClone);
-    NodeRef createExtendByPronunciationScoreNode(const std::string &name, const Core::Configuration &config);
+NodeRef createExtendByPronunciationScoreNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_RESCORE_HH
+#endif  // _FLF_RESCORE_HH

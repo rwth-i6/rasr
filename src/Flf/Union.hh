@@ -20,55 +20,54 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    /**
-     * union
-     **/
-    ConstLatticeRef unite(ConstLatticeRef l1, ConstLatticeRef l2,
-                          ConstSemiringRef semiring = ConstSemiringRef());
-    ConstLatticeRef unite(const ConstLatticeRefList &lats,
-                          ConstSemiringRef semiring = ConstSemiringRef());
+/**
+ * union
+ **/
+ConstLatticeRef unite(ConstLatticeRef l1, ConstLatticeRef l2,
+                      ConstSemiringRef semiring = ConstSemiringRef());
+ConstLatticeRef unite(const ConstLatticeRefList& lats,
+                      ConstSemiringRef           semiring = ConstSemiringRef());
 
-    /**
-     * Boundary states are expanded so that each state
-     * corresponds to exactly one co-articulated cross-word transition (and eventually one non-coarticulated).
-     * Note: Doesn't correctly consider epsilon arcs in other places than behind the initial state
-     * This transformation may be required when the decoder does not separate all allophones at word boundary.
-     **/
-    ConstLatticeRef expandTransits(ConstLatticeRef lat, Bliss::Phoneme::Id leftContext = Bliss::Phoneme::term, Bliss::Phoneme::Id rightContext = Bliss::Phoneme::term);
+/**
+ * Boundary states are expanded so that each state
+ * corresponds to exactly one co-articulated cross-word transition (and eventually one non-coarticulated).
+ * Note: Doesn't correctly consider epsilon arcs in other places than behind the initial state
+ * This transformation may be required when the decoder does not separate all allophones at word boundary.
+ **/
+ConstLatticeRef expandTransits(ConstLatticeRef lat, Bliss::Phoneme::Id leftContext = Bliss::Phoneme::term, Bliss::Phoneme::Id rightContext = Bliss::Phoneme::term);
 
-    NodeRef createExpandTransitsNode(const std::string &name, const Core::Configuration &config);
+NodeRef createExpandTransitsNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createUnionNode(const std::string &name, const Core::Configuration &config);
+NodeRef createUnionNode(const std::string& name, const Core::Configuration& config);
 
-    struct MeshEntry {
-        MeshEntry() :
-            reverseOffset(Speech::InvalidTimeframeIndex),
-            timeOffset(0) {}
-        Speech::TimeframeIndex reverseOffset;
-        s32 timeOffset;
-        ConstLatticeRef lattice;
-    };
+struct MeshEntry {
+    MeshEntry()
+            : reverseOffset(Speech::InvalidTimeframeIndex),
+              timeOffset(0) {}
+    Speech::TimeframeIndex reverseOffset;
+    s32                    timeOffset;
+    ConstLatticeRef        lattice;
+};
 
-    /**
-     * time or boundary conditioned lattice;
-     * join either all states having identical boundaries(boundary information includes time) or having identical time
-     **/
-    typedef enum {
-        MeshTypeFullBoundary,
-        MeshTypeTimeBoundary
-    } MeshType;
-    ConstLatticeRef mesh(const std::vector<MeshEntry>& lattices,
-                         ConstSemiringRef semiring = ConstSemiringRef(), MeshType meshType = MeshTypeFullBoundary);
-    ConstLatticeRef mesh(ConstLatticeRef l1, ConstLatticeRef l2,
-                         ConstSemiringRef semiring = ConstSemiringRef(),
-                         MeshType meshType = MeshTypeFullBoundary);
-    ConstLatticeRef mesh(ConstLatticeRef l, MeshType meshType = MeshTypeFullBoundary);
+/**
+ * time or boundary conditioned lattice;
+ * join either all states having identical boundaries(boundary information includes time) or having identical time
+ **/
+typedef enum {
+    MeshTypeFullBoundary,
+    MeshTypeTimeBoundary
+} MeshType;
+ConstLatticeRef mesh(const std::vector<MeshEntry>& lattices,
+                     ConstSemiringRef semiring = ConstSemiringRef(), MeshType meshType = MeshTypeFullBoundary);
+ConstLatticeRef mesh(ConstLatticeRef l1, ConstLatticeRef l2,
+                     ConstSemiringRef semiring = ConstSemiringRef(),
+                     MeshType         meshType = MeshTypeFullBoundary);
+ConstLatticeRef mesh(ConstLatticeRef l, MeshType meshType = MeshTypeFullBoundary);
 
-    NodeRef createMeshNode(const std::string &name, const Core::Configuration &config);
+NodeRef createMeshNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_UNION_HH
+#endif  // _FLF_UNION_HH

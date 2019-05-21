@@ -23,44 +23,40 @@
 
 namespace Flf {
 
-    /**
-     * dim i -> dim+offest
-     **/
-    ConstLatticeRef offsetSemiring(ConstLatticeRef l, ConstSemiringRef targetSemiring, ScoreId offset = 0);
+/**
+ * dim i -> dim+offest
+ **/
+ConstLatticeRef offsetSemiring(ConstLatticeRef l, ConstSemiringRef targetSemiring, ScoreId offset = 0);
 
+/**
+ * normalize semiring:
+ * apply scales to scores, set scales and keys to defaults (i.e. scales to 1.0)
+ **/
+ConstLatticeRef normalizeSemiring(ConstLatticeRef l, bool normalizeNames = true);
 
-    /**
-     * normalize semiring:
-     * apply scales to scores, set scales and keys to defaults (i.e. scales to 1.0)
-     **/
-    ConstLatticeRef normalizeSemiring(ConstLatticeRef l, bool normalizeNames = true);
+/**
+ * change semiring (and set)
+ **/
+NodeRef createChangeSemiringNode(const std::string& name, const Core::Configuration& config);
 
+/**
+ * project source semiring to target semiring
+ **/
+NodeRef createProjectSemiringNode(const std::string& name, const Core::Configuration& config);
 
-    /**
-     * change semiring (and set)
-     **/
-    NodeRef createChangeSemiringNode(const std::string &name, const Core::Configuration &config);
+/**
+ * from fsa to flf, incl. alphabet mapping (and symbol insertion)
+ **/
+ConstLatticeRef fromFsa(Fsa::ConstAutomatonRef f, ConstSemiringRef semiring, ScoresRef defaultScore, ScoreId id,
+                        Lexicon::AlphabetId inputAlphabetId, Lexicon::AlphabetId outputAlphabetId = Lexicon::UnknownAlphabetId);
+ConstLatticeRef fromUnweightedFsa(Fsa::ConstAutomatonRef f, ConstSemiringRef semiring, ScoresRef constScore,
+                                  Lexicon::AlphabetId inputAlphabetId, Lexicon::AlphabetId outputAlphabetId = Lexicon::UnknownAlphabetId);
 
+/**
+ * string to lattice
+ **/
+NodeRef createStringConverterNode(const std::string& name, const Core::Configuration& config);
 
-    /**
-     * project source semiring to target semiring
-     **/
-    NodeRef createProjectSemiringNode(const std::string &name, const Core::Configuration &config);
+}  // namespace Flf
 
-
-    /**
-     * from fsa to flf, incl. alphabet mapping (and symbol insertion)
-     **/
-    ConstLatticeRef fromFsa(Fsa::ConstAutomatonRef f, ConstSemiringRef semiring, ScoresRef defaultScore, ScoreId id,
-                            Lexicon::AlphabetId inputAlphabetId, Lexicon::AlphabetId outputAlphabetId = Lexicon::UnknownAlphabetId);
-    ConstLatticeRef fromUnweightedFsa(Fsa::ConstAutomatonRef f, ConstSemiringRef semiring, ScoresRef constScore,
-                                      Lexicon::AlphabetId inputAlphabetId, Lexicon::AlphabetId outputAlphabetId = Lexicon::UnknownAlphabetId);
-
-    /**
-     * string to lattice
-     **/
-    NodeRef createStringConverterNode(const std::string &name, const Core::Configuration &config);
-
-} // namespace Flf
-
-#endif // _FLF_CONVERT_HH
+#endif  // _FLF_CONVERT_HH

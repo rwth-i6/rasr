@@ -23,116 +23,116 @@
 #include <Speech/ModelCombination.hh>
 #include "Lexicon.hh"
 
-
 namespace Flf {
 
-    /**
-     * Segmentwise model adaptation and feature extraction
-     **/
+/**
+ * Segmentwise model adaptation and feature extraction
+ **/
 
+// -------------------------------------------------------------------------
+/**
+ * Basic models
+ **/
+typedef Core::Ref<Am::AcousticModel>        AcousticModelRef;
+typedef Core::Ref<Lm::LanguageModel>        LanguageModelRef;
+typedef Core::Ref<Lm::ScaledLanguageModel>  ScaledLanguageModelRef;
+typedef Core::Ref<Speech::ModelCombination> ModelCombinationRef;
 
-    // -------------------------------------------------------------------------
-    /**
-     * Basic models
-     **/
-    typedef Core::Ref<Am::AcousticModel> AcousticModelRef;
-    typedef Core::Ref<Lm::LanguageModel> LanguageModelRef;
-    typedef Core::Ref<Lm::ScaledLanguageModel> ScaledLanguageModelRef;
-    typedef Core::Ref<Speech::ModelCombination> ModelCombinationRef;
+AcousticModelRef       getAm(const Core::Configuration& config);
+ScaledLanguageModelRef getLm(const Core::Configuration& config);
+ModelCombinationRef    getModelCombination(const Core::Configuration& config, AcousticModelRef acousticModel, ScaledLanguageModelRef languageModel = ScaledLanguageModelRef());
 
-    AcousticModelRef getAm(const Core::Configuration &config);
-    ScaledLanguageModelRef getLm(const Core::Configuration &config);
-    ModelCombinationRef getModelCombination(const Core::Configuration &config, AcousticModelRef acousticModel, ScaledLanguageModelRef languageModel = ScaledLanguageModelRef());
+/**
+ * Adpat basic models on segment
+ **/
+class SegmentwiseModelAdaptor : public Core::ReferenceCounted {
+private:
+    ModelCombinationRef modelCombination_;
+    AcousticModelRef    acousticModel_;
 
-    /**
-     * Adpat basic models on segment
-     **/
-    class SegmentwiseModelAdaptor : public Core::ReferenceCounted {
-    private:
-        ModelCombinationRef modelCombination_;
-        AcousticModelRef acousticModel_;
+public:
+    SegmentwiseModelAdaptor(ModelCombinationRef modelCombination)
+            : modelCombination_(modelCombination), acousticModel_(modelCombination->acousticModel()) {}
 
-    public:
-        SegmentwiseModelAdaptor(ModelCombinationRef modelCombination) :
-            modelCombination_(modelCombination), acousticModel_(modelCombination->acousticModel()) {}
+    ModelCombinationRef modelCombination() {
+        return modelCombination_;
+    }
 
-        ModelCombinationRef modelCombination() { return modelCombination_; }
+    void enterSegment(const Bliss::SpeechSegment* segment) {
+        if (acousticModel_)
+            acousticModel_->setKey(segment->fullName());
+    }
+    void leaveSegment(const Bliss::SpeechSegment* segment) {}
+    void reset() {}
+};
+typedef Core::Ref<SegmentwiseModelAdaptor> SegmentwiseModelAdaptorRef;
+// -------------------------------------------------------------------------
 
-        void enterSegment(const Bliss::SpeechSegment *segment) {
-            if (acousticModel_)
-                acousticModel_->setKey(segment->fullName());
-        }
-        void leaveSegment(const Bliss::SpeechSegment *segment) {}
-        void reset() {}
-    };
-    typedef Core::Ref<SegmentwiseModelAdaptor> SegmentwiseModelAdaptorRef;
-    // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+/**
+ * Feature extraction
+ **/
+typedef Core::Ref<Speech::DataSource> DataSourceRef;
+typedef Core::Ref<Speech::Feature>    FeatureRef;
+typedef std::vector<FeatureRef>       FeatureList;
 
+/**
+ * Adpat feature extraction on segment
+ **/
+class SegmentwiseFeatureExtractor : public virtual Core::Component, public Core::ReferenceCounted {
+private:
+    DataSourceRef    dataSource_;
+    Core::XmlChannel statisticsChannel_;
 
+    std::vector<std::string> portNames_;
+    std::vector<size_t>      nFrames_;
 
-    // -------------------------------------------------------------------------
-    /**
-     * Feature extraction
-     **/
-    typedef Core::Ref<Speech::DataSource> DataSourceRef;
-    typedef Core::Ref<Speech::Feature> FeatureRef;
-    typedef std::vector<FeatureRef> FeatureList;
+    u32         nRecordings_;
+    u32         nSegments_;
+    std::string lastRecordingName_;
+    std::string lastSegmentName_;
 
-    /**
-     * Adpat feature extraction on segment
-     **/
-    class SegmentwiseFeatureExtractor : public virtual Core::Component, public Core::ReferenceCounted {
-    private:
-        DataSourceRef dataSource_;
-        Core::XmlChannel statisticsChannel_;
+protected:
+    void enterRecording(const Bliss::Recording* recording);
 
-        std::vector<std::string> portNames_;
-        std::vector<size_t> nFrames_;
+public:
+    SegmentwiseFeatureExtractor(const Core::Configuration& config, DataSourceRef dataSource);
+    virtual ~SegmentwiseFeatureExtractor();
 
-        u32 nRecordings_;
-        u32 nSegments_;
-        std::string lastRecordingName_;
-        std::string lastSegmentName_;
+    DataSourceRef extractor() {
+        return dataSource_;
+    }
 
-    protected:
-        void enterRecording(const Bliss::Recording *recording);
+    void enterSegment(const Bliss::SpeechSegment* segment);
+    void leaveSegment(const Bliss::SpeechSegment* segment);
+    void reset();
+};
+typedef Core::Ref<SegmentwiseFeatureExtractor> SegmentwiseFeatureExtractorRef;
+// -------------------------------------------------------------------------
 
-    public:
-        SegmentwiseFeatureExtractor(const Core::Configuration &config, DataSourceRef dataSource);
-        virtual ~SegmentwiseFeatureExtractor();
+// -------------------------------------------------------------------------
+/**
+ * 1) adapt feature extraction and models on segment
+ * 2) process all features in segment, verify consistence with acoustic model -> call processFeature for each extracted feature
+ **/
+class SegmentwiseSpeechProcessor {
+private:
+    SegmentwiseFeatureExtractorRef featureExtractor_;
+    SegmentwiseModelAdaptorRef     modelAdaptor_;
 
-        DataSourceRef extractor() { return dataSource_; }
+protected:
+    virtual void process(const FeatureList&) = 0;
 
-        void enterSegment(const Bliss::SpeechSegment *segment);
-        void leaveSegment(const Bliss::SpeechSegment *segment);
-        void reset();
-    };
-    typedef Core::Ref<SegmentwiseFeatureExtractor> SegmentwiseFeatureExtractorRef;
-    // -------------------------------------------------------------------------
+public:
+    SegmentwiseSpeechProcessor(const Core::Configuration& config, ModelCombinationRef = ModelCombinationRef());
+    SegmentwiseSpeechProcessor(SegmentwiseFeatureExtractorRef featureExtractor, SegmentwiseModelAdaptorRef modelAdaptor);
+    virtual ~SegmentwiseSpeechProcessor();
 
+    void processSegment(const Bliss::SpeechSegment* segment);
+    void reset();
+};
+// -------------------------------------------------------------------------
 
+}  // namespace Flf
 
-    // -------------------------------------------------------------------------
-    /**
-     * 1) adapt feature extraction and models on segment
-     * 2) process all features in segment, verify consistence with acoustic model -> call processFeature for each extracted feature
-     **/
-    class SegmentwiseSpeechProcessor {
-    private:
-        SegmentwiseFeatureExtractorRef featureExtractor_;
-        SegmentwiseModelAdaptorRef modelAdaptor_;
-    protected:
-        virtual void process(const FeatureList &) = 0;
-    public:
-        SegmentwiseSpeechProcessor(const Core::Configuration &config, ModelCombinationRef = ModelCombinationRef());
-        SegmentwiseSpeechProcessor(SegmentwiseFeatureExtractorRef featureExtractor, SegmentwiseModelAdaptorRef modelAdaptor);
-        virtual ~SegmentwiseSpeechProcessor();
-
-        void processSegment(const Bliss::SpeechSegment *segment);
-        void reset();
-    };
-    // -------------------------------------------------------------------------
-
-} // namespace
-
-#endif // _FLF_SEGMENTWISE_SPEECH_PROCESSOR_HH
+#endif  // _FLF_SEGMENTWISE_SPEECH_PROCESSOR_HH

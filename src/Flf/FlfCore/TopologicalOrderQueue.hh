@@ -22,61 +22,68 @@
 
 namespace Flf {
 
-    /**
-     * Priority queue for states using the topological order for states.
-     *
-     **/
-    struct WeakTopologicalOrder {
-                ConstStateMapRef topologicalOrder;
-                WeakTopologicalOrder(ConstStateMapRef topologicalOrder) :
-                        topologicalOrder(topologicalOrder) {}
-                bool operator() (Fsa::StateId sid1, Fsa::StateId sid2) const
-                        { return (*topologicalOrder)[sid1] < (*topologicalOrder)[sid2]; }
-    };
-    class TopologicalOrderQueue :
-                public Core::PriorityQueue<Fsa::StateId, WeakTopologicalOrder>,
-                public Core::ReferenceCounted {
-                typedef Core::PriorityQueue<Fsa::StateId, WeakTopologicalOrder> Precursor;
-    private:
-                ConstStateMapRef topologicalOrder_;
-    public:
-                TopologicalOrderQueue(const WeakTopologicalOrder &weakOrder) :
-                        Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
-                ConstStateMapRef getTopologicalOrder() const { return topologicalOrder_; }
-    };
-    typedef Core::Ref<TopologicalOrderQueue> TopologicalOrderQueueRef;
+/**
+ * Priority queue for states using the topological order for states.
+ *
+ **/
+struct WeakTopologicalOrder {
+    ConstStateMapRef topologicalOrder;
+    WeakTopologicalOrder(ConstStateMapRef topologicalOrder)
+            : topologicalOrder(topologicalOrder) {}
+    bool operator()(Fsa::StateId sid1, Fsa::StateId sid2) const {
+        return (*topologicalOrder)[sid1] < (*topologicalOrder)[sid2];
+    }
+};
+class TopologicalOrderQueue : public Core::PriorityQueue<Fsa::StateId, WeakTopologicalOrder>,
+                              public Core::ReferenceCounted {
+    typedef Core::PriorityQueue<Fsa::StateId, WeakTopologicalOrder> Precursor;
 
-    TopologicalOrderQueueRef createTopologicalOrderQueue(
-                ConstLatticeRef l, ConstStateMapRef topologicalOrder = ConstStateMapRef());
+private:
+    ConstStateMapRef topologicalOrder_;
 
+public:
+    TopologicalOrderQueue(const WeakTopologicalOrder& weakOrder)
+            : Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
+    ConstStateMapRef getTopologicalOrder() const {
+        return topologicalOrder_;
+    }
+};
+typedef Core::Ref<TopologicalOrderQueue> TopologicalOrderQueueRef;
 
-    /**
-     * Priority queue for states using the reverse topological state order.
-     *
-     **/
-    struct WeakReverseTopologicalOrder {
-                ConstStateMapRef topologicalOrder;
-                WeakReverseTopologicalOrder(ConstStateMapRef topologicalOrder) :
-                        topologicalOrder(topologicalOrder) {}
-                bool operator() (Fsa::StateId sid1, Fsa::StateId sid2) const
-                        { return (*topologicalOrder)[sid1] > (*topologicalOrder)[sid2]; }
-    };
-    class ReverseTopologicalOrderQueue :
-                public Core::PriorityQueue<Fsa::StateId, WeakReverseTopologicalOrder>,
-                public Core::ReferenceCounted {
-                typedef Core::PriorityQueue<Fsa::StateId, WeakReverseTopologicalOrder> Precursor;
-    private:
-                ConstStateMapRef topologicalOrder_;
-    public:
-                ReverseTopologicalOrderQueue(const WeakReverseTopologicalOrder &weakOrder) :
-                        Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
-                ConstStateMapRef getTopologicalOrder() const { return topologicalOrder_; }
-    };
-    typedef Core::Ref<ReverseTopologicalOrderQueue> ReverseTopologicalOrderQueueRef;
+TopologicalOrderQueueRef createTopologicalOrderQueue(
+        ConstLatticeRef l, ConstStateMapRef topologicalOrder = ConstStateMapRef());
 
-    ReverseTopologicalOrderQueueRef createReverseTopologicalOrderQueue(
-                ConstLatticeRef l, ConstStateMapRef topologicalOrder = ConstStateMapRef());
+/**
+ * Priority queue for states using the reverse topological state order.
+ *
+ **/
+struct WeakReverseTopologicalOrder {
+    ConstStateMapRef topologicalOrder;
+    WeakReverseTopologicalOrder(ConstStateMapRef topologicalOrder)
+            : topologicalOrder(topologicalOrder) {}
+    bool operator()(Fsa::StateId sid1, Fsa::StateId sid2) const {
+        return (*topologicalOrder)[sid1] > (*topologicalOrder)[sid2];
+    }
+};
+class ReverseTopologicalOrderQueue : public Core::PriorityQueue<Fsa::StateId, WeakReverseTopologicalOrder>,
+                                     public Core::ReferenceCounted {
+    typedef Core::PriorityQueue<Fsa::StateId, WeakReverseTopologicalOrder> Precursor;
 
-} // namespace Flf
+private:
+    ConstStateMapRef topologicalOrder_;
 
-#endif // _FLF_CORE_TOPOLOGICAL_ORDER_QUEUE_HH
+public:
+    ReverseTopologicalOrderQueue(const WeakReverseTopologicalOrder& weakOrder)
+            : Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
+    ConstStateMapRef getTopologicalOrder() const {
+        return topologicalOrder_;
+    }
+};
+typedef Core::Ref<ReverseTopologicalOrderQueue> ReverseTopologicalOrderQueueRef;
+
+ReverseTopologicalOrderQueueRef createReverseTopologicalOrderQueue(
+        ConstLatticeRef l, ConstStateMapRef topologicalOrder = ConstStateMapRef());
+
+}  // namespace Flf
+
+#endif  // _FLF_CORE_TOPOLOGICAL_ORDER_QUEUE_HH

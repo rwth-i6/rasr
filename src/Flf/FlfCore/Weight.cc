@@ -17,32 +17,31 @@
 namespace Flf {
 
 #ifdef MEM_DBG
-    u32 Scores::nScores = 0;
-    void * Scores::operator new(size_t size, size_t n) {
-        ++nScoresRef_;
-        return ::malloc(size + n * sizeof(Score));
-    }
-    void Scores::operator delete(void *ptr) {
-        --nScoresRef_;
-        ::free(ptr);
-    }
+u32   Scores::nScores = 0;
+void* Scores::operator new(size_t size, size_t n) {
+    ++nScoresRef_;
+    return ::malloc(size + n * sizeof(Score));
+}
+void Scores::operator delete(void* ptr) {
+    --nScoresRef_;
+    ::free(ptr);
+}
 #endif
 
-    // -------------------------------------------------------------------------
-    Score Scores::project(const ScoreList &scales) const {
-        Score score = 0.0;
-        const_iterator itScore = begin();
-        for (ScoreList::const_iterator itScale = scales.begin(), endScale = scales.end();
-             itScale != endScale; ++itScale, ++itScore)
-            if (*itScale != 0.0) {
-                if (*itScore != Core::Type<Score>::max)
-                    score += (*itScale) * (*itScore);
-                else
-                    return Core::Type<Score>::max;
-            }
-        // score += (*itScale) * (*itScore);
-        return score;
-    }
-    // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+Score Scores::project(const ScoreList& scales) const {
+    Score          score   = 0.0;
+    const_iterator itScore = begin();
+    for (ScoreList::const_iterator itScale = scales.begin(), endScale = scales.end();
+         itScale != endScale; ++itScale, ++itScore)
+        if (*itScale != 0.0) {
+            if (*itScore != Core::Type<Score>::max)
+                score += (*itScale) * (*itScore);
+            else
+                return Core::Type<Score>::max;
+        }
+    return score;
+}
+// -------------------------------------------------------------------------
 
-} // namespace Flf
+}  // namespace Flf

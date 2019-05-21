@@ -20,38 +20,39 @@
 
 namespace Flf {
 
-    /**
-     * Base class of a network processor.
-     *
-     * Processes a network as long as all nodes are 'good'.
-     **/
-    class Processor : virtual public Core::Component {
-    protected:
-        mutable Network *network_;
-        NetworkCrawlerRef crawler_;
-    public:
-        Processor(const Core::Configuration &config, Network *network);
-        virtual ~Processor();
+/**
+ * Base class of a network processor.
+ *
+ * Processes a network as long as all nodes are 'good'.
+ **/
+class Processor : virtual public Core::Component {
+protected:
+    mutable Network*  network_;
+    NetworkCrawlerRef crawler_;
 
-        // processed network
-        const Network& network() const;
-        // default crawler
-        const NetworkCrawler& crawler() const;
-        // new crawler for asynchronous network processing
-        NetworkCrawlerRef newCrawler() const;
+public:
+    Processor(const Core::Configuration& config, Network* network);
+    virtual ~Processor();
 
-        virtual bool init(const std::vector<std::string> &arguments);
-        virtual void run();
-        virtual void finalize();
-    };
+    // processed network
+    const Network& network() const;
+    // default crawler
+    const NetworkCrawler& crawler() const;
+    // new crawler for asynchronous network processing
+    NetworkCrawlerRef newCrawler() const;
 
-    /*
-      - Reads a file line by line and interpret each line as list of arguments
-      - Provides at port x argument number x
-      - Alternatively, read a single list of arguments from command line
-    */
-    NodeRef createBatchNode(const std::string &name, const Core::Configuration &config);
+    virtual bool init(const std::vector<std::string>& arguments);
+    virtual void run();
+    virtual void finalize();
+};
 
-} // namespace Flf
+/*
+ * - Reads a file line by line and interpret each line as list of arguments
+ * - Provides at port x argument number x
+ * - Alternatively, read a single list of arguments from command line
+ */
+NodeRef createBatchNode(const std::string& name, const Core::Configuration& config);
 
-#endif // _FLF_PROCESSOR_HH
+}  // namespace Flf
+
+#endif  // _FLF_PROCESSOR_HH

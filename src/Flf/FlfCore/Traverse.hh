@@ -20,39 +20,41 @@
 
 namespace Flf {
 
-    /**
-     * Traverse lattice using dfs, see Fsa/tDfs.hh
-     **/
-    typedef Ftl::DfsState<Lattice> DfsState;
+/**
+ * Traverse lattice using dfs, see Fsa/tDfs.hh
+ **/
+typedef Ftl::DfsState<Lattice> DfsState;
 
+/**
+ * Traverse a lattice.
+ *
+ * traverseDfs:
+ *  Traverse lattice using the dfs algorithm.
+ * traverseInTopologicalOrder:
+ *  Traverse lattice in topological order; lattice has to be acyclic.
+ * traverse:
+ *   Use fastes way to traverse lattice, i.e.
+ *   if pre-calculated topological order exists, use traverseInTopologicalOrder,
+ *   else, use traverseDfs.
+ *
+ **/
+class TraverseState {
+protected:
+    ConstLatticeRef l;
 
-    /**
-     * Traverse a lattice.
-     *
-     * traverseDfs:
-     *  Traverse lattice using the dfs algorithm.
-     * traverseInTopologicalOrder:
-     *  Traverse lattice in topological order; lattice has to be acyclic.
-     * traverse:
-     *   Use fastes way to traverse lattice, i.e.
-     *   if pre-calculated topological order exists, use traverseInTopologicalOrder,
-     *   else, use traverseDfs.
-     *
-     **/
-    class TraverseState {
-    protected:
-        ConstLatticeRef l;
-    protected:
-        virtual void exploreState(ConstStateRef sr) {}
-        virtual void exploreArc(ConstStateRef from, const Arc &a) {}
-    public:
-        TraverseState(ConstLatticeRef l) : l(l) {}
-        virtual ~TraverseState() {}
-        void traverseDfs();
-        void traverseInTopologicalOrder();
-        virtual void traverse();
-    };
+protected:
+    virtual void exploreState(ConstStateRef sr) {}
+    virtual void exploreArc(ConstStateRef from, const Arc& a) {}
 
-} // namespace Flf
+public:
+    TraverseState(ConstLatticeRef l)
+            : l(l) {}
+    virtual ~TraverseState() {}
+    void         traverseDfs();
+    void         traverseInTopologicalOrder();
+    virtual void traverse();
+};
 
-#endif // _FLF_CORE_TRAVERSE_HH
+}  // namespace Flf
+
+#endif  // _FLF_CORE_TRAVERSE_HH

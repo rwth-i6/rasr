@@ -20,46 +20,47 @@
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    void TraverseState::traverseDfs() {
-        Core::Vector<bool> visited;
-        Core::Vector<Fsa::StateId> S;
-        S.push_back(l->initialStateId());
-        while (!S.empty()) {
-            Fsa::StateId sid(S.back());
-            S.pop_back();
-            visited.grow(sid, false);
-            if (visited[sid])
-                continue;
-            visited[sid] = true;
-            ConstStateRef sr = l->getState(sid);
-            exploreState(sr);
-            for (State::const_iterator a = sr->begin(); a != sr->end(); ++a) {
-                exploreArc(sr, *a);
-                S.push_back(a->target());
-            }
+// -------------------------------------------------------------------------
+void TraverseState::traverseDfs() {
+    Core::Vector<bool>         visited;
+    Core::Vector<Fsa::StateId> S;
+    S.push_back(l->initialStateId());
+    while (!S.empty()) {
+        Fsa::StateId sid(S.back());
+        S.pop_back();
+        visited.grow(sid, false);
+        if (visited[sid])
+            continue;
+        visited[sid]     = true;
+        ConstStateRef sr = l->getState(sid);
+        exploreState(sr);
+        for (State::const_iterator a = sr->begin(); a != sr->end(); ++a) {
+            exploreArc(sr, *a);
+            S.push_back(a->target());
         }
     }
+}
 
-    void TraverseState::traverseInTopologicalOrder() {
-        if (!sortTopologically(l))
-            Core::Application::us()->criticalError(
+void TraverseState::traverseInTopologicalOrder() {
+    if (!sortTopologically(l))
+        Core::Application::us()->criticalError(
                 "\"%s\" has no topological order", l->describe().c_str());
-        for (StateMap::const_iterator itSid = l->getTopologicalSort()->begin(),
-                 endSid = l->getTopologicalSort()->end(); itSid != endSid; ++itSid) {
-            ConstStateRef sr = l->getState(*itSid);
-            exploreState(sr);
-            for (State::const_iterator a = sr->begin(); a != sr->end(); ++a)
-                exploreArc(sr, *a);
-        }
+    for (StateMap::const_iterator itSid  = l->getTopologicalSort()->begin(),
+                                  endSid = l->getTopologicalSort()->end();
+         itSid != endSid; ++itSid) {
+        ConstStateRef sr = l->getState(*itSid);
+        exploreState(sr);
+        for (State::const_iterator a = sr->begin(); a != sr->end(); ++a)
+            exploreArc(sr, *a);
     }
+}
 
-    void TraverseState::traverse() {
-        if (l->getTopologicalSort())
-            traverseInTopologicalOrder();
-        else
-            traverseDfs();
-    }
-    // -------------------------------------------------------------------------
+void TraverseState::traverse() {
+    if (l->getTopologicalSort())
+        traverseInTopologicalOrder();
+    else
+        traverseDfs();
+}
+// -------------------------------------------------------------------------
 
-} // namespace Flf
+}  // namespace Flf

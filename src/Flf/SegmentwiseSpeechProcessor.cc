@@ -14,38 +14,35 @@
  */
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
-#include <Speech/Module.hh>
 #include <SegmentwiseSpeechProcessor.hh>
-
+#include <Speech/Module.hh>
 
 namespace Flf {
 
 // -------------------------------------------------------------------------
-AcousticModelRef getAm(const Core::Configuration &config) {
+AcousticModelRef getAm(const Core::Configuration& config) {
     return Am::Module::instance().createAcousticModel(config, Bliss::LexiconRef(Lexicon::us()));
 }
 
-ScaledLanguageModelRef getLm(const Core::Configuration &config) {
+ScaledLanguageModelRef getLm(const Core::Configuration& config) {
     return Lm::Module::instance().createScaledLanguageModel(config, Bliss::LexiconRef(Lexicon::us()));
 }
 
-ModelCombinationRef getModelCombination(const Core::Configuration &config, AcousticModelRef acousticModel, ScaledLanguageModelRef languageModel) {
+ModelCombinationRef getModelCombination(const Core::Configuration& config, AcousticModelRef acousticModel, ScaledLanguageModelRef languageModel) {
     return ModelCombinationRef(new Speech::ModelCombination(config, Bliss::LexiconRef(Lexicon::us()), acousticModel, languageModel));
 }
 // -------------------------------------------------------------------------
 
-
 // -------------------------------------------------------------------------
-SegmentwiseFeatureExtractor::SegmentwiseFeatureExtractor(const Core::Configuration &config, DataSourceRef dataSource) :
-    Core::Component(config), dataSource_(dataSource),
-    statisticsChannel_(config, "statistics") {
+SegmentwiseFeatureExtractor::SegmentwiseFeatureExtractor(const Core::Configuration& config, DataSourceRef dataSource)
+        : Core::Component(config), dataSource_(dataSource), statisticsChannel_(config, "statistics") {
     dataSource_->respondToDelayedErrors();
     nRecordings_ = nSegments_ = 0;
 }
 
 SegmentwiseFeatureExtractor::~SegmentwiseFeatureExtractor() {}
 
-void SegmentwiseFeatureExtractor::enterRecording(const Bliss::Recording *recording) {
+void SegmentwiseFeatureExtractor::enterRecording(const Bliss::Recording* recording) {
     if (recording->fullName() == lastRecordingName_)
         return;
     std::string inputFile;
@@ -65,7 +62,7 @@ void SegmentwiseFeatureExtractor::enterRecording(const Bliss::Recording *recordi
     ++nRecordings_;
 }
 
-void SegmentwiseFeatureExtractor::enterSegment(const Bliss::SpeechSegment *segment) {
+void SegmentwiseFeatureExtractor::enterSegment(const Bliss::SpeechSegment* segment) {
     enterRecording(segment->recording());
     dataSource_->setParameter("id", segment->fullName());
     dataSource_->setParameter("segment-index", Core::form("%d", u32(nSegments_)));
@@ -77,15 +74,15 @@ void SegmentwiseFeatureExtractor::enterSegment(const Bliss::SpeechSegment *segme
     // disassemble segment fullname: .../segment-1/segment-0 and corpus-0/corpus-1/...
     dataSource_->setParameter("segment", segment->fullName());
     dataSource_->setParameter("segment-0", segment->name());
-    u32 segmentLevel = 1;
-    Bliss::CorpusSection *corpusSection = segment->parent();
-    while(corpusSection) {
+    u32                   segmentLevel  = 1;
+    Bliss::CorpusSection* corpusSection = segment->parent();
+    while (corpusSection) {
         dataSource_->setParameter("corpus-" + Core::form("%d", corpusSection->level()),
-                corpusSection->name());
+                                  corpusSection->name());
         dataSource_->setParameter("segment-" + Core::form("%d", segmentLevel),
-                corpusSection->name());
+                                  corpusSection->name());
         corpusSection = corpusSection->parent();
-        segmentLevel ++;
+        segmentLevel++;
     }
     if (segment->speaker()) {
         dataSource_->setParameter("speaker", segment->speaker()->name());
@@ -96,19 +93,17 @@ void SegmentwiseFeatureExtractor::enterSegment(const Bliss::SpeechSegment *segme
     ++nSegments_;
 }
 
-void SegmentwiseFeatureExtractor::leaveSegment(const Bliss::SpeechSegment *segment) {
+void SegmentwiseFeatureExtractor::leaveSegment(const Bliss::SpeechSegment* segment) {
     if (statisticsChannel_.isOpen()) {
-        const std::vector<size_t> &nFrames(dataSource_->nFrames());
-        for(size_t i = nFrames_.size(); i < nFrames.size(); ++i) {
+        const std::vector<size_t>& nFrames(dataSource_->nFrames());
+        for (size_t i = nFrames_.size(); i < nFrames.size(); ++i) {
             portNames_.push_back(dataSource_->outputName(i));
             nFrames_.push_back(0);
         }
         statisticsChannel_ << Core::XmlOpen("statistics");
-        for(size_t i = 0; i < nFrames_.size(); ++i) {
+        for (size_t i = 0; i < nFrames_.size(); ++i) {
             nFrames_[i] += nFrames[i];
-            statisticsChannel_ << Core::XmlEmpty("frames")
-            + Core::XmlAttribute("port", portNames_[i])
-            + Core::XmlAttribute("number", nFrames[i]);
+            statisticsChannel_ << Core::XmlEmpty("frames") + Core::XmlAttribute("port", portNames_[i]) + Core::XmlAttribute("number", nFrames[i]);
         }
         statisticsChannel_ << Core::XmlClose("statistics");
     }
@@ -122,10 +117,8 @@ void SegmentwiseFeatureExtractor::reset() {
         statisticsChannel_ << Core::XmlOpen("statistics");
         statisticsChannel_ << Core::XmlEmpty("recordings") + Core::XmlAttribute("number", nRecordings_);
         statisticsChannel_ << Core::XmlEmpty("segments") + Core::XmlAttribute("number", nSegments_);
-        for(size_t i = 0; i < nFrames_.size(); ++i) {
-            statisticsChannel_ << Core::XmlEmpty("frames")
-            + Core::XmlAttribute("port", portNames_[i])
-            + Core::XmlAttribute("number", nFrames_[i]);
+        for (size_t i = 0; i < nFrames_.size(); ++i) {
+            statisticsChannel_ << Core::XmlEmpty("frames") + Core::XmlAttribute("port", portNames_[i]) + Core::XmlAttribute("number", nFrames_[i]);
         }
         statisticsChannel_ << Core::XmlClose("statistics");
         portNames_.clear();
@@ -137,32 +130,31 @@ void SegmentwiseFeatureExtractor::reset() {
 }
 // -------------------------------------------------------------------------
 
-
 // -------------------------------------------------------------------------
-SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(const Core::Configuration &config, ModelCombinationRef modelCombination) {
+SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(const Core::Configuration& config, ModelCombinationRef modelCombination) {
     Core::Configuration featureExtractionConfig(config, "feature-extraction");
-    DataSourceRef dataSource = DataSourceRef(Speech::Module::instance().createDataSource(featureExtractionConfig));
-    featureExtractor_ = SegmentwiseFeatureExtractorRef(new SegmentwiseFeatureExtractor(featureExtractionConfig, dataSource));
-    modelAdaptor_ = SegmentwiseModelAdaptorRef(new SegmentwiseModelAdaptor(modelCombination));
+    DataSourceRef       dataSource = DataSourceRef(Speech::Module::instance().createDataSource(featureExtractionConfig));
+    featureExtractor_              = SegmentwiseFeatureExtractorRef(new SegmentwiseFeatureExtractor(featureExtractionConfig, dataSource));
+    modelAdaptor_                  = SegmentwiseModelAdaptorRef(new SegmentwiseModelAdaptor(modelCombination));
 }
 
-SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(SegmentwiseFeatureExtractorRef featureExtractor, SegmentwiseModelAdaptorRef modelAdaptor) :
-    featureExtractor_(featureExtractor), modelAdaptor_(modelAdaptor) {}
+SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(SegmentwiseFeatureExtractorRef featureExtractor, SegmentwiseModelAdaptorRef modelAdaptor)
+        : featureExtractor_(featureExtractor), modelAdaptor_(modelAdaptor) {}
 
 SegmentwiseSpeechProcessor::~SegmentwiseSpeechProcessor() {}
 
-void SegmentwiseSpeechProcessor::processSegment(const Bliss::SpeechSegment *segment) {
+void SegmentwiseSpeechProcessor::processSegment(const Bliss::SpeechSegment* segment) {
     modelAdaptor_->enterSegment(segment);
     featureExtractor_->enterSegment(segment);
     DataSourceRef dataSource = featureExtractor_->extractor();
-    FeatureList features;
-    FeatureRef feature;
+    FeatureList   features;
+    FeatureRef    feature;
     dataSource->initialize(const_cast<Bliss::SpeechSegment*>(segment));
     if (dataSource->getData(feature)) {
         // try to check the dimension only once for each segment
         AcousticModelRef acousticModel = modelAdaptor_->modelCombination()->acousticModel();
         if (acousticModel) {
-            Mm::FeatureDescription *description = feature->getDescription(*featureExtractor_);
+            Mm::FeatureDescription* description = feature->getDescription(*featureExtractor_);
             if (!acousticModel->isCompatible(*description))
                 acousticModel->respondToDelayedErrors();
             delete description;
@@ -184,4 +176,4 @@ void SegmentwiseSpeechProcessor::reset() {
 }
 // -------------------------------------------------------------------------
 
-} // namespace
+}  // namespace Flf

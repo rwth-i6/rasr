@@ -15,96 +15,94 @@
 #ifndef _FLF_CORE_LATTICE_INTERNAL_HH
 #define _FLF_CORE_LATTICE_INTERNAL_HH
 
-#include <Fsa/tAutomaton.hh>
 #include <Fsa/Automaton.hh>
+#include <Fsa/tAutomaton.hh>
 
-#include "Types.hh"
 #include "Lattice.hh"
+#include "Types.hh"
 
 namespace Ftl {
 
-    // -------------------------------------------------------------------------
-    /**
-     * Specialisations for flf specific behavior
-     **/
-    template<>
-    void WrapperAutomaton<Fsa::Automaton, Flf::Lattice>::setMaster(Fsa::ConstAutomatonRef fsa);
+// -------------------------------------------------------------------------
+/**
+ * Specialisations for flf specific behavior
+ **/
+template<>
+void WrapperAutomaton<Fsa::Automaton, Flf::Lattice>::setMaster(Fsa::ConstAutomatonRef fsa);
 
-    template<>
-    void WrapperAutomaton<Flf::Lattice, Flf::Lattice>::setMaster(Flf::ConstLatticeRef fsa);
+template<>
+void WrapperAutomaton<Flf::Lattice, Flf::Lattice>::setMaster(Flf::ConstLatticeRef fsa);
 
-    template<>
-    void SlaveAutomaton<Flf::Lattice>::setMaster(Flf::ConstLatticeRef fsa);
-    // -------------------------------------------------------------------------
+template<>
+void SlaveAutomaton<Flf::Lattice>::setMaster(Flf::ConstLatticeRef fsa);
+// -------------------------------------------------------------------------
 
-}
-
+}  // namespace Ftl
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    /**
-     * Wrapper lattice/automaton;
-     * generic fsa-to-flf and flf-to-fsa.
-     *
-     **/
-    typedef Ftl::WrapperAutomaton<Fsa::Automaton, Lattice> FsaToFlfWrapperLattice;
+// -------------------------------------------------------------------------
+/**
+ * Wrapper lattice/automaton;
+ * generic fsa-to-flf and flf-to-fsa.
+ *
+ **/
+typedef Ftl::WrapperAutomaton<Fsa::Automaton, Lattice> FsaToFlfWrapperLattice;
 
-    typedef Ftl::WrapperAutomaton<Lattice, Lattice> FlfToFlfWrapperLattice;
+typedef Ftl::WrapperAutomaton<Lattice, Lattice> FlfToFlfWrapperLattice;
 
+/**
+ * Slave lattice;
+ * specialisation of wrapper lattice, generic flf-to-flf.
+ *
+ **/
+typedef Ftl::SlaveAutomaton<Lattice> SlaveLattice;
 
-    /**
-     * Slave lattice;
-     * specialisation of wrapper lattice, generic flf-to-flf.
-     *
-     **/
-    typedef Ftl::SlaveAutomaton<Lattice> SlaveLattice;
+/**
+ * Modify lattice;
+ * specialisation of slave lattice, structure preserving flf-to-flf.
+ *
+ **/
+typedef Ftl::ModifyAutomaton<Lattice> ModifyLattice;
 
+/**
+ * Rescore lattice;
+ * specialisation of modify lattice, structure preserving flf-to-flf.
+ *
+ * Framework for modifying scores, but not touching the structure,
+ * see ModifyState.
+ *
+ * For each state the method "rescore" is called.
+ *
+ **/
+class RescoreLattice : public SlaveLattice {
+    typedef SlaveLattice Precursor;
 
-    /**
-     * Modify lattice;
-     * specialisation of slave lattice, structure preserving flf-to-flf.
-     *
-     **/
-    typedef Ftl::ModifyAutomaton<Lattice> ModifyLattice;
+public:
+    class StateRescorer;
+    friend class StateRescorer;
 
+private:
+    const StateRescorer* rescore_;
 
-    /**
-     * Rescore lattice;
-     * specialisation of modify lattice, structure preserving flf-to-flf.
-     *
-     * Framework for modifying scores, but not touching the structure,
-     * see ModifyState.
-     *
-     * For each state the method "rescore" is called.
-     *
-    **/
-    class RescoreLattice : public SlaveLattice {
-        typedef SlaveLattice Precursor;
-    public:
-        class StateRescorer;
-        friend class StateRescorer;
-    private:
-        const StateRescorer *rescore_;
-    public:
-        RescoreLattice(ConstLatticeRef l, RescoreMode rescoreMode);
-        virtual ~RescoreLattice();
-        virtual ConstStateRef getState(Fsa::StateId sid) const;
-        virtual void rescore(State *sp) const = 0;
-    };
-    // -------------------------------------------------------------------------
+public:
+    RescoreLattice(ConstLatticeRef l, RescoreMode rescoreMode);
+    virtual ~RescoreLattice();
+    virtual ConstStateRef getState(Fsa::StateId sid) const;
+    virtual void          rescore(State* sp) const = 0;
+};
+// -------------------------------------------------------------------------
 
+// -------------------------------------------------------------------------
+inline State* clone(const Semiring& semiring, ConstStateRef sr) {
+    State* sp = new State(*sr);
+    if (sp->isFinal())
+        sp->weight_ = semiring.clone(sp->weight_);
+    for (State::iterator a = sp->begin(); a != sp->end(); ++a)
+        a->weight_ = semiring.clone(a->weight_);
+    return sp;
+}
+// -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    inline State * clone(const Semiring &semiring, ConstStateRef sr) {
-        State *sp = new State(*sr);
-        if (sp->isFinal())
-            sp->weight_ = semiring.clone(sp->weight_);
-        for (State::iterator a = sp->begin(); a != sp->end(); ++a)
-            a->weight_ = semiring.clone(a->weight_);
-        return sp;
-    }
-    // -------------------------------------------------------------------------
-
-} // namespace Flf
-#endif // _FLF_CORE_LATTICE_INTERNAL_HH
+}  // namespace Flf
+#endif  // _FLF_CORE_LATTICE_INTERNAL_HH

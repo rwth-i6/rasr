@@ -21,52 +21,57 @@
 
 #include "Network.hh"
 
-
 namespace Flf {
 
-    /**
-     * Function producing a node.
-     **/
-    typedef NodeRef (*NodeCreatorFcn)(const std::string &name, const Core::Configuration &config);
-    struct NodeCreator {
-        const std::string name;
-        const std::string generalDesc;
-        const std::string configDesc;
-        const std::string portDesc;
-        NodeCreatorFcn f;
-        // old, deprecated
-        NodeCreator(const std::string &name, const std::string &desc, NodeCreatorFcn f) :
-            name(name), generalDesc(desc), f(f) { require(f); }
-        // new
-        NodeCreator(const std::string &name,
-                    const std::string &generalDesc,
-                    const std::string &configDesc,
-                    const std::string &portDesc,
-                    NodeCreatorFcn f) :
-            name(name), generalDesc(generalDesc), configDesc(configDesc), portDesc(portDesc), f(f) { require(f); }
-        NodeRef operator() (const std::string &name, const Core::Configuration &config) {
-            return f(name, config);
-        }
-        void dump(std::ostream &o) const;
-    };
+/**
+ * Function producing a node.
+ **/
+typedef NodeRef (*NodeCreatorFcn)(const std::string& name, const Core::Configuration& config);
+struct NodeCreator {
+    const std::string name;
+    const std::string generalDesc;
+    const std::string configDesc;
+    const std::string portDesc;
+    NodeCreatorFcn    f;
+    // old, deprecated
+    NodeCreator(const std::string& name, const std::string& desc, NodeCreatorFcn f)
+            : name(name), generalDesc(desc), f(f) {
+        require(f);
+    }
+    // new
+    NodeCreator(const std::string& name,
+                const std::string& generalDesc,
+                const std::string& configDesc,
+                const std::string& portDesc,
+                NodeCreatorFcn     f)
+            : name(name), generalDesc(generalDesc), configDesc(configDesc), portDesc(portDesc), f(f) {
+        require(f);
+    }
+    NodeRef operator()(const std::string& name, const Core::Configuration& config) {
+        return f(name, config);
+    }
+    void dump(std::ostream& o) const;
+};
 
-    /**
-     * Class to register node creator and
-     * creates node from given name and node config.
-    **/
-    class NodeFactory {
-    public:
-        static const Core::ParameterString paramNodeType;
-    private:
-        typedef std::unordered_map<std::string, NodeCreator, Core::StringHash> NodeCreatorMap;
-        NodeCreatorMap creatorMap_;
-    public:
-        NodeFactory();
-        bool add(const NodeCreator &creator);
-        NodeRef createNode(const std::string &name, const Core::Configuration &config);
-        void dumpNodeList(std::ostream &o) const;
-        void dumpNodeDescription(std::ostream &o, const std::string &name) const;
-    };
+/**
+ * Class to register node creator and
+ * creates node from given name and node config.
+ **/
+class NodeFactory {
+public:
+    static const Core::ParameterString paramNodeType;
 
-} // namespace
-#endif // _FLF_NODE_FACTORY_HH
+private:
+    typedef std::unordered_map<std::string, NodeCreator, Core::StringHash> NodeCreatorMap;
+    NodeCreatorMap                                                         creatorMap_;
+
+public:
+    NodeFactory();
+    bool    add(const NodeCreator& creator);
+    NodeRef createNode(const std::string& name, const Core::Configuration& config);
+    void    dumpNodeList(std::ostream& o) const;
+    void    dumpNodeDescription(std::ostream& o, const std::string& name) const;
+};
+
+}  // namespace Flf
+#endif  // _FLF_NODE_FACTORY_HH

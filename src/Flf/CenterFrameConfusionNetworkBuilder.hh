@@ -16,40 +16,42 @@
 #define _FLF_CENTER_FRAME_CONFUSION_NETWORK_BUILDER_HH
 
 /**
-   CN construction algorithm based on the selection of a frame representing the center of the next CN slot,
-   for details see my thesis, chapter 4.4.4 (The Center-Frame CN Construction Algorithm)
-**/
+ * CN construction algorithm based on the selection of a frame representing the center of the next CN slot,
+ * for details see my thesis, chapter 4.4.4 (The Center-Frame CN Construction Algorithm)
+ **/
 
-#include "FlfCore/Lattice.hh"
 #include "ConfusionNetwork.hh"
+#include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
 namespace Flf {
 
-        class CenterFrameCnFactory : public ConfusionNetworkFactory {
-                friend class ConfusionNetworkFactory;
-        private:
-                struct Internal;
-                Internal *internal_;
-        private:
-                CenterFrameCnFactory(const Core::Configuration &config);
-                CenterFrameCnFactory();
-        public:
-                virtual ~CenterFrameCnFactory();
-                virtual void dump(std::ostream &os) const;
-                /*
-                  fCN is used for initialization of the algorithm (see cc-file);
-                  if not given it is calculated from lattice (and FB scores)
-                */
-                virtual void build(ConstLatticeRef l, ConstFwdBwdRef fb = ConstFwdBwdRef());
-                virtual void reset();
-                virtual ConstConfusionNetworkRef getCn(ScoreId posteriorId, bool mapping) const;
-                virtual std::pair<ConstConfusionNetworkRef, ConstLatticeRef> getNormalizedCn(ScoreId confidenceId, bool mapping) const;
-        };
+class CenterFrameCnFactory : public ConfusionNetworkFactory {
+    friend class ConfusionNetworkFactory;
 
+private:
+    struct Internal;
+    Internal* internal_;
 
-    NodeRef createCenterFrameCnBuilderNode(const std::string &name, const Core::Configuration &config);
+private:
+    CenterFrameCnFactory(const Core::Configuration& config);
+    CenterFrameCnFactory();
 
-} // namespace
+public:
+    virtual ~CenterFrameCnFactory();
+    virtual void dump(std::ostream& os) const;
+    /*
+     * fCN is used for initialization of the algorithm (see cc-file);
+     * if not given it is calculated from lattice (and FB scores)
+     */
+    virtual void                                                 build(ConstLatticeRef l, ConstFwdBwdRef fb = ConstFwdBwdRef());
+    virtual void                                                 reset();
+    virtual ConstConfusionNetworkRef                             getCn(ScoreId posteriorId, bool mapping) const;
+    virtual std::pair<ConstConfusionNetworkRef, ConstLatticeRef> getNormalizedCn(ScoreId confidenceId, bool mapping) const;
+};
 
-#endif // _FLF_CENTER_FRAME_CONFUSION_NETWORK_BUILDER_HH
+NodeRef createCenterFrameCnBuilderNode(const std::string& name, const Core::Configuration& config);
+
+}  // namespace Flf
+
+#endif  // _FLF_CENTER_FRAME_CONFUSION_NETWORK_BUILDER_HH

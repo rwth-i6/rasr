@@ -19,58 +19,61 @@
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    /*
-      - Rescale lattice, i.e. change semiring scales (and semiring)
-    */
-    class RescaleNode : public FilterNode {
-    public:
-        static const Core::ParameterFloat paramScale;
-        static const Core::ParameterString paramKey;
-    private:
-        ConstSemiringRef lastSemiring_;
-        ConstSemiringRef lastRescaledSemiring_;
-    private:
-        virtual ConstLatticeRef filter(ConstLatticeRef l) {
-            if (!l)
-                return l;
-            if (!lastRescaledSemiring_ || (l->semiring().get() != lastSemiring_.get())) {
-                lastSemiring_ = l->semiring();
-                lastRescaledSemiring_ = cloneSemiring(l->semiring());
-                ScoreId id = 0;
-                for (KeyList::const_iterator itKey = l->semiring()->keys().begin();
-                     itKey != l->semiring()->keys().end(); ++itKey, ++id) {
-                    if (itKey->empty())
-                        warning("RescaleNode: Dimension %zu has no symbolic name", id);
-                    else {
-                        Score scale = paramScale(select(*itKey));
-                        if (scale != Semiring::UndefinedScale)
-                            lastRescaledSemiring_->setScale(id, scale);
-                        Key key = paramKey(select(*itKey));
-                        if (!key.empty())
-                            lastRescaledSemiring_->setKey(id, key);
-                    }
+// -------------------------------------------------------------------------
+/*
+ * - Rescale lattice, i.e. change semiring scales (and semiring)
+ */
+class RescaleNode : public FilterNode {
+public:
+    static const Core::ParameterFloat  paramScale;
+    static const Core::ParameterString paramKey;
+
+private:
+    ConstSemiringRef lastSemiring_;
+    ConstSemiringRef lastRescaledSemiring_;
+
+private:
+    virtual ConstLatticeRef filter(ConstLatticeRef l) {
+        if (!l)
+            return l;
+        if (!lastRescaledSemiring_ || (l->semiring().get() != lastSemiring_.get())) {
+            lastSemiring_         = l->semiring();
+            lastRescaledSemiring_ = cloneSemiring(l->semiring());
+            ScoreId id            = 0;
+            for (KeyList::const_iterator itKey = l->semiring()->keys().begin();
+                 itKey != l->semiring()->keys().end(); ++itKey, ++id) {
+                if (itKey->empty())
+                    warning("RescaleNode: Dimension %zu has no symbolic name", id);
+                else {
+                    Score scale = paramScale(select(*itKey));
+                    if (scale != Semiring::UndefinedScale)
+                        lastRescaledSemiring_->setScale(id, scale);
+                    Key key = paramKey(select(*itKey));
+                    if (!key.empty())
+                        lastRescaledSemiring_->setKey(id, key);
                 }
             }
-            return changeSemiring(l, lastRescaledSemiring_);
         }
-    public:
-        RescaleNode(const std::string &name, const Core::Configuration &config) :
-            FilterNode(name, config) {}
-        virtual ~RescaleNode() {}
-    };
-    const Core::ParameterFloat RescaleNode::paramScale(
+        return changeSemiring(l, lastRescaledSemiring_);
+    }
+
+public:
+    RescaleNode(const std::string& name, const Core::Configuration& config)
+            : FilterNode(name, config) {}
+    virtual ~RescaleNode() {}
+};
+const Core::ParameterFloat RescaleNode::paramScale(
         "scale",
         "new scale",
         Semiring::UndefinedScale);
-    const Core::ParameterString RescaleNode::paramKey(
+const Core::ParameterString RescaleNode::paramKey(
         "key",
         "new key name",
         "");
 
-    NodeRef createRescaleNode(const std::string &name, const Core::Configuration &config) {
-        return NodeRef(new RescaleNode(name, config));
-    }
-    // -------------------------------------------------------------------------
+NodeRef createRescaleNode(const std::string& name, const Core::Configuration& config) {
+    return NodeRef(new RescaleNode(name, config));
+}
+// -------------------------------------------------------------------------
 
-} // namespace Flf
+}  // namespace Flf

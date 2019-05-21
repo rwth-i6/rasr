@@ -21,8 +21,8 @@
 #include <Fsa/Static.hh>
 #include <Fsa/Utility.hh>
 
-#include "FlfCore/Lattice.hh"
 #include "Archive.hh"
+#include "FlfCore/Lattice.hh"
 #include "Io.hh"
 #include "Lexicon.hh"
 
@@ -30,336 +30,318 @@
  * Implementation of RWTH's fsa based lattice format
  **/
 namespace Flf {
-    /*
-      flf format example:
+/*
+ * flf format example:
+ *
+ * <?xml version="1.0" encoding="UTF8"?>
+ * <lattice [semiring="tropical"] [type="lattice"]>
+ * [<input-alphabet name="lemma-pronunciation" format="bin" file="input-alphabet.binfsa.gz"/>]
+ * [<output-alphabet name="evaluation" format="bin" file="output-alphabet.binfsa.gz"/>]
+ * [<boundaries format="bin" file="test.binwb.gz"/>]
+ * <structure format="bin" file="test-am.binfsa.gz"/>
+ * <scores n="3">
+ *     [<dim id="0">
+ *         [<name> am </name>]
+ *         [<fsa format="bin" file="am.binfsa.gz"/>]
+ *     </dim>]
+ *     [<dim id="1">
+ *         [<name> lm </name>]
+ *         [<scale>20.0</scale>]
+ *         [<fsa format="bin" file="lm.binfsa.gz"/>]
+ *     </dim>]
+ *     [<dim id="3">
+ *         [<name> penalties </name>]
+ *     </dim>]
+ * </scores>
+ * </lattice>
+ */
 
-      <?xml version="1.0" encoding="UTF8"?>
-      <lattice [semiring="tropical"] [type="lattice"]>
-      [<input-alphabet name="lemma-pronunciation" format="bin" file="input-alphabet.binfsa.gz"/>]
-      [<output-alphabet name="evaluation" format="bin" file="output-alphabet.binfsa.gz"/>]
-      [<boundaries format="bin" file="test.binwb.gz"/>]
-      <structure format="bin" file="test-am.binfsa.gz"/>
-      <scores n="3">
-          [<dim id="0">
-              [<name> am </name>]
-              [<fsa format="bin" file="am.binfsa.gz"/>]
-          </dim>]
-          [<dim id="1">
-              [<name> lm </name>]
-              [<scale>20.0</scale>]
-              [<fsa format="bin" file="lm.binfsa.gz"/>]
-          </dim>]
-          [<dim id="3">
-              [<name> penalties </name>]
-          </dim>]
-      </scores>
-      </lattice>
-    */
+struct FsaDescriptor {
+    static const Core::ParameterString paramFormat;
+    static const Core::ParameterString paramFile;
 
-    struct FsaDescriptor {
-        static const Core::ParameterString paramFormat;
-        static const Core::ParameterString paramFile;
+    std::string format;
+    std::string file;
 
-        std::string format;
-        std::string file;
+    FsaDescriptor() {}
+    FsaDescriptor(const std::string& format, const std::string& file)
+            : format(format), file(file) {}
+    FsaDescriptor(const std::string& qualifiedFile);
+    FsaDescriptor(const Core::Configuration& config);
+    FsaDescriptor& operator=(const FsaDescriptor& desc) {
+        format = desc.format;
+        file   = desc.file;
+        return *this;
+    }
 
-        FsaDescriptor() {}
-        FsaDescriptor(const std::string &format, const std::string &file) :
-            format(format), file(file) {}
-        FsaDescriptor(const std::string &qualifiedFile);
-        FsaDescriptor(const Core::Configuration &config);
-        FsaDescriptor & operator= (const FsaDescriptor &desc)
-            { format = desc.format; file = desc.file; return *this; }
+    std::string operator()(const std::string& root = "") const {
+        return qualifiedPath(root);
+    }
+    bool operator==(const FsaDescriptor& desc) const {
+        return (file == desc.file) && (format == desc.format);
+    }
+    operator bool() const {
+        return !file.empty();
+    }
 
-        std::string operator() (const std::string &root = "") const
-            { return qualifiedPath(root); }
-        bool operator== (const FsaDescriptor &desc) const
-            { return (file == desc.file) && (format == desc.format); }
-        operator bool() const
-            { return !file.empty(); }
+    std::string path(const std::string& root = "") const;
+    std::string qualifiedPath(const std::string& root = "") const;
 
-        /*
-        const std::string & format() const
-            { return format; }
-        const std::string & file() const
-            { return file; }
-        */
+    void clear();
 
-        std::string path(const std::string &root = "") const;
-        std::string qualifiedPath(const std::string &root = "") const;
+    static FsaDescriptor joinPaths(const FsaDescriptor& desc, const std::string& path);
+};
+typedef std::vector<FsaDescriptor> FsaDescriptorList;
 
-        void clear();
+struct BoundariesDescriptor {
+    std::string file;
+    BoundariesDescriptor() {}
+    BoundariesDescriptor(const std::string& file)
+            : file(file) {}
+    std::string operator()(const std::string& root = "") const;
+    operator bool() const {
+        return !file.empty();
+    }
 
-        static FsaDescriptor joinPaths(const FsaDescriptor &desc, const std::string &path);
-    };
-    typedef std::vector<FsaDescriptor> FsaDescriptorList;
+    void clear() {
+        file.clear();
+    }
+};
 
+struct FlfDescriptor : public Core::ReferenceCounted {
+    std::string          id;
+    std::string          latticeRoot;
+    SemiringType         semiringType;
+    bool                 hasInputAlphabet;
+    std::string          inputAlphabetName;
+    FsaDescriptor        inputAlphabetFile;
+    bool                 hasOutputAlphabet;
+    std::string          outputAlphabetName;
+    FsaDescriptor        outputAlphabetFile;
+    bool                 hasBoundaries;
+    BoundariesDescriptor boundariesFile;
+    FsaDescriptor        structureFile;
+    KeyList              keys;
+    ScoreList            scales;
+    FsaDescriptorList    scoreFiles;
+    FlfDescriptor() {
+        semiringType      = Fsa::SemiringTypeUnknown;
+        hasInputAlphabet  = false;
+        hasOutputAlphabet = false;
+        hasBoundaries     = false;
+    }
+    std::string info() const;
+};
+typedef Core::Ref<FlfDescriptor> FlfDescriptorRef;
 
-    struct BoundariesDescriptor {
-        std::string file;
-        BoundariesDescriptor() {}
-        BoundariesDescriptor(const std::string &file) :
-            file(file) {}
-        std::string operator() (const std::string &root = "") const;
-        operator bool() const { return !file.empty(); }
+class FlfContext : public Core::ReferenceCounted {
+private:
+    ConstSemiringRef semiring_;
+    Fsa::Type        fsaType_;
 
-        void clear() { file.clear(); }
-    };
+    FsaDescriptor           inputAlphabetQf_;
+    Lexicon::AlphabetMapRef inputAlphabetMap_;
 
+    FsaDescriptor           outputAlphabetQf_;
+    Lexicon::AlphabetMapRef outputAlphabetMap_;
 
-    struct FlfDescriptor : public Core::ReferenceCounted {
-        std::string id;
-        std::string latticeRoot;
-        SemiringType semiringType;
-        bool hasInputAlphabet;
-        std::string inputAlphabetName;
-        FsaDescriptor inputAlphabetFile;
-        bool hasOutputAlphabet;
-        std::string outputAlphabetName;
-        FsaDescriptor outputAlphabetFile;
-        bool hasBoundaries;
-        BoundariesDescriptor boundariesFile;
-        FsaDescriptor structureFile;
-        KeyList keys;
-        ScoreList scales;
-        FsaDescriptorList scoreFiles;
-        FlfDescriptor() {
-            semiringType = Fsa::SemiringTypeUnknown;
-            hasInputAlphabet = false;
-            hasOutputAlphabet = false;
-            hasBoundaries = false;
-        }
-        std::string info() const;
-    };
-    typedef Core::Ref<FlfDescriptor> FlfDescriptorRef;
+public:
+    FlfContext();
+    ~FlfContext();
 
+    void overhaul(FlfDescriptorRef, const Fsa::StaticAutomaton& structureFsa) const;
+    void adapt(FlfDescriptorRef desc, const Fsa::StaticAutomaton& structureFsa, Core::Archive* archive = 0);
+    void update(FlfDescriptorRef, const Fsa::StaticAutomaton& structureFsa, Core::Archive* archive = 0);
+    void clear();
 
-    class FlfContext : public Core::ReferenceCounted {
-    private:
-        ConstSemiringRef semiring_;
-        Fsa::Type fsaType_;
+    ConstSemiringRef semiring() const;
+    void             setSemiring(ConstSemiringRef semiring);
 
-        FsaDescriptor inputAlphabetQf_;
-        Lexicon::AlphabetMapRef inputAlphabetMap_;
+    Fsa::Type fsaType() const;
+    void      setFsaType(Fsa::Type type);
 
-        FsaDescriptor outputAlphabetQf_;
-        Lexicon::AlphabetMapRef outputAlphabetMap_;
+    Lexicon::AlphabetMapRef inputAlphabetMap() const;
+    void                    setInputAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string& alphabetName);
+    void                    loadInputAlphabet(const FsaDescriptor& fromQf, Core::Archive* archive, const std::string& alphabetName);
 
-        /*
-    protected:
-        std::pair<Fsa::ConstAlphabetRef, Fsa::ConstAlphabetRef> loadAlphabets(
-            const FsaDescriptor &qf, Core::Archive *archive);
-        */
+    Lexicon::AlphabetMapRef outputAlphabetMap() const;
+    void                    setOutputAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string& alphabetName);
+    void                    loadOutputAlphabet(const FsaDescriptor& fromQf, Core::Archive* archive, const std::string& alphabetName);
 
-    public:
-        FlfContext();
-        ~FlfContext();
+    std::string info() const;
+};
+typedef Core::Ref<FlfContext> FlfContextRef;
 
-        void overhaul(FlfDescriptorRef, const Fsa::StaticAutomaton &structureFsa) const;
-        void adapt(FlfDescriptorRef desc, const Fsa::StaticAutomaton &structureFsa, Core::Archive *archive = 0);
-        void update(FlfDescriptorRef, const Fsa::StaticAutomaton &structureFsa, Core::Archive *archive = 0);
-        void clear();
+/**
+ * reads lattices stored in the fsa-based lattice format
+ **/
+class FlfReader : public LatticeReader {
+    typedef LatticeReader Precursor;
 
-        ConstSemiringRef semiring() const;
-        void setSemiring(ConstSemiringRef semiring);
+public:
+    static const u32                         TrustContext;
+    static const u32                         AdaptContext;
+    static const u32                         UpdateContext;
+    static const Core::ParameterString       paramContextMode;
+    static const Core::ParameterStringVector paramKeys;
+    static const Core::ParameterFloat        paramScale;
 
-        Fsa::Type fsaType() const;
-        void setFsaType(Fsa::Type type);
+private:
+    u32           contextHandling_;
+    FlfContextRef context_;
+    std::set<Key> partialKeys_;
+    KeyList       appendKeys_;
+    ScoreList     appendScales_;
 
-        Lexicon::AlphabetMapRef inputAlphabetMap() const;
-        void setInputAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string &alphabetName);
-        void loadInputAlphabet(const FsaDescriptor &fromQf, Core::Archive *archive, const std::string &alphabetName);
+private:
+    void init();
+    void conform(FlfDescriptorRef desc, const Fsa::StaticAutomaton& structureFsa, Core::Archive* archive);
+    void addStructure(StaticLattice& l, const Fsa::StaticAutomaton& f);
+    void addScores(StaticLattice& l, ScoreId id, const Fsa::StaticAutomaton& f);
 
-        Lexicon::AlphabetMapRef outputAlphabetMap() const;
-        void setOutputAlphabet(Fsa::ConstAlphabetRef alphabet, const std::string &alphabetName);
-        void loadOutputAlphabet(const FsaDescriptor &fromQf, Core::Archive *archive, const std::string &alphabetName);
+public:
+    FlfReader(const Core::Configuration&);
+    FlfReader(const Core::Configuration&, FlfContextRef, u32 contextHandling = TrustContext);
+    virtual ~FlfReader();
 
-        std::string info() const;
-    };
-    typedef Core::Ref<FlfContext> FlfContextRef;
+    FlfContextRef context() const;
+    void          setContext(FlfContextRef context);
 
+    void setContextHandling(u32);
+    u32  contextHandling() const;
 
+    FlfDescriptorRef readDescriptor(
+            const std::string& descFilename,
+            Core::Archive*     archive = 0);
 
-    /**
-     * reads lattices stored in the fsa-based lattice format
-     **/
-    class FlfReader : public LatticeReader {
-        typedef LatticeReader Precursor;
-    public:
-        static const u32 TrustContext;
-        static const u32 AdaptContext;
-        static const u32 UpdateContext;
-        static const Core::ParameterString paramContextMode;
-        static const Core::ParameterStringVector paramKeys;
-        static const Core::ParameterFloat paramScale;
-
-    private:
-        u32 contextHandling_;
-        FlfContextRef context_;
-        std::set<Key> partialKeys_;
-        KeyList appendKeys_;
-        ScoreList appendScales_;
-
-    private:
-        void init();
-        void conform(FlfDescriptorRef desc, const Fsa::StaticAutomaton &structureFsa, Core::Archive *archive);
-        void addStructure(StaticLattice &l, const Fsa::StaticAutomaton &f);
-        void addScores(StaticLattice &l, ScoreId id, const Fsa::StaticAutomaton &f);
-
-    public:
-        FlfReader(const Core::Configuration&);
-        FlfReader(const Core::Configuration&, FlfContextRef, u32 contextHandling = TrustContext);
-        virtual ~FlfReader();
-
-        FlfContextRef context() const;
-        void setContext(FlfContextRef context);
-
-        void setContextHandling(u32);
-        u32 contextHandling() const;
-
-        FlfDescriptorRef readDescriptor(
-            const std::string &descFilename,
-            Core::Archive *archive = 0);
-
-        ConstLatticeRef read(
+    ConstLatticeRef read(
             FlfDescriptorRef desc,
-            Core::Archive *archive = 0);
+            Core::Archive*   archive = 0);
 
-        ConstLatticeRef read(
-            const std::string &descFilename,
-            Core::Archive *archive);
+    ConstLatticeRef read(
+            const std::string& descFilename,
+            Core::Archive*     archive);
 
-        virtual ConstLatticeRef read(const std::string &filename) {
-            return read(filename, 0);
-        }
-    };
+    virtual ConstLatticeRef read(const std::string& filename) {
+        return read(filename, 0);
+    }
+};
 
+/**
+ * writes lattices using the fsa-based lattice format
+ **/
+class FlfWriter : public LatticeWriter {
+    typedef LatticeWriter Precursor;
 
+public:
+    static const Core::ParameterStringVector paramKeys;
+    static const Core::ParameterBool         paramAdd;
 
-    /**
-     * writes lattices using the fsa-based lattice format
-     **/
-    class FlfWriter : public LatticeWriter {
-        typedef LatticeWriter Precursor;
-    public:
-        static const Core::ParameterStringVector paramKeys;
-        static const Core::ParameterBool paramAdd;
-    private:
-        bool partial_;
-        std::set<Key> partialKeys_;
-        bool partialAdd_;
-    public:
-        FlfWriter(const Core::Configuration &config);
-        virtual ~FlfWriter();
+private:
+    bool          partial_;
+    std::set<Key> partialKeys_;
+    bool          partialAdd_;
 
-        FlfDescriptorRef buildDescriptor(
-            ConstLatticeRef f,
-            const std::string &descFilename) const;
+public:
+    FlfWriter(const Core::Configuration& config);
+    virtual ~FlfWriter();
 
-        bool writeDescriptor(
-            FlfDescriptorRef desc,
-            const std::string &descFilename,
-            Core::Archive *archive = 0) const;
+    FlfDescriptorRef buildDescriptor(
+            ConstLatticeRef    f,
+            const std::string& descFilename) const;
 
-        bool write(
-            ConstLatticeRef f,
-            FlfDescriptorRef desc,
-            const std::string &descFilename,
-            bool storeAlphabet = true,
-            Core::Archive *archive = 0) const;
+    bool writeDescriptor(
+            FlfDescriptorRef   desc,
+            const std::string& descFilename,
+            Core::Archive*     archive = 0) const;
 
-        bool write(
-            ConstLatticeRef f,
-            const std::string &descFilename,
-            bool storeAlphabet,
-            Core::Archive *archive) const;
+    bool write(
+            ConstLatticeRef    f,
+            FlfDescriptorRef   desc,
+            const std::string& descFilename,
+            bool               storeAlphabet = true,
+            Core::Archive*     archive       = 0) const;
 
-        virtual bool write(ConstLatticeRef f, const std::string &filename) {
-            return write(f, filename, true, 0);
-        }
-    };
+    bool write(
+            ConstLatticeRef    f,
+            const std::string& descFilename,
+            bool               storeAlphabet,
+            Core::Archive*     archive) const;
 
+    virtual bool write(ConstLatticeRef f, const std::string& filename) {
+        return write(f, filename, true, 0);
+    }
+};
 
+/**
+ * reads lattices from an archive,
+ * the lattices must be stored in the fsa-based lattice format
+ **/
+class FlfArchiveReader : public LatticeArchiveReader {
+    typedef LatticeArchiveReader Precursor;
 
-    /**
-     * reads lattices from an archive,
-     * the lattices must be stored in the fsa-based lattice format
-     **/
-    class FlfArchiveReader : public LatticeArchiveReader {
-        typedef LatticeArchiveReader Precursor;
-    public:
-        static const Core::ParameterString paramLatticeType;
-        static const Core::ParameterString paramName;
+public:
+    static const Core::ParameterString paramLatticeType;
+    static const Core::ParameterString paramName;
 
-    private:
-        typedef std::vector<std::string> StringList;
+private:
+    typedef std::vector<std::string> StringList;
 
-        // Core::Archive *archive_;
-        FlfReader *reader_;
-        std::string boundariesSuffix_;
-        std::string structureSuffix_;
-        StringList suffixes_;
-        FlfDescriptorRef desc_;
+    FlfReader*       reader_;
+    std::string      boundariesSuffix_;
+    std::string      structureSuffix_;
+    StringList       suffixes_;
+    FlfDescriptorRef desc_;
 
-    protected:
-        virtual std::string defaultSuffix() const { return ".flf.gz"; }
-        void setDescriptor(const Core::Configuration &config, FlfContextRef context);
-        void setFsas(const std::string &id);
+protected:
+    virtual std::string defaultSuffix() const {
+        return ".flf.gz";
+    }
+    void setDescriptor(const Core::Configuration& config, FlfContextRef context);
+    void setFsas(const std::string& id);
 
-    public:
-        FlfArchiveReader(
-            const Core::Configuration &config,
-            const std::string &pathname);
-        virtual ~FlfArchiveReader();
+public:
+    FlfArchiveReader(
+            const Core::Configuration& config,
+            const std::string&         pathname);
+    virtual ~FlfArchiveReader();
 
-        /*
-        bool hasFile(const std::string &file) const {
-            return archive_->hasFile(file);
-        }
+    virtual ConstLatticeRef get(const std::string& id);
+};
 
-        const_iterator files() const {
-            return archive_->files();
-        }
-        */
+/**
+ * writes lattices to an archive,
+ * the lattices are stored in the fsa-based lattice format
+ **/
+class FlfArchiveWriter : public LatticeArchiveWriter {
+    typedef LatticeArchiveWriter Precursor;
 
-        virtual ConstLatticeRef get(const std::string &id);
-    };
+private:
+    FlfWriter*            writer_;
+    Fsa::ConstAlphabetRef inputAlphabet_;
+    FsaDescriptor         inputAlphabetQf_;
+    Fsa::ConstAlphabetRef outputAlphabet_;
+    FsaDescriptor         outputAlphabetQf_;
+    FsaDescriptor         alphabetQf_;
 
+protected:
+    virtual std::string defaultSuffix() const {
+        return ".flf.gz";
+    }
+    virtual void finalize();
 
+    void             storeAlphabets();
+    FlfDescriptorRef buildDescriptor(ConstLatticeRef l, const std::string& id, const std::string& filename);
 
-    /**
-     * writes lattices to an archive,
-     * the lattices are stored in the fsa-based lattice format
-     **/
-    class FlfArchiveWriter : public LatticeArchiveWriter {
-        typedef LatticeArchiveWriter Precursor;
+public:
+    FlfArchiveWriter(
+            const Core::Configuration& config,
+            const std::string&         pathname);
+    ~FlfArchiveWriter();
 
-    private:
-        // Core::Archive *archive_;
+    virtual void store(const std::string& id, ConstLatticeRef f);
+};
 
-        FlfWriter *writer_;
-        Fsa::ConstAlphabetRef inputAlphabet_;
-        FsaDescriptor inputAlphabetQf_;
-        Fsa::ConstAlphabetRef outputAlphabet_;
-        FsaDescriptor outputAlphabetQf_;
-        FsaDescriptor alphabetQf_;
+}  // namespace Flf
 
-    protected:
-        virtual std::string defaultSuffix() const { return ".flf.gz"; }
-        virtual void finalize();
-
-        void storeAlphabets();
-        FlfDescriptorRef buildDescriptor(ConstLatticeRef l, const std::string &id, const std::string &filename);
-
-    public:
-        FlfArchiveWriter(
-            const Core::Configuration &config,
-            const std::string &pathname);
-        ~FlfArchiveWriter();
-
-        virtual void store(const std::string &id, ConstLatticeRef f);
-    };
-
-} // namespace Flf
-
-#endif // _FLF_FLF_IO_HH
+#endif  // _FLF_FLF_IO_HH

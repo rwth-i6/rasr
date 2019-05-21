@@ -18,24 +18,21 @@
 #include "FlfCore/Lattice.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    /*
-      Fast epsilon-removal,
-      making use of the fact that lattices are ALWAYS acyclic
-    */
-    ConstLatticeRef fastRemoveEpsilons(ConstLatticeRef l);
-    ConstLatticeRef removeEpsilons(ConstLatticeRef l);
-    NodeRef createEpsilonRemovalNode(const std::string &name, const Core::Configuration &config);
+/*
+ * Fast epsilon-removal,
+ * making use of the fact that lattices are ALWAYS acyclic
+ */
+ConstLatticeRef fastRemoveEpsilons(ConstLatticeRef l);
+ConstLatticeRef removeEpsilons(ConstLatticeRef l);
+NodeRef         createEpsilonRemovalNode(const std::string& name, const Core::Configuration& config);
 
+/*
+ * Remove arcs of length 0
+ */
+ConstLatticeRef fastRemoveNullArcs(ConstLatticeRef l);
+NodeRef         createNullArcsRemovalNode(const std::string& name, const Core::Configuration& config);
 
-    /*
-      Remove arcs of length 0
-    */
-    ConstLatticeRef fastRemoveNullArcs(ConstLatticeRef l);
-    NodeRef createNullArcsRemovalNode(const std::string &name, const Core::Configuration &config);
-
-
-} // namespace Flf
-#endif // _FLF_EPSILON_REMOVAL_HH
+}  // namespace Flf
+#endif  // _FLF_EPSILON_REMOVAL_HH

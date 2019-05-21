@@ -26,9 +26,9 @@ public:
         return "...";
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         Flf::ConstSemiringRef semiring = Flf::Semiring::create(Fsa::SemiringTypeTropical, 2);
-        Flf::ByteVector v;
+        Flf::ByteVector       v;
         {
             std::cout << semiring->describe(semiring->one(), Fsa::HintShowDetails) << std::endl;
             semiring->compress(v, semiring->one());
@@ -50,6 +50,6 @@ public:
         std::cout << semiring->describe(semiring->uncompress(vIt), Fsa::HintShowDetails) << std::endl;
         return 0;
     }
-} app; // <- You have to create ONE instance of the application
+} app;  // <- You have to create ONE instance of the application
 
 APPLICATION(MyApplication)

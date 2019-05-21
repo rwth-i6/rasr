@@ -20,18 +20,18 @@
 
 namespace Flf {
 
-    /*
-      Perform a gamma correction of the slot-wise posterior probability distribution.
-      Correction is done in situ.
+/*
+ * Perform a gamma correction of the slot-wise posterior probability distribution.
+ * Correction is done in situ.
+ *
+ * Only for normalized CNs the epsilon slot removal works.
+ */
+void gammaCorrection(ConstConfusionNetworkRef cnRef, f64 gamma, bool normalize = true);
+void gammaCorrection(ConstPosteriorCnRef cnRef, f64 gamma, bool normalize = true);
 
-      Only for normalized CNs the epsilon slot removal works.
-    */
-    void gammaCorrection(ConstConfusionNetworkRef cnRef, f64 gamma, bool normalize = true);
-    void gammaCorrection(ConstPosteriorCnRef cnRef, f64 gamma, bool normalize = true);
+NodeRef createNormalizedCnGammaCorrectionNode(const std::string& name, const Core::Configuration& config);
+NodeRef createPosteriorCnGammaCorrectionNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createNormalizedCnGammaCorrectionNode(const std::string &name, const Core::Configuration &config);
-    NodeRef createPosteriorCnGammaCorrectionNode(const std::string &name, const Core::Configuration &config);
+}  // namespace Flf
 
-} // namespace Flf
-
-#endif // _FLF_GAMMA_CORRECTION_HH
+#endif  // _FLF_GAMMA_CORRECTION_HH

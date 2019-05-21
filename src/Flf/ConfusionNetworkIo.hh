@@ -24,19 +24,19 @@
 
 namespace Flf {
 
-    /**
-     * Input
-     **/
-    ConstConfusionNetworkRef readConfusionNetworkFromXml(std::istream &is, ConfusionNetworkRef cn = ConfusionNetworkRef());
+/**
+ * Input
+ **/
+ConstConfusionNetworkRef readConfusionNetworkFromXml(std::istream& is, ConfusionNetworkRef cn = ConfusionNetworkRef());
 
-    /**
-     * Ouput
-     **/
-    void writeConfusionNetworkAsText(std::ostream &os, ConstConfusionNetworkRef cn, ConstSegmentRef segment);
-    void writeConfusionNetworkAsXml(Core::XmlWriter &xml, ConstConfusionNetworkRef cn, ConstSegmentRef segment, u32 ioFlag = IoFlag::WriteAll);
+/**
+ * Ouput
+ **/
+void writeConfusionNetworkAsText(std::ostream& os, ConstConfusionNetworkRef cn, ConstSegmentRef segment);
+void writeConfusionNetworkAsXml(Core::XmlWriter& xml, ConstConfusionNetworkRef cn, ConstSegmentRef segment, u32 ioFlag = IoFlag::WriteAll);
 
-    NodeRef createDumpConfusionNetworkNode(const std::string &name, const Core::Configuration &config);
+NodeRef createDumpConfusionNetworkNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_CONFUSION_NETWORK_IO_HH
+#endif  // _FLF_CONFUSION_NETWORK_IO_HH

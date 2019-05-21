@@ -20,18 +20,18 @@
 
 namespace Flf {
 
-    typedef enum {
-        Eppstein,
-        Mori
-    } NBestAlgorithm;
-    ConstLatticeRef nbest(ConstLatticeRef l, u32 n, bool removeDuplicates = true, NBestAlgorithm algo = Eppstein);
+typedef enum {
+    Eppstein,
+    Mori
+} NBestAlgorithm;
+ConstLatticeRef nbest(ConstLatticeRef l, u32 n, bool removeDuplicates = true, NBestAlgorithm algo = Eppstein);
 
-    void dumpNBest(ConstLatticeRef l, std::ostream &os);
+void dumpNBest(ConstLatticeRef l, std::ostream& os);
 
-    NodeRef createNBestNode(const std::string &name, const Core::Configuration &config);
-    NodeRef createSelectNBestNode(const std::string &name, const Core::Configuration &config);
-    NodeRef createDumpNBestNode(const std::string &name, const Core::Configuration &config);
+NodeRef createNBestNode(const std::string& name, const Core::Configuration& config);
+NodeRef createSelectNBestNode(const std::string& name, const Core::Configuration& config);
+NodeRef createDumpNBestNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace Flf
+}  // namespace Flf
 
-#endif // _FLF_N_BEST_HH
+#endif  // _FLF_N_BEST_HH

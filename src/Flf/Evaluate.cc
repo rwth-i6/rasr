@@ -21,40 +21,38 @@
 #include <Fsa/Automaton.hh>
 #include <Fsa/Static.hh>
 
-#include "FlfCore/Basic.hh"
 #include "Best.hh"
 #include "Evaluate.hh"
+#include "FlfCore/Basic.hh"
 #include "Formattings.hh"
 #include "Lexicon.hh"
 #include "Map.hh"
-
 
 namespace Flf {
 
 // -------------------------------------------------------------------------
 class Evaluator : public LayeredComponent {
 public:
-    static const Core::ParameterBool paramSingleBest;
-    static const Core::ParameterBool paramBestInLattice;
-    static const Core::Choice choiceSsspAlgorithm;
+    static const Core::ParameterBool   paramSingleBest;
+    static const Core::ParameterBool   paramBestInLattice;
+    static const Core::Choice          choiceSsspAlgorithm;
     static const Core::ParameterChoice paramSsspAlgorithm;
 
-
 private:
-    Bliss::Evaluator *blissEvaluator_;
-    u32 lastLemmaUpdates_;
-    bool logSingleBest_;
-    bool logBestInLattice_;
+    Bliss::Evaluator*      blissEvaluator_;
+    u32                    lastLemmaUpdates_;
+    bool                   logSingleBest_;
+    bool                   logBestInLattice_;
     Fsa::ConstAutomatonRef emptyFsa_;
 
 protected:
     SingleSourceShortestPathAlgorithm ssspAlgorithm_;
 
 public:
-    Evaluator(const Core::Configuration &config, const std::string &name);
+    Evaluator(const Core::Configuration& config, const std::string& name);
     virtual ~Evaluator();
 
-    Bliss::Evaluator * blissEvaluator();
+    Bliss::Evaluator* blissEvaluator();
 
     /**
      * Set reference and evaluate lattice against
@@ -64,8 +62,8 @@ public:
      * evaluate is null reference save
      *
      **/
-    void setReference(const std::string &ref);
-    void setNormalizedReference(const std::string &ref);
+    void setReference(const std::string& ref);
+    void setNormalizedReference(const std::string& ref);
     void evaluate(ConstLatticeRef l);
 
     /**
@@ -75,7 +73,7 @@ public:
      * logEvaluation is null reference save
      *
      **/
-    void logEvaluation(ConstLatticeRef l, const std::string &name = "");
+    void logEvaluation(ConstLatticeRef l, const std::string& name = "");
 
     /**
      * Log the preferred orthographic representation of a linear lattice;
@@ -84,10 +82,9 @@ public:
      * logOrthography is null reference save
      *
      **/
-    void logOrthography(ConstLatticeRef l, const std::string &name = "");
+    void logOrthography(ConstLatticeRef l, const std::string& name = "");
 };
 // -------------------------------------------------------------------------
-
 
 // -------------------------------------------------------------------------
 const Core::ParameterBool Evaluator::paramSingleBest(
@@ -99,8 +96,8 @@ const Core::ParameterBool Evaluator::paramBestInLattice(
         "evaluate lattice",
         true);
 const Core::Choice Evaluator::choiceSsspAlgorithm(
-        "dijkstra",                Dijkstra,
-        "bellman-ford",            BellmanFord,
+        "dijkstra", Dijkstra,
+        "bellman-ford", BellmanFord,
         "projecting-bellman-ford", ProjectingBellmanFord,
         Core::Choice::endMark());
 
@@ -110,50 +107,48 @@ const Core::ParameterChoice Evaluator::paramSsspAlgorithm(
         "single source shortest path algorithm",
         Dijkstra);
 
-
-
-Evaluator::Evaluator(const Core::Configuration &config, const std::string &name) :
-    Core::Component(config),
-    LayeredComponent(config, name),
-    blissEvaluator_(0),
-    lastLemmaUpdates_(0),
-    ssspAlgorithm_(static_cast<SingleSourceShortestPathAlgorithm>(paramSsspAlgorithm(config)))
-    {
-    logSingleBest_ = paramSingleBest(config);
-    logBestInLattice_ = paramBestInLattice(config);
+Evaluator::Evaluator(const Core::Configuration& config, const std::string& name)
+        : Core::Component(config),
+          LayeredComponent(config, name),
+          blissEvaluator_(0),
+          lastLemmaUpdates_(0),
+          ssspAlgorithm_(static_cast<SingleSourceShortestPathAlgorithm>(paramSsspAlgorithm(config))) {
+    logSingleBest_           = paramSingleBest(config);
+    logBestInLattice_        = paramBestInLattice(config);
     Fsa::ConstSemiringRef sr = Fsa::getSemiring(Fsa::SemiringTypeTropical);
-    Fsa::StaticAutomaton * sf = new Fsa::StaticAutomaton(Fsa::TypeAcceptor);
+    Fsa::StaticAutomaton* sf = new Fsa::StaticAutomaton(Fsa::TypeAcceptor);
     sf->setSemiring(sr);
     sf->setInputAlphabet(Lexicon::us()->lemmaAlphabet());
     sf->setState(new Fsa::State(0, Fsa::StateTagFinal, sr->one()));
     sf->setInitialStateId(0);
     emptyFsa_ = Fsa::ConstAutomatonRef(sf);
-    }
+}
 
 Evaluator::~Evaluator() {
     delete blissEvaluator_;
 }
 
-Bliss::Evaluator * Evaluator::blissEvaluator() {
+Bliss::Evaluator* Evaluator::blissEvaluator() {
     if (!blissEvaluator_ || (lastLemmaUpdates_ != Lexicon::us()->nLemmaUpdates())) {
         if (blissEvaluator_) {
             delete blissEvaluator_;
             log("%d lemmas were updated; create new evaluator.",
-                    (Lexicon::us()->nLemmaUpdates() - lastLemmaUpdates_));
+                (Lexicon::us()->nLemmaUpdates() - lastLemmaUpdates_));
         }
-        blissEvaluator_ = new Bliss::Evaluator(config, Lexicon::us());
+        blissEvaluator_   = new Bliss::Evaluator(config, Lexicon::us());
         lastLemmaUpdates_ = Lexicon::us()->nLemmaUpdates();
     }
     return blissEvaluator_;
 }
 
-void Evaluator::logEvaluation(ConstLatticeRef l, const std::string &name) {
+void Evaluator::logEvaluation(ConstLatticeRef l, const std::string& name) {
     openLayer(name);
     Fsa::ConstAutomatonRef f;
     if (l) {
         log("evaluate lattice \"%s\"", l->describe().c_str());
         f = toFsa(l);
-    } else {
+    }
+    else {
         log("evaluate empty lattice");
         f = emptyFsa_;
     }
@@ -161,21 +156,21 @@ void Evaluator::logEvaluation(ConstLatticeRef l, const std::string &name) {
     closeLayer();
 }
 
-void Evaluator::setReference(const std::string &ref) {
+void Evaluator::setReference(const std::string& ref) {
     std::string normalizedRef(ref);
     Core::normalizeWhitespace(normalizedRef);
     Core::enforceTrailingBlank(normalizedRef);
     setNormalizedReference(normalizedRef);
 }
 
-void Evaluator::setNormalizedReference(const std::string &ref) {
+void Evaluator::setNormalizedReference(const std::string& ref) {
     blissEvaluator()->setReferenceTranscription(ref);
-    Core::XmlWriter &os(clog());
+    Core::XmlWriter& os(clog());
     if (ref.empty())
         os << Core::XmlEmpty("orth") + Core::XmlAttribute("source", "reference");
     else
         os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "reference")
-    << ref << Core::XmlClose("orth");
+           << ref << Core::XmlClose("orth");
 }
 
 void Evaluator::evaluate(ConstLatticeRef l) {
@@ -192,9 +187,8 @@ void Evaluator::evaluate(ConstLatticeRef l) {
 }
 // -------------------------------------------------------------------------
 
-
 // -------------------------------------------------------------------------
-void evaluate(ConstLatticeRef l, const std::string &ref) {
+void evaluate(ConstLatticeRef l, const std::string& ref) {
     Core::Configuration _config(
             Core::Application::us()->getConfiguration(), "evaluator");
     Evaluator evaluator(_config, "evaluated");
@@ -203,16 +197,17 @@ void evaluate(ConstLatticeRef l, const std::string &ref) {
 }
 // -------------------------------------------------------------------------
 
-
 // -------------------------------------------------------------------------
 class EvaluatorNode : public FilterNode {
     typedef FilterNode Precursor;
+
 private:
-    Evaluator *evaluator_;
-    ConstSemiringRef evalSemiring_;
-    bool validReference_;
-    Lexicon::SymbolMap lemmaSymbolMap_;
+    Evaluator*                evaluator_;
+    ConstSemiringRef          evalSemiring_;
+    bool                      validReference_;
+    Lexicon::SymbolMap        lemmaSymbolMap_;
     std::vector<Fsa::LabelId> refLabels_;
+
 protected:
     void setReference() {
         if (validReference_)
@@ -222,11 +217,13 @@ protected:
             if (segment->hasOrthography()) {
                 lemmaSymbolMap_.indices(segment->orthography(), refLabels_);
                 evaluator_->setReference(segment->orthography());
-            } else {
+            }
+            else {
                 error("EvaluatorNode: Missing reference.");
                 evaluator_->setReference("");
             }
-        } else {
+        }
+        else {
             std::string refStr = requestString(2);
             lemmaSymbolMap_.indices(refStr, refLabels_);
             evaluator_->setReference(refStr);
@@ -242,16 +239,19 @@ protected:
         evaluator_->evaluate(eval);
         return l;
     }
+
 public:
-    EvaluatorNode(const std::string &name, const Core::Configuration &config) :
-        Precursor(name, config), evaluator_(0) { validReference_ = false; }
+    EvaluatorNode(const std::string& name, const Core::Configuration& config)
+            : Precursor(name, config), evaluator_(0) {
+        validReference_ = false;
+    }
     virtual ~EvaluatorNode() {
         delete evaluator_;
     }
-    virtual void init(const std::vector<std::string> &arguments) {
+    virtual void init(const std::vector<std::string>& arguments) {
         if (!(connected(1) || connected(2)))
             criticalError("EvaluatorNode: Need a data source either at port 1 or port 2");
-        evaluator_ = new Evaluator(config, name);
+        evaluator_    = new Evaluator(config, name);
         evalSemiring_ = Semiring::create(select("semiring"));
         if (evalSemiring_)
             log("Use semiring %s for evaluation.", evalSemiring_->name().c_str());
@@ -262,9 +262,9 @@ public:
     }
 };
 
-NodeRef createEvaluatorNode(const std::string &name, const Core::Configuration &config) {
+NodeRef createEvaluatorNode(const std::string& name, const Core::Configuration& config) {
     return NodeRef(new EvaluatorNode(name, config));
 }
 // -------------------------------------------------------------------------
 
-} // namespace Flf
+}  // namespace Flf

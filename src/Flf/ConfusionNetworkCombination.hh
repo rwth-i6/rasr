@@ -22,12 +22,12 @@
 
 namespace Flf {
 
-    NodeRef createConfusionNetworkCombinationNode(const std::string &name, const Core::Configuration &config);
+NodeRef createConfusionNetworkCombinationNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createRoverCombinationNode(const std::string &name, const Core::Configuration &config);
+NodeRef createRoverCombinationNode(const std::string& name, const Core::Configuration& config);
 
-    NodeRef createOracleAlignmentNode(const std::string &name, const Core::Configuration &config);
+NodeRef createOracleAlignmentNode(const std::string& name, const Core::Configuration& config);
 
-} // namespace
+}  // namespace Flf
 
-#endif // _FLF_CONFUSION_NETWORK_COMBINATION_HH
+#endif  // _FLF_CONFUSION_NETWORK_COMBINATION_HH

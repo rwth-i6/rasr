@@ -19,162 +19,159 @@
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    Processor::Processor(const Core::Configuration &config, Network *network) :
-        Core::Component(config), network_(network) {
-        crawler_ = NetworkCrawlerRef(new NetworkCrawler(network));
-    }
+// -------------------------------------------------------------------------
+Processor::Processor(const Core::Configuration& config, Network* network)
+        : Core::Component(config), network_(network) {
+    crawler_ = NetworkCrawlerRef(new NetworkCrawler(network));
+}
 
-    Processor::~Processor() {}
+Processor::~Processor() {}
 
-    const Network& Processor::network() const {
-        return *network_;
-    }
+const Network& Processor::network() const {
+    return *network_;
+}
 
-    const NetworkCrawler& Processor::crawler() const {
-        return *crawler_;
-    }
+const NetworkCrawler& Processor::crawler() const {
+    return *crawler_;
+}
 
-    NetworkCrawlerRef Processor::newCrawler() const {
-        return NetworkCrawlerRef(new NetworkCrawler(network_));
-    }
+NetworkCrawlerRef Processor::newCrawler() const {
+    return NetworkCrawlerRef(new NetworkCrawler(network_));
+}
 
-    bool Processor::init(const std::vector<std::string> &arguments) {
+bool Processor::init(const std::vector<std::string>& arguments) {
+    crawler_->reset();
+    return network_->init(*crawler_, arguments);
+}
+
+void Processor::run() {
+    do {
         crawler_->reset();
-        return network_->init(*crawler_, arguments);
-    }
+        network_->pull();
+    } while (network_->sync(*crawler_));
+}
 
-    void Processor::run() {
-        do {
-            crawler_->reset();
-            network_->pull();
-        } while (network_->sync(*crawler_));
-    }
+void Processor::finalize() {
+    crawler_->reset();
+    network_->finalize(*crawler_);
+}
+// -------------------------------------------------------------------------
 
-    void Processor::finalize() {
-        crawler_->reset();
-        network_->finalize(*crawler_);
-    }
-    // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+class BatchNode : public Node {
+private:
+    static const std::string emptyString;
 
+public:
+    static const Core::ParameterString paramFile;
+    static const Core::ParameterString paramEncoding;
 
-    // -------------------------------------------------------------------------
-    class BatchNode : public Node {
-    private:
-        static const std::string emptyString;
-    public:
-        static const Core::ParameterString paramFile;
-        static const Core::ParameterString paramEncoding;
+private:
+    typedef std::vector<std::string> StringList;
+    typedef std::vector<StringList>  StringMatrix;
 
-    private:
-        typedef std::vector<std::string> StringList;
-        typedef std::vector<StringList> StringMatrix;
+private:
+    StringMatrix                 batches_;
+    StringMatrix::const_iterator itBatch_;
 
-    private:
-        StringMatrix batches_;
-        StringMatrix::const_iterator itBatch_;
-
-    protected:
-        const std::string & getArgument(u32 i) {
-            require(itBatch_ != batches_.end());
-            if (!(i < itBatch_->size())) {
-                // criticalError("BatchNode: Requested argument %d is out of range.", i);
-                return emptyString;
-            }
-            return (*itBatch_)[i];
+protected:
+    const std::string& getArgument(u32 i) {
+        require(itBatch_ != batches_.end());
+        if (!(i < itBatch_->size())) {
+            return emptyString;
         }
+        return (*itBatch_)[i];
+    }
 
-    public:
-        BatchNode(const std::string &name, const Core::Configuration &config) :
-            Node(name, config) {}
-        virtual ~BatchNode() {}
+public:
+    BatchNode(const std::string& name, const Core::Configuration& config)
+            : Node(name, config) {}
+    virtual ~BatchNode() {}
 
-        virtual void init(const std::vector<std::string> &arguments) {
-            u32 nMaxColumns = 0;
-            std::string filename = paramFile(config);
-            if (!filename.empty()) {
-                if (!Core::isValidPath(filename))
-                    criticalError("BatchNode: Could not find \"%s\"",
-                                  filename.c_str());
-                TextFileParser tf(filename, paramEncoding(config));
-                if (tf) {
-                    log("BatchNode: Read from \"%s\"",
-                        filename.c_str());
-                    for (;;) {
-                        const TextFileParser::StringList &columns = tf.next();
-                        if (tf) {
-                            nMaxColumns = std::max(u32(columns.size()), nMaxColumns);
-                            batches_.push_back(columns);
-                        } else
-                            break;
+    virtual void init(const std::vector<std::string>& arguments) {
+        u32         nMaxColumns = 0;
+        std::string filename    = paramFile(config);
+        if (!filename.empty()) {
+            if (!Core::isValidPath(filename))
+                criticalError("BatchNode: Could not find \"%s\"", filename.c_str());
+            TextFileParser tf(filename, paramEncoding(config));
+            if (tf) {
+                log("BatchNode: Read from \"%s\"", filename.c_str());
+                for (;;) {
+                    const TextFileParser::StringList& columns = tf.next();
+                    if (tf) {
+                        nMaxColumns = std::max(u32(columns.size()), nMaxColumns);
+                        batches_.push_back(columns);
                     }
-                } else
-                    criticalError("Could not open \"%s\"", filename.c_str());
-            } else if (!arguments.empty()) {
-                log("BatchNode: Read from command line");
-                nMaxColumns = arguments.size();
-                batches_.push_back(arguments);
+                    else
+                        break;
+                }
             }
-            if (!batches_.empty())
-                log("BatchNode: Found %d batches with (up to) %d arguments",
-                    (u32)batches_.size(), nMaxColumns);
             else
-                error("BatchNode: No input");
-            itBatch_ = batches_.begin();
+                criticalError("Could not open \"%s\"", filename.c_str());
         }
+        else if (!arguments.empty()) {
+            log("BatchNode: Read from command line");
+            nMaxColumns = arguments.size();
+            batches_.push_back(arguments);
+        }
+        if (!batches_.empty())
+            log("BatchNode: Found %d batches with (up to) %d arguments",
+                (u32)batches_.size(), nMaxColumns);
+        else
+            error("BatchNode: No input");
+        itBatch_ = batches_.begin();
+    }
 
-        virtual void sync() {
-            require(itBatch_ != batches_.end());
-            ++itBatch_;
-        }
+    virtual void sync() {
+        require(itBatch_ != batches_.end());
+        ++itBatch_;
+    }
 
-        virtual bool good() {
-            return itBatch_ != batches_.end();
-        }
+    virtual bool good() {
+        return itBatch_ != batches_.end();
+    }
 
-        virtual void finalize() {
-            if (good())
-                warning("BatchNode: Pending batches exists.");
-        }
+    virtual void finalize() {
+        if (good())
+            warning("BatchNode: Pending batches exists.");
+    }
 
-        virtual bool sendBool(Port to) {
-            bool b = false;
-            if (!Core::strconv(getArgument(to), b))
-                criticalError("BatchNode: Failed to convert %s",
-                              getArgument(to).c_str());
-            return b;
-        }
-        virtual s32 sendInt(Port to) {
-            s32 i = 0;
-            if (!Core::strconv(getArgument(to), i))
-                criticalError("BatchNode: Failed to convert %s",
-                              getArgument(to).c_str());
-            return i;
-        }
-        virtual f64 sendFloat(Port to) {
-            f64 f = 0.0;
-            if (!Core::strconv(getArgument(to), f))
-                criticalError("BatchNode: Failed to convert %s",
-                              getArgument(to).c_str());
-            return f;
-        }
-        virtual std::string sendString(Port to) {
-            return getArgument(to);
-        }
-    };
-    const std::string BatchNode::emptyString = std::string();
-    const Core::ParameterString BatchNode::paramFile(
+    virtual bool sendBool(Port to) {
+        bool b = false;
+        if (!Core::strconv(getArgument(to), b))
+            criticalError("BatchNode: Failed to convert %s", getArgument(to).c_str());
+        return b;
+    }
+    virtual s32 sendInt(Port to) {
+        s32 i = 0;
+        if (!Core::strconv(getArgument(to), i))
+            criticalError("BatchNode: Failed to convert %s", getArgument(to).c_str());
+        return i;
+    }
+    virtual f64 sendFloat(Port to) {
+        f64 f = 0.0;
+        if (!Core::strconv(getArgument(to), f))
+            criticalError("BatchNode: Failed to convert %s", getArgument(to).c_str());
+        return f;
+    }
+    virtual std::string sendString(Port to) {
+        return getArgument(to);
+    }
+};
+const std::string           BatchNode::emptyString = std::string();
+const Core::ParameterString BatchNode::paramFile(
         "file",
         "text file",
         "");
-    const Core::ParameterString BatchNode::paramEncoding(
+const Core::ParameterString BatchNode::paramEncoding(
         "encoding",
         "encoding of file",
         "utf-8");
 
-    NodeRef createBatchNode(const std::string &name, const Core::Configuration &config) {
-        return NodeRef(new BatchNode(name, config));
-    }
-    // -------------------------------------------------------------------------
+NodeRef createBatchNode(const std::string& name, const Core::Configuration& config) {
+    return NodeRef(new BatchNode(name, config));
+}
+// -------------------------------------------------------------------------
 
-} // namespace Flf
+}  // namespace Flf

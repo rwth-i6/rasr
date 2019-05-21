@@ -15,8 +15,8 @@
 #ifndef _FLF_LATTICE_ADAPTOR_HH
 #define _FLF_LATTICE_ADAPTOR_HH
 
-#include <Search/LatticeAdaptor.hh>
 #include <Flf/FlfCore/Lattice.hh>
+#include <Search/LatticeAdaptor.hh>
 
 namespace Search {
 class LatticeHandler;
@@ -24,30 +24,30 @@ class LatticeHandler;
 
 namespace Flf {
 
-class FlfLatticeAdaptor : public Search::LatticeAdaptor
-{
+class FlfLatticeAdaptor : public Search::LatticeAdaptor {
     typedef ::Lattice::ConstWordLatticeRef ConstWordLatticeRef;
+
 public:
     FlfLatticeAdaptor() {}
-    FlfLatticeAdaptor(const FlfLatticeAdaptor &o) : l_(o.l_) {}
-    explicit FlfLatticeAdaptor(ConstLatticeRef l) : l_(l) {}
+    FlfLatticeAdaptor(const FlfLatticeAdaptor& o)
+            : l_(o.l_) {}
+    explicit FlfLatticeAdaptor(ConstLatticeRef l)
+            : l_(l) {}
     virtual ~FlfLatticeAdaptor() {}
 
-    bool write(const std::string &id, Search::LatticeHandler *handler) const;
-    ConstWordLatticeRef wordLattice(const Search::LatticeHandler *handler) const;
-    virtual bool empty() const {
+    bool                write(const std::string& id, Search::LatticeHandler* handler) const;
+    ConstWordLatticeRef wordLattice(const Search::LatticeHandler* handler) const;
+    virtual bool        empty() const {
         return l_;
     }
     ConstLatticeRef get() const {
         return l_;
     }
+
 private:
     ConstLatticeRef l_;
 };
 
+}  // namespace Flf
 
-} // namespace Flf
-
-
-
-#endif // _FLF_LATTICE_ADAPTOR_HH
+#endif  // _FLF_LATTICE_ADAPTOR_HH

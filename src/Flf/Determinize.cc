@@ -14,95 +14,100 @@
  */
 #include <Core/Parameter.hh>
 
+#include "Determinize.hh"
 #include "FlfCore/Basic.hh"
 #include "FlfCore/Ftl.hh"
-#include "Determinize.hh"
 
 namespace Flf {
 
-    // -------------------------------------------------------------------------
-    ConstLatticeRef determinize(ConstLatticeRef l) {
-        ConstLatticeRef k = FtlWrapper::determinize(l, false);
-        k->setBoundaries(InvalidBoundaries);
-        return k;
+// -------------------------------------------------------------------------
+ConstLatticeRef determinize(ConstLatticeRef l) {
+    ConstLatticeRef k = FtlWrapper::determinize(l, false);
+    k->setBoundaries(InvalidBoundaries);
+    return k;
+}
+
+class DeterminizeNode : public FilterNode {
+    friend class Network;
+
+public:
+    static const Core::ParameterBool  paramToLogSemiring;
+    static const Core::ParameterFloat paramAlpha;
+
+private:
+    bool             toLogSemiring_;
+    f32              alpha_;
+    ConstSemiringRef lastSemiring_;
+    ConstSemiringRef logSemiring_;
+
+protected:
+    virtual ConstLatticeRef filter(ConstLatticeRef l) {
+        if (!l)
+            return ConstLatticeRef();
+        if (toLogSemiring_) {
+            if (!lastSemiring_ || (lastSemiring_.get() != l->semiring().get())) {
+                lastSemiring_ = l->semiring();
+                logSemiring_  = toLogSemiring(lastSemiring_, alpha_);
+            }
+            l = changeSemiring(l, logSemiring_);
+        }
+        l = determinize(l);
+        if (toLogSemiring_) {
+            l = changeSemiring(l, lastSemiring_);
+        }
+        return l;
     }
 
-    class DeterminizeNode : public FilterNode {
-        friend class Network;
-    public:
-        static const Core::ParameterBool paramToLogSemiring;
-        static const Core::ParameterFloat paramAlpha;
-    private:
-        bool toLogSemiring_;
-        f32 alpha_;
-        ConstSemiringRef lastSemiring_;
-        ConstSemiringRef logSemiring_;
-    protected:
-        virtual ConstLatticeRef filter(ConstLatticeRef l) {
-            if (!l)
-                return ConstLatticeRef();
-            if (toLogSemiring_) {
-                if (!lastSemiring_ || (lastSemiring_.get() != l->semiring().get())) {
-                    lastSemiring_ = l->semiring();
-                    logSemiring_ = toLogSemiring(lastSemiring_, alpha_);
-                }
-                l = changeSemiring(l, logSemiring_);
-            }
-            l = determinize(l);
-            if (toLogSemiring_) {
-                l = changeSemiring(l, lastSemiring_);
-            }
-            return l;
+public:
+    DeterminizeNode(const std::string& name, const Core::Configuration& config)
+            : FilterNode(name, config), toLogSemiring_(false) {}
+    ~DeterminizeNode() {}
+    virtual void init(const std::vector<std::string>& arguments) {
+        toLogSemiring_ = paramToLogSemiring(config);
+        if (toLogSemiring_) {
+            alpha_ = paramAlpha(select("log-semiring"));
+            log() << "Use log-semiring with alpha=" << alpha_;
         }
-    public:
-        DeterminizeNode(const std::string &name, const Core::Configuration &config) :
-            FilterNode(name, config), toLogSemiring_(false) {}
-        ~DeterminizeNode() {}
-        virtual void init(const std::vector<std::string> &arguments) {
-            toLogSemiring_ = paramToLogSemiring(config);
-            if (toLogSemiring_) {
-                alpha_ = paramAlpha(select("log-semiring"));
-                log() << "Use log-semiring with alpha=" << alpha_;
-            }
-        }
-    };
-    const Core::ParameterBool DeterminizeNode::paramToLogSemiring(
+    }
+};
+const Core::ParameterBool DeterminizeNode::paramToLogSemiring(
         "log-semiring",
         "use log semiring",
         false);
-   const Core::ParameterFloat DeterminizeNode::paramAlpha(
-       "alpha",
-       "scale dimensions for posterior calculation",
-       0.0);
+const Core::ParameterFloat DeterminizeNode::paramAlpha(
+        "alpha",
+        "scale dimensions for posterior calculation",
+        0.0);
 
-    NodeRef createDeterminizeNode(const std::string &name, const Core::Configuration &config) {
-        return NodeRef(new DeterminizeNode(name, config));
+NodeRef createDeterminizeNode(const std::string& name, const Core::Configuration& config) {
+    return NodeRef(new DeterminizeNode(name, config));
+}
+// -------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
+ConstLatticeRef minimize(ConstLatticeRef l) {
+    ConstLatticeRef k = FtlWrapper::minimize(l);
+    k->setBoundaries(InvalidBoundaries);
+    return k;
+}
+
+class MinimizeNode : public FilterNode {
+    friend class Network;
+
+protected:
+    virtual ConstLatticeRef filter(ConstLatticeRef l) {
+        return minimize(l);
     }
-    // -------------------------------------------------------------------------
 
+public:
+    MinimizeNode(const std::string& name, const Core::Configuration& config)
+            : FilterNode(name, config) {}
+    ~MinimizeNode() {}
+};
 
-    // -------------------------------------------------------------------------
-    ConstLatticeRef minimize(ConstLatticeRef l) {
-        ConstLatticeRef k = FtlWrapper::minimize(l);
-        k->setBoundaries(InvalidBoundaries);
-        return k;
-    }
+NodeRef createMinimizeNode(const std::string& name, const Core::Configuration& config) {
+    return NodeRef(new MinimizeNode(name, config));
+}
+// -------------------------------------------------------------------------
 
-    class MinimizeNode : public FilterNode {
-        friend class Network;
-    protected:
-        virtual ConstLatticeRef filter(ConstLatticeRef l) {
-            return minimize(l);
-        }
-    public:
-        MinimizeNode(const std::string &name, const Core::Configuration &config) :
-            FilterNode(name, config) {}
-        ~MinimizeNode() {}
-    };
-
-    NodeRef createMinimizeNode(const std::string &name, const Core::Configuration &config) {
-        return NodeRef(new MinimizeNode(name, config));
-    }
-    // -------------------------------------------------------------------------
-
-} // namespace Flf
+}  // namespace Flf

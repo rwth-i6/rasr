@@ -16,38 +16,24 @@
 #define _FLF_LOCAL_COST_DECODER_HH
 
 /**
-   Implementation of local costs of the first and the second type,
-   for details see my thesis, chapter 3.3.3 (The Bayes Risk Decoding Framework with Local Cost Functions)
-
-   The implementations of the following Levenshtein distance approximations:
-   - Symmetrically Normalized Frame Errors (arc and path normalization, see my thesis, chapter 4.2.2)
-   - Local Alignment based Errors (see my thesis, chapter 4.3)
-
-   Other local cost functions have separate implementations, see *ConfusionNetworkBuilder.hh
-**/
+ * Implementation of local costs of the first and the second type,
+ * for details see my thesis, chapter 3.3.3 (The Bayes Risk Decoding Framework with Local Cost Functions)
+ *
+ * The implementations of the following Levenshtein distance approximations:
+ * - Symmetrically Normalized Frame Errors (arc and path normalization, see my thesis, chapter 4.2.2)
+ * - Local Alignment based Errors (see my thesis, chapter 4.3)
+ *
+ * Other local cost functions have separate implementations, see *ConfusionNetworkBuilder.hh
+ **/
 
 #include "FlfCore/Lattice.hh"
 #include "FwdBwd.hh"
 #include "Network.hh"
 
-
 namespace Flf {
 
-    /*
-    std::pair<ConstLatticeRef, Score> decodeByApproximatedRisk(
-        ConstLatticeRef hypSpaceL, ConstLatticeRef sumSpaceL, ConstFwdBwdRef sumSpaceFb,
-        Score wordPenalty = 0.0,
-        ScoreId confidenceId = Semiring::InvalidId);
+NodeRef createLocalCostDecoderNode(const std::string& name, const Core::Configuration& config);
 
-    ConstLatticeRef extendByApproximatedRisk(
-        ConstLatticeRef l, ConstFwdBwdRef fb,
-        Score wordPenalty = 0.0,
-        ScoreId scoreId = Semiring::InvalidId, ScoreId confidenceId = Semiring::InvalidId,
-        RescoreMode rescoreMode = RescoreModeClone);
-    */
+}  // namespace Flf
 
-    NodeRef createLocalCostDecoderNode(const std::string &name, const Core::Configuration &config);
-
-} // namespace
-
-#endif // _FLF_LOCAL_COST_DECODER_HH
+#endif  // _FLF_LOCAL_COST_DECODER_HH

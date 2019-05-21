@@ -22,22 +22,21 @@
 
 namespace Flf {
 
-    struct StateBoundary {
-        ConstStateRef state;
-        Boundary boundary;
-    };
-    class StateBoundaryList : public Core::Vector<StateBoundary>, public Core::ReferenceCounted {};
-    typedef Core::Ref<const StateBoundaryList> ConstStateBoundaryListRef;
-    /**
-     * Cache complete lattice; allows fast state/boundary lookup;
-     * similar to copy by reference
-     **/
-    ConstStateBoundaryListRef cacheLattice(ConstLatticeRef l);
+struct StateBoundary {
+    ConstStateRef state;
+    Boundary      boundary;
+};
+class StateBoundaryList : public Core::Vector<StateBoundary>, public Core::ReferenceCounted {};
+typedef Core::Ref<const StateBoundaryList> ConstStateBoundaryListRef;
+/**
+ * Cache complete lattice; allows fast state/boundary lookup;
+ * similar to copy by reference
+ **/
+ConstStateBoundaryListRef cacheLattice(ConstLatticeRef l);
 
+ConstLatticeRef cache(ConstLatticeRef l, u32 maxAge = 10000);
+NodeRef         createCacheNode(const std::string& name, const Core::Configuration& config);
 
-    ConstLatticeRef cache(ConstLatticeRef l, u32 maxAge = 10000);
-    NodeRef createCacheNode(const std::string &name, const Core::Configuration &config);
+}  // namespace Flf
 
-} // namespace Flf
-
-#endif // _FLF_CACHE_HH
+#endif  // _FLF_CACHE_HH

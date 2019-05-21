@@ -12,26 +12,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Flf/LatticeHandler.hh>
-#include <Flf/LatticeAdaptor.hh>
 #include <Flf/Archive.hh>
 #include <Flf/Copy.hh>
 #include <Flf/FlfCore/Basic.hh>
+#include <Flf/LatticeAdaptor.hh>
+#include <Flf/LatticeHandler.hh>
 #include <Flf/Map.hh>
 #include <Flf/Rescore.hh>
 #include <Lattice/LatticeAdaptor.hh>
 
 namespace Flf {
 
-LatticeHandler::~LatticeHandler()
-{
+LatticeHandler::~LatticeHandler() {
     delete reader_;
     delete writer_;
     delete parent_;
 }
 
-bool LatticeHandler::createReader()
-{
+bool LatticeHandler::createReader() {
     if (!reader_) {
         reader_ = LatticeArchive::getReader(config);
         if (reader_->hasFatalErrors()) {
@@ -42,8 +40,7 @@ bool LatticeHandler::createReader()
     return reader_;
 }
 
-bool LatticeHandler::createWriter()
-{
+bool LatticeHandler::createWriter() {
     if (!writer_) {
         writer_ = LatticeArchive::getWriter(config);
         if (writer_->hasFatalErrors()) {
@@ -54,12 +51,11 @@ bool LatticeHandler::createWriter()
     return writer_;
 }
 
-
-bool LatticeHandler::write(const std::string &id, const FlfLatticeAdaptor &l)
-{
+bool LatticeHandler::write(const std::string& id, const FlfLatticeAdaptor& l) {
     if (format_ != formatFlf) {
         return parent_->write(id, ::Lattice::WordLatticeAdaptor(l.wordLattice(this)));
-    } else {
+    }
+    else {
         if (!createWriter())
             return false;
         writer_->store(id, l.get());
@@ -67,19 +63,17 @@ bool LatticeHandler::write(const std::string &id, const FlfLatticeAdaptor &l)
     }
 }
 
-Core::Ref<Search::LatticeAdaptor> LatticeHandler::read(const std::string &id, const std::string &name)
-{
+Core::Ref<Search::LatticeAdaptor> LatticeHandler::read(const std::string& id, const std::string& name) {
     if (!createReader())
         return Core::Ref<Search::LatticeAdaptor>();
     ConstLatticeRef l = reader_->get(id);
     return Core::ref(new FlfLatticeAdaptor(l));
 }
 
-LatticeHandler::ConstWordLatticeRef LatticeHandler::convert(const FlfLatticeAdaptor &la) const
-{
+LatticeHandler::ConstWordLatticeRef LatticeHandler::convert(const FlfLatticeAdaptor& la) const {
     require(lexicon());
-    ConstLatticeRef l = la.get();
-    ScoreId amId = l->semiring()->id("am");
+    ConstLatticeRef l    = la.get();
+    ScoreId         amId = l->semiring()->id("am");
     require(l->semiring()->hasId(amId));
     ScoreId lmId = l->semiring()->id("lm");
     require(l->semiring()->hasId(lmId));
@@ -92,24 +86,23 @@ LatticeHandler::ConstWordLatticeRef LatticeHandler::convert(const FlfLatticeAdap
     l = extendByPronunciationScore(l, lexicon()->lemmaPronunciationAlphabet(), lmId, Semiring::UndefinedScale, RescoreModeInPlaceCache);
     l = persistent(l);
 
-    ::Lattice::WordLattice *wl = new ::Lattice::WordLattice;
+    ::Lattice::WordLattice* wl = new ::Lattice::WordLattice;
     wl->setFsa(toFsa(l, amId), ::Lattice::WordLattice::acousticFsa);
     wl->setFsa(toFsa(l, lmId), ::Lattice::WordLattice::lmFsa);
     if (l->getBoundaries()->valid()) {
         StaticBoundaries boundaries;
         copyBoundaries(l, &boundaries);
-        Core::Ref< ::Lattice::WordBoundaries> wordBoundaries(new ::Lattice::WordBoundaries);
+        Core::Ref<::Lattice::WordBoundaries> wordBoundaries(new ::Lattice::WordBoundaries);
         for (Fsa::StateId s = 0; s < boundaries.size(); ++s) {
             if (boundaries.valid(s)) {
                 const Boundary& bnd = boundaries.get(s);
                 wordBoundaries->set(s,
-                        ::Lattice::WordBoundary (bnd.time(),
-                                                 ::Lattice::WordBoundary::Transit(bnd.transit().final, bnd.transit().initial)));
+                                    ::Lattice::WordBoundary(bnd.time(),
+                                                            ::Lattice::WordBoundary::Transit(bnd.transit().final, bnd.transit().initial)));
             }
         }
     }
     return ConstWordLatticeRef(wl);
-
 }
 
-} // namespace Flf
+}  // namespace Flf

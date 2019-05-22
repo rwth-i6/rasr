@@ -15,112 +15,114 @@
 #ifndef _SIGNAL_WINDOWFUNCTION_HH
 #define _SIGNAL_WINDOWFUNCTION_HH
 
-#include <math.h>
-#include <Core/Types.hh>
 #include <Core/Parameter.hh>
+#include <Core/Types.hh>
+#include <math.h>
 
-namespace Signal
-{
+namespace Signal {
 
-    /** WindowFunction is base class for different windowing functions
-     *
-     *  In the particular windowing functions override the function
-     *    virtual bool init() and fill in the member variable window_.
-     */
+/** WindowFunction is base class for different windowing functions
+ *
+ *  In the particular windowing functions override the function
+ *    virtual bool init() and fill in the member variable window_.
+ */
 
-    class WindowFunction {
-    public:
-        typedef f32 Float;
-        enum Type { Rectangular, Hamming, Hanning, Bartlett, Blackman, Kaiser };
+class WindowFunction {
+public:
+    typedef f32 Float;
+    enum Type { Rectangular,
+                Hamming,
+                Hanning,
+                Bartlett,
+                Blackman,
+                Kaiser };
 
-        static Core::Choice typeChoice;
-        static Core::ParameterChoice paramType;
+    static Core::Choice          typeChoice;
+    static Core::ParameterChoice paramType;
 
-        static WindowFunction* create(Type type);
+    static WindowFunction* create(Type type);
 
-    protected:
+protected:
+    std::vector<Float> window_;
 
-        std::vector<Float> window_;
+    bool needInit_;
 
-        bool needInit_;
+protected:
+    virtual bool init() {
+        return !(needInit_ = false);
+    }
 
-    protected:
+public:
+    WindowFunction()
+            : needInit_(true) {}
 
-        virtual bool init() { return !(needInit_ = false); }
-
-    public:
-
-        WindowFunction() : needInit_(true) {}
-
-        virtual ~WindowFunction() {}
-
+    virtual ~WindowFunction() {}
 
     void setLength(u32 l);
 
-        u32 length() { return window_.size(); }
-
-    const std::vector<Float>& getWindow(){
-      if (needInit_) init() ;
-      return window_ ; }
-
-        template<class Iterator> bool work(const Iterator &begin, const Iterator &end);
-    };
-
-
-    template<class Iterator> bool WindowFunction::work(const Iterator &begin, const Iterator &end) {
-
-        ensure(std::distance(begin, end) >= (s32)length());
-
-        if (needInit_ && !init())
-            return false;
-
-        std::transform(window_.begin(), window_.end(), begin, begin, std::multiplies<Float>());
-
-        std::fill(begin + length(), end, 0);
-
-        return true;
+    u32 length() {
+        return window_.size();
     }
 
+    const std::vector<Float>& getWindow() {
+        if (needInit_)
+            init();
+        return window_;
+    }
 
-    /** RectangularWindowFunction */
+    template<class Iterator>
+    bool work(const Iterator& begin, const Iterator& end);
+};
 
-    class RectangularWindowFunction : public WindowFunction {
-    protected:
-        virtual bool init();
-    };
+template<class Iterator>
+bool WindowFunction::work(const Iterator& begin, const Iterator& end) {
+    ensure(std::distance(begin, end) >= (s32)length());
 
+    if (needInit_ && !init())
+        return false;
 
-    /** BartlettWindowFunction */
+    std::transform(window_.begin(), window_.end(), begin, begin, std::multiplies<Float>());
 
-    class BartlettWindowFunction : public WindowFunction {
-    protected:
-        virtual bool init();
-    };
+    std::fill(begin + length(), end, 0);
 
-
-    /** HammingWindowFunction */
-
-    class HammingWindowFunction : public WindowFunction {
-    protected:
-        virtual bool init();
-    };
-
-
-    /** HanningWindowFunction */
-
-    class HanningWindowFunction : public WindowFunction {
-    protected:
-        virtual bool init();
-    };
-
-
-    /** BlackmanWindowFunction */
-
-    class BlackmanWindowFunction : public WindowFunction {
-    protected:
-        virtual bool init();
-    };
-
+    return true;
 }
 
-#endif // _SIGNAL_WINDOWFUNCTION_HH
+/** RectangularWindowFunction */
+
+class RectangularWindowFunction : public WindowFunction {
+protected:
+    virtual bool init();
+};
+
+/** BartlettWindowFunction */
+
+class BartlettWindowFunction : public WindowFunction {
+protected:
+    virtual bool init();
+};
+
+/** HammingWindowFunction */
+
+class HammingWindowFunction : public WindowFunction {
+protected:
+    virtual bool init();
+};
+
+/** HanningWindowFunction */
+
+class HanningWindowFunction : public WindowFunction {
+protected:
+    virtual bool init();
+};
+
+/** BlackmanWindowFunction */
+
+class BlackmanWindowFunction : public WindowFunction {
+protected:
+    virtual bool init();
+};
+
+}  // namespace Signal
+
+#endif  // _SIGNAL_WINDOWFUNCTION_HH

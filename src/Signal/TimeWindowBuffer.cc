@@ -12,28 +12,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <math.h>
+#include "TimeWindowBuffer.hh"
 #include <Core/Assertions.hh>
 #include <Core/Utility.hh>
-#include "TimeWindowBuffer.hh"
+#include <math.h>
 
 using namespace Signal;
 
-template <typename T>
-TimeWindowBuffer<T>::TimeWindowBuffer() :
-    length_(0),
-    shift_(0),
-    bufferStartTime_(0),
-    sampleRate_(0),
-    flushBeforeGap_(true),
-    nOutputs_(0),
-    flushed_(true),
-    flushAll_(false),
-    needInit_(true)
-{}
+template<typename T>
+TimeWindowBuffer<T>::TimeWindowBuffer()
+        : length_(0),
+          shift_(0),
+          bufferStartTime_(0),
+          sampleRate_(0),
+          flushBeforeGap_(true),
+          nOutputs_(0),
+          flushed_(true),
+          flushAll_(false),
+          needInit_(true) {}
 
-
-template <typename T>
+template<typename T>
 void TimeWindowBuffer<T>::init() {
     verify(sampleRate_ > 0);
 
@@ -41,18 +39,16 @@ void TimeWindowBuffer<T>::init() {
     needInit_ = false;
 }
 
-
-template <typename T>
+template<typename T>
 void TimeWindowBuffer<T>::reset() {
     nOutputs_ = 0;
-    flushed_ = false;
+    flushed_  = false;
     buffer_.clear();
     bufferStartTime_ = 0;
 }
 
-
-template <typename T>
-bool TimeWindowBuffer<T>::put(const Flow::Vector<T> &in) {
+template<typename T>
+bool TimeWindowBuffer<T>::put(const Flow::Vector<T>& in) {
     if (needInit_) {
         init();
         ensure(!needInit_);
@@ -60,7 +56,8 @@ bool TimeWindowBuffer<T>::put(const Flow::Vector<T> &in) {
 
     if (buffer_.empty()) {
         bufferStartTime_ = in.startTime();
-    } else {
+    }
+    else {
         Time bufferEndTime = bufferStartTime_ + (Time)buffer_.size() / sampleRate_;
         if (flushBeforeGap_ && !in.equalsToStartTime(bufferEndTime))
             return false;
@@ -70,21 +67,19 @@ bool TimeWindowBuffer<T>::put(const Flow::Vector<T> &in) {
     return true;
 }
 
-
-template <typename T>
-void TimeWindowBuffer<T>::copy(Flow::Vector<T> &out, u32 length) {
+template<typename T>
+void TimeWindowBuffer<T>::copy(Flow::Vector<T>& out, u32 length) {
     out.clear();
     out.insert(out.end(), buffer_.begin(), buffer_.begin() + length);
     out.setStartTime(bufferStartTime_);
     out.setEndTime(bufferStartTime_ + (Time)out.size() / (Time)sampleRate_);
 
-    ++ nOutputs_;
+    ++nOutputs_;
     transform(out);
 }
 
-
-template <typename T>
-bool TimeWindowBuffer<T>::get(Flow::Vector<T> &out) {
+template<typename T>
+bool TimeWindowBuffer<T>::get(Flow::Vector<T>& out) {
     if (needInit_) {
         init();
         verify(!needInit_);
@@ -99,9 +94,8 @@ bool TimeWindowBuffer<T>::get(Flow::Vector<T> &out) {
     return true;
 }
 
-
-template <typename T>
-bool TimeWindowBuffer<T>::flush(Flow::Vector<T> &out) {
+template<typename T>
+bool TimeWindowBuffer<T>::flush(Flow::Vector<T>& out) {
     if (needInit_) {
         init();
         verify(!needInit_);
@@ -121,7 +115,6 @@ bool TimeWindowBuffer<T>::flush(Flow::Vector<T> &out) {
     if (flushed())
         needInit_ = true;
     else {
-
         buffer_.erase(buffer_.begin(), buffer_.begin() + shift_);
 
         bufferStartTime_ += (Time)shift_ / (Time)sampleRate_;
@@ -134,6 +127,6 @@ namespace Signal {
 
 //=============================================================================
 // explicit template instantiation
-template class TimeWindowBuffer<Flow::Vector<f32> >;
+template class TimeWindowBuffer<Flow::Vector<f32>>;
 
-}
+}  // namespace Signal

@@ -15,60 +15,75 @@
 #ifndef _SIGNAL_VECTOR_TRANSFORM_HH
 #define _SIGNAL_VECTOR_TRANSFORM_HH
 
-#include <Math/AnalyticFunction.hh>
 #include <Flow/Node.hh>
+#include <Math/AnalyticFunction.hh>
 
 namespace Signal {
 
-    /** For each ith element x in vector X performs x = op(x, f(i)).
-     *  Operation "op" can be an arbitrary binary function.
-     *  f(x) is an arbitrary analytic function.
-     */
-    class ContinuousVectorTransformNode : public Flow::SleeveNode {
-        typedef Flow::SleeveNode Precursor;
-    private:
-        static const Core::ParameterString paramF;
-        static const Core::ParameterString paramOperation;
-    private:
-        typedef f32 Data;
-    private:
-        f64 sampleRate_;
-        size_t inputSize_;
+/** For each ith element x in vector X performs x = op(x, f(i)).
+ *  Operation "op" can be an arbitrary binary function.
+ *  f(x) is an arbitrary analytic function.
+ */
+class ContinuousVectorTransformNode : public Flow::SleeveNode {
+    typedef Flow::SleeveNode Precursor;
 
-        std::string fDeclaration_;
-        Math::UnaryAnalyticFunctionRef f_;
+private:
+    static const Core::ParameterString paramF;
+    static const Core::ParameterString paramOperation;
 
-        std::string operationDeclaration_;
-        Math::BinaryAnalyticFunctionRef operation_;
+private:
+    typedef f32 Data;
 
-        bool needInit_;
-    private:
-        void setSampleRate(f64 sampleRate) { sampleRate_ = sampleRate; needInit_ = true; }
+private:
+    f64    sampleRate_;
+    size_t inputSize_;
 
-        void setF(const std::string &declaration) {
-            if (fDeclaration_ != declaration) { fDeclaration_ = declaration; needInit_ = true; }
+    std::string                    fDeclaration_;
+    Math::UnaryAnalyticFunctionRef f_;
+
+    std::string                     operationDeclaration_;
+    Math::BinaryAnalyticFunctionRef operation_;
+
+    bool needInit_;
+
+private:
+    void setSampleRate(f64 sampleRate) {
+        sampleRate_ = sampleRate;
+        needInit_   = true;
+    }
+
+    void setF(const std::string& declaration) {
+        if (fDeclaration_ != declaration) {
+            fDeclaration_ = declaration;
+            needInit_     = true;
         }
-        bool createF();
+    }
+    bool createF();
 
-        void setOperation(const std::string &declaration) {
-            if (operationDeclaration_ != declaration) { operationDeclaration_ = declaration; needInit_ = true; }
+    void setOperation(const std::string& declaration) {
+        if (operationDeclaration_ != declaration) {
+            operationDeclaration_ = declaration;
+            needInit_             = true;
         }
-        bool createOperation();
+    }
+    bool createOperation();
 
-        void init(size_t inputSize);
-    private:
-        void apply(std::vector<Data> &in);
-    public:
-        static std::string filterName() {
-            return std::string("signal-vector-") + Core::Type<Data>::name + "-continuous-transform";
-        }
-        ContinuousVectorTransformNode(const Core::Configuration &c);
-        virtual ~ContinuousVectorTransformNode();
+    void init(size_t inputSize);
 
-        virtual bool configure();
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool work(Flow::PortId p);
-    };
-} // namespace Signal
+private:
+    void apply(std::vector<Data>& in);
 
-#endif // _SIGNAL_VECTOR_TRANSFORM_HH
+public:
+    static std::string filterName() {
+        return std::string("signal-vector-") + Core::Type<Data>::name + "-continuous-transform";
+    }
+    ContinuousVectorTransformNode(const Core::Configuration& c);
+    virtual ~ContinuousVectorTransformNode();
+
+    virtual bool configure();
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool work(Flow::PortId p);
+};
+}  // namespace Signal
+
+#endif  // _SIGNAL_VECTOR_TRANSFORM_HH

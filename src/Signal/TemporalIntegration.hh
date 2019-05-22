@@ -19,9 +19,9 @@
 #include <Flow/Data.hh>
 #include <Flow/Vector.hh>
 
+#include "SlidingAlgorithmNode.hh"
 #include "TimeWindowBuffer.hh"
 #include "WindowFunction.hh"
-#include "SlidingAlgorithmNode.hh"
 
 namespace Signal {
 
@@ -30,18 +30,21 @@ namespace Signal {
 * output. A window of the length lengthInS is applied every shiftInS, and
 * the samples are summed up, weighted by the window function.
 */
-class TemporalIntegration : public TimeWindowBuffer<Flow::Vector<f32> > {
+class TemporalIntegration : public TimeWindowBuffer<Flow::Vector<f32>> {
 public:
-    typedef TimeWindowBuffer<Flow::Vector<f32> > Precursor;
-    typedef TimeWindowBuffer<Flow::Vector<f32> >::Time Time;
-    typedef Flow::Vector<f32> Sample;
+    typedef TimeWindowBuffer<Flow::Vector<f32>>       Precursor;
+    typedef TimeWindowBuffer<Flow::Vector<f32>>::Time Time;
+    typedef Flow::Vector<f32>                         Sample;
+
 private:
-    Time lengthInS_;
-    Time shiftInS_;
+    Time            lengthInS_;
+    Time            shiftInS_;
     WindowFunction* windowFunction_;
+
 protected:
     virtual void init();
-    virtual void transform(Flow::Vector<Sample> &out);
+    virtual void transform(Flow::Vector<Sample>& out);
+
 public:
     TemporalIntegration();
     virtual ~TemporalIntegration();
@@ -51,12 +54,15 @@ public:
     void setSampleRate(f64 sampleRate);
 
     void setLengthInS(Time length);
-    Time lengthInS() const { return lengthInS_; }
+    Time lengthInS() const {
+        return lengthInS_;
+    }
 
     void setShiftInS(Time shift);
-    Time shiftInS() const { return shiftInS_; }
+    Time shiftInS() const {
+        return shiftInS_;
+    }
 };
-
 
 /**
  * Temporal Integration Node
@@ -68,20 +74,24 @@ public:
 class TemporalIntegrationNode : public SlidingAlgorithmNode<TemporalIntegration> {
 public:
     typedef SlidingAlgorithmNode<TemporalIntegration> Predecessor;
+
 private:
     static const Core::ParameterFloat paramShift;
     static const Core::ParameterFloat paramLength;
-    static const Core::ParameterBool paramFlushAll;
-    static const Core::ParameterBool paramFlushBeforeGap;
-public:
-    static std::string filterName() { return "signal-temporalintegration"; }
+    static const Core::ParameterBool  paramFlushAll;
+    static const Core::ParameterBool  paramFlushBeforeGap;
 
-    TemporalIntegrationNode(const Core::Configuration &c);
+public:
+    static std::string filterName() {
+        return "signal-temporalintegration";
+    }
+
+    TemporalIntegrationNode(const Core::Configuration& c);
     virtual ~TemporalIntegrationNode() {}
 
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool configure();
 };
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_TEMPORALINTEGRATION_HH
+#endif  // _SIGNAL_TEMPORALINTEGRATION_HH

@@ -19,10 +19,10 @@
 #include <vector>
 
 #include <Core/Parameter.hh>
-#include <Math/Vector.hh>
-#include <Math/Matrix.hh>
 #include <Flow/Node.hh>
 #include <Flow/Vector.hh>
+#include <Math/Matrix.hh>
+#include <Math/Vector.hh>
 
 namespace Signal {
 
@@ -35,48 +35,73 @@ static const u32 maxFilter = 8;
 class MrastaFiltering {
 public:
     typedef f32 Value;
+
 private:
     Math::Vector<Value> inputBuffer_;
     Math::Vector<Value> outputBuffer_;
 
-    bool needInit_;
+    bool               needInit_;
     static const float sigma_[];
 
-    u32 nFeatures_;   // feature dimension
-    u32 nFrames_;     // number of concatenated frames in a sliding window
-    u32 nDerivatives_; // number of derivatives (0, 1, 2) w.r.t. filter bands (not time)
-    u32 nFilters_;     // number of MRASTA filters (up to 8)
+    u32 nFeatures_;     // feature dimension
+    u32 nFrames_;       // number of concatenated frames in a sliding window
+    u32 nDerivatives_;  // number of derivatives (0, 1, 2) w.r.t. filter bands (not time)
+    u32 nFilters_;      // number of MRASTA filters (up to 8)
 
-    Math::Vector<Math::Matrix<Value> > filters_;
+    Math::Vector<Math::Matrix<Value>> filters_;
 
-    bool init();
+    bool         init();
     inline float sigma(int index) const;
 
-    void setFilters(Math::Vector<Math::Matrix<Value> >& filters);
-    Math::Vector<Math::Matrix<Value> >& filters() { return filters_; }
-    void initGaussianFilters(size_t nFilter, size_t nFrames);
-    void resizeFilters(size_t nFilter, size_t nFrames);
-    inline void normalizeFilterResponse(Math::Matrix<Value>& G, int filter_num);
-    Math::Matrix<Value>& getG0() { return filters_[0]; }
-    Math::Matrix<Value>& getG1() { return filters_[1]; }
-    Math::Matrix<Value>& getG2() { return filters_[2]; }
+    void                               setFilters(Math::Vector<Math::Matrix<Value>>& filters);
+    Math::Vector<Math::Matrix<Value>>& filters() {
+        return filters_;
+    }
+    void                 initGaussianFilters(size_t nFilter, size_t nFrames);
+    void                 resizeFilters(size_t nFilter, size_t nFrames);
+    inline void          normalizeFilterResponse(Math::Matrix<Value>& G, int filter_num);
+    Math::Matrix<Value>& getG0() {
+        return filters_[0];
+    }
+    Math::Matrix<Value>& getG1() {
+        return filters_[1];
+    }
+    Math::Matrix<Value>& getG2() {
+        return filters_[2];
+    }
 
-    void getBand(size_t band, std::vector<Value> &in, std::vector<Value> &out);
-    void setBand(size_t band, std::vector<Value> &in, std::vector<Value> &out);
-    void filterEnergyBand(Math::Vector<Value> &in, Math::Vector<Value> &response);
-    void appendDerivatives(std::vector<Value> &in);
+    void getBand(size_t band, std::vector<Value>& in, std::vector<Value>& out);
+    void setBand(size_t band, std::vector<Value>& in, std::vector<Value>& out);
+    void filterEnergyBand(Math::Vector<Value>& in, Math::Vector<Value>& response);
+    void appendDerivatives(std::vector<Value>& in);
 
-    void setFeatures(u32 nFeatures) { if (nFeatures_ != nFeatures) { nFeatures_ = nFeatures; needInit_ = true; } }
-    void setFrames(u32 nFrames) { if (nFrames_ != nFrames) { nFrames_ = nFrames; needInit_ = true; } }
+    void setFeatures(u32 nFeatures) {
+        if (nFeatures_ != nFeatures) {
+            nFeatures_ = nFeatures;
+            needInit_  = true;
+        }
+    }
+    void setFrames(u32 nFrames) {
+        if (nFrames_ != nFrames) {
+            nFrames_  = nFrames;
+            needInit_ = true;
+        }
+    }
     void setDerivatives(u32 nDerivatives) {
-        if ( ((int) nDerivatives_ >= 0) && ((int) nDerivatives_ <= 2) ) {
+        if (((int)nDerivatives_ >= 0) && ((int)nDerivatives_ <= 2)) {
             nDerivatives_ = nDerivatives;
-        } else {
+        }
+        else {
             nDerivatives_ = 0;
         }
         needInit_ = true;
     }
-    void setFilter(u32 nFilter) { if (nFilters_ != nFilter) { nFilters_ = nFilter; needInit_ = true; } }
+    void setFilter(u32 nFilter) {
+        if (nFilters_ != nFilter) {
+            nFilters_ = nFilter;
+            needInit_ = true;
+        }
+    }
 
 public:
     void init(size_t nFeatures, size_t nFrames, size_t nFilters, size_t nDerivatives) {
@@ -90,11 +115,12 @@ public:
     virtual ~MrastaFiltering();
 
     /** Applies the Gaussian filtering to @param in. */
-    bool apply(std::vector<Value> &in, std::vector<Value> &out);
+    bool apply(std::vector<Value>& in, std::vector<Value>& out);
     /** result is s32, so that we can detect overflows/wraps due to bad nFeatures_ values */
-    s32 getOutputDimension() { return ( 2 * nFilters_ * (nFeatures_ + ( (nFeatures_-2) * nDerivatives_ ) ) ); }
+    s32 getOutputDimension() {
+        return (2 * nFilters_ * (nFeatures_ + ((nFeatures_ - 2) * nDerivatives_)));
+    }
 };
-
 
 /** Apply the MRASTA filtering to critical band energies (CRBE)
  *  Input:  sequence of concatenated CRBE vectors.
@@ -106,33 +132,52 @@ public:
  */
 class MrastaFilteringNode : public Flow::SleeveNode, MrastaFiltering {
     typedef Flow::SleeveNode Precursor;
-    typedef f32 Value;
+    typedef f32              Value;
+
 private:
     // parameter
     size_t contextLength_;
     size_t nDerivatives_;
     size_t nGaussFilters_;
-    bool needInit_;
+    bool   needInit_;
 
     static const Core::ParameterInt paramContextLength;
     static const Core::ParameterInt paramDerivatives;
     static const Core::ParameterInt paramGaussFilters;
 
-    void setContextLength(size_t length) { if (contextLength_ != length) { contextLength_ = length; needInit_ = true; } };
-    void setDerivative(size_t number) { if (nDerivatives_ != number) { nDerivatives_ = number; needInit_ = true; } };
-    void setGaussFilter(size_t number) { if (nGaussFilters_ != number) { nGaussFilters_ = number; needInit_ = true; } };
+    void setContextLength(size_t length) {
+        if (contextLength_ != length) {
+            contextLength_ = length;
+            needInit_      = true;
+        }
+    };
+    void setDerivative(size_t number) {
+        if (nDerivatives_ != number) {
+            nDerivatives_ = number;
+            needInit_     = true;
+        }
+    };
+    void setGaussFilter(size_t number) {
+        if (nGaussFilters_ != number) {
+            nGaussFilters_ = number;
+            needInit_      = true;
+        }
+    };
 
     void init(size_t length);
-public:
-    static std::string filterName() { return std::string("mrasta-filtering"); };
 
-    MrastaFilteringNode(const Core::Configuration &c);
+public:
+    static std::string filterName() {
+        return std::string("mrasta-filtering");
+    };
+
+    MrastaFilteringNode(const Core::Configuration& c);
     virtual ~MrastaFilteringNode();
 
     virtual bool configure();
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool work(Flow::PortId p);
 };
-}
+}  // namespace Signal
 
-#endif // _SIGNAL_MRASTA_FILTERING_HH
+#endif  // _SIGNAL_MRASTA_FILTERING_HH

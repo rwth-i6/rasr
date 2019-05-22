@@ -25,77 +25,75 @@
 
 namespace Signal {
 
+/** HartleyFourierTransform: performs fourier transform of real vector based on Hartley transform
+ * Delivers N / 2 + 1 complex values real and imaginary part alternating,
+ * where N is number of FFT points.
+ */
 
-    /** HartleyFourierTransform: performs fourier transform of real vector based on Hartley transform
-     * Delivers N / 2 + 1 complex values real and imaginary part alternating,
-     * where N is number of FFT points.
-     */
+class FastHartleyTransform {
+public:
+    typedef f32 Data;
 
+protected:
+    u32 length_;
 
-    class FastHartleyTransform {
-    public:
+    f32 sampleRate_;
 
-        typedef f32 Data;
+    std::vector<u32> bitReverse_;
 
-    protected:
+protected:
+    void setBitReserve(u32 length);
 
-        u32 length_;
+    void hartleyTransform(std::vector<Data>& fz) const;
 
-        f32 sampleRate_;
+    void zeroPadding(std::vector<Data>& data) const;
 
-        std::vector<u32> bitReverse_;
+public:
+    FastHartleyTransform(const u32 length = 0, const f32 sampleRate = 1);
 
-    protected:
+    void transform(std::vector<Data>& data) const;
 
-        void setBitReserve(u32 length);
+    void inverseTransform(std::vector<Data>& data) const;
 
-        void hartleyTransform(std::vector<Data> &fz) const;
+    u32 length() const {
+        return length_;
+    }
+    void setLength(u32 l) {
+        if (l != length())
+            setBitReserve(length_ = l);
+    }
 
-        void zeroPadding(std::vector<Data> &data) const;
+    f32 sampleRate() const {
+        return sampleRate_;
+    }
+    void setSampleRate(const f32 sampleRate) {
+        sampleRate_ = sampleRate;
+    }
+};
 
-    public:
+/** hartleyToFourier: converts  Hartley coefficients to Fourier coefficients
+ */
 
-        FastHartleyTransform(const u32 length = 0, const f32 sampleRate = 1);
+void hartleyToFourier(const std::vector<f32>& hartley, std::vector<f32>& fourier);
 
-        void transform(std::vector<Data> &data) const;
+/** hartleyToFourierAmplitude: converts Hartley coefficients to amplitude of Fourier coefficients
+ *
+ * @param hartley and @param amplitude can be the same object
+ */
 
-        void inverseTransform(std::vector<Data> &data) const;
+void hartleyToFourierAmplitude(const std::vector<f32>& hartley, std::vector<f32>& amplitude);
 
-        u32 length() const { return length_; }
-        void setLength(u32 l) { if (l != length()) setBitReserve(length_ = l); }
+/** hartleyToFourierPhase: converts  Hartley coefficients to phase of Fourier coefficients
+ *
+ * @param hartley and @param phase can be the same object
+ */
 
-        f32 sampleRate() const { return sampleRate_; }
-        void setSampleRate(const f32 sampleRate) { sampleRate_ = sampleRate; }
+void hartleyToFourierPhase(const std::vector<f32>& hartley, std::vector<f32>& phase);
 
-    };
+/** fourierToHartley: converts Fourier coefficients to Hartley coefficients
+ */
 
+void fourierToHartley(const std::vector<f32>& fourier, std::vector<f32>& hartley);
+}  // namespace Signal
 
-    /** hartleyToFourier: converts  Hartley coefficients to Fourier coefficients
-     */
-
-    void hartleyToFourier(const std::vector<f32> &hartley, std::vector<f32> &fourier);
-
-
-    /** hartleyToFourierAmplitude: converts Hartley coefficients to amplitude of Fourier coefficients
-     *
-     * @param hartley and @param amplitude can be the same object
-     */
-
-    void hartleyToFourierAmplitude(const std::vector<f32> &hartley, std::vector<f32> &amplitude);
-
-
-    /** hartleyToFourierPhase: converts  Hartley coefficients to phase of Fourier coefficients
-     *
-     * @param hartley and @param phase can be the same object
-     */
-
-    void hartleyToFourierPhase(const std::vector<f32> &hartley, std::vector<f32> &phase);
-
-
-    /** fourierToHartley: converts Fourier coefficients to Hartley coefficients
-     */
-
-    void fourierToHartley(const std::vector<f32> &fourier, std::vector<f32> &hartley);
-}
-
-#endif // _SIGNAL_HARTLEY_TRANSFORM_HH
+#endif  // _SIGNAL_HARTLEY_TRANSFORM_HH

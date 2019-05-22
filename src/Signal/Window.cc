@@ -12,38 +12,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <math.h>
-#include <Core/Assertions.hh>
 #include "Window.hh"
+#include <Core/Assertions.hh>
+#include <math.h>
 
 using namespace Flow;
 using namespace Signal;
 
-
 // Window
 /////////
 
-Window::Window() :
-    lengthInS_(0),
-    shiftInS_(0.0),
-    windowFunction_(0)
-{}
+Window::Window()
+        : lengthInS_(0),
+          shiftInS_(0.0),
+          windowFunction_(0) {}
 
 Window::~Window() {
-
     if (windowFunction_)
         delete windowFunction_;
 }
 
-
 void Window::setWindowFunction(WindowFunction* windowFunction) {
-
     if (windowFunction_)
         delete windowFunction_;
 
     windowFunction_ = windowFunction;
 }
-
 
 void Window::setLengthInS(Time length) {
     if (lengthInS_ != length) {
@@ -52,15 +46,12 @@ void Window::setLengthInS(Time length) {
     }
 }
 
-
 void Window::setShiftInS(Time shift) {
-
     if (shiftInS_ != shift) {
         shiftInS_ = shift;
         setNeedInit();
     }
 }
-
 
 void Window::setSampleRate(f64 sampleRate) {
     require(sampleRate > 0.0);
@@ -69,7 +60,6 @@ void Window::setSampleRate(f64 sampleRate) {
         setNeedInit();
     }
 }
-
 
 void Window::init() {
     verify(windowFunction_);
@@ -81,34 +71,30 @@ void Window::init() {
     Predecessor::init();
 }
 
-
-void Window::transform(Vector<Sample> &out) {
-
+void Window::transform(Vector<Sample>& out) {
     windowFunction_->setLength(out.size());
 
     if (!windowFunction_->work(out.begin(), out.end()))
         hope(false);
 }
 
-
 // WindowNode
 /////////////
 
 const Core::ParameterFloat WindowNode::paramShift(
-    "shift", "shift of window");
+        "shift", "shift of window");
 
 const Core::ParameterFloat WindowNode::paramLength(
-    "length", "length of window");
+        "length", "length of window");
 
 const Core::ParameterBool WindowNode::paramFlushAll(
-    "flush-all", "if false, segments stops after the last sample was delivered", false);
+        "flush-all", "if false, segments stops after the last sample was delivered", false);
 
 const Core::ParameterBool WindowNode::paramFlushBeforeGap(
-    "flush-before-gap", "if true, flushes before a gap in the input samples", true);
+        "flush-before-gap", "if true, flushes before a gap in the input samples", true);
 
-WindowNode::WindowNode(const Core::Configuration &c) :
-    Component(c), Predecessor(c) {
-
+WindowNode::WindowNode(const Core::Configuration& c)
+        : Component(c), Predecessor(c) {
     setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c)));
     setShiftInS(paramShift(c));
     setLengthInS(paramLength(c));
@@ -116,8 +102,7 @@ WindowNode::WindowNode(const Core::Configuration &c) :
     setFlushBeforeGap(paramFlushBeforeGap(c));
 }
 
-bool WindowNode::setParameter(const std::string &name, const std::string &value) {
-
+bool WindowNode::setParameter(const std::string& name, const std::string& value) {
     if (WindowFunction::paramType.match(name))
         setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(value)));
     else if (paramShift.match(name))
@@ -134,10 +119,8 @@ bool WindowNode::setParameter(const std::string &name, const std::string &value)
     return true;
 }
 
-
 bool WindowNode::configure() {
-
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());;
+    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
 
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
@@ -147,7 +130,8 @@ bool WindowNode::configure() {
     f64 sampleRate = atof(a->get("sample-rate").c_str());
     if (sampleRate > 0.0) {
         setSampleRate(sampleRate);
-    } else {
+    }
+    else {
         criticalError("Sample rate is not positive: %f", sampleRate);
     }
     reset();

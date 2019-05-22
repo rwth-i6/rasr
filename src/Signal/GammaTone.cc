@@ -18,7 +18,7 @@
 using namespace Signal;
 
 WarpingFunction::WarpingFunction(f32 warpingFactor /*= 1.0*/,
-        f32 freqBreak /*= 6600.0*/, f32 maxFreq /*= 8000.0*/) {
+                                 f32 freqBreak /*= 6600.0*/, f32 maxFreq /*= 8000.0*/) {
     setWarpingFactor(warpingFactor);
     setFreqBreak(freqBreak);
     setMaxFreq(maxFreq);
@@ -26,15 +26,18 @@ WarpingFunction::WarpingFunction(f32 warpingFactor /*= 1.0*/,
 
 bool WarpingFunction::checkParam() {
     if (freqBreak_ - maxFreq_ == 0) {
-        std::cerr << ("freqBreak == maxFreq") << std::endl;;
+        std::cerr << ("freqBreak == maxFreq") << std::endl;
+        ;
         return false;
     }
     if (warpingFactor_ <= 0) {
-        std::cerr << ("warpingFactor <= 0") << std::endl;;
+        std::cerr << ("warpingFactor <= 0") << std::endl;
+        ;
         return false;
     }
     if (warpingFactor_ * freqBreak_ >= maxFreq_) {
-        std::cerr << ("warpingFactor_ * freqBreak_ >= maxFreq_") << std::endl;;
+        std::cerr << ("warpingFactor_ * freqBreak_ >= maxFreq_") << std::endl;
+        ;
         return false;
     }
     return true;
@@ -43,18 +46,19 @@ bool WarpingFunction::checkParam() {
 void WarpingFunction::init() {
     if (!checkParam()) {
         warpingFactor_ = 1.0;
-        freqBreak_ = 6600.0;
-        maxFreq_ = 8000.0;
+        freqBreak_     = 6600.0;
+        maxFreq_       = 8000.0;
     }
 
-    beta_ = (warpingFactor_ * freqBreak_ - maxFreq_) / (freqBreak_ - maxFreq_);
-    b_ = maxFreq_ * (1 - beta_);
-    needInit_ = false;
+    beta_            = (warpingFactor_ * freqBreak_ - maxFreq_) / (freqBreak_ - maxFreq_);
+    b_               = maxFreq_ * (1 - beta_);
+    needInit_        = false;
     warpedFreqBreak_ = warping(freqBreak_);
 }
 
 f32 WarpingFunction::warping(f32 f) {
-    if (needInit_) init();
+    if (needInit_)
+        init();
     if (f < freqBreak_)
         return warpingFactor_ * f;
     else
@@ -62,7 +66,8 @@ f32 WarpingFunction::warping(f32 f) {
 }
 
 f32 WarpingFunction::inverseWarping(f32 f) {
-    if (needInit_) init();
+    if (needInit_)
+        init();
     if (f < warpedFreqBreak_)
         return f / warpingFactor_;
     else
@@ -71,23 +76,23 @@ f32 WarpingFunction::inverseWarping(f32 f) {
 
 // ===========================================================================
 
-GammaTone::GammaTone() :
-    warp_(1.0, 6600.0, 8000.0),
-    minFreq_(400),
-    maxFreq_(8000),
-    l_(24.7),
-    q_(9.264491981582191), // audiological (ERB) based q, high precision for better backward compatibility: previously: 1/(l*q) = 4.37e-3 was explicitly defined, see k2Erb variable in initBandWidths()
-    centerFrequencyMode_(Human),
-    channels_(50),
-    sampleRate_(0),
-    cascade_(0),
-    needInit_(true) { }
+GammaTone::GammaTone()
+        : warp_(1.0, 6600.0, 8000.0),
+          minFreq_(400),
+          maxFreq_(8000),
+          l_(24.7),
+          q_(9.264491981582191),  // audiological (ERB) based q, high precision for better backward compatibility: previously: 1/(l*q) = 4.37e-3 was explicitly defined, see k2Erb variable in initBandWidths()
+          centerFrequencyMode_(Human),
+          channels_(50),
+          sampleRate_(0),
+          cascade_(0),
+          needInit_(true) {}
 
 /**
  * Calculates the inverse of the Greenwood function
  * (frequency to basilar membrane position mapping)
  */
-f32 GammaTone::invGreenWoodFunction(f32 cf, const std::vector<f32> &parameters){
+f32 GammaTone::invGreenWoodFunction(f32 cf, const std::vector<f32>& parameters) {
     return log10(cf / parameters[0] + parameters[1]) / parameters[2];
 }
 
@@ -98,30 +103,30 @@ void GammaTone::initializeCenterFrequencyList() {
     std::vector<f32> greenWoodParameters;
     greenWoodParameters.resize(3);
 
-    if (centerFrequencyMode_ == Human) {          // filters sampled on Greenwood scale, but bandwiths on ERB scale, see Gammatone paper of Schlueter&Bezrukov
+    if (centerFrequencyMode_ == Human) {  // filters sampled on Greenwood scale, but bandwiths on ERB scale, see Gammatone paper of Schlueter&Bezrukov
         greenWoodParameters[0] = 165.4;
         greenWoodParameters[1] = 0.88;
         greenWoodParameters[2] = 2.1;
     }
 
-    if (centerFrequencyMode_ == Erb) {            // consistent center frequency and bandwidth selection, filters can be made quasi orthogonal, filter banks equally spaced on the erb scale
+    if (centerFrequencyMode_ == Erb) {  // consistent center frequency and bandwidth selection, filters can be made quasi orthogonal, filter banks equally spaced on the erb scale
         // sampling on greenwood scale or on erb scale is the same function, only parameter differences, the connection between them:
         // q = 1/(g[2]*log(10)
         // l = g[0]*g[1]*g[2]*log(10)
-        greenWoodParameters[2] = 1/(q_*log(10));
-        greenWoodParameters[1] = 1.0;            // chosen freely
-        greenWoodParameters[0] = l_/(greenWoodParameters[1]*greenWoodParameters[2]*log(10));
+        greenWoodParameters[2] = 1 / (q_ * log(10));
+        greenWoodParameters[1] = 1.0;  // chosen freely
+        greenWoodParameters[0] = l_ / (greenWoodParameters[1] * greenWoodParameters[2] * log(10));
     }
 
     centerFrequencyList_.resize(channels_);
 
-    f32 xMin = invGreenWoodFunction(minFreq_, greenWoodParameters);
-    f32 xMax = invGreenWoodFunction(maxFreq_, greenWoodParameters);
+    f32 xMin  = invGreenWoodFunction(minFreq_, greenWoodParameters);
+    f32 xMax  = invGreenWoodFunction(maxFreq_, greenWoodParameters);
     f32 scale = (xMax - xMin) / f32(channels_ - 1);
 
     // center frequencies according to the Greenwood function
-    for (u32 i=0; i < channels_; i++) {
-        f32 exponent = greenWoodParameters[2] * (xMin + i * scale);
+    for (u32 i = 0; i < channels_; i++) {
+        f32 exponent            = greenWoodParameters[2] * (xMin + i * scale);
         centerFrequencyList_[i] = warp_.inverseWarping(greenWoodParameters[0] * (pow(10.0, exponent) - greenWoodParameters[1]));
     }
 }
@@ -131,24 +136,24 @@ void GammaTone::initializeCenterFrequencyList() {
  */
 void GammaTone::initCoefficients() {
     coefficients_.resize(channels_);
-    f32 dt=1./sampleRate_;
+    f32 dt = 1. / sampleRate_;
 
     f32 theta;
     f32 Phi;
     f32 alpha;
     f32 a0, a1, b1, b2;
 
-    for (u32 freq=0; freq < channels_; freq++){
-        theta = 2. * M_PI * centerFrequencyList_[freq] * dt ;
-        Phi   = 2. * M_PI * bandWidthList_[freq] * dt ;
+    for (u32 freq = 0; freq < channels_; freq++) {
+        theta = 2. * M_PI * centerFrequencyList_[freq] * dt;
+        Phi   = 2. * M_PI * bandWidthList_[freq] * dt;
 
         alpha = -exp(-Phi) * cos(theta);
 
-        b1    = 2. * alpha;
-        b2    = exp(-2 * Phi);
+        b1 = 2. * alpha;
+        b2 = exp(-2 * Phi);
 
-        std::complex<f32> b1C(b1 * cos(theta),       -b1 * sin(theta));
-        std::complex<f32> b2C(b2 * cos(2 * theta),   -b2 * sin(2 * theta));
+        std::complex<f32> b1C(b1 * cos(theta), -b1 * sin(theta));
+        std::complex<f32> b2C(b2 * cos(2 * theta), -b2 * sin(2 * theta));
         std::complex<f32> alphaC(alpha * cos(theta), -alpha * sin(theta));
 
         a0 = std::abs((b1C + b2C + 1.0f) / (alphaC + 1.0f));
@@ -165,15 +170,14 @@ void GammaTone::initCoefficients() {
  * Filter bandwidth calculation
  */
 void GammaTone::initBandWidths() {
-    f32 k1Erb = l_;        // 24.7;
-    f32 k2Erb = 1/(l_*q_); // 4.37e-3;    // corresponds to filter quality factor: q = 9.2645
+    f32 k1Erb = l_;             // 24.7;
+    f32 k2Erb = 1 / (l_ * q_);  // 4.37e-3;    // corresponds to filter quality factor: q = 9.2645
 
     bandWidthList_.resize(channels_);
-    for (u32 i=0; i < channels_; i++){
+    for (u32 i = 0; i < channels_; i++) {
         bandWidthList_[i] = k1Erb * (k2Erb * centerFrequencyList_[i] + 1.0);
     }
 }
-
 
 void GammaTone::init() {
     initializeCenterFrequencyList();
@@ -186,7 +190,7 @@ void GammaTone::init() {
     buffer_[0].resize(channels_);
     buffer_[1].resize(channels_);
 
-    for (u32 ch=0; ch < channels_; ch++){
+    for (u32 ch = 0; ch < channels_; ch++) {
         buffer_[0][ch].resize(cascade_);
         buffer_[1][ch].resize(cascade_);
     }
@@ -194,17 +198,17 @@ void GammaTone::init() {
     needInit_ = false;
 }
 
-
-void GammaTone::apply(const Flow::Vector<f32> &in, Flow::Vector<Flow::Vector<f32> > &out){
+void GammaTone::apply(const Flow::Vector<f32>& in, Flow::Vector<Flow::Vector<f32>>& out) {
     f32 wn;
-    if (needInit_) init();
+    if (needInit_)
+        init();
     out.resize(in.size());
 
-    for (u32 i=0; i < in.size(); i++){
+    for (u32 i = 0; i < in.size(); i++) {
         out[i].resize(channels_);
-        for (u32 ch=0; ch < channels_; ch++){
+        for (u32 ch = 0; ch < channels_; ch++) {
             out[i][ch] = in[i];
-            for (u32 c=0; c < cascade_; c++){
+            for (u32 c = 0; c < cascade_; c++) {
                 out[i][ch] -= coefficients_[ch].b1 * buffer_[0][ch][c];
                 out[i][ch] -= coefficients_[ch].b2 * buffer_[1][ch][c];
                 wn = out[i][ch];
@@ -220,21 +224,20 @@ void GammaTone::apply(const Flow::Vector<f32> &in, Flow::Vector<Flow::Vector<f32
 
 // ===========================================================================
 
-const Core::ParameterInt GammaToneNode::paramCascade("cascade", "filter cascade", 4);
-const Core::ParameterFloat GammaToneNode::paramMinFreq("minfreq", "min center frequency", 100);
-const Core::ParameterFloat GammaToneNode::paramMaxFreq("maxfreq", "max center frequency", 6000);
-const Core::ParameterFloat GammaToneNode::paramQ("q", "filter quality factor", 9.264491981582191); // audiological (ERB) based q, high precision for better backward compatibility, see remarks in GammaTone class
-const Core::ParameterInt GammaToneNode::paramChannels("channels","number of channels", 50);
-const Core::Choice GammaToneNode::choiceCenterFrequencyMode("human", Signal::GammaTone::Human, "erb", Signal::GammaTone::Erb, Core::Choice::endMark());
+const Core::ParameterInt    GammaToneNode::paramCascade("cascade", "filter cascade", 4);
+const Core::ParameterFloat  GammaToneNode::paramMinFreq("minfreq", "min center frequency", 100);
+const Core::ParameterFloat  GammaToneNode::paramMaxFreq("maxfreq", "max center frequency", 6000);
+const Core::ParameterFloat  GammaToneNode::paramQ("q", "filter quality factor", 9.264491981582191);  // audiological (ERB) based q, high precision for better backward compatibility, see remarks in GammaTone class
+const Core::ParameterInt    GammaToneNode::paramChannels("channels", "number of channels", 50);
+const Core::Choice          GammaToneNode::choiceCenterFrequencyMode("human", Signal::GammaTone::Human, "erb", Signal::GammaTone::Erb, Core::Choice::endMark());
 const Core::ParameterChoice GammaToneNode::paramCenterFrequencyMode("cfmode", &choiceCenterFrequencyMode, "center frequency mode", Human);
-const Core::ParameterFloat GammaToneNode::paramWarpingFreqBreak("warp-freqbreak", "2-piece linear function breakpoint", 6600);
+const Core::ParameterFloat  GammaToneNode::paramWarpingFreqBreak("warp-freqbreak", "2-piece linear function breakpoint", 6600);
 const Core::ParameterString GammaToneNode::paramWarpingFactor("warping-factor", "warping factor", "1");
 
-
-GammaToneNode::GammaToneNode(const Core::Configuration &c) :
-        Core::Component(c),
-        Node(c),
-        StringExpressionNode(c, 1) {
+GammaToneNode::GammaToneNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Node(c),
+          StringExpressionNode(c, 1) {
     addInput(0);
     addOutput(0);
 
@@ -249,7 +252,7 @@ GammaToneNode::GammaToneNode(const Core::Configuration &c) :
     Flow::StringExpressionNode::setTemplate(paramWarpingFactor(c));
 }
 
-bool GammaToneNode::setParameter(const std::string &name, const std::string &value) {
+bool GammaToneNode::setParameter(const std::string& name, const std::string& value) {
     if (paramMinFreq.match(name))
         setMinFreq(paramMinFreq(value));
     else if (paramMaxFreq.match(name))
@@ -271,8 +274,7 @@ bool GammaToneNode::setParameter(const std::string &name, const std::string &val
     return true;
 }
 
-
-bool GammaToneNode::configure(){
+bool GammaToneNode::configure() {
     Core::Ref<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
@@ -283,11 +285,10 @@ bool GammaToneNode::configure(){
     if (!StringExpressionNode::configure(*a))
         return false;
 
-    a->set("datatype", Flow::Vector<Flow::Vector<f32> >::type()->name());
+    a->set("datatype", Flow::Vector<Flow::Vector<f32>>::type()->name());
     reset();
     return putOutputAttributes(0, a);
 }
-
 
 void GammaToneNode::init() {
     if (checkParam())
@@ -296,9 +297,8 @@ void GammaToneNode::init() {
         error("Maybe there is a problem with the warping function.");
 }
 
-
 bool GammaToneNode::work(Flow::PortId p) {
-    Flow::DataPtr<Flow::Vector<f32> > in;
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in)) {
         if (in == Flow::Data::eos())
             reset();
@@ -307,13 +307,13 @@ bool GammaToneNode::work(Flow::PortId p) {
 
     if (StringExpressionNode::update(*in)) {
         // Updating warping factor
-        f32 warpingValue;
+        f32                warpingValue;
         std::istringstream iss(StringExpressionNode::value());
         iss >> warpingValue;
         setWarpWarpingFactor(warpingValue);
     }
 
-    Flow::Vector<Flow::Vector<f32> > *out = new Flow::Vector<Flow::Vector<f32> >();
+    Flow::Vector<Flow::Vector<f32>>* out = new Flow::Vector<Flow::Vector<f32>>();
 
     in.makePrivate();
     apply(*in, *out);

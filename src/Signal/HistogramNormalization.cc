@@ -13,33 +13,29 @@
  *  limitations under the License.
  */
 #include "HistogramNormalization.hh"
-#include <Flow/Vector.hh>
 #include <Core/Directory.hh>
-#include <Core/XmlStream.hh>
 #include <Core/Utility.hh>
+#include <Core/XmlStream.hh>
+#include <Flow/Vector.hh>
 using namespace Signal;
 
 //===============================================================================================
 
-void HistogramNormalization::setTrainingHistograms(
-    const std::vector<Histogram<Value> > &trainingHistograms,
-    Probability probabilityBucketSize)
-{
+void HistogramNormalization::setTrainingHistograms(const std::vector<Histogram<Value>>& trainingHistograms,
+                                                   Probability                          probabilityBucketSize) {
     inverseTrainingCdfs_.resize(trainingHistograms.size());
 
     Cdf trainingCdf;
-    for(size_t i = 0; i < trainingHistograms.size(); ++ i) {
+    for (size_t i = 0; i < trainingHistograms.size(); ++i) {
         trainingHistograms[i].getCdf(trainingCdf);
         inverseTrainingCdfs_[i] = Cdf(probabilityBucketSize);
         trainingCdf.getInverse(inverseTrainingCdfs_[i]);
     }
 }
 
-void HistogramNormalization::setTrainingHistograms(
-    const std::vector<HistogramVector<Value> > &trainingHistograms,
-    const std::vector<HistogramWeight> &scales,
-    Probability probabilityBucketSize)
-{
+void HistogramNormalization::setTrainingHistograms(const std::vector<HistogramVector<Value>>& trainingHistograms,
+                                                   const std::vector<HistogramWeight>&        scales,
+                                                   Probability                                probabilityBucketSize) {
     size_t nScales = trainingHistograms.size();
     require(nScales == scales.size());
     require(nScales > 0);
@@ -47,13 +43,13 @@ void HistogramNormalization::setTrainingHistograms(
     size_t dimension = trainingHistograms[0].size();
 
     Value minimalBucketSize = Core::Type<Value>::max;
-    for(size_t i = 0; i < nScales; ++ i)
+    for (size_t i = 0; i < nScales; ++i)
         minimalBucketSize = std::min(minimalBucketSize, trainingHistograms[i].minimalBucketSize());
 
     HistogramVector<Value> interpolatedHistograms(dimension, minimalBucketSize);
-    for(size_t i = 0; i < nScales; ++ i) {
+    for (size_t i = 0; i < nScales; ++i) {
         require(trainingHistograms[i].size() == dimension);
-        for(size_t d = 0; d < dimension; ++ d) {
+        for (size_t d = 0; d < dimension; ++d) {
             Histogram<Value> toAdd(trainingHistograms[i][d]);
             toAdd.normalizeSurface();
             toAdd *= scales[i];
@@ -63,65 +59,59 @@ void HistogramNormalization::setTrainingHistograms(
     setTrainingHistograms(interpolatedHistograms, probabilityBucketSize);
 }
 
-void HistogramNormalization::setTestHistograms(const std::vector<Histogram<Value> > &testHistograms)
-{
+void HistogramNormalization::setTestHistograms(const std::vector<Histogram<Value>>& testHistograms) {
     testCdfs_.resize(testHistograms.size());
-    for(size_t i = 0; i < testHistograms.size(); ++ i)
+    for (size_t i = 0; i < testHistograms.size(); ++i)
         testHistograms[i].getCdf(testCdfs_[i]);
 }
 
-void HistogramNormalization::apply(const std::vector<Value> &in, std::vector<Value> &out)
-{
+void HistogramNormalization::apply(const std::vector<Value>& in, std::vector<Value>& out) {
     verify(inverseTrainingCdfs_.size() == in.size());
     verify(testCdfs_.size() == in.size());
 
     out.resize(in.size());
-    for(size_t i = 0; i < in.size(); ++ i)
-        out[i] = inverseTrainingCdfs_[i][ testCdfs_[i][in[i]] ];
+    for (size_t i = 0; i < in.size(); ++i)
+        out[i] = inverseTrainingCdfs_[i][testCdfs_[i][in[i]]];
 }
 
-bool HistogramNormalization::areScalesWellDefined(const std::vector<HistogramWeight> &scales)
-{
+bool HistogramNormalization::areScalesWellDefined(const std::vector<HistogramWeight>& scales) {
     // 0 <= scale <= 1
-    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::less<HistogramWeight>(), 0))
-        != scales.end()) return false;
-    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::greater<HistogramWeight>(), 1))
-        != scales.end()) return false;
+    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::less<HistogramWeight>(), 0)) != scales.end())
+        return false;
+    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::greater<HistogramWeight>(), 1)) != scales.end())
+        return false;
     return true;
 }
 
-bool HistogramNormalization::areScalesNormalized(const std::vector<HistogramWeight> &scales)
-{
+bool HistogramNormalization::areScalesNormalized(const std::vector<HistogramWeight>& scales) {
     HistogramWeight sum = std::accumulate(scales.begin(), scales.end(), 0.0, std::plus<HistogramWeight>());
     return Core::isAlmostEqual(sum, (HistogramWeight)1.0);
 }
 
-void HistogramNormalization::normalizeScales(std::vector<HistogramWeight> &scales)
-{
+void HistogramNormalization::normalizeScales(std::vector<HistogramWeight>& scales) {
     scales.insert(scales.begin(), (HistogramWeight)1.0 - std::accumulate(scales.begin(), scales.end(), 0.0));
 }
 
 //===============================================================================================
 const Core::ParameterFloat HistogramNormalizationNode::paramProbabilityBucketSize(
-    "probability-bucket-size", "probability bucket size (if 0, heuristical value will be used.)", 0, 0);
+        "probability-bucket-size", "probability bucket size (if 0, heuristical value will be used.)", 0, 0);
 
 const Core::ParameterStringVector HistogramNormalizationNode::paramTrainingHistogramsFilenames(
-    "training-histograms", "file name(s) of training histograms");
+        "training-histograms", "file name(s) of training histograms");
 
 const Core::ParameterString HistogramNormalizationNode::paramCorpusKey(
-    "corpus-key", "template expression for key of test histograms");
+        "corpus-key", "template expression for key of test histograms");
 
 const std::string HistogramNormalizationNode::scalePortname_("histogram-scale-");
 
 //===============================================================================================
-HistogramNormalizationNode::HistogramNormalizationNode(const Core::Configuration &c) :
-    Component(c),
-    Flow::Node(c),
-    firstScalePortId_(Flow::IllegalPortId),
-    probabilityBucketSize_(0),
-    testHistograms_(select("histograms-cache"), Core::reuseObjectCacheMode),
-    needInit_(true)
-{
+HistogramNormalizationNode::HistogramNormalizationNode(const Core::Configuration& c)
+        : Component(c),
+          Flow::Node(c),
+          firstScalePortId_(Flow::IllegalPortId),
+          probabilityBucketSize_(0),
+          testHistograms_(select("histograms-cache"), Core::reuseObjectCacheMode),
+          needInit_(true) {
     addInput(0);
     firstScalePortId_ = 1;
     addOutput(0);
@@ -130,17 +120,15 @@ HistogramNormalizationNode::HistogramNormalizationNode(const Core::Configuration
     setTestHistograms(paramCorpusKey(c));
 }
 
-void HistogramNormalizationNode::setTestHistograms(const std::string &corpusKey)
-{
-    const std::vector<Histogram<Value> > *histograms = testHistograms_.findForReadAccess(corpusKey);
+void HistogramNormalizationNode::setTestHistograms(const std::string& corpusKey) {
+    const std::vector<Histogram<Value>>* histograms = testHistograms_.findForReadAccess(corpusKey);
     if (histograms != 0)
         HistogramNormalization::setTestHistograms(*histograms);
     else if (!corpusKey.empty())
         criticalError("No test-histogram found for the corpus-key \"%s\".", corpusKey.c_str());
 }
 
-bool HistogramNormalizationNode::setParameter(const std::string &name, const std::string &value)
-{
+bool HistogramNormalizationNode::setParameter(const std::string& name, const std::string& value) {
     if (paramProbabilityBucketSize.match(name))
         setProbabilityBucketSize(paramProbabilityBucketSize(value));
     else if (paramTrainingHistogramsFilenames.match(name))
@@ -152,27 +140,28 @@ bool HistogramNormalizationNode::setParameter(const std::string &name, const std
     return true;
 }
 
-bool HistogramNormalizationNode::configure()
-{
+bool HistogramNormalizationNode::configure() {
     reset();
 
     Core::Ref<Flow::Attributes> featureAttributes(new Flow::Attributes);
     getInputAttributes(0, *featureAttributes);
-    if (!configureDatatype(featureAttributes, Flow::Vector<f32>::type())) return false;
+    if (!configureDatatype(featureAttributes, Flow::Vector<f32>::type()))
+        return false;
 
     Core::Ref<Flow::Attributes> scaleAttributes(new Flow::Attributes);
-    for (Flow::PortId i = firstScalePortId_; i < nInputs(); ++ i) {
+    for (Flow::PortId i = firstScalePortId_; i < nInputs(); ++i) {
         Core::Ref<const Flow::Attributes> scaleAttributes = getInputAttributes(i);
-        if (!configureDatatype(scaleAttributes, Flow::DataAdaptor<HistogramWeight>::type())) return false;
+        if (!configureDatatype(scaleAttributes, Flow::DataAdaptor<HistogramWeight>::type()))
+            return false;
         featureAttributes->merge(*scaleAttributes);
     }
     featureAttributes->set("datatype", Flow::Vector<f32>::type()->name());
     return putOutputAttributes(0, featureAttributes);
 }
 
-Flow::PortId HistogramNormalizationNode::getInput(const std::string &name)
-{
-    if (name == "") return 0;
+Flow::PortId HistogramNormalizationNode::getInput(const std::string& name) {
+    if (name == "")
+        return 0;
     u32 id;
     if (sscanf(name.c_str(), std::string(scalePortname_ + "%u").c_str(), &id) != 1)
         criticalError() << "Scale port names must have format '" << scalePortname_ << "<order=1,2,...>'";
@@ -184,8 +173,7 @@ Flow::PortId HistogramNormalizationNode::getInput(const std::string &name)
     return addInput(firstScalePortId_ + id - 1);
 }
 
-void HistogramNormalizationNode::init(size_t featureDimension)
-{
+void HistogramNormalizationNode::init(size_t featureDimension) {
     if (nTestHistograms() != featureDimension) {
         error() << "Mismatch between #test-histograms(" << nTestHistograms()
                 << ") and feature dimension(" << featureDimension << ").";
@@ -209,14 +197,13 @@ void HistogramNormalizationNode::init(size_t featureDimension)
     needInit_ = false;
 }
 
-void HistogramNormalizationNode::loadTrainingHistograms(size_t featureDimension)
-{
+void HistogramNormalizationNode::loadTrainingHistograms(size_t featureDimension) {
     trainingHistograms_.resize(trainingHistogramFilenames_.size());
-    for (size_t i = 0; i < trainingHistograms_.size(); ++ i) {
-        const std::string &filename(trainingHistogramFilenames_[i]);
+    for (size_t i = 0; i < trainingHistograms_.size(); ++i) {
+        const std::string& filename(trainingHistogramFilenames_[i]);
         log() << "Reading 'training histogram " << i << " from file '" << filename << "' ...";
         Core::BinaryInputStream is(filename);
-        bool success = is.isOpen();
+        bool                    success = is.isOpen();
         if (success) {
             trainingHistograms_[i].read(is);
             success = is.good();
@@ -232,9 +219,8 @@ void HistogramNormalizationNode::loadTrainingHistograms(size_t featureDimension)
     }
 }
 
-bool HistogramNormalizationNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<f32> > in;
+bool HistogramNormalizationNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in))
         return putData(0, in.get());
 
@@ -249,17 +235,17 @@ bool HistogramNormalizationNode::work(Flow::PortId p)
     return putData(0, in.get());
 }
 
-bool HistogramNormalizationNode::updateScales(const Flow::Timestamp &timestamp)
-{
+bool HistogramNormalizationNode::updateScales(const Flow::Timestamp& timestamp) {
     bool changed = false;
-    for(size_t i = 0; i < histogramScales_.size(); ++ i) {
-        while(!histogramScales_[i].contains(timestamp)) {
-            Flow::DataPtr<Flow::DataAdaptor<HistogramWeight> > in;
-            Flow::PortId portId = firstScalePortId_ + i;
+    for (size_t i = 0; i < histogramScales_.size(); ++i) {
+        while (!histogramScales_[i].contains(timestamp)) {
+            Flow::DataPtr<Flow::DataAdaptor<HistogramWeight>> in;
+            Flow::PortId                                      portId = firstScalePortId_ + i;
             if (getData(portId, in)) {
                 histogramScales_[i] = *in;
-                changed = true;
-            } else {
+                changed             = true;
+            }
+            else {
                 criticalError() << "The " << scalePortname_ << portId
                                 << " stream stopped before start-time ("
                                 << timestamp.startTime() << ").";
@@ -269,11 +255,10 @@ bool HistogramNormalizationNode::updateScales(const Flow::Timestamp &timestamp)
     return changed;
 }
 
-bool HistogramNormalizationNode::updateTrainingHistograms()
-{
-    bool result = true;
+bool HistogramNormalizationNode::updateTrainingHistograms() {
+    bool                         result = true;
     std::vector<HistogramWeight> histogramScales(histogramScales_.size());
-    for(size_t i = 0; i < histogramScales_.size(); ++ i)
+    for (size_t i = 0; i < histogramScales_.size(); ++i)
         histogramScales[i] = histogramScales_[i].data();
 
     normalizeScales(histogramScales);
@@ -285,9 +270,8 @@ bool HistogramNormalizationNode::updateTrainingHistograms()
     return result;
 }
 
-void HistogramNormalizationNode::reset()
-{
-    for(size_t i = 0; i < histogramScales_.size(); ++ i) {
+void HistogramNormalizationNode::reset() {
+    for (size_t i = 0; i < histogramScales_.size(); ++i) {
         histogramScales_[i].setStartTime(Core::Type<Flow::Time>::min);
         histogramScales_[i].setEndTime(histogramScales_[i].startTime());
     }

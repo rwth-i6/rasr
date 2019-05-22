@@ -21,15 +21,16 @@
 
 namespace Signal {
 
-    /** RepeatingFramePrediction: predicts input at given target start-times by
-     *  copying the previous element.
-     */
-    class RepeatingFramePrediction {
-    public:
-    typedef Flow::Time Time;
-    typedef Flow::Timestamp Data;
+/** RepeatingFramePrediction: predicts input at given target start-times by
+ *  copying the previous element.
+ */
+class RepeatingFramePrediction {
+public:
+    typedef Flow::Time          Time;
+    typedef Flow::Timestamp     Data;
     typedef Flow::DataPtr<Data> DataPointer;
-    private:
+
+private:
     /** Contains the two latest element of the input stream. */
     SlidingWindow<DataPointer> slidingWindow_;
 
@@ -44,7 +45,7 @@ namespace Signal {
     */
     bool syncEndTimes_;
 
-    private:
+private:
     /** Seeks in the input stream until @param time is found.
      *
      *  At the beginning of the input stream, first element  is always added to the slidingWindow_.
@@ -61,7 +62,7 @@ namespace Signal {
      *
      *  @return is false if the slidingWindow_ is empty.
      */
-    bool copyLatest(Time time, DataPointer &out, Time endTime);
+    bool copyLatest(Time time, DataPointer& out, Time endTime);
 
     /** Factual predction: element at @param time is predicted by
      *    the previous element of the input stream.
@@ -70,13 +71,16 @@ namespace Signal {
      *
      *  @return is false if the slidingWindow_ is empty.
      */
-    bool copyPrevious(Time time, DataPointer &out, Time endTime);
-    protected:
-    /** override nextData to supply input data on demand */
-    virtual bool nextData(DataPointer &dataPointer) = 0;
-    public:
+    bool copyPrevious(Time time, DataPointer& out, Time endTime);
 
-    static std::string name() { return "signal-repeating-frame-prediction"; }
+protected:
+    /** override nextData to supply input data on demand */
+    virtual bool nextData(DataPointer& dataPointer) = 0;
+
+public:
+    static std::string name() {
+        return "signal-repeating-frame-prediction";
+    }
     RepeatingFramePrediction();
     virtual ~RepeatingFramePrediction() {}
 
@@ -89,18 +93,26 @@ namespace Signal {
      *
      *  If @return false call lastError() to get a explanation.
      */
-    bool work(const Flow::Timestamp &time, DataPointer &out);
+    bool work(const Flow::Timestamp& time, DataPointer& out);
 
     /** @see predictOnlyMissing_ */
-    void setPredictOnlyMissing(bool predictOnlyMissing) { predictOnlyMissing_ = predictOnlyMissing; }
+    void setPredictOnlyMissing(bool predictOnlyMissing) {
+        predictOnlyMissing_ = predictOnlyMissing;
+    }
 
-    void setSyncEndTimes(bool snycEndTimes) { syncEndTimes_ = snycEndTimes; }
+    void setSyncEndTimes(bool snycEndTimes) {
+        syncEndTimes_ = snycEndTimes;
+    }
 
-    std::string lastError() const { defect(); }
+    std::string lastError() const {
+        defect();
+    }
 
-    void reset() { slidingWindow_.clear(); }
-    };
+    void reset() {
+        slidingWindow_.clear();
+    }
+};
 
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_REPEATING_FRAME_PREDICTION_HH
+#endif  // _SIGNAL_REPEATING_FRAME_PREDICTION_HH

@@ -13,56 +13,53 @@
  *  limitations under the License.
  */
 #include "VectorTransform.hh"
-#include <Math/AnalyticFunctionFactory.hh>
 #include <Flow/Vector.hh>
+#include <Math/AnalyticFunctionFactory.hh>
 
 using namespace Signal;
 
 const Core::ParameterString ContinuousVectorTransformNode::paramF(
-    "f", "declaration of unary function f");
+        "f", "declaration of unary function f");
 
 const Core::ParameterString ContinuousVectorTransformNode::paramOperation(
-    "operation", "declaration of the binary function operation");
+        "operation", "declaration of the binary function operation");
 
-ContinuousVectorTransformNode::ContinuousVectorTransformNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    sampleRate_(0),
-    inputSize_(0),
-    needInit_(true)
-{
+ContinuousVectorTransformNode::ContinuousVectorTransformNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          sampleRate_(0),
+          inputSize_(0),
+          needInit_(true) {
     setF(paramF(c));
     setOperation(paramOperation(c));
 }
 
-ContinuousVectorTransformNode::~ContinuousVectorTransformNode()
-{}
+ContinuousVectorTransformNode::~ContinuousVectorTransformNode() {}
 
-bool ContinuousVectorTransformNode::createF()
-{
+bool ContinuousVectorTransformNode::createF() {
     Math::AnalyticFunctionFactory factory(select(paramF.name()));
     factory.setSampleRate(sampleRate_);
     factory.setDomainType(Math::AnalyticFunctionFactory::continuousDomain);
     factory.setMaximalArgument(inputSize_ - 1);
 
     f_ = factory.createUnaryFunction(fDeclaration_);
-    if (!f_) error("Failed to create f.");
+    if (!f_)
+        error("Failed to create f.");
     return f_;
 }
 
-bool ContinuousVectorTransformNode::createOperation()
-{
+bool ContinuousVectorTransformNode::createOperation() {
     Math::AnalyticFunctionFactory factory(select(paramOperation.name()));
     factory.setSampleRate(sampleRate_);
     factory.setDomainType(Math::AnalyticFunctionFactory::continuousDomain);
 
     operation_ = factory.createBinaryFunction(operationDeclaration_);
-    if (!operation_) error("Failed to create f.");
+    if (!operation_)
+        error("Failed to create f.");
     return operation_;
 }
 
-void ContinuousVectorTransformNode::init(size_t inputSize)
-{
+void ContinuousVectorTransformNode::init(size_t inputSize) {
     inputSize_ = inputSize;
     if (inputSize_ == 0)
         warning("Input size is zero.");
@@ -75,15 +72,13 @@ void ContinuousVectorTransformNode::init(size_t inputSize)
     needInit_ = false;
 }
 
-void ContinuousVectorTransformNode::apply(std::vector<Data> &in)
-{
+void ContinuousVectorTransformNode::apply(std::vector<Data>& in) {
     require(in.size() == inputSize_);
-    for(u32 i = 0; i < in.size(); ++ i)
+    for (u32 i = 0; i < in.size(); ++i)
         in[i] = operation_->value(in[i], f_->value(i));
 }
 
-bool ContinuousVectorTransformNode::configure()
-{
+bool ContinuousVectorTransformNode::configure() {
     Core::Ref<const Flow::Attributes> attributes = getInputAttributes(0);
     if (!configureDatatype(attributes, Flow::Vector<Data>::type()))
         return false;
@@ -91,8 +86,7 @@ bool ContinuousVectorTransformNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool ContinuousVectorTransformNode::setParameter(const std::string &name, const std::string &value)
-{
+bool ContinuousVectorTransformNode::setParameter(const std::string& name, const std::string& value) {
     if (paramF.match(name))
         setF(paramF(value));
     else if (paramOperation.match(name))
@@ -102,11 +96,11 @@ bool ContinuousVectorTransformNode::setParameter(const std::string &name, const 
     return true;
 }
 
-bool ContinuousVectorTransformNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<Data> > in;
+bool ContinuousVectorTransformNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<Data>> in;
     if (getData(0, in)) {
-        if (needInit_) init(in->size());
+        if (needInit_)
+            init(in->size());
         in.makePrivate();
         apply(*in);
     }

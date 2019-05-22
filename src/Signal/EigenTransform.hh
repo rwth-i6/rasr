@@ -15,114 +15,127 @@
 #ifndef _SIGNAL_EIGEN_TRANSFORM_HH
 #define _SIGNAL_EIGEN_TRANSFORM_HH
 
-#include "ScatterTransform.hh"
 #include <Math/EigenvalueProblem.hh>
+#include "ScatterTransform.hh"
 
 namespace Signal {
 
+/**
+ *  Base class for eigenvalue analysis based transformations.
+ *  Features:
+ *   -Generation of projector matrix.
+ *   -Basic I/O
+ */
+class EigenTransform : public ScatterTransform {
+    typedef ScatterTransform Precursor;
+
+public:
+    typedef Math::EigenvalueProblem::ValueType EigenType;
+
+private:
+    static const Core::ParameterInt   paramReducedDimension;
+    static const Core::ParameterFloat paramReducedDimensionByThreshold;
+    static const Core::ParameterFloat paramVarianceProportion;
+    static const Core::ParameterBool  paramScaleDiagonalByEigenvalues;
+
+    mutable Core::XmlChannel resultsChannel_;
+
+protected:
+    Math::Vector<EigenType> eigenvalues_;
+    Math::Matrix<EigenType> eigenvectors_;
+
+private:
+    void writeResults(Core::XmlWriter& os) const;
+
+protected:
     /**
-     *  Base class for eigenvalue analysis based transformations.
-     *  Features:
-     *   -Generation of projector matrix.
-     *   -Basic I/O
+     *  Performs final steps of calculating the transformation.
+     *  Steps:
+     *    -creating projector
      */
-    class EigenTransform : public ScatterTransform {
-        typedef ScatterTransform Precursor;
-    public:
-        typedef Math::EigenvalueProblem::ValueType EigenType;
-    private:
-        static const Core::ParameterInt paramReducedDimension;
-        static const Core::ParameterFloat paramReducedDimensionByThreshold;
-        static const Core::ParameterFloat paramVarianceProportion;
-        static const Core::ParameterBool paramScaleDiagonalByEigenvalues;
+    bool work();
 
-        mutable Core::XmlChannel resultsChannel_;
-    protected:
-        Math::Vector<EigenType> eigenvalues_;
-        Math::Matrix<EigenType> eigenvectors_;
-    private:
-        void writeResults(Core::XmlWriter &os) const;
-    protected:
-        /**
-         *  Performs final steps of calculating the transformation.
-         *  Steps:
-         *    -creating projector
-         */
-        bool work();
+    void writeResults() const {
+        if (resultsChannel_.isOpen())
+            writeResults(resultsChannel_);
+    }
+    bool createProjector();
 
-        void writeResults() const {
-            if (resultsChannel_.isOpen()) writeResults(resultsChannel_);
-        }
-        bool createProjector();
-    public:
-        EigenTransform(const Core::Configuration &c);
-        ~EigenTransform();
+public:
+    EigenTransform(const Core::Configuration& c);
+    ~EigenTransform();
 
-        const Math::Vector<EigenType> &eigenvalues() const { return eigenvalues_; }
-        const Math::Matrix<EigenType> &eigenvectors() const { return eigenvectors_; }
-    };
+    const Math::Vector<EigenType>& eigenvalues() const {
+        return eigenvalues_;
+    }
+    const Math::Matrix<EigenType>& eigenvectors() const {
+        return eigenvectors_;
+    }
+};
+
+/**
+ *  Principal Component Analysis.
+ *  Input: total scatter matrices (covariance matrix).
+ *  Output: projector matrix.
+ */
+class PrincipalComponentAnalysis : public EigenTransform {
+    typedef EigenTransform Precursor;
+
+private:
+    Math::EigenvalueProblem* eigenvalueProblem_;
+    mutable Core::XmlChannel covarianceMatrixChannel_;
+
+public:
+    PrincipalComponentAnalysis(const Core::Configuration&);
+    ~PrincipalComponentAnalysis();
+    /**
+     *  Solves generalized eigenvalue problem on the parameter matrices.
+     */
+    bool work(const ScatterMatrix& covarianceMatrix);
+    /**
+     *  Solves generalized eigenvalue problem.
+     *  covariance matrix are read from files.
+     */
+    bool work();
+};
+
+/**
+ *  Linear Discriminant Analysis
+ *  Input: between class and within class scatter matrices.
+ *  Output: projector matrix.
+ */
+class LinearDiscriminantAnalysis : public EigenTransform {
+    typedef EigenTransform Precursor;
+
+private:
+    /**
+     *  Generalized eigenvalue problem solver used for calculating LDA matrix.
+     */
+    Math::GeneralizedEigenvalueProblem* generalizedEigenvalueProblem_;
+    /**
+     *  Eigenvalue problem solver used when analyzing scatter matrices.
+     */
+    Math::EigenvalueProblem* eigenvalueProblem_;
+
+    mutable Core::XmlChannel betweenClassScatterMatrixChannel_;
+    mutable Core::XmlChannel withinClassScatterMatrixChannel_;
+
+public:
+    LinearDiscriminantAnalysis(const Core::Configuration& c);
+    ~LinearDiscriminantAnalysis();
 
     /**
-     *  Principal Component Analysis.
-     *  Input: total scatter matrices (covariance matrix).
-     *  Output: projector matrix.
+     *  Solves generalized eigenvalue problem on the parameter matrices.
      */
-    class PrincipalComponentAnalysis :
-        public EigenTransform
-    {
-        typedef EigenTransform Precursor;
-    private:
-        Math::EigenvalueProblem *eigenvalueProblem_;
-        mutable Core::XmlChannel covarianceMatrixChannel_;
-    public:
-        PrincipalComponentAnalysis(const Core::Configuration &);
-        ~PrincipalComponentAnalysis();
-        /**
-         *  Solves generalized eigenvalue problem on the parameter matrices.
-         */
-        bool work(const ScatterMatrix &covarianceMatrix);
-        /**
-         *  Solves generalized eigenvalue problem.
-         *  covariance matrix are read from files.
-         */
-        bool work();
-    };
-
+    bool work(const ScatterMatrix& betweenClassScatterMatrix,
+              const ScatterMatrix& withinClassScatterMatrix);
     /**
-     *  Linear Discriminant Analysis
-     *  Input: between class and within class scatter matrices.
-     *  Output: projector matrix.
+     *  Solves generalized eigenvalue problem.
+     *  Scatter matrices are read form files.
      */
-    class LinearDiscriminantAnalysis :  public EigenTransform {
-        typedef EigenTransform Precursor;
-    private:
-        /**
-         *  Generalized eigenvalue problem solver used for calculating LDA matrix.
-         */
-        Math::GeneralizedEigenvalueProblem *generalizedEigenvalueProblem_;
-        /**
-         *  Eigenvalue problem solver used when analyzing scatter matrices.
-         */
-        Math::EigenvalueProblem *eigenvalueProblem_;
+    bool work();
+};
 
-        mutable Core::XmlChannel betweenClassScatterMatrixChannel_;
-        mutable Core::XmlChannel withinClassScatterMatrixChannel_;
-    public:
-        LinearDiscriminantAnalysis(const Core::Configuration &c);
-        ~LinearDiscriminantAnalysis();
+}  //namespace Signal
 
-        /**
-         *  Solves generalized eigenvalue problem on the parameter matrices.
-         */
-        bool work(const ScatterMatrix &betweenClassScatterMatrix,
-                  const ScatterMatrix &withinClassScatterMatrix);
-        /**
-         *  Solves generalized eigenvalue problem.
-         *  Scatter matrices are read form files.
-         */
-        bool work();
-    };
-
-} //namespace Signal
-
-#endif // _SIGNAL_EIGEN_TRANSFORM_HH
+#endif  // _SIGNAL_EIGEN_TRANSFORM_HH

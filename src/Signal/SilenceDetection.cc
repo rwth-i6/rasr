@@ -26,7 +26,7 @@ SilenceDetection::Float SilenceDetection::Frame::getEnergy(const Float energySca
         return 0;
 
     SilenceDetection::Float energy = 0;
-    for(u32 i = 0; i < get()->size(); i++)
+    for (u32 i = 0; i < get()->size(); i++)
         energy += (*get())[i] * (*get())[i];
 
     energy /= get()->size();
@@ -40,16 +40,17 @@ SilenceDetection::Float SilenceDetection::Frame::getEnergy(const Float energySca
 // SilenceDetection
 ///////////////////
 
-bool SilenceDetection::updateHistogram(const Frame &in, Frame &out) {
+bool SilenceDetection::updateHistogram(const Frame& in, Frame& out) {
     if (in) {
         histogramSlidingWindow_.add(in);
-        energyHistogram_[bin(in.energy())] ++;
-    } else
+        energyHistogram_[bin(in.energy())]++;
+    }
+    else
         histogramSlidingWindow_.flushOut();
 
     Frame removed;
     if (histogramSlidingWindow_.removed(removed))
-        energyHistogram_[bin(removed.energy())] --;
+        energyHistogram_[bin(removed.energy())]--;
 
     return histogramSlidingWindow_.out(out);
 }
@@ -57,15 +58,15 @@ bool SilenceDetection::updateHistogram(const Frame &in, Frame &out) {
 void SilenceDetection::updateThreshold() {
     // if histogram is not representative, move
     f32 sparseEventRatio = sparseEventRatio_ *
-        (f32)histogramSlidingWindow_.size() / (f32)histogramSlidingWindow_.maxSize();
+                           (f32)histogramSlidingWindow_.size() / (f32)histogramSlidingWindow_.maxSize();
 
-    Float noiseFractile = fractile(sparseEventRatio);
+    Float noiseFractile  = fractile(sparseEventRatio);
     Float speechFractile = fractile(1.0 - sparseEventRatio);
 
     if (speechFractile - noiseFractile > minSnr_) {
         // histogram has two clear maximum
         threshold_ = (1.0 - thresholdInterpolationFactor_) * noiseFractile +
-            thresholdInterpolationFactor_ * speechFractile;
+                     thresholdInterpolationFactor_ * speechFractile;
         // for continuoity
         threshold_ = std::max(threshold_, noiseFractile + minSnr_);
     }
@@ -75,11 +76,11 @@ void SilenceDetection::updateThreshold() {
     }
 }
 
-u32 SilenceDetection::fractile(f32 percent/*[0..1]*/) const {
+u32 SilenceDetection::fractile(f32 percent /*[0..1]*/) const {
     percent *= histogramSlidingWindow_.size();
     float p = 0;
-    u32 e;
-    for(e = 0; e < energyHistogram_.size(); e ++) {
+    u32   e;
+    for (e = 0; e < energyHistogram_.size(); e++) {
         p += energyHistogram_[e];
         if (p > percent)
             break;
@@ -87,11 +88,12 @@ u32 SilenceDetection::fractile(f32 percent/*[0..1]*/) const {
     return e;
 }
 
-bool SilenceDetection::updateBlock(const Frame &in, Frame &out) {
+bool SilenceDetection::updateBlock(const Frame& in, Frame& out) {
     if (in) {
         blockSlidingWindow_.add(in);
         accumulateBlockEnergy_ += in.energy();
-    } else
+    }
+    else
         blockSlidingWindow_.flushOut();
 
     Frame removed;
@@ -106,38 +108,39 @@ SilenceDetection::SilenceType SilenceDetection::isSilence(const SilenceDetection
         if (energy < threshold_)
             return silence;
         else if (nUnsure_ + 1 < minSpeechLength_) {
-            nUnsure_ ++;
+            nUnsure_++;
             return unsure;
-        } else
+        }
+        else
             return speech;
-    } else {
+    }
+    else {
         if (energy >= threshold_)
             return speech;
         else if (nUnsure_ + 1 < minSilenceLength_) {
-            nUnsure_ ++;
+            nUnsure_++;
             return unsure;
-        } else
+        }
+        else
             return silence;
     }
 }
 
-
-bool SilenceDetection::updateDecision(Frame &in, Frame &out) {
-    SilenceType currentDecision = (!in ? lastDecision_ :
-                                   isSilence(accumulateBlockEnergy_ / blockSlidingWindow_.size()));
+bool SilenceDetection::updateDecision(Frame& in, Frame& out) {
+    SilenceType currentDecision = (!in ? lastDecision_ : isSilence(accumulateBlockEnergy_ / blockSlidingWindow_.size()));
     if (currentDecision != unsure) {
         u32 i = 1;
         // set begining of a silence interval to speech
         if (lastDecision_ == speech && currentDecision == silence)
-            for(; i <= endDelay_; i++)
+            for (; i <= endDelay_; i++)
                 decisionSlidingWindow_[nUnsure_ - i].silence() = speech;
 
         //set unsures to the last decision
-        for(; i <= nUnsure_; i++)
+        for (; i <= nUnsure_; i++)
             decisionSlidingWindow_[nUnsure_ - i].silence() = currentDecision;
 
         lastDecision_ = currentDecision;
-        nUnsure_ = 0;
+        nUnsure_      = 0;
     }
 
     in.silence() = currentDecision;
@@ -148,10 +151,10 @@ bool SilenceDetection::updateDecision(Frame &in, Frame &out) {
     return decisionSlidingWindow_.out(out);
 }
 
-bool SilenceDetection::updateDelay(Frame &in, Frame &out) {
+bool SilenceDetection::updateDelay(Frame& in, Frame& out) {
     // set end of a silence interval to speech
     if (in.silence() == speech && delaySlidingWindow_[0].silence() == silence) {
-        for(u32 i = 0; i < beginDelay_; i++)
+        for (u32 i = 0; i < beginDelay_; i++)
             delaySlidingWindow_[i].silence() = speech;
     }
 
@@ -163,7 +166,7 @@ bool SilenceDetection::updateDelay(Frame &in, Frame &out) {
 }
 
 bool SilenceDetection::init() {
-    for(u32 i = 0; i < energyHistogram_.size(); i++)
+    for (u32 i = 0; i < energyHistogram_.size(); i++)
         energyHistogram_[i] = 0;
     if (!histogramSlidingWindow_.init(histogramSlidingWindowSize_, histogramSlidingWindowRight_))
         return false;
@@ -175,7 +178,7 @@ bool SilenceDetection::init() {
         return false;
 
     lastDecision_ = silence;
-    nUnsure_ = 0;
+    nUnsure_      = 0;
     if (std::max(minSpeechLength_, minSilenceLength_) < 1 ||
         !decisionSlidingWindow_.init(std::max(minSpeechLength_, minSilenceLength_),
                                      std::max(minSpeechLength_, minSilenceLength_) - 1))
@@ -190,7 +193,7 @@ bool SilenceDetection::init() {
     return !(need_init_ = false);
 }
 
-bool SilenceDetection::update(const Flow::DataPtr<Flow::Vector<Float> > &in, Frame &out) {
+bool SilenceDetection::update(const Flow::DataPtr<Flow::Vector<Float>>& in, Frame& out) {
     if (need_init_ && !init())
         return false;
 
@@ -205,7 +208,7 @@ bool SilenceDetection::update(const Flow::DataPtr<Flow::Vector<Float> > &in, Fra
     return true;
 }
 
-bool SilenceDetection::flush(Frame &out) {
+bool SilenceDetection::flush(Frame& out) {
     if (delaySlidingWindow_.futureSize() == 0)
         return false;
 
@@ -220,27 +223,16 @@ bool SilenceDetection::flush(Frame &out) {
     return true;
 }
 
-
 // SilenceDetectionNode
 ///////////////////////
 
-ParameterInt SilenceDetectionNode::paramHistogramBufferSize
-("histogram-buffer-size", "size of the histogram ringbuffer in frames", 600, 101);
-ParameterInt SilenceDetectionNode::paramHistogramBufferDelay
-("histogram-buffer-delay", "delay of the histogram ringbuffer in frames", 100, 100);
-ParameterInt SilenceDetectionNode::paramBlockSize
-("block-size", "number of averaged frames for energy calculation", 5, 1);
-ParameterFloat SilenceDetectionNode::paramSparseEventRatio
-("sparse-event-ration", "fractile value", 0.1, 0.0, 1.0);
-ParameterFloat SilenceDetectionNode::paramThresholdInterpolationFactor
-("threshold-interpolation-factor", "threshold interpolation factor", 0.3, 0.0, 1.0);
-ParameterFloat SilenceDetectionNode::paramMinSnr
-("min-snr", "threshold interpolation limit in dB", 13);
-ParameterInt SilenceDetectionNode::paramMinSpeechLength
-("min-speech-length", "min number of speech frames to decide for speech", 6, 1);
-ParameterInt SilenceDetectionNode::paramMinSilenceLength
-("min-silence-length", "min number of silence frames to decide for silence", 16, 1);
-ParameterInt SilenceDetectionNode::paramEndDelay
-("end-delay", "number of silence frames after speech set to speech", 12, 0);
-ParameterInt SilenceDetectionNode::paramBeginDelay
-("begin-delay", "number of silence frames before speech set to speech", 4, 0);
+ParameterInt   SilenceDetectionNode::paramHistogramBufferSize("histogram-buffer-size", "size of the histogram ringbuffer in frames", 600, 101);
+ParameterInt   SilenceDetectionNode::paramHistogramBufferDelay("histogram-buffer-delay", "delay of the histogram ringbuffer in frames", 100, 100);
+ParameterInt   SilenceDetectionNode::paramBlockSize("block-size", "number of averaged frames for energy calculation", 5, 1);
+ParameterFloat SilenceDetectionNode::paramSparseEventRatio("sparse-event-ration", "fractile value", 0.1, 0.0, 1.0);
+ParameterFloat SilenceDetectionNode::paramThresholdInterpolationFactor("threshold-interpolation-factor", "threshold interpolation factor", 0.3, 0.0, 1.0);
+ParameterFloat SilenceDetectionNode::paramMinSnr("min-snr", "threshold interpolation limit in dB", 13);
+ParameterInt   SilenceDetectionNode::paramMinSpeechLength("min-speech-length", "min number of speech frames to decide for speech", 6, 1);
+ParameterInt   SilenceDetectionNode::paramMinSilenceLength("min-silence-length", "min number of silence frames to decide for silence", 16, 1);
+ParameterInt   SilenceDetectionNode::paramEndDelay("end-delay", "number of silence frames after speech set to speech", 12, 0);
+ParameterInt   SilenceDetectionNode::paramBeginDelay("begin-delay", "number of silence frames before speech set to speech", 4, 0);

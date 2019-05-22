@@ -12,37 +12,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <math.h>
 #include "GenericWarping.hh"
+#include <math.h>
 
 using namespace Signal;
 
 const Core::ParameterString GenericWarpingNode::paramWarpingFunction(
-    "warping-function", "warping function declaration");
+        "warping-function", "warping function declaration");
 
-GenericWarpingNode::GenericWarpingNode(const Core::Configuration &c) :
-    Component(c), Node(c), WarpingNode(c), Flow::StringExpressionNode(c, 1)
-{
+GenericWarpingNode::GenericWarpingNode(const Core::Configuration& c)
+        : Component(c), Node(c), WarpingNode(c), Flow::StringExpressionNode(c, 1) {
     Flow::StringExpressionNode::setTemplate(paramWarpingFunction(c));
 }
 
-GenericWarpingNode::~GenericWarpingNode()
-{}
+GenericWarpingNode::~GenericWarpingNode() {}
 
-void GenericWarpingNode::updateWarping()
-{
+void GenericWarpingNode::updateWarping() {
     Math::AnalyticFunctionFactory factory(select(paramWarpingFunction.name()));
     factory.setSampleRate(sampleRate_);
     factory.setDomainType(Math::AnalyticFunctionFactory::discreteDomain);
     factory.setMaximalArgument(inputSize_ - 1);
-    Math::UnaryAnalyticFunctionRef warpingFunction =
-        factory.createUnaryFunction(Flow::StringExpressionNode::value());
+    Math::UnaryAnalyticFunctionRef warpingFunction = factory.createUnaryFunction(Flow::StringExpressionNode::value());
     if (!warpingFunction)
         criticalError("Could not create warping function.");
 
     if (interpolateOverWarpedAxis_) {
         warping_.setWarpingFunction(warpingFunction, inputSize_, mergeType_, interpolationType_);
-    } else {
+    }
+    else {
         Math::UnaryAnalyticFunctionRef inverseWarpingFunction = warpingFunction->invert();
         if (!inverseWarpingFunction)
             criticalError("Warping function is not invertable.");
@@ -50,14 +47,12 @@ void GenericWarpingNode::updateWarping()
     }
 }
 
-bool GenericWarpingNode::configure()
-{
+bool GenericWarpingNode::configure() {
     Flow::Attributes attributes;
     return StringExpressionNode::configure(attributes) && WarpingNode::configure(attributes);
 }
 
-bool GenericWarpingNode::setParameter(const std::string &name, const std::string &value)
-{
+bool GenericWarpingNode::setParameter(const std::string& name, const std::string& value) {
     if (paramWarpingFunction.match(name))
         Flow::StringExpressionNode::setTemplate(paramWarpingFunction(value));
     else
@@ -65,8 +60,8 @@ bool GenericWarpingNode::setParameter(const std::string &name, const std::string
     return true;
 }
 
-void GenericWarpingNode::apply(const Flow::Vector<f32> &in, std::vector<f32> &out)
-{
-    if (StringExpressionNode::update(in)) updateWarping();
+void GenericWarpingNode::apply(const Flow::Vector<f32>& in, std::vector<f32>& out) {
+    if (StringExpressionNode::update(in))
+        updateWarping();
     warping_.apply(in, out);
 }

@@ -24,64 +24,60 @@
 
 namespace Signal {
 
-    /** Preemphasis */
+/** Preemphasis */
 
-    class Preemphasis {
-    private:
+class Preemphasis {
+private:
+    f32 alpha_;
+    f32 previous_;
 
-        f32 alpha_;
-        f32 previous_;
+    Flow::Time previousEndTime_;
+    f64        sampleRate_;
 
-        Flow::Time previousEndTime_;
-        f64 sampleRate_;
+    bool needInit_;
 
-        bool needInit_;
+    void init(f32 initialValue);
 
-        void init(f32 initialValue);
+public:
+    Preemphasis();
 
-    public:
+    void setAlpha(f32 alpha);
 
-        Preemphasis();
+    void setSampleRate(f64 sampleRate);
 
+    void reset(void) {
+        needInit_ = true;
+    }
 
-        void setAlpha(f32 alpha);
+    void apply(Flow::Vector<f32>& v);
+};
 
-        void setSampleRate(f64 sampleRate);
+/** PreemphasisNode */
 
+class PreemphasisNode : public SleeveNode, Preemphasis {
+private:
+    static Core::ParameterFloat paramAlpha;
 
-        void reset(void) { needInit_ = true; }
+public:
+    static std::string filterName() {
+        return "signal-preemphasis";
+    }
 
+    PreemphasisNode(const Core::Configuration& c);
 
-        void apply(Flow::Vector<f32> &v);
-    };
+    virtual ~PreemphasisNode() {}
 
+    virtual bool setParameter(const std::string& name, const std::string& value);
 
-    /** PreemphasisNode */
+    virtual bool configure();
 
-    class PreemphasisNode : public SleeveNode, Preemphasis {
-    private:
-        static Core::ParameterFloat paramAlpha;
+    virtual void reset() {
+        Preemphasis::reset();
+    }
 
-    public:
+    virtual bool work(Flow::PortId p);
+};
 
-        static std::string filterName() { return "signal-preemphasis"; }
+}  // namespace Signal
 
-        PreemphasisNode(const Core::Configuration &c);
-
-        virtual ~PreemphasisNode() {}
-
-        virtual bool setParameter(const std::string &name, const std::string &value);
-
-
-        virtual bool configure();
-
-
-        virtual void reset() { Preemphasis::reset(); }
-
-
-        virtual bool work(Flow::PortId p);
-    };
-
-} // namespace Signal
-
-#endif // _SIGNAL_PREEMPHASIS_HH
+#endif  // _SIGNAL_PREEMPHASIS_HH

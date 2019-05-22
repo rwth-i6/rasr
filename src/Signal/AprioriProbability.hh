@@ -24,10 +24,11 @@ class AprioriProbability : public virtual Core::Component {
 public:
     typedef f32 Score;
 
-    AprioriProbability(const Core::Configuration &c) : Component(c) {}
+    AprioriProbability(const Core::Configuration& c)
+            : Component(c) {}
     virtual ~AprioriProbability() {}
 
-    virtual bool setClasses(const std::vector<std::string> &classLabels) = 0;
+    virtual bool setClasses(const std::vector<std::string>& classLabels) = 0;
 
     /** @return score -log p(classIndex). */
     virtual Score operator[](u32 classIndex) = 0;
@@ -37,16 +38,17 @@ public:
 class UniformAprioriProbability : public AprioriProbability {
 private:
     size_t nClasses_;
-    Score logNClasses_;
+    Score  logNClasses_;
+
 public:
-    UniformAprioriProbability(const Core::Configuration &c) :
-        Component(c), AprioriProbability(c), nClasses_(0), logNClasses_(0) {}
+    UniformAprioriProbability(const Core::Configuration& c)
+            : Component(c), AprioriProbability(c), nClasses_(0), logNClasses_(0) {}
     virtual ~UniformAprioriProbability() {}
 
-    virtual bool setClasses(const std::vector<std::string> &classLabels);
+    virtual bool  setClasses(const std::vector<std::string>& classLabels);
     virtual Score operator[](u32 classIndex);
 };
 
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_APRIORI_PROBABILITY_HH
+#endif  // _SIGNAL_APRIORI_PROBABILITY_HH

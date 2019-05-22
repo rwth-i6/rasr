@@ -15,23 +15,20 @@
 #ifndef _SIGNAL_MODULES_HH
 #define _SIGNAL_MODULES_HH
 
-
 /*
  * signal network application:
  */
 
 #include <Core/Singleton.hh>
 
-
 namespace Signal {
 
-    class Module_ {
-    public:
-        Module_();
-    };
+class Module_ {
+public:
+    Module_();
+};
 
-    typedef Core::SingletonHolder<Module_> Module;
-}
+typedef Core::SingletonHolder<Module_> Module;
+}  // namespace Signal
 
-
-#endif // _SIGNAL_MODULES_HH
+#endif  // _SIGNAL_MODULES_HH

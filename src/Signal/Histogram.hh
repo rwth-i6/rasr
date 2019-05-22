@@ -15,132 +15,135 @@
 #ifndef _SIGNAL_HISTOGRAM_HH
 #define _SIGNAL_HISTOGRAM_HH
 
-#include <Core/XmlBuilder.hh>
 #include <Core/BinaryStream.hh>
+#include <Core/XmlBuilder.hh>
 #include <Flow/Vector.hh>
-#include "LookupTable.hh"
 #include <numeric>
+#include "LookupTable.hh"
 
 namespace Signal {
 
-    /**
-     *  Histogram: supports
-     *   estimation of histograms
-     *   calculation of probability distribution function (pdf)
-     *   calculation of cummulative probability distribution function (cdf)
-     *   calculation of percentiles
-     */
-    template<class Value> class Histogram : public LookupTable<f32, Value> {
-        typedef LookupTable<f32, Value> Precursor;
-    public:
-        typedef typename Precursor::ValueType Weight;
-        typedef typename Precursor::ValueType Probability;
-    public:
-        Histogram(const Value bucketSize = 0) : Precursor(bucketSize) {}
-        Histogram(const Value bucketSize, const Value min, const Value max) :
-            Precursor(bucketSize, min, max) {}
-        void accumulate(const Value v, Weight weight = 1) { *Precursor::insert(v, 0) += weight; }
-        Value percentile(const Probability percent) const;
-        void getPdf(LookupTable<Probability, Value> &pdf) const;
-        void getCdf(LookupTable<Probability, Value> &cdf) const;
-    };
+/**
+ *  Histogram: supports
+ *   estimation of histograms
+ *   calculation of probability distribution function (pdf)
+ *   calculation of cummulative probability distribution function (cdf)
+ *   calculation of percentiles
+ */
+template<class Value>
+class Histogram : public LookupTable<f32, Value> {
+    typedef LookupTable<f32, Value> Precursor;
 
-    // Implementation Histogram
-    // ===========================================================================
-    template<typename Value>
-    Value Histogram<Value>::percentile(const Probability percent) const
-    {
-        Probability p = percent * this->sum();
-        typename Precursor::ConstantIterator b;
+public:
+    typedef typename Precursor::ValueType Weight;
+    typedef typename Precursor::ValueType Probability;
 
-        for(b = this->begin(); b != this->end() && p > 0; ++ b) p -= *b;
-        return index(b - this->begin());
+public:
+    Histogram(const Value bucketSize = 0)
+            : Precursor(bucketSize) {}
+    Histogram(const Value bucketSize, const Value min, const Value max)
+            : Precursor(bucketSize, min, max) {}
+    void accumulate(const Value v, Weight weight = 1) {
+        *Precursor::insert(v, 0) += weight;
     }
+    Value percentile(const Probability percent) const;
+    void  getPdf(LookupTable<Probability, Value>& pdf) const;
+    void  getCdf(LookupTable<Probability, Value>& cdf) const;
+};
 
-    template<typename Value>
-    void Histogram<Value>::getPdf(LookupTable<Probability, Value> &pdf) const
-    {
-        require(this->sum() != 0);
-        pdf = *this;
-        pdf.normalizeSurface();
-    }
+// Implementation Histogram
+// ===========================================================================
+template<typename Value>
+Value Histogram<Value>::percentile(const Probability percent) const {
+    Probability                          p = percent * this->sum();
+    typename Precursor::ConstantIterator b;
 
-    template<typename Value>
-    void Histogram<Value>::getCdf(LookupTable<Probability, Value> &cdf) const
-    {
-        require(this->sum() != 0);
-        cdf = *this;
-        std::partial_sum(cdf.begin(), cdf.end(), cdf.begin());
-        std::transform(cdf.begin(), cdf.end(), cdf.begin(),
-                       std::bind2nd(std::divides<Probability>(), this->sum()));
-    }
+    for (b = this->begin(); b != this->end() && p > 0; ++b)
+        p -= *b;
+    return index(b - this->begin());
+}
 
-    /**
-     *  Histogram Vector
-     */
-    template <typename T>
-    class HistogramVector : public std::vector<Histogram<T> > {
-    public:
-        typedef std::vector<Histogram<T> > Precursor;
-        typedef typename Precursor::value_type HistogramType;
-        typedef typename HistogramType::Weight Weight;
-    public:
-        explicit HistogramVector(size_t size = 0, T bucketSize = 0) :
-            Precursor(size, HistogramType(bucketSize)) {}
+template<typename Value>
+void Histogram<Value>::getPdf(LookupTable<Probability, Value>& pdf) const {
+    require(this->sum() != 0);
+    pdf = *this;
+    pdf.normalizeSurface();
+}
 
-        void accumulate(const std::vector<T> &v, Weight weight = 1);
+template<typename Value>
+void Histogram<Value>::getCdf(LookupTable<Probability, Value>& cdf) const {
+    require(this->sum() != 0);
+    cdf = *this;
+    std::partial_sum(cdf.begin(), cdf.end(), cdf.begin());
+    std::transform(cdf.begin(), cdf.end(), cdf.begin(),
+                   std::bind2nd(std::divides<Probability>(), this->sum()));
+}
 
-        T minimalBucketSize() const;
+/**
+ *  Histogram Vector
+ */
+template<typename T>
+class HistogramVector : public std::vector<Histogram<T>> {
+public:
+    typedef std::vector<Histogram<T>>      Precursor;
+    typedef typename Precursor::value_type HistogramType;
+    typedef typename HistogramType::Weight Weight;
 
-        void read(Core::BinaryInputStream &is);
-        void write(Core::BinaryOutputStream &os) const;
-        void dump(Core::XmlWriter &os) const;
-    };
+public:
+    explicit HistogramVector(size_t size = 0, T bucketSize = 0)
+            : Precursor(size, HistogramType(bucketSize)) {}
 
-    // Implementation HistogramVector
-    // ===========================================================================
-    template <typename T>
-    void HistogramVector<T>::accumulate(const std::vector<T> &v, Weight weight)
-    {
-        verify_(v.size() == Precursor::size());
-        for(u32 i = 0; i < v.size(); i ++)
-            this->operator[](i).accumulate(v[i], weight);
-    }
+    void accumulate(const std::vector<T>& v, Weight weight = 1);
 
-    template <typename T>
-    T HistogramVector<T>::minimalBucketSize() const
-    {
-        T result = Core::Type<T>::max;
-        for(typename Precursor::const_iterator i = this->begin(); i != this->end(); ++ i)
-            result = std::min(result, i->bucketSize());
-        return result;
-    }
+    T minimalBucketSize() const;
 
-    template<typename T>
-    void HistogramVector<T>::read(Core::BinaryInputStream &is)
-    {
-        u32 s; is >> s;
-        this->resize(s);
-        for(u32 i = 0; i < this->size(); ++ i)
-            is >> this->operator[](i);
-    }
+    void read(Core::BinaryInputStream& is);
+    void write(Core::BinaryOutputStream& os) const;
+    void dump(Core::XmlWriter& os) const;
+};
 
-    template<typename T>
-    void HistogramVector<T>::write(Core::BinaryOutputStream &os) const
-    {
-        os << (u32)this->size();
-        std::copy(this->begin(), this->end(), Core::BinaryOutputStream::Iterator<HistogramType>(os));
-    }
+// Implementation HistogramVector
+// ===========================================================================
+template<typename T>
+void HistogramVector<T>::accumulate(const std::vector<T>& v, Weight weight) {
+    verify_(v.size() == Precursor::size());
+    for (u32 i = 0; i < v.size(); i++)
+        this->operator[](i).accumulate(v[i], weight);
+}
 
-    template<typename T>
-    void HistogramVector<T>::dump(Core::XmlWriter& o) const
-    {
-        o << Core::XmlOpen("histogram-vector") + Core::XmlAttribute("size", this->size());
-        for(u32 i = 0; i < this->size(); ++ i)
-            o << "\n" << this->operator[](i);
-        o << "\n" << Core::XmlClose("histogram-vector");
-    }
+template<typename T>
+T HistogramVector<T>::minimalBucketSize() const {
+    T result = Core::Type<T>::max;
+    for (typename Precursor::const_iterator i = this->begin(); i != this->end(); ++i)
+        result = std::min(result, i->bucketSize());
+    return result;
+}
 
-} // namespace Signal
+template<typename T>
+void HistogramVector<T>::read(Core::BinaryInputStream& is) {
+    u32 s;
+    is >> s;
+    this->resize(s);
+    for (u32 i = 0; i < this->size(); ++i)
+        is >> this->operator[](i);
+}
 
-#endif // _SIGNAL_HISTOGRAM_HH
+template<typename T>
+void HistogramVector<T>::write(Core::BinaryOutputStream& os) const {
+    os << (u32)this->size();
+    std::copy(this->begin(), this->end(), Core::BinaryOutputStream::Iterator<HistogramType>(os));
+}
+
+template<typename T>
+void HistogramVector<T>::dump(Core::XmlWriter& o) const {
+    o << Core::XmlOpen("histogram-vector") + Core::XmlAttribute("size", this->size());
+    for (u32 i = 0; i < this->size(); ++i)
+        o << "\n"
+          << this->operator[](i);
+    o << "\n"
+      << Core::XmlClose("histogram-vector");
+}
+
+}  // namespace Signal
+
+#endif  // _SIGNAL_HISTOGRAM_HH

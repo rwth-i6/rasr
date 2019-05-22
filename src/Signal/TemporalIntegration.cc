@@ -12,25 +12,22 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <cmath>
-#include <Core/Assertions.hh>
 #include "TemporalIntegration.hh"
+#include <Core/Assertions.hh>
+#include <cmath>
 
 using namespace Flow;
 using namespace Signal;
 
-TemporalIntegration::TemporalIntegration() :
-    lengthInS_(0),
-    shiftInS_(0.0),
-    windowFunction_(0)
-{}
-
+TemporalIntegration::TemporalIntegration()
+        : lengthInS_(0),
+          shiftInS_(0.0),
+          windowFunction_(0) {}
 
 TemporalIntegration::~TemporalIntegration() {
     if (windowFunction_)
         delete windowFunction_;
 }
-
 
 void TemporalIntegration::setWindowFunction(WindowFunction* windowFunction) {
     if (windowFunction_)
@@ -39,14 +36,12 @@ void TemporalIntegration::setWindowFunction(WindowFunction* windowFunction) {
     windowFunction_ = windowFunction;
 }
 
-
 void TemporalIntegration::setLengthInS(Time length) {
     if (lengthInS_ != length) {
         lengthInS_ = length;
         setNeedInit();
     }
 }
-
 
 void TemporalIntegration::setShiftInS(Time shift) {
     if (shiftInS_ != shift) {
@@ -55,15 +50,13 @@ void TemporalIntegration::setShiftInS(Time shift) {
     }
 }
 
-
 void TemporalIntegration::setSampleRate(f64 sampleRate) {
     require(sampleRate > 0.0);
     if (Precursor::sampleRate() != sampleRate) {
         Precursor::setSampleRate(sampleRate);
-      setNeedInit();
+        setNeedInit();
     }
 }
-
 
 void TemporalIntegration::init() {
     verify(windowFunction_);
@@ -74,37 +67,35 @@ void TemporalIntegration::init() {
     Precursor::init();
 }
 
-
-void TemporalIntegration::transform(Vector<Sample> &out) {
+void TemporalIntegration::transform(Vector<Sample>& out) {
     u32 channels = out[0].size();
     windowFunction_->setLength(out.size());
-    for (u32 ch = 0; ch < channels; ch++){
-        out[0][ch] *= (windowFunction_->getWindow())[0];                         // WARNING: probably fabs of out is missing, with Hanning window[0] was 0, no problem
-        for (u32 i = 1; i < out.size(); i++){
+    for (u32 ch = 0; ch < channels; ch++) {
+        out[0][ch] *= (windowFunction_->getWindow())[0];  // WARNING: probably fabs of out is missing, with Hanning window[0] was 0, no problem
+        for (u32 i = 1; i < out.size(); i++) {
             out[0][ch] += fabs(out[i][ch]) * (windowFunction_->getWindow())[i];
         }
     }
     Vector<Sample>::iterator iter = out.begin() + 1;
-    out.erase(iter,out.end());
+    out.erase(iter, out.end());
 }
 
 //----------------------------------------------------------------------------
 
 const Core::ParameterFloat TemporalIntegrationNode::paramShift(
-    "shift", "shift of window");
+        "shift", "shift of window");
 
 const Core::ParameterFloat TemporalIntegrationNode::paramLength(
-    "length", "length of window");
+        "length", "length of window");
 
 const Core::ParameterBool TemporalIntegrationNode::paramFlushAll(
-    "flush-all", "if false, segments stops after the last sample was delivered", false);
+        "flush-all", "if false, segments stops after the last sample was delivered", false);
 
 const Core::ParameterBool TemporalIntegrationNode::paramFlushBeforeGap(
-    "flush-before-gap", "if true, flushes before a gap in the input samples", true);
+        "flush-before-gap", "if true, flushes before a gap in the input samples", true);
 
-TemporalIntegrationNode::TemporalIntegrationNode(const Core::Configuration &c) :
-    Component(c), Predecessor(c)
-{
+TemporalIntegrationNode::TemporalIntegrationNode(const Core::Configuration& c)
+        : Component(c), Predecessor(c) {
     setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c)));
     setShiftInS(paramShift(c));
     setLengthInS(paramLength(c));
@@ -112,7 +103,7 @@ TemporalIntegrationNode::TemporalIntegrationNode(const Core::Configuration &c) :
     setFlushBeforeGap(paramFlushBeforeGap(c));
 }
 
-bool TemporalIntegrationNode::setParameter(const std::string &name, const std::string &value) {
+bool TemporalIntegrationNode::setParameter(const std::string& name, const std::string& value) {
     if (WindowFunction::paramType.match(name))
         setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(value)));
     else if (paramShift.match(name))
@@ -129,9 +120,9 @@ bool TemporalIntegrationNode::setParameter(const std::string &name, const std::s
     return true;
 }
 
-
 bool TemporalIntegrationNode::configure() {
-    Core::Ref<Flow::Attributes> a(new Flow::Attributes());;
+    Core::Ref<Flow::Attributes> a(new Flow::Attributes());
+    ;
     getInputAttributes(0, *a);
 
     if (!configureDatatype(a, Flow::Vector<Sample>::type()))
@@ -141,7 +132,8 @@ bool TemporalIntegrationNode::configure() {
     f64 sampleRate = atof(a->get("sample-rate").c_str());
     if (sampleRate > 0.0) {
         setSampleRate(sampleRate);
-    } else {
+    }
+    else {
         criticalError("Sample rate is not positive: %f", sampleRate);
     }
     reset();

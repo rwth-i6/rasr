@@ -19,52 +19,43 @@
 
 namespace Signal {
 
+/** If true, prediction is only made for target times not found in the input stream.
+ *  If false, prediction is made for each target time.
+ */
+extern Core::ParameterBool paramPredictOnlyMissing;
 
-    /** If true, prediction is only made for target times not found in the input stream.
-     *  If false, prediction is made for each target time.
-     */
-    extern Core::ParameterBool paramPredictOnlyMissing;
-
-    /** If false (default), the output stream has the same number of frames as the target streams,
-     *  but only start times are synchronized.
-     *  If true, start- and end-times are synchronized, so the frames of target and output-stream have the same length
-     */
-    extern Core::ParameterBool paramSyncEndTimes;
-    /** FramePredictionNode: creates one elements for each elements read from "target" stream
-     *  by prediction for target start-times
-     *
-     *  For more details @see Flow::SynchronizationNode.
-     */
-    template<class Algorithm>
-    class FramePredictionNode : public Flow::SynchronizationNode<Algorithm> {
-    private:
-
+/** If false (default), the output stream has the same number of frames as the target streams,
+ *  but only start times are synchronized.
+ *  If true, start- and end-times are synchronized, so the frames of target and output-stream have the same length
+ */
+extern Core::ParameterBool paramSyncEndTimes;
+/** FramePredictionNode: creates one elements for each elements read from "target" stream
+ *  by prediction for target start-times
+ *
+ *  For more details @see Flow::SynchronizationNode.
+ */
+template<class Algorithm>
+class FramePredictionNode : public Flow::SynchronizationNode<Algorithm> {
+private:
     typedef Flow::SynchronizationNode<Algorithm> Precursor;
 
-    public:
-
-    FramePredictionNode(const Core::Configuration &c);
+public:
+    FramePredictionNode(const Core::Configuration& c);
 
     virtual ~FramePredictionNode() {}
 
+    virtual bool setParameter(const std::string& name, const std::string& value);
+};
 
-    virtual bool setParameter(const std::string &name, const std::string &value);
-    };
-
-
-    template<class Algorithm>
-    FramePredictionNode<Algorithm>::FramePredictionNode(const Core::Configuration &c) :
-    Core::Component(c), Precursor(c)
-    {
+template<class Algorithm>
+FramePredictionNode<Algorithm>::FramePredictionNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c) {
     this->setPredictOnlyMissing(paramPredictOnlyMissing(c));
     this->setSyncEndTimes(paramSyncEndTimes(c));
-    }
+}
 
-
-    template<class Algorithm>
-    bool FramePredictionNode<Algorithm>::setParameter(const std::string &name,
-                              const std::string &value) {
-
+template<class Algorithm>
+bool FramePredictionNode<Algorithm>::setParameter(const std::string& name, const std::string& value) {
     if (paramPredictOnlyMissing.match(name))
         this->setPredictOnlyMissing(paramPredictOnlyMissing(value));
     else if (paramSyncEndTimes.match(name))
@@ -72,8 +63,8 @@ namespace Signal {
     else
         return Precursor::setParameter(name, value);
     return true;
-    }
+}
 
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_FRAME_PREDICTION_HH
+#endif  // _SIGNAL_FRAME_PREDICTION_HH

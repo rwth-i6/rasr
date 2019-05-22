@@ -21,40 +21,41 @@
 
 #include <Flow/Vector.hh>
 
-#include "Node.hh"
 #include "ArxEstimator.hh"
+#include "Node.hh"
 
-namespace Signal
-{
-    class LinearPredictionCodingNode : public SleeveNode, public ArxEstimator
-    {
-    private:
-        static Core::ParameterInt paramOrder_B;
-        static Core::ParameterInt paramOrder_A;
+namespace Signal {
+class LinearPredictionCodingNode : public SleeveNode, public ArxEstimator {
+private:
+    static Core::ParameterInt paramOrder_B;
+    static Core::ParameterInt paramOrder_A;
 
-        bool sendVector(const Flow::Timestamp& time_stamp,
-                        const f32& estimation_error,
-                        const std::vector<f32>& B_tilde,
-                        const std::vector<f32>& A_tilde);
-        bool sendLinearFilterParameter(const Flow::Timestamp& time_stamp,
-                                       const f32& estimation_error,
-                                       const std::vector<f32>& B_tilde,
-                                       const std::vector<f32>& A_tilde,
-                                       bool initialize);
-    public:
-        static std::string filterName() { return "signal-lpc"; }
-        LinearPredictionCodingNode(const Core::Configuration &c);
-        virtual ~LinearPredictionCodingNode() {}
+    bool sendVector(const Flow::Timestamp&  time_stamp,
+                    const f32&              estimation_error,
+                    const std::vector<f32>& B_tilde,
+                    const std::vector<f32>& A_tilde);
+    bool sendLinearFilterParameter(const Flow::Timestamp&  time_stamp,
+                                   const f32&              estimation_error,
+                                   const std::vector<f32>& B_tilde,
+                                   const std::vector<f32>& A_tilde,
+                                   bool                    initialize);
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
+public:
+    static std::string filterName() {
+        return "signal-lpc";
+    }
+    LinearPredictionCodingNode(const Core::Configuration& c);
+    virtual ~LinearPredictionCodingNode() {}
 
-        virtual Flow::PortId getInput(const std::string &name);
-        virtual Flow::PortId getOutput(const std::string &name);
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
 
-        virtual bool work(Flow::PortId p);
-    };
+    virtual Flow::PortId getInput(const std::string& name);
+    virtual Flow::PortId getOutput(const std::string& name);
 
-}
+    virtual bool work(Flow::PortId p);
+};
 
-#endif //_SIGNAL_LPC_HH
+}  // namespace Signal
+
+#endif  //_SIGNAL_LPC_HH

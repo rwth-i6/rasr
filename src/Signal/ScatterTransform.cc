@@ -19,68 +19,60 @@ using namespace Signal;
 
 //----------------------------------------------------------------------------
 const Core::ParameterInt ScatterTransform::paramOutputPrecision(
-    "output-precision", "number of decimal digits in output files", 20);
+        "output-precision", "number of decimal digits in output files", 20);
 const Core::ParameterString ScatterTransform::paramTotalScatterFilename(
-    "covariance-file", "input file name for covariance matrix");
- const Core::ParameterString ScatterTransform::paramBetweenClassScatterFilename(
-    "between-class-scatter-matrix-file", "input file name for between-class scatter matrix");
+        "covariance-file", "input file name for covariance matrix");
+const Core::ParameterString ScatterTransform::paramBetweenClassScatterFilename(
+        "between-class-scatter-matrix-file", "input file name for between-class scatter matrix");
 const Core::ParameterString ScatterTransform::paramWithinClassScatterFilename(
-    "within-class-scatter-matrix-file", "input file name for within-class scatter matrix");
+        "within-class-scatter-matrix-file", "input file name for within-class scatter matrix");
 const Core::ParameterFloat ScatterTransform::paramTransformScale(
-    "transform-scale",
-    "as last step the transformation matrix is multiplied by this value",
-    1.0);
+        "transform-scale",
+        "as last step the transformation matrix is multiplied by this value",
+        1.0);
 
-ScatterTransform::ScatterTransform(
-    const Core::Configuration &configuration,
-    const std::string &transformationTypename) :
-    Precursor(configuration),
-    paramTransformationFilename((transformationTypename + "-file").c_str(),
-                                "output file name for transformation matrix"),
-    transformScale_(paramTransformScale(configuration))
-{}
+ScatterTransform::ScatterTransform(const Core::Configuration& configuration,
+                                   const std::string&         transformationTypename)
+        : Precursor(configuration),
+          paramTransformationFilename((transformationTypename + "-file").c_str(), "output file name for transformation matrix"),
+          transformScale_(paramTransformScale(configuration)) {}
 
-ScatterTransform::~ScatterTransform()
-{}
+ScatterTransform::~ScatterTransform() {}
 
-bool ScatterTransform::work()
-{
+bool ScatterTransform::work() {
     if (transformScale_ != (TransformationMatrix::Type)1)
         transform_ *= transformScale_;
     return true;
 }
 
-bool ScatterTransform::write()
-{
-    bool success = true;
+bool ScatterTransform::write() {
+    bool        success = true;
     std::string filename(paramTransformationFilename(config));
     if (Math::Module::instance().formats().write(
-            filename, transform_, paramOutputPrecision(config))) {
+                filename, transform_, paramOutputPrecision(config))) {
         log("Transformation matrix written to '%s'.", filename.c_str());
-    } else {
+    }
+    else {
         error("Failed to store transformation matrix to file '%s'.", filename.c_str());
         success = false;
     }
     return success;
 }
 
-bool ScatterTransform::readScatterMatrix(
-    const std::string &filename, const std::string &scatterType,
-    ScatterMatrix &scatterMatrix) const
-{
-    if (!Math::Module::instance().formats().read(
-            filename, scatterMatrix)) {
-        error("Failed to read %s scatter matrix from file '%s'.",
-              scatterType.c_str(), filename.c_str());
+bool ScatterTransform::readScatterMatrix(const std::string& filename,
+                                         const std::string& scatterType,
+                                         ScatterMatrix&     scatterMatrix) const {
+    if (!Math::Module::instance().formats().read(filename, scatterMatrix)) {
+        error("Failed to read %s scatter matrix from file '%s'.", scatterType.c_str(), filename.c_str());
         return false;
     }
     return true;
 }
 
-void ScatterTransform::writeScatterMatrix(
-    Core::XmlWriter &os, const std::string &scatterType,
-    const ScatterMatrix &scatterMatrix, Math::EigenvalueProblem *eigenvalueProblem) const
-{
+void ScatterTransform::writeScatterMatrix(Core::XmlWriter&         os,
+                                          const std::string&       scatterType,
+                                          const ScatterMatrix&     scatterMatrix,
+                                          Math::EigenvalueProblem* eigenvalueProblem) const {
     std::string name = scatterType + "-scatter-matrix";
     os << Core::XmlOpen(name);
     if (eigenvalueProblem) {
@@ -96,7 +88,8 @@ void ScatterTransform::writeScatterMatrix(
         }
         os << eigenvalues;
         os << Core::XmlClose("eigenvalues");
-    } else {
+    }
+    else {
         os << scatterMatrix;
     }
     os << Core::XmlClose(name);
@@ -105,21 +98,19 @@ void ScatterTransform::writeScatterMatrix(
 //----------------------------------------------------------------------------
 
 const Core::ParameterFloat ScatterDiagonalNormalization::paramTolerance(
-    "tolerance", "tolerance used when inverting the diagonal", 0, 0);
+        "tolerance", "tolerance used when inverting the diagonal", 0, 0);
 
-ScatterDiagonalNormalization::ScatterDiagonalNormalization(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c, "normalization"),
-    tolerance_(paramTolerance(c))
-{}
+ScatterDiagonalNormalization::ScatterDiagonalNormalization(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c, "normalization"),
+          tolerance_(paramTolerance(c)) {}
 
-bool ScatterDiagonalNormalization::work(const ScatterMatrix &scatter) {
-    bool success = true;
+bool ScatterDiagonalNormalization::work(const ScatterMatrix& scatter) {
+    bool                              success  = true;
     Math::Vector<ScatterMatrix::Type> diagonal = scatter.diagonal();
-    for (size_t i = 0; i < diagonal.size(); ++ i) {
+    for (size_t i = 0; i < diagonal.size(); ++i) {
         if (diagonal[i] < 0 && Core::abs(diagonal[i]) > tolerance_) {
-            error("Normalization failed because "			\
-                  "because %zu-th diagonal element %f is negative.", i, diagonal[i]);
+            error("Normalization failed because %zu-th diagonal element %f is negative.", i, diagonal[i]);
             success = false;
         }
     }
@@ -127,40 +118,40 @@ bool ScatterDiagonalNormalization::work(const ScatterMatrix &scatter) {
         diagonal.takeSquareRoot(tolerance_);
         diagonal.takeReciprocal(tolerance_);
         Message scalingMessage(log("Scaling factors:\n"));
-        for (size_t i = 0; i < diagonal.size(); ++ i) {
-            if (diagonal[i] == 0) scalingMessage << "no-scaling ";
-            else scalingMessage << diagonal[i] << " ";
+        for (size_t i = 0; i < diagonal.size(); ++i) {
+            if (diagonal[i] == 0)
+                scalingMessage << "no-scaling ";
+            else
+                scalingMessage << diagonal[i] << " ";
         }
         Math::Vector<TransformationMatrix::Type> results = diagonal;
-        transform_ = makeDiagonalMatrix(results);
-        if (!Precursor::work()) success = false;
+        transform_                                       = makeDiagonalMatrix(results);
+        if (!Precursor::work())
+            success = false;
     }
     return success;
 }
 
 bool ScatterDiagonalNormalization::work() {
     ScatterMatrix scatterMatrix;
-    return (readScatterMatrix(paramTotalScatterFilename(config),
-                              totalScatterType, scatterMatrix) &&
-            work(scatterMatrix));
+    return (readScatterMatrix(paramTotalScatterFilename(config), totalScatterType, scatterMatrix) && work(scatterMatrix));
 }
 
 //----------------------------------------------------------------------------
 
-const Core::ParameterFloat ScatterThresholding::paramElementThresholdMin("element-threshold-min",
-    "minimum threshold for every covariance element", Core::Type<f32>::min);
+const Core::ParameterFloat  ScatterThresholding::paramElementThresholdMin("element-threshold-min",
+                                                                         "minimum threshold for every covariance element", Core::Type<f32>::min);
 const Core::ParameterString ScatterThresholding::paramInputScatterFilename("input-matrix-file",
-    "input file name for scatter matrix");
+                                                                           "input file name for scatter matrix");
 const Core::ParameterString ScatterThresholding::paramOutputScatterFilename("output-matrix-file",
-    "input file name for scatter matrix");
+                                                                            "input file name for scatter matrix");
 
-ScatterThresholding::ScatterThresholding(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c, "thresholding"),
-    threshold_(paramElementThresholdMin(c)),
-    inputScatterFilename_(paramInputScatterFilename(c)),
-    outputScatterFilename_(paramOutputScatterFilename(c))
-{ }
+ScatterThresholding::ScatterThresholding(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c, "thresholding"),
+          threshold_(paramElementThresholdMin(c)),
+          inputScatterFilename_(paramInputScatterFilename(c)),
+          outputScatterFilename_(paramOutputScatterFilename(c)) {}
 
 bool ScatterThresholding::work() {
     ScatterMatrix scatterMatrix;
@@ -179,7 +170,8 @@ bool ScatterThresholding::write() {
     if (Math::Module::instance().formats().write(outputScatterFilename_, scatterMatrix_, paramOutputPrecision(config))) {
         log("Transformation matrix written to '%s'.", outputScatterFilename_.c_str());
         return true;
-    } else {
+    }
+    else {
         error("Failed to store transformation matrix to file '%s'.", outputScatterFilename_.c_str());
         return false;
     }

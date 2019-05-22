@@ -15,80 +15,98 @@
 #ifndef _SIGNAL_ARESTIMATOR_HH
 #define _SIGNAL_ARESTIMATOR_HH
 
+#include <Math/LevinsonLse.hh>
 #include "CrossCorrelation.hh"
 #include "SegmentEstimator.hh"
-#include <Math/LevinsonLse.hh>
 
-namespace Signal
-{
+namespace Signal {
 
-    /** Autoregression estimator for segments of amplitude spectrum */
-    class SegmentwiseArEstimator : public SegmentwiseEstimator {
-    public:
-        typedef BandpassAutocorrelation::Data Data;
+/** Autoregression estimator for segments of amplitude spectrum */
+class SegmentwiseArEstimator : public SegmentwiseEstimator {
+public:
+    typedef BandpassAutocorrelation::Data Data;
 
-        BandpassAutocorrelation autocorrelation_;
-        Math::LevinsonLeastSquares leastSquares_;
+    BandpassAutocorrelation    autocorrelation_;
+    Math::LevinsonLeastSquares leastSquares_;
 
-        std::vector<Data> autocorrelationFunction_;
-        size_t amplitudeLength_;
-    public:
-        SegmentwiseArEstimator();
-        ~SegmentwiseArEstimator();
+    std::vector<Data> autocorrelationFunction_;
+    size_t            amplitudeLength_;
 
-        virtual bool setSignal(const std::vector<Data> &);
-        virtual void setOrder(u8 order) { autocorrelationFunction_.resize(order + 1); }
+public:
+    SegmentwiseArEstimator();
+    ~SegmentwiseArEstimator();
 
-        virtual bool work(Data &estimationError) { return work(&estimationError, 0, 0); }
-        bool work(Data* estimation_error, std::vector<Data>* A_tilde, Data* energy);
+    virtual bool setSignal(const std::vector<Data>&);
+    virtual void setOrder(u8 order) {
+        autocorrelationFunction_.resize(order + 1);
+    }
 
-        s32 getMaxSegmentValue() const { return amplitudeLength_ - 1; };
+    virtual bool work(Data& estimationError) {
+        return work(&estimationError, 0, 0);
+    }
+    bool work(Data* estimation_error, std::vector<Data>* A_tilde, Data* energy);
+
+    s32 getMaxSegmentValue() const {
+        return amplitudeLength_ - 1;
+    };
+};
+
+/** Flow network parameter for autoregressive coefficients */
+class AutoregressiveCoefficients : public Flow::Timestamp {
+    typedef Flow::Timestamp Precursor;
+
+public:
+    typedef f32 Coefficient;
+
+private:
+    Coefficient              gain_;
+    std::vector<Coefficient> a_;
+
+public:
+    static const Flow::Datatype* type() {
+        static Flow::DatatypeTemplate<AutoregressiveCoefficients> dt("autoregressive-coefficients");
+        return &dt;
+    }
+    AutoregressiveCoefficients()
+            : Precursor(type()), gain_(0) {}
+    virtual ~AutoregressiveCoefficients() {}
+    virtual Data* clone() const {
+        return new AutoregressiveCoefficients(*this);
     };
 
-    /** Flow network parameter for autoregressive coefficients */
-    class AutoregressiveCoefficients : public Flow::Timestamp {
-        typedef Flow::Timestamp Precursor;
-    public:
-        typedef f32 Coefficient;
-    private:
-        Coefficient gain_;
-        std::vector<Coefficient> a_;
-    public:
-        static const Flow::Datatype *type() {
-            static Flow::DatatypeTemplate<AutoregressiveCoefficients> dt("autoregressive-coefficients");
-            return &dt;
-        }
-        AutoregressiveCoefficients() : Precursor(type()), gain_(0) {}
-        virtual ~AutoregressiveCoefficients() {}
-        virtual Data* clone() const { return new AutoregressiveCoefficients(*this); };
-
-        Coefficient& gain() { return gain_; };
-        std::vector<Coefficient>& a() { return a_; };
-
-        virtual Core::XmlWriter& dump(Core::XmlWriter &o) const;
-        virtual bool read(Core::BinaryInputStream &i);
-        virtual bool write(Core::BinaryOutputStream &o) const;
+    Coefficient& gain() {
+        return gain_;
+    };
+    std::vector<Coefficient>& a() {
+        return a_;
     };
 
-    /** Estimates autoregression parameters from autocorrelation.
-     *  Input: autocorrelation.
-     *  Output is an autoregressive-parameter object.
-     */
-    class AutocorrelationToAutoregressionNode : public Flow::SleeveNode {
-        typedef Flow::SleeveNode Precursor;
-    private:
-        Math::LevinsonLeastSquares levinsonLeastSquares_;
-    public:
-        static std::string filterName() {
-            return std::string("signal-autocorrelation-to-autoregression");
-        }
-        AutocorrelationToAutoregressionNode(const Core::Configuration &c) :
-            Core::Component(c), Precursor(c) {}
-        virtual ~AutocorrelationToAutoregressionNode() {}
+    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const;
+    virtual bool             read(Core::BinaryInputStream& i);
+    virtual bool             write(Core::BinaryOutputStream& o) const;
+};
 
-        virtual bool configure();
-        virtual bool work(Flow::PortId p);
-    };
-}
+/** Estimates autoregression parameters from autocorrelation.
+ *  Input: autocorrelation.
+ *  Output is an autoregressive-parameter object.
+ */
+class AutocorrelationToAutoregressionNode : public Flow::SleeveNode {
+    typedef Flow::SleeveNode Precursor;
 
-#endif // _SIGNAL_ARESTIMATOR_HH
+private:
+    Math::LevinsonLeastSquares levinsonLeastSquares_;
+
+public:
+    static std::string filterName() {
+        return std::string("signal-autocorrelation-to-autoregression");
+    }
+    AutocorrelationToAutoregressionNode(const Core::Configuration& c)
+            : Core::Component(c), Precursor(c) {}
+    virtual ~AutocorrelationToAutoregressionNode() {}
+
+    virtual bool configure();
+    virtual bool work(Flow::PortId p);
+};
+}  // namespace Signal
+
+#endif  // _SIGNAL_ARESTIMATOR_HH

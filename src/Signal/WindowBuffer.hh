@@ -15,118 +15,148 @@
 #ifndef _SIGNAL_WINDOW_BUFFER_HH
 #define _SIGNAL_WINDOW_BUFFER_HH
 
-#include <deque>
 #include <Flow/Data.hh>
 #include <Flow/Vector.hh>
-
+#include <deque>
 
 namespace Signal {
 
-    /** WindowBuffer is buffer collecting vectors of samples and
+/** WindowBuffer is buffer collecting vectors of samples and
         delivering (overlapping) segments of a given length */
 
-    class WindowBuffer {
-    public:
-        typedef Flow::Time Time;
-        typedef f32 Sample;
-        enum FlushPolicy { SendRest, PadRest, DiscardRest };
-        typedef Flow::Vector<Sample> InputData;
-        typedef Flow::Vector<Sample> OutputData;
-    protected:
-        /** length_ of output vectors */
-        u32 length_;
-        /** number of elements removed from the beginning of the buffer after a call to get */
-        u32 shift_;
+class WindowBuffer {
+public:
+    typedef Flow::Time Time;
+    typedef f32        Sample;
+    enum FlushPolicy { SendRest,
+                       PadRest,
+                       DiscardRest };
+    typedef Flow::Vector<Sample> InputData;
+    typedef Flow::Vector<Sample> OutputData;
 
-        Time bufferStartTime_;
-        Time sampleRate_;
-        bool flushBeforeGap_;
-        std::deque<Sample> buffer_;
+protected:
+    /** length_ of output vectors */
+    u32 length_;
+    /** number of elements removed from the beginning of the buffer after a call to get */
+    u32 shift_;
 
-        /** number released of outputs */
-        u32 nOutputs_;
+    Time               bufferStartTime_;
+    Time               sampleRate_;
+    bool               flushBeforeGap_;
+    std::deque<Sample> buffer_;
 
-        /** true if buffer is flushed */
-        bool flushed_;
-        /** if true, segments are delivered shift-by-shift until the buffer is empty
-         *  if false, segments are delivered until the last segment contains the last sample
-         */
-        bool  flushAll_;
+    /** number released of outputs */
+    u32 nOutputs_;
 
-        bool needInit_;
-    private:
-        /** copies @param length element form the beginning of the buffer to @param out and
-         *  sets the beginning and end time of @param out
-         */
-        void copy(Flow::Vector<f32> &out, const u32 length);
-    protected:
-        /** call to force initialization
-         */
-        void setNeedInit() { needInit_ = true; }
-        /** overload to perform initialization
-         */
-        virtual void init();
+    /** true if buffer is flushed */
+    bool flushed_;
+    /** if true, segments are delivered shift-by-shift until the buffer is empty
+     *  if false, segments are delivered until the last segment contains the last sample
+     */
+    bool flushAll_;
 
-        /** overload to transform output vectors
-         *
-         *  caution: update the start- and end-time of out if the size is changed
-         */
-        virtual void transform(Flow::Vector<Sample> &out) {}
-    public:
-        WindowBuffer();
-        virtual ~WindowBuffer() {}
+    bool needInit_;
 
-        /** adds an input vector
-         * @return is false if there is a time gap
-         *   between the end time of the buffer and start time of in
-         */
-        bool put(const Flow::Vector<Sample> &in);
-        /** returns one vector of the given length_ and
-         * removes shift_ number of elements from the begining of the buffer
-         * @return is false if buffer is smaller then 2 * max(length_, shift_)
-         */
-        bool get(Flow::Vector<Sample> &out);
-        /** delivers the rest of the buffer_
-         *  @return is false if the buffer_ is empty
-         *
-         *  Caution: an assertion fails if the buffer is larger then 2 * max(length_, shift_)
-         */
-        bool flush(Flow::Vector<Sample> &out);
+private:
+    /** copies @param length element form the beginning of the buffer to @param out and
+     *  sets the beginning and end time of @param out
+     */
+    void copy(Flow::Vector<f32>& out, const u32 length);
 
-        /** Clears the buffer and resets status variables. */
-        virtual void reset();
+protected:
+    /** call to force initialization
+     */
+    void setNeedInit() {
+        needInit_ = true;
+    }
+    /** overload to perform initialization
+     */
+    virtual void init();
 
-        /** set the number of samples removed after each call to get */
-        void setShift(u32 shift) { shift_ = shift; }
-        /** the number of samples removed after each call to get */
-        u32 shift() { return shift_; }
+    /** overload to transform output vectors
+     *
+     *  caution: update the start- and end-time of out if the size is changed
+     */
+    virtual void transform(Flow::Vector<Sample>& out) {}
 
-        /** sets the length of output vectors */
-        void setLength(u32 length) { length_ = length; }
-        /** length of output vectors */
-        u32 length() const { return length_; }
+public:
+    WindowBuffer();
+    virtual ~WindowBuffer() {}
 
-        void setSampleRate(Time sampleRate) { sampleRate_ = sampleRate; }
-        Time sampleRate() const { return sampleRate_; }
+    /** adds an input vector
+     * @return is false if there is a time gap
+     *   between the end time of the buffer and start time of in
+     */
+    bool put(const Flow::Vector<Sample>& in);
+    /** returns one vector of the given length_ and
+     * removes shift_ number of elements from the begining of the buffer
+     * @return is false if buffer is smaller then 2 * max(length_, shift_)
+     */
+    bool get(Flow::Vector<Sample>& out);
+    /** delivers the rest of the buffer_
+     *  @return is false if the buffer_ is empty
+     *
+     *  Caution: an assertion fails if the buffer is larger then 2 * max(length_, shift_)
+     */
+    bool flush(Flow::Vector<Sample>& out);
 
-        /** number released of outputs */
-        u32 nOutputs() { return nOutputs_; }
+    /** Clears the buffer and resets status variables. */
+    virtual void reset();
 
-        /** @return is true if the last output is following */
-        bool flushed() { return flushed_; }
+    /** set the number of samples removed after each call to get */
+    void setShift(u32 shift) {
+        shift_ = shift;
+    }
+    /** the number of samples removed after each call to get */
+    u32 shift() {
+        return shift_;
+    }
 
-        /** if @param flushAll is true, segments are delivered shift-by-shift
-         *    until the buffer is empty
-         *  if @param flushAll false, segments are delivered
-         *    until the last segment contains the last sample
-         */
-        void setFlushAll(bool flushAll) { flushAll_ = flushAll; }
-        bool flushAll() const { return flushAll_; }
+    /** sets the length of output vectors */
+    void setLength(u32 length) {
+        length_ = length;
+    }
+    /** length of output vectors */
+    u32 length() const {
+        return length_;
+    }
 
-        void setFlushBeforeGap(bool flushBeforeGap) { flushBeforeGap_ = flushBeforeGap; }
-        bool shallFlushBeforeGap() const { return flushBeforeGap_; }
-    };
-}
+    void setSampleRate(Time sampleRate) {
+        sampleRate_ = sampleRate;
+    }
+    Time sampleRate() const {
+        return sampleRate_;
+    }
 
+    /** number released of outputs */
+    u32 nOutputs() {
+        return nOutputs_;
+    }
 
-#endif // _SIGNAL_WINDOW_BUFFER_HH
+    /** @return is true if the last output is following */
+    bool flushed() {
+        return flushed_;
+    }
+
+    /** if @param flushAll is true, segments are delivered shift-by-shift
+     *    until the buffer is empty
+     *  if @param flushAll false, segments are delivered
+     *    until the last segment contains the last sample
+     */
+    void setFlushAll(bool flushAll) {
+        flushAll_ = flushAll;
+    }
+    bool flushAll() const {
+        return flushAll_;
+    }
+
+    void setFlushBeforeGap(bool flushBeforeGap) {
+        flushBeforeGap_ = flushBeforeGap;
+    }
+    bool shallFlushBeforeGap() const {
+        return flushBeforeGap_;
+    }
+};
+}  // namespace Signal
+
+#endif  // _SIGNAL_WINDOW_BUFFER_HH

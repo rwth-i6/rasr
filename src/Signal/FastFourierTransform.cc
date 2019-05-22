@@ -12,41 +12,39 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "FastFourierTransform.hh"
 #include <Core/Assertions.hh>
 #include <Core/StringUtilities.hh>
-#include "FastFourierTransform.hh"
 
 using namespace Signal;
 
-FastFourierTransform::FastFourierTransform(u32 length, Data sampleRate) :
-    length_(0),
-    sampleRate_(0)
-{
+FastFourierTransform::FastFourierTransform(u32 length, Data sampleRate)
+        : length_(0),
+          sampleRate_(0) {
     setLength(length);
     setInputSampleRate(sampleRate);
 }
 
-u32 FastFourierTransform::setLength(u32 length)
-{
+u32 FastFourierTransform::setLength(u32 length) {
     if (length == 0)
         return length_ = 0;
 
     double power = std::log((double)length) / std::log((double)2);
-    if (Core::isAlmostEqual(power, rint(power))) power = rint(power);
-    else power = ceil(power);
+    if (Core::isAlmostEqual(power, rint(power)))
+        power = rint(power);
+    else
+        power = ceil(power);
     ensure(power < 32);
     return (length_ = (1 << (u32)power));
 }
 
-bool FastFourierTransform::zeroPadding(std::vector<Data> &data)
-{
+bool FastFourierTransform::zeroPadding(std::vector<Data>& data) {
     require_(data.size() <= maximalInputSize());
     data.resize(maximalInputSize(), 0);
     return true;
 }
 
-bool FastFourierTransform::estimateContinuous(std::vector<Data> &data)
-{
+bool FastFourierTransform::estimateContinuous(std::vector<Data>& data) {
     verify_(sampleRate_ > 0);
     if (sampleRate_ != 1) {
         std::transform(data.begin(), data.end(), data.begin(),
@@ -55,8 +53,7 @@ bool FastFourierTransform::estimateContinuous(std::vector<Data> &data)
     return true;
 }
 
-bool FastFourierTransform::transform(std::vector<Data> &data)
-{
+bool FastFourierTransform::transform(std::vector<Data>& data) {
     if (data.size() > maximalInputSize()) {
         lastError_ = Core::form("Input data size (%zd) is larger then maximal input size (%d).",
                                 data.size(), maximalInputSize());
@@ -64,15 +61,14 @@ bool FastFourierTransform::transform(std::vector<Data> &data)
     }
 
     return zeroPadding(data) &&
-        applyAlgorithm(data) &&
-        estimateContinuous(data);
+           applyAlgorithm(data) &&
+           estimateContinuous(data);
 }
 
 // RealFastFourierTransform
 ///////////////////////////
 
-void RealFastFourierTransform::unpack(std::vector<Data> &data)
-{
+void RealFastFourierTransform::unpack(std::vector<Data>& data) {
     require_(data.size() == maximalInputSize());
 
     data.push_back(data[1]);
@@ -80,8 +76,7 @@ void RealFastFourierTransform::unpack(std::vector<Data> &data)
     data[1] = 0;
 }
 
-bool RealFastFourierTransform::applyAlgorithm(std::vector<Data> &data)
-{
+bool RealFastFourierTransform::applyAlgorithm(std::vector<Data>& data) {
     fft_.transformReal(data);
     unpack(data);
     return true;
@@ -90,8 +85,7 @@ bool RealFastFourierTransform::applyAlgorithm(std::vector<Data> &data)
 // RealInverseFastFourierTransform
 //////////////////////////////////
 
-bool RealInverseFastFourierTransform::pack(std::vector<Data> &data)
-{
+bool RealInverseFastFourierTransform::pack(std::vector<Data>& data) {
     require_(data.size() == maximalInputSize());
 
     if (data[1] != (Data)0 || data[data.size() - 1] != (Data)0) {
@@ -104,16 +98,14 @@ bool RealInverseFastFourierTransform::pack(std::vector<Data> &data)
     return true;
 }
 
-bool RealInverseFastFourierTransform::applyAlgorithm(std::vector<Data> &data)
-{
+bool RealInverseFastFourierTransform::applyAlgorithm(std::vector<Data>& data) {
     if (!pack(data))
         return false;
     fft_.transformReal(data, true);
     return true;
 }
 
-bool RealInverseFastFourierTransform::estimateContinuous(std::vector<Data> &data)
-{
+bool RealInverseFastFourierTransform::estimateContinuous(std::vector<Data>& data) {
     verify_(sampleRate_ > 0);
     if (sampleRate_ != 2) {
         std::transform(data.begin(), data.end(), data.begin(),
@@ -122,25 +114,21 @@ bool RealInverseFastFourierTransform::estimateContinuous(std::vector<Data> &data
     return true;
 }
 
-bool ComplexFastFourierTransform::applyAlgorithm(std::vector<Data> &data)
-{
+bool ComplexFastFourierTransform::applyAlgorithm(std::vector<Data>& data) {
     fft_.transform(data);
     return true;
 }
 
-bool ComplexInverseFastFourierTransform::applyAlgorithm(std::vector<Data> &data)
-{
+bool ComplexInverseFastFourierTransform::applyAlgorithm(std::vector<Data>& data) {
     fft_.transform(data, true);
     return true;
 }
-
-
 
 // FastFourierTransformNode
 ///////////////////////////
 
 const Core::ParameterInt Signal::paramFftLength(
-    "length", "number of FFT points", 0, 0);
+        "length", "number of FFT points", 0, 0);
 
 const Core::ParameterFloat Signal::paramFftMaximumInputSize(
-    "maximum-input-size", "number of FFT points = max-input-size * sampe-rate", 0, 0);
+        "maximum-input-size", "number of FFT points = max-input-size * sampe-rate", 0, 0);

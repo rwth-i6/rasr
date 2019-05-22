@@ -17,35 +17,28 @@
 using namespace Signal;
 
 const Core::ParameterInt RandomVectorNode::paramSize(
-    "size", "number of components", 1, 0);
+        "size", "number of components", 1, 0);
 const Core::ParameterFloat RandomVectorNode::paramStartTime(
-    "start-time", "start time of the first vector of this segment.", 0);
+        "start-time", "start time of the first vector of this segment.", 0);
 const Core::ParameterFloat RandomVectorNode::paramSampleRate(
-    "sample-rate", "sample rate of the output vectors", 1);
+        "sample-rate", "sample rate of the output vectors", 1);
 const Core::ParameterFloat RandomVectorNode::paramFrameShift(
-    "frame-shift", "difference between the start time of two subsequent vectors", 1);
+        "frame-shift", "difference between the start time of two subsequent vectors", 1);
 
-RandomVectorNode::RandomVectorNode(const Core::Configuration &c) :
-    Core::Component(c), Precursor(c),
-    randomVectorGenerator_(0),
-    size_(0), sampleRate_(1),
-    startTime_(0), frameShift_(1),
-    nOutputs_(0)
-{
+RandomVectorNode::RandomVectorNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c), randomVectorGenerator_(0), size_(0), sampleRate_(1), startTime_(0), frameShift_(1), nOutputs_(0) {
     setType((Math::RandomVectorGenerator::Type)Math::RandomVectorGenerator::paramType(c));
-    size_ = paramSize(c);
+    size_       = paramSize(c);
     sampleRate_ = paramSampleRate(c);
-    startTime_ = paramStartTime(c);
+    startTime_  = paramStartTime(c);
     frameShift_ = paramFrameShift(c);
 }
 
-RandomVectorNode::~RandomVectorNode()
-{
+RandomVectorNode::~RandomVectorNode() {
     delete randomVectorGenerator_;
 }
 
-bool RandomVectorNode::configure()
-{
+bool RandomVectorNode::configure() {
     reset();
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     attributes->set("datatype", Flow::Vector<Data>::type()->name());
@@ -54,8 +47,7 @@ bool RandomVectorNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool RandomVectorNode::setParameter(const std::string &name, const std::string &value)
-{
+bool RandomVectorNode::setParameter(const std::string& name, const std::string& value) {
     if (Math::RandomVectorGenerator::paramType.match(name))
         setType((Math::RandomVectorGenerator::Type)Math::RandomVectorGenerator::paramType(value));
     else if (paramSize.match(name))
@@ -71,23 +63,20 @@ bool RandomVectorNode::setParameter(const std::string &name, const std::string &
     return true;
 }
 
-void RandomVectorNode::setType(Math::RandomVectorGenerator::Type type)
-{
+void RandomVectorNode::setType(Math::RandomVectorGenerator::Type type) {
     delete randomVectorGenerator_;
     randomVectorGenerator_ = Math::RandomVectorGenerator::create(type);
 }
 
-bool RandomVectorNode::work(Flow::PortId p)
-{
+bool RandomVectorNode::work(Flow::PortId p) {
     Flow::Vector<Data>* result = createOutput();
     ensure(result != 0);
-    nOutputs_ ++;
+    nOutputs_++;
     return putData(0, result);
 }
 
-Flow::Vector<RandomVectorNode::Data>* RandomVectorNode::createOutput() const
-{
-    Flow::Vector<Data> *result = new Flow::Vector<Data>(size_);
+Flow::Vector<RandomVectorNode::Data>* RandomVectorNode::createOutput() const {
+    Flow::Vector<Data>* result = new Flow::Vector<Data>(size_);
     verify(randomVectorGenerator_ != 0);
     randomVectorGenerator_->work(*result);
     result->setStartTime(startTime_ + nOutputs_ * frameShift_);

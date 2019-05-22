@@ -12,22 +12,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/StringUtilities.hh>
 #include "PolinomialVectorInterpolation.hh"
+#include <Core/StringUtilities.hh>
 
 using namespace Signal;
-
 
 // PolinomialVectorInterpolation
 ////////////////////////////////
 
+PolinomialVectorInterpolation::PolinomialVectorInterpolation()
+        : equationSystemSolved_(false) {}
 
-PolinomialVectorInterpolation::PolinomialVectorInterpolation() :
-    equationSystemSolved_(false)
-{}
-
-bool PolinomialVectorInterpolation::work(const Flow::Timestamp &timestamp, DataPointer &out)
-{
+bool PolinomialVectorInterpolation::work(const Flow::Timestamp& timestamp, DataPointer& out) {
     Time time = timestamp.startTime();
     seek(time);
     if (!checkInterpolationTime(time))
@@ -39,14 +35,12 @@ bool PolinomialVectorInterpolation::work(const Flow::Timestamp &timestamp, DataP
     return calculateOutput(time, out);
 }
 
-void PolinomialVectorInterpolation::seek(Time time)
-{
+void PolinomialVectorInterpolation::seek(Time time) {
     DataPointer dataPointer;
 
-    while(slidingWindow_.size() < slidingWindow_.maxSize() ||
-          !slidingWindow_.out(dataPointer) ||
-          Core::isSignificantlyLess(dataPointer->startTime(), time, Flow::timeTolerance)) {
-
+    while (slidingWindow_.size() < slidingWindow_.maxSize() ||
+           !slidingWindow_.out(dataPointer) ||
+           Core::isSignificantlyLess(dataPointer->startTime(), time, Flow::timeTolerance)) {
         if (!nextData(dataPointer))
             break;
         slidingWindow_.add(dataPointer);
@@ -54,8 +48,7 @@ void PolinomialVectorInterpolation::seek(Time time)
     }
 }
 
-bool PolinomialVectorInterpolation::checkInterpolationTime(Time time)
-{
+bool PolinomialVectorInterpolation::checkInterpolationTime(Time time) {
     if (slidingWindow_.maxSize() >= 2) {
         verify(slidingWindow_.size() > 0);
         if (Core::isSignificantlyLess(time, slidingWindow_.back()->startTime(), Flow::timeTolerance) ||
@@ -67,10 +60,9 @@ bool PolinomialVectorInterpolation::checkInterpolationTime(Time time)
     return true;
 }
 
-bool PolinomialVectorInterpolation::copyControlPoint(Time time, DataPointer &out) const
-{
+bool PolinomialVectorInterpolation::copyControlPoint(Time time, DataPointer& out) const {
     SlidingWindow<DataPointer>::ConstantIterator i = slidingWindow_.begin();
-    for(; i != slidingWindow_.end(); ++ i) {
+    for (; i != slidingWindow_.end(); ++i) {
         Time startTime = (*i)->startTime();
 
         if (Core::isSignificantlyLess(startTime, time, Flow::timeTolerance))
@@ -83,28 +75,24 @@ bool PolinomialVectorInterpolation::copyControlPoint(Time time, DataPointer &out
     return false;
 }
 
-
-void PolinomialVectorInterpolation::resize()
-{
+void PolinomialVectorInterpolation::resize() {
     verify(slidingWindow_.size() > 0);
 
     A_.resize(slidingWindow_.size(), slidingWindow_.size());
     B_.resize(slidingWindow_.size(), slidingWindow_.front()->size());
 }
 
-
-void PolinomialVectorInterpolation::calculateParameters()
-{
+void PolinomialVectorInterpolation::calculateParameters() {
     verify(!equationSystemSolved_);
     resize();
-    for(u32 row = 0; row < A_.nRows(); ++ row) {
-        Data &controlPoint = **(slidingWindow_.reverseBegin() + row);
+    for (u32 row = 0; row < A_.nRows(); ++row) {
+        Data& controlPoint = **(slidingWindow_.reverseBegin() + row);
         verify(controlPoint.size() == B_.nColumns());
 
-        for(u32 column = 0; column < A_.nColumns(); ++ column)
+        for (u32 column = 0; column < A_.nColumns(); ++column)
             A_(row, column) = pow(controlPoint.startTime(), column);
 
-        for(u32 dimension = 0; dimension < B_.nColumns(); ++ dimension)
+        for (u32 dimension = 0; dimension < B_.nColumns(); ++dimension)
             B_(row, dimension) = controlPoint[dimension];
     }
     if (getrf(A_, pivotIndices_) != 0 || getrs(A_, B_, pivotIndices_) != 0)
@@ -112,8 +100,7 @@ void PolinomialVectorInterpolation::calculateParameters()
     equationSystemSolved_ = true;
 }
 
-bool PolinomialVectorInterpolation::calculateOutput(Time time, DataPointer &out)
-{
+bool PolinomialVectorInterpolation::calculateOutput(Time time, DataPointer& out) {
     verify(equationSystemSolved_);
 
     out = DataPointer(new Data);
@@ -122,22 +109,20 @@ bool PolinomialVectorInterpolation::calculateOutput(Time time, DataPointer &out)
     out->resize(B_.nColumns());
     std::fill(out->begin(), out->end(), 0);
 
-    for(u32 row = 0; row < B_.nRows(); ++ row) {
-        for(u32 dimension = 0; dimension < B_.nColumns(); ++ dimension)
+    for (u32 row = 0; row < B_.nRows(); ++row) {
+        for (u32 dimension = 0; dimension < B_.nColumns(); ++dimension)
             (*out)[dimension] += B_(row, dimension) * pow(time, row);
     }
     return true;
 }
 
-void PolinomialVectorInterpolation::setOrder(u32 order)
-{
+void PolinomialVectorInterpolation::setOrder(u32 order) {
     reset();
     slidingWindow_.init(order + 1, order / 2);
 }
 
-void PolinomialVectorInterpolation::reset()
-{
+void PolinomialVectorInterpolation::reset() {
     slidingWindow_.clear();
     equationSystemSolved_ = false;
-    lastError_ = "";
+    lastError_            = "";
 }

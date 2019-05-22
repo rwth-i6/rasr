@@ -19,20 +19,18 @@
 
 namespace Signal {
 
+inline double frequency2MelFrequency(double f) {
+    return (2595.0 * log10(1.0 + f / 700.0));
+}
 
-    inline double frequency2MelFrequency(double f) {
-        return (2595.0 * log10(1.0 + f / 700.0));
-    }
+inline double melFrequency2Frequency(double m) {
+    return (700.0 * (pow(10.0, (m / 2595.0)) - 1.0));
+}
 
-    inline double melFrequency2Frequency(double m) {
-        return (700.0 * (pow(10.0, (m / 2595.0)) - 1.0));
-    }
+inline double sinc(double x) {
+    return (x > (double)-1e-10 && x < (double)1e-10) ? (1 - x * x / (double)6.0) : (sin(x) / x);
+}
 
-    inline double sinc(double x) {
-        return (x > (double)-1e-10 && x < (double)1e-10) ? (1 - x * x / (double)6.0) : (sin(x) / x);
-    }
+}  // namespace Signal
 
-
-} // namespace Signal
-
-#endif // _SIGNAL_UTILITY_HH
+#endif  // _SIGNAL_UTILITY_HH

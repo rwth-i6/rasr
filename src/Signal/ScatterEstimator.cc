@@ -24,49 +24,43 @@ const std::string Signal::withinClassScatterType("within-class");
 
 //----------------------------------------------------------------------------
 const Core::ParameterInt ScatterMatrixEstimator::paramOutputPrecision(
-    "output-precision", "Number of decimal digits in text output formats", 20);
+        "output-precision", "Number of decimal digits in text output formats", 20);
 const Core::ParameterBool ScatterMatrixEstimator::paramShallNormalize(
-    "shall-normalize", "If yes, scatter matrices are divided by number of observations", true);
+        "shall-normalize", "If yes, scatter matrices are divided by number of observations", true);
 
-ScatterMatrixEstimator::ScatterMatrixEstimator(const Core::Configuration &configuration) :
-    Precursor(configuration),
-    featureDimension_(0),
-    needInit_(true)
-{}
+ScatterMatrixEstimator::ScatterMatrixEstimator(const Core::Configuration& configuration)
+        : Precursor(configuration),
+          featureDimension_(0),
+          needInit_(true) {}
 
-ScatterMatrixEstimator::~ScatterMatrixEstimator()
-{}
+ScatterMatrixEstimator::~ScatterMatrixEstimator() {}
 
-void ScatterMatrixEstimator::initialize()
-{
+void ScatterMatrixEstimator::initialize() {
     vectorSquareSum_.resize(featureDimension_, featureDimension_);
     vectorSquareSum_.fill(Sum(0));
     needInit_ = false;
 }
 
-void ScatterMatrixEstimator::accumulate(const Math::Vector<Data> &x, f32 weight)
-{
+void ScatterMatrixEstimator::accumulate(const Math::Vector<Data>& x, f32 weight) {
     require_(!needInit_);
     require_(x.size() == featureDimension_);
 
     // vectorSquareSum_ += x * x^T but only for the lower triangle
     for (size_t i = 0; i < featureDimension_; ++i) {
-        Math::Vector<Sum> &row(vectorSquareSum_[i]);
-        Data x_i = x[i];
+        Math::Vector<Sum>& row(vectorSquareSum_[i]);
+        Data               x_i = x[i];
         for (size_t j = 0; j <= i; ++j)
             row[j] += x_i * x[j] * weight;
     }
 }
 
-bool ScatterMatrixEstimator::accumulate(const ScatterMatrixEstimator &estimator)
-{
+bool ScatterMatrixEstimator::accumulate(const ScatterMatrixEstimator& estimator) {
     require(estimator.featureDimension_ == featureDimension_);
     vectorSquareSum_ += estimator.vectorSquareSum_;
     return true;
 }
 
-bool ScatterMatrixEstimator::finalize()
-{
+bool ScatterMatrixEstimator::finalize() {
     if (needInit_) {
         error("No observation has been seen.");
         return false;
@@ -75,61 +69,61 @@ bool ScatterMatrixEstimator::finalize()
     return true;
 }
 
-void ScatterMatrixEstimator::finalizeVectorSquareSum()
-{
-    for (size_t i = 0; i < featureDimension_; ++ i) {
-        for (size_t j = i + 1; j < featureDimension_; ++ j)
+void ScatterMatrixEstimator::finalizeVectorSquareSum() {
+    for (size_t i = 0; i < featureDimension_; ++i) {
+        for (size_t j = i + 1; j < featureDimension_; ++j)
             vectorSquareSum_[i][j] = vectorSquareSum_[j][i];
     }
 }
 
-bool ScatterMatrixEstimator::read(Core::BinaryInputStream &bis)
-{
+bool ScatterMatrixEstimator::read(Core::BinaryInputStream& bis) {
     u32 dimension;
-    if (!(bis >> dimension)) return false;
+    if (!(bis >> dimension))
+        return false;
     setDimension(dimension);
     initialize();
     // only for the lower triangle
     for (size_t i = 0; i < featureDimension_; ++i) {
-        Math::Vector<Sum> &row(vectorSquareSum_[i]);
+        Math::Vector<Sum>& row(vectorSquareSum_[i]);
         for (size_t j = 0; j <= i; ++j)
-            if (!(bis >> row[j])) return false;
+            if (!(bis >> row[j]))
+                return false;
     }
     return true;
 }
 
-bool ScatterMatrixEstimator::write(Core::BinaryOutputStream &bos)
-{
-    if (!(bos << (u32)featureDimension_)) return false;
+bool ScatterMatrixEstimator::write(Core::BinaryOutputStream& bos) {
+    if (!(bos << (u32)featureDimension_))
+        return false;
     // only for the lower triangle
     for (size_t i = 0; i < featureDimension_; ++i) {
-        Math::Vector<Sum> &row(vectorSquareSum_[i]);
+        Math::Vector<Sum>& row(vectorSquareSum_[i]);
         for (size_t j = 0; j <= i; ++j)
-            if (!(bos << row[j])) return false;
+            if (!(bos << row[j]))
+                return false;
     }
     return true;
 }
 
-void ScatterMatrixEstimator::setDimension(size_t dimension)
-{
+void ScatterMatrixEstimator::setDimension(size_t dimension) {
     if (featureDimension_ != dimension) {
         featureDimension_ = dimension;
-        needInit_ = true;
+        needInit_         = true;
     }
 }
 
-bool ScatterMatrixEstimator::write(
-    const std::string &filename, const std::string &scatterType,
-    const ScatterMatrix &scatterMatrix)
-{
+bool ScatterMatrixEstimator::write(const std::string&   filename,
+                                   const std::string&   scatterType,
+                                   const ScatterMatrix& scatterMatrix) {
     bool success = true;
     if (Math::Module::instance().formats().write(
-            filename,
-            scatterMatrix,
-            paramOutputPrecision(config))) {
+                filename,
+                scatterMatrix,
+                paramOutputPrecision(config))) {
         log("The %s scatter matrix is written to '%s'.",
             scatterType.c_str(), filename.c_str());
-    } else {
+    }
+    else {
         error("Failed to write the %s scatter matrix to '%s'.",
               scatterType.c_str(), filename.c_str());
         success = false;
@@ -139,54 +133,50 @@ bool ScatterMatrixEstimator::write(
 
 //------------------------------------------------------------------------------------------------
 const Core::ParameterString TotalScatterMatrixEstimator::paramFilename(
-    "file", "Output filename for covariance matrix");
+        "file", "Output filename for covariance matrix");
 const Core::ParameterFloat TotalScatterMatrixEstimator::paramElementThresholdMin(
-    "element-threshold-min", "Min threshold for every covariance entry", Core::Type<Sum>::min);
+        "element-threshold-min", "Min threshold for every covariance entry", Core::Type<Sum>::min);
 
-TotalScatterMatrixEstimator::TotalScatterMatrixEstimator(const Core::Configuration &configuration) :
-    Core::Component(configuration),
-    Precursor(configuration)
-{}
+TotalScatterMatrixEstimator::TotalScatterMatrixEstimator(const Core::Configuration& configuration)
+        : Core::Component(configuration),
+          Precursor(configuration) {}
 
-TotalScatterMatrixEstimator::~TotalScatterMatrixEstimator()
-{}
+TotalScatterMatrixEstimator::~TotalScatterMatrixEstimator() {}
 
-void TotalScatterMatrixEstimator::initialize()
-{
+void TotalScatterMatrixEstimator::initialize() {
     vectorSum_.resize(featureDimension_);
     std::fill(vectorSum_.begin(), vectorSum_.end(), Sum(0));
     count_ = 0;
     Precursor::initialize();
 }
 
-void TotalScatterMatrixEstimator::accumulate(const Math::Vector<Data> &x)
-{
-    if (needInit_) initialize();
+void TotalScatterMatrixEstimator::accumulate(const Math::Vector<Data>& x) {
+    if (needInit_)
+        initialize();
     vectorSum_ += x;
-    ++ count_;
+    ++count_;
     Precursor::accumulate(x);
 }
 
-bool TotalScatterMatrixEstimator::finalize(ScatterMatrix &covarianceMatrix)
-{
-    if (!Precursor::finalize()) return false;
-    covarianceMatrix = vectorSquareSum_ -
-        Math::vectorInnerProduct(vectorSum_, vectorSum_ / count_);
-    if (paramShallNormalize(config)) covarianceMatrix /= (Sum)count_;
-        // If an entry is lower than threshold, it will be set to threshold.
-        Sum threshold = paramElementThresholdMin(config);
-        for (unsigned int i =0; i<covarianceMatrix.nRows(); ++i) {
-                for (unsigned int j=0; j<covarianceMatrix.nColumns(); ++j) {
-                        if (covarianceMatrix[i][j] < threshold)
-                                covarianceMatrix[i][j] = threshold;
-                }
+bool TotalScatterMatrixEstimator::finalize(ScatterMatrix& covarianceMatrix) {
+    if (!Precursor::finalize())
+        return false;
+    covarianceMatrix = vectorSquareSum_ - Math::vectorInnerProduct(vectorSum_, vectorSum_ / count_);
+    if (paramShallNormalize(config))
+        covarianceMatrix /= (Sum)count_;
+    // If an entry is lower than threshold, it will be set to threshold.
+    Sum threshold = paramElementThresholdMin(config);
+    for (unsigned int i = 0; i < covarianceMatrix.nRows(); ++i) {
+        for (unsigned int j = 0; j < covarianceMatrix.nColumns(); ++j) {
+            if (covarianceMatrix[i][j] < threshold)
+                covarianceMatrix[i][j] = threshold;
         }
+    }
     return true;
 }
 
-bool TotalScatterMatrixEstimator::write()
-{
-    bool success = true;
+bool TotalScatterMatrixEstimator::write() {
+    bool          success = true;
     ScatterMatrix covarianceMatrix;
     if (!finalize(covarianceMatrix))
         success = false;
@@ -198,83 +188,81 @@ bool TotalScatterMatrixEstimator::write()
 
 //------------------------------------------------------------------------------------------------
 const Core::ParameterString ScatterMatricesEstimator::paramBetweenClassScatterFilename(
-    "between-class-scatter-matrix-file", "output filename for between class scatter matrix");
+        "between-class-scatter-matrix-file", "output filename for between class scatter matrix");
 const Core::ParameterString ScatterMatricesEstimator::paramWithinClassScatterFilename(
-    "within-class-scatter-matrix-file", "output filename for within class scatter matrix");
+        "within-class-scatter-matrix-file", "output filename for within class scatter matrix");
 const Core::ParameterString ScatterMatricesEstimator::paramTotalScatterFilename(
-    "total-scatter-matrix-file", "output filename for total scatter matrix");
+        "total-scatter-matrix-file", "output filename for total scatter matrix");
 
 const Core::ParameterString ScatterMatricesEstimator::paramOldAccumulatorFilename(
-    "old-accumulator-file", "input filename for accumulators");
+        "old-accumulator-file", "input filename for accumulators");
 const Core::ParameterString ScatterMatricesEstimator::paramNewAccumulatorFilename(
-    "new-accumulator-file", "output filename for accumulators");
+        "new-accumulator-file", "output filename for accumulators");
 const Core::ParameterStringVector ScatterMatricesEstimator::paramAccumulatorFilesToCombine(
-    "accumulator-files-to-combine", "combine with current estimator", " ", 1);
+        "accumulator-files-to-combine", "combine with current estimator", " ", 1);
 
+ScatterMatricesEstimator::ScatterMatricesEstimator(const Core::Configuration& configuration)
+        : Core::Component(configuration),
+          Precursor(configuration),
+          nClasses_(0) {}
 
-ScatterMatricesEstimator::ScatterMatricesEstimator(const Core::Configuration &configuration) :
-    Core::Component(configuration),
-    Precursor(configuration),
-    nClasses_(0)
-{}
+ScatterMatricesEstimator::~ScatterMatricesEstimator() {}
 
-ScatterMatricesEstimator::~ScatterMatricesEstimator()
-{}
-
-void ScatterMatricesEstimator::initialize(bool deepInitialization)
-{
+void ScatterMatricesEstimator::initialize(bool deepInitialization) {
     vectorSums_.resize(nClasses_);
     counts_.resize(nClasses_);
-    for(ClassIndex classIndex = 0; classIndex < nClasses_; classIndex ++) {
+    for (ClassIndex classIndex = 0; classIndex < nClasses_; classIndex++) {
         vectorSums_[classIndex].resize(featureDimension_);
         std::fill(vectorSums_[classIndex].begin(), vectorSums_[classIndex].end(), Sum(0));
         counts_[classIndex] = Count(0);
     }
     if (deepInitialization) {
         Precursor::initialize();
-    } else {
+    }
+    else {
         needInit_ = false;
     }
 }
 
-void ScatterMatricesEstimator::accumulate(ClassIndex classIndex, const Math::Vector<Data> &x, f32 weight)
-{
+void ScatterMatricesEstimator::accumulate(ClassIndex classIndex, const Math::Vector<Data>& x, f32 weight) {
     require_(classIndex < nClasses_);
-    if (needInit_) initialize();
+    if (needInit_)
+        initialize();
     vectorSums_[classIndex] += x * weight;
     counts_[classIndex] += weight;
     Precursor::accumulate(x, weight);
 }
 
-bool ScatterMatricesEstimator::accumulate(const ScatterMatricesEstimator &estimator)
-{
+bool ScatterMatricesEstimator::accumulate(const ScatterMatricesEstimator& estimator) {
     require(estimator.nClasses_ == nClasses_);
-    for (ClassIndex classIndex = 0; classIndex < nClasses_; ++ classIndex) {
+    for (ClassIndex classIndex = 0; classIndex < nClasses_; ++classIndex) {
         vectorSums_[classIndex] += estimator.vectorSums_[classIndex];
         counts_[classIndex] += estimator.counts_[classIndex];
     }
     return Precursor::accumulate(estimator);
 }
 
-bool ScatterMatricesEstimator::finalize(ScatterMatrix &betweenClassScatterMatrix,
-                                        ScatterMatrix &withinClassScatterMatrix,
-                                        ScatterMatrix &totalScatterMatrix)
-{
-    if (!Precursor::finalize()) return false;
+bool ScatterMatricesEstimator::finalize(ScatterMatrix& betweenClassScatterMatrix,
+                                        ScatterMatrix& withinClassScatterMatrix,
+                                        ScatterMatrix& totalScatterMatrix) {
+    if (!Precursor::finalize())
+        return false;
     Math::Vector<Sum> totalVectorSum = getTotalVectorSum();
-    Count totalCount = getTotalCount();
-    if (totalCount == 0) { error("No observation has been seen."); return false; }
+    Count             totalCount     = getTotalCount();
+    if (totalCount == 0) {
+        error("No observation has been seen.");
+        return false;
+    }
 
     // total-mean-part = sum_all * total_all^T / count_all
-    Math::Matrix<Sum> totalMeanPart =
-        Math::vectorInnerProduct(totalVectorSum, totalVectorSum) / (Sum)totalCount;
+    Math::Matrix<Sum> totalMeanPart = Math::vectorInnerProduct(totalVectorSum, totalVectorSum) / (Sum)totalCount;
 
     // class-mean-part = sum_{all class c} sum_c * sum_c^T / count_c
     Math::Matrix<Sum> classMeanPart(featureDimension_, featureDimension_);
-    for(ClassIndex classIndex = 0; classIndex < nClasses_; ++ classIndex) {
+    for (ClassIndex classIndex = 0; classIndex < nClasses_; ++classIndex) {
         if (counts_[classIndex] > 0) {
             classMeanPart += Math::vectorInnerProduct(vectorSums_[classIndex], vectorSums_[classIndex]) /
-                Sum(counts_[classIndex]);
+                             Sum(counts_[classIndex]);
         }
     }
 
@@ -296,19 +284,14 @@ bool ScatterMatricesEstimator::finalize(ScatterMatrix &betweenClassScatterMatrix
     return true;
 }
 
-Math::Vector<ScatterMatricesEstimator::Sum> ScatterMatricesEstimator::getTotalVectorSum() const
-{
+Math::Vector<ScatterMatricesEstimator::Sum> ScatterMatricesEstimator::getTotalVectorSum() const {
     Math::Vector<Sum> result(featureDimension_, Sum(0));
-    for(ClassIndex classIndex = 0; classIndex < nClasses_; classIndex ++)
+    for (ClassIndex classIndex = 0; classIndex < nClasses_; classIndex++)
         result += vectorSums_[classIndex];
     return result;
 }
 
-
-
-
-bool ScatterMatricesEstimator::writeAccumulators()
-{
+bool ScatterMatricesEstimator::writeAccumulators() {
     const std::string filename = paramNewAccumulatorFilename(config);
     if (!filename.empty()) {
         Core::BinaryOutputStream bos(filename);
@@ -325,8 +308,7 @@ bool ScatterMatricesEstimator::writeAccumulators()
     return true;
 }
 
-bool ScatterMatricesEstimator::writeMatrices()
-{
+bool ScatterMatricesEstimator::writeMatrices() {
     if (paramBetweenClassScatterFilename(config).empty() &&
         paramWithinClassScatterFilename(config).empty() &&
         paramTotalScatterFilename(config).empty())
@@ -352,61 +334,63 @@ bool ScatterMatricesEstimator::writeMatrices()
     return success;
 }
 
-bool ScatterMatricesEstimator::read(Core::BinaryInputStream &bis)
-{
-    if (!Precursor::read(bis)) return false;
+bool ScatterMatricesEstimator::read(Core::BinaryInputStream& bis) {
+    if (!Precursor::read(bis))
+        return false;
     u32 nClasses;
-    if (!(bis >> nClasses)) return false;
+    if (!(bis >> nClasses))
+        return false;
     setNumberOfClasses(nClasses);
     initialize(false);
-    for (size_t i = 0; i < vectorSums_.size(); ++ i) {
-        Math::Vector<Sum> &row(vectorSums_[i]);
-        for (size_t j = 0; j < row.size(); ++ j) {
-            if (!(bis >> row[j])) return false;
+    for (size_t i = 0; i < vectorSums_.size(); ++i) {
+        Math::Vector<Sum>& row(vectorSums_[i]);
+        for (size_t j = 0; j < row.size(); ++j) {
+            if (!(bis >> row[j]))
+                return false;
         }
     }
-    for (size_t i = 0; i < counts_.size(); ++ i) {
-        if (!(bis >> counts_[i])) return false;
+    for (size_t i = 0; i < counts_.size(); ++i) {
+        if (!(bis >> counts_[i]))
+            return false;
     }
     return true;
 }
 
-bool ScatterMatricesEstimator::write(Core::BinaryOutputStream &bos)
-{
-    if (!Precursor::write(bos)) return false;
-    if (!(bos << (u32)nClasses_)) return false;
-    for (size_t i = 0; i < vectorSums_.size(); ++ i) {
-        Math::Vector<Sum> &row(vectorSums_[i]);
-        for (size_t j = 0; j < row.size(); ++ j) {
-            if (!(bos << row[j])) return false;
+bool ScatterMatricesEstimator::write(Core::BinaryOutputStream& bos) {
+    if (!Precursor::write(bos))
+        return false;
+    if (!(bos << (u32)nClasses_))
+        return false;
+    for (size_t i = 0; i < vectorSums_.size(); ++i) {
+        Math::Vector<Sum>& row(vectorSums_[i]);
+        for (size_t j = 0; j < row.size(); ++j) {
+            if (!(bos << row[j]))
+                return false;
         }
     }
-    for (size_t i = 0; i < counts_.size(); ++ i) {
-        if (!(bos << counts_[i])) return false;
+    for (size_t i = 0; i < counts_.size(); ++i) {
+        if (!(bos << counts_[i]))
+            return false;
     }
     return true;
 }
 
-void ScatterMatricesEstimator::setNumberOfClasses(size_t nClasses)
-{
+void ScatterMatricesEstimator::setNumberOfClasses(size_t nClasses) {
     if (nClasses_ != nClasses) {
         nClasses_ = nClasses;
         needInit_ = true;
     }
 }
 
-bool ScatterMatricesEstimator::write()
-{
+bool ScatterMatricesEstimator::write() {
     return writeAccumulators() && writeMatrices();
 }
 
-bool ScatterMatricesEstimator::load()
-{
+bool ScatterMatricesEstimator::load() {
     return loadAccumulatorFile(paramOldAccumulatorFilename(config));
 }
 
-bool ScatterMatricesEstimator::loadAccumulatorFile(const std::string &filename)
-{
+bool ScatterMatricesEstimator::loadAccumulatorFile(const std::string& filename) {
     Core::BinaryInputStream bis(filename);
     if (!bis) {
         error("Failed to open \"%s\" for reading", filename.c_str());
@@ -420,7 +404,7 @@ bool ScatterMatricesEstimator::loadAccumulatorFile(const std::string &filename)
     return true;
 }
 
-void ScatterMatricesEstimator::addAccumulatorFiles(const std::vector<std::string> &filenames) {
+void ScatterMatricesEstimator::addAccumulatorFiles(const std::vector<std::string>& filenames) {
     if (filenames.empty())
         return;
     loadAccumulatorFile(filenames.front());

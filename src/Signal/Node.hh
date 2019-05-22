@@ -23,39 +23,42 @@
 
 namespace Signal {
 
-    /**
-     * Signal processing network node.
-     * Manages datatypes.
-     */
-    class SleeveNode : public Flow::SleeveNode {
-    private:
-        std::list<const Flow::Datatype*> datatypes_;
+/**
+ * Signal processing network node.
+ * Manages datatypes.
+ */
+class SleeveNode : public Flow::SleeveNode {
+private:
+    std::list<const Flow::Datatype*> datatypes_;
 
-    public:
-        SleeveNode(const Core::Configuration &c) : Core::Component(c), Flow::SleeveNode(c) {}
-        virtual ~SleeveNode() {}
+public:
+    SleeveNode(const Core::Configuration& c)
+            : Core::Component(c), Flow::SleeveNode(c) {}
+    virtual ~SleeveNode() {}
 
-    protected:
-        virtual void reset() {}
-        virtual bool configure() {
-            Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
-            if (a) {
-                std::list<const Flow::Datatype*>::const_iterator i;
-                for (i = datatypes_.begin(); i != datatypes_.end(); i++)
-                    if (configureDatatype(a, *i)) break;
-                if (i == datatypes_.end())
-                    return false;
-            }
-            reset();
-            if (a) return putOutputAttributes(0, a);
-            return true;
+protected:
+    virtual void reset() {}
+    virtual bool configure() {
+        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+        if (a) {
+            std::list<const Flow::Datatype*>::const_iterator i;
+            for (i = datatypes_.begin(); i != datatypes_.end(); i++)
+                if (configureDatatype(a, *i))
+                    break;
+            if (i == datatypes_.end())
+                return false;
         }
-        void addDatatype(const Flow::Datatype *dt) {
-            if (find(datatypes_.begin(), datatypes_.end(), dt) == datatypes_.end())
-                datatypes_.push_front(dt);
-        }
-    };
+        reset();
+        if (a)
+            return putOutputAttributes(0, a);
+        return true;
+    }
+    void addDatatype(const Flow::Datatype* dt) {
+        if (find(datatypes_.begin(), datatypes_.end(), dt) == datatypes_.end())
+            datatypes_.push_front(dt);
+    }
+};
 
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_NODE_HH
+#endif  // _SIGNAL_NODE_HH

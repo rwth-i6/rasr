@@ -15,69 +15,76 @@
 #ifndef _SIGNAL_WINDOW_HH
 #define _SIGNAL_WINDOW_HH
 
-
 #include <Core/Parameter.hh>
 
 #include <Flow/Data.hh>
 #include <Flow/Vector.hh>
 
+#include "SlidingAlgorithmNode.hh"
 #include "WindowBuffer.hh"
 #include "WindowFunction.hh"
-#include "SlidingAlgorithmNode.hh"
-
 
 namespace Signal {
 
-    /** Window */
+/** Window */
 
-    class Window : public WindowBuffer {
-    public:
-        typedef WindowBuffer Predecessor;
-        typedef WindowBuffer::Time Time;
-        typedef WindowBuffer::Sample Sample;
-    private:
-        Time lengthInS_;
-        Time shiftInS_;
-        WindowFunction* windowFunction_;
-    protected:
-        virtual void init();
-        virtual void transform(Flow::Vector<Sample> &out);
-    public:
-        Window();
-        virtual ~Window();
+class Window : public WindowBuffer {
+public:
+    typedef WindowBuffer         Predecessor;
+    typedef WindowBuffer::Time   Time;
+    typedef WindowBuffer::Sample Sample;
 
-        void setWindowFunction(WindowFunction* windowFunction);
+private:
+    Time            lengthInS_;
+    Time            shiftInS_;
+    WindowFunction* windowFunction_;
 
-        void setSampleRate(f64 sampleRate);
+protected:
+    virtual void init();
+    virtual void transform(Flow::Vector<Sample>& out);
 
-        void setLengthInS(Time length);
-        Time lengthInS() const { return lengthInS_; }
+public:
+    Window();
+    virtual ~Window();
 
-        void setShiftInS(Time shift);
-        Time shiftInS() const { return shiftInS_; }
-    };
+    void setWindowFunction(WindowFunction* windowFunction);
 
+    void setSampleRate(f64 sampleRate);
 
-    /** WindowNode */
-    class WindowNode : public SlidingAlgorithmNode<Window> {
-    public:
-        typedef SlidingAlgorithmNode<Window> Predecessor;
-    private:
-        static const Core::ParameterFloat paramShift;
-        static const Core::ParameterFloat paramLength;
-        static const Core::ParameterBool paramFlushAll;
-        static const Core::ParameterBool paramFlushBeforeGap;
-    public:
-        static std::string filterName() { return "signal-window"; }
+    void setLengthInS(Time length);
+    Time lengthInS() const {
+        return lengthInS_;
+    }
 
-        WindowNode(const Core::Configuration &c);
-        virtual ~WindowNode() {}
+    void setShiftInS(Time shift);
+    Time shiftInS() const {
+        return shiftInS_;
+    }
+};
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-    };
+/** WindowNode */
+class WindowNode : public SlidingAlgorithmNode<Window> {
+public:
+    typedef SlidingAlgorithmNode<Window> Predecessor;
 
-}
+private:
+    static const Core::ParameterFloat paramShift;
+    static const Core::ParameterFloat paramLength;
+    static const Core::ParameterBool  paramFlushAll;
+    static const Core::ParameterBool  paramFlushBeforeGap;
 
+public:
+    static std::string filterName() {
+        return "signal-window";
+    }
 
-#endif // _SIGNAL_WINDOW_HH
+    WindowNode(const Core::Configuration& c);
+    virtual ~WindowNode() {}
+
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+};
+
+}  // namespace Signal
+
+#endif  // _SIGNAL_WINDOW_HH

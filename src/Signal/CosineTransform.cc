@@ -17,64 +17,62 @@
 using namespace Signal;
 
 //==================================================================================================
-CosineTransform::CosineTransform() : N_(0), normalize_(false)
-{}
+CosineTransform::CosineTransform()
+        : N_(0), normalize_(false) {}
 
-void CosineTransform::init(
-    InputType inputType, size_t inputSize, size_t outputSize, bool normalize,
-    Math::UnaryAnalyticFunctionRef warpingFunction, bool shouldWarpDifferentialUnit)
-{
+void CosineTransform::init(InputType                      inputType,
+                           size_t                         inputSize,
+                           size_t                         outputSize,
+                           bool                           normalize,
+                           Math::UnaryAnalyticFunctionRef warpingFunction,
+                           bool                           shouldWarpDifferentialUnit) {
     normalize_ = normalize;
 
-    Math::UnaryAnalyticFunctionRef derivedWarpingFunction = shouldWarpDifferentialUnit ?
-        warpingFunction->derive() : Math::AnalyticFunctionFactory::createConstant(1);
+    Math::UnaryAnalyticFunctionRef derivedWarpingFunction = shouldWarpDifferentialUnit ? warpingFunction->derive() : Math::AnalyticFunctionFactory::createConstant(1);
     ensure(derivedWarpingFunction);
 
-    switch(inputType) {
-    case NplusOneData: initNplusOneData(inputSize, outputSize,
-                                        warpingFunction, derivedWarpingFunction);
-        break;
-    case evenAboutNminusHalf: initEvenAboutNminusHalf(inputSize, outputSize,
-                                                      warpingFunction, derivedWarpingFunction);
-        break;
-    default: defect();
+    switch (inputType) {
+        case NplusOneData:
+            initNplusOneData(inputSize, outputSize, warpingFunction, derivedWarpingFunction);
+            break;
+        case evenAboutNminusHalf:
+            initEvenAboutNminusHalf(inputSize, outputSize, warpingFunction, derivedWarpingFunction);
+            break;
+        default: defect();
     }
 }
 
-void CosineTransform::initNplusOneData(
-    size_t inputSize, size_t outputSize,
-    Math::UnaryAnalyticFunctionRef warpingFunction, Math::UnaryAnalyticFunctionRef derivedWarpingFunction)
-{
+void CosineTransform::initNplusOneData(size_t                         inputSize,
+                                       size_t                         outputSize,
+                                       Math::UnaryAnalyticFunctionRef warpingFunction,
+                                       Math::UnaryAnalyticFunctionRef derivedWarpingFunction) {
     transformation_.resize(outputSize, inputSize);
     N_ = transformation_.nColumns() - 1;
-    for(size_t k = 0; k < transformation_.nRows(); ++ k) {
-        transformation_[k][0] = 0.5;
+    for (size_t k = 0; k < transformation_.nRows(); ++k) {
+        transformation_[k][0]  = 0.5;
         transformation_[k][N_] = 0.5 * pow(-1, k);
-        for(size_t n = 1; n < N_; ++ n) {
-            f64 omega = M_PI * n / N_;
-            transformation_[k][n] = cos(warpingFunction->value(omega) * k) *
-                derivedWarpingFunction->value(omega);
+        for (size_t n = 1; n < N_; ++n) {
+            f64 omega             = M_PI * n / N_;
+            transformation_[k][n] = cos(warpingFunction->value(omega) * k) * derivedWarpingFunction->value(omega);
         }
     }
 }
 
-void CosineTransform::initEvenAboutNminusHalf(
-    size_t inputSize, size_t outputSize,
-    Math::UnaryAnalyticFunctionRef warpingFunction, Math::UnaryAnalyticFunctionRef derivedWarpingFunction)
-{
+void CosineTransform::initEvenAboutNminusHalf(size_t                         inputSize,
+                                              size_t                         outputSize,
+                                              Math::UnaryAnalyticFunctionRef warpingFunction,
+                                              Math::UnaryAnalyticFunctionRef derivedWarpingFunction) {
     transformation_.resize(outputSize, inputSize);
     N_ = transformation_.nColumns();
-    for(size_t k = 0; k < transformation_.nRows(); ++ k) {
-        for(size_t n = 0; n < N_; ++ n) {
-            f64 omega = M_PI * (n + 0.5) / N_;
-            transformation_[k][n] = cos(warpingFunction->value(omega) * k) *
-                derivedWarpingFunction->value(omega);
+    for (size_t k = 0; k < transformation_.nRows(); ++k) {
+        for (size_t n = 0; n < N_; ++n) {
+            f64 omega             = M_PI * (n + 0.5) / N_;
+            transformation_[k][n] = cos(warpingFunction->value(omega) * k) * derivedWarpingFunction->value(omega);
         }
     }
 }
 
-void CosineTransform::apply(const std::vector<Value> &in, std::vector<Value> &out) const
-{
+void CosineTransform::apply(const std::vector<Value>& in, std::vector<Value>& out) const {
     require_(in.size() == transformation_.nColumns());
     out = transformation_ * in;
     if (normalize_) {
@@ -85,33 +83,32 @@ void CosineTransform::apply(const std::vector<Value> &in, std::vector<Value> &ou
 
 //==================================================================================================
 const Core::Choice CosineTransformNode::choiceInputType(
-    "N-plus-one", NplusOneData,
-    "even-about-N-minus-half", evenAboutNminusHalf,
-    Core::Choice::endMark());
+        "N-plus-one", NplusOneData,
+        "even-about-N-minus-half", evenAboutNminusHalf,
+        Core::Choice::endMark());
 const Core::ParameterChoice CosineTransformNode::paramInputType(
-    "input-type", &choiceInputType, "Input: (N+1) / (N and even about N-0.5)", evenAboutNminusHalf);
+        "input-type", &choiceInputType, "Input: (N+1) / (N and even about N-0.5)", evenAboutNminusHalf);
 
 const Core::ParameterInt CosineTransformNode::paramOutputSize(
-    "nr-outputs", "number of outputs", 1, 1);
+        "nr-outputs", "number of outputs", 1, 1);
 const Core::ParameterBool CosineTransformNode::paramNormalize(
-    "normalize", "normalize output by N (yes/no)", false);
+        "normalize", "normalize output by N (yes/no)", false);
 
 const Core::ParameterString CosineTransformNode::paramWarpingFunction(
-    "warping-function", "warping function declaration");
+        "warping-function", "warping function declaration");
 const Core::ParameterBool CosineTransformNode::paramWarpDifferentialUnit(
-    "warp-differential-unit", "Controls if derivative of warping function is applied.", true);
+        "warp-differential-unit", "Controls if derivative of warping function is applied.", true);
 
-CosineTransformNode::CosineTransformNode(const Core::Configuration &c) :
-    Component(c),
-    Node(c),
-    StringExpressionNode(c, 1),
-    inputType_(evenAboutNminusHalf),
-    outputSize_(0),
-    frequencyDomainSampleRate_(0),
-    normalize_(false),
-    shouldWarpDifferenctialUnit_(true),
-    needInit_(false)
-{
+CosineTransformNode::CosineTransformNode(const Core::Configuration& c)
+        : Component(c),
+          Node(c),
+          StringExpressionNode(c, 1),
+          inputType_(evenAboutNminusHalf),
+          outputSize_(0),
+          frequencyDomainSampleRate_(0),
+          normalize_(false),
+          shouldWarpDifferenctialUnit_(true),
+          needInit_(false) {
     addInput(0);
     addOutput(0);
 
@@ -122,8 +119,7 @@ CosineTransformNode::CosineTransformNode(const Core::Configuration &c) :
     setWarpDifferentialUnit(paramWarpDifferentialUnit(c));
 }
 
-void CosineTransformNode::init(size_t inputSize)
-{
+void CosineTransformNode::init(size_t inputSize) {
     if (inputSize == 0)
         error("Empty input vector.");
     if (outputSize_ == 0)
@@ -148,22 +144,20 @@ void CosineTransformNode::init(size_t inputSize)
     needInit_ = false;
 }
 
-f64 CosineTransformNode::timeDomainSampleRate(size_t inputSize)
-{
+f64 CosineTransformNode::timeDomainSampleRate(size_t inputSize) {
     f64 result = 0;
-    switch(inputType_) {
-    case NplusOneData:
-        result = 2 * (inputSize - 1) / frequencyDomainSampleRate_;
-    case evenAboutNminusHalf:
-        result = 2 * inputSize / frequencyDomainSampleRate_;
+    switch (inputType_) {
+        case NplusOneData:
+            result = 2 * (inputSize - 1) / frequencyDomainSampleRate_;
+        case evenAboutNminusHalf:
+            result = 2 * inputSize / frequencyDomainSampleRate_;
     }
     if (result <= 0)
         error("Sample rate (%f) is not set correctly.", result);
     return result;
 }
 
-Math::UnaryAnalyticFunctionRef CosineTransformNode::createWarpingFunction(f64 sampleRate)
-{
+Math::UnaryAnalyticFunctionRef CosineTransformNode::createWarpingFunction(f64 sampleRate) {
     require(sampleRate > 0);
     Math::UnaryAnalyticFunctionRef result;
 
@@ -172,7 +166,7 @@ Math::UnaryAnalyticFunctionRef CosineTransformNode::createWarpingFunction(f64 sa
     factory.setDomainType(Math::AnalyticFunctionFactory::normalizedOmegaDomain);
     factory.setMaximalArgument(M_PI);
 
-    result = factory.createIdentity();
+    result                  = factory.createIdentity();
     std::string declaration = StringExpressionNode::value();
     if (!declaration.empty()) {
         result = factory.createUnaryFunction(declaration);
@@ -186,8 +180,7 @@ Math::UnaryAnalyticFunctionRef CosineTransformNode::createWarpingFunction(f64 sa
     return result;
 }
 
-bool CosineTransformNode::setParameter(const std::string &name, const std::string &value)
-{
+bool CosineTransformNode::setParameter(const std::string& name, const std::string& value) {
     if (paramInputType.match(name))
         setInputType((InputType)paramInputType(value));
     else if (paramOutputSize.match(name))
@@ -203,8 +196,7 @@ bool CosineTransformNode::setParameter(const std::string &name, const std::strin
     return true;
 }
 
-bool CosineTransformNode::configure()
-{
+bool CosineTransformNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
@@ -217,9 +209,8 @@ bool CosineTransformNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool CosineTransformNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<f32> > in;
+bool CosineTransformNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in))
         return putData(0, in.get());
 
@@ -230,7 +221,7 @@ bool CosineTransformNode::work(Flow::PortId p)
         criticalError("Input size (%zd) does not match the expected input size (%zd)",
                       in->size(), inputSize());
 
-    Flow::Vector<f32> *out = new Flow::Vector<f32>;
+    Flow::Vector<f32>* out = new Flow::Vector<f32>;
     out->setTimestamp(*in);
     apply(*in, *out);
     return putData(0, out);

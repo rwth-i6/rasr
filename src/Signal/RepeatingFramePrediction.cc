@@ -12,24 +12,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Flow/Timestamp.hh>
 #include "RepeatingFramePrediction.hh"
+#include <Flow/Timestamp.hh>
 
 using namespace Signal;
-
 
 // RepeatingFramePrediction
 ///////////////////////////
 
+RepeatingFramePrediction::RepeatingFramePrediction()
+        : slidingWindow_(2, 0),
+          predictOnlyMissing_(true),
+          syncEndTimes_(false) {}
 
-RepeatingFramePrediction::RepeatingFramePrediction() :
-    slidingWindow_(2, 0),
-    predictOnlyMissing_(true),
-    syncEndTimes_(false)
-    { }
-
-
-bool RepeatingFramePrediction::work(const Flow::Timestamp &timestamp, DataPointer &out) {
+bool RepeatingFramePrediction::work(const Flow::Timestamp& timestamp, DataPointer& out) {
     Time time = timestamp.startTime();
     Time endTime;
     if (syncEndTimes_)
@@ -44,37 +40,34 @@ bool RepeatingFramePrediction::work(const Flow::Timestamp &timestamp, DataPointe
     return copyPrevious(time, out, endTime);
 }
 
-
 void RepeatingFramePrediction::seek(Time time) {
-    while(slidingWindow_.size() == 0 ||
-      Core::isSignificantlyLess(slidingWindow_.front()->startTime(), time, Flow::timeTolerance)) {
+    while (slidingWindow_.size() == 0 ||
+           Core::isSignificantlyLess(slidingWindow_.front()->startTime(), time, Flow::timeTolerance)) {
+        DataPointer dataPointer;
 
-    DataPointer dataPointer;
-
-    if (nextData(dataPointer))
-        slidingWindow_.add(dataPointer);
-    else if (slidingWindow_.size() > 1)
-        slidingWindow_.flushOut();
-    else
-        break;
+        if (nextData(dataPointer))
+            slidingWindow_.add(dataPointer);
+        else if (slidingWindow_.size() > 1)
+            slidingWindow_.flushOut();
+        else
+            break;
     }
 }
 
-
-bool RepeatingFramePrediction::copyLatest(Time time, DataPointer &out, Time endTime=-1) {
+bool RepeatingFramePrediction::copyLatest(Time time, DataPointer& out, Time endTime = -1) {
     verify(slidingWindow_.size() >= 1);
 
     if (predictOnlyMissing_ && slidingWindow_.front()->equalsToStartTime(time)) {
         out = slidingWindow_.front();
-        if (endTime != -1) out->setEndTime(endTime);
-    return true;
+        if (endTime != -1)
+            out->setEndTime(endTime);
+        return true;
     }
 
     return false;
 }
 
-
-bool RepeatingFramePrediction::copyPrevious(Time time, DataPointer &out, Time endTime=-1) {
+bool RepeatingFramePrediction::copyPrevious(Time time, DataPointer& out, Time endTime = -1) {
     verify(slidingWindow_.size() >= 1);
 
     out = slidingWindow_.back();

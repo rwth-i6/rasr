@@ -17,4 +17,4 @@
 using namespace Signal;
 
 const Core::ParameterBool Signal::paramVectorSequenceAggregationExpandTimestamp(
-    "expand-timestamp", "if yes, timestamp of output encompasses all timestamps of the sequence", true);
+        "expand-timestamp", "if yes, timestamp of output encompasses all timestamps of the sequence", true);

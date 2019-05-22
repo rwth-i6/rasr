@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include "WindowFunction.hh"
+#include <Modules.hh>
 #if defined(MODULE_MATH_NR) && defined(MODULE_SIGNAL_ADVANCED)
 #include "KaiserWindowFunction.hh"
 #endif
@@ -24,19 +24,17 @@ using namespace Signal;
 // WindowFunction
 /////////////////
 
-Choice WindowFunction::typeChoice("rectangular", Rectangular,
+Choice          WindowFunction::typeChoice("rectangular", Rectangular,
                                   "hamming", Hamming,
-                                  "hanning",  Hanning,
+                                  "hanning", Hanning,
                                   "bartlett", Bartlett,
                                   "blackman", Blackman,
                                   "kaiser", Kaiser,
                                   Choice::endMark());
-ParameterChoice  WindowFunction::paramType("type", &typeChoice, "type of window", Hamming);
+ParameterChoice WindowFunction::paramType("type", &typeChoice, "type of window", Hamming);
 
-WindowFunction* WindowFunction::create(Type type)
-{
-    switch(type)
-        {
+WindowFunction* WindowFunction::create(Type type) {
+    switch (type) {
         case WindowFunction::Rectangular:
             return new RectangularWindowFunction;
         case WindowFunction::Hamming:
@@ -51,94 +49,81 @@ WindowFunction* WindowFunction::create(Type type)
         case WindowFunction::Kaiser:
             return new KaiserWindowFunction;
 #endif
-        }
+    }
     return 0;
 }
 
-
 void WindowFunction::setLength(u32 l) {
-
     if (length() != l) {
-
         window_.resize(l);
         needInit_ = true;
     }
 }
 
-
 // RectangularWindowFunction
 ///////////////////////////
 
 bool RectangularWindowFunction::init() {
-
-    for (u32 n = 0; n < window_.size(); n ++)
+    for (u32 n = 0; n < window_.size(); n++)
         window_[n] = 1.0;
 
     return WindowFunction::init();
 }
 
-
 // BartlettWindowFunction
 ////////////////////////
 
 bool BartlettWindowFunction::init() {
-
     if (window_.size() <= 1)
         return false;
 
     u32 M = window_.size() - 1;
-    for (u32 n = 0; n <= M / 2; n ++)
+    for (u32 n = 0; n <= M / 2; n++)
         window_[n] = window_[M - n] = 2.0 * (Float)n / (Float)M;
 
     return WindowFunction::init();
 }
 
-
 // HammingWindowFunction
 ////////////////////////
 
 bool HammingWindowFunction::init() {
-
     if (window_.size() <= 1)
         return false;
 
     u32 M = window_.size() - 1;
-    for (u32 n = 0; n <= M / 2; n ++)
+    for (u32 n = 0; n <= M / 2; n++)
         window_[n] = window_[M - n] = 0.54 - 0.46 * cos(2.0 * M_PI * n / M);
 
     return WindowFunction::init();
 }
 
-
 // HanningWindowFunction
 ///////////////////////
 
 bool HanningWindowFunction::init() {
-
     if (window_.size() <= 1)
         return false;
 
     u32 M = window_.size() - 1;
-    for (u32 n = 0; n <= M / 2; n ++)
+    for (u32 n = 0; n <= M / 2; n++)
         window_[n] = window_[M - n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
 
     return WindowFunction::init();
 }
 
-
 // BlackmanWindowFunction
 ////////////////////////
 
 bool BlackmanWindowFunction::init() {
-
     if (window_.size() <= 1)
         return false;
 
     u32 M = window_.size() - 1;
 
-    for (u32 n = 0; n <= M / 2; n ++)
+    for (u32 n = 0; n <= M / 2; n++)
         window_[n] = window_[M - n] =
-            0.42 - 0.5 * cos( 2.0 * M_PI * n / M) + 0.08 * cos( 4.0 * M_PI * n / M);
+                0.42 - 0.5 * cos(2.0 * M_PI * n / M) + 0.08 * cos(4.0 * M_PI * n / M);
 
     return WindowFunction::init();
 }

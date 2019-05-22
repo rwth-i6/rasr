@@ -16,14 +16,11 @@
 
 using namespace Signal;
 
-
 // FrameInterpolationNode
 /////////////////////////
 
-
 namespace Signal {
-
 
 Core::ParameterInt paramFrameInterpolationOrder("order", "order of interpolation function", 1, 0);
 
-} // namespace Signal
+}  // namespace Signal

@@ -15,205 +15,188 @@
 #ifndef _COMPLEX_VECTOR_FUNCTION_HH
 #define _COMPLEX_VECTOR_FUNCTION_HH
 
-#include <Core/Types.hh>
-#include <Math/Complex.hh>
 #include <Core/Extensions.hh>
+#include <Core/Types.hh>
 #include <Flow/Vector.hh>
+#include <Math/Complex.hh>
 #include "Node.hh"
 
 namespace Signal {
 
+/** returns the amplitude vector of the input alternating complex vector
+ *  length of output is set according to the number of input complex numbers
+ */
+template<class T>
+struct alternatingComplexVectorAmplitude : std::unary_function<T, T> {
+    static std::string name() {
+        return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-amplitude";
+    }
 
-    /** returns the amplitude vector of the input alternating complex vector
-        length of output is set according to the number of input complex numbers
-    */
-    template<class T>
-    struct alternatingComplexVectorAmplitude : std::unary_function<T, T> {
-        static std::string name() {
-            return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-amplitude";
-        }
-
-        /** x and result can be one object */
-        void operator() (const std::vector<T> &x,
-                         std::vector<T> &result) {
-
-            if (&x != &result)
-                result.resize(x.size() / 2);
-
-            Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                              Math::pointerAbs<T>());
-
+    /** x and result can be one object */
+    void operator()(const std::vector<T>& x, std::vector<T>& result) {
+        if (&x != &result)
             result.resize(x.size() / 2);
-        }
-    };
 
-    /** returns the phase vector of the input alternating complex vector
-        length of output is set according to the number of input complex numbers
-    */
-    template<class T>
-    struct alternatingComplexVectorPhase : std::unary_function<T, T> {
-        static std::string name() {
-            return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-phase";
-        }
+        Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(), Math::pointerAbs<T>());
 
-        /** x and result can be one object */
-        void operator() (const std::vector<T> &x,
-                         std::vector<T> &result) {
+        result.resize(x.size() / 2);
+    }
+};
 
-            if (&x != &result)
-                result.resize(x.size() / 2);
+/** returns the phase vector of the input alternating complex vector
+ *  length of output is set according to the number of input complex numbers
+ */
+template<class T>
+struct alternatingComplexVectorPhase : std::unary_function<T, T> {
+    static std::string name() {
+        return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-phase";
+    }
 
-            Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                              Math::pointerArg<T>());
-
+    /** x and result can be one object */
+    void operator()(const std::vector<T>& x, std::vector<T>& result) {
+        if (&x != &result)
             result.resize(x.size() / 2);
-        }
-    };
 
-    /** returns the real part vector of the input alternating complex vector
-        length of output is set according to the number of input complex numbers
-    */
-    template<class T>
-    struct alternatingComplexVectorRealPart : std::unary_function<T, T> {
-        static std::string name() {
-            return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-real-part";
-        }
+        Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(), Math::pointerArg<T>());
 
-        /** x and result can be one object */
-        void operator() (const std::vector<T> &x,
-                         std::vector<T> &result) {
+        result.resize(x.size() / 2);
+    }
+};
 
-            if (&x != &result)
-                result.resize(x.size() / 2);
+/** returns the real part vector of the input alternating complex vector
+ *  length of output is set according to the number of input complex numbers
+ */
+template<class T>
+struct alternatingComplexVectorRealPart : std::unary_function<T, T> {
+    static std::string name() {
+        return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-real-part";
+    }
 
-            Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                              Math::pointerReal<T>());
-
+    /** x and result can be one object */
+    void operator()(const std::vector<T>& x, std::vector<T>& result) {
+        if (&x != &result)
             result.resize(x.size() / 2);
-        }
-    };
 
-    /** returns the imaginary part vector of the input alternating complex vector
-        length of output is set according to the number of input complex numbers
-    */
-    template<class T>
-    struct alternatingComplexVectorImaginaryPart : std::unary_function<T, T> {
+        Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(), Math::pointerReal<T>());
 
-        static std::string name() {
-            return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-imaginary-part";
-        }
+        result.resize(x.size() / 2);
+    }
+};
 
-        /** x and result can be one object */
-        void operator() (const std::vector<T> &x,
-                         std::vector<T> &result) {
+/** returns the imaginary part vector of the input alternating complex vector
+ *  length of output is set according to the number of input complex numbers
+ */
+template<class T>
+struct alternatingComplexVectorImaginaryPart : std::unary_function<T, T> {
+    static std::string name() {
+        return std::string("vector-alternating-complex-") + Core::Type<T>::name + "-imaginary-part";
+    }
 
-            if (&x != &result)
-                result.resize(x.size() / 2);
-
-            Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                              Math::pointerImag<T>());
-
+    /** x and result can be one object */
+    void operator()(const std::vector<T>& x, std::vector<T>& result) {
+        if (&x != &result)
             result.resize(x.size() / 2);
-        }
-    };
 
-    /** converts vector of real parts into alternating complex vector
-        Imaginary parts are set to 0.
-        length of output is set according to the size of input.
-    */
-    template<class T>
-    struct vectorToAlternatingComplexVector : std::unary_function<T, T> {
-        static std::string name() {
-            return std::string("vector-") + Core::Type<T>::name +
-                "-to-vector-alternating-complex-" + Core::Type<T>::name;
-        }
-        void operator() (const std::vector<T> &x,
-                         std::vector<T> &result) {
+        Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(), Math::pointerImag<T>());
 
-            result.resize(x.size() * 2);
+        result.resize(x.size() / 2);
+    }
+};
 
-            Math::transformToAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                                std::bind2nd(Math::makeComplex<T>(), 0));
-        }
-    };
+/** converts vector of real parts into alternating complex vector
+ *  Imaginary parts are set to 0.
+ *  length of output is set according to the size of input.
+ */
+template<class T>
+struct vectorToAlternatingComplexVector : std::unary_function<T, T> {
+    static std::string name() {
+        return std::string("vector-") + Core::Type<T>::name +
+               "-to-vector-alternating-complex-" + Core::Type<T>::name;
+    }
+    void operator()(const std::vector<T>& x, std::vector<T>& result) {
+        result.resize(x.size() * 2);
 
-    /** converts alternating complex vector to vector of objects of the class complex<T>
-        length of output is set according to the number of input complex numbers.
-    */
-    template<class T>
-    struct alternatingComplexVectorToComplexVector : std::unary_function<T, std::complex<T> > {
+        Math::transformToAlternatingComplex(x.begin(), x.end(), result.begin(), std::bind2nd(Math::makeComplex<T>(), 0));
+    }
+};
 
-        static std::string name() {
-            return std::string("vector-alternating-complex-") + Core::Type<T>::name +
-                "-to-vector-complex-" + Core::Type<T>::name;
-        }
+/** converts alternating complex vector to vector of objects of the class complex<T>
+ *  length of output is set according to the number of input complex numbers.
+ */
+template<class T>
+struct alternatingComplexVectorToComplexVector : std::unary_function<T, std::complex<T>> {
+    static std::string name() {
+        return std::string("vector-alternating-complex-") + Core::Type<T>::name +
+               "-to-vector-complex-" + Core::Type<T>::name;
+    }
 
-        void operator() (const std::vector<T> &x,
-                         std::vector<std::complex<T> > &result) {
-            result.resize(x.size() / 2);
-            Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                              Core::identity<std::complex<T> >());
-        }
-    };
+    void operator()(const std::vector<T>& x, std::vector<std::complex<T>>& result) {
+        result.resize(x.size() / 2);
+        Math::transformAlternatingComplex(x.begin(), x.end(), result.begin(), Core::identity<std::complex<T>>());
+    }
+};
 
-    /** converts vector of objects of class complex<T> to alternating complex vector
-        length of output is set according to the number size of input.
-    */
-    template<class T>
-    struct complexVectorToAlternatingComplexVector : std::unary_function<std::complex<T>, T> {
+/** converts vector of objects of class complex<T> to alternating complex vector
+ *  length of output is set according to the number size of input.
+ */
+template<class T>
+struct complexVectorToAlternatingComplexVector : std::unary_function<std::complex<T>, T> {
+    static std::string name() {
+        return std::string("vector-complex-") + Core::Type<T>::name +
+               "-to-vector-alternating-complex-" + Core::Type<T>::name;
+    }
 
-        static std::string name() {
-            return std::string("vector-complex-") + Core::Type<T>::name +
-                "-to-vector-alternating-complex-" + Core::Type<T>::name;
-        }
+    void operator()(const std::vector<std::complex<T>>& x, std::vector<T>& result) {
+        result.resize(x.size() * 2);
+        Math::transformToAlternatingComplex(x.begin(), x.end(), result.begin(), Core::identity<std::complex<T>>());
+    }
+};
 
-        void operator() (const std::vector<std::complex<T> > &x,
-                         std::vector<T> &result) {
-            result.resize(x.size() * 2);
-            Math::transformToAlternatingComplex(x.begin(), x.end(), result.begin(),
-                                                Core::identity<std::complex<T> >());
-        }
-    };
+/** ComplexVectorFunctionNode is a node class
+ *  for different complex unary functions (derived from std::unary_function)
+ */
+template<class Function>
+class ComplexVectorFunctionNode : public SleeveNode {
+public:
+    typedef typename Function::argument_type ArgumentType;
+    typedef typename Function::result_type   ResultType;
 
-    /** ComplexVectorFunctionNode is a node class
-     *  for different complex unary functions (derived from std::unary_function)
-     */
-    template<class Function>
-    class ComplexVectorFunctionNode : public SleeveNode {
-    public:
-        typedef typename Function::argument_type ArgumentType;
-        typedef typename Function::result_type ResultType;
-    private:
-        Function function_;
-    public:
-        static std::string filterName() { return "signal-" + Function::name(); }
+private:
+    Function function_;
 
-        ComplexVectorFunctionNode(const Core::Configuration &c) : Core::Component(c), SleeveNode(c) {}
+public:
+    static std::string filterName() {
+        return "signal-" + Function::name();
+    }
 
-        virtual ~ComplexVectorFunctionNode() {}
+    ComplexVectorFunctionNode(const Core::Configuration& c)
+            : Core::Component(c), SleeveNode(c) {}
 
-        virtual bool configure() {
-            Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
-            if (!configureDatatype(a, Flow::Vector<ResultType>::type()))
-                return false;
-            return putOutputAttributes(0, a);
-        }
+    virtual ~ComplexVectorFunctionNode() {}
 
-        virtual bool setParameter(const std::string &name, const std::string &value) { return false; }
+    virtual bool configure() {
+        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+        if (!configureDatatype(a, Flow::Vector<ResultType>::type()))
+            return false;
+        return putOutputAttributes(0, a);
+    }
 
-        virtual bool work(Flow::PortId p) {
+    virtual bool setParameter(const std::string& name, const std::string& value) {
+        return false;
+    }
 
-            Flow::DataPtr<Flow::Vector<ArgumentType> > in;
-            if (!getData(0, in))
-                return putData(0, in.get());
+    virtual bool work(Flow::PortId p) {
+        Flow::DataPtr<Flow::Vector<ArgumentType>> in;
+        if (!getData(0, in))
+            return putData(0, in.get());
 
-            Flow::Vector<ResultType> *out = new Flow::Vector<ResultType>;
-            function_(*in, *out);
-            out->setTimestamp(*in);
-            return putData(0, out);
-        }
-    };
+        Flow::Vector<ResultType>* out = new Flow::Vector<ResultType>;
+        function_(*in, *out);
+        out->setTimestamp(*in);
+        return putData(0, out);
+    }
+};
 
-}
+}  // namespace Signal
 
-#endif // _COMPLEX_VECTOR_FUNCTION_HH
+#endif  // _COMPLEX_VECTOR_FUNCTION_HH

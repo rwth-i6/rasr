@@ -13,70 +13,61 @@
  *  limitations under the License.
  */
 #include "LinearWarping.hh"
-#include <Math/PiecewiseLinearFunction.hh>
 #include <Math/AnalyticFunctionFactory.hh>
+#include <Math/PiecewiseLinearFunction.hh>
 
 using namespace Signal;
 
-Core::ParameterFloat LinearWarpingNode::paramWarpingFactor
-("warping-factor", "warping factor", 1);
+Core::ParameterFloat LinearWarpingNode::paramWarpingFactor("warping-factor", "warping factor", 1);
 
-Core::ParameterFloat LinearWarpingNode::paramWarpingLimit
-("warping-limit", "warping limit", 0.875, 0.0000000001, .99999999999);
-
+Core::ParameterFloat LinearWarpingNode::paramWarpingLimit("warping-limit", "warping limit", 0.875, 0.0000000001, .99999999999);
 
 const f64 LinearWarpingNode::hash::strechFactor = 100.0;
 
-size_t LinearWarpingNode::hash::operator()(f64 x) const
-{
+size_t LinearWarpingNode::hash::operator()(f64 x) const {
     f64 result = rint(x * strechFactor);
     verify_(result > 0);
 
     return (size_t)result;
 }
 
-LinearWarpingNode::LinearWarpingNode(const Core::Configuration &c) :
-    Component(c),
-    Node(c),
-    Predecessor(c),
-    warpingLimit_(0)
-{
+LinearWarpingNode::LinearWarpingNode(const Core::Configuration& c)
+        : Component(c),
+          Node(c),
+          Predecessor(c),
+          warpingLimit_(0) {
     setWarpingFactor(paramWarpingFactor(c));
     setWarpingLimit(paramWarpingLimit(c));
 }
 
-void LinearWarpingNode::setWarpingLimit(f64 warpingLimit)
-{
+void LinearWarpingNode::setWarpingLimit(f64 warpingLimit) {
     if (warpingLimit_ != warpingLimit) {
         warpingLimit_ = warpingLimit;
         setNeedInit();
     }
 }
 
-const Warping& LinearWarpingNode::warping()
-{
+const Warping& LinearWarpingNode::warping() {
     WarpingCache::iterator w = warpingCache_.find(warpingFactor_());
     if (w == warpingCache_.end())
         w = warpingCache_.insert(std::make_pair(warpingFactor_(), createWarping())).first;
     return *(w->second);
 }
 
-Warping* LinearWarpingNode::createWarping()
-{
+Warping* LinearWarpingNode::createWarping() {
     if (warpingFactor_() <= 0)
         error("Cannot warp with factor %f.", warpingFactor_());
     if (warpingLimit_ <= 0 || warpingLimit_ >= 1)
         error("Cannot warp with limit %f.", warpingLimit_);
     respondToDelayedErrors();
 
-    Warping *result = new Warping;
+    Warping* result = new Warping;
 
     Math::AnalyticFunctionFactory factory(select("warping-function"));
     factory.setSampleRate(sampleRate_);
     factory.setDomainType(Math::AnalyticFunctionFactory::discreteDomain);
     factory.setMaximalArgument(inputSize_ - 1);
-    Math::UnaryAnalyticFunctionRef warpingFunction =
-        factory.createTwoPieceLinearFunction(warpingFactor_(), warpingLimit_);
+    Math::UnaryAnalyticFunctionRef warpingFunction = factory.createTwoPieceLinearFunction(warpingFactor_(), warpingLimit_);
     ensure(warpingFunction);
 
     if (interpolateOverWarpedAxis_)
@@ -86,22 +77,19 @@ Warping* LinearWarpingNode::createWarping()
     return result;
 }
 
-void LinearWarpingNode::clear()
-{
-    for(WarpingCache::iterator w = warpingCache_.begin(); w != warpingCache_.end(); ++ w)
+void LinearWarpingNode::clear() {
+    for (WarpingCache::iterator w = warpingCache_.begin(); w != warpingCache_.end(); ++w)
         delete w->second;
 
     warpingCache_.clear();
 }
 
-void LinearWarpingNode::reset()
-{
+void LinearWarpingNode::reset() {
     warpingFactor_.setStartTime(Core::Type<Time>::min);
     warpingFactor_.setEndTime(warpingFactor_.startTime());
 }
 
-Flow::PortId LinearWarpingNode::getInput(const std::string &name)
-{
+Flow::PortId LinearWarpingNode::getInput(const std::string& name) {
     if (name == "warping-factor") {
         addInput(1);
         return 1;
@@ -109,8 +97,7 @@ Flow::PortId LinearWarpingNode::getInput(const std::string &name)
     return Predecessor::getInput(name);
 }
 
-bool LinearWarpingNode::setParameter(const std::string &name, const std::string &value)
-{
+bool LinearWarpingNode::setParameter(const std::string& name, const std::string& value) {
     if (paramWarpingFactor.match(name))
         setWarpingFactor(paramWarpingFactor(value));
     else if (paramWarpingLimit.match(name))
@@ -120,8 +107,7 @@ bool LinearWarpingNode::setParameter(const std::string &name, const std::string 
     return true;
 }
 
-bool LinearWarpingNode::configure()
-{
+bool LinearWarpingNode::configure() {
     reset();
 
     Flow::Attributes warpingFactorAttributes;
@@ -136,22 +122,21 @@ bool LinearWarpingNode::configure()
     return Predecessor::configure(warpingFactorAttributes);
 }
 
-void LinearWarpingNode::apply(const Flow::Vector<f32> &in, std::vector<f32> &out)
-{
+void LinearWarpingNode::apply(const Flow::Vector<f32>& in, std::vector<f32>& out) {
     if (nInputs() >= 2)
         updateWarpingFactor(in);
     warping().apply(in, out);
 }
 
-void LinearWarpingNode::updateWarpingFactor(const Flow::Timestamp &featureTimeStamp)
-{
+void LinearWarpingNode::updateWarpingFactor(const Flow::Timestamp& featureTimeStamp) {
     verify(nInputs() >= 2);
 
     Flow::DataPtr<Flow::Float64> in;
-    while(!warpingFactor_.contains(featureTimeStamp)) {
+    while (!warpingFactor_.contains(featureTimeStamp)) {
         if (getData(1, in)) {
             warpingFactor_ = *in;
-        } else {
+        }
+        else {
             criticalError("Warping factor stream stopped before start-time (%f).",
                           featureTimeStamp.startTime());
         }

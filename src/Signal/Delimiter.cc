@@ -17,44 +17,43 @@
 using namespace Signal;
 
 const Core::ParameterInt Delimiter::paramNumberOfIterations(
-    "number-of-iterations",
-    "number of iterations to calculate approximate silence/speech/silence segmentation",
-    3, 0);
+        "number-of-iterations",
+        "number of iterations to calculate approximate silence/speech/silence segmentation",
+        3, 0);
 
 const Core::ParameterFloat Delimiter::paramPenalty(
-    "penalty",
-    "penalty for second order statistic, zero for no penalty",
-    100.0, 0);
+        "penalty",
+        "penalty for second order statistic, zero for no penalty",
+        100.0, 0);
 
 const Core::ParameterFloat Delimiter::paramMinimumSpeechProportion(
-    "minimum-speech-proportion",
-    "minimum proportion of speech in segment",
-    0.7, 0.0, 1.0);
+        "minimum-speech-proportion",
+        "minimum proportion of speech in segment",
+        0.7, 0.0, 1.0);
 
-Delimiter::Delimiter(const Core::Configuration& c) :
-    Core::Component(c),
-    numberOfIterations_(paramNumberOfIterations(config)),
-    f_(paramPenalty(config)),
-    minimumSpeechProportion_(paramMinimumSpeechProportion(config)),
-    statisticsChannel_(config, "statistics")
-{}
+Delimiter::Delimiter(const Core::Configuration& c)
+        : Core::Component(c),
+          numberOfIterations_(paramNumberOfIterations(config)),
+          f_(paramPenalty(config)),
+          minimumSpeechProportion_(paramMinimumSpeechProportion(config)),
+          statisticsChannel_(config, "statistics") {}
 
-f64 Delimiter::logLikelihood(u32 ib, u32 ie) const
-{
-    const f64 e = 0.5;
-    f64 yy = Core::Type<f64>::max;
-    f64 s1 = ib - 1 + nFeatures() - ie;
-    f64 m1 = M_[ib - 1] + M_[nFeatures()] - M_[ie];
-    f64 qq = Q_[ib - 1] + Q_[nFeatures()] - Q_[ie];
-    f64 xx = qq / s1 - ((m1 / s1) * (m1 / s1)) / (f_ > 0 ? f_ : 1);
-    f64 xsil = s1 * ::log(std::max(xx, e));
-    f64 s2 = ie - ib + 1;
-    f64 m2 = M_[ie] - M_[ib - 1];
-    qq = Q_[ie] - Q_[ib - 1];
-    xx = qq / s2 - ((m2 / s2) * (m2 / s2)) / (f_ > 0 ? f_ : 1);
-    f64 xspe = s2 * ::log(std::max(xx, e));
+f64 Delimiter::logLikelihood(u32 ib, u32 ie) const {
+    const f64 e    = 0.5;
+    f64       yy   = Core::Type<f64>::max;
+    f64       s1   = ib - 1 + nFeatures() - ie;
+    f64       m1   = M_[ib - 1] + M_[nFeatures()] - M_[ie];
+    f64       qq   = Q_[ib - 1] + Q_[nFeatures()] - Q_[ie];
+    f64       xx   = qq / s1 - ((m1 / s1) * (m1 / s1)) / (f_ > 0 ? f_ : 1);
+    f64       xsil = s1 * ::log(std::max(xx, e));
+    f64       s2   = ie - ib + 1;
+    f64       m2   = M_[ie] - M_[ib - 1];
+    qq             = Q_[ie] - Q_[ib - 1];
+    xx             = qq / s2 - ((m2 / s2) * (m2 / s2)) / (f_ > 0 ? f_ : 1);
+    f64 xspe       = s2 * ::log(std::max(xx, e));
     if (((m1 / s1) < (m2 / s2)) &&
-        ((ie - ib) >= (minimumSpeechProportion_ * nFeatures()))) yy = xsil + xspe;
+        ((ie - ib) >= (minimumSpeechProportion_ * nFeatures())))
+        yy = xsil + xspe;
     return yy;
 }
 
@@ -81,8 +80,7 @@ f64 Delimiter::logLikelihood(u32 ib, u32 ie) const
  *       [1,...,IB-1] [IB,...,IE] [IE+1,...,NI]
  */
 /*****************************************************************************/
-Delimiter::Delimitation Delimiter::getDelimitation() const
-{
+Delimiter::Delimitation Delimiter::getDelimitation() const {
     if (minimumSpeechProportion_ == 1.0)
         return std::make_pair(0, nFeatures() - 1);
 
@@ -94,14 +92,14 @@ Delimiter::Delimitation Delimiter::getDelimitation() const
             x = logLikelihood(ib, iEnd);
             if (x < x_min) {
                 x_min = x;
-                iBeg = ib;
+                iBeg  = ib;
             }
         }
         for (ie = iBeg + 1; ie < nFeatures() - 1; ie++) {
             x = logLikelihood(iBeg, ie);
             if (x < x_min) {
                 x_min = x;
-                iEnd = ie;
+                iEnd  = ie;
             }
         }
     }
@@ -121,8 +119,7 @@ Delimiter::Delimitation Delimiter::getDelimitation() const
 /**
  *  from /u/loof/teaching/speech-image-WS0405/3.1.solution/Training.c
  */
-Delimiter::Delimitation SietillDelimiter::getDelimitation() const
-{
+Delimiter::Delimitation SietillDelimiter::getDelimitation() const {
     if (minimumSpeechProportion_ == 1.0)
         return std::make_pair(0, nFeatures() - 1);
 
@@ -135,24 +132,24 @@ Delimiter::Delimitation SietillDelimiter::getDelimitation() const
                 f64 x = logLikelihood(std::min(iEnd, ib), std::max(ib, iEnd));
                 if (x < x_min) {
                     x_min = x;
-                    iBeg = ib;
+                    iBeg  = ib;
                 }
             }
         }
-        for (u32 ie = 2; ie < nFeatures(); ++ ie) {
+        for (u32 ie = 2; ie < nFeatures(); ++ie) {
             if (ie != iBeg) {
                 f64 x = logLikelihood(std::min(iBeg, ie), std::max(ie, iBeg));
-                if(x < x_min) {
+                if (x < x_min) {
                     x_min = x;
-                    iEnd = ie;
+                    iEnd  = ie;
                 }
             }
         }
 
         if (iEnd < iBeg) {
             u32 tmp = iBeg;
-            iBeg = iEnd;
-            iEnd = tmp;
+            iBeg    = iEnd;
+            iEnd    = tmp;
         }
     }
 

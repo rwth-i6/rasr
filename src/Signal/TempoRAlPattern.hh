@@ -16,9 +16,9 @@
 #define _SIGNAL_TEMPORAL_PATTERN_HH
 
 #include <Core/Parameter.hh>
-#include <Math/Vector.hh>
 #include <Flow/Node.hh>
 #include <Flow/Vector.hh>
+#include <Math/Vector.hh>
 
 #include "CosineTransform.hh"
 #include "WindowFunction.hh"
@@ -41,27 +41,41 @@ public:
     TemporalPattern();
     virtual ~TemporalPattern();
 
-    void init(size_t nFeatures, size_t nFrames, size_t dctSize) { setFeatures(nFeatures); setFrames(nFrames); setDctSize(dctSize); }
-    size_t nFeatures() const { return nFeatures_; }
-    size_t nFrames() const { return nFrames_; }
-    size_t dctSize() const { return dctSize_; }
+    void init(size_t nFeatures, size_t nFrames, size_t dctSize) {
+        setFeatures(nFeatures);
+        setFrames(nFrames);
+        setDctSize(dctSize);
+    }
+    size_t nFeatures() const {
+        return nFeatures_;
+    }
+    size_t nFrames() const {
+        return nFrames_;
+    }
+    size_t dctSize() const {
+        return dctSize_;
+    }
 
-    void setWindowFunction(Signal::WindowFunction* windowFunction);
-    Signal::WindowFunction* windowFunction() const { return windowFunction_; }
-    Signal::CosineTransform& cosineTransform() { return cosineTransform_; }
+    void                    setWindowFunction(Signal::WindowFunction* windowFunction);
+    Signal::WindowFunction* windowFunction() const {
+        return windowFunction_;
+    }
+    Signal::CosineTransform& cosineTransform() {
+        return cosineTransform_;
+    }
 
     /** Calculates cosine transform of @param in.
      *  If normalization is set at initialization, the result (@param out) is divided by N.
      *  Remark:
      *   Normalization is not included in the transformation matrix, neither in (inverse) FFT.
      */
-    bool apply(std::vector<Value> &in, std::vector<Value> &out);
+    bool apply(std::vector<Value>& in, std::vector<Value>& out);
 
 private:
     Math::Vector<Value> bandVec;
     Math::Vector<Value> dctVec;
 
-    bool needInit_;
+    bool   needInit_;
     size_t nFeatures_;
     size_t nFrames_;
     size_t dctSize_;
@@ -71,17 +85,30 @@ private:
 
     bool init();
 
-    void setFeatures(size_t nFeatures) { if (nFeatures_ != nFeatures) { nFeatures_ = nFeatures; needInit_ = true; } }
-    void setFrames(size_t nFrames) { if (nFrames_ != nFrames) { nFrames_ = nFrames; needInit_ = true; } }
-    void setDctSize(size_t size) { if (dctSize_ != size) { dctSize_ = size; needInit_ = true; } }
+    void setFeatures(size_t nFeatures) {
+        if (nFeatures_ != nFeatures) {
+            nFeatures_ = nFeatures;
+            needInit_  = true;
+        }
+    }
+    void setFrames(size_t nFrames) {
+        if (nFrames_ != nFrames) {
+            nFrames_  = nFrames;
+            needInit_ = true;
+        }
+    }
+    void setDctSize(size_t size) {
+        if (dctSize_ != size) {
+            dctSize_  = size;
+            needInit_ = true;
+        }
+    }
 
-    void getBand(size_t band, std::vector<Value> &in, std::vector<Value> &out);
-    void setBand(size_t band, std::vector<Value> &in, std::vector<Value> &out);
-    void applyWindow(std::vector<Value> &in);
-    void applyDCT(std::vector<Value> &in, std::vector<Value> &out);
+    void getBand(size_t band, std::vector<Value>& in, std::vector<Value>& out);
+    void setBand(size_t band, std::vector<Value>& in, std::vector<Value>& out);
+    void applyWindow(std::vector<Value>& in);
+    void applyDCT(std::vector<Value>& in, std::vector<Value>& out);
 };
-
-
 
 /** Calculate spectrum coefficients (CRBE) from autoregressive coefficients.
  *  Input: autoregressive-parameter.
@@ -90,24 +117,38 @@ private:
  */
 class TemporalPatternNode : public Flow::SleeveNode, TemporalPattern {
     typedef Flow::SleeveNode Precursor;
-    typedef f32 Value;
+    typedef f32              Value;
+
 private:
-    bool needInit_;
-    void init(size_t length);
-    size_t contextLength_;
+    bool                            needInit_;
+    void                            init(size_t length);
+    size_t                          contextLength_;
     static const Core::ParameterInt paramContextLength;
-    void setContextLength(size_t length) { if (contextLength_ != length) { contextLength_ = length; needInit_ = true; } };
-    size_t outputSize_;
+    void                            setContextLength(size_t length) {
+        if (contextLength_ != length) {
+            contextLength_ = length;
+            needInit_      = true;
+        }
+    };
+    size_t                          outputSize_;
     static const Core::ParameterInt paramOutputSize;
-    void setOutputSize(size_t size) { if (outputSize_ != size) { outputSize_ = size; needInit_ = true; } };
+    void                            setOutputSize(size_t size) {
+        if (outputSize_ != size) {
+            outputSize_ = size;
+            needInit_   = true;
+        }
+    };
+
 public:
-    static std::string filterName() { return std::string("nn-temporal-pattern"); };
-    TemporalPatternNode(const Core::Configuration &c);
+    static std::string filterName() {
+        return std::string("nn-temporal-pattern");
+    };
+    TemporalPatternNode(const Core::Configuration& c);
     virtual ~TemporalPatternNode();
     virtual bool configure();
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool work(Flow::PortId p);
 };
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_TEMPORALPATTERN_HH
+#endif  // _SIGNAL_TEMPORALPATTERN_HH

@@ -12,32 +12,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Utility.hh>
 #include "SampleNormalization.hh"
+#include <Core/Utility.hh>
 
 using namespace Signal;
 using namespace Core;
 using namespace Flow;
 
-
 // SampleNormalization
 //////////////////////
 
-SampleNormalization::SampleNormalization() :
-    mean_(0),
-    sumWeight_(0),
-    sum_(0),
-    changed_(true),
-    minOutputSize_(0),
-    outputStartTime_(0),
-    sampleRate_(0),
-    lengthInS_(0),
-    rightInS_(0),
-    needInit_(true)
-{}
+SampleNormalization::SampleNormalization()
+        : mean_(0),
+          sumWeight_(0),
+          sum_(0),
+          changed_(true),
+          minOutputSize_(0),
+          outputStartTime_(0),
+          sampleRate_(0),
+          lengthInS_(0),
+          rightInS_(0),
+          needInit_(true) {}
 
-bool SampleNormalization::setSampleRate(Time sampleRate)
-{
+bool SampleNormalization::setSampleRate(Time sampleRate) {
     if (sampleRate_ != sampleRate) {
         sampleRate_ = sampleRate;
         return (needInit_ = true);
@@ -45,8 +42,7 @@ bool SampleNormalization::setSampleRate(Time sampleRate)
     return false;
 }
 
-bool SampleNormalization::setLengthInS(Time lengthInS)
-{
+bool SampleNormalization::setLengthInS(Time lengthInS) {
     if (lengthInS_ != lengthInS) {
         lengthInS_ = lengthInS;
         return (needInit_ = true);
@@ -54,8 +50,7 @@ bool SampleNormalization::setLengthInS(Time lengthInS)
     return false;
 }
 
-bool SampleNormalization::setRightInS(Time rightInS)
-{
+bool SampleNormalization::setRightInS(Time rightInS) {
     if (rightInS_ != rightInS) {
         rightInS_ = rightInS;
         return (needInit_ = true);
@@ -63,15 +58,12 @@ bool SampleNormalization::setRightInS(Time rightInS)
     return false;
 }
 
-void SampleNormalization::init()
-{
+void SampleNormalization::init() {
     require(sampleRate_ > 0);
 
-    u32 length = lengthInS_ != Type<f64>::max ?
-        (u32)Core::floor(lengthInS_ * sampleRate_ + .05) : (u32)Type<s32>::max;
+    u32 length = lengthInS_ != Type<f64>::max ? (u32)Core::floor(lengthInS_ * sampleRate_ + .05) : (u32)Type<s32>::max;
 
-    u32 right = rightInS_ != Type<f64>::max ?
-        (u32)Core::floor(rightInS_ * sampleRate_ + .05) : (u32)Type<s32>::max;
+    u32 right = rightInS_ != Type<f64>::max ? (u32)Core::floor(rightInS_ * sampleRate_ + .05) : (u32)Type<s32>::max;
 
     if (!slidingWindow_.init(length, right))
         defect();
@@ -81,11 +73,10 @@ void SampleNormalization::init()
     needInit_ = false;
 }
 
-void SampleNormalization::reset()
-{
-    mean_ = 0;
+void SampleNormalization::reset() {
+    mean_      = 0;
     sumWeight_ = 0;
-    sum_ = 0;
+    sum_       = 0;
 
     changed_ = true;
     out_.clear();
@@ -93,14 +84,14 @@ void SampleNormalization::reset()
     slidingWindow_.clear();
 }
 
-bool SampleNormalization::update(const Sample *in)
-{
+bool SampleNormalization::update(const Sample* in) {
     if (in) {
         slidingWindow_.add(*in);
 
         Sample removed;
         updateStatistics(in, (slidingWindow_.removed(removed) ? &removed : 0));
-    } else
+    }
+    else
         slidingWindow_.flushOut();
 
     Sample out;
@@ -112,55 +103,50 @@ bool SampleNormalization::update(const Sample *in)
     return false;
 }
 
-void SampleNormalization::updateStatistics(const Sample *add, const Sample *remove)
-{
+void SampleNormalization::updateStatistics(const Sample* add, const Sample* remove) {
     if (add) {
         sum_ += *add;
 
-        sumWeight_ ++;
+        sumWeight_++;
         changed_ = true;
     }
     if (remove) {
         sum_ -= (*remove);
 
-        sumWeight_ --;
+        sumWeight_--;
         changed_ = true;
     }
 }
 
-void SampleNormalization::normalizeStatistics()
-{
+void SampleNormalization::normalizeStatistics() {
     if (!changed_)
         return;
     mean_ = f32(sum_ / sumWeight_);
 }
 
-void SampleNormalization::normalize(Sample &out)
-{
+void SampleNormalization::normalize(Sample& out) {
     normalizeStatistics();
     normalizeMean(out);
     changed_ = false;
 }
 
-bool SampleNormalization::put(const Vector<Sample> &in)
-{
+bool SampleNormalization::put(const Vector<Sample>& in) {
     if (needInit_)
         init();
 
     size_t nPendingSamples = out_.size() + slidingWindow_.futureSize();
-    Time bufferEndTime = outputStartTime_ + (Time)nPendingSamples / sampleRate_;
+    Time   bufferEndTime   = outputStartTime_ + (Time)nPendingSamples / sampleRate_;
     if (!in.equalsToStartTime(bufferEndTime)) {
         if (nPendingSamples > 0)
             return false;
         outputStartTime_ = in.startTime();
     }
-    for(u32 t = 0; t < in.size(); t ++)
+    for (u32 t = 0; t < in.size(); t++)
         update(&in[t]);
     return true;
 }
 
-bool SampleNormalization::get(Vector<Sample> &out)
-{
+bool SampleNormalization::get(Vector<Sample>& out) {
     if (needInit_)
         init();
 
@@ -172,12 +158,11 @@ bool SampleNormalization::get(Vector<Sample> &out)
     return false;
 }
 
-bool SampleNormalization::flush(Vector<Sample> &out)
-{
+bool SampleNormalization::flush(Vector<Sample>& out) {
     if (needInit_)
         init();
 
-    while(update(0)) {
+    while (update(0)) {
         if (get(out))
             return true;
     }
@@ -189,8 +174,7 @@ bool SampleNormalization::flush(Vector<Sample> &out)
     return false;
 }
 
-void SampleNormalization::copyOutput(Vector<Sample> &out)
-{
+void SampleNormalization::copyOutput(Vector<Sample>& out) {
     verify(!out_.empty());
 
     out.clear();
@@ -204,51 +188,44 @@ void SampleNormalization::copyOutput(Vector<Sample> &out)
 // LengthDependentSampleNormalization
 /////////////////////////////////////
 
-LengthDependentSampleNormalization::LengthDependentSampleNormalization() :
-    nShortInputSamples_(0),
-    maxShortLength_(0),
-    maxShortLengthInS_(0),
-    needInit_(true)
-{
+LengthDependentSampleNormalization::LengthDependentSampleNormalization()
+        : nShortInputSamples_(0),
+          maxShortLength_(0),
+          maxShortLengthInS_(0),
+          needInit_(true) {
     short_.setLengthInS(Type<f64>::max);
     short_.setRightInS(Type<f64>::max);
 }
 
-void LengthDependentSampleNormalization::setMinOuptutSize(u32 size)
-{
+void LengthDependentSampleNormalization::setMinOuptutSize(u32 size) {
     short_.setMinOuptutSize(size);
     long_.setMinOuptutSize(size);
 }
 
-void LengthDependentSampleNormalization::setLengthInS(Time lengthInS)
-{
+void LengthDependentSampleNormalization::setLengthInS(Time lengthInS) {
     if (long_.setLengthInS(lengthInS))
         needInit_ = true;
 }
 
-void LengthDependentSampleNormalization::setRightInS(Time rightInS)
-{
+void LengthDependentSampleNormalization::setRightInS(Time rightInS) {
     if (long_.setRightInS(rightInS))
         needInit_ = true;
 }
 
-void LengthDependentSampleNormalization::setMaxShortLengthInS(Time maxShortLengthInS)
-{
+void LengthDependentSampleNormalization::setMaxShortLengthInS(Time maxShortLengthInS) {
     if (maxShortLengthInS_ != maxShortLengthInS) {
         maxShortLengthInS_ = maxShortLengthInS;
-        needInit_ = true;
+        needInit_          = true;
     }
 }
 
-void LengthDependentSampleNormalization::setSampleRate(Time sampleRate)
-{
+void LengthDependentSampleNormalization::setSampleRate(Time sampleRate) {
     short_.setSampleRate(sampleRate);
     if (long_.setSampleRate(sampleRate))
         needInit_ = true;
 }
 
-void LengthDependentSampleNormalization::init()
-{
+void LengthDependentSampleNormalization::init() {
     verify(sampleRate() > 0);
     maxShortLength_ = (u32)Core::floor(maxShortLengthInS_ * sampleRate() + .05);
 
@@ -257,8 +234,7 @@ void LengthDependentSampleNormalization::init()
     needInit_ = false;
 }
 
-bool LengthDependentSampleNormalization::put(const Vector<Sample> &in)
-{
+bool LengthDependentSampleNormalization::put(const Vector<Sample>& in) {
     if (needInit_)
         init();
 
@@ -273,8 +249,7 @@ bool LengthDependentSampleNormalization::put(const Vector<Sample> &in)
     return false;
 }
 
-bool LengthDependentSampleNormalization::get(Vector<Sample> &out)
-{
+bool LengthDependentSampleNormalization::get(Vector<Sample>& out) {
     if (needInit_)
         init();
 
@@ -284,8 +259,7 @@ bool LengthDependentSampleNormalization::get(Vector<Sample> &out)
     return false;
 }
 
-bool LengthDependentSampleNormalization::flush(Vector<Sample> &out)
-{
+bool LengthDependentSampleNormalization::flush(Vector<Sample>& out) {
     if (needInit_)
         init();
 
@@ -313,29 +287,27 @@ void LengthDependentSampleNormalization::reset() {
 //////////////////////////
 
 ParameterFloat SampleNormalizationNode::paramLengthInS(
-    "length", "length of the sliding window in seconds");
+        "length", "length of the sliding window in seconds");
 
 ParameterFloat SampleNormalizationNode::paramRightInS(
-    "right", "output point in seconds");
+        "right", "output point in seconds");
 
 ParameterInt SampleNormalizationNode::paramMinOuptutSize(
-    "block-size", "size of output blocks in samples", 4096, 0);
+        "block-size", "size of output blocks in samples", 4096, 0);
 
 ParameterFloat SampleNormalizationNode::paramMaxShortLengthInS(
-    "short-sentence-length", "max length of short sentence in seconds, normalized sentencewise", 0, 0);
+        "short-sentence-length", "max length of short sentence in seconds, normalized sentencewise", 0, 0);
 
-SampleNormalizationNode::SampleNormalizationNode(const Core::Configuration &c) :
-    Component(c),
-    Predecessor(c)
-{
+SampleNormalizationNode::SampleNormalizationNode(const Core::Configuration& c)
+        : Component(c),
+          Predecessor(c) {
     setLengthInS(paramLengthInS(c));
     setRightInS(paramRightInS(c));
     setMinOuptutSize(paramMinOuptutSize(c));
     setMaxShortLengthInS(paramMaxShortLengthInS(c));
 }
 
-bool SampleNormalizationNode::setParameter(const std::string &name, const std::string &value)
-{
+bool SampleNormalizationNode::setParameter(const std::string& name, const std::string& value) {
     if (paramLengthInS.match(name))
         setLengthInS(paramLengthInS(value));
     else if (paramRightInS.match(name))
@@ -350,8 +322,7 @@ bool SampleNormalizationNode::setParameter(const std::string &name, const std::s
     return true;
 }
 
-bool SampleNormalizationNode::configure()
-{
+bool SampleNormalizationNode::configure() {
     Core::Ref<const Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Vector<f32>::type()))
         return false;

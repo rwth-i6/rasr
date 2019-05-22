@@ -20,93 +20,96 @@
 
 namespace Signal {
 
-    /** VectorResizeNode resizes input vector to a given size
-     *  If new size is larger than the current size, the vector is extended by initial-value.
-     *
-     *  Size is given in continuous units.
-     */
-    extern const Core::ParameterFloat paramVectorResizeNewSize;
-    extern const Core::ParameterInt paramVectorResizeNewDiscreteSize;
-    extern const Core::ParameterFloat paramVectorResizeInitialValue;
-    extern const Core::ParameterBool paramVectorResizeChangeFront;
-    extern const Core::ParameterBool paramVectorResizeRelativeChange;
+/** VectorResizeNode resizes input vector to a given size
+ *  If new size is larger than the current size, the vector is extended by initial-value.
+ *
+ *  Size is given in continuous units.
+ */
+extern const Core::ParameterFloat paramVectorResizeNewSize;
+extern const Core::ParameterInt   paramVectorResizeNewDiscreteSize;
+extern const Core::ParameterFloat paramVectorResizeInitialValue;
+extern const Core::ParameterBool  paramVectorResizeChangeFront;
+extern const Core::ParameterBool  paramVectorResizeRelativeChange;
 
-    template<class T>
-    class VectorResizeNode : public SleeveNode {
-    public:
-        typedef SleeveNode Precursor;
+template<class T>
+class VectorResizeNode : public SleeveNode {
+public:
+    typedef SleeveNode Precursor;
 
-    private:
-        s32 newSize_;
-        f64 continuousNewSize_;
-        u32 discreteNewSize_;
-        T initialValue_;
-        bool changeFront_;
-        bool relativeChange_;
-    public:
-        static std::string filterName() {
-            return std::string("signal-vector-") + Core::Type<T>::name + "-resize";
-        }
-        VectorResizeNode(const Core::Configuration &c) :
-            Core::Component(c), Precursor(c), newSize_(0) {
-            continuousNewSize_ = paramVectorResizeNewSize(c);
-            discreteNewSize_ = paramVectorResizeNewDiscreteSize(c);
-            initialValue_ = paramVectorResizeInitialValue(c);
-            changeFront_ = paramVectorResizeChangeFront(c);
-            relativeChange_ = paramVectorResizeRelativeChange(c);
-        }
-        virtual ~VectorResizeNode() {}
+private:
+    s32  newSize_;
+    f64  continuousNewSize_;
+    u32  discreteNewSize_;
+    T    initialValue_;
+    bool changeFront_;
+    bool relativeChange_;
 
-        virtual bool configure() {
-            Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
-            if (!configureDatatype(a, Flow::Vector<T>::type()))
-                return false;
-            std::string sampleRateAttribute = a->get("sample-rate");
-            f64 sampleRate = sampleRateAttribute.empty() ? 1 : atof(sampleRateAttribute.c_str());
-            if(sampleRate == 0)
-                sampleRate = 1;
-            newSize_ = (discreteNewSize_ != 0) ? discreteNewSize_ : (u32)rint(continuousNewSize_ * sampleRate);
-            if (discreteNewSize_ != 0 && continuousNewSize_ != 0.0)
-                warning("Continuous units resize will be overwritten by discrete units");
-            return putOutputAttributes(0, a);
-        }
+public:
+    static std::string filterName() {
+        return std::string("signal-vector-") + Core::Type<T>::name + "-resize";
+    }
+    VectorResizeNode(const Core::Configuration& c)
+            : Core::Component(c), Precursor(c), newSize_(0) {
+        continuousNewSize_ = paramVectorResizeNewSize(c);
+        discreteNewSize_   = paramVectorResizeNewDiscreteSize(c);
+        initialValue_      = paramVectorResizeInitialValue(c);
+        changeFront_       = paramVectorResizeChangeFront(c);
+        relativeChange_    = paramVectorResizeRelativeChange(c);
+    }
+    virtual ~VectorResizeNode() {}
 
-        virtual bool setParameter(const std::string &name, const std::string &value) {
-            if (paramVectorResizeNewSize.match(name))
-                continuousNewSize_ = paramVectorResizeNewSize(value);
-            else if (paramVectorResizeNewDiscreteSize.match(name))
-                discreteNewSize_ = paramVectorResizeNewDiscreteSize(value);
-            else if (paramVectorResizeInitialValue.match(name))
-                initialValue_ = paramVectorResizeInitialValue(value);
-            else if (paramVectorResizeChangeFront.match(name))
-                changeFront_ = paramVectorResizeChangeFront(value);
-            else if (paramVectorResizeRelativeChange.match(name))
-                relativeChange_ = paramVectorResizeRelativeChange(value);
-            else
-                return false;
-            return true;
-        }
+    virtual bool configure() {
+        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+        if (!configureDatatype(a, Flow::Vector<T>::type()))
+            return false;
+        std::string sampleRateAttribute = a->get("sample-rate");
+        f64         sampleRate          = sampleRateAttribute.empty() ? 1 : atof(sampleRateAttribute.c_str());
+        if (sampleRate == 0)
+            sampleRate = 1;
+        newSize_ = (discreteNewSize_ != 0) ? discreteNewSize_ : (u32)rint(continuousNewSize_ * sampleRate);
+        if (discreteNewSize_ != 0 && continuousNewSize_ != 0.0)
+            warning("Continuous units resize will be overwritten by discrete units");
+        return putOutputAttributes(0, a);
+    }
 
-        virtual bool work(Flow::PortId p) {
-            Flow::DataPtr<Flow::Vector<T> > in;
-            if (!getData(0, in))
-                return putData(0, in.get());
-            in.makePrivate();
-            s32 difference = relativeChange_ ? newSize_ : (s32)newSize_ - (s32)in->size();
-            if (((s32)in->size() + difference) < 0) {
-                warning("Negative size set to zero");
-                difference= -(s32)in->size();
-            }
-            if (difference <= 0)
-                if (changeFront_) in->erase(in->begin(), in->begin() - difference);
-                else in->erase(in->end() + difference, in->end());
-            else
-                if (changeFront_) in->insert(in->begin(), difference, initialValue_);
-                else in->insert(in->end(), difference, initialValue_);
+    virtual bool setParameter(const std::string& name, const std::string& value) {
+        if (paramVectorResizeNewSize.match(name))
+            continuousNewSize_ = paramVectorResizeNewSize(value);
+        else if (paramVectorResizeNewDiscreteSize.match(name))
+            discreteNewSize_ = paramVectorResizeNewDiscreteSize(value);
+        else if (paramVectorResizeInitialValue.match(name))
+            initialValue_ = paramVectorResizeInitialValue(value);
+        else if (paramVectorResizeChangeFront.match(name))
+            changeFront_ = paramVectorResizeChangeFront(value);
+        else if (paramVectorResizeRelativeChange.match(name))
+            relativeChange_ = paramVectorResizeRelativeChange(value);
+        else
+            return false;
+        return true;
+    }
+
+    virtual bool work(Flow::PortId p) {
+        Flow::DataPtr<Flow::Vector<T>> in;
+        if (!getData(0, in))
             return putData(0, in.get());
+        in.makePrivate();
+        s32 difference = relativeChange_ ? newSize_ : (s32)newSize_ - (s32)in->size();
+        if (((s32)in->size() + difference) < 0) {
+            warning("Negative size set to zero");
+            difference = -(s32)in->size();
         }
-    };
-}
+        if (difference <= 0)
+            if (changeFront_)
+                in->erase(in->begin(), in->begin() - difference);
+            else
+                in->erase(in->end() + difference, in->end());
+        else if (changeFront_)
+            in->insert(in->begin(), difference, initialValue_);
+        else
+            in->insert(in->end(), difference, initialValue_);
+        return putData(0, in.get());
+    }
+};
+}  // namespace Signal
 
-
-#endif // _SIGNAL_VECTORRESIZE_HH
+#endif  // _SIGNAL_VECTORRESIZE_HH

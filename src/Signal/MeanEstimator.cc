@@ -12,37 +12,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Math/Module.hh>
-#include <Flow/Vector.hh>
 #include "MeanEstimator.hh"
+#include <Flow/Vector.hh>
+#include <Math/Module.hh>
 
 using namespace Signal;
 
 const Core::ParameterString MeanEstimator::paramFilename(
-    "file", "Output filename for mean vector");
+        "file", "Output filename for mean vector");
 const Core::ParameterInt MeanEstimator::paramOutputPrecision(
-    "output-precision", "Number of decimal digits in text output formats", 20);
+        "output-precision", "Number of decimal digits in text output formats", 20);
 
-MeanEstimator::MeanEstimator(const Core::Configuration &configuration) :
-    Precursor(configuration),
-    featureDimension_(0),
-    needInit_(true)
-{}
+MeanEstimator::MeanEstimator(const Core::Configuration& configuration)
+        : Precursor(configuration),
+          featureDimension_(0),
+          needInit_(true) {}
 
-MeanEstimator::~MeanEstimator()
-{}
+MeanEstimator::~MeanEstimator() {}
 
-void MeanEstimator::initialize()
-{
+void MeanEstimator::initialize() {
     vectorSum_.resize(featureDimension_);
-    std::fill(vectorSum_.begin(),vectorSum_.end(), Sum(0));
+    std::fill(vectorSum_.begin(), vectorSum_.end(), Sum(0));
 
-    count_ = 0;
+    count_    = 0;
     needInit_ = false;
 }
 
-void MeanEstimator::accumulate(const Math::Vector<Data> &x)
-{
+void MeanEstimator::accumulate(const Math::Vector<Data>& x) {
     require_(x.size() == featureDimension_);
 
     if (needInit_)
@@ -52,8 +48,7 @@ void MeanEstimator::accumulate(const Math::Vector<Data> &x)
     count_++;
 }
 
-bool MeanEstimator::finalize(Math::Vector<Data> &mean) const
-{
+bool MeanEstimator::finalize(Math::Vector<Data>& mean) const {
     if (needInit_) {
         error("No observation has been seen.");
         return false;
@@ -63,24 +58,22 @@ bool MeanEstimator::finalize(Math::Vector<Data> &mean) const
     return true;
 }
 
-void MeanEstimator::setDimension(size_t dimension)
-{
+void MeanEstimator::setDimension(size_t dimension) {
     if (featureDimension_ != dimension) {
         featureDimension_ = dimension;
-        needInit_ = true;
+        needInit_         = true;
     }
 }
 
-bool MeanEstimator::write() const
-{
-    bool success = true;
+bool MeanEstimator::write() const {
+    bool               success = true;
     Math::Vector<Data> mean;
     if (!finalize(mean))
         success = false;
 
     std::string filename = paramFilename(config);
     if (Math::Module::instance().formats().write(
-            filename, mean, paramOutputPrecision(config)))
+                filename, mean, paramOutputPrecision(config)))
         log("Mean vector written to '%s'.", filename.c_str());
     else {
         error("Failed to write mean to '%s'.", filename.c_str());
@@ -90,22 +83,19 @@ bool MeanEstimator::write() const
     return success;
 }
 
-void MeanEstimator::reset()
-{
+void MeanEstimator::reset() {
     initialize();
 }
 
-
 // =======================================
 
-bool MeanEstimatorNode::configure()
-{
-    if(!Precursor::configure())
+bool MeanEstimatorNode::configure() {
+    if (!Precursor::configure())
         return false;
     Core::Ref<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
 
-    if(!configureDatatype(a, Flow::Vector<f32>::type())) {
+    if (!configureDatatype(a, Flow::Vector<f32>::type())) {
         Node::error("wrong datatype. expected datatype was vector-f32");
         return false;
     }
@@ -113,23 +103,22 @@ bool MeanEstimatorNode::configure()
     return putOutputAttributes(0, a);
 }
 
-bool MeanEstimatorNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<f32> > in;
-    u32 count = 0;
-    std::vector<Flow::Timestamp> timestamps;
-    while(Precursor::getData(0, in)) {
-        if(count == 0)
+bool MeanEstimatorNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<f32>> in;
+    u32                              count = 0;
+    std::vector<Flow::Timestamp>     timestamps;
+    while (Precursor::getData(0, in)) {
+        if (count == 0)
             MeanEstimator::setDimension(in->size());
         MeanEstimator::accumulate(*in);
         timestamps.push_back(*in);
         ++count;
     }
     Math::Vector<f32> mean;
-    if(!MeanEstimator::finalize(mean))
+    if (!MeanEstimator::finalize(mean))
         return false;
-    for(u32 i = 0; i < count; ++i) {
-        Flow::DataPtr<Flow::Vector<f32> > out(new Flow::Vector<f32>(mean));
+    for (u32 i = 0; i < count; ++i) {
+        Flow::DataPtr<Flow::Vector<f32>> out(new Flow::Vector<f32>(mean));
         out->setTimestamp(timestamps[i]);
         putData(0, out.get());
     }

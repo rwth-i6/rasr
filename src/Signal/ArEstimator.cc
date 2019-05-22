@@ -16,27 +16,26 @@
 
 using namespace Signal;
 
-SegmentwiseArEstimator::SegmentwiseArEstimator() :
-    amplitudeLength_(0)
-{}
+SegmentwiseArEstimator::SegmentwiseArEstimator()
+        : amplitudeLength_(0) {}
 
-SegmentwiseArEstimator::~SegmentwiseArEstimator()
-{}
+SegmentwiseArEstimator::~SegmentwiseArEstimator() {}
 
-bool SegmentwiseArEstimator::setSignal(const std::vector<Data> &y)
-{
+bool SegmentwiseArEstimator::setSignal(const std::vector<Data>& y) {
     amplitudeLength_ = y.size();
     return autocorrelation_.init(autocorrelationFunction_.size(), y);
 }
 
-bool SegmentwiseArEstimator::work(Data* estimationError, std::vector<Data>* ATilde, Data* energy)
-{
+bool SegmentwiseArEstimator::work(Data* estimationError, std::vector<Data>* ATilde, Data* energy) {
     if (checkSegment()) {
         if (autocorrelation_.work(current_segment_begin_, current_segment_end_, autocorrelationFunction_)) {
             if (leastSquares_.work(autocorrelationFunction_)) {
-                if (estimationError) *estimationError = leastSquares_.predictionError();
-                if (ATilde) leastSquares_.a(*ATilde);
-                if (energy) *energy = autocorrelationFunction_[0];
+                if (estimationError)
+                    *estimationError = leastSquares_.predictionError();
+                if (ATilde)
+                    leastSquares_.a(*ATilde);
+                if (energy)
+                    *energy = autocorrelationFunction_[0];
                 return true;
             }
         }
@@ -46,16 +45,14 @@ bool SegmentwiseArEstimator::work(Data* estimationError, std::vector<Data>* ATil
 
 //============================================================================
 
-Core::XmlWriter& AutoregressiveCoefficients::dump(Core::XmlWriter &o) const
-{
-    o << Core::XmlOpen(datatype()->name())
-        + Core::XmlAttribute("start", startTime()) + Core::XmlAttribute("end", endTime());
+Core::XmlWriter& AutoregressiveCoefficients::dump(Core::XmlWriter& o) const {
+    o << Core::XmlOpen(datatype()->name()) + Core::XmlAttribute("start", startTime()) + Core::XmlAttribute("end", endTime());
 
     o << Core::XmlOpen("gain") << gain_ << Core::XmlClose("gain");
 
     o << Core::XmlOpen("a") + Core::XmlAttribute("size", a_.size());
     if (!a_.empty()) {
-        for (std::vector<Coefficient>::const_iterator i = a_.begin(); i != a_.end() - 1; ++ i)
+        for (std::vector<Coefficient>::const_iterator i = a_.begin(); i != a_.end() - 1; ++i)
             o << *i << " ";
         o << a_.back();
     }
@@ -65,16 +62,17 @@ Core::XmlWriter& AutoregressiveCoefficients::dump(Core::XmlWriter &o) const
     return o;
 }
 
-bool AutoregressiveCoefficients::read(Core::BinaryInputStream &i)
-{
+bool AutoregressiveCoefficients::read(Core::BinaryInputStream& i) {
     i >> gain_;
-    u32 s; i >> s; a_.resize(s);
-    for(std::vector<Coefficient>::iterator it = a_.begin(); it != a_.end(); it ++) i >> (*it);
+    u32 s;
+    i >> s;
+    a_.resize(s);
+    for (std::vector<Coefficient>::iterator it = a_.begin(); it != a_.end(); it++)
+        i >> (*it);
     return Timestamp::read(i);
 }
 
-bool AutoregressiveCoefficients::write(Core::BinaryOutputStream &o) const
-{
+bool AutoregressiveCoefficients::write(Core::BinaryOutputStream& o) const {
     o << gain_;
     o << (u32)a_.size();
     std::copy(a_.begin(), a_.end(), Core::BinaryOutputStream::Iterator<Coefficient>(o));
@@ -83,8 +81,7 @@ bool AutoregressiveCoefficients::write(Core::BinaryOutputStream &o) const
 
 //============================================================================
 
-bool AutocorrelationToAutoregressionNode::configure()
-{
+bool AutocorrelationToAutoregressionNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
@@ -93,21 +90,22 @@ bool AutocorrelationToAutoregressionNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool AutocorrelationToAutoregressionNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<f32> > autocorrelation;
+bool AutocorrelationToAutoregressionNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<f32>> autocorrelation;
     if (getData(0, autocorrelation)) {
         Flow::DataPtr<AutoregressiveCoefficients> out;
         if (!autocorrelation->empty()) {
             if (levinsonLeastSquares_.work(*autocorrelation)) {
-                out = Flow::dataPtr(new AutoregressiveCoefficients());
+                out         = Flow::dataPtr(new AutoregressiveCoefficients());
                 out->gain() = levinsonLeastSquares_.gain();
                 levinsonLeastSquares_.a(out->a());
                 out->setTimestamp(*autocorrelation);
-            } else {
+            }
+            else {
                 error("Failed to calculate the autoregression coefficients.");
             }
-        } else {
+        }
+        else {
             error("Input autocorrelation is empty.");
         }
         return putData(0, out.get());

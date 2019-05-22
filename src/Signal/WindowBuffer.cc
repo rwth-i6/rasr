@@ -12,29 +12,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <math.h>
+#include "WindowBuffer.hh"
 #include <Core/Assertions.hh>
 #include <Core/Utility.hh>
-#include "WindowBuffer.hh"
+#include <math.h>
 
 using namespace Signal;
-
 
 // WindowBuffer
 ///////////////
 
-WindowBuffer::WindowBuffer() :
-    length_(0),
-    shift_(0),
-    bufferStartTime_(0),
-    sampleRate_(0),
-    flushBeforeGap_(true),
-    nOutputs_(0),
-    flushed_(true),
-    flushAll_(false),
-    needInit_(true)
-{}
-
+WindowBuffer::WindowBuffer()
+        : length_(0),
+          shift_(0),
+          bufferStartTime_(0),
+          sampleRate_(0),
+          flushBeforeGap_(true),
+          nOutputs_(0),
+          flushed_(true),
+          flushAll_(false),
+          needInit_(true) {}
 
 void WindowBuffer::init() {
     verify(sampleRate_ > 0);
@@ -43,16 +40,14 @@ void WindowBuffer::init() {
     needInit_ = false;
 }
 
-
 void WindowBuffer::reset() {
     nOutputs_ = 0;
-    flushed_ = false;
+    flushed_  = false;
     buffer_.clear();
     bufferStartTime_ = 0;
 }
 
-
-bool WindowBuffer::put(const Flow::Vector<Sample> &in) {
+bool WindowBuffer::put(const Flow::Vector<Sample>& in) {
     if (needInit_) {
         init();
         ensure(!needInit_);
@@ -60,7 +55,8 @@ bool WindowBuffer::put(const Flow::Vector<Sample> &in) {
 
     if (buffer_.empty()) {
         bufferStartTime_ = in.startTime();
-    } else {
+    }
+    else {
         Time bufferEndTime = bufferStartTime_ + (Time)buffer_.size() / sampleRate_;
         if (flushBeforeGap_ && !in.equalsToStartTime(bufferEndTime))
             return false;
@@ -70,23 +66,20 @@ bool WindowBuffer::put(const Flow::Vector<Sample> &in) {
     return true;
 }
 
-
-void WindowBuffer::copy(Flow::Vector<Sample> &out, const u32 length) {
+void WindowBuffer::copy(Flow::Vector<Sample>& out, const u32 length) {
     out.clear();
     out.insert(out.end(), buffer_.begin(), buffer_.begin() + length);
 
     out.setStartTime(bufferStartTime_);
     out.setEndTime(bufferStartTime_ + (Time)out.size() / (Time)sampleRate_);
 
-    ++ nOutputs_;
+    ++nOutputs_;
 
     transform(out);
 }
 
-
-bool WindowBuffer::get(Flow::Vector<Sample> &out) {
+bool WindowBuffer::get(Flow::Vector<Sample>& out) {
     if (needInit_) {
-
         init();
         verify(!needInit_);
     }
@@ -103,8 +96,7 @@ bool WindowBuffer::get(Flow::Vector<Sample> &out) {
     return true;
 }
 
-
-bool WindowBuffer::flush(Flow::Vector<f32> &out) {
+bool WindowBuffer::flush(Flow::Vector<f32>& out) {
     if (needInit_) {
         init();
         verify(!needInit_);
@@ -125,7 +117,6 @@ bool WindowBuffer::flush(Flow::Vector<f32> &out) {
     if (flushed())
         needInit_ = true;
     else {
-
         buffer_.erase(buffer_.begin(), buffer_.begin() + shift_);
 
         bufferStartTime_ += (Time)shift_ / (Time)sampleRate_;

@@ -19,51 +19,42 @@
 
 namespace Signal {
 
+extern Core::ParameterInt paramFrameInterpolationOrder;
 
-    extern Core::ParameterInt paramFrameInterpolationOrder;
+/** FrameInterpolationNode: creates one elements for each elements read from "target" stream
+ *  by interpolation at target start-times.
+ *
+ *  For more details @see Flow::SynchronizationNode.
+ */
+template<class Algorithm>
+class FrameInterpolationNode : public Flow::SynchronizationNode<Algorithm> {
+private:
+    typedef Flow::SynchronizationNode<Algorithm> Precursor;
 
-    /** FrameInterpolationNode: creates one elements for each elements read from "target" stream
-     *  by interpolation at target start-times.
-     *
-     *  For more details @see Flow::SynchronizationNode.
-     */
-    template<class Algorithm>
-    class FrameInterpolationNode : public Flow::SynchronizationNode<Algorithm> {
-    private:
+public:
+    FrameInterpolationNode(const Core::Configuration& c);
 
-        typedef Flow::SynchronizationNode<Algorithm> Precursor;
+    virtual ~FrameInterpolationNode() {}
 
-    public:
+    bool setParameter(const std::string& name, const std::string& value);
+};
 
-        FrameInterpolationNode(const Core::Configuration &c);
+template<class Algorithm>
+FrameInterpolationNode<Algorithm>::FrameInterpolationNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c) {
+    this->setOrder(paramFrameInterpolationOrder(c));
+}
 
-        virtual ~FrameInterpolationNode() {}
+template<class Algorithm>
+bool FrameInterpolationNode<Algorithm>::setParameter(const std::string& name, const std::string& value) {
+    if (paramFrameInterpolationOrder.match(name))
+        this->setOrder(paramFrameInterpolationOrder(value));
+    else
+        return Precursor::setParameter(name, value);
 
+    return true;
+}
 
-        bool setParameter(const std::string &name, const std::string &value);
-    };
+}  // namespace Signal
 
-
-    template<class Algorithm>
-    FrameInterpolationNode<Algorithm>::FrameInterpolationNode(const Core::Configuration &c) :
-        Core::Component(c), Precursor(c)
-    {
-        this->setOrder(paramFrameInterpolationOrder(c));
-    }
-
-
-    template<class Algorithm>
-    bool FrameInterpolationNode<Algorithm>::setParameter(const std::string &name,
-                                                         const std::string &value) {
-
-        if (paramFrameInterpolationOrder.match(name))
-            this->setOrder(paramFrameInterpolationOrder(value));
-        else
-            return Precursor::setParameter(name, value);
-
-        return true;
-    }
-
-} // namespace Signal
-
-#endif // _SIGNAL_FRAME_INTERPOLATION_HH
+#endif  // _SIGNAL_FRAME_INTERPOLATION_HH

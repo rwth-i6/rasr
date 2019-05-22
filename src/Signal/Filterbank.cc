@@ -12,9 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <numeric>
 #include "Filterbank.hh"
 #include <Math/AnalyticFunctionFactory.hh>
+#include <numeric>
 #include <fenv.h>
 
 using namespace Signal;
@@ -32,46 +32,45 @@ private:
     size_t end_;
 
     std::vector<FilterWeight> weights_;
+
 public:
-    Filter(size_t start, size_t end, const std::vector<FilterWeight> &weights);
+    Filter(size_t start, size_t end, const std::vector<FilterWeight>& weights);
 
     void normalize(NormalizationType);
-    Data apply(const std::vector<Data> &in) const;
-    void dump(Core::XmlWriter &) const;
+    Data apply(const std::vector<Data>& in) const;
+    void dump(Core::XmlWriter&) const;
 };
 
-FilterBank::Filter::Filter(size_t start, size_t end, const std::vector<FilterWeight> &weights) :
-    start_(start), end_(end), weights_(weights)
-{
+FilterBank::Filter::Filter(size_t start, size_t end, const std::vector<FilterWeight>& weights)
+        : start_(start), end_(end), weights_(weights) {
     require(end_ >= start_);
     require(end_ - start_ == weights_.size());
 }
 
-void FilterBank::Filter::normalize(FilterBank::NormalizationType normalizationType)
-{
+void FilterBank::Filter::normalize(FilterBank::NormalizationType normalizationType) {
     if (normalizationType != FilterBank::normalizeNone) {
         FilterWeight normalizationTerm = 1;
         if (normalizationType == FilterBank::normalizeSurface) {
             normalizationTerm = std::accumulate(weights_.begin(), weights_.end(), (FilterWeight)0);
-        } else defect();
+        }
+        else
+            defect();
         std::transform(weights_.begin(), weights_.end(), weights_.begin(),
                        std::bind2nd(std::divides<FilterWeight>(), normalizationTerm));
     }
 }
 
-FilterBank::Data FilterBank::Filter::apply(const std::vector<Data> &in) const
-{
+FilterBank::Data FilterBank::Filter::apply(const std::vector<Data>& in) const {
     require(end_ <= in.size());
     FilterWeight result = 0;
-    for(size_t f = start_; f < end_; ++ f)
+    for (size_t f = start_; f < end_; ++f)
         result += in[f] * weights_[f - start_];
     return result;
 }
 
-void FilterBank::Filter::dump(Core::XmlWriter &o) const
-{
+void FilterBank::Filter::dump(Core::XmlWriter& o) const {
     o << Core::XmlOpen("filter");
-    for(size_t i = start_; i < end_; ++ i)
+    for (size_t i = start_; i < end_; ++i)
         o << i << " " << weights_[i - start_] << "\n";
     o << Core::XmlClose("filter");
 }
@@ -110,40 +109,46 @@ protected:
      *   delta warped-omega = d warping-function / d omega * delta omega.
      */
     Math::UnaryAnalyticFunctionRef derivedWarpingFunction_;
+
 private:
     virtual bool setStart();
     virtual bool setEnd();
-    bool setWeights();
+    bool         setWeights();
+
 protected:
     virtual FilterWeight weight(Frequency) const = 0;
+
 public:
-    FilterBuilder(const Core::Configuration &);
+    FilterBuilder(const Core::Configuration&);
     virtual ~FilterBuilder();
 
     Core::Ref<FilterBank::Filter> create(
             Frequency center, Frequency width, Frequency minimumFrequency, Frequency maximumFrequency,
-        Math::UnaryAnalyticFunctionRef discreteToContinuousFunction,
-        Math::UnaryAnalyticFunctionRef warpingFunction, bool warpDifferentialUnit);
+            Math::UnaryAnalyticFunctionRef discreteToContinuousFunction,
+            Math::UnaryAnalyticFunctionRef warpingFunction, bool warpDifferentialUnit);
 
     virtual Frequency normalizedCenterPosition() const = 0;
 };
 
-FilterBank::FilterBuilder::FilterBuilder(const Core::Configuration &c) :
-    Core::Component(c),
-    start_(0), end_(0), center_(0), width_(0)
-{}
+FilterBank::FilterBuilder::FilterBuilder(const Core::Configuration& c)
+        : Core::Component(c),
+          start_(0),
+          end_(0),
+          center_(0),
+          width_(0) {}
 
-FilterBank::FilterBuilder::~FilterBuilder()
-{}
+FilterBank::FilterBuilder::~FilterBuilder() {}
 
-Core::Ref<FilterBank::Filter> FilterBank::FilterBuilder::create(
-        Frequency center, Frequency width, Frequency minimumFrequency, Frequency maximumFrequency,
-    Math::UnaryAnalyticFunctionRef discreteToContinuousFunction,
-    Math::UnaryAnalyticFunctionRef warpingFunction, bool shouldWarpDifferentialUnit)
-{
+Core::Ref<FilterBank::Filter> FilterBank::FilterBuilder::create(Frequency                      center,
+                                                                Frequency                      width,
+                                                                Frequency                      minimumFrequency,
+                                                                Frequency                      maximumFrequency,
+                                                                Math::UnaryAnalyticFunctionRef discreteToContinuousFunction,
+                                                                Math::UnaryAnalyticFunctionRef warpingFunction,
+                                                                bool                           shouldWarpDifferentialUnit) {
     Core::Ref<FilterBank::Filter> result;
-    center_ = center;
-    width_ = width;
+    center_           = center;
+    width_            = width;
     minimumFrequency_ = minimumFrequency;
     maximumFrequency_ = maximumFrequency;
 
@@ -153,25 +158,26 @@ Core::Ref<FilterBank::Filter> FilterBank::FilterBuilder::create(
         if (shouldWarpDifferentialUnit) {
             if (warpingFunction->derive())
                 derivedWarpingFunction_ = Math::nest(warpingFunction->derive(), discreteToContinuousFunction);
-        } else {
+        }
+        else {
             derivedWarpingFunction_ = Math::AnalyticFunctionFactory::createConstant(1);
         }
         if (derivedWarpingFunction_) {
             if (setStart() && setEnd() && setWeights())
                 result = Core::ref(new Filter(start_, end_, weights_));
-        } else {
+        }
+        else {
             error("Warping function is not derivable.");
         }
-    } else {
+    }
+    else {
         error("Warping function is not invertible.");
     }
     return result;
 }
 
-bool FilterBank::FilterBuilder::setStart()
-{
-    Frequency start = continuousToDiscreteFunction_->value(
-            std::max(center_ - normalizedCenterPosition() * width_, minimumFrequency_));
+bool FilterBank::FilterBuilder::setStart() {
+    Frequency start = continuousToDiscreteFunction_->value(std::max(center_ - normalizedCenterPosition() * width_, minimumFrequency_));
     if (isAlmostInteger(start))
         start = Core::round(start);
     else
@@ -184,10 +190,8 @@ bool FilterBank::FilterBuilder::setStart()
     return false;
 }
 
-bool FilterBank::FilterBuilder::setEnd()
-{
-    Frequency end = continuousToDiscreteFunction_->value(
-        std::min(center_ + (1.0 - normalizedCenterPosition()) * width_, maximumFrequency_));
+bool FilterBank::FilterBuilder::setEnd() {
+    Frequency end = continuousToDiscreteFunction_->value(std::min(center_ + (1.0 - normalizedCenterPosition()) * width_, maximumFrequency_));
     if (isAlmostInteger(end))
         end = Core::round(end) + 1;
     else
@@ -200,13 +204,11 @@ bool FilterBank::FilterBuilder::setEnd()
     return false;
 }
 
-bool FilterBank::FilterBuilder::setWeights()
-{
+bool FilterBank::FilterBuilder::setWeights() {
     weights_.resize(end_ - start_);
-    for(u32 f = start_; f < end_; ++ f) {
+    for (u32 f = start_; f < end_; ++f) {
         verify(derivedWarpingFunction_->value(f) >= 0);
-        weights_[f - start_] = weight(discreteToContinuousFunction_->value(f)) *
-            derivedWarpingFunction_->value(f);
+        weights_[f - start_] = weight(discreteToContinuousFunction_->value(f)) * derivedWarpingFunction_->value(f);
         verify(weights_[f - start_] >= 0);
     }
     return true;
@@ -218,15 +220,17 @@ bool FilterBank::FilterBuilder::setWeights()
 class SymmetricalTriangularFilterBuilder : public FilterBank::FilterBuilder {
 protected:
     virtual FilterBank::FilterWeight weight(FilterBank::Frequency) const;
-public:
-    SymmetricalTriangularFilterBuilder(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::FilterBuilder(c) {}
 
-    virtual FilterBank::Frequency normalizedCenterPosition() const { return 0.5; }
+public:
+    SymmetricalTriangularFilterBuilder(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+
+    virtual FilterBank::Frequency normalizedCenterPosition() const {
+        return 0.5;
+    }
 };
 
-FilterBank::FilterWeight SymmetricalTriangularFilterBuilder::weight(FilterBank::Frequency frequency) const
-{
+FilterBank::FilterWeight SymmetricalTriangularFilterBuilder::weight(FilterBank::Frequency frequency) const {
     FilterBank::FilterWeight result = (FilterBank::Frequency)1 - Core::abs(frequency - center_) / (width_ / 2);
     /* start_ and end_ control that 'frequency' stays within the interval [center-halfWidth..center+halfWidth],
      * thus the resulting weight has to be larger or equal to zero. Nevertheless rounding error can yield
@@ -241,18 +245,23 @@ FilterBank::FilterWeight SymmetricalTriangularFilterBuilder::weight(FilterBank::
  */
 class TrapezeFilterBuilder : public FilterBank::FilterBuilder {
 private:
-    FilterBank::Frequency normalizedMiddleBorder() const { return 0.5 / (1.3 - (-2.5)); }
+    FilterBank::Frequency normalizedMiddleBorder() const {
+        return 0.5 / (1.3 - (-2.5));
+    }
+
 protected:
     virtual FilterBank::FilterWeight weight(FilterBank::Frequency) const;
-public:
-    TrapezeFilterBuilder(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::FilterBuilder(c) {}
 
-    virtual FilterBank::Frequency normalizedCenterPosition() const { return 2.5 / (1.3 - (-2.5)); }
+public:
+    TrapezeFilterBuilder(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+
+    virtual FilterBank::Frequency normalizedCenterPosition() const {
+        return 2.5 / (1.3 - (-2.5));
+    }
 };
 
-FilterBank::FilterWeight TrapezeFilterBuilder::weight(FilterBank::Frequency frequency) const
-{
+FilterBank::FilterWeight TrapezeFilterBuilder::weight(FilterBank::Frequency frequency) const {
     FilterBank::Frequency relativeFrequency = frequency - center_;
 
     FilterBank::Frequency middleLeftBorder = -normalizedMiddleBorder() * width_;
@@ -273,14 +282,20 @@ FilterBank::FilterWeight TrapezeFilterBuilder::weight(FilterBank::Frequency freq
  */
 class TrapezeRastaFilterBuilder : public FilterBank::FilterBuilder {
 private:
-    FilterBank::Frequency normalizedMiddleBorder() const { return 0.5 / (1.3 - (-2.5)); }
+    FilterBank::Frequency normalizedMiddleBorder() const {
+        return 0.5 / (1.3 - (-2.5));
+    }
+
 protected:
     virtual FilterBank::FilterWeight weight(FilterBank::Frequency) const;
-public:
-    TrapezeRastaFilterBuilder(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::FilterBuilder(c) {}
 
-    virtual FilterBank::Frequency normalizedCenterPosition() const { return 2.5 / (1.3 - (-2.5)); }
+public:
+    TrapezeRastaFilterBuilder(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+
+    virtual FilterBank::Frequency normalizedCenterPosition() const {
+        return 2.5 / (1.3 - (-2.5));
+    }
 
     // Start and end boundaries are different to the normal way, so change them here. Same for weights
     virtual bool setStart();
@@ -289,7 +304,7 @@ public:
 
 FilterBank::FilterWeight TrapezeRastaFilterBuilder::weight(FilterBank::Frequency frequency) const {
     FilterBank::Frequency relativeFrequency = frequency - center_;
-    FilterBank::Frequency middleBorder = normalizedMiddleBorder() * width_; // => 0.5
+    FilterBank::Frequency middleBorder      = normalizedMiddleBorder() * width_;  // => 0.5
 
     if (relativeFrequency <= -middleBorder)
         return pow(10, relativeFrequency + middleBorder);
@@ -301,9 +316,8 @@ FilterBank::FilterWeight TrapezeRastaFilterBuilder::weight(FilterBank::Frequency
 
 /**	Just round the index of the start position */
 bool TrapezeRastaFilterBuilder::setStart() {
-    FilterBank::Frequency start = continuousToDiscreteFunction_->value(
-            std::max(center_ - normalizedCenterPosition() * width_, minimumFrequency_));
-    start = Core::round(start);
+    FilterBank::Frequency start = continuousToDiscreteFunction_->value(std::max(center_ - normalizedCenterPosition() * width_, minimumFrequency_));
+    start                       = Core::round(start);
 
     // Check for negative boundary values ...
     if (start >= 0) {
@@ -318,8 +332,7 @@ bool TrapezeRastaFilterBuilder::setStart() {
 
 /**	Just round the index of the end position */
 bool TrapezeRastaFilterBuilder::setEnd() {
-    FilterBank::Frequency end = continuousToDiscreteFunction_->value(
-        std::min(center_ + (1.0 - normalizedCenterPosition()) * width_, maximumFrequency_));
+    FilterBank::Frequency end = continuousToDiscreteFunction_->value(std::min(center_ + (1.0 - normalizedCenterPosition()) * width_, maximumFrequency_));
 
     end = Core::round(end) + 1;
 
@@ -348,25 +361,30 @@ bool TrapezeRastaFilterBuilder::setEnd() {
 class FilterBank::Boundary : public virtual Core::Component {
 protected:
     typedef FilterBank::Frequency Frequency;
+
 protected:
-    Frequency filterWidth_;
-    Frequency spacing_;
-    Frequency normalizedCenterPosition_;
-    Frequency minimumFrequency_;
-    Frequency maximumFrequency_;
+    Frequency                      filterWidth_;
+    Frequency                      spacing_;
+    Frequency                      normalizedCenterPosition_;
+    Frequency                      minimumFrequency_;
+    Frequency                      maximumFrequency_;
     Math::UnaryAnalyticFunctionRef warpingFunction_;
     Math::UnaryAnalyticFunctionRef inverseWarpingFunction_;
+
 protected:
-    void setSpacing(Frequency Spacing);
-    bool setWarpingFunction(Math::UnaryAnalyticFunctionRef warpingFunction);
+    void      setSpacing(Frequency Spacing);
+    bool      setWarpingFunction(Math::UnaryAnalyticFunctionRef warpingFunction);
     Frequency postprocessNumberOfFilters(Frequency nFilters) const;
+
 protected:
-    Boundary(const Core::Configuration &c) :
-        Core::Component(c),
-        filterWidth_(0), spacing_(0),
-        normalizedCenterPosition_(0),
-        minimumFrequency_(0),
-        maximumFrequency_(0) {}
+    Boundary(const Core::Configuration& c)
+            : Core::Component(c),
+              filterWidth_(0),
+              spacing_(0),
+              normalizedCenterPosition_(0),
+              minimumFrequency_(0),
+              maximumFrequency_(0) {}
+
 public:
     virtual ~Boundary() {}
 
@@ -380,48 +398,47 @@ public:
      *  Complete initialization of the object.
      */
     virtual bool init(Frequency filterWidth, Frequency spacing,
-                      Frequency normalizedCenterPosition,
-                      Frequency minimumFrequency,
-                      Frequency maximumFrequency,
+                      Frequency                      normalizedCenterPosition,
+                      Frequency                      minimumFrequency,
+                      Frequency                      maximumFrequency,
                       Math::UnaryAnalyticFunctionRef warpingFunction);
 
-    Frequency filterWidth() const { return filterWidth_; }
+    Frequency filterWidth() const {
+        return filterWidth_;
+    }
 
     virtual Frequency center(size_t filterIndex) const = 0;
-    virtual size_t getNumberOfFilters() const = 0;
+    virtual size_t    getNumberOfFilters() const       = 0;
     /**
      *  @return is sample rate of the output of the filter-bank.
      *  Thus, output is inverse of distances between the filters.
      *  If centers are warped the distance is constant over the warped axes else
      *  distance is constant over the original unwarped axis.
      */
-    virtual Frequency outputSampleRate() const { return (Frequency)1 / spacing_; }
+    virtual Frequency outputSampleRate() const {
+        return (Frequency)1 / spacing_;
+    }
 };
 
-void FilterBank::Boundary::init(
-    Frequency filterWidth, Frequency spacing,
-    Frequency normalizedCenterPosition)
-{
-    filterWidth_ = filterWidth;
+void FilterBank::Boundary::init(Frequency filterWidth, Frequency spacing, Frequency normalizedCenterPosition) {
+    filterWidth_              = filterWidth;
     normalizedCenterPosition_ = normalizedCenterPosition;
     setSpacing(spacing);
 }
 
-bool FilterBank::Boundary::init(
-    Frequency filterWidth, Frequency spacing,
-    Frequency normalizedCenterPosition,
-    Frequency minimumFrequency,
-    Frequency maximumFrequency,
-    Math::UnaryAnalyticFunctionRef warpingFunction)
-{
+bool FilterBank::Boundary::init(Frequency                      filterWidth,
+                                Frequency                      spacing,
+                                Frequency                      normalizedCenterPosition,
+                                Frequency                      minimumFrequency,
+                                Frequency                      maximumFrequency,
+                                Math::UnaryAnalyticFunctionRef warpingFunction) {
     init(filterWidth, spacing, normalizedCenterPosition);
     minimumFrequency_ = minimumFrequency;
     maximumFrequency_ = maximumFrequency;
     return setWarpingFunction(warpingFunction);
 }
 
-void FilterBank::Boundary::setSpacing(Frequency spacing)
-{
+void FilterBank::Boundary::setSpacing(Frequency spacing) {
     verify(normalizedCenterPosition_ > 0);
     verify(filterWidth_ > 0);
     spacing_ = spacing;
@@ -429,8 +446,7 @@ void FilterBank::Boundary::setSpacing(Frequency spacing)
         spacing_ = normalizedCenterPosition_ * filterWidth_;
 }
 
-bool FilterBank::Boundary::setWarpingFunction(Math::UnaryAnalyticFunctionRef warpingFunction)
-{
+bool FilterBank::Boundary::setWarpingFunction(Math::UnaryAnalyticFunctionRef warpingFunction) {
     warpingFunction_ = warpingFunction;
     if (!warpingFunction_)
         warpingFunction_ = Math::AnalyticFunctionFactory::createIdentity();
@@ -440,11 +456,11 @@ bool FilterBank::Boundary::setWarpingFunction(Math::UnaryAnalyticFunctionRef war
     return (bool)inverseWarpingFunction_;
 }
 
-FilterBank::Boundary::Frequency FilterBank::Boundary::postprocessNumberOfFilters(
-    Frequency nFilters) const
-{
-    if (nFilters < 1) return 1;
-    if (isAlmostInteger(nFilters)) return Core::round(nFilters);
+FilterBank::Boundary::Frequency FilterBank::Boundary::postprocessNumberOfFilters(Frequency nFilters) const {
+    if (nFilters < 1)
+        return 1;
+    if (isAlmostInteger(nFilters))
+        return Core::round(nFilters);
     return nFilters;
 }
 
@@ -458,24 +474,24 @@ FilterBank::Boundary::Frequency FilterBank::Boundary::postprocessNumberOfFilters
  *  -Note that if spacing > normalized-center * filter-width, the leftmost few input values will
  *   not contribute to the results.
  */
-class IncludeBoundary: public FilterBank::Boundary {
+class IncludeBoundary : public FilterBank::Boundary {
     typedef FilterBank::Boundary Precursor;
+
 public:
-    IncludeBoundary(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::Boundary(c) {}
+    IncludeBoundary(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::Boundary(c) {}
     virtual Frequency center(size_t filterIndex) const {
         return warpingFunction_->value(spacing_ * (filterIndex + 1));
     }
     virtual size_t getNumberOfFilters() const;
 };
 
-size_t IncludeBoundary::getNumberOfFilters() const
-{
+size_t IncludeBoundary::getNumberOfFilters() const {
     return (size_t)Core::ceil(
-        postprocessNumberOfFilters(
-            inverseWarpingFunction_->value(
-                maximumFrequency_ - (1 - normalizedCenterPosition_) * filterWidth_) /
-            spacing_));
+            postprocessNumberOfFilters(
+                    inverseWarpingFunction_->value(
+                            maximumFrequency_ - (1 - normalizedCenterPosition_) * filterWidth_) /
+                    spacing_));
 }
 
 /**
@@ -494,16 +510,18 @@ size_t IncludeBoundary::getNumberOfFilters() const
  *                                 input arrives, thus it will be set to 1.
  *  -Pre-warping of centers is supported in this boundary type since pre-warping introduces non-linearities.
  */
-class StretchToCover: public FilterBank::Boundary {
+class StretchToCover : public FilterBank::Boundary {
     typedef FilterBank::Boundary Precursor;
-public:
-    StretchToCover(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::Boundary(c) {}
 
-    virtual bool init(Frequency filterWidth, Frequency spacing,
-                      Frequency normalizedCenterPosition,
-                      Frequency minimumFrequency,
-                      Frequency maximumFrequency,
+public:
+    StretchToCover(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::Boundary(c) {}
+
+    virtual bool init(Frequency                      filterWidth,
+                      Frequency                      spacing,
+                      Frequency                      normalizedCenterPosition,
+                      Frequency                      minimumFrequency,
+                      Frequency                      maximumFrequency,
                       Math::UnaryAnalyticFunctionRef warpingFunction);
 
     virtual Frequency center(size_t filterIndex) const {
@@ -511,30 +529,31 @@ public:
     }
     virtual size_t getNumberOfFilters() const {
         return (size_t)Core::floor(postprocessNumberOfFilters(
-                    (maximumFrequency_ - minimumFrequency_ - filterWidth_) / spacing_ + 1));
+                (maximumFrequency_ - minimumFrequency_ - filterWidth_) / spacing_ + 1));
     }
-    virtual Frequency outputSampleRate() const { return (Frequency)1; }
+    virtual Frequency outputSampleRate() const {
+        return (Frequency)1;
+    }
 };
 
-bool StretchToCover::init(
-    Frequency filterWidth, Frequency spacing,
-    Frequency normalizedCenterPosition,
-    Frequency minimumFrequency,
-    Frequency maximumFrequency,
-    Math::UnaryAnalyticFunctionRef warpingFunction)
-{
-    if (warpingFunction) // unwarping of center not possible in this boundary type.
+bool StretchToCover::init(Frequency                      filterWidth,
+                          Frequency                      spacing,
+                          Frequency                      normalizedCenterPosition,
+                          Frequency                      minimumFrequency,
+                          Frequency                      maximumFrequency,
+                          Math::UnaryAnalyticFunctionRef warpingFunction) {
+    if (warpingFunction)  // unwarping of center not possible in this boundary type.
         return false;
 
     Precursor::init(filterWidth, spacing, normalizedCenterPosition,
-            minimumFrequency, maximumFrequency, warpingFunction);
+                    minimumFrequency, maximumFrequency, warpingFunction);
 
-    size_t nFilters = getNumberOfFilters();
-    Frequency coverage = (spacing_ * (nFilters - 1) + filterWidth_) / (maximumFrequency_-minimumFrequency_);
+    size_t    nFilters = getNumberOfFilters();
+    Frequency coverage = (spacing_ * (nFilters - 1) + filterWidth_) / (maximumFrequency_ - minimumFrequency_);
     if (nFilters == 1 && Core::isSignificantlyGreater(coverage, 1))
-        return true; // If single filter ensures full coverage, then do not shrink it.
+        return true;  // If single filter ensures full coverage, then do not shrink it.
 
-    require(Core::isAlmostEqual(coverage, 1) || coverage < 1); // If fails then nFilters was too high
+    require(Core::isAlmostEqual(coverage, 1) || coverage < 1);  // If fails then nFilters was too high
     filterWidth_ /= coverage;
     spacing_ /= coverage;
     return true;
@@ -547,114 +566,119 @@ bool StretchToCover::init(
  *  =>Number of filters = ceil(maximal-frequency / spacing + 1)
  *  -Sample rate of output vector: 1.0 / spacing.
  */
-class EmphasizeBoundary: public FilterBank::Boundary {
+class EmphasizeBoundary : public FilterBank::Boundary {
     typedef FilterBank::Boundary Precursor;
+
 public:
-    EmphasizeBoundary(const Core::Configuration &c) :
-        Core::Component(c), FilterBank::Boundary(c) {}
+    EmphasizeBoundary(const Core::Configuration& c)
+            : Core::Component(c), FilterBank::Boundary(c) {}
 
     virtual Frequency center(size_t filterIndex) const {
         return warpingFunction_->value(spacing_ * filterIndex);
     }
     virtual size_t getNumberOfFilters() const {
-        return (size_t)Core::floor(
-            postprocessNumberOfFilters(
-                inverseWarpingFunction_->value(maximumFrequency_) / spacing_ + 1));
+        return (size_t)Core::floor(postprocessNumberOfFilters(inverseWarpingFunction_->value(maximumFrequency_) / spacing_ + 1));
     }
 };
 
 //============================================================================================
-FilterBank::FilterBank(const Core::Configuration &c) :
-    Core::Component(c),
-    builder_(0),
-    boundary_(0),
-    filterWidth_(0),
-    spacing_(0),
-    minimumFrequency_(0),
-    maximumFrequency_(0),
-    shouldWarpDifferenctialUnit_(true),
-    shouldWarpCenterPositions_(true),
-    normalizationType_(normalizeNone),
-    needInit_(true)
-{}
+FilterBank::FilterBank(const Core::Configuration& c)
+        : Core::Component(c),
+          builder_(0),
+          boundary_(0),
+          filterWidth_(0),
+          spacing_(0),
+          minimumFrequency_(0),
+          maximumFrequency_(0),
+          shouldWarpDifferenctialUnit_(true),
+          shouldWarpCenterPositions_(true),
+          normalizationType_(normalizeNone),
+          needInit_(true) {}
 
-FilterBank::~FilterBank()
-{
+FilterBank::~FilterBank() {
     delete builder_;
     delete boundary_;
 }
 
-void FilterBank::setFilterType(FilterType type)
-{
+void FilterBank::setFilterType(FilterType type) {
     delete builder_;
-    switch(type) {
-    case typeTriangular: builder_ = new SymmetricalTriangularFilterBuilder(select("filter-builder"));
-        break;
-    case typeTrapeze: builder_ = new TrapezeFilterBuilder(select("filter-builder"));
-        break;
-    case typeRastaTrapeze: builder_ = new TrapezeRastaFilterBuilder(select("filter-builder"));
-        break;
-    default:
-        defect();
+    switch (type) {
+        case typeTriangular:
+            builder_ = new SymmetricalTriangularFilterBuilder(select("filter-builder"));
+            break;
+        case typeTrapeze:
+            builder_ = new TrapezeFilterBuilder(select("filter-builder"));
+            break;
+        case typeRastaTrapeze:
+            builder_ = new TrapezeRastaFilterBuilder(select("filter-builder"));
+            break;
+        default:
+            defect();
     }
     needInit_ = true;
 }
 
-void FilterBank::setBoundaryType(BoundaryType type)
-{
+void FilterBank::setBoundaryType(BoundaryType type) {
     delete boundary_;
-    switch(type) {
-    case includeBoundary: boundary_ = new IncludeBoundary(select("boundary"));
-        break;
-    case stretchToCover: boundary_ = new StretchToCover(select("boundary"));
-        break;
-    case emphasizeBoundary: boundary_ = new EmphasizeBoundary(select("boundary"));
-        break;
-    default:
-        defect();
+    switch (type) {
+        case includeBoundary:
+            boundary_ = new IncludeBoundary(select("boundary"));
+            break;
+        case stretchToCover:
+            boundary_ = new StretchToCover(select("boundary"));
+            break;
+        case emphasizeBoundary:
+            boundary_ = new EmphasizeBoundary(select("boundary"));
+            break;
+        default:
+            defect();
     }
     needInit_ = true;
 }
 
-bool FilterBank::init()
-{
+bool FilterBank::init() {
     if (!builder_ || !boundary_ || (maximumFrequency_ == 0) ||
-        !boundary_->init(filterWidth_, spacing_,
-                builder_->normalizedCenterPosition(), minimumFrequency_, maximumFrequency_,
+        !boundary_->init(filterWidth_,
+                         spacing_,
+                         builder_->normalizedCenterPosition(),
+                         minimumFrequency_,
+                         maximumFrequency_,
                          shouldWarpCenterPositions_ ? Math::UnaryAnalyticFunctionRef() : warpingFunction_)) {
         return false;
     }
     filters_.resize(boundary_->getNumberOfFilters());
-    for(size_t i = 0; i < filters_.size(); ++ i) {
+    for (size_t i = 0; i < filters_.size(); ++i) {
         filters_[i] = builder_->create(boundary_->center(i),
-                boundary_->filterWidth(), minimumFrequency_, maximumFrequency_,
+                                       boundary_->filterWidth(),
+                                       minimumFrequency_,
+                                       maximumFrequency_,
                                        discreteToContinuousFunction_,
                                        warpingFunction_, shouldWarpDifferentialUnit());
-        if (!filters_[i]) return false;
+        if (!filters_[i])
+            return false;
         filters_[i]->normalize(normalizationType_);
     }
     return !(needInit_ = false);
 }
 
-void FilterBank::apply(const std::vector<Data>& in, std::vector<Data>& out)
-{
-    if (needInit_ && !init()) defect();
+void FilterBank::apply(const std::vector<Data>& in, std::vector<Data>& out) {
+    if (needInit_ && !init())
+        defect();
     out.resize(filters_.size());
-    for(size_t f = 0; f < filters_.size(); ++ f)
+    for (size_t f = 0; f < filters_.size(); ++f)
         out[f] = filters_[f]->apply(in);
 }
 
-void FilterBank::dump(Core::XmlWriter &o)
-{
-    if (needInit_) init();
+void FilterBank::dump(Core::XmlWriter& o) {
+    if (needInit_)
+        init();
     o << Core::XmlOpen("filter-bank") + Core::XmlAttribute("warping-function", warpingFunctionName_);
-    for(size_t f = 0; f < filters_.size(); ++ f)
+    for (size_t f = 0; f < filters_.size(); ++f)
         filters_[f]->dump(o);
     o << Core::XmlClose("filter-bank");
 }
 
-FilterBank::Frequency FilterBank::outputSampleRate()
-{
+FilterBank::Frequency FilterBank::outputSampleRate() {
     if (needInit_) {
         verify(builder_);
         boundary_->init(filterWidth_, spacing_, builder_->normalizedCenterPosition());
@@ -662,65 +686,63 @@ FilterBank::Frequency FilterBank::outputSampleRate()
     return boundary_->outputSampleRate();
 }
 
-bool FilterBank::isAlmostInteger(Frequency x)
-{
+bool FilterBank::isAlmostInteger(Frequency x) {
     static Frequency tolerance = 1e-10;
     return Core::abs(x - Core::round(x)) < tolerance;
 }
 
 //============================================================================================
 const Core::Choice FilterBankNode::choiceFilterType(
-    "triangular", typeTriangular,
-    "trapeze", typeTrapeze,
-    "trapezeRasta", typeRastaTrapeze,
-    Core::Choice::endMark());
+        "triangular", typeTriangular,
+        "trapeze", typeTrapeze,
+        "trapezeRasta", typeRastaTrapeze,
+        Core::Choice::endMark());
 const Core::ParameterChoice FilterBankNode::paramFilterType(
-    "type", &choiceFilterType, "filter bank type", typeTriangular);
+        "type", &choiceFilterType, "filter bank type", typeTriangular);
 
 const Core::ParameterFloat FilterBankNode::paramFilterWidth(
-    "filter-width", "width of one filter in continuous units.", 268.258, 0);
+        "filter-width", "width of one filter in continuous units.", 268.258, 0);
 const Core::ParameterFloat FilterBankNode::paramSpacing(
-    "spacing", "distance between two neighboring filters.", 0, 0);
+        "spacing", "distance between two neighboring filters.", 0, 0);
 
 const Core::Choice FilterBankNode::choiceBoundaryType(
-    "include-boundary", FilterBank::includeBoundary,
-    "stretch-to-cover", FilterBank::stretchToCover,
-    "emphasize-boundary", FilterBank::emphasizeBoundary,
-    Core::Choice::endMark());
+        "include-boundary", FilterBank::includeBoundary,
+        "stretch-to-cover", FilterBank::stretchToCover,
+        "emphasize-boundary", FilterBank::emphasizeBoundary,
+        Core::Choice::endMark());
 const Core::ParameterChoice FilterBankNode::paramBoundaryType(
-    "boundary", &choiceBoundaryType, "boundary type", FilterBank::stretchToCover);
+        "boundary", &choiceBoundaryType, "boundary type", FilterBank::stretchToCover);
 
 const Core::ParameterFloat FilterBankNode::paramFilteringIntervalStart(
-    "filtering-interval-start", "Filters are placed only over this frequency.", 0, 0);
+        "filtering-interval-start", "Filters are placed only over this frequency.", 0, 0);
 const Core::ParameterFloat FilterBankNode::paramFilteringInterval(
-    "filtering-interval", "Filters are placed only below this frequency.", Core::Type<f32>::max, 0);
+        "filtering-interval", "Filters are placed only below this frequency.", Core::Type<f32>::max, 0);
 
 const Core::Choice FilterBankNode::choiceNormalizationType(
-    "none", FilterBank::normalizeNone,
-    "surface", FilterBank::normalizeSurface,
-    Core::Choice::endMark());
+        "none", FilterBank::normalizeNone,
+        "surface", FilterBank::normalizeSurface,
+        Core::Choice::endMark());
 const Core::ParameterChoice FilterBankNode::paramNormalizationType(
-    "normalization", &choiceNormalizationType, "filterbank type", FilterBank::normalizeNone);
+        "normalization", &choiceNormalizationType, "filterbank type", FilterBank::normalizeNone);
 
 const Core::ParameterString FilterBankNode::paramWarpingFunction(
-    "warping-function", "warping function declaration");
+        "warping-function", "warping function declaration");
 const Core::ParameterBool FilterBankNode::paramShouldWarpDifferentialUnit(
-    "warp-differential-unit", "Controls if derivative of warping function is applied.", true);
+        "warp-differential-unit", "Controls if derivative of warping function is applied.", true);
 const Core::ParameterBool FilterBankNode::paramShouldWarpCenterPositions(
-    "warp-center-positions", "Controls if filter center position are warped.", true);
+        "warp-center-positions", "Controls if filter center position are warped.", true);
 
-FilterBankNode::FilterBankNode(const Core::Configuration &c) :
-    Core::Component(c),
-    Node(c),
-    FilterBank(c),
-    StringExpressionNode(c, 1),
-    filteringIntervalStart_(0),
-    filteringInterval_(Core::Type<f32>::max),
-    inputSize_(0),
-    sampleRate_(0),
-    needInit_(true),
-    dumpChannel_(c, "dump-filters")
-{
+FilterBankNode::FilterBankNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Node(c),
+          FilterBank(c),
+          StringExpressionNode(c, 1),
+          filteringIntervalStart_(0),
+          filteringInterval_(Core::Type<f32>::max),
+          inputSize_(0),
+          sampleRate_(0),
+          needInit_(true),
+          dumpChannel_(c, "dump-filters") {
     addInput(0);
     addOutput(0);
 
@@ -736,11 +758,9 @@ FilterBankNode::FilterBankNode(const Core::Configuration &c) :
     Flow::StringExpressionNode::setTemplate(paramWarpingFunction(c));
 }
 
-FilterBankNode::~FilterBankNode()
-{}
+FilterBankNode::~FilterBankNode() {}
 
-void FilterBankNode::init(u32 inputSize)
-{
+void FilterBankNode::init(u32 inputSize) {
     if (inputSize == 0)
         error("Empty input vector.");
     inputSize_ = inputSize;
@@ -757,7 +777,8 @@ void FilterBankNode::init(u32 inputSize)
         if (maximumFrequency < filteringInterval_) {
             error("Filter interval (%f) is broader than the the input vector (%f). ",
                   filteringInterval_, maximumFrequency);
-        } else
+        }
+        else
             maximumFrequency = filteringInterval_;
     }
 
@@ -768,14 +789,13 @@ void FilterBankNode::init(u32 inputSize)
     if (!isConfigurationAllowed())
         error("This configuration of the filter bank is not allowed.");
     respondToDelayedErrors();
-    if (dumpChannel_.isOpen()) dump(dumpChannel_);
+    if (dumpChannel_.isOpen())
+        dump(dumpChannel_);
     needInit_ = false;
 }
 
-void FilterBankNode::createAnalyticFunction(
-    Math::UnaryAnalyticFunctionRef &discreteToContinuousFunction,
-    Math::UnaryAnalyticFunctionRef &warpingFunction)
-{
+void FilterBankNode::createAnalyticFunction(Math::UnaryAnalyticFunctionRef& discreteToContinuousFunction,
+                                            Math::UnaryAnalyticFunctionRef& warpingFunction) {
     verify(inputSize_ > 0);
 
     Math::AnalyticFunctionFactory factory(select(paramWarpingFunction.name()));
@@ -787,16 +807,16 @@ void FilterBankNode::createAnalyticFunction(
     factory.setMaximalArgument(discreteToContinuousFunction->value(inputSize_ - 1));
 
     // Continuous to warped continuous
-    warpingFunction = factory.createIdentity();
+    warpingFunction         = factory.createIdentity();
     std::string declaration = StringExpressionNode::value();
     if (!declaration.empty()) {
         warpingFunction = factory.createUnaryFunction(declaration);
-        if (!warpingFunction) error("Failed to create warping function.");
+        if (!warpingFunction)
+            error("Failed to create warping function.");
     }
 }
 
-bool FilterBankNode::setParameter(const std::string &name, const std::string &value)
-{
+bool FilterBankNode::setParameter(const std::string& name, const std::string& value) {
     if (paramFilterType.match(name))
         setFilterType((FilterType)paramFilterType(value));
     else if (paramFilterWidth.match(name))
@@ -822,8 +842,7 @@ bool FilterBankNode::setParameter(const std::string &name, const std::string &va
     return true;
 }
 
-bool FilterBankNode::configure()
-{
+bool FilterBankNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<f32>::type()))
@@ -836,9 +855,8 @@ bool FilterBankNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool FilterBankNode::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<f32> > in;
+bool FilterBankNode::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in))
         return putData(0, in.get());
 
@@ -849,7 +867,7 @@ bool FilterBankNode::work(Flow::PortId p)
         criticalError("Input size (%zd) does not match the expected input size (%d)",
                       in->size(), inputSize_);
     }
-    Flow::Vector<f32> *out = new Flow::Vector<f32>;
+    Flow::Vector<f32>* out = new Flow::Vector<f32>;
     out->setTimestamp(*in);
     apply(*in, *out);
     return putData(0, out);

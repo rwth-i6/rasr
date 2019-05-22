@@ -20,45 +20,46 @@
 
 namespace Signal {
 
-template <class T>
+template<class T>
 class ProjectionNode : public Flow::SleeveNode {
 private:
-    static const Core::ParameterString  paramProjectionComponents;
+    static const Core::ParameterString paramProjectionComponents;
     // components_[i] = -1 : discard component
     // components_[i] = j: j-th component of projected vector = i-th component of input vector
     std::vector<s32> components_;
-    u32 nComponents_;
-    std::string componentsFilename_;
+    u32              nComponents_;
+    std::string      componentsFilename_;
+
 protected:
-    virtual void loadComponents(const std::string &filename);
+    virtual void loadComponents(const std::string& filename);
+
 public:
     static std::string filterName() {
         return std::string("projection-") + Core::Type<T>::name;
     }
+
 public:
-    ProjectionNode(const Core::Configuration &c);
+    ProjectionNode(const Core::Configuration& c);
     virtual ~ProjectionNode();
 
-    Flow::PortId getInput(const std::string &name) {
+    Flow::PortId getInput(const std::string& name) {
         return 0;
     }
-    Flow::PortId getOutput(const std::string &name) { return 0; }
+    Flow::PortId getOutput(const std::string& name) {
+        return 0;
+    }
     virtual bool configure();
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool work(Flow::PortId p);
-
 };
 
-
 template<class T>
-const Core::ParameterString  ProjectionNode<T>::paramProjectionComponents(
+const Core::ParameterString ProjectionNode<T>::paramProjectionComponents(
         "components-file", "name of file to load");
 
-
 template<class T>
-ProjectionNode<T>::ProjectionNode(const Core::Configuration &c) :
-    Component(c), SleeveNode(c)
-    {
+ProjectionNode<T>::ProjectionNode(const Core::Configuration& c)
+        : Component(c), SleeveNode(c) {
     log() << "Initializing projection";
     addInput(0);
     addOutput(0);
@@ -70,8 +71,7 @@ template<class T>
 ProjectionNode<T>::~ProjectionNode() {}
 
 template<class T>
-bool ProjectionNode<T>::configure()
-{
+bool ProjectionNode<T>::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, Flow::Vector<T>::type()))
@@ -79,11 +79,9 @@ bool ProjectionNode<T>::configure()
     return putOutputAttributes(0, attributes);
 }
 
-
 template<class T>
-bool ProjectionNode<T>::setParameter(const std::string &name, const std::string &value)
-{
-    if (paramProjectionComponents.match(name)){
+bool ProjectionNode<T>::setParameter(const std::string& name, const std::string& value) {
+    if (paramProjectionComponents.match(name)) {
         componentsFilename_ = value;
         loadComponents(componentsFilename_);
     }
@@ -92,21 +90,17 @@ bool ProjectionNode<T>::setParameter(const std::string &name, const std::string 
     return true;
 }
 
-
-
 template<class T>
-bool ProjectionNode<T>::work(Flow::PortId p)
-{
-    Flow::DataPtr<Flow::Vector<T> > in;
+bool ProjectionNode<T>::work(Flow::PortId p) {
+    Flow::DataPtr<Flow::Vector<T>> in;
     if (!getData(0, in))
         return putData(0, in.get());
 
-
-    Flow::Vector<T> *out = new Flow::Vector<T>;
+    Flow::Vector<T>* out = new Flow::Vector<T>;
 
     //loop over components
     u32 cmp = 0;
-    for (u32 i = 0; i < nComponents_; i++){
+    for (u32 i = 0; i < nComponents_; i++) {
         cmp = components_[i];
         out->push_back((*in)[cmp]);
     }
@@ -114,26 +108,22 @@ bool ProjectionNode<T>::work(Flow::PortId p)
     return putData(0, out);
 }
 
-
-
-template <typename T>
-void ProjectionNode<T>::loadComponents(const std::string &filename)
-{
+template<typename T>
+void ProjectionNode<T>::loadComponents(const std::string& filename) {
     if (filename.empty()) {
         error() << "components filename is empty.";
     }
-    else
-    {
+    else {
         components_.clear();
         nComponents_ = 0;
-        s32 cmp = 0;
+        s32 cmp      = 0;
 
         Core::TextInputStream tis(filename);
-        if (!tis.good()){
+        if (!tis.good()) {
             error() << "failed to read from components file";
         }
-        while(tis >> cmp){
-            if (nComponents_ >= 1){
+        while (tis >> cmp) {
+            if (nComponents_ >= 1) {
                 require(components_.back() < cmp);
             }
             components_.push_back(cmp);
@@ -142,9 +132,6 @@ void ProjectionNode<T>::loadComponents(const std::string &filename)
     }
 }
 
-
-}
-
-
+}  // namespace Signal
 
 #endif /* PROJECTIONNODE_HH_ */

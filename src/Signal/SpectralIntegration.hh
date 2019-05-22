@@ -15,7 +15,6 @@
 #ifndef _SIGNAL_SPECTRALINTEGRATION_HH
 #define _SIGNAL_SPECTRALINTEGRATION_HH
 
-
 #include <Core/Parameter.hh>
 
 #include <Flow/Data.hh>
@@ -23,66 +22,74 @@
 #include "Node.hh"
 #include "WindowFunction.hh"
 
-
-
 namespace Signal {
 
-  /**
-   * Performs a reduction of the spectral dimension of a (Gammatone) filterbank output.
-   * A window of the length length is applied and the samples are
-   * summed up, weighted by the window function. The window is then shifted along the spectral
-   * axis.
-   */
+/**
+ * Performs a reduction of the spectral dimension of a (Gammatone) filterbank output.
+ * A window of the length length is applied and the samples are
+ * summed up, weighted by the window function. The window is then shifted along the spectral
+ * axis.
+ */
 
-  class SpectralIntegration {
-  public:
-    typedef Flow::Time Time;
+class SpectralIntegration {
+public:
+    typedef Flow::Time        Time;
     typedef Flow::Vector<f32> Sample;
+    typedef SleeveNode        Predecessor;
+
+private:
+    u32             length_;
+    u32             shift_;
+    WindowFunction* windowFunction_;
+
+protected:
+    virtual void init();
+    void         apply(const Flow::Vector<Sample>& in, Flow::Vector<Sample>& out);
+
+public:
+    SpectralIntegration();
+    virtual ~SpectralIntegration();
+
+    void setWindowFunction(WindowFunction* windowFunction);
+
+    void setLength(u32 length);
+    u32  length() const {
+        return length_;
+    }
+
+    void setShift(u32 shift);
+    u32  shift() const {
+        return shift_;
+    }
+};
+
+/**
+ * Spectral Integration Node
+ * Parameters:
+ * shift: shift length
+ * length: window length
+ */
+class SpectralIntegrationNode : public SleeveNode, SpectralIntegration {
+public:
     typedef SleeveNode Predecessor;
-    private:
-      u32 length_;
-      u32 shift_;
-      WindowFunction* windowFunction_;
-    protected:
-        virtual void init();
-    void apply(const Flow::Vector<Sample> &in, Flow::Vector<Sample> &out);
-    public:
-        SpectralIntegration();
-        virtual ~SpectralIntegration();
 
-        void setWindowFunction(WindowFunction* windowFunction);
+private:
+    static const Core::ParameterFloat paramShift;
+    static const Core::ParameterFloat paramLength;
 
-        void setLength(u32 length);
-        u32 length() const { return length_; }
+public:
+    static std::string filterName() {
+        return "signal-spectralintegration";
+    }
 
-        void setShift(u32 shift);
-        u32 shift() const { return shift_; }
-  };
+    SpectralIntegrationNode(const Core::Configuration& c);
+    virtual ~SpectralIntegrationNode() {}
 
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+    virtual bool work(Flow::PortId p);
+};
 
-    /**
-     * Spectral Integration Node
-     * Parameters:
-     * shift: shift length
-     * length: window length
-     */
-  class SpectralIntegrationNode : public SleeveNode, SpectralIntegration {
-    public:
-        typedef SleeveNode Predecessor;
-    private:
-        static const Core::ParameterFloat paramShift;
-        static const Core::ParameterFloat paramLength;
-    public:
-        static std::string filterName() { return "signal-spectralintegration"; }
-
-        SpectralIntegrationNode(const Core::Configuration &c);
-        virtual ~SpectralIntegrationNode() {}
-
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-      virtual bool work(Flow::PortId p);
-    };
-
-}
+}  // namespace Signal
 
 #endif

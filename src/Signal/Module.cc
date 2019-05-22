@@ -12,19 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include "Module.hh"
 #include <Flow/Registry.hh>
+#include <Modules.hh>
 #include "ComplexVectorFunction.hh"
 #include "CosineTransform.hh"
 #include "DcDetection.hh"
 #include "Delay.hh"
 #include "FastFourierTransform.hh"
+#include "FastMatrixMult.hh"
 #include "Filterbank.hh"
 #include "FramePrediction.hh"
 #include "MatrixMult.hh"
 #include "Mrasta.hh"
-#include "FastMatrixMult.hh"
 #include "Normalization.hh"
 #include "Preemphasis.hh"
 #include "Regression.hh"
@@ -44,11 +44,16 @@
 #endif
 #ifdef MODULE_SIGNAL_ADVANCED
 #include "FrameInterpolation.hh"
+#include "GenericWarping.hh"
 #include "HarmonicSum.hh"
 #include "HistogramNormalization.hh"
 #include "LinearFilter.hh"
+#include "LinearWarping.hh"
 #include "Lpc.hh"
+#include "MeanEstimator.hh"
+#include "NthOrderFeatures.hh"
 #include "PolinomialVectorInterpolation.hh"
+#include "ProjectionNode.hh"
 #include "QuantileEqualization.hh"
 #include "SampleNormalization.hh"
 #include "SegmentwiseFormantExtraction.hh"
@@ -56,13 +61,6 @@
 #include "SilenceNormalization.hh"
 #include "VectorCut.hh"
 #include "Warping.hh"
-#include "GenericWarping.hh"
-#include "LinearWarping.hh"
-#include "FrameInterpolation.hh"
-#include "PolinomialVectorInterpolation.hh"
-#include "MeanEstimator.hh"
-#include "NthOrderFeatures.hh"
-#include "ProjectionNode.hh"
 #endif
 #ifdef MODULE_SIGNAL_ADVANCED_NR
 #include "AllPolesPowerSpectrum.hh"
@@ -83,44 +81,42 @@
 #endif
 
 /*****************************************************************************/
-Signal::Module_::Module_()
-{
-    Flow::Registry::Instance &registry = Flow::Registry::instance();
+Signal::Module_::Module_() {
+    Flow::Registry::Instance& registry = Flow::Registry::instance();
     registry.registerFilter<CosineTransformNode>();
-    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorAmplitude<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorImaginaryPart<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorPhase<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorRealPart<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<vectorToAlternatingComplexVector<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorToComplexVector<f32> > >();
-    registry.registerFilter<ComplexVectorFunctionNode<complexVectorToAlternatingComplexVector<f32> > >();
+    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorAmplitude<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorImaginaryPart<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorPhase<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorRealPart<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<vectorToAlternatingComplexVector<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<alternatingComplexVectorToComplexVector<f32>>>();
+    registry.registerFilter<ComplexVectorFunctionNode<complexVectorToAlternatingComplexVector<f32>>>();
     registry.registerFilter<DcDetectionNode>();
     registry.registerFilter<DelayNode>();
-    registry.registerFilter<FastFourierTransformNode<RealFastFourierTransform> >();
-    registry.registerFilter<FastFourierTransformNode<RealInverseFastFourierTransform> >();
-    registry.registerFilter<FastFourierTransformNode<ComplexFastFourierTransform> >();
-    registry.registerFilter<FastFourierTransformNode<ComplexInverseFastFourierTransform> >();
+    registry.registerFilter<FastFourierTransformNode<RealFastFourierTransform>>();
+    registry.registerFilter<FastFourierTransformNode<RealInverseFastFourierTransform>>();
+    registry.registerFilter<FastFourierTransformNode<ComplexFastFourierTransform>>();
+    registry.registerFilter<FastFourierTransformNode<ComplexInverseFastFourierTransform>>();
     registry.registerFilter<FilterBankNode>();
-    registry.registerFilter<FramePredictionNode<RepeatingFramePrediction> >();
-    registry.registerFilter<MatrixMultiplicationNode<f32> >();
-    registry.registerFilter<MatrixMultiplicationNode<f64> >();
+    registry.registerFilter<FramePredictionNode<RepeatingFramePrediction>>();
+    registry.registerFilter<MatrixMultiplicationNode<f32>>();
+    registry.registerFilter<MatrixMultiplicationNode<f64>>();
     registry.registerFilter<MrastaFilteringNode>();
-    registry.registerFilter<FastMatrixMultiplicationNode<f32> >();
-//    registry.registerFilter<FastMatrixMultiplicationNode<f64> >();
+    registry.registerFilter<FastMatrixMultiplicationNode<f32>>();
     registry.registerFilter<NormalizationNode>();
     registry.registerFilter<PreemphasisNode>();
     registry.registerFilter<RegressionNode>();
-    registry.registerFilter<SegmentClusteringNode<CorrFullCovMonoGaussianModel> >();
+    registry.registerFilter<SegmentClusteringNode<CorrFullCovMonoGaussianModel>>();
     registry.registerFilter<TemporalPatternNode>();
-    registry.registerFilter<VectorNormalizationNode<AmplitudeSpectrumEnergyVectorNormalization<f32> > >();
-    registry.registerFilter<VectorNormalizationNode<EnergyVectorNormalization<f32> > >();
-    registry.registerFilter<VectorNormalizationNode<MaximumVectorNormalization<f32> > >();
-    registry.registerFilter<VectorNormalizationNode<MeanEnergyVectorNormalization<f32> > >();
-    registry.registerFilter<VectorNormalizationNode<MeanVectorNormalization<f32> > >();
-    registry.registerFilter<VectorNormalizationNode<VarianceVectorNormalization<f32> > >();
-    registry.registerFilter<VectorResizeNode<f32> >();
-    registry.registerFilter<VectorSequenceAggregation<f32> >();
-    registry.registerFilter<VectorSequenceConcatenation<f32> >();
+    registry.registerFilter<VectorNormalizationNode<AmplitudeSpectrumEnergyVectorNormalization<f32>>>();
+    registry.registerFilter<VectorNormalizationNode<EnergyVectorNormalization<f32>>>();
+    registry.registerFilter<VectorNormalizationNode<MaximumVectorNormalization<f32>>>();
+    registry.registerFilter<VectorNormalizationNode<MeanEnergyVectorNormalization<f32>>>();
+    registry.registerFilter<VectorNormalizationNode<MeanVectorNormalization<f32>>>();
+    registry.registerFilter<VectorNormalizationNode<VarianceVectorNormalization<f32>>>();
+    registry.registerFilter<VectorResizeNode<f32>>();
+    registry.registerFilter<VectorSequenceAggregation<f32>>();
+    registry.registerFilter<VectorSequenceConcatenation<f32>>();
     registry.registerFilter<WindowNode>();
 
 #ifdef MODULE_SIGNAL_VOICEDNESS
@@ -152,15 +148,15 @@ Signal::Module_::Module_()
     registry.registerFilter<SegmentwiseFormantExtractionNode>();
     registry.registerFilter<SilenceDetectionNode>();
     registry.registerFilter<SilenceNormalizationNode>();
-    registry.registerFilter<VectorCutNode<VectorCutLength<f32> > >();
-    registry.registerFilter<VectorCutNode<VectorCutRelativeLength<f32> > >();
-    registry.registerFilter<VectorCutNode<VectorCutRelativeSurface<f32> > >();
+    registry.registerFilter<VectorCutNode<VectorCutLength<f32>>>();
+    registry.registerFilter<VectorCutNode<VectorCutRelativeLength<f32>>>();
+    registry.registerFilter<VectorCutNode<VectorCutRelativeSurface<f32>>>();
     registry.registerFilter<GenericWarpingNode>();
     registry.registerFilter<LinearWarpingNode>();
-    registry.registerFilter<FrameInterpolationNode<PolinomialVectorInterpolation> >();
+    registry.registerFilter<FrameInterpolationNode<PolinomialVectorInterpolation>>();
     registry.registerFilter<MeanEstimatorNode>();
     registry.registerFilter<NthOrderFeaturesNode>();
-    registry.registerFilter<ProjectionNode<f32> >();
+    registry.registerFilter<ProjectionNode<f32>>();
 
     // register data types
     registry.registerDatatype<LinearFilterParameter>();

@@ -19,64 +19,65 @@
 #include <Math/Vector.hh>
 #include "Node.hh"
 
-namespace Signal
-{
+namespace Signal {
 
+/**
+ *  Estimator class for covariance matrix
+ */
+class MeanEstimator : virtual public Core::Component {
+    typedef Core::Component Precursor;
+
+public:
+    typedef f32 Data;
+    typedef f64 Sum;
+    typedef u32 Count;
+
+public:
+    static const Core::ParameterString paramFilename;
+    static const Core::ParameterInt    paramOutputPrecision;
+
+private:
+    size_t featureDimension_;
+    /* Accumulates vector per class */
+    Math::Vector<Sum> vectorSum_;
+    /* Class frequency */
+    Count count_;
+    bool  needInit_;
+
+private:
+    void initialize();
+
+public:
+    MeanEstimator(const Core::Configuration& c);
+    ~MeanEstimator();
+
+    void setDimension(size_t dimension);
+
+    void accumulate(const Math::Vector<Data>&);
+    bool finalize(Math::Vector<Data>& mean) const;
     /**
-     *  Estimator class for covariance matrix
+     *  Saves mean.
+     *  Calls finalize and saves mean vector
      */
-    class MeanEstimator :
-        virtual public Core::Component
-    {
-        typedef Core::Component Precursor;
-    public:
-        typedef f32 Data;
-        typedef f64 Sum;
-        typedef u32 Count;
-    public:
-        static const Core::ParameterString paramFilename;
-        static const Core::ParameterInt paramOutputPrecision;
-    private:
-        size_t featureDimension_;
-        /* Accumulates vector per class */
-        Math::Vector<Sum> vectorSum_;
-        /* Class frequency */
-        Count count_;
-        bool needInit_;
-    private:
-        void initialize();
+    bool write() const;
+    void reset();
+};
 
-    public:
-        MeanEstimator(const Core::Configuration &c);
-        ~MeanEstimator();
+class MeanEstimatorNode : public Flow::SleeveNode,
+                          public MeanEstimator {
+    typedef Flow::SleeveNode Precursor;
 
-        void setDimension(size_t dimension);
-
-        void accumulate(const Math::Vector<Data>&);
-        bool finalize(Math::Vector<Data> &mean) const;
-        /**
-         *  Saves mean.
-         *  Calls finalize and saves mean vector
-         */
-        bool write() const;
-        void reset();
-    };
-
-
-    class MeanEstimatorNode :
-        public Flow::SleeveNode,
-        public MeanEstimator
-    {
-        typedef Flow::SleeveNode Precursor;
-    public:
-        MeanEstimatorNode(const Core::Configuration &c)
+public:
+    MeanEstimatorNode(const Core::Configuration& c)
             : Core::Component(c), Precursor(c), MeanEstimator(c) {}
-        virtual ~MeanEstimatorNode() {}
-        bool configure();
-        bool work(Flow::PortId p);
-        static std::string filterName() { return "signal-mean-estimator"; }
-    };
+    virtual ~MeanEstimatorNode() {}
+    bool               configure();
+    bool               work(Flow::PortId p);
+    static std::string filterName() {
+        return "signal-mean-estimator";
+    }
+};
 
-} // namespace Signal
+}  // namespace Signal
 
-#endif // _SIGNAL_MEAN_ESTIMATOR_HH
+#endif  // _SIGNAL_MEAN_ESTIMATOR_HH

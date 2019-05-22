@@ -21,143 +21,156 @@
 
 namespace Signal {
 
-    extern const std::string totalScatterType;
-    extern const std::string betweenClassScatterType;
-    extern const std::string withinClassScatterType;
+extern const std::string totalScatterType;
+extern const std::string betweenClassScatterType;
+extern const std::string withinClassScatterType;
 
-    /**
-     *  Base class for scatter matrix estimators.
-     *  Features:
-     *   -Supports accumulation of x_i*x_i^T.
-     *   -Basic I/O
+/**
+ *  Base class for scatter matrix estimators.
+ *  Features:
+ *   -Supports accumulation of x_i*x_i^T.
+ *   -Basic I/O
+ */
+class ScatterMatrixEstimator : virtual public Core::Component, public Core::ReferenceCounted {
+    typedef Core::Component Precursor;
+
+public:
+    typedef u32               ClassIndex;
+    typedef f32               Data;
+    typedef f64               Sum;
+    typedef f64               Count;
+    typedef Math::Matrix<Sum> ScatterMatrix;
+
+public:
+    static const Core::ParameterInt  paramOutputPrecision;
+    static const Core::ParameterBool paramShallNormalize;
+
+protected:
+    size_t featureDimension_;
+
+    /** Accumulates covariance matrix
+     *  Remark: accumulate only lower triangle, because of symmetry
      */
-    class ScatterMatrixEstimator : virtual public Core::Component, public Core::ReferenceCounted {
-        typedef Core::Component Precursor;
-    public:
-        typedef u32 ClassIndex;
-        typedef f32 Data;
-        typedef f64 Sum;
-        typedef f64 Count;
-        typedef Math::Matrix<Sum> ScatterMatrix;
-    public:
-        static const Core::ParameterInt paramOutputPrecision;
-        static const Core::ParameterBool paramShallNormalize;
-    protected:
-        size_t featureDimension_;
+    Math::Matrix<Sum> vectorSquareSum_;
 
-        /** Accumulates covariance matrix
-         *  Remark: accumulate only lower triangle, because of symmetry
-         */
-        Math::Matrix<Sum> vectorSquareSum_;
+    bool needInit_;
 
-        bool needInit_;
-    private:
-        /** Copies the lower (not accumulated) triangle to the upper one. */
-        void finalizeVectorSquareSum();
-    protected:
-        void initialize();
-        void accumulate(const Math::Vector<Data> &, f32 weight = 1.0);
-        bool accumulate(const ScatterMatrixEstimator &);
-        bool finalize();
-        bool write(const std::string &filename, const std::string &scatterType,
-                   const ScatterMatrix &scatterMatrix);
-        virtual bool read(Core::BinaryInputStream &);
-        virtual bool write(Core::BinaryOutputStream &);
-    public:
-        ScatterMatrixEstimator(const Core::Configuration &c);
-        ~ScatterMatrixEstimator();
+private:
+    /** Copies the lower (not accumulated) triangle to the upper one. */
+    void finalizeVectorSquareSum();
 
-        void setDimension(size_t dimension);
-    };
+protected:
+    void         initialize();
+    void         accumulate(const Math::Vector<Data>&, f32 weight = 1.0);
+    bool         accumulate(const ScatterMatrixEstimator&);
+    bool         finalize();
+    bool         write(const std::string& filename, const std::string& scatterType, const ScatterMatrix& scatterMatrix);
+    virtual bool read(Core::BinaryInputStream&);
+    virtual bool write(Core::BinaryOutputStream&);
 
+public:
+    ScatterMatrixEstimator(const Core::Configuration& c);
+    ~ScatterMatrixEstimator();
+
+    void setDimension(size_t dimension);
+};
+
+/**
+ *  Scatter matrix type;
+ */
+typedef ScatterMatrixEstimator::ScatterMatrix ScatterMatrix;
+
+/**
+ *  Estimator class for total scatter(covariance) matrix.
+ */
+class TotalScatterMatrixEstimator : public ScatterMatrixEstimator {
+    typedef ScatterMatrixEstimator Precursor;
+
+private:
+    static const Core::ParameterString paramFilename;
+    static const Core::ParameterFloat  paramElementThresholdMin;
+
+protected:
+    /* Accumulates vector sum. */
+    Math::Vector<Sum> vectorSum_;
+    /* Number of observations. */
+    Count count_;
+
+protected:
+    void initialize();
+
+public:
+    TotalScatterMatrixEstimator(const Core::Configuration& c);
+    ~TotalScatterMatrixEstimator();
+
+    void accumulate(const Math::Vector<Data>&);
+    bool finalize(ScatterMatrix& covarianceMatrix);
     /**
-     *  Scatter matrix type;
+     *  Saves covariance matrix.
+     *  Calls finalize and saves covariance matrix.
      */
-    typedef ScatterMatrixEstimator::ScatterMatrix ScatterMatrix;
+    bool write();
+};
 
+/**
+ *  Estimator class for between and within class scatter matrices.
+ */
+class ScatterMatricesEstimator : public ScatterMatrixEstimator {
+    typedef ScatterMatrixEstimator Precursor;
+
+public:
+    static const Core::ParameterString paramBetweenClassScatterFilename;
+    static const Core::ParameterString paramWithinClassScatterFilename;
+    static const Core::ParameterString paramTotalScatterFilename;
+
+    static const Core::ParameterString       paramOldAccumulatorFilename;
+    static const Core::ParameterString       paramNewAccumulatorFilename;
+    static const Core::ParameterStringVector paramAccumulatorFilesToCombine;
+
+private:
+    ClassIndex nClasses_;
+
+    /* Accumulates vector per class */
+    std::vector<Math::Vector<Sum>> vectorSums_;
+    /* Class frequency */
+    std::vector<Count> counts_;
+
+private:
+    void initialize(bool deepInitialization = true);
+
+    Count getTotalCount() const {
+        return std::accumulate(counts_.begin(), counts_.end(), Count(0));
+    }
+    Math::Vector<Sum> getTotalVectorSum() const;
+    bool              writeAccumulators();
+    bool              writeMatrices();
+
+protected:
+    virtual bool read(Core::BinaryInputStream&);
+    virtual bool write(Core::BinaryOutputStream&);
+
+public:
+    ScatterMatricesEstimator(const Core::Configuration& c);
+    ~ScatterMatricesEstimator();
+
+    void setNumberOfClasses(size_t nClasses);
+
+    void accumulate(ClassIndex classIndex, const Math::Vector<Data>&, f32 weight = 1);
+    bool accumulate(const ScatterMatricesEstimator&);
+    bool finalize(ScatterMatrix& betweenClassScatterMatrix,
+                  ScatterMatrix& withinClassScatterMatrix,
+                  ScatterMatrix& totalScatterMatrix);
     /**
-     *  Estimator class for total scatter(covariance) matrix.
+     *  Saves scatter matrices.
+     *  Calls finalize and saves scatter  matrices.
      */
-    class TotalScatterMatrixEstimator :
-        public ScatterMatrixEstimator
-    {
-        typedef ScatterMatrixEstimator Precursor;
-    private:
-        static const Core::ParameterString paramFilename;
-        static const Core::ParameterFloat paramElementThresholdMin;
-    protected:
-        /* Accumulates vector sum. */
-        Math::Vector<Sum> vectorSum_;
-        /* Number of observations. */
-        Count count_;
-    protected:
-        void initialize();
-    public:
-        TotalScatterMatrixEstimator(const Core::Configuration &c);
-        ~TotalScatterMatrixEstimator();
+    bool write();
+    bool load();
 
-        void accumulate(const Math::Vector<Data>&);
-        bool finalize(ScatterMatrix &covarianceMatrix);
-        /**
-         *  Saves covariance matrix.
-         *  Calls finalize and saves covariance matrix.
-         */
-        bool write();
-    };
+    bool loadAccumulatorFile(const std::string&);
+    void addAccumulatorFiles(const std::vector<std::string>&);
+};
 
-    /**
-     *  Estimator class for between and within class scatter matrices.
-     */
-    class ScatterMatricesEstimator: public ScatterMatrixEstimator {
-        typedef ScatterMatrixEstimator Precursor;
-    public:
-        static const Core::ParameterString paramBetweenClassScatterFilename;
-        static const Core::ParameterString paramWithinClassScatterFilename;
-        static const Core::ParameterString paramTotalScatterFilename;
+}  //namespace Signal
 
-        static const Core::ParameterString paramOldAccumulatorFilename;
-        static const Core::ParameterString paramNewAccumulatorFilename;
-        static const Core::ParameterStringVector paramAccumulatorFilesToCombine;
-
-    private:
-        ClassIndex nClasses_;
-
-        /* Accumulates vector per class */
-        std::vector<Math::Vector<Sum> > vectorSums_;
-        /* Class frequency */
-        std::vector<Count> counts_;
-    private:
-        void initialize(bool deepInitialization = true);
-
-        Count getTotalCount() const { return std::accumulate(counts_.begin(), counts_.end(), Count(0)); }
-        Math::Vector<Sum> getTotalVectorSum() const;
-        bool writeAccumulators();
-        bool writeMatrices();
-    protected:
-        virtual bool read(Core::BinaryInputStream &);
-        virtual bool write(Core::BinaryOutputStream &);
-    public:
-        ScatterMatricesEstimator(const Core::Configuration &c);
-        ~ScatterMatricesEstimator();
-
-        void setNumberOfClasses(size_t nClasses);
-
-        void accumulate(ClassIndex classIndex, const Math::Vector<Data>&, f32 weight = 1);
-        bool accumulate(const ScatterMatricesEstimator &);
-        bool finalize(ScatterMatrix &betweenClassScatterMatrix,
-                      ScatterMatrix &withinClassScatterMatrix,
-                      ScatterMatrix &totalScatterMatrix);
-        /**
-         *  Saves scatter matrices.
-         *  Calls finalize and saves scatter  matrices.
-         */
-        bool write();
-        bool load();
-
-        bool loadAccumulatorFile(const std::string &);
-        void addAccumulatorFiles(const std::vector<std::string> &);
-    };
-
-} //namespace Signal
-
-#endif // _SIGNAL_SCATTER_ESTIMATOR_HH
+#endif  // _SIGNAL_SCATTER_ESTIMATOR_HH

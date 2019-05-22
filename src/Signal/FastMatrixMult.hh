@@ -17,6 +17,8 @@
 
 #include <Math/Blas.hh>
 
+#include "MatrixMult.hh"
+
 namespace Signal {
 
 /*
@@ -28,46 +30,47 @@ namespace Signal {
 template<typename T>
 class FastMatrixMultiplicationNode : public Flow::SleeveNode {
     typedef Flow::SleeveNode Precursor;
-protected:
-    u32 nRows_;  // number of rows of matrix
-    u32 nCols_;  // number of columns of matrix
-    T *matrix_;  // matrix stored in row major order
-    std::string matrixFilename_; // filename of matrix
-    bool needInit_; // need to load matrix from file
-public:
-    static std::string filterName() { return std::string("signal-fast-matrix-multiplication-") + Core::Type<T>::name; };
 
-    FastMatrixMultiplicationNode(const Core::Configuration &c);
+protected:
+    u32         nRows_;           // number of rows of matrix
+    u32         nCols_;           // number of columns of matrix
+    T*          matrix_;          // matrix stored in row major order
+    std::string matrixFilename_;  // filename of matrix
+    bool        needInit_;        // need to load matrix from file
+public:
+    static std::string filterName() {
+        return std::string("signal-fast-matrix-multiplication-") + Core::Type<T>::name;
+    };
+
+    FastMatrixMultiplicationNode(const Core::Configuration& c);
     virtual ~FastMatrixMultiplicationNode();
+
 public:
     // load matrix and set dimensions
     void initialize();
     // set matrix filename from flow file
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     // apply matrix
     virtual bool work(Flow::PortId p);
 };
 
+template<typename T>
+FastMatrixMultiplicationNode<T>::FastMatrixMultiplicationNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          nRows_(0),
+          nCols_(0),
+          matrix_(0),
+          needInit_(true) {}
 
 template<typename T>
-FastMatrixMultiplicationNode<T>::FastMatrixMultiplicationNode(const Core::Configuration &c) :
-Core::Component(c),
-Precursor(c),
-nRows_(0),
-nCols_(0),
-matrix_(0),
-needInit_(true)
-{}
-
-template<typename T>
-FastMatrixMultiplicationNode<T>::~FastMatrixMultiplicationNode()
-{
+FastMatrixMultiplicationNode<T>::~FastMatrixMultiplicationNode() {
     if (matrix_)
         delete matrix_;
 }
 
 template<typename T>
-bool FastMatrixMultiplicationNode<T>::setParameter(const std::string &name, const std::string &value) {
+bool FastMatrixMultiplicationNode<T>::setParameter(const std::string& name, const std::string& value) {
     if (paramMatrixMultiplicationFileName.match(name))
         matrixFilename_ = paramMatrixMultiplicationFileName(value);
     else
@@ -82,19 +85,19 @@ void FastMatrixMultiplicationNode<T>::initialize() {
         Math::Matrix<T> naiveMatrix;
         if (matrixFilename_.empty()) {
             this->error() << "Matrix filename is empty.";
-        } else {
-            if (!Math::Module::instance().formats().read(
-                    matrixFilename_, naiveMatrix)) {
+        }
+        else {
+            if (!Math::Module::instance().formats().read(matrixFilename_, naiveMatrix)) {
                 error("Failed to read matrix from file '%s'.", matrixFilename_.c_str());
                 return;
             }
         }
-        nRows_ = naiveMatrix.nRows();
-        nCols_ = naiveMatrix.nColumns();
+        nRows_  = naiveMatrix.nRows();
+        nCols_  = naiveMatrix.nColumns();
         matrix_ = new T[nRows_ * nCols_];
         // copy matrix into array, use row-major format
-        for (u32 i = 0; i < nRows_; i++){
-            for (u32 j = 0; j < nCols_; j++){
+        for (u32 i = 0; i < nRows_; i++) {
+            for (u32 j = 0; j < nCols_; j++) {
                 matrix_[i * nCols_ + j] = naiveMatrix[i][j];
             }
         }
@@ -104,8 +107,8 @@ void FastMatrixMultiplicationNode<T>::initialize() {
 
 template<typename T>
 bool FastMatrixMultiplicationNode<T>::work(Flow::PortId p) {
-    Flow::DataPtr<Flow::Vector<T> > in;
-    if (! getData(0, in))
+    Flow::DataPtr<Flow::Vector<T>> in;
+    if (!getData(0, in))
         return SleeveNode::putData(0, in.get());
 
     if (needInit_)
@@ -114,19 +117,19 @@ bool FastMatrixMultiplicationNode<T>::work(Flow::PortId p) {
     /* check the size of the two vectors */
     if (in->size() != nCols_)
         error() << "dimension missmatch: dimension of vector is " << in->size()
-        << ", expected " << nCols_;
+                << ", expected " << nCols_;
 
     // create output object and reserve space
-    Flow::DataPtr<Flow::Vector<T> > out(new Flow::Vector<T>(nRows_));
+    Flow::DataPtr<Flow::Vector<T>> out(new Flow::Vector<T>(nRows_));
     out->setTimestamp(*in);
 
     // apply matrix, use Blas matrix-vector multiplication routine
-    T *vector = &(in->at(0));
+    T* vector = &(in->at(0));
     Math::gemv<T>(CblasRowMajor, CblasNoTrans, nRows_, nCols_, 1.0, matrix_, nCols_, vector, 1, 0.0, &(out->at(0)), 1);
 
     return putData(0, out.get());
 }
 
-} // namespace Signal
+}  // namespace Signal
 
 #endif

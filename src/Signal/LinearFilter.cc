@@ -18,21 +18,24 @@ using namespace Signal;
 
 //===================================================================================================
 
-Core::XmlWriter& LinearFilterParameter::dump(Core::XmlWriter &o) const {
+Core::XmlWriter& LinearFilterParameter::dump(Core::XmlWriter& o) const {
     o << Core::XmlOpen("linear-filter");
 
     o << Core::XmlOpen("B");
     o << (_float)0 << " ";
-    for (std::vector<_float>::const_iterator x = B_tilde_.begin(); x != B_tilde_.end(); ++x) o << *x << " ";
+    for (std::vector<_float>::const_iterator x = B_tilde_.begin(); x != B_tilde_.end(); ++x)
+        o << *x << " ";
     o << Core::XmlClose("B");
 
     o << Core::XmlOpen("A");
     o << (_float)1 << " ";
-    for (std::vector<_float>::const_iterator x = A_tilde_.begin(); x != A_tilde_.end(); ++x) o << *x << " ";
+    for (std::vector<_float>::const_iterator x = A_tilde_.begin(); x != A_tilde_.end(); ++x)
+        o << *x << " ";
     o << Core::XmlClose("A");
 
     o << Core::XmlOpen("y0");
-    for (std::vector<_float>::const_iterator x = y0_.begin(); x != y0_.end(); ++x) o << *x << " ";
+    for (std::vector<_float>::const_iterator x = y0_.begin(); x != y0_.end(); ++x)
+        o << *x << " ";
     o << Core::XmlClose("y0");
 
     o << Core::XmlClose("linear-filter");
@@ -44,35 +47,40 @@ Core::XmlWriter& LinearFilterParameter::dump(Core::XmlWriter &o) const {
 Core::ParameterString LinearFilterNode::paramB("B", "B polinom where b0 = 0", "");
 Core::ParameterString LinearFilterNode::paramA("A", "A polinom where a0 = 1", "");
 Core::ParameterString LinearFilterNode::paramY0("y0", "y0 polinom y(-1) ... y(-n)", "");
-Core::ParameterInt LinearFilterNode::paramZeroInputLength("zero-input-length",
+Core::ParameterInt    LinearFilterNode::paramZeroInputLength("zero-input-length",
                                                           "length of an artificial zero input", 0, 0);
-LinearFilterNode::LinearFilterNode(const Core::Configuration &c) :
-    Core::Component(c), SleeveNode(c)
-{
+LinearFilterNode::LinearFilterNode(const Core::Configuration& c)
+        : Core::Component(c), SleeveNode(c) {
     std::vector<f32> v;
-    if (parsePolinom(paramB(c), v)) setB(v);
-    if (parsePolinom(paramA(c), v)) setA(v);
-    if (parsePolinom(paramY0(c), v)) setY0(v);
+    if (parsePolinom(paramB(c), v))
+        setB(v);
+    if (parsePolinom(paramA(c), v))
+        setA(v);
+    if (parsePolinom(paramY0(c), v))
+        setY0(v);
     zero_input_length = paramZeroInputLength(c);
 
     addInput(1);
 }
 
-bool LinearFilterNode::setParameter(const std::string &name, const std::string &value)
-{
+bool LinearFilterNode::setParameter(const std::string& name, const std::string& value) {
     std::vector<f32> v;
 
-    if (paramB.match(name) && parsePolinom(value, v)) setB(v);
-    else if (paramA.match(name) && parsePolinom(value, v)) setA(v);
-    else if (paramY0.match(name) && parsePolinom(value, v)) setY0(v);
-    else if (paramZeroInputLength.match(name)) zero_input_length = paramZeroInputLength(value);
-    else return false;
+    if (paramB.match(name) && parsePolinom(value, v))
+        setB(v);
+    else if (paramA.match(name) && parsePolinom(value, v))
+        setA(v);
+    else if (paramY0.match(name) && parsePolinom(value, v))
+        setY0(v);
+    else if (paramZeroInputLength.match(name))
+        zero_input_length = paramZeroInputLength(value);
+    else
+        return false;
 
     return true;
 }
 
-bool LinearFilterNode::configure()
-{
+bool LinearFilterNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
 
     Core::Ref<const Flow::Attributes> signalAttributes = getInputAttributes(0);
@@ -88,22 +96,26 @@ bool LinearFilterNode::configure()
     return putOutputAttributes(0, attributes);
 }
 
-bool LinearFilterNode::work(Flow::PortId p)
-{
+bool LinearFilterNode::work(Flow::PortId p) {
     Flow::DataPtr<LinearFilterParameter> param;
     if (getData(1, param)) {
-        if (param->getB().size()) setB(param->getB());
-        if (param->getA().size()) setA(param->getA());
-        if (param->getY0().size()) setY0(param->getY0());
-    } else if (zero_input_length)
+        if (param->getB().size())
+            setB(param->getB());
+        if (param->getA().size())
+            setA(param->getA());
+        if (param->getY0().size())
+            setY0(param->getY0());
+    }
+    else if (zero_input_length)
         return putData(0, param.get());
 
-    Flow::DataPtr<Flow::Vector<f32> > in;
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (zero_input_length) {
         in = Flow::dataPtr(new Flow::Vector<f32>());
         in->resize(zero_input_length, 0.0);
         in->setTimestamp(*param);
-    } else if (!getData(0, in)) {
+    }
+    else if (!getData(0, in)) {
         reset();
         return putData(0, in.get());
     }
@@ -115,21 +127,19 @@ bool LinearFilterNode::work(Flow::PortId p)
     return putData(0, in.get());
 }
 
-bool LinearFilterNode::parsePolinom(const std::string& value, std::vector<f32>& v)
-{
-    std::string str(value);
+bool LinearFilterNode::parsePolinom(const std::string& value, std::vector<f32>& v) {
+    std::string            str(value);
     std::string::size_type pos = 0;
 
     v.erase(v.begin(), v.end());
-    while (!str.empty())
-        {
-            pos = str.find_first_of(" ,;");
+    while (!str.empty()) {
+        pos = str.find_first_of(" ,;");
 
-            if (pos != 0)
-                v.push_back(atof(str.substr(0, pos).c_str()));
+        if (pos != 0)
+            v.push_back(atof(str.substr(0, pos).c_str()));
 
-            str = (pos == std::string::npos) ? "" : str.substr(pos + 1);
-        }
+        str = (pos == std::string::npos) ? "" : str.substr(pos + 1);
+    }
 
     return v.size();
 }

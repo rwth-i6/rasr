@@ -18,24 +18,20 @@
 using namespace Signal;
 
 const Core::ParameterInt AllPolesPowerSpectrumNode::paramDiscreteTotalLength(
-    "total-length", "total length of power spectrum in discrete units", 0, 0);
+        "total-length", "total length of power spectrum in discrete units", 0, 0);
 
 const Core::ParameterFloat AllPolesPowerSpectrumNode::paramContinuousTotalLength(
-    "continuous-total-length", "total length of power spectrum in continuous units", 0, 0);
+        "continuous-total-length", "total length of power spectrum in continuous units", 0, 0);
 
-AllPolesPowerSpectrumNode::AllPolesPowerSpectrumNode(const Core::Configuration &c) :
-    Core::Component(c), Precursor(c),
-    discreteTotalLength_(0), continuousTotalLength_(0), totalLength_(0)
-{
-    discreteTotalLength_ = paramDiscreteTotalLength(c);
+AllPolesPowerSpectrumNode::AllPolesPowerSpectrumNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c), discreteTotalLength_(0), continuousTotalLength_(0), totalLength_(0) {
+    discreteTotalLength_   = paramDiscreteTotalLength(c);
     continuousTotalLength_ = paramContinuousTotalLength(c);
 }
 
-AllPolesPowerSpectrumNode::~AllPolesPowerSpectrumNode()
-{}
+AllPolesPowerSpectrumNode::~AllPolesPowerSpectrumNode() {}
 
-bool AllPolesPowerSpectrumNode::configure()
-{
+bool AllPolesPowerSpectrumNode::configure() {
     Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
     getInputAttributes(0, *attributes);
     if (!configureDatatype(attributes, AutoregressiveCoefficients::type()))
@@ -51,11 +47,9 @@ bool AllPolesPowerSpectrumNode::configure()
 
     respondToDelayedErrors();
     return putOutputAttributes(0, attributes);
-
 }
 
-void AllPolesPowerSpectrumNode::init(f64 sampleRate)
-{
+void AllPolesPowerSpectrumNode::init(f64 sampleRate) {
     sampleRate_ = sampleRate;
 
     totalLength_ = (u32)ceil(continuousTotalLength_ * sampleRate_);
@@ -66,11 +60,11 @@ void AllPolesPowerSpectrumNode::init(f64 sampleRate)
         }
         totalLength_ = discreteTotalLength_;
     }
-    if (totalLength_ == 0) error("Total length should be at least one.");
+    if (totalLength_ == 0)
+        error("Total length should be at least one.");
 }
 
-bool AllPolesPowerSpectrumNode::setParameter(const std::string &name, const std::string &value)
-{
+bool AllPolesPowerSpectrumNode::setParameter(const std::string& name, const std::string& value) {
     if (paramDiscreteTotalLength.match(name))
         discreteTotalLength_ = paramDiscreteTotalLength(value);
     else if (paramContinuousTotalLength.match(name))
@@ -80,11 +74,10 @@ bool AllPolesPowerSpectrumNode::setParameter(const std::string &name, const std:
     return true;
 }
 
-bool AllPolesPowerSpectrumNode::work(Flow::PortId p)
-{
+bool AllPolesPowerSpectrumNode::work(Flow::PortId p) {
     Flow::DataPtr<AutoregressiveCoefficients> arCoefficients;
     if (getData(0, arCoefficients)) {
-        Flow::Vector<f32> *out = new Flow::Vector<f32>;
+        Flow::Vector<f32>* out = new Flow::Vector<f32>;
         out->setTimestamp(*arCoefficients);
         allPolesPowerSpectrum(arCoefficients->gain(), arCoefficients->a(), totalLength_, *out);
         std::transform(out->begin(), out->end(), out->begin(),

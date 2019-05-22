@@ -16,98 +16,106 @@
 #define _SIGNAL_POLINOMIAL_VECTOR_INTERPOLATION_HH
 
 #include <Core/Utility.hh>
-#include <Flow/Vector.hh>
 #include <Flow/Synchronization.hh>
+#include <Flow/Vector.hh>
 #include <Math/Lapack/Lapack.hh>
 #include "SlidingWindow.hh"
 
 namespace Signal {
 
-    /** PolinomialVectorInterpolation: creates new vectors at given target start-times
-     *  by polinomial interpolation
+/** PolinomialVectorInterpolation: creates new vectors at given target start-times
+ *  by polinomial interpolation
+ *
+ *  Error messages:
+ *    -there exists a target start-time outside of the input start-time interval
+ */
+
+class PolinomialVectorInterpolation {
+public:
+    typedef Flow::Time          Time;
+    typedef Flow::Vector<f32>   Data;
+    typedef Flow::DataPtr<Data> DataPointer;
+
+private:
+    Math::Lapack::Matrix<f64> A_;
+    Math::Lapack::Matrix<f64> B_;
+    Math::Lapack::Vector<int> pivotIndices_;
+
+    std::string lastError_;
+
+    SlidingWindow<DataPointer> slidingWindow_;
+
+    bool equationSystemSolved_;
+
+private:
+    /** Seeks in the input stream until @param time is found.
      *
-     *  Error messages:
-     *    -there exists a target start-time outside of the input start-time interval
+     *  At the beginning slidingWindow_ is filled to its maximum size.
+     *  After end-of-stream the last elements in the slidingWindow_ are kept until reset() is called.
+     *  After seeking slidingWindow_ contains contol points directly left and right from the @param time.
      */
+    void seek(Time time);
 
-    class PolinomialVectorInterpolation {
-    public:
-        typedef Flow::Time Time;
-        typedef Flow::Vector<f32> Data;
-        typedef Flow::DataPtr<Data> DataPointer;
-    private:
-        Math::Lapack::Matrix<f64> A_;
-        Math::Lapack::Matrix<f64> B_;
-        Math::Lapack::Vector<int> pivotIndices_;
+    /** Checks if @param time does not lie outside of the input control points.
+     *
+     *  @return is false if
+     *    -@param time is earlier than the very first input stream start-time or
+     *	later then the very last input stream start-time.
+     */
+    bool checkInterpolationTime(Time time);
 
-        std::string lastError_;
+    /** Avoids solving of the linear equation system for @param time values
+     *  equal to the start-time of one of the control points.
+     *
+     *  @return is true if @param time is equal to the start-time of one of the control points.
+     *  If a control point is found, it is copied to @param out.
+     */
+    bool copyControlPoint(Time time, DataPointer& out) const;
 
-        SlidingWindow<DataPointer> slidingWindow_;
+    /** updates the size of linear equation system */
+    void resize();
 
-        bool equationSystemSolved_;
-    private:
-        /** Seeks in the input stream until @param time is found.
-         *
-         *  At the beginning slidingWindow_ is filled to its maximum size.
-         *  After end-of-stream the last elements in the slidingWindow_ are kept until reset() is called.
-         *  After seeking slidingWindow_ contains contol points directly left and right from the @param time.
-         */
-        void seek(Time time);
+    /** calculates the interpolation parameters */
+    void calculateParameters();
 
-        /** Checks if @param time does not lie outside of the input control points.
-         *
-         *  @return is false if
-         *    -@param time is earlier than the very first input stream start-time or
-         *	later then the very last input stream start-time.
-         */
-        bool checkInterpolationTime(Time time);
+    /** creates a new element at @param time
+     *
+     * Start and end time of @param out are both set to @param time!
+     */
+    bool calculateOutput(Time time, DataPointer& out);
 
-        /** Avoids solving of the linear equation system for @param time values
-         *  equal to the start-time of one of the control points.
-         *
-         *  @return is true if @param time is equal to the start-time of one of the control points.
-         *  If a control point is found, it is copied to @param out.
-         */
-        bool copyControlPoint(Time time, DataPointer &out) const;
+protected:
+    /** override nextData to supply control points on demand */
+    virtual bool nextData(DataPointer& dataPointer) = 0;
 
-        /** updates the size of linear equation system */
-        void resize();
+public:
+    static std::string name() {
+        return "signal-vector-polinomial-interpolation";
+    }
+    PolinomialVectorInterpolation();
+    virtual ~PolinomialVectorInterpolation() {}
 
-        /** calculates the interpolation parameters */
-        void calculateParameters();
+    /** @return is the vector created by interpolation at @param time
+     *
+     *  If @param time is found in the input stream:
+     *    start-time and end-time are delivered un-changed
+     *  Else:
+     *     start-time and end-time of a predicted output are both set to @param time.
+     *
+     *  If @return false call lastError() to get a explanation.
+     */
+    bool work(const Flow::Timestamp& time, DataPointer& out);
 
-        /** creates a new element at @param time
-         *
-         * Start and end time of @param out are both set to @param time!
-         */
-        bool calculateOutput(Time time, DataPointer &out);
-    protected:
-        /** override nextData to supply control points on demand */
-        virtual bool nextData(DataPointer &dataPointer) = 0;
-    public:
-        static std::string name() { return "signal-vector-polinomial-interpolation"; }
-        PolinomialVectorInterpolation();
-        virtual ~PolinomialVectorInterpolation() {}
+    /** sets the order of interpolation polinom */
+    void setOrder(u32 order);
 
-        /** @return is the vector created by interpolation at @param time
-         *
-         *  If @param time is found in the input stream:
-         *    start-time and end-time are delivered un-changed
-         *  Else:
-         *     start-time and end-time of a predicted output are both set to @param time.
-         *
-         *  If @return false call lastError() to get a explanation.
-         */
-        bool work(const Flow::Timestamp &time, DataPointer &out);
+    std::string lastError() const {
+        return lastError_;
+    }
 
-        /** sets the order of interpolation polinom */
-        void setOrder(u32 order);
+    void reset();
+};
 
-        std::string lastError() const { return lastError_; }
+}  // namespace Signal
 
-        void reset();
-    };
-
-} // namespace Signal
-
-#endif // _SIGNAL_POLINOMIAL_VECTOR_INTERPOLATION_HH
+#endif  // _SIGNAL_POLINOMIAL_VECTOR_INTERPOLATION_HH

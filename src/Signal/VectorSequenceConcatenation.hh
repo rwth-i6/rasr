@@ -15,90 +15,90 @@
 #ifndef _SIGNAL_VECTOR_SEQUENCE_CONCATENATION_HH
 #define _SIGNAL_VECTOR_SEQUENCE_CONCATENATION_HH
 
-#include "Delay.hh"
 #include <Flow/Vector.hh>
+#include "Delay.hh"
 
 namespace Signal {
 
-    /** Filter concatenating of vector sequence
-     *  Input is sequence of vectors
-     *  Output is a sequence of concatenated vectors.
-     *  Input vectors are concatenated with preceding and succeeding vectors.
-     *  Parameters
-     *    -expand-timestamp: if true timestamp of output encompasses the timestamps of its element;
-     *                        if false timestamp if the "present" element is copied to timestamp of output.
-     *    -for further parameters @see DelayNode
-     *  Note: in output vector oldest frames are first and recent frames last.
-     */
+/** Filter concatenating of vector sequence
+ *  Input is sequence of vectors
+ *  Output is a sequence of concatenated vectors.
+ *  Input vectors are concatenated with preceding and succeeding vectors.
+ *  Parameters
+ *    -expand-timestamp: if true timestamp of output encompasses the timestamps of its element;
+ *                        if false timestamp if the "present" element is copied to timestamp of output.
+ *    -for further parameters @see DelayNode
+ *  Note: in output vector oldest frames are first and recent frames last.
+ */
 
-    extern const Core::ParameterBool paramVectorSequenceConcatExpandTimestamp;
+extern const Core::ParameterBool paramVectorSequenceConcatExpandTimestamp;
 
-    template<class T>
-    class VectorSequenceConcatenation : public DelayNode
-    {
-        typedef DelayNode Precursor;
-    protected:
-        bool expandTimestamp_;
-    protected:
-        virtual bool putData();
-    public:
-        static std::string filterName() {
-            return std::string("signal-vector-") + Core::Type<T>::name + "-sequence-concatenation";
-        }
-        VectorSequenceConcatenation(const Core::Configuration &c);
-        virtual ~VectorSequenceConcatenation() {}
+template<class T>
+class VectorSequenceConcatenation : public DelayNode {
+    typedef DelayNode Precursor;
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-        virtual Flow::PortId getOutput(const std::string &name) { return 0; }
-    };
+protected:
+    bool expandTimestamp_;
 
-    template<class T>
-    VectorSequenceConcatenation<T>::VectorSequenceConcatenation(const Core::Configuration &c) :
-        Component(c), Precursor(c)
-    {
-        expandTimestamp_ = paramVectorSequenceConcatExpandTimestamp(c);
-        addOutput(0);
+protected:
+    virtual bool putData();
+
+public:
+    static std::string filterName() {
+        return std::string("signal-vector-") + Core::Type<T>::name + "-sequence-concatenation";
     }
+    VectorSequenceConcatenation(const Core::Configuration& c);
+    virtual ~VectorSequenceConcatenation() {}
 
-    template<class T>
-    bool VectorSequenceConcatenation<T>::setParameter(const std::string &name, const std::string &value)
-    {
-        if (paramVectorSequenceConcatExpandTimestamp.match(name))
-            expandTimestamp_ = paramVectorSequenceConcatExpandTimestamp(value);
-        else
-            return Precursor::setParameter(name, value);
-        return true;
+    virtual bool         setParameter(const std::string& name, const std::string& value);
+    virtual bool         configure();
+    virtual Flow::PortId getOutput(const std::string& name) {
+        return 0;
     }
+};
 
-    template<class T>
-    bool VectorSequenceConcatenation<T>::configure()
-    {
-        clear();
+template<class T>
+VectorSequenceConcatenation<T>::VectorSequenceConcatenation(const Core::Configuration& c)
+        : Component(c), Precursor(c) {
+    expandTimestamp_ = paramVectorSequenceConcatExpandTimestamp(c);
+    addOutput(0);
+}
 
-        Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
-        if (!configureDatatype(a, Flow::Vector<T>::type()))
-            return false;
-        return putOutputAttributes(0, a);
+template<class T>
+bool VectorSequenceConcatenation<T>::setParameter(const std::string& name, const std::string& value) {
+    if (paramVectorSequenceConcatExpandTimestamp.match(name))
+        expandTimestamp_ = paramVectorSequenceConcatExpandTimestamp(value);
+    else
+        return Precursor::setParameter(name, value);
+    return true;
+}
+
+template<class T>
+bool VectorSequenceConcatenation<T>::configure() {
+    clear();
+
+    Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
+    if (!configureDatatype(a, Flow::Vector<T>::type()))
+        return false;
+    return putOutputAttributes(0, a);
+}
+
+template<class T>
+bool VectorSequenceConcatenation<T>::putData() {
+    Flow::Vector<T>* out = new Flow::Vector<T>;
+    out->invalidateTimestamp();
+    for (int relativeIndex = -(int)maxPastSize(); relativeIndex <= (int)maxFutureSize(); ++relativeIndex) {
+        Flow::DataPtr<Flow::Vector<T>> o;
+        get(relativeIndex, o);
+        out->insert(out->end(), o->begin(), o->end());
+        if (expandTimestamp_)
+            out->expandTimestamp(*o);
+        else if (relativeIndex == 0)
+            out->setTimestamp(*o);
     }
+    return Node::putData(0, out);
+}
 
-    template<class T>
-    bool VectorSequenceConcatenation<T>::putData()
-    {
-        Flow::Vector<T> *out = new Flow::Vector<T>;
-        out->invalidateTimestamp();
-        for(int relativeIndex = -(int)maxPastSize(); relativeIndex <= (int)maxFutureSize(); ++ relativeIndex) {
-            Flow::DataPtr<Flow::Vector<T> > o;
-            get(relativeIndex, o);
-            out->insert(out->end(), o->begin(), o->end());
-            if (expandTimestamp_)
-                out->expandTimestamp(*o);
-            else if (relativeIndex == 0)
-                out->setTimestamp(*o);
-        }
-        return Node::putData(0, out);
-    }
+}  // namespace Signal
 
-} // namespace Signal
-
-#endif //_SIGNAL_VECTOR_SEQUENCE_CONCATENATION_HH
+#endif  //_SIGNAL_VECTOR_SEQUENCE_CONCATENATION_HH

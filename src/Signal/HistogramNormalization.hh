@@ -17,110 +17,128 @@
 
 #include <Core/ObjectCache.hh>
 #include <Flow/DataAdaptor.hh>
-#include "Node.hh"
 #include "Histogram.hh"
+#include "Node.hh"
 
 namespace Signal {
 
-    /** HistogramNormalization */
-    class HistogramNormalization {
-    public:
-        typedef f32 Value;
-        typedef Histogram<Value>::Probability Probability;
-        typedef Histogram<Value>::Weight HistogramWeight;
+/** HistogramNormalization */
+class HistogramNormalization {
+public:
+    typedef f32                           Value;
+    typedef Histogram<Value>::Probability Probability;
+    typedef Histogram<Value>::Weight      HistogramWeight;
 
-        typedef LookupTable<Probability, Value> Cdf;
-        typedef std::vector<Cdf> Cdfs;
-        typedef LookupTable<Value, Probability> InverseCdf;
-        typedef std::vector<InverseCdf> InverseCdfs;
-    private:
-        Cdfs testCdfs_;
-        InverseCdfs inverseTrainingCdfs_;
-    public:
-        HistogramNormalization() {}
+    typedef LookupTable<Probability, Value> Cdf;
+    typedef std::vector<Cdf>                Cdfs;
+    typedef LookupTable<Value, Probability> InverseCdf;
+    typedef std::vector<InverseCdf>         InverseCdfs;
 
-        void apply(const std::vector<Value> &in, std::vector<Value> &out);
+private:
+    Cdfs        testCdfs_;
+    InverseCdfs inverseTrainingCdfs_;
 
-        /** @param probabilityBucketSize is bucket size of the inverse training cumulative density functions
-         */
-        void setTrainingHistograms(const std::vector<Histogram<Value> > &trainingHistograms,
-                                   Probability probabilityBucketSize);
-        void setTrainingHistograms(const std::vector<HistogramVector<Value> > &trainingHistograms,
-                                   const std::vector<Value> &scales,
-                                   Probability probabilityBucketSize);
-        size_t nTrainingHistograms() const { return inverseTrainingCdfs_.size(); }
+public:
+    HistogramNormalization() {}
 
-        void setTestHistograms(const std::vector<Histogram<Value> > &testHistograms);
-        size_t nTestHistograms() const { return testCdfs_.size(); }
+    void apply(const std::vector<Value>& in, std::vector<Value>& out);
 
-        /** @return is false if one of the weights is smaller than larger than one. */
-        static bool areScalesWellDefined(const std::vector<HistogramWeight> &scales);
-        /** @return is true if the sum of weights is one. */
-        static bool areScalesNormalized(const std::vector<HistogramWeight> &scales);
-        /** Inserts a scale at the beginning, which makes the sum of scales to be zero. */
-        static void normalizeScales(std::vector<HistogramWeight> &scales);
-    };
+    /** @param probabilityBucketSize is bucket size of the inverse training cumulative density functions
+     */
+    void   setTrainingHistograms(const std::vector<Histogram<Value>>& trainingHistograms,
+                                 Probability                          probabilityBucketSize);
+    void   setTrainingHistograms(const std::vector<HistogramVector<Value>>& trainingHistograms,
+                                 const std::vector<Value>&                  scales,
+                                 Probability                                probabilityBucketSize);
+    size_t nTrainingHistograms() const {
+        return inverseTrainingCdfs_.size();
+    }
 
+    void   setTestHistograms(const std::vector<Histogram<Value>>& testHistograms);
+    size_t nTestHistograms() const {
+        return testCdfs_.size();
+    }
 
-    /** HistogramNormalizationNode */
-    class HistogramNormalizationNode :
-        public Flow::Node,
-        public HistogramNormalization {
-    private:
-        static const Core::ParameterFloat paramProbabilityBucketSize;
-        static const Core::ParameterStringVector paramTrainingHistogramsFilenames;
-        static const Core::ParameterString paramCorpusKey;
-    private:
-        Flow::PortId firstScalePortId_;
-        static const std::string scalePortname_;
+    /** @return is false if one of the weights is smaller than larger than one. */
+    static bool areScalesWellDefined(const std::vector<HistogramWeight>& scales);
+    /** @return is true if the sum of weights is one. */
+    static bool areScalesNormalized(const std::vector<HistogramWeight>& scales);
+    /** Inserts a scale at the beginning, which makes the sum of scales to be zero. */
+    static void normalizeScales(std::vector<HistogramWeight>& scales);
+};
 
-        typedef HistogramNormalization::Probability Probability;
-        Probability probabilityBucketSize_;
+/** HistogramNormalizationNode */
+class HistogramNormalizationNode : public Flow::Node,
+                                   public HistogramNormalization {
+private:
+    static const Core::ParameterFloat        paramProbabilityBucketSize;
+    static const Core::ParameterStringVector paramTrainingHistogramsFilenames;
+    static const Core::ParameterString       paramCorpusKey;
 
-        std::vector<std::string> trainingHistogramFilenames_;
-        std::vector<HistogramVector<Value> > trainingHistograms_;
-        std::vector<Flow::DataAdaptor<HistogramWeight> > histogramScales_;
+private:
+    Flow::PortId             firstScalePortId_;
+    static const std::string scalePortname_;
 
-        typedef HistogramNormalization::Value Value;
-        typedef Core::ObjectCache<Core::MruObjectCacheList<
-            std::string, HistogramVector<Value>, Core::StringHash, Core::StringEquality> > HistogramCache;
-        HistogramCache testHistograms_;
+    typedef HistogramNormalization::Probability Probability;
+    Probability                                 probabilityBucketSize_;
 
-        bool needInit_;
-    private:
-        void init(size_t featureDimension);
-        void reset();
+    std::vector<std::string>                        trainingHistogramFilenames_;
+    std::vector<HistogramVector<Value>>             trainingHistograms_;
+    std::vector<Flow::DataAdaptor<HistogramWeight>> histogramScales_;
 
-        void setProbabilityBucketSize(Probability r) {
-            if (probabilityBucketSize_ != r) { probabilityBucketSize_ = r; needInit_ = true; }
+    typedef HistogramNormalization::Value Value;
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
+            std::string, HistogramVector<Value>, Core::StringHash, Core::StringEquality>>
+            HistogramCache;
+    HistogramCache testHistograms_;
+
+    bool needInit_;
+
+private:
+    void init(size_t featureDimension);
+    void reset();
+
+    void setProbabilityBucketSize(Probability r) {
+        if (probabilityBucketSize_ != r) {
+            probabilityBucketSize_ = r;
+            needInit_              = true;
         }
-        void setTrainingHistogramFilenames(const std::vector<std::string> &n) {
-            if (trainingHistogramFilenames_ != n) { trainingHistogramFilenames_ = n; needInit_ = true; }
+    }
+    void setTrainingHistogramFilenames(const std::vector<std::string>& n) {
+        if (trainingHistogramFilenames_ != n) {
+            trainingHistogramFilenames_ = n;
+            needInit_                   = true;
         }
-        void loadTrainingHistograms(size_t featureDimension);
-        /**
-         *   Configures the normalization algorithm with new training histograms scales.
-         */
-        bool updateTrainingHistograms();
-        void setTestHistograms(const std::string &corpusKey);
+    }
+    void loadTrainingHistograms(size_t featureDimension);
+    /**
+     *   Configures the normalization algorithm with new training histograms scales.
+     */
+    bool updateTrainingHistograms();
+    void setTestHistograms(const std::string& corpusKey);
 
-        /**
-         *  Histogram scale ports are read if necessary.
-         *  Only those ports are read where the current histogram scale (@see histogramScales_) does
-         *   not contain the timestamp. In this way the scales are synchornized to the main input stream.
-         */
-        bool updateScales(const Flow::Timestamp &timestamp);
-    public:
-        static std::string filterName() { return "signal-histogram-normalization"; }
-        HistogramNormalizationNode(const Core::Configuration &c);
-        virtual ~HistogramNormalizationNode() {}
+    /**
+     *  Histogram scale ports are read if necessary.
+     *  Only those ports are read where the current histogram scale (@see histogramScales_) does
+     *   not contain the timestamp. In this way the scales are synchornized to the main input stream.
+     */
+    bool updateScales(const Flow::Timestamp& timestamp);
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-        virtual Flow::PortId getInput(const std::string &name);
-        virtual Flow::PortId getOutput(const std::string &name) { return 0; }
-        virtual bool work(Flow::PortId p);
-    };
-}
+public:
+    static std::string filterName() {
+        return "signal-histogram-normalization";
+    }
+    HistogramNormalizationNode(const Core::Configuration& c);
+    virtual ~HistogramNormalizationNode() {}
 
-#endif // _SIGNAL_HISTOGRAM_NORMALIZATION_HH
+    virtual bool         setParameter(const std::string& name, const std::string& value);
+    virtual bool         configure();
+    virtual Flow::PortId getInput(const std::string& name);
+    virtual Flow::PortId getOutput(const std::string& name) {
+        return 0;
+    }
+    virtual bool work(Flow::PortId p);
+};
+}  // namespace Signal
+
+#endif  // _SIGNAL_HISTOGRAM_NORMALIZATION_HH

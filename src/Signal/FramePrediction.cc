@@ -16,17 +16,13 @@
 
 using namespace Signal;
 
-
 // FramePredictionNode
 //////////////////////
 
-
 namespace Signal {
 
-    Core::ParameterBool paramPredictOnlyMissing
-    ("predict-only-missing", "no prediction for times existing in input stream", true);
+Core::ParameterBool paramPredictOnlyMissing("predict-only-missing", "no prediction for times existing in input stream", true);
 
-    Core::ParameterBool paramSyncEndTimes
-    ("sync-end-times", "synchronize start and end times", false);
+Core::ParameterBool paramSyncEndTimes("sync-end-times", "synchronize start and end times", false);
 
-} // namespace Signal
+}  // namespace Signal

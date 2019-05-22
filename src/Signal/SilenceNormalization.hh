@@ -19,8 +19,7 @@
 #include <Flow/Vector.hh>
 #include "SlidingAlgorithmNode.hh"
 
-namespace Signal
-{
+namespace Signal {
 /**
  * This node normalizes the fraction of silence in the outgoing signal.
  * The returned speech segments contain exactly the requested
@@ -34,11 +33,9 @@ namespace Signal
  * must be speech (see the parameter initialization-fraction).
  * */
 
-class SilenceNormalization
-{
+class SilenceNormalization {
 public:
-
-    typedef f32 Sample;
+    typedef f32        Sample;
     typedef Flow::Time Time;
 
     typedef Flow::Vector<Sample> InputData;
@@ -48,21 +45,21 @@ private:
     // Config:
     Time sampleRate_;
     Time minSurroundingSilence_;
-    f64 silenceFraction_;
-    f64 initializationFraction_;
-    f64 blockSize_;
-    u32 blockSizeSamples_;
-    u32 iterations_;
+    f64  silenceFraction_;
+    f64  initializationFraction_;
+    f64  blockSize_;
+    u32  blockSizeSamples_;
+    u32  iterations_;
     bool discardUnsure_;
-    f32 silenceThreshold_, absoluteSilenceThreshold_, addNoise_;
+    f32  silenceThreshold_, absoluteSilenceThreshold_, addNoise_;
     bool fillUpSilence_;
     bool preserveTiming_;
 
-    std::list<Flow::Vector<Sample> > flushQueue_;
+    std::list<Flow::Vector<Sample>> flushQueue_;
 
     // Temporary values:
-    bool needInit_;
-    std::deque<std::pair<Time, Sample> > buffer_;
+    bool                                needInit_;
+    std::deque<std::pair<Time, Sample>> buffer_;
 
 private:
     void init();
@@ -101,19 +98,19 @@ public:
     /** @return is false if the is a time gap between start time of in
      *  and end time of the buffer.
      */
-    bool put(const Flow::Vector<Sample> &in);
+    bool put(const Flow::Vector<Sample>& in);
 
     /** delivers a block of filtered samples
      *  @return is false if decision could not be made yet
      */
-    bool get(Flow::Vector<Sample> &out);
+    bool get(Flow::Vector<Sample>& out);
 
     /** delivers everything remaining
      *  @return is false if buffer is empty
      */
-    bool flush(Flow::Vector<Sample> &out);
+    bool flush(Flow::Vector<Sample>& out);
 
-    bool flushFromQueue(Flow::Vector<Sample> &out);
+    bool flushFromQueue(Flow::Vector<Sample>& out);
 
     /** If selectedBlocks is empty, then all blocks are used */
     void startFlushingFromQueue(const std::vector<bool>& selectedBlocks);
@@ -124,36 +121,35 @@ public:
 // SilenceNormalizationNode
 ///////////////////////
 
-class SilenceNormalizationNode : public SlidingAlgorithmNode<SilenceNormalization>
-{
+class SilenceNormalizationNode : public SlidingAlgorithmNode<SilenceNormalization> {
 public:
-
     typedef SlidingAlgorithmNode<SilenceNormalization> Predecessor;
 
 private:
-
     static Core::ParameterFloat paramSilenceFraction;
     static Core::ParameterFloat paramBlockSize;
-    static Core::ParameterBool paramFillUpSilence;
-    static Core::ParameterBool paramPreserveTiming;
+    static Core::ParameterBool  paramFillUpSilence;
+    static Core::ParameterBool  paramPreserveTiming;
     static Core::ParameterFloat paramMinSurroundingSilence;
     static Core::ParameterFloat paramInitializationFraction;
-    static Core::ParameterBool paramDiscardUnsureSegments;
-    static Core::ParameterInt paramEMIterations;
+    static Core::ParameterBool  paramDiscardUnsureSegments;
+    static Core::ParameterInt   paramEMIterations;
     static Core::ParameterFloat paramSilenceThreshold;
     static Core::ParameterFloat paramAbsoluteSilenceThreshold;
     static Core::ParameterFloat paramAddNoise;
 
 public:
-    static std::string filterName() { return "signal-silence-normalization"; }
+    static std::string filterName() {
+        return "signal-silence-normalization";
+    }
 
-    SilenceNormalizationNode(const Core::Configuration &c);
+    SilenceNormalizationNode(const Core::Configuration& c);
     virtual ~SilenceNormalizationNode() {}
 
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
 
     virtual bool configure();
 };
-}
+}  // namespace Signal
 
-#endif // _SIGNAL_DC_DETECTION_HH
+#endif  // _SIGNAL_DC_DETECTION_HH

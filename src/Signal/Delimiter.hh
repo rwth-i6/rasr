@@ -19,65 +19,69 @@
 
 namespace Signal {
 
-    /** Delimiter class for start stop detection.
-     */
-    class Delimiter : public Core::Component
-    {
-    public:
-        typedef u32 TimeframeIndex;
-        typedef std::pair<TimeframeIndex, TimeframeIndex> Delimitation;
-        static const Core::ParameterInt paramNumberOfIterations;
-        static const Core::ParameterFloat paramPenalty;
-        static const Core::ParameterFloat paramMinimumSpeechProportion;
-    protected:
-        u32 numberOfIterations_;
-        f64 f_; // penalty
-        f32 minimumSpeechProportion_;
-        std::vector<f64> Q_;
-        std::vector<f64> M_;
+/** Delimiter class for start stop detection.
+ */
+class Delimiter : public Core::Component {
+public:
+    typedef u32                                       TimeframeIndex;
+    typedef std::pair<TimeframeIndex, TimeframeIndex> Delimitation;
+    static const Core::ParameterInt                   paramNumberOfIterations;
+    static const Core::ParameterFloat                 paramPenalty;
+    static const Core::ParameterFloat                 paramMinimumSpeechProportion;
 
-        mutable Core::XmlChannel statisticsChannel_;
-    protected:
-        f64 logLikelihood(u32 ib, u32 ie) const;
-    public:
-        Delimiter(const Core::Configuration&);
-        virtual ~Delimiter() {}
+protected:
+    u32              numberOfIterations_;
+    f64              f_;  // penalty
+    f32              minimumSpeechProportion_;
+    std::vector<f64> Q_;
+    std::vector<f64> M_;
 
-        void reset() {
-            Q_.clear(); Q_.push_back(0);
-            M_.clear(); M_.push_back(0);
+    mutable Core::XmlChannel statisticsChannel_;
+
+protected:
+    f64 logLikelihood(u32 ib, u32 ie) const;
+
+public:
+    Delimiter(const Core::Configuration&);
+    virtual ~Delimiter() {}
+
+    void reset() {
+        Q_.clear();
+        Q_.push_back(0);
+        M_.clear();
+        M_.push_back(0);
+    }
+    void feed(f64 xx) {
+        M_.push_back(M_.back() + xx);
+        if (f_ > 0) {
+            Q_.push_back(Q_.back() + (xx * xx + f_ / 2.0) / f_);
         }
-        void feed(f64 xx) {
-            M_.push_back(M_.back() + xx);
-            if (f_ > 0) {
-                Q_.push_back(Q_.back() + (xx * xx + f_ / 2.0) / f_);
-            } else {
-                Q_.push_back(Q_.back() + xx * xx);
-            }
-            if (Q_.back() > Core::Type<f64>::max)
-                error("delimit overflow => segment to long?");
+        else {
+            Q_.push_back(Q_.back() + xx * xx);
         }
-        virtual Delimitation getDelimitation() const;
-        const u32 nFeatures() const {
-            verify(Q_.size() == M_.size());
-            return Q_.size() - 1;
-        }
-    }; // end class
+        if (Q_.back() > Core::Type<f64>::max)
+            error("delimit overflow => segment to long?");
+    }
+    virtual Delimitation getDelimitation() const;
+    const u32            nFeatures() const {
+        verify(Q_.size() == M_.size());
+        return Q_.size() - 1;
+    }
+};  // end class
 
+/** Sietill Delimiter (silence  proportion may be large)
+ */
+class SietillDelimiter : public Delimiter {
+    typedef Delimiter Precursor;
 
-    /** Sietill Delimiter (silence  proportion may be large)
-     */
-    class SietillDelimiter : public Delimiter
-    {
-        typedef Delimiter Precursor;
-    public:
-        SietillDelimiter(const Core::Configuration &c) : Precursor(c) {}
-        virtual ~SietillDelimiter() {}
+public:
+    SietillDelimiter(const Core::Configuration& c)
+            : Precursor(c) {}
+    virtual ~SietillDelimiter() {}
 
-        virtual Delimitation getDelimitation() const;
-    };
+    virtual Delimitation getDelimitation() const;
+};
 
-
-} // end namespace
+}  // namespace Signal
 
 #endif  // end ifndef

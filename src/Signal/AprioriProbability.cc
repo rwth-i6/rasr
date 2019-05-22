@@ -16,7 +16,7 @@
 
 using namespace Signal;
 
-bool UniformAprioriProbability::setClasses(const std::vector<std::string> &classLabels) {
+bool UniformAprioriProbability::setClasses(const std::vector<std::string>& classLabels) {
     logNClasses_ = std::log((Score)(nClasses_ = classLabels.size()));
     return true;
 }

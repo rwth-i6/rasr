@@ -17,126 +17,142 @@
 
 #include <Core/Parameter.hh>
 #include <Flow/Vector.hh>
-#include "SlidingWindow.hh"
 #include "SlidingAlgorithmNode.hh"
+#include "SlidingWindow.hh"
 
 namespace Signal {
 
-    // SampleNormalization
-    //////////////////////
+// SampleNormalization
+//////////////////////
 
-    class SampleNormalization {
-    public:
-        typedef f32 Sample;
-        typedef Flow::Time Time;
-    private:
-        SlidingWindow<Sample> slidingWindow_;
-        f32 mean_;
-        f64 sumWeight_;
-        f64 sum_;
-        bool changed_;
+class SampleNormalization {
+public:
+    typedef f32        Sample;
+    typedef Flow::Time Time;
 
-        std::vector<Sample> out_;
-        size_t minOutputSize_;
-        Time outputStartTime_;
+private:
+    SlidingWindow<Sample> slidingWindow_;
+    f32                   mean_;
+    f64                   sumWeight_;
+    f64                   sum_;
+    bool                  changed_;
 
-        Time sampleRate_;
-        Time lengthInS_;
-        Time rightInS_;
+    std::vector<Sample> out_;
+    size_t              minOutputSize_;
+    Time                outputStartTime_;
 
-        bool needInit_;
-    private:
-        void init();
+    Time sampleRate_;
+    Time lengthInS_;
+    Time rightInS_;
 
-        bool update(const Sample *in);
-        void updateStatistics(const Sample *add, const Sample *remove);
-        void normalizeStatistics();
+    bool needInit_;
 
-        void normalize(Sample &out);
-        void normalizeMean(Sample &out) const { out -= mean_; }
+private:
+    void init();
 
-        void copyOutput(Flow::Vector<Sample> &out);
-    public:
-        SampleNormalization();
+    bool update(const Sample* in);
+    void updateStatistics(const Sample* add, const Sample* remove);
+    void normalizeStatistics();
 
-        void setMinOuptutSize(size_t size) { minOutputSize_ = size; }
+    void normalize(Sample& out);
+    void normalizeMean(Sample& out) const {
+        out -= mean_;
+    }
 
-        bool setSampleRate(Time sampleRate);
-        Time sampleRate() const { return sampleRate_; }
+    void copyOutput(Flow::Vector<Sample>& out);
 
-        bool setLengthInS(Time lengthInS);
-        bool setRightInS(Time rightInS);
+public:
+    SampleNormalization();
 
-        /** @return is false if there is a time gap between two subsequent inputs
-         */
-        bool put(const Flow::Vector<Sample> &in);
-        /** @return is false if there is less processed samples than minSize_.
-         */
-        bool get(Flow::Vector<Sample> &out);
-        /** @return true if there has been data which have not been output yet.
-         *  To retrieve all the processed input samples call flush until it returns false.
-         */
-        bool flush(Flow::Vector<Sample> &out);
-        void reset();
-    };
+    void setMinOuptutSize(size_t size) {
+        minOutputSize_ = size;
+    }
 
-    class LengthDependentSampleNormalization {
-    public:
-        typedef SampleNormalization::Sample Sample;
-        typedef SampleNormalization::Time Time;
+    bool setSampleRate(Time sampleRate);
+    Time sampleRate() const {
+        return sampleRate_;
+    }
 
-        typedef Flow::Vector<Sample> InputData;
-        typedef Flow::Vector<Sample> OutputData;
-    private:
-        SampleNormalization short_;
-        SampleNormalization long_;
+    bool setLengthInS(Time lengthInS);
+    bool setRightInS(Time rightInS);
 
-        u32 nShortInputSamples_;
-
-        u32 maxShortLength_;
-        Time maxShortLengthInS_;
-
-        bool needInit_;
-    private:
-        void init();
-    public:
-        LengthDependentSampleNormalization();
-
-        void setMinOuptutSize(u32 size);
-        void setLengthInS(Time lengthInS);
-        void setRightInS(Time rightInS);
-        void setMaxShortLengthInS(Time maxShortLengthInS);
-
-        void setSampleRate(Time sampleRate);
-        Time sampleRate() const { return long_.sampleRate(); }
-
-        bool put(const Flow::Vector<Sample> &in);
-        bool get(Flow::Vector<Sample> &out);
-        bool flush(Flow::Vector<Sample> &out);
-        void reset();
-    };
-
-
-    /** SampleNormalizationNode
+    /** @return is false if there is a time gap between two subsequent inputs
      */
-    class SampleNormalizationNode : public SlidingAlgorithmNode<LengthDependentSampleNormalization> {
-        typedef SlidingAlgorithmNode<LengthDependentSampleNormalization> Predecessor;
-    private:
-        static Core::ParameterFloat paramLengthInS;
-        static Core::ParameterFloat paramRightInS;
-        static Core::ParameterInt paramMinOuptutSize;
-        static Core::ParameterFloat paramMaxShortLengthInS;
-    public:
-        static std::string filterName() { return "signal-sample-normalization"; }
+    bool put(const Flow::Vector<Sample>& in);
+    /** @return is false if there is less processed samples than minSize_.
+     */
+    bool get(Flow::Vector<Sample>& out);
+    /** @return true if there has been data which have not been output yet.
+     *  To retrieve all the processed input samples call flush until it returns false.
+     */
+    bool flush(Flow::Vector<Sample>& out);
+    void reset();
+};
 
-        SampleNormalizationNode(const Core::Configuration &c);
-        virtual ~SampleNormalizationNode() {}
+class LengthDependentSampleNormalization {
+public:
+    typedef SampleNormalization::Sample Sample;
+    typedef SampleNormalization::Time   Time;
 
-        virtual bool setParameter(const std::string &name, const std::string &value);
-        virtual bool configure();
-    };
+    typedef Flow::Vector<Sample> InputData;
+    typedef Flow::Vector<Sample> OutputData;
 
-} // namespace Signal
+private:
+    SampleNormalization short_;
+    SampleNormalization long_;
 
+    u32 nShortInputSamples_;
 
-#endif // _SIGNAL_SAMPLE_NORMALIZATION_HH
+    u32  maxShortLength_;
+    Time maxShortLengthInS_;
+
+    bool needInit_;
+
+private:
+    void init();
+
+public:
+    LengthDependentSampleNormalization();
+
+    void setMinOuptutSize(u32 size);
+    void setLengthInS(Time lengthInS);
+    void setRightInS(Time rightInS);
+    void setMaxShortLengthInS(Time maxShortLengthInS);
+
+    void setSampleRate(Time sampleRate);
+    Time sampleRate() const {
+        return long_.sampleRate();
+    }
+
+    bool put(const Flow::Vector<Sample>& in);
+    bool get(Flow::Vector<Sample>& out);
+    bool flush(Flow::Vector<Sample>& out);
+    void reset();
+};
+
+/** SampleNormalizationNode
+ */
+class SampleNormalizationNode : public SlidingAlgorithmNode<LengthDependentSampleNormalization> {
+    typedef SlidingAlgorithmNode<LengthDependentSampleNormalization> Predecessor;
+
+private:
+    static Core::ParameterFloat paramLengthInS;
+    static Core::ParameterFloat paramRightInS;
+    static Core::ParameterInt   paramMinOuptutSize;
+    static Core::ParameterFloat paramMaxShortLengthInS;
+
+public:
+    static std::string filterName() {
+        return "signal-sample-normalization";
+    }
+
+    SampleNormalizationNode(const Core::Configuration& c);
+    virtual ~SampleNormalizationNode() {}
+
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool configure();
+};
+
+}  // namespace Signal
+
+#endif  // _SIGNAL_SAMPLE_NORMALIZATION_HH

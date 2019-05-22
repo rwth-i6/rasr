@@ -17,26 +17,25 @@
 
 #include "WindowFunction.hh"
 
-namespace Signal
-{
-    /** KaiserWindowFunction */
+namespace Signal {
+/** KaiserWindowFunction */
 
-    class KaiserWindowFunction : public WindowFunction
-    {
-    private:
+class KaiserWindowFunction : public WindowFunction {
+private:
+    f64 beta_;
 
-        f64 beta_;
+protected:
+    virtual bool init();
 
-    protected:
+public:
+    KaiserWindowFunction(f64 beta = 0)
+            : beta_(beta){};
 
-        virtual bool init();
+    void setBeta(f64 beta) {
+        beta_     = beta;
+        needInit_ = true;
+    }
+};
+}  // namespace Signal
 
-    public:
-
-        KaiserWindowFunction(f64 beta = 0) : beta_(beta) {};
-
-        void setBeta(f64 beta) { beta_ = beta; needInit_ = true; }
-    };
-}
-
-#endif // _KAISER_WINDOW_FUNCTION_HH
+#endif  // _KAISER_WINDOW_FUNCTION_HH

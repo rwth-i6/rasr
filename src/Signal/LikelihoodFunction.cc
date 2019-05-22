@@ -12,31 +12,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "LikelihoodFunction.hh"
 #include <Core/Directory.hh>
 #include <Mm/Module.hh>
-#include "LikelihoodFunction.hh"
 
 using namespace Signal;
-
 
 // IndependentSequenceLikelihood
 ////////////////////////////////
 
-
-IndependentSequenceLikelihood::IndependentSequenceLikelihood(const Core::Configuration &c) :
-    Component(c),
-    Precursor(c)
-{
+IndependentSequenceLikelihood::IndependentSequenceLikelihood(const Core::Configuration& c)
+        : Component(c),
+          Precursor(c) {
     logLikelihoodFunctions_ = Mm::Module::instance().createFeatureScorer(c);
     if (logLikelihoodFunctions_ == 0)
         error("Could not initialize the log-likelihood function.");
 }
 
-IndependentSequenceLikelihood::~IndependentSequenceLikelihood()
-{}
+IndependentSequenceLikelihood::~IndependentSequenceLikelihood() {}
 
-bool IndependentSequenceLikelihood::setClasses(const std::vector<std::string> &classLabels)
-{
+bool IndependentSequenceLikelihood::setClasses(const std::vector<std::string>& classLabels) {
     if (logLikelihoodFunctions_ == 0)
         return false;
     if (logLikelihoodFunctions_->nMixtures() != classLabels.size()) {
@@ -49,12 +44,11 @@ bool IndependentSequenceLikelihood::setClasses(const std::vector<std::string> &c
     return true;
 }
 
-bool IndependentSequenceLikelihood::setDimension(size_t dimension)
-{
+bool IndependentSequenceLikelihood::setDimension(size_t dimension) {
     if (logLikelihoodFunctions_ == 0)
         return false;
     Mm::FeatureDescription description(Core::Configuration::prepareResourceName(
-                                           fullName(), "feature-description"));
+            fullName(), "feature-description"));
     logLikelihoodFunctions_->getFeatureDescription(description);
     if (!description.verifyNumberOfStreams(1) ||
         !description.mainStream().verifyValue("dimension", dimension)) {
@@ -64,25 +58,25 @@ bool IndependentSequenceLikelihood::setDimension(size_t dimension)
     return true;
 }
 
-void IndependentSequenceLikelihood::reset()
-{
+void IndependentSequenceLikelihood::reset() {
     std::fill(scores_.begin(), scores_.end(), 0);
     Precursor::reset();
 }
 
-void IndependentSequenceLikelihood::feed(
-    const std::vector<Data> &featureVector, Weight featureScoreWeight,
-    ScoreVector *currentScores)
-{
+void IndependentSequenceLikelihood::feed(const std::vector<Data>& featureVector,
+                                         Weight                   featureScoreWeight,
+                                         ScoreVector*             currentScores) {
     verify_(logLikelihoodFunctions_ != 0);
 
     Core::Ref<const Mm::Feature> feature(new Mm::Feature(featureVector));
-    Mm::FeatureScorer::Scorer scorer = logLikelihoodFunctions_->getScorer(feature);
-    size_t nClasses = logLikelihoodFunctions_->nMixtures();
-    if (currentScores) currentScores->resize(nClasses);
-    for(u32 c = 0; c < nClasses; ++ c) {
+    Mm::FeatureScorer::Scorer    scorer   = logLikelihoodFunctions_->getScorer(feature);
+    size_t                       nClasses = logLikelihoodFunctions_->nMixtures();
+    if (currentScores)
+        currentScores->resize(nClasses);
+    for (u32 c = 0; c < nClasses; ++c) {
         Score score = featureScoreWeight * scorer->score(c);
-        if (currentScores) (*currentScores)[c] = score;
+        if (currentScores)
+            (*currentScores)[c] = score;
         scores_[c] += score;
     }
     Precursor::feed(featureVector, featureScoreWeight);

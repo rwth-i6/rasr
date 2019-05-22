@@ -16,19 +16,14 @@
 
 namespace Signal {
 
-    const Core::ParameterFloat paramVectorResizeNewSize
-    ("new-size", "new size of vector in continuous (or discrete) units", 0, 0);
+const Core::ParameterFloat paramVectorResizeNewSize("new-size", "new size of vector in continuous (or discrete) units", 0, 0);
 
-    const Core::ParameterInt paramVectorResizeNewDiscreteSize
-    ("new-discrete-size", "new size of vector in discrete units", 0);
+const Core::ParameterInt paramVectorResizeNewDiscreteSize("new-discrete-size", "new size of vector in discrete units", 0);
 
-    const Core::ParameterFloat paramVectorResizeInitialValue
-    ("initial-value", "appended value", 0);
+const Core::ParameterFloat paramVectorResizeInitialValue("initial-value", "appended value", 0);
 
-    const Core::ParameterBool paramVectorResizeChangeFront
-    ("change-front", "change front/back", false);
+const Core::ParameterBool paramVectorResizeChangeFront("change-front", "change front/back", false);
 
-    const Core::ParameterBool paramVectorResizeRelativeChange
-    ("relative-change", "specified size is relative", false);
+const Core::ParameterBool paramVectorResizeRelativeChange("relative-change", "specified size is relative", false);
 
-} // namespace Signal
+}  // namespace Signal

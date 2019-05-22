@@ -12,34 +12,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Utility.hh>
 #include "Preemphasis.hh"
+#include <Core/Utility.hh>
 
 using namespace Signal;
-
-
 
 // Preemphasis
 //////////////
 
-Preemphasis::Preemphasis() :
-    alpha_(1.0),
-    previous_(0),
-    previousEndTime_(0),
-    sampleRate_(0),
-    needInit_(true) {
+Preemphasis::Preemphasis()
+        : alpha_(1.0),
+          previous_(0),
+          previousEndTime_(0),
+          sampleRate_(0),
+          needInit_(true) {
 }
 
 void Preemphasis::init(f32 initialValue) {
-    previous_ = initialValue;
+    previous_        = initialValue;
     previousEndTime_ = 0;
-    needInit_ = false;
+    needInit_        = false;
 }
-
 
 void Preemphasis::setAlpha(f32 alpha) {
     if (alpha_ != alpha) {
-        alpha_ = alpha;
+        alpha_    = alpha;
         needInit_ = true;
     }
 }
@@ -47,11 +44,11 @@ void Preemphasis::setAlpha(f32 alpha) {
 void Preemphasis::setSampleRate(f64 sampleRate) {
     if (sampleRate_ != sampleRate) {
         sampleRate_ = sampleRate;
-        needInit_ = true;
+        needInit_   = true;
     }
 }
 
-void Preemphasis::apply(Flow::Vector<f32> &v) {
+void Preemphasis::apply(Flow::Vector<f32>& v) {
     ensure(sampleRate_);
 
     if (needInit_ || !v.equalsToStartTime(previousEndTime_))
@@ -64,34 +61,29 @@ void Preemphasis::apply(Flow::Vector<f32> &v) {
             v[i] -= alpha_ * previous_;
             previous_ = current;
         }
-    } else {
-        current = previous_;
+    }
+    else {
+        current   = previous_;
         previous_ = v[v.size() - 1];
-        for (u32 i = v.size() - 1; i > 0; i--) v[i] -= v[i - 1];
+        for (u32 i = v.size() - 1; i > 0; i--)
+            v[i] -= v[i - 1];
         v[0] -= current;
     }
 
     previousEndTime_ = v.endTime();
 }
 
-
 // PreemphasisNode
 //////////////////
 
+Core::ParameterFloat Signal::PreemphasisNode::paramAlpha("alpha", "preemphasis weight", 1);
 
-Core::ParameterFloat Signal::PreemphasisNode::paramAlpha
-  ("alpha", "preemphasis weight", 1);
-
-
-PreemphasisNode::PreemphasisNode(const Core::Configuration &c) :
-    Core::Component(c), SleeveNode(c)
-{
+PreemphasisNode::PreemphasisNode(const Core::Configuration& c)
+        : Core::Component(c), SleeveNode(c) {
     setAlpha(paramAlpha(c));
 }
 
-
-bool PreemphasisNode::setParameter(const std::string &name, const std::string &value) {
-
+bool PreemphasisNode::setParameter(const std::string& name, const std::string& value) {
     if (paramAlpha.match(name))
         setAlpha(paramAlpha(value));
     else
@@ -100,9 +92,7 @@ bool PreemphasisNode::setParameter(const std::string &name, const std::string &v
     return true;
 }
 
-
 bool PreemphasisNode::configure() {
-
     Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;
@@ -114,10 +104,8 @@ bool PreemphasisNode::configure() {
     return putOutputAttributes(0, a);
 }
 
-
 bool PreemphasisNode::work(Flow::PortId p) {
-
-    Flow::DataPtr<Flow::Vector<f32> > in;
+    Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in)) {
         if (in == Flow::Data::eos())
             Preemphasis::reset();

@@ -19,17 +19,13 @@ using namespace Signal;
 using namespace Math::Nr;
 
 bool KaiserWindowFunction::init() {
-
     if (window_.size() <= 1)
         return false;
 
     u32 M = window_.size() - 1;
 
-    for (u32 n = 0; n <= M / 2; n ++) {
-
-            window_[n] = window_[M - n] =
-                bessi0(beta_ * sqrt(1.0 - ((f64)n / (M / 2.0) - 1.0) * ((f64)n / (M / 2.0) - 1.0))) /
-                bessi0(beta_);
+    for (u32 n = 0; n <= M / 2; n++) {
+        window_[n] = window_[M - n] = bessi0(beta_ * sqrt(1.0 - ((f64)n / (M / 2.0) - 1.0) * ((f64)n / (M / 2.0) - 1.0))) / bessi0(beta_);
     }
 
     return WindowFunction::init();

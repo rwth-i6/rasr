@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Utility.hh>
 #include "DcDetection.hh"
+#include <Core/Utility.hh>
 
 using namespace Core;
 using namespace Flow;
@@ -22,78 +22,59 @@ using namespace Signal;
 // DcDetection
 //////////////
 
-DcDetection::DcDetection() :
-    sampleRate_(0),
-    maxDcIncrement_(.9),
-    minDcLength_(0),
-    minDcLengthInS_(.0125),
-    maximalOutputSize_(0),
-    nonDcLength_(0),
-    dcLength_(0),
-    nOutputs_(0),
-    nonDcSegmentLength_(0),
-    minNonDcSegmentLength_(0),
-    minNonDcSegmentLengthInS_(.02),
-    totalRejected_(0),
-    totalAccepted_(0),
-    bufferStartTime_(0),
-    needInit_(true)
-{}
-
+DcDetection::DcDetection()
+        : sampleRate_(0),
+          maxDcIncrement_(.9),
+          minDcLength_(0),
+          minDcLengthInS_(.0125),
+          maximalOutputSize_(0),
+          nonDcLength_(0),
+          dcLength_(0),
+          nOutputs_(0),
+          nonDcSegmentLength_(0),
+          minNonDcSegmentLength_(0),
+          minNonDcSegmentLengthInS_(.02),
+          totalRejected_(0),
+          totalAccepted_(0),
+          bufferStartTime_(0),
+          needInit_(true) {}
 
 void DcDetection::setMaxDcIncrement(Sample maxDcIncrement) {
-
     if (maxDcIncrement_ != maxDcIncrement) {
-
         maxDcIncrement_ = maxDcIncrement;
-        needInit_ = true;
+        needInit_       = true;
     }
 }
-
 
 void DcDetection::setMinDcLengthInS(Time minDcLengthInS) {
-
     if (minDcLengthInS_ != minDcLengthInS) {
-
         minDcLengthInS_ = minDcLengthInS;
-        needInit_ = true;
+        needInit_       = true;
     }
 }
-
 
 void DcDetection::setMinNonDcSegmentLengthInS(Time minNonDcSegmentLengthInS) {
-
     if (minNonDcSegmentLengthInS_ != minNonDcSegmentLengthInS) {
-
         minNonDcSegmentLengthInS_ = minNonDcSegmentLengthInS;
-        needInit_ = true;
+        needInit_                 = true;
     }
 }
 
-
-void DcDetection::setMaximalOutputSize(u32 maximalOutputSize)
-{
-
+void DcDetection::setMaximalOutputSize(u32 maximalOutputSize) {
     if (maximalOutputSize_ != maximalOutputSize) {
-
         maximalOutputSize_ = maximalOutputSize;
-        needInit_ = true;
+        needInit_          = true;
     }
 }
-
 
 void DcDetection::setSampleRate(Time sampleRate) {
-
     if (sampleRate_ != sampleRate) {
-
         sampleRate_ = sampleRate;
-        needInit_ = true;
+        needInit_   = true;
     }
 }
 
-
 void DcDetection::init() {
-
     verify(sampleRate_ > 0);
     verify(maximalOutputSize_ > 0);
 
@@ -106,11 +87,9 @@ void DcDetection::init() {
     needInit_ = false;
 }
 
-
 void DcDetection::reset() {
-
     nonDcLength_ = 1;
-    dcLength_ = 0;
+    dcLength_    = 0;
 
     nonDcSegmentLength_ = 0;
 
@@ -120,25 +99,24 @@ void DcDetection::reset() {
     buffer_.clear();
 }
 
-
-bool DcDetection::put(const Vector<Sample> &in) {
-
+bool DcDetection::put(const Vector<Sample>& in) {
     if (needInit_)
         init();
 
     Time bufferEndTime = bufferStartTime_ + (Time)buffer_.size() / sampleRate_;
     if (!in.equalsToStartTime(bufferEndTime)) {
         if (!buffer_.empty()) {
-            if(in.startTime() < bufferEndTime)
+            if (in.startTime() < bufferEndTime)
                 return false;
             verify(maxDcIncrement_ /* Gaps in input are not allowed if dc-detection is disabled */);
             // Fill gaps with zeroes (will be discarded in output)
             u32 gap = (in.startTime() - bufferEndTime) * sampleRate_;
             buffer_.insert(buffer_.end(), gap, 0);
-        }else{
+        }
+        else {
             // set the new start time
             bufferStartTime_ = in.startTime();
-            nOutputs_ = 0;
+            nOutputs_        = 0;
         }
     }
 
@@ -146,9 +124,7 @@ bool DcDetection::put(const Vector<Sample> &in) {
     return true;
 }
 
-
-bool DcDetection::get(Vector<Sample> &out) {
-
+bool DcDetection::get(Vector<Sample>& out) {
     if (needInit_)
         init();
 
@@ -159,40 +135,35 @@ bool DcDetection::get(Vector<Sample> &out) {
         if (!nextBlock())
             return false;
 
-    } while(!flushBlock(out));
+    } while (!flushBlock(out));
 
-   return true;
+    return true;
 }
 
-
 bool DcDetection::nextBlock() {
-
-    while((nonDcLength_ + dcLength_) < buffer_.size()) {
-
+    while ((nonDcLength_ + dcLength_) < buffer_.size()) {
         if (isNonDC(buffer_[nonDcLength_ + dcLength_])) {
-
             if (isDcDetected()) {
                 return true;
-            } else {
-
-                nonDcLength_ += dcLength_; // include the DC hypotheses
+            }
+            else {
+                nonDcLength_ += dcLength_;  // include the DC hypotheses
                 dcLength_ = 0;
 
                 if (nonDcLength_ >= std::max(minNonDcSegmentLength_, maximalOutputSize_))
                     return true;
             }
 
-            nonDcLength_ ++; // include the new nonDC sample
-        } else
-            dcLength_ ++;
+            nonDcLength_++;  // include the new nonDC sample
+        }
+        else
+            dcLength_++;
     }
 
     return false;
 }
 
-
 bool DcDetection::lastBlock() {
-
     if (buffer_.empty())
         return false;
 
@@ -201,27 +172,24 @@ bool DcDetection::lastBlock() {
     if (isDcDetected())
         return true;
 
-    nonDcLength_ += dcLength_; // include the DC hypotheses
+    nonDcLength_ += dcLength_;  // include the DC hypotheses
     dcLength_ = 0;
 
     return true;
 }
 
-
-bool DcDetection::copyBlock(Vector<Sample> &out) {
-
+bool DcDetection::copyBlock(Vector<Sample>& out) {
     verify(out.empty());
 
     bool result = false;
 
     if ((nonDcSegmentLength_ += nonDcLength_) >= minNonDcSegmentLength_) {
-
         out.insert(out.end(), buffer_.begin(), buffer_.begin() + nonDcLength_);
 
         out.setStartTime(bufferStartTime_);
         out.setEndTime(bufferStartTime_ + (Time)out.size() / sampleRate_);
 
-        nOutputs_ ++;
+        nOutputs_++;
 
         result = true;
     }
@@ -232,9 +200,7 @@ bool DcDetection::copyBlock(Vector<Sample> &out) {
     return result;
 }
 
-
 void DcDetection::eraseBlock() {
-
     buffer_.erase(buffer_.begin(), buffer_.begin() + nonDcLength_ + dcLength_);
 
     totalRejected_ += dcLength_;
@@ -243,12 +209,10 @@ void DcDetection::eraseBlock() {
     bufferStartTime_ += (Time)(nonDcLength_ + dcLength_) / sampleRate_;
 
     nonDcLength_ = 1;
-    dcLength_ = 0;
+    dcLength_    = 0;
 }
 
-
-bool DcDetection::flushBlock(Vector<Sample> &out) {
-
+bool DcDetection::flushBlock(Vector<Sample>& out) {
     bool result = copyBlock(out);
 
     eraseBlock();
@@ -256,9 +220,7 @@ bool DcDetection::flushBlock(Vector<Sample> &out) {
     return result;
 }
 
-
-bool DcDetection::flush(Vector<Sample> &out) {
-
+bool DcDetection::flush(Vector<Sample>& out) {
     if (needInit_)
         init();
 
@@ -270,42 +232,37 @@ bool DcDetection::flush(Vector<Sample> &out) {
     return flushBlock(out);
 }
 
-
 // DcDetectionNode
 //////////////////
 
-
 ParameterFloat DcDetectionNode::paramMinDcLength(
-    "min-dc-length", "minimum length (in seconds) of DC necesseary for the decision", .0125, 0);
+        "min-dc-length", "minimum length (in seconds) of DC necesseary for the decision", .0125, 0);
 
 ParameterFloat DcDetectionNode::paramMaxDcIncrement(
-    "max-dc-increment", "interval with less variation taken as DC, 0 disables DC detection", 0.9, 0);
+        "max-dc-increment", "interval with less variation taken as DC, 0 disables DC detection", 0.9, 0);
 
 ParameterFloat DcDetectionNode::paramMinNonDcSegmentLength(
-    "min-non-dc-segment-length", "smaller segments (given in seconds) are discarded ", .02, 0);
+        "min-non-dc-segment-length", "smaller segments (given in seconds) are discarded ", .02, 0);
 
 ParameterInt DcDetectionNode::paramMaximalOutputSize(
-    "maximal-output-size", "maximal size of output", 4096, 1);
+        "maximal-output-size", "maximal size of output", 4096, 1);
 
-
-DcDetectionNode::DcDetectionNode(const Core::Configuration &c) :
-    Component(c), Predecessor(c) {
-
+DcDetectionNode::DcDetectionNode(const Core::Configuration& c)
+        : Component(c), Predecessor(c) {
     setMinDcLengthInS(paramMinDcLength(c));
     setMaxDcIncrement(paramMaxDcIncrement(c));
     setMinNonDcSegmentLengthInS(paramMinNonDcSegmentLength(c));
     setMaximalOutputSize(paramMaximalOutputSize(c));
 }
 
-
-bool DcDetectionNode::setParameter(const std::string &name, const std::string &value) {
+bool DcDetectionNode::setParameter(const std::string& name, const std::string& value) {
     if (paramMinDcLength.match(name))
         setMinDcLengthInS(paramMinDcLength(value));
     else if (paramMaxDcIncrement.match(name))
         setMaxDcIncrement(paramMaxDcIncrement(value));
-    else  if (paramMinNonDcSegmentLength.match(name))
+    else if (paramMinNonDcSegmentLength.match(name))
         setMinNonDcSegmentLengthInS(paramMinNonDcSegmentLength(value));
-    else  if (paramMaximalOutputSize.match(name))
+    else if (paramMaximalOutputSize.match(name))
         setMaximalOutputSize(paramMaximalOutputSize(value));
     else
         return false;
@@ -313,9 +270,7 @@ bool DcDetectionNode::setParameter(const std::string &name, const std::string &v
     return true;
 }
 
-
 bool DcDetectionNode::configure() {
-
     Core::Ref<const Flow::Attributes> a = getInputAttributes(0);
     if (!configureDatatype(a, Flow::Vector<f32>::type()))
         return false;

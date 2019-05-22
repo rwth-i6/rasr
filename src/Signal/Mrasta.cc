@@ -17,23 +17,23 @@
 using namespace Signal;
 
 // filter widths: 8 .. 130 ms (see original paper)
-const float MrastaFiltering::sigma_[maxFilter] = { 0.8, 1.2, 1.8, 2.7, 4.0, 6.0, 9.0, 13.0 };
+const float MrastaFiltering::sigma_[maxFilter] = {0.8, 1.2, 1.8, 2.7, 4.0, 6.0, 9.0, 13.0};
 
 inline float MrastaFiltering::sigma(int index) const {
     if ((index < 0) || (index > (int)maxFilter)) {
-        return (Value) 0;
-    } else {
+        return (Value)0;
+    }
+    else {
         return sigma_[index];
     }
 }
 
-MrastaFiltering::MrastaFiltering() :
-    needInit_(true),
-    nFeatures_(0),
-    nFrames_(0),
-    nDerivatives_(0),
-    nFilters_(0)
-{}
+MrastaFiltering::MrastaFiltering()
+        : needInit_(true),
+          nFeatures_(0),
+          nFrames_(0),
+          nDerivatives_(0),
+          nFilters_(0) {}
 
 MrastaFiltering::~MrastaFiltering() {}
 
@@ -63,7 +63,6 @@ bool MrastaFiltering::init() {
     return true;
 }
 
-
 /** Initialize the Gaussian filters.
  *
  *  u = (cMax - 1) / 2 => 50
@@ -79,23 +78,16 @@ void MrastaFiltering::initGaussianFilters(size_t nFilter, size_t nFrames) {
     resizeFilters(nFilter, nFrames);
 
     // fill the filter with the corresponding Gaussian values
-    for (int i = 0; i < (int) nFilter; i++) {
-        for (int j = 0; j < (int) nFrames; j++) {
+    for (int i = 0; i < (int)nFilter; i++) {
+        for (int j = 0; j < (int)nFrames; j++) {
             // Gaussian filter (G0)
-            getG0()[i][j] = exp (
-                            -(Value) ( (j - (int) (nFrames / 2) ) * (j - (int) (nFrames / 2) )
-                                            / (2.0 * sigma(i) * sigma(i)) )
-            );
+            getG0()[i][j] = exp(
+                    -(Value)((j - (int)(nFrames / 2)) * (j - (int)(nFrames / 2)) / (2.0 * sigma(i) * sigma(i))));
             // first (time) derivative of the Gaussian filter (G1)
-            getG1()[i][j] = (Value) -( (j - (int) (nFrames / 2) )
-                            / (sigma(i) * sigma(i)) )
-                            * getG0()[i][j];
+            getG1()[i][j] = (Value) - ((j - (int)(nFrames / 2)) / (sigma(i) * sigma(i))) * getG0()[i][j];
 
             // second derivative of the Gaussian filter (G2)
-            getG2()[i][j] = ( (Value) (j - (int) (nFrames / 2) ) * (j - (int) (nFrames / 2) )
-                            / (sigma(i) * sigma(i) * sigma(i) * sigma(i))
-                            - 1.0 / (sigma(i) * sigma(i) ) )
-                            * getG0()[i][j];
+            getG2()[i][j] = ((Value)(j - (int)(nFrames / 2)) * (j - (int)(nFrames / 2)) / (sigma(i) * sigma(i) * sigma(i) * sigma(i)) - 1.0 / (sigma(i) * sigma(i))) * getG0()[i][j];
         }
         // divide each Gaussian filter (G1, G2) by absolute maximum (over frames)
         normalizeFilterResponse(getG1(), i);
@@ -106,47 +98,47 @@ void MrastaFiltering::initGaussianFilters(size_t nFilter, size_t nFrames) {
 inline void MrastaFiltering::resizeFilters(size_t nFilter, size_t nFrames) {
     if (filters_.size() != 3)
         filters_.resize(3);
-    for (Math::Vector<Math::Matrix<Value> >::iterator it = filters_.begin(); it != filters_.end(); it++)
-        if ( (it->nRows() != nFilter) || (it->nColumns() != nFrames) )
+    for (Math::Vector<Math::Matrix<Value>>::iterator it = filters_.begin(); it != filters_.end(); it++)
+        if ((it->nRows() != nFilter) || (it->nColumns() != nFrames))
             it->resize(nFilter, nFrames);
 }
 
 inline void MrastaFiltering::normalizeFilterResponse(Math::Matrix<Value>& G, int filter_num) {
     Math::Vector<Value> vector = G.row(filter_num);
     // max(|v|) = max(-min(v), max(v))
-    Value maxAbsVal = std::max( - (Value) *std::min_element(vector.begin(), vector.end() ),
-                                          *std::max_element(vector.begin(), vector.end()));
+    Value maxAbsVal = std::max(-(Value)*std::min_element(vector.begin(), vector.end()),
+                               *std::max_element(vector.begin(), vector.end()));
     // normalize vector and write back into the matrix
     std::transform(vector.begin(), vector.end(), vector.begin(),
-                    std::bind2nd(std::multiplies<Value>(), (Value) 1 / maxAbsVal));
+                   std::bind2nd(std::multiplies<Value>(), (Value)1 / maxAbsVal));
     G.setRow(filter_num, vector);
 }
 
-void MrastaFiltering::getBand(size_t band, std::vector<Value> &in, std::vector<Value> &out) {
+void MrastaFiltering::getBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
     //Copy each frame of a band.
     for (Flow::Vector<Value>::iterator it = out.begin(), itv = (in.begin() + band);
          it != out.end();
          it++, itv += nFeatures_)
-            *it = *itv;
+        *it = *itv;
 }
 
-void MrastaFiltering::setBand(size_t band, std::vector<Value> &in, std::vector<Value> &out) {
+void MrastaFiltering::setBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
     //Copy value to the end of the output vector.
     for (Flow::Vector<Value>::iterator it = in.begin(), itv = (out.begin() + band);
          it != in.end();
          it++, itv += nFeatures_)
-            *itv = *it;
+        *itv = *it;
 }
 
-void MrastaFiltering::filterEnergyBand(Math::Vector<Value> &in, Math::Vector<Value> &response) {
+void MrastaFiltering::filterEnergyBand(Math::Vector<Value>& in, Math::Vector<Value>& response) {
     // get the filter response
     for (size_t filter = 0; filter < nFilters_; filter++) {
-        response[2*filter  ] = in * getG1().row(filter);
-        response[2*filter+1] = in * getG2().row(filter);
+        response[2 * filter]     = in * getG1().row(filter);
+        response[2 * filter + 1] = in * getG2().row(filter);
     }
 }
 
-void MrastaFiltering::appendDerivatives(std::vector<Value> &in) {
+void MrastaFiltering::appendDerivatives(std::vector<Value>& in) {
     // Pointer to start of the values for the derivative calculation
     Math::Vector<Value>::iterator itBand;
     // Pointer to the start of the derivatives
@@ -156,13 +148,13 @@ void MrastaFiltering::appendDerivatives(std::vector<Value> &in) {
     if (nDerivatives_ > 0) {
         // set the iterators
         itBand  = in.begin();
-        itDeriv = in.begin() + (int) nFeatures_ * 2 * nFilters_;
+        itDeriv = in.begin() + (int)nFeatures_ * 2 * nFilters_;
 
         // for each Gaussian filter [(G1+G2) * nFilter()]
-        for (int filter = 0; filter < 2 * (int) nFilters_; filter++) {
+        for (int filter = 0; filter < 2 * (int)nFilters_; filter++) {
             // first derivative (no derivatives for first/last band)
-            for (int i = 1; i < (int) nFeatures_-1; i++, itDeriv++, itBand++)
-                 *itDeriv = *(itBand + 2) - *itBand;
+            for (int i = 1; i < (int)nFeatures_ - 1; i++, itDeriv++, itBand++)
+                *itDeriv = *(itBand + 2) - *itBand;
 
             // set the iterator to start of next band (no derivatives for first last band)
             itBand += 2;
@@ -173,20 +165,19 @@ void MrastaFiltering::appendDerivatives(std::vector<Value> &in) {
     if (nDerivatives_ > 1) {
         // reset the iterators (itDeriv should be correct)
         itBand  = in.begin();
-        itDeriv = in.begin() + (int) 2 * nFilters_ * (nFeatures_ + (nFeatures_ -2) );
+        itDeriv = in.begin() + (int)2 * nFilters_ * (nFeatures_ + (nFeatures_ - 2));
 
         // for each Gaussian filter [(G1+G2) * nFilter()]
-        for (int filter = 0; filter < 2 * (int) nFilters_; filter++) {
+        for (int filter = 0; filter < 2 * (int)nFilters_; filter++) {
             // second derivative (no derivatives for first/last band)
-            for (int i = 1; i < (int) nFeatures_ -1; i++, itDeriv++, itBand++)
-                 *itDeriv = *(itBand + 2) / 2 - *(itBand + 1)  + *itBand / 2;
+            for (int i = 1; i < (int)nFeatures_ - 1; i++, itDeriv++, itBand++)
+                *itDeriv = *(itBand + 2) / 2 - *(itBand + 1) + *itBand / 2;
 
             // set the iterator to start of next band (no derivatives for first last band)
             itBand += 2;
         }
     }
 }
-
 
 /** apply the Gaussian filtering to the values
  *
@@ -195,7 +186,7 @@ void MrastaFiltering::appendDerivatives(std::vector<Value> &in) {
  *
  *  @return false if initialization fails, true on success
  * */
-bool MrastaFiltering::apply(std::vector<Value> &in, std::vector<Value> &out) {
+bool MrastaFiltering::apply(std::vector<Value>& in, std::vector<Value>& out) {
     // init is requested, initialization failed?
     if (needInit_ && !init())
         return false;
@@ -212,27 +203,21 @@ bool MrastaFiltering::apply(std::vector<Value> &in, std::vector<Value> &out) {
     return true;
 }
 
-
 //============================================================================
 
 const Core::ParameterInt MrastaFilteringNode::paramContextLength(
-    "context-length", "number of input CRBE frames (sliding window size)", 101);
+        "context-length", "number of input CRBE frames (sliding window size)", 101);
 const Core::ParameterInt MrastaFilteringNode::paramDerivatives(
-    "derivative", "number of derivatives", 1);
+        "derivative", "number of derivatives", 1);
 const Core::ParameterInt MrastaFilteringNode::paramGaussFilters(
-    "gauss-filter", "number of Gaussian filters", 6);
+        "gauss-filter", "number of Gaussian filters", 6);
 
-MrastaFilteringNode::MrastaFilteringNode(const Core::Configuration &c) :
-    Core::Component(c), Precursor(c),
-    contextLength_(0),
-    nDerivatives_(0),
-    nGaussFilters_(0),
-    needInit_(true)
-{ }
+MrastaFilteringNode::MrastaFilteringNode(const Core::Configuration& c)
+        : Core::Component(c), Precursor(c), contextLength_(0), nDerivatives_(0), nGaussFilters_(0), needInit_(true) {}
 
 MrastaFilteringNode::~MrastaFilteringNode() {}
 
-bool MrastaFilteringNode::setParameter(const std::string &name, const std::string &value) {
+bool MrastaFilteringNode::setParameter(const std::string& name, const std::string& value) {
     if (paramContextLength.match(name))
         setContextLength(paramContextLength(value));
     else if (paramDerivatives.match(name))
@@ -257,14 +242,15 @@ bool MrastaFilteringNode::configure() {
 }
 
 bool MrastaFilteringNode::work(Flow::PortId p) {
-    Flow::DataPtr<Flow::Vector<Value> > ptrFeatures;
+    Flow::DataPtr<Flow::Vector<Value>> ptrFeatures;
 
     if (getData(0, ptrFeatures)) {
         // init with the length of the concat'd input vectors
-        if (needInit_) init(ptrFeatures.get()->size());
+        if (needInit_)
+            init(ptrFeatures.get()->size());
 
         // generate features
-        Flow::Vector<Value> *out = new Flow::Vector<Value>(getOutputDimension());
+        Flow::Vector<Value>* out = new Flow::Vector<Value>(getOutputDimension());
         apply(*(ptrFeatures.get()), *out);
 
         out->setTimestamp(*ptrFeatures);
@@ -278,7 +264,7 @@ bool MrastaFilteringNode::work(Flow::PortId p) {
  */
 void MrastaFilteringNode::init(size_t length) {
     // initialize MrastaFiltering (length = nFrames * nElements)
-    MrastaFiltering::init((size_t) (length / contextLength_), contextLength_, nGaussFilters_, nDerivatives_);
+    MrastaFiltering::init((size_t)(length / contextLength_), contextLength_, nGaussFilters_, nDerivatives_);
 
     // check the output dimension
     if (getOutputDimension() <= 0)

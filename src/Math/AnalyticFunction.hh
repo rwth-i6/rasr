@@ -20,123 +20,127 @@
 
 namespace Math {
 
-    /** Interface class for analytic functions */
-    class AnalyticFunction : public Core::ReferenceCounted {
-    public:
-        typedef f64 Argument;
-        typedef f64 Result;
-    public:
-        AnalyticFunction() {}
-    };
+/** Interface class for analytic functions */
+class AnalyticFunction : public Core::ReferenceCounted {
+public:
+    typedef f64 Argument;
+    typedef f64 Result;
 
-    class UnaryAnalyticFunction;
-    typedef Core::Ref<const UnaryAnalyticFunction> UnaryAnalyticFunctionRef;
+public:
+    AnalyticFunction() {}
+};
 
-    /** Interface class for unary analytic functions */
-    class UnaryAnalyticFunction : public AnalyticFunction {
-    public:
-        UnaryAnalyticFunction() {}
-        virtual ~UnaryAnalyticFunction() {}
+class UnaryAnalyticFunction;
+typedef Core::Ref<const UnaryAnalyticFunction> UnaryAnalyticFunctionRef;
 
-        virtual Result value(Argument) const = 0;
-        virtual UnaryAnalyticFunctionRef derive() const {
-            return UnaryAnalyticFunctionRef(); /* not implemented in derived class */
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            return UnaryAnalyticFunctionRef(); /* not implemented in derived class */
-        }
-    };
+/** Interface class for unary analytic functions */
+class UnaryAnalyticFunction : public AnalyticFunction {
+public:
+    UnaryAnalyticFunction() {}
+    virtual ~UnaryAnalyticFunction() {}
 
-    /** Base class for Composition of two analytic functions */
-    class AnalyticUnaryComposition : public UnaryAnalyticFunction {
-    protected:
-        UnaryAnalyticFunctionRef f_;
-        UnaryAnalyticFunctionRef g_;
-    public:
-        AnalyticUnaryComposition(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) : f_(f), g_(g) {
-            require(f_); require(g_);
-        }
-    };
-
-    /** f(x)+g(x) */
-    class AnalyticSummation : public AnalyticUnaryComposition {
-    public:
-        AnalyticSummation(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) :
-            AnalyticUnaryComposition(f, g) {}
-
-        virtual Result value(Argument x) const { return f_->value(x) + g_->value(x); }
-        virtual UnaryAnalyticFunctionRef derive() const {
-            UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
-            return (!fDerived || !gDerived) ?  UnaryAnalyticFunctionRef() :
-                UnaryAnalyticFunctionRef(new AnalyticSummation(fDerived, gDerived));
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            return UnaryAnalyticFunctionRef(); /* no general rule exists, try to use nesting if possible */
-        }
-    };
-    /** Creates an AnalyticSummation object */
-    inline UnaryAnalyticFunctionRef operator+(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
-        return UnaryAnalyticFunctionRef(new AnalyticSummation(f, g));
+    virtual Result                   value(Argument) const = 0;
+    virtual UnaryAnalyticFunctionRef derive() const {
+        return UnaryAnalyticFunctionRef(); /* not implemented in derived class */
     }
-
-    /** f(x)*g(x) */
-    class AnalyticMultiplication : public AnalyticUnaryComposition {
-    public:
-        AnalyticMultiplication(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) :
-            AnalyticUnaryComposition(f, g) {}
-
-        virtual Result value(Argument x) const { return f_->value(x) * g_->value(x); }
-        virtual UnaryAnalyticFunctionRef derive() const {
-            UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
-            return (!fDerived || !gDerived) ?  UnaryAnalyticFunctionRef() :
-                UnaryAnalyticFunctionRef(new AnalyticMultiplication(fDerived, g_)) +
-                UnaryAnalyticFunctionRef(new AnalyticMultiplication(f_, gDerived));
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            return UnaryAnalyticFunctionRef(); /* no general rule exists, try to use nesting if possible */
-        }
-    };
-    /** Creates an AnalyticMultiplication object */
-    inline UnaryAnalyticFunctionRef operator*(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
-        return UnaryAnalyticFunctionRef(new AnalyticMultiplication(f, g));
+    virtual UnaryAnalyticFunctionRef invert() const {
+        return UnaryAnalyticFunctionRef(); /* not implemented in derived class */
     }
+};
 
-    /** f(g(x)) */
-    class AnalyticNesting : public AnalyticUnaryComposition {
-    public:
-        AnalyticNesting(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) :
-            AnalyticUnaryComposition(f, g) {}
+/** Base class for Composition of two analytic functions */
+class AnalyticUnaryComposition : public UnaryAnalyticFunction {
+protected:
+    UnaryAnalyticFunctionRef f_;
+    UnaryAnalyticFunctionRef g_;
 
-        virtual Result value(Argument x) const { return f_->value(g_->value(x)); }
-        virtual UnaryAnalyticFunctionRef derive() const {
-            UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
-            return (!fDerived || !gDerived) ?  UnaryAnalyticFunctionRef() :
-                UnaryAnalyticFunctionRef(new AnalyticNesting(fDerived, g_)) * gDerived;
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            UnaryAnalyticFunctionRef fInverse = f_->invert(), gInverse = g_->invert();
-            return (!fInverse || !gInverse) ?  UnaryAnalyticFunctionRef() :
-                UnaryAnalyticFunctionRef(new AnalyticNesting(gInverse, fInverse));
-        }
-
-    };
-    /** Creates an AnalyticNesting object. */
-    inline  UnaryAnalyticFunctionRef nest(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
-        return UnaryAnalyticFunctionRef(new AnalyticNesting(f, g));
+public:
+    AnalyticUnaryComposition(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g)
+            : f_(f), g_(g) {
+        require(f_);
+        require(g_);
     }
+};
 
-    class BinaryAnalyticFunction;
-    typedef Core::Ref<const BinaryAnalyticFunction> BinaryAnalyticFunctionRef;
+/** f(x)+g(x) */
+class AnalyticSummation : public AnalyticUnaryComposition {
+public:
+    AnalyticSummation(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g)
+            : AnalyticUnaryComposition(f, g) {}
 
-    /** Interface class for binary analytic functions */
-    class BinaryAnalyticFunction : public AnalyticFunction {
-    public:
-        BinaryAnalyticFunction() {}
-        virtual ~BinaryAnalyticFunction() {}
+    virtual Result value(Argument x) const {
+        return f_->value(x) + g_->value(x);
+    }
+    virtual UnaryAnalyticFunctionRef derive() const {
+        UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
+        return (!fDerived || !gDerived) ? UnaryAnalyticFunctionRef() : UnaryAnalyticFunctionRef(new AnalyticSummation(fDerived, gDerived));
+    }
+    virtual UnaryAnalyticFunctionRef invert() const {
+        return UnaryAnalyticFunctionRef(); /* no general rule exists, try to use nesting if possible */
+    }
+};
+/** Creates an AnalyticSummation object */
+inline UnaryAnalyticFunctionRef operator+(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
+    return UnaryAnalyticFunctionRef(new AnalyticSummation(f, g));
+}
 
-        virtual Result value(Argument, Argument) const = 0;
-    };
+/** f(x)*g(x) */
+class AnalyticMultiplication : public AnalyticUnaryComposition {
+public:
+    AnalyticMultiplication(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g)
+            : AnalyticUnaryComposition(f, g) {}
 
-} // namespace Math
+    virtual Result value(Argument x) const {
+        return f_->value(x) * g_->value(x);
+    }
+    virtual UnaryAnalyticFunctionRef derive() const {
+        UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
+        return (!fDerived || !gDerived) ? UnaryAnalyticFunctionRef() : UnaryAnalyticFunctionRef(new AnalyticMultiplication(fDerived, g_)) + UnaryAnalyticFunctionRef(new AnalyticMultiplication(f_, gDerived));
+    }
+    virtual UnaryAnalyticFunctionRef invert() const {
+        return UnaryAnalyticFunctionRef(); /* no general rule exists, try to use nesting if possible */
+    }
+};
+/** Creates an AnalyticMultiplication object */
+inline UnaryAnalyticFunctionRef operator*(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
+    return UnaryAnalyticFunctionRef(new AnalyticMultiplication(f, g));
+}
 
-#endif //_MATH_ANALYTIC_FUNCTION_HH
+/** f(g(x)) */
+class AnalyticNesting : public AnalyticUnaryComposition {
+public:
+    AnalyticNesting(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g)
+            : AnalyticUnaryComposition(f, g) {}
+
+    virtual Result value(Argument x) const {
+        return f_->value(g_->value(x));
+    }
+    virtual UnaryAnalyticFunctionRef derive() const {
+        UnaryAnalyticFunctionRef fDerived = f_->derive(), gDerived = g_->derive();
+        return (!fDerived || !gDerived) ? UnaryAnalyticFunctionRef() : UnaryAnalyticFunctionRef(new AnalyticNesting(fDerived, g_)) * gDerived;
+    }
+    virtual UnaryAnalyticFunctionRef invert() const {
+        UnaryAnalyticFunctionRef fInverse = f_->invert(), gInverse = g_->invert();
+        return (!fInverse || !gInverse) ? UnaryAnalyticFunctionRef() : UnaryAnalyticFunctionRef(new AnalyticNesting(gInverse, fInverse));
+    }
+};
+/** Creates an AnalyticNesting object. */
+inline UnaryAnalyticFunctionRef nest(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g) {
+    return UnaryAnalyticFunctionRef(new AnalyticNesting(f, g));
+}
+
+class BinaryAnalyticFunction;
+typedef Core::Ref<const BinaryAnalyticFunction> BinaryAnalyticFunctionRef;
+
+/** Interface class for binary analytic functions */
+class BinaryAnalyticFunction : public AnalyticFunction {
+public:
+    BinaryAnalyticFunction() {}
+    virtual ~BinaryAnalyticFunction() {}
+
+    virtual Result value(Argument, Argument) const = 0;
+};
+
+}  // namespace Math
+
+#endif  //_MATH_ANALYTIC_FUNCTION_HH

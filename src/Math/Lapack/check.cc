@@ -15,23 +15,20 @@
 #include <Core/Application.hh>
 #include "Lapack.hh"
 
-
 using namespace Math::Lapack;
 
-
-class TestApplication :
-    public Core::Application
-{
+class TestApplication : public Core::Application {
 public:
     virtual std::string getUsage() const {
         return "short program to test LAPACK features\n";
     }
 
-    TestApplication() : Core::Application() {
+    TestApplication()
+            : Core::Application() {
         setTitle("check");
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         return 0;
     }
 

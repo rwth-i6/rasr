@@ -15,88 +15,94 @@
 #ifndef _MATH_ACOUSTICAL_ANALYTIC_FUNCTION_HH
 #define _MATH_ACOUSTICAL_ANALYTIC_FUNCTION_HH
 
-#include "AnalyticFunction.hh"
 #include <Core/Utility.hh>
+#include "AnalyticFunction.hh"
 
 namespace Math {
 
-    /** Derived Mel warping function core: d f_{Mel} / df = 1.0 / log(10) / (700.0 + f) */
-    struct DerivedMelWarpingCore : public UnaryAnalyticFunction {
-        virtual Result value(Argument f) const { return 1.0 / log(10) / (700.0 + f); }
-    };
+/** Derived Mel warping function core: d f_{Mel} / df = 1.0 / log(10) / (700.0 + f) */
+struct DerivedMelWarpingCore : public UnaryAnalyticFunction {
+    virtual Result value(Argument f) const {
+        return 1.0 / log(10) / (700.0 + f);
+    }
+};
 
-    /** Inverse of Mel warping function core: f = (10^(f_{Mel}) - 1) * 700 */
-    struct InverseMelWarpingCore : public UnaryAnalyticFunction {
-        inline virtual Result value(Argument f) const;
-        inline virtual UnaryAnalyticFunctionRef invert() const;
-    };
+/** Inverse of Mel warping function core: f = (10^(f_{Mel}) - 1) * 700 */
+struct InverseMelWarpingCore : public UnaryAnalyticFunction {
+    inline virtual Result                   value(Argument f) const;
+    inline virtual UnaryAnalyticFunctionRef invert() const;
+};
 
-    /** Mel warping function core f_{Mel} = log10 (1 + f / 700) */
-    struct MelWarpingCore : public UnaryAnalyticFunction {
-        virtual Result value(Argument f) const { return log10(1.0 + f / 700.0); }
-        virtual UnaryAnalyticFunctionRef derive() const {
-            return UnaryAnalyticFunctionRef(new DerivedMelWarpingCore);
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            return UnaryAnalyticFunctionRef(new InverseMelWarpingCore);
-        }
-    };
+/** Mel warping function core f_{Mel} = log10 (1 + f / 700) */
+struct MelWarpingCore : public UnaryAnalyticFunction {
+    virtual Result value(Argument f) const {
+        return log10(1.0 + f / 700.0);
+    }
+    virtual UnaryAnalyticFunctionRef derive() const {
+        return UnaryAnalyticFunctionRef(new DerivedMelWarpingCore);
+    }
+    virtual UnaryAnalyticFunctionRef invert() const {
+        return UnaryAnalyticFunctionRef(new InverseMelWarpingCore);
+    }
+};
 
-    AnalyticFunction::Result InverseMelWarpingCore::value(Argument f) const {
-        return (pow(10, f) - 1.0) * 700.0;
+AnalyticFunction::Result InverseMelWarpingCore::value(Argument f) const {
+    return (pow(10, f) - 1.0) * 700.0;
+}
+
+UnaryAnalyticFunctionRef InverseMelWarpingCore::invert() const {
+    return UnaryAnalyticFunctionRef(new MelWarpingCore);
+}
+
+/** Equal Loudness Preemphasis
+ *  E(f) = (omega^4 * (omega^2 + 56.8e6)) /
+ *           ((omega^2 + 6.3e6))^2 * (omega^2 + 0.38e9) * (omega^6 + 9.58e26))
+ *  E(f) *= 9.58e26 (last pole's omega) to get values in order of magnitude of 1 at 4000 Hz.
+ */
+struct EqualLoudnessPreemphasis : public UnaryAnalyticFunction {
+    virtual Result value(Argument f) const;
+};
+
+/** Equal Loudness Preemphasis optimized for 4KHz bandwidth
+ *  E(f) = (omega^4 * (omega^2 + 56.8e6)) / ((omega^2 + 6.3e6))^2 * (omega^2 + 0.38e9))
+ */
+struct EqualLoudnessPreemphasis4Khz : public UnaryAnalyticFunction {
+    virtual Result value(Argument f) const;
+};
+
+/** 40dB equal Loudness Preemphasis (taken from Sprachcore/ICSI)
+ *  E(f) = (f^2 / (f^2 + 1.6e5)) * (f^2 / (f^2 + 1.6e5))
+ *  	* ( (f^2 + 1.44e6) / (f^2 + 9.61e6) )
+ */
+struct EqualLoudnessPreemphasis40dB : public UnaryAnalyticFunction {
+    virtual Result value(Argument f) const;
+};
+
+/**
+ *  Bilinear Transform.
+ *  x_{B} = x - T / pi * arctan(a * sin(2 * pi / T * x) / (1 + a * cos(2 * pi / T * x))),
+ *  where 'a' controls curvature, and 'T' is the periodicity of the arctan term.
+ *  Hint: pont T/2 is mapped on itself.
+ */
+struct BilinearTransform : public UnaryAnalyticFunction {
+    Argument a_;
+    Argument T_;
+
+public:
+    BilinearTransform(Argument a, Argument T)
+            : a_(a), T_(T) {
+        require(Core::abs(a) < 1);
+        require(T > 0);
     }
 
-    UnaryAnalyticFunctionRef InverseMelWarpingCore::invert() const {
-        return UnaryAnalyticFunctionRef(new MelWarpingCore);
+    virtual Result value(Argument x) const {
+        return x - T_ / M_PI * atan(a_ * sin(2 * M_PI / T_ * x) / (1 + a_ * cos(2 * M_PI / T_ * x)));
     }
+    virtual UnaryAnalyticFunctionRef invert() const {
+        return UnaryAnalyticFunctionRef(new BilinearTransform(-a_, T_));
+    }
+};
 
-    /** Equal Loudness Preemphasis
-     *  E(f) = (omega^4 * (omega^2 + 56.8e6)) /
-     *           ((omega^2 + 6.3e6))^2 * (omega^2 + 0.38e9) * (omega^6 + 9.58e26))
-     *  E(f) *= 9.58e26 (last pole's omega) to get values in order of magnitude of 1 at 4000 Hz.
-     */
-    struct EqualLoudnessPreemphasis : public UnaryAnalyticFunction {
-        virtual Result value(Argument f) const;
-    };
+}  // namespace Math
 
-    /** Equal Loudness Preemphasis optimized for 4KHz bandwidth
-     *  E(f) = (omega^4 * (omega^2 + 56.8e6)) / ((omega^2 + 6.3e6))^2 * (omega^2 + 0.38e9))
-     */
-    struct EqualLoudnessPreemphasis4Khz : public UnaryAnalyticFunction {
-        virtual Result value(Argument f) const;
-    };
-
-    /** 40dB equal Loudness Preemphasis (taken from Sprachcore/ICSI)
-     *  E(f) = (f^2 / (f^2 + 1.6e5)) * (f^2 / (f^2 + 1.6e5))
-     *  	* ( (f^2 + 1.44e6) / (f^2 + 9.61e6) )
-     */
-    struct EqualLoudnessPreemphasis40dB : public UnaryAnalyticFunction {
-        virtual Result value(Argument f) const;
-    };
-
-    /**
-     *  Bilinear Transform.
-     *  x_{B} = x - T / pi * arctan(a * sin(2 * pi / T * x) / (1 + a * cos(2 * pi / T * x))),
-     *  where 'a' controls curvature, and 'T' is the periodicity of the arctan term.
-     *  Hint: pont T/2 is mapped on itself.
-     */
-    struct BilinearTransform : public UnaryAnalyticFunction {
-        Argument a_;
-        Argument T_;
-    public:
-        BilinearTransform(Argument a, Argument T) : a_(a), T_(T) {
-            require(Core::abs(a) < 1);
-            require(T > 0);
-        }
-
-        virtual Result value(Argument x) const {
-            return x - T_ / M_PI * atan(a_ * sin(2 * M_PI / T_ * x) / (1 + a_ * cos(2 * M_PI / T_ * x)));
-        }
-        virtual UnaryAnalyticFunctionRef invert() const {
-            return UnaryAnalyticFunctionRef(new BilinearTransform(-a_, T_));
-        }
-    };
-
-} // namespace Math
-
-#endif //_MATH_ACOUSTICAL_ANALYTIC_FUNCTION_HH
+#endif  //_MATH_ACOUSTICAL_ANALYTIC_FUNCTION_HH

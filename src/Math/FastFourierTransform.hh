@@ -18,61 +18,59 @@
 #include <Core/Types.hh>
 #include <vector>
 
-namespace Math
-{
+namespace Math {
+/**
+ * Fast Fourier Transformation.
+ * Based on the implementation in "Numerical Recipes in C"
+ * @todo Optimization, e.g. use of SSE instructions
+ */
+class FastFourierTransform {
+public:
     /**
-     * Fast Fourier Transformation.
-     * Based on the implementation in "Numerical Recipes in C"
-     * @todo Optimization, e.g. use of SSE instructions
+     * Initialize DFFT for arrays of size  @c size
+     * @param size size of arrays to transform, has to be 2^n
      */
-    class FastFourierTransform
-    {
-    public:
-        /**
-         * Initialize DFFT for arrays of size  @c size
-         * @param size size of arrays to transform, has to be 2^n
-         */
-        FastFourierTransform();
+    FastFourierTransform();
 
-        /**
-         * Apply discrete Fourier transform to complex values in @c v.
-         * Transformation is done in place.
-         *
-         * @param v vector of complex values, has to be of size 2^n
-         * @param inverse apply inverse discrete fourier transform
-         */
-        void transform(std::vector<f32> &v, bool inverse = false);
+    /**
+     * Apply discrete Fourier transform to complex values in @c v.
+     * Transformation is done in place.
+     *
+     * @param v vector of complex values, has to be of size 2^n
+     * @param inverse apply inverse discrete fourier transform
+     */
+    void transform(std::vector<f32>& v, bool inverse = false);
 
-        /**
-         * Apply discrete Fourier transform to real values in @c v.
-         * Transformation is done in place.
-         *
-         * @param v values, vector has to be of size 2^n
-         * @param inverse apply inverse discrete fourier transform
-         */
-        void transformReal(std::vector<float> &v, bool inverse = false);
+    /**
+     * Apply discrete Fourier transform to real values in @c v.
+     * Transformation is done in place.
+     *
+     * @param v values, vector has to be of size 2^n
+     * @param inverse apply inverse discrete fourier transform
+     */
+    void transformReal(std::vector<float>& v, bool inverse = false);
 
-    protected:
-        void setSize(u32 size);
-        /**
-         * Reorder values in the array &v by bit reversal.
-         * @param v vector of complex values
-         */
-        void bitReversalReordering(std::vector<f32> &v);
+protected:
+    void setSize(u32 size);
+    /**
+     * Reorder values in the array &v by bit reversal.
+     * @param v vector of complex values
+     */
+    void bitReversalReordering(std::vector<f32>& v);
 
-        /**
-         * create the mapping for bit reversal reording
-         * @param length number of complex values (array size / 2)
-         */
-        void createBitReversalReordering(u32 length);
-        std::vector<size_t> reording_;
-        u32 size_;
+    /**
+     * create the mapping for bit reversal reording
+     * @param length number of complex values (array size / 2)
+     */
+    void                createBitReversalReordering(u32 length);
+    std::vector<size_t> reording_;
+    u32                 size_;
 
-    private:
-        // Defined for numerical compatibility against NR implementation
-        static const f64 Pi, DPi;
-    };
+private:
+    // Defined for numerical compatibility against NR implementation
+    static const f64 Pi, DPi;
+};
 
-}
+}  // namespace Math
 
-#endif // _MATH_FASTFOURIERTRANSFORM_HH
+#endif  // _MATH_FASTFOURIERTRANSFORM_HH

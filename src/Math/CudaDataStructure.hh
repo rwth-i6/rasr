@@ -15,11 +15,10 @@
 #ifndef CUDADATASTRUCTURE_HH_
 #define CUDADATASTRUCTURE_HH_
 
-#include <Math/CudaWrapper.hh>
 #include <Math/CublasWrapper.hh>
+#include <Math/CudaWrapper.hh>
 
 namespace Math {
-
 
 /*
  * CudaDataStructure
@@ -30,35 +29,37 @@ namespace Math {
  *
  */
 
-class CudaDataStructure  {
+class CudaDataStructure {
 private:
     static bool initialized;
     static bool hasGpu_;
-    static int activeGpu_;
+    static int  activeGpu_;
 
 protected:
-    const bool gpuMode_;
+    const bool            gpuMode_;
     static cublasHandle_t cublasHandle;
     // create a single random number generator
     static curandGenerator_t randomNumberGenerator;
-    static u32 multiPrecisionBunchSize;
-    static void initialize();
-    static void log(const std::string &msg);
-    static void warning(const std::string &msg);
-    static void error(const std::string &msg);
-    static void criticalError(const std::string &msg);
+    static u32               multiPrecisionBunchSize;
+    static void              initialize();
+    static void              log(const std::string& msg);
+    static void              warning(const std::string& msg);
+    static void              error(const std::string& msg);
+    static void              criticalError(const std::string& msg);
 
 public:
     // constructor with memory allocation
     CudaDataStructure();
-    CudaDataStructure(const CudaDataStructure &x);
+    CudaDataStructure(const CudaDataStructure& x);
     // multiprecision bunch size
-    static u32 getMultiprecisionBunchSize() { return multiPrecisionBunchSize; }
+    static u32 getMultiprecisionBunchSize() {
+        return multiPrecisionBunchSize;
+    }
     static void setMultiprecisionBunchSize(u32 val);
     static bool hasGpu();
-    static int getActiveGpu(); // only allowed after hasGpu() == true
+    static int  getActiveGpu();  // only allowed after hasGpu() == true
 };
 
-} // namespace Math
+}  // namespace Math
 
 #endif /* CUDADATASTRUCTURE_HH_ */

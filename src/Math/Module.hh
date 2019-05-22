@@ -15,42 +15,40 @@
 #ifndef _MATH_APPLICATION_HH
 #define _MATH_APPLICATION_HH
 
-#include <Core/Singleton.hh>
 #include <Core/FormatSet.hh>
+#include <Core/Singleton.hh>
 
 namespace Math {
 
-    class EigenvalueProblem;
-    class GeneralizedEigenvalueProblem;
+class EigenvalueProblem;
+class GeneralizedEigenvalueProblem;
 
-    class Module_
-    {
-    private:
-        Core::FormatSet *formats_;
-    public:
-        Module_();
-        ~Module_();
+class Module_ {
+private:
+    Core::FormatSet* formats_;
 
-        /**
-         *  Set of file format class.
-         */
-        Core::FormatSet &formats();
+public:
+    Module_();
+    ~Module_();
 
-        /**
-         *  Creates object for solving eigenvalue problem
-         *  with the given configuration.
-         */
-        EigenvalueProblem *createEigenvalueProblem(
-            const Core::Configuration &) const;
-        /**
-         *  Creates  object for solving generalized eigenvalue problem
-         *  with the given configuration.
-         */
-        GeneralizedEigenvalueProblem *createGeneralizedEigenvalueProblem(
-            const Core::Configuration &) const;
-    };
+    /**
+     *  Set of file format class.
+     */
+    Core::FormatSet& formats();
 
-    typedef Core::SingletonHolder<Module_> Module;
-}
+    /**
+     *  Creates object for solving eigenvalue problem
+     *  with the given configuration.
+     */
+    EigenvalueProblem* createEigenvalueProblem(const Core::Configuration&) const;
+    /**
+     *  Creates  object for solving generalized eigenvalue problem
+     *  with the given configuration.
+     */
+    GeneralizedEigenvalueProblem* createGeneralizedEigenvalueProblem(const Core::Configuration&) const;
+};
 
-#endif // _MATH_APPLICATION_HH
+typedef Core::SingletonHolder<Module_> Module;
+}  // namespace Math
+
+#endif  // _MATH_APPLICATION_HH

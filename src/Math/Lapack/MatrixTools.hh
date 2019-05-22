@@ -21,167 +21,172 @@
 #include "Lapack.hh"
 #include "Svd.hh"
 
-namespace Math { namespace Lapack {
+namespace Math {
+namespace Lapack {
 
-    // If critical is true, produces a critical error on failure. Otherwise just produces a warning
-    // and returns false.
-    template<typename T, class P>  bool invert(Math::Matrix<T,P>& mat, bool critical=true){
-        require(mat.nRows()==mat.nColumns());
-        int N = mat.nRows();
-        int *ipiv = new int[N];
-        T *contMatrix = new T[N*N];
-        int info;
+// If critical is true, produces a critical error on failure. Otherwise just produces a warning
+// and returns false.
+template<typename T, class P>
+bool invert(Math::Matrix<T, P>& mat, bool critical = true) {
+    require(mat.nRows() == mat.nColumns());
+    int  N          = mat.nRows();
+    int* ipiv       = new int[N];
+    T*   contMatrix = new T[N * N];
+    int  info;
 
-        // Pack matrix in Fortran format
-        for (int i=0; i<N; i++)
-            for (int j=0; j<N; j++)
-                contMatrix[i+j*N] = mat[i][j];
+    // Pack matrix in Fortran format
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            contMatrix[i + j * N] = mat[i][j];
 
-        // LU decomposition
-        getrf(&N, &N, contMatrix, &N, ipiv, &info);
-        if (info)
-        {
-            if(critical) {
-                Core::Application::us()->criticalError("LAPACK error: info=")
+    // LU decomposition
+    getrf(&N, &N, contMatrix, &N, ipiv, &info);
+    if (info) {
+        if (critical) {
+            Core::Application::us()->criticalError("LAPACK error: info=")
                     << info << " in xGETRF";
-            }else {
-                Core::Application::us()->warning("LAPACK error: info=")
+        }
+        else {
+            Core::Application::us()->warning("LAPACK error: info=")
                     << info << " in xGETRF";
-                return false;
-            }
+            return false;
         }
-
-        // query and set buffer size
-        int lwork = -1;
-        T *work = new T[1];
-        getri(&N, contMatrix, &N, ipiv, work, &lwork, &info);
-        if (info)
-        {
-            if(critical) {
-                Core::Application::us()->criticalError("LAPACK error: info=")
-                    << info << " in xGETRI";
-            }else {
-                Core::Application::us()->warning("LAPACK error: info=")
-                    << info << " in xGETRI";
-                return false;
-            }
-        }
-        lwork = int(*work);
-
-        delete[] work;
-        work = new T[lwork];
-
-        // actual inverse calculation
-        getri(&N, contMatrix, &N, ipiv, work, &lwork, &info);
-        if (info)
-        {
-            if(critical) {
-                Core::Application::us()->criticalError("LAPACK error: info=")
-                    << info << " in xGETRI";
-            }else {
-                Core::Application::us()->warning("LAPACK error: info=")
-                    << info << " in xGETRI";
-                return false;
-            }
-        }
-
-        // unpack into original matrix
-        for (int i=0; i<N; i++)
-            for (int j=0; j<N; j++)
-                mat[i][j] = contMatrix[i+j*N];
-
-        delete[] ipiv;
-        delete[] contMatrix;
-        delete[] work;
-        return true;
     }
 
-
-    template<typename T, class P> void pseudoInvert(Math::Matrix<T,P>& mat){
-        // Use existing implementation in Math/Lapack/Svd.cc, but change interface
-        DoubleMatrix in(mat);
-        DoubleMatrix out;
-        pseudoInvert(out, in);
-        mat = out;
-    }
-
-    // If critical is true, produces a critical error on failure. Otherwise just produces a warning
-    // and returns Core::Type<T>::max
-    template<typename T, class P> T logDeterminant(const Math::Matrix<T,P>& mat, bool critical=true){
-        require(mat.nRows()==mat.nColumns());
-        int N = mat.nRows();
-        int *ipiv = new int[N];
-        T *contMatrix = new T[N*N];
-        int info;
-
-        // Pack matrix in Fortran format
-        for (int i=0; i<N; i++)
-            for (int j=0; j<N; j++)
-                contMatrix[i+j*N] = mat[i][j];
-
-        // LU decomposition
-        getrf(&N, &N, contMatrix, &N, ipiv, &info);
-        if (info)
-        {
-            if(critical) {
-                Core::Application::us()->criticalError("LAPACK error: info=")
-                    << info << " in xGETRF";
-            } else {
-                Core::Application::us()->warning("LAPACK error: info=")
-                    << info << " in xGETRF";
-                return Core::Type<T>::max;
-            }
+    // query and set buffer size
+    int lwork = -1;
+    T*  work  = new T[1];
+    getri(&N, contMatrix, &N, ipiv, work, &lwork, &info);
+    if (info) {
+        if (critical) {
+            Core::Application::us()->criticalError("LAPACK error: info=")
+                    << info << " in xGETRI";
         }
-
-        // Sum of diagonal
-        T d = 0.0;
-        for (u32 i=0; i< mat.nRows(); i++)
-            d += log(fabs(contMatrix[i+i*N]));
-
-        delete[] ipiv;
-        delete[] contMatrix;
-
-        return d;
-    }
-
-    // If critical is true, produces a critical error on failure. Otherwise just produces a warning
-    // and returns Core::Type<T>::max
-    template<typename T, class P> T determinant(const Math::Matrix<T,P>& mat, bool critical=true){
-        require(mat.nRows()==mat.nColumns());
-        int N = mat.nRows();
-        int *ipiv = new int[N];
-        T *contMatrix = new T[N*N];
-        int info;
-
-        // Pack matrix in Fortran format
-        for (int i=0; i<N; i++)
-            for (int j=0; j<N; j++)
-                contMatrix[i+j*N] = mat[i][j];
-
-        // LU decomposition
-        getrf(&N, &N, contMatrix, &N, ipiv, &info);
-        if (info)
-        {
-            if(critical) {
-                Core::Application::us()->criticalError("LAPACK error: info=")
-                    << info << " in xGETRF";
-            } else {
-                Core::Application::us()->warning("LAPACK error: info=")
-                    << info << " in xGETRF";
-                return Core::Type<T>::max;
-            }
+        else {
+            Core::Application::us()->warning("LAPACK error: info=")
+                    << info << " in xGETRI";
+            return false;
         }
-
-        // Product of diagonal
-        T d = 1.0;
-        for (u32 i=0; i< mat.nRows(); i++)
-            d *= fabs(contMatrix[i+i*N]);
-
-        delete[] ipiv;
-        delete[] contMatrix;
-
-        return d;
     }
-} } // namespace Math::Nr
+    lwork = int(*work);
 
-#endif // _MATH_MATRIX_TOOLS_HH_
+    delete[] work;
+    work = new T[lwork];
+
+    // actual inverse calculation
+    getri(&N, contMatrix, &N, ipiv, work, &lwork, &info);
+    if (info) {
+        if (critical) {
+            Core::Application::us()->criticalError("LAPACK error: info=")
+                    << info << " in xGETRI";
+        }
+        else {
+            Core::Application::us()->warning("LAPACK error: info=")
+                    << info << " in xGETRI";
+            return false;
+        }
+    }
+
+    // unpack into original matrix
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            mat[i][j] = contMatrix[i + j * N];
+
+    delete[] ipiv;
+    delete[] contMatrix;
+    delete[] work;
+    return true;
+}
+
+template<typename T, class P>
+void pseudoInvert(Math::Matrix<T, P>& mat) {
+    // Use existing implementation in Math/Lapack/Svd.cc, but change interface
+    DoubleMatrix in(mat);
+    DoubleMatrix out;
+    pseudoInvert(out, in);
+    mat = out;
+}
+
+// If critical is true, produces a critical error on failure. Otherwise just produces a warning
+// and returns Core::Type<T>::max
+template<typename T, class P>
+T logDeterminant(const Math::Matrix<T, P>& mat, bool critical = true) {
+    require(mat.nRows() == mat.nColumns());
+    int  N          = mat.nRows();
+    int* ipiv       = new int[N];
+    T*   contMatrix = new T[N * N];
+    int  info;
+
+    // Pack matrix in Fortran format
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            contMatrix[i + j * N] = mat[i][j];
+
+    // LU decomposition
+    getrf(&N, &N, contMatrix, &N, ipiv, &info);
+    if (info) {
+        if (critical) {
+            Core::Application::us()->criticalError("LAPACK error: info=")
+                    << info << " in xGETRF";
+        }
+        else {
+            Core::Application::us()->warning("LAPACK error: info=")
+                    << info << " in xGETRF";
+            return Core::Type<T>::max;
+        }
+    }
+
+    // Sum of diagonal
+    T d = 0.0;
+    for (u32 i = 0; i < mat.nRows(); i++)
+        d += log(fabs(contMatrix[i + i * N]));
+
+    delete[] ipiv;
+    delete[] contMatrix;
+
+    return d;
+}
+
+// If critical is true, produces a critical error on failure. Otherwise just produces a warning
+// and returns Core::Type<T>::max
+template<typename T, class P>
+T determinant(const Math::Matrix<T, P>& mat, bool critical = true) {
+    require(mat.nRows() == mat.nColumns());
+    int  N          = mat.nRows();
+    int* ipiv       = new int[N];
+    T*   contMatrix = new T[N * N];
+    int  info;
+
+    // Pack matrix in Fortran format
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            contMatrix[i + j * N] = mat[i][j];
+
+    // LU decomposition
+    getrf(&N, &N, contMatrix, &N, ipiv, &info);
+    if (info) {
+        if (critical) {
+            Core::Application::us()->criticalError("LAPACK error: info=")
+                    << info << " in xGETRF";
+        }
+        else {
+            Core::Application::us()->warning("LAPACK error: info=")
+                    << info << " in xGETRF";
+            return Core::Type<T>::max;
+        }
+    }
+
+    // Product of diagonal
+    T d = 1.0;
+    for (u32 i = 0; i < mat.nRows(); i++)
+        d *= fabs(contMatrix[i + i * N]);
+
+    delete[] ipiv;
+    delete[] contMatrix;
+
+    return d;
+}
+}  // namespace Lapack
+}  // namespace Math
+
+#endif  // _MATH_MATRIX_TOOLS_HH_

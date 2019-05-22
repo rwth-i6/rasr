@@ -18,33 +18,30 @@
 using namespace Math;
 
 //==============================================================================================
-AnalyticFunction::Result EqualLoudnessPreemphasis::value(Argument f) const
-{
-    Argument omega = 2 * M_PI * f;
+AnalyticFunction::Result EqualLoudnessPreemphasis::value(Argument f) const {
+    Argument omega       = 2 * M_PI * f;
     Argument omegaSquare = omega * omega;
     Argument omegaFourth = omegaSquare * omegaSquare;
-    Argument omegaSixth = omegaFourth * omegaSquare;
+    Argument omegaSixth  = omegaFourth * omegaSquare;
     return (omegaFourth * (omegaSquare + 56.8e6)) /
-            ((omegaSquare + 6.3e6) * (omegaSquare + 6.3e6) * (omegaSquare + 0.38e9) * (omegaSixth / 9.58e26 + 1));
+           ((omegaSquare + 6.3e6) * (omegaSquare + 6.3e6) * (omegaSquare + 0.38e9) * (omegaSixth / 9.58e26 + 1));
 }
 
 //==============================================================================================
-AnalyticFunction::Result EqualLoudnessPreemphasis4Khz::value(Argument f) const
-{
-    Argument omega = 2 * M_PI * f;
+AnalyticFunction::Result EqualLoudnessPreemphasis4Khz::value(Argument f) const {
+    Argument omega       = 2 * M_PI * f;
     Argument omegaSquare = omega * omega;
-    Argument termFourth = omegaSquare / (omegaSquare + (Argument)6.3e6);
+    Argument termFourth  = omegaSquare / (omegaSquare + (Argument)6.3e6);
     return termFourth * termFourth * (omegaSquare + (Argument)56.8e6) /
-        (omegaSquare + (Argument)0.38e9);
+           (omegaSquare + (Argument)0.38e9);
 }
 
 //==============================================================================================
 AnalyticFunction::Result EqualLoudnessPreemphasis40dB::value(Argument f) const {
-    Argument fSquare = f * f;
+    Argument fSquare    = f * f;
     Argument fSquareEps = fSquare + 1.6e5;
 
-    Argument result = (fSquare / fSquareEps) * (fSquare / fSquareEps)
-            * ((fSquare + 1.44e6) / (fSquare + 9.61e6));
+    Argument result = (fSquare / fSquareEps) * (fSquare / fSquareEps) * ((fSquare + 1.44e6) / (fSquare + 9.61e6));
 
     return result;
 }

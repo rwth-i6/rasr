@@ -17,9 +17,7 @@
 
 using namespace Math;
 
-
-void LevinsonLeastSquares::setOrder(size_t N)
-{
+void LevinsonLeastSquares::setOrder(size_t N) {
     E_.resize(N + 1);
     k_.resize(N + 1);
     alpha_.resize(N + 1, N + 1);
@@ -33,8 +31,7 @@ void LevinsonLeastSquares::setOrder(size_t N)
  * - Instead of y[n] = gain delta(t) + a1 y[n-1] + ... + aN y[n-N] model here the model with minuses
  *     y[n] = gain delta(t) - a1 y[n-1] - ... - aN y[n-N] is calculated.
  */
-bool LevinsonLeastSquares::work(const std::vector<InputData> &R)
-{
+bool LevinsonLeastSquares::work(const std::vector<InputData>& R) {
     require(!R.empty());
 
     setOrder(R.size() - 1);
@@ -42,53 +39,28 @@ bool LevinsonLeastSquares::work(const std::vector<InputData> &R)
     size_t N = order();
 
     E_[0] = R[0];
-    if (Core::isAlmostEqual(E_[0], (Data)0.0)) return false;
+    if (Core::isAlmostEqual(E_[0], (Data)0.0))
+        return false;
 
-    alpha_[1][1] = k_[1] = - R[1] / R[0];
-    E_[1] = R[0] + R[1] * k_[1];
-    for(i = 2; i <= N; i++) {
+    alpha_[1][1] = k_[1] = -R[1] / R[0];
+    E_[1]                = R[0] + R[1] * k_[1];
+    for (i = 2; i <= N; i++) {
         // k[i]
-        k_[i]  = R[i];
-        for(j = 1; j <= (i - 1); j++)
+        k_[i] = R[i];
+        for (j = 1; j <= (i - 1); j++)
             k_[i] += alpha_[j][i - 1] * R[i - j];
 
-        if (Core::isAlmostEqual(E_[i - 1], (Data)0.0)) return false;
-        k_[i] = - k_[i] / E_[i - 1];
+        if (Core::isAlmostEqual(E_[i - 1], (Data)0.0))
+            return false;
+        k_[i] = -k_[i] / E_[i - 1];
 
         // a[j][i]
         alpha_[i][i] = k_[i];
-        for(j = 1; j <= (i - 1); j++)
+        for (j = 1; j <= (i - 1); j++)
             alpha_[j][i] = alpha_[j][i - 1] + k_[i] * alpha_[i - j][i - 1];
 
         // E[i]
-        E_[i] = (1.0 - k_[i] * k_[i]) *  E_[i - 1];
+        E_[i] = (1.0 - k_[i] * k_[i]) * E_[i - 1];
     }
     return true;
 }
-
-/* Levinson recursion taken from Rabiner-Schafer 1978: Digital Processing of Speech Signal
-bool LevinsonLeastSquares::work(const std::vector<InputData> &R)
-{
-    require(!R.empty());
-
-    setOrder(R.size() - 1);
-    size_t i, j;
-    size_t N = order();
-
-    E_[0] = R[0];
-    for (i = 1; i <= N; i++) {
-        k_[i] = R[i];
-        for (j = 1; j <= (i - 1); j++) {
-            k_[i] -= alpha_[j][i - 1] * R[i - j];
-        }
-        k_[i] /= E_[i - 1];
-
-        alpha_[i][i] = k_[i];
-        for (j = 1; j <= (i - 1); ++ j) {
-            alpha_[j][i] = alpha_[j][i - 1] - k_[i] * alpha_[i - j][i - 1];
-        }
-        E_[i] = (1.0 - (k_[i] * k_[i])) * E_[i - 1];
-    }
-    return true;
-}
-*/

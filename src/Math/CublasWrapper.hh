@@ -15,9 +15,9 @@
 #ifndef CUBLASWRAPPER_HH_
 #define CUBLASWRAPPER_HH_
 
-#include <Modules.hh>
 #include <Core/Application.hh>
 #include <Core/Component.hh>
+#include <Modules.hh>
 
 #include <Math/CudaWrapper.hh>
 
@@ -41,7 +41,7 @@ struct cublasHandle_t {
 
 namespace Cuda {
 
-inline cublasStatus_t createCublasHandle(cublasHandle_t &handle){
+inline cublasStatus_t createCublasHandle(cublasHandle_t& handle) {
 #ifdef MODULE_CUDA
     return cublasCreate(&handle);
 #else
@@ -51,10 +51,10 @@ inline cublasStatus_t createCublasHandle(cublasHandle_t &handle){
 }
 
 template<typename T, typename S>
-inline int axpy(cublasHandle_t handle, int n, S alpha, const S *x, int incx, T *y, int incy);
+inline int axpy(cublasHandle_t handle, int n, S alpha, const S* x, int incx, T* y, int incy);
 
 template<>
-inline int axpy(cublasHandle_t handle, int n, float alpha, const float *x, int incx, float *y, int incy){
+inline int axpy(cublasHandle_t handle, int n, float alpha, const float* x, int incx, float* y, int incy) {
     int result = 0;
 #ifdef MODULE_CUDA
     result = cublasSaxpy(handle, n, &alpha, x, incx, y, incy);
@@ -65,7 +65,7 @@ inline int axpy(cublasHandle_t handle, int n, float alpha, const float *x, int i
 }
 
 template<>
-inline int axpy(cublasHandle_t handle, int n, double alpha, const double *x, int incx, double *y, int incy){
+inline int axpy(cublasHandle_t handle, int n, double alpha, const double* x, int incx, double* y, int incy) {
     int result = 0;
 #ifdef MODULE_CUDA
     result = cublasDaxpy(handle, n, &alpha, x, incx, y, incy);
@@ -77,36 +77,35 @@ inline int axpy(cublasHandle_t handle, int n, double alpha, const double *x, int
 
 // own kernel for mixed precision
 template<>
-inline int axpy(cublasHandle_t handle, int n, float alpha, const float *x, int incx, double *y, int incy){
-    require_eq(incx, 1); // general case not implemented yet
+inline int axpy(cublasHandle_t handle, int n, float alpha, const float* x, int incx, double* y, int incy) {
+    require_eq(incx, 1);  // general case not implemented yet
     require_eq(incy, 1);
 #ifdef MODULE_CUDA
     _cuda_axpy(n, alpha, x, y);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'axpy' in binary without gpu support!");
 #endif
-    return 0; // no check
+    return 0;  // no check
 }
 
 // own kernel for mixed precision
 template<>
-inline int axpy(cublasHandle_t handle, int n, double alpha, const double *x, int incx, float *y, int incy){
-    require_eq(incx, 1); // general case not implemented yet
+inline int axpy(cublasHandle_t handle, int n, double alpha, const double* x, int incx, float* y, int incy) {
+    require_eq(incx, 1);  // general case not implemented yet
     require_eq(incy, 1);
 #ifdef MODULE_CUDA
     _cuda_axpy(n, alpha, x, y);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'axpy' in binary without gpu support!");
 #endif
-    return 0; // no check
+    return 0;  // no check
 }
 
-
 template<typename T>
-inline int dot(cublasHandle_t handle, int n, const T *x, int incx, const T *y, int incy, T &result);
+inline int dot(cublasHandle_t handle, int n, const T* x, int incx, const T* y, int incy, T& result);
 
 template<>
-inline int dot(cublasHandle_t handle, int n, const float *x, int incx, const float *y, int incy, float &result){
+inline int dot(cublasHandle_t handle, int n, const float* x, int incx, const float* y, int incy, float& result) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasSdot(handle, n, x, incx, y, incy, &result);
@@ -117,7 +116,7 @@ inline int dot(cublasHandle_t handle, int n, const float *x, int incx, const flo
 }
 
 template<>
-inline int dot(cublasHandle_t handle, int n, const double *x, int incx, const double *y, int incy, double &result){
+inline int dot(cublasHandle_t handle, int n, const double* x, int incx, const double* y, int incy, double& result) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasDdot(handle, n, x, incx, y, incy, &result);
@@ -128,10 +127,10 @@ inline int dot(cublasHandle_t handle, int n, const double *x, int incx, const do
 }
 
 template<typename T>
-inline int scal(cublasHandle_t handle, int n, T alpha, T *x, int incx);
+inline int scal(cublasHandle_t handle, int n, T alpha, T* x, int incx);
 
 template<>
-inline int scal(cublasHandle_t handle, int n, float alpha, float *x, int incx){
+inline int scal(cublasHandle_t handle, int n, float alpha, float* x, int incx) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasSscal(handle, n, &alpha, x, incx);
@@ -142,7 +141,7 @@ inline int scal(cublasHandle_t handle, int n, float alpha, float *x, int incx){
 }
 
 template<>
-inline int scal(cublasHandle_t handle, int n, double alpha, double *x, int incx){
+inline int scal(cublasHandle_t handle, int n, double alpha, double* x, int incx) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasDscal(handle, n, &alpha, x, incx);
@@ -153,10 +152,10 @@ inline int scal(cublasHandle_t handle, int n, double alpha, double *x, int incx)
 }
 
 template<typename T>
-inline int copy(cublasHandle_t handle, int n, const T *x, int incx, T *y, int incy);
+inline int copy(cublasHandle_t handle, int n, const T* x, int incx, T* y, int incy);
 
 template<>
-inline int copy(cublasHandle_t handle, int n, const float *x, int incx, float *y, int incy){
+inline int copy(cublasHandle_t handle, int n, const float* x, int incx, float* y, int incy) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasScopy(handle, n, x, incx, y, incy);
@@ -167,7 +166,7 @@ inline int copy(cublasHandle_t handle, int n, const float *x, int incx, float *y
 }
 
 template<>
-inline int copy(cublasHandle_t handle, int n, const double *x, int incx, double *y, int incy){
+inline int copy(cublasHandle_t handle, int n, const double* x, int incx, double* y, int incy) {
     int cublasStatus = 0;
 #ifdef MODULE_CUDA
     cublasStatus = cublasDcopy(handle, n, x, incx, y, incy);
@@ -178,10 +177,10 @@ inline int copy(cublasHandle_t handle, int n, const double *x, int incx, double 
 }
 
 template<typename T>
-inline int asum(cublasHandle_t handle, int n, const T *x, int incx, T *result);
+inline int asum(cublasHandle_t handle, int n, const T* x, int incx, T* result);
 
 template<>
-inline int asum(cublasHandle_t handle, int n, const float *x, int incx, float *result) {
+inline int asum(cublasHandle_t handle, int n, const float* x, int incx, float* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasSasum(handle, n, x, incx, result);
@@ -192,7 +191,7 @@ inline int asum(cublasHandle_t handle, int n, const float *x, int incx, float *r
 }
 
 template<>
-inline int asum(cublasHandle_t handle, int n, const double *x, int incx, double *result) {
+inline int asum(cublasHandle_t handle, int n, const double* x, int incx, double* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasDasum(handle, n, x, incx, result);
@@ -203,10 +202,10 @@ inline int asum(cublasHandle_t handle, int n, const double *x, int incx, double 
 }
 
 template<typename T>
-inline int nrm2(cublasHandle_t handle, int n, const T *x, int incx, T *result);
+inline int nrm2(cublasHandle_t handle, int n, const T* x, int incx, T* result);
 
 template<>
-inline int nrm2(cublasHandle_t handle, int n, const float *x, int incx, float *result) {
+inline int nrm2(cublasHandle_t handle, int n, const float* x, int incx, float* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasSnrm2(handle, n, x, incx, result);
@@ -217,7 +216,7 @@ inline int nrm2(cublasHandle_t handle, int n, const float *x, int incx, float *r
 }
 
 template<>
-inline int nrm2(cublasHandle_t handle, int n, const double *x, int incx, double *result) {
+inline int nrm2(cublasHandle_t handle, int n, const double* x, int incx, double* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasDnrm2(handle, n, x, incx, result);
@@ -228,10 +227,10 @@ inline int nrm2(cublasHandle_t handle, int n, const double *x, int incx, double 
 }
 
 template<typename T>
-inline int iamax(cublasHandle_t handle, int n, const T *x, int incx, int *result);
+inline int iamax(cublasHandle_t handle, int n, const T* x, int incx, int* result);
 
 template<>
-inline int iamax(cublasHandle_t handle, int n, const float *x, int incx, int *result) {
+inline int iamax(cublasHandle_t handle, int n, const float* x, int incx, int* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasIsamax(handle, n, x, incx, result);
@@ -244,7 +243,7 @@ inline int iamax(cublasHandle_t handle, int n, const float *x, int incx, int *re
 }
 
 template<>
-inline int iamax(cublasHandle_t handle, int n, const double *x, int incx, int *result) {
+inline int iamax(cublasHandle_t handle, int n, const double* x, int incx, int* result) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasIdamax(handle, n, x, incx, result);
@@ -257,12 +256,12 @@ inline int iamax(cublasHandle_t handle, int n, const double *x, int incx, int *r
 }
 
 template<typename T>
-inline int ger(cublasHandle_t handle, int m, int n, const T alpha, const T *x, int incx,
-        const T *y, int incy, T *A, int lda);
+inline int ger(cublasHandle_t handle, int m, int n, const T alpha, const T* x, int incx,
+               const T* y, int incy, T* A, int lda);
 
 template<>
-inline int ger(cublasHandle_t handle, int m, int n, const float alpha, const float *x, int incx,
-        const float *y, int incy, float *A, int lda) {
+inline int ger(cublasHandle_t handle, int m, int n, const float alpha, const float* x, int incx,
+               const float* y, int incy, float* A, int lda) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasSger(handle, m, n, &alpha, x, incx, y, incy, A, lda);
@@ -273,8 +272,8 @@ inline int ger(cublasHandle_t handle, int m, int n, const float alpha, const flo
 }
 
 template<>
-inline int ger(cublasHandle_t handle, int m, int n, const double alpha, const double *x, int incx,
-        const double *y, int incy, double *A, int lda) {
+inline int ger(cublasHandle_t handle, int m, int n, const double alpha, const double* x, int incx,
+               const double* y, int incy, double* A, int lda) {
     int ret = 0;
 #ifdef MODULE_CUDA
     ret = cublasDger(handle, m, n, &alpha, x, incx, y, incy, A, lda);
@@ -286,16 +285,15 @@ inline int ger(cublasHandle_t handle, int m, int n, const double alpha, const do
 
 template<typename T>
 inline int gemv(cublasHandle_t handle, bool transposed, int m, int n,
-T alpha, const T *A, int lda, const T *x, int incx, T beta, T* y, int incy);
+                T alpha, const T* A, int lda, const T* x, int incx, T beta, T* y, int incy);
 
 template<>
 inline int gemv(cublasHandle_t handle, bool transposed, int m, int n,
-        float alpha, const float *A, int lda, const float *x, int incx, float beta, float* y, int incy)
-{
+                float alpha, const float* A, int lda, const float* x, int incx, float beta, float* y, int incy) {
     int result = 0;
 #ifdef MODULE_CUDA
     cublasOperation_t tr = transposed ? CUBLAS_OP_T : CUBLAS_OP_N;
-    result = cublasSgemv(handle, tr, m, n, &alpha, A, lda, x, incx, &beta, y, incy);
+    result               = cublasSgemv(handle, tr, m, n, &alpha, A, lda, x, incx, &beta, y, incy);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'gemv' in binary without gpu support!");
 #endif
@@ -304,12 +302,11 @@ inline int gemv(cublasHandle_t handle, bool transposed, int m, int n,
 
 template<>
 inline int gemv(cublasHandle_t handle, bool transposed, int m, int n,
-        double alpha, const double *A, int lda, const double *x, int incx, double beta, double* y, int incy)
-{
+                double alpha, const double* A, int lda, const double* x, int incx, double beta, double* y, int incy) {
     int result = 0;
 #ifdef MODULE_CUDA
     cublasOperation_t tr = transposed ? CUBLAS_OP_T : CUBLAS_OP_N;
-    result = cublasDgemv(handle, tr, m, n, &alpha, A, lda, x, incx, &beta, y, incy);
+    result               = cublasDgemv(handle, tr, m, n, &alpha, A, lda, x, incx, &beta, y, incy);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'gemv' in binary without gpu support!");
 #endif
@@ -318,17 +315,16 @@ inline int gemv(cublasHandle_t handle, bool transposed, int m, int n,
 
 template<typename T>
 inline int gemm(cublasHandle_t handle, bool transposedA, bool transposedB, int m, int n, int k,
-T scaleA, const T *A, int lda, const T *B, int ldb, T scaleC, T *C, int ldc);
+                T scaleA, const T* A, int lda, const T* B, int ldb, T scaleC, T* C, int ldc);
 
 template<>
 inline int gemm(cublasHandle_t handle, bool transposedA, bool transposedB, int m, int n, int k,
-float scaleA, const float *A, int lda, const float *B, int ldb, float scaleC, float *C, int ldc)
-{
+                float scaleA, const float* A, int lda, const float* B, int ldb, float scaleC, float* C, int ldc) {
     int result = 0;
 #ifdef MODULE_CUDA
     cublasOperation_t trA = transposedA ? CUBLAS_OP_T : CUBLAS_OP_N;
     cublasOperation_t trB = transposedB ? CUBLAS_OP_T : CUBLAS_OP_N;
-    result = cublasSgemm(handle, trA, trB, m, n, k, &scaleA, A, lda, B, ldb, &scaleC, C, ldc);
+    result                = cublasSgemm(handle, trA, trB, m, n, k, &scaleA, A, lda, B, ldb, &scaleC, C, ldc);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'gemm' in binary without gpu support!");
 #endif
@@ -337,13 +333,12 @@ float scaleA, const float *A, int lda, const float *B, int ldb, float scaleC, fl
 
 template<>
 inline int gemm(cublasHandle_t handle, bool transposedA, bool transposedB, int m, int n, int k,
-double scaleA, const double *A, int lda, const double *B, int ldb, double scaleC, double *C, int ldc)
-{
+                double scaleA, const double* A, int lda, const double* B, int ldb, double scaleC, double* C, int ldc) {
     int result = 0;
 #ifdef MODULE_CUDA
     cublasOperation_t trA = transposedA ? CUBLAS_OP_T : CUBLAS_OP_N;
     cublasOperation_t trB = transposedB ? CUBLAS_OP_T : CUBLAS_OP_N;
-    result = cublasDgemm(handle, trA, trB, m, n, k, &scaleA, A, lda, B, ldb, &scaleC, C, ldc);
+    result                = cublasDgemm(handle, trA, trB, m, n, k, &scaleA, A, lda, B, ldb, &scaleC, C, ldc);
 #else
     Core::Application::us()->criticalError("Calling gpu method 'gemm' in binary without gpu support!");
 #endif
@@ -351,11 +346,9 @@ double scaleA, const double *A, int lda, const double *B, int ldb, double scaleC
 }
 
 // for cudaError_t use Cuda::getErrorString()
-inline const char* cublasGetErrorString(cublasStatus_t status)
-{
+inline const char* cublasGetErrorString(cublasStatus_t status) {
 #ifdef MODULE_CUDA
-    switch(status)
-    {
+    switch (status) {
         case CUBLAS_STATUS_SUCCESS: return "CUBLAS_STATUS_SUCCESS";
         case CUBLAS_STATUS_NOT_INITIALIZED: return "CUBLAS_STATUS_NOT_INITIALIZED";
         case CUBLAS_STATUS_ALLOC_FAILED: return "CUBLAS_STATUS_ALLOC_FAILED";
@@ -371,8 +364,8 @@ inline const char* cublasGetErrorString(cublasStatus_t status)
     return "unknown error";
 }
 
-} // namespace Cuda
+}  // namespace Cuda
 
-}
+}  // namespace Math
 
 #endif /* CUBLASWRAPPER_HH_ */

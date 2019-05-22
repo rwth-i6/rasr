@@ -15,16 +15,19 @@
 #include <cmath>
 #include "nr.h"
 
-namespace Math { namespace Nr {
+namespace Math {
+namespace Nr {
 
-DP pythag(const DP a, const DP b)
-{
-        DP absa,absb;
+DP pythag(const DP a, const DP b) {
+    DP absa, absb;
 
-        absa=fabs(a);
-        absb=fabs(b);
-        if (absa > absb) return absa*sqrt(1.0+SQR(absb/absa));
-        else return (absb == 0.0 ? 0.0 : absb*sqrt(1.0+SQR(absa/absb)));
+    absa = fabs(a);
+    absb = fabs(b);
+    if (absa > absb)
+        return absa * sqrt(1.0 + SQR(absb / absa));
+    else
+        return (absb == 0.0 ? 0.0 : absb * sqrt(1.0 + SQR(absa / absb)));
 }
 
-} } // namespce Math::Nr
+}  // namespace Nr
+}  // namespace Math

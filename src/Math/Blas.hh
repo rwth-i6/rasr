@@ -16,9 +16,9 @@
 #define MATH_BLAS_HH_
 
 // ACML is included with cblas.h and linking to correct cblas library
+#include <Modules.hh>
 #include <complex>
 #include <string>
-#include <Modules.hh>
 #ifdef MODULE_INTEL_MKL
 #include <mkl_cblas.h>
 #else
@@ -55,14 +55,14 @@ namespace Math {
  *
  */
 template<typename T>
-inline void swap(const int N, T *X, const int incX, T *Y, const int incY);
+inline void swap(const int N, T* X, const int incX, T* Y, const int incY);
 
 template<>
-inline void swap(const int N, float *X, const int incX, float *Y, const int incY) {
+inline void swap(const int N, float* X, const int incX, float* Y, const int incY) {
     cblas_sswap(N, X, incX, Y, incY);
 }
 template<>
-inline void swap(const int N, double *X, const int incX, double *Y, const int incY) {
+inline void swap(const int N, double* X, const int incX, double* Y, const int incY) {
     cblas_dswap(N, X, incX, Y, incY);
 }
 
@@ -76,16 +76,16 @@ inline void swap(const int N, double *X, const int incX, double *Y, const int in
  * @param incX increment of X
  *
  */
-template <typename T>
-inline T nrm2(const int N, const T *X, const int incX);
+template<typename T>
+inline T nrm2(const int N, const T* X, const int incX);
 
 template<>
-inline float nrm2(const int N, const float *X, const int incX){
+inline float nrm2(const int N, const float* X, const int incX) {
     return cblas_snrm2(N, X, incX);
 }
 
 template<>
-inline double nrm2(const int N, const double *X, const int incX){
+inline double nrm2(const int N, const double* X, const int incX) {
     return cblas_dnrm2(N, X, incX);
 }
 
@@ -101,15 +101,15 @@ inline double nrm2(const int N, const double *X, const int incX){
  */
 
 template<typename T>
-inline T asum(const int N, const T *X, const int incX);
+inline T asum(const int N, const T* X, const int incX);
 
 template<>
-inline double asum<double>(const int N, const  double *X, const int incX){
+inline double asum<double>(const int N, const double* X, const int incX) {
     return cblas_dasum(N, X, incX);
 }
 
 template<>
-inline float asum<float>(const int N, const float *X, const int incX){
+inline float asum<float>(const int N, const float* X, const int incX) {
     return cblas_sasum(N, X, incX);
 }
 
@@ -125,15 +125,15 @@ inline float asum<float>(const int N, const float *X, const int incX){
  */
 
 template<typename T>
-inline T iamax(const int N, const T *X, const int incX);
+inline T iamax(const int N, const T* X, const int incX);
 
 template<>
-inline double iamax<double>(const int N, const  double *X, const int incX){
+inline double iamax<double>(const int N, const double* X, const int incX) {
     return cblas_idamax(N, X, incX);
 }
 
 template<>
-inline float iamax<float>(const int N, const float *X, const int incX){
+inline float iamax<float>(const int N, const float* X, const int incX) {
     return cblas_isamax(N, X, incX);
 }
 
@@ -150,16 +150,16 @@ inline float iamax<float>(const int N, const float *X, const int incX){
  */
 
 template<typename T>
-inline void scal(const int N, const T alpha, T *X, const int incX);
+inline void scal(const int N, const T alpha, T* X, const int incX);
 
 template<>
-inline void scal<double>(const int N, const double alpha, double *X, const int incX) {
-    cblas_dscal(N,alpha,X,incX);
+inline void scal<double>(const int N, const double alpha, double* X, const int incX) {
+    cblas_dscal(N, alpha, X, incX);
 }
 
 template<>
-inline void scal<float>(const int N, const float alpha, float *X, const int incX) {
-    cblas_sscal(N,alpha,X,incX);
+inline void scal<float>(const int N, const float alpha, float* X, const int incX) {
+    cblas_sscal(N, alpha, X, incX);
 }
 
 /**
@@ -177,34 +177,34 @@ inline void scal<float>(const int N, const float alpha, float *X, const int incX
  */
 
 template<typename T, typename S>
-inline void axpy(const int N, const T alpha, const T *X,
-        const int incX, S *Y, const int incY);
+inline void axpy(const int N, const T alpha, const T* X,
+                 const int incX, S* Y, const int incY);
 
 template<typename T, typename S>
-inline void axpy(const int N, const T alpha, const T *X,
-        const int incX, S *Y, const int incY) {
-    if (incX == 1 && incY == 1){
-        for (int i = 0; i < N; i++){
+inline void axpy(const int N, const T alpha, const T* X,
+                 const int incX, S* Y, const int incY) {
+    if (incX == 1 && incY == 1) {
+        for (int i = 0; i < N; i++) {
             Y[i] += alpha * X[i];
         }
     }
-    else{
+    else {
         int ix = 0, iy = 0;
-        for (int i = 0; i < N; i++, ix += incX, iy += incY ){
+        for (int i = 0; i < N; i++, ix += incX, iy += incY) {
             Y[iy] += alpha * X[ix];
         }
     }
 }
 
 template<>
-inline void axpy<double, double>(const int N, const double alpha, const double *X,
-        const int incX, double *Y, const int incY){
+inline void axpy<double, double>(const int N, const double alpha, const double* X,
+                                 const int incX, double* Y, const int incY) {
     cblas_daxpy(N, alpha, X, incX, Y, incY);
 }
 
 template<>
-inline void axpy<float, float>(const int N, const float alpha, const float *X,
-        const int incX, float *Y, const int incY){
+inline void axpy<float, float>(const int N, const float alpha, const float* X,
+                               const int incX, float* Y, const int incY) {
     cblas_saxpy(N, alpha, X, incX, Y, incY);
 }
 
@@ -222,19 +222,19 @@ inline void axpy<float, float>(const int N, const float alpha, const float *X,
  */
 
 template<typename T, typename S>
-inline T dot(const int N, const T *X, const int incX, const S *Y, const int incY, int nThreads = 1);
+inline T dot(const int N, const T* X, const int incX, const S* Y, const int incY, int nThreads = 1);
 
 template<typename T, typename S>
-inline T dot(const int N, const T *X, const int incX, const S *Y, const int incY, int nThreads){
+inline T dot(const int N, const T* X, const int incX, const S* Y, const int incY, int nThreads) {
     T result = 0.0;
-    if (incX == 1 && incY == 1){
-        for (int i = 0; i < N; i++){
+    if (incX == 1 && incY == 1) {
+        for (int i = 0; i < N; i++) {
             result += X[i] * Y[i];
         }
     }
-    else{
+    else {
         int ix = 0, iy = 0;
-        for (int i = 0; i < N; i++, ix += incX, iy += incY){
+        for (int i = 0; i < N; i++, ix += incX, iy += incY) {
             result += X[ix] * Y[iy];
         }
     }
@@ -242,14 +242,14 @@ inline T dot(const int N, const T *X, const int incX, const S *Y, const int incY
 }
 
 template<>
-inline double dot<double, double>(const int N, const double *X, const int incX,
-        const double *Y, const int incY, int nThreads){
+inline double dot<double, double>(const int N, const double* X, const int incX,
+                                  const double* Y, const int incY, int nThreads) {
     return cblas_ddot(N, X, incX, Y, incY);
 }
 
 template<>
-inline float dot<float, float>(const int N, const float *X, const int incX,
-        const float *Y, const int incY, int nThreads){
+inline float dot<float, float>(const int N, const float* X, const int incX,
+                               const float* Y, const int incY, int nThreads) {
     return cblas_sdot(N, X, incX, Y, incY);
 }
 
@@ -266,40 +266,37 @@ inline float dot<float, float>(const int N, const float *X, const int incX,
  *
  */
 
+template<typename T, typename S>
+inline void copy(const int N, const T* X, const int incX,
+                 S* Y, const int incY);
 
 template<typename T, typename S>
-inline void copy(const int N, const T *X, const int incX,
-        S *Y, const int incY);
-
-template<typename T, typename S>
-inline void copy(const int N, const T *X, const int incX,
-        S *Y, const int incY){
-    if (incX == 1 && incY == 1){
-        for (int i = 0; i < N; i++){
+inline void copy(const int N, const T* X, const int incX,
+                 S* Y, const int incY) {
+    if (incX == 1 && incY == 1) {
+        for (int i = 0; i < N; i++) {
             Y[i] = X[i];
         }
     }
-    else{
+    else {
         int ix = 0, iy = 0;
-        for (int i = 0; i < N; i++, ix += incX, iy += incY){
+        for (int i = 0; i < N; i++, ix += incX, iy += incY) {
             Y[iy] = X[iy];
         }
     }
 }
 
-
 template<>
-inline void copy<double, double>(const int N, const double *X, const int incX,
-        double *Y, const int incY){
+inline void copy<double, double>(const int N, const double* X, const int incX,
+                                 double* Y, const int incY) {
     cblas_dcopy(N, X, incX, Y, incY);
 }
 
 template<>
-inline void copy<float, float>(const int N, const float *X, const int incX,
-        float *Y, const int incY){
+inline void copy<float, float>(const int N, const float* X, const int incX,
+                               float* Y, const int incY) {
     cblas_scopy(N, X, incX, Y, incY);
 }
-
 
 // BLAS LEVEL 2
 
@@ -323,22 +320,20 @@ inline void copy<float, float>(const int N, const float *X, const int incX,
 
 template<typename T>
 inline void ger(const CBLAS_ORDER order, const int M, const int N,
-        const T alpha, const T *X, const int incX,
-        const T *Y, const int incY, T *A, const int lda);
+                const T alpha, const T* X, const int incX,
+                const T* Y, const int incY, T* A, const int lda);
 
 template<>
 inline void ger(const CBLAS_ORDER order, const int M, const int N,
-        const float alpha, const float *X, const int incX,
-        const float *Y, const int incY, float *A, const int lda)
-{
+                const float alpha, const float* X, const int incX,
+                const float* Y, const int incY, float* A, const int lda) {
     cblas_sger(order, M, N, alpha, X, incX, Y, incY, A, lda);
 }
 
 template<>
 inline void ger(const CBLAS_ORDER order, const int M, const int N,
-        const double alpha, const double *X, const int incX,
-        const double *Y, const int incY, double *A, const int lda)
-{
+                const double alpha, const double* X, const int incX,
+                const double* Y, const int incY, double* A, const int lda) {
     cblas_dger(order, M, N, alpha, X, incX, Y, incY, A, lda);
 }
 
@@ -361,31 +356,29 @@ inline void ger(const CBLAS_ORDER order, const int M, const int N,
  */
 
 template<typename T>
-inline void gemv(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE TransA, const int M, const int N,
-        const T alpha, const T *A, const int lda,
-        const T *X, const int incX, const T beta,
-        T *Y, const int incY);
-
+inline void gemv(const CBLAS_ORDER     order,
+                 const CBLAS_TRANSPOSE TransA, const int M, const int N,
+                 const T alpha, const T* A, const int lda,
+                 const T* X, const int incX, const T beta,
+                 T* Y, const int incY);
 
 template<>
-inline void gemv<double>(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE TransA, const int M, const int N,
-        const double alpha, const double *A, const int lda,
-        const double *X, const int incX, const double beta,
-        double *Y, const int incY){
+inline void gemv<double>(const CBLAS_ORDER     order,
+                         const CBLAS_TRANSPOSE TransA, const int M, const int N,
+                         const double alpha, const double* A, const int lda,
+                         const double* X, const int incX, const double beta,
+                         double* Y, const int incY) {
     cblas_dgemv(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY);
 }
 
 template<>
-inline void gemv<float>(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE TransA, const int M, const int N,
-        const float alpha, const float *A, const int lda,
-        const float *X, const int incX, const float beta,
-        float *Y, const int incY){
+inline void gemv<float>(const CBLAS_ORDER     order,
+                        const CBLAS_TRANSPOSE TransA, const int M, const int N,
+                        const float alpha, const float* A, const int lda,
+                        const float* X, const int incX, const float beta,
+                        float* Y, const int incY) {
     cblas_sgemv(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY);
 }
-
 
 // BLAS LEVEL 3
 
@@ -407,42 +400,42 @@ inline void gemv<float>(const CBLAS_ORDER order,
  *  beta:		scalar factor
  */
 template<typename T>
-inline void gemm(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB,
-        const int M, const int N, const int K,
-        const T alpha, const T* A, const int lda,
-        const T* B, const int ldb,
-        const T beta, T* C, const int ldc);
+inline void gemm(const CBLAS_ORDER     order,
+                 const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB,
+                 const int M, const int N, const int K,
+                 const T alpha, const T* A, const int lda,
+                 const T* B, const int ldb,
+                 const T beta, T* C, const int ldc);
 
 template<>
-inline void gemm<float>(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE transMatrixA, const CBLAS_TRANSPOSE transMatrixB,
-        const int sizeM, const int sizeN, const int sizeK,
-        const float scaleMatrixA, const float* matrixA, const int lda,
-        const float* matrixB, const int ldab,
-        const float scaleMatrixC, float* matrixC, const int ldc) {
+inline void gemm<float>(const CBLAS_ORDER     order,
+                        const CBLAS_TRANSPOSE transMatrixA, const CBLAS_TRANSPOSE transMatrixB,
+                        const int sizeM, const int sizeN, const int sizeK,
+                        const float scaleMatrixA, const float* matrixA, const int lda,
+                        const float* matrixB, const int ldab,
+                        const float scaleMatrixC, float* matrixC, const int ldc) {
     cblas_sgemm(order, transMatrixA, transMatrixB,
-            sizeM, sizeN, sizeK,
-            scaleMatrixA, matrixA, lda,
-            matrixB, ldab,
-            scaleMatrixC, matrixC, ldc);
+                sizeM, sizeN, sizeK,
+                scaleMatrixA, matrixA, lda,
+                matrixB, ldab,
+                scaleMatrixC, matrixC, ldc);
 }
 
 template<>
-inline void gemm<double>(const CBLAS_ORDER order,
-        const CBLAS_TRANSPOSE transMatrixA, const CBLAS_TRANSPOSE transMatrixB,
-        const int sizeM, const int sizeN, const int sizeK,
-        const double scaleMatrixA, const double* matrixA, const int lda,
-        const double* matrixB, const int ldb,
-        const double scaleMatrixC, double* matrixC, const int ldc) {
+inline void gemm<double>(const CBLAS_ORDER     order,
+                         const CBLAS_TRANSPOSE transMatrixA, const CBLAS_TRANSPOSE transMatrixB,
+                         const int sizeM, const int sizeN, const int sizeK,
+                         const double scaleMatrixA, const double* matrixA, const int lda,
+                         const double* matrixB, const int ldb,
+                         const double scaleMatrixC, double* matrixC, const int ldc) {
     cblas_dgemm(order, transMatrixA, transMatrixB,
-            sizeM, sizeN, sizeK,
-            scaleMatrixA, matrixA, lda,
-            matrixB, ldb,
-            scaleMatrixC, matrixC, ldc);
+                sizeM, sizeN, sizeK,
+                scaleMatrixA, matrixA, lda,
+                matrixB, ldb,
+                scaleMatrixC, matrixC, ldc);
 }
 
-inline std::string getMathLibrary(){
+inline std::string getMathLibrary() {
     std::string result;
 #ifdef MODULE_INTEL_MKL
     result = "INTEL MKL";
@@ -454,9 +447,7 @@ inline std::string getMathLibrary(){
         result = "ACML";
 #endif
     return result;
-
 }
-
 
 /**
  *
@@ -474,36 +465,36 @@ inline void mt_scal(int N, T alpha, T* X, int nThreads);
 
 #ifdef MODULE_INTEL_MKL
 template<typename T>
-inline void mt_scal(int N, T alpha, T* X, int nThreads){
+inline void mt_scal(int N, T alpha, T* X, int nThreads) {
     scal(N, alpha, X, 1);
 }
 #else
 
 template<typename T>
-inline void mt_scal(int N, T alpha, T *X, int nThreads){
+inline void mt_scal(int N, T alpha, T* X, int nThreads) {
 #pragma omp parallel for
-    for (int i = 0; i < N; i++){
+    for (int i = 0; i < N; i++) {
         X[i] *= alpha;
     }
 }
 
-inline void __mt_scal_f(int N, float alpha, const float *dummy, float *X){
+inline void __mt_scal_f(int N, float alpha, const float* dummy, float* X) {
     scal(N, alpha, X, 1);
 }
 
 template<>
-inline void mt_scal(int N, float alpha, float *X, int nThreads){
-    const float *dummy = 0;
+inline void mt_scal(int N, float alpha, float* X, int nThreads) {
+    const float* dummy = 0;
     mt_sv2v(N, alpha, dummy, X, __mt_scal_f, nThreads);
 }
 
-inline void __mt_scal_d(int N, double alpha, const double *dummy, double *X){
+inline void __mt_scal_d(int N, double alpha, const double* dummy, double* X) {
     scal(N, alpha, X, 1);
 }
 
 template<>
-inline void mt_scal(int N, double alpha, double *X, int nThreads){
-    const double *dummy = 0;
+inline void mt_scal(int N, double alpha, double* X, int nThreads) {
+    const double* dummy = 0;
     mt_sv2v(N, alpha, dummy, X, __mt_scal_d, nThreads);
 }
 
@@ -512,81 +503,81 @@ inline void mt_scal(int N, double alpha, double *X, int nThreads){
 // AXPY
 
 template<typename T>
-inline void mt_axpy(int N, T alpha, const T *X, T *Y, int nThreads);
+inline void mt_axpy(int N, T alpha, const T* X, T* Y, int nThreads);
 
 #ifdef MODULE_INTEL_MKL
 template<typename T>
-inline void mt_axpy(int N, T alpha, const T *X,T *Y, int nThreads){
+inline void mt_axpy(int N, T alpha, const T* X, T* Y, int nThreads) {
     axpy(N, alpha, X, 1, Y, 1);
 }
 #else
 
 template<typename T>
-inline void mt_axpy(int N, T alpha, const T *X, T *Y, int nThreads){
+inline void mt_axpy(int N, T alpha, const T* X, T* Y, int nThreads) {
 #pragma omp parallel for
-    for (int i = 0; i < N; i++){
+    for (int i = 0; i < N; i++) {
         Y[i] += alpha * X[i];
     }
 }
 
-inline void __mt_axpy_f(int N, float alpha, const float *X, float *Y){
+inline void __mt_axpy_f(int N, float alpha, const float* X, float* Y) {
     axpy(N, alpha, X, 1, Y, 1);
 }
 
 template<>
-inline void mt_axpy(int N, float alpha, const float *X, float *Y, int nThreads){
+inline void mt_axpy(int N, float alpha, const float* X, float* Y, int nThreads) {
     mt_sv2v(N, alpha, X, Y, __mt_axpy_f, nThreads);
 }
 
-inline void __mt_axpy_d(int N, double alpha, const double *X, double *Y){
+inline void __mt_axpy_d(int N, double alpha, const double* X, double* Y) {
     axpy(N, alpha, X, 1, Y, 1);
 }
 
 template<>
-inline void mt_axpy(int N, double alpha, const double *X, double *Y, int nThreads){
+inline void mt_axpy(int N, double alpha, const double* X, double* Y, int nThreads) {
     mt_sv2v(N, alpha, X, Y, __mt_axpy_d, nThreads);
 }
-
 
 #endif
 
 // DOT
 
 template<typename T>
-inline T mt_dot(int N, const T *X, const T *Y, int nThreads);
+inline T mt_dot(int N, const T* X, const T* Y, int nThreads);
 
 #ifdef MODULE_INTEL_MKL
 template<typename T>
-inline T mt_dot(int N, const T *X,const T *Y, int nThreads){
+inline T mt_dot(int N, const T* X, const T* Y, int nThreads) {
     return dot(N, X, 1, Y, 1);
 }
 #else
 
 template<typename T>
-inline T mt_dot(int N, T alpha, const T *X, const T *Y, int nThreads){
+inline T mt_dot(int N, T alpha, const T* X, const T* Y, int nThreads) {
     T result = 0.0;
-    #pragma omp parallel for reduction(+:result)
-    for (int i = 0; i < N; i++){
+#pragma omp parallel for reduction(+ \
+                                   : result)
+    for (int i = 0; i < N; i++) {
         result += X[i] * Y[i];
     }
     return result;
 }
 
-inline float __mt_dot_f(int N, float dummy, const float *X, const float *Y){
+inline float __mt_dot_f(int N, float dummy, const float* X, const float* Y) {
     return dot(N, X, 1, Y, 1);
 }
 
 template<>
-inline float mt_dot(int N, const float *X, const float *Y, int nThreads){
+inline float mt_dot(int N, const float* X, const float* Y, int nThreads) {
     return mt_svv2s(N, 0.0f, X, Y, __mt_dot_f, nThreads);
 }
 
-inline double __mt_dot_d(int N, double dummy, const double *X, const double *Y){
+inline double __mt_dot_d(int N, double dummy, const double* X, const double* Y) {
     return dot(N, X, 1, Y, 1);
 }
 
 template<>
-inline double mt_dot(int N, const double *X, const double *Y, int nThreads){
+inline double mt_dot(int N, const double* X, const double* Y, int nThreads) {
     return mt_svv2s(N, 0.0, X, Y, __mt_dot_d, nThreads);
 }
 
@@ -595,42 +586,43 @@ inline double mt_dot(int N, const double *X, const double *Y, int nThreads){
 // NRM2
 
 template<typename T>
-inline T mt_nrm2(int N, const T *X, int nThreads);
+inline T mt_nrm2(int N, const T* X, int nThreads);
 
 #ifdef MODULE_INTEL_MKL
 template<typename T>
-inline T mt_nrm2(int N, const T *X, int nThreads){
+inline T mt_nrm2(int N, const T* X, int nThreads) {
     return nrm2(N, X, 1);
 }
 #else
 
 template<typename T>
-inline T mt_nrm2(int N, T alpha, const T *X, int nThreads){
+inline T mt_nrm2(int N, T alpha, const T* X, int nThreads) {
     T result = 0.0;
-    #pragma omp parallel for reduction(+:result)
-    for (int i = 0; i < N; i++){
+#pragma omp parallel for reduction(+ \
+                                   : result)
+    for (int i = 0; i < N; i++) {
         result += X[i] * X[i];
     }
     return std::sqrt(result);
 }
 
-inline float __mt_nrm2_f(int N, float dummy1, const float *X, const float *dummy2){
+inline float __mt_nrm2_f(int N, float dummy1, const float* X, const float* dummy2) {
     return nrm2(N, X, 1);
 }
 
 template<>
-inline float mt_nrm2(int N, const float *X, int nThreads){
-    const float *dummy = 0;
+inline float mt_nrm2(int N, const float* X, int nThreads) {
+    const float* dummy = 0;
     return mt_svv2s(N, 0.0f, X, dummy, __mt_nrm2_f, nThreads);
 }
 
-inline double __mt_nrm2_d(int N, double dummy1, const double *X, const double *dummy2){
+inline double __mt_nrm2_d(int N, double dummy1, const double* X, const double* dummy2) {
     return nrm2(N, X, 1);
 }
 
 template<>
-inline double mt_nrm2(int N, const double *X, int nThreads){
-    const double *dummy = 0;
+inline double mt_nrm2(int N, const double* X, int nThreads) {
+    const double* dummy = 0;
     return mt_svv2s(N, 0.0, X, dummy, __mt_nrm2_d, nThreads);
 }
 
@@ -639,48 +631,48 @@ inline double mt_nrm2(int N, const double *X, int nThreads){
 // ASUM
 
 template<typename T>
-inline T mt_asum(int N, const T *X, int nThreads);
+inline T mt_asum(int N, const T* X, int nThreads);
 
 #ifdef MODULE_INTEL_MKL
 template<typename T>
-inline T mt_asum(int N, const T *X, int nThreads){
+inline T mt_asum(int N, const T* X, int nThreads) {
     return asum(N, X, 1);
 }
 #else
 
 template<typename T>
-inline T mt_asum(int N, T alpha, const T *X, int nThreads){
+inline T mt_asum(int N, T alpha, const T* X, int nThreads) {
     T result = 0.0;
-    #pragma omp parallel for reduction(+:result)
-    for (int i = 0; i < N; i++){
+#pragma omp parallel for reduction(+ \
+                                   : result)
+    for (int i = 0; i < N; i++) {
         result += X[i] * X[i];
     }
     return std::sqrt(result);
 }
 
-inline float __mt_asum_f(int N, float dummy1, const float *X, const float *dummy2){
+inline float __mt_asum_f(int N, float dummy1, const float* X, const float* dummy2) {
     return asum(N, X, 1);
 }
 
 template<>
-inline float mt_asum(int N, const float *X, int nThreads){
-    const float *dummy = 0;
+inline float mt_asum(int N, const float* X, int nThreads) {
+    const float* dummy = 0;
     return mt_svv2s(N, 0.0f, X, dummy, __mt_asum_f, nThreads);
 }
 
-inline double __mt_asum_d(int N, double dummy1, const double *X, const double *dummy2){
+inline double __mt_asum_d(int N, double dummy1, const double* X, const double* dummy2) {
     return asum(N, X, 1);
 }
 
 template<>
-inline double mt_asum(int N, const double *X, int nThreads){
-    const double *dummy = 0;
+inline double mt_asum(int N, const double* X, int nThreads) {
+    const double* dummy = 0;
     return mt_svv2s(N, 0.0, X, dummy, __mt_asum_d, nThreads);
 }
 
 #endif
 
-
-} //namespace Math
+}  //namespace Math
 
 #endif

@@ -14,23 +14,24 @@
  */
 #include "nr.h"
 
-namespace Math { namespace Nr {
+namespace Math {
+namespace Nr {
 
-    float evlmem(float normalizedFrequency, const std::vector<float> &a, float gain)
-    {
-        float sumr=1.0, sumi=0.0;
-        double theta = 2 * M_PI * normalizedFrequency;
-        double wpr = cos(theta);
-        double wpi = sin(theta);
-        double wr=1.0, wi=0.0, wtemp;
-        size_t m = a.size();
-        for (size_t i= 0; i < m; ++ i) {
-            wr = (wtemp = wr) * wpr - wi * wpi;
-            wi = wi * wpr + wtemp * wpi;
-            sumr += a[i] * wr;
-            sumi += a[i] * wi;
-        }
-        return gain * gain / (sumr * sumr + sumi * sumi);
+float evlmem(float normalizedFrequency, const std::vector<float>& a, float gain) {
+    float  sumr = 1.0, sumi = 0.0;
+    double theta = 2 * M_PI * normalizedFrequency;
+    double wpr   = cos(theta);
+    double wpi   = sin(theta);
+    double wr = 1.0, wi = 0.0, wtemp;
+    size_t m = a.size();
+    for (size_t i = 0; i < m; ++i) {
+        wr = (wtemp = wr) * wpr - wi * wpi;
+        wi = wi * wpr + wtemp * wpi;
+        sumr += a[i] * wr;
+        sumi += a[i] * wi;
     }
+    return gain * gain / (sumr * sumr + sumi * sumi);
+}
 
-} } // namespace Math::Nr
+}  // namespace Nr
+}  // namespace Math

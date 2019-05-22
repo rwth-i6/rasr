@@ -12,92 +12,98 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <cmath>
-#include "nr.h"
 #include <Math/Matrix.hh>
 #include <Math/Vector.hh>
-namespace Math { namespace Nr {
+#include <cmath>
+#include "nr.h"
+namespace Math {
+namespace Nr {
 
-    void ludcmp(Math::Matrix<DP> &a, Math::Vector<int>  &indx, DP &d)
-    {
-        require(a.nRows()==a.nColumns());
-        require(indx.size()==a.nColumns());
+void ludcmp(Math::Matrix<DP>& a, Math::Vector<int>& indx, DP& d) {
+    require(a.nRows() == a.nColumns());
+    require(indx.size() == a.nColumns());
 
-        const DP TINY=1.0e-20;
-        int i,imax = 0,j,k;
-        DP big,dum,sum,temp;
+    const DP TINY = 1.0e-20;
+    int      i, imax = 0, j, k;
+    DP       big, dum, sum, temp;
 
-        int n=a.nRows();
-        Math::Vector<DP> vv(n);
-        d=1.0;
-        for (i=0;i<n;i++) {
-            big=0.0;
-            for (j=0;j<n;j++)
-                if ((temp=fabs(a[i][j])) > big) big=temp;
-            if (big == 0.0) nrerror("Singular matrix in routine ludcmp");
-            vv[i]=1.0/big;
+    int              n = a.nRows();
+    Math::Vector<DP> vv(n);
+    d = 1.0;
+    for (i = 0; i < n; i++) {
+        big = 0.0;
+        for (j = 0; j < n; j++)
+            if ((temp = fabs(a[i][j])) > big)
+                big = temp;
+        if (big == 0.0)
+            nrerror("Singular matrix in routine ludcmp");
+        vv[i] = 1.0 / big;
+    }
+    for (j = 0; j < n; j++) {
+        for (i = 0; i < j; i++) {
+            sum = a[i][j];
+            for (k = 0; k < i; k++)
+                sum -= a[i][k] * a[k][j];
+            a[i][j] = sum;
         }
-        for (j=0;j<n;j++) {
-            for (i=0;i<j;i++) {
-                sum=a[i][j];
-                for (k=0;k<i;k++) sum -= a[i][k]*a[k][j];
-                a[i][j]=sum;
+        big = 0.0;
+        for (i = j; i < n; i++) {
+            sum = a[i][j];
+            for (k = 0; k < j; k++)
+                sum -= a[i][k] * a[k][j];
+            a[i][j] = sum;
+            if ((dum = vv[i] * fabs(sum)) >= big) {
+                big  = dum;
+                imax = i;
             }
-            big=0.0;
-            for (i=j;i<n;i++) {
-                sum=a[i][j];
-                for (k=0;k<j;k++) sum -= a[i][k]*a[k][j];
-                a[i][j]=sum;
-                if ((dum=vv[i]*fabs(sum)) >= big) {
-                    big=dum;
-                    imax=i;
-                }
+        }
+        if (j != imax) {
+            for (k = 0; k < n; k++) {
+                dum        = a[imax][k];
+                a[imax][k] = a[j][k];
+                a[j][k]    = dum;
             }
-            if (j != imax) {
-                for (k=0;k<n;k++) {
-                    dum=a[imax][k];
-                    a[imax][k]=a[j][k];
-                    a[j][k]=dum;
-                }
-                d = -d;
-                vv[imax]=vv[j];
-            }
-            indx[j]=imax;
-            if (a[j][j] == 0.0) a[j][j]=TINY;
-            if (j != n-1) {
-                dum=1.0/(a[j][j]);
-                for (i=j+1;i<n;i++) a[i][j] *= dum;
-            }
+            d        = -d;
+            vv[imax] = vv[j];
+        }
+        indx[j] = imax;
+        if (a[j][j] == 0.0)
+            a[j][j] = TINY;
+        if (j != n - 1) {
+            dum = 1.0 / (a[j][j]);
+            for (i = j + 1; i < n; i++)
+                a[i][j] *= dum;
         }
     }
+}
 
+void lubksb(Math::Matrix<DP>& a, Math::Vector<int>& indx, Math::Vector<DP>& b) {
+    require(a.nRows() == a.nColumns());
+    require(indx.size() == a.nColumns());
+    require(b.size() == a.nColumns());
 
+    int i, ii = 0, ip, j;
+    DP  sum;
 
-    void lubksb(Math::Matrix<DP> &a, Math::Vector<int>  &indx, Math::Vector<DP> &b)
-    {
-        require(a.nRows()==a.nColumns());
-        require(indx.size()==a.nColumns());
-        require(b.size()==a.nColumns());
-
-        int i,ii=0,ip,j;
-        DP sum;
-
-        int n=a.nRows();
-        for (i=0;i<n;i++) {
-            ip=indx[i];
-            sum=b[ip];
-            b[ip]=b[i];
-            if (ii != 0)
-                for (j=ii-1;j<i;j++) sum -= a[i][j]*b[j];
-            else if (sum != 0.0)
-                ii=i+1;
-            b[i]=sum;
-        }
-        for (i=n-1;i>=0;i--) {
-            sum=b[i];
-            for (j=i+1;j<n;j++) sum -= a[i][j]*b[j];
-            b[i]=sum/a[i][i];
-        }
+    int n = a.nRows();
+    for (i = 0; i < n; i++) {
+        ip    = indx[i];
+        sum   = b[ip];
+        b[ip] = b[i];
+        if (ii != 0)
+            for (j = ii - 1; j < i; j++)
+                sum -= a[i][j] * b[j];
+        else if (sum != 0.0)
+            ii = i + 1;
+        b[i] = sum;
     }
+    for (i = n - 1; i >= 0; i--) {
+        sum = b[i];
+        for (j = i + 1; j < n; j++)
+            sum -= a[i][j] * b[j];
+        b[i] = sum / a[i][i];
+    }
+}
 
-} } //namespace Math::Nr
+}  // namespace Nr
+}  // namespace Math

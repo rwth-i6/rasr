@@ -19,42 +19,54 @@
 
 namespace Math {
 
-    /** Levinson algorithm to estimate all-pole linear predication parameters.
-     *  y[n] = gain delta(t) - a1 y[n-1] - a2 y[n-1] - ... - aN y[n-N]
-     *  Algorithm see in Rabiner-Schafer: Digital Processing of Speech Signal, 1978, page 411.
-     */
-    class LevinsonLeastSquares {
-    public:
-        typedef f64 Data;
-        typedef f32 InputData;
-    private:
-        Vector<Data> E_;
-        Vector<Data> k_;
-        Matrix<Data> alpha_;
-    private:
-        void setOrder(size_t);
-        size_t order() const { return E_.size() - 1; }
-    public: // constructor & destructor
-        LevinsonLeastSquares() {}
-        virtual ~LevinsonLeastSquares() {};
+/** Levinson algorithm to estimate all-pole linear predication parameters.
+ *  y[n] = gain delta(t) - a1 y[n-1] - a2 y[n-1] - ... - aN y[n-N]
+ *  Algorithm see in Rabiner-Schafer: Digital Processing of Speech Signal, 1978, page 411.
+ */
+class LevinsonLeastSquares {
+public:
+    typedef f64 Data;
+    typedef f32 InputData;
 
-        /** Performs the Levinson algorithm on the autocorrelation coeffitients (@param R) */
-        bool work(const std::vector<InputData> &R);
+private:
+    Vector<Data> E_;
+    Vector<Data> k_;
+    Matrix<Data> alpha_;
 
-        /** Retrieves calculated parameter gain. */
-        Data gain() const { return sqrt(predictionError()); }
-        /** Retrieves calculated parameters a1..aN */
-        template<class T> void a(std::vector<T> &result) const;
-        /** Retrieves remaining prediction error. */
-        Data predictionError() const { return E_[order()]; }
-    };
-
-    template<class T>
-    void LevinsonLeastSquares::a(std::vector<T> &result) const {
-        size_t N = order(); result.resize(N);
-        for(size_t j = 1; j <= N; j++) result[j - 1] = alpha_[j][N];
+private:
+    void   setOrder(size_t);
+    size_t order() const {
+        return E_.size() - 1;
     }
 
-} // namespace Math
+public:  // constructor & destructor
+    LevinsonLeastSquares() {}
+    virtual ~LevinsonLeastSquares(){};
 
-#endif // _MATH_LEVINSON_LSE_HH
+    /** Performs the Levinson algorithm on the autocorrelation coeffitients (@param R) */
+    bool work(const std::vector<InputData>& R);
+
+    /** Retrieves calculated parameter gain. */
+    Data gain() const {
+        return sqrt(predictionError());
+    }
+    /** Retrieves calculated parameters a1..aN */
+    template<class T>
+    void a(std::vector<T>& result) const;
+    /** Retrieves remaining prediction error. */
+    Data predictionError() const {
+        return E_[order()];
+    }
+};
+
+template<class T>
+void LevinsonLeastSquares::a(std::vector<T>& result) const {
+    size_t N = order();
+    result.resize(N);
+    for (size_t j = 1; j <= N; j++)
+        result[j - 1] = alpha_[j][N];
+}
+
+}  // namespace Math
+
+#endif  // _MATH_LEVINSON_LSE_HH

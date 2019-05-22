@@ -15,22 +15,24 @@
 #ifndef _MATH_LAPACK_SVD_HH_
 #define _MATH_LAPACK_SVD_HH_
 
-#include "Lapack.hh"
 #include <Math/Matrix.hh>
+#include "Lapack.hh"
 
-namespace Math { namespace Lapack {
+namespace Math {
+namespace Lapack {
 
-    typedef Math::Matrix<double> DoubleMatrix;
-    typedef Math::Vector<double> DoubleVector;
+typedef Math::Matrix<double> DoubleMatrix;
+typedef Math::Vector<double> DoubleVector;
 
-    const double svdThreshold=1.0e-12;
-    const int workArrayFactor=5;
+const double svdThreshold    = 1.0e-12;
+const int    workArrayFactor = 5;
 
-    s32 pseudoInvert(DoubleMatrix& result,const DoubleMatrix& A);
-    s32 solveLinearLeastSquares(DoubleVector& result,const DoubleMatrix& A, const DoubleVector& b);
-    s32 solveLinearLeastSquares(DoubleMatrix& result,const DoubleMatrix& A, const DoubleMatrix& B);
-    s32 svd(DoubleMatrix &U, DoubleVector &W, DoubleMatrix &V,const DoubleMatrix& A); //returns V, not(!) VT
+s32 pseudoInvert(DoubleMatrix& result, const DoubleMatrix& A);
+s32 solveLinearLeastSquares(DoubleVector& result, const DoubleMatrix& A, const DoubleVector& b);
+s32 solveLinearLeastSquares(DoubleMatrix& result, const DoubleMatrix& A, const DoubleMatrix& B);
+s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A);  //returns V, not(!) VT
 
-} }
+}  // namespace Lapack
+}  // namespace Math
 
-#endif // _MATH_LAPACK_SVD_HH_
+#endif  // _MATH_LAPACK_SVD_HH_

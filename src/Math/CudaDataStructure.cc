@@ -19,12 +19,12 @@
 
 using namespace Math;
 
-bool CudaDataStructure::initialized = false;
-bool CudaDataStructure::hasGpu_ = false;
-int CudaDataStructure::activeGpu_ = -1;
-cublasHandle_t CudaDataStructure::cublasHandle;
+bool              CudaDataStructure::initialized = false;
+bool              CudaDataStructure::hasGpu_     = false;
+int               CudaDataStructure::activeGpu_  = -1;
+cublasHandle_t    CudaDataStructure::cublasHandle;
 curandGenerator_t CudaDataStructure::randomNumberGenerator;
-u32 CudaDataStructure::multiPrecisionBunchSize = 8;
+u32               CudaDataStructure::multiPrecisionBunchSize = 8;
 
 enum UseCudaMode {
     useCuda,
@@ -36,15 +36,13 @@ static const Core::Choice choiceUseCuda(
         "true", useCuda,
         "false", dontUseCuda,
         "auto", autoUseCuda,
-        Core::Choice::endMark()
-        );
+        Core::Choice::endMark());
 
 static const Core::ParameterChoice paramUseCuda(
         "use-cuda", &choiceUseCuda,
         "Specify whether you want to force usage of CUDA, "
         "or just automatically use it if available.",
-        autoUseCuda
-        );
+        autoUseCuda);
 
 void CudaDataStructure::initialize() {
     if (initialized)
@@ -52,18 +50,19 @@ void CudaDataStructure::initialize() {
     initialized = true;
 
     UseCudaMode useCudaMode = autoUseCuda;
-    if(!Core::Application::us())
+    if (!Core::Application::us())
         warning("CudaDataStructure: no application, use CUDA if available");
     else
-        useCudaMode = (UseCudaMode) paramUseCuda(Core::Application::us()->getConfiguration());
+        useCudaMode = (UseCudaMode)paramUseCuda(Core::Application::us()->getConfiguration());
 
     // check whether MODULE_CUDA is active and a GPU is available
-    int nGpus = 0;
+    int  nGpus   = 0;
     bool hasCuda = false;
     if (useCudaMode == dontUseCuda) {
         hasGpu_ = false;
         log("CUDA is disabled via config");
-    } else {
+    }
+    else {
         cudaError_t success = Cuda::getNumberOfGpus(nGpus, hasCuda);
         if (!hasCuda)
             hasGpu_ = false;
@@ -82,7 +81,8 @@ void CudaDataStructure::initialize() {
             }
             if (useCudaMode == autoUseCuda) {
                 log(ss.str());
-            } else {
+            }
+            else {
                 ss << " This is critical with use-cuda = true.";
                 criticalError(ss.str());
             }
@@ -97,17 +97,21 @@ void CudaDataStructure::initialize() {
 #ifdef MODULE_CUDA
         // find free device first
         {
-            cudaError_t status = cudaErrorInvalidDevice;
+            cudaError_t        status = cudaErrorInvalidDevice;
             std::ostringstream ss;
 
             for (int d = 0; d < nGpus; ++d) {
-                ss.str(""); ss.clear();
-                ss << "Trying to cudaSetDevice on GPU " << d; log(ss.str());
-                cudaSetDevice(d); // this sometimes returns 0 on occupied GPUs
-                status = cudaFree(0); // this always fails on occupied GPUs
-                if (status == cudaSuccess) break;
+                ss.str("");
+                ss.clear();
+                ss << "Trying to cudaSetDevice on GPU " << d;
+                log(ss.str());
+                cudaSetDevice(d);      // this sometimes returns 0 on occupied GPUs
+                status = cudaFree(0);  // this always fails on occupied GPUs
+                if (status == cudaSuccess)
+                    break;
             }
-            if (status != cudaSuccess) criticalError("Failed to get a GPU handle.");
+            if (status != cudaSuccess)
+                criticalError("Failed to get a GPU handle.");
         }
 #endif
         // initialize cuBLAS and cuRAND
@@ -130,7 +134,7 @@ void CudaDataStructure::initialize() {
             }
         }
         {
-            curandStatus_t success = Cuda::setSeed(randomNumberGenerator, (unsigned long long) Math::rand());
+            curandStatus_t success = Cuda::setSeed(randomNumberGenerator, (unsigned long long)Math::rand());
             if (success != CURAND_STATUS_SUCCESS) {
                 std::ostringstream serr;
                 serr << "Failed to set seed for cuRAND random number generator: Error code is: " << success;
@@ -146,14 +150,10 @@ void CudaDataStructure::initialize() {
         //   https://github.com/Theano/Theano/blob/master/theano/sandbox/cuda/__init__.py
         cudaError_t ret = cudaGetDevice(&activeGpu_);
         if (ret != cudaSuccess) {
-            criticalError(std::string()
-                + "Cannot query current active GPU, error "
-                + std::to_string(ret) + " (" + Cuda::getErrorString(ret) + ")");
+            criticalError(std::string() + "Cannot query current active GPU, error " + std::to_string(ret) + " (" + Cuda::getErrorString(ret) + ")");
         }
         else {
-            log(std::string()
-                + "Using GPU " + std::to_string(activeGpu_ + 1)
-                + " (= idx + 1) of " + std::to_string(nGpus) + " GPUs");
+            log(std::string() + "Using GPU " + std::to_string(activeGpu_ + 1) + " (= idx + 1) of " + std::to_string(nGpus) + " GPUs");
         }
 #endif
     }
@@ -175,38 +175,34 @@ void CudaDataStructure::setMultiprecisionBunchSize(u32 val) {
     multiPrecisionBunchSize = val;
 }
 
+CudaDataStructure::CudaDataStructure()
+        : gpuMode_(hasGpu()) {}
 
-CudaDataStructure::CudaDataStructure() :
-    gpuMode_(hasGpu())
-  { }
+CudaDataStructure::CudaDataStructure(const CudaDataStructure& x)
+        : gpuMode_(x.gpuMode_) {}
 
-CudaDataStructure::CudaDataStructure(const CudaDataStructure &x ) :
-    gpuMode_(x.gpuMode_)
-  { }
-
-void CudaDataStructure::log(const std::string &msg){
+void CudaDataStructure::log(const std::string& msg) {
     if (Core::Application::us())
         Core::Application::us()->log() << msg;
     else
         std::cerr << msg << std::endl;
 }
 
-void CudaDataStructure::warning(const std::string &msg){
+void CudaDataStructure::warning(const std::string& msg) {
     if (Core::Application::us())
         Core::Application::us()->warning() << msg;
     else
         std::cerr << msg << std::endl;
 }
 
-
-void CudaDataStructure::error(const std::string &msg){
+void CudaDataStructure::error(const std::string& msg) {
     if (Core::Application::us())
         Core::Application::us()->error() << msg;
     else
         std::cerr << msg << std::endl;
 }
 
-void CudaDataStructure::criticalError(const std::string &msg){
+void CudaDataStructure::criticalError(const std::string& msg) {
     if (Core::Application::us())
         Core::Application::us()->criticalError() << msg;
     else

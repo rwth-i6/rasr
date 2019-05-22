@@ -15,51 +15,42 @@
 #ifndef PROFILEMATRIX_HH_
 #define PROFILEMATRIX_HH_
 
-class MatrixProfiler : public Core::Application
-{
+class MatrixProfiler : public Core::Application {
     static const Core::ParameterInt paramNumberOfRepetitions;
+
 protected:
     u32 nRepetitions_;
+
 protected:
     template<typename T>
-    void resetMatrices(Math::FastMatrix<T> &C, Math::CudaMatrix<T> &G, bool randomInit=true) const;
+    void resetMatrices(Math::FastMatrix<T>& C, Math::CudaMatrix<T>& G, bool randomInit = true) const;
 
     template<typename T>
-    void initMatrices(Math::FastMatrix<T> &C, Math::CudaMatrix<T> &G, int nRows, int nCols, bool randomInit=true) const;
+    void initMatrices(Math::FastMatrix<T>& C, Math::CudaMatrix<T>& G, int nRows, int nCols, bool randomInit = true) const;
 
     void logTiming(double timeCpu, double timeGpu) const;
 
 public:
-    virtual std::string getUsage() const { return "short program to test Math features\n"; }
+    virtual std::string getUsage() const {
+        return "short program to test Math features\n";
+    }
 
     MatrixProfiler();
 
-    void profileExp(int nRows, int nCols) const ;
-
-    void profileDot(int nRows, int nCols) const ;
-
-    void profileAdd(int nRows, int nCols) const ;
-
-    void profileSigmoid(int nRows, int nCols, float gamma) const ;
-
+    void profileExp(int nRows, int nCols) const;
+    void profileDot(int nRows, int nCols) const;
+    void profileAdd(int nRows, int nCols) const;
+    void profileSigmoid(int nRows, int nCols, float gamma) const;
     void profileMaxOfColumns(int nRows, int nCols) const;
-
     void profileAddSummedRows(int nRows, int nCols) const;
-
-    void profileSoftmax(int nRows, int nCols) const ;
-
-    void profileSoftmaxDetailed(int nRows, int nCols, int tmpDimension) const ;
-
-    void profileMatrixMultiplication(int l, int m, int n) const ;
-
-    void profileMatrixMultiplicationMixed(int l, int m, int n) const ;
-
+    void profileSoftmax(int nRows, int nCols) const;
+    void profileSoftmaxDetailed(int nRows, int nCols, int tmpDimension) const;
+    void profileMatrixMultiplication(int l, int m, int n) const;
+    void profileMatrixMultiplicationMixed(int l, int m, int n) const;
     void profileSync(int nRows, int nCols) const;
-
     void profileCast(int nRows, int nCols) const;
 
-    int main(const std::vector<std::string> &arguments);
-
+    int main(const std::vector<std::string>& arguments);
 };
 
 #endif /* PROFILEMATRIX_HH_ */

@@ -19,15 +19,14 @@
 
 #include <Core/OpenMPWrapper.hh>
 #include <Math/MultithreadingHelper.hh>
-#include <functional>
 #include <cmath>
+#include <functional>
 
 #ifdef MODULE_ACML
 #include <acml_mv.h>
 #endif
 
 namespace Math {
-
 
 // TODO add multithreading for all methods
 
@@ -36,9 +35,9 @@ namespace Math {
  *
  */
 
-template <typename T>
-inline void vr_exp(int n, T *x, T *y){
-    for (int i = 0; i < n; i++){
+template<typename T>
+inline void vr_exp(int n, T* x, T* y) {
+    for (int i = 0; i < n; i++) {
         y[i] = exp(x[i]);
     }
 }
@@ -46,21 +45,21 @@ inline void vr_exp(int n, T *x, T *y){
 #ifdef MODULE_ACML
 
 template<>
-inline void vr_exp(int n, float *x, float *y){
+inline void vr_exp(int n, float* x, float* y) {
     vrsa_expf(n, x, y);
 }
 
 template<>
-inline void vr_exp(int n, double *x, double *y){
+inline void vr_exp(int n, double* x, double* y) {
     vrda_exp(n, x, y);
 }
 
 #endif
 
-template <typename T>
-inline void mt_vr_exp(int n, T *x, T *y, int nThreads){
+template<typename T>
+inline void mt_vr_exp(int n, T* x, T* y, int nThreads) {
 #pragma omp parallel for
-    for (int i = 0; i < n; i++){
+    for (int i = 0; i < n; i++) {
         y[i] = exp(x[i]);
     }
 }
@@ -68,28 +67,26 @@ inline void mt_vr_exp(int n, T *x, T *y, int nThreads){
 #ifdef MODULE_ACML
 
 template<>
-inline void mt_vr_exp(int n, float *x, float *y, int nThreads){
+inline void mt_vr_exp(int n, float* x, float* y, int nThreads) {
     mt_v2v(n, x, y, vrsa_expf, nThreads);
 }
 
 template<>
-inline void mt_vr_exp(int n, double *x, double *y, int nThreads){
+inline void mt_vr_exp(int n, double* x, double* y, int nThreads) {
     mt_v2v(n, x, y, vrda_exp, nThreads);
 }
-
 
 #endif
 
 // TODO add Intel MKL
 
-
 /*
  *  y = log(x) (componentwise)
  */
 
-template <typename T>
-inline void vr_log(int n, T *x, T *y){
-    for (int i = 0; i < n; i++){
+template<typename T>
+inline void vr_log(int n, T* x, T* y) {
+    for (int i = 0; i < n; i++) {
         y[i] = log(x[i]);
     }
 }
@@ -97,13 +94,13 @@ inline void vr_log(int n, T *x, T *y){
 #ifdef MODULE_ACML
 
 template<>
-inline void vr_log(int n, float *x, float *y){
-    vrsa_logf(n,x,y);
+inline void vr_log(int n, float* x, float* y) {
+    vrsa_logf(n, x, y);
 }
 
 template<>
-inline void vr_log(int n, double *x, double *y){
-    vrda_log(n,x,y);
+inline void vr_log(int n, double* x, double* y) {
+    vrda_log(n, x, y);
 }
 
 #endif
@@ -112,9 +109,9 @@ inline void vr_log(int n, double *x, double *y){
  *  z = x**y (componentwise)
  */
 
-template <typename T>
-inline void vr_powx(int n, T *x, T y, T *z){
-    for (int i = 0; i < n; i++){
+template<typename T>
+inline void vr_powx(int n, T* x, T y, T* z) {
+    for (int i = 0; i < n; i++) {
         z[i] = pow(x[i], y);
     }
 }
@@ -122,19 +119,19 @@ inline void vr_powx(int n, T *x, T y, T *z){
 #ifdef MODULE_ACML
 
 template<>
-inline void vr_powx(int n, float *x, float y, float *z){
-    vrsa_powxf(n,x,y,z);
+inline void vr_powx(int n, float* x, float y, float* z) {
+    vrsa_powxf(n, x, y, z);
 }
 
 template<>
-inline void vr_powx(int n, double *x, double y, double *z){
-    for (int i = 0; i < n; i++){
+inline void vr_powx(int n, double* x, double y, double* z) {
+    for (int i = 0; i < n; i++) {
         z[i] = fastpow(x[i], y);
     }
 }
 
 #endif
 
-} // namespace math
+}  // namespace Math
 
 #endif

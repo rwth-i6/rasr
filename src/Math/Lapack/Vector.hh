@@ -15,78 +15,111 @@
 #ifndef _MATH_MATH_LAPACK_VECTOR_HH
 #define _MATH_MATH_LAPACK_VECTOR_HH
 
-#include <Core/Types.hh>
 #include <Core/Assertions.hh>
+#include <Core/Types.hh>
 #include <Core/Utility.hh>
 
-namespace Math { namespace Lapack {
+namespace Math {
+namespace Lapack {
 
-    /** Vector is simple wrapper for a 1-D buffer */
-    template<class T>
-    class Vector {
-    public:
-        typedef T Type;
-        typedef Type* Iterator;
-        typedef const Type* ConstIterator;
-    private:
-        Type* buffer_;
-        size_t size_;
-    private:
-        void deleteBuffer() {
-            delete[] buffer_;
-            buffer_ = 0;
-            size_ = 0;
-        }
-    public:
-        Vector(u32 n = 0) : buffer_(0), size_(0) { resize(n); }
-        Vector(const Vector &vector) : buffer_(0), size_(0) { operator=(vector); }
-        ~Vector() { deleteBuffer(); };
+/** Vector is simple wrapper for a 1-D buffer */
+template<class T>
+class Vector {
+public:
+    typedef T           Type;
+    typedef Type*       Iterator;
+    typedef const Type* ConstIterator;
 
-        Vector& operator=(const Vector &vector) {
-            resize(vector.size());
-            std::copy(vector.begin(), vector.end(), buffer_);
-            return *this;
-        }
+private:
+    Type*  buffer_;
+    size_t size_;
 
-        void resize(u32 n) {
-            if (size_ == n)
-                return;
-            deleteBuffer();
-            if (n > 0)
-                buffer_ = new Type[size_ = n];
-        }
-        size_t size() const { return size_; };
+private:
+    void deleteBuffer() {
+        delete[] buffer_;
+        buffer_ = 0;
+        size_   = 0;
+    }
 
-        Type& operator[](size_t i) { require_(i < size()); return buffer_[i]; }
-        const Type& operator[](size_t i) const { require_(i < size()); return buffer_[i]; }
-
-        Type* buffer() { return buffer_; };
-
-        Iterator begin() { return buffer_; };
-        ConstIterator begin() const { return buffer_; };
-
-        Iterator end() { return buffer_ + size_; };
-        ConstIterator end() const { return buffer_ + size_; };
+public:
+    Vector(u32 n = 0)
+            : buffer_(0), size_(0) {
+        resize(n);
+    }
+    Vector(const Vector& vector)
+            : buffer_(0), size_(0) {
+        operator=(vector);
+    }
+    ~Vector() {
+        deleteBuffer();
     };
 
-    template<class Source, class Target>
-    void copy(const Source &source, Target &target) {
-        target.resize(source.size());
-        std::copy(source.begin(), source.end(), target.begin());
+    Vector& operator=(const Vector& vector) {
+        resize(vector.size());
+        std::copy(vector.begin(), vector.end(), buffer_);
+        return *this;
     }
 
-    template<class Source, class Target>
-    void copy(const Source &source, Target &target, size_t n) {
-        n = std::min(n, source.size());
-        target.resize(n);
-        std::copy(source.begin(), source.begin() + n, target.begin());
+    void resize(u32 n) {
+        if (size_ == n)
+            return;
+        deleteBuffer();
+        if (n > 0)
+            buffer_ = new Type[size_ = n];
+    }
+    size_t size() const {
+        return size_;
+    };
+
+    Type& operator[](size_t i) {
+        require_(i < size());
+        return buffer_[i];
+    }
+    const Type& operator[](size_t i) const {
+        require_(i < size());
+        return buffer_[i];
     }
 
-    template<class T>
-    T maxAbsoluteElement(const Vector<T> &v) {
-        T m; Core::maxAbsoluteElement(v.begin(), v.end(), m); return m;
-    }
+    Type* buffer() {
+        return buffer_;
+    };
 
-} } //namespace Math::Lapack
+    Iterator begin() {
+        return buffer_;
+    };
+    ConstIterator begin() const {
+        return buffer_;
+    };
 
-#endif //_MATH_LAPACK_VECTOR_HH
+    Iterator end() {
+        return buffer_ + size_;
+    };
+    ConstIterator end() const {
+        return buffer_ + size_;
+    };
+};
+
+template<class Source, class Target>
+void copy(const Source& source, Target& target) {
+    target.resize(source.size());
+    std::copy(source.begin(), source.end(), target.begin());
+}
+
+template<class Source, class Target>
+void copy(const Source& source, Target& target, size_t n) {
+    n = std::min(n, source.size());
+    target.resize(n);
+    std::copy(source.begin(), source.begin() + n, target.begin());
+}
+
+template<class T>
+T maxAbsoluteElement(const Vector<T>& v) {
+    T m;
+    Core::maxAbsoluteElement(v.begin(), v.end(), m);
+    return m;
+}
+
+}  // namespace Lapack
+}  // namespace Math
+
+#endif  //_MATH_LAPACK_VECTOR_HH

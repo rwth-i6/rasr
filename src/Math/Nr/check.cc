@@ -15,26 +15,22 @@
 #include <Core/Application.hh>
 #include "nr.h"
 
-
 using namespace Math::Nr;
 
-
-class TestApplication :
-    public Core::Application
-{
+class TestApplication : public Core::Application {
 public:
     virtual string getUsage() const {
         return "short program to test NR features\n";
     }
 
-    TestApplication() : Core::Application() {
+    TestApplication()
+            : Core::Application() {
         setTitle("check");
     }
 
-    int main(const std::vector<string> &arguments) {
+    int main(const std::vector<string>& arguments) {
         return 0;
     }
-
 };
 
 APPLICATION(TestApplication);

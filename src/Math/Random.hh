@@ -15,68 +15,72 @@
 #ifndef _MATH_RANDOM_HH
 #define _MATH_RANDOM_HH
 
-#include <Modules.hh>
 #include <Core/Parameter.hh>
-#include <random>
+#include <Modules.hh>
 #include <algorithm>
+#include <random>
 
 namespace Math {
 
-    extern std::mt19937 randomEngine;
+extern std::mt19937 randomEngine;
 
-    void randomSeed(long seed);
+void randomSeed(long seed);
 
-    // Return a random integer between 0 and RAND_MAX inclusive.
-    int rand();
+// Return a random integer between 0 and RAND_MAX inclusive.
+int rand();
 
-    template<typename Iter>
-    inline void random_shuffle(Iter begin, Iter end) {
-        std::shuffle(begin, end, randomEngine);
-    }
-
+template<typename Iter>
+inline void random_shuffle(Iter begin, Iter end) {
+    std::shuffle(begin, end, randomEngine);
+}
 
 #ifdef MODULE_MATH_NR
 
-    class RandomVectorGenerator {
-    public:
-        typedef f32 DataType;
-        enum Type { typeUniformIndependent, typeGaussIndependent };
-    public:
-        static const Core::Choice choiceType;
-        static const Core::ParameterChoice paramType;
+class RandomVectorGenerator {
+public:
+    typedef f32 DataType;
+    enum Type { typeUniformIndependent,
+                typeGaussIndependent };
 
-        static RandomVectorGenerator* create(Type type);
-    public:
-        RandomVectorGenerator() {}
-        virtual ~RandomVectorGenerator() {}
-        /** Fills output vector with random numbers
-         *  Override this function to implement differently distributed vector sequences.
-         */
-        virtual void work(std::vector<DataType> &out) = 0;
-    };
+public:
+    static const Core::Choice          choiceType;
+    static const Core::ParameterChoice paramType;
 
-    /** Random vector generator
-     *  -Vector components are independent, as far as the template parameter RandomNumberGenerator
-     *   generates independent sequences.
-     *  -Distribution of the vector components is determined by the distribution of template parameter
-     *   RandomNumberGenerator
+    static RandomVectorGenerator* create(Type type);
+
+public:
+    RandomVectorGenerator() {}
+    virtual ~RandomVectorGenerator() {}
+    /** Fills output vector with random numbers
+     *  Override this function to implement differently distributed vector sequences.
      */
-    template<class RandomNumberGenerator>
-    class IndependentRandomVectorGenerator : public RandomVectorGenerator {
-    private:
-        RandomNumberGenerator randomNumberGenerator_;
-    public:
-        IndependentRandomVectorGenerator() : randomNumberGenerator_(time(0) & 0xffff) {}
-        virtual ~IndependentRandomVectorGenerator() {}
+    virtual void work(std::vector<DataType>& out) = 0;
+};
 
-        virtual void work(std::vector<DataType> &out) {
-            for(std::vector<DataType>::iterator i = out.begin(); i != out.end(); ++ i)
-                (*i) = randomNumberGenerator_.work();
-        }
-    };
+/** Random vector generator
+ *  -Vector components are independent, as far as the template parameter RandomNumberGenerator
+ *   generates independent sequences.
+ *  -Distribution of the vector components is determined by the distribution of template parameter
+ *   RandomNumberGenerator
+ */
+template<class RandomNumberGenerator>
+class IndependentRandomVectorGenerator : public RandomVectorGenerator {
+private:
+    RandomNumberGenerator randomNumberGenerator_;
+
+public:
+    IndependentRandomVectorGenerator()
+            : randomNumberGenerator_(time(0) & 0xffff) {}
+    virtual ~IndependentRandomVectorGenerator() {}
+
+    virtual void work(std::vector<DataType>& out) {
+        for (std::vector<DataType>::iterator i = out.begin(); i != out.end(); ++i)
+            (*i) = randomNumberGenerator_.work();
+    }
+};
 
 #endif
 
-} // namespace Math
+}  // namespace Math
 
-#endif // _MATH_RANDOM_HH
+#endif  // _MATH_RANDOM_HH

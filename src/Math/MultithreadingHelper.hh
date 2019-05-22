@@ -27,7 +27,6 @@ namespace Math {
  *
  */
 
-
 /*
  *
  * parallelization of function of type vector + scalar to vector, e.g. axpy
@@ -35,27 +34,25 @@ namespace Math {
  *
  */
 
-
-
 template<typename T>
-void mt_sv2v(int N, T alpha, const T *X, T *Y, void (*fn)(int, T, const T*, T*), int nThreads){
+void mt_sv2v(int N, T alpha, const T* X, T* Y, void (*fn)(int, T, const T*, T*), int nThreads) {
     int nParts = nThreads < 1 ? 1 : nThreads;
-    nParts = nParts > N ? std::max(1,N) : nParts;
-    int d = N / nParts;
-    int r = N % nParts;
-    if (r == 0){
+    nParts     = nParts > N ? std::max(1, N) : nParts;
+    int d      = N / nParts;
+    int r      = N % nParts;
+    if (r == 0) {
 #pragma omp parallel for
-        for (int partId = 0; partId < nParts ; partId++){
-            fn(d, alpha, X + partId * d, Y+ partId * d);
+        for (int partId = 0; partId < nParts; partId++) {
+            fn(d, alpha, X + partId * d, Y + partId * d);
         }
     }
-    else{
+    else {
 #pragma omp parallel for
-        for (int partId = 0; partId < nParts; partId++){
+        for (int partId = 0; partId < nParts; partId++) {
             if (partId < nParts - 1)
                 fn(d, alpha, X + partId * d, Y + partId * d);
             else
-                fn(d + r, alpha, X + (nParts -1)* d, Y + (nParts -1)* d);
+                fn(d + r, alpha, X + (nParts - 1) * d, Y + (nParts - 1) * d);
         }
     }
 }
@@ -67,32 +64,29 @@ void mt_sv2v(int N, T alpha, const T *X, T *Y, void (*fn)(int, T, const T*, T*),
  *
  */
 
-
-
 template<typename T>
-void mt_v2v(int N, T *X, T *Y, void (*fn)(int, T*, T*), int nThreads){
+void mt_v2v(int N, T* X, T* Y, void (*fn)(int, T*, T*), int nThreads) {
     int nParts = nThreads < 1 ? 1 : nThreads;
-    nParts = nParts > N ? std::max(1,N) : nParts;
+    nParts     = nParts > N ? std::max(1, N) : nParts;
 
     int d = N / nParts;
     int r = N % nParts;
-    if (r == 0){
+    if (r == 0) {
 #pragma omp parallel for
-        for (int partId = 0; partId < nParts ; partId++){
-            fn(d, X + partId * d, Y+ partId * d);
+        for (int partId = 0; partId < nParts; partId++) {
+            fn(d, X + partId * d, Y + partId * d);
         }
     }
-    else{
+    else {
 #pragma omp parallel for
-        for (int partId = 0; partId < nParts; partId++){
+        for (int partId = 0; partId < nParts; partId++) {
             if (partId < nParts - 1)
                 fn(d, X + partId * d, Y + partId * d);
             else
-                fn(d + r, X + (nParts -1)* d, Y + (nParts -1)* d);
+                fn(d + r, X + (nParts - 1) * d, Y + (nParts - 1) * d);
         }
     }
 }
-
 
 /*
  *
@@ -102,32 +96,33 @@ void mt_v2v(int N, T *X, T *Y, void (*fn)(int, T*, T*), int nThreads){
  */
 
 template<typename T>
-T mt_svv2s(int N, T alpha, const T *X, const T *Y, T (*fn)(int, T, const T*, const T*), int nThreads){
+T mt_svv2s(int N, T alpha, const T* X, const T* Y, T (*fn)(int, T, const T*, const T*), int nThreads) {
     int nParts = nThreads < 1 ? 1 : nThreads;
-    nParts = nParts > N ? std::max(1,N) : nParts;
+    nParts     = nParts > N ? std::max(1, N) : nParts;
 
-    int d = N / nParts;
-    int r = N % nParts;
-    T result = 0.0;
-    if (r == 0){
-#pragma omp parallel for reduction(+:result)
-        for (int partId = 0; partId < nParts ; partId++){
-            result += fn(d, alpha, X + partId * d, Y+ partId * d);
+    int d      = N / nParts;
+    int r      = N % nParts;
+    T   result = 0.0;
+    if (r == 0) {
+#pragma omp parallel for reduction(+ \
+                                   : result)
+        for (int partId = 0; partId < nParts; partId++) {
+            result += fn(d, alpha, X + partId * d, Y + partId * d);
         }
     }
-    else{
-#pragma omp parallel for reduction(+:result)
-        for (int partId = 0; partId < nParts; partId++){
+    else {
+#pragma omp parallel for reduction(+ \
+                                   : result)
+        for (int partId = 0; partId < nParts; partId++) {
             if (partId < nParts - 1)
-                result += fn(d, alpha, X + partId * d, Y+ partId * d);
+                result += fn(d, alpha, X + partId * d, Y + partId * d);
             else
-                result += fn(d + r, alpha, X + (nParts -1)* d, Y + (nParts -1)* d);
+                result += fn(d + r, alpha, X + (nParts - 1) * d, Y + (nParts - 1) * d);
         }
     }
     return result;
 }
 
-
-}
+}  // namespace Math
 
 #endif /* MULTITHREADINGHELPER_HH_ */

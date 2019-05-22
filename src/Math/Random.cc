@@ -17,8 +17,8 @@
 #ifdef MODULE_MATH_NR
 #include "Nr/Random.hh"
 #endif
-#include <libxml/parser.h>
 #include <Core/Assertions.hh>
+#include <libxml/parser.h>
 
 namespace Math {
 
@@ -27,7 +27,7 @@ std::mt19937 randomEngine;
 void randomSeed(long seed) {
     // Init our own random number generator.
     // This should be the base number generator for all our internal random numbers.
-    randomEngine.seed((uint32_t) seed);
+    randomEngine.seed((uint32_t)seed);
 
     // On the first call to xmlDictCreate,
     // libxml2 will initialize some internal randomize system,
@@ -40,7 +40,7 @@ void randomSeed(long seed) {
     // Now we can set the seed on the global libc random number generator.
     // Let's hope that no-one else resets that at some later time.
     // Use some random number as the seed.
-    srand((unsigned int) randomEngine());
+    srand((unsigned int)randomEngine());
 
     // Note: We should not use the C/C++ global random
     // generator, because every other lib could call `srand()`.
@@ -54,24 +54,22 @@ static std::uniform_int_distribution<> randIntUniform(0, RAND_MAX);
 
 // Return a random integer between 0 and RAND_MAX inclusive.
 int rand() {
-    return (int) randIntUniform(randomEngine);
+    return (int)randIntUniform(randomEngine);
 }
-
 
 #ifdef MODULE_MATH_NR
 
 const Core::Choice RandomVectorGenerator::choiceType(
-    "uniform-independent", typeUniformIndependent,
-    "gauss-independent", typeGaussIndependent,
-    Core::Choice::endMark());
-const Core::ParameterChoice  RandomVectorGenerator::paramType(
-    "type", &choiceType, "type of distribution", typeUniformIndependent);
+        "uniform-independent", typeUniformIndependent,
+        "gauss-independent", typeGaussIndependent,
+        Core::Choice::endMark());
+const Core::ParameterChoice RandomVectorGenerator::paramType(
+        "type", &choiceType, "type of distribution", typeUniformIndependent);
 
-RandomVectorGenerator *RandomVectorGenerator::create(Type type)
-{
-    switch(type) {
-    case typeUniformIndependent: return new IndependentRandomVectorGenerator<Nr::Ran2>;
-    case typeGaussIndependent: return new IndependentRandomVectorGenerator<Nr::Gasdev<Nr::Ran2> >;
+RandomVectorGenerator* RandomVectorGenerator::create(Type type) {
+    switch (type) {
+        case typeUniformIndependent: return new IndependentRandomVectorGenerator<Nr::Ran2>;
+        case typeGaussIndependent: return new IndependentRandomVectorGenerator<Nr::Gasdev<Nr::Ran2>>;
     }
     defect();
     return 0;
@@ -79,4 +77,4 @@ RandomVectorGenerator *RandomVectorGenerator::create(Type type)
 
 #endif
 
-}
+}  // namespace Math

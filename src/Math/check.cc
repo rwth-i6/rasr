@@ -13,28 +13,39 @@
  *  limitations under the License.
  */
 #include <Core/Application.hh>
+#include <Math/Lapack/MatrixTools.hh>
 #include <Math/Matrix.hh>
 #include <Math/Nr/MatrixTools.hh>
-#include <Math/Lapack/MatrixTools.hh>
 
-class TestApplication :
-    public Core::Application
-{
+class TestApplication : public Core::Application {
 public:
     virtual std::string getUsage() const {
         return "short program to test Math features\n";
     }
 
-    TestApplication() : Core::Application() {
+    TestApplication()
+            : Core::Application() {
         setTitle("check");
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         Math::Matrix<double> m(4, 4);
-        m[0][0] = 1; m[0][1] = 4; m[0][2] = 1; m[0][3] = 8;
-        m[1][0] = 2; m[1][1] = 3; m[1][2] = 7; m[1][3] = 3;
-        m[2][0] = 3; m[2][1] = 7; m[2][2] = 3; m[2][3] = 5;
-        m[3][0] = 4; m[3][1] = 1; m[3][2] = 2; m[3][3] = 7;
+        m[0][0] = 1;
+        m[0][1] = 4;
+        m[0][2] = 1;
+        m[0][3] = 8;
+        m[1][0] = 2;
+        m[1][1] = 3;
+        m[1][2] = 7;
+        m[1][3] = 3;
+        m[2][0] = 3;
+        m[2][1] = 7;
+        m[2][2] = 3;
+        m[2][3] = 5;
+        m[3][0] = 4;
+        m[3][1] = 1;
+        m[3][2] = 2;
+        m[3][3] = 7;
 
         Math::Matrix<double> nrInv(m);
         Math::Matrix<double> lapackInv(m);
@@ -47,7 +58,7 @@ public:
         log("Lapack computed inverse: ") << lapackInv;
         log("Difference: ") << nrInv - lapackInv;
 
-        nrInv = m;
+        nrInv     = m;
         lapackInv = m;
 
         Math::Nr::pseudoInvert(nrInv);
@@ -67,7 +78,6 @@ public:
 
         return 0;
     }
-
 };
 
 APPLICATION(TestApplication)

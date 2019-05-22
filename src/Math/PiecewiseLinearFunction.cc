@@ -16,23 +16,18 @@
 
 using namespace Math;
 
+PiecewiseLinearFunction::PiecewiseLinearFunction()
+        : a_(new PiecewiseConstantFunction),
+          b_(new PiecewiseConstantFunction) {}
 
-PiecewiseLinearFunction::PiecewiseLinearFunction() :
-    a_(new PiecewiseConstantFunction),
-    b_(new PiecewiseConstantFunction)
-{}
-
-
-void PiecewiseLinearFunction::add(Argument limit, Argument a)
-{
+void PiecewiseLinearFunction::add(Argument limit, Argument a) {
     if (empty())
         append(limit, a, 0);
     else
         append(limit, a, value(lastLimit()) - a * lastLimit());
 }
 
-void PiecewiseLinearFunction::normalize(Argument limit)
-{
+void PiecewiseLinearFunction::normalize(Argument limit) {
     require(limit > lastLimit());
     if (empty())
         add(Core::Type<Argument>::max, 1);
@@ -40,19 +35,17 @@ void PiecewiseLinearFunction::normalize(Argument limit)
         add(Core::Type<Argument>::max, (limit - value(lastLimit())) / (limit - lastLimit()));
 }
 
-void PiecewiseLinearFunction::append(Argument limit, Argument a, Argument b)
-{
+void PiecewiseLinearFunction::append(Argument limit, Argument a, Argument b) {
     require(empty() || limit > lastLimit());
     a_->insert(std::make_pair(limit, a));
     b_->insert(std::make_pair(limit, b));
 }
 
-UnaryAnalyticFunctionRef PiecewiseLinearFunction::invert() const
-{
-    PiecewiseLinearFunction *result = new PiecewiseLinearFunction;
-    PiecewiseConstantFunction::const_iterator a = a_->begin();
-    PiecewiseConstantFunction::const_iterator b = b_->begin();
-    for(; a != a_->end(); ++ a, ++ b)
+UnaryAnalyticFunctionRef PiecewiseLinearFunction::invert() const {
+    PiecewiseLinearFunction*                  result = new PiecewiseLinearFunction;
+    PiecewiseConstantFunction::const_iterator a      = a_->begin();
+    PiecewiseConstantFunction::const_iterator b      = b_->begin();
+    for (; a != a_->end(); ++a, ++b)
         result->append(value(a->first), 1.0 / a->second, -b->second / a->second);
     return UnaryAnalyticFunctionRef(result);
 }

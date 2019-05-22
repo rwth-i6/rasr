@@ -16,203 +16,203 @@
 #define CUDAKERNELS_HH_
 
 // mixed precision methods
-void _cuda_axpy(int n, float alpha, const float *x, double *y);
-void _cuda_axpy(int n, double alpha, const double *x, float *y);
-void _cuda_cast(int n, const float *x, double *y);
+void _cuda_axpy(int n, float alpha, const float* x, double* y);
+void _cuda_axpy(int n, double alpha, const double* x, float* y);
+void _cuda_cast(int n, const float* x, double* y);
 
 // own kernels
 template<typename T>
-void _cuda_exp(T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_exp(T* data, unsigned int nRows, unsigned int nColumns);
 
 // log
 template<typename T>
-void _cuda_log(T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_log(T* data, unsigned int nRows, unsigned int nColumns);
 
 // pow
 template<typename T>
-void _cuda_pow(T *data, unsigned int nRows, unsigned int nColumns, T exp);
+void _cuda_pow(T* data, unsigned int nRows, unsigned int nColumns, T exp);
 
 // tanh
 template<typename T>
-void _cuda_tanh(T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_tanh(T* data, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_sigmoid(T gamma, T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_sigmoid(T gamma, T* data, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_softmax(T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_softmax(T* data, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_addSummedRows(T *vectorDevPtr, const T *matrixDevPtr, unsigned int nRows, unsigned int nColumns, const T scale);
+void _cuda_addSummedRows(T* vectorDevPtr, const T* matrixDevPtr, unsigned int nRows, unsigned int nColumns, const T scale);
 
 template<typename T>
-void _cuda_addSummedRows(T *vectorDevPtr, const T *matrixDevPtr, unsigned int nRows, unsigned int nColumns, T *tmpDevPtr, unsigned int tmpRows, const T scale);
+void _cuda_addSummedRows(T* vectorDevPtr, const T* matrixDevPtr, unsigned int nRows, unsigned int nColumns, T* tmpDevPtr, unsigned int tmpRows, const T scale);
 
 template<typename T, typename S>
-void _cuda_addSummedColumns(T *vectorDevPtr, const S *matrixDevPtr, unsigned int nRows, unsigned int nColumns, const S scale);
+void _cuda_addSummedColumns(T* vectorDevPtr, const S* matrixDevPtr, unsigned int nRows, unsigned int nColumns, const S scale);
 
 // square matrix elementwise and add sum of columns to vector
 template<typename T>
-void _cuda_addSquaredSummedColumns(T *vectorDevPtr, const T *matrixDevPtr, unsigned int nRows, unsigned int nColumns, const T scale);
+void _cuda_addSquaredSummedColumns(T* vectorDevPtr, const T* matrixDevPtr, unsigned int nRows, unsigned int nColumns, const T scale);
 
 template<typename T>
-void _cuda_elementwiseMultiplication(T *data, T *datab, unsigned int nRows, unsigned int nColumns);
+void _cuda_elementwiseMultiplication(T* data, T* datab, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_elementwiseDivision(T *data, T *datab, unsigned int nRows, unsigned int nColumns);
+void _cuda_elementwiseDivision(T* data, T* datab, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_addConstantElementwise(T constant, T *data, unsigned int nRows, unsigned int nColumns);
+void _cuda_addConstantElementwise(T constant, T* data, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_getMaxOfColumns(T *vectorDevPtr, const T *matrixDevPtr, unsigned int nRows, unsigned int nColumns);
+void _cuda_getMaxOfColumns(T* vectorDevPtr, const T* matrixDevPtr, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_getMaxOfColumns(T *vectorDevPtr, const T *matrixDevPtr, unsigned int nRows, unsigned int nColumns, T *tmpDevPtr, unsigned int tmpRows);
+void _cuda_getMaxOfColumns(T* vectorDevPtr, const T* matrixDevPtr, unsigned int nRows, unsigned int nColumns, T* tmpDevPtr, unsigned int tmpRows);
 
 template<typename T>
-void _cuda_elementwiseMultiplicationWithSigmoidDerivative(T *data, T *datab, unsigned int nRows, unsigned int nColumns);
+void _cuda_elementwiseMultiplicationWithSigmoidDerivative(T* data, T* datab, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_elementwiseMultiplicationWithTanhDerivative(T *data, T *datab, unsigned int nRows, unsigned int nColumns);
+void _cuda_elementwiseMultiplicationWithTanhDerivative(T* data, T* datab, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_multiplicationWithSoftmaxDerivative(T *data, T *datab, T *datac, unsigned int nRows, unsigned int nColumns);
-
-template <typename T>
-void _cuda_elementwiseMultiplicationWithRectifiedDerivative(T *data, T *datab, unsigned int nRows, unsigned int nColumns);
-
-template <typename T>
-void _cuda_elementwiseMultiplicationWithEluDerivative(T *data, T *datab, T alpha, unsigned int nRows, unsigned int nColumns);
+void _cuda_multiplicationWithSoftmaxDerivative(T* data, T* datab, T* datac, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_addToAllColumns(T *data, T *datab, unsigned int nRows, unsigned int nColumns, T alpha);
+void _cuda_elementwiseMultiplicationWithRectifiedDerivative(T* data, T* datab, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_addToAllColumnsWithOffset(T *data, T *datab, unsigned int nRowsMat, unsigned nRowsVec, unsigned int nColumns, T alpha);
+void _cuda_elementwiseMultiplicationWithEluDerivative(T* data, T* datab, T alpha, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_addToAllRows(T *data, T *datab, unsigned int nRows, unsigned int nColumns, T alpha);
+void _cuda_addToAllColumns(T* data, T* datab, unsigned int nRows, unsigned int nColumns, T alpha);
 
 template<typename T>
-void _cuda_multiplyColumnsByScalars(const T *vectorDevPtr, T *matrixDevPtr, unsigned int nRows, unsigned int nColumns);
+void _cuda_addToAllColumnsWithOffset(T* data, T* datab, unsigned int nRowsMat, unsigned nRowsVec, unsigned int nColumns, T alpha);
 
 template<typename T>
-void _cuda_divideColumnsByScalars(const T *vectorDevPtr, T *matrixDevPtr, unsigned int nRows, unsigned int nColumns);
+void _cuda_addToAllRows(T* data, T* datab, unsigned int nRows, unsigned int nColumns, T alpha);
 
 template<typename T>
-void _cuda_multiplyRowsByScalars(const T *vectorDevPtr, T *matrixDevPtr, unsigned int nRows, unsigned int nColumns);
+void _cuda_multiplyColumnsByScalars(const T* vectorDevPtr, T* matrixDevPtr, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_divideRowsByScalars(const T *vectorDevPtr, T *matrixDevPtr, unsigned int nRows, unsigned int nColumns);
+void _cuda_divideColumnsByScalars(const T* vectorDevPtr, T* matrixDevPtr, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_sign(T *out, const T *in, unsigned int nRows, unsigned int nColumns);
+void _cuda_multiplyRowsByScalars(const T* vectorDevPtr, T* matrixDevPtr, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_fill(T *devPtr, T value, unsigned int nRows, unsigned int nColumns);
+void _cuda_divideRowsByScalars(const T* vectorDevPtr, T* matrixDevPtr, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_ensureMinimalValue(T *devPtr, T value, unsigned int nRows, unsigned int nColumns);
+void _cuda_sign(T* out, const T* in, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_nClassificationErrors(T *devPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *errorBuf);
+void _cuda_fill(T* devPtr, T value, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_crossEntropyObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev);
+void _cuda_ensureMinimalValue(T* devPtr, T value, unsigned int nRows, unsigned int nColumns);
 
 template<typename T>
-void _cuda_weightedCrossEntropyObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev, T *weights);
+void _cuda_nClassificationErrors(T* devPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* errorBuf);
 
 template<typename T>
-void _cuda_squaredErrorObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev);
+void _cuda_crossEntropyObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev);
 
 template<typename T>
-void _cuda_weightedSquaredErrorObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev, T *weights);
+void _cuda_weightedCrossEntropyObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev, T* weights);
 
 template<typename T>
-void _cuda_binaryDivergenceObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev);
+void _cuda_squaredErrorObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev);
 
 template<typename T>
-void _cuda_weightedBinaryDivergenceObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int *alignmentDevPtr, T *resultDev, T *weights);
+void _cuda_weightedSquaredErrorObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev, T* weights);
 
 template<typename T>
-void _cuda_binaryDivergenceSoftmaxGradient(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const T *outputDevPtr, const unsigned int *alignmentDevPtr);
+void _cuda_binaryDivergenceObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev);
 
 template<typename T>
-void _cuda_linObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int *alignmentDevPtr, T *resultDev);
+void _cuda_weightedBinaryDivergenceObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, unsigned int* alignmentDevPtr, T* resultDev, T* weights);
 
 template<typename T>
-void _cuda_weightedLinObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int *alignmentDevPtr, T *resultDev, const T *weights);
+void _cuda_binaryDivergenceSoftmaxGradient(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const T* outputDevPtr, const unsigned int* alignmentDevPtr);
 
 template<typename T>
-void _cuda_linSoftmaxGradient(T *vectorPtr, unsigned int nRows, const T *outputDevPtr, const unsigned int *alignmentDevPtr, T weight);
+void _cuda_linObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int* alignmentDevPtr, T* resultDev);
 
 template<typename T>
-void _cuda_conjugatePowerApproximationObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int *alignmentDevPtr, T *resultDev, T alpha);
+void _cuda_weightedLinObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int* alignmentDevPtr, T* resultDev, const T* weights);
 
 template<typename T>
-void _cuda_weightedConjugatePowerApproximationObjectiveFunction(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int *alignmentDevPtr, T *resultDev,  const T *weights, T alpha);
+void _cuda_linSoftmaxGradient(T* vectorPtr, unsigned int nRows, const T* outputDevPtr, const unsigned int* alignmentDevPtr, T weight);
 
 template<typename T>
-void _cuda_conjugatePowerApproximationSoftmaxGradient(T *vectorPtr, unsigned int nRows, const T *outputDevPtr, const unsigned int *alignmentDevPtr, T weight, T alpha);
+void _cuda_conjugatePowerApproximationObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int* alignmentDevPtr, T* resultDev, T alpha);
 
 template<typename T>
-void _cuda_addKroneckerDelta(T *matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int *alignmentDevPtr,  T scale);
+void _cuda_weightedConjugatePowerApproximationObjectiveFunction(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int* alignmentDevPtr, T* resultDev, const T* weights, T alpha);
 
 template<typename T>
-void _cuda_appendSecondOrderFeatures(const T *X, unsigned int nRowsX, unsigned int nColumnsX, T *Y, unsigned int nRowsY, unsigned int offset);
+void _cuda_conjugatePowerApproximationSoftmaxGradient(T* vectorPtr, unsigned int nRows, const T* outputDevPtr, const unsigned int* alignmentDevPtr, T weight, T alpha);
 
 template<typename T>
-void _cuda_appendThirdOrderFeatures(const T *X, unsigned int nRowsX, unsigned int nColumnsX, T *Y, unsigned int nRowsY, unsigned int offset);
+void _cuda_addKroneckerDelta(T* matrixPtr, unsigned int nRows, unsigned int nColumns, const unsigned int* alignmentDevPtr, T scale);
 
 template<typename T>
-void _cuda_dropout(T *X, const T *mask, unsigned int nRows, unsigned int nColumns, T dropoutProbability);
+void _cuda_appendSecondOrderFeatures(const T* X, unsigned int nRowsX, unsigned int nColumnsX, T* Y, unsigned int nRowsY, unsigned int offset);
 
 template<typename T>
-void _cuda_l1clipping(T *X, unsigned int nRows, unsigned int nColumns, T value);
+void _cuda_appendThirdOrderFeatures(const T* X, unsigned int nRowsX, unsigned int nColumnsX, T* Y, unsigned int nRowsY, unsigned int offset);
 
 template<typename T>
-void _cuda_clip(T *X, unsigned int nElements, T maxAbsValue);
+void _cuda_dropout(T* X, const T* mask, unsigned int nRows, unsigned int nColumns, T dropoutProbability);
 
 template<typename T>
-void _cuda_addPoolingMax(const T *input, T *output, unsigned int *argmax,
-        unsigned int nColumns, unsigned int nRows_in, unsigned int nRows_out,
-        unsigned int poolingSize, bool poolingAbs);
+void _cuda_l1clipping(T* X, unsigned int nRows, unsigned int nColumns, T value);
 
 template<typename T>
-void _cuda_addPoolingPnorm(const T *input, T *output,
-        unsigned int nColumns, unsigned int nRows_in, unsigned int nRows_out,
-        unsigned int poolingSize, unsigned int poolingPnorm);
+void _cuda_clip(T* X, unsigned int nElements, T maxAbsValue);
 
 template<typename T>
-void _cuda_backpropPoolingMax(T *output, const unsigned int *argmax, const T *error,
-        unsigned int nColumns, unsigned int nRows_err);
+void _cuda_addPoolingMax(const T* input, T* output, unsigned int* argmax,
+                         unsigned int nColumns, unsigned int nRows_in, unsigned int nRows_out,
+                         unsigned int poolingSize, bool poolingAbs);
 
 template<typename T>
-void _cuda_backpropPoolingPnorm(T *output, const T *error,
-        unsigned int nColumns, unsigned int nRows_err,
-        unsigned int poolingSize, unsigned int poolingPnorm);
-
-template <typename T>
-void _cuda_convExtractPatches(const T *input, const int *patchIdx, T *patches,
-        int *inverse_patches,
-        int input_frames, int input_dim, int shifts_num, int shifts_dim, int patch_dim);
-
-template <typename T>
-void _cuda_convRestoreFromPatches(T *unwarped_error, const T* warped_error,
-        const int *patchIdx, int *inverse_patches,
-        int num_input_elems, int patch_dim);
-
-template <typename T>
-void _cuda_convUnwarpFrames(const T *output_warped, const T *bias, T *output,
-        int output_dim, int filter_num, int shifts_num, int input_frames);
-
-template <typename T>
-void _cuda_convWarpFrames(const T *error_unwarped, T *output,
-        int error_dim, int filter_num, int shifts_num, int input_frames);
+void _cuda_addPoolingPnorm(const T* input, T* output,
+                           unsigned int nColumns, unsigned int nRows_in, unsigned int nRows_out,
+                           unsigned int poolingSize, unsigned int poolingPnorm);
 
 template<typename T>
-void _cuda_elu(T *devPtr, T value, unsigned int nRows, unsigned int nColumns);
+void _cuda_backpropPoolingMax(T* output, const unsigned int* argmax, const T* error,
+                              unsigned int nColumns, unsigned int nRows_err);
+
+template<typename T>
+void _cuda_backpropPoolingPnorm(T* output, const T* error,
+                                unsigned int nColumns, unsigned int nRows_err,
+                                unsigned int poolingSize, unsigned int poolingPnorm);
+
+template<typename T>
+void _cuda_convExtractPatches(const T* input, const int* patchIdx, T* patches,
+                              int* inverse_patches,
+                              int input_frames, int input_dim, int shifts_num, int shifts_dim, int patch_dim);
+
+template<typename T>
+void _cuda_convRestoreFromPatches(T* unwarped_error, const T* warped_error,
+                                  const int* patchIdx, int* inverse_patches,
+                                  int num_input_elems, int patch_dim);
+
+template<typename T>
+void _cuda_convUnwarpFrames(const T* output_warped, const T* bias, T* output,
+                            int output_dim, int filter_num, int shifts_num, int input_frames);
+
+template<typename T>
+void _cuda_convWarpFrames(const T* error_unwarped, T* output,
+                          int error_dim, int filter_num, int shifts_num, int input_frames);
+
+template<typename T>
+void _cuda_elu(T* devPtr, T value, unsigned int nRows, unsigned int nColumns);
 
 #endif /* CUDAKERNELS_HH_ */

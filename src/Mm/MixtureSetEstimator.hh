@@ -15,43 +15,48 @@
 #ifndef _MM_MIXTURE_SET_ESTIMATOR_HH
 #define _MM_MIXTURE_SET_ESTIMATOR_HH
 
-#include "AbstractMixtureSetEstimator.hh"
-#include "MixtureEstimator.hh"
-#include "FeatureScorer.hh"
-#include "MixtureSet.hh"
-#include "AssigningFeatureScorer.hh"
 #include <Core/Component.hh>
 #include <Core/Statistics.hh>
+#include "AbstractMixtureSetEstimator.hh"
+#include "AssigningFeatureScorer.hh"
+#include "FeatureScorer.hh"
+#include "MixtureEstimator.hh"
+#include "MixtureSet.hh"
 
 namespace Mm {
 
-    /** Maximum Likelihood accumulator and estimator class for mixture sets
-     *
-     */
-    class MixtureSetEstimator : public AbstractMixtureSetEstimator {
-        typedef AbstractMixtureSetEstimator Precursor;
-        friend class MixtureSetEstimatorIndexMap;
-    protected:
-        virtual const std::string magic() const { return "MIXSET"; }
-    protected:
-        virtual MixtureEstimator* createMixtureEstimator();
-        virtual GaussDensityEstimator* createDensityEstimator();
-        virtual GaussDensityEstimator* createDensityEstimator(const GaussDensity&);
-        virtual MeanEstimator* createMeanEstimator();
-        virtual MeanEstimator* createMeanEstimator(const Mean&);
-        virtual CovarianceEstimator* createCovarianceEstimator();
-        virtual CovarianceEstimator* createCovarianceEstimator(const Covariance&);
-    public:
-        MixtureSetEstimator(const Core::Configuration&);
-        virtual ~MixtureSetEstimator() {}
+/**
+ * Maximum Likelihood accumulator and estimator class for mixture sets
+ */
+class MixtureSetEstimator : public AbstractMixtureSetEstimator {
+    typedef AbstractMixtureSetEstimator Precursor;
+    friend class MixtureSetEstimatorIndexMap;
 
-        virtual bool accumulate(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
+protected:
+    virtual const std::string magic() const {
+        return "MIXSET";
+    }
 
-        virtual void read(Core::BinaryInputStream &is);
-        virtual void write(Core::BinaryOutputStream &os);
-        virtual void write(Core::XmlWriter &os);
-    };
+protected:
+    virtual MixtureEstimator*      createMixtureEstimator();
+    virtual GaussDensityEstimator* createDensityEstimator();
+    virtual GaussDensityEstimator* createDensityEstimator(const GaussDensity&);
+    virtual MeanEstimator*         createMeanEstimator();
+    virtual MeanEstimator*         createMeanEstimator(const Mean&);
+    virtual CovarianceEstimator*   createCovarianceEstimator();
+    virtual CovarianceEstimator*   createCovarianceEstimator(const Covariance&);
 
-} //namespace Mm
+public:
+    MixtureSetEstimator(const Core::Configuration&);
+    virtual ~MixtureSetEstimator() {}
 
-#endif //_MM_MIXTURE_SET_ESTIMATOR_HH
+    virtual bool accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+
+    virtual void read(Core::BinaryInputStream& is);
+    virtual void write(Core::BinaryOutputStream& os);
+    virtual void write(Core::XmlWriter& os);
+};
+
+}  //namespace Mm
+
+#endif  //_MM_MIXTURE_SET_ESTIMATOR_HH

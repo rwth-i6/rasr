@@ -19,80 +19,83 @@
 #include "IntelCodeGenerator.hh"
 #include "SSE2CodeGenerator.hh"
 
-#include "Utilities.hh"
-#include "MixtureFeatureScorerElement.hh"
-#include "GaussDensity.hh"
 #include "CovarianceFeatureScorerElement.hh"
+#include "GaussDensity.hh"
+#include "MixtureFeatureScorerElement.hh"
+#include "Utilities.hh"
 
 namespace Mm {
 
-    /** FeatureScorerIntelOptimization
-     */
-    class FeatureScorerIntelOptimization : public Core::Configurable {
-        typedef Configurable Precursor;
-    public:
-        typedef u8 QuantizedType;
-        typedef QuantizedMixtureFeatureScorerElement<QuantizedType> MixtureElement;
-        typedef std::vector<QuantizedType> PreparedFeatureVector;
-    private:
+/** FeatureScorerIntelOptimization
+ */
+class FeatureScorerIntelOptimization : public Core::Configurable {
+    typedef Configurable Precursor;
+
+public:
+    typedef u8                                                  QuantizedType;
+    typedef QuantizedMixtureFeatureScorerElement<QuantizedType> MixtureElement;
+    typedef std::vector<QuantizedType>                          PreparedFeatureVector;
+
+private:
 #if !defined(DISABLE_SIMD)
 #if defined(ENABLE_SSE2)
-        SSE2L2NormCodeGenerator l2norm_;
-        enum { BlockSize = 16 };
+    SSE2L2NormCodeGenerator l2norm_;
+    enum {BlockSize = 16};
 #else
-        IntelMMXL2NormCodeGenerator l2norm_;
-        IntelMMXResetCodeGenerator reset_;
-        enum { BlockSize = 8 };
-#endif // ENABLE_SSE2
+    IntelMMXL2NormCodeGenerator l2norm_;
+    IntelMMXResetCodeGenerator  reset_;
+    enum {BlockSize = 8};
+#endif  // ENABLE_SSE2
 #else
-        enum { BlockSize = 8 };
-#endif // DISABLE_SIMD
+    enum { BlockSize = 8 };
+#endif  // DISABLE_SIMD
 
-    private:
-        /** @return is @param vectorSize rounded up to the next integer divisible by BlockSize. */
-        static inline size_t optimalVectorSize(size_t vectorSize) {
-            return size_t((vectorSize + BlockSize - 1) / BlockSize) * (size_t)BlockSize;
-        }
+private:
+    /** @return is @param vectorSize rounded up to the next integer divisible by BlockSize. */
+    static inline size_t optimalVectorSize(size_t vectorSize) {
+        return size_t((vectorSize + BlockSize - 1) / BlockSize) * (size_t)BlockSize;
+    }
 
-    public:
-        FeatureScorerIntelOptimization(const Core::Configuration &c, ComponentIndex dimension);
+public:
+    FeatureScorerIntelOptimization(const Core::Configuration& c, ComponentIndex dimension);
 
-        static void multiplyAndQuantize(const std::vector<FeatureType> &x,
-                                        const std::vector<VarianceType> &y,
-                                        PreparedFeatureVector &r);
+    static void multiplyAndQuantize(const std::vector<FeatureType>&  x,
+                                    const std::vector<VarianceType>& y,
+                                    PreparedFeatureVector&           r);
 
-        static void createDensityElement(Score scaledMinus2LogWeight,
-                                         const Mean &mean,
-                                         const CovarianceFeatureScorerElement &covarianceScorerElement,
-                                         MixtureElement::Density &result);
+    static void createDensityElement(Score                                 scaledMinus2LogWeight,
+                                     const Mean&                           mean,
+                                     const CovarianceFeatureScorerElement& covarianceScorerElement,
+                                     MixtureElement::Density&              result);
 
-        int distanceNoMmx(const PreparedFeatureVector &mean,
-                          const PreparedFeatureVector &featureVector) const;
+    int distanceNoMmx(const PreparedFeatureVector& mean,
+                      const PreparedFeatureVector& featureVector) const;
 
 #if defined(DISABLE_SIMD)
-        int distance(const PreparedFeatureVector &mean,
-                     const PreparedFeatureVector &featureVector) const;
-        void resetFloatingPointCalculation() const {}
+    int  distance(const PreparedFeatureVector& mean,
+                  const PreparedFeatureVector& featureVector) const;
+    void resetFloatingPointCalculation() const {}
 #else
-        /**
-         * When this function is used the processor is set to optimized integer mode.
-         * Before using floating point operations resetFloatingPointCalculation HAS to be called.
-         */
-        int distance(const PreparedFeatureVector &mean,
-                     const PreparedFeatureVector &featureVector) const {
-            return l2norm_.run(&mean[0], &featureVector[0]);
-        }
+    /**
+     * When this function is used the processor is set to optimized integer mode.
+     * Before using floating point operations resetFloatingPointCalculation HAS to be called.
+     */
+    int distance(const PreparedFeatureVector& mean,
+                 const PreparedFeatureVector& featureVector) const {
+        return l2norm_.run(&mean[0], &featureVector[0]);
+    }
 #if defined(ENABLE_SSE2)
-        void resetFloatingPointCalculation() const {}
+    void resetFloatingPointCalculation() const {}
 #else
-        void resetFloatingPointCalculation() const { reset_.run(); }
-#endif // ENABLE_SSE2
+    void resetFloatingPointCalculation() const {
+        reset_.run();
+    }
+#endif  // ENABLE_SSE2
 
-#endif // DISABLE_SIMD
+#endif  // DISABLE_SIMD
+};
 
-    };
+}  // namespace Mm
 
-} // namespace Mm
-
-#endif // PROC_intel
-#endif //_MM_INTEL_OPTIMAZATION_HH
+#endif  // PROC_intel
+#endif  //_MM_INTEL_OPTIMAZATION_HH

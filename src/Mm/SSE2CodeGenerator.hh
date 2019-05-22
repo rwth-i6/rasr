@@ -19,27 +19,26 @@
 
 namespace Mm {
 
-    class SSE2L2NormCodeGenerator : public Core::CodeGenerator
-    {
-    private:
-        bool appendProlog();
-        bool appendClearAccumulator();
-        bool appendFetchA(int block, u32 offset);
-        bool appendFetchB(int block, u32 offset);
-        bool appendDuplicate(int block);
-        bool appendSubtract(int block);
-        bool appendPrepareForUnpack(int block);
-        bool appendUnpackAndAdd(int block);
-        bool appendAccumulate(int block);
-        bool appendEpilog();
+class SSE2L2NormCodeGenerator : public Core::CodeGenerator {
+private:
+    bool appendProlog();
+    bool appendClearAccumulator();
+    bool appendFetchA(int block, u32 offset);
+    bool appendFetchB(int block, u32 offset);
+    bool appendDuplicate(int block);
+    bool appendSubtract(int block);
+    bool appendPrepareForUnpack(int block);
+    bool appendUnpackAndAdd(int block);
+    bool appendAccumulate(int block);
+    bool appendEpilog();
 
-    public:
-        SSE2L2NormCodeGenerator(const Core::Configuration &c, size_t d);
-        unsigned int run(const u8 *v1, const u8 *v2) const {
-            return ((unsigned int (*)(const u8*, const u8*))getCode())(v1, v2);
-        }
-    };
+public:
+    SSE2L2NormCodeGenerator(const Core::Configuration& c, size_t d);
+    unsigned int run(const u8* v1, const u8* v2) const {
+        return ((unsigned int (*)(const u8*, const u8*))getCode())(v1, v2);
+    }
+};
 
-} // namespace Mm
+}  // namespace Mm
 
-#endif // _MM_SSE2_CODE_GENERATOR_HH
+#endif  // _MM_SSE2_CODE_GENERATOR_HH

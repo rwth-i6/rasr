@@ -15,38 +15,38 @@
 #ifndef _MM_TYPES_HH
 #define _MM_TYPES_HH
 
-#include "PointerVector.hh"
-#include <string>
+#include <Core/Hash.hh>
 #include <Core/Types.hh>
 #include <Core/Version.hh>
-#include <Core/Hash.hh>
+#include <string>
+#include "PointerVector.hh"
 
 namespace Mm {
 
-    typedef f32 Score;
-    typedef f32 FeatureType;
-    typedef f32 MeanType;
-    typedef f32 VarianceType;
-    typedef f64 Weight;
-    typedef f64 IterationConstant;
-    typedef u32 ComponentIndex;
-    typedef u32 MixtureIndex;
-    typedef MixtureIndex EmissionIndex;
-    typedef u32 DensityIndex;
-    typedef u32 DensityInMixture;
-    typedef u32 MeanIndex;
-    typedef u32 CovarianceIndex;
-    typedef u32 Count;
-    typedef f64 Sum;
-    typedef std::string ClusterId;
-    typedef f32 ScaleType;
-    typedef u32 ExpertIndex;
+typedef f32          Score;
+typedef f32          FeatureType;
+typedef f32          MeanType;
+typedef f32          VarianceType;
+typedef f64          Weight;
+typedef f64          IterationConstant;
+typedef u32          ComponentIndex;
+typedef u32          MixtureIndex;
+typedef MixtureIndex EmissionIndex;
+typedef u32          DensityIndex;
+typedef u32          DensityInMixture;
+typedef u32          MeanIndex;
+typedef u32          CovarianceIndex;
+typedef u32          Count;
+typedef f64          Sum;
+typedef std::string  ClusterId;
+typedef f32          ScaleType;
+typedef u32          ExpertIndex;
 
-    typedef std::vector<FeatureType> FeatureVector;
+typedef std::vector<FeatureType> FeatureVector;
 
-    typedef std::vector<ScaleType> Scales;
+typedef std::vector<ScaleType> Scales;
 
-    const MixtureIndex invalidMixture = Core::Type<MixtureIndex>::max;
-} //namespace Mm
+const MixtureIndex invalidMixture = Core::Type<MixtureIndex>::max;
+}  //namespace Mm
 
-#endif // _MM_TYPES_HH
+#endif  // _MM_TYPES_HH

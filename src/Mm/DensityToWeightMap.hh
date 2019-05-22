@@ -20,23 +20,24 @@
 
 namespace Mm {
 
-    class DensityToWeightMap : public std::unordered_map<DensityIndex, Weight>
-    {
-        private:
-        typedef std::unordered_map<DensityIndex, Weight> Precursor;
-    public:
-        DensityToWeightMap operator*(Weight factor) const {
-            DensityToWeightMap result = *this;
-            for (iterator it = result.begin(); it != result.end(); ++ it) it->second *= factor;
-            return result;
-        }
-        DensityToWeightMap& operator*=(Weight factor) {
-            for (iterator it = this->begin(); it != this->end(); ++ it) {
-                it->second *= factor;
-            }
-            return *this;
-            }
-    };
-}
+class DensityToWeightMap : public std::unordered_map<DensityIndex, Weight> {
+private:
+    typedef std::unordered_map<DensityIndex, Weight> Precursor;
 
-#endif // _MM_POSTERIOR_AND_DENSITIES_HH
+public:
+    DensityToWeightMap operator*(Weight factor) const {
+        DensityToWeightMap result = *this;
+        for (iterator it = result.begin(); it != result.end(); ++it)
+            it->second *= factor;
+        return result;
+    }
+    DensityToWeightMap& operator*=(Weight factor) {
+        for (iterator it = this->begin(); it != this->end(); ++it) {
+            it->second *= factor;
+        }
+        return *this;
+    }
+};
+}  // namespace Mm
+
+#endif  // _MM_POSTERIOR_AND_DENSITIES_HH

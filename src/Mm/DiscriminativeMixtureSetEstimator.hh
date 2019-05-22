@@ -16,50 +16,57 @@
 #define _MM_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH
 
 #include "AbstractMixtureSetEstimator.hh"
-#include "MixtureSetEstimator.hh"
 #include "DiscriminativeMixtureEstimator.hh"
+#include "MixtureSetEstimator.hh"
 
 namespace Mm {
 
-    /**
-     * DiscriminativeMixtureSetEstimator
-     */
-    class DiscriminativeMixtureSetEstimator : public AbstractMixtureSetEstimator
-    {
-        typedef AbstractMixtureSetEstimator Precursor;
-    protected:
-        Sum objectiveFunction_;
-        Core::Configuration mixtureEstimatorConfig_;
-    protected:
-        virtual DiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(DiscriminativeMixtureEstimator*, mixtureEstimators_[mixture].get());
-        }
-        void loadPreviousMixtureSet();
-        virtual bool accumulateMixture(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os) { return false; }
-        virtual const std::string magic() const { return "DTACC"; }
-        virtual void load();
-        virtual void initialize(const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &) {}
-        virtual void finalize(MixtureSet &, const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-    public:
-        DiscriminativeMixtureSetEstimator(const Core::Configuration &);
-        virtual ~DiscriminativeMixtureSetEstimator();
+/**
+ * DiscriminativeMixtureSetEstimator
+ */
+class DiscriminativeMixtureSetEstimator : public AbstractMixtureSetEstimator {
+    typedef AbstractMixtureSetEstimator Precursor;
 
-        virtual void reset();
-        virtual void read(Core::BinaryInputStream &);
-        virtual void write(Core::BinaryOutputStream &);
-        virtual void write(Core::XmlWriter &);
-        virtual bool operator==(const AbstractMixtureSetEstimator&) const;
-        virtual void estimate(MixtureSet &);
+protected:
+    Sum                 objectiveFunction_;
+    Core::Configuration mixtureEstimatorConfig_;
 
-        virtual bool accumulate(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
-        virtual bool accumulate(const AbstractMixtureSetEstimator&);
-        void accumulateDenominator(
-            MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector>, Weight);
-        void accumulateObjectiveFunction(Score);
-        Sum objectiveFunction() const { return objectiveFunction_; }
-        bool distributePreviousMixtureSet(const MixtureSet &);
-    };
+protected:
+    virtual DiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(DiscriminativeMixtureEstimator*, mixtureEstimators_[mixture].get());
+    }
+    void         loadPreviousMixtureSet();
+    virtual bool accumulateMixture(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os) {
+        return false;
+    }
+    virtual const std::string magic() const {
+        return "DTACC";
+    }
+    virtual void load();
+    virtual void initialize(const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&) {}
+    virtual void finalize(MixtureSet&, const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
 
-} //namespace Mm
+public:
+    DiscriminativeMixtureSetEstimator(const Core::Configuration&);
+    virtual ~DiscriminativeMixtureSetEstimator();
 
-#endif //_MM_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH
+    virtual void reset();
+    virtual void read(Core::BinaryInputStream&);
+    virtual void write(Core::BinaryOutputStream&);
+    virtual void write(Core::XmlWriter&);
+    virtual bool operator==(const AbstractMixtureSetEstimator&) const;
+    virtual void estimate(MixtureSet&);
+
+    virtual bool accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+    virtual bool accumulate(const AbstractMixtureSetEstimator&);
+    void         accumulateDenominator(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector>, Weight);
+    void         accumulateObjectiveFunction(Score);
+    Sum          objectiveFunction() const {
+        return objectiveFunction_;
+    }
+    bool distributePreviousMixtureSet(const MixtureSet&);
+};
+
+}  //namespace Mm
+
+#endif  //_MM_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

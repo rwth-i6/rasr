@@ -16,7 +16,6 @@
 
 using namespace Mm;
 
-
 bool IntelMMXL2NormCodeGenerator::appendProlog() {
     /*
       push   edi                     ; save registers
@@ -26,8 +25,7 @@ bool IntelMMXL2NormCodeGenerator::appendProlog() {
       mov    ebx,DWORD PTR [esp+20]  ; ebx = &featureVector[0]
     */
     static const u8 code[] = {
-        0x57, 0x56, 0x53, 0x8b, 0x74, 0x24, 0x10, 0x8b, 0x5c, 0x24, 0x14
-    };
+            0x57, 0x56, 0x53, 0x8b, 0x74, 0x24, 0x10, 0x8b, 0x5c, 0x24, 0x14};
     return append(code, sizeof(code));
 }
 
@@ -36,7 +34,7 @@ bool IntelMMXL2NormCodeGenerator::appendClearAccumulator() {
       xor    eax,eax               ; eax = 0
       pxor   mm7,mm7               ; mm7 = 0
     */
-    static const u8 code[] = { 0x31, 0xc0, 0x0f, 0xef, 0xff };
+    static const u8 code[] = {0x31, 0xc0, 0x0f, 0xef, 0xff};
     return append(code, sizeof(code));
 }
 
@@ -48,7 +46,7 @@ bool IntelMMXL2NormCodeGenerator::appendFetchA(int block, u8 offset) {
        movq   mm4,DWORD PTR [esi + offset]   ; move 64 bits from mean vector in mm4
 
     */
-    static const u8 code[2][3] = { { 0x0f, 0x6f, 0x46 }, { 0x0f, 0x6f, 0x66 } };
+    static const u8 code[2][3] = {{0x0f, 0x6f, 0x46}, {0x0f, 0x6f, 0x66}};
     return (append(code[block], sizeof(code[block])) && append(&offset, 1));
 }
 
@@ -59,7 +57,7 @@ bool IntelMMXL2NormCodeGenerator::appendFetchB(int block, u8 offset) {
        block = 1
        movq   mm5,DWORD PTR [ebx + offset]   ; copy 64 bits from feature vector in mm5
     */
-    static const u8 code[2][3] = { { 0x0f, 0x6f, 0x4b }, { 0x0f, 0x6f, 0x6b } };
+    static const u8 code[2][3] = {{0x0f, 0x6f, 0x4b}, {0x0f, 0x6f, 0x6b}};
     return (append(code[block], sizeof(code[block])) && append(&offset, 1));
 }
 
@@ -70,7 +68,7 @@ bool IntelMMXL2NormCodeGenerator::appendDuplicate(int block) {
        block = 1
        movq mm6,mm4           ; mm6 = mm4
     */
-    static const u8 code[2][3] = { { 0x0f, 0x6f, 0xd0 }, { 0x0f, 0x6f, 0xf4 } };
+    static const u8 code[2][3] = {{0x0f, 0x6f, 0xd0}, {0x0f, 0x6f, 0xf4}};
     return append(code[block], sizeof(code[block]));
 }
 
@@ -84,9 +82,8 @@ bool IntelMMXL2NormCodeGenerator::appendSubtract(int block) {
        psubusb mm5,mm6
     */
     static const u8 code[2][6] = {
-        { 0x0f, 0xd8, 0xc1, 0x0f, 0xd8, 0xca },
-        { 0x0f, 0xd8, 0xe5, 0x0f, 0xd8, 0xee }
-    };
+            {0x0f, 0xd8, 0xc1, 0x0f, 0xd8, 0xca},
+            {0x0f, 0xd8, 0xe5, 0x0f, 0xd8, 0xee}};
     return append(code[block], sizeof(code[block]));
 }
 
@@ -103,9 +100,8 @@ bool IntelMMXL2NormCodeGenerator::appendPrepareForUnpack(int block) {
     */
 
     static const u8 code[2][9] = {
-        { 0x0f, 0xeb, 0xc8, 0x0f, 0xef, 0xc0, 0x0f, 0x6f, 0xd1 },
-        { 0x0f, 0xeb, 0xec, 0x0f, 0xef, 0xe4, 0x0f, 0x6f, 0xf5 }
-    };
+            {0x0f, 0xeb, 0xc8, 0x0f, 0xef, 0xc0, 0x0f, 0x6f, 0xd1},
+            {0x0f, 0xeb, 0xec, 0x0f, 0xef, 0xe4, 0x0f, 0x6f, 0xf5}};
     return append(code[block], sizeof(code[block]));
 }
 
@@ -127,9 +123,8 @@ bool IntelMMXL2NormCodeGenerator::appendUnpackAndAdd(int block) {
 
     */
     static const u8 code[2][12] = {
-        { 0x0f, 0x68, 0xc8, 0x0f, 0x60, 0xd0, 0x0f, 0xf5, 0xc9, 0x0f, 0xf5, 0xd2 },
-        { 0x0f, 0x68, 0xec, 0x0f, 0x60, 0xf4, 0x0f, 0xf5, 0xed, 0x0f, 0xf5, 0xf6 }
-    };
+            {0x0f, 0x68, 0xc8, 0x0f, 0x60, 0xd0, 0x0f, 0xf5, 0xc9, 0x0f, 0xf5, 0xd2},
+            {0x0f, 0x68, 0xec, 0x0f, 0x60, 0xf4, 0x0f, 0xf5, 0xed, 0x0f, 0xf5, 0xf6}};
     return append(code[block], sizeof(code[block]));
 }
 
@@ -143,9 +138,8 @@ bool IntelMMXL2NormCodeGenerator::appendAccumulate(int block) {
        paddd  mm7,mm6
     */
     static const u8 code[2][6] = {
-        { 0x0f, 0xfe, 0xf9, 0x0f, 0xfe, 0xfa },
-        { 0x0f, 0xfe, 0xfd, 0x0f, 0xfe, 0xfe }
-    };
+            {0x0f, 0xfe, 0xf9, 0x0f, 0xfe, 0xfa},
+            {0x0f, 0xfe, 0xfd, 0x0f, 0xfe, 0xfe}};
     return append(code[block], sizeof(code[block]));
 }
 
@@ -161,16 +155,13 @@ bool IntelMMXL2NormCodeGenerator::appendEpilog() {
       ret
     */
     static const u8 code[] = {
-        0x0f, 0x6f, 0xc7, 0x0f, 0x73, 0xd7, 0x20, 0x0f, 0xfe, 0xc7, 0x0f, 0x7e,
-        0xc0, 0x5b, 0x5e, 0x5f, 0xc3
-    };
+            0x0f, 0x6f, 0xc7, 0x0f, 0x73, 0xd7, 0x20, 0x0f, 0xfe, 0xc7, 0x0f, 0x7e,
+            0xc0, 0x5b, 0x5e, 0x5f, 0xc3};
     return append(code, sizeof(code));
 }
 
-
-IntelMMXL2NormCodeGenerator::IntelMMXL2NormCodeGenerator(const Core::Configuration &c, size_t d) :
-    CodeGenerator(c)
-{
+IntelMMXL2NormCodeGenerator::IntelMMXL2NormCodeGenerator(const Core::Configuration& c, size_t d)
+        : CodeGenerator(c) {
     if (d > 128) {
         error("does not support dimensions larger than 128 due to signed"
               "displacement. resetting to 128.");
@@ -186,14 +177,16 @@ IntelMMXL2NormCodeGenerator::IntelMMXL2NormCodeGenerator(const Core::Configurati
     appendFetchB(0, offset);
     offset += 8;
     appendDuplicate(0);
-    if (d > 8) appendFetchA(1, offset);
+    if (d > 8)
+        appendFetchA(1, offset);
     appendSubtract(0);
     if (d > 8) {
         appendFetchB(1, offset);
         offset += 8;
     }
     appendPrepareForUnpack(0);
-    if (d > 8) appendDuplicate(1);
+    if (d > 8)
+        appendDuplicate(1);
     appendUnpackAndAdd(0);
 
     /* in between blocks */
@@ -209,7 +202,8 @@ IntelMMXL2NormCodeGenerator::IntelMMXL2NormCodeGenerator(const Core::Configurati
     }
 
     /* last block */
-    if (d > 8) appendSubtract(1 - block);
+    if (d > 8)
+        appendSubtract(1 - block);
     appendAccumulate(block);
     if (d > 8) {
         appendPrepareForUnpack(1 - block);
@@ -221,15 +215,13 @@ IntelMMXL2NormCodeGenerator::IntelMMXL2NormCodeGenerator(const Core::Configurati
     finalize();
 }
 
-
-IntelMMXResetCodeGenerator::IntelMMXResetCodeGenerator(const Core::Configuration &c) :
-    CodeGenerator(c)
-{
+IntelMMXResetCodeGenerator::IntelMMXResetCodeGenerator(const Core::Configuration& c)
+        : CodeGenerator(c) {
     /*
        emms      ; empty mmx technology state, enable fpu computations
        ret       ;
     */
-    static const u8 code[] = { 0x0f, 0x77, 0xc3 };
+    static const u8 code[] = {0x0f, 0x77, 0xc3};
     append(code, sizeof(code));
     finalize();
 }

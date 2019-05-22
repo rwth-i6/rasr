@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Application.hh>
 #include "DiscriminativeMixtureEstimator.hh"
+#include <Core/Application.hh>
 #include "MixtureSet.hh"
 
 using namespace Mm;
@@ -21,64 +21,55 @@ using namespace Mm;
 /**
  *  DiscriminativeMixtureEstimator
  */
-DiscriminativeMixtureEstimator::DiscriminativeMixtureEstimator(
-    const Core::Configuration &c)
-{}
+DiscriminativeMixtureEstimator::DiscriminativeMixtureEstimator(const Core::Configuration& c) {}
 
-DiscriminativeMixtureEstimator::~DiscriminativeMixtureEstimator()
-{}
+DiscriminativeMixtureEstimator::~DiscriminativeMixtureEstimator() {}
 
-void DiscriminativeMixtureEstimator::removeDensity(DensityIndex indexInMixture)
-{
+void DiscriminativeMixtureEstimator::removeDensity(DensityIndex indexInMixture) {
     verify(previousMixtureWeights_.size() == nDensities());
     Precursor::removeDensity(indexInMixture);
     previousMixtureWeights_.erase(previousMixtureWeights_.begin() + indexInMixture);
 }
 
-void DiscriminativeMixtureEstimator::removeDensitiesWithLowWeight(
-    Weight minObservationWeight, Weight minRelativeWeight)
-{
+void DiscriminativeMixtureEstimator::removeDensitiesWithLowWeight(Weight minObservationWeight, Weight minRelativeWeight) {
     DensityIndex densityMax = densityIndexWithMaxWeight();
-    Weight minWeight = minObservationWeight;
-    for (DensityIndex dns = 0; dns < densityEstimators_.size(); ) {
-        bool hasEnoughWeight = weights_[dns] >= minWeight;
+    Weight       minWeight  = minObservationWeight;
+    for (DensityIndex dns = 0; dns < densityEstimators_.size();) {
+        bool hasEnoughWeight         = weights_[dns] >= minWeight;
         bool hasEnoughRelativeWeight = previousMixtureWeight(dns) >= minRelativeWeight;
-        bool isDeletable = dns != densityMax;
+        bool isDeletable             = dns != densityMax;
         if ((!hasEnoughWeight || !hasEnoughRelativeWeight) && isDeletable) {
             removeDensity(dns);
-            -- densityMax;
-        } else {
-            ++ dns;
+            --densityMax;
+        }
+        else {
+            ++dns;
         }
     }
 }
 
-void DiscriminativeMixtureEstimator::accumulate(const AbstractMixtureEstimator &toAdd)
-{
+void DiscriminativeMixtureEstimator::accumulate(const AbstractMixtureEstimator& toAdd) {
     require(nDensities() == toAdd.nDensities());
-    const DiscriminativeMixtureEstimator *_toAdd =
-        required_cast(const DiscriminativeMixtureEstimator *, &toAdd);
+    const DiscriminativeMixtureEstimator* _toAdd =
+            required_cast(const DiscriminativeMixtureEstimator*, &toAdd);
     std::transform(weights_.begin(), weights_.end(),
                    _toAdd->weights_.begin(), weights_.begin(), std::plus<Weight>());
 }
 
-void DiscriminativeMixtureEstimator::accumulateDenominator(
-    DensityIndex indexInMixture, const FeatureVector &featureVector, Weight weight)
-{
+void DiscriminativeMixtureEstimator::accumulateDenominator(DensityIndex         indexInMixture,
+                                                           const FeatureVector& featureVector,
+                                                           Weight               weight) {
     require_(0 <= indexInMixture && indexInMixture < nDensities());
     weights_[indexInMixture] -= weight;
-    required_cast(DiscriminativeGaussDensityEstimator*,
-                  densityEstimators_[indexInMixture].get())->accumulateDenominator(
-                      featureVector, weight);
+    required_cast(DiscriminativeGaussDensityEstimator*, densityEstimators_[indexInMixture].get())
+            ->accumulateDenominator(featureVector, weight);
 }
 
-Weight DiscriminativeMixtureEstimator::logPreviousMixtureWeight(DensityIndex dns) const
-{
-    const Weight _previousMixtureWeight =
-        std::max(previousMixtureWeight(dns), Core::Type<Weight>::delta);
+Weight DiscriminativeMixtureEstimator::logPreviousMixtureWeight(DensityIndex dns) const {
+    const Weight _previousMixtureWeight = std::max(previousMixtureWeight(dns), Core::Type<Weight>::delta);
     if (_previousMixtureWeight != previousMixtureWeight(dns)) {
         Core::Application::us()->log("previous-mixture-weight[")
-            << dns << "]=" << previousMixtureWeight(dns) << " floored for logarithm";
+                << dns << "]=" << previousMixtureWeight(dns) << " floored for logarithm";
     }
     return std::log(_previousMixtureWeight);
 }
@@ -86,18 +77,15 @@ Weight DiscriminativeMixtureEstimator::logPreviousMixtureWeight(DensityIndex dns
 /**
  *  @param mixture: previous mixture
  */
-void DiscriminativeMixtureEstimator::setPreviousMixture(const Mixture *mixture)
-{
+void DiscriminativeMixtureEstimator::setPreviousMixture(const Mixture* mixture) {
     require(mixture && mixture->nDensities() == nDensities());
     previousMixtureWeights_.resize(nDensities());
-    for (DensityIndex dnsInMix = 0; dnsInMix < previousMixtureWeights_.size(); ++ dnsInMix) {
+    for (DensityIndex dnsInMix = 0; dnsInMix < previousMixtureWeights_.size(); ++dnsInMix) {
         previousMixtureWeights_[dnsInMix] = mixture->weight(dnsInMix);
     }
 }
 
-DensityIndex DiscriminativeMixtureEstimator::accumulate(
-    Core::BinaryInputStreams &is,
-    Core::BinaryOutputStream &os)
-{
+DensityIndex DiscriminativeMixtureEstimator::accumulate(Core::BinaryInputStreams& is,
+                                                        Core::BinaryOutputStream& os) {
     return Precursor::accumulate(is, os);
 }

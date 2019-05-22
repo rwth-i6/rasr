@@ -19,38 +19,43 @@
 
 namespace Mm {
 
-    /**
-     * Estimator for MLLR using band matrices
-     */
-    class BandMllrEstimator: public FullAdaptorViterbiEstimator {
-    public:
-        typedef FullAdaptorViterbiEstimator Precursor;
-    private:
-        static const Core::ParameterInt paramNBands_;
-        u16 nBands_;
+/**
+ * Estimator for MLLR using band matrices
+ */
+class BandMllrEstimator : public FullAdaptorViterbiEstimator {
+public:
+    typedef FullAdaptorViterbiEstimator Precursor;
 
-        Math::Vector<Matrix::Type>
-        solveRowEquation(const Matrix& g, const Matrix &z, u32 row);
-    protected:
-        BandMllrEstimator(const Core::Configuration &c,
-                          ComponentIndex dimension,
-                          const Core::Ref<Am::AdaptationTree> adaptationTree);
+private:
+    static const Core::ParameterInt paramNBands_;
+    u16                             nBands_;
 
-        virtual void estimateWMatrices();
-    public:
-        BandMllrEstimator(const Core::Configuration &c,
-                const Core::Ref<Am::AdaptationTree> adaptationTree);
-        BandMllrEstimator(const Core::Configuration &c,
-                Core::Ref<const Mm::MixtureSet> mixtureSet,
-                const Core::Ref<Am::AdaptationTree> adaptationTree);
-        virtual ~BandMllrEstimator() {};
+    Math::Vector<Matrix::Type>
+            solveRowEquation(const Matrix& g, const Matrix& z, u32 row);
 
-        // virtual AdaptorEstimator* clone() const;
-        virtual std::string typeName() const { return "band-mllr-estimator"; }
-        virtual bool write(Core::BinaryOutputStream &o) const;
-        virtual bool read(Core::BinaryInputStream &i);
-    };
+protected:
+    BandMllrEstimator(const Core::Configuration&          c,
+                      ComponentIndex                      dimension,
+                      const Core::Ref<Am::AdaptationTree> adaptationTree);
 
-} //namespace Mm
+    virtual void estimateWMatrices();
 
-#endif // _MM_BANDMLLRADAPTATION_HH
+public:
+    BandMllrEstimator(const Core::Configuration&          c,
+                      const Core::Ref<Am::AdaptationTree> adaptationTree);
+    BandMllrEstimator(const Core::Configuration&          c,
+                      Core::Ref<const Mm::MixtureSet>     mixtureSet,
+                      const Core::Ref<Am::AdaptationTree> adaptationTree);
+    virtual ~BandMllrEstimator(){};
+
+    // virtual AdaptorEstimator* clone() const;
+    virtual std::string typeName() const {
+        return "band-mllr-estimator";
+    }
+    virtual bool write(Core::BinaryOutputStream& o) const;
+    virtual bool read(Core::BinaryInputStream& i);
+};
+
+}  //namespace Mm
+
+#endif  // _MM_BANDMLLRADAPTATION_HH

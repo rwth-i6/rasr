@@ -19,67 +19,79 @@
 
 namespace Mm {
 
-    /** MixtureFeatureScorerElement
+/** MixtureFeatureScorerElement
+ */
+class MixtureFeatureScorerElement : public MixtureTopology {
+private:
+    /** - 2 log(c_i)
      */
-    class MixtureFeatureScorerElement : public MixtureTopology {
-    private:
-        /** - 2 log(c_i)
+    std::vector<Score> minus2LogWeights_;
+
+public:
+    MixtureFeatureScorerElement() {}
+
+    void                      operator=(const Mixture& mixture);
+    void                      scale(Score scale);
+    const std::vector<Score>& minus2LogWeights() const {
+        return minus2LogWeights_;
+    }
+};
+
+/** Container for precalculated data within a mixture
+ *  Precalculated members for each density:
+ *    -prepared mean,
+ *    -constant precalucated weight
+ *    -and convariance index which references the corresponding precalculated feature vector.
+ */
+template<class T>
+class QuantizedMixtureFeatureScorerElement {
+public:
+    struct Density {
+        /**
+         *  Mmx:
+         *    m_d / sqrt(var_d), where
+         *    m_d is d-th element of the mean of the density,
+         *    var_d d-th diagonal element of covariance matrix of the density
+         *  Alpha:
+         *    Mmx + packed
+         *
          */
-        std::vector<Score> minus2LogWeights_;
-    public:
-        MixtureFeatureScorerElement() {}
+        std::vector<T> preparedMean_;
 
-        void operator=(const Mixture &mixture);
-        void scale(Score scale);
-        const std::vector<Score>& minus2LogWeights() const { return minus2LogWeights_; }
+        DensityIndex covarianceIndex_;
+
+        /** Mmx:
+         *   -2 * log(c) + sum_d (log(2*pi * var_d)), where
+         *    c weight in the mixture
+         *    var_d d-th diagonal element of covariance matrix of the density
+         * Alpha:
+         *   Mmx + sum_d (m_d^2), where
+         *   m_d d-th element of mean vector of the density divided by sqrt(var_d).
+         */
+        s32 constantWeight_;
     };
 
+private:
+    std::vector<Density> densities_;
 
-    /** Container for precalculated data within a mixture
-     *  Precalculated members for each density:
-     *    -prepared mean,
-     *    -constant precalucated weight
-     *    -and convariance index which references the corresponding precalculated feature vector.
-     */
-    template<class T>
-    class QuantizedMixtureFeatureScorerElement {
-    public:
-        struct Density {
-            /**
-             *  Mmx:
-             *    m_d / sqrt(var_d), where
-             *    m_d is d-th element of the mean of the density,
-             *    var_d d-th diagonal element of covariance matrix of the density
-             *  Alpha:
-             *    Mmx + packed
-             *
-             */
-            std::vector<T> preparedMean_;
+public:
+    QuantizedMixtureFeatureScorerElement() {}
 
-            DensityIndex covarianceIndex_;
+    void setNumberOfDensities(size_t size) {
+        densities_.resize(size);
+    }
+    size_t nDensities() const {
+        return densities_.size();
+    }
 
-            /** Mmx:
-             *   -2 * log(c) + sum_d (log(2*pi * var_d)), where
-             *    c weight in the mixture
-             *    var_d d-th diagonal element of covariance matrix of the density
-             * Alpha:
-             *   Mmx + sum_d (m_d^2), where
-             *   m_d d-th element of mean vector of the density divided by sqrt(var_d).
-             */
-            s32 constantWeight_;
-        };
-    private:
-        std::vector<Density> densities_;
-    public:
-        QuantizedMixtureFeatureScorerElement() {}
+    Density& density(size_t densityInMixture) {
+        return densities_[densityInMixture];
+    }
+    const Density& density(size_t densityInMixture) const {
+        return densities_[densityInMixture];
+    }
+};
 
-        void setNumberOfDensities(size_t size) { densities_.resize(size); }
-        size_t nDensities() const { return densities_.size(); }
+}  //namespace Mm
 
-        Density& density(size_t densityInMixture) { return densities_[densityInMixture]; }
-        const Density& density(size_t densityInMixture) const { return densities_[densityInMixture]; }
-    };
-
-} //namespace Mm
-
-#endif //_MM_MIXTURE_FEATURE_SCORER_ELEMENT_HH
+#endif  //_MM_MIXTURE_FEATURE_SCORER_ELEMENT_HH

@@ -15,39 +15,38 @@
 #ifndef _MM_INTEL_CODE_GENERATOR_HH
 #define _MM_INTEL_CODE_GENERATOR_HH
 
-
 #include <Core/CodeGenerator.hh>
-
 
 namespace Mm {
 
-    class IntelMMXL2NormCodeGenerator : public Core::CodeGenerator {
-    private:
-        bool appendProlog();
-        bool appendClearAccumulator();
-        bool appendFetchA(int block, u8 offset);
-        bool appendFetchB(int block, u8 offset);
-        bool appendDuplicate(int block);
-        bool appendSubtract(int block);
-        bool appendPrepareForUnpack(int block);
-        bool appendUnpackAndAdd(int block);
-        bool appendAccumulate(int block);
-        bool appendEpilog();
+class IntelMMXL2NormCodeGenerator : public Core::CodeGenerator {
+private:
+    bool appendProlog();
+    bool appendClearAccumulator();
+    bool appendFetchA(int block, u8 offset);
+    bool appendFetchB(int block, u8 offset);
+    bool appendDuplicate(int block);
+    bool appendSubtract(int block);
+    bool appendPrepareForUnpack(int block);
+    bool appendUnpackAndAdd(int block);
+    bool appendAccumulate(int block);
+    bool appendEpilog();
 
-    public:
-        IntelMMXL2NormCodeGenerator(const Core::Configuration &c, size_t d);
-        unsigned int run(const u8 *v1, const u8 *v2) const {
-            return ((unsigned int (*)(const u8*, const u8*))getCode())(v1, v2);
-        }
-    };
+public:
+    IntelMMXL2NormCodeGenerator(const Core::Configuration& c, size_t d);
+    unsigned int run(const u8* v1, const u8* v2) const {
+        return ((unsigned int (*)(const u8*, const u8*))getCode())(v1, v2);
+    }
+};
 
-    class IntelMMXResetCodeGenerator : public Core::CodeGenerator {
-    public:
-        IntelMMXResetCodeGenerator(const Core::Configuration &c);
-        void run() const { ((void (*)(void))getCode())(); }
-    };
+class IntelMMXResetCodeGenerator : public Core::CodeGenerator {
+public:
+    IntelMMXResetCodeGenerator(const Core::Configuration& c);
+    void run() const {
+        ((void (*)(void))getCode())();
+    }
+};
 
-} // namespace Mm
+}  // namespace Mm
 
-
-#endif // _MM_INTEL_CODE_GENERATOR_HH
+#endif  // _MM_INTEL_CODE_GENERATOR_HH

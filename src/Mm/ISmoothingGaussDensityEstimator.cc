@@ -20,11 +20,10 @@ using namespace Mm;
 /**
  * ISmoothingMeanEstimator
  */
-ISmoothingMeanEstimator::ISmoothingMeanEstimator() : constant_(0)
-{}
+ISmoothingMeanEstimator::ISmoothingMeanEstimator()
+        : constant_(0) {}
 
-void ISmoothingMeanEstimator::setIMean(const Mean *mean)
-{
+void ISmoothingMeanEstimator::setIMean(const Mean* mean) {
     require(mean);
     verify(iMean_.empty());
     iMean_.resize(mean->size());
@@ -34,71 +33,54 @@ void ISmoothingMeanEstimator::setIMean(const Mean *mean)
 /**
  * ISmoothingCovarianceEstimator
  */
-ISmoothingCovarianceEstimator::ISmoothingCovarianceEstimator() :
-    constant_(0),
-    iSum_(0)
-{}
+ISmoothingCovarianceEstimator::ISmoothingCovarianceEstimator()
+        : constant_(0),
+          iSum_(0) {}
 
-ISmoothingCovarianceEstimator::~ISmoothingCovarianceEstimator()
-{
+ISmoothingCovarianceEstimator::~ISmoothingCovarianceEstimator() {
     delete iSum_;
 }
 
-void ISmoothingCovarianceEstimator::reset()
-{
+void ISmoothingCovarianceEstimator::reset() {
     delete iSum_;
     iSum_ = 0;
 }
 
-void ISmoothingCovarianceEstimator::setICovariance(const Covariance *covariance)
-{
+void ISmoothingCovarianceEstimator::setICovariance(const Covariance* covariance) {
     require(covariance);
     verify(iCovariance_.empty());
     iCovariance_.resize(covariance->dimension());
     std::copy(covariance->diagonal().begin(), covariance->diagonal().end(), iCovariance_.begin());
 }
 
-ISmoothingCovarianceEstimator::Accumulator::SumType
-ISmoothingCovarianceEstimator::iSum(
-    const CovarianceToMeanSetMap::MeanSet &meanSet, ComponentIndex i) const
-{
+ISmoothingCovarianceEstimator::Accumulator::SumType ISmoothingCovarianceEstimator::iSum(const CovarianceToMeanSetMap::MeanSet& meanSet,
+                                                                                        ComponentIndex                         i) const {
     if (!iSum_) {
         iSum_ = new std::vector<Accumulator::SumType>(iCovariance().size());
         std::copy(iCovariance().begin(), iCovariance().end(), iSum_->begin());
-        std::transform(
-            iSum_->begin(),
-            iSum_->end(),
-            iSum_->begin(),
-            std::bind2nd(std::multiplies<Accumulator::SumType>(), meanSet.size()));
+        std::transform(iSum_->begin(), iSum_->end(), iSum_->begin(),
+                       std::bind2nd(std::multiplies<Accumulator::SumType>(), meanSet.size()));
         CovarianceToMeanSetMap::MeanSet::const_iterator m = meanSet.begin();
-        for(; m != meanSet.end(); ++ m) {
-            const ISmoothingMeanEstimator* meanEstimator =
-                dynamic_cast<const ISmoothingMeanEstimator*>(m->get());
-            std::transform(
-                iSum_->begin(),
-                iSum_->end(),
-                meanEstimator->iMean().begin(),
-                iSum_->begin(),
-                plusSquare<Accumulator::SumType>());
+        for (; m != meanSet.end(); ++m) {
+            const ISmoothingMeanEstimator* meanEstimator = dynamic_cast<const ISmoothingMeanEstimator*>(m->get());
+            std::transform(iSum_->begin(), iSum_->end(), meanEstimator->iMean().begin(),
+                           iSum_->begin(), plusSquare<Accumulator::SumType>());
         }
     }
     return (*iSum_)[i];
 }
 
-Sum ISmoothingCovarianceEstimator::getObjectiveFunction(
-    const CovarianceToMeanSetMap &meanSetMap)
-{
+Sum ISmoothingCovarianceEstimator::getObjectiveFunction(const CovarianceToMeanSetMap& meanSetMap) {
     verify(parent_);
-    Sum iOf = 0;
-    const CovarianceToMeanSetMap::MeanSet &meanSet = meanSetMap[parent_];
-    for (ComponentIndex i = 0; i < parent_->sum().size(); ++ i) {
+    Sum                                    iOf     = 0;
+    const CovarianceToMeanSetMap::MeanSet& meanSet = meanSetMap[parent_];
+    for (ComponentIndex i = 0; i < parent_->sum().size(); ++i) {
         const VarianceType prevSigma = parent_->previousCovariance(i);
         iOf += meanSet.size() * std::log(2 * M_PI * prevSigma);
-        Sum _iOf = iSum(meanSet, i);
-        CovarianceToMeanSetMap::MeanSet::const_iterator m = meanSet.begin();
-        for (; m != meanSet.end(); ++ m) {
-            const MeanType prevMean = required_cast(
-                const DiscriminativeMeanEstimator*, m->get())->previousMean(i);
+        Sum                                             _iOf = iSum(meanSet, i);
+        CovarianceToMeanSetMap::MeanSet::const_iterator m    = meanSet.begin();
+        for (; m != meanSet.end(); ++m) {
+            const MeanType prevMean = required_cast(const DiscriminativeMeanEstimator*, m->get())->previousMean(i);
             _iOf += prevMean * (prevMean - 2 * iMean(*m)[i]);
         }
         iOf += _iOf / prevSigma;

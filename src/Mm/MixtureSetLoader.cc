@@ -18,11 +18,11 @@
 using namespace Mm;
 
 Core::Ref<AbstractMixtureSet> AbstractMixtureSetLoader::load(
-    const std::string &filename, const Core::Configuration &c) const {
+        const std::string& filename, const Core::Configuration& c) const {
     return Mm::Module::instance().readMixtureSet(filename, c);
 }
 
 Core::Ref<AbstractMixtureSet> EmptyMixtureSetLoader::load(
-    const std::string &filename, const Core::Configuration &c) const {
+        const std::string& filename, const Core::Configuration& c) const {
     return Mm::Module::instance().createEmptyMixtureSet(c);
 }

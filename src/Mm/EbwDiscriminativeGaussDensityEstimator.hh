@@ -20,141 +20,161 @@
 
 namespace Mm {
 
-    /**
-     * EbwDiscriminativeGaussDensityEstimator
-     */
-    class EbwDiscriminativeGaussDensityEstimator : public DiscriminativeGaussDensityEstimator
-    {
-    public:
-        EbwDiscriminativeGaussDensityEstimator() {}
+/**
+ * EbwDiscriminativeGaussDensityEstimator
+ */
+class EbwDiscriminativeGaussDensityEstimator : public DiscriminativeGaussDensityEstimator {
+public:
+    EbwDiscriminativeGaussDensityEstimator() {}
 
-        void setIterationConstant(IterationConstant);
-    };
+    void setIterationConstant(IterationConstant);
+};
 
-    /**
-     * EbwDiscriminativeGaussDensityEstimatorWithISmoothing
-     */
-    class EbwDiscriminativeGaussDensityEstimatorWithISmoothing :
-        public EbwDiscriminativeGaussDensityEstimator,
-        public ISmoothingGaussDensityEstimator
-    {
-    public:
-        EbwDiscriminativeGaussDensityEstimatorWithISmoothing() {}
-    };
+/**
+ * EbwDiscriminativeGaussDensityEstimatorWithISmoothing
+ */
+class EbwDiscriminativeGaussDensityEstimatorWithISmoothing : public EbwDiscriminativeGaussDensityEstimator,
+                                                             public ISmoothingGaussDensityEstimator {
+public:
+    EbwDiscriminativeGaussDensityEstimatorWithISmoothing() {}
+};
 
-    /**
-     * EbwDiscriminativeMeanEstimator
-     */
-    class EbwDiscriminativeMeanEstimator : public DiscriminativeMeanEstimator
-    {
-        typedef DiscriminativeMeanEstimator Precursor;
-    protected:
-        Accumulator denAccumulator_;
-        IterationConstant iterationConstant_;
-    public:
-        EbwDiscriminativeMeanEstimator(ComponentIndex dimension = 0);
-        virtual ~EbwDiscriminativeMeanEstimator() {}
+/**
+ * EbwDiscriminativeMeanEstimator
+ */
+class EbwDiscriminativeMeanEstimator : public DiscriminativeMeanEstimator {
+    typedef DiscriminativeMeanEstimator Precursor;
 
-        virtual void reset();
-        virtual void accumulate(const AbstractEstimationAccumulator &);
-        virtual void accumulateDenominator(const std::vector<FeatureType> &, Weight);
+protected:
+    Accumulator       denAccumulator_;
+    IterationConstant iterationConstant_;
 
-        virtual void read(Core::BinaryInputStream &i, u32 version);
-        virtual void write(Core::BinaryOutputStream &) const;
-        virtual void write(Core::XmlWriter &) const;
+public:
+    EbwDiscriminativeMeanEstimator(ComponentIndex dimension = 0);
+    virtual ~EbwDiscriminativeMeanEstimator() {}
 
-        virtual bool operator==(const AbstractEstimationAccumulator &other) const;
+    virtual void reset();
+    virtual void accumulate(const AbstractEstimationAccumulator&);
+    virtual void accumulateDenominator(const std::vector<FeatureType>&, Weight);
 
-        virtual Mean* estimate();
+    virtual void read(Core::BinaryInputStream& i, u32 version);
+    virtual void write(Core::BinaryOutputStream&) const;
+    virtual void write(Core::XmlWriter&) const;
 
-        const std::vector<Accumulator::SumType>& denSum() const { return denAccumulator_.sum(); }
-        virtual std::vector<Accumulator::SumType> dtSum() const;
-        Weight denWeight() const { return denAccumulator_.weight(); }
-        virtual Weight dtWeight() const { return weight() - denWeight(); }
-        IterationConstant iterationConstant() const {
-            verify(iterationConstant_ > 0); return iterationConstant_;
-        }
-        void setIterationConstant(IterationConstant);
-    };
+    virtual bool operator==(const AbstractEstimationAccumulator& other) const;
 
-    /**
-     * EbwDiscriminativeMeanEstimatorWithISmoothing
-     */
-    class EbwDiscriminativeMeanEstimatorWithISmoothing :
-        public EbwDiscriminativeMeanEstimator,
-        public ISmoothingMeanEstimator
-    {
-        typedef EbwDiscriminativeMeanEstimator Precursor;
-    protected:
-        typedef ISmoothingMeanEstimator ISmoothing;
-    public:
-        friend class EbwDiscriminativeCovarianceEstimatorWithISmoothing;
-    public:
-        EbwDiscriminativeMeanEstimatorWithISmoothing(ComponentIndex dimension = 0);
+    virtual Mean* estimate();
 
-        virtual std::vector<Accumulator::SumType> dtSum() const;
-        virtual Weight dtWeight() const { return Precursor::dtWeight() + ISmoothing::constant(); }
-    };
+    const std::vector<Accumulator::SumType>& denSum() const {
+        return denAccumulator_.sum();
+    }
+    virtual std::vector<Accumulator::SumType> dtSum() const;
+    Weight                                    denWeight() const {
+        return denAccumulator_.weight();
+    }
+    virtual Weight dtWeight() const {
+        return weight() - denWeight();
+    }
+    IterationConstant iterationConstant() const {
+        verify(iterationConstant_ > 0);
+        return iterationConstant_;
+    }
+    void setIterationConstant(IterationConstant);
+};
 
-    /**
-     * EbwDiscriminativeCovarianceEstimator
-     */
-    class EbwDiscriminativeCovarianceEstimator :
-        public DiscriminativeCovarianceEstimator
-    {
-        typedef DiscriminativeCovarianceEstimator Precursor;
-    private:
-        Accumulator denAccumulator_;
-    protected:
-        virtual const Mean* getMean(Core::Ref<EbwDiscriminativeMeanEstimator> e) const { return e->estimate(); }
-    public:
-        EbwDiscriminativeCovarianceEstimator(ComponentIndex dimension = 0);
+/**
+ * EbwDiscriminativeMeanEstimatorWithISmoothing
+ */
+class EbwDiscriminativeMeanEstimatorWithISmoothing : public EbwDiscriminativeMeanEstimator,
+                                                     public ISmoothingMeanEstimator {
+    typedef EbwDiscriminativeMeanEstimator Precursor;
 
-        virtual void reset();
-        virtual void accumulate(const AbstractEstimationAccumulator &);
-        void accumulateDenominator(const std::vector<FeatureType>&, Weight);
+protected:
+    typedef ISmoothingMeanEstimator ISmoothing;
 
-        virtual void read(Core::BinaryInputStream &i, u32 version);
-        virtual void write(Core::BinaryOutputStream &o) const;
-        virtual void write(Core::XmlWriter &o) const;
+public:
+    friend class EbwDiscriminativeCovarianceEstimatorWithISmoothing;
 
-        virtual bool operator==(const AbstractEstimationAccumulator &other) const;
+public:
+    EbwDiscriminativeMeanEstimatorWithISmoothing(ComponentIndex dimension = 0);
 
-        virtual Covariance* estimate(const CovarianceToMeanSetMap &, VarianceType minimumVariance);
+    virtual std::vector<Accumulator::SumType> dtSum() const;
+    virtual Weight                            dtWeight() const {
+        return Precursor::dtWeight() + ISmoothing::constant();
+    }
+};
 
-        const std::vector<Accumulator::SumType>& denSum() const { return denAccumulator_.sum(); }
-        virtual std::vector<Accumulator::SumType> dtSum(const CovarianceToMeanSetMap::MeanSet &) const;
-        Weight denWeight() const { return denAccumulator_.weight(); }
-        virtual Weight dtWeight() const { return weight() - denWeight(); }
-    };
+/**
+ * EbwDiscriminativeCovarianceEstimator
+ */
+class EbwDiscriminativeCovarianceEstimator : public DiscriminativeCovarianceEstimator {
+    typedef DiscriminativeCovarianceEstimator Precursor;
 
-    /**
-     * EbwDiscriminativeCovarianceEstimatorWithISmoothing
-     */
-    class EbwDiscriminativeCovarianceEstimatorWithISmoothing :
-        public EbwDiscriminativeCovarianceEstimator,
-        public ISmoothingCovarianceEstimator
-    {
-        typedef EbwDiscriminativeCovarianceEstimator Precursor;
-    protected:
-        typedef ISmoothingCovarianceEstimator ISmoothing;
-    protected:
-        virtual const std::vector<MeanType>& iMean(Core::Ref<AbstractMeanEstimator> m) const {
-            return required_cast(EbwDiscriminativeMeanEstimatorWithISmoothing*, m.get())->iMean();
-        }
-        virtual const Mean* getMean(Core::Ref<EbwDiscriminativeMeanEstimator> e) const {
-            return required_cast(EbwDiscriminativeMeanEstimatorWithISmoothing*, e.get())->estimate();
-        }
-    public:
-        EbwDiscriminativeCovarianceEstimatorWithISmoothing(ComponentIndex dimension = 0);
-        virtual ~EbwDiscriminativeCovarianceEstimatorWithISmoothing() {}
+private:
+    Accumulator denAccumulator_;
 
-        virtual void reset();
+protected:
+    virtual const Mean* getMean(Core::Ref<EbwDiscriminativeMeanEstimator> e) const {
+        return e->estimate();
+    }
 
-        virtual std::vector<Precursor::Accumulator::SumType> dtSum(const CovarianceToMeanSetMap::MeanSet &) const;
-        virtual Weight dtWeight() const { return Precursor::dtWeight() + ISmoothing::constant(); }
-    };
+public:
+    EbwDiscriminativeCovarianceEstimator(ComponentIndex dimension = 0);
 
-} //namespace Mm
+    virtual void reset();
+    virtual void accumulate(const AbstractEstimationAccumulator&);
+    void         accumulateDenominator(const std::vector<FeatureType>&, Weight);
 
-#endif //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH
+    virtual void read(Core::BinaryInputStream& i, u32 version);
+    virtual void write(Core::BinaryOutputStream& o) const;
+    virtual void write(Core::XmlWriter& o) const;
+
+    virtual bool operator==(const AbstractEstimationAccumulator& other) const;
+
+    virtual Covariance* estimate(const CovarianceToMeanSetMap&, VarianceType minimumVariance);
+
+    const std::vector<Accumulator::SumType>& denSum() const {
+        return denAccumulator_.sum();
+    }
+    virtual std::vector<Accumulator::SumType> dtSum(const CovarianceToMeanSetMap::MeanSet&) const;
+    Weight                                    denWeight() const {
+        return denAccumulator_.weight();
+    }
+    virtual Weight dtWeight() const {
+        return weight() - denWeight();
+    }
+};
+
+/**
+ * EbwDiscriminativeCovarianceEstimatorWithISmoothing
+ */
+class EbwDiscriminativeCovarianceEstimatorWithISmoothing : public EbwDiscriminativeCovarianceEstimator,
+                                                           public ISmoothingCovarianceEstimator {
+    typedef EbwDiscriminativeCovarianceEstimator Precursor;
+
+protected:
+    typedef ISmoothingCovarianceEstimator ISmoothing;
+
+protected:
+    virtual const std::vector<MeanType>& iMean(Core::Ref<AbstractMeanEstimator> m) const {
+        return required_cast(EbwDiscriminativeMeanEstimatorWithISmoothing*, m.get())->iMean();
+    }
+    virtual const Mean* getMean(Core::Ref<EbwDiscriminativeMeanEstimator> e) const {
+        return required_cast(EbwDiscriminativeMeanEstimatorWithISmoothing*, e.get())->estimate();
+    }
+
+public:
+    EbwDiscriminativeCovarianceEstimatorWithISmoothing(ComponentIndex dimension = 0);
+    virtual ~EbwDiscriminativeCovarianceEstimatorWithISmoothing() {}
+
+    virtual void reset();
+
+    virtual std::vector<Precursor::Accumulator::SumType> dtSum(const CovarianceToMeanSetMap::MeanSet&) const;
+    virtual Weight                                       dtWeight() const {
+        return Precursor::dtWeight() + ISmoothing::constant();
+    }
+};
+
+}  //namespace Mm
+
+#endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

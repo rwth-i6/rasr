@@ -21,32 +21,28 @@ using namespace Mm;
 /**
  * DiscriminativeGaussDensityEstimator
  */
-void DiscriminativeGaussDensityEstimator::accumulateDenominator(
-    const FeatureVector &featureVector, Weight weight)
-{
+void DiscriminativeGaussDensityEstimator::accumulateDenominator(const FeatureVector& featureVector, Weight weight) {
     required_cast(DiscriminativeMeanEstimator*,
-                  meanEstimator_.get())->accumulateDenominator(
-                      featureVector, weight);
+                  meanEstimator_.get())
+            ->accumulateDenominator(
+                    featureVector, weight);
     required_cast(DiscriminativeCovarianceEstimator*,
-                  covarianceEstimator_.get())->accumulateDenominator(
-                      featureVector, weight);
+                  covarianceEstimator_.get())
+            ->accumulateDenominator(
+                    featureVector, weight);
 }
 
 /**
  * DiscriminativeMeanEstimator
  */
-DiscriminativeMeanEstimator::DiscriminativeMeanEstimator(ComponentIndex dimension) :
-    Precursor(dimension)
-{}
+DiscriminativeMeanEstimator::DiscriminativeMeanEstimator(ComponentIndex dimension)
+        : Precursor(dimension) {}
 
-void DiscriminativeMeanEstimator::accumulateDenominator(
-    const std::vector<FeatureType> &v, Weight w)
-{
+void DiscriminativeMeanEstimator::accumulateDenominator(const std::vector<FeatureType>& v, Weight w) {
     accumulator_.accumulate(v, -w);
 }
 
-void DiscriminativeMeanEstimator::setPreviousMean(const Mean *previousMean)
-{
+void DiscriminativeMeanEstimator::setPreviousMean(const Mean* previousMean) {
     require(previousMean);
     previousMean_.resize(previousMean->size());
     std::copy(previousMean->begin(), previousMean->end(), previousMean_.begin());
@@ -55,18 +51,14 @@ void DiscriminativeMeanEstimator::setPreviousMean(const Mean *previousMean)
 /**
  * DiscriminativeCovarianceEstimator
  */
-DiscriminativeCovarianceEstimator::DiscriminativeCovarianceEstimator(ComponentIndex dimension) :
-    Precursor(dimension)
-{}
+DiscriminativeCovarianceEstimator::DiscriminativeCovarianceEstimator(ComponentIndex dimension)
+        : Precursor(dimension) {}
 
-void DiscriminativeCovarianceEstimator::accumulateDenominator(
-    const std::vector<FeatureType>& v, Weight w)
-{
+void DiscriminativeCovarianceEstimator::accumulateDenominator(const std::vector<FeatureType>& v, Weight w) {
     accumulator_.accumulate(v, -w);
 }
 
-void DiscriminativeCovarianceEstimator::setPreviousCovariance(const Covariance *previousCovariance)
-{
+void DiscriminativeCovarianceEstimator::setPreviousCovariance(const Covariance* previousCovariance) {
     require(previousCovariance);
     previousCovariance_.resize(previousCovariance->dimension());
     std::copy(previousCovariance->diagonal().begin(), previousCovariance->diagonal().end(), previousCovariance_.begin());

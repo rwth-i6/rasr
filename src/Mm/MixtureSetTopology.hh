@@ -15,70 +15,90 @@
 #ifndef _MM_MIXTURE_SET_TOPOLOGY_HH
 #define _MM_MIXTURE_SET_TOPOLOGY_HH
 
-#include "Types.hh"
 #include <Core/Hash.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/TextStream.hh>
+#include "Types.hh"
 
 namespace Mm {
 
-    /**
-     *  GaussDensityTopology
-     */
-    class GaussDensityTopology {
-    private:
-        MeanIndex meanIndex_;
-        CovarianceIndex covarianceIndex_;
-    public:
-        GaussDensityTopology(MeanIndex meanIndex, CovarianceIndex covarianceIndex) :
-            meanIndex_(meanIndex), covarianceIndex_(covarianceIndex) {}
-        virtual ~GaussDensityTopology() {}
+/**
+ *  GaussDensityTopology
+ */
+class GaussDensityTopology {
+private:
+    MeanIndex       meanIndex_;
+    CovarianceIndex covarianceIndex_;
 
-        void setMeanIndex(MeanIndex index) { meanIndex_ = index; }
-        MeanIndex meanIndex() const { return meanIndex_; }
+public:
+    GaussDensityTopology(MeanIndex meanIndex, CovarianceIndex covarianceIndex)
+            : meanIndex_(meanIndex), covarianceIndex_(covarianceIndex) {}
+    virtual ~GaussDensityTopology() {}
 
-        void setCovarianceIndex(CovarianceIndex index) { covarianceIndex_ = index; }
-        CovarianceIndex covarianceIndex() const { return covarianceIndex_; }
+    void setMeanIndex(MeanIndex index) {
+        meanIndex_ = index;
+    }
+    MeanIndex meanIndex() const {
+        return meanIndex_;
+    }
 
-        bool operator==(const GaussDensityTopology &t) {
-            return meanIndex_ == t.meanIndex_ && covarianceIndex_ == t.covarianceIndex_;
-        }
-        virtual bool write(std::ostream& o) const;
-        virtual bool read(std::istream& i);
-    };
-    inline std::ostream& operator<< (std::ostream& o, const GaussDensityTopology& gdt) {
-        gdt.write(o);
-        return o;
-    };
-    inline std::istream& operator>> (std::istream& i, GaussDensityTopology& gdt) {
-        gdt.read(i);
-        return i;
-    };
+    void setCovarianceIndex(CovarianceIndex index) {
+        covarianceIndex_ = index;
+    }
+    CovarianceIndex covarianceIndex() const {
+        return covarianceIndex_;
+    }
 
-    /**
-     *  MixtureTopology
-     */
-    class MixtureTopology {
-    protected:
-        std::vector<DensityIndex> densityIndices_;
-    protected:
+    bool operator==(const GaussDensityTopology& t) {
+        return meanIndex_ == t.meanIndex_ && covarianceIndex_ == t.covarianceIndex_;
+    }
+    virtual bool write(std::ostream& o) const;
+    virtual bool read(std::istream& i);
+};
+inline std::ostream& operator<<(std::ostream& o, const GaussDensityTopology& gdt) {
+    gdt.write(o);
+    return o;
+};
+inline std::istream& operator>>(std::istream& i, GaussDensityTopology& gdt) {
+    gdt.read(i);
+    return i;
+};
+
+/**
+ *  MixtureTopology
+ */
+class MixtureTopology {
+protected:
+    std::vector<DensityIndex> densityIndices_;
+
+protected:
 #if 1
-        virtual void removeDensity(DensityIndex index) {
-            densityIndices_.erase(densityIndices_.begin() + index);
-        }
+    virtual void removeDensity(DensityIndex index) {
+        densityIndices_.erase(densityIndices_.begin() + index);
+    }
 #endif
-    public:
-        virtual ~MixtureTopology() { clear(); }
-        void addDensity(DensityIndex index) { densityIndices_.push_back(index); }
+public:
+    virtual ~MixtureTopology() {
+        clear();
+    }
+    void addDensity(DensityIndex index) {
+        densityIndices_.push_back(index);
+    }
 
-        size_t nDensities() const { return densityIndices_.size(); }
-        DensityIndex densityIndex(size_t densityInMixture) const {
-            return densityIndices_[densityInMixture];
-        }
-        const std::vector<DensityIndex>& densityIndices() const { return densityIndices_; }
-        virtual void clear() { densityIndices_.clear(); }
-    };
+    size_t nDensities() const {
+        return densityIndices_.size();
+    }
+    DensityIndex densityIndex(size_t densityInMixture) const {
+        return densityIndices_[densityInMixture];
+    }
+    const std::vector<DensityIndex>& densityIndices() const {
+        return densityIndices_;
+    }
+    virtual void clear() {
+        densityIndices_.clear();
+    }
+};
 
-} // namespace Mm
+}  // namespace Mm
 
-#endif //_MM_MIXTURE_SET_TOPOLOGY_HH
+#endif  //_MM_MIXTURE_SET_TOPOLOGY_HH

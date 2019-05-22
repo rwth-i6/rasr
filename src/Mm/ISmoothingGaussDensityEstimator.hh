@@ -20,66 +20,85 @@
 
 namespace Mm {
 
-    class DiscriminativeCovarianceEstimator;
+class DiscriminativeCovarianceEstimator;
 
-    /**
-     * ISmoothingGaussDensityEstimator
-     */
-    class ISmoothingGaussDensityEstimator
-    {
-    public:
-        ISmoothingGaussDensityEstimator() {}
-        void setIDensity(const GaussDensity *) {}
-    };
+/**
+ * ISmoothingGaussDensityEstimator
+ */
+class ISmoothingGaussDensityEstimator {
+public:
+    ISmoothingGaussDensityEstimator() {}
+    void setIDensity(const GaussDensity*) {}
+};
 
-    /**
-     * ISmoothingMeanEstimator
-     */
-    class ISmoothingMeanEstimator
-    {
-    private:
-        std::vector<MeanType> iMean_;
-        Weight constant_;
-    public:
-        ISmoothingMeanEstimator();
-        virtual ~ISmoothingMeanEstimator() {}
+/**
+ * ISmoothingMeanEstimator
+ */
+class ISmoothingMeanEstimator {
+private:
+    std::vector<MeanType> iMean_;
+    Weight                constant_;
 
-        void setIMean(const Mean *);
-        const std::vector<MeanType>& iMean() const { return iMean_; }
-        MeanType iMean(ComponentIndex i) const { return iMean_[i]; }
-        void setConstant(Weight constant) { constant_ = constant; }
-        Weight constant() const { return constant_; }
-    };
+public:
+    ISmoothingMeanEstimator();
+    virtual ~ISmoothingMeanEstimator() {}
 
-    /**
-     * ISmoothingCovarianceEstimator
-     */
-    class ISmoothingCovarianceEstimator
-    {
-    protected:
-        typedef VectorAccumulator<FeatureType, plusSquare<Sum>, plusSquareWeighted<Sum> > Accumulator;
-    private:
-        Core::Ref<DiscriminativeCovarianceEstimator> parent_;
-        std::vector<VarianceType> iCovariance_;
-        Weight constant_;
-        mutable std::vector<Accumulator::SumType> *iSum_;
-    protected:
-        virtual const std::vector<MeanType>& iMean(Core::Ref<AbstractMeanEstimator>) const = 0;
-    public:
-        ISmoothingCovarianceEstimator();
-        virtual ~ISmoothingCovarianceEstimator();
+    void                         setIMean(const Mean*);
+    const std::vector<MeanType>& iMean() const {
+        return iMean_;
+    }
+    MeanType iMean(ComponentIndex i) const {
+        return iMean_[i];
+    }
+    void setConstant(Weight constant) {
+        constant_ = constant;
+    }
+    Weight constant() const {
+        return constant_;
+    }
+};
 
-        void set(Core::Ref<DiscriminativeCovarianceEstimator> parent) { parent_ = parent; }
-        void reset();
-        void setICovariance(const Covariance *);
-        const std::vector<VarianceType>& iCovariance() const { return iCovariance_; }
-        VarianceType iCovariance(const CovarianceToMeanSetMap::MeanSet &, ComponentIndex i) const { return iCovariance_[i]; }
-        Accumulator::SumType iSum(const CovarianceToMeanSetMap::MeanSet &, ComponentIndex i) const;
-        Sum getObjectiveFunction(const CovarianceToMeanSetMap &);
-        void setConstant(Weight constant) { constant_ = constant; }
-        Weight constant() const { return constant_; }
-    };
+/**
+ * ISmoothingCovarianceEstimator
+ */
+class ISmoothingCovarianceEstimator {
+protected:
+    typedef VectorAccumulator<FeatureType, plusSquare<Sum>, plusSquareWeighted<Sum>> Accumulator;
 
-} //namespace Mm
+private:
+    Core::Ref<DiscriminativeCovarianceEstimator> parent_;
+    std::vector<VarianceType>                    iCovariance_;
+    Weight                                       constant_;
+    mutable std::vector<Accumulator::SumType>*   iSum_;
 
-#endif //_MM_ISMOOTHING_MIXTURE_ESTIMATOR_HH
+protected:
+    virtual const std::vector<MeanType>& iMean(Core::Ref<AbstractMeanEstimator>) const = 0;
+
+public:
+    ISmoothingCovarianceEstimator();
+    virtual ~ISmoothingCovarianceEstimator();
+
+    void set(Core::Ref<DiscriminativeCovarianceEstimator> parent) {
+        parent_ = parent;
+    }
+    void                             reset();
+    void                             setICovariance(const Covariance*);
+    const std::vector<VarianceType>& iCovariance() const {
+        return iCovariance_;
+    }
+    VarianceType iCovariance(const CovarianceToMeanSetMap::MeanSet&, ComponentIndex i) const {
+        return iCovariance_[i];
+    }
+    Accumulator::SumType iSum(const CovarianceToMeanSetMap::MeanSet&, ComponentIndex i) const;
+    Sum                  getObjectiveFunction(const CovarianceToMeanSetMap&);
+    void                 setConstant(Weight constant) {
+        constant_ = constant;
+    }
+    Weight constant() const {
+        return constant_;
+    }
+};
+
+}  //namespace Mm
+
+#endif  //_MM_ISMOOTHING_MIXTURE_ESTIMATOR_HH

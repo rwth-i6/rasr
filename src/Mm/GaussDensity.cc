@@ -16,61 +16,55 @@
 
 using namespace Mm;
 
-void GaussDensity::map(
-    const std::vector<MeanIndex>& meanMap,
-    const std::vector<CovarianceIndex> &covarianceMap)
-{
+void GaussDensity::map(const std::vector<MeanIndex>&       meanMap,
+                       const std::vector<CovarianceIndex>& covarianceMap) {
     setMeanIndex(meanMap[meanIndex()]);
     setCovarianceIndex(covarianceMap[covarianceIndex()]);
 }
 
-bool Mean::write(std::ostream& o) const
-{
-        o << size();
-        for (unsigned int i = 0; i < size(); i++)
-                o << " " << this->at(i);
-        o << std::endl;
-        return o.good();
+bool Mean::write(std::ostream& o) const {
+    o << size();
+    for (unsigned int i = 0; i < size(); i++)
+        o << " " << this->at(i);
+    o << std::endl;
+    return o.good();
 }
-bool Mean::read(std::istream& i)
-{
-        clear();
-        MeanType melem;
-        ComponentIndex dim;
-        i >> dim;
-        while (0<dim) {
-                i >> melem;
-                push_back(melem);
-                dim--;
-        }
-        return i.good();
+bool Mean::read(std::istream& i) {
+    clear();
+    MeanType       melem;
+    ComponentIndex dim;
+    i >> dim;
+    while (0 < dim) {
+        i >> melem;
+        push_back(melem);
+        dim--;
+    }
+    return i.good();
 }
 
-bool DiagonalCovariance::write(std::ostream& o) const
-{
-        o << dimension();
+bool DiagonalCovariance::write(std::ostream& o) const {
+    o << dimension();
 
-        for (unsigned int i=0; i<dimension(); ++i) {
-                o << " " << diagonal().at(i) << " " << weights().at(i);
-        }
-        o << std::endl;
-        return o.good();
+    for (unsigned int i = 0; i < dimension(); ++i) {
+        o << " " << diagonal().at(i) << " " << weights().at(i);
+    }
+    o << std::endl;
+    return o.good();
 }
-bool DiagonalCovariance::read(std::istream& i)
-{
-        ComponentIndex dim;
-        i >> dim;
-        VarianceType velem;
-        std::vector<VarianceType> v;
-        f64 welem;
-        std::vector<f64> w;
-        while (0<dim) {
-                i >> velem >> welem;
-                v.push_back(velem*welem);
-                w.push_back(1.0);
-                dim--;
-        }
-        (*this) = v;
-        setFeatureWeights(w);
-        return i.good();
+bool DiagonalCovariance::read(std::istream& i) {
+    ComponentIndex dim;
+    i >> dim;
+    VarianceType              velem;
+    std::vector<VarianceType> v;
+    f64                       welem;
+    std::vector<f64>          w;
+    while (0 < dim) {
+        i >> velem >> welem;
+        v.push_back(velem * welem);
+        w.push_back(1.0);
+        dim--;
+    }
+    (*this) = v;
+    setFeatureWeights(w);
+    return i.good();
 }

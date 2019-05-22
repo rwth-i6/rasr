@@ -13,55 +13,48 @@
  *  limitations under the License.
  */
 #include "ISmoothingMixtureEstimator.hh"
-#include "MixtureSet.hh"
 #include "DiscriminativeMixtureEstimator.hh"
+#include "MixtureSet.hh"
 
 using namespace Mm;
 
 /**
  *  ISmoothingMixtureEstimator
  */
-ISmoothingMixtureEstimator::ISmoothingMixtureEstimator() :
-    parent_(0),
-    constant_(0)
-{}
+ISmoothingMixtureEstimator::ISmoothingMixtureEstimator()
+        : parent_(0),
+          constant_(0) {}
 
-ISmoothingMixtureEstimator::~ISmoothingMixtureEstimator()
-{}
+ISmoothingMixtureEstimator::~ISmoothingMixtureEstimator() {}
 
-void ISmoothingMixtureEstimator::set(DiscriminativeMixtureEstimator *parent)
-{
+void ISmoothingMixtureEstimator::set(DiscriminativeMixtureEstimator* parent) {
     parent_ = parent;
 }
 
-void ISmoothingMixtureEstimator::removeDensity(DensityIndex indexInMixture)
-{
+void ISmoothingMixtureEstimator::removeDensity(DensityIndex indexInMixture) {
     verify(indexInMixture < iMixtureWeights_.size());
     iMixtureWeights_.erase(iMixtureWeights_.begin() + indexInMixture);
 }
 
-void ISmoothingMixtureEstimator::clear()
-{
+void ISmoothingMixtureEstimator::clear() {
     iMixtureWeights_.clear();
 }
 
 /**
  *  @param mixture: i-smoothing mixture
  */
-void ISmoothingMixtureEstimator::setIMixture(const Mixture *mixture)
-{
+void ISmoothingMixtureEstimator::setIMixture(const Mixture* mixture) {
     require(mixture);
     verify(iMixtureWeights_.empty());
-    for (DensityIndex dnsInMix = 0; dnsInMix < mixture->nDensities(); ++ dnsInMix) {
+    for (DensityIndex dnsInMix = 0; dnsInMix < mixture->nDensities(); ++dnsInMix) {
         iMixtureWeights_.push_back(mixture->weight(dnsInMix));
     }
 }
 
-Sum ISmoothingMixtureEstimator::getObjectiveFunction() const
-{
+Sum ISmoothingMixtureEstimator::getObjectiveFunction() const {
     Sum iOf = 0;
     verify(parent_);
-    for (DensityIndex dns = 0; dns < parent_->nDensities(); ++ dns) {
+    for (DensityIndex dns = 0; dns < parent_->nDensities(); ++dns) {
         iOf += iMixtureWeights_[dns] * parent_->logPreviousMixtureWeight(dns);
     }
     return constant() * iOf;

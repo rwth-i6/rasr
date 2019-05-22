@@ -17,73 +17,68 @@
 
 #include "AssigningFeatureScorer.hh"
 
-namespace Mm
-{
+namespace Mm {
 
 /** Abstract feature scorer interface with cached scores and assignment using feature transforming distance functions . */
-class CachedAssigningTransformingFeatureScorer: public CachedAssigningFeatureScorer
-{
+class CachedAssigningTransformingFeatureScorer : public CachedAssigningFeatureScorer {
     typedef CachedAssigningFeatureScorer Precursor;
+
 public:
     struct ScoringResult : AssigningFeatureScorer::ScoreAndBestDensity {
-        Score score;
+        Score            score;
         DensityInMixture bestDensity;
-        FeatureVector transformedFeature;
+        FeatureVector    transformedFeature;
     };
 
     //@todo: should be protected
     /** Implement emission independent precalculations for feature vector */
-    class CachedAssigningTransformingContextScorer: public CachedAssigningFeatureScorer::CachedAssigningContextScorer
-    {
+    class CachedAssigningTransformingContextScorer : public CachedAssigningFeatureScorer::CachedAssigningContextScorer {
         typedef CachedAssigningFeatureScorer::CachedAssigningContextScorer ContextPrecursor;
+
     protected:
-        const CachedAssigningTransformingFeatureScorer *featureScorer_;
-        mutable Cache<FeatureVector> transformedFeatureCache_;
+        const CachedAssigningTransformingFeatureScorer* featureScorer_;
+        mutable Cache<FeatureVector>                    transformedFeatureCache_;
+
     protected:
-        CachedAssigningTransformingContextScorer(const CachedAssigningTransformingFeatureScorer *featureScorer, EmissionIndex nEmissions) :
-            ContextPrecursor(featureScorer, nEmissions), featureScorer_(featureScorer), transformedFeatureCache_(nEmissions)
-        {
-        }
-    public:
-        virtual ~CachedAssigningTransformingContextScorer()
-        {
+        CachedAssigningTransformingContextScorer(const CachedAssigningTransformingFeatureScorer* featureScorer, EmissionIndex nEmissions)
+                : ContextPrecursor(featureScorer, nEmissions), featureScorer_(featureScorer), transformedFeatureCache_(nEmissions) {
         }
 
-        virtual Score score(EmissionIndex e, FeatureVector *transformedFeature = 0) const
-        {
+    public:
+        virtual ~CachedAssigningTransformingContextScorer() {
+        }
+
+        virtual Score score(EmissionIndex e, FeatureVector* transformedFeature = 0) const {
             require_(0 <= e && e < nEmissions());
             if (!ContextPrecursor::cache_.isCalculated(e)) {
                 ScoringResult r = featureScorer_->calculateScoreAndDensityAndFeature(this, e, transformedFeature);
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).score;
             }
-            *transformedFeature = transformedFeatureCache_[e]; //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
             return ContextPrecursor::cache_[e].score;
         }
-        virtual DensityInMixture bestDensity(EmissionIndex e, FeatureVector *transformedFeature = 0) const
-        {
+        virtual DensityInMixture bestDensity(EmissionIndex e, FeatureVector* transformedFeature = 0) const {
             require_(0 <= e && e < nEmissions());
             if (!ContextPrecursor::cache_.isCalculated(e)) {
                 ScoringResult r = featureScorer_->calculateScoreAndDensityAndFeature(this, e, transformedFeature);
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).bestDensity;
             }
-            *transformedFeature = transformedFeatureCache_[e]; //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
             return ContextPrecursor::cache_[e].bestDensity;
         }
     };
-    virtual ScoringResult calculateScoreAndDensityAndFeature(const CachedAssigningContextScorer*, MixtureIndex, FeatureVector *transformedFeature) const = 0;
-public:
-    CachedAssigningTransformingFeatureScorer(const Core::Configuration &c) :
-        Core::Component(c), Precursor(c)
-    {
-    }
-    virtual ~CachedAssigningTransformingFeatureScorer()
-    {
-    }
+    virtual ScoringResult calculateScoreAndDensityAndFeature(const CachedAssigningContextScorer*, MixtureIndex, FeatureVector* transformedFeature) const = 0;
 
+public:
+    CachedAssigningTransformingFeatureScorer(const Core::Configuration& c)
+            : Core::Component(c), Precursor(c) {
+    }
+    virtual ~CachedAssigningTransformingFeatureScorer() {
+    }
 };
 
-}
+}  // namespace Mm
 
 #endif /* _MM_CACHED_ASSIGNING_TRANSFORMING_FEATURE_SCORER_HH_ */

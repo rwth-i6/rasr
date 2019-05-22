@@ -15,60 +15,62 @@
 #ifndef _MM_MIXTURE_HH
 #define _MM_MIXTURE_HH
 
-#include "MixtureSetTopology.hh"
 #include "MixtureSet.hh"
-
+#include "MixtureSetTopology.hh"
 
 namespace Mm {
 
-    class MixtureSet;
+class MixtureSet;
 
-    /**
-     * Could be derived from Density...
+/**
+ * Could be derived from Density...
+ */
+class Mixture : public MixtureTopology {
+    typedef MixtureTopology Precursor;
+
+private:
+    /** sum of weights is expected to be 1.
      */
-    class Mixture : public MixtureTopology {
-        typedef MixtureTopology Precursor;
-    private:
-        /** sum of weights is expected to be 1.
-         */
-        std::vector<Weight> logWeights_;
-    protected:
-        DensityIndex densityIndexWithMaxWeight() const;
-#if 1
-        virtual void removeDensity(DensityIndex);
-#endif
-    public:
-        Mixture() {}
-        Mixture(const MixtureTopology &mixtureTopology);
-        Mixture(const Mixture &mixture);
-        Mixture(const MixtureSet &mixtureSet);
-        virtual ~Mixture();
+    std::vector<Weight> logWeights_;
 
-        Mixture& operator=(const Mixture& mixture);
-        void addLogDensity(DensityIndex index, Weight logWeight = Core::Type<Weight>::min);
-        void addDensity(DensityIndex index, Weight weight = 0);
+protected:
+    DensityIndex densityIndexWithMaxWeight() const;
+    virtual void removeDensity(DensityIndex);
 
-        void normalizeWeights();
+public:
+    Mixture() {}
+    Mixture(const MixtureTopology& mixtureTopology);
+    Mixture(const Mixture& mixture);
+    Mixture(const MixtureSet& mixtureSet);
+    virtual ~Mixture();
 
-        Weight logWeight(size_t densityInMixture) const { return logWeights_[densityInMixture]; }
-        Weight weight(size_t densityInMixture) const { return exp(logWeights_[densityInMixture]); }
-        const std::vector<Weight>& logWeights() const { return logWeights_; }
-        virtual void clear();
-        virtual bool write(std::ostream& o) const;
-        virtual bool read(std::istream& i, f32 version);
+    Mixture& operator=(const Mixture& mixture);
+    void     addLogDensity(DensityIndex index, Weight logWeight = Core::Type<Weight>::min);
+    void     addDensity(DensityIndex index, Weight weight = 0);
 
-        void removeDensitiesWithLowWeight(Weight minWeight, bool normalizeWeights = true);
-        void map(const std::vector<DensityIndex> &);
-    };
-    inline std::ostream& operator<< (std::ostream& o, const Mixture& ms) {
-        ms.write(o);
-        return o;
-    };
-    //     inline std::istream& operator>> (std::istream& i, Mixture& ms) {
-    // 	ms.read(i);
-    // 	return i;
-    //     };
+    void normalizeWeights();
 
-} // namespace Mm
+    Weight logWeight(size_t densityInMixture) const {
+        return logWeights_[densityInMixture];
+    }
+    Weight weight(size_t densityInMixture) const {
+        return exp(logWeights_[densityInMixture]);
+    }
+    const std::vector<Weight>& logWeights() const {
+        return logWeights_;
+    }
+    virtual void clear();
+    virtual bool write(std::ostream& o) const;
+    virtual bool read(std::istream& i, f32 version);
 
-#endif // _MM_MIXTURE_HH
+    void removeDensitiesWithLowWeight(Weight minWeight, bool normalizeWeights = true);
+    void map(const std::vector<DensityIndex>&);
+};
+inline std::ostream& operator<<(std::ostream& o, const Mixture& ms) {
+    ms.write(o);
+    return o;
+};
+
+}  // namespace Mm
+
+#endif  // _MM_MIXTURE_HH

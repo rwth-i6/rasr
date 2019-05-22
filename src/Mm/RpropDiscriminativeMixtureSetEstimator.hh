@@ -16,97 +16,100 @@
 #define _MM_RPROP_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH
 
 #include "DiscriminativeMixtureSetEstimator.hh"
-#include "RpropDiscriminativeMixtureEstimator.hh"
 #include "ISmoothingMixtureSetEstimator.hh"
+#include "RpropDiscriminativeMixtureEstimator.hh"
 
 namespace Mm {
 
-    /**
-     * RpropDiscriminativeMixtureSetEstimator
-     */
-    class RpropDiscriminativeMixtureSetEstimator :
-        public DiscriminativeMixtureSetEstimator
-    {
-        typedef DiscriminativeMixtureSetEstimator Precursor;
-    protected:
-        static const Core::ParameterFloat paramInitialStepSizeWeights;
-        static const Core::ParameterFloat paramInitialStepSizeMeans;
-        static const Core::ParameterFloat paramInitialStepSizeVariances;
-        static const Core::ParameterString paramNewStepSizesFilename;
-    protected:
-        virtual RpropDiscriminativeMixtureEstimator* createMixtureEstimator();
-        virtual RpropDiscriminativeGaussDensityEstimator* createDensityEstimator();
-        virtual RpropDiscriminativeGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
-        virtual RpropDiscriminativeMeanEstimator* createMeanEstimator();
-        virtual RpropDiscriminativeMeanEstimator* createMeanEstimator(const Mean&);
-        virtual RpropDiscriminativeCovarianceEstimator* createCovarianceEstimator();
-        virtual RpropDiscriminativeCovarianceEstimator* createCovarianceEstimator(const Covariance&);
+/**
+ * RpropDiscriminativeMixtureSetEstimator
+ */
+class RpropDiscriminativeMixtureSetEstimator : public DiscriminativeMixtureSetEstimator {
+    typedef DiscriminativeMixtureSetEstimator Precursor;
 
-        virtual RpropDiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(RpropDiscriminativeMixtureEstimator*,
-                                  mixtureEstimators_[mixture].get());
-        }
-        virtual bool accumulateMixture(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
-        virtual const std::string magic() const { return "DTACCR"; }
-        virtual void load();
-        virtual void initialize(const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-        virtual void finalize(MixtureSet &, const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-        void loadStepSizes();
-        void storeStepSizes();
-        bool distributeStepSizes(const MixtureSet &stepSizes);
-        bool distributeStepSizes(Weight stepSizeWeights, Weight stepSizeMeans, Weight stepSizeVariances);
-        bool distributeSettings();
-        void collectStepSizes(MixtureSet &stepSizes);
-        void loadPreviousToPreviousMixtureSet();
-    public:
-        RpropDiscriminativeMixtureSetEstimator(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureSetEstimator();
+protected:
+    static const Core::ParameterFloat  paramInitialStepSizeWeights;
+    static const Core::ParameterFloat  paramInitialStepSizeMeans;
+    static const Core::ParameterFloat  paramInitialStepSizeVariances;
+    static const Core::ParameterString paramNewStepSizesFilename;
 
-        virtual void read(Core::BinaryInputStream &);
-        virtual void write(Core::BinaryOutputStream &);
-        bool distributePreviousToPreviousMixtureSet(const MixtureSet &);
-    };
+protected:
+    virtual RpropDiscriminativeMixtureEstimator*      createMixtureEstimator();
+    virtual RpropDiscriminativeGaussDensityEstimator* createDensityEstimator();
+    virtual RpropDiscriminativeGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
+    virtual RpropDiscriminativeMeanEstimator*         createMeanEstimator();
+    virtual RpropDiscriminativeMeanEstimator*         createMeanEstimator(const Mean&);
+    virtual RpropDiscriminativeCovarianceEstimator*   createCovarianceEstimator();
+    virtual RpropDiscriminativeCovarianceEstimator*   createCovarianceEstimator(const Covariance&);
 
-    /**
-     * DiscriminativeMixtureSetEstimatorWithISmoothing: Rprop
-     */
-    class RpropDiscriminativeMixtureSetEstimatorWithISmoothing :
-        virtual public ISmoothingMixtureSetEstimator,
-        public RpropDiscriminativeMixtureSetEstimator
-    {
-        typedef RpropDiscriminativeMixtureSetEstimator Precursor;
-    protected:
-        typedef ISmoothingMixtureSetEstimator ISmoothing;
-    protected:
-        virtual RpropDiscriminativeMixtureEstimatorWithISmoothing* createMixtureEstimator();
-        virtual RpropDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator();
-        virtual RpropDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator(const GaussDensity&);
-        virtual RpropDiscriminativeMeanEstimatorWithISmoothing* createMeanEstimator();
-        virtual RpropDiscriminativeMeanEstimatorWithISmoothing* createMeanEstimator(const Mean&);
-        virtual RpropDiscriminativeCovarianceEstimatorWithISmoothing* createCovarianceEstimator();
-        virtual RpropDiscriminativeCovarianceEstimatorWithISmoothing* createCovarianceEstimator(const Covariance&);
+    virtual RpropDiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(RpropDiscriminativeMixtureEstimator*, mixtureEstimators_[mixture].get());
+    }
+    virtual bool              accumulateMixture(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+    virtual const std::string magic() const {
+        return "DTACCR";
+    }
+    virtual void load();
+    virtual void initialize(const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
+    virtual void finalize(MixtureSet&, const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
+    void         loadStepSizes();
+    void         storeStepSizes();
+    bool         distributeStepSizes(const MixtureSet& stepSizes);
+    bool         distributeStepSizes(Weight stepSizeWeights, Weight stepSizeMeans, Weight stepSizeVariances);
+    bool         distributeSettings();
+    void         collectStepSizes(MixtureSet& stepSizes);
+    void         loadPreviousToPreviousMixtureSet();
 
-        virtual RpropDiscriminativeMixtureEstimatorWithISmoothing& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(RpropDiscriminativeMixtureEstimatorWithISmoothing*,
-                                  mixtureEstimators_[mixture].get());
-        }
-        virtual void setIMixture(Core::Ref<AbstractMixtureEstimator>, const Mixture *, Weight iSmoothing);
-        virtual void setIDensity(Core::Ref<GaussDensityEstimator>, const GaussDensity *);
-        virtual void setIMean(Core::Ref<AbstractMeanEstimator>, const Mean *, Weight iSmoothing);
-        virtual void setICovariance(Core::Ref<AbstractCovarianceEstimator>, const Covariance *, Weight iSmoothing);
-        virtual Weight getMixtureObjectiveFunction(Core::Ref<AbstractMixtureEstimator> estimator) {
-            return required_cast(RpropDiscriminativeMixtureEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction();
-        }
-        virtual Weight getCovarianceObjectiveFunction(Core::Ref<AbstractCovarianceEstimator> estimator, const CovarianceToMeanSetMap &meanSetMap) {
-            return required_cast(RpropDiscriminativeCovarianceEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction(meanSetMap);
-        }
-        virtual void load();
-        virtual void finalize(MixtureSet &, const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-    public:
-        RpropDiscriminativeMixtureSetEstimatorWithISmoothing(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureSetEstimatorWithISmoothing();
-    };
+public:
+    RpropDiscriminativeMixtureSetEstimator(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureSetEstimator();
 
-} //namespace Mm
+    virtual void read(Core::BinaryInputStream&);
+    virtual void write(Core::BinaryOutputStream&);
+    bool         distributePreviousToPreviousMixtureSet(const MixtureSet&);
+};
 
-#endif //_MM_RPROP_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH
+/**
+ * DiscriminativeMixtureSetEstimatorWithISmoothing: Rprop
+ */
+class RpropDiscriminativeMixtureSetEstimatorWithISmoothing : virtual public ISmoothingMixtureSetEstimator,
+                                                             public RpropDiscriminativeMixtureSetEstimator {
+    typedef RpropDiscriminativeMixtureSetEstimator Precursor;
+
+protected:
+    typedef ISmoothingMixtureSetEstimator ISmoothing;
+
+protected:
+    virtual RpropDiscriminativeMixtureEstimatorWithISmoothing*      createMixtureEstimator();
+    virtual RpropDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator();
+    virtual RpropDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator(const GaussDensity&);
+    virtual RpropDiscriminativeMeanEstimatorWithISmoothing*         createMeanEstimator();
+    virtual RpropDiscriminativeMeanEstimatorWithISmoothing*         createMeanEstimator(const Mean&);
+    virtual RpropDiscriminativeCovarianceEstimatorWithISmoothing*   createCovarianceEstimator();
+    virtual RpropDiscriminativeCovarianceEstimatorWithISmoothing*   createCovarianceEstimator(const Covariance&);
+
+    virtual RpropDiscriminativeMixtureEstimatorWithISmoothing& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(RpropDiscriminativeMixtureEstimatorWithISmoothing*,
+                              mixtureEstimators_[mixture].get());
+    }
+    virtual void   setIMixture(Core::Ref<AbstractMixtureEstimator>, const Mixture*, Weight iSmoothing);
+    virtual void   setIDensity(Core::Ref<GaussDensityEstimator>, const GaussDensity*);
+    virtual void   setIMean(Core::Ref<AbstractMeanEstimator>, const Mean*, Weight iSmoothing);
+    virtual void   setICovariance(Core::Ref<AbstractCovarianceEstimator>, const Covariance*, Weight iSmoothing);
+    virtual Weight getMixtureObjectiveFunction(Core::Ref<AbstractMixtureEstimator> estimator) {
+        return required_cast(RpropDiscriminativeMixtureEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction();
+    }
+    virtual Weight getCovarianceObjectiveFunction(Core::Ref<AbstractCovarianceEstimator> estimator, const CovarianceToMeanSetMap& meanSetMap) {
+        return required_cast(RpropDiscriminativeCovarianceEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction(meanSetMap);
+    }
+    virtual void load();
+    virtual void finalize(MixtureSet&, const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
+
+public:
+    RpropDiscriminativeMixtureSetEstimatorWithISmoothing(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureSetEstimatorWithISmoothing();
+};
+
+}  //namespace Mm
+
+#endif  //_MM_RPROP_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

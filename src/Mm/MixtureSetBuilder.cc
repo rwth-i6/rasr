@@ -20,28 +20,24 @@ using namespace Mm;
 ////////////////////
 
 MixtureSetBuilder::MixtureSetBuilder(MixtureIndex nMixtures,
-                                     size_t nDensitiesPerMixture) :
-    nMixtures_(nMixtures),
-    nDensitiesPerMixture_(nDensitiesPerMixture)
-{}
+                                     size_t       nDensitiesPerMixture)
+        : nMixtures_(nMixtures),
+          nDensitiesPerMixture_(nDensitiesPerMixture) {}
 
-
-void MixtureSetBuilder::build(MixtureSet &toBuild, ComponentIndex dimension)
-{
+void MixtureSetBuilder::build(MixtureSet& toBuild, ComponentIndex dimension) {
     toBuild.clear();
     toBuild.setDimension(dimension);
 
-    for(MixtureIndex mix = 0; mix < nMixtures_; ++ mix) {
-        Mixture *mixture = new Mixture;
-        for(size_t dns = 0; dns < nDensitiesPerMixture_; ++ dns) {
+    for (MixtureIndex mix = 0; mix < nMixtures_; ++mix) {
+        Mixture* mixture = new Mixture;
+        for (size_t dns = 0; dns < nDensitiesPerMixture_; ++dns) {
             if (densityIndex(mix, dns) >= toBuild.nDensities()) {
                 if (meanIndex(mix, dns) >= toBuild.nMeans())
                     toBuild.addMean(meanIndex(mix, dns), new Mean(dimension));
                 if (covarianceIndex(mix, dns) >= toBuild.nCovariances())
                     toBuild.addCovariance(covarianceIndex(mix, dns), new DiagonalCovariance(dimension));
 
-                toBuild.addDensity(densityIndex(mix, dns), new GaussDensity(meanIndex(mix, dns),
-                                                                            covarianceIndex(mix, dns)));
+                toBuild.addDensity(densityIndex(mix, dns), new GaussDensity(meanIndex(mix, dns), covarianceIndex(mix, dns)));
             }
             mixture->addDensity(densityIndex(mix, dns));
         }

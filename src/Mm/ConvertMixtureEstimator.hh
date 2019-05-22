@@ -15,24 +15,24 @@
 #ifndef _MM_CONVERT_MIXTURE_ESTIMATOR_HH
 #define _MM_CONVERT_MIXTURE_ESTIMATOR_HH
 
-#include "MixtureEstimator.hh"
 #include "ConvertGaussDensityEstimator.hh"
+#include "MixtureEstimator.hh"
 
 namespace Mm {
 
-    /**
-     *  ConvertMixtureEstimator
-     */
-    class ConvertMixtureEstimator : public MixtureEstimator
-    {
-        typedef MixtureEstimator Precursor;
-    public:
-        ConvertMixtureEstimator() {}
-        virtual ~ConvertMixtureEstimator() {}
+/**
+ *  ConvertMixtureEstimator
+ */
+class ConvertMixtureEstimator : public MixtureEstimator {
+    typedef MixtureEstimator Precursor;
 
-        void setMixture(const Mixture *);
-    };
+public:
+    ConvertMixtureEstimator() {}
+    virtual ~ConvertMixtureEstimator() {}
 
-} //namespace Mm
+    void setMixture(const Mixture*);
+};
 
-#endif //_MM_CONVERT_MIXTURE_ESTIMATOR_HH
+}  //namespace Mm
+
+#endif  //_MM_CONVERT_MIXTURE_ESTIMATOR_HH

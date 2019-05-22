@@ -1,24 +1,22 @@
-#include <set>
+#include <Core/BinaryStream.hh>
+#include <Core/Extensions.hh>
+#include <Core/Utility.hh>
+#include <Mm/Utilities.hh>
 #include <algorithm>
 #include <functional>
-#include <Core/BinaryStream.hh>
-#include <Core/Utility.hh>
-#include <Core/Extensions.hh>
-#include <Mm/Utilities.hh>
+#include <set>
 
 namespace Mm {
 
 template<class F, class D>
-bool DensityClustering<F, D>::writeMeans(Core::MappedArchiveWriter os) const
-{
+bool DensityClustering<F, D>::writeMeans(Core::MappedArchiveWriter os) const {
     std::vector<FeatureType> tmp(clusterMeans_, clusterMeans_ + nClusters_ * dimension_);
     os << tmp;
     return os.good();
 }
 
 template<class F, class D>
-bool DensityClustering<F, D>::readMeans(Core::MappedArchiveReader is)
-{
+bool DensityClustering<F, D>::readMeans(Core::MappedArchiveReader is) {
     std::vector<FeatureType> tmp;
     is >> tmp;
     verify(tmp.size() == nClusters_ * dimension_);
@@ -27,39 +25,36 @@ bool DensityClustering<F, D>::readMeans(Core::MappedArchiveReader is)
 }
 
 template<class F, class D>
-bool DensityClustering<F, D>::writeTypes(Core::MappedArchiveWriter os) const
-{
+bool DensityClustering<F, D>::writeTypes(Core::MappedArchiveWriter os) const {
     os << Core::Type<FeatureType>::name << Core::Type<DistanceType>::name;
     return os.good();
 }
 
 template<class F, class D>
-bool DensityClustering<F, D>::readTypes(Core::MappedArchiveReader is) const
-{
+bool DensityClustering<F, D>::readTypes(Core::MappedArchiveReader is) const {
     std::string featureType, distanceType;
     is >> featureType >> distanceType;
-    if (!is.good()) return false;
+    if (!is.good())
+        return false;
     return (featureType == Core::Type<FeatureType>::name &&
             distanceType == Core::Type<DistanceType>::name);
 }
-
 
 /**
  * Initialize each cluster with a unique random density.
  * Updates clusterMeans_
  */
 template<class F, class D>
-void DensityClustering<F, D>::initializeClusters(const FeatureType *densities)
-{
+void DensityClustering<F, D>::initializeClusters(const FeatureType* densities) {
     std::set<u32> usedDensities;
-    srand(1); // Pseudo-random
+    srand(1);  // Pseudo-random
     for (u32 cluster = 0; cluster < nClusters_; ++cluster) {
         u32 initializeWithDensity = 0;
         do {
             initializeWithDensity = rand() % nDensities_;
         } while (usedDensities.count(initializeWithDensity));
         usedDensities.insert(initializeWithDensity);
-        const FeatureType *mean = meanForDensity(densities, initializeWithDensity);
+        const FeatureType* mean = meanForDensity(densities, initializeWithDensity);
         std::copy(mean, mean + dimension_, meanForCluster(cluster));
     }
 }
@@ -69,18 +64,16 @@ void DensityClustering<F, D>::initializeClusters(const FeatureType *densities)
  * Updates clusterIndexForDensity_
  */
 template<class F, class D>
-void DensityClustering<F, D>::assignDensities(
-        const FeatureType *densities, DensityAssignment &densityAssignment)
-{
+void DensityClustering<F, D>::assignDensities(const FeatureType* densities, DensityAssignment& densityAssignment) {
     for (u32 density = 0; density < nDensities_; ++density) {
         DistanceType bestDistance = Core::Type<DistanceType>::max;
-        u32 bestCluster = 0;
+        u32          bestCluster  = 0;
         for (u32 cluster = 0; cluster < nClusters_; ++cluster) {
             DistanceType dist = unrolledVectorDistance<FeatureType, DistanceType>(
                     meanForCluster(cluster), meanForDensity(densities, density), dimension_);
             if (dist < bestDistance) {
                 bestDistance = dist;
-                bestCluster = cluster;
+                bestCluster  = cluster;
             }
         }
         verify(bestDistance != Core::Type<DistanceType>::max);
@@ -90,9 +83,7 @@ void DensityClustering<F, D>::assignDensities(
 }
 
 template<class F, class D>
-f64 DensityClustering<F, D>::updateClusterMeans(
-        const FeatureType *densities, DensityAssignment &densityAssignment)
-{
+f64 DensityClustering<F, D>::updateClusterMeans(const FeatureType* densities, DensityAssignment& densityAssignment) {
     f64 totalAssignmentDistance = 0;
     for (u32 cluster = 0; cluster < nClusters_; ++cluster) {
         const std::vector<u32>& assignedDensities(densityAssignment[cluster]);
@@ -100,7 +91,7 @@ f64 DensityClustering<F, D>::updateClusterMeans(
             continue;
         std::vector<f64> sums(dimension_, 0);
         for (u32 assigned = 0; assigned < assignedDensities.size(); ++assigned) {
-            const FeatureType *density = meanForDensity(densities, assignedDensities[assigned]);
+            const FeatureType* density = meanForDensity(densities, assignedDensities[assigned]);
             std::transform(sums.begin(), sums.end(), density, sums.begin(), std::plus<f64>());
         }
         std::transform(sums.begin(), sums.end(), meanForCluster(cluster),
@@ -114,20 +105,19 @@ f64 DensityClustering<F, D>::updateClusterMeans(
 }
 
 template<class F, class D>
-void DensityClustering<F, D>::build(const FeatureType *densities)
-{
+void DensityClustering<F, D>::build(const FeatureType* densities) {
     verify(nClusters_ > 0);
     verify(nDensities_ > 0);
     verify(dimension_ > 0);
     clusterMeans_ = new FeatureType[nClusters_ * dimension_];
-        if (load()) {
-            log("using cached density clustering");
-            return;
-        }
+    if (load()) {
+        log("using cached density clustering");
+        return;
+    }
     Core::XmlChannel statChannel(config, "statistics");
     if (statChannel.isOpen()) {
         statChannel << Core::XmlOpen("density-clustering") +
-                       Core::XmlAttribute("clusters", nClusters_);
+                               Core::XmlAttribute("clusters", nClusters_);
     }
     verify(nClusters_ <= nDensities_);
     initializeClusters(densities);
@@ -151,14 +141,12 @@ void DensityClustering<F, D>::build(const FeatureType *densities)
 }
 
 template<class F, class D>
-void DensityClustering<F, D>::selectClusters(bool *selection, FeatureType* feature) const
-{
+void DensityClustering<F, D>::selectClusters(bool* selection, FeatureType* feature) const {
     typedef std::pair<DistanceType, u32> SortedClusterItem;
-    std::vector<SortedClusterItem> clustersByDistance(nClusters_);
+    std::vector<SortedClusterItem>       clustersByDistance(nClusters_);
     // Compute the distance for each cluster
     for (u32 cluster = 0; cluster < nClusters_; ++cluster) {
-        DistanceType d = unrolledVectorDistance<FeatureType, DistanceType>(
-                feature, meanForCluster(cluster), dimension_);
+        DistanceType d              = unrolledVectorDistance<FeatureType, DistanceType>(feature, meanForCluster(cluster), dimension_);
         clustersByDistance[cluster] = std::make_pair(d, cluster);
     }
 
@@ -172,10 +160,9 @@ void DensityClustering<F, D>::selectClusters(bool *selection, FeatureType* featu
 
     // Mark the best clusters as selected, the others as unselected
     std::fill(selection, selection + nClusters_, false);
-    for(u32 sortedCluster = 0; sortedCluster < nSelected_; ++sortedCluster) {
+    for (u32 sortedCluster = 0; sortedCluster < nSelected_; ++sortedCluster) {
         *(selection + clustersByDistance[sortedCluster].second) = true;
     }
 }
-
 
 }  // namespace Mm

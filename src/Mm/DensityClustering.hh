@@ -15,30 +15,29 @@
 #ifndef _MM_DENSITY_CLUSTERING_HH
 #define _MM_DENSITY_CLUSTERING_HH
 
-#include <vector>
 #include <Core/Component.hh>
 #include <Core/MappedArchive.hh>
+#include <vector>
 
 namespace Core {
 class BinaryInputStream;
 class BinaryOutputStream;
-}
+}  // namespace Core
 
 namespace Mm {
 
-class DensityClusteringBase : public Core::Component
-{
+class DensityClusteringBase : public Core::Component {
 public:
-    typedef u8 ClusterIndex;
+    typedef u8                                        ClusterIndex;
     typedef std::vector<ClusterIndex>::const_iterator ClusterIndexIterator;
 
-    static const Core::ParameterInt paramClusteringIterations;
-    static const Core::ParameterInt paramNumClusters;
-    static const Core::ParameterInt paramSelectClusters;
+    static const Core::ParameterInt    paramClusteringIterations;
+    static const Core::ParameterInt    paramNumClusters;
+    static const Core::ParameterInt    paramSelectClusters;
     static const Core::ParameterString paramCacheArchive;
-    static const Core::ParameterFloat paramBackoffScore;
+    static const Core::ParameterFloat  paramBackoffScore;
 
-    DensityClusteringBase(const Core::Configuration &config);
+    DensityClusteringBase(const Core::Configuration& config);
     virtual ~DensityClusteringBase() {}
 
     /** Initialize the Clustering for the given feature dimension
@@ -50,7 +49,7 @@ public:
     /** Maps densities to the assigned cluster index.
      */
     ClusterIndex clusterIndexForDensity(size_t density) const {
-      return clusterIndexForDensity_[density];
+        return clusterIndexForDensity_[density];
     }
     /** Iterator over density to cluster index assignment.
      * Iterator starts at the given density index.
@@ -59,7 +58,9 @@ public:
         return clusterIndexForDensity_.begin() + density;
     }
 
-    u32 nClusters() const { return nClusters_; }
+    u32 nClusters() const {
+        return nClusters_;
+    }
 
 protected:
     /** Save the clustering to the cache.
@@ -72,31 +73,29 @@ protected:
      */
     bool load();
 
-    virtual bool writeMeans(Core::MappedArchiveWriter) const = 0;
-    virtual bool readMeans(Core::MappedArchiveReader) = 0;
-    virtual bool writeTypes(Core::MappedArchiveWriter) const = 0;
-    virtual bool readTypes(Core::MappedArchiveReader) const = 0;
+    virtual bool              writeMeans(Core::MappedArchiveWriter) const = 0;
+    virtual bool              readMeans(Core::MappedArchiveReader)        = 0;
+    virtual bool              writeTypes(Core::MappedArchiveWriter) const = 0;
+    virtual bool              readTypes(Core::MappedArchiveReader) const  = 0;
     std::vector<ClusterIndex> clusterIndexForDensity_;
 
-    u32 nClusters_, nSelected_;
-    u32 dimension_, nDensities_;
+    u32         nClusters_, nSelected_;
+    u32         dimension_, nDensities_;
     const float backoffScore_;
 
     static const std::string FileMagic;
-    static const u32 FileFormatVersion;
+    static const u32         FileFormatVersion;
 };
 
-
 template<class F, class D>
-class DensityClustering : public DensityClusteringBase
-{
+class DensityClustering : public DensityClusteringBase {
 public:
     typedef F FeatureType;
     typedef D DistanceType;
 
-    DensityClustering(const Core::Configuration &c) :
-        DensityClusteringBase(c),
-        clusterMeans_(0) {}
+    DensityClustering(const Core::Configuration& c)
+            : DensityClusteringBase(c),
+              clusterMeans_(0) {}
 
     ~DensityClustering() {
         delete[] clusterMeans_;
@@ -108,7 +107,7 @@ public:
      * if possible. If the clustering cannot be read from file it is build and
      * written to the file.
      */
-    void build(const FeatureType *densityMeans);
+    void build(const FeatureType* densityMeans);
 
     /**
      * @param selection A boolean array where for each selected cluster 'true' will be stored,
@@ -118,7 +117,7 @@ public:
      * @param select Number of clusters to select.
      * @param feature The feature, must have the size paddedDimension.
      * */
-    void selectClusters(bool *selection, FeatureType* feature) const;
+    void selectClusters(bool* selection, FeatureType* feature) const;
 
     DistanceType backoffScore() const {
         return backoffScore_;
@@ -130,32 +129,28 @@ private:
     bool writeTypes(Core::MappedArchiveWriter) const;
     bool readTypes(Core::MappedArchiveReader) const;
 
-
-    FeatureType* meanForCluster(ClusterIndex cluster)
-    {
+    FeatureType* meanForCluster(ClusterIndex cluster) {
         return clusterMeans_ + cluster * dimension_;
     }
-    const FeatureType* meanForCluster(ClusterIndex cluster) const
-    {
+    const FeatureType* meanForCluster(ClusterIndex cluster) const {
         return clusterMeans_ + cluster * dimension_;
     }
 
-    const FeatureType* meanForDensity(const FeatureType *means, u32 density) const
-    {
+    const FeatureType* meanForDensity(const FeatureType* means, u32 density) const {
         return means + density * dimension_;
     }
 
-    typedef std::vector< std::vector<u32> > DensityAssignment;
-    void initializeClusters(const FeatureType *densities);
-    void assignDensities(const FeatureType *densities, DensityAssignment &densityAssignment);
-    f64 updateClusterMeans(const FeatureType *densities, DensityAssignment &densityAssignment);
+    typedef std::vector<std::vector<u32>> DensityAssignment;
+    void                                  initializeClusters(const FeatureType* densities);
+    void                                  assignDensities(const FeatureType* densities, DensityAssignment& densityAssignment);
+    f64                                   updateClusterMeans(const FeatureType* densities, DensityAssignment& densityAssignment);
 
     FeatureType* clusterMeans_;
 };
 
-} // namespace Mm
+}  // namespace Mm
 
 // Include the template definitions
 #include <Mm/DensityClustering.tcc>
 
-#endif // _MM_DENSITY_CLUSTERING_HH
+#endif  // _MM_DENSITY_CLUSTERING_HH

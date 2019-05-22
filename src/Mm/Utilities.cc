@@ -16,16 +16,14 @@
 
 using namespace Mm;
 
-
-ProbabilityStatistics::ProbabilityStatistics(const std::string &name, u32 nBuckets) :
-    name_(name),
-    nBuckets_(nBuckets)
-{
+ProbabilityStatistics::ProbabilityStatistics(const std::string& name, u32 nBuckets)
+        : name_(name),
+          nBuckets_(nBuckets) {
     counts_ = new Mm::Weight[nBuckets];
-    sum_ = new Mm::Sum[nBuckets];
-    for (int i=0; i<nBuckets_; ++i) {
+    sum_    = new Mm::Sum[nBuckets];
+    for (int i = 0; i < nBuckets_; ++i) {
         counts_[i] = 0.0;
-        sum_[i] = 0.0;
+        sum_[i]    = 0.0;
     }
 }
 
@@ -34,8 +32,7 @@ ProbabilityStatistics::~ProbabilityStatistics() {
     delete[] sum_;
 }
 
-void ProbabilityStatistics::operator+=(Mm::Weight probability)
-{
+void ProbabilityStatistics::operator+=(Mm::Weight probability) {
     int bin = int(probability * nBuckets_);
     if (bin >= nBuckets_)
         bin = nBuckets_ - 1;
@@ -45,26 +42,23 @@ void ProbabilityStatistics::operator+=(Mm::Weight probability)
     sum_[bin] += probability;
 }
 
-void ProbabilityStatistics::writeXml(Core::XmlWriter &xml) const
-{
+void ProbabilityStatistics::writeXml(Core::XmlWriter& xml) const {
     Mm::Sum totalCounts = 0.0;
-    Mm::Sum totalSum = 0.0;
-    for (int i=0; i<nBuckets_; ++i) {
+    Mm::Sum totalSum    = 0.0;
+    for (int i = 0; i < nBuckets_; ++i) {
         totalCounts += counts_[i];
         totalSum += sum_[i];
     }
-    xml << Core::XmlOpen("statistic")
-        + Core::XmlAttribute("name", name_)
-        + Core::XmlAttribute("type", "probability-histogram")
+    xml << Core::XmlOpen("statistic") + Core::XmlAttribute("name", name_) + Core::XmlAttribute("type", "probability-histogram")
         << Core::XmlFull("count", totalCounts)
         << Core::XmlFull("sum", totalSum);
     if (totalCounts > 0 && totalSum > 0) {
         xml << Core::XmlOpen("table");
-        std::ostream &out = xml;
+        std::ostream& out = xml;
         out << "prob  rel.counts  rel.sum" << std::endl;
-        for (int i=0; i<nBuckets_; ++i) {
+        for (int i = 0; i < nBuckets_; ++i) {
             out << Core::form("%1.3f %8.9f %8.9f",
-                              (i+0.5)/nBuckets_, counts_[i]/totalCounts, sum_[i]/totalSum)
+                              (i + 0.5) / nBuckets_, counts_[i] / totalCounts, sum_[i] / totalSum)
                 << std::endl;
         }
         xml << Core::XmlClose("table");

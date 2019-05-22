@@ -19,4 +19,4 @@ namespace Mm {
 template class RpropOptimization<f32>;
 template class RpropOptimization<f64>;
 
-}
+}  // namespace Mm

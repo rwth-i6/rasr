@@ -16,17 +16,15 @@
 
 using namespace Mm;
 
-bool GaussDensityTopology::write(std::ostream& o) const
-{
-        o << meanIndex() << " " << covarianceIndex() << std::endl;
-        return o.good();
+bool GaussDensityTopology::write(std::ostream& o) const {
+    o << meanIndex() << " " << covarianceIndex() << std::endl;
+    return o.good();
 }
-bool GaussDensityTopology::read(std::istream& i)
-{
-        MeanIndex m;
-        CovarianceIndex c;
-        i >> m >> c;
-        setMeanIndex(m);
-        setCovarianceIndex(c);
-        return i.good();
+bool GaussDensityTopology::read(std::istream& i) {
+    MeanIndex       m;
+    CovarianceIndex c;
+    i >> m >> c;
+    setMeanIndex(m);
+    setCovarianceIndex(c);
+    return i.good();
 }

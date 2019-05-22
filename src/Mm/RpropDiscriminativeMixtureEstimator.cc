@@ -20,33 +20,27 @@ using namespace Mm;
 /**
  * RpropDiscriminativeMixtureEstimator: Resilient Backpropagation (Rprop)
  */
-RpropDiscriminativeMixtureEstimator::RpropDiscriminativeMixtureEstimator(
-    const Core::Configuration &c)
-    :
-    Precursor(c)
-{}
+RpropDiscriminativeMixtureEstimator::RpropDiscriminativeMixtureEstimator(const Core::Configuration& c)
+        : Precursor(c) {}
 
-void RpropDiscriminativeMixtureEstimator::removeDensity(DensityIndex indexInMixture)
-{
+void RpropDiscriminativeMixtureEstimator::removeDensity(DensityIndex indexInMixture) {
     Precursor::removeDensity(indexInMixture);
     previousToPrevious_.erase(previousToPrevious_.begin() + indexInMixture);
     stepSizes_.erase(stepSizes_.begin() + indexInMixture);
 }
 
-Mixture* RpropDiscriminativeMixtureEstimator::estimate(
-    const ReferenceIndexMap<GaussDensityEstimator> &densityMap,
-    bool normalizeWeights)
-{
+Mixture* RpropDiscriminativeMixtureEstimator::estimate(const ReferenceIndexMap<GaussDensityEstimator>& densityMap,
+                                                       bool                                            normalizeWeights) {
     std::vector<Weight> logMixtureWeights(nDensities());
-    for (DensityIndex dns = 0; dns < nDensities(); ++ dns) {
+    for (DensityIndex dns = 0; dns < nDensities(); ++dns) {
         logMixtureWeights[dns] = logPreviousMixtureWeight(dns);
     }
     Rprop::apply(logMixtureWeights);
-    Mixture *result = new Mixture;
-    for (DensityIndex dns = 0; dns < densityEstimators_.size(); ++ dns) {
+    Mixture* result = new Mixture;
+    for (DensityIndex dns = 0; dns < densityEstimators_.size(); ++dns) {
         result->addLogDensity(
-            densityMap[densityEstimators_[dns]],
-            logMixtureWeights[dns]);
+                densityMap[densityEstimators_[dns]],
+                logMixtureWeights[dns]);
     }
     if (normalizeWeights) {
         result->normalizeWeights();
@@ -54,39 +48,29 @@ Mixture* RpropDiscriminativeMixtureEstimator::estimate(
     return result;
 }
 
-DensityIndex RpropDiscriminativeMixtureEstimator::accumulate(
-    Core::BinaryInputStreams &is,
-    Core::BinaryOutputStream &os)
-{
+DensityIndex RpropDiscriminativeMixtureEstimator::accumulate(Core::BinaryInputStreams& is,
+                                                             Core::BinaryOutputStream& os) {
     return Precursor::accumulate(is, os);
 }
 
-void RpropDiscriminativeMixtureEstimator::setStepSizes(
-    const Mixture *mixture)
-{
+void RpropDiscriminativeMixtureEstimator::setStepSizes(const Mixture* mixture) {
     require(mixture and mixture->nDensities() == nDensities());
     Rprop::setStepSizes(mixture->logWeights());
 }
 
-void RpropDiscriminativeMixtureEstimator::setStepSizes(
-    Weight stepSize)
-{
+void RpropDiscriminativeMixtureEstimator::setStepSizes(Weight stepSize) {
     Rprop::setStepSizes(nDensities(), stepSize);
 }
 
-Mixture* RpropDiscriminativeMixtureEstimator::collectStepSizes(
-    const ReferenceIndexMap<GaussDensityEstimator> &densityMap)
-{
-    Mixture *result = new Mixture;
-    for (DensityIndex dns = 0; dns < densityEstimators_.size(); ++ dns) {
+Mixture* RpropDiscriminativeMixtureEstimator::collectStepSizes(const ReferenceIndexMap<GaussDensityEstimator>& densityMap) {
+    Mixture* result = new Mixture;
+    for (DensityIndex dns = 0; dns < densityEstimators_.size(); ++dns) {
         result->addLogDensity(densityMap[densityEstimators_[dns]], Rprop::stepSizes()[dns]);
     }
     return result;
 }
 
-void RpropDiscriminativeMixtureEstimator::setPreviousToPreviousMixture(
-    const Mixture *mixture)
-{
+void RpropDiscriminativeMixtureEstimator::setPreviousToPreviousMixture(const Mixture* mixture) {
     require(mixture and mixture->nDensities() == nDensities());
     Rprop::setPreviousToPrevious(mixture->logWeights());
 }
@@ -94,25 +78,19 @@ void RpropDiscriminativeMixtureEstimator::setPreviousToPreviousMixture(
 /**
  * DiscriminativeMixtureEstimatorWithISmoothing: Rprop
  */
-RpropDiscriminativeMixtureEstimatorWithISmoothing::RpropDiscriminativeMixtureEstimatorWithISmoothing(
-    const Core::Configuration &c)
-    :
-    Precursor(c)
-{
+RpropDiscriminativeMixtureEstimatorWithISmoothing::RpropDiscriminativeMixtureEstimatorWithISmoothing(const Core::Configuration& c)
+        : Precursor(c) {
     ISmoothing::set(this);
 }
 
-RpropDiscriminativeMixtureEstimatorWithISmoothing::~RpropDiscriminativeMixtureEstimatorWithISmoothing()
-{}
+RpropDiscriminativeMixtureEstimatorWithISmoothing::~RpropDiscriminativeMixtureEstimatorWithISmoothing() {}
 
-void RpropDiscriminativeMixtureEstimatorWithISmoothing::removeDensity(DensityIndex indexInMixture)
-{
+void RpropDiscriminativeMixtureEstimatorWithISmoothing::removeDensity(DensityIndex indexInMixture) {
     Precursor::removeDensity(indexInMixture);
     ISmoothing::removeDensity(indexInMixture);
 }
 
-void RpropDiscriminativeMixtureEstimatorWithISmoothing::clear()
-{
+void RpropDiscriminativeMixtureEstimatorWithISmoothing::clear() {
     Precursor::clear();
     ISmoothing::clear();
 }

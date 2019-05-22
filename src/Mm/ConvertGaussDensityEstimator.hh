@@ -19,43 +19,42 @@
 
 namespace Mm {
 
-    /**
-     * ConvertGaussDensityEstimator
-     */
-    class ConvertGaussDensityEstimator : public GaussDensityEstimator
-    {
-    public:
-        ConvertGaussDensityEstimator() {}
+/**
+ * ConvertGaussDensityEstimator
+ */
+class ConvertGaussDensityEstimator : public GaussDensityEstimator {
+public:
+    ConvertGaussDensityEstimator() {}
 
-        void setDensity(const GaussDensity *);
-    };
+    void setDensity(const GaussDensity*);
+};
 
-    /**
-     * ConvertMeanEstimator
-     */
-    class ConvertMeanEstimator : public MeanEstimator
-    {
-        typedef MeanEstimator Precursor;
-    public:
-        ConvertMeanEstimator(ComponentIndex dimension = 0);
-        virtual ~ConvertMeanEstimator() {}
+/**
+ * ConvertMeanEstimator
+ */
+class ConvertMeanEstimator : public MeanEstimator {
+    typedef MeanEstimator Precursor;
 
-        void setMean(const Mean *);
-    };
+public:
+    ConvertMeanEstimator(ComponentIndex dimension = 0);
+    virtual ~ConvertMeanEstimator() {}
 
-    /**
-     * ConvertCovarianceEstimator
-     */
-    class ConvertCovarianceEstimator : public CovarianceEstimator
-    {
-        typedef CovarianceEstimator Precursor;
-    public:
-        ConvertCovarianceEstimator(ComponentIndex dimension = 0);
-        virtual ~ConvertCovarianceEstimator() {}
+    void setMean(const Mean*);
+};
 
-        void setCovariance(const Covariance *, const CovarianceToMeanSetMap &);
-    };
+/**
+ * ConvertCovarianceEstimator
+ */
+class ConvertCovarianceEstimator : public CovarianceEstimator {
+    typedef CovarianceEstimator Precursor;
 
-} //namespace Mm
+public:
+    ConvertCovarianceEstimator(ComponentIndex dimension = 0);
+    virtual ~ConvertCovarianceEstimator() {}
 
-#endif //_MM_CONVERT_MIXTURE_ESTIMATOR_HH
+    void setCovariance(const Covariance*, const CovarianceToMeanSetMap&);
+};
+
+}  //namespace Mm
+
+#endif  //_MM_CONVERT_MIXTURE_ESTIMATOR_HH

@@ -15,87 +15,102 @@
 #ifndef _MM_VECTOR_ACCUMULATOR_HH
 #define _MM_VECTOR_ACCUMULATOR_HH
 
-#include "Utilities.hh"
-#include <vector>
 #include <Core/BinaryStream.hh>
 #include <Core/XmlStream.hh>
-#include "Types.hh"
+#include <vector>
 #include "GaussDensity.hh"
+#include "Types.hh"
+#include "Utilities.hh"
 
 namespace Mm {
 
-    template<class InputType, class PlusOperation, class PlusWeightedOperation>
-    class VectorAccumulator {
-        typedef VectorAccumulator<InputType, PlusOperation, PlusWeightedOperation> Self;
-    public:
-        typedef typename PlusOperation::first_argument_type SumType;
-    protected:
-        std::vector<SumType> sum_;
-        Weight weight_;
-    public:
-        VectorAccumulator(ComponentIndex size = 0) : weight_(0) {
-            resize(size);
-        }
-        VectorAccumulator(const std::vector<SumType> &sum, Weight weight) :
-            sum_(sum), weight_(weight) {}
+template<class InputType, class PlusOperation, class PlusWeightedOperation>
+class VectorAccumulator {
+    typedef VectorAccumulator<InputType, PlusOperation, PlusWeightedOperation> Self;
 
-        void resize(ComponentIndex size) {
-            sum_.resize(size);
-            reset();
-        }
-        ComponentIndex size() const { return sum_.size(); }
+public:
+    typedef typename PlusOperation::first_argument_type SumType;
 
-        void reset() {
-            std::fill(sum_.begin(), sum_.end(), 0);
-            weight_ = 0;
-        }
+protected:
+    std::vector<SumType> sum_;
+    Weight               weight_;
 
-        void accumulate(const std::vector<InputType> &v) {
-            unrolledTransform(sum_.begin(), sum_.end(), v.begin(), sum_.begin(), PlusOperation());
-            ++ weight_;
-        }
-        void accumulate(const std::vector<InputType> &v, Weight weight) {
-            unrolledTransform(sum_.begin(), sum_.end(), v.begin(), sum_.begin(), PlusWeightedOperation(weight));
-            weight_ += weight;
-        }
-        void accumulate(const Self &v) {
-            unrolledTransform(sum_.begin(), sum_.end(), v.sum_.begin(), sum_.begin(), std::plus<SumType>());
-            weight_ += v.weight_;
-        }
+public:
+    VectorAccumulator(ComponentIndex size = 0)
+            : weight_(0) {
+        resize(size);
+    }
+    VectorAccumulator(const std::vector<SumType>& sum, Weight weight)
+            : sum_(sum), weight_(weight) {}
 
-        const std::vector<SumType>& sum() const { return sum_; }
-        Weight weight() const { return weight_; }
+    void resize(ComponentIndex size) {
+        sum_.resize(size);
+        reset();
+    }
+    ComponentIndex size() const {
+        return sum_.size();
+    }
 
-        void read(Core::BinaryInputStream &i, u32 version) {
-            u32 size; i >> size; sum_.resize(size);
-            for(typename std::vector<SumType>::iterator it = sum_.begin(); it != sum_.end();
-                it ++) i >> (*it);
-            if (version > 0) {
-                i >> weight_;
-            } else {
-                Count tmp;
-                i >> tmp;
-                weight_ = tmp;
-            }
-        }
-        void write(Core::BinaryOutputStream &o) const {
-            o << (u32)sum_.size();
-            std::copy(sum_.begin(), sum_.end(), Core::BinaryOutputStream::Iterator<SumType>(o));
-            o << weight_;
-        }
-        void write(Core::XmlWriter &o, const std::string &name = "vector-accumulator") const {
-            o << Core::XmlOpen(name)
-                + Core::XmlAttribute("size", sum_.size()) + Core::XmlAttribute("weight", weight_);
-            std::copy(sum_.begin(), sum_.end(), std::ostream_iterator<SumType>(o, " "));
-            o << Core::XmlClose(name);
-        }
+    void reset() {
+        std::fill(sum_.begin(), sum_.end(), 0);
+        weight_ = 0;
+    }
 
-        bool operator==(const Self &toCompare) const {
-            return weight_ == toCompare.weight_ && sum_ == toCompare.sum_;
+    void accumulate(const std::vector<InputType>& v) {
+        unrolledTransform(sum_.begin(), sum_.end(), v.begin(), sum_.begin(), PlusOperation());
+        ++weight_;
+    }
+    void accumulate(const std::vector<InputType>& v, Weight weight) {
+        unrolledTransform(sum_.begin(), sum_.end(), v.begin(), sum_.begin(), PlusWeightedOperation(weight));
+        weight_ += weight;
+    }
+    void accumulate(const Self& v) {
+        unrolledTransform(sum_.begin(), sum_.end(), v.sum_.begin(), sum_.begin(), std::plus<SumType>());
+        weight_ += v.weight_;
+    }
+
+    const std::vector<SumType>& sum() const {
+        return sum_;
+    }
+    Weight weight() const {
+        return weight_;
+    }
+
+    void read(Core::BinaryInputStream& i, u32 version) {
+        u32 size;
+        i >> size;
+        sum_.resize(size);
+        for (typename std::vector<SumType>::iterator it = sum_.begin(); it != sum_.end();
+             it++)
+            i >> (*it);
+        if (version > 0) {
+            i >> weight_;
         }
-        bool operator!=(const Self &toCompare) const { return !operator==(toCompare); }
-    };
+        else {
+            Count tmp;
+            i >> tmp;
+            weight_ = tmp;
+        }
+    }
+    void write(Core::BinaryOutputStream& o) const {
+        o << (u32)sum_.size();
+        std::copy(sum_.begin(), sum_.end(), Core::BinaryOutputStream::Iterator<SumType>(o));
+        o << weight_;
+    }
+    void write(Core::XmlWriter& o, const std::string& name = "vector-accumulator") const {
+        o << Core::XmlOpen(name) + Core::XmlAttribute("size", sum_.size()) + Core::XmlAttribute("weight", weight_);
+        std::copy(sum_.begin(), sum_.end(), std::ostream_iterator<SumType>(o, " "));
+        o << Core::XmlClose(name);
+    }
 
-} // namespace Mm
+    bool operator==(const Self& toCompare) const {
+        return weight_ == toCompare.weight_ && sum_ == toCompare.sum_;
+    }
+    bool operator!=(const Self& toCompare) const {
+        return !operator==(toCompare);
+    }
+};
 
-#endif //_MM_VECTOR_ACCUMULATOR_HH
+}  // namespace Mm
+
+#endif  //_MM_VECTOR_ACCUMULATOR_HH

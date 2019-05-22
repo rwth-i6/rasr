@@ -17,10 +17,10 @@
 using namespace Mm;
 
 //=============================================================================================
-void Feature::add(size_t newIndex, const Core::Ref<const Vector> &v)
-{
-    if (newIndex >= nStreams()) streams_.resize(newIndex + 1);
-    Core::Ref<const Vector> &s(streams_[newIndex]);
+void Feature::add(size_t newIndex, const Core::Ref<const Vector>& v) {
+    if (newIndex >= nStreams())
+        streams_.resize(newIndex + 1);
+    Core::Ref<const Vector>& s(streams_[newIndex]);
     require_(!s);
     s = v;
 }
@@ -30,30 +30,25 @@ const std::string FeatureDescription::defaultName("feature-description");
 const std::string FeatureDescription::nameDimension("dimension");
 const std::string FeatureDescription::namePortName("port-name");
 
-FeatureDescription::FeatureDescription(const std::string &name) :
-    Precursor(name)
-{}
+FeatureDescription::FeatureDescription(const std::string& name)
+        : Precursor(name) {}
 
-FeatureDescription::FeatureDescription(const Core::Configurable &parent) :
-    Precursor(prepareName(parent.fullName(), defaultName))
-{}
+FeatureDescription::FeatureDescription(const Core::Configurable& parent)
+        : Precursor(prepareName(parent.fullName(), defaultName)) {}
 
-FeatureDescription::FeatureDescription(const std::string &name, const Feature &feature) :
-    Precursor(name)
-{
+FeatureDescription::FeatureDescription(const std::string& name, const Feature& feature)
+        : Precursor(name) {
     initialize(feature);
 }
 
 FeatureDescription::FeatureDescription(
-    const Core::Configurable &parent, const Feature &feature) :
-    Precursor(prepareName(parent.fullName(), defaultName))
-{
+        const Core::Configurable& parent, const Feature& feature)
+        : Precursor(prepareName(parent.fullName(), defaultName)) {
     initialize(feature);
 }
 
-void FeatureDescription::initialize(const Feature &feature)
-{
-    for(size_t streamIndex = 0; streamIndex < feature.nStreams(); ++ streamIndex) {
+void FeatureDescription::initialize(const Feature& feature) {
+    for (size_t streamIndex = 0; streamIndex < feature.nStreams(); ++streamIndex) {
         operator[](streamIndex).setValue(nameDimension, feature[streamIndex]->size());
-     }
+    }
 }

@@ -21,74 +21,76 @@
 
 namespace Mm {
 
-    /**
-     *  discriminative mixture estimator: EBW
-     */
-    class EbwDiscriminativeMixtureEstimator :
-        public DiscriminativeMixtureEstimator
-    {
-        friend class MixtureSetEstimatorIndexMap;
-        typedef DiscriminativeMixtureEstimator Precursor;
-    private:
-        static const Core::ParameterInt paramNumberOfIterations;
-    protected:
-        std::vector<Weight> denWeights_;
-        u32 nIterations_;
-    protected:
-        virtual void removeDensity(DensityIndex indexInMixture);
-        void estimateMixtureWeights(std::vector<Weight> &, bool normalizeWeights = true) const;
-        virtual Weight weight(DensityIndex dns) const { return weights_[dns]; }
-    public:
-        EbwDiscriminativeMixtureEstimator(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureEstimator() {}
+/**
+ *  discriminative mixture estimator: EBW
+ */
+class EbwDiscriminativeMixtureEstimator : public DiscriminativeMixtureEstimator {
+    friend class MixtureSetEstimatorIndexMap;
+    typedef DiscriminativeMixtureEstimator Precursor;
 
-        virtual void addDensity(Core::Ref<GaussDensityEstimator>);
-        virtual void clear();
+private:
+    static const Core::ParameterInt paramNumberOfIterations;
 
-        virtual void accumulate(const AbstractMixtureEstimator &toAdd);
-        virtual void accumulateDenominator(DensityIndex, const FeatureVector &, Weight);
-        virtual void reset();
-        virtual Mixture* estimate(
-            const ReferenceIndexMap<GaussDensityEstimator> &densityMap, bool normalizeWeights = true);
+protected:
+    std::vector<Weight> denWeights_;
+    u32                 nIterations_;
 
-        virtual void read(Core::BinaryInputStream &,
-                          const std::vector<Core::Ref<GaussDensityEstimator> > &,
-                          u32 version);
-        virtual void write(Core::BinaryOutputStream &,
-                           const ReferenceIndexMap<GaussDensityEstimator> &) const;
-        virtual void write(Core::XmlWriter &,
-                           const ReferenceIndexMap<GaussDensityEstimator> &) const;
+protected:
+    virtual void   removeDensity(DensityIndex indexInMixture);
+    void           estimateMixtureWeights(std::vector<Weight>&, bool normalizeWeights = true) const;
+    virtual Weight weight(DensityIndex dns) const {
+        return weights_[dns];
+    }
 
-        virtual bool equalWeights(const AbstractMixtureEstimator &toCompare) const;
+public:
+    EbwDiscriminativeMixtureEstimator(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureEstimator() {}
 
-        Weight getDenWeight() const { return std::accumulate(denWeights_.begin(), denWeights_.end(), 0.0); }
+    virtual void addDensity(Core::Ref<GaussDensityEstimator>);
+    virtual void clear();
 
-        static DensityIndex accumulate(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
-    };
+    virtual void     accumulate(const AbstractMixtureEstimator& toAdd);
+    virtual void     accumulateDenominator(DensityIndex, const FeatureVector&, Weight);
+    virtual void     reset();
+    virtual Mixture* estimate(const ReferenceIndexMap<GaussDensityEstimator>& densityMap, bool normalizeWeights = true);
 
-    /**
-     *  discriminative mixture estimator with i-smoothing: EBW
-     */
-    class EbwDiscriminativeMixtureEstimatorWithISmoothing :
-        public EbwDiscriminativeMixtureEstimator,
-        public ISmoothingMixtureEstimator
-    {
-        friend class MixtureSetEstimatorIndexMap;
-        typedef EbwDiscriminativeMixtureEstimator Precursor;
-    protected:
-        typedef ISmoothingMixtureEstimator ISmoothing;
-    protected:
-        virtual void removeDensity(DensityIndex indexInMixture);
-        virtual Weight weight(DensityIndex dns) const {
-            return Precursor::weight(dns) + iMixtureWeight(dns) * ISmoothing::constant();
-        }
-    public:
-        EbwDiscriminativeMixtureEstimatorWithISmoothing(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureEstimatorWithISmoothing();
+    virtual void read(Core::BinaryInputStream&, const std::vector<Core::Ref<GaussDensityEstimator>>&, u32 version);
+    virtual void write(Core::BinaryOutputStream&, const ReferenceIndexMap<GaussDensityEstimator>&) const;
+    virtual void write(Core::XmlWriter&, const ReferenceIndexMap<GaussDensityEstimator>&) const;
 
-        virtual void clear();
-    };
+    virtual bool equalWeights(const AbstractMixtureEstimator& toCompare) const;
 
-} //namespace Mm
+    Weight getDenWeight() const {
+        return std::accumulate(denWeights_.begin(), denWeights_.end(), 0.0);
+    }
 
-#endif //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH
+    static DensityIndex accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+};
+
+/**
+ *  discriminative mixture estimator with i-smoothing: EBW
+ */
+class EbwDiscriminativeMixtureEstimatorWithISmoothing : public EbwDiscriminativeMixtureEstimator,
+                                                        public ISmoothingMixtureEstimator {
+    friend class MixtureSetEstimatorIndexMap;
+    typedef EbwDiscriminativeMixtureEstimator Precursor;
+
+protected:
+    typedef ISmoothingMixtureEstimator ISmoothing;
+
+protected:
+    virtual void   removeDensity(DensityIndex indexInMixture);
+    virtual Weight weight(DensityIndex dns) const {
+        return Precursor::weight(dns) + iMixtureWeight(dns) * ISmoothing::constant();
+    }
+
+public:
+    EbwDiscriminativeMixtureEstimatorWithISmoothing(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureEstimatorWithISmoothing();
+
+    virtual void clear();
+};
+
+}  //namespace Mm
+
+#endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

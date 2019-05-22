@@ -19,66 +19,68 @@
 
 namespace Mm {
 
-    /**
-     * DiscriminativeGaussDensityEstimator
-     */
-    class DiscriminativeGaussDensityEstimator : public GaussDensityEstimator
-    {
-    public:
-        DiscriminativeGaussDensityEstimator() {}
+/**
+ * DiscriminativeGaussDensityEstimator
+ */
+class DiscriminativeGaussDensityEstimator : public GaussDensityEstimator {
+public:
+    DiscriminativeGaussDensityEstimator() {}
 
-        void setPreviousDensity(const GaussDensity *) {}
-        void accumulateDenominator(const FeatureVector&, Weight weight);
-    };
+    void setPreviousDensity(const GaussDensity*) {}
+    void accumulateDenominator(const FeatureVector&, Weight weight);
+};
 
-    /**
-     * DiscriminativeMeanEstimator
-     */
-    class DiscriminativeMeanEstimator : public MeanEstimator
-    {
-        typedef MeanEstimator Precursor;
-    protected:
-        std::vector<MeanType> previousMean_;
-    public:
-        DiscriminativeMeanEstimator(ComponentIndex dimension = 0);
-        virtual ~DiscriminativeMeanEstimator() {}
+/**
+ * DiscriminativeMeanEstimator
+ */
+class DiscriminativeMeanEstimator : public MeanEstimator {
+    typedef MeanEstimator Precursor;
 
-        virtual void accumulateDenominator(const std::vector<FeatureType> &, Weight);
+protected:
+    std::vector<MeanType> previousMean_;
 
-        void setPreviousMean(const Mean *);
-        const std::vector<MeanType>& previousMean() const {
-            verify(previousMean_.size() == accumulator_.size());
-            return previousMean_;
-        }
-        MeanType previousMean(ComponentIndex i) const {
-            verify(i < previousMean_.size()); return previousMean_[i];
-        }
-    };
+public:
+    DiscriminativeMeanEstimator(ComponentIndex dimension = 0);
+    virtual ~DiscriminativeMeanEstimator() {}
 
-    /**
-     * DiscriminativeCovarianceEstimator
-     */
-    class DiscriminativeCovarianceEstimator : public CovarianceEstimator
-    {
-        typedef CovarianceEstimator Precursor;
-    private:
-        std::vector<VarianceType> previousCovariance_;
-    public:
-        DiscriminativeCovarianceEstimator(ComponentIndex dimension = 0);
+    virtual void accumulateDenominator(const std::vector<FeatureType>&, Weight);
 
-        virtual void accumulateDenominator(const std::vector<FeatureType>&, Weight);
+    void                         setPreviousMean(const Mean*);
+    const std::vector<MeanType>& previousMean() const {
+        verify(previousMean_.size() == accumulator_.size());
+        return previousMean_;
+    }
+    MeanType previousMean(ComponentIndex i) const {
+        verify(i < previousMean_.size());
+        return previousMean_[i];
+    }
+};
 
-        void setPreviousCovariance(const Covariance *);
-        const std::vector<VarianceType>& previousCovariance() const {
-            verify(previousCovariance_.size() == accumulator_.size());
-            return previousCovariance_;
-        }
-        VarianceType previousCovariance(ComponentIndex i) const {
-            verify(i < previousCovariance_.size());
-            return previousCovariance_[i];
-        }
-    };
+/**
+ * DiscriminativeCovarianceEstimator
+ */
+class DiscriminativeCovarianceEstimator : public CovarianceEstimator {
+    typedef CovarianceEstimator Precursor;
 
-} //namespace Mm
+private:
+    std::vector<VarianceType> previousCovariance_;
 
-#endif //_MM_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH
+public:
+    DiscriminativeCovarianceEstimator(ComponentIndex dimension = 0);
+
+    virtual void accumulateDenominator(const std::vector<FeatureType>&, Weight);
+
+    void                             setPreviousCovariance(const Covariance*);
+    const std::vector<VarianceType>& previousCovariance() const {
+        verify(previousCovariance_.size() == accumulator_.size());
+        return previousCovariance_;
+    }
+    VarianceType previousCovariance(ComponentIndex i) const {
+        verify(i < previousCovariance_.size());
+        return previousCovariance_[i];
+    }
+};
+
+}  //namespace Mm
+
+#endif  //_MM_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

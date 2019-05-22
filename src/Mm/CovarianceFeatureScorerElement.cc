@@ -17,10 +17,8 @@
 
 using namespace Mm;
 
-
-void CovarianceFeatureScorerElement::operator=(const Covariance &covariance)
-{
-    const std::vector<VarianceType> &diagonal = covariance.diagonal();
+void CovarianceFeatureScorerElement::operator=(const Covariance& covariance) {
+    const std::vector<VarianceType>& diagonal = covariance.diagonal();
 
     require(checkDiagonal(diagonal));
     calculateInverseSquareRootDiagonal(diagonal);
@@ -28,27 +26,23 @@ void CovarianceFeatureScorerElement::operator=(const Covariance &covariance)
 }
 
 void CovarianceFeatureScorerElement::calculateInverseSquareRootDiagonal(
-    const std::vector<VarianceType> &diagonal)
-{
+        const std::vector<VarianceType>& diagonal) {
     inverseSquareRootDiagonal_.resize(diagonal.size());
     std::transform(diagonal.begin(), diagonal.end(),
                    inverseSquareRootDiagonal_.begin(), inverseSquareRoot<VarianceType>());
 }
 
 void CovarianceFeatureScorerElement::calculateNormalizationFactor(
-    const std::vector<VarianceType> &diagonal)
-{
+        const std::vector<VarianceType>& diagonal) {
     logNormalizationFactor_ = gaussLogNormFactor(diagonal.begin(), diagonal.end());
 }
 
-bool CovarianceFeatureScorerElement::checkDiagonal(const std::vector<VarianceType> &diagonal)
-{
+bool CovarianceFeatureScorerElement::checkDiagonal(const std::vector<VarianceType>& diagonal) {
     return (std::find_if(diagonal.begin(), diagonal.end(),
                          std::bind2nd(std::less_equal<VarianceType>(), 0)) == diagonal.end());
 }
 
 void CovarianceFeatureScorerElement::scale(VarianceType factor) {
-
     std::transform(inverseSquareRootDiagonal_.begin(), inverseSquareRootDiagonal_.end(),
                    inverseSquareRootDiagonal_.begin(),
                    std::bind2nd(std::multiplies<VarianceType>(), factor));

@@ -20,38 +20,41 @@
 
 namespace Mm {
 
-    class MixtureSetSplitter : public virtual Core::Component {
-    public:
-        typedef Core::Component Precursor;
-    public:
-        static const Core::ParameterFloat paramMinMeanObservationWeight;
-        static const Core::ParameterFloat paramMinCovarianceObservationWeight;
-        static const Core::ParameterFloat paramPerturbationWeight;
-        static const Core::ParameterBool paramNormalizeMixtureWeights;
-    private:
-        std::vector<MeanIndex> splittedMeans_;
-        Weight minMeanObservationWeight_;
-        Weight perturbationWeight_;
-        void splitMeans(MixtureSet &mixtureSet, const std::vector<Weight>& weights);
-        MeanIndex splitMean(MixtureSet &mixtureSet, MeanIndex index, std::vector<MeanType> &perturbation);
+class MixtureSetSplitter : public virtual Core::Component {
+public:
+    typedef Core::Component Precursor;
 
-        std::vector<CovarianceIndex> splittedCovariances_;
-        Weight minCovarianceObservationWeight_;
-        void splitCovariances(MixtureSet &mixtureSet, const std::vector<Weight>& weights);
-        CovarianceIndex splitCovariance(MixtureSet &mixtureSet, CovarianceIndex index);
+public:
+    static const Core::ParameterFloat paramMinMeanObservationWeight;
+    static const Core::ParameterFloat paramMinCovarianceObservationWeight;
+    static const Core::ParameterFloat paramPerturbationWeight;
+    static const Core::ParameterBool  paramNormalizeMixtureWeights;
 
-        std::vector<DensityIndex> splittedDensities_;
-        void splitDensities(MixtureSet &mixtureSet);
+private:
+    std::vector<MeanIndex> splittedMeans_;
+    Weight                 minMeanObservationWeight_;
+    Weight                 perturbationWeight_;
+    void                   splitMeans(MixtureSet& mixtureSet, const std::vector<Weight>& weights);
+    MeanIndex              splitMean(MixtureSet& mixtureSet, MeanIndex index, std::vector<MeanType>& perturbation);
 
-        void splitDensitiesInMixtures(MixtureSet &mixtureSet);
+    std::vector<CovarianceIndex> splittedCovariances_;
+    Weight                       minCovarianceObservationWeight_;
+    void                         splitCovariances(MixtureSet& mixtureSet, const std::vector<Weight>& weights);
+    CovarianceIndex              splitCovariance(MixtureSet& mixtureSet, CovarianceIndex index);
 
-        bool normalizeMixtureWeights_;
-    public:
-        MixtureSetSplitter(const Core::Configuration &configuration);
+    std::vector<DensityIndex> splittedDensities_;
+    void                      splitDensities(MixtureSet& mixtureSet);
 
-        Core::Ref<MixtureSet> split(AbstractMixtureSetEstimator&);
-    };
+    void splitDensitiesInMixtures(MixtureSet& mixtureSet);
 
-} //namespace Mm
+    bool normalizeMixtureWeights_;
 
-#endif //_MM_MIXTURE_ESTIMATOR_HH
+public:
+    MixtureSetSplitter(const Core::Configuration& configuration);
+
+    Core::Ref<MixtureSet> split(AbstractMixtureSetEstimator&);
+};
+
+}  //namespace Mm
+
+#endif  //_MM_MIXTURE_ESTIMATOR_HH

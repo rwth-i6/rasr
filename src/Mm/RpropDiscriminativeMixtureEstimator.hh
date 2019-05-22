@@ -16,74 +16,76 @@
 #define _MM_RPROP_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH
 
 #include "DiscriminativeMixtureEstimator.hh"
+#include "ISmoothingMixtureEstimator.hh"
 #include "RpropDiscriminativeGaussDensityEstimator.hh"
 #include "RpropOptimization.hh"
-#include "ISmoothingMixtureEstimator.hh"
 
 namespace Mm {
 
-    /**
-     *  discriminative mixture estimator: Rprop
-     */
-    class RpropDiscriminativeMixtureEstimator :
-        public DiscriminativeMixtureEstimator,
-        public RpropOptimization<Weight>
-    {
-        friend class MixtureSetEstimatorIndexMap;
-        typedef DiscriminativeMixtureEstimator Precursor;
-    protected:
-        typedef RpropOptimization<Weight> Rprop;
-    protected:
-        virtual void removeDensity(DensityIndex indexInMixture);
-        virtual Weight previous(DensityIndex dns) const {
-            return logPreviousMixtureWeight(dns);
-        }
-        virtual Weight gradient(DensityIndex dns) const {
-            return weights_[dns];
-        }
-        Weight logPreviousMixtureWeight(DensityIndex dns) const {
-            const Weight tmp = previousMixtureWeight(dns);
-            return tmp > 0 ? log(tmp) : Core::Type<f32>::min;
-        }
-    public:
-        RpropDiscriminativeMixtureEstimator(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureEstimator() {}
+/**
+ *  discriminative mixture estimator: Rprop
+ */
+class RpropDiscriminativeMixtureEstimator : public DiscriminativeMixtureEstimator,
+                                            public RpropOptimization<Weight> {
+    friend class MixtureSetEstimatorIndexMap;
+    typedef DiscriminativeMixtureEstimator Precursor;
 
-        virtual Mixture* estimate(
-            const ReferenceIndexMap<GaussDensityEstimator> &densityMap, bool normalizeWeights = true);
+protected:
+    typedef RpropOptimization<Weight> Rprop;
 
-        void setStepSizes(const Mixture *);
-        void setStepSizes(Weight stepSize);
-        Mixture* collectStepSizes(const ReferenceIndexMap<GaussDensityEstimator> &);
-        void setPreviousToPreviousMixture(const Mixture *);
+protected:
+    virtual void   removeDensity(DensityIndex indexInMixture);
+    virtual Weight previous(DensityIndex dns) const {
+        return logPreviousMixtureWeight(dns);
+    }
+    virtual Weight gradient(DensityIndex dns) const {
+        return weights_[dns];
+    }
+    Weight logPreviousMixtureWeight(DensityIndex dns) const {
+        const Weight tmp = previousMixtureWeight(dns);
+        return tmp > 0 ? log(tmp) : Core::Type<f32>::min;
+    }
 
-        static DensityIndex accumulate(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
-    };
+public:
+    RpropDiscriminativeMixtureEstimator(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureEstimator() {}
 
-    /**
-     *  discriminative mixture estimator with i-smoothing: Rprop
-     */
-    class RpropDiscriminativeMixtureEstimatorWithISmoothing :
-        public RpropDiscriminativeMixtureEstimator,
-        public ISmoothingMixtureEstimator
-    {
-        typedef RpropDiscriminativeMixtureEstimator Precursor;
-    protected:
-        typedef ISmoothingMixtureEstimator ISmoothing;
-    protected:
-        virtual void removeDensity(DensityIndex indexInMixture);
-        virtual Weight gradient(DensityIndex dns) const {
-            /* Assume that iMixtureWeights are normalized to unity.
-             */
-            return Precursor::gradient(dns) + ISmoothing::constant() * (iMixtureWeight(dns) - previousMixtureWeight(dns));
-        }
-    public:
-        RpropDiscriminativeMixtureEstimatorWithISmoothing(const Core::Configuration &);
-        virtual ~RpropDiscriminativeMixtureEstimatorWithISmoothing();
+    virtual Mixture* estimate(
+            const ReferenceIndexMap<GaussDensityEstimator>& densityMap, bool normalizeWeights = true);
 
-        virtual void clear();
-    };
+    void     setStepSizes(const Mixture*);
+    void     setStepSizes(Weight stepSize);
+    Mixture* collectStepSizes(const ReferenceIndexMap<GaussDensityEstimator>&);
+    void     setPreviousToPreviousMixture(const Mixture*);
 
-} //namespace Mm
+    static DensityIndex accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+};
 
-#endif //_MM_RPROP_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH
+/**
+ *  discriminative mixture estimator with i-smoothing: Rprop
+ */
+class RpropDiscriminativeMixtureEstimatorWithISmoothing : public RpropDiscriminativeMixtureEstimator,
+                                                          public ISmoothingMixtureEstimator {
+    typedef RpropDiscriminativeMixtureEstimator Precursor;
+
+protected:
+    typedef ISmoothingMixtureEstimator ISmoothing;
+
+protected:
+    virtual void   removeDensity(DensityIndex indexInMixture);
+    virtual Weight gradient(DensityIndex dns) const {
+        /* Assume that iMixtureWeights are normalized to unity.
+         */
+        return Precursor::gradient(dns) + ISmoothing::constant() * (iMixtureWeight(dns) - previousMixtureWeight(dns));
+    }
+
+public:
+    RpropDiscriminativeMixtureEstimatorWithISmoothing(const Core::Configuration&);
+    virtual ~RpropDiscriminativeMixtureEstimatorWithISmoothing();
+
+    virtual void clear();
+};
+
+}  //namespace Mm
+
+#endif  //_MM_RPROP_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

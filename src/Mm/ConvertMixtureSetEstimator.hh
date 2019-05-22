@@ -16,38 +16,38 @@
 #define _MM_CONVERT_MIXTURE_SET_ESTIMATOR_HH
 
 #include "AbstractMixtureSetEstimator.hh"
-#include "MixtureSetEstimator.hh"
-#include "ConvertMixtureEstimator.hh"
 #include "ConvertGaussDensityEstimator.hh"
+#include "ConvertMixtureEstimator.hh"
+#include "MixtureSetEstimator.hh"
 
 namespace Mm {
 
-    /**
-     * ConvertMixtureSetEstimator
-     */
-    class ConvertMixtureSetEstimator : public MixtureSetEstimator
-    {
-        typedef MixtureSetEstimator Precursor;
-    protected:
-        virtual ConvertMixtureEstimator* createMixtureEstimator();
-        virtual ConvertGaussDensityEstimator* createDensityEstimator();
-        virtual ConvertGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
-        virtual ConvertMeanEstimator* createMeanEstimator();
-        virtual ConvertMeanEstimator* createMeanEstimator(const Mean&);
-        virtual ConvertCovarianceEstimator* createCovarianceEstimator();
-        virtual ConvertCovarianceEstimator* createCovarianceEstimator(const Covariance&);
+/**
+ * ConvertMixtureSetEstimator
+ */
+class ConvertMixtureSetEstimator : public MixtureSetEstimator {
+    typedef MixtureSetEstimator Precursor;
 
-        virtual ConvertMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(ConvertMixtureEstimator*,
-                                  mixtureEstimators_[mixture].get());
-        }
-    public:
-        ConvertMixtureSetEstimator(const Core::Configuration &);
-        virtual ~ConvertMixtureSetEstimator() {}
+protected:
+    virtual ConvertMixtureEstimator*      createMixtureEstimator();
+    virtual ConvertGaussDensityEstimator* createDensityEstimator();
+    virtual ConvertGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
+    virtual ConvertMeanEstimator*         createMeanEstimator();
+    virtual ConvertMeanEstimator*         createMeanEstimator(const Mean&);
+    virtual ConvertCovarianceEstimator*   createCovarianceEstimator();
+    virtual ConvertCovarianceEstimator*   createCovarianceEstimator(const Covariance&);
 
-        void setMixtureSet(Core::Ref<const MixtureSet>);
-    };
+    virtual ConvertMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(ConvertMixtureEstimator*, mixtureEstimators_[mixture].get());
+    }
 
-} //namespace Mm
+public:
+    ConvertMixtureSetEstimator(const Core::Configuration&);
+    virtual ~ConvertMixtureSetEstimator() {}
 
-#endif //_MM_CONVERT_MIXTURE_SET_ESTIMATOR_HH
+    void setMixtureSet(Core::Ref<const MixtureSet>);
+};
+
+}  //namespace Mm
+
+#endif  //_MM_CONVERT_MIXTURE_SET_ESTIMATOR_HH

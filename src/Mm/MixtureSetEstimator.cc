@@ -12,9 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/StringUtilities.hh>
-#include <Core/Directory.hh>
 #include "MixtureSetEstimator.hh"
+#include <Core/Directory.hh>
+#include <Core/StringUtilities.hh>
 #include "MixtureSet.hh"
 
 using namespace Mm;
@@ -22,80 +22,67 @@ using namespace Mm;
 // MixtureSetEstimator
 //////////////////////
 
-MixtureSetEstimator::MixtureSetEstimator(const Core::Configuration &c) :
-    Core::Component(c),  // Virtually inherited
-    Precursor(c)
-{}
+MixtureSetEstimator::MixtureSetEstimator(const Core::Configuration& c)
+        : Core::Component(c),  // Virtually inherited
+          Precursor(c) {}
 
-MixtureEstimator* MixtureSetEstimator::createMixtureEstimator()
-{
+MixtureEstimator* MixtureSetEstimator::createMixtureEstimator() {
     return new MixtureEstimator;
 }
 
-GaussDensityEstimator* MixtureSetEstimator::createDensityEstimator()
-{
+GaussDensityEstimator* MixtureSetEstimator::createDensityEstimator() {
     return new GaussDensityEstimator;
 }
 
-GaussDensityEstimator* MixtureSetEstimator::createDensityEstimator(const GaussDensity&)
-{
+GaussDensityEstimator* MixtureSetEstimator::createDensityEstimator(const GaussDensity&) {
     return new GaussDensityEstimator;
 }
 
-MeanEstimator* MixtureSetEstimator::createMeanEstimator()
-{
+MeanEstimator* MixtureSetEstimator::createMeanEstimator() {
     return new MeanEstimator;
 }
 
-MeanEstimator* MixtureSetEstimator::createMeanEstimator(const Mean& mean)
-{
+MeanEstimator* MixtureSetEstimator::createMeanEstimator(const Mean& mean) {
     return new MeanEstimator(mean.size());
 }
 
-CovarianceEstimator* MixtureSetEstimator::createCovarianceEstimator()
-{
+CovarianceEstimator* MixtureSetEstimator::createCovarianceEstimator() {
     return new CovarianceEstimator;
 }
 
-CovarianceEstimator* MixtureSetEstimator::createCovarianceEstimator(const Covariance& covariance)
-{
+CovarianceEstimator* MixtureSetEstimator::createCovarianceEstimator(const Covariance& covariance) {
     return new CovarianceEstimator(covariance.dimension());
 }
 
 bool MixtureSetEstimator::accumulate(
-    Core::BinaryInputStreams &is,
-    Core::BinaryOutputStream &os)
-{
+        Core::BinaryInputStreams& is,
+        Core::BinaryOutputStream& os) {
     return Precursor::accumulate(is, os);
 }
 
-void MixtureSetEstimator::read(Core::BinaryInputStream &is)
-{
+void MixtureSetEstimator::read(Core::BinaryInputStream& is) {
     Precursor::read(is);
 
     Weight observationWeight = 0;
-    for (MixtureIndex i = 0; i < mixtureEstimators_.size(); ++ i) {
+    for (MixtureIndex i = 0; i < mixtureEstimators_.size(); ++i) {
         observationWeight += mixtureEstimators_[i]->getWeight();
     }
 
     log("#observation-weight ") << observationWeight;
 }
 
-void MixtureSetEstimator::write(Core::BinaryOutputStream &os)
-{
+void MixtureSetEstimator::write(Core::BinaryOutputStream& os) {
     Precursor::write(os);
 
     Weight observationWeight = 0;
-    for(MixtureIndex i = 0; i < mixtureEstimators_.size(); ++ i)
+    for (MixtureIndex i = 0; i < mixtureEstimators_.size(); ++i)
         observationWeight += mixtureEstimators_[i]->getWeight();
 
     log("#observation-weight ") << observationWeight;
 }
 
-void MixtureSetEstimator::write(Core::XmlWriter &os)
-{
-    os << Core::XmlOpen("mixture-set-estimator")
-        + Core::XmlAttribute("version", version_);
+void MixtureSetEstimator::write(Core::XmlWriter& os) {
+    os << Core::XmlOpen("mixture-set-estimator") + Core::XmlAttribute("version", version_);
 
     Precursor::write(os);
 

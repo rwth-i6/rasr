@@ -21,76 +21,75 @@
 
 namespace Mm {
 
-    /**
-     * EbwDiscriminativeMixtureSetEstimator
-     */
-    class EbwDiscriminativeMixtureSetEstimator :
-        public DiscriminativeMixtureSetEstimator
-    {
-        typedef DiscriminativeMixtureSetEstimator Precursor;
-    protected:
-        virtual EbwDiscriminativeMixtureEstimator* createMixtureEstimator();
-        virtual EbwDiscriminativeGaussDensityEstimator* createDensityEstimator();
-        virtual EbwDiscriminativeGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
-        virtual EbwDiscriminativeMeanEstimator* createMeanEstimator();
-        virtual EbwDiscriminativeMeanEstimator* createMeanEstimator(const Mean&);
-        virtual EbwDiscriminativeCovarianceEstimator* createCovarianceEstimator();
-        virtual EbwDiscriminativeCovarianceEstimator* createCovarianceEstimator(const Covariance&);
+/**
+ * EbwDiscriminativeMixtureSetEstimator
+ */
+class EbwDiscriminativeMixtureSetEstimator : public DiscriminativeMixtureSetEstimator {
+    typedef DiscriminativeMixtureSetEstimator Precursor;
 
-        virtual EbwDiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(EbwDiscriminativeMixtureEstimator*,
-                                  mixtureEstimators_[mixture].get());
-        }
-        virtual bool accumulateMixture(Core::BinaryInputStreams &is, Core::BinaryOutputStream &os);
-        virtual void initialize(const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-    public:
-        EbwDiscriminativeMixtureSetEstimator(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureSetEstimator();
+protected:
+    virtual EbwDiscriminativeMixtureEstimator*      createMixtureEstimator();
+    virtual EbwDiscriminativeGaussDensityEstimator* createDensityEstimator();
+    virtual EbwDiscriminativeGaussDensityEstimator* createDensityEstimator(const GaussDensity&);
+    virtual EbwDiscriminativeMeanEstimator*         createMeanEstimator();
+    virtual EbwDiscriminativeMeanEstimator*         createMeanEstimator(const Mean&);
+    virtual EbwDiscriminativeCovarianceEstimator*   createCovarianceEstimator();
+    virtual EbwDiscriminativeCovarianceEstimator*   createCovarianceEstimator(const Covariance&);
 
-        virtual void read(Core::BinaryInputStream &);
-        virtual void write(Core::BinaryOutputStream &);
-    };
+    virtual EbwDiscriminativeMixtureEstimator& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(EbwDiscriminativeMixtureEstimator*, mixtureEstimators_[mixture].get());
+    }
+    virtual bool accumulateMixture(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
+    virtual void initialize(const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
 
-    /**
-     * DiscriminativeMixtureSetEstimatorWithISmoothing: EBW
-     */
-    class EbwDiscriminativeMixtureSetEstimatorWithISmoothing :
-        virtual public ISmoothingMixtureSetEstimator,
-        public EbwDiscriminativeMixtureSetEstimator
-    {
-        typedef EbwDiscriminativeMixtureSetEstimator Precursor;
-    protected:
-        typedef ISmoothingMixtureSetEstimator ISmoothing;
-    protected:
-        virtual EbwDiscriminativeMixtureEstimatorWithISmoothing* createMixtureEstimator();
-        virtual EbwDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator();
-        virtual EbwDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator(const GaussDensity&);
-        virtual EbwDiscriminativeMeanEstimatorWithISmoothing* createMeanEstimator();
-        virtual EbwDiscriminativeMeanEstimatorWithISmoothing* createMeanEstimator(const Mean&);
-        virtual EbwDiscriminativeCovarianceEstimatorWithISmoothing* createCovarianceEstimator();
-        virtual EbwDiscriminativeCovarianceEstimatorWithISmoothing* createCovarianceEstimator(const Covariance&);
+public:
+    EbwDiscriminativeMixtureSetEstimator(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureSetEstimator();
 
-        virtual EbwDiscriminativeMixtureEstimatorWithISmoothing& mixtureEstimator(MixtureIndex mixture) {
-            return *required_cast(EbwDiscriminativeMixtureEstimatorWithISmoothing*,
-                                  mixtureEstimators_[mixture].get());
-        }
-        virtual void load();
-        virtual void finalize(MixtureSet &, const MixtureSetEstimatorIndexMap &, const CovarianceToMeanSetMap &);
-        virtual void setIMixture(Core::Ref<AbstractMixtureEstimator>, const Mixture *, Weight iSmoothing);
-        virtual void setIDensity(Core::Ref<GaussDensityEstimator>, const GaussDensity *);
-        virtual void setIMean(Core::Ref<AbstractMeanEstimator>, const Mean *, Weight iSmoothing);
-        virtual void setICovariance(Core::Ref<AbstractCovarianceEstimator>, const Covariance *, Weight iSmoothing);
-        virtual Weight getMixtureObjectiveFunction(Core::Ref<AbstractMixtureEstimator> estimator) {
-            return required_cast(EbwDiscriminativeMixtureEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction();
-        }
-        virtual Weight getCovarianceObjectiveFunction(Core::Ref<AbstractCovarianceEstimator> estimator, const CovarianceToMeanSetMap &meanSetMap) {
-            return required_cast(EbwDiscriminativeCovarianceEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction(meanSetMap);
-        }
-    public:
-        EbwDiscriminativeMixtureSetEstimatorWithISmoothing(const Core::Configuration &);
-        virtual ~EbwDiscriminativeMixtureSetEstimatorWithISmoothing();
-    };
+    virtual void read(Core::BinaryInputStream&);
+    virtual void write(Core::BinaryOutputStream&);
+};
 
-} //namespace Mm
+/**
+ * DiscriminativeMixtureSetEstimatorWithISmoothing: EBW
+ */
+class EbwDiscriminativeMixtureSetEstimatorWithISmoothing : virtual public ISmoothingMixtureSetEstimator,
+                                                           public EbwDiscriminativeMixtureSetEstimator {
+    typedef EbwDiscriminativeMixtureSetEstimator Precursor;
 
-#endif //_MM_EBW_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH
+protected:
+    typedef ISmoothingMixtureSetEstimator ISmoothing;
+
+protected:
+    virtual EbwDiscriminativeMixtureEstimatorWithISmoothing*      createMixtureEstimator();
+    virtual EbwDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator();
+    virtual EbwDiscriminativeGaussDensityEstimatorWithISmoothing* createDensityEstimator(const GaussDensity&);
+    virtual EbwDiscriminativeMeanEstimatorWithISmoothing*         createMeanEstimator();
+    virtual EbwDiscriminativeMeanEstimatorWithISmoothing*         createMeanEstimator(const Mean&);
+    virtual EbwDiscriminativeCovarianceEstimatorWithISmoothing*   createCovarianceEstimator();
+    virtual EbwDiscriminativeCovarianceEstimatorWithISmoothing*   createCovarianceEstimator(const Covariance&);
+
+    virtual EbwDiscriminativeMixtureEstimatorWithISmoothing& mixtureEstimator(MixtureIndex mixture) {
+        return *required_cast(EbwDiscriminativeMixtureEstimatorWithISmoothing*, mixtureEstimators_[mixture].get());
+    }
+    virtual void   load();
+    virtual void   finalize(MixtureSet&, const MixtureSetEstimatorIndexMap&, const CovarianceToMeanSetMap&);
+    virtual void   setIMixture(Core::Ref<AbstractMixtureEstimator>, const Mixture*, Weight iSmoothing);
+    virtual void   setIDensity(Core::Ref<GaussDensityEstimator>, const GaussDensity*);
+    virtual void   setIMean(Core::Ref<AbstractMeanEstimator>, const Mean*, Weight iSmoothing);
+    virtual void   setICovariance(Core::Ref<AbstractCovarianceEstimator>, const Covariance*, Weight iSmoothing);
+    virtual Weight getMixtureObjectiveFunction(Core::Ref<AbstractMixtureEstimator> estimator) {
+        return required_cast(EbwDiscriminativeMixtureEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction();
+    }
+    virtual Weight getCovarianceObjectiveFunction(Core::Ref<AbstractCovarianceEstimator> estimator, const CovarianceToMeanSetMap& meanSetMap) {
+        return required_cast(EbwDiscriminativeCovarianceEstimatorWithISmoothing*, estimator.get())->getObjectiveFunction(meanSetMap);
+    }
+
+public:
+    EbwDiscriminativeMixtureSetEstimatorWithISmoothing(const Core::Configuration&);
+    virtual ~EbwDiscriminativeMixtureSetEstimatorWithISmoothing();
+};
+
+}  //namespace Mm
+
+#endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

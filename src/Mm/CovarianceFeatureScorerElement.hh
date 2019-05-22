@@ -19,30 +19,34 @@
 
 namespace Mm {
 
-    class CovarianceFeatureScorerElement {
-    protected:
-        std::vector<VarianceType> inverseSquareRootDiagonal_;
-        /** N * log (2 * pi) + sum_i{log(variance_i)} */
-        Score logNormalizationFactor_;
-    protected:
-        void calculateInverseSquareRootDiagonal(const std::vector<VarianceType> &diagonal);
-        void calculateNormalizationFactor(const std::vector<VarianceType> &diagonal);
+class CovarianceFeatureScorerElement {
+protected:
+    std::vector<VarianceType> inverseSquareRootDiagonal_;
+    /** N * log (2 * pi) + sum_i{log(variance_i)} */
+    Score logNormalizationFactor_;
 
-        bool checkDiagonal(const std::vector<VarianceType> &diagonal);
-    public:
-        CovarianceFeatureScorerElement() {}
+protected:
+    void calculateInverseSquareRootDiagonal(const std::vector<VarianceType>& diagonal);
+    void calculateNormalizationFactor(const std::vector<VarianceType>& diagonal);
 
-        void operator=(const Covariance &covariance);
+    bool checkDiagonal(const std::vector<VarianceType>& diagonal);
 
-        void scale(VarianceType factor);
+public:
+    CovarianceFeatureScorerElement() {}
 
-        const std::vector<VarianceType>& inverseSquareRootDiagonal() const {
-            return inverseSquareRootDiagonal_;
-        }
+    void operator=(const Covariance& covariance);
 
-        Score logNormalizationFactor() const { return logNormalizationFactor_; }
-    };
+    void scale(VarianceType factor);
 
-} // namespace Mm
+    const std::vector<VarianceType>& inverseSquareRootDiagonal() const {
+        return inverseSquareRootDiagonal_;
+    }
 
-#endif // _MM_COVARIANCE_FEATURE_SCORER_ELEMENT_HH
+    Score logNormalizationFactor() const {
+        return logNormalizationFactor_;
+    }
+};
+
+}  // namespace Mm
+
+#endif  // _MM_COVARIANCE_FEATURE_SCORER_ELEMENT_HH

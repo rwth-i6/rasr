@@ -19,34 +19,44 @@
 
 namespace Mm {
 
-    class DiscriminativeMixtureEstimator;
+class DiscriminativeMixtureEstimator;
 
-    /**
-     *  i-smoothing mixture estimator
-     */
-    class ISmoothingMixtureEstimator
-    {
-        friend class MixtureSetEstimatorIndexMap;
-    private:
-        DiscriminativeMixtureEstimator *parent_;
-        std::vector<Weight> iMixtureWeights_;
-        Weight constant_;
-    protected:
-        virtual void removeDensity(DensityIndex indexInMixture);
-    public:
-        ISmoothingMixtureEstimator();
-        virtual ~ISmoothingMixtureEstimator();
+/**
+ *  i-smoothing mixture estimator
+ */
+class ISmoothingMixtureEstimator {
+    friend class MixtureSetEstimatorIndexMap;
 
-        void set(DiscriminativeMixtureEstimator *);
-        virtual void clear();
-        Sum getObjectiveFunction() const;
-        void setIMixture(const Mixture *);
-        virtual Weight iMixtureWeight(DensityIndex dns) const { return iMixtureWeights_[dns]; }
-        void setConstant(Weight constant) { constant_ = constant; }
-        Weight constant() const { return constant_; }
-        u32 nMixtureWeights() const { return iMixtureWeights_.size(); }
-    };
+private:
+    DiscriminativeMixtureEstimator* parent_;
+    std::vector<Weight>             iMixtureWeights_;
+    Weight                          constant_;
 
-} //namespace Mm
+protected:
+    virtual void removeDensity(DensityIndex indexInMixture);
 
-#endif //_MM_ISMOOTHING_MIXTURE_ESTIMATOR_HH
+public:
+    ISmoothingMixtureEstimator();
+    virtual ~ISmoothingMixtureEstimator();
+
+    void           set(DiscriminativeMixtureEstimator*);
+    virtual void   clear();
+    Sum            getObjectiveFunction() const;
+    void           setIMixture(const Mixture*);
+    virtual Weight iMixtureWeight(DensityIndex dns) const {
+        return iMixtureWeights_[dns];
+    }
+    void setConstant(Weight constant) {
+        constant_ = constant;
+    }
+    Weight constant() const {
+        return constant_;
+    }
+    u32 nMixtureWeights() const {
+        return iMixtureWeights_.size();
+    }
+};
+
+}  //namespace Mm
+
+#endif  //_MM_ISMOOTHING_MIXTURE_ESTIMATOR_HH

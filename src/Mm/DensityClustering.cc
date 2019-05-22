@@ -12,44 +12,43 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Mm/DensityClustering.hh>
 #include <Core/Application.hh>
+#include <Mm/DensityClustering.hh>
 
 using namespace Mm;
 
 const Core::ParameterInt DensityClusteringBase::paramNumClusters(
-    "clusters", "number of density clusters to build for density preselection", 256, 1, 256);
+        "clusters", "number of density clusters to build for density preselection", 256, 1, 256);
 const Core::ParameterInt DensityClusteringBase::paramSelectClusters(
-    "select-clusters",
-    "number of clusters to select in density preselection."
-    "when it equals the total number of clusters, no preselection is performed.", 32, 1, 256);
+        "select-clusters",
+        "number of clusters to select in density preselection."
+        "when it equals the total number of clusters, no preselection is performed.",
+        32, 1, 256);
 const Core::ParameterString DensityClusteringBase::paramCacheArchive(
-    "cache-archive", "cache-archive where to cache the clustering of the density preselection", "global-cache");
+        "cache-archive", "cache-archive where to cache the clustering of the density preselection", "global-cache");
 const Core::ParameterInt DensityClusteringBase::paramClusteringIterations(
-    "iterations", "number of clustering iterations", 5);
+        "iterations", "number of clustering iterations", 5);
 const Core::ParameterFloat DensityClusteringBase::paramBackoffScore(
-    "backoff-score", "score used if no cluster is selected", 40000);
+        "backoff-score", "score used if no cluster is selected", 40000);
 
-const std::string DensityClusteringBase::FileMagic = "SPRINT-DC";
-const u32 DensityClusteringBase::FileFormatVersion = 2;
+const std::string DensityClusteringBase::FileMagic         = "SPRINT-DC";
+const u32         DensityClusteringBase::FileFormatVersion = 2;
 
-DensityClusteringBase::DensityClusteringBase(const Core::Configuration &config) :
-        Core::Component(config),
-        nClusters_(paramNumClusters(config)),
-        nSelected_(paramSelectClusters(config)),
-        dimension_(0), nDensities_(0),
-        backoffScore_(paramBackoffScore(config)) {}
+DensityClusteringBase::DensityClusteringBase(const Core::Configuration& config)
+        : Core::Component(config),
+          nClusters_(paramNumClusters(config)),
+          nSelected_(paramSelectClusters(config)),
+          dimension_(0),
+          nDensities_(0),
+          backoffScore_(paramBackoffScore(config)) {}
 
-
-void DensityClusteringBase::init(u32 dimension, u32 nDensities)
-{
-    dimension_ = dimension;
+void DensityClusteringBase::init(u32 dimension, u32 nDensities) {
+    dimension_  = dimension;
     nDensities_ = nDensities;
     clusterIndexForDensity_.resize(nDensities_, 0);
     // verification to make sure that ClusterIndex can hold the cluster-indices
     verify(nClusters_ - 1 <= Core::Type<ClusterIndex>::max);
-    if(nDensities_ < nClusters_)
-    {
+    if (nDensities_ < nClusters_) {
         log() << "reducing number of clusters from " << nClusters_ << " to " << nDensities_ << " because there are too few densities";
         nClusters_ = nDensities_;
     }
@@ -57,15 +56,13 @@ void DensityClusteringBase::init(u32 dimension, u32 nDensities)
     verify(nSelected_ <= nClusters_);
 }
 
-
-bool DensityClusteringBase::load()
-{
+bool DensityClusteringBase::load() {
     Core::MappedArchiveReader is = Core::Application::us()->getCacheArchiveReader(paramCacheArchive(config), "density-clustering");
-    if(!is.good())
+    if (!is.good())
         return false;
 
-    if(!is.check<std::string>( FileMagic, "magic token" ) ||
-        !is.check<u32>( FileFormatVersion, "format version" ))
+    if (!is.check<std::string>(FileMagic, "magic token") ||
+        !is.check<u32>(FileFormatVersion, "format version"))
         return false;
 
     if (!readTypes(is)) {
@@ -73,19 +70,18 @@ bool DensityClusteringBase::load()
         return false;
     }
 
-    if(!is.check<u32>(dimension_, "dimension") ||
+    if (!is.check<u32>(dimension_, "dimension") ||
         !is.check<u32>(nClusters_, "number of clusters") ||
-        !is.check<u32>(nDensities_, "number of densities") )
+        !is.check<u32>(nDensities_, "number of densities"))
         return false;
 
     is >> clusterIndexForDensity_;
     return readMeans(is);
 }
 
-bool DensityClusteringBase::write() const
-{
+bool DensityClusteringBase::write() const {
     Core::MappedArchiveWriter os = Core::Application::us()->getCacheArchiveWriter(paramCacheArchive(config), "density-clustering");
-    if(!os.good())
+    if (!os.good())
         return false;
 
     os << FileMagic << FileFormatVersion;

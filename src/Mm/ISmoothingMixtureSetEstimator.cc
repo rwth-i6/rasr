@@ -12,12 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Application.hh>
 #include "ISmoothingMixtureSetEstimator.hh"
+#include <Core/Application.hh>
+#include "AbstractMixtureSetEstimator.hh"
 #include "DiscriminativeMixtureSetEstimator.hh"
 #include "MixtureSet.hh"
 #include "Module.hh"
-#include "AbstractMixtureSetEstimator.hh"
 
 using namespace Mm;
 
@@ -25,44 +25,39 @@ using namespace Mm;
  * ISmoothingMixtureSetEstimator
  */
 const Core::ParameterFloat ISmoothingMixtureSetEstimator::paramWeightsConstant(
-    "i-smoothing-weights",
-    "interpolation constant for i-smoothing of mixture weights",
-    0, 0);
+        "i-smoothing-weights",
+        "interpolation constant for i-smoothing of mixture weights",
+        0, 0);
 
 const Core::ParameterFloat ISmoothingMixtureSetEstimator::paramMeansConstant(
-    "i-smoothing-means",
-    "interpolation constant for i-smoothing of means",
-    0, 0);
+        "i-smoothing-means",
+        "interpolation constant for i-smoothing of means",
+        0, 0);
 
 ISmoothingMixtureSetEstimator::ISmoothingMixtureSetEstimator(
-    const Core::Configuration &c) :
-    Core::Component(c),
-    parent_(0),
-    weightsConstant_(paramWeightsConstant(c)),
-    meansConstant_(paramMeansConstant(c))
-{}
+        const Core::Configuration& c)
+        : Core::Component(c),
+          parent_(0),
+          weightsConstant_(paramWeightsConstant(c)),
+          meansConstant_(paramMeansConstant(c)) {}
 
-void ISmoothingMixtureSetEstimator::set(DiscriminativeMixtureSetEstimator *parent)
-{
+void ISmoothingMixtureSetEstimator::set(DiscriminativeMixtureSetEstimator* parent) {
     parent_ = parent;
 }
 
-void ISmoothingMixtureSetEstimator::loadISmoothingMixtureSet()
-{
-    Core::Ref<MixtureSet> mixtureSet =
-        Mm::Module::instance().readMixtureSet(select("i-smoothing-mixture-set"));
+void ISmoothingMixtureSetEstimator::loadISmoothingMixtureSet() {
+    Core::Ref<MixtureSet> mixtureSet = Mm::Module::instance().readMixtureSet(select("i-smoothing-mixture-set"));
     if (mixtureSet) {
         if (!distributeISmoothingMixtureSet(*mixtureSet)) {
             Core::Application::us()->criticalError("i-smoothing mixture set differs in topology");
         }
-    } else {
+    }
+    else {
         Core::Application::us()->criticalError("i-smoothing mixture set could not be read");
     }
 }
 
-bool ISmoothingMixtureSetEstimator::distributeISmoothingMixtureSet(
-    const MixtureSet &mixtureSet)
-{
+bool ISmoothingMixtureSetEstimator::distributeISmoothingMixtureSet(const MixtureSet& mixtureSet) {
     verify(parent_);
     if (mixtureSet.dimension() != parent_->dimension()) {
         return false;
@@ -71,26 +66,26 @@ bool ISmoothingMixtureSetEstimator::distributeISmoothingMixtureSet(
     if (mixtureSet.nMixtures() != parent_->nMixtures()) {
         return false;
     }
-    for (MixtureIndex i = 0; i < mixtureSet.nMixtures(); ++ i) {
+    for (MixtureIndex i = 0; i < mixtureSet.nMixtures(); ++i) {
         setIMixture((*parent_->getMixtureEstimators())[i], mixtureSet.mixture(i), weightsConstant());
     }
     if (mixtureSet.nDensities() != indexMaps.densityMap().size()) {
         return false;
     }
-    for (DensityIndex i = 0; i < mixtureSet.nDensities(); ++ i) {
+    for (DensityIndex i = 0; i < mixtureSet.nDensities(); ++i) {
         setIDensity(indexMaps.densityMap()[i], mixtureSet.density(i));
     }
     if (mixtureSet.nMeans() != indexMaps.meanMap().size()) {
         return false;
     }
-    for (MeanIndex i = 0; i < mixtureSet.nMeans(); ++ i) {
+    for (MeanIndex i = 0; i < mixtureSet.nMeans(); ++i) {
         setIMean(indexMaps.meanMap()[i], mixtureSet.mean(i), meansConstant());
     }
     if (mixtureSet.nCovariances() != indexMaps.covarianceMap().size()) {
         return false;
     }
     CovarianceToMeanSetMap meanSetMap(indexMaps.densityMap().indexToPointerMap());
-    for (CovarianceIndex i = 0; i < mixtureSet.nCovariances(); ++ i) {
+    for (CovarianceIndex i = 0; i < mixtureSet.nCovariances(); ++i) {
         setICovariance(indexMaps.covarianceMap()[i], mixtureSet.covariance(i), meansConstant());
     }
     log("distribute i-smoothing mixture set ...done");
@@ -100,22 +95,19 @@ bool ISmoothingMixtureSetEstimator::distributeISmoothingMixtureSet(
 /**
  * Estimate i-smoothing portion of objective function w.r.t. @param mixtureSet.
  */
-Sum ISmoothingMixtureSetEstimator::getObjectiveFunction(
-    const MixtureSet &previousMixtureSet,
-    const MixtureSetEstimatorIndexMap &indexMaps,
-    const CovarianceToMeanSetMap &meanSetMap)
-{
+Sum ISmoothingMixtureSetEstimator::getObjectiveFunction(const MixtureSet&                  previousMixtureSet,
+                                                        const MixtureSetEstimatorIndexMap& indexMaps,
+                                                        const CovarianceToMeanSetMap&      meanSetMap) {
     parent_->distributePreviousMixtureSet(previousMixtureSet);
-    Sum iOfW = 0;
-    AbstractMixtureSetEstimator::MixtureEstimators &mixtureEstimators =
-        *parent_->getMixtureEstimators();
-    for (MixtureIndex i = 0; i < parent_->nMixtures(); ++ i) {
+    Sum                                             iOfW              = 0;
+    AbstractMixtureSetEstimator::MixtureEstimators& mixtureEstimators = *parent_->getMixtureEstimators();
+    for (MixtureIndex i = 0; i < parent_->nMixtures(); ++i) {
         iOfW += getMixtureObjectiveFunction(mixtureEstimators[i]);
     }
     log("weights-objective-function: ") << iOfW;
 
     Sum iOfM = 0;
-    for (CovarianceIndex i = 0; i < indexMaps.covarianceMap().size(); ++ i) {
+    for (CovarianceIndex i = 0; i < indexMaps.covarianceMap().size(); ++i) {
         iOfM += getCovarianceObjectiveFunction(indexMaps.covarianceMap()[i], meanSetMap);
     }
     log("means-objective-function: ") << iOfM;

@@ -17,55 +17,62 @@
 
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
-#include "Types.hh"
-#include "EbwDiscriminativeMixtureSetEstimator.hh"
 #include "EbwDiscriminativeMixtureEstimator.hh"
+#include "EbwDiscriminativeMixtureSetEstimator.hh"
+#include "Types.hh"
 
 namespace InternalIc {
-    struct AugmentedDensityEstimator;
-    class CovarianceToDensitySetMap;
-}
+struct AugmentedDensityEstimator;
+class CovarianceToDensitySetMap;
+}  // namespace InternalIc
 
 namespace Mm {
 
+/**
+ * IterationConstants: base class
+ */
+class IterationConstants : public Core::Component {
+    typedef Core::Component Precursor;
+
+protected:
+    typedef AbstractMixtureSetEstimator::MixtureEstimators MixtureEstimators;
+
+private:
+    enum Type { globalRwth,
+                localRwth,
+                cambridge };
+    static Core::Choice               choiceType;
+    static Core::ParameterChoice      paramType;
+    static const Core::ParameterFloat paramBeta;
+    static const Core::ParameterFloat paramStepSize;
+    static const Core::ParameterFloat paramMinimumIcd;
+
+protected:
+    const IterationConstant default_;
+    IterationConstant       beta_;
+    IterationConstant       stepSize_;
+
+private:
+    void dumpIterationConstants(const MixtureEstimators&);
+
+protected:
+    virtual void initialize(
+            const MixtureEstimators&, const InternalIc::CovarianceToDensitySetMap&,
+            const CovarianceToMeanSetMap&)                         = 0;
+    virtual void set(const InternalIc::AugmentedDensityEstimator&) = 0;
+
+public:
+    IterationConstants(const Core::Configuration&);
+    virtual ~IterationConstants() {}
+
     /**
-     * IterationConstants: base class
+     *  Set iteration constant for each density.
      */
-    class IterationConstants : public Core::Component
-    {
-        typedef Core::Component Precursor;
-    protected:
-        typedef AbstractMixtureSetEstimator::MixtureEstimators MixtureEstimators;
-    private:
-        enum Type { globalRwth, localRwth, cambridge };
-        static Core::Choice choiceType;
-        static Core::ParameterChoice paramType;
-        static const Core::ParameterFloat paramBeta;
-        static const Core::ParameterFloat paramStepSize;
-        static const Core::ParameterFloat paramMinimumIcd;
-    protected:
-        const IterationConstant default_;
-        IterationConstant beta_;
-        IterationConstant stepSize_;
-    private:
-        void dumpIterationConstants(const MixtureEstimators &);
-    protected:
-        virtual void initialize(
-            const MixtureEstimators &, const InternalIc::CovarianceToDensitySetMap &,
-            const CovarianceToMeanSetMap &) = 0;
-        virtual void set(const InternalIc::AugmentedDensityEstimator &) = 0;
-    public:
-        IterationConstants(const Core::Configuration &);
-        virtual ~IterationConstants() {}
+    void set(const MixtureEstimators&, const CovarianceToMeanSetMap&);
 
-        /**
-         *  Set iteration constant for each density.
-         */
-        void set(const MixtureEstimators &, const CovarianceToMeanSetMap &);
+    static IterationConstants* createIterationConstants(const Core::Configuration&);
+};
 
-        static IterationConstants* createIterationConstants(const Core::Configuration &);
-    };
+}  //namespace Mm
 
-} //namespace Mm
-
-#endif //_MM_ITERATION_CONSTANTS_HH
+#endif  //_MM_ITERATION_CONSTANTS_HH

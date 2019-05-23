@@ -15,8 +15,8 @@
 #ifndef _NN_NNLAYER_WEIHTS_AND_ACTIVATION_HH_
 #define _NN_NNLAYER_WEIHTS_AND_ACTIVATION_HH_
 
-#include <Math/CudaVector.hh>
 #include <Math/CudaMatrix.hh>
+#include <Math/CudaVector.hh>
 
 #include "ActivationLayer.hh"
 #include "LinearLayer.hh"
@@ -41,25 +41,28 @@ namespace Nn {
  */
 template<typename T>
 class LinearAndSigmoidLayer : public LinearLayer<T>, public SigmoidLayer<T> {
-    typedef LinearLayer<T> PrecursorLinear;
+    typedef LinearLayer<T>  PrecursorLinear;
     typedef SigmoidLayer<T> PrecursorSigmoid;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
-    LinearAndSigmoidLayer(const Core::Configuration &config);
+    LinearAndSigmoidLayer(const Core::Configuration& config);
     virtual ~LinearAndSigmoidLayer();
     // is a combined layer
-    virtual bool isComposedLayer() const { return true; }
+    virtual bool isComposedLayer() const {
+        return true;
+    }
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
     virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights);
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
     virtual void initComputation(bool sync = true) const;
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
@@ -72,23 +75,26 @@ protected:
 template<typename T>
 class LinearAndTanhLayer : public LinearLayer<T>, public TanhLayer<T> {
     typedef LinearLayer<T> PrecursorLinear;
-    typedef TanhLayer<T> PrecursorTanh;
+    typedef TanhLayer<T>   PrecursorTanh;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
-    LinearAndTanhLayer(const Core::Configuration &config);
-    virtual ~LinearAndTanhLayer() {};
-    virtual bool isComposedLayer() const { return true; }
+    LinearAndTanhLayer(const Core::Configuration& config);
+    virtual ~LinearAndTanhLayer(){};
+    virtual bool isComposedLayer() const {
+        return true;
+    }
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
     virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights);
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
 
     virtual void initComputation(bool sync = true) const;
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
@@ -99,25 +105,28 @@ protected:
  */
 template<typename T>
 class LinearAndRectifiedLayer : public LinearLayer<T>, public RectifiedLayer<T> {
-    typedef LinearLayer<T> PrecursorLinear;
+    typedef LinearLayer<T>    PrecursorLinear;
     typedef RectifiedLayer<T> PrecursorRectified;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
-    LinearAndRectifiedLayer(const Core::Configuration &config);
-    virtual ~LinearAndRectifiedLayer() {};
-    virtual bool isComposedLayer() const { return true; }
+    LinearAndRectifiedLayer(const Core::Configuration& config);
+    virtual ~LinearAndRectifiedLayer(){};
+    virtual bool isComposedLayer() const {
+        return true;
+    }
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
     virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights);
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
 
     virtual void initComputation(bool sync = true) const;
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
@@ -128,25 +137,28 @@ protected:
  */
 template<typename T>
 class LinearAndEluLayer : public LinearLayer<T>, public ExponentialLinearLayer<T> {
-    typedef LinearLayer<T> PrecursorLinear;
+    typedef LinearLayer<T>            PrecursorLinear;
     typedef ExponentialLinearLayer<T> PrecursorElu;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
-    LinearAndEluLayer(const Core::Configuration &config);
-    virtual ~LinearAndEluLayer() {};
-    virtual bool isComposedLayer() const { return true; }
+    LinearAndEluLayer(const Core::Configuration& config);
+    virtual ~LinearAndEluLayer(){};
+    virtual bool isComposedLayer() const {
+        return true;
+    }
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
     virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights);
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
 
     virtual void initComputation(bool sync = true) const;
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
@@ -160,43 +172,46 @@ protected:
  */
 template<typename T>
 class LinearAndSoftmaxLayer : public LinearLayer<T>, public SoftmaxLayer<T> {
-    typedef LinearLayer<T> PrecursorLinear;
+    typedef LinearLayer<T>  PrecursorLinear;
     typedef SoftmaxLayer<T> PrecursorSoftmax;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
     static const Core::ParameterBool paramEvaluateSoftmax;
-protected:
-    bool evaluateSoftmax_;			// apply softmax or just linear part
-    bool logPriorIsRemovedFromBias_;		// has bias been modified in initialization ?
-public:
-    LinearAndSoftmaxLayer(const Core::Configuration &config);
-    virtual ~LinearAndSoftmaxLayer() {};
 
-    virtual bool isComposedLayer() const { return true; }
+protected:
+    bool evaluateSoftmax_;            // apply softmax or just linear part
+    bool logPriorIsRemovedFromBias_;  // has bias been modified in initialization ?
+public:
+    LinearAndSoftmaxLayer(const Core::Configuration& config);
+    virtual ~LinearAndSoftmaxLayer(){};
+
+    virtual bool isComposedLayer() const {
+        return true;
+    }
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+    virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
     virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights);
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
 
-
     virtual void initComputation(bool sync = true) const;
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
     // remove scaled log-prior from bias parameters
     template<typename S>
-    void removeLogPriorFromBias(const Prior<S> &logPrior);
+    void removeLogPriorFromBias(const Prior<S>& logPrior);
 
     // apply softmax to current activation
-    virtual void applySoftmax(NnMatrix &activations);
+    virtual void applySoftmax(NnMatrix& activations);
     // computes scores (negative inner products) of activations in for class columnIndex
-    T getScore(const NnMatrix &in, u32 columnIndex);
+    T getScore(const NnMatrix& in, u32 columnIndex);
 
-    void setEvaluateSoftmax(bool val){
+    void setEvaluateSoftmax(bool val) {
         if (!val)
             this->log("setting evaluateSoftmax to false");
         if (val)
@@ -204,8 +219,12 @@ public:
         evaluateSoftmax_ = val;
     }
 
-    bool evaluatesSoftmax() const { return evaluateSoftmax_; }
-    bool logPriorIsRemovedFromBias() const { return logPriorIsRemovedFromBias_; }
+    bool evaluatesSoftmax() const {
+        return evaluateSoftmax_;
+    }
+    bool logPriorIsRemovedFromBias() const {
+        return logPriorIsRemovedFromBias_;
+    }
 
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
@@ -213,14 +232,14 @@ protected:
 
 template<typename T>
 template<typename S>
-inline void LinearAndSoftmaxLayer<T>::removeLogPriorFromBias(const Prior<S> &priors){
+inline void LinearAndSoftmaxLayer<T>::removeLogPriorFromBias(const Prior<S>& priors) {
     require(this->getBias());
     require_eq(priors.size(), this->getBias()->size());
     T prioriScale = priors.scale();
-    if (prioriScale != S(0.0)){
+    if (prioriScale != S(0.0)) {
         this->log("removing scaled log-prior from bias parameters (scale: ") << prioriScale << ")";
         // subtract
-        if (this->getBias()->isComputing()){
+        if (this->getBias()->isComputing()) {
             typename Types<S>::NnVector priorVector;
             priorVector.resize(priors.size());
             priors.getVector(priorVector);
@@ -236,7 +255,6 @@ inline void LinearAndSoftmaxLayer<T>::removeLogPriorFromBias(const Prior<S> &pri
     }
 }
 
-
-} // namespace
+}  // namespace Nn
 
 #endif /* _NN_NNLAYER_WEIHTS_AND_ACTIVATION_HH_ */

@@ -16,14 +16,13 @@
 
 #include <limits>
 
-#include <Modules.hh>
-#include <Math/Module.hh>
 #include <Math/CudaVector.hh>
+#include <Math/Module.hh>
+#include <Modules.hh>
 #include <Speech/ModelCombination.hh>
 
 #include "FeedForwardTrainer.hh"
 #include "NeuralNetworkTrainer.hh"
-
 
 using namespace Nn;
 
@@ -42,32 +41,28 @@ const Core::ParameterBool BufferedAlignedFeatureProcessor<T>::paramWeightedAlign
         "weighted-alignment", "use weights from alignment", false);
 
 template<typename T>
-BufferedAlignedFeatureProcessor<T>::BufferedAlignedFeatureProcessor(const Core::Configuration &config, bool loadFromFile) :
-    Core::Component(config),
-    BufferedFeatureExtractor<T>(config, loadFromFile),
-    Speech::AlignedFeatureProcessor(config),
-    silence_(0),
-    acousticModelNeedInit_(true),
-    classLabelWrapper_(0),
-    alignmentBuffer_(0),
-    alignmentWeightsBuffer_(0),
-    weightedAlignment_(paramWeightedAlignment(config))
-{ }
-
+BufferedAlignedFeatureProcessor<T>::BufferedAlignedFeatureProcessor(const Core::Configuration& config, bool loadFromFile)
+        : Core::Component(config),
+          BufferedFeatureExtractor<T>(config, loadFromFile),
+          Speech::AlignedFeatureProcessor(config),
+          silence_(0),
+          acousticModelNeedInit_(true),
+          classLabelWrapper_(0),
+          alignmentBuffer_(0),
+          alignmentWeightsBuffer_(0),
+          weightedAlignment_(paramWeightedAlignment(config)) {}
 
 template<typename T>
 BufferedAlignedFeatureProcessor<T>::~BufferedAlignedFeatureProcessor() {
     delete classLabelWrapper_;
 }
 
-
 template<typename T>
-void BufferedAlignedFeatureProcessor<T>::initAcousticModel(){
+void BufferedAlignedFeatureProcessor<T>::initAcousticModel() {
     /* acoustic model to identify labels */
-    Speech::ModelCombination modelCombination(
-            select("model-combination"),
-            Speech::ModelCombination::useAcousticModel,
-            Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition);
+    Speech::ModelCombination modelCombination(select("model-combination"),
+                                              Speech::ModelCombination::useAcousticModel,
+                                              Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTransition);
     modelCombination.load();
     acousticModel_ = modelCombination.acousticModel();
     /* set silence */
@@ -92,15 +87,15 @@ void BufferedAlignedFeatureProcessor<T>::initAcousticModel(){
 }
 
 template<typename T>
-void BufferedAlignedFeatureProcessor<T>::setClassWeights(){
+void BufferedAlignedFeatureProcessor<T>::setClassWeights() {
     classWeights_.resize(classLabelWrapper_->nClassesToAccumulate(), 1.0);
     std::string classWeightsFilename(paramClassWeightsFile(config));
-    if (classWeightsFilename != ""){
+    if (classWeightsFilename != "") {
         if (paramSilenceWeight(config) != 1.0)
             this->error("Can not use both silence weight and class weights file");
         this->log("reading class weights file ") << classWeightsFilename;
         Math::Module::instance().formats().read(classWeightsFilename, classWeights_);
-        if (classWeights_.size() != classLabelWrapper_->nClassesToAccumulate()){
+        if (classWeights_.size() != classLabelWrapper_->nClassesToAccumulate()) {
             this->error("dimension mismatch: class weights vs number of classes to accumulate")
                     << classWeights_.size() << " != " << classLabelWrapper_->nClassesToAccumulate();
         }
@@ -139,7 +134,7 @@ void BufferedAlignedFeatureProcessor<T>::processAlignedFeature(Core::Ref<const S
     u32 labelIndex = classIndex(e);
     if (classLabelWrapper_->isClassToAccumulate(labelIndex)) {
         // check for buffer overflow
-        if(PrecursorBuffer::checkIsTooLongSegment())
+        if (PrecursorBuffer::checkIsTooLongSegment())
             return;
         // check consistency
         verify_eq(alignmentBuffer_.size(), BufferedFeatureExtractor<T>::featureBuffer_.at(0).nColumns());
@@ -152,7 +147,10 @@ void BufferedAlignedFeatureProcessor<T>::processAlignedFeature(Core::Ref<const S
 }
 
 template<typename T>
-void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>& miniBatch, Math::CudaVector<u32>& miniBatchAlignment, std::vector<f64>& miniBatchAlignmentWeights, u32 batchSize) {
+void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>& miniBatch,
+                                                           Math::CudaVector<u32>& miniBatchAlignment,
+                                                           std::vector<f64>&      miniBatchAlignmentWeights,
+                                                           u32                    batchSize) {
     // resize mini batch alignment
     miniBatchAlignment.resize(batchSize, 0, true);
     // fill mini batch alignment
@@ -174,7 +172,7 @@ void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>
 }
 
 template<typename T>
-void BufferedAlignedFeatureProcessor<T>::initTrainer(const std::vector<NnMatrix> &miniBatch){
+void BufferedAlignedFeatureProcessor<T>::initTrainer(const std::vector<NnMatrix>& miniBatch) {
     std::vector<u32> streamSizes;
     for (u32 stream = 0; stream < miniBatch.size(); stream++) {
         streamSizes.push_back(miniBatch.at(stream).nRows());
@@ -182,10 +180,9 @@ void BufferedAlignedFeatureProcessor<T>::initTrainer(const std::vector<NnMatrix>
     require(PrecursorBuffer::trainer_);
     PrecursorBuffer::trainer_->initializeTrainer(PrecursorBuffer::batchSize_, streamSizes);
     PrecursorBuffer::trainer_->setClassWeights(&classWeights_);
-    if(PrecursorBuffer::trainer_->hasClassLabelPosteriors()) {
+    if (PrecursorBuffer::trainer_->hasClassLabelPosteriors()) {
         require(classLabelWrapper_);
-        if (PrecursorBuffer::trainer_->getClassLabelPosteriorDimension() !=
-                classLabelWrapper_->nClassesToAccumulate()){
+        if (PrecursorBuffer::trainer_->getClassLabelPosteriorDimension() != classLabelWrapper_->nClassesToAccumulate()) {
             this->warning("mismatch in number of trainer class labels (e.g. NN output layer dim) and number of classes to accumulate: ")
                     << PrecursorBuffer::trainer_->getClassLabelPosteriorDimension()
                     << " vs. "
@@ -196,17 +193,16 @@ void BufferedAlignedFeatureProcessor<T>::initTrainer(const std::vector<NnMatrix>
 
 template<typename T>
 void BufferedAlignedFeatureProcessor<T>::processBuffer() {
-
     PrecursorBuffer::prepareProcessBuffer();
-    timeval startBatch, endBatch, end;
-    bool measureTime = PrecursorBuffer::trainer_->measuresTime();
+    timeval               startBatch, endBatch, end;
+    bool                  measureTime = PrecursorBuffer::trainer_->measuresTime();
     std::vector<NnMatrix> miniBatch;
     Math::CudaVector<u32> miniBatchAlignment;
-    std::vector<f64> miniBatchAlignmentWeights;
-    NnVector weights;
+    std::vector<f64>      miniBatchAlignmentWeights;
+    NnVector              weights;
     while (PrecursorBuffer::nProcessedFeatures_ + PrecursorBuffer::batchSize_ <= PrecursorBuffer::nBufferedFeatures_) {
         log("Process mini-batch ") << PrecursorBuffer::nProcessedMiniBatches_ + 1 << " with " << PrecursorBuffer::batchSize_
-                << " features";
+                                   << " features";
         f64 timeMinibatch = 0, timeGenerateMiniBatch = 0;
         TIMER_START(startBatch);
         generateMiniBatch(miniBatch, miniBatchAlignment, miniBatchAlignmentWeights, PrecursorBuffer::batchSize_);
@@ -234,7 +230,7 @@ void BufferedAlignedFeatureProcessor<T>::processBuffer() {
         PrecursorBuffer::nProcessedMiniBatches_++;
         PrecursorBuffer::nProcessedFeatures_ += PrecursorBuffer::batchSize_;
         TIMER_GPU_STOP(startBatch, endBatch, measureTime, timeMinibatch)
-        if (measureTime){
+        if (measureTime) {
             log("time for generating mini-batch: ") << timeGenerateMiniBatch;
             log("overall processing time for mini-batch: ") << timeMinibatch;
 
@@ -244,7 +240,7 @@ void BufferedAlignedFeatureProcessor<T>::processBuffer() {
     // process the remaining feature with a smaller mini batch
     // only done for algorithms where the mini batch size is not critical
     u32 nRemainingFeatures = this->nBufferedFeatures_ - this->nProcessedFeatures_;
-    if (this->processRemainingFeatures_ && nRemainingFeatures > 0){
+    if (this->processRemainingFeatures_ && nRemainingFeatures > 0) {
         log("Process mini-batch ") << this->nProcessedMiniBatches_ + 1 << " with " << nRemainingFeatures << " features.";
         generateMiniBatch(miniBatch, miniBatchAlignment, miniBatchAlignmentWeights, nRemainingFeatures);
         // determine weights for the mini batch features
@@ -312,16 +308,15 @@ void BufferedAlignedFeatureProcessor<T>::leaveCorpus(Bliss::Corpus* corpus) {
     if (corpus->level() == 0) {
         PrecursorBuffer::processCorpus();
         Core::Component::log("Total number of processed mini-batches: ") << PrecursorBuffer::totalNumberOfProcessedMiniBatches_;
-        if(!PrecursorBuffer::trainer_ || !PrecursorBuffer::trainer_->isInitialized()) {
-            warning(
-                "BufferedAlignedFeatureProcessor.leaveCorpus: Trainer was not initalized. "
-                "The trainer is lazily initalized usually. "
-                "If this happens, maybe the corpus is empty or we skipped everything. "
-                "We are now initializing the trainer and directly finalizing it.");
-            if(!PrecursorBuffer::trainer_)
+        if (!PrecursorBuffer::trainer_ || !PrecursorBuffer::trainer_->isInitialized()) {
+            warning("BufferedAlignedFeatureProcessor.leaveCorpus: Trainer was not initalized. "
+                    "The trainer is lazily initalized usually. "
+                    "If this happens, maybe the corpus is empty or we skipped everything. "
+                    "We are now initializing the trainer and directly finalizing it.");
+            if (!PrecursorBuffer::trainer_)
                 PrecursorBuffer::trainer_ = createTrainer(config);
-            if(acousticModelNeedInit_)
-                initAcousticModel();  // needed for initTrainer(), classLabelWrapper_
+            if (acousticModelNeedInit_)
+                initAcousticModel();               // needed for initTrainer(), classLabelWrapper_
             initTrainer(std::vector<NnMatrix>());  // should be ok without stream-sizes
         }
         PrecursorBuffer::trainer_->finalize();
@@ -342,4 +337,4 @@ NeuralNetworkTrainer<T>* BufferedAlignedFeatureProcessor<T>::createTrainer(const
 namespace Nn {
 template class BufferedAlignedFeatureProcessor<f32>;
 template class BufferedAlignedFeatureProcessor<f64>;
-}
+}  // namespace Nn

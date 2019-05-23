@@ -14,20 +14,16 @@
  */
 #include "BufferedSegmentFeatureProcessor.hh"
 
-
 namespace Nn {
 
-
 template<typename FloatT>
-BufferedSegmentFeatureProcessor<FloatT>::BufferedSegmentFeatureProcessor(const Core::Configuration &config)
-:
-    Core::Component(config),
-    BufferedFeatureExtractor<FloatT>(config)
-{
-    if(Precursor::bufferType_ != Precursor::BufferType::utterance)
+BufferedSegmentFeatureProcessor<FloatT>::BufferedSegmentFeatureProcessor(const Core::Configuration& config)
+        : Core::Component(config),
+          BufferedFeatureExtractor<FloatT>(config) {
+    if (Precursor::bufferType_ != Precursor::BufferType::utterance)
         this->error("underlying BufferedFeatureExtractor must be of type 'utterance'"
                     " (buffer-type = utterance)");
-    if(Precursor::shuffle_)
+    if (Precursor::shuffle_)
         this->error("underlying BufferedFeatureExtractor not be shuffled (shuffle = false)");
 }
 
@@ -35,14 +31,13 @@ template<typename FloatT>
 BufferedSegmentFeatureProcessor<FloatT>::~BufferedSegmentFeatureProcessor() {
 }
 
-
 // We don't use the BufferedFeatureExtractor::processBuffer because it just forwards
 // the segment features ^= mini batch to the NN trainer.
 // The NN must also know about the segment transcription, though.
 template<typename FloatT>
 void BufferedSegmentFeatureProcessor<FloatT>::processBuffer() {
     typedef typename Math::FastMatrix<FloatT> FastMatrix;
-    typedef typename Precursor::NnMatrix NnMatrix;
+    typedef typename Precursor::NnMatrix      NnMatrix;
 
     // We expect that the underlying BufferedFeatureProcessor
     // is in utterance buffer mode and this is only called indirectly
@@ -65,7 +60,7 @@ void BufferedSegmentFeatureProcessor<FloatT>::processBuffer() {
     verify_eq(Precursor::nProcessedMiniBatches_, 0);
 
     Precursor::log("Process segment ")
-        << "with " << miniBatch.at(0).nColumns() << " features.";
+            << "with " << miniBatch.at(0).nColumns() << " features.";
 
     if (!Precursor::trainer_->isInitialized()) {
         std::vector<u32> streamSizes;
@@ -86,20 +81,15 @@ void BufferedSegmentFeatureProcessor<FloatT>::processBuffer() {
     Precursor::finalizeProcessBuffer();
 }
 
-
-
 template<typename FloatT>
 NeuralNetworkTrainer<FloatT>* BufferedSegmentFeatureProcessor<FloatT>::createTrainer(const Core::Configuration& config) {
     // We need a generic trainer which supports the processBatch_finishWithSpeechSegment() function.
     return NeuralNetworkTrainer<FloatT>::createSupervisedTrainer(config);
 }
 
-
-
-
 //=============================================================================
 // explicit template instantiation
 template class BufferedSegmentFeatureProcessor<f32>;
 template class BufferedSegmentFeatureProcessor<f64>;
 
-}
+}  // namespace Nn

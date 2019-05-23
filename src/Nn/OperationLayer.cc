@@ -14,13 +14,12 @@
  */
 #include "OperationLayer.hh"
 
-#include <Math/Random.hh>
-#include <Math/Module.hh>
-#include <Math/Vector.hh>
 #include <Math/Matrix.hh>
+#include <Math/Module.hh>
+#include <Math/Random.hh>
+#include <Math/Vector.hh>
 
 using namespace Nn;
-
 
 template<typename T>
 const Core::Choice OperationLayer<T>::choiceOperation(
@@ -50,33 +49,31 @@ template<typename T>
 const Core::ParameterBool OperationLayer<T>::paramHasBias(
         "has-bias", "has bias", true);
 
-
 template<typename T>
 const Core::ParameterBool OperationLayer<T>::paramTrainable(
         "trainable", "Can the parameters of this layer be trained?", false);
 
-
 template<typename T>
-OperationLayer<T>::OperationLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    NeuralNetworkLayer<T>(config),
-    operation_((Operation)paramOperation(config)),
-    applyLog_(paramApplyLog(config)),
-    hasBias_(paramHasBias(config)),
-    bias_(0),
-    weights_(0),
-    trainable_(paramTrainable(config)),
-    gamma_(paramGamma(config)),
-    timeForwardLinear_(0),
-    timeForwardBias_(0),
-    timeBackward_(0),
-    interpolation_weights_(paramInterpolationWeights(config))
-{
+OperationLayer<T>::OperationLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          operation_((Operation)paramOperation(config)),
+          applyLog_(paramApplyLog(config)),
+          hasBias_(paramHasBias(config)),
+          bias_(0),
+          weights_(0),
+          trainable_(paramTrainable(config)),
+          gamma_(paramGamma(config)),
+          timeForwardLinear_(0),
+          timeForwardBias_(0),
+          timeBackward_(0),
+          interpolation_weights_(paramInterpolationWeights(config)) {
     std::string out = "Operation layer performs ";
     switch (operation_) {
         case streamLinearCombine:
             out += "linear combination of input streams using weights ";
-            for (size_t i=0; i<interpolation_weights_.size(); ++i) out += Core::form("%f ", interpolation_weights_[i]);
+            for (size_t i = 0; i < interpolation_weights_.size(); ++i)
+                out += Core::form("%f ", interpolation_weights_[i]);
             break;
         case posteriorCombInvEntropy:
             out += "inverse-entropy combination of input streams (need to be normalized posteriors!)";
@@ -127,14 +124,14 @@ void OperationLayer<T>::initializeParametersWithIdentityMatrix() {
 
 /**	Initialize the weights from file */
 template<typename T>
-void OperationLayer<T>::loadNetworkParameters(const std::string &filename) {
+void OperationLayer<T>::loadNetworkParameters(const std::string& filename) {
     // Initialization done
     Precursor::needInit_ = false;
 }
 
 /**	Save weights to file */
 template<typename T>
-inline void OperationLayer<T>::saveNetworkParameters(const std::string &filename) const {
+inline void OperationLayer<T>::saveNetworkParameters(const std::string& filename) const {
 }
 
 /**	Forward the input */
@@ -145,9 +142,9 @@ void OperationLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& 
     timeval start, end;
 
     gettimeofday(&start, NULL);
-    NnVector norm;
-    NnVector *weight;
-    T Hmax;
+    NnVector  norm;
+    NnVector* weight;
+    T         Hmax;
     output.fill(0);
 
     switch (operation_) {
@@ -178,7 +175,8 @@ void OperationLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& 
                 output.addWithColumnWeights(*(input.at(stream)), *(frame_weights_[stream]));
             }
             output.divideColumnsByScalars(norm);
-            if (applyLog_) output.log();
+            if (applyLog_)
+                output.log();
 
             break;
 
@@ -195,7 +193,7 @@ void OperationLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& 
                 weight = frame_weights_[stream];
                 weight->initComputation(false);
                 weight->columnEntropy(*(input.at(stream)));
-                weight->scale(-1.0/Hmax);
+                weight->scale(-1.0 / Hmax);
                 weight->addConstantElementwise(1.0);
                 weight->pow(gamma_);
             }
@@ -222,7 +220,7 @@ void OperationLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& 
 
     Math::Cuda::deviceSync(Precursor::measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardLinear_  += Core::timeDiff(start, end);
+    timeForwardLinear_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
@@ -242,12 +240,12 @@ void OperationLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn, std:
 
 template<typename T>
 void OperationLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
-        const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+                                             const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
 }
 
 template<typename T>
 void OperationLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
-        const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+                                          const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
 }
 
 template<typename T>
@@ -272,7 +270,7 @@ void OperationLayer<T>::finishComputation(bool sync) const {
 
 template<typename T>
 void OperationLayer<T>::finalize() {
-    if (this->measureTime_){
+    if (this->measureTime_) {
         this->log("Operation layer: Time for linear part of forward pass: ") << timeForwardLinear_;
         this->log("Operation layer: Time for bias part of forward pass: ") << timeForwardBias_;
         this->log("Operation layer: Time for backward pass: ") << timeBackward_;
@@ -291,4 +289,4 @@ u32 OperationLayer<T>::getNumberOfFreeParameters() const {
 namespace Nn {
 template class OperationLayer<f32>;
 template class OperationLayer<f64>;
-}
+}  // namespace Nn

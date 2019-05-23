@@ -22,7 +22,6 @@
 #include "Statistics.hh"
 #include "Types.hh"
 
-
 namespace Nn {
 
 /**
@@ -35,52 +34,68 @@ namespace Nn {
  */
 template<typename T>
 class Prior : public Core::Component {
-    typedef Core::Component Precursor;
+    typedef Core::Component             Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterString paramPriorFile;
-    static const Core::ParameterFloat paramPrioriScale;
-    static const Core::ParameterBool paramCompatibilityMode;
-    static const Core::ParameterInt paramBackOffCount;
-    static const Core::ParameterFloat paramLearningRate;
+    static const Core::ParameterString  paramPriorFile;
+    static const Core::ParameterFloat   paramPrioriScale;
+    static const Core::ParameterBool    paramCompatibilityMode;
+    static const Core::ParameterInt     paramBackOffCount;
+    static const Core::ParameterFloat   paramLearningRate;
+
 protected:
     const std::string priorFilename_;
-    const bool compatibilityMode_;
-    const T scale_;
-    const u32 backOffCount_;
-    const T learningRate_; // for train()
-    NnVector logPrior_; // in +log space
-    Core::XmlChannel statisticsChannel_;
+    const bool        compatibilityMode_;
+    const T           scale_;
+    const u32         backOffCount_;
+    const T           learningRate_;  // for train()
+    NnVector          logPrior_;      // in +log space
+    Core::XmlChannel  statisticsChannel_;
+
 public:
-    Prior(const Core::Configuration &c);
+    Prior(const Core::Configuration& c);
     virtual ~Prior() {}
 
-    T scale() const { return scale_; }
-    std::string fileName() const { return priorFilename_; }
-    size_t size() const { return logPrior_.size(); }
-    T learningRate() const { return learningRate_; }
+    T scale() const {
+        return scale_;
+    }
+    std::string fileName() const {
+        return priorFilename_;
+    }
+    size_t size() const {
+        return logPrior_.size();
+    }
+    T learningRate() const {
+        return learningRate_;
+    }
 
     // Returns priors in +log space, without scaling.
-    T& at(size_t n) { return logPrior_.at(n); }
-    const T& at(size_t n) const { return logPrior_.at(n); }
+    T& at(size_t n) {
+        return logPrior_.at(n);
+    }
+    const T& at(size_t n) const {
+        return logPrior_.at(n);
+    }
 
-    void resize(size_t nClasses) { logPrior_.resize(nClasses); }
+    void resize(size_t nClasses) {
+        logPrior_.resize(nClasses);
+    }
     void initUniform(u32 classCount);
     void trainSoftmax(const NnVector& errorSignal, T errFactor);
     // set from statistics
-    void setFromClassCounts(const Statistics<T> &statistics, const Math::Vector<T> &classWeights);
+    void setFromClassCounts(const Statistics<T>& statistics, const Math::Vector<T>& classWeights);
     // calculate prior from mixture set
     // option "normalize-mixture-weights" needs to be set to false in configuration!
     // use of class weighting not supported yet
-    void setFromMixtureSet(Core::Ref<const Mm::MixtureSet> mixtureSet, const ClassLabelWrapper &labelWrapper);
+    void setFromMixtureSet(Core::Ref<const Mm::MixtureSet> mixtureSet, const ClassLabelWrapper& labelWrapper);
 
-    void getVector(NnVector &prior) const;
+    void getVector(NnVector& prior) const;
 
     // IO
     bool read();
-    bool read(const std::string &filename);
+    bool read(const std::string& filename);
     bool write() const;
-    bool write(const std::string &filename) const;
+    bool write(const std::string& filename) const;
 };
 
 } /* namespace Nn */

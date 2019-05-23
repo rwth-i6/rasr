@@ -15,52 +15,63 @@
 #ifndef _NN_NEURAL_NETWORK_IMPLICIT_NORMALIZATION_ESTIMATOR_HH
 #define _NN_NEURAL_NETWORK_IMPLICIT_NORMALIZATION_ESTIMATOR_HH
 
+#include "Estimator.hh"
 #include "NeuralNetwork.hh"
 #include "Statistics.hh"
-#include "Estimator.hh"
 
 namespace Nn {
 
 template<typename T>
 class MeanNormalizedSgd : public Estimator<T> {
-    typedef Estimator<T> Precursor;
+    typedef Estimator<T>                Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
-    using Precursor::statisticsChannel_;
-    using Precursor::initialLearningRate_;
     using Precursor::biasLearningRate_;
+    using Precursor::initialLearningRate_;
     using Precursor::logStepSize_;
+    using Precursor::statisticsChannel_;
+
 private:
     bool firstEstimation_;
     void checkForStatistics(NeuralNetwork<T>& network);
+
 public:
     MeanNormalizedSgd(const Core::Configuration& config);
     virtual ~MeanNormalizedSgd() {}
-    virtual void estimate(NeuralNetwork<T>& network, Statistics<T>& statistics);
-    virtual std::string type() const { return "mean-normalized-steepest-descent"; }
-    virtual u32 requiredStatistics() const { return Statistics<T>::GRADIENT ; }
+    virtual void        estimate(NeuralNetwork<T>& network, Statistics<T>& statistics);
+    virtual std::string type() const {
+        return "mean-normalized-steepest-descent";
+    }
+    virtual u32 requiredStatistics() const {
+        return Statistics<T>::GRADIENT;
+    }
 };
 
 /*---------------------------------------------------------------------------*/
 
 template<typename T>
 class MeanNormalizedSgdL1Clipping : public MeanNormalizedSgd<T> {
-    typedef MeanNormalizedSgd<T> Precursor;
+    typedef MeanNormalizedSgd<T>        Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
-    using Precursor::statisticsChannel_;
-    using Precursor::initialLearningRate_;
     using Precursor::biasLearningRate_;
+    using Precursor::initialLearningRate_;
     using Precursor::logStepSize_;
+    using Precursor::statisticsChannel_;
+
 public:
     MeanNormalizedSgdL1Clipping(const Core::Configuration& config);
     virtual ~MeanNormalizedSgdL1Clipping() {}
-    virtual void estimate(NeuralNetwork<T>& network, Statistics<T>& statistics);
-    virtual std::string type() const { return "mean-normalized-steepest-descent-l1-clipping"; }
+    virtual void        estimate(NeuralNetwork<T>& network, Statistics<T>& statistics);
+    virtual std::string type() const {
+        return "mean-normalized-steepest-descent-l1-clipping";
+    }
 };
 
-} // namespace
+}  // namespace Nn
 
 #endif

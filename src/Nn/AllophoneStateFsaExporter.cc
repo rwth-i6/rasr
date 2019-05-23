@@ -16,19 +16,20 @@
 
 #include <limits>
 
+#include <Fsa/Basic.hh>
+#include <Fsa/Determinize.hh>
+#include <Fsa/Project.hh>
+#include <Fsa/RemoveEpsilons.hh>
 #include <Math/Utilities.hh>
 #include <Speech/Types.hh>
-#include <Fsa/Basic.hh>
-#include <Fsa/Project.hh>
-#include <Fsa/Determinize.hh>
-#include <Fsa/RemoveEpsilons.hh>
 
 namespace {
 
 struct Edge {
-    Edge() : from(0u), to(0u), emission_idx(0u), weight(0.0f) {}
+    Edge()
+            : from(0u), to(0u), emission_idx(0u), weight(0.0f) {}
     Edge(Fsa::StateId from, Fsa::StateId to, Am::AcousticModel::EmissionIndex emission_idx, float cost)
-        : from(from), to(to), emission_idx(emission_idx), weight(cost) {}
+            : from(from), to(to), emission_idx(emission_idx), weight(cost) {}
 
     Fsa::StateId                     from;
     Fsa::StateId                     to;
@@ -36,8 +37,10 @@ struct Edge {
     float                            weight;
 };
 
-static void apply_state_map(std::vector<Fsa::StateId> const& state_map, std::vector<Fsa::StateId>& states,
-                     std::vector<std::pair<Fsa::StateId, float> >& final_states, std::vector<Edge>& edges) {
+static void apply_state_map(std::vector<Fsa::StateId> const&             state_map,
+                            std::vector<Fsa::StateId>&                   states,
+                            std::vector<std::pair<Fsa::StateId, float>>& final_states,
+                            std::vector<Edge>&                           edges) {
     for (size_t s = 0ul; s < states.size(); s++) {
         states[s] = state_map[states[s]];
     }
@@ -64,7 +67,9 @@ static bool cmp_edges(Edge const& a, Edge const& b) {
     }
 }
 
-static void toposort(std::vector<Fsa::StateId>& states, std::vector<std::pair<Fsa::StateId, float> >& final_states, std::vector<Edge>& edges) {
+static void toposort(std::vector<Fsa::StateId>&                   states,
+                     std::vector<std::pair<Fsa::StateId, float>>& final_states,
+                     std::vector<Edge>&                           edges) {
     std::vector<Fsa::StateId> state_map(states.size());
 
     std::vector<size_t> in_count(states.size(), 0ul);
@@ -74,11 +79,11 @@ static void toposort(std::vector<Fsa::StateId>& states, std::vector<std::pair<Fs
         }
     }
 
-    Fsa::StateId next_id = 0u;
+    Fsa::StateId                        next_id = 0u;
     std::vector<size_t>::const_iterator it;
     while ((it = std::find(in_count.begin(), in_count.end(), 0ul)) != in_count.end()) {
         Fsa::StateId state = static_cast<Fsa::StateId>(it - in_count.begin());
-        state_map[state] = next_id++;
+        state_map[state]   = next_id++;
         // this could be more efficient, but I am too lazy now
         for (Edge const& e : edges) {
             if (e.from == state and e.to != e.from) {
@@ -106,19 +111,20 @@ static void filter_edges(std::vector<Edge>& edges) {
     edges.resize(cur + 1);
 }
 
-static void make_single_final_state(std::vector<Fsa::StateId>& states, std::vector<std::pair<Fsa::StateId, float> >& final_states, std::vector<Edge>& edges) {
+static void make_single_final_state(std::vector<Fsa::StateId>& states, std::vector<std::pair<Fsa::StateId, float>>& final_states, std::vector<Edge>& edges) {
     if (final_states.size() == 1 && final_states.front().first == states.back() && final_states.front().second == 0) {
-        return; // nothing to do
+        return;  // nothing to do
     }
 
     Fsa::StateId new_final = static_cast<Fsa::StateId>(states.size());
     states.push_back(new_final);
     size_t old_edges_size = edges.size();
     for (size_t e = 0ul; e < old_edges_size; e++) {
-        for(std::pair<Fsa::StateId, float>& final_state : final_states) {
-            if(final_state.first != edges[e].to) continue;
+        for (std::pair<Fsa::StateId, float>& final_state : final_states) {
+            if (final_state.first != edges[e].to)
+                continue;
             Edge new_edge = edges[e];
-            new_edge.to = new_final;
+            new_edge.to   = new_final;
             new_edge.weight += final_state.second;
             edges.push_back(new_edge);
             break;
@@ -129,24 +135,24 @@ static void make_single_final_state(std::vector<Fsa::StateId>& states, std::vect
     final_states.front() = std::make_pair(new_final, 0.0f);
 }
 
-}
+}  // namespace
 
 namespace Nn {
 
 AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFsaForOrthography(std::string const& orthography) const {
-    Core::Ref<Am::AcousticModel>    am = mc_.acousticModel();
-    Speech::AllophoneStateGraphRef  graph = allophone_state_graph_builder_->build(orthography);
-    graph = Fsa::projectInput(graph);
-    graph = Fsa::removeDisambiguationSymbols(graph);
-    graph = Fsa::removeEpsilons(graph);
-    graph = Fsa::normalize(graph);
+    Core::Ref<Am::AcousticModel>   am    = mc_.acousticModel();
+    Speech::AllophoneStateGraphRef graph = allophone_state_graph_builder_->build(orthography);
+    graph                                = Fsa::projectInput(graph);
+    graph                                = Fsa::removeDisambiguationSymbols(graph);
+    graph                                = Fsa::removeEpsilons(graph);
+    graph                                = Fsa::normalize(graph);
     // TODO: use Fsa::topologicalSort here, remove toposort below, cleanup
     Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(graph);
     require_eq(automaton->initialStateId(), 0);
 
-    std::vector<Fsa::StateId> states;
-    std::vector<std::pair<Fsa::StateId, float> > final_states;
-    std::vector<Edge>         edges;
+    std::vector<Fsa::StateId>                   states;
+    std::vector<std::pair<Fsa::StateId, float>> final_states;
+    std::vector<Edge>                           edges;
 
     for (Fsa::StateId s = 0ul; s <= automaton->maxStateId(); s++) {
         if (automaton->hasState(s)) {
@@ -154,7 +160,8 @@ AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFs
             Fsa::State const* state = automaton->fastState(s);
             for (Fsa::State::const_iterator a = state->begin(); a != state->end(); ++a) {
                 verify(automaton->hasState(a->target_));
-                if(Speech::Score(a->weight_) >= Core::Type<Speech::Score>::max) continue;
+                if (Speech::Score(a->weight_) >= Core::Type<Speech::Score>::max)
+                    continue;
                 edges.push_back(Edge(s, a->target_, am->emissionIndex(a->input_), Speech::Score(a->weight_)));
             }
             if (state->isFinal()) {
@@ -168,19 +175,19 @@ AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFs
     make_single_final_state(states, final_states, edges);
 
     ExportedAutomaton result;
-    result.num_states   = states.size();
-    result.num_edges    = edges.size();
-    result.edges        = std::vector<u32>(edges.size() * 3ul);
-    result.weights      = std::vector<f32>(edges.size());
+    result.num_states = states.size();
+    result.num_edges  = edges.size();
+    result.edges      = std::vector<u32>(edges.size() * 3ul);
+    result.weights    = std::vector<f32>(edges.size());
 
     for (size_t e = 0ul; e < edges.size(); e++) {
-        result.edges  [e                   ] = edges[e].from;
-        result.edges  [e +     edges.size()] = edges[e].to;
-        result.edges  [e + 2 * edges.size()] = edges[e].emission_idx;
-        result.weights[e                   ] = edges[e].weight;
+        result.edges[e]                    = edges[e].from;
+        result.edges[e + edges.size()]     = edges[e].to;
+        result.edges[e + 2 * edges.size()] = edges[e].emission_idx;
+        result.weights[e]                  = edges[e].weight;
     }
 
     return result;
 }
 
-} // namespace Nn
+}  // namespace Nn

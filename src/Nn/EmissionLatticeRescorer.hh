@@ -15,10 +15,10 @@
 #ifndef EMISSIONLATTICERESCORER_HH_
 #define EMISSIONLATTICERESCORER_HH_
 
+#include <Mm/FeatureScorer.hh>
 #include <Speech/LatticeExtractor.hh>
 #include <Speech/LatticeRescorerAutomaton.hh>
 #include <Speech/SegmentwiseFeatureExtractor.hh>
-#include <Mm/FeatureScorer.hh>
 
 #include "SharedNeuralNetwork.hh"
 #include "Types.hh"
@@ -40,36 +40,43 @@ namespace Nn {
 
 class EmissionLatticeRescorer : public virtual Speech::AcousticLatticeRescorer {
     typedef Speech::AcousticLatticeRescorer Precursor;
+
 private:
     static const Core::ParameterString paramPortName;
-    static const Core::ParameterBool paramCheckValues;
-    static const Core::ParameterBool paramMeasureTime;
+    static const Core::ParameterBool   paramCheckValues;
+    static const Core::ParameterBool   paramMeasureTime;
 
 private:
     // measure runtime
     const bool measureTime_;
     const bool checkValues_;
-    f64 timeMemoryAllocation_;
-    f64 timeForwarding_;
-    f64 timeIO_;
+    f64        timeMemoryAllocation_;
+    f64        timeForwarding_;
+    f64        timeIO_;
+
 protected:
     Core::Ref<Speech::SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor_;
-    Flow::PortId portId_;
+    Flow::PortId                                   portId_;
+
 protected:
-    virtual Lattice::ConstWordLatticeRef work(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment *);
-    void logProperties() const;
-    NeuralNetwork<f32>& network() const { return SharedNeuralNetwork::network(); }
-    const ClassLabelWrapper& labelWrapper() const { return SharedNeuralNetwork::labelWrapper(); }
+    virtual Lattice::ConstWordLatticeRef work(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
+    void                                 logProperties() const;
+    NeuralNetwork<f32>&                  network() const {
+        return SharedNeuralNetwork::network();
+    }
+    const ClassLabelWrapper& labelWrapper() const {
+        return SharedNeuralNetwork::labelWrapper();
+    }
+
 public:
-    EmissionLatticeRescorer(const Core::Configuration &,bool initialize = true);
-    EmissionLatticeRescorer(const Core::Configuration &, Core::Ref<Am::AcousticModel>);
+    EmissionLatticeRescorer(const Core::Configuration&, bool initialize = true);
+    EmissionLatticeRescorer(const Core::Configuration&, Core::Ref<Am::AcousticModel>);
     virtual ~EmissionLatticeRescorer() {}
 
-    void setSegmentwiseFeatureExtractor(Core::Ref<Speech::SegmentwiseFeatureExtractor>);
+    void         setSegmentwiseFeatureExtractor(Core::Ref<Speech::SegmentwiseFeatureExtractor>);
     virtual void setAlignmentGenerator(AlignmentGeneratorRef alignmentGenerator);
     virtual void finalize();
 };
-
 
 /*
  *
@@ -77,32 +84,44 @@ public:
  *
  */
 class EmissionLatticeRescorerAutomaton : public Speech::CachedLatticeRescorerAutomaton {
-    typedef Speech::CachedLatticeRescorerAutomaton Precursor;
-    typedef Speech::ConstSegmentwiseFeaturesRef ConstSegmentwiseFeaturesRef;
-    typedef Speech::TimeframeIndex TimeframeIndex;
+    typedef Speech::CachedLatticeRescorerAutomaton               Precursor;
+    typedef Speech::ConstSegmentwiseFeaturesRef                  ConstSegmentwiseFeaturesRef;
+    typedef Speech::TimeframeIndex                               TimeframeIndex;
     typedef Core::Ref<Speech::PhonemeSequenceAlignmentGenerator> AlignmentGeneratorRef;
+
 protected:
     typedef Types<f32>::NnVector NnVector;
     typedef Types<f32>::NnMatrix NnMatrix;
+
 public:
     EmissionLatticeRescorerAutomaton();
     virtual ~EmissionLatticeRescorerAutomaton();
+
 private:
-    AlignmentGeneratorRef alignmentGenerator_;
+    AlignmentGeneratorRef        alignmentGenerator_;
     Speech::Alignment::LabelType labelType_;
     Core::Ref<Am::AcousticModel> acousticModel_;
-    ConstSegmentwiseFeaturesRef features_;
-    std::vector<NnMatrix> inputFeatures_;
-    f64 *timeRetrieveAlignment_;
+    ConstSegmentwiseFeaturesRef  features_;
+    std::vector<NnMatrix>        inputFeatures_;
+    f64*                         timeRetrieveAlignment_;
+
 protected:
     // returns emission score of arc a, outgoing from state s
-    virtual Fsa::Weight score(Fsa::StateId s, const Fsa::Arc &a) const;
-    virtual bool forwardNetwork(bool checkValues);
-    NeuralNetwork<f32>& network() const { return SharedNeuralNetwork::network(); }
-    const ClassLabelWrapper& labelWrapper() const { return SharedNeuralNetwork::labelWrapper(); }
+    virtual Fsa::Weight score(Fsa::StateId s, const Fsa::Arc& a) const;
+    virtual bool        forwardNetwork(bool checkValues);
+    NeuralNetwork<f32>& network() const {
+        return SharedNeuralNetwork::network();
+    }
+    const ClassLabelWrapper& labelWrapper() const {
+        return SharedNeuralNetwork::labelWrapper();
+    }
+
 public:
     EmissionLatticeRescorerAutomaton(Lattice::ConstWordLatticeRef lattice,
-            AlignmentGeneratorRef alignmentGenerator, Core::Ref<Am::AcousticModel> acousticModel, ConstSegmentwiseFeaturesRef features, bool checkValues);
+                                     AlignmentGeneratorRef        alignmentGenerator,
+                                     Core::Ref<Am::AcousticModel> acousticModel,
+                                     ConstSegmentwiseFeaturesRef  features,
+                                     bool                         checkValues);
 
     virtual std::string describe() const {
         return Core::form("nn-emission-rescore(%s)", fsa_->describe().c_str());
@@ -110,8 +129,8 @@ public:
 
     // returns emission score of coarticulatedPronunciation
     // alignment is read from cache or generated on demand
-    Fsa::Weight _score(const Bliss::Coarticulated<Bliss::LemmaPronunciation> &coarticulatedPronunciation,
-            TimeframeIndex begtime, TimeframeIndex endtime) const;
+    Fsa::Weight _score(const Bliss::Coarticulated<Bliss::LemmaPronunciation>& coarticulatedPronunciation,
+                       TimeframeIndex begtime, TimeframeIndex endtime) const;
 };
 
 /** CachedNeuralNetworkFeatureScorer
@@ -123,35 +142,46 @@ public:
  */
 class CachedNeuralNetworkFeatureScorer : public Mm::FeatureScorer {
     typedef Mm::FeatureScorer Precursor;
+
 protected:
     class ActivationLookupScorer : public ContextScorer {
     protected:
-        const CachedNeuralNetworkFeatureScorer *featureScorer_;
-        const u32 time_;
+        const CachedNeuralNetworkFeatureScorer* featureScorer_;
+        const u32                               time_;
+
     public:
-        ActivationLookupScorer(const CachedNeuralNetworkFeatureScorer *featureScorer, u32 time) :
-            featureScorer_(featureScorer),
-            time_(time)
-        {}
+        ActivationLookupScorer(const CachedNeuralNetworkFeatureScorer* featureScorer, u32 time)
+                : featureScorer_(featureScorer),
+                  time_(time) {}
         virtual ~ActivationLookupScorer() {}
 
-        virtual Mm::EmissionIndex nEmissions() const { return featureScorer_->nMixtures(); }
-        virtual Mm::Score score(Mm::EmissionIndex e) const  { return featureScorer_->score(time_, e); }
+        virtual Mm::EmissionIndex nEmissions() const {
+            return featureScorer_->nMixtures();
+        }
+        virtual Mm::Score score(Mm::EmissionIndex e) const {
+            return featureScorer_->score(time_, e);
+        }
     };
     friend class ContextScorer;
+
 protected:
     u32 nMixtures_;
+
 protected:
-    NeuralNetwork<f32>& network() const { return SharedNeuralNetwork::network(); }
-    const ClassLabelWrapper& labelWrapper() const { return SharedNeuralNetwork::labelWrapper(); }
+    NeuralNetwork<f32>& network() const {
+        return SharedNeuralNetwork::network();
+    }
+    const ClassLabelWrapper& labelWrapper() const {
+        return SharedNeuralNetwork::labelWrapper();
+    }
+
 public:
     typedef Core::Ref<const Mm::FeatureScorer::ContextScorer> Scorer;
 
-    CachedNeuralNetworkFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixtureSet) :
-        Core::Component(c),
-        Precursor(c),
-        nMixtures_(mixtureSet->nMixtures())
-    {
+    CachedNeuralNetworkFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixtureSet)
+            : Core::Component(c),
+              Precursor(c),
+              nMixtures_(mixtureSet->nMixtures()) {
         log("creating nn-cached feature scorer");
     }
 
@@ -161,24 +191,24 @@ public:
 
     Mm::Score score(u32 time, Mm::EmissionIndex e) const;
 
-    virtual bool hasTimeIndexedCache() const { return true; }
+    virtual bool hasTimeIndexedCache() const {
+        return true;
+    }
 
     // methods required by feature scorer interface
-    virtual Mm::EmissionIndex nMixtures() const { return nMixtures_; }
+    virtual Mm::EmissionIndex nMixtures() const {
+        return nMixtures_;
+    }
     virtual Mm::ComponentIndex dimension() const;
 
-    virtual void getFeatureDescription(Mm::FeatureDescription &description) const {}
-    virtual void getDependencies(Core::DependencySet &dependencies) const {}
-
+    virtual void getFeatureDescription(Mm::FeatureDescription& description) const {}
+    virtual void getDependencies(Core::DependencySet& dependencies) const {}
 
     // not available for this feature scorer
     virtual Scorer getScorer(Core::Ref<const Mm::Feature> f) const;
-    virtual Scorer getScorer(const Mm::FeatureVector &f) const;
-
-
+    virtual Scorer getScorer(const Mm::FeatureVector& f) const;
 };
 
-}; // namespace Nn
-
+};  // namespace Nn
 
 #endif /* EMISSIONLATTICERESCORER_HH_ */

@@ -26,22 +26,20 @@ namespace Nn {
  *
  */
 template<typename FloatT>
-class BufferedSegmentFeatureProcessor : public BufferedFeatureExtractor<FloatT>
-{
+class BufferedSegmentFeatureProcessor : public BufferedFeatureExtractor<FloatT> {
 public:
     typedef BufferedFeatureExtractor<FloatT> Precursor;
 
 public:
-    BufferedSegmentFeatureProcessor(const Core::Configuration &config);
+    BufferedSegmentFeatureProcessor(const Core::Configuration& config);
     virtual ~BufferedSegmentFeatureProcessor();
 
     virtual void processBuffer();
 
     // Override in BufferedFeatureExtractor, which creates, owns and feeds the trainer.
     virtual NeuralNetworkTrainer<FloatT>* createTrainer(const Core::Configuration& config);
-
 };
 
-}
+}  // namespace Nn
 
-#endif // BUFFEREDSEGMENTFEATUREPROCESSOR_HH
+#endif  // BUFFEREDSEGMENTFEATUREPROCESSOR_HH

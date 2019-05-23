@@ -16,9 +16,9 @@
 #define _NN_FEATURESCORER_H_
 
 #include <Mm/AssigningFeatureScorer.hh>
-#include "NeuralNetwork.hh"
 #include "ClassLabelWrapper.hh"
 #include "LinearAndActivationLayer.hh"
+#include "NeuralNetwork.hh"
 #include "Prior.hh"
 #include "Types.hh"
 
@@ -33,74 +33,91 @@ namespace Nn {
  */
 class BaseFeatureScorer : public Mm::CachedAssigningFeatureScorer {
     typedef Mm::CachedAssigningFeatureScorer Precursor;
+
 protected:
-    typedef Types<f32>::NnVector NnVector;
-    typedef Types<f32>::NnMatrix NnMatrix;
+    typedef Types<f32>::NnVector                                                NnVector;
+    typedef Types<f32>::NnMatrix                                                NnMatrix;
     typedef Core::Ref<const Mm::AssigningFeatureScorer::AssigningContextScorer> AssigningScorerRef;
+
 protected:
-    Prior<f32> prior_;
-    ClassLabelWrapper *labelWrapper_;
-    u32 nClasses_;
-    u32 inputDimension_;
+    Prior<f32>                 prior_;
+    ClassLabelWrapper*         labelWrapper_;
+    u32                        nClasses_;
+    u32                        inputDimension_;
     mutable NeuralNetwork<f32> network_;
+
 public:
-    BaseFeatureScorer(const Core::Configuration &c);
+    BaseFeatureScorer(const Core::Configuration& c);
     virtual ~BaseFeatureScorer();
     // initialization method
     virtual void init(Core::Ref<const Mm::MixtureSet> mixture);
 
-    virtual Mm::MixtureIndex nMixtures() const { return nClasses_; }
-    virtual Mm::ComponentIndex dimension() const { return inputDimension_; }
-    virtual Mm::DensityIndex nDensities() const { return nClasses_; }
+    virtual Mm::MixtureIndex nMixtures() const {
+        return nClasses_;
+    }
+    virtual Mm::ComponentIndex dimension() const {
+        return inputDimension_;
+    }
+    virtual Mm::DensityIndex nDensities() const {
+        return nClasses_;
+    }
 };
 
 // Neural network feature scorer with on-demand computation of scores
 
 class OnDemandFeatureScorer : public BaseFeatureScorer {
-
     typedef BaseFeatureScorer Precursor;
+
 protected:
     // by creating a context object, all hidden layers are forwarded
     // the result is shared for all emission scores
     class Context : public Mm::CachedAssigningFeatureScorer::CachedAssigningContextScorer {
         friend class OnDemandFeatureScorer;
         static const Mm::Score invalidScore;
+
     protected:
         const Mm::FeatureVector featureVector_;
-        NnMatrix activationOfLastHiddenLayer_;
-    public:
-        Context(const Mm::FeatureVector &featureVector,
-                const OnDemandFeatureScorer *featureScorer,
-                size_t cacheSize,
-                bool check = false);
-    };
-protected:
-    u32 topLayerOutputDimension_;
-    mutable LinearAndSoftmaxLayer<f32> *outputLayer_;
-public:
-    OnDemandFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture);
-    virtual ~OnDemandFeatureScorer();
-public:
-    virtual void init(Core::Ref<const Mm::MixtureSet> mixture);
-    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex) const;
-    virtual Mm::Score calculateScore(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
-    Mm::Score calculateScore(const NnMatrix &activation, Mm::MixtureIndex mixtureIndex) const;
+        NnMatrix                activationOfLastHiddenLayer_;
 
-    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector &featureVector) const {
+    public:
+        Context(const Mm::FeatureVector&     featureVector,
+                const OnDemandFeatureScorer* featureScorer,
+                size_t                       cacheSize,
+                bool                         check = false);
+    };
+
+protected:
+    u32                                 topLayerOutputDimension_;
+    mutable LinearAndSoftmaxLayer<f32>* outputLayer_;
+
+public:
+    OnDemandFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture);
+    virtual ~OnDemandFeatureScorer();
+
+public:
+    virtual void                                            init(Core::Ref<const Mm::MixtureSet> mixture);
+    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const;
+    virtual Mm::Score                                       calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
+    Mm::Score                                               calculateScore(const NnMatrix& activation, Mm::MixtureIndex mixtureIndex) const;
+
+    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector& featureVector) const {
         return AssigningScorerRef(new Context(featureVector, this, nMixtures()));
     }
 
-    virtual bool isPriorRemovedFromBias() const {return outputLayer_->logPriorIsRemovedFromBias();}
+    virtual bool isPriorRemovedFromBias() const {
+        return outputLayer_->logPriorIsRemovedFromBias();
+    }
+
 protected:
-    void forwardHiddenLayers(const Mm::FeatureVector &in, NnMatrix &out) const ;
+    void forwardHiddenLayers(const Mm::FeatureVector& in, NnMatrix& out) const;
 };
 
 // neural network feature scorer that always evaluates all scores
 
 class FullFeatureScorer : public BaseFeatureScorer {
-
-    typedef BaseFeatureScorer Precursor;
+    typedef BaseFeatureScorer                                                   Precursor;
     typedef Core::Ref<const Mm::AssigningFeatureScorer::AssigningContextScorer> AssigningScorerRef;
+
 protected:
     // by creating a context object, all layers are forwarded (including the output layer)
     // the softmax-nonlinearity is discarded
@@ -108,66 +125,75 @@ protected:
     class Context : public Mm::CachedAssigningFeatureScorer::CachedAssigningContextScorer {
         friend class FullFeatureScorer;
         static const Mm::Score invalidScore;
+
     protected:
         const Mm::FeatureVector featureVector_;
-        NnMatrix scores_;
+        NnMatrix                scores_;
+
     public:
-        Context(const Mm::FeatureVector &featureVector,
-                const FullFeatureScorer *featureScorer,
-                size_t cacheSize,
-                bool check = false);
+        Context(const Mm::FeatureVector& featureVector,
+                const FullFeatureScorer* featureScorer,
+                size_t                   cacheSize,
+                bool                     check = false);
     };
+
 protected:
     u32 topLayerOutputDimension_;
-public:
-    FullFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture);
-    virtual ~FullFeatureScorer();
-public:
-    virtual void init(Core::Ref<const Mm::MixtureSet> mixture);
-    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex) const;
-    virtual Mm::Score calculateScore(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
-    Mm::Score calculateScore(const NnMatrix &activation, Mm::MixtureIndex mixtureIndex) const;
 
-    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector &featureVector) const {
+public:
+    FullFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture);
+    virtual ~FullFeatureScorer();
+
+public:
+    virtual void                                            init(Core::Ref<const Mm::MixtureSet> mixture);
+    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const;
+    virtual Mm::Score                                       calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
+    Mm::Score                                               calculateScore(const NnMatrix& activation, Mm::MixtureIndex mixtureIndex) const;
+
+    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector& featureVector) const {
         return AssigningScorerRef(new Context(featureVector, this, nMixtures()));
     }
+
 protected:
-    void computeScores(const Mm::FeatureVector &in, NnMatrix &out) const ;
+    void computeScores(const Mm::FeatureVector& in, NnMatrix& out) const;
 };
 
 // neural network feature scorer that reads scores from feature cache
 
 class PrecomputedFeatureScorer : public BaseFeatureScorer {
-
-    typedef BaseFeatureScorer Precursor;
+    typedef BaseFeatureScorer                                                   Precursor;
     typedef Core::Ref<const Mm::AssigningFeatureScorer::AssigningContextScorer> AssigningScorerRef;
+
 protected:
     class Context : public Mm::CachedAssigningFeatureScorer::CachedAssigningContextScorer {
         friend class PrecomputedFeatureScorer;
         static const Mm::Score invalidScore;
+
     protected:
         const Mm::FeatureVector featureVector_;
-    public:
-        Context(const Mm::FeatureVector &featureVector,
-                const PrecomputedFeatureScorer *featureScorer,
-                size_t cacheSize,
-                bool check = false);
-    };
-public:
-    PrecomputedFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture);
-    virtual ~PrecomputedFeatureScorer();
-public:
-    virtual void init(Core::Ref<const Mm::MixtureSet> mixture);
-    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex) const;
-    virtual Mm::Score calculateScore(const CachedAssigningContextScorer *cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
-    Mm::Score calculateScore(const Mm::FeatureVector &featureVector , Mm::MixtureIndex mixtureIndex) const;
 
-    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector &featureVector) const {
+    public:
+        Context(const Mm::FeatureVector&        featureVector,
+                const PrecomputedFeatureScorer* featureScorer,
+                size_t                          cacheSize,
+                bool                            check = false);
+    };
+
+public:
+    PrecomputedFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture);
+    virtual ~PrecomputedFeatureScorer();
+
+public:
+    virtual void                                            init(Core::Ref<const Mm::MixtureSet> mixture);
+    virtual Mm::AssigningFeatureScorer::ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const;
+    virtual Mm::Score                                       calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const;
+    Mm::Score                                               calculateScore(const Mm::FeatureVector& featureVector, Mm::MixtureIndex mixtureIndex) const;
+
+    virtual AssigningScorerRef getAssigningScorer(const Mm::FeatureVector& featureVector) const {
         return AssigningScorerRef(new Context(featureVector, this, nMixtures()));
     }
 };
 
-
-}
+}  // namespace Nn
 
 #endif /* FEATURESCORER_H_ */

@@ -25,10 +25,10 @@ template<typename FloatT>
 struct BatchStateScoreIntf {
     virtual ~BatchStateScoreIntf() {}
 
-    virtual u32 getBatchLen() = 0;
-    virtual FloatT getStateScore(u32 timeIdx, u32 emissionIdx) = 0; // -log space
+    virtual u32    getBatchLen()                               = 0;
+    virtual FloatT getStateScore(u32 timeIdx, u32 emissionIdx) = 0;  // -log space
 };
 
-}
+}  // namespace Nn
 
-#endif // BATCHSTATESCOREINTF_HH
+#endif  // BATCHSTATESCOREINTF_HH

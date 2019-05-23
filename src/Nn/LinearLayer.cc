@@ -14,13 +14,12 @@
  */
 #include "LinearLayer.hh"
 
-#include <Math/Random.hh>
-#include <Math/Module.hh>
-#include <Math/Vector.hh>
 #include <Math/Matrix.hh>
+#include <Math/Module.hh>
+#include <Math/Random.hh>
+#include <Math/Vector.hh>
 
 using namespace Nn;
-
 
 template<typename T>
 const Core::Choice LinearLayer<T>::choiceInitializationType(
@@ -71,27 +70,25 @@ template<typename T>
 const Core::ParameterBool LinearLayer<T>::paramTrainable(
         "trainable", "Can the parameters of this layer be trained?", true);
 
-
 template<typename T>
-LinearLayer<T>::LinearLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    NeuralNetworkLayer<T>(config),
-    initializationType_((InitializationType)paramInitializationType(config)),
-    biasInitializationRangeMin_(paramBiasInitializationRangeMin(config)),
-    biasInitializationRangeMax_(paramBiasInitializationRangeMax(config)),
-    weightInitializationRangeMin_(paramWeightInitializationRangeMin(config)),
-    weightInitializationRangeMax_(paramWeightInitializationRangeMax(config)),
-    weightInitializationIdentityScalingFactor_(paramWeightInitializationScalingFactor(config)),
-    ignoreParameterFile_(paramIgnoreParameterFile(config)),
-    hasBias_(paramHasBias(config)),
-    bias_(0),
-    weights_(0),
-    parameterFile_(paramParameterFile(config)),
-    trainable_(paramTrainable(config)),
-    timeForwardLinear_(0),
-    timeForwardBias_(0),
-    timeBackward_(0)
-{}
+LinearLayer<T>::LinearLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          initializationType_((InitializationType)paramInitializationType(config)),
+          biasInitializationRangeMin_(paramBiasInitializationRangeMin(config)),
+          biasInitializationRangeMax_(paramBiasInitializationRangeMax(config)),
+          weightInitializationRangeMin_(paramWeightInitializationRangeMin(config)),
+          weightInitializationRangeMax_(paramWeightInitializationRangeMax(config)),
+          weightInitializationIdentityScalingFactor_(paramWeightInitializationScalingFactor(config)),
+          ignoreParameterFile_(paramIgnoreParameterFile(config)),
+          hasBias_(paramHasBias(config)),
+          bias_(0),
+          weights_(0),
+          parameterFile_(paramParameterFile(config)),
+          trainable_(paramTrainable(config)),
+          timeForwardLinear_(0),
+          timeForwardBias_(0),
+          timeBackward_(0) {}
 
 template<typename T>
 LinearLayer<T>::~LinearLayer() {}
@@ -107,9 +104,10 @@ void LinearLayer<T>::setInputDimension(u32 stream, u32 size) {
 template<typename T>
 void LinearLayer<T>::setOutputDimension(u32 size) {
     Precursor::outputDimension_ = size;
-    bool sizeFits = (bias_.nRows() == size);
+    bool sizeFits               = (bias_.nRows() == size);
     for (u32 stream = 0; stream < weights_.size(); stream++) {
-        if (weights_[stream].nRows() != size) sizeFits = false;
+        if (weights_[stream].nRows() != size)
+            sizeFits = false;
     }
     if (!sizeFits) {
         Precursor::needInit_ = true;
@@ -118,30 +116,29 @@ void LinearLayer<T>::setOutputDimension(u32 size) {
 
 template<typename T>
 void LinearLayer<T>::initializeNetworkParameters() {
-    for (u32 stream = 0; stream < weights_.size(); stream++){
+    for (u32 stream = 0; stream < weights_.size(); stream++) {
         require(!weights_[stream].isComputing());
     }
     require(!bias_.isComputing());
     switch (initializationType_) {
-    case random:
-        Core::Component::log("Initialize parameters of ") << Precursor::getName() << " randomly";
-        initializeParametersRandomly();
-        break;
-    case identity:
-        Core::Component::log("Initialize parameters of ") << Precursor::getName() << " with the identity matrix";
-        initializeParametersWithIdentityMatrix();
-        break;
-    case file:
-        Core::Component::log("Initialize parameters of ") << Precursor::getName() << " from file";
-        loadNetworkParameters(parameterFile_);
-        break;
-    case zero:
-    default:
-        Core::Component::log("Initialize parameters of ") << Precursor::getName() << " with zero";
-        initializeParametersWithZero();
-        break;
+        case random:
+            Core::Component::log("Initialize parameters of ") << Precursor::getName() << " randomly";
+            initializeParametersRandomly();
+            break;
+        case identity:
+            Core::Component::log("Initialize parameters of ") << Precursor::getName() << " with the identity matrix";
+            initializeParametersWithIdentityMatrix();
+            break;
+        case file:
+            Core::Component::log("Initialize parameters of ") << Precursor::getName() << " from file";
+            loadNetworkParameters(parameterFile_);
+            break;
+        case zero:
+        default:
+            Core::Component::log("Initialize parameters of ") << Precursor::getName() << " with zero";
+            initializeParametersWithZero();
+            break;
     };
-
 
     for (u32 stream = 0; stream < weights_.size(); stream++) {
         Core::Component::log("weight matrix size: ") << weights_[stream].nRows() << " x " << weights_[stream].nColumns();
@@ -170,17 +167,14 @@ void LinearLayer<T>::initializeParametersRandomly() {
     for (u32 stream = 0; stream < Precursor::nInputActivations(); stream++) {
         for (u32 row = 0; row < weights_.at(stream).nRows(); row++) {
             for (u32 column = 0; column < weights_.at(stream).nColumns(); ++column) {
-                weights_.at(stream).at(row, column) = ((weightInitializationRangeMax_
-                        - weightInitializationRangeMin_) * (T) Math::rand() / RAND_MAX)
-                        + weightInitializationRangeMin_;
+                weights_.at(stream).at(row, column) = ((weightInitializationRangeMax_ - weightInitializationRangeMin_) * (T)Math::rand() / RAND_MAX) + weightInitializationRangeMin_;
             }
         }
     }
 
     // ... and randomize the bias
     for (u32 row = 0; row < bias_.nRows(); row++)
-        bias_.at(row) = hasBias_ ? ((biasInitializationRangeMax_ - biasInitializationRangeMin_) * (T) Math::rand() / RAND_MAX)
-                + biasInitializationRangeMin_ : 0;
+        bias_.at(row) = hasBias_ ? ((biasInitializationRangeMax_ - biasInitializationRangeMin_) * (T)Math::rand() / RAND_MAX) + biasInitializationRangeMin_ : 0;
     // Initialization done
     Precursor::needInit_ = false;
 }
@@ -215,7 +209,7 @@ void LinearLayer<T>::initializeParametersWithIdentityMatrix() {
     for (u32 stream = 0; stream < weights_.size(); stream++) {
         u32 n = std::min(weights_.at(stream).nRows(), weights_.at(stream).nColumns());
         for (u32 i = 0; i < n; i++) {
-            weights_.at(stream).at(i,i) = weightInitializationIdentityScalingFactor_;
+            weights_.at(stream).at(i, i) = weightInitializationIdentityScalingFactor_;
         }
     }
 
@@ -225,8 +219,8 @@ void LinearLayer<T>::initializeParametersWithIdentityMatrix() {
 
 /**	Initialize the weights from file */
 template<typename T>
-void LinearLayer<T>::loadNetworkParameters(const std::string &filename) {
-    for (u32 stream = 0; stream < weights_.size(); stream++){
+void LinearLayer<T>::loadNetworkParameters(const std::string& filename) {
+    for (u32 stream = 0; stream < weights_.size(); stream++) {
         require(!weights_[stream].isComputing());
     }
     require(!bias_.isComputing());
@@ -247,10 +241,10 @@ void LinearLayer<T>::loadNetworkParameters(const std::string &filename) {
 
 /**	Save weights to file */
 template<typename T>
-inline void LinearLayer<T>::saveNetworkParameters(const std::string &filename) const {
+inline void LinearLayer<T>::saveNetworkParameters(const std::string& filename) const {
     // synchronization
     bool weightsComputing = weights_.at(0).isComputing();
-    bool biasComputing = bias_.isComputing();
+    bool biasComputing    = bias_.isComputing();
     if (weightsComputing) {
         for (u32 stream = 0; stream < weights_.size(); stream++)
             weights_.at(stream).finishComputation();
@@ -261,7 +255,7 @@ inline void LinearLayer<T>::saveNetworkParameters(const std::string &filename) c
     // save bias and weights in one file
     // get the size of the current layer ...
     u32 inputSize = 0;
-    for (u32 stream = 0; stream < Precursor::nInputActivations(); stream ++) {
+    for (u32 stream = 0; stream < Precursor::nInputActivations(); stream++) {
         inputSize += Precursor::getInputDimension(stream);
     }
     if (hasBias_)
@@ -277,7 +271,7 @@ inline void LinearLayer<T>::saveNetworkParameters(const std::string &filename) c
         if (hasBias_)
             parameters[i][0] = bias_.at(i);
 
-        u32 k = hasBias_ ? 1 : 0; // start at 1 because of the bias
+        u32 k = hasBias_ ? 1 : 0;  // start at 1 because of the bias
         for (u32 stream = 0; stream < Precursor::nInputActivations(); stream++) {
             for (u32 j = 0; j < weights_.at(stream).nRows(); ++j) {
                 parameters[i][k] = weights_.at(stream).at(j, i);
@@ -316,7 +310,7 @@ void LinearLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& out
 
     Math::Cuda::deviceSync(Precursor::measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardLinear_  += Core::timeDiff(start, end);
+    timeForwardLinear_ += Core::timeDiff(start, end);
 
     // second: add bias
     gettimeofday(&start, NULL);
@@ -332,12 +326,10 @@ void LinearLayer<T>::_backpropagateWeights(const NnMatrix& errorSignalIn, std::v
     require_eq(bias_.size(), errorSignalIn.nRows());
 
     if (errorSignalOut.size() == 0) {
-        //std::cout << "this shouldn't happen in " << this->getName() << std::endl;
         return;
     }
 
     timeval start, end;
-    // errorSignalOut = weights * errorSignalIn for all streams
 
     gettimeofday(&start, NULL);
     for (u32 stream = 0; stream < weights_.size(); stream++)
@@ -362,13 +354,13 @@ void LinearLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn, std::ve
 
 template<typename T>
 void LinearLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
-        const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+                                          const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
     gradientWeights.addMatrixProduct(layerInput, errorSignalIn, T(1), T(1), false, true);
 }
 
 template<typename T>
 void LinearLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
-        const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+                                       const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
     // calculate bias gradient only once for all input streams
     if (stream == 0 && hasBias_)
         gradientBias.addSummedColumns(errorSignalIn);
@@ -400,9 +392,9 @@ void LinearLayer<T>::setParameters(const Math::Matrix<T>& parameters) {
         totalInputSize += this->getInputDimension(stream);
     }
     u32 inputSizeFromFile = hasBias_ ? parameters.nColumns() - 1 : parameters.nColumns();
-    if (inputSizeFromFile != totalInputSize){
+    if (inputSizeFromFile != totalInputSize) {
         this->error("dimension mismatch: (parameter file vs. layer-dimension) ")
-                    << inputSizeFromFile << " vs. " << totalInputSize;
+                << inputSizeFromFile << " vs. " << totalInputSize;
     }
     bias_.resize(parameters.nRows());
     weights_.resize(this->nInputActivations());
@@ -421,7 +413,7 @@ void LinearLayer<T>::setParameters(const Math::Matrix<T>& parameters) {
         u32 column = hasBias_ ? 1 : 0;
         for (u32 stream = 0; stream < weights_.size(); stream++) {
             for (u32 r = 0; r < weights_.at(stream).nRows(); r++) {
-                weights_.at(stream).at(r,row) = parameters[row][column];
+                weights_.at(stream).at(r, row) = parameters[row][column];
                 column++;
             }
         }
@@ -454,7 +446,7 @@ void LinearLayer<T>::finishComputation(bool sync) const {
 
 template<typename T>
 void LinearLayer<T>::finalize() {
-    if (this->measureTime_){
+    if (this->measureTime_) {
         this->log("Linear layer: Time for linear part of forward pass: ") << timeForwardLinear_;
         this->log("Linear layer: Time for bias part of forward pass: ") << timeForwardBias_;
         this->log("Linear layer: Time for backward pass: ") << timeBackward_;
@@ -477,13 +469,12 @@ u32 LinearLayer<T>::getNumberOfFreeParameters() const {
 //BiasLayer
 
 template<typename T>
-BiasLayer<T>::BiasLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    NeuralNetworkLayer<T>(config),
-    bias_(0),
-    timeForward_(0),
-    timeBackward_(0)
-{}
+BiasLayer<T>::BiasLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          bias_(0),
+          timeForward_(0),
+          timeBackward_(0) {}
 
 template<typename T>
 BiasLayer<T>::~BiasLayer() {}
@@ -491,13 +482,13 @@ BiasLayer<T>::~BiasLayer() {}
 template<typename T>
 void BiasLayer<T>::setInputDimension(u32 stream, u32 size) {
     Precursor::setInputDimension(stream, size);
-    require_eq(stream, 0); // only one stream supported at the moment
+    require_eq(stream, 0);  // only one stream supported at the moment
 }
 
 template<typename T>
 void BiasLayer<T>::setOutputDimension(u32 size) {
     Precursor::outputDimension_ = size;
-    bool sizeFits = (bias_.nRows() == size);
+    bool sizeFits               = (bias_.nRows() == size);
     if (!sizeFits) {
         Precursor::needInit_ = true;
     }
@@ -505,14 +496,14 @@ void BiasLayer<T>::setOutputDimension(u32 size) {
 
 template<typename T>
 template<typename S>
-void BiasLayer<T>::removeLogPriorFromBias(const Prior<S> &priors){
+void BiasLayer<T>::removeLogPriorFromBias(const Prior<S>& priors) {
     require(this->getBias());
     require_eq(priors.size(), this->getBias()->size());
     T prioriScale = priors.scale();
-    if (prioriScale != S(0.0)){
+    if (prioriScale != S(0.0)) {
         this->log("removing scaled log-prior from bias parameters (scale: ") << prioriScale << ")";
         // subtract
-        if (this->getBias()->isComputing()){
+        if (this->getBias()->isComputing()) {
             typename Types<S>::NnVector priorVector;
             priorVector.resize(priors.size());
             priors.getVector(priorVector);
@@ -551,7 +542,7 @@ void BiasLayer<T>::initializeParametersWithZero() {
 
 /**	Initialize the weights from file */
 template<typename T>
-void BiasLayer<T>::loadNetworkParameters(const std::string &filename) {
+void BiasLayer<T>::loadNetworkParameters(const std::string& filename) {
     require(!bias_.isComputing());
     initializeParametersWithZero();
 
@@ -561,7 +552,7 @@ void BiasLayer<T>::loadNetworkParameters(const std::string &filename) {
 
 /**	Save weights to file */
 template<typename T>
-inline void BiasLayer<T>::saveNetworkParameters(const std::string &filename) const {
+inline void BiasLayer<T>::saveNetworkParameters(const std::string& filename) const {
 }
 
 template<typename T>
@@ -579,14 +570,15 @@ template<typename T>
 void BiasLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset) {
     // boundary check
     require_eq(bias_.size(), output.nRows());
-    require_eq(input.size(), 1); // not supported otherwise yet
+    require_eq(input.size(), 1);  // not supported otherwise yet
     require_eq(input[0]->nRows(), bias_.size());
 
     timeval start, end;
 
     // first: input
     gettimeofday(&start, NULL);
-    if(reset) output.setToZero();
+    if (reset)
+        output.setToZero();
     output.add(*input[0]);
 
     // second: add bias
@@ -596,10 +588,8 @@ void BiasLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& outpu
     timeForward_ += Core::timeDiff(start, end);
 }
 
-
 template<typename T>
-void BiasLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
-        const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+void BiasLayer<T>::addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
     // calculate bias gradient only once for all input streams
     if (stream == 0)
         gradientBias.addSummedColumns(errorSignalIn);
@@ -621,13 +611,12 @@ void BiasLayer<T>::finishComputation(bool sync) const {
 
 template<typename T>
 void BiasLayer<T>::finalize() {
-    if (this->measureTime_){
+    if (this->measureTime_) {
         this->log("Linear layer: Time for bias part of forward pass: ") << timeForward_;
         this->log("Linear layer: Time for backward pass: ") << timeBackward_;
     }
     Precursor::finalize();
 }
-
 
 /*===========================================================================*/
 // explicit template instantiation
@@ -640,4 +629,4 @@ template void BiasLayer<f32>::removeLogPriorFromBias(const Prior<f32>&);
 template void BiasLayer<f64>::removeLogPriorFromBias(const Prior<f32>&);
 template void BiasLayer<f32>::removeLogPriorFromBias(const Prior<f64>&);
 template void BiasLayer<f64>::removeLogPriorFromBias(const Prior<f64>&);
-}
+}  // namespace Nn

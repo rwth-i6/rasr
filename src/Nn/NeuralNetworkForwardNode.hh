@@ -17,16 +17,16 @@
 
 #include <deque>
 
-#include <Flow/Node.hh>
-#include <Flow/Datatype.hh>
 #include <Flow/Attributes.hh>
+#include <Flow/Datatype.hh>
+#include <Flow/Node.hh>
 #include <Math/Matrix.hh>
 #include <Mm/Types.hh>
 
 #include "ClassLabelWrapper.hh"
-#include "Prior.hh"
 #include "NeuralNetwork.hh"
 #include "NeuralNetworkTrainer.hh"
+#include "Prior.hh"
 #include "Types.hh"
 
 namespace Nn {
@@ -39,41 +39,48 @@ namespace Nn {
  */
 class NeuralNetworkForwardNode : public Flow::SleeveNode {
     typedef Flow::SleeveNode Precursor;
+
 public:
     typedef Mm::FeatureType FeatureType;
+
 protected:
     typedef Types<f32>::NnVector NnVector;
     typedef Types<f32>::NnMatrix NnMatrix;
 
     typedef Flow::DataPtr<Flow::Vector<FeatureType>>                       FeatureVector;
     typedef Flow::DataPtr<Flow::TypedAggregate<Flow::Vector<FeatureType>>> AggregateFeatureVector;
+
 public:
     static Core::ParameterString paramId;
-    static Core::ParameterInt paramBufferSize;
-    static Core::ParameterBool paramCheckValues;
-    static Core::ParameterBool paramDynamicBuffer;
+    static Core::ParameterInt    paramBufferSize;
+    static Core::ParameterBool   paramCheckValues;
+    static Core::ParameterBool   paramDynamicBuffer;
+
 private:
-    const u32 bufferSize_;     // number of features that are processed at once
-    const bool checkValues_;   // check output of network for finiteness
-    const bool dynamicBuffer_; // do not use fixed buffer size, but extend it until eos
-    bool needInit_;            // needs initialization of network
-    bool measureTime_;         // measure run time
-    bool aggregatedFeatures_;  // features are aggregated (multiple input streams)
+    const u32  bufferSize_;          // number of features that are processed at once
+    const bool checkValues_;         // check output of network for finiteness
+    const bool dynamicBuffer_;       // do not use fixed buffer size, but extend it until eos
+    bool       needInit_;            // needs initialization of network
+    bool       measureTime_;         // measure run time
+    bool       aggregatedFeatures_;  // features are aggregated (multiple input streams)
 
     std::vector<u32>                    nFeatures_;
-    std::vector<NnMatrix>               inputBuffer_;     // features are saved in buffer and then processed in batch mode
+    std::vector<NnMatrix>               inputBuffer_;  // features are saved in buffer and then processed in batch mode
     std::vector<FeatureVector>          featureBuffer_;
     std::vector<AggregateFeatureVector> aggregateBuffer_;
 
-    NnVector column_;        // one column of the output
-    u32 outputDimension_;    // output dimension of the network
-    u32 totalOutputFrames_;  // number of output timeframes
-    u32 currentOutputFrame_; // keeps track of the output-column
+    NnVector column_;              // one column of the output
+    u32      outputDimension_;     // output dimension of the network
+    u32      totalOutputFrames_;   // number of output timeframes
+    u32      currentOutputFrame_;  // keeps track of the output-column
 
-    NeuralNetwork<FeatureType> network_; // the neural network
-    Prior<f32> prior_;                   // state prior
+    NeuralNetwork<FeatureType> network_;  // the neural network
+    Prior<f32>                 prior_;    // state prior
 public:
-    static std::string filterName() { return std::string("neural-network-forward"); };
+    static std::string filterName() {
+        return std::string("neural-network-forward");
+    };
+
 public:
     NeuralNetworkForwardNode(Core::Configuration const& c);
     virtual ~NeuralNetworkForwardNode();
@@ -81,21 +88,25 @@ public:
     void initialize(std::vector<u32> const& nFeatures);
 
     virtual bool configure();
-    virtual bool setParameter(const std::string &name, const std::string &value);
+    virtual bool setParameter(const std::string& name, const std::string& value);
     // override Flow::Node::work
     virtual bool work(Flow::PortId p);
+
 private:
     // checks whether we have aggregated or simple Flow features
-    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype *d);
+    bool configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d);
     // do the work
     void processBuffer();
-    bool bufferEmpty() const { return std::max(featureBuffer_.size(), aggregateBuffer_.size()) == 0ul; }
-    bool bufferFull()  const { return (not dynamicBuffer_) and std::max(featureBuffer_.size(), aggregateBuffer_.size()) >= bufferSize_; }
+    bool bufferEmpty() const {
+        return std::max(featureBuffer_.size(), aggregateBuffer_.size()) == 0ul;
+    }
+    bool bufferFull() const {
+        return (not dynamicBuffer_) and std::max(featureBuffer_.size(), aggregateBuffer_.size()) >= bufferSize_;
+    }
     // send feature to ouput port
     bool putNextFeature();
-
 };
 
-}
+}  // namespace Nn
 
-#endif // _NN_NEURAL_NETWORK_NODE_HH
+#endif  // _NN_NEURAL_NETWORK_NODE_HH

@@ -30,15 +30,16 @@ namespace Nn {
  * Instead, the network has to be created by calling the create method which has a configuration argument.
  *
  */
-class SharedNeuralNetwork  {
+class SharedNeuralNetwork {
 private:
-    static NeuralNetwork<f32> *network_;
-    static Prior<f32> *prior_;
-    static ClassLabelWrapper *labelWrapper_;
+    static NeuralNetwork<f32>* network_;
+    static Prior<f32>*         prior_;
+    static ClassLabelWrapper*  labelWrapper_;
+
 public:
     SharedNeuralNetwork() {}
 
-    ~SharedNeuralNetwork(){}
+    ~SharedNeuralNetwork() {}
 
     static NeuralNetwork<f32>& network();
 
@@ -48,9 +49,9 @@ public:
 
     static bool hasInstance();
 
-    static void create(const Core::Configuration &c);
+    static void create(const Core::Configuration& c);
 };
 
-}
+}  // namespace Nn
 
 #endif /* SHAREDNEURALNETWORK_HH_ */

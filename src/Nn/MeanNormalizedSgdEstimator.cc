@@ -18,11 +18,10 @@
 using namespace Nn;
 
 template<typename T>
-MeanNormalizedSgd<T>::MeanNormalizedSgd(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-firstEstimation_(true)
-{}
+MeanNormalizedSgd<T>::MeanNormalizedSgd(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          firstEstimation_(true) {}
 
 /**
  * for all trainable layers:
@@ -35,10 +34,9 @@ void MeanNormalizedSgd<T>::checkForStatistics(NeuralNetwork<T>& network) {
             for (u32 stream = 0; stream < network.getLayer(layer).nPredecessors(); stream++) {
                 u32 predecessor = network.getLayer(layer).getPredecessor(stream);
                 if (!network.getLayer(predecessor).hasActivationStatistics()) {
-                    this->warning()
-                    << network.getLayer(predecessor).getName()
-                    << " is a predecessor of " << network.getLayer(layer).getName()
-                    << ", but has no activation statistics. Assume zero mean for this input stream.";
+                    this->warning() << network.getLayer(predecessor).getName()
+                                    << " is a predecessor of " << network.getLayer(layer).getName()
+                                    << ", but has no activation statistics. Assume zero mean for this input stream.";
                 }
             }
         }
@@ -51,7 +49,6 @@ void MeanNormalizedSgd<T>::checkForStatistics(NeuralNetwork<T>& network) {
  */
 template<typename T>
 void MeanNormalizedSgd<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     if (firstEstimation_) {
         checkForStatistics(network);
         firstEstimation_ = false;
@@ -78,7 +75,6 @@ void MeanNormalizedSgd<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& st
     std::vector<T> stepSizes(network.nLayers());
 
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
-
         if (network.getLayer(layer).isTrainable()) {
             /* modify weights gradient and update weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nPredecessors(); stream++) {
@@ -87,20 +83,18 @@ void MeanNormalizedSgd<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& st
                 if (network.getLayer(predecessor).hasActivationStatistics()) {
                     // ... modify gradient of weights for the current input stream
                     // delta_W =  gradient_W  + b . gradient_a^T
-                    statistics.gradientWeights(layer)[stream].addOuterProduct(
-                            network.getLayer(predecessor).getActivationMean(),
-                            statistics.gradientBias(layer), -1.0);
+                    statistics.gradientWeights(layer)[stream].addOuterProduct(network.getLayer(predecessor).getActivationMean(),
+                                                                              statistics.gradientBias(layer), -1.0);
                 }
                 // update weights
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
-                weights->add(statistics.gradientWeights(layer)[stream], (T) -localLearningRate);
+                weights->add(statistics.gradientWeights(layer)[stream], (T)-localLearningRate);
 
                 // log step size
                 if (logStepSize_)
                     stepSizes[layer] += statistics.gradientWeights(layer)[stream].l1norm() * localLearningRate;
-
             }
 
             /* modify bias gradient and update bias */
@@ -112,38 +106,34 @@ void MeanNormalizedSgd<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& st
                     // delta_a = \gradient_W^T . b + (1 + b^T b) \gradient_a
                     //         = delta_a + \delta_W^T b
                     statistics.gradientWeights(layer)[stream].multiply(network.getLayer(predecessor).getActivationMean(),
-                            statistics.gradientBias(layer), true, -1.0, 1.0);
+                                                                       statistics.gradientBias(layer), true, -1.0, 1.0);
                 }
-
             }
             // update bias
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
-            bias->add(statistics.gradientBias(layer),(T) -localLearningRate);
+            bias->add(statistics.gradientBias(layer), (T)-localLearningRate);
             /* log step size */
             if (logStepSize_)
                 stepSizes[layer] += statistics.gradientBias(layer).l1norm() * localLearningRate;
         }
     }
-    if (logStepSize_ && statisticsChannel_.isOpen()){
+    if (logStepSize_ && statisticsChannel_.isOpen()) {
         T stepSize = Math::asum<T>(stepSizes.size(), &stepSizes.at(0), 1);
         statisticsChannel_ << "step-size: " << stepSize << " (" << Core::vector2str(stepSizes, ",") << ")";
     }
-
 }
 
 //=============================================================================
 
 template<typename T>
-MeanNormalizedSgdL1Clipping<T>::MeanNormalizedSgdL1Clipping(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config)
-{}
+MeanNormalizedSgdL1Clipping<T>::MeanNormalizedSgdL1Clipping(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config) {}
 
 template<typename T>
 void MeanNormalizedSgdL1Clipping<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     Precursor::estimate(network, statistics);
 
     T learningRate = this->initialLearningRate_;
@@ -153,8 +143,8 @@ void MeanNormalizedSgdL1Clipping<T>::estimate(NeuralNetwork<T>& network, Statist
             if (network.getLayer(layer).nInputActivations() != 1) {
                 Core::Application::us()->criticalError("Estimation for multiple streams not yet implemented.");
             }
-            NnMatrix *weights = network.getLayer(layer).getWeights(0);
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnMatrix* weights = network.getLayer(layer).getWeights(0);
+            NnVector* bias    = network.getLayer(layer).getBias();
             require(weights);
             require(bias);
             weights->l1clipping(network.getLayer(layer).regularizationConstant() * learningRate * network.getLayer(layer).learningRate());
@@ -178,4 +168,4 @@ template class MeanNormalizedSgd<f64>;
 template class MeanNormalizedSgdL1Clipping<f32>;
 template class MeanNormalizedSgdL1Clipping<f64>;
 
-}
+}  // namespace Nn

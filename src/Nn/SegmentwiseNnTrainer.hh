@@ -16,39 +16,37 @@
 #define _NN_SEGMENTWISENNTRAINER_HH_
 
 #include <Core/Channel.hh>
-#include <Core/Hash.hh> // for mix2phoneme map ( lattice coverage statistics)
+#include <Core/Hash.hh>  // for mix2phoneme map ( lattice coverage statistics)
 #include <Modules.hh>
 #include <Speech/AcousticSegmentwiseTrainer.hh>
 
+#include "ActivationLayer.hh"
 #include "LatticeAccumulators.hh"
 #include "NeuralNetwork.hh"
 #include "NeuralNetworkTrainer.hh"
 #include "Prior.hh"
 #include "Types.hh"
-#include "ActivationLayer.hh"
 
 #ifdef MODULE_PYTHON
 #include <Nn/PythonControl.hh>
 #endif
 
-
-
 // forward declarations
 namespace Speech {
-    struct PosteriorFsa;
+struct PosteriorFsa;
 }
 
 namespace Nn {
-    template<typename T>
-    class Estimator;
-    template<typename T>
-    class Statistics;
-    template<typename T>
-    class Regulizer;
-    class ClassLabelWrapper;
-    template<typename T>
-    class LinearAndSoftmaxLayer;
-}
+template<typename T>
+class Estimator;
+template<typename T>
+class Statistics;
+template<typename T>
+class Regulizer;
+class ClassLabelWrapper;
+template<typename T>
+class LinearAndSoftmaxLayer;
+}  // namespace Nn
 
 namespace Nn {
 
@@ -64,10 +62,11 @@ namespace Nn {
 template<typename T>
 class SegmentwiseNnTrainer : public NeuralNetworkTrainer<f32>, public Speech::AbstractAcousticSegmentwiseTrainer {
     typedef Speech::AbstractAcousticSegmentwiseTrainer SpeechPrecursor;
-    typedef typename Types<f32>::NnVector NnVectorf32;
-    typedef typename Types<f32>::NnMatrix NnMatrixf32;
-    typedef typename Types<f64>::NnVector NnVectorf64;
-    typedef typename Types<f64>::NnMatrix NnMatrixf64;
+    typedef typename Types<f32>::NnVector              NnVectorf32;
+    typedef typename Types<f32>::NnMatrix              NnMatrixf32;
+    typedef typename Types<f64>::NnVector              NnVectorf64;
+    typedef typename Types<f64>::NnMatrix              NnMatrixf64;
+
 protected:
     // inherited from neural network trainer
     using NeuralNetworkTrainer<f32>::statisticsChannel_;
@@ -77,55 +76,58 @@ protected:
     // shared network passed from the LatticeProcessor
     using NeuralNetworkTrainer<f32>::network_;
     using NeuralNetworkTrainer<f32>::measureTime_;
+
 public:
     using NeuralNetworkTrainer<f32>::regularizer;
     using NeuralNetworkTrainer<f32>::estimator;
+
 protected:
     static const Core::ParameterString paramStatisticsFilename;
-    static const Core::ParameterFloat paramSilenceWeight;
+    static const Core::ParameterFloat  paramSilenceWeight;
     static const Core::ParameterString paramClassWeightsFile;
-    static const Core::ParameterFloat paramCeSmoothingWeight;
-    static const Core::ParameterFloat paramFrameRejectionThreshold;
-    static const Core::ParameterBool paramAccumulatePrior;
-    static const Core::ParameterBool paramEnableFeatureDescriptionCheck;
-    const std::string statisticsFilename_;
-    const f32 ceSmoothingWeight_;
-    const f32 frameRejectionThreshold_;
-    const bool accumulatePrior_;
-    bool singlePrecision_;
+    static const Core::ParameterFloat  paramCeSmoothingWeight;
+    static const Core::ParameterFloat  paramFrameRejectionThreshold;
+    static const Core::ParameterBool   paramAccumulatePrior;
+    static const Core::ParameterBool   paramEnableFeatureDescriptionCheck;
+    const std::string                  statisticsFilename_;
+    const f32                          ceSmoothingWeight_;
+    const f32                          frameRejectionThreshold_;
+    const bool                         accumulatePrior_;
+    bool                               singlePrecision_;
+
 protected:
-    Statistics<T> *statistics_;
-    Statistics<f32> *priorStatistics_;
+    Statistics<T>*   statistics_;
+    Statistics<f32>* priorStatistics_;
     // additional statistics
     u32 numberOfProcessedSegments_;
     u32 numberOfObservations_;
-    u32 numberOfRejectedObservations_;		// frames rejected according to frame rejection heuristic
-    T ceObjectiveFunction_;			// cross entropy objective function
-    T localObjectiveFunction_;			// objective function of segment
-    T localCeObjectiveFunction_;		// cross-entropy objective function of segment
+    u32 numberOfRejectedObservations_;  // frames rejected according to frame rejection heuristic
+    T   ceObjectiveFunction_;           // cross entropy objective function
+    T   localObjectiveFunction_;        // objective function of segment
+    T   localCeObjectiveFunction_;      // cross-entropy objective function of segment
     u32 localClassificationErrors_;
 
     // error signals and error signal accumulator
-    std::vector<NnMatrixf32> errorSignal_;
-    ErrorSignalAccumulator<f32> *accumulator_;
+    std::vector<NnMatrixf32>     errorSignal_;
+    ErrorSignalAccumulator<f32>* accumulator_;
 
     // alignment of current segment etc.
-    bool segmentNeedsInit_;
+    bool                  segmentNeedsInit_;
     Math::CudaVector<u32> alignment_;
-    NnVectorf32 weights_;			// accumulation weights for alignment
-    u32 sequenceLength_;
+    NnVectorf32           weights_;  // accumulation weights for alignment
+    u32                   sequenceLength_;
 
-    Math::Vector<f32> classWeights_;		// accumulation weights for each class
+    Math::Vector<f32> classWeights_;  // accumulation weights for each class
 
-    LinearAndSoftmaxLayer<f32> *topLayer_;	// required for application of softmax
-    MaxoutVarLayer<f32> *maxoutLayer_;         // required for application of softmax with hidden variable (maximum approximation)
-    NnVectorf32 prior_;
-    f32 priorScale_;
+    LinearAndSoftmaxLayer<f32>* topLayer_;     // required for application of softmax
+    MaxoutVarLayer<f32>*        maxoutLayer_;  // required for application of softmax with hidden variable (maximum approximation)
+    NnVectorf32                 prior_;
+    f32                         priorScale_;
 
     // feature description
     Mm::FeatureDescription featureDescription_;
-    bool featureDescriptionNeedInit_;
-    bool enableFeatureDescriptionCheck_;
+    bool                   featureDescriptionNeedInit_;
+    bool                   enableFeatureDescriptionCheck_;
 
 #ifdef MODULE_PYTHON
     Nn::PythonControl pythonControl_;
@@ -142,34 +144,44 @@ private:
     f64 timeBaseStatistics_;
     f64 timeEstimationStep;
     f64 timeSync_;
+
 public:
-    SegmentwiseNnTrainer(const Core::Configuration &config);
+    SegmentwiseNnTrainer(const Core::Configuration& config);
     virtual ~SegmentwiseNnTrainer();
+
 public:
     // called for every segment
-    virtual void processWordLattice(Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment *s);
+    virtual void processWordLattice(Lattice::ConstWordLatticeRef l, Bliss::SpeechSegment* s);
     // needs to be implemented for AbstractAcousticSegmentwiseTrainer
-    virtual void setFeatureDescription(const Mm::FeatureDescription &);
+    virtual void setFeatureDescription(const Mm::FeatureDescription&);
     // LatticeSetProcessor function: calls finalize if done
-    virtual void leaveCorpus(Bliss::Corpus *corpus);
+    virtual void leaveCorpus(Bliss::Corpus* corpus);
+
 protected:
     // initialization and finalization functions
     virtual void initializeTrainer();
-    virtual bool isInitialized() const { return !needInit_; }
+    virtual bool isInitialized() const {
+        return !needInit_;
+    }
 
     // finalize training epoch
     virtual void finalize();
 
     // initialize segment
-    virtual void initSegment(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment *segment);
+    virtual void initSegment(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment);
 
     // this abstract function needs to be implemented for the corresponding criterion
     // error signal is computed from the lattice, objectiveFunction is set by function
     // return value specifies whether computation was successful
     virtual bool computeInitialErrorSignal(Lattice::ConstWordLatticeRef lattice,
-            Lattice::ConstWordLatticeRef numeratorLattice,Bliss::SpeechSegment *segment, T &objectiveFunction, bool objectiveFunctionOnly) = 0;
+                                           Lattice::ConstWordLatticeRef numeratorLattice,
+                                           Bliss::SpeechSegment*        segment,
+                                           T&                           objectiveFunction,
+                                           bool                         objectiveFunctionOnly) = 0;
     // pass over lattice and collect statistics (depth first search)
-    virtual void accumulateStatisticsOnLattice(Fsa::ConstAutomatonRef posterior, Core::Ref<const Lattice::WordBoundaries> wb, Mm::Weight factor);
+    virtual void accumulateStatisticsOnLattice(Fsa::ConstAutomatonRef                   posterior,
+                                               Core::Ref<const Lattice::WordBoundaries> wb,
+                                               Mm::Weight                               factor);
 
     // create lattice accumulator (which passes over lattice)
     virtual NnAccumulator* createAccumulator(Mm::Weight factor, Mm::Weight weightThreshold) const;
@@ -180,15 +192,17 @@ protected:
     virtual void logTrainingStatistics() const;
     virtual void logProfilingStatistics() const;
 
-    NeuralNetwork<f32>& network() const;
+    NeuralNetwork<f32>&      network() const;
     const ClassLabelWrapper& labelWrapper() const;
 
-    virtual std::string name() const { return "nn-seq-accumulator"; }
+    virtual std::string name() const {
+        return "nn-seq-accumulator";
+    }
 
 private:
     void setPrecision();
     // set class weights (either from file or silence-weight)
-    void setClassWeights();							// TODO code duplication
+    void setClassWeights();  // TODO code duplication
     // get alignment in vector format, alignment is extracted from numerator lattice ( = orthography lattice)
     // note: numerator lattice is in general NOT linear -> extract best path from lattice
     // returns true if successful
@@ -198,13 +212,13 @@ private:
     // accumulate base statistics
     void accumulateBaseStatistics();
     // backpropagation of error signal
-    void backpropagateError();						// TODO code duplication
+    void backpropagateError();  // TODO code duplication
     // smooth error signal with CE criterion
     // side effects: log-priors are added to scores, softmax is applied
     // returns CE objective function
     T smoothErrorSignalWithCE();
     // compute gradient from error signals and activations
-    void collectGradient();							// TODO code duplication
+    void collectGradient();  // TODO code duplication
     // resize error signal to sequence length
     void resizeErrorSignal();
     // update model according to statistics (e.g. gradient for SGD)
@@ -212,26 +226,26 @@ private:
     // single precision statistics: perform estimation step for stochastic optimization
     // double precision statistics: no stochastic optimization possible
     void updateModel();
+
 public:
-    static SegmentwiseNnTrainer* createSegmentwiseNnTrainer(const Core::Configuration &);
+    static SegmentwiseNnTrainer* createSegmentwiseNnTrainer(const Core::Configuration&);
 };
 
-
 template<>
-inline void SegmentwiseNnTrainer<f32>::setPrecision(){
+inline void SegmentwiseNnTrainer<f32>::setPrecision() {
     singlePrecision_ = true;
 }
 
 template<>
-inline void SegmentwiseNnTrainer<f64>::setPrecision(){
+inline void SegmentwiseNnTrainer<f64>::setPrecision() {
     singlePrecision_ = false;
-    if (!estimator().fullBatchMode()){
+    if (!estimator().fullBatchMode()) {
         this->error("current implementation only uses double precision for storing accumulated statisitcs in batch mode!");
     }
 }
 
 template<>
-inline void SegmentwiseNnTrainer<f32>::updateModel(){
+inline void SegmentwiseNnTrainer<f32>::updateModel() {
     timeval start, end;
     TIMER_START(start)
     estimator().estimate(network(), *statistics_);
@@ -239,12 +253,11 @@ inline void SegmentwiseNnTrainer<f32>::updateModel(){
 }
 
 template<>
-inline void SegmentwiseNnTrainer<f64>::updateModel(){
+inline void SegmentwiseNnTrainer<f64>::updateModel() {
     this->criticalError("stochastic optimization with double precision statistics not possible");
     verify(false);
 }
 
-
-}
+}  // namespace Nn
 
 #endif

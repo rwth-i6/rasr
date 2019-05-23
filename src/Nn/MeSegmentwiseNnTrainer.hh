@@ -29,25 +29,28 @@ namespace Nn {
 template<typename T>
 class MinimumErrorSegmentwiseNnTrainer : public SegmentwiseNnTrainer<T> {
     typedef SegmentwiseNnTrainer<T> Precursor;
+
 protected:
-    using Precursor::errorSignal_;
     using Precursor::alignment_;
+    using Precursor::errorSignal_;
     using Precursor::weights_;
+
 protected:
     static Core::ParameterString paramAccuracyName;
 
     std::string accuracyPart_;
+
 public:
-    MinimumErrorSegmentwiseNnTrainer(const Core::Configuration &config);
+    MinimumErrorSegmentwiseNnTrainer(const Core::Configuration& config);
     virtual ~MinimumErrorSegmentwiseNnTrainer() {}
+
 protected:
     virtual bool computeInitialErrorSignal(Lattice::ConstWordLatticeRef lattice, Lattice::ConstWordLatticeRef numeratorLattice,
-            Bliss::SpeechSegment *segment, T &objectiveFunction, bool objectiveFunctionOnly);
+                                           Bliss::SpeechSegment* segment, T& objectiveFunction, bool objectiveFunctionOnly);
+
 protected:
     Speech::PosteriorFsa getDenominatorPosterior(Lattice::ConstWordLatticeRef lattice);
 };
-
-
 
 } /* namespace Nn */
 

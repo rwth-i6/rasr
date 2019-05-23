@@ -15,11 +15,11 @@
 #ifndef _NN_CRITERION_HH
 #define _NN_CRITERION_HH
 
-#include <vector>
-#include <memory>
 #include <Core/Component.hh>
-#include "Types.hh"
+#include <memory>
+#include <vector>
 #include "NeuralNetworkLayer.hh"
+#include "Types.hh"
 
 namespace Bliss {
 class SpeechSegment;
@@ -69,24 +69,26 @@ protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
 
-    NnMatrix* nnOutput_;
-    NnVector* weights_; // column weights; usually provided together and extracted from alignment
+    NnMatrix*              nnOutput_;
+    NnVector*              weights_;  // column weights; usually provided together and extracted from alignment
     Math::CudaVector<u32>* alignment_;
-    Bliss::SpeechSegment* segment_; // might contain the reference transcription
+    Bliss::SpeechSegment*  segment_;  // might contain the reference transcription
 
-    FloatT objectiveFunction_;
-    bool needRecalc_objectiveFunction_;
+    FloatT   objectiveFunction_;
+    bool     needRecalc_objectiveFunction_;
     NnMatrix errorSignal_;
-    bool needRecalc_errorSignal_;
-    Type criterionType_;
+    bool     needRecalc_errorSignal_;
+    Type     criterionType_;
 
 public:
-    Criterion(const Core::Configuration &c)
-        : Core::Component(c),
-          nnOutput_(NULL), weights_(NULL), alignment_(NULL), segment_(NULL),
-          needRecalc_objectiveFunction_(true),
-          needRecalc_errorSignal_(true)
-    {}
+    Criterion(const Core::Configuration& c)
+            : Core::Component(c),
+              nnOutput_(NULL),
+              weights_(NULL),
+              alignment_(NULL),
+              segment_(NULL),
+              needRecalc_objectiveFunction_(true),
+              needRecalc_errorSignal_(true) {}
 
     // Interface:
     // First call one (and only one) of the input* functions, then you can read
@@ -95,10 +97,10 @@ public:
 
     /** Override for an unsupervised criterion */
     virtual void input(NnMatrix& nnOutput, NnVector* weights = NULL) {
-        nnOutput_ = &nnOutput;
-        weights_ = weights;
+        nnOutput_                     = &nnOutput;
+        weights_                      = weights;
         needRecalc_objectiveFunction_ = true;
-        needRecalc_errorSignal_ = true;
+        needRecalc_errorSignal_       = true;
     }
 
     /** Override for an alignment-based criterion (usually frame-wise, e.g. Cross-Entropy) */
@@ -117,12 +119,16 @@ public:
     }
 
     /** Override to calculate the objective function. Some input* function was called before. */
-    virtual void getObjectiveFunction(FloatT& value) { value = 0; }
+    virtual void getObjectiveFunction(FloatT& value) {
+        value = 0;
+    }
 
     /** Override to calculate the error signal. Some input* function was called before.
      * This is thus the error signal of the NN output.
      */
-    virtual void getErrorSignal(NnMatrix& errorSignal) { errorSignal.setToZero(); }
+    virtual void getErrorSignal(NnMatrix& errorSignal) {
+        errorSignal.setToZero();
+    }
 
     /** Override to calculate the error signal with natural pairing of the last layer activation function.
      * This is thus the error signal of the linear part of the last layer.
@@ -149,30 +155,30 @@ public:
     }
 
     virtual void reset() {
-        nnOutput_ = NULL;
-        weights_ = NULL;
-        alignment_ = NULL;
-        segment_ = NULL;
+        nnOutput_                     = NULL;
+        weights_                      = NULL;
+        alignment_                    = NULL;
+        segment_                      = NULL;
         needRecalc_objectiveFunction_ = true;
-        needRecalc_errorSignal_ = true;
+        needRecalc_errorSignal_       = true;
     }
 
     // Calls the input* function again, which was called last time,
     // with all the same parameters, except a new nnOutput.
     virtual void reinputWithNewNnOutput(NnMatrix& nnOutput) {
         needRecalc_objectiveFunction_ = true;
-        needRecalc_errorSignal_ = true;
-        if(alignment_) {
+        needRecalc_errorSignal_       = true;
+        if (alignment_) {
             segment_ = NULL;
             inputAlignment(*alignment_, nnOutput, weights_);
         }
-        else if(segment_) {
+        else if (segment_) {
             alignment_ = NULL;
             inputSpeechSegment(*segment_, nnOutput, weights_);
         }
         else {
             alignment_ = NULL;
-            segment_ = NULL;
+            segment_   = NULL;
             input(nnOutput, weights_);
         }
     }
@@ -188,33 +194,36 @@ public:
         return NULL;
     }
 
-    virtual Type getType() const { return criterionType_; }
+    virtual Type getType() const {
+        return criterionType_;
+    }
 
-// --------------------------------
+    // --------------------------------
 
-    static const Core::Choice choiceCriterion;
+    static const Core::Choice          choiceCriterion;
     static const Core::ParameterChoice paramCriterion;
 
     static Criterion<FloatT>* create(const Core::Configuration& config);
-
 };
 
 template<typename FloatT>
 class CrossEntropyCriterion : public Criterion<FloatT> {
     typedef Criterion<FloatT> Precursor;
+
 protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
+
 public:
-    CrossEntropyCriterion(const Core::Configuration &c) : Precursor(c)
-    {
+    CrossEntropyCriterion(const Core::Configuration& c)
+            : Precursor(c) {
         Precursor::criterionType_ = Criterion<FloatT>::crossEntropy;
     }
 
     virtual void input(NnMatrix& nnOutput, NnVector* weights) {
         // Note: That is a limitation in the current implementation.
         // The current implementation only works via alignment.
-        if(!Precursor::alignment_)
+        if (!Precursor::alignment_)
             this->criticalError("CrossEntropyCriterion is not unsupervised, it needs an alignment");
         Precursor::input(nnOutput, weights);
     }
@@ -227,19 +236,21 @@ public:
 template<typename FloatT>
 class SquaredErrorCriterion : public Criterion<FloatT> {
     typedef Criterion<FloatT> Precursor;
+
 protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
+
 public:
-    SquaredErrorCriterion(const Core::Configuration &c) : Precursor(c)
-    {
+    SquaredErrorCriterion(const Core::Configuration& c)
+            : Precursor(c) {
         Precursor::criterionType_ = Criterion<FloatT>::squaredError;
     }
 
     virtual void input(NnMatrix& nnOutput, NnVector* weights) {
         // Note: That is a limitation in the current implementation.
         // The current implementation only works via alignment.
-        if(!Precursor::alignment_)
+        if (!Precursor::alignment_)
             this->criticalError("SquaredErrorCriterion is not unsupervised, it needs an alignment");
         Precursor::input(nnOutput, weights);
     }
@@ -252,19 +263,21 @@ public:
 template<typename FloatT>
 class BinaryDivergenceCriterion : public Criterion<FloatT> {
     typedef Criterion<FloatT> Precursor;
+
 protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
+
 public:
-    BinaryDivergenceCriterion(const Core::Configuration &c) : Precursor(c)
-    {
+    BinaryDivergenceCriterion(const Core::Configuration& c)
+            : Precursor(c) {
         Precursor::criterionType_ = Criterion<FloatT>::binaryDivergence;
     }
 
     virtual void input(NnMatrix& nnOutput, NnVector* weights) {
         // Note: That is a limitation in the current implementation.
         // The current implementation only works via alignment.
-        if(!Precursor::alignment_)
+        if (!Precursor::alignment_)
             this->criticalError("BinaryDivergenceCriterion is not unsupervised, it needs an alignment");
         Precursor::input(nnOutput, weights);
     }
@@ -274,23 +287,23 @@ public:
     virtual void getErrorSignal_naturalPairing(NnMatrix& errorSignal, NeuralNetworkLayer<FloatT>& lastLayer);
 };
 
-
-
 template<typename FloatT>
 class SegmentCriterion : public Criterion<FloatT> {
     typedef Criterion<FloatT> Precursor;
+
 protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
+
 public:
-    SegmentCriterion(const Core::Configuration &c) : Precursor(c)
-    {
+    SegmentCriterion(const Core::Configuration& c)
+            : Precursor(c) {
         Precursor::criterionType_ = Criterion<FloatT>::ctc;
     }
 
     virtual void input(NnMatrix& nnOutput, NnVector* weights = NULL) {
         // Only allow inputSpeechSegment() calls.
-        if(!Precursor::segment_)
+        if (!Precursor::segment_)
             this->criticalError("SegmentCriterion needs a segment");
         Precursor::input(nnOutput, weights);
     }
@@ -298,7 +311,6 @@ public:
     virtual void inputSpeechSegment(Bliss::SpeechSegment& segment, NnMatrix& nnOutput, NnVector* weights = NULL) {}
 };
 
-}
+}  // namespace Nn
 
-
-#endif // CRITERION_HH
+#endif  // CRITERION_HH

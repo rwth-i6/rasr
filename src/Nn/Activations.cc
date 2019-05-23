@@ -22,23 +22,22 @@ using namespace Nn;
 
 // constructor
 template<typename T>
-Activations<T>::Activations() :
-  activations_(0),
-  inputActivations_(0),
-  outputActivations_(0),
-  isComputing_(false)
-{}
+Activations<T>::Activations()
+        : activations_(0),
+          inputActivations_(0),
+          outputActivations_(0),
+          isComputing_(false) {}
 
 template<typename T>
-void Activations<T>::setBatchSize(u32 batchSize){
-    for (u32 i = 0; i < activations_.size(); ++i){
+void Activations<T>::setBatchSize(u32 batchSize) {
+    for (u32 i = 0; i < activations_.size(); ++i) {
         u32 nRows = activations_.at(i).nRows();
         activations_.at(i).resize(nRows, batchSize);
     }
 }
 
 template<typename T>
-void Activations<T>::setInputDimension(u32 layer, u32 stream, u32 dim){
+void Activations<T>::setInputDimension(u32 layer, u32 stream, u32 dim) {
     require_lt(layer, inputActivations_.size());
     require_lt(stream, inputActivations_.at(layer).size());
     u32 nCols = inputActivations_.at(layer).at(stream)->nColumns();
@@ -46,7 +45,7 @@ void Activations<T>::setInputDimension(u32 layer, u32 stream, u32 dim){
 }
 
 template<typename T>
-void Activations<T>::setOutputDimension(u32 layer, u32 dim){
+void Activations<T>::setOutputDimension(u32 layer, u32 dim) {
     require_lt(layer, outputActivations_.size());
     u32 nCols = outputActivations_[layer]->nColumns();
     outputActivations_[layer]->resize(dim, nCols);
@@ -105,7 +104,7 @@ void Activations<T>::connectOutput(u32 layer, u32 globalPort) {
 
 template<typename T>
 void Activations<T>::reset() {
-    for (u32 i = 0; i < activations_.size() ; ++i)
+    for (u32 i = 0; i < activations_.size(); ++i)
         activations_[i].setToZero();
 }
 
@@ -130,7 +129,7 @@ void Activations<T>::finishComputation(bool sync) const {
 }
 
 template<typename T>
-void Activations<T>::swap(Activations<T> &rhs) {
+void Activations<T>::swap(Activations<T>& rhs) {
     std::swap(activations_, rhs.activations_);
     std::swap(inputActivations_, rhs.inputActivations_);
     std::swap(outputActivations_, rhs.outputActivations_);
@@ -142,24 +141,23 @@ template<typename T>
 void Activations<T>::show() const {
     std::cout << "------------" << std::endl;
     std::cout << "ACTIVATIONS" << std::endl;
-    for (u32 i = 0; i < activations_.size(); i++){
+    for (u32 i = 0; i < activations_.size(); i++) {
         std::cout << activations_.at(i).nRows() << " x " << activations_.at(i).nColumns() << std::endl;
     }
     std::cout << "INPUT ACTIVATIONS" << std::endl;
-    for (u32 i = 0; i < inputActivations_.size(); i++){
-        for (u32 j = 0; j < inputActivations_.at(i).size(); j++){
+    for (u32 i = 0; i < inputActivations_.size(); i++) {
+        for (u32 j = 0; j < inputActivations_.at(i).size(); j++) {
             std::cout << inputActivations_.at(i).at(j)->nRows() << " x " << inputActivations_.at(i).at(j)->nColumns() << std::endl;
         }
     }
     std::cout << "OUTPUT ACTIVATIONS" << std::endl;
-    for (u32 i = 0; i < outputActivations_.size(); i++){
+    for (u32 i = 0; i < outputActivations_.size(); i++) {
         std::cout << outputActivations_.at(i)->nRows() << " x " << outputActivations_.at(i)->nColumns() << std::endl;
     }
-
 }
 //=============================================================================
 // explicit template instantiation
 namespace Nn {
 template class Activations<f32>;
 template class Activations<f64>;
-}
+}  // namespace Nn

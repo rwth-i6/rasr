@@ -37,50 +37,60 @@ class Statistics;
 
 template<typename T>
 class RpropEstimator : public Estimator<T> {
-    typedef Estimator<T> Precursor;
+    typedef Estimator<T>                Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterString paramStepSizesOld;
-    static const Core::ParameterString paramStepSizesNew;
-    static const Core::ParameterString paramPreviousStatistics;
-    static const Core::ParameterFloat paramIncreasingFactor;
-    static const Core::ParameterFloat paramDecreasingFactor;
+    static const Core::ParameterString  paramStepSizesOld;
+    static const Core::ParameterString  paramStepSizesNew;
+    static const Core::ParameterString  paramPreviousStatistics;
+    static const Core::ParameterFloat   paramIncreasingFactor;
+    static const Core::ParameterFloat   paramDecreasingFactor;
     enum initializationType {
         constant,
         blockwiseAverage,
         minBlockAverage,
     };
-    static const Core::Choice choiceInitializationType;
+    static const Core::Choice          choiceInitializationType;
     static const Core::ParameterChoice paramInitializationType;
-    static const Core::ParameterFloat paramRelativeInitialStepSize;
-    static const Core::ParameterBool paramBlockwiseAveraging;
+    static const Core::ParameterFloat  paramRelativeInitialStepSize;
+    static const Core::ParameterBool   paramBlockwiseAveraging;
+
 protected:
     // factors to increase and decrease step sizes
-    const T increasingFactor_;
-    const T decreasingFactor_;
-    const T relativeInitialStepSize_;
+    const T                  increasingFactor_;
+    const T                  decreasingFactor_;
+    const T                  relativeInitialStepSize_;
     const initializationType initializationType_;
+
 protected:
     // step sizes, abuse gradient field of statistics for storing step sizes
-    Statistics<T> *stepSizes_;
+    Statistics<T>* stepSizes_;
     // previous statistics
-    Statistics<T> *prevStatistics_;
-    bool needInit_;
+    Statistics<T>* prevStatistics_;
+    bool           needInit_;
+
 public:
     RpropEstimator(const Core::Configuration& c);
     virtual ~RpropEstimator();
+
 public:
     virtual void estimate(NeuralNetwork<T>& network, Statistics<T>& statistics);
-    virtual u32 requiredStatistics() const { return Statistics<T>::GRADIENT; }
+    virtual u32  requiredStatistics() const {
+        return Statistics<T>::GRADIENT;
+    }
+
 protected:
     virtual void initialize(const NeuralNetwork<T>& network);
     virtual void logProperties() const;
+
 private:
-    void updateStepSize(const T &prevGradient, const T& gradient, T& stepSize) const;
-    void updateParameter(const T &stepSize, const T& gradient, T& parameter) const;
-    T signum(const T &x) const { return (x == 0) ? 0 : ((x > 0) ? 1 : -1); };
+    void updateStepSize(const T& prevGradient, const T& gradient, T& stepSize) const;
+    void updateParameter(const T& stepSize, const T& gradient, T& parameter) const;
+    T    signum(const T& x) const {
+        return (x == 0) ? 0 : ((x > 0) ? 1 : -1);
+    };
 };
 
-}
+}  // namespace Nn
 
 #endif /* RPROPESTIMATOR_HH_ */

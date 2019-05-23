@@ -13,38 +13,37 @@
  *  limitations under the License.
  */
 #include "CtcCriterion.hh"
-#include <memory>
-#include <vector>
-#include <Core/Types.hh>
-#include <Core/Utility.hh>
-#include <Math/CudaVector.hh>
-#include <Math/CudaMatrix.hh>
+#include <Am/Module.hh>
 #include <Bliss/CorpusDescription.hh>
 #include <Bliss/Lexicon.hh>
-#include <Am/Module.hh>
-#include <Fsa/Project.hh>
-#include <Fsa/Determinize.hh>
-#include <Fsa/RemoveEpsilons.hh>
+#include <Core/Types.hh>
+#include <Core/Utility.hh>
+#include <Flow/ArchiveWriter.hh>
+#include <Fsa/Arithmetic.hh>
 #include <Fsa/Basic.hh>
-#include <Fsa/Rational.hh>
 #include <Fsa/Best.hh>
+#include <Fsa/Determinize.hh>
+#include <Fsa/Output.hh>
+#include <Fsa/Project.hh>
+#include <Fsa/Rational.hh>
+#include <Fsa/RemoveEpsilons.hh>
 #include <Fsa/Semiring.hh>
 #include <Fsa/Semiring64.hh>
-#include <Search/Aligner.hh>
+#include <Fsa/Sssp.hh>
+#include <Math/CudaMatrix.hh>
+#include <Math/CudaVector.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Mm/Module.hh>
-#include <Nn/Types.hh>
 #include <Nn/FeedForwardTrainer.hh>
 #include <Nn/Prior.hh>
-#include <Fsa/Sssp.hh>
-#include <Fsa/Arithmetic.hh>
-#include <Fsa/Output.hh>
+#include <Nn/Types.hh>
+#include <Search/Aligner.hh>
 #include <Speech/AllophoneStateGraphBuilder.hh>
-#include <Speech/Module.hh>
 #include <Speech/Feature.hh>
-#include <Flow/ArchiveWriter.hh>
+#include <Speech/Module.hh>
+#include <memory>
+#include <vector>
 #include "CtcTimeAlignedAutomaton.hh"
-
 
 static const Core::ParameterBool paramInputInLogSpace(
         "input-in-log-space",
@@ -112,7 +111,6 @@ static const Core::ParameterBool paramUseCrossEntropyAsLoss(
         "(when normalized with the segment length).",
         false);
 
-
 // fixed mixture set
 // (mostly useful for debugging)
 
@@ -145,7 +143,6 @@ static const Core::ParameterBool paramDebugDumps(
 static const Core::ParameterBool paramLogTimeStatistics(
         "log-time-statistics", "log time stats", false);
 
-
 // Also see CombinedExactSegmentwiseMeTrainer,
 // the code is somewhat relevant here because we iterate over
 // multiple alignments there.
@@ -154,81 +151,78 @@ static const Core::ParameterBool paramLogTimeStatistics(
 
 namespace Fsa {
 
-    class RemoveInvalidArcsAutomaton :
-        public ModifyAutomaton
-    {
+class RemoveInvalidArcsAutomaton : public ModifyAutomaton {
+private:
+    class HasInvalidArcWeight {
     private:
-        class HasInvalidArcWeight
-        {
-        private:
-            const f32 threshold_;
-        public:
-            HasInvalidArcWeight(f32 threshold = 1000) :
-                threshold_(threshold) {}
-            bool operator()(const Arc &a) const {
-                return (f32(a.weight()) > threshold_);
-            }
-        };
-    public:
-        RemoveInvalidArcsAutomaton(ConstAutomatonRef fsa) : ModifyAutomaton(fsa) {}
-        virtual ~RemoveInvalidArcsAutomaton() {}
+        const f32 threshold_;
 
-        virtual std::string describe() const {
-            return "remove-invalid-arcs(" + fsa_->describe() + ")";
-        }
-        virtual void modifyState(State *sp) const {
-            HasInvalidArcWeight pred;
-            sp->remove(pred);
+    public:
+        HasInvalidArcWeight(f32 threshold = 1000)
+                : threshold_(threshold) {}
+        bool operator()(const Arc& a) const {
+            return (f32(a.weight()) > threshold_);
         }
     };
 
-    static ConstAutomatonRef _removeInvalidArcs(ConstAutomatonRef fsa)
-    {
-        RemoveInvalidArcsAutomaton *rf =
-            new RemoveInvalidArcsAutomaton(fsa);
-        return ConstAutomatonRef(rf);
+public:
+    RemoveInvalidArcsAutomaton(ConstAutomatonRef fsa)
+            : ModifyAutomaton(fsa) {}
+    virtual ~RemoveInvalidArcsAutomaton() {}
+
+    virtual std::string describe() const {
+        return "remove-invalid-arcs(" + fsa_->describe() + ")";
     }
+    virtual void modifyState(State* sp) const {
+        HasInvalidArcWeight pred;
+        sp->remove(pred);
+    }
+};
 
-} //namespace Fsa
+static ConstAutomatonRef _removeInvalidArcs(ConstAutomatonRef fsa) {
+    RemoveInvalidArcsAutomaton* rf =
+            new RemoveInvalidArcsAutomaton(fsa);
+    return ConstAutomatonRef(rf);
+}
 
+}  //namespace Fsa
 
 template<int N>
 struct TimeStats {
-    bool active;
+    bool             active;
     Core::XmlWriter& channel;
-    const char* name;
-    const char* names[N];
-    timeval times[N];
-    int n;
-    TimeStats(bool active_, Core::XmlWriter& channel_, const char* name_) :
-        active(active_), channel(channel_), name(name_), n(0) {
+    const char*      name;
+    const char*      names[N];
+    timeval          times[N];
+    int              n;
+    TimeStats(bool active_, Core::XmlWriter& channel_, const char* name_)
+            : active(active_), channel(channel_), name(name_), n(0) {
         checkpoint("start");
     }
     void checkpoint(const char* name) {
-        if(!active) return;
+        if (!active)
+            return;
         require_lt(n, N);
         names[n] = name;
         TIMER_START(times[n]);
         ++n;
     }
     ~TimeStats() {
-        if(!active) return;
+        if (!active)
+            return;
         checkpoint("final");
         channel << Core::XmlOpen("time-statistics") + Core::XmlAttribute("name", name);
-        double total = Core::timeDiff(times[0], times[n - 1]);
+        double total  = Core::timeDiff(times[0], times[n - 1]);
         double totalS = std::max(total, Core::Type<double>::epsilon);
-        for(int i = 1; i < n; ++i) {
-            double td = Core::timeDiff(times[i - 1], times[i]);
+        for (int i = 1; i < n; ++i) {
+            double td  = Core::timeDiff(times[i - 1], times[i]);
             double rel = td / totalS;
-            channel << Core::XmlEmpty(names[i - 1])
-                    + Core::XmlAttribute("time", td)
-                    + Core::XmlAttribute("relative", rel);
+            channel << Core::XmlEmpty(names[i - 1]) + Core::XmlAttribute("time", td) + Core::XmlAttribute("relative", rel);
         }
         channel << Core::XmlEmpty("total") + Core::XmlAttribute("time", total);
         channel << Core::XmlClose("time-statistics");
     }
 };
-
 
 namespace Nn {
 
@@ -237,60 +231,62 @@ struct CalcTypes;
 
 template<>
 struct CalcTypes<f32> {
-    typedef Fsa::Semiring Semiring;
+    typedef Fsa::Semiring         Semiring;
     typedef Fsa::ConstSemiringRef ConstSemiringRef;
-    static ConstSemiringRef logSemiring() { return Fsa::LogSemiring; } // -log space
+    static ConstSemiringRef       logSemiring() {
+        return Fsa::LogSemiring;
+    }  // -log space
 };
 
 template<>
 struct CalcTypes<f64> {
-    typedef Fsa::Semiring64 Semiring;
+    typedef Fsa::Semiring64         Semiring;
     typedef Fsa::ConstSemiring64Ref ConstSemiringRef;
-    static ConstSemiringRef logSemiring() { return Fsa::LogSemiring64; } // -log space
+    static ConstSemiringRef         logSemiring() {
+        return Fsa::LogSemiring64;
+    }  // -log space
 };
-
 
 typedef Speech::TimeframeIndex TimeIndex;
 
 template<typename FloatT>
 struct ClassProbsExtractor {
-    typedef typename Types<FloatT>::NnMatrix NnMatrix;
-    typedef typename CalcTypes<FloatT>::Semiring Semiring;
-    typedef typename Semiring::Weight Weight;
+    typedef typename Types<FloatT>::NnMatrix             NnMatrix;
+    typedef typename CalcTypes<FloatT>::Semiring         Semiring;
+    typedef typename Semiring::Weight                    Weight;
     typedef typename CalcTypes<FloatT>::ConstSemiringRef ConstSemiringRef;
 
-    u32 nClasses_, nTimeFrames_;
-    ConstSemiringRef semiring_;
+    u32                nClasses_, nTimeFrames_;
+    ConstSemiringRef   semiring_;
     Am::AcousticModel& acousticModel_;
-    FloatT logZero_;
-    FloatT logThreshold_;
-    NnMatrix& classes_;
+    FloatT             logZero_;
+    FloatT             logThreshold_;
+    NnMatrix&          classes_;
 
-    ClassProbsExtractor(
-            u32 nCl, u32 T,
-            ConstSemiringRef semiring,
-            Am::AcousticModel& m,
-            FloatT threshold,
-            NnMatrix& cl)
-        : nClasses_(nCl), nTimeFrames_(T),
-          semiring_(semiring), // should be LogSemiring, i.e. -log space
-          acousticModel_(m),
-          logZero_((FloatT) semiring_->zero()), // should be Type<f32>::max (big positive num)
-          logThreshold_(threshold),
-          classes_(cl) {}
+    ClassProbsExtractor(u32                nCl,
+                        u32                T,
+                        ConstSemiringRef   semiring,
+                        Am::AcousticModel& m,
+                        FloatT             threshold,
+                        NnMatrix&          cl)
+            : nClasses_(nCl), nTimeFrames_(T), semiring_(semiring),  // should be LogSemiring, i.e. -log space
+              acousticModel_(m),
+              logZero_((FloatT)semiring_->zero()),  // should be Type<f32>::max (big positive num)
+              logThreshold_(threshold),
+              classes_(cl) {}
 
     ~ClassProbsExtractor() {
         // Always at destruction of this object,
         // we expect that the classes_ matrix is in computation mode.
-        if(!classes_.isComputing())
-            classes_.initComputation(false); // no need to sync because we probably failed
+        if (!classes_.isComputing())
+            classes_.initComputation(false);  // no need to sync because we probably failed
     }
 
     void initZero() {
         classes_.resize(nClasses_, nTimeFrames_);
         classes_.finishComputation(false);
 
-        for(FloatT& v : classes_)
+        for (FloatT& v : classes_)
             v = logZero_;
     }
 
@@ -298,14 +294,14 @@ struct ClassProbsExtractor {
         Am::AcousticModel::EmissionIndex state = acousticModel_.emissionIndex(allophoneStateId);
 
         // Check for absolut limits.
-        if(weight > logZero_ || std::isinf(weight) || Math::isnan(weight))
+        if (weight > logZero_ || std::isinf(weight) || Math::isnan(weight))
             weight = logZero_;
 
         // Check for really big number. This acts as a kind of smoothing.
-        if(weight > logThreshold_)
+        if (weight > logThreshold_)
             weight = logThreshold_;
 
-        if(classes_.at(state, timeIdx) >= logZero_)
+        if (classes_.at(state, timeIdx) >= logZero_)
             classes_.at(state, timeIdx) = weight;
         else
             classes_.at(state, timeIdx) = semiring_->collect(
@@ -316,45 +312,46 @@ struct ClassProbsExtractor {
         // See Search::AlignmentExtractor for comparison.
         struct ClassProbsExtractorFsa : Fsa::DfsState {
             ClassProbsExtractor& base_;
-            TimeIndex time_;
-            TimeIndex maxTime_;
+            TimeIndex            time_;
+            TimeIndex            maxTime_;
 
             ClassProbsExtractorFsa(
                     Fsa::ConstAutomatonRef f,
-                    ClassProbsExtractor& b)
-                : Fsa::DfsState(Fsa::normalize(f)),
-                  base_(b),
-                  time_(0),
-                  maxTime_(0) {}
+                    ClassProbsExtractor&   b)
+                    : Fsa::DfsState(Fsa::normalize(f)),
+                      base_(b),
+                      time_(0),
+                      maxTime_(0) {}
 
-            void exploreArc(Fsa::ConstStateRef /*from*/, const Fsa::Arc &a) {
+            void exploreArc(Fsa::ConstStateRef /*from*/, const Fsa::Arc& a) {
                 if (a.input() != Fsa::Epsilon) {
-                    base_.add(time_, a.input(), (FloatT) a.weight());
+                    base_.add(time_, a.input(), (FloatT)a.weight());
                     maxTime_ = std::max(maxTime_, time_);
                     ++time_;
                 }
             }
-            virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
+            virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
                 exploreArc(from, a);
             }
-            virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-                verify(color(a.target()) == Black); // verify, that the fsa contains no loops
+            virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+                verify(color(a.target()) == Black);  // verify, that the fsa contains no loops
                 exploreArc(from, a);
             }
-            virtual void finishArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-                if (a.input() != Fsa::Epsilon) --time_;
+            virtual void finishArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+                if (a.input() != Fsa::Epsilon)
+                    --time_;
             }
 
             void extract() {
                 time_ = 0;
-                recursiveDfs(); // depth-first search
+                recursiveDfs();  // depth-first search
             }
         };
 
         ClassProbsExtractorFsa extractor(f, *this);
         extractor.extract();
 
-        if(extractor.maxTime_ != nTimeFrames_ - 1)
+        if (extractor.maxTime_ != nTimeFrames_ - 1)
             return false;
         return true;
     }
@@ -364,7 +361,6 @@ struct ClassProbsExtractor {
         return true;
     }
 };
-
 
 template<typename FloatT>
 u32 CtcCriterion<FloatT>::getCurSegmentTimeLen() const {
@@ -376,12 +372,8 @@ u32 CtcCriterion<FloatT>::nEmissions() const {
     return acousticModel_->nEmissions();
 }
 
-
 template<typename FloatT>
-void CtcCriterion<FloatT>::getStateScorers_MixtureSet(
-        /*out*/ std::vector<Mm::FeatureScorer::Scorer>& scorers
-        )
-{
+void CtcCriterion<FloatT>::getStateScorers_MixtureSet(std::vector<Mm::FeatureScorer::Scorer>& scorers) {
     // Use fixed mixture set for the FeatureScorer.
 
     verify(fixedMixtureSetFeatureExtractionDataSource_);
@@ -392,17 +384,17 @@ void CtcCriterion<FloatT>::getStateScorers_MixtureSet(
     // and we just know about the Bliss::SpeechSegment here.
     // First, clear previous parameters, then set the current ones.
     Speech::clearSegmentParametersOnDataSource(
-                fixedMixtureSetFeatureExtractionDataSource_, Precursor::segment_);
+            fixedMixtureSetFeatureExtractionDataSource_, Precursor::segment_);
     Speech::setSegmentParametersOnDataSource(
-                fixedMixtureSetFeatureExtractionDataSource_, Precursor::segment_);
+            fixedMixtureSetFeatureExtractionDataSource_, Precursor::segment_);
 
-    if(!fixedMixtureSetExtractAlignmentsPortName_.empty()) {
+    if (!fixedMixtureSetExtractAlignmentsPortName_.empty()) {
         // See AligningFeatureExtractor::initializeAlignment() for reference.
         Flow::PortId alignmentPortId =
                 fixedMixtureSetFeatureExtractionDataSource_->getOutput(
-                    fixedMixtureSetExtractAlignmentsPortName_);
-        Flow::DataPtr<Flow::DataAdaptor<Speech::Alignment> > alignmentRef;
-        if(!fixedMixtureSetFeatureExtractionDataSource_->getData(alignmentPortId, alignmentRef)) {
+                        fixedMixtureSetExtractAlignmentsPortName_);
+        Flow::DataPtr<Flow::DataAdaptor<Speech::Alignment>> alignmentRef;
+        if (!fixedMixtureSetFeatureExtractionDataSource_->getData(alignmentPortId, alignmentRef)) {
             Core::Component::error("Failed to extract alignment from fixed mixture set via Flow.");
         }
         // We don't actually use it. If you want to dump it, you could
@@ -416,12 +408,12 @@ void CtcCriterion<FloatT>::getStateScorers_MixtureSet(
 
     // reset feature scorer for usage with embedded flow files
     fixedMixtureSetFeatureScorer_->reset();
-    bool firstFeature = true;
+    bool                       firstFeature = true;
     Core::Ref<Speech::Feature> feature;
     scorers.reserve(getCurSegmentTimeLen());
-    while(fixedMixtureSetFeatureExtractionDataSource_->getData(feature)) {
+    while (fixedMixtureSetFeatureExtractionDataSource_->getData(feature)) {
         // Check feature dependencies for first feature.
-        if(firstFeature) {
+        if (firstFeature) {
             Mm::FeatureDescription description(*this, *feature);
 
             // see AcousticModel::isCompatible()
@@ -431,11 +423,12 @@ void CtcCriterion<FloatT>::getStateScorers_MixtureSet(
             Core::DependencySet featureDependencies;
             description.getDependencies(featureDependencies);
 
-            if(!dependencies.satisfies(featureDependencies)) {
-                Core::Component::warning(
-                            "Feature mismatch between fixed-mixture-set and feature extraction.")
-                        << "\n fixed-mixture-set feature deps:\n" << featureDependencies
-                        << "\n given features:\n" << dependencies;
+            if (!dependencies.satisfies(featureDependencies)) {
+                Core::Component::warning("Feature mismatch between fixed-mixture-set and feature extraction.")
+                        << "\n fixed-mixture-set feature deps:\n"
+                        << featureDependencies
+                        << "\n given features:\n"
+                        << dependencies;
             }
 
             firstFeature = false;
@@ -443,7 +436,7 @@ void CtcCriterion<FloatT>::getStateScorers_MixtureSet(
         scorers.push_back(fixedMixtureSetFeatureScorer_->getScorer(feature));
     }
     // finalize embedded network if applicable i.e. EOS
-    if(firstFeature)
+    if (firstFeature)
         fixedMixtureSetFeatureScorer_->finalize();
 
     require_eq(scorers.size(), getCurSegmentTimeLen());
@@ -457,17 +450,17 @@ FloatT CtcCriterion<FloatT>::getStateScore(u32 timeIdx, u32 emissionIdx) {
     //   See e.g. TrainerFeatureScorer::getScore for an example usage of ClassLabelWrapper.
 
     FloatT prob = 0;
-    if(statePosteriorScale_ != 0) {
-        prob = stateLogPosteriors_.at(emissionIdx, timeIdx); // in -log space
-        if(prob > statePosteriorLogBackoff_)
+    if (statePosteriorScale_ != 0) {
+        prob = stateLogPosteriors_.at(emissionIdx, timeIdx);  // in -log space
+        if (prob > statePosteriorLogBackoff_)
             prob = statePosteriorLogBackoff_;
         prob *= statePosteriorScale_;
     }
 
     FloatT prior = 0;
-    if(statePriors_->scale() != 0)
+    if (statePriors_->scale() != 0)
         // priors are in +log space
-        prior = -statePriors_->at(emissionIdx) * statePriors_->scale(); // in -log space
+        prior = -statePriors_->at(emissionIdx) * statePriors_->scale();  // in -log space
 
     FloatT res = prob - prior;
     return res;
@@ -475,11 +468,8 @@ FloatT CtcCriterion<FloatT>::getStateScore(u32 timeIdx, u32 emissionIdx) {
 
 // simply wrap the state probability matrix to the Mm::FeatureScorer::Scorer API
 template<typename FloatT>
-void CtcCriterion<FloatT>::getStateScorers(
-        /*out*/ std::vector<Mm::FeatureScorer::Scorer>& scorers
-        )
-{
-    if(fixedMixtureSetFeatureScorer_) {
+void CtcCriterion<FloatT>::getStateScorers(std::vector<Mm::FeatureScorer::Scorer>& scorers) {
+    if (fixedMixtureSetFeatureScorer_) {
         getStateScorers_MixtureSet(scorers);
         return;
     }
@@ -488,10 +478,10 @@ void CtcCriterion<FloatT>::getStateScorers(
 
     struct FeatureScorer : Mm::FeatureScorer {
         struct ContextScorer : Mm::FeatureScorer::ContextScorer {
-            TimeIndex timeFrameIdx_;
+            TimeIndex             timeFrameIdx_;
             CtcCriterion<FloatT>* parent_;
             ContextScorer(TimeIndex t, CtcCriterion<FloatT>* parent)
-                : timeFrameIdx_(t), parent_(parent) {}
+                    : timeFrameIdx_(t), parent_(parent) {}
             virtual Mm::EmissionIndex nEmissions() const {
                 return parent_->nEmissions();
             }
@@ -505,11 +495,9 @@ void CtcCriterion<FloatT>::getStateScorers(
 
     TimeIndex T = getCurSegmentTimeLen();
     scorers.resize(T);
-    for(TimeIndex t = 0; t < T; ++t)
+    for (TimeIndex t = 0; t < T; ++t)
         scorers[t] = Mm::FeatureScorer::Scorer(new Scorer(t, this));
 }
-
-
 
 template<typename FloatT>
 Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getHypothesesAllophoneStateFsa() {
@@ -517,16 +505,12 @@ Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getHypothesesAllophoneStat
 
     std::string orth = segment.orth();
 
-    if(orth.empty())
+    if (orth.empty())
         Core::Component::error("speech segment without transcription");
 
     // FSA through all possible allophone states.
     // (See CombinedExactSegmentwiseMeTrainer.)
-    Fsa::ConstAutomatonRef hypothesesAllophoneStateFsa =
-        Fsa::removeDisambiguationSymbols(
-            Fsa::projectInput(
-                allophoneStateGraphBuilder_->buildTransducer(
-                    orth)));
+    Fsa::ConstAutomatonRef hypothesesAllophoneStateFsa = Fsa::removeDisambiguationSymbols(Fsa::projectInput(allophoneStateGraphBuilder_->buildTransducer(orth)));
     require_eq(acousticModel_->allophoneStateAlphabet(), hypothesesAllophoneStateFsa->getInputAlphabet());
 
     return hypothesesAllophoneStateFsa;
@@ -569,8 +553,8 @@ Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getTimeAlignedFsa_SearchAl
 
     if (!aligner_->reachedFinalState()) {
         Core::Component::warning("aligner did not reached final state")
-            << ", final score: " << aligner_->alignmentScore()
-            << ", segment:" << Precursor::segment_->name();
+                << ", final score: " << aligner_->alignmentScore()
+                << ", segment:" << Precursor::segment_->name();
         // ignore
         return Fsa::ConstAutomatonRef();
     }
@@ -584,9 +568,8 @@ Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getTimeAlignedFsa_SearchAl
     return alignmentFsa;
 }
 
-
 template<typename FloatT>
-Core::Ref<TimeAlignedAutomaton<FloatT> > CtcCriterion<FloatT>::getTimeAlignedFsa_custom() {
+Core::Ref<TimeAlignedAutomaton<FloatT>> CtcCriterion<FloatT>::getTimeAlignedFsa_custom() {
     // FSA through all possible allophone states.
     Fsa::ConstAutomatonRef hypothesesAllophoneStateFsa = getHypothesesAllophoneStateFsa();
 
@@ -600,21 +583,21 @@ Core::Ref<TimeAlignedAutomaton<FloatT> > CtcCriterion<FloatT>::getTimeAlignedFsa
     auto staticHypothesesAllophoneStateFsa = Fsa::staticCopy(hypothesesAllophoneStateFsa);
 
     auto timeAlignedFsaOrig = Core::ref(new TimeAlignedAutomaton<FloatT>(
-        dynamic_cast<BatchStateScoreIntf<FloatT>*>(this), acousticModel_, staticHypothesesAllophoneStateFsa));
+            dynamic_cast<BatchStateScoreIntf<FloatT>*>(this), acousticModel_, staticHypothesesAllophoneStateFsa));
     timeAlignedFsaOrig->fullSearchAutoIncrease(minAcousticPruningThreshold_, maxAcousticPruningThreshold_);
     timeAlignedFsaOrig->dumpCount(Core::Component::log("time-aligned FSA: "));
-    if(timeAlignedFsaOrig->initialStateId() == Fsa::InvalidStateId)
+    if (timeAlignedFsaOrig->initialStateId() == Fsa::InvalidStateId)
         timeAlignedFsaOrig.reset();
     return timeAlignedFsaOrig;
 }
 
-
 template<typename FloatT>
 Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getTimeAlignedFsa() {
-    if(useSearchAligner_) return getTimeAlignedFsa_SearchAligner();
+    if (useSearchAligner_)
+        return getTimeAlignedFsa_SearchAligner();
 
     auto timeAlignedFsaOrig = getTimeAlignedFsa_custom();
-    if(!timeAlignedFsaOrig)
+    if (!timeAlignedFsaOrig)
         return Fsa::ConstAutomatonRef();
 
     // The states returend by TimeAlignedAutomaton will be invalid ones the automaton is freed.
@@ -641,8 +624,10 @@ Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getPosteriorFsa() {
     // The scores are in -log space.
     timeStats.checkpoint("getTimeAlignedFsa");
     Fsa::ConstAutomatonRef alignmentFsa = getTimeAlignedFsa();
-    if(!alignmentFsa) return Fsa::ConstAutomatonRef();
-    if(alignmentFsa->initialStateId() == Fsa::InvalidStateId) return Fsa::ConstAutomatonRef();
+    if (!alignmentFsa)
+        return Fsa::ConstAutomatonRef();
+    if (alignmentFsa->initialStateId() == Fsa::InvalidStateId)
+        return Fsa::ConstAutomatonRef();
 
     // The posterior automaton represents the accumulated scores
     // calculated via a forward-backward algorithm through the automaton.
@@ -650,22 +635,18 @@ Core::Ref<const Fsa::Automaton> CtcCriterion<FloatT>::getPosteriorFsa() {
     // (Also see Aligner::getAlignmentPosteriorFsa() and MmiSegmentwiseNnTrainer<T>::getNumeratorPosterior() as reference.)
     timeStats.checkpoint("getAlignmentPosteriorFsa");
     Fsa::ConstAutomatonRef alignmentPosteriorFsa;
-    if(useSearchAligner_ && posteriorUseSearchAligner_)
+    if (useSearchAligner_ && posteriorUseSearchAligner_)
         alignmentPosteriorFsa = aligner_->getAlignmentPosteriorFsa(alignmentFsa).first;
     else {
         // Note: This requires that it uses the LogSemiring.
         // If the alignment-fsa is via the search-aligner, this is not the case (see Aligner::SearchSpace::getAlignmentFsaViterbi).
         // Aligner::getAlignmentPosteriorFsa will do the correct thing then.
         Fsa::Weight _alignmentPosteriorFsaTotal = alignmentFsa->semiring()->one();
-        alignmentPosteriorFsa =
-            Fsa::posterior64(
-                alignmentFsa, _alignmentPosteriorFsaTotal,
-                /* normalize */ posteriorTotalNormalize_);
+        alignmentPosteriorFsa                   = Fsa::posterior64(alignmentFsa, _alignmentPosteriorFsaTotal, posteriorTotalNormalize_);
     }
 
     return alignmentPosteriorFsa;
 }
-
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::dumpViterbiAlignments() {
@@ -684,7 +665,7 @@ void CtcCriterion<FloatT>::dumpViterbiAlignments() {
     aligner_->restart();
     aligner_->feed(scorers);
 
-    if(!aligner_->reachedFinalState()) {
+    if (!aligner_->reachedFinalState()) {
         Core::Component::warning("Viterbi aligner did not reached final state");
     }
     else {
@@ -698,7 +679,6 @@ void CtcCriterion<FloatT>::dumpViterbiAlignments() {
     aligner_->selectMode(oldMode);
 }
 
-
 static int debug_iter = 0;
 
 template<typename FloatT>
@@ -707,77 +687,80 @@ Core::Ref<Am::AcousticModel> CtcCriterion<FloatT>::getAcousticModel() {
 }
 
 template<typename FloatT>
-bool CtcCriterion<FloatT>::getAlignment(Speech::Alignment& out, NnMatrix& logPosteriors, const std::string& orthography, FloatT minProbGT, FloatT gamma) {
+bool CtcCriterion<FloatT>::getAlignment(Speech::Alignment& out,
+                                        NnMatrix&          logPosteriors,
+                                        const std::string& orthography,
+                                        FloatT             minProbGT,
+                                        FloatT             gamma) {
     stateLogPosteriors_.resize(logPosteriors.nRows(), logPosteriors.nColumns());
     stateLogPosteriors_.initComputation(false);
     stateLogPosteriors_.copy(logPosteriors);
-    stateLogPosteriors_.scale(-1); // -log space
+    stateLogPosteriors_.scale(-1);  // -log space
     stateLogPosteriors_.finishComputation(true);
 
-    Bliss::Corpus dummyCorpus;
-    Bliss::Recording dummyRecording(&dummyCorpus);
+    Bliss::Corpus        dummyCorpus;
+    Bliss::Recording     dummyRecording(&dummyCorpus);
     Bliss::SpeechSegment speechSegment(&dummyRecording);  // must be in scope until end when used
     speechSegment.setOrth(orthography);
     Precursor::segment_ = &speechSegment;
 
-    u32 nClasses = stateLogPosteriors_.nRows();
-    TimeIndex T = stateLogPosteriors_.nColumns();
+    u32       nClasses = stateLogPosteriors_.nRows();
+    TimeIndex T        = stateLogPosteriors_.nColumns();
     require_gt(T, 0);
     require_eq(acousticModel_->nEmissions(), nClasses);
     require_eq(statePriors_->size(), nClasses);
 
-    if(!useSearchAligner_ && useDirectAlignmentExtraction_) {
-        Core::Ref<TimeAlignedAutomaton<FloatT> > timeAlignedFsa = getTimeAlignedFsa_custom();
-        if(!timeAlignedFsa) return false;
+    if (!useSearchAligner_ && useDirectAlignmentExtraction_) {
+        Core::Ref<TimeAlignedAutomaton<FloatT>> timeAlignedFsa = getTimeAlignedFsa_custom();
+        if (!timeAlignedFsa)
+            return false;
         timeAlignedFsa->extractAlignment(out, minProbGT, gamma);
     }
     else {
         Fsa::ConstAutomatonRef alignmentPosteriorFsa = getPosteriorFsa();
-        Precursor::segment_ = NULL;
-        if(!alignmentPosteriorFsa) return false;
+        Precursor::segment_                          = NULL;
+        if (!alignmentPosteriorFsa)
+            return false;
 
         Search::extractAlignment(out, alignmentPosteriorFsa, minProbGT, gamma);
-        if(out.empty()) return false;
+        if (out.empty())
+            return false;
     }
     out.setAlphabet(acousticModel_->allophoneStateAlphabet());
     return true;
 }
 
-
 template<typename FloatT>
-bool CtcCriterion<FloatT>::calcStateProbErrors(
-        /*out*/ FloatT& error, // the error (objective function value)
-        /*out*/ NnMatrix& referenceProb // the reference prob
-        )
-{
+bool CtcCriterion<FloatT>::calcStateProbErrors(FloatT&   error,  // the error (objective function value) + the reference prob
+                                               NnMatrix& referenceProb) {
     typedef typename CalcTypes<FloatT>::Semiring Semiring;
     typedef typename CalcTypes<FloatT>::ConstSemiringRef ConstSemiringRef;
     TimeStats<20> timeStats(logTimeStatistics_, this->clog(), "calcStateProbErrors");
 
-    u32 nClasses = stateLogPosteriors_.nRows();
-    TimeIndex T = stateLogPosteriors_.nColumns();
+    u32       nClasses = stateLogPosteriors_.nRows();
+    TimeIndex T        = stateLogPosteriors_.nColumns();
     require_eq(acousticModel_->nEmissions(), nClasses);
     require_eq(statePriors_->size(), nClasses);
 
     ConstSemiringRef logSemiring = CalcTypes<FloatT>::logSemiring();
-    ClassProbsExtractor<FloatT> classProbsExtractor(
-                nClasses, T,
-                logSemiring,
-                *acousticModel_,
-                posteriorArcLogThreshold_,
-                referenceProb);
+    ClassProbsExtractor<FloatT> classProbsExtractor(nClasses,
+                                                    T,
+                                                    logSemiring,
+                                                    *acousticModel_,
+                                                    posteriorArcLogThreshold_,
+                                                    referenceProb);
     timeStats.checkpoint("referenceProb-initZero");
     classProbsExtractor.initZero();
 
-    if(!useSearchAligner_ && useDirectAlignmentExtraction_) {
+    if (!useSearchAligner_ && useDirectAlignmentExtraction_) {
         timeStats.checkpoint("getTimeAlignedFsa_custom");
-        Core::Ref<TimeAlignedAutomaton<FloatT> > timeAlignedFsa = getTimeAlignedFsa_custom();
-        if(!timeAlignedFsa) {
+        Core::Ref<TimeAlignedAutomaton<FloatT>> timeAlignedFsa = getTimeAlignedFsa_custom();
+        if (!timeAlignedFsa) {
             Core::Component::warning("No alignment found.");
             return false;
         }
         timeStats.checkpoint("classProbsExtractor-extractViaTimeAlignedAutomaton");
-        if(!classProbsExtractor.extractViaTimeAlignedAutomaton(*timeAlignedFsa)) {
+        if (!classProbsExtractor.extractViaTimeAlignedAutomaton(*timeAlignedFsa)) {
             Core::Component::warning("Could not extract via alignment.");
             return false;
         }
@@ -785,14 +768,15 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
     else {
         timeStats.checkpoint("getPosteriorFsa");
         Fsa::ConstAutomatonRef alignmentPosteriorFsa = getPosteriorFsa();
-        if(!alignmentPosteriorFsa) return false;
+        if (!alignmentPosteriorFsa)
+            return false;
 
         // Extract
         // P'_{t,a} := \sum_{\overline{a},a_t = a}
         //    \prod_\tau p(a_\tau|a_{\tau-1}, \overline{w}) \cdot \frac{p(a_\tau|x_\tau)}{p(a_\tau)} .
         // alignmentPosteriorFsa values are in -log space, so we use its log-semiring to collect the values.
         timeStats.checkpoint("referenceProb-extract");
-        if(!classProbsExtractor.extractViaFsa(alignmentPosteriorFsa)) {
+        if (!classProbsExtractor.extractViaFsa(alignmentPosteriorFsa)) {
             Core::Component::warning("Did not get probs for all time frames.");
             return false;
         }
@@ -800,77 +784,77 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
     // We now have P'_{t,a} in referenceProb in -log-space.
 
     timeStats.checkpoint("dumpViterbiAlignments");
-    if(dumpViterbiAlignmentsArchive_)
+    if (dumpViterbiAlignmentsArchive_)
         dumpViterbiAlignments();
 
-    if(doDebugDumps_)
+    if (doDebugDumps_)
         referenceProb.printToFile("data/dump-matrix-p-" + std::to_string(debug_iter));
 
-    if(!useCrossEntropyAsLoss_) {
+    if (!useCrossEntropyAsLoss_) {
         timeStats.checkpoint("calc-loss");
         // P = \sum_a P'_{1,a}.
         // Calculated and result in -log space.
-        static const int t = 0;
-        auto* collector = logSemiring->getCollector(logSemiring->zero());
-        for(u32 a = 0; a < referenceProb.nRows(); ++a) {
+        static const int t         = 0;
+        auto*            collector = logSemiring->getCollector(logSemiring->zero());
+        for (u32 a = 0; a < referenceProb.nRows(); ++a) {
             FloatT prob = referenceProb.at(a, t);
-            if(prob < (FloatT) logSemiring->zero() && !std::isinf(prob))
+            if (prob < (FloatT)logSemiring->zero() && !std::isinf(prob))
                 collector->feed(typename Semiring::Weight(prob));
         }
-        error = collector->get(); // L = -ln P.
+        error = collector->get();  // L = -ln P.
         delete collector;
 
-        if(std::isinf(error) || error > (FloatT) logSemiring->zero())
+        if (std::isinf(error) || error > (FloatT)logSemiring->zero())
             error = logSemiring->zero();
     }
 
-    if(statePriors_->learningRate() > 0) {
+    if (statePriors_->learningRate() > 0) {
         timeStats.checkpoint("calc-state-priors-update");
         // XXX: Could be calculated on the GPU.
 
         // P'' = \sum_{t} P'_{t,a}, in -log-space
         NnVector p(nClasses);
         p.setToZero();
-        for(u32 a = 0; a < nClasses; ++a) {
+        for (u32 a = 0; a < nClasses; ++a) {
             auto* collector = logSemiring->getCollector(logSemiring->zero());
-            for(u32 t = 0; t < T; ++t)
-                collector->feed(typename Semiring::Weight(referenceProb.at(a, t))); // in -log-space
+            for (u32 t = 0; t < T; ++t)
+                collector->feed(typename Semiring::Weight(referenceProb.at(a, t)));  // in -log-space
             p.at(a) = collector->get();
             delete collector;
         }
 
         // Transfer to GPU, and transfer into std space.
         p.initComputation(true);
-        p.scale(-1); // transfer to +log space.
-        p.exp(); // transfer to std space.
+        p.scale(-1);  // transfer to +log space.
+        p.exp();      // transfer to std space.
 
-        FloatT errFactor = -1.0 / std::exp(-error); // -1/P, in std space.
+        FloatT errFactor = -1.0 / std::exp(-error);  // -1/P, in std space.
 
         statePriors_->trainSoftmax(p, errFactor);
 
-        if(doDebugDumps_) {
+        if (doDebugDumps_) {
             statePriors_->write("data/dump-prior-params-" + std::to_string(debug_iter));
         }
     }
 
-    if(posteriorNBestLimit_ > 0 && posteriorNBestLimit_ < (u32)Core::Type<Core::ParameterInt::Value>::max) {
+    if (posteriorNBestLimit_ > 0 && posteriorNBestLimit_ < (u32)Core::Type<Core::ParameterInt::Value>::max) {
         timeStats.checkpoint("posteriorNBestLimit");
         // Simple, straight-forward, not-optimized, CPU-based implementation.
         // Note that we are in -log-space, thus the best is the lowest number (0).
-        for(u32 t = 0; t < T; ++t) {
+        for (u32 t = 0; t < T; ++t) {
             // Find N best elements.
             std::set<FloatT> nBestNums;
-            for(u32 a = 0; a < nClasses; ++a) {
+            for (u32 a = 0; a < nClasses; ++a) {
                 FloatT prob = referenceProb.at(a, t);
 
-                if(nBestNums.size() < posteriorNBestLimit_) {
+                if (nBestNums.size() < posteriorNBestLimit_) {
                     nBestNums.insert(prob);
                     continue;
                 }
 
                 // Lower than the biggest stored element.
                 auto biggestNBestPtr = --nBestNums.end();
-                if(prob < *biggestNBestPtr) {
+                if (prob < *biggestNBestPtr) {
                     // Remove and insert new prob.
                     nBestNums.erase(biggestNBestPtr);
                     nBestNums.insert(prob);
@@ -880,9 +864,9 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
             // Reset all reference probabilities behind the limit.
             verify(!nBestNums.empty());
             FloatT limit = *nBestNums.rbegin();
-            for(u32 a = 0; a < nClasses; ++a) {
+            for (u32 a = 0; a < nClasses; ++a) {
                 FloatT& prob = referenceProb.at(a, t);
-                if(prob > limit)
+                if (prob > limit)
                     prob = Core::Type<FloatT>::max;
             }
         }
@@ -901,7 +885,7 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
     timeStats.checkpoint("referenceProb-softmax");
     referenceProb.softmax();
 
-    if(useCrossEntropyAsLoss_) {
+    if (useCrossEntropyAsLoss_) {
         timeStats.checkpoint("calc-loss");
         // L = - \sum_{t,a}  P'_{t,a} \cdot \log y_{t,a}.
         // stateLogPosteriors_ is in -log space, thus -\log y = stateLogPosteriors_.
@@ -909,11 +893,11 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
         error = referenceProb.dot(stateLogPosteriors_);
     }
 
-    if(dumpReferenceProbsArchive_) {
+    if (dumpReferenceProbsArchive_) {
         timeStats.checkpoint("dumpReferenceProbs");
         referenceProb.finishComputation(true);
 
-        Flow::ArchiveWriter<Math::Matrix<FloatT> > writer(dumpReferenceProbsArchive_.get());
+        Flow::ArchiveWriter<Math::Matrix<FloatT>> writer(dumpReferenceProbsArchive_.get());
 
         referenceProb.convert(writer.data_->data());
         writer.write(Precursor::segment_->fullName());
@@ -921,16 +905,16 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
         referenceProb.initComputation(false);
     }
 
-    Core::Component::log()
-        << "P = " << std::exp(-error) << ", loss L = " << error
-        << ", frames = " << T
-        << ", normalized loss = " << (error / T);
-    if(doDebugDumps_)
+    Core::Component::log() << "P = " << std::exp(-error)
+                           << ", loss L = " << error
+                           << ", frames = " << T
+                           << ", normalized loss = " << (error / T);
+    if (doDebugDumps_)
         Core::Component::log() << "iter: " << debug_iter;
 
     // Not exactly sure where this can be introduced. (Maybe the softmax?)
     // However, if it did happen, discard this segment - it would destroy our model in training.
-    if(std::isinf(error) || Math::isnan(error)) {
+    if (std::isinf(error) || Math::isnan(error)) {
         Core::Component::warning("Error-value is invalid.");
         return false;
     }
@@ -939,7 +923,7 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
     // This would result in the softmax returning nans.
     timeStats.checkpoint("referenceProb-l1norm");
     FloatT refProbNorm = referenceProb.l1norm();
-    if(std::isinf(refProbNorm) || Math::isnan(error)) {
+    if (std::isinf(refProbNorm) || Math::isnan(error)) {
         Core::Component::warning("Reference prob norm is invalid.");
         return false;
     }
@@ -947,12 +931,10 @@ bool CtcCriterion<FloatT>::calcStateProbErrors(
     return true;
 }
 
-
-
 template<typename FloatT>
 void CtcCriterion<FloatT>::initLexicon() {
     lexicon_ = Bliss::Lexicon::create(Core::Component::select("lexicon"));
-    if(!lexicon_)
+    if (!lexicon_)
         Core::Component::criticalError("failed to initialize the lexicon");
 }
 
@@ -962,10 +944,10 @@ void CtcCriterion<FloatT>::initAcousticModel() {
     // create the allophone state graph builder.
     // Thus, it does not need the state probabilities.
     // We calculate the state probabilities ourself (see FeatureScorer in processBuffer).
-    acousticModel_ =
-        Am::Module::instance().createAcousticModel(
-            Core::Component::select("acoustic-model"), lexicon_, Am::AcousticModel::noEmissions);
-    if(!acousticModel_)
+    acousticModel_ = Am::Module::instance().createAcousticModel(Core::Component::select("acoustic-model"),
+                                                                lexicon_,
+                                                                Am::AcousticModel::noEmissions);
+    if (!acousticModel_)
         Core::Component::criticalError("failed to initialize the acoustic model");
 }
 
@@ -975,25 +957,24 @@ void CtcCriterion<FloatT>::initAllophoneStateGraphBuilder() {
     // which itself uses the lexion + HMM topology and related things.
     // It does not use the mixtureSet/featureScorer.
     // This is needed to build up DFA through all possible allophone states.
-    allophoneStateGraphBuilder_ =
-        std::make_shared<Speech::AllophoneStateGraphBuilder>(
-            Core::Component::select("allophone-state-graph-builder"),
-            lexicon_,
-            acousticModel_);
+    allophoneStateGraphBuilder_ = std::make_shared<Speech::AllophoneStateGraphBuilder>(Core::Component::select("allophone-state-graph-builder"),
+                                                                                       lexicon_,
+                                                                                       acousticModel_);
     // AllophoneStateGraphBuilder will load all transducers lazily when it first needs them.
     // For better timing statistics, just load them now.
     // To do that, just build a orthography now.
     std::string dummyOrth;
-    auto lemmasRange = lexicon_->lemmas();
-    for(auto lemma_iter = lemmasRange.first; lemma_iter != lemmasRange.second; ++lemma_iter) {
-        const Bliss::Lemma *lemma(*lemma_iter);
-        if(lemma->nPronunciations() == 0) continue;
+    auto        lemmasRange = lexicon_->lemmas();
+    for (auto lemma_iter = lemmasRange.first; lemma_iter != lemmasRange.second; ++lemma_iter) {
+        const Bliss::Lemma* lemma(*lemma_iter);
+        if (lemma->nPronunciations() == 0)
+            continue;
         dummyOrth = lemma->preferredOrthographicForm().str();
-        if(dummyOrth.empty())
+        if (dummyOrth.empty())
             this->warning("Empty orthography for lemma '%s'.", lemma->name().str());
         break;
     }
-    if(!dummyOrth.empty())
+    if (!dummyOrth.empty())
         allophoneStateGraphBuilder_->buildTransducer(dummyOrth + " ");
     else
         this->warning("Did not found any pronunciation in lexicon.");
@@ -1004,20 +985,17 @@ void CtcCriterion<FloatT>::initSearchAligner() {
     // We might not need to create it if !useSearchAligner_.
     // However, we also might use it in some debug code.
     // So for now, always create.
-    aligner_ =
-        std::make_shared<Search::Aligner>(
-            Core::Component::select("ctc-aligner"));
-    if(useSearchAligner_ && aligner_->getMode() != Search::Aligner::modeBaumWelch)
+    aligner_ = std::make_shared<Search::Aligner>(Core::Component::select("ctc-aligner"));
+    if (useSearchAligner_ && aligner_->getMode() != Search::Aligner::modeBaumWelch)
         Core::Component::log("CTC aligner is not in Baum-Welch mode but in Viterbi mode");
-    if(useSearchAligner_ && useDirectAlignmentExtraction_)
+    if (useSearchAligner_ && useDirectAlignmentExtraction_)
         Core::Component::error("CTC: use-search-aligner=true and use-direct-alignment-extraction=true don't work together");
 }
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::initStatePriors() {
-    statePriors_ = std::make_shared<Prior<FloatT> >(
-                Core::Component::select("priors"));
-    if(statePriors_->fileName().empty())
+    statePriors_ = std::make_shared<Prior<FloatT>>(Core::Component::select("priors"));
+    if (statePriors_->fileName().empty())
         statePriors_->initUniform(acousticModel_->nEmissions());
     else {
         // XXX: It is a bit unfortunate that the prior filename
@@ -1026,7 +1004,7 @@ void CtcCriterion<FloatT>::initStatePriors() {
         // we should have two separate config options for the load filename
         // and save filename.
         Core::Component::log("state priors: ") << statePriors_->fileName();
-        if(!statePriors_->read()) {
+        if (!statePriors_->read()) {
             // A warning, until we have figured out a solution.
             Core::Component::warning("could not read priors, init with uniform");
             statePriors_->initUniform(acousticModel_->nEmissions());
@@ -1039,86 +1017,68 @@ void CtcCriterion<FloatT>::initStatePriors() {
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::initFixedMixtureSet() {
-    if(statePosteriorScale_ != 1)
-        Core::Component::warning(
-            "The state-posterior-scale %f will be ignored with fixed-mixture-set.",
-            statePosteriorScale_);
+    if (statePosteriorScale_ != 1)
+        Core::Component::warning("The state-posterior-scale %f will be ignored with fixed-mixture-set.",
+                                 statePosteriorScale_);
     // As well as the state priors and any scaling in there, but no check for that here
     // as it only complicates things.
 
-    std::string mixtureSetSelector = paramFixedMixtureSetSelector(Precursor::config);
+    std::string mixtureSetSelector        = paramFixedMixtureSetSelector(Precursor::config);
     std::string featureExtractionSelector = paramFixedMixtureSetFeatureExtractionSelector(Precursor::config);
-    Core::Component::log(
-                "CTC: using fixed mixture set, selector '%s', feature extraction selector '%s'",
-                mixtureSetSelector.c_str(), featureExtractionSelector.c_str());
+    Core::Component::log("CTC: using fixed mixture set, selector '%s', feature extraction selector '%s'",
+                         mixtureSetSelector.c_str(), featureExtractionSelector.c_str());
 
-    Core::Ref<Mm::AbstractMixtureSet> mixtureSet =
-            Mm::Module::instance().readAbstractMixtureSet(
-                Core::Component::select(mixtureSetSelector));
-    if(!mixtureSet)
+    Core::Ref<Mm::AbstractMixtureSet> mixtureSet = Mm::Module::instance().readAbstractMixtureSet(Core::Component::select(mixtureSetSelector));
+    if (!mixtureSet)
         Core::Component::criticalError("failed to initialize the mixture set");
 
-    fixedMixtureSetFeatureScorer_ =
-            Mm::Module::instance().createScaledFeatureScorer(
-                Core::Component::select(mixtureSetSelector), mixtureSet);
-    if(!fixedMixtureSetFeatureScorer_)
+    fixedMixtureSetFeatureScorer_ = Mm::Module::instance().createScaledFeatureScorer(Core::Component::select(mixtureSetSelector), mixtureSet);
+    if (!fixedMixtureSetFeatureScorer_)
         Core::Component::criticalError("failed to initialize the mixture set feature scorer");
 
-    fixedMixtureSetFeatureExtractionDataSource_ =
-            Core::Ref<Speech::DataSource>(
-                Speech::Module::instance().createDataSource(
-                    Core::Component::select(featureExtractionSelector), true));
-    if(!fixedMixtureSetFeatureExtractionDataSource_)
+    fixedMixtureSetFeatureExtractionDataSource_ = Core::Ref<Speech::DataSource>(Speech::Module::instance().createDataSource(Core::Component::select(featureExtractionSelector), true));
+    if (!fixedMixtureSetFeatureExtractionDataSource_)
         Core::Component::criticalError("failed to initialize the mixture set feature extraction");
     // The main data source will drive the progress indicator -
     // this is another separate data source which should not infer.
     fixedMixtureSetFeatureExtractionDataSource_->setProgressIndication(false);
 
-    fixedMixtureSetExtractAlignmentsPortName_ =
-            paramFixedMixtureSetExtractAlignmentsPortName(Precursor::config);
+    fixedMixtureSetExtractAlignmentsPortName_ = paramFixedMixtureSetExtractAlignmentsPortName(Precursor::config);
 }
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::initDebug() {
     std::string dumpViterbiFilename = paramDumpViterbiAlignments(Precursor::config);
-    if(!dumpViterbiFilename.empty())
-        dumpViterbiAlignmentsArchive_ =
-            std::shared_ptr<Core::Archive>(
-                Core::Archive::create(
-                    Core::Component::select(paramDumpViterbiAlignments.name()),
-                    dumpViterbiFilename,
-                    Core::Archive::AccessModeWrite));
+    if (!dumpViterbiFilename.empty())
+        dumpViterbiAlignmentsArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpViterbiAlignments.name()),
+                                                                                             dumpViterbiFilename,
+                                                                                             Core::Archive::AccessModeWrite));
 
     std::string dumpReferenceProbs = paramDumpReferenceProbs(Precursor::config);
-    if(!dumpReferenceProbs.empty())
-        dumpReferenceProbsArchive_ =
-            std::shared_ptr<Core::Archive>(
-                Core::Archive::create(
-                    Core::Component::select(paramDumpReferenceProbs.name()),
-                    dumpReferenceProbs,
-                    Core::Archive::AccessModeWrite));
+    if (!dumpReferenceProbs.empty())
+        dumpReferenceProbsArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpReferenceProbs.name()),
+                                                                                          dumpReferenceProbs,
+                                                                                          Core::Archive::AccessModeWrite));
 }
 
 template<typename FloatT>
 CtcCriterion<FloatT>::CtcCriterion(const Core::Configuration& config)
-    :
-      Precursor(config),
-      useSearchAligner_(paramUseSearchAligner(config)),
-      minAcousticPruningThreshold_(paramMinAcousticPruningThreshold(Core::Component::select("ctc-aligner"))),
-      maxAcousticPruningThreshold_(paramMaxAcousticPruningThreshold(Core::Component::select("ctc-aligner"))),
-      useDirectAlignmentExtraction_(paramUseDirectAlignmentExtraction(config)),
-      statePosteriorScale_(paramStatePosteriorScale(config)),
-      statePosteriorLogBackoff_(paramStatePosteriorLogBackoff(config)),
-      posteriorUseSearchAligner_(paramPosteriorUseSearchAligner(config)),
-      posteriorTotalNormalize_(paramPosteriorTotalNormalize(config)),
-      posteriorArcLogThreshold_(paramPosteriorArcLogThreshold(config)),
-      posteriorScale_(paramPosteriorScale(config)),
-      posteriorNBestLimit_(paramPosteriorNBestLimit(config)),
-      doDebugDumps_(paramDebugDumps(config)),
-      logTimeStatistics_(paramLogTimeStatistics(config)),
-      useCrossEntropyAsLoss_(paramUseCrossEntropyAsLoss(config)),
-      inputInLogSpace_(paramInputInLogSpace(config))
-{
+        : Precursor(config),
+          useSearchAligner_(paramUseSearchAligner(config)),
+          minAcousticPruningThreshold_(paramMinAcousticPruningThreshold(Core::Component::select("ctc-aligner"))),
+          maxAcousticPruningThreshold_(paramMaxAcousticPruningThreshold(Core::Component::select("ctc-aligner"))),
+          useDirectAlignmentExtraction_(paramUseDirectAlignmentExtraction(config)),
+          statePosteriorScale_(paramStatePosteriorScale(config)),
+          statePosteriorLogBackoff_(paramStatePosteriorLogBackoff(config)),
+          posteriorUseSearchAligner_(paramPosteriorUseSearchAligner(config)),
+          posteriorTotalNormalize_(paramPosteriorTotalNormalize(config)),
+          posteriorArcLogThreshold_(paramPosteriorArcLogThreshold(config)),
+          posteriorScale_(paramPosteriorScale(config)),
+          posteriorNBestLimit_(paramPosteriorNBestLimit(config)),
+          doDebugDumps_(paramDebugDumps(config)),
+          logTimeStatistics_(paramLogTimeStatistics(config)),
+          useCrossEntropyAsLoss_(paramUseCrossEntropyAsLoss(config)),
+          inputInLogSpace_(paramInputInLogSpace(config)) {
     TimeStats<10> timeStats(logTimeStatistics_, this->clog(), "initialization");
     timeStats.checkpoint("initLexicon");
     initLexicon();
@@ -1131,7 +1091,7 @@ CtcCriterion<FloatT>::CtcCriterion(const Core::Configuration& config)
     timeStats.checkpoint("initStatePriors");
     initStatePriors();
     timeStats.checkpoint("initFixedMixtureSet");
-    if((bool) paramUseFixedMixtureSet(config))
+    if ((bool)paramUseFixedMixtureSet(config))
         initFixedMixtureSet();
     timeStats.checkpoint("initDebug");
     initDebug();
@@ -1141,7 +1101,6 @@ template<typename FloatT>
 CtcCriterion<FloatT>::~CtcCriterion() {
 }
 
-
 template<typename FloatT>
 void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnMatrix& nnOutput, NnVector* weights) {
     TimeStats<10> timeStats(logTimeStatistics_, this->clog(), "inputSpeechSegment");
@@ -1149,7 +1108,7 @@ void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnM
     discardCurrentInput_ = true;
     verify(nnOutput.isComputing());
 
-    if(weights)
+    if (weights)
         Core::Component::error("CtcCriterion::inputSpeechSegment not yet implemented with weights");
 
     typedef typename Math::FastMatrix<FloatT> FastMatrix;
@@ -1162,7 +1121,7 @@ void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnM
     // for all time-frames (columns).
 
     ++debug_iter;
-    if(doDebugDumps_) {
+    if (doDebugDumps_) {
         nnOutput.finishComputation(true);
         nnOutput.printToFile("data/dump-nn-output-" + std::to_string(debug_iter));
         nnOutput.initComputation(false);
@@ -1179,10 +1138,10 @@ void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnM
     // We even can substract the bias directly from it.
     // See BatchFeatureScorer which does that.
     timeStats.checkpoint("stateLogPosteriors-log");
-    if(!inputInLogSpace_)
-        stateLogPosteriors_.log(); // +log space
+    if (!inputInLogSpace_)
+        stateLogPosteriors_.log();  // +log space
     timeStats.checkpoint("stateLogPosteriors-scale");
-    stateLogPosteriors_.scale(-1); // -log space
+    stateLogPosteriors_.scale(-1);  // -log space
 
     // All of the CTC criterion calculation is currently done on the CPU.
     // Because of the alignment-code, the automata stuff, etc., I think
@@ -1195,22 +1154,20 @@ void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnM
 
     // Simple check. Can happen if we have destroyed the matrix weights earlier.
     // Can also happen if you have the wrong input-in-log-space option.
-    require(!Math::isnan(stateLogPosteriors_.at(0,0)));
+    require(!Math::isnan(stateLogPosteriors_.at(0, 0)));
 
     // For the given segment transcription, it builds the class probabilities per frame.
     timeStats.checkpoint("calcStateProbErrors");
-    discardCurrentInput_ =
-            !calcStateProbErrors(
-                Precursor::objectiveFunction_,
-                Precursor::errorSignal_ // we keep here the reference prob, \hat{y}
-                );
+    discardCurrentInput_                     = !calcStateProbErrors(Precursor::objectiveFunction_,
+                                                Precursor::errorSignal_  // we keep here the reference prob, \hat{y}
+    );
     Precursor::needRecalc_objectiveFunction_ = false;
-    Precursor::needRecalc_errorSignal_ = false;
+    Precursor::needRecalc_errorSignal_       = false;
 }
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::getObjectiveFunction(FloatT& value) {
-    if(!discardCurrentInput_)
+    if (!discardCurrentInput_)
         value = Precursor::objectiveFunction_;
     else
         // fallback if this is called anyway
@@ -1219,17 +1176,17 @@ void CtcCriterion<FloatT>::getObjectiveFunction(FloatT& value) {
 
 template<typename FloatT>
 void CtcCriterion<FloatT>::getErrorSignal(NnMatrix& errorSignal) {
-    if(!discardCurrentInput_) {
-        if(inputInLogSpace_) { // y - \hat{y}
+    if (!discardCurrentInput_) {
+        if (inputInLogSpace_) {  // y - \hat{y}
             // If we got posteriors in log-space, we interpret it here like we applied softmax on it
             // (which we did not - we just took them as they are because we need the log-posteriors anyway)
             // thus the error signal is like natural pairing with softmax.
             errorSignal.copy(*Precursor::nnOutput_);
             errorSignal.softmax();
-            errorSignal.add(Precursor::errorSignal_, (FloatT)-1); // this is the reference prob, \hat{y}
+            errorSignal.add(Precursor::errorSignal_, (FloatT)-1);  // this is the reference prob, \hat{y}
         }
-        else { // -\hat{y} / y
-            errorSignal.copy(Precursor::errorSignal_); // this is the reference prob, \hat{y}
+        else {                                          // -\hat{y} / y
+            errorSignal.copy(Precursor::errorSignal_);  // this is the reference prob, \hat{y}
             errorSignal.elementwiseDivision(*Precursor::nnOutput_);
             errorSignal.scale(-1);
         }
@@ -1240,24 +1197,22 @@ void CtcCriterion<FloatT>::getErrorSignal(NnMatrix& errorSignal) {
 }
 
 template<typename FloatT>
-void CtcCriterion<FloatT>::getErrorSignal_naturalPairing(NnMatrix &errorSignal, NeuralNetworkLayer<FloatT> &lastLayer) {
-    if(!discardCurrentInput_ && !inputInLogSpace_) {
-        switch(lastLayer.getLayerType()) {
-        case NeuralNetworkLayer<FloatT>::linearAndSoftmaxLayer:
-        case NeuralNetworkLayer<FloatT>::softmaxLayer:
-            // y - \hat{y}
-            errorSignal.copy(*Precursor::nnOutput_);
-            errorSignal.add(Precursor::errorSignal_, (FloatT)-1); // this is the reference prob, \hat{y}
-            return;
+void CtcCriterion<FloatT>::getErrorSignal_naturalPairing(NnMatrix& errorSignal, NeuralNetworkLayer<FloatT>& lastLayer) {
+    if (!discardCurrentInput_ && !inputInLogSpace_) {
+        switch (lastLayer.getLayerType()) {
+            case NeuralNetworkLayer<FloatT>::linearAndSoftmaxLayer:
+            case NeuralNetworkLayer<FloatT>::softmaxLayer:
+                // y - \hat{y}
+                errorSignal.copy(*Precursor::nnOutput_);
+                errorSignal.add(Precursor::errorSignal_, (FloatT)-1);  // this is the reference prob, \hat{y}
+                return;
 
-        default:
-            {
+            default: {
                 static bool warningOnce = false;
-                if(!warningOnce) {
+                if (!warningOnce) {
                     warningOnce = true;
-                    Core::Component::warning()
-                        << "using CtcCriterion natural pairing with unsupported last NN layer; "
-                        << "using default implementation instead";
+                    Core::Component::warning() << "using CtcCriterion natural pairing with unsupported last NN layer; "
+                                               << "using default implementation instead";
                 }
             }
         }
@@ -1276,4 +1231,4 @@ typename CtcCriterion<FloatT>::NnMatrix* CtcCriterion<FloatT>::getPseudoTargets(
 template class CtcCriterion<f32>;
 template class CtcCriterion<f64>;
 
-}
+}  // namespace Nn

@@ -13,14 +13,14 @@
  *  limitations under the License.
  */
 #include "NeuralNetworkTrainer.hh"
+#include <Math/Blas.hh>
+#include <algorithm>
+#include <limits>
 #include "FeedForwardTrainer.hh"
 #include "MeanNormalizedSgdEstimator.hh"
-#include <Math/Blas.hh>
-#include <limits>
-#include <algorithm>
 
-#include <Math/Module.hh> // XML I/O stuff for writing parameters
 #include <Flow/ArchiveWriter.hh>
+#include <Math/Module.hh>  // XML I/O stuff for writing parameters
 
 #include <Modules.hh>
 
@@ -38,7 +38,7 @@ const Core::Choice NeuralNetworkTrainer<T>::choiceNetworkTrainer(
         "mean-and-variance-accumulator", meanAndVarianceAccumulator,
         "autoencoder", autoencoderTrainer,
         "network-evaluator", networkEvaluator,
-        "python-trainer", pythonTrainer, // needs MODULE_PYTHON
+        "python-trainer", pythonTrainer,  // needs MODULE_PYTHON
         "python-evaluator", pythonEvaluator,
         Core::Choice::endMark());
 
@@ -59,25 +59,24 @@ const Core::ParameterBool NeuralNetworkTrainer<T>::paramMeasureTime(
         "measure-time", "Measures time for executing methods in FeedForwardTrainer", false);
 
 template<typename T>
-NeuralNetworkTrainer<T>::NeuralNetworkTrainer(const Core::Configuration &config) :
-Core::Component(config),
-weightedAccumulation_(paramWeightedAccumulation(config)),
-classWeights_(0),
-measureTime_(paramMeasureTime(config)),
-needsNetwork_(true),
-statisticsChannel_(config, "statistics"),
-needInit_(true),
-network_(0)
-{
-    estimator_ = Estimator<T>::createEstimator(config);
+NeuralNetworkTrainer<T>::NeuralNetworkTrainer(const Core::Configuration& config)
+        : Core::Component(config),
+          weightedAccumulation_(paramWeightedAccumulation(config)),
+          classWeights_(0),
+          measureTime_(paramMeasureTime(config)),
+          needsNetwork_(true),
+          statisticsChannel_(config, "statistics"),
+          needInit_(true),
+          network_(0) {
+    estimator_   = Estimator<T>::createEstimator(config);
     regularizer_ = Regularizer<T>::createRegularizer(config);
-    criterion_ = Criterion<T>::create(config);
+    criterion_   = Criterion<T>::create(config);
     logProperties();
 }
 
 template<typename T>
-NeuralNetworkTrainer<T>::~NeuralNetworkTrainer(){
-    if (network_){
+NeuralNetworkTrainer<T>::~NeuralNetworkTrainer() {
+    if (network_) {
         delete network_;
     }
     delete estimator_;
@@ -102,23 +101,23 @@ void NeuralNetworkTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32>&
     if (needInit_) {
         if (estimator().type() == "prior-estimator")
             this->needsNetwork_ = false;
-        if (needsNetwork_){
-            network_ = new NeuralNetwork<T>(config),
-                    // initialize the network with each layer and initialize (gpu) computation for the matrices
-                    network_->initializeNetwork(batchSize, streamSizes);
+        if (needsNetwork_) {
+            network_ = new NeuralNetwork<T>(config);
+            // initialize the network with each layer and initialize (gpu) computation for the matrices
+            network_->initializeNetwork(batchSize, streamSizes);
         }
     }
     needInit_ = false;
 }
 
 template<typename T>
-void NeuralNetworkTrainer<T>::setClassWeights(const Math::Vector<T> *classWeights){
+void NeuralNetworkTrainer<T>::setClassWeights(const Math::Vector<T>* classWeights) {
     classWeights_ = classWeights;
 }
 
 template<typename T>
 void NeuralNetworkTrainer<T>::finalize() {
-    if (network_){
+    if (network_) {
         network_->finalize();
         // save only when network has been changed
         if (estimator_ && (!estimator_->fullBatchMode()))
@@ -134,10 +133,10 @@ void NeuralNetworkTrainer<T>::resetHistory() {
 
 template<typename T>
 void NeuralNetworkTrainer<T>::logProperties() const {
-    if (weightedAccumulation_){
+    if (weightedAccumulation_) {
         this->log("using weighted accumulation");
     }
-    if (measureTime_){
+    if (measureTime_) {
         this->log("measuring computation time");
     }
 }
@@ -148,48 +147,48 @@ NeuralNetworkTrainer<T>* NeuralNetworkTrainer<T>::createSupervisedTrainer(const 
     NeuralNetworkTrainer<T>* trainer = NULL;
 
     // get the type of the trainer
-    switch ( (TrainerType) paramNetworkTrainer(config) ) {
-    case feedForwardTrainer:
-        Core::Application::us()->log("Create trainer: feed-forward trainer");
-        trainer = new FeedForwardTrainer<T>(config);
-        break;
-    case frameClassificationErrorAccumulator:
-        Core::Application::us()->log("Create trainer: frame-classification-error");
-        trainer = new FrameErrorEvaluator<T>(config);
-        break;
-    case meanAndVarianceAccumulator:
-        Core::Application::us()->log("Create trainer: mean-and-variance-estimation");
-        trainer = new MeanAndVarianceTrainer<T>(config);
-        break;
-    case networkEvaluator:
-        Core::Application::us()->log("Create trainer: network-evaluator");
-        trainer = new NetworkEvaluator<T>(config);
-        break;
-    case autoencoderTrainer:
-        Core::Application::us()->log("Create trainer: autoencoder");
-        trainer = new FeedForwardAutoTrainer<T>(config);
-        break;
-    case pythonTrainer:
+    switch ((TrainerType)paramNetworkTrainer(config)) {
+        case feedForwardTrainer:
+            Core::Application::us()->log("Create trainer: feed-forward trainer");
+            trainer = new FeedForwardTrainer<T>(config);
+            break;
+        case frameClassificationErrorAccumulator:
+            Core::Application::us()->log("Create trainer: frame-classification-error");
+            trainer = new FrameErrorEvaluator<T>(config);
+            break;
+        case meanAndVarianceAccumulator:
+            Core::Application::us()->log("Create trainer: mean-and-variance-estimation");
+            trainer = new MeanAndVarianceTrainer<T>(config);
+            break;
+        case networkEvaluator:
+            Core::Application::us()->log("Create trainer: network-evaluator");
+            trainer = new NetworkEvaluator<T>(config);
+            break;
+        case autoencoderTrainer:
+            Core::Application::us()->log("Create trainer: autoencoder");
+            trainer = new FeedForwardAutoTrainer<T>(config);
+            break;
+        case pythonTrainer:
 #ifdef MODULE_PYTHON
-        Core::Application::us()->log("Create trainer: Python trainer");
-        trainer = new PythonTrainer<T>(config);
+            Core::Application::us()->log("Create trainer: Python trainer");
+            trainer = new PythonTrainer<T>(config);
 #else
-        Core::Application::us()->criticalError("Python-trainer: Python support not compiled");
+            Core::Application::us()->criticalError("Python-trainer: Python support not compiled");
 #endif
-    case pythonEvaluator:
+        case pythonEvaluator:
 #ifdef MODULE_PYTHON
-        Core::Application::us()->log("Create trainer: Python evaluator");
-        trainer = new PythonEvaluator<T>(config);
+            Core::Application::us()->log("Create trainer: Python evaluator");
+            trainer = new PythonEvaluator<T>(config);
 #else
-        Core::Application::us()->criticalError("Python-evaluator: Python support not compiled");
+            Core::Application::us()->criticalError("Python-evaluator: Python support not compiled");
 #endif
 
-        break;
-    default: // dummy trainer
-        Core::Application::us()->warning("The given trainer is not a valid supervised trainer type. Create dummy trainer.");
-        trainer = new NeuralNetworkTrainer<T>(config);
-        Core::Application::us()->log("Create trainer: dummy");
-        break;
+            break;
+        default:  // dummy trainer
+            Core::Application::us()->warning("The given trainer is not a valid supervised trainer type. Create dummy trainer.");
+            trainer = new NeuralNetworkTrainer<T>(config);
+            Core::Application::us()->log("Create trainer: dummy");
+            break;
     };
 
     return trainer;
@@ -201,28 +200,28 @@ NeuralNetworkTrainer<T>* NeuralNetworkTrainer<T>::createUnsupervisedTrainer(cons
     NeuralNetworkTrainer<T>* trainer = NULL;
 
     // get the type of the trainer
-    switch ( (TrainerType) paramNetworkTrainer(config) ) {
-    case meanAndVarianceAccumulator:
-        Core::Application::us()->log("Create trainer: mean-and-variance-estimation");
-        trainer = new MeanAndVarianceTrainer<T>(config);
-        break;
-    case networkEvaluator:
-        Core::Application::us()->log("Create trainer: network-evaluator");
-        trainer = new NetworkEvaluator<T>(config);
-        break;
-    case pythonTrainer:
+    switch ((TrainerType)paramNetworkTrainer(config)) {
+        case meanAndVarianceAccumulator:
+            Core::Application::us()->log("Create trainer: mean-and-variance-estimation");
+            trainer = new MeanAndVarianceTrainer<T>(config);
+            break;
+        case networkEvaluator:
+            Core::Application::us()->log("Create trainer: network-evaluator");
+            trainer = new NetworkEvaluator<T>(config);
+            break;
+        case pythonTrainer:
 #ifdef MODULE_PYTHON
-        Core::Application::us()->log("Create trainer: Python trainer");
-        trainer = new PythonTrainer<T>(config);
+            Core::Application::us()->log("Create trainer: Python trainer");
+            trainer = new PythonTrainer<T>(config);
 #else
-        Core::Application::us()->criticalError("Python-trainer: Python support not compiled");
+            Core::Application::us()->criticalError("Python-trainer: Python support not compiled");
 #endif
-        break;
-    default: // dummy trainer
-        Core::Application::us()->warning("The given trainer is not a valid unsupervised trainer type. Create dummy trainer.");
-        trainer = new NeuralNetworkTrainer<T>(config);
-        Core::Application::us()->log("Create trainer: dummy");
-        break;
+            break;
+        default:  // dummy trainer
+            Core::Application::us()->warning("The given trainer is not a valid unsupervised trainer type. Create dummy trainer.");
+            trainer = new NeuralNetworkTrainer<T>(config);
+            Core::Application::us()->log("Create trainer: dummy");
+            break;
     };
 
     return trainer;
@@ -235,19 +234,18 @@ const Core::ParameterBool FrameErrorEvaluator<T>::paramLogFrameEntropy(
         "log-frame-entropy", "log the average frame entropy", false);
 
 template<typename T>
-FrameErrorEvaluator<T>::FrameErrorEvaluator(const Core::Configuration &config) :
-Core::Component(config),
-Precursor(config),
-nObservations_(0),
-nFrameClassificationErrors_(0),
-objectiveFunction_(0),
-logFrameEntropy_(paramLogFrameEntropy(config)),
-frameEntropy_(0)
-{}
+FrameErrorEvaluator<T>::FrameErrorEvaluator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          nObservations_(0),
+          nFrameClassificationErrors_(0),
+          objectiveFunction_(0),
+          logFrameEntropy_(paramLogFrameEntropy(config)),
+          frameEntropy_(0) {}
 
 template<typename T>
 void FrameErrorEvaluator<T>::finalize() {
-    Core::Component::log("total-frame-classification-error: ") << (T) nFrameClassificationErrors_ / nObservations_;
+    Core::Component::log("total-frame-classification-error: ") << (T)nFrameClassificationErrors_ / nObservations_;
     Core::Component::log("total-objective-function: ") << objectiveFunction_ / nObservations_;
     if (logFrameEntropy_)
         Core::Component::log("total-frame-entropy: ") << frameEntropy_ / nObservations_;
@@ -270,7 +268,7 @@ void FrameErrorEvaluator<T>::processBatch_feedInput(std::vector<NnMatrix>& featu
     weights_ = weights;
 
     if (Precursor::weightedAccumulation_) {
-        if(!weights_) {
+        if (!weights_) {
             Precursor::error("weighted FrameErrorEvaluator with no weights");
             return;
         }
@@ -281,20 +279,19 @@ void FrameErrorEvaluator<T>::processBatch_feedInput(std::vector<NnMatrix>& featu
 
 template<typename T>
 void FrameErrorEvaluator<T>::processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment) {
-
     alignment.initComputation();
 
     u32 nObservations = network().getLayerInput(0)[0]->nColumns();
     verify_eq(nObservations, alignment.size());
 
     Precursor::criterion_->inputAlignment(alignment, network().getTopLayerOutput(), weights_);
-    if(Precursor::criterion_->discardCurrentInput()) {
+    if (Precursor::criterion_->discardCurrentInput()) {
         Core::Component::log("discard current mini-batch");
         return;
     }
 
     u32 batchFrameClassificationErrors = network().getTopLayerOutput().nClassificationErrors(alignment);
-    T batchObjectiveFunction = 0;
+    T   batchObjectiveFunction         = 0;
     Precursor::criterion_->getObjectiveFunction(batchObjectiveFunction);
 
     T batchEntropy_ = 0;
@@ -308,11 +305,11 @@ void FrameErrorEvaluator<T>::processBatch_finishWithAlignment(Math::CudaVector<u
         network().getTopLayerOutput().initComputation(false);
     }
 
-    if (statisticsChannel_.isOpen()){
+    if (statisticsChannel_.isOpen()) {
         statisticsChannel_ << Core::XmlOpen("batch-statistics")
-        << Core::XmlFull("frame-classification-error-rate-on-batch", (T) batchFrameClassificationErrors / nObservations)
-        << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
-        if(logFrameEntropy_)
+                           << Core::XmlFull("frame-classification-error-rate-on-batch", (T)batchFrameClassificationErrors / nObservations)
+                           << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
+        if (logFrameEntropy_)
             statisticsChannel_ << Core::XmlFull("average-entropy-on-batch", batchEntropy_ / nObservations);
         statisticsChannel_ << Core::XmlClose("batch-statistics");
     }
@@ -327,7 +324,7 @@ void FrameErrorEvaluator<T>::processBatch_finishWithSpeechSegment(Bliss::SpeechS
     u32 nObservations = network().getLayerInput(0)[0]->nColumns();
 
     Precursor::criterion_->inputSpeechSegment(segment, network().getTopLayerOutput(), weights_);
-    if(Precursor::criterion_->discardCurrentInput()) {
+    if (Precursor::criterion_->discardCurrentInput()) {
         Core::Component::log("discard current segment");
         return;
     }
@@ -335,9 +332,9 @@ void FrameErrorEvaluator<T>::processBatch_finishWithSpeechSegment(Bliss::SpeechS
     T batchObjectiveFunction = 0;
     Precursor::criterion_->getObjectiveFunction(batchObjectiveFunction);
 
-    if (statisticsChannel_.isOpen()){
+    if (statisticsChannel_.isOpen()) {
         statisticsChannel_ << Core::XmlOpen("batch-statistics")
-        << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
+                           << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
         statisticsChannel_ << Core::XmlClose("batch-statistics");
     }
 
@@ -350,7 +347,7 @@ void FrameErrorEvaluator<T>::processBatch_finish() {
     u32 nObservations = network().getLayerInput(0)[0]->nColumns();
 
     Precursor::criterion_->input(network().getTopLayerOutput(), weights_);
-    if(Precursor::criterion_->discardCurrentInput()) {
+    if (Precursor::criterion_->discardCurrentInput()) {
         Core::Component::log("discard current mini-batch");
         return;
     }
@@ -358,9 +355,9 @@ void FrameErrorEvaluator<T>::processBatch_finish() {
     T batchObjectiveFunction = 0;
     Precursor::criterion_->getObjectiveFunction(batchObjectiveFunction);
 
-    if (statisticsChannel_.isOpen()){
+    if (statisticsChannel_.isOpen()) {
         statisticsChannel_ << Core::XmlOpen("batch-statistics")
-        << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
+                           << Core::XmlFull("objective-function-on-batch", batchObjectiveFunction / nObservations);
         statisticsChannel_ << Core::XmlClose("batch-statistics");
     }
 
@@ -383,39 +380,39 @@ const Core::ParameterString MeanAndVarianceTrainer<T>::paramStatisticsFile(
         "statistics-filename", "filename to write statistics to", "");
 
 template<typename T>
-MeanAndVarianceTrainer<T>::MeanAndVarianceTrainer(const Core::Configuration &config) :
-Core::Component(config),
-Precursor(config),
-statistics_(0),
-meanFile_(paramMeanFile(config)),
-standardDeviationFile_(paramStandardDeviationFile(config)),
-statisticsFile_(paramStatisticsFile(config))
-{
+MeanAndVarianceTrainer<T>::MeanAndVarianceTrainer(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          statistics_(0),
+          meanFile_(paramMeanFile(config)),
+          standardDeviationFile_(paramStandardDeviationFile(config)),
+          statisticsFile_(paramStatisticsFile(config)) {
     this->needsNetwork_ = false;
 }
 
 template<typename T>
-MeanAndVarianceTrainer<T>::~MeanAndVarianceTrainer(){
+MeanAndVarianceTrainer<T>::~MeanAndVarianceTrainer() {
     if (statistics_)
         delete statistics_;
 }
-
 
 template<typename T>
 void MeanAndVarianceTrainer<T>::saveVector(std::string& filename, Math::Vector<T>& vector) {
     require(!filename.empty());
     // determine file suffix
     std::string suffix;
-    if ((filename.length() >= 4) && (filename.substr(0,4) == "bin:")) {
+    if ((filename.length() >= 4) && (filename.substr(0, 4) == "bin:")) {
         suffix = ".bin";
-    } else {
+    }
+    else {
         suffix = ".xml";
     }
     // save the vector
     std::ostringstream type;
     if (typeid(T) == typeid(f32)) {
         type << "f32";
-    } else if (typeid(T) == typeid(f64)) {
+    }
+    else if (typeid(T) == typeid(f64)) {
         type << "f64";
     }
     std::string newFilename = filename + "-" + type.str() + suffix;
@@ -443,20 +440,20 @@ void MeanAndVarianceTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32
 template<typename T>
 void MeanAndVarianceTrainer<T>::finalize() {
     statistics_->finishComputation();
-    if (statisticsFile_ != ""){
+    if (statisticsFile_ != "") {
         statistics_->write(statisticsFile_);
     }
 }
 
 template<typename T>
-void MeanAndVarianceTrainer<T>::writeMeanAndStandardDeviation(Statistics<T> &statistics) {
+void MeanAndVarianceTrainer<T>::writeMeanAndStandardDeviation(Statistics<T>& statistics) {
     statistics.finalize(true);
     statistics.finishComputation();
     u32 dim = statistics.featureSum().size();
     mean_.resize(dim);
     standardDeviation_.resize(dim);
-    for (u32 i = 0; i < dim; i++){
-        mean_.at(i) = statistics.featureSum().at(i);
+    for (u32 i = 0; i < dim; i++) {
+        mean_.at(i)              = statistics.featureSum().at(i);
         standardDeviation_.at(i) = std::sqrt(statistics.squaredFeatureSum().at(i));
     }
     this->log("estimating mean and variance from ") << statistics.nObservations() << " observations";
@@ -508,35 +505,27 @@ const Core::ParameterString NetworkEvaluator<T>::paramDumpBestPosteriorIndices(
         "dump-best-posterior-indices", "cache file name", "");
 
 template<typename T>
-NetworkEvaluator<T>::NetworkEvaluator(const Core::Configuration &config)
-    :
-      Core::Component(config),
-      Precursor(config),
-      nObservations_(0)
-{
+NetworkEvaluator<T>::NetworkEvaluator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          nObservations_(0) {
     {
         std::string archiveFilename = paramDumpPosteriors(config);
-        if(!archiveFilename.empty())
-            dumpPosteriorsArchive_ =
-                std::shared_ptr<Core::Archive>(
-                    Core::Archive::create(
-                        Core::Component::select(paramDumpPosteriors.name()),
-                        archiveFilename,
-                        Core::Archive::AccessModeWrite));
+        if (!archiveFilename.empty())
+            dumpPosteriorsArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpPosteriors.name()),
+                                                                                          archiveFilename,
+                                                                                          Core::Archive::AccessModeWrite));
     }
 
     {
         std::string archiveFilename = paramDumpBestPosteriorIndices(config);
-        if(!archiveFilename.empty())
-            dumpBestPosterioIndicesArchive_ =
-                std::shared_ptr<Core::Archive>(
-                    Core::Archive::create(
-                        Core::Component::select(paramDumpBestPosteriorIndices.name()),
-                        archiveFilename,
-                        Core::Archive::AccessModeWrite));
+        if (!archiveFilename.empty())
+            dumpBestPosterioIndicesArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpBestPosteriorIndices.name()),
+                                                                                                   archiveFilename,
+                                                                                                   Core::Archive::AccessModeWrite));
     }
 
-    if(!dumpPosteriorsArchive_ && !dumpBestPosterioIndicesArchive_)
+    if (!dumpPosteriorsArchive_ && !dumpBestPosterioIndicesArchive_)
         Core::Component::warning("NetworkEvaluator: we don't dump anything");
 }
 
@@ -568,24 +557,24 @@ void NetworkEvaluator<T>::processBatch_finishWithSpeechSegment(Bliss::SpeechSegm
 
     u32 frameCount = networkOutput.nColumns();
 
-    if(dumpPosteriorsArchive_) {
-        Flow::ArchiveWriter<Math::Matrix<T> > writer(dumpPosteriorsArchive_.get());
+    if (dumpPosteriorsArchive_) {
+        Flow::ArchiveWriter<Math::Matrix<T>> writer(dumpPosteriorsArchive_.get());
         networkOutput.convert(writer.data_->data());
         writer.write(segment.fullName());
     }
 
-    if(dumpBestPosterioIndicesArchive_) {
-        Flow::ArchiveWriter<Math::Vector<u32> > writer(dumpBestPosterioIndicesArchive_.get());
-        Math::Vector<u32>& bestEmissions = writer.data_->data();
+    if (dumpBestPosterioIndicesArchive_) {
+        Flow::ArchiveWriter<Math::Vector<u32>> writer(dumpBestPosterioIndicesArchive_.get());
+        Math::Vector<u32>&                     bestEmissions = writer.data_->data();
         bestEmissions.resize(frameCount);
-        for(u32 t = 0; t < frameCount; ++t) {
-            u32 argMax = 0;
-            T maxValue = networkOutput.at(argMax, t);
-            for(u32 i = 1; i < networkOutput.nRows(); ++i) {
+        for (u32 t = 0; t < frameCount; ++t) {
+            u32 argMax   = 0;
+            T   maxValue = networkOutput.at(argMax, t);
+            for (u32 i = 1; i < networkOutput.nRows(); ++i) {
                 T value = networkOutput.at(i, t);
-                if(value > maxValue) {
+                if (value > maxValue) {
                     maxValue = value;
-                    argMax = i;
+                    argMax   = i;
                 }
             }
             bestEmissions[t] = argMax;
@@ -619,4 +608,4 @@ template class MeanAndVarianceTrainer<f64>;
 template class NetworkEvaluator<f32>;
 template class NetworkEvaluator<f64>;
 
-}
+}  // namespace Nn

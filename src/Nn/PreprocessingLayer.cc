@@ -20,21 +20,19 @@
 #include "PreprocessingLayer.hh"
 
 // for reading/writing vectors/matrices
-#include <Math/Module.hh>
-#include <Math/Vector.hh>
+#include <Core/MatrixParser.hh>
 #include <Core/VectorParser.hh>
 #include <Math/Matrix.hh>
-#include <Core/MatrixParser.hh>
-
+#include <Math/Module.hh>
+#include <Math/Vector.hh>
 
 using namespace Nn;
 
 /*===========================================================================*/
 template<typename T>
-LogarithmPreprocessingLayer<T>::LogarithmPreprocessingLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T> (config)
-{}
+LogarithmPreprocessingLayer<T>::LogarithmPreprocessingLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config) {}
 
 template<typename T>
 LogarithmPreprocessingLayer<T>::~LogarithmPreprocessingLayer() {}
@@ -57,7 +55,7 @@ void LogarithmPreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix& o
 
 template<typename T>
 inline void LogarithmPreprocessingLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                                      NnMatrix& errorSignalOut, const NnMatrix& activations) {
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
     }
@@ -77,7 +75,7 @@ void LogarithmPreprocessingLayer<T>::forward(const std::vector<NnMatrix*>& input
 
 template<typename T>
 inline void LogarithmPreprocessingLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                                     NnMatrix& errorSignalOut, const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -102,15 +100,14 @@ const Core::ParameterString MeanAndVarianceNormalizationPreprocessingLayer<T>::p
         "standard-deviation-file", "Filename of the standard deviation vector", "");
 
 template<typename T>
-MeanAndVarianceNormalizationPreprocessingLayer<T>::MeanAndVarianceNormalizationPreprocessingLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    NeuralNetworkLayer<T> (config),
-    filenameMean_(paramFilenameMean(config)),
-    filenameStandardDeviation_(paramFilenameStandardDeviation(config)),
-    needInit_(true),
-    mean_(),
-    standardDeviation_()
-{
+MeanAndVarianceNormalizationPreprocessingLayer<T>::MeanAndVarianceNormalizationPreprocessingLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          filenameMean_(paramFilenameMean(config)),
+          filenameStandardDeviation_(paramFilenameStandardDeviation(config)),
+          needInit_(true),
+          mean_(),
+          standardDeviation_() {
     this->log("mean file: ") << filenameMean_;
     this->log("standard deviation file: ") << filenameStandardDeviation_;
 }
@@ -137,9 +134,9 @@ void MeanAndVarianceNormalizationPreprocessingLayer<T>::forward(const std::vecto
 }
 
 template<typename T>
-void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterMean(const std::string &filename) {
+void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterMean(const std::string& filename) {
     // parse the xml file
-    Math::Vector<T> parameters;
+    Math::Vector<T>            parameters;
     Core::XmlVectorDocument<T> parser(Core::Component::getConfiguration(), parameters);
     parser.parseFile(filename.c_str());
 
@@ -151,9 +148,9 @@ void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterMean
 }
 
 template<typename T>
-void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterVariance(const std::string &filename) {
+void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterVariance(const std::string& filename) {
     // parse the xml file
-    Math::Vector<T> parameters;
+    Math::Vector<T>            parameters;
     Core::XmlVectorDocument<T> parser(Core::Component::getConfiguration(), parameters);
     parser.parseFile(filename.c_str());
 
@@ -165,7 +162,7 @@ void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameterVari
 }
 
 template<typename T>
-void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameters(const std::string &filename) {
+void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameters(const std::string& filename) {
     // load the mean vector
     loadNetworkParameterMean(filenameMean_);
 
@@ -189,30 +186,28 @@ template<typename T>
 const Core::ParameterInt PolynomialPreprocessingLayer<T>::paramOrder(
         "order", "polynomial order", 1);
 
-
 template<typename T>
-PolynomialPreprocessingLayer<T>::PolynomialPreprocessingLayer(const Core::Configuration &c) :
-    Core::Component(c),
-    NeuralNetworkLayer<T>(c),
-    order_(paramOrder(c))
-{
+PolynomialPreprocessingLayer<T>::PolynomialPreprocessingLayer(const Core::Configuration& c)
+        : Core::Component(c),
+          NeuralNetworkLayer<T>(c),
+          order_(paramOrder(c)) {
     this->log("creating polynomial feature extraction layer with order: ") << order_;
     u32 outputDimension = Precursor::inputDimensions_[0];
     if (order_ > 1)
         outputDimension += Precursor::inputDimensions_[0] * (Precursor::inputDimensions_[0] + 1) / 2;
     if (order_ > 2)
-        outputDimension += Precursor::inputDimensions_[0] * (Precursor::inputDimensions_[0] + 1) * (Precursor::inputDimensions_[0] + 2)/ 6;
+        outputDimension += Precursor::inputDimensions_[0] * (Precursor::inputDimensions_[0] + 1) * (Precursor::inputDimensions_[0] + 2) / 6;
     if (order_ > 3)
         this->error("only order up to three implemented yet!");
 
-    if (Precursor::outputDimension_ != outputDimension){
+    if (Precursor::outputDimension_ != outputDimension) {
         this->log("resizing output of polynomial layer to ") << outputDimension;
         Precursor::outputDimension_ = outputDimension;
     }
 }
 
 template<typename T>
-void PolynomialPreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix &output){
+void PolynomialPreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
     if (order_ == 1)
         output.copy(input);
     if (order_ == 2)
@@ -240,18 +235,16 @@ template<typename T>
 const Core::ParameterFloat GaussianNoisePreprocessingLayer<T>::paramStandardDeviation(
         "standard-deviation", "standard deviation", 1.0);
 
-
 template<typename T>
-GaussianNoisePreprocessingLayer<T>::GaussianNoisePreprocessingLayer(const Core::Configuration &c) :
-    Core::Component(c),
-    NeuralNetworkLayer<T>(c),
-    standardDeviation_(paramStandardDeviation(c))
-{
+GaussianNoisePreprocessingLayer<T>::GaussianNoisePreprocessingLayer(const Core::Configuration& c)
+        : Core::Component(c),
+          NeuralNetworkLayer<T>(c),
+          standardDeviation_(paramStandardDeviation(c)) {
     this->log("creating gaussian noise layer with standard deviation: ") << standardDeviation_;
 }
 
 template<typename T>
-void GaussianNoisePreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix &output) {
+void GaussianNoisePreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
     if (&input != &output) {
         output.copy(input);
     }
@@ -268,7 +261,6 @@ void GaussianNoisePreprocessingLayer<T>::forward(const std::vector<NnMatrix*>& i
     _forward(*(input[0]), output);
 }
 
-
 /*===========================================================================*/
 namespace Nn {
 
@@ -284,4 +276,4 @@ template class MeanAndVarianceNormalizationPreprocessingLayer<f64>;
 template class PolynomialPreprocessingLayer<f64>;
 template class GaussianNoisePreprocessingLayer<f64>;
 
-}
+}  // namespace Nn

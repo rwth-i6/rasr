@@ -33,25 +33,29 @@ namespace Nn {
 template<typename T>
 class LookupLayer : public virtual LinearLayer<T> {
     typedef LinearLayer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
 
-    using Precursor::isComputing_;
-    using Precursor::hasBias_;
     using Precursor::bias_;
+    using Precursor::hasBias_;
+    using Precursor::isComputing_;
     using Precursor::weights_;
+
 public:
-    LookupLayer(const Core::Configuration &config);
+    LookupLayer(const Core::Configuration& config);
     virtual ~LookupLayer();
+
 public:
     // initialization methods
     virtual void setInputDimension(u32 stream, u32 size);
+
 protected:
     virtual void _forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
     virtual void setParameters(const Math::Matrix<T>& parameters);
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_LOOKUP_LAYER_HH
+#endif  // _NN_LOOKUP_LAYER_HH

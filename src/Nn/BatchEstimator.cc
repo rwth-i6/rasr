@@ -14,10 +14,10 @@
  */
 #include "BatchEstimator.hh"
 
-#include "Statistics.hh"
-#include "NeuralNetwork.hh"
 #include "Estimator.hh"
+#include "NeuralNetwork.hh"
 #include "Regularizer.hh"
+#include "Statistics.hh"
 
 using namespace Nn;
 
@@ -26,14 +26,13 @@ const Core::ParameterStringVector BatchEstimator<T>::paramStatisticsFiles(
         "statistics-files", "filenames to read statistics from", ",");
 
 template<typename T>
-BatchEstimator<T>::BatchEstimator(const Core::Configuration& config) :
-        Precursor(config),
-        statisticsFiles_(paramStatisticsFiles(config)),
-        statistics_(0),
-        network_(0),
-        estimator_(0),
-        regularizer_(0)
-{}
+BatchEstimator<T>::BatchEstimator(const Core::Configuration& config)
+        : Precursor(config),
+          statisticsFiles_(paramStatisticsFiles(config)),
+          statistics_(0),
+          network_(0),
+          estimator_(0),
+          regularizer_(0) {}
 
 template<typename T>
 BatchEstimator<T>::~BatchEstimator() {
@@ -63,11 +62,11 @@ void BatchEstimator<T>::initialize() {
 
     // create a statistics object which holds the statistics contained in the file and those required by the estimator
     bool dummy;
-    u32 statisticsTypeFile = 0;
+    u32  statisticsTypeFile = 0;
     if (!Nn::Statistics<T>::getTypeFromFile(statisticsFiles_.at(0), statisticsTypeFile, dummy))
         this->error("could not read header from file: ") << statisticsFiles_.at(0);
     u32 requiredStatistics = estimator_->requiredStatistics();
-    u32 statisticsType = statisticsTypeFile | requiredStatistics; // union
+    u32 statisticsType     = statisticsTypeFile | requiredStatistics;  // union
     // create statistics
     statistics_ = new Statistics<T>(network_->nLayers(), statisticsType);
     statistics_->initialize(*network_);
@@ -84,13 +83,13 @@ void BatchEstimator<T>::initialize() {
 
     // create regularizer and apply regularization
     regularizer_ = Regularizer<T>::createRegularizer(config);
-    statistics_->addToObjectiveFunction(regularizer_->objectiveFunction(*network_ ,T(statistics_->nObservations())));
+    statistics_->addToObjectiveFunction(regularizer_->objectiveFunction(*network_, T(statistics_->nObservations())));
     regularizer_->addGradient(*network_, *statistics_, T(statistics_->nObservations()));
 
     statistics_->finalize();
 
     this->log("total-number-of-observations: ") << statistics_->nObservations();
-    this->log("total-frame-classification-error: ") << (T) statistics_->classificationError();
+    this->log("total-frame-classification-error: ") << (T)statistics_->classificationError();
     this->log("total-objective-function: ") << statistics_->objectiveFunction();
     this->log("l1-norm of trainable network weights: ") << network_->l1norm(true);
     this->log("l1-norm of gradient: ") << statistics_->gradientL1Norm();
@@ -112,4 +111,4 @@ void BatchEstimator<T>::finalize() {
 namespace Nn {
 template class BatchEstimator<f32>;
 template class BatchEstimator<f64>;
-}
+}  // namespace Nn

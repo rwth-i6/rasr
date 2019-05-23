@@ -15,28 +15,26 @@
 #include "FeatureScorer.hh"
 #include "LinearAndActivationLayer.hh"
 
-#include <Math/Vector.hh>
 #include <Math/Module.hh>
+#include <Math/Vector.hh>
 
 using namespace Nn;
 
-BaseFeatureScorer::BaseFeatureScorer(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c),
-    prior_(c),
-    labelWrapper_(0),
-    nClasses_(0),
-    inputDimension_(0),
-    network_(c)
-{ }
+BaseFeatureScorer::BaseFeatureScorer(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          prior_(c),
+          labelWrapper_(0),
+          nClasses_(0),
+          inputDimension_(0),
+          network_(c) {}
 
-BaseFeatureScorer::~BaseFeatureScorer(){
+BaseFeatureScorer::~BaseFeatureScorer() {
     if (labelWrapper_)
         delete labelWrapper_;
 }
 
-
-void BaseFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
+void BaseFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
     require(mixtureSet);
     nClasses_ = mixtureSet->nMixtures();
     if (labelWrapper_)
@@ -47,7 +45,7 @@ void BaseFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
 
     network_.initializeNetwork(1);
     require_eq(network_.getTopLayer().getOutputDimension(), labelWrapper_->nClassesToAccumulate());
-    LinearAndSoftmaxLayer<f32> *topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>* >(&network_.getTopLayer());
+    LinearAndSoftmaxLayer<f32>* topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>*>(&network_.getTopLayer());
     if (!topLayer)
         error("output layer must be of type 'linear+softmax'");
 
@@ -72,25 +70,26 @@ void BaseFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
 //
 // OnDemandFeatureScorer
 
-OnDemandFeatureScorer::Context::Context(const Mm::FeatureVector &featureVector,
-    const OnDemandFeatureScorer *featureScorer, size_t cacheSize,bool check) :
-    Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
-    featureVector_(featureVector)
-{
+OnDemandFeatureScorer::Context::Context(const Mm::FeatureVector&     featureVector,
+                                        const OnDemandFeatureScorer* featureScorer,
+                                        size_t cacheSize, bool check)
+        : Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
+          featureVector_(featureVector) {
     if (check) {
         if (featureVector.size() != featureScorer->dimension()) {
-            Core::Application::us()->error("dimension mismatch: feature-vector-size: ") << featureVector.size() << " vs feature-scorer-dimension: " << featureScorer->dimension();
+            Core::Application::us()->error("dimension mismatch: feature-vector-size: ") << featureVector.size()
+                                                                                        << " vs feature-scorer-dimension: "
+                                                                                        << featureScorer->dimension();
         }
     }
     featureScorer->forwardHiddenLayers(featureVector, activationOfLastHiddenLayer_);
 }
 
-OnDemandFeatureScorer::OnDemandFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture) :
-    Core::Component(c),
-    Precursor(c),
-    topLayerOutputDimension_(0),
-    outputLayer_(0)
-{
+OnDemandFeatureScorer::OnDemandFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture)
+        : Core::Component(c),
+          Precursor(c),
+          topLayerOutputDimension_(0),
+          outputLayer_(0) {
     init(mixture);
     log("using nn-on-demand-hybrid feature scorer");
 }
@@ -100,13 +99,14 @@ OnDemandFeatureScorer::~OnDemandFeatureScorer() {
         delete outputLayer_;
 }
 
-void OnDemandFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
+void OnDemandFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
     Precursor::init(mixtureSet);
-    outputLayer_ = dynamic_cast<LinearAndSoftmaxLayer<f32>* >(network_.popLayer());
+    outputLayer_ = dynamic_cast<LinearAndSoftmaxLayer<f32>*>(network_.popLayer());
     require(outputLayer_);
     if (network_.nLayers() > 0) {
         topLayerOutputDimension_ = network_.getTopLayer().getOutputDimension();
-    } else {
+    }
+    else {
         if (outputLayer_->nInputActivations() != 1) {
             Core::Application::us()->criticalError("Nn/OnDemandFeatureScorer is only implemented for a single input stream.");
         }
@@ -116,49 +116,46 @@ void OnDemandFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
     outputLayer_->getBias()->finishComputation();
 }
 
-void OnDemandFeatureScorer::forwardHiddenLayers(const Mm::FeatureVector &in, NnMatrix &out) const{
+void OnDemandFeatureScorer::forwardHiddenLayers(const Mm::FeatureVector& in, NnMatrix& out) const {
     out.resize(topLayerOutputDimension_, 1);
 
     out.initComputation(false);
 
-    if (network_.nLayers() > 0){
+    if (network_.nLayers() > 0) {
         network_.forward(in);
         out.swap(network_.getTopLayerOutput());
-
     }
     else {
         out.copy(&(in.at(0)));
     }
 
     out.finishComputation();
-
 }
 
-Mm::AssigningFeatureScorer::ScoreAndBestDensity OnDemandFeatureScorer::calculateScoreAndDensity(
-    const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const
-{
-
-    const Context *_cs = required_cast(const Context*, cs);
-    const NnMatrix &activation = _cs->activationOfLastHiddenLayer_;
+Mm::AssigningFeatureScorer::ScoreAndBestDensity OnDemandFeatureScorer::calculateScoreAndDensity(const CachedAssigningContextScorer* cs,
+                                                                                                Mm::MixtureIndex                    mixtureIndex) const {
+    const Context*      _cs        = required_cast(const Context*, cs);
+    const NnMatrix&     activation = _cs->activationOfLastHiddenLayer_;
     ScoreAndBestDensity result;
-    Mm::Score score = 0.0;
+    Mm::Score           score = 0.0;
     if (labelWrapper_->isClassToAccumulate(mixtureIndex))
         score = outputLayer_->getScore(activation, labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex));
     else
         score = Core::Type<Mm::Score>::max;
-    result.score = score;
+    result.score       = score;
     result.bestDensity = 0;
 
     return result;
 }
 
-Mm::Score OnDemandFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const
-{
+Mm::Score OnDemandFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs,
+                                                Mm::MixtureIndex                    mixtureIndex,
+                                                Mm::DensityIndex                    dnsInMix) const {
     Mm::Score score = calculateScore(required_cast(const Context*, cs)->activationOfLastHiddenLayer_, mixtureIndex);
     return score;
 }
 
-Mm::Score OnDemandFeatureScorer::calculateScore(const NnMatrix &activation, Mm::MixtureIndex mixtureIndex) const {
+Mm::Score OnDemandFeatureScorer::calculateScore(const NnMatrix& activation, Mm::MixtureIndex mixtureIndex) const {
     Mm::Score score = 0.0;
     if (labelWrapper_->isClassToAccumulate(mixtureIndex))
         score = outputLayer_->getScore(activation, labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex));
@@ -177,13 +174,11 @@ Mm::Score OnDemandFeatureScorer::calculateScore(const NnMatrix &activation, Mm::
  *
  */
 
-
-
-FullFeatureScorer::Context::Context(const Mm::FeatureVector &featureVector,
-    const FullFeatureScorer *featureScorer, size_t cacheSize,bool check) :
-    Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
-    featureVector_(featureVector)
-{
+FullFeatureScorer::Context::Context(const Mm::FeatureVector& featureVector,
+                                    const FullFeatureScorer* featureScorer,
+                                    size_t cacheSize, bool check)
+        : Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
+          featureVector_(featureVector) {
     if (check) {
         if (featureVector.size() != featureScorer->dimension()) {
             Core::Application::us()->error("dimension mismatch: feature-vector-size: ") << featureVector.size() << " vs feature-scorer-dimension: " << featureScorer->dimension();
@@ -192,28 +187,26 @@ FullFeatureScorer::Context::Context(const Mm::FeatureVector &featureVector,
     featureScorer->computeScores(featureVector, scores_);
 }
 
-FullFeatureScorer::FullFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture) :
-    Core::Component(c),
-    Precursor(c),
-    topLayerOutputDimension_(0)
-{
+FullFeatureScorer::FullFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture)
+        : Core::Component(c),
+          Precursor(c),
+          topLayerOutputDimension_(0) {
     init(mixture);
     log("using nn-full-hybrid feature scorer");
 }
 
 FullFeatureScorer::~FullFeatureScorer() {}
 
-void FullFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet){
+void FullFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
     Precursor::init(mixtureSet);
-    LinearAndSoftmaxLayer<f32> *outputlayer = dynamic_cast<LinearAndSoftmaxLayer<f32>* >( &(network_.getTopLayer()));
+    LinearAndSoftmaxLayer<f32>* outputlayer = dynamic_cast<LinearAndSoftmaxLayer<f32>*>(&(network_.getTopLayer()));
     require(outputlayer);
     outputlayer->setEvaluateSoftmax(false);
 
     topLayerOutputDimension_ = outputlayer->getOutputDimension();
 }
 
-void FullFeatureScorer::computeScores(const Mm::FeatureVector &in, NnMatrix &out) const{
-
+void FullFeatureScorer::computeScores(const Mm::FeatureVector& in, NnMatrix& out) const {
     network_.forward(in);
     out.resize(topLayerOutputDimension_, 1);
     out.initComputation(false);
@@ -221,28 +214,26 @@ void FullFeatureScorer::computeScores(const Mm::FeatureVector &in, NnMatrix &out
     out.finishComputation();
 }
 
-Mm::AssigningFeatureScorer::ScoreAndBestDensity FullFeatureScorer::calculateScoreAndDensity(
-    const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const
-{
-    const Context *_cs = required_cast(const Context*, cs);
+Mm::AssigningFeatureScorer::ScoreAndBestDensity FullFeatureScorer::calculateScoreAndDensity(const CachedAssigningContextScorer* cs,
+                                                                                            Mm::MixtureIndex                    mixtureIndex) const {
+    const Context*      _cs = required_cast(const Context*, cs);
     ScoreAndBestDensity result;
-    Mm::Score score = 0.0;
+    Mm::Score           score = 0.0;
     if (labelWrapper_->isClassToAccumulate(mixtureIndex))
         score = -_cs->scores_.at(labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex), 0);
     else
         score = Core::Type<Mm::Score>::max;
-    result.score = score;
+    result.score       = score;
     result.bestDensity = 0;
 
     return result;
 }
 
-Mm::Score FullFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const
-{
+Mm::Score FullFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const {
     return calculateScore(required_cast(const Context*, cs)->scores_, mixtureIndex);
 }
 
-Mm::Score FullFeatureScorer::calculateScore(const NnMatrix &scores, Mm::MixtureIndex mixtureIndex) const {
+Mm::Score FullFeatureScorer::calculateScore(const NnMatrix& scores, Mm::MixtureIndex mixtureIndex) const {
     Mm::Score score = 0.0;
     if (labelWrapper_->isClassToAccumulate(mixtureIndex))
         score = -scores.at(labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex), 0);
@@ -260,13 +251,11 @@ Mm::Score FullFeatureScorer::calculateScore(const NnMatrix &scores, Mm::MixtureI
  *
  */
 
-
-
-PrecomputedFeatureScorer::Context::Context(const Mm::FeatureVector &featureVector,
-    const PrecomputedFeatureScorer *featureScorer, size_t cacheSize,bool check) :
-    Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
-    featureVector_(featureVector)
-{
+PrecomputedFeatureScorer::Context::Context(const Mm::FeatureVector&        featureVector,
+                                           const PrecomputedFeatureScorer* featureScorer,
+                                           size_t cacheSize, bool check)
+        : Precursor::CachedAssigningContextScorer(featureScorer, cacheSize),
+          featureVector_(featureVector) {
     if (check) {
         if (featureVector.size() != featureScorer->dimension()) {
             Core::Application::us()->error("dimension mismatch: feature-vector-size: ") << featureVector.size() << " vs feature-scorer-dimension: " << featureScorer->dimension();
@@ -274,10 +263,9 @@ PrecomputedFeatureScorer::Context::Context(const Mm::FeatureVector &featureVecto
     }
 }
 
-PrecomputedFeatureScorer::PrecomputedFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixture) :
-    Core::Component(c),
-    Precursor(c)
-{
+PrecomputedFeatureScorer::PrecomputedFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixture)
+        : Core::Component(c),
+          Precursor(c) {
     init(mixture);
 }
 
@@ -288,7 +276,7 @@ void PrecomputedFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) 
     if (labelWrapper_)
         delete labelWrapper_;
     labelWrapper_ = new ClassLabelWrapper(select("class-labels"), mixtureSet->nMixtures());
-    nClasses_ = labelWrapper_->nClasses();
+    nClasses_     = labelWrapper_->nClasses();
 
     inputDimension_ = labelWrapper_->nClassesToAccumulate();
 
@@ -301,34 +289,34 @@ void PrecomputedFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) 
 }
 
 Mm::AssigningFeatureScorer::ScoreAndBestDensity PrecomputedFeatureScorer::calculateScoreAndDensity(
-    const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const
-{
-    const Context *_cs = required_cast(const Context*, cs);
+        const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex) const {
+    const Context*      _cs = required_cast(const Context*, cs);
     ScoreAndBestDensity result;
-    Mm::Score score = 0.0;
-    if (labelWrapper_->isClassToAccumulate(mixtureIndex)){
+    Mm::Score           score = 0.0;
+    if (labelWrapper_->isClassToAccumulate(mixtureIndex)) {
         u32 outputIndex = labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex);
-        score = -_cs->featureVector_.at(outputIndex);
+        score           = -_cs->featureVector_.at(outputIndex);
         score += prior_.scale() * prior_.at(outputIndex);
     }
-    else{
+    else {
         score = Core::Type<Mm::Score>::max;
     }
-    result.score = score;
+    result.score       = score;
     result.bestDensity = 0;
     return result;
 }
 
-Mm::Score PrecomputedFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs, Mm::MixtureIndex mixtureIndex, Mm::DensityIndex dnsInMix) const
-{
+Mm::Score PrecomputedFeatureScorer::calculateScore(const CachedAssigningContextScorer* cs,
+                                                   Mm::MixtureIndex                    mixtureIndex,
+                                                   Mm::DensityIndex                    dnsInMix) const {
     return calculateScore(required_cast(const Context*, cs)->featureVector_, mixtureIndex);
 }
 
-Mm::Score PrecomputedFeatureScorer::calculateScore(const Mm::FeatureVector &featureVector , Mm::MixtureIndex mixtureIndex) const {
+Mm::Score PrecomputedFeatureScorer::calculateScore(const Mm::FeatureVector& featureVector, Mm::MixtureIndex mixtureIndex) const {
     Mm::Score score = 0.0;
-    if (labelWrapper_->isClassToAccumulate(mixtureIndex)){
+    if (labelWrapper_->isClassToAccumulate(mixtureIndex)) {
         u32 outputIndex = labelWrapper_->getOutputIndexFromClassIndex(mixtureIndex);
-        score = -featureVector.at(outputIndex);
+        score           = -featureVector.at(outputIndex);
         score += prior_.scale() * prior_.at(outputIndex);
     }
     else

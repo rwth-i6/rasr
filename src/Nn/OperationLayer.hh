@@ -25,8 +25,6 @@
 #include "NeuralNetworkLayer.hh"
 #include "Types.hh"
 
-
-
 namespace Nn {
 
 /*
@@ -38,62 +36,80 @@ namespace Nn {
 template<typename T>
 class OperationLayer : public virtual NeuralNetworkLayer<T> {
     typedef NeuralNetworkLayer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
     enum Operation {
         streamLinearCombine,
         posteriorCombInvEntropy,
         posteriorCombDS
     };
+
 protected:
     using Precursor::isComputing_;
+
 protected:
-    static const Core::Choice choiceOperation;
-    static const Core::ParameterChoice paramOperation;
+    static const Core::Choice               choiceOperation;
+    static const Core::ParameterChoice      paramOperation;
     static const Core::ParameterFloatVector paramInterpolationWeights;
-    static const Core::ParameterBool paramApplyLog;
-    static const Core::ParameterFloat paramGamma;
-    static const Core::ParameterBool paramHasBias;
-    static const Core::ParameterBool paramTrainable;
+    static const Core::ParameterBool        paramApplyLog;
+    static const Core::ParameterFloat       paramGamma;
+    static const Core::ParameterBool        paramHasBias;
+    static const Core::ParameterBool        paramTrainable;
+
 protected:
-    const Operation operation_;	// method to initialize the parameters
-    const bool applyLog_;			// do not read parameters from file
-    const bool hasBias_;
-    NnVector bias_;					// bias vector
-    std::vector<NnMatrix> weights_;			// multiple weight matrices (for multiple input streams)
-    std::string parameterFile_;
-    bool trainable_;					// optimize parameters of this layer
-    float gamma_;
+    const Operation       operation_;  // method to initialize the parameters
+    const bool            applyLog_;   // do not read parameters from file
+    const bool            hasBias_;
+    NnVector              bias_;     // bias vector
+    std::vector<NnMatrix> weights_;  // multiple weight matrices (for multiple input streams)
+    std::string           parameterFile_;
+    bool                  trainable_;  // optimize parameters of this layer
+    float                 gamma_;
+
 private:
-    double timeForwardLinear_, timeForwardBias_, timeBackward_;
-    std::vector<f64> interpolation_weights_;
+    double                 timeForwardLinear_, timeForwardBias_, timeBackward_;
+    std::vector<f64>       interpolation_weights_;
     std::vector<NnVector*> frame_weights_;
+
 public:
-    OperationLayer(const Core::Configuration &config);
+    OperationLayer(const Core::Configuration& config);
     virtual ~OperationLayer();
+
 public:
     // trainer needs to access weights and bias
-    virtual NnMatrix* getWeights(u32 stream) { return NULL; }
-    virtual NnVector* getBias() { return NULL; }
-    virtual const NnMatrix* getWeights(u32 stream) const { return NULL; }
-    virtual const NnVector* getBias() const { return NULL; }
+    virtual NnMatrix* getWeights(u32 stream) {
+        return NULL;
+    }
+    virtual NnVector* getBias() {
+        return NULL;
+    }
+    virtual const NnMatrix* getWeights(u32 stream) const {
+        return NULL;
+    }
+    virtual const NnVector* getBias() const {
+        return NULL;
+    }
 
     // IO
     virtual void initializeNetworkParameters();
-    virtual void loadNetworkParameters(const std::string &filename);
-    virtual void saveNetworkParameters(const std::string &filename) const ;
+    virtual void loadNetworkParameters(const std::string& filename);
+    virtual void saveNetworkParameters(const std::string& filename) const;
 
     // initialization methods
     virtual void setInputDimension(u32 stream, u32 size);
     virtual void setOutputDimension(u32 size);
 
     // getter methods
-    virtual bool isTrainable() const { return trainable_; }
+    virtual bool isTrainable() const {
+        return trainable_;
+    }
 
     // forward
-    void forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
+    void         forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
 
     // backward
@@ -102,7 +118,7 @@ public:
     virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias);
 
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
     virtual void initComputation(bool sync = true) const;
     virtual void finishComputation(bool sync = true) const;
@@ -114,9 +130,9 @@ protected:
     virtual void initializeParametersRandomly();
     virtual void initializeParametersWithZero();
     virtual void initializeParametersWithIdentityMatrix();
-    void setParameters(const Math::Matrix<T>& parameters);
+    void         setParameters(const Math::Matrix<T>& parameters);
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_NEURAL_NETWORK_OPERATION_LAYER_HH
+#endif  // _NN_NEURAL_NETWORK_OPERATION_LAYER_HH

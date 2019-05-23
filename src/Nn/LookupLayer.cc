@@ -14,14 +14,15 @@
  */
 #include "LookupLayer.hh"
 
+#include <Math/Matrix.hh>
 #include <Math/Module.hh>
 #include <Math/Vector.hh>
-#include <Math/Matrix.hh>
 
 using namespace Nn;
 
 template<typename T>
-LookupLayer<T>::LookupLayer(Core::Configuration const& config) : Core::Component(config), NeuralNetworkLayer<T>(config), LinearLayer<T>(config) {
+LookupLayer<T>::LookupLayer(Core::Configuration const& config)
+        : Core::Component(config), NeuralNetworkLayer<T>(config), LinearLayer<T>(config) {
     Precursor::trainable_ = false;
 }
 
@@ -100,4 +101,4 @@ void LookupLayer<T>::setParameters(const Math::Matrix<T>& parameters) {
 namespace Nn {
 template class LookupLayer<f32>;
 template class LookupLayer<f64>;
-}
+}  // namespace Nn

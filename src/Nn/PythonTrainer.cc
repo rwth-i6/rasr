@@ -88,15 +88,15 @@ naturalPairingType is optional and can be a string like "softmax".
 */
 
 #include "PythonTrainer.hh"
-#include "ActivationLayer.hh"
-#include <Core/Utility.hh>
 #include <Am/Module.hh>
 #include <Bliss/Lexicon.hh>
+#include <Core/Utility.hh>
 #include <Math/CudaDataStructure.hh>
-#include <Python.h>
 #include <Python/Init.hh>
-#include <Python/Utilities.hh>
 #include <Python/Numpy.hh>
+#include <Python/Utilities.hh>
+#include <Python.h>
+#include "ActivationLayer.hh"
 
 #include <Flow/ArchiveWriter.hh>
 
@@ -113,8 +113,7 @@ static const Core::ParameterChoice paramTargetMode(
         "target-mode", &choiceTargetMode,
         "Whether Sprint calculates the criterion and only passes the error signal, "
         "or if we just pass the target alignment/reference to Python.",
-        Nn::PythonTrainer<f32>::targetAlignment
-        );
+        Nn::PythonTrainer<f32>::targetAlignment);
 
 static const Core::ParameterInt paramOutputDim(
         "trainer-output-dimension", "", 0);
@@ -137,45 +136,42 @@ static const Core::ParameterString paramPyModConfig(
         "config-string, passed to init()",
         "");
 
-
 static const Core::ParameterBool paramAllowDownsampling(
         "trainer-allow-downsampling", "the network is allowed to return less timeframes than there are feature-vectors", false);
-
 
 namespace Nn {
 
 template<typename T>
-PythonTrainer<T>::PythonTrainer(const Core::Configuration &config)
-    : Core::Component(config),
-      NeuralNetworkTrainer<T>(config),
-      targetMode_((TargetMode) paramTargetMode(config)),
-      useNetwork_(paramUseNetwork(config)),
-      inputDim_(0), // The input dimension (feature dim) is set in initializeTrainer().
-      outputDim_(paramOutputDim(config)),
-      allowDownsampling_(paramAllowDownsampling(config)),
-      pyModPath_(paramPyModPath(config)),
-      pyModName_(paramPyModName(config)),
-      pyMod_(NULL),
-      features_(NULL),
-      weights_(NULL),
-      segment_(NULL),
-      naturalPairingLayer_(NULL)
-{
+PythonTrainer<T>::PythonTrainer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkTrainer<T>(config),
+          targetMode_((TargetMode)paramTargetMode(config)),
+          useNetwork_(paramUseNetwork(config)),
+          inputDim_(0),  // The input dimension (feature dim) is set in initializeTrainer().
+          outputDim_(paramOutputDim(config)),
+          allowDownsampling_(paramAllowDownsampling(config)),
+          pyModPath_(paramPyModPath(config)),
+          pyModName_(paramPyModName(config)),
+          pyMod_(NULL),
+          features_(NULL),
+          weights_(NULL),
+          segment_(NULL),
+          naturalPairingLayer_(NULL) {
     Core::Component::log("PythonTrainer with target-mode = %s",
-                         choiceTargetMode[(s32) targetMode_].c_str());
+                         choiceTargetMode[(s32)targetMode_].c_str());
 
-    if(hasClassLabelPosteriors()) {
+    if (hasClassLabelPosteriors()) {
         // The output dimension is only needed for specific target modes.
         require_gt(outputDim_, 0);
     }
 
     // Natural pairing activation function.
     // Only relevant if Sprint calculates the error, because we must know it for the error gradient.
-    if(targetMode_ == criterionBySprint) {
+    if (targetMode_ == criterionBySprint) {
         Core::Configuration layerConfig = Core::Component::select("natural-pairing-layer");
-        if(NeuralNetworkLayer<T>::paramNetworkLayerType(layerConfig) != NeuralNetworkLayer<T>::identityLayer) {
+        if (NeuralNetworkLayer<T>::paramNetworkLayerType(layerConfig) != NeuralNetworkLayer<T>::identityLayer) {
             naturalPairingLayer_ = NeuralNetworkLayer<T>::createNeuralNetworkLayer(layerConfig);
-            if(!naturalPairingLayer_) {
+            if (!naturalPairingLayer_) {
                 Core::Component::criticalError("PythonTrainer: could not create natural-pairing layer");
                 return;
             }
@@ -188,16 +184,16 @@ PythonTrainer<T>::PythonTrainer(const Core::Configuration &config)
     // it will get released and other Python threads can run.
     Python::ScopedGIL gil;
 
-    if(!pyModPath_.empty())
+    if (!pyModPath_.empty())
         Python::addSysPath(pyModPath_);
 
-    if(pyModName_.empty()) {
+    if (pyModName_.empty()) {
         pythonCriticalError("PythonTrainer: need Python module name (pymod-name)");
         return;
     }
 
     pyMod_ = PyImport_ImportModule(pyModName_.c_str());
-    if(!pyMod_) {
+    if (!pyMod_) {
         pythonCriticalError(
                 "PythonTrainer: cannot import module '%s'",
                 pyModName_.c_str());
@@ -207,16 +203,16 @@ PythonTrainer<T>::PythonTrainer(const Core::Configuration &config)
 
 template<typename T>
 PythonTrainer<T>::~PythonTrainer() {
-    finalize(); // if not yet called
+    finalize();  // if not yet called
     pythonInitializer_.uninit();
 }
 
 template<typename T>
 bool PythonTrainer<T>::hasClassLabelPosteriors() {
-    switch(targetMode_) {
-    case criterionBySprint: return true;
-    case forwardOnly: return true;
-    default: return false;
+    switch (targetMode_) {
+        case criterionBySprint: return true;
+        case forwardOnly: return true;
+        default: return false;
     }
 }
 
@@ -244,26 +240,26 @@ Python::CriticalErrorFunc PythonTrainer<T>::getPythonCriticalErrorFunc() {
 
 template<typename T>
 void PythonTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32>& streamSizes) {
-    if(!Precursor::needInit_) return;
+    if (!Precursor::needInit_)
+        return;
 
     Precursor::needsNetwork_ = useNetwork_;
 
     // This will init the network if we need one.
     Precursor::initializeTrainer(batchSize, streamSizes);
 
-    if(useNetwork_) {
+    if (useNetwork_) {
         require(Precursor::network_);
         inputDim_ = Precursor::network_->getTopLayer().getOutputDimension();
         require_gt(inputDim_, 0);
-        if(Precursor::network_->nTrainableLayers() != 0) {
-            Core::Component::warning(
-                "There are %i trainable layers in the Neural network, "
-                "however, we are not going to train them with the PythonTrainer.",
-                Precursor::network_->nTrainableLayers());
+        if (Precursor::network_->nTrainableLayers() != 0) {
+            Core::Component::warning("There are %i trainable layers in the Neural network, "
+                                     "however, we are not going to train them with the PythonTrainer.",
+                                     Precursor::network_->nTrainableLayers());
         }
     }
-    else { // no network
-        if(streamSizes.size() != 1) {
+    else {  // no network
+        if (streamSizes.size() != 1) {
             Core::Component::criticalError("PythonTrainer only implemented for single input streams");
             return;
         }
@@ -273,22 +269,20 @@ void PythonTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32>& stream
     }
 
     bool cudaEnabled = Math::CudaDataStructure::hasGpu();
-    int activeGpu = cudaEnabled ? Math::CudaDataStructure::getActiveGpu() : -1;
+    int  activeGpu   = cudaEnabled ? Math::CudaDataStructure::getActiveGpu() : -1;
 
     {
         Python::ScopedGIL gil;
-        std::string pyConfigStr(paramPyModConfig(Core::Configurable::config));
-        PyObject* res = Python::PyCallKw(
-                    pyMod_, "init", "{s:i,s:i,s:b,s:s,s:s,s:i,s:i}",
-                    "inputDim", inputDim_,
-                    "outputDim", outputDim_,
-                    "allowDownsampling", allowDownsampling_,
-                    "config", pyConfigStr.c_str(),
-                    "targetMode", choiceTargetMode[(s32)targetMode_].c_str(),
-                    "cudaEnabled", int(cudaEnabled),
-                    "cudaActiveGpu", activeGpu
-                    );
-        if(!res) {
+        std::string       pyConfigStr(paramPyModConfig(Core::Configurable::config));
+        PyObject*         res = Python::PyCallKw(pyMod_, "init", "{s:i,s:i,s:b,s:s,s:s,s:i,s:i}",
+                                         "inputDim", inputDim_,
+                                         "outputDim", outputDim_,
+                                         "allowDownsampling", allowDownsampling_,
+                                         "config", pyConfigStr.c_str(),
+                                         "targetMode", choiceTargetMode[(s32)targetMode_].c_str(),
+                                         "cudaEnabled", int(cudaEnabled),
+                                         "cudaActiveGpu", activeGpu);
+        if (!res) {
             pythonCriticalError("PythonTrainer: init() failed");
             return;
         }
@@ -300,13 +294,13 @@ void PythonTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32>& stream
 
 template<typename T>
 void PythonTrainer<T>::finalize() {
-    if(pyMod_) {
-        require(Py_IsInitialized()); // should not happen. only via pythonInitializer_.
+    if (pyMod_) {
+        require(Py_IsInitialized());  // should not happen. only via pythonInitializer_.
 
         Python::ScopedGIL gil;
 
         PyObject* res = PyObject_CallMethod(pyMod_, (char*)"exit", (char*)"");
-        if(!res) {
+        if (!res) {
             pythonCriticalError("PythonTrainer: exit() failed");
             return;
         }
@@ -315,38 +309,38 @@ void PythonTrainer<T>::finalize() {
         Py_CLEAR(pyMod_);
     }
 
-    if(useNetwork_)
+    if (useNetwork_)
         Precursor::network().finalize();
 }
 
-
 template<typename T>
 void PythonTrainer<T>::processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment) {
-    if(useNetwork_) {
+    if (useNetwork_) {
         require_gt(features.size(), 0);
-        for(u32 i = 0; i < features.size(); ++i)
+        for (u32 i = 0; i < features.size(); ++i)
             features.at(i).initComputation();
         Precursor::network().initComputation(false /* always up-to-date, synced in initializeNetwork */);
         Precursor::network().forward(features);
         features_ = &Precursor::network().getTopLayerOutput();
-        require_eq(features_->nColumns(), features[0].nColumns()); // time-frames
+        require_eq(features_->nColumns(), features[0].nColumns());  // time-frames
     }
-    else { // no network
+    else {  // no network
         require_eq(features.size(), 1);
         features_ = &features[0];
     }
 
-    require_gt(features_->nColumns(), 0); // time-frames
+    require_gt(features_->nColumns(), 0);  // time-frames
     features_->finishComputation(true);
 
-    if(Precursor::weightedAccumulation_) {
+    if (Precursor::weightedAccumulation_) {
         weights_ = weights;
-        if(!weights_)
+        if (!weights_)
             Core::Component::warning("weightedAccumulation without weights.");
         else
             // will be used later
             weights_->initComputation();
-    } else {
+    }
+    else {
         weights_ = weights = NULL;
     }
 
@@ -354,7 +348,7 @@ void PythonTrainer<T>::processBatch_feedInput(std::vector<NnMatrix>& features, N
 
     // In some cases, we can directly forward the data right now.
     // In the remaining cases, we will forward the data in the processBatch_finish*() functions.
-    if(targetMode_ == criterionBySprint || targetMode_ == unsupervised || targetMode_ == forwardOnly)
+    if (targetMode_ == criterionBySprint || targetMode_ == unsupervised || targetMode_ == forwardOnly)
         python_feedInput();
 }
 
@@ -365,12 +359,12 @@ void PythonTrainer<T>::python_feedInput() {
     Python::ScopedGIL gil;
 
     PyObject* pyFeaturesMat = NULL;
-    PyObject* pyWeightsVec = NULL;
+    PyObject* pyWeightsVec  = NULL;
 
-    if(!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
+    if (!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
         return;
-    if(weights_) {
-        if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
+    if (weights_) {
+        if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
             Py_CLEAR(pyFeaturesMat);
             return;
         }
@@ -381,19 +375,18 @@ void PythonTrainer<T>::python_feedInput() {
     }
 
     const char* functionName = NULL;
-    switch(targetMode_) {
-    case criterionBySprint: functionName = "feedInput"; break;
-    case unsupervised: functionName = "feedInputUnsupervised"; break;
-    case forwardOnly: functionName = "feedInputForwarding"; break;
-    default: Core::Component::criticalError(); return;
+    switch (targetMode_) {
+        case criterionBySprint: functionName = "feedInput"; break;
+        case unsupervised: functionName = "feedInputUnsupervised"; break;
+        case forwardOnly: functionName = "feedInputForwarding"; break;
+        default: Core::Component::criticalError(); return;
     }
 
-    PyObject* res = Python::PyCallKw(
-                pyMod_, functionName, "{s:O,s:O,s:s}",
-                "features", pyFeaturesMat,
-                "weights", pyWeightsVec,
-                "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
-    if(!res) {
+    PyObject* res = Python::PyCallKw(pyMod_, functionName, "{s:O,s:O,s:s}",
+                                     "features", pyFeaturesMat,
+                                     "weights", pyWeightsVec,
+                                     "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
+    if (!res) {
         pythonCriticalError("PythonTrainer: %s() failed", functionName);
         Py_CLEAR(pyFeaturesMat);
         Py_CLEAR(pyWeightsVec);
@@ -404,54 +397,50 @@ void PythonTrainer<T>::python_feedInput() {
     Py_CLEAR(pyWeightsVec);
 
     // In some cases, we expect to get a Numpy array returned.
-    if(targetMode_ == criterionBySprint || targetMode_ == forwardOnly) {
-        if(!Python::isNumpyArrayTypeExact(res)) {
+    if (targetMode_ == criterionBySprint || targetMode_ == forwardOnly) {
+        if (!Python::isNumpyArrayTypeExact(res)) {
             pythonCriticalError("PythonTrainer: %s() did not return a NumPy array but %s",
-                                           functionName, res->ob_type->tp_name);
+                                functionName, res->ob_type->tp_name);
             Py_CLEAR(res);
             return;
         }
 
         posteriors_.finishComputation(false);
-        if(!Python::numpy2nnMatrix(getPythonCriticalErrorFunc(), res, posteriors_)) {
+        if (!Python::numpy2nnMatrix(getPythonCriticalErrorFunc(), res, posteriors_)) {
             Py_CLEAR(res);
             return;
         }
 
         Py_CLEAR(res);
 
-        if(    (posteriors_.nColumns() != features_->nColumns() and not allowDownsampling_)
-            or (posteriors_.nColumns() >  features_->nColumns() and allowDownsampling_)
-            or (posteriors_.nRows() != static_cast<u32>(outputDim_))) {
-            pythonCriticalError(
-                        "PythonTrainer: feedInput() did return a matrix of wrong size (%i,%i), "
-                        "but we expected (%i,%i)",
-                        posteriors_.nRows(), posteriors_.nColumns(),
-                        outputDim_, features_->nColumns());
+        if ((posteriors_.nColumns() != features_->nColumns() and not allowDownsampling_) or (posteriors_.nColumns() > features_->nColumns() and allowDownsampling_) or (posteriors_.nRows() != static_cast<u32>(outputDim_))) {
+            pythonCriticalError("PythonTrainer: feedInput() did return a matrix of wrong size (%i,%i), "
+                                "but we expected (%i,%i)",
+                                posteriors_.nRows(), posteriors_.nColumns(),
+                                outputDim_, features_->nColumns());
             return;
         }
 
-        posteriors_.initComputation(true); // criterion expects it to be in computation mode
+        posteriors_.initComputation(true);  // criterion expects it to be in computation mode
     }
 }
 
-
 template<typename T>
 void PythonTrainer<T>::processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment) {
-    switch(targetMode_) {
-    case criterionBySprint:
-        alignment.initComputation(); // need to be in computation mode
-        Precursor::criterion_->inputAlignment(alignment, posteriors_, weights_);
-        passErrorSignalToPython();
-        break;
-    case targetGeneric:
-        python_feedInputAndTarget(&alignment);
-        break;
-    case targetAlignment:
-        python_feedInputAndTargetAlignment(alignment);
-        break;
-    default:
-        Core::Component::criticalError("processBatch_finishWithAlignment with invalid target mode");
+    switch (targetMode_) {
+        case criterionBySprint:
+            alignment.initComputation();  // need to be in computation mode
+            Precursor::criterion_->inputAlignment(alignment, posteriors_, weights_);
+            passErrorSignalToPython();
+            break;
+        case targetGeneric:
+            python_feedInputAndTarget(&alignment);
+            break;
+        case targetAlignment:
+            python_feedInputAndTargetAlignment(alignment);
+            break;
+        default:
+            Core::Component::criticalError("processBatch_finishWithAlignment with invalid target mode");
     }
 }
 
@@ -459,20 +448,20 @@ template<typename T>
 void PythonTrainer<T>::python_feedInputAndTarget(Math::CudaVector<u32>* alignment) {
     verify_eq(targetMode_, targetGeneric);
 
-    auto* speechSegment = dynamic_cast<Bliss::SpeechSegment*>(segment_);
-    auto* speaker = speechSegment ? speechSegment->speaker() : NULL;
+    auto*       speechSegment  = dynamic_cast<Bliss::SpeechSegment*>(segment_);
+    auto*       speaker        = speechSegment ? speechSegment->speaker() : NULL;
     const char* speaker_gender = speaker ? Bliss::Speaker::genderId[speaker->gender()] : NULL;
 
     Python::ScopedGIL gil;
 
     PyObject* pyFeaturesMat = NULL;
     require_notnull(features_);
-    if(!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
+    if (!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
         return;
 
     PyObject* pyWeightsVec = NULL;
-    if(weights_) {
-        if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
+    if (weights_) {
+        if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
             Py_CLEAR(pyFeaturesMat);
             return;
         }
@@ -483,8 +472,8 @@ void PythonTrainer<T>::python_feedInputAndTarget(Math::CudaVector<u32>* alignmen
     }
 
     PyObject* pyAlignmentVec = NULL;
-    if(alignment) {
-        if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyAlignmentVec, *alignment)) {
+    if (alignment) {
+        if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyAlignmentVec, *alignment)) {
             Py_CLEAR(pyFeaturesMat);
             Py_CLEAR(pyWeightsVec);
             return;
@@ -495,17 +484,15 @@ void PythonTrainer<T>::python_feedInputAndTarget(Math::CudaVector<u32>* alignmen
         Py_INCREF(pyAlignmentVec);
     }
 
-    PyObject* res = Python::PyCallKw(
-                pyMod_, "feedInputAndTarget", "{s:O,s:O,s:s,s:O,s:s,s:s,s:s}",
-                "features", pyFeaturesMat,
-                "weights", pyWeightsVec,
-                "segmentName", segment_ ? segment_->fullName().c_str() : NULL,
-                "alignment", pyAlignmentVec,
-                "orthography", speechSegment ? speechSegment->orth().c_str() : NULL,
-                "speaker_name", speaker ? speaker->name().c_str() : NULL,
-                "speaker_gender", speaker_gender
-                );
-    if(!res)
+    PyObject* res = Python::PyCallKw(pyMod_, "feedInputAndTarget", "{s:O,s:O,s:s,s:O,s:s,s:s,s:s}",
+                                     "features", pyFeaturesMat,
+                                     "weights", pyWeightsVec,
+                                     "segmentName", segment_ ? segment_->fullName().c_str() : NULL,
+                                     "alignment", pyAlignmentVec,
+                                     "orthography", speechSegment ? speechSegment->orth().c_str() : NULL,
+                                     "speaker_name", speaker ? speaker->name().c_str() : NULL,
+                                     "speaker_gender", speaker_gender);
+    if (!res)
         pythonCriticalError("PythonTrainer: python_feedTarget() failed");
 
     Py_CLEAR(pyFeaturesMat);
@@ -522,12 +509,12 @@ void PythonTrainer<T>::python_feedInputAndTargetAlignment(Math::CudaVector<u32>&
 
     verify(features_);
     PyObject* pyFeaturesMat = NULL;
-    if(!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
+    if (!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
         return;
 
     PyObject* pyWeightsVec = NULL;
-    if(weights_) {
-        if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
+    if (weights_) {
+        if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
             Py_CLEAR(pyFeaturesMat);
             return;
         }
@@ -538,19 +525,18 @@ void PythonTrainer<T>::python_feedInputAndTargetAlignment(Math::CudaVector<u32>&
     }
 
     PyObject* pyAlignmentVec = NULL;
-    if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyAlignmentVec, alignment)) {
+    if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyAlignmentVec, alignment)) {
         Py_CLEAR(pyFeaturesMat);
         Py_CLEAR(pyWeightsVec);
         return;
     }
 
-    PyObject* res = Python::PyCallKw(
-                pyMod_, "feedInputAndTargetAlignment", "{s:O,s:O,s:O,s:s}",
-                "features", pyFeaturesMat,
-                "targetAlignment", pyAlignmentVec,
-                "weights", pyWeightsVec,
-                "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
-    if(!res)
+    PyObject* res = Python::PyCallKw(pyMod_, "feedInputAndTargetAlignment", "{s:O,s:O,s:O,s:s}",
+                                     "features", pyFeaturesMat,
+                                     "targetAlignment", pyAlignmentVec,
+                                     "weights", pyWeightsVec,
+                                     "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
+    if (!res)
         pythonCriticalError("PythonTrainer: feedInputAndTargetAlignment() failed");
 
     Py_CLEAR(pyFeaturesMat);
@@ -561,21 +547,21 @@ void PythonTrainer<T>::python_feedInputAndTargetAlignment(Math::CudaVector<u32>&
 
 template<typename T>
 void PythonTrainer<T>::processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment) {
-    switch(targetMode_) {
-    case criterionBySprint:
-        Precursor::criterion_->inputSpeechSegment(segment, posteriors_, weights_);
-        passErrorSignalToPython();
-        break;
-    case targetGeneric:
-        // In python_feedTarget, we get the orthograhpy etc out of the current segment.
-        require_eq(&segment, segment_);
-        python_feedInputAndTarget(NULL);
-        break;
-    case targetSegmentOrth:
-        python_feedInputAndTargetSegmentOrth(segment);
-        break;
-    default:
-        Core::Component::criticalError("processBatch_finishWithSpeechSegment with invalid target mode");
+    switch (targetMode_) {
+        case criterionBySprint:
+            Precursor::criterion_->inputSpeechSegment(segment, posteriors_, weights_);
+            passErrorSignalToPython();
+            break;
+        case targetGeneric:
+            // In python_feedTarget, we get the orthograhpy etc out of the current segment.
+            require_eq(&segment, segment_);
+            python_feedInputAndTarget(NULL);
+            break;
+        case targetSegmentOrth:
+            python_feedInputAndTargetSegmentOrth(segment);
+            break;
+        default:
+            Core::Component::criticalError("processBatch_finishWithSpeechSegment with invalid target mode");
     }
 }
 
@@ -586,12 +572,12 @@ void PythonTrainer<T>::python_feedInputAndTargetSegmentOrth(Bliss::SpeechSegment
     Python::ScopedGIL gil;
 
     PyObject* pyFeaturesMat = NULL;
-    if(!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
+    if (!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyFeaturesMat, *features_))
         return;
 
     PyObject* pyWeightsVec = NULL;
-    if(weights_) {
-        if(!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
+    if (weights_) {
+        if (!Python::nnVec2numpy(getPythonCriticalErrorFunc(), pyWeightsVec, *weights_)) {
             Py_CLEAR(pyFeaturesMat);
             return;
         }
@@ -601,13 +587,12 @@ void PythonTrainer<T>::python_feedInputAndTargetSegmentOrth(Bliss::SpeechSegment
         Py_INCREF(pyWeightsVec);
     }
 
-    PyObject* res = Python::PyCallKw(
-                pyMod_, "feedInputAndTargetSegmentOrth", "{s:O,s:s,s:O,s:s}",
-                "features", pyFeaturesMat,
-                "targetSegmentOrth", segment.orth().c_str(),
-                "weights", pyWeightsVec,
-                "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
-    if(!res)
+    PyObject* res = Python::PyCallKw(pyMod_, "feedInputAndTargetSegmentOrth", "{s:O,s:s,s:O,s:s}",
+                                     "features", pyFeaturesMat,
+                                     "targetSegmentOrth", segment.orth().c_str(),
+                                     "weights", pyWeightsVec,
+                                     "segmentName", segment_ ? segment_->fullName().c_str() : NULL);
+    if (!res)
         pythonCriticalError("PythonTrainer: feedInputAndTargetSegmentOrth() failed");
 
     Py_CLEAR(pyFeaturesMat);
@@ -618,22 +603,22 @@ void PythonTrainer<T>::python_feedInputAndTargetSegmentOrth(Bliss::SpeechSegment
 template<typename T>
 void PythonTrainer<T>::processBatch_finish() {
     // This is called if there are no target infos (alignment, segment ref, ...).
-    switch(targetMode_) {
-    case criterionBySprint:
-        Precursor::criterion_->input(posteriors_, weights_);
-        passErrorSignalToPython();
-        break;
-    case unsupervised:
-        // nothing to do, we already called feedInputUnsupervised() via processBatch_feedInput()
-        break;
-    case forwardOnly:
-        // nothing to do, we already called feedInputForwarding() via processBatch_feedInput()
-        break;
-    case targetGeneric:
-        python_feedInputAndTarget(NULL);
-        break;
-    default:
-        Core::Component::criticalError("processBatch_finish with invalid target mode");
+    switch (targetMode_) {
+        case criterionBySprint:
+            Precursor::criterion_->input(posteriors_, weights_);
+            passErrorSignalToPython();
+            break;
+        case unsupervised:
+            // nothing to do, we already called feedInputUnsupervised() via processBatch_feedInput()
+            break;
+        case forwardOnly:
+            // nothing to do, we already called feedInputForwarding() via processBatch_feedInput()
+            break;
+        case targetGeneric:
+            python_feedInputAndTarget(NULL);
+            break;
+        default:
+            Core::Component::criticalError("processBatch_finish with invalid target mode");
     }
 }
 
@@ -642,10 +627,10 @@ void PythonTrainer<T>::passErrorSignalToPython() {
     verify_eq(targetMode_, criterionBySprint);
 
     bool discard = Precursor::criterion_->discardCurrentInput();
-    if(discard) {
+    if (discard) {
         Python::ScopedGIL gil;
-        PyObject* res = PyObject_CallMethod(pyMod_, (char*)"finishDiscard", (char*)"");
-        if(!res) {
+        PyObject*         res = PyObject_CallMethod(pyMod_, (char*)"finishDiscard", (char*)"");
+        if (!res) {
             pythonCriticalError("PythonTrainer: finishDiscard() failed");
             return;
         }
@@ -659,9 +644,9 @@ void PythonTrainer<T>::passErrorSignalToPython() {
     require(features_);
     require_eq(features_->nColumns(), posteriors_.nColumns());
     NnMatrix errorSignal(posteriors_.nRows(), posteriors_.nColumns());
-    errorSignal.initComputation(false); // getErrorSignal expects it to be in computation mode
+    errorSignal.initComputation(false);  // getErrorSignal expects it to be in computation mode
     errorSignal.setToZero();
-    if(naturalPairingLayer_)
+    if (naturalPairingLayer_)
         Precursor::criterion_->getErrorSignal_naturalPairing(errorSignal, *naturalPairingLayer_);
     else
         Precursor::criterion_->getErrorSignal(errorSignal);
@@ -671,17 +656,15 @@ void PythonTrainer<T>::passErrorSignalToPython() {
         Python::ScopedGIL gil;
 
         PyObject* pyErrorSignal = NULL;
-        if(!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyErrorSignal, errorSignal))
+        if (!Python::nnMatrix2numpy(getPythonCriticalErrorFunc(), pyErrorSignal, errorSignal))
             return;
 
         PyObject* pyNatPairLayerTypeName = NULL;
-        if(naturalPairingLayer_) {
-            std::string natPairLayerTypeName =
-                NeuralNetworkLayer<T>::choiceNetworkLayerType[
-                    (s32)naturalPairingLayer_->getLayerType()];
+        if (naturalPairingLayer_) {
+            std::string natPairLayerTypeName = NeuralNetworkLayer<T>::choiceNetworkLayerType[(s32)naturalPairingLayer_->getLayerType()];
             require_ne(natPairLayerTypeName, "");
             pyNatPairLayerTypeName = PyString_FromString(natPairLayerTypeName.c_str());
-            if(!pyNatPairLayerTypeName) {
+            if (!pyNatPairLayerTypeName) {
                 pythonCriticalError("PythonTrainer: PyString_FromString error");
                 Py_CLEAR(pyErrorSignal);
                 return;
@@ -692,11 +675,10 @@ void PythonTrainer<T>::passErrorSignalToPython() {
             Py_INCREF(pyNatPairLayerTypeName);
         }
 
-        PyObject* res = Python::PyCallKw(
-                    pyMod_, "finishError", "{s:d,s:O,s:O}",
-                    "error", (double)error, "errorSignal", pyErrorSignal,
-                    "naturalPairingType", pyNatPairLayerTypeName);
-        if(!res) {
+        PyObject* res = Python::PyCallKw(pyMod_, "finishError", "{s:d,s:O,s:O}",
+                                         "error", (double)error, "errorSignal", pyErrorSignal,
+                                         "naturalPairingType", pyNatPairLayerTypeName);
+        if (!res) {
             pythonCriticalError("PythonTrainer: finishError() failed");
             Py_CLEAR(pyErrorSignal);
             Py_CLEAR(pyNatPairLayerTypeName);
@@ -718,34 +700,27 @@ const Core::ParameterString PythonEvaluator<T>::paramDumpBestPosteriorIndices(
         "dump-best-posterior-indices", "cache file name", "");
 
 template<typename T>
-PythonEvaluator<T>::PythonEvaluator(const Core::Configuration &config) :
-      Core::Component(config),
-      Precursor(config),
-      nObservations_(0)
-{
+PythonEvaluator<T>::PythonEvaluator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          nObservations_(0) {
     {
         std::string archiveFilename = paramDumpPosteriors(config);
-        if(!archiveFilename.empty())
-            dumpPosteriorsArchive_ =
-                std::shared_ptr<Core::Archive>(
-                    Core::Archive::create(
-                        Core::Component::select(paramDumpPosteriors.name()),
-                        archiveFilename,
-                        Core::Archive::AccessModeWrite));
+        if (!archiveFilename.empty())
+            dumpPosteriorsArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpPosteriors.name()),
+                                                                                          archiveFilename,
+                                                                                          Core::Archive::AccessModeWrite));
     }
 
     {
         std::string archiveFilename = paramDumpBestPosteriorIndices(config);
-        if(!archiveFilename.empty())
-            dumpBestPosterioIndicesArchive_ =
-                std::shared_ptr<Core::Archive>(
-                    Core::Archive::create(
-                        Core::Component::select(paramDumpBestPosteriorIndices.name()),
-                        archiveFilename,
-                        Core::Archive::AccessModeWrite));
+        if (!archiveFilename.empty())
+            dumpBestPosterioIndicesArchive_ = std::shared_ptr<Core::Archive>(Core::Archive::create(Core::Component::select(paramDumpBestPosteriorIndices.name()),
+                                                                                                   archiveFilename,
+                                                                                                   Core::Archive::AccessModeWrite));
     }
 
-    if(!dumpPosteriorsArchive_ && !dumpBestPosterioIndicesArchive_)
+    if (!dumpPosteriorsArchive_ && !dumpBestPosterioIndicesArchive_)
         Core::Component::warning("PythonEvaluator: we don't dump anything");
 }
 
@@ -757,29 +732,28 @@ void PythonEvaluator<T>::finalize() {
 
 template<typename T>
 void PythonEvaluator<T>::processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment) {
-//    NnMatrix& networkOutput = getClassLabelgetClassLabelPosteriors(); //network().getTopLayerOutput();
     PythonTrainer<T>::posteriors_.finishComputation(true);
 
     u32 frameCount = PythonTrainer<T>::posteriors_.nColumns();
 
-    if(dumpPosteriorsArchive_) {
-        Flow::ArchiveWriter<Math::Matrix<T> > writer(dumpPosteriorsArchive_.get());
+    if (dumpPosteriorsArchive_) {
+        Flow::ArchiveWriter<Math::Matrix<T>> writer(dumpPosteriorsArchive_.get());
         PythonTrainer<T>::posteriors_.convert(writer.data_->data());
         writer.write(segment.fullName());
     }
 
-    if(dumpBestPosterioIndicesArchive_) {
-        Flow::ArchiveWriter<Math::Vector<u32> > writer(dumpBestPosterioIndicesArchive_.get());
-        Math::Vector<u32>& bestEmissions = writer.data_->data();
+    if (dumpBestPosterioIndicesArchive_) {
+        Flow::ArchiveWriter<Math::Vector<u32>> writer(dumpBestPosterioIndicesArchive_.get());
+        Math::Vector<u32>&                     bestEmissions = writer.data_->data();
         bestEmissions.resize(frameCount);
-        for(u32 t = 0; t < frameCount; ++t) {
-            u32 argMax = 0;
-            T maxValue = PythonTrainer<T>::posteriors_.at(argMax, t);
-            for(u32 i = 1; i < PythonTrainer<T>::posteriors_.nRows(); ++i) {
+        for (u32 t = 0; t < frameCount; ++t) {
+            u32 argMax   = 0;
+            T   maxValue = PythonTrainer<T>::posteriors_.at(argMax, t);
+            for (u32 i = 1; i < PythonTrainer<T>::posteriors_.nRows(); ++i) {
                 T value = PythonTrainer<T>::posteriors_.at(i, t);
-                if(value > maxValue) {
+                if (value > maxValue) {
                     maxValue = value;
-                    argMax = i;
+                    argMax   = i;
                 }
             }
             bestEmissions[t] = argMax;
@@ -804,4 +778,4 @@ template class PythonTrainer<f64>;
 template class PythonEvaluator<f32>;
 template class PythonEvaluator<f64>;
 
-}
+}  // namespace Nn

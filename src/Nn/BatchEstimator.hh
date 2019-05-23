@@ -25,7 +25,6 @@ namespace Nn {
  * BatchEstimator:
  *  handles estimation for batch training
  *  statistics are read from file and optionally, regularization is applied
- *
  */
 
 template<typename T>
@@ -37,21 +36,24 @@ class Estimator;
 template<typename T>
 class Regularizer;
 
-
 template<typename T>
 class BatchEstimator : virtual public Core::Component {
     typedef Core::Component Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
     static const Core::ParameterStringVector paramStatisticsFiles;
+
 protected:
     const std::vector<std::string> statisticsFiles_;
-    Statistics<T> *statistics_;
-    NeuralNetwork<T> *network_;
-    Estimator<T> *estimator_;
-    Regularizer<T> *regularizer_;
+    Statistics<T>*                 statistics_;
+    NeuralNetwork<T>*              network_;
+    Estimator<T>*                  estimator_;
+    Regularizer<T>*                regularizer_;
+
 public:
     BatchEstimator(const Core::Configuration& config);
     virtual ~BatchEstimator();
@@ -60,6 +62,6 @@ public:
     virtual void finalize();
 };
 
-}
+}  // namespace Nn
 
 #endif

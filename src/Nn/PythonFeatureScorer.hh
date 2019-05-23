@@ -15,12 +15,12 @@
 #ifndef MM_PYTHONFEATURESCORER_HH
 #define MM_PYTHONFEATURESCORER_HH
 
-#include <Mm/FeatureScorer.hh>
-#include <Mm/Types.hh>
-#include <Mm/Feature.hh>
-#include <Mm/MixtureSet.hh>
-#include <Nn/PythonControl.hh>
 #include <Core/Types.hh>
+#include <Mm/Feature.hh>
+#include <Mm/FeatureScorer.hh>
+#include <Mm/MixtureSet.hh>
+#include <Mm/Types.hh>
+#include <Nn/PythonControl.hh>
 #include <vector>
 
 namespace Nn {
@@ -30,29 +30,31 @@ namespace Nn {
 class PythonFeatureScorer : public Mm::FeatureScorer {
 protected:
     typedef Mm::FeatureScorer Precursor;
-    typedef Mm::Score Float;
+    typedef Mm::Score         Float;
 
     class ContextScorer;
 
-    u32 featureBufferSize_;
-    mutable u32 numFeaturesReceived_;
-    mutable u32 currentFeature_;		/* pointer to current position in buffer */
-    mutable bool scoresComputed_;
+    u32                            featureBufferSize_;
+    mutable u32                    numFeaturesReceived_;
+    mutable u32                    currentFeature_; /* pointer to current position in buffer */
+    mutable bool                   scoresComputed_;
     mutable std::vector<Mm::Score> scoresCache_;
-    mutable u32 scoresCachePosition_;
-    u32 nClasses_;
-    u32 inputDimension_;
-    mutable u32 batchIteration_;
-    Nn::PythonControl pythonControl_;
+    mutable u32                    scoresCachePosition_;
+    u32                            nClasses_;
+    u32                            inputDimension_;
+    mutable u32                    batchIteration_;
+    Nn::PythonControl              pythonControl_;
 
 public:
-    PythonFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixtureSet);
+    PythonFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixtureSet);
     virtual ~PythonFeatureScorer();
+
 private:
-    void _addFeature(const Mm::FeatureVector &f) const;
+    void _addFeature(const Mm::FeatureVector& f) const;
+
 public:
     virtual Mm::EmissionIndex nMixtures() const;
-    virtual void getFeatureDescription(Mm::FeatureDescription &description) const;
+    virtual void              getFeatureDescription(Mm::FeatureDescription& description) const;
 
     typedef Core::Ref<const ContextScorer> Scorer;
     /**
@@ -63,9 +65,9 @@ public:
      * Requires bufferFilled() == true.
      */
     virtual FeatureScorer::Scorer getScorer(Core::Ref<const Mm::Feature> f) const {
-	return getScorer(*f->mainStream());
+        return getScorer(*f->mainStream());
     }
-    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector &f) const;
+    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector& f) const;
 
     virtual Mm::Score getScore(Mm::EmissionIndex e, u32 position) const;
 
@@ -87,14 +89,16 @@ public:
     /**
      * Return true if the feature scorer buffers features.
      */
-    virtual bool isBuffered() const { return true; }
+    virtual bool isBuffered() const {
+        return true;
+    }
 
     /**
      * Add a feature to the feature buffer.
      */
-    virtual void addFeature(const Mm::FeatureVector &f) const;
+    virtual void addFeature(const Mm::FeatureVector& f) const;
     virtual void addFeature(Core::Ref<const Mm::Feature> f) const {
-	addFeature(*f->mainStream());
+        addFeature(*f->mainStream());
     }
 
     /**
@@ -127,11 +131,12 @@ public:
     /**
      * Like CachedNeuralNetworkFeatureScorer, used in SegmentwiseAlignmentGenerator.
      */
-    virtual bool hasTimeIndexedCache() const { return true; }
+    virtual bool hasTimeIndexedCache() const {
+        return true;
+    }
     virtual FeatureScorer::Scorer getTimeIndexedScorer(u32 time) const;
-
 };
 
-}
+}  // namespace Nn
 
-#endif // PYTHONFEATURESCORER_HH
+#endif  // PYTHONFEATURESCORER_HH

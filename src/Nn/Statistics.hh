@@ -17,9 +17,9 @@
 
 #include <Core/XmlStream.hh>
 
-#include <vector>
-#include <map>
 #include <cstring>
+#include <map>
+#include <vector>
 
 #include "NeuralNetwork.hh"
 #include "Types.hh"
@@ -32,10 +32,11 @@ namespace Nn {
  *  Plans: avoid initialization from network when loading from file
  */
 
-template <class T>
+template<class T>
 class Statistics {
     friend class Statistics<f32>;
     friend class Statistics<f64>;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
@@ -44,16 +45,17 @@ public:
     /* defines which statistics are accumulated */
     // set values to 1,2,4,...
     enum StatisticTypes {
-        NONE = 0,
-        CLASS_COUNTS = 1,
+        NONE              = 0,
+        CLASS_COUNTS      = 1,
         MEAN_AND_VARIANCE = 2,
-        BASE_STATISTICS = 4,
-        GRADIENT = 8,
+        BASE_STATISTICS   = 4,
+        GRADIENT          = 8,
     };
+
 protected:
     static const u32 version_;
     // statistic types
-    u32 statisticTypes_;
+    u32  statisticTypes_;
     bool hasClassCounts_;
     bool hasMeanAndVariance_;
     bool hasBaseStatistics_;
@@ -62,26 +64,27 @@ protected:
 
     std::vector<s32> layerIndexToTrainableLayerIndex_;
     // base statistics
-    T objectiveFunction_;
+    T   objectiveFunction_;
     u32 nClassificationErrors_;
     // observation count
     u32 nObservations_;
     // sum of accumulation weights
     T totalWeight_;
     // mapping from class label to class count
-    std::map<u32,u32> classCount_;
-    T entropy_;
+    std::map<u32, u32> classCount_;
+    T                  entropy_;
     // feature statistics
     NnVector sum_;
     NnVector sumOfSquares_;
     // gradient of weights for each layer (gradientWeights[layer][stream])
-    std::vector< std::vector<NnMatrix> > gradientWeights_;
+    std::vector<std::vector<NnMatrix>> gradientWeights_;
     // gradient of bias for each layer
     std::vector<NnVector> gradientBias_;
     // is in computing state (GPU)
     bool isComputing_;
     // is finalized (e.g. normalized by number of observations)
     bool isFinalized_;
+
 public:
     Statistics(u32 nTrainableLayers, u32 statisticTypes);
     Statistics(const Statistics<T>& statistics, bool onlyStructure = false);
@@ -90,43 +93,81 @@ public:
     void reset();
     /** transformation to a minimization problem and normalization */
     void finalize(bool normalizeByNOfObservations = true);
-    void incClassificationErrors(u32 increment = 1) { nClassificationErrors_ += increment; }
-    void incObservations(u32 increment = 1) { nObservations_ += increment; }
-    void decObservations(u32 decrement = 1) { nObservations_ -= decrement; }
-    void addToTotalWeight(T weight) { totalWeight_ += weight; }
+    void incClassificationErrors(u32 increment = 1) {
+        nClassificationErrors_ += increment;
+    }
+    void incObservations(u32 increment = 1) {
+        nObservations_ += increment;
+    }
+    void decObservations(u32 decrement = 1) {
+        nObservations_ -= decrement;
+    }
+    void addToTotalWeight(T weight) {
+        totalWeight_ += weight;
+    }
     void incClassCount(u32 label, u32 increment = 1);
-    void addToObjectiveFunction(T value) { objectiveFunction_ += value; }
-    void addToEntropy(T value) { entropy_ += value; }
-    T objectiveFunction() const { return objectiveFunction_; }
-    T classificationError() const { return (T)nClassificationErrors_ / nObservations_; }
-    u32 nObservations() const { return nObservations_; }
-    T totalWeight() const { return totalWeight_; }
+    void addToObjectiveFunction(T value) {
+        objectiveFunction_ += value;
+    }
+    void addToEntropy(T value) {
+        entropy_ += value;
+    }
+    T objectiveFunction() const {
+        return objectiveFunction_;
+    }
+    T classificationError() const {
+        return (T)nClassificationErrors_ / nObservations_;
+    }
+    u32 nObservations() const {
+        return nObservations_;
+    }
+    T totalWeight() const {
+        return totalWeight_;
+    }
     u32 classCount(u32 label) const;
-    T entropy() const { return entropy_ / nObservations_; }
+    T   entropy() const {
+        return entropy_ / nObservations_;
+    }
 
     // feature sum and squared feature sum
-    NnVector& featureSum() { return sum_; }
-    NnVector& squaredFeatureSum() { return sumOfSquares_; }
+    NnVector& featureSum() {
+        return sum_;
+    }
+    NnVector& squaredFeatureSum() {
+        return sumOfSquares_;
+    }
 
     /** return the gradient of a certain layer*/
     //assumption: layer is trainable
-    std::vector<NnMatrix>& gradientWeights(u32 layer) { return gradientWeights_.at(layerIndexToTrainableLayerIndex_.at(layer)); }
-    NnVector& gradientBias(u32 layer) { return gradientBias_.at(layerIndexToTrainableLayerIndex_.at(layer)); }
+    std::vector<NnMatrix>& gradientWeights(u32 layer) {
+        return gradientWeights_.at(layerIndexToTrainableLayerIndex_.at(layer));
+    }
+    NnVector& gradientBias(u32 layer) {
+        return gradientBias_.at(layerIndexToTrainableLayerIndex_.at(layer));
+    }
     /** computes the l1 norm of the gradient*/
     T gradientL1Norm() const;
 
-    bool hasClassCounts() const { return hasClassCounts_; }
-    bool hasBaseStatistics() const { return hasBaseStatistics_; }
-    bool hasGradient() const { return hasGradient_; }
+    bool hasClassCounts() const {
+        return hasClassCounts_;
+    }
+    bool hasBaseStatistics() const {
+        return hasBaseStatistics_;
+    }
+    bool hasGradient() const {
+        return hasGradient_;
+    }
 
     /** initialize statistics from neural network */
     template<typename S>
-    void initialize(const NeuralNetwork<S> &neuralNetwork);
+    void initialize(const NeuralNetwork<S>& neuralNetwork);
 
     // synchronization
     void initComputation(bool sync = true);
     void finishComputation(bool sync = true);
-    bool isComputing() const { return isComputing_; }
+    bool isComputing() const {
+        return isComputing_;
+    }
 
     // this += rhs
     template<typename S>
@@ -134,41 +175,41 @@ public:
 
     // copy structure
     template<typename S>
-    void copyStructure(const Statistics<S> &rhs);
+    void copyStructure(const Statistics<S>& rhs);
 
     // Statistics IO
 public:
-    bool read(const std::string &filename);
-    bool read(Core::BinaryInputStream &is);
-    bool write(const std::string &filename) const;
-    bool write(Core::BinaryOutputStream &os) const;
-    bool write(std::ostream &os) const;
-    bool write(Core::XmlWriter &o) const;
-    void dumpGradientsToFiles(const std::string& prefix);
-    bool combine(const std::vector<std::string> &toCombine);
-    static bool getTypeFromFile(const std::string &filename, u32 &statisticsType, bool &singlePrecision);
+    bool        read(const std::string& filename);
+    bool        read(Core::BinaryInputStream& is);
+    bool        write(const std::string& filename) const;
+    bool        write(Core::BinaryOutputStream& os) const;
+    bool        write(std::ostream& os) const;
+    bool        write(Core::XmlWriter& o) const;
+    void        dumpGradientsToFiles(const std::string& prefix);
+    bool        combine(const std::vector<std::string>& toCombine);
+    static bool getTypeFromFile(const std::string& filename, u32& statisticsType, bool& singlePrecision);
+
 private:
     void logProperties() const;
     void setPrecision();
-private:
-    const std::string readHeader(Core::BinaryInputStream &);
-    bool writeHeader(Core::BinaryOutputStream &) const;
-    const std::string getMagic() const;
-    bool isConsistent(const std::string &magic) const;
-    static bool checkConsistency(bool object, bool file, std::string description);
-    static bool isValid(const std::string &magic);
-    static bool hasBaseStatistics(const std::string &magic);
-    static bool hasMeanAndVariance(const std::string &magic);
-    static bool hasClassCounts(const std::string &magic);
-    static bool hasGradient(const std::string &magic);
-    static bool hasSinglePrecision(const std::string &magic);
 
+private:
+    const std::string readHeader(Core::BinaryInputStream&);
+    bool              writeHeader(Core::BinaryOutputStream&) const;
+    const std::string getMagic() const;
+    bool              isConsistent(const std::string& magic) const;
+    static bool       checkConsistency(bool object, bool file, std::string description);
+    static bool       isValid(const std::string& magic);
+    static bool       hasBaseStatistics(const std::string& magic);
+    static bool       hasMeanAndVariance(const std::string& magic);
+    static bool       hasClassCounts(const std::string& magic);
+    static bool       hasGradient(const std::string& magic);
+    static bool       hasSinglePrecision(const std::string& magic);
 };
 
 template<typename T>
 template<typename S>
-void Statistics<T>::initialize(const NeuralNetwork<S> &neuralNetwork) {
-
+void Statistics<T>::initialize(const NeuralNetwork<S>& neuralNetwork) {
     layerIndexToTrainableLayerIndex_.resize(neuralNetwork.nLayers());
     for (u32 layer = 0; layer < neuralNetwork.nLayers(); layer++)
         layerIndexToTrainableLayerIndex_[layer] = neuralNetwork.layerIndexToTrainableLayerIndex(layer);
@@ -197,18 +238,18 @@ void Statistics<T>::initialize(const NeuralNetwork<S> &neuralNetwork) {
 }
 
 template<>
-inline void Statistics<f32>::setPrecision(){
+inline void Statistics<f32>::setPrecision() {
     singlePrecision_ = true;
 }
 
 template<>
-inline void Statistics<f64>::setPrecision(){
+inline void Statistics<f64>::setPrecision() {
     singlePrecision_ = false;
 }
 
 template<typename T>
 template<typename S>
-void Statistics<T>::add(const Statistics<S> &rhs){
+void Statistics<T>::add(const Statistics<S>& rhs) {
     require(isComputing_);
     require(rhs.isComputing_);
     require_eq(hasBaseStatistics_, rhs.hasBaseStatistics_);
@@ -224,13 +265,13 @@ void Statistics<T>::add(const Statistics<S> &rhs){
         objectiveFunction_ += rhs.objectiveFunction_;
     }
     // add mean and variance
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         sum_.add(rhs.sum_);
         sumOfSquares_.add(rhs.sumOfSquares_);
     }
     // add class counts
     if (hasClassCounts_) {
-        for (std::map<u32,u32>::const_iterator it = rhs.classCount_.begin(); it != rhs.classCount_.end() ; it++) {
+        for (std::map<u32, u32>::const_iterator it = rhs.classCount_.begin(); it != rhs.classCount_.end(); it++) {
             incClassCount(it->first, it->second);
         }
     }
@@ -249,27 +290,25 @@ void Statistics<T>::add(const Statistics<S> &rhs){
 
 template<typename T>
 template<typename S>
-void Statistics<T>::copyStructure(const Statistics<S> &statistics){
-
-    hasClassCounts_ = statistics.hasClassCounts_;
+void Statistics<T>::copyStructure(const Statistics<S>& statistics) {
+    hasClassCounts_    = statistics.hasClassCounts_;
     hasBaseStatistics_ = statistics.hasBaseStatistics_;
-    hasGradient_ = statistics.hasGradient_;
+    hasGradient_       = statistics.hasGradient_;
     gradientWeights_.resize(statistics.gradientWeights_.size());
     gradientBias_.resize(statistics.gradientBias_.size());
     layerIndexToTrainableLayerIndex_ = statistics.layerIndexToTrainableLayerIndex_;
-    statisticTypes_ = statistics.statisticTypes_;
+    statisticTypes_                  = statistics.statisticTypes_;
 
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         sum_.resize(statistics.sum_.size());
         sumOfSquares_.resize(statistics.sumOfSquares_.size());
     }
-    if (hasGradient_){
+    if (hasGradient_) {
         for (u32 layer = 0; layer < gradientWeights_.size(); layer++) {
             gradientWeights_[layer].resize(statistics.gradientWeights_[layer].size());
             for (u32 stream = 0; stream < gradientWeights_[layer].size(); stream++) {
-                gradientWeights_[layer][stream].resize(
-                        statistics.gradientWeights_[layer][stream].nRows(),
-                        statistics.gradientWeights_[layer][stream].nColumns());
+                gradientWeights_[layer][stream].resize(statistics.gradientWeights_[layer][stream].nRows(),
+                                                       statistics.gradientWeights_[layer][stream].nColumns());
             }
         }
         for (u32 layer = 0; layer < gradientBias_.size(); layer++) {
@@ -278,40 +317,40 @@ void Statistics<T>::copyStructure(const Statistics<S> &statistics){
     }
 
     reset();
-
 }
 
 template<typename T>
-Core::BinaryInputStream& operator>>(Core::BinaryInputStream &i, Statistics<T> &s){
-    if (not s.read(i)) i.addState(std::ios::badbit); return i;
+Core::BinaryInputStream& operator>>(Core::BinaryInputStream& i, Statistics<T>& s) {
+    if (not s.read(i))
+        i.addState(std::ios::badbit);
+    return i;
 }
 
 template<typename T>
-Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream &o, const Statistics<T> &s){
-    if (not s.write(o)) o.addState(std::ios::badbit); return o;
+Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o, const Statistics<T>& s) {
+    if (not s.write(o))
+        o.addState(std::ios::badbit);
+    return o;
 }
 
-
-} // namespace Nn
+}  // namespace Nn
 
 namespace Core {
 
-    template <>
-    class NameHelper<Nn::Statistics<f32> > : public std::string {
-    public:
-        NameHelper() : std::string("nn-statistics-f32") {}
-    };
+template<>
+class NameHelper<Nn::Statistics<f32>> : public std::string {
+public:
+    NameHelper()
+            : std::string("nn-statistics-f32") {}
+};
 
-    template <>
-    class NameHelper<Nn::Statistics<f64> > : public std::string {
-    public:
-        NameHelper() : std::string("nn-statistics-f64") {}
-    };
+template<>
+class NameHelper<Nn::Statistics<f64>> : public std::string {
+public:
+    NameHelper()
+            : std::string("nn-statistics-f64") {}
+};
 
+}  //namespace Core
 
-} //namespace Core
-
-
-
-
-#endif // _NN_NEURAL_NETWORK_STATISTICS_HH
+#endif  // _NN_NEURAL_NETWORK_STATISTICS_HH

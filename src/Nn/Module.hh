@@ -20,39 +20,37 @@
 
 #include <Flow/Module.hh>
 
-namespace Core
-{
-    class FormatSet;
+namespace Core {
+class FormatSet;
 }
-
 
 namespace Nn {
 
 class Module_ {
 private:
-    Core::FormatSet *formats_;
+    Core::FormatSet* formats_;
+
 public:
     Module_();
     ~Module_();
     enum { FeatureScorerTypeOffset = 0x300 };
     enum FeatureScorerType {
-        nnOnDemanHybrid = FeatureScorerTypeOffset,
-        nnFullHybrid = FeatureScorerTypeOffset + 1,
-        nnPrecomputedHybrid = FeatureScorerTypeOffset + 2,
-        nnBatchFeatureScorer = FeatureScorerTypeOffset + 3,
-        nnCached = FeatureScorerTypeOffset + 4,
+        nnOnDemanHybrid        = FeatureScorerTypeOffset,
+        nnFullHybrid           = FeatureScorerTypeOffset + 1,
+        nnPrecomputedHybrid    = FeatureScorerTypeOffset + 2,
+        nnBatchFeatureScorer   = FeatureScorerTypeOffset + 3,
+        nnCached               = FeatureScorerTypeOffset + 4,
         nnTrainerFeatureScorer = FeatureScorerTypeOffset + 5,
-        pythonFeatureScorer = FeatureScorerTypeOffset + 6,
+        pythonFeatureScorer    = FeatureScorerTypeOffset + 6,
     };
 
     /** Set of file format class.
      */
-    Core::FormatSet &formats();
-
+    Core::FormatSet& formats();
 };
 
 typedef Core::SingletonHolder<Module_> Module;
 
-}
+}  // namespace Nn
 
-#endif // _NN_MODULE_HH
+#endif  // _NN_MODULE_HH

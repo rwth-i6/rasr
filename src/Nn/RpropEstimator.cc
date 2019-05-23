@@ -54,19 +54,17 @@ const Core::ParameterChoice RpropEstimator<T>::paramInitializationType(
         "step-size-initialization-type", &choiceInitializationType,
         "type of step size initialization", constant);
 
-
 template<typename T>
-RpropEstimator<T>::RpropEstimator(const Core::Configuration& c) :
-    Core::Component(c),
-    Precursor(c),
-    increasingFactor_(paramIncreasingFactor(c)),
-    decreasingFactor_(paramDecreasingFactor(c)),
-    relativeInitialStepSize_(paramRelativeInitialStepSize(c)),
-    initializationType_((initializationType)paramInitializationType(c)),
-    stepSizes_(0),
-    prevStatistics_(0),
-    needInit_(true)
-{
+RpropEstimator<T>::RpropEstimator(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          increasingFactor_(paramIncreasingFactor(c)),
+          decreasingFactor_(paramDecreasingFactor(c)),
+          relativeInitialStepSize_(paramRelativeInitialStepSize(c)),
+          initializationType_((initializationType)paramInitializationType(c)),
+          stepSizes_(0),
+          prevStatistics_(0),
+          needInit_(true) {
     logProperties();
 }
 
@@ -96,22 +94,22 @@ void RpropEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& stati
         prevStatistics_->finishComputation();
 
     // update step sizes (except of first iteration)
-    if (prevStatistics_){
+    if (prevStatistics_) {
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
             if (network.getLayer(layer).isTrainable()) {
                 for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                    NnMatrix &gradient = statistics.gradientWeights(layer).at(stream);
-                    NnMatrix &prevGradient = prevStatistics_->gradientWeights(layer).at(stream);
-                    NnMatrix &stepSizes = stepSizes_->gradientWeights(layer).at(stream);
-                    for (u32 i = 0; i < gradient.nRows(); i++){
-                        for (u32 j = 0; j < gradient.nColumns(); j++){
-                            updateStepSize(prevGradient.at(i,j), gradient.at(i,j), stepSizes.at(i,j));
+                    NnMatrix& gradient     = statistics.gradientWeights(layer).at(stream);
+                    NnMatrix& prevGradient = prevStatistics_->gradientWeights(layer).at(stream);
+                    NnMatrix& stepSizes    = stepSizes_->gradientWeights(layer).at(stream);
+                    for (u32 i = 0; i < gradient.nRows(); i++) {
+                        for (u32 j = 0; j < gradient.nColumns(); j++) {
+                            updateStepSize(prevGradient.at(i, j), gradient.at(i, j), stepSizes.at(i, j));
                         }
                     }
                 }
-                NnVector &gradient = statistics.gradientBias(layer);
-                NnVector &prevGradient = prevStatistics_->gradientBias(layer);
-                NnVector &stepSizes = stepSizes_->gradientBias(layer);
+                NnVector& gradient     = statistics.gradientBias(layer);
+                NnVector& prevGradient = prevStatistics_->gradientBias(layer);
+                NnVector& stepSizes    = stepSizes_->gradientBias(layer);
                 for (u32 i = 0; i < gradient.nRows(); i++)
                     updateStepSize(prevGradient.at(i), gradient.at(i), stepSizes.at(i));
             }
@@ -121,20 +119,20 @@ void RpropEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& stati
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
-                NnMatrix &gradient = statistics.gradientWeights(layer).at(stream);
-                NnMatrix &stepSizes = stepSizes_->gradientWeights(layer).at(stream);
+                NnMatrix& gradient  = statistics.gradientWeights(layer).at(stream);
+                NnMatrix& stepSizes = stepSizes_->gradientWeights(layer).at(stream);
                 // update weights
-                for (u32 i = 0; i < gradient.nRows(); i++){
+                for (u32 i = 0; i < gradient.nRows(); i++) {
                     for (u32 j = 0; j < gradient.nColumns(); j++)
-                        updateParameter(stepSizes.at(i,j), gradient.at(i,j), weights->at(i,j));
+                        updateParameter(stepSizes.at(i, j), gradient.at(i, j), weights->at(i, j));
                 }
             }
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
-            NnVector &gradient = statistics.gradientBias(layer);
-            NnVector &stepSizes = stepSizes_->gradientBias(layer);
+            NnVector& gradient  = statistics.gradientBias(layer);
+            NnVector& stepSizes = stepSizes_->gradientBias(layer);
 
             // update bias
             for (u32 i = 0; i < gradient.nRows(); i++)
@@ -146,12 +144,12 @@ void RpropEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& stati
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
             if (network.getLayer(layer).isTrainable()) {
                 for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                    NnMatrix &stepSizes = stepSizes_->gradientWeights(layer).at(stream);
+                    NnMatrix& stepSizes = stepSizes_->gradientWeights(layer).at(stream);
                     stepSizes.initComputation();
                     normStepSize += stepSizes.l1norm();
                     stepSizes.finishComputation(false);
                 }
-                NnVector &stepSizes = stepSizes_->gradientBias(layer);
+                NnVector& stepSizes = stepSizes_->gradientBias(layer);
                 stepSizes.initComputation();
                 normStepSize += stepSizes.l1norm();
                 stepSizes.finishComputation(false);
@@ -160,7 +158,7 @@ void RpropEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& stati
         this->statisticsChannel_ << "step-size: " << normStepSize;
     }
 
-    if (!this->fullBatchMode_){
+    if (!this->fullBatchMode_) {
         if (prevStatistics_)
             delete prevStatistics_;
         prevStatistics_ = new Statistics<T>(statistics);
@@ -172,8 +170,8 @@ void RpropEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& stati
 }
 
 template<typename T>
-void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network){
-    if (needInit_){
+void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network) {
+    if (needInit_) {
         verify(!stepSizes_);
         verify(!prevStatistics_);
 
@@ -186,39 +184,38 @@ void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network){
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
             if (network.getLayer(layer).isTrainable()) {
                 for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                    const NnMatrix *weights = network.getLayer(layer).getWeights(stream);
-                    T avgBlockNorm = weights->l1norm() / weights->size();
-                    blockMin = std::min(blockMin, avgBlockNorm);
+                    const NnMatrix* weights      = network.getLayer(layer).getWeights(stream);
+                    T               avgBlockNorm = weights->l1norm() / weights->size();
+                    blockMin                     = std::min(blockMin, avgBlockNorm);
                 }
-                const NnVector *bias = network.getLayer(layer).getBias();
-                T avgBlockNorm = bias->l1norm() / bias->size();
-                blockMin = std::min(blockMin, avgBlockNorm);
+                const NnVector* bias         = network.getLayer(layer).getBias();
+                T               avgBlockNorm = bias->l1norm() / bias->size();
+                blockMin                     = std::min(blockMin, avgBlockNorm);
             }
         }
 
-        u32 nParameters = network.nFreeParameters();
-        T avgParameterNorm = parameterNorm / nParameters;
+        u32 nParameters      = network.nFreeParameters();
+        T   avgParameterNorm = parameterNorm / nParameters;
         this->log("average norm of trainable parameters: ") << avgParameterNorm;
 
         // step sizes are stored in gradient-field of statistics, which has exactly the same structure
         stepSizes_ = new Statistics<T>(network.nLayers(), Statistics<T>::GRADIENT);
         stepSizes_->initialize(network);
 
-
         std::string filename = paramStepSizesOld(this->config);
-        if (filename != ""){
+        if (filename != "") {
             if (!stepSizes_->read(paramStepSizesOld(this->config)))
                 this->error("failed to read step size file ") << filename;
 
-            require(paramPreviousStatistics(this->config) != ""); // need previous gradient (except of the initial step)
+            require(paramPreviousStatistics(this->config) != "");  // need previous gradient (except of the initial step)
 
-            u32 statisticsTypeFile = 0;
+            u32  statisticsTypeFile = 0;
             bool dummy;
             if (!Nn::Statistics<T>::getTypeFromFile(paramPreviousStatistics(this->config), statisticsTypeFile, dummy))
                 this->error("could not read header from file: ") << paramPreviousStatistics(this->config);
-            u32 requiredStats = requiredStatistics();
-            u32 statisticsType = statisticsTypeFile | requiredStats; // union
-            prevStatistics_ = new Statistics<T>(network.nLayers(), statisticsType);
+            u32 requiredStats  = requiredStatistics();
+            u32 statisticsType = statisticsTypeFile | requiredStats;  // union
+            prevStatistics_    = new Statistics<T>(network.nLayers(), statisticsType);
             prevStatistics_->initialize(network);
             if (!prevStatistics_->read(paramPreviousStatistics(this->config)))
                 this->error("failed to read previous statistics from file ") << paramPreviousStatistics(this->config);
@@ -228,8 +225,8 @@ void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network){
             for (u32 layer = 0; layer < network.nLayers(); layer++) {
                 if (network.getLayer(layer).isTrainable()) {
                     for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                        T initialStepSize = 0;
-                        const NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                        T               initialStepSize = 0;
+                        const NnMatrix* weights         = network.getLayer(layer).getWeights(stream);
                         if (initializationType_ == constant)
                             initialStepSize = relativeInitialStepSize_ != 0 ? relativeInitialStepSize_ * avgParameterNorm : this->initialLearningRate_;
                         else if (initializationType_ == minBlockAverage)
@@ -238,8 +235,8 @@ void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network){
                             initialStepSize = weights->l1norm() / weights->size() * relativeInitialStepSize_;
                         stepSizes_->gradientWeights(layer).at(stream).fill(initialStepSize);
                     }
-                    T initialStepSize = 0;
-                    const NnVector *bias = network.getLayer(layer).getBias();
+                    T               initialStepSize = 0;
+                    const NnVector* bias            = network.getLayer(layer).getBias();
                     if (initializationType_ == constant)
                         initialStepSize = relativeInitialStepSize_ != 0 ? relativeInitialStepSize_ * avgParameterNorm : this->initialLearningRate_;
                     else if (initializationType_ == minBlockAverage)
@@ -257,29 +254,28 @@ void RpropEstimator<T>::initialize(const NeuralNetwork<T>& network){
         network.finishComputation(false);
 
         needInit_ = false;
-
     }
 }
 
 template<typename T>
-inline void RpropEstimator<T>::updateStepSize(const T &prevGradient, const T& gradient, T& stepSize) const {
+inline void RpropEstimator<T>::updateStepSize(const T& prevGradient, const T& gradient, T& stepSize) const {
     if (stepSize < 0)
-        stepSize *= -1.0;			// un-set hold
-    else if (prevGradient * gradient >= 0) 	// no sign change in gradient
+        stepSize *= -1.0;                   // un-set hold
+    else if (prevGradient * gradient >= 0)  // no sign change in gradient
         stepSize *= increasingFactor_;
-    else					// sign change, negative sign marks hold, i.e. no step is done
+    else  // sign change, negative sign marks hold, i.e. no step is done
         stepSize *= -decreasingFactor_;
 }
 
 template<typename T>
-inline void RpropEstimator<T>::updateParameter(const T &stepSize, const T& gradient, T& parameter) const {
+inline void RpropEstimator<T>::updateParameter(const T& stepSize, const T& gradient, T& parameter) const {
     if (stepSize > 0)
-        parameter -= stepSize * signum(gradient); // minimization problem formulation -> go into direction of negative gradient
+        parameter -= stepSize * signum(gradient);  // minimization problem formulation -> go into direction of negative gradient
 }
 
 template<typename T>
 void RpropEstimator<T>::logProperties() const {
-    if (relativeInitialStepSize_ != 0){
+    if (relativeInitialStepSize_ != 0) {
         this->log("using initial step size relative to parameter norm, factor: ") << relativeInitialStepSize_;
         if (initializationType_ == blockwiseAverage)
             this->log("averaging initial step size block-wise");
@@ -288,8 +284,7 @@ void RpropEstimator<T>::logProperties() const {
     }
 }
 
-
 namespace Nn {
 template class RpropEstimator<f32>;
 template class RpropEstimator<f64>;
-}
+}  // namespace Nn

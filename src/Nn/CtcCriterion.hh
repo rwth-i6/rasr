@@ -15,19 +15,18 @@
 #ifndef _NN_CTCCRITERION_HH
 #define _NN_CTCCRITERION_HH
 
-#include "Criterion.hh"
-#include "BatchStateScoreIntf.hh"
+#include <Fsa/Automaton.hh>
 #include <Math/FastMatrix.hh>
+#include <Mm/FeatureScorer.hh>
 #include <memory>
 #include <vector>
-#include <Mm/FeatureScorer.hh>
-#include <Fsa/Automaton.hh>
-
+#include "BatchStateScoreIntf.hh"
+#include "Criterion.hh"
 
 namespace Bliss {
 class SpeechSegment;
 class Lexicon;
-}
+}  // namespace Bliss
 namespace Am {
 class AcousticModel;
 }
@@ -35,11 +34,11 @@ namespace Speech {
 class AllophoneStateGraphBuilder;
 class DataSource;
 class Alignment;
-}
+}  // namespace Speech
 namespace Mm {
 class FeatureScorer;
 class ScaledFeatureScorer;
-}
+}  // namespace Mm
 namespace Search {
 class Aligner;
 }
@@ -49,7 +48,6 @@ class Archive;
 namespace Fsa {
 class Automaton;
 }
-
 
 namespace Nn {
 
@@ -63,37 +61,38 @@ class TimeAlignedAutomaton;
 template<typename FloatT>
 class CtcCriterion : public SegmentCriterion<FloatT>, public BatchStateScoreIntf<FloatT> {
     typedef SegmentCriterion<FloatT> Precursor;
+
 protected:
     typedef typename Types<FloatT>::NnVector NnVector;
     typedef typename Types<FloatT>::NnMatrix NnMatrix;
 
-    Core::Ref<Am::AcousticModel> acousticModel_;
-    Core::Ref<const Bliss::Lexicon> lexicon_;
+    Core::Ref<Am::AcousticModel>                        acousticModel_;
+    Core::Ref<const Bliss::Lexicon>                     lexicon_;
     std::shared_ptr<Speech::AllophoneStateGraphBuilder> allophoneStateGraphBuilder_;
-    bool useSearchAligner_;
-    std::shared_ptr<Search::Aligner> aligner_;
-    bool useDirectAlignmentExtraction_;
-    FloatT minAcousticPruningThreshold_, maxAcousticPruningThreshold_;
-    FloatT statePosteriorScale_;
-    FloatT statePosteriorLogBackoff_;
-    std::shared_ptr<Prior<FloatT> > statePriors_;
-    Core::Ref<Mm::ScaledFeatureScorer> fixedMixtureSetFeatureScorer_;
-    Core::Ref<Speech::DataSource> fixedMixtureSetFeatureExtractionDataSource_;
-    std::string fixedMixtureSetExtractAlignmentsPortName_;
-    bool posteriorUseSearchAligner_;
-    bool posteriorTotalNormalize_;
-    FloatT posteriorArcLogThreshold_;
-    FloatT posteriorScale_;
-    unsigned int posteriorNBestLimit_;
-    std::shared_ptr<Core::Archive> dumpViterbiAlignmentsArchive_;
-    std::shared_ptr<Core::Archive> dumpReferenceProbsArchive_;
-    bool doDebugDumps_;
-    bool logTimeStatistics_;
-    bool useCrossEntropyAsLoss_;
-    bool inputInLogSpace_;
+    bool                                                useSearchAligner_;
+    std::shared_ptr<Search::Aligner>                    aligner_;
+    bool                                                useDirectAlignmentExtraction_;
+    FloatT                                              minAcousticPruningThreshold_, maxAcousticPruningThreshold_;
+    FloatT                                              statePosteriorScale_;
+    FloatT                                              statePosteriorLogBackoff_;
+    std::shared_ptr<Prior<FloatT>>                      statePriors_;
+    Core::Ref<Mm::ScaledFeatureScorer>                  fixedMixtureSetFeatureScorer_;
+    Core::Ref<Speech::DataSource>                       fixedMixtureSetFeatureExtractionDataSource_;
+    std::string                                         fixedMixtureSetExtractAlignmentsPortName_;
+    bool                                                posteriorUseSearchAligner_;
+    bool                                                posteriorTotalNormalize_;
+    FloatT                                              posteriorArcLogThreshold_;
+    FloatT                                              posteriorScale_;
+    unsigned int                                        posteriorNBestLimit_;
+    std::shared_ptr<Core::Archive>                      dumpViterbiAlignmentsArchive_;
+    std::shared_ptr<Core::Archive>                      dumpReferenceProbsArchive_;
+    bool                                                doDebugDumps_;
+    bool                                                logTimeStatistics_;
+    bool                                                useCrossEntropyAsLoss_;
+    bool                                                inputInLogSpace_;
 
-    NnMatrix stateLogPosteriors_; // in -log space
-    bool discardCurrentInput_;
+    NnMatrix stateLogPosteriors_;  // in -log space
+    bool     discardCurrentInput_;
     using Precursor::segment_;
 
     void initLexicon();
@@ -104,42 +103,43 @@ protected:
     void initFixedMixtureSet();
     void initDebug();
 
-    u32 nEmissions() const;
-    u32 getCurSegmentTimeLen() const;
-    virtual u32 getBatchLen() { return getCurSegmentTimeLen(); }
-    virtual FloatT getStateScore(u32 timeIdx, u32 emissionIdx); // -log space
-    void getStateScorers_MixtureSet(
-            /*out*/ std::vector<Core::Ref<const Mm::FeatureScorer::ContextScorer> >& scorers);
+    u32         nEmissions() const;
+    u32         getCurSegmentTimeLen() const;
+    virtual u32 getBatchLen() {
+        return getCurSegmentTimeLen();
+    }
+    virtual FloatT getStateScore(u32 timeIdx, u32 emissionIdx);  // -log space
+    void           getStateScorers_MixtureSet(
+                      /*out*/ std::vector<Core::Ref<const Mm::FeatureScorer::ContextScorer>>& scorers);
     void getStateScorers(
-            /*out*/ std::vector<Core::Ref<const Mm::FeatureScorer::ContextScorer> >& scorers);
-    Core::Ref<const Fsa::Automaton> getHypothesesAllophoneStateFsa();
-    Core::Ref<const Fsa::Automaton> getTimeAlignedFsa_SearchAligner();
-    Core::Ref<TimeAlignedAutomaton<FloatT> > getTimeAlignedFsa_custom();
-    Core::Ref<const Fsa::Automaton> getTimeAlignedFsa();
-    Core::Ref<const Fsa::Automaton> getPosteriorFsa();
-    bool calcStateProbErrors(
-            /*out*/ FloatT& error, // the error (objective function value)
-            /*out*/ NnMatrix& referenceProb // the reference prob
-            );
-    void dumpViterbiAlignments();
+            /*out*/ std::vector<Core::Ref<const Mm::FeatureScorer::ContextScorer>>& scorers);
+    Core::Ref<const Fsa::Automaton>         getHypothesesAllophoneStateFsa();
+    Core::Ref<const Fsa::Automaton>         getTimeAlignedFsa_SearchAligner();
+    Core::Ref<TimeAlignedAutomaton<FloatT>> getTimeAlignedFsa_custom();
+    Core::Ref<const Fsa::Automaton>         getTimeAlignedFsa();
+    Core::Ref<const Fsa::Automaton>         getPosteriorFsa();
+    bool                                    calcStateProbErrors(FloatT&   error,         // the error (objective function value)
+                                                                NnMatrix& referenceProb  // the reference prob
+                                       );
+    void                                    dumpViterbiAlignments();
 
 public:
-    CtcCriterion(const Core::Configuration &c);
+    CtcCriterion(const Core::Configuration& c);
     ~CtcCriterion();
 
-    virtual void inputSpeechSegment(Bliss::SpeechSegment& segment, NnMatrix& nnOutput, NnVector* weights = NULL);
-    virtual void getObjectiveFunction(FloatT& value);
-    virtual void getErrorSignal(NnMatrix& errorSignal);
-    virtual void getErrorSignal_naturalPairing(NnMatrix& errorSignal, NeuralNetworkLayer<FloatT>& lastLayer);
+    virtual void      inputSpeechSegment(Bliss::SpeechSegment& segment, NnMatrix& nnOutput, NnVector* weights = NULL);
+    virtual void      getObjectiveFunction(FloatT& value);
+    virtual void      getErrorSignal(NnMatrix& errorSignal);
+    virtual void      getErrorSignal_naturalPairing(NnMatrix& errorSignal, NeuralNetworkLayer<FloatT>& lastLayer);
     virtual NnMatrix* getPseudoTargets();
-    virtual bool discardCurrentInput() {
+    virtual bool      discardCurrentInput() {
         return discardCurrentInput_;
     }
 
     Core::Ref<Am::AcousticModel> getAcousticModel();
-    bool getAlignment(Speech::Alignment& out, NnMatrix& logPosteriors, const std::string& orthography, FloatT minProbGT = 0.0, FloatT gamma = 1.0);
+    bool                         getAlignment(Speech::Alignment& out, NnMatrix& logPosteriors, const std::string& orthography, FloatT minProbGT = 0.0, FloatT gamma = 1.0);
 };
 
-}
+}  // namespace Nn
 
-#endif // CTCCRITERION_HH
+#endif  // CTCCRITERION_HH

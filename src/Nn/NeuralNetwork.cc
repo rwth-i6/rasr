@@ -60,20 +60,19 @@ const Core::ParameterBool NeuralNetwork<T>::paramParameterFileSymbolic(
 
 // constructor
 template<typename T>
-NeuralNetwork<T>::NeuralNetwork(const Core::Configuration &config)
-: Core::Component(config),
-  parametersOld_(paramNetworkNetworkFilenameOld(config)),
-  parametersNew_(paramNetworkNetworkFilenameNew(config)),
-  isRecurrent_(paramIsRecurrent(config)),
-  measureTime_(paramMeasureTime(config)),
-  parameterFileSymbolic_(paramParameterFileSymbolic(config)),
-  needInit_(true),
-  nTrainableLayers_(0),
-  highestTrainableLayerIndex_(-1),
-  lowestTrainableLayerIndex_(-1),
-  isComputing_(false),
-  batchSize_(0)
-{}
+NeuralNetwork<T>::NeuralNetwork(const Core::Configuration& config)
+        : Core::Component(config),
+          parametersOld_(paramNetworkNetworkFilenameOld(config)),
+          parametersNew_(paramNetworkNetworkFilenameNew(config)),
+          isRecurrent_(paramIsRecurrent(config)),
+          measureTime_(paramMeasureTime(config)),
+          parameterFileSymbolic_(paramParameterFileSymbolic(config)),
+          needInit_(true),
+          nTrainableLayers_(0),
+          highestTrainableLayerIndex_(-1),
+          lowestTrainableLayerIndex_(-1),
+          isComputing_(false),
+          batchSize_(0) {}
 
 // destructor
 template<typename T>
@@ -96,7 +95,7 @@ void NeuralNetwork<T>::buildTopology() {
     // for each feature stream connection: perform a breadth first search through the network layers
     for (u32 fIndex = 0; fIndex < featureConnections.size(); ++fIndex) {
         std::string featureConnection = featureConnections.at(fIndex);
-        u32 sourcePort, targetPort;
+        u32         sourcePort, targetPort;
         std::string targetName;
 
         formatConnection(featureConnection, sourcePort, targetName, targetPort);
@@ -125,7 +124,7 @@ void NeuralNetwork<T>::buildTopology() {
             // add the connection to the topology
             for (u32 j = 0; j < newConnections.size(); ++j) {
                 formatConnection(newConnections.at(j), sourcePort, targetName, targetPort);
-                isNew = createLayer(targetName);
+                isNew      = createLayer(targetName);
                 bool check = topology_.addConnection(layerName, targetName, targetPort);
                 verify(check);
                 if (isNew)
@@ -145,9 +144,9 @@ void NeuralNetwork<T>::buildTopology() {
     // set input activation ids from feature streams
     for (u32 streamId = 0; streamId < topology_.nFeatureStreams(); ++streamId) {
         for (u32 connectionId = 0; connectionId < topology_.nFeatureStreamConnections(streamId); ++connectionId) {
-            u32 layerElementId = topology_.featureStreamConnection(streamId, connectionId).first;
-            u32 portId = topology_.featureStreamConnection(streamId, connectionId).second;
-            NetworkTopologyElement<T> *layerElement = topology_.layerElement(layerElementId);
+            u32                        layerElementId = topology_.featureStreamConnection(streamId, connectionId).first;
+            u32                        portId         = topology_.featureStreamConnection(streamId, connectionId).second;
+            NetworkTopologyElement<T>* layerElement   = topology_.layerElement(layerElementId);
             verify(layerElement);
             u32 layerIndex = layerElement->topologicalId();
             verify_lt(layerIndex, layers_.size());
@@ -157,10 +156,10 @@ void NeuralNetwork<T>::buildTopology() {
     // set input activation ids, add predecessors
     for (u32 l = 0; l < topology_.nLayers(); ++l) {
         NetworkTopologyElement<T>* layerElement = topology_.layerElement(l);
-        NeuralNetworkLayer<T> *layer = layerElement->layer();
-        u32 portId = 0;
-        for (u32 p = 0;  p < layerElement->nPredecessors(); ++p, ++portId) {
-            NeuralNetworkLayer<T> *predecessorLayer = topology_.layerElement(layerElement->predecessor(p))->layer();
+        NeuralNetworkLayer<T>*     layer        = layerElement->layer();
+        u32                        portId       = 0;
+        for (u32 p = 0; p < layerElement->nPredecessors(); ++p, ++portId) {
+            NeuralNetworkLayer<T>* predecessorLayer = topology_.layerElement(layerElement->predecessor(p))->layer();
             layer->setInputActivationIndex(predecessorLayer->getOutputActivationIndex(), portId);
             layer->addPredecessor(topology_.layerElement(layerElement->predecessor(p))->topologicalId(), portId);
         }
@@ -190,7 +189,6 @@ void NeuralNetwork<T>::buildTopology() {
         Core::Component::log("lowest trainable layer index: ") << lowestTrainableLayerIndex_;
     }
 }
-
 
 template<typename T>
 bool NeuralNetwork<T>::createLayer(const std::string& layerName) {
@@ -243,12 +241,12 @@ void NeuralNetwork<T>::connectActivations() {
 template<typename T>
 void NeuralNetwork<T>::initParameters(std::string filename) {
     // load the parameters from file, or random initialization
-    if (! filename.empty()) // load parameters from file
+    if (!filename.empty())  // load parameters from file
         loadParameters(filename);
-    else { // initialization of each layer
+    else {  // initialization of each layer
         Core::Component::log("Empty filename. Initializing parameters ..");
-        for (typename std::vector<NeuralNetworkLayer<T>* >::iterator itLayer = layers_.begin();
-                itLayer != layers_.end(); ++itLayer) {
+        for (typename std::vector<NeuralNetworkLayer<T>*>::iterator itLayer = layers_.begin();
+             itLayer != layers_.end(); ++itLayer) {
             (*itLayer)->initializeNetworkParameters();
         }
     }
@@ -269,7 +267,6 @@ inline const NeuralNetworkLayer<T>& NeuralNetwork<T>::getLayer(u32 index) const 
     return *(layers_[index]);
 }
 
-
 template<typename T>
 inline NeuralNetworkLayer<T>& NeuralNetwork<T>::getTopLayer() {
     require_gt(layers_.size(), 0);
@@ -282,12 +279,11 @@ inline const NeuralNetworkLayer<T>& NeuralNetwork<T>::getTopLayer() const {
     return *(layers_.back());
 }
 
-
 // removes top layer from network and returns a pointer to the removed layer
 template<typename T>
 NeuralNetworkLayer<T>* NeuralNetwork<T>::popLayer() {
     require_ge(layers_.size(), 1);
-    NeuralNetworkLayer<T> *result = layers_.back();
+    NeuralNetworkLayer<T>* result = layers_.back();
     layers_.resize(layers_.size() - 1);
     return result;
 }
@@ -358,8 +354,8 @@ template<typename T>
 bool NeuralNetwork<T>::applySoftmax() {
     require(isComputing_);
     require_gt(layers_.size(), 0);
-    require_eq(getTopLayerOutput().size(),0);
-    LinearAndSoftmaxLayer<T> *layer = dynamic_cast<LinearAndSoftmaxLayer<T>* >(&getTopLayer());
+    require_eq(getTopLayerOutput().size(), 0);
+    LinearAndSoftmaxLayer<T>* layer = dynamic_cast<LinearAndSoftmaxLayer<T>*>(&getTopLayer());
     require(layer);
     require(!layer->evaluatesSoftmax());
     layer->applySoftmax(getTopLayerOutput());
@@ -408,8 +404,6 @@ void NeuralNetwork<T>::setInputActivations(const std::vector<T>& inputStream) {
     activations_.at(0).copy(&(inputStream.at(0)));
 }
 
-
-
 // forward the layers, assume features are already set
 template<typename T>
 void NeuralNetwork<T>::forwardLayers(u32 startLayer) {
@@ -430,16 +424,14 @@ void NeuralNetwork<T>::forwardLayers(u32 startLayer) {
     }
 }
 
-
 template<typename T>
-void NeuralNetwork<T>::initializeNetwork(u32 batchSize, const std::string &filename) {
+void NeuralNetwork<T>::initializeNetwork(u32 batchSize, const std::string& filename) {
     std::vector<u32> streamSizes;
     initializeNetwork(batchSize, streamSizes, filename);
 }
 
-
 template<typename T>
-void NeuralNetwork<T>::initializeNetwork(u32 batchSize, std::vector<u32> streamSizes, const std::string &filename) {
+void NeuralNetwork<T>::initializeNetwork(u32 batchSize, std::vector<u32> streamSizes, const std::string& filename) {
     // create/build the network
     buildTopology();
 
@@ -459,16 +451,16 @@ void NeuralNetwork<T>::initializeNetwork(u32 batchSize, std::vector<u32> streamS
         for (u32 stream = 0; stream < topology_.nFeatureStreams(); ++stream) {
             u32 nConnections = topology_.nFeatureStreamConnections(stream);
             for (u32 connection = 0; connection < nConnections; ++connection) {
-                std::pair<u32, u32> p = topology_.featureStreamConnection(stream, connection);
-                u32 layerId = topology_.layerElement(p.first)->topologicalId();
-                u32 dim = getLayer(layerId).getInputDimension(p.second);
+                std::pair<u32, u32> p       = topology_.featureStreamConnection(stream, connection);
+                u32                 layerId = topology_.layerElement(p.first)->topologicalId();
+                u32                 dim     = getLayer(layerId).getInputDimension(p.second);
                 streamSizes.push_back(dim);
                 Core::Component::log("Found input layer '%s' with input dimension '%d'",
                                      getLayer(layerId).name().c_str(), dim);
             }
         }
     }
-    for (int k=0; k<streamSizes.size(); ++k) {
+    for (int k = 0; k < streamSizes.size(); ++k) {
         this->log(Core::form("streamSizes[%d]=%d\n", k, streamSizes[k]).c_str());
     }
     // set the size of the input activations, determined from streamSizes
@@ -487,7 +479,6 @@ void NeuralNetwork<T>::initializeNetwork(u32 batchSize, std::vector<u32> streamS
     else {
         initParameters(parametersOld_);
     }
-
 
     // set measure time for all layers
     if (measureTime_) {
@@ -535,7 +526,6 @@ void NeuralNetwork<T>::resizeInputActivations(const std::vector<u32>& streamSize
     }
 }
 
-
 template<typename T>
 void NeuralNetwork<T>::setInputDimensions() {
     for (u32 index = 0; index < layers_.size(); ++index) {
@@ -546,16 +536,16 @@ void NeuralNetwork<T>::setInputDimensions() {
     }
 }
 
-
 /**	load the network parameters from file
  */
 template<typename T>
-void NeuralNetwork<T>::loadParameters(const std::string &filename) {
+void NeuralNetwork<T>::loadParameters(const std::string& filename) {
     // determine file suffix
     std::string suffix;
-    if ((filename.length() >= 4) && (filename.substr(0,4) == "bin:")) {
+    if ((filename.length() >= 4) && (filename.substr(0, 4) == "bin:")) {
         suffix = ".bin";
-    } else {
+    }
+    else {
         suffix = ".xml";
     }
     // load the parameters of the network
@@ -569,7 +559,8 @@ void NeuralNetwork<T>::loadParameters(const std::string &filename) {
         std::ostringstream type;
         if (typeid(T) == typeid(f32)) {
             type << "f32";
-        } else if (typeid(T) == typeid(f64)) {
+        }
+        else if (typeid(T) == typeid(f64)) {
             type << "f64";
         }
         std::string newFilename = filename + "-" + type.str() + "-layer-" + id.str() + suffix;
@@ -581,7 +572,7 @@ void NeuralNetwork<T>::loadParameters(const std::string &filename) {
 /**	save the network parameters from file
  */
 template<typename T>
-void NeuralNetwork<T>::saveParameters(const std::string &filename) {
+void NeuralNetwork<T>::saveParameters(const std::string& filename) {
     if (filename.empty()) {
         log("parameters-new is empty. Do not save parameters.");
     }
@@ -590,13 +581,14 @@ void NeuralNetwork<T>::saveParameters(const std::string &filename) {
 
         // determine file suffix
         std::string suffix;
-        if ((filename.length() >= 4) && (filename.substr(0,4) == "bin:")) {
+        if ((filename.length() >= 4) && (filename.substr(0, 4) == "bin:")) {
             suffix = ".bin";
-        } else {
+        }
+        else {
             suffix = ".xml";
         }
         // save the parameters of the network
-        for (s32 index = (s32)layers_.size()-1; index >= 0; index--) {
+        for (s32 index = (s32)layers_.size() - 1; index >= 0; index--) {
             // create new layer specific filename
             std::ostringstream id;
             if (parameterFileSymbolic_)
@@ -606,7 +598,8 @@ void NeuralNetwork<T>::saveParameters(const std::string &filename) {
             std::ostringstream type;
             if (typeid(T) == typeid(f32)) {
                 type << "f32";
-            } else if (typeid(T) == typeid(f64)) {
+            }
+            else if (typeid(T) == typeid(f64)) {
                 type << "f64";
             }
             std::string newFilename = filename + "-" + type.str() + "-layer-" + id.str() + suffix;
@@ -654,24 +647,21 @@ void NeuralNetwork<T>::finalize() {
         layers_.at(index)->finalize();
 }
 
-
-
 // connections are of format
 // "<src-id> -> <layer-name>" for feature stream connections, or
 // "<layer-name>" for connections between layers
 // for compatibility with old format: "<srd-id> -> <layer-name>:.*" allowed
 template<typename T>
-bool NeuralNetwork<T>::formatConnection(const std::string& connection, u32& srcPort, std::string& targetLayerName, u32 &targetPort) {
-
+bool NeuralNetwork<T>::formatConnection(const std::string& connection, u32& srcPort, std::string& targetLayerName, u32& targetPort) {
     // default value
-    srcPort = 0;
+    srcPort         = 0;
     targetLayerName = "";
-    targetPort = 0;
+    targetPort      = 0;
     std::string dummyLayer;
-    bool result = true;
+    bool        result = true;
 
-    std::vector<std::string> portNames; 		// separate the source-targets using "->"
-    std::string lhs, rhs;
+    std::vector<std::string> portNames;  // separate the source-targets using "->"
+    std::string              lhs, rhs;
 
     Core::str2vector(connection, portNames, "->");
 
@@ -697,10 +687,10 @@ bool NeuralNetwork<T>::formatConnection(const std::string& connection, u32& srcP
 template<typename T>
 bool NeuralNetwork<T>::formatConnectionPart(const std::string& connection, bool lhs, u32& port, std::string& layerName) {
     // default value
-    port = 0;
-    layerName = "";
-    bool result = true;
-    std::vector<std::string> parts = Core::split(connection,  ":");
+    port                            = 0;
+    layerName                       = "";
+    bool                     result = true;
+    std::vector<std::string> parts  = Core::split(connection, ":");
     if (parts.size() == 0 || parts.size() > 2) {
         layerName = "";
         return false;
@@ -712,7 +702,7 @@ bool NeuralNetwork<T>::formatConnectionPart(const std::string& connection, bool 
             layerName = parts[0];
         return result;
     }
-    else { // parts.size() == 2
+    else {  // parts.size() == 2
         result &= Core::str2unsigned(parts[1], port);
         layerName = parts[0];
         return result;
@@ -723,7 +713,7 @@ template<typename T>
 std::string NeuralNetwork<T>::getTopologyDescription() {
     std::stringstream ss;
     for (u32 l = 0; l < layers_.size(); l++) {
-        NeuralNetworkLayer<T> *layer = layers_.at(l);
+        NeuralNetworkLayer<T>* layer = layers_.at(l);
         if (layer)
             ss << layer->getName() << ", ";
         else
@@ -737,4 +727,4 @@ std::string NeuralNetwork<T>::getTopologyDescription() {
 namespace Nn {
 template class NeuralNetwork<f32>;
 template class NeuralNetwork<f64>;
-}
+}  // namespace Nn

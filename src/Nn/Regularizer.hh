@@ -28,6 +28,7 @@ template<typename T>
 class Regularizer : virtual public Core::Component {
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 private:
     typedef Core::Component Precursor;
     enum RegularizerType {
@@ -36,12 +37,15 @@ private:
         l2Regularizer,
         centeredRegularizer,
     };
-    static const Core::Choice choiceRegularizerType;
+    static const Core::Choice          choiceRegularizerType;
     static const Core::ParameterChoice paramRegularizerType;
+
 public:
     Regularizer(const Core::Configuration& config);
     virtual ~Regularizer() {}
-    virtual T objectiveFunction(NeuralNetwork<T>& network, T factor) { return 0; }
+    virtual T objectiveFunction(NeuralNetwork<T>& network, T factor) {
+        return 0;
+    }
     virtual void addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor) {}
 
     static Regularizer<T>* createRegularizer(const Core::Configuration& config);
@@ -53,16 +57,18 @@ public:
  */
 template<typename T>
 class L1Regularizer : public Regularizer<T> {
-    typedef Regularizer<T> Precursor;
+    typedef Regularizer<T>              Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 private:
     NnMatrix signMatrix_;
     NnVector signVector_;
+
 public:
     L1Regularizer(const Core::Configuration& config);
     virtual ~L1Regularizer() {}
-    virtual T objectiveFunction(NeuralNetwork<T>& network, T factor);
+    virtual T    objectiveFunction(NeuralNetwork<T>& network, T factor);
     virtual void addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor);
 };
 
@@ -72,13 +78,14 @@ public:
  */
 template<typename T>
 class L2Regularizer : public Regularizer<T> {
-    typedef Regularizer<T> Precursor;
+    typedef Regularizer<T>              Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
     L2Regularizer(const Core::Configuration& config);
     virtual ~L2Regularizer() {}
-    virtual T objectiveFunction(NeuralNetwork<T>& network, T factor);
+    virtual T    objectiveFunction(NeuralNetwork<T>& network, T factor);
     virtual void addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor);
 };
 
@@ -88,22 +95,23 @@ public:
  */
 template<typename T>
 class CenteredL2Regularizer : public Regularizer<T> {
-    typedef Regularizer<T> Precursor;
+    typedef Regularizer<T>              Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 private:
     static const Core::ParameterString paramCenterParameters;
-    NeuralNetwork<T> centerNetwork_;
-    NnVector diffVector_;
-    NnMatrix diffMatrix_;
+    NeuralNetwork<T>                   centerNetwork_;
+    NnVector                           diffVector_;
+    NnMatrix                           diffMatrix_;
+
 public:
     CenteredL2Regularizer(const Core::Configuration& config);
-    virtual ~CenteredL2Regularizer() {};
-    virtual T objectiveFunction(NeuralNetwork<T>& network, T factor);
+    virtual ~CenteredL2Regularizer(){};
+    virtual T    objectiveFunction(NeuralNetwork<T>& network, T factor);
     virtual void addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor);
 };
 
-
-}
+}  // namespace Nn
 
 #endif

@@ -14,8 +14,8 @@
  */
 #include <Core/Application.hh>
 #include <Core/XmlStream.hh>
-#include <Flow/Module.hh>
 #include <Flow/Attributes.hh>
+#include <Flow/Module.hh>
 #include <Flow/Registry.hh>
 
 class TestApplication : public Core::Application {
@@ -24,7 +24,7 @@ public:
         return "short program to test flow network\n";
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         return 0;
     }
 };

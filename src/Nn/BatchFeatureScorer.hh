@@ -15,16 +15,15 @@
 #ifndef _NN_BATCHFEATURESCORER_H_
 #define _NN_BATCHFEATURESCORER_H_
 
+#include <Mm/Feature.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Mm/Types.hh>
-#include <Mm/Feature.hh>
 
 #include "ClassLabelWrapper.hh"
 #include "LinearAndActivationLayer.hh"
 #include "NeuralNetwork.hh"
 #include "Prior.hh"
 #include "Types.hh"
-
 
 namespace Nn {
 
@@ -37,10 +36,12 @@ namespace Nn {
  */
 class BatchFeatureScorer : public Mm::FeatureScorer {
     typedef Mm::FeatureScorer Precursor;
+
 protected:
-    typedef Types<f32>::NnVector NnVector;
-    typedef Types<f32>::NnMatrix NnMatrix;
+    typedef Types<f32>::NnVector    NnVector;
+    typedef Types<f32>::NnMatrix    NnMatrix;
     static const Core::ParameterInt paramBufferSize;
+
 protected:
     /**
      * Stores the current feature and the number of buffered features.
@@ -48,43 +49,50 @@ protected:
      * This class is used only because it is required by the
      * FeatureScorer interface.
      */
-    class ContextScorer : public FeatureScorer::ContextScorer
-    {
+    class ContextScorer : public FeatureScorer::ContextScorer {
     public:
-        ContextScorer(const BatchFeatureScorer *parent, u32 currentFeature) :
-            parent_(parent),
-            currentFeature_(currentFeature) {}
+        ContextScorer(const BatchFeatureScorer* parent, u32 currentFeature)
+                : parent_(parent),
+                  currentFeature_(currentFeature) {}
         virtual ~ContextScorer() {}
-        virtual Mm::EmissionIndex nEmissions() const { return parent_->nMixtures(); }
+        virtual Mm::EmissionIndex nEmissions() const {
+            return parent_->nMixtures();
+        }
         virtual Mm::Score score(Mm::EmissionIndex e) const {
             return parent_->getScore(e, currentFeature_);
         }
+
     private:
-        const BatchFeatureScorer *parent_;
-        u32 currentFeature_;
+        const BatchFeatureScorer* parent_;
+        u32                       currentFeature_;
     };
 
-    const u32 bufferSize_;
-    Prior<f32> prior_;
-    mutable u32 nBufferedFeatures_;
-    mutable u32 currentFeature_;		/* pointer to current position in buffer */
-    mutable NnMatrix buffer_;
-    mutable std::vector<bool> scoreComputed_;	/* indicates for which positions in buffer the score has already been computed */
-    u32 nClasses_;
-    u32 inputDimension_;
+    const u32                 bufferSize_;
+    Prior<f32>                prior_;
+    mutable u32               nBufferedFeatures_;
+    mutable u32               currentFeature_; /* pointer to current position in buffer */
+    mutable NnMatrix          buffer_;
+    mutable std::vector<bool> scoreComputed_; /* indicates for which positions in buffer the score has already been computed */
+    u32                       nClasses_;
+    u32                       inputDimension_;
 
-    ClassLabelWrapper *labelWrapper_;
+    ClassLabelWrapper*         labelWrapper_;
     mutable NeuralNetwork<f32> network_;
-    mutable bool bufferInitialized_;
+    mutable bool               bufferInitialized_;
+
 public:
-    BatchFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixtureSet);
+    BatchFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixtureSet);
     virtual ~BatchFeatureScorer();
+
 private:
     virtual void init(Core::Ref<const Mm::MixtureSet> mixtureSet);
     virtual void setFeature(u32 position, const Mm::FeatureVector& f) const;
+
 public:
-    virtual Mm::EmissionIndex nMixtures() const { return nClasses_; }
-    virtual void getFeatureDescription(Mm::FeatureDescription &description) const {
+    virtual Mm::EmissionIndex nMixtures() const {
+        return nClasses_;
+    }
+    virtual void getFeatureDescription(Mm::FeatureDescription& description) const {
         description.mainStream().setValue(Mm::FeatureDescription::nameDimension, inputDimension_);
     }
 
@@ -99,7 +107,7 @@ public:
     virtual FeatureScorer::Scorer getScorer(Core::Ref<const Mm::Feature> f) const {
         return getScorer(*f->mainStream());
     }
-    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector &f) const;
+    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector& f) const;
 
     virtual Mm::Score getScore(Mm::EmissionIndex e, u32 position) const;
 
@@ -121,12 +129,14 @@ public:
     /**
      * Return true if the feature scorer buffers features.
      */
-    virtual bool isBuffered() const { return true; }
+    virtual bool isBuffered() const {
+        return true;
+    }
 
     /**
      * Add a feature to the feature buffer.
      */
-    virtual void addFeature(const Mm::FeatureVector &f) const;
+    virtual void addFeature(const Mm::FeatureVector& f) const;
     virtual void addFeature(Core::Ref<const Mm::Feature> f) const {
         addFeature(*f->mainStream());
     }
@@ -143,20 +153,26 @@ public:
     /**
      * Return true if the feature buffer is full.
      */
-    virtual bool bufferFilled() const { return nBufferedFeatures_ >= bufferSize_ - 1; }
+    virtual bool bufferFilled() const {
+        return nBufferedFeatures_ >= bufferSize_ - 1;
+    }
 
     /**
      * Return true if the feature buffer is empty.
      */
-    virtual bool bufferEmpty() const { return nBufferedFeatures_ == 0; }
+    virtual bool bufferEmpty() const {
+        return nBufferedFeatures_ == 0;
+    }
 
     /**
      * Return the number of buffered features required to
      * execute getScorer().
      */
-    virtual u32 bufferSize() const { return bufferSize_; }
+    virtual u32 bufferSize() const {
+        return bufferSize_;
+    }
 };
 
-} // namespace
+}  // namespace Nn
 
 #endif

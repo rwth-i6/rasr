@@ -24,21 +24,20 @@ const Core::ParameterIntVector ClassLabelWrapper::paramDisregardClasses(
         ",", 0);
 
 const Core::ParameterString ClassLabelWrapper::paramSaveToFile(
-        "save-to-file",	"save label information to this file","");
+        "save-to-file", "save label information to this file", "");
 
 const Core::ParameterString ClassLabelWrapper::paramLoadFromFile(
-        "load-from-file", "load label information from this file","");
+        "load-from-file", "load label information from this file", "");
 
 const Core::ParameterInt ClassLabelWrapper::paramNumberOfClasses(
         "number-of-classes", "number of classes", 0);
 
-ClassLabelWrapper::ClassLabelWrapper(const Core::Configuration& config, u32 nclasses) :
-        Core::Component(config),
-        nTargets_(0)
-{
+ClassLabelWrapper::ClassLabelWrapper(const Core::Configuration& config, u32 nclasses)
+        : Core::Component(config),
+          nTargets_(0) {
     std::string filename(paramLoadFromFile(config));
 
-    if (filename != ""){
+    if (filename != "") {
         if (!load(filename))
             error("failed to read mapping from file: ") << filename;
     }
@@ -46,7 +45,7 @@ ClassLabelWrapper::ClassLabelWrapper(const Core::Configuration& config, u32 ncla
         log("generating network-output-to-class-index-mapping from config file");
         if (nclasses == 0)
             nclasses = paramNumberOfClasses(config);
-        if (nclasses == 0){
+        if (nclasses == 0) {
             error("need to set configuration parameter 'number-of-classes'");
         }
         initMapping(nclasses);
@@ -57,30 +56,30 @@ ClassLabelWrapper::ClassLabelWrapper(const Core::Configuration& config, u32 ncla
 }
 
 /* initialize mapping_ from config*/
-void ClassLabelWrapper::initMapping(u32 nclasses){
+void ClassLabelWrapper::initMapping(u32 nclasses) {
     mapping_.resize(nclasses);
     std::vector<s32> disregardedClasses = paramDisregardClasses(config);
     for (u32 c = 0; c < nclasses; c++) {
         bool disregardClass = std::find(disregardedClasses.begin(), disregardedClasses.end(), c) != disregardedClasses.end();
-        if (!disregardClass){
+        if (!disregardClass) {
             mapping_.at(c) = nTargets_;
             nTargets_++;
         }
-        else{
+        else {
             mapping_.at(c) = -1;
         }
     }
     log("number of classes to accumulate: ") << nTargets_;
 }
 
-bool ClassLabelWrapper::load(const std::string &filename){
+bool ClassLabelWrapper::load(const std::string& filename) {
     log("loading network-output-to-class-index-mapping from file ") << filename;
     Math::Vector<s32> mapping;
     if (!Math::Module::instance().formats().read(filename, mapping))
         return false;
     mapping_ = mapping;
-    std::map<s32,s32> tmpMap;
-    for (u32 i = 0; i < mapping_.size(); i++){
+    std::map<s32, s32> tmpMap;
+    for (u32 i = 0; i < mapping_.size(); i++) {
         if (mapping_[i] != -1)
             tmpMap[i] = mapping_[i];
     }
@@ -88,7 +87,7 @@ bool ClassLabelWrapper::load(const std::string &filename){
     return true;
 }
 
-bool ClassLabelWrapper::save(const std::string &filename) const {
+bool ClassLabelWrapper::save(const std::string& filename) const {
     log("saving network-output-to-class-index-mapping to file ") << filename;
     Math::Vector<s32> mapping(mapping_);
     if (!Math::Module::instance().formats().write(filename, mapping))
@@ -96,11 +95,10 @@ bool ClassLabelWrapper::save(const std::string &filename) const {
     return true;
 }
 
-
 bool ClassLabelWrapper::isOneToOneMapping() const {
-    std::map<u32,std::set<u32> > outputToEmissionMap;
-    for (u32 classIndex = 0; classIndex < nClasses(); classIndex++){
-        if (isClassToAccumulate(classIndex)){
+    std::map<u32, std::set<u32>> outputToEmissionMap;
+    for (u32 classIndex = 0; classIndex < nClasses(); classIndex++) {
+        if (isClassToAccumulate(classIndex)) {
             u32 outputIndex = getOutputIndexFromClassIndex(classIndex);
             outputToEmissionMap[outputIndex].insert(classIndex);
         }

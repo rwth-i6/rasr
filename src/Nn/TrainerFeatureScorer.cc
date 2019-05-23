@@ -40,36 +40,35 @@ static const Core::ParameterInt paramOutputDimension(
 static const Core::ParameterBool paramReturnScoresInNegLog(
         "return-scores-in-neg-log", "return scores in -log space (default)", true);
 
-TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet) :
-        Core::Component(config),
-        Mm::FeatureScorer(config),
-        prior_(config),
-        currentFeature_(0),
-        scoresComputed_(false),
-        returnScoresInNegLog_(paramReturnScoresInNegLog(config)),
-        nClasses_(mixtureSet->nMixtures()),
-        inputDimension_(paramFeatureDimension(config)),
-        batchIteration_(0),
-        labelWrapper_(0),
-        trainer_(0)
-{
+TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet)
+        : Core::Component(config),
+          Mm::FeatureScorer(config),
+          prior_(config),
+          currentFeature_(0),
+          scoresComputed_(false),
+          returnScoresInNegLog_(paramReturnScoresInNegLog(config)),
+          nClasses_(mixtureSet->nMixtures()),
+          inputDimension_(paramFeatureDimension(config)),
+          batchIteration_(0),
+          labelWrapper_(0),
+          trainer_(0) {
     log("initialize nn-trainer-feature-scorer with feature dimension %i", inputDimension_);
     require_gt(inputDimension_, 0);
 
     int outputDim = paramOutputDimension(config);
-    if(outputDim >= 0) {
+    if (outputDim >= 0) {
         log("nn-trainer-feature-scorer will ignore mixture-set number of classes %i but use %i instead", nClasses_, outputDim);
         nClasses_ = outputDim;
     }
 
     trainer_ = NeuralNetworkTrainer<Float>::createUnsupervisedTrainer(config);
-    if(!trainer_)
+    if (!trainer_)
         criticalError("failed to init trainer");
-    if(!trainer_->hasClassLabelPosteriors())
+    if (!trainer_->hasClassLabelPosteriors())
         criticalError("cannot calculate posteriors with this trainer");
 
     labelWrapper_ = new ClassLabelWrapper(select("class-labels"), nClasses_);
-    if(!labelWrapper_->isOneToOneMapping())
+    if (!labelWrapper_->isOneToOneMapping())
         error("no one-to-one correspondence between network outputs and classes!");
 
     require_eq(trainer_->getClassLabelPosteriorDimension(), labelWrapper_->nClassesToAccumulate());
@@ -77,7 +76,7 @@ TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Co
     std::vector<u32> streamSizes(1 /* one single stream */, inputDimension_);
     trainer_->initializeTrainer(1000 /* dummy buffer size, will be resized automatically */, streamSizes);
 
-    if(prior_.scale() != 0) {
+    if (prior_.scale() != 0) {
         if (prior_.fileName() != "")
             prior_.read();
         else
@@ -98,44 +97,46 @@ TrainerFeatureScorer::~TrainerFeatureScorer() {
  * This class is used only because it is required by the
  * FeatureScorer interface.
  */
-class TrainerFeatureScorer::ContextScorer : public FeatureScorer::ContextScorer
-{
+class TrainerFeatureScorer::ContextScorer : public FeatureScorer::ContextScorer {
 public:
-    ContextScorer(const TrainerFeatureScorer *parent, u32 currentFeature, u32 batchIteration) :
-        parent_(parent),
-        currentFeature_(currentFeature),
-        batchIteration_(batchIteration) {}
+    ContextScorer(const TrainerFeatureScorer* parent, u32 currentFeature, u32 batchIteration)
+            : parent_(parent),
+              currentFeature_(currentFeature),
+              batchIteration_(batchIteration) {}
     virtual ~ContextScorer() {}
-    virtual Mm::EmissionIndex nEmissions() const { return parent_->nMixtures(); }
+    virtual Mm::EmissionIndex nEmissions() const {
+        return parent_->nMixtures();
+    }
     virtual Mm::Score score(Mm::EmissionIndex e) const {
         require_eq(batchIteration_, parent_->batchIteration_);
         return parent_->getScore(e, currentFeature_);
     }
+
 private:
-    const TrainerFeatureScorer *parent_;
-    u32 currentFeature_;
-    u32 batchIteration_;
+    const TrainerFeatureScorer* parent_;
+    u32                         currentFeature_;
+    u32                         batchIteration_;
 };
 
-void TrainerFeatureScorer::_addFeature(const Mm::FeatureVector &f) const {
+void TrainerFeatureScorer::_addFeature(const Mm::FeatureVector& f) const {
     require(!bufferFilled());
     require(!scoresComputed_);
-    if(inputDimension_ != f.size()) {
+    if (inputDimension_ != f.size()) {
         criticalError("feature-scorer was configured with input dimension %i but we got features with dimension %zu",
                       inputDimension_, f.size());
     }
     buffer_.push_back(f);
 }
 
-void TrainerFeatureScorer::addFeature(const Mm::FeatureVector &f) const {
+void TrainerFeatureScorer::addFeature(const Mm::FeatureVector& f) const {
     // Lazily call reset() when flush() went through all the buffer before.
-    if(currentFeature_ > 0 && currentFeature_ >= buffer_.size())
+    if (currentFeature_ > 0 && currentFeature_ >= buffer_.size())
         reset();
     _addFeature(f);
 }
 
 void TrainerFeatureScorer::reset() const {
-    if(!buffer_.empty()) {
+    if (!buffer_.empty()) {
         trainer_->processBatch_finish();
         buffer_.clear();
         buffer_.shrink_to_fit();
@@ -150,7 +151,7 @@ Mm::EmissionIndex TrainerFeatureScorer::nMixtures() const {
     return nClasses_;
 }
 
-void TrainerFeatureScorer::getFeatureDescription(Mm::FeatureDescription &description) const {
+void TrainerFeatureScorer::getFeatureDescription(Mm::FeatureDescription& description) const {
     require_gt(inputDimension_, 0);
     description.mainStream().setValue(Mm::FeatureDescription::nameDimension, inputDimension_);
 }
@@ -175,10 +176,10 @@ Mm::Score TrainerFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) cons
     if (!scoresComputed_) {
         // We need to copy the buffer into a NN trainer compatible format.
         typedef Types<Float>::NnMatrix NnMatrix;
-        std::vector<NnMatrix> nnBuffer(1); // always one input stream (at the moment. implement addFeature(Core::Ref<const Feature>)...)
+        std::vector<NnMatrix>          nnBuffer(1);  // always one input stream (at the moment. implement addFeature(Core::Ref<const Feature>)...)
         nnBuffer[0].resize(buffer_[0].size(), buffer_.size());
-        for(u32 t = 0; t < buffer_.size(); ++t)
-            for(u32 i = 0; i < buffer_[0].size(); ++i)
+        for (u32 t = 0; t < buffer_.size(); ++t)
+            for (u32 i = 0; i < buffer_[0].size(); ++i)
                 nnBuffer[0].at(i, t) = buffer_[t].at(i);
         trainer_->processBatch_feedInput(nnBuffer, NULL, NULL);
         // scores and buffer must be readable/writable
@@ -192,18 +193,18 @@ Mm::Score TrainerFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) cons
         u32 idx = labelWrapper_->getOutputIndexFromClassIndex(e);
         // Get score in std space.
         score = trainer_->getClassLabelPosteriors().at(idx, position);
-        if(returnScoresInNegLog_) {
-            score = -Core::log(score); // transfer to -log space
-            if(prior_.scale() != 0)
-                score -= -prior_.at(idx) * prior_.scale(); // priors are in +log space. substract them
+        if (returnScoresInNegLog_) {
+            score = -Core::log(score);  // transfer to -log space
+            if (prior_.scale() != 0)
+                score -= -prior_.at(idx) * prior_.scale();  // priors are in +log space. substract them
         }
         else
             // not sure if that make sense otherwise
             require(prior_.scale() == 0);
     }
     else {
-        if(returnScoresInNegLog_)
-            score = Core::Type<Mm::Score>::max; // = score 0 in std space
+        if (returnScoresInNegLog_)
+            score = Core::Type<Mm::Score>::max;  // = score 0 in std space
         else
             score = 0;
     }
@@ -218,8 +219,14 @@ Mm::FeatureScorer::Scorer TrainerFeatureScorer::getTimeIndexedScorer(u32 time) c
 
 // Must never be full. We want to support segments of any len, and we want to
 // get all features in advance before we calculate the scores (to support bi-RNNs).
-bool TrainerFeatureScorer::bufferFilled() const { return false; }  // == cannot call addFeature() anymore
-bool TrainerFeatureScorer::bufferEmpty() const { return currentFeature_ >= buffer_.size(); }  // == cannot call flush() anymore
-u32 TrainerFeatureScorer::bufferSize() const { return u32(-1); }
-
+bool TrainerFeatureScorer::bufferFilled() const {
+    return false;
+}  // == cannot call addFeature() anymore
+bool TrainerFeatureScorer::bufferEmpty() const {
+    return currentFeature_ >= buffer_.size();
+}  // == cannot call flush() anymore
+u32 TrainerFeatureScorer::bufferSize() const {
+    return u32(-1);
 }
+
+}  // namespace Nn

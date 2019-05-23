@@ -14,23 +14,22 @@
  */
 #include "LinearAndActivationLayer.hh"
 
-#include <Math/Vector.hh>
 #include <Math/Module.hh>
+#include <Math/Vector.hh>
 
 #include "ClassLabelWrapper.hh"
 
 using namespace Nn;
 
 template<typename T>
-LinearAndSigmoidLayer<T>::LinearAndSigmoidLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-LinearLayer<T>(config),
-SigmoidLayer<T>(config)
-{}
+LinearAndSigmoidLayer<T>::LinearAndSigmoidLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          LinearLayer<T>(config),
+          SigmoidLayer<T>(config) {}
 
 template<typename T>
-LinearAndSigmoidLayer<T>::~LinearAndSigmoidLayer(){}
+LinearAndSigmoidLayer<T>::~LinearAndSigmoidLayer() {}
 
 template<typename T>
 inline void LinearAndSigmoidLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset) {
@@ -45,13 +44,13 @@ inline void LinearAndSigmoidLayer<T>::forward(const std::vector<NnMatrix*>& inpu
 
 template<typename T>
 inline void LinearAndSigmoidLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                               NnMatrix& errorSignalOut, const NnMatrix& activations) {
     PrecursorSigmoid::backpropagateActivations(errorSignalIn, errorSignalOut, activations);
 }
 
 template<typename T>
-inline void LinearAndSigmoidLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn,
-        std::vector<NnMatrix*>& errorSignalOut) {
+inline void LinearAndSigmoidLayer<T>::backpropagateWeights(const NnMatrix&         errorSignalIn,
+                                                           std::vector<NnMatrix*>& errorSignalOut) {
     PrecursorLinear::backpropagateWeights(errorSignalIn, errorSignalOut);
 }
 
@@ -87,16 +86,14 @@ template<typename T>
 const Core::ParameterBool LinearAndSoftmaxLayer<T>::paramEvaluateSoftmax(
         "evaluate-softmax", "apply softmax", true);
 
-
 template<typename T>
-LinearAndSoftmaxLayer<T>::LinearAndSoftmaxLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-LinearLayer<T>(config),
-SoftmaxLayer<T>(config),
-evaluateSoftmax_(paramEvaluateSoftmax(config)),
-logPriorIsRemovedFromBias_(false)
-{
+LinearAndSoftmaxLayer<T>::LinearAndSoftmaxLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          LinearLayer<T>(config),
+          SoftmaxLayer<T>(config),
+          evaluateSoftmax_(paramEvaluateSoftmax(config)),
+          logPriorIsRemovedFromBias_(false) {
     if (!evaluateSoftmax_)
         this->log("linear+softmax layer: do not evaluate softmax-nonlinearity");
 }
@@ -120,28 +117,35 @@ inline void LinearAndSoftmaxLayer<T>::applySoftmax(NnMatrix& activations) {
 
 template<typename T>
 inline void LinearAndSoftmaxLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                               NnMatrix&       errorSignalOut,
+                                                               const NnMatrix& activations) {
     PrecursorSoftmax::backpropagateActivations(errorSignalIn, errorSignalOut, activations);
 }
 
 template<typename T>
-inline void LinearAndSoftmaxLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn,
-        std::vector<NnMatrix*>& errorSignalOut) {
+inline void LinearAndSoftmaxLayer<T>::backpropagateWeights(const NnMatrix&         errorSignalIn,
+                                                           std::vector<NnMatrix*>& errorSignalOut) {
     PrecursorLinear::backpropagateWeights(errorSignalIn, errorSignalOut);
 }
 
 template<typename T>
-void LinearAndSoftmaxLayer<T>::addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+void LinearAndSoftmaxLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
+                                                    const NnMatrix& errorSignalIn,
+                                                    u32             stream,
+                                                    NnMatrix&       gradientWeights) {
     PrecursorLinear::addToWeightsGradient(layerInput, errorSignalIn, stream, gradientWeights);
 }
 
 template<typename T>
-void LinearAndSoftmaxLayer<T>::addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+void LinearAndSoftmaxLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
+                                                 const NnMatrix& errorSignalIn,
+                                                 u32             stream,
+                                                 NnVector&       gradientBias) {
     PrecursorLinear::addToBiasGradient(layerInput, errorSignalIn, stream, gradientBias);
 }
 
 template<typename T>
-inline T LinearAndSoftmaxLayer<T>::getScore(const NnMatrix &in, u32 columnIndex){
+inline T LinearAndSoftmaxLayer<T>::getScore(const NnMatrix& in, u32 columnIndex) {
     T result = -PrecursorLinear::bias_.at(columnIndex);
     for (u32 stream = 0; stream < this->nInputActivations(); stream++) {
         result -= PrecursorLinear::weights_[stream].dotWithColumn(in, columnIndex);
@@ -168,12 +172,11 @@ u32 LinearAndSoftmaxLayer<T>::getNumberOfFreeParameters() const {
 //=============================================================================
 
 template<typename T>
-LinearAndTanhLayer<T>::LinearAndTanhLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-LinearLayer<T>(config),
-TanhLayer<T>(config)
-{}
+LinearAndTanhLayer<T>::LinearAndTanhLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          LinearLayer<T>(config),
+          TanhLayer<T>(config) {}
 
 template<typename T>
 inline void LinearAndTanhLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset) {
@@ -188,23 +191,30 @@ inline void LinearAndTanhLayer<T>::forward(const std::vector<NnMatrix*>& input, 
 
 template<typename T>
 inline void LinearAndTanhLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                            NnMatrix&       errorSignalOut,
+                                                            const NnMatrix& activations) {
     PrecursorTanh::backpropagateActivations(errorSignalIn, errorSignalOut, activations);
 }
 
 template<typename T>
-inline void LinearAndTanhLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn,
-        std::vector<NnMatrix*>& errorSignalOut) {
+inline void LinearAndTanhLayer<T>::backpropagateWeights(const NnMatrix&         errorSignalIn,
+                                                        std::vector<NnMatrix*>& errorSignalOut) {
     PrecursorLinear::backpropagateWeights(errorSignalIn, errorSignalOut);
 }
 
 template<typename T>
-void LinearAndTanhLayer<T>::addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+void LinearAndTanhLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
+                                                 const NnMatrix& errorSignalIn,
+                                                 u32             stream,
+                                                 NnMatrix&       gradientWeights) {
     PrecursorLinear::addToWeightsGradient(layerInput, errorSignalIn, stream, gradientWeights);
 }
 
 template<typename T>
-void LinearAndTanhLayer<T>::addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+void LinearAndTanhLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
+                                              const NnMatrix& errorSignalIn,
+                                              u32             stream,
+                                              NnVector&       gradientBias) {
     PrecursorLinear::addToBiasGradient(layerInput, errorSignalIn, stream, gradientBias);
 }
 
@@ -221,12 +231,11 @@ u32 LinearAndTanhLayer<T>::getNumberOfFreeParameters() const {
 //=============================================================================
 
 template<typename T>
-LinearAndRectifiedLayer<T>::LinearAndRectifiedLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-LinearLayer<T>(config),
-RectifiedLayer<T>(config)
-{}
+LinearAndRectifiedLayer<T>::LinearAndRectifiedLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          LinearLayer<T>(config),
+          RectifiedLayer<T>(config) {}
 
 template<typename T>
 inline void LinearAndRectifiedLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset) {
@@ -241,23 +250,30 @@ inline void LinearAndRectifiedLayer<T>::forward(const std::vector<NnMatrix*>& in
 
 template<typename T>
 inline void LinearAndRectifiedLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                                 NnMatrix&       errorSignalOut,
+                                                                 const NnMatrix& activations) {
     PrecursorRectified::backpropagateActivations(errorSignalIn, errorSignalOut, activations);
 }
 
 template<typename T>
-inline void LinearAndRectifiedLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn,
-        std::vector<NnMatrix*>& errorSignalOut) {
+inline void LinearAndRectifiedLayer<T>::backpropagateWeights(const NnMatrix&         errorSignalIn,
+                                                             std::vector<NnMatrix*>& errorSignalOut) {
     PrecursorLinear::backpropagateWeights(errorSignalIn, errorSignalOut);
 }
 
 template<typename T>
-void LinearAndRectifiedLayer<T>::addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+void LinearAndRectifiedLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
+                                                      const NnMatrix& errorSignalIn,
+                                                      u32             stream,
+                                                      NnMatrix&       gradientWeights) {
     PrecursorLinear::addToWeightsGradient(layerInput, errorSignalIn, stream, gradientWeights);
 }
 
 template<typename T>
-void LinearAndRectifiedLayer<T>::addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+void LinearAndRectifiedLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
+                                                   const NnMatrix& errorSignalIn,
+                                                   u32             stream,
+                                                   NnVector&       gradientBias) {
     PrecursorLinear::addToBiasGradient(layerInput, errorSignalIn, stream, gradientBias);
 }
 
@@ -279,12 +295,11 @@ u32 LinearAndRectifiedLayer<T>::getNumberOfFreeParameters() const {
 //=============================================================================
 
 template<typename T>
-LinearAndEluLayer<T>::LinearAndEluLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-LinearLayer<T>(config),
-ExponentialLinearLayer<T>(config)
-{}
+LinearAndEluLayer<T>::LinearAndEluLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          LinearLayer<T>(config),
+          ExponentialLinearLayer<T>(config) {}
 
 template<typename T>
 inline void LinearAndEluLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset) {
@@ -299,23 +314,30 @@ inline void LinearAndEluLayer<T>::forward(const std::vector<NnMatrix*>& input, N
 
 template<typename T>
 inline void LinearAndEluLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                           NnMatrix&       errorSignalOut,
+                                                           const NnMatrix& activations) {
     PrecursorElu::backpropagateActivations(errorSignalIn, errorSignalOut, activations);
 }
 
 template<typename T>
-inline void LinearAndEluLayer<T>::backpropagateWeights(const NnMatrix& errorSignalIn,
-        std::vector<NnMatrix*>& errorSignalOut) {
+inline void LinearAndEluLayer<T>::backpropagateWeights(const NnMatrix&         errorSignalIn,
+                                                       std::vector<NnMatrix*>& errorSignalOut) {
     PrecursorLinear::backpropagateWeights(errorSignalIn, errorSignalOut);
 }
 
 template<typename T>
-void LinearAndEluLayer<T>::addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {
+void LinearAndEluLayer<T>::addToWeightsGradient(const NnMatrix& layerInput,
+                                                const NnMatrix& errorSignalIn,
+                                                u32             stream,
+                                                NnMatrix&       gradientWeights) {
     PrecursorLinear::addToWeightsGradient(layerInput, errorSignalIn, stream, gradientWeights);
 }
 
 template<typename T>
-void LinearAndEluLayer<T>::addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {
+void LinearAndEluLayer<T>::addToBiasGradient(const NnMatrix& layerInput,
+                                             const NnMatrix& errorSignalIn,
+                                             u32             stream,
+                                             NnVector&       gradientBias) {
     PrecursorLinear::addToBiasGradient(layerInput, errorSignalIn, stream, gradientBias);
 }
 
@@ -352,4 +374,4 @@ template class LinearAndRectifiedLayer<f64>;
 
 template class LinearAndEluLayer<f32>;
 template class LinearAndEluLayer<f64>;
-}
+}  // namespace Nn

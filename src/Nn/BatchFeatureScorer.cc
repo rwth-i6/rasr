@@ -21,30 +21,28 @@ using namespace Nn;
 const Core::ParameterInt BatchFeatureScorer::paramBufferSize(
         "buffer-size", "buffer size (and also batch size) for the feature scorer", 8);
 
-BatchFeatureScorer::BatchFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet) :
-        Core::Component(config),
-        Mm::FeatureScorer(config),
-        bufferSize_(paramBufferSize(config)),
-        prior_(config),
-        nBufferedFeatures_(0),
-        currentFeature_(0),
-        scoreComputed_(bufferSize_, false),
-        nClasses_(0),
-        inputDimension_(0),
-        labelWrapper_(0),
-        network_(config),
-        bufferInitialized_(false)
-{
+BatchFeatureScorer::BatchFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet)
+        : Core::Component(config),
+          Mm::FeatureScorer(config),
+          bufferSize_(paramBufferSize(config)),
+          prior_(config),
+          nBufferedFeatures_(0),
+          currentFeature_(0),
+          scoreComputed_(bufferSize_, false),
+          nClasses_(0),
+          inputDimension_(0),
+          labelWrapper_(0),
+          network_(config),
+          bufferInitialized_(false) {
     init(mixtureSet);
 }
 
-BatchFeatureScorer::~BatchFeatureScorer(){
+BatchFeatureScorer::~BatchFeatureScorer() {
     if (labelWrapper_)
         delete labelWrapper_;
 }
 
 void BatchFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
-
     log("initialize nn-batch-feature-scorer with buffer size ") << bufferSize_;
     nClasses_ = mixtureSet->nMixtures();
 
@@ -58,7 +56,7 @@ void BatchFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
     // (b) initialize network and do some checks
     network_.initializeNetwork(bufferSize_);
     require_eq(network_.getTopLayer().getOutputDimension(), labelWrapper_->nClassesToAccumulate());
-    LinearAndSoftmaxLayer<f32> *topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>* >(&network_.getTopLayer());
+    LinearAndSoftmaxLayer<f32>* topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>*>(&network_.getTopLayer());
     if (!topLayer)
         error("output layer must be of type 'linear+softmax'");
 
@@ -89,7 +87,6 @@ void BatchFeatureScorer::init(Core::Ref<const Mm::MixtureSet> mixtureSet) {
     else
         log("l1 norm of all network weights is: ") << l1norm;
     log("batch feature scorer uses buffer size: ") << bufferSize_;
-
 }
 
 void BatchFeatureScorer::setFeature(u32 position, const Mm::FeatureVector& f) const {
@@ -106,7 +103,7 @@ void BatchFeatureScorer::setFeature(u32 position, const Mm::FeatureVector& f) co
     }
 }
 
-void BatchFeatureScorer::addFeature(const Mm::FeatureVector &f) const {
+void BatchFeatureScorer::addFeature(const Mm::FeatureVector& f) const {
     require(!bufferFilled());
     setFeature(nBufferedFeatures_, f);
     scoreComputed_[nBufferedFeatures_] = false;
@@ -116,7 +113,7 @@ void BatchFeatureScorer::addFeature(const Mm::FeatureVector &f) const {
 void BatchFeatureScorer::reset() const {
     scoreComputed_.assign(bufferSize_, false);
     nBufferedFeatures_ = 0;
-    currentFeature_ = 0;
+    currentFeature_    = 0;
 }
 
 Mm::FeatureScorer::Scorer BatchFeatureScorer::getScorer(const Mm::FeatureVector& f) const {
@@ -167,7 +164,7 @@ Mm::Score BatchFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) const 
     if (labelWrapper_->isClassToAccumulate(e)) {
         score = -network_.getTopLayerOutput().at(labelWrapper_->getOutputIndexFromClassIndex(e), position);
     }
-    else{
+    else {
         score = Core::Type<Mm::Score>::max;
     }
     return score;

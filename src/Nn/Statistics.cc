@@ -13,11 +13,11 @@
  *  limitations under the License.
  */
 #include "Statistics.hh"
+#include <Core/BinaryStream.hh>
 #include <Core/Component.hh>
 #include <Core/CompressedStream.hh>
-#include <Core/BinaryStream.hh>
-#include <Math/Module.hh>
 #include <Math/Matrix.hh>
+#include <Math/Module.hh>
 #include "Module.hh"
 
 using namespace Nn;
@@ -26,57 +26,54 @@ template<typename T>
 const u32 Statistics<T>::version_ = 2;
 
 template<typename T>
-Statistics<T>::Statistics(u32 nLayers, u32 statisticTypes) :
-    statisticTypes_(statisticTypes),
-    hasClassCounts_(statisticTypes & CLASS_COUNTS),
-    hasMeanAndVariance_(statisticTypes & MEAN_AND_VARIANCE),
-    hasBaseStatistics_(statisticTypes & BASE_STATISTICS),
-    hasGradient_(statisticTypes & GRADIENT),
-    objectiveFunction_(0),
-    nClassificationErrors_(0),
-    nObservations_(0),
-    totalWeight_(0),
-    gradientWeights_(nLayers),
-    gradientBias_(nLayers),
-    isComputing_(false),
-    isFinalized_(false)
-{
+Statistics<T>::Statistics(u32 nLayers, u32 statisticTypes)
+        : statisticTypes_(statisticTypes),
+          hasClassCounts_(statisticTypes & CLASS_COUNTS),
+          hasMeanAndVariance_(statisticTypes & MEAN_AND_VARIANCE),
+          hasBaseStatistics_(statisticTypes & BASE_STATISTICS),
+          hasGradient_(statisticTypes & GRADIENT),
+          objectiveFunction_(0),
+          nClassificationErrors_(0),
+          nObservations_(0),
+          totalWeight_(0),
+          gradientWeights_(nLayers),
+          gradientBias_(nLayers),
+          isComputing_(false),
+          isFinalized_(false) {
     logProperties();
     setPrecision();
 }
 
 template<typename T>
-Statistics<T>::Statistics(const Statistics<T>& statistics, bool onlyStructure) :
-    statisticTypes_(statistics.statisticTypes_),
-    hasClassCounts_(statistics.hasClassCounts_),
-    hasMeanAndVariance_(statistics.hasMeanAndVariance_),
-    hasBaseStatistics_(statistics.hasBaseStatistics_),
-    hasGradient_(statistics.hasGradient_),
-    layerIndexToTrainableLayerIndex_(statistics.layerIndexToTrainableLayerIndex_),
-    objectiveFunction_(0),
-    nClassificationErrors_(0),
-    nObservations_(0),
-    totalWeight_(0),
-    entropy_(0),
-    gradientWeights_(statistics.gradientWeights_.size()),
-    gradientBias_(statistics.gradientBias_.size()),
-    isComputing_(false),
-    isFinalized_(false)
-{
+Statistics<T>::Statistics(const Statistics<T>& statistics, bool onlyStructure)
+        : statisticTypes_(statistics.statisticTypes_),
+          hasClassCounts_(statistics.hasClassCounts_),
+          hasMeanAndVariance_(statistics.hasMeanAndVariance_),
+          hasBaseStatistics_(statistics.hasBaseStatistics_),
+          hasGradient_(statistics.hasGradient_),
+          layerIndexToTrainableLayerIndex_(statistics.layerIndexToTrainableLayerIndex_),
+          objectiveFunction_(0),
+          nClassificationErrors_(0),
+          nObservations_(0),
+          totalWeight_(0),
+          entropy_(0),
+          gradientWeights_(statistics.gradientWeights_.size()),
+          gradientBias_(statistics.gradientBias_.size()),
+          isComputing_(false),
+          isFinalized_(false) {
     setPrecision();
     // allocate mean and variance statistics
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         sum_.resize(statistics.sum_.size());
         sumOfSquares_.resize(statistics.sumOfSquares_.size());
     }
     // allocate gradient
-    if (hasGradient_){
+    if (hasGradient_) {
         for (u32 layer = 0; layer < gradientWeights_.size(); layer++) {
             gradientWeights_[layer].resize(statistics.gradientWeights_[layer].size());
             for (u32 stream = 0; stream < gradientWeights_[layer].size(); stream++) {
-                gradientWeights_[layer][stream].resize(
-                        statistics.gradientWeights_[layer][stream].nRows(),
-                        statistics.gradientWeights_[layer][stream].nColumns());
+                gradientWeights_[layer][stream].resize(statistics.gradientWeights_[layer][stream].nRows(),
+                                                       statistics.gradientWeights_[layer][stream].nColumns());
             }
         }
         for (u32 layer = 0; layer < gradientBias_.size(); layer++) {
@@ -87,13 +84,13 @@ Statistics<T>::Statistics(const Statistics<T>& statistics, bool onlyStructure) :
         reset();
     }
     else {
-        if (hasBaseStatistics_){
-            objectiveFunction_ = statistics.objectiveFunction_;
+        if (hasBaseStatistics_) {
+            objectiveFunction_     = statistics.objectiveFunction_;
             nClassificationErrors_ = statistics.nClassificationErrors_;
-            nObservations_ = statistics.nObservations_;
-            totalWeight_ = statistics.totalWeight_;
+            nObservations_         = statistics.nObservations_;
+            totalWeight_           = statistics.totalWeight_;
         }
-        if (hasMeanAndVariance_){
+        if (hasMeanAndVariance_) {
             initComputation(false);
             sum_.copy(statistics.sum_);
             sumOfSquares_.copy(statistics.sumOfSquares_);
@@ -121,13 +118,13 @@ void Statistics<T>::reset() {
         classCount_.clear();
     }
     if (hasBaseStatistics_) {
-        objectiveFunction_ = 0;
+        objectiveFunction_     = 0;
         nClassificationErrors_ = 0;
-        nObservations_ = 0;
-        totalWeight_ = 0;
-        entropy_ = 0;
+        nObservations_         = 0;
+        totalWeight_           = 0;
+        entropy_               = 0;
     }
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         sum_.setToZero();
         sumOfSquares_.setToZero();
     }
@@ -147,9 +144,9 @@ void Statistics<T>::reset() {
 
 template<typename T>
 void Statistics<T>::finalize(bool normalizeByNOfObservations) {
-    if (!isFinalized_){
+    if (!isFinalized_) {
         T normalizationWeight = normalizeByNOfObservations ? nObservations_ : 1.0;
-        if(normalizationWeight != 1.0) {
+        if (normalizationWeight != 1.0) {
             objectiveFunction_ *= 1.0 / normalizationWeight;
             if (hasGradient_) {
                 for (u32 layer = 0; layer < gradientWeights_.size(); layer++) {
@@ -162,7 +159,7 @@ void Statistics<T>::finalize(bool normalizeByNOfObservations) {
                 }
             }
         }
-        if (hasMeanAndVariance_){
+        if (hasMeanAndVariance_) {
             sum_.scale(1.0 / totalWeight_);
             NnVector tmp(sum_.size());
             tmp.initComputation(false);
@@ -185,7 +182,7 @@ void Statistics<T>::incClassCount(u32 label, u32 increment) {
 
 template<typename T>
 u32 Statistics<T>::classCount(u32 label) const {
-    std::map<u32,u32>::const_iterator it = classCount_.find(label);
+    std::map<u32, u32>::const_iterator it = classCount_.find(label);
     if (it == classCount_.end())
         return 0;
     else
@@ -195,12 +192,12 @@ u32 Statistics<T>::classCount(u32 label) const {
 template<typename T>
 T Statistics<T>::gradientL1Norm() const {
     T result = 0;
-    for (typename std::vector<std::vector<NnMatrix> >::const_iterator lit = gradientWeights_.begin(); lit != gradientWeights_.end(); ++lit){
-        for (typename std::vector<NnMatrix >::const_iterator sit = lit->begin(); sit != lit->end(); ++sit){
+    for (typename std::vector<std::vector<NnMatrix>>::const_iterator lit = gradientWeights_.begin(); lit != gradientWeights_.end(); ++lit) {
+        for (typename std::vector<NnMatrix>::const_iterator sit = lit->begin(); sit != lit->end(); ++sit) {
             result += sit->l1norm();
         }
     }
-    for (typename std::vector<NnVector >::const_iterator it = gradientBias_.begin(); it != gradientBias_.end(); ++it)
+    for (typename std::vector<NnVector>::const_iterator it = gradientBias_.begin(); it != gradientBias_.end(); ++it)
         result += it->l1norm();
     return result;
 }
@@ -218,11 +215,10 @@ void Statistics<T>::logProperties() const {
         Core::Application::us()->log("statistics object has gradient");
 }
 
-
 template<typename T>
 void Statistics<T>::initComputation(bool sync) {
     if (!isComputing_) {
-        if (hasMeanAndVariance_){
+        if (hasMeanAndVariance_) {
             sum_.initComputation(sync);
             sumOfSquares_.initComputation(sync);
         }
@@ -244,7 +240,7 @@ void Statistics<T>::initComputation(bool sync) {
 template<typename T>
 void Statistics<T>::finishComputation(bool sync) {
     if (isComputing_) {
-        if (hasMeanAndVariance_){
+        if (hasMeanAndVariance_) {
             sum_.finishComputation(sync);
             sumOfSquares_.finishComputation(sync);
         }
@@ -263,18 +259,19 @@ void Statistics<T>::finishComputation(bool sync) {
 }
 
 template<typename T>
-bool Statistics<T>::read(const std::string &filename) {
+bool Statistics<T>::read(const std::string& filename) {
     bool result = Module::instance().formats().read(filename, *this);
     if (result) {
         Core::Application::us()->log("statistics read from \"") << filename << "\"";
-    } else {
+    }
+    else {
         Core::Application::us()->error("failed to read statistics from \"") << filename << "\"";
     }
     return result;
 }
 
 template<typename T>
-bool Statistics<T>::read(Core::BinaryInputStream &is){
+bool Statistics<T>::read(Core::BinaryInputStream& is) {
     require(!isComputing_);
     const std::string magic = readHeader(is);
     if (!isValid(magic)) {
@@ -293,13 +290,13 @@ bool Statistics<T>::read(Core::BinaryInputStream &is){
         u32 size;
         is >> size;
         for (u32 i = 0; i < size; i++) {
-            u32 c,n;
+            u32 c, n;
             is >> c;
             is >> n;
             classCount_[c] = n;
         }
     }
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         Math::Vector<T> vector;
         vector.read(is);
         sum_.resize(vector.size(), 0, true);
@@ -317,11 +314,11 @@ bool Statistics<T>::read(Core::BinaryInputStream &is){
 
         u32 size;
         is >> size;
-        require_eq(size,gradientWeights_.size());
+        require_eq(size, gradientWeights_.size());
         for (u32 l = 0; l < gradientWeights_.size(); l++) {
             is >> size;
-            require_eq(size,gradientWeights_[l].size());
-            for (u32 s = 0; s < gradientWeights_[l].size(); s++){
+            require_eq(size, gradientWeights_[l].size());
+            for (u32 s = 0; s < gradientWeights_[l].size(); s++) {
                 matrix.read(is);
                 gradientWeights_[l][s].copy(matrix);
             }
@@ -333,21 +330,19 @@ bool Statistics<T>::read(Core::BinaryInputStream &is){
 }
 
 template<typename T>
-bool Statistics<T>::write(const std::string &filename) const
-{
+bool Statistics<T>::write(const std::string& filename) const {
     bool result = Module::instance().formats().write(filename, *this);
     if (result) {
         Core::Application::us()->log("statistics written to \"") << filename << "\"";
-    } else {
+    }
+    else {
         Core::Application::us()->error("failed to write statistics to \"") << filename << "\"";
     }
     return result;
 }
 
-
-
 template<typename T>
-bool Statistics<T>::write(Core::BinaryOutputStream &os) const {
+bool Statistics<T>::write(Core::BinaryOutputStream& os) const {
     require(!isComputing_);
     writeHeader(os);
     os << nObservations_;
@@ -359,14 +354,14 @@ bool Statistics<T>::write(Core::BinaryOutputStream &os) const {
     }
     // save class counts
     if (hasClassCounts_) {
-        os << (u32) classCount_.size();
-        for (std::map<u32,u32>::const_iterator it=classCount_.begin(); it!=classCount_.end(); ++it) {
+        os << (u32)classCount_.size();
+        for (std::map<u32, u32>::const_iterator it = classCount_.begin(); it != classCount_.end(); ++it) {
             os << it->first << it->second;
         }
     }
     // save mean and variance statistics
-    if (hasMeanAndVariance_){
-        u32 dim = sum_.size();
+    if (hasMeanAndVariance_) {
+        u32             dim = sum_.size();
         Math::Vector<T> vector(dim);
         Math::copy(dim, sum_.begin(), 1, &vector.at(0), 1);
         vector.write(os);
@@ -379,10 +374,10 @@ bool Statistics<T>::write(Core::BinaryOutputStream &os) const {
         // required for IO
         Math::Matrix<T> matrix;
         Math::Vector<T> vector;
-        os << (u32) gradientWeights_.size();
+        os << (u32)gradientWeights_.size();
         for (u32 l = 0; l < gradientWeights_.size(); l++) {
-            os << (u32) gradientWeights_[l].size();
-            for (u32 s = 0; s < gradientWeights_[l].size(); s++){
+            os << (u32)gradientWeights_[l].size();
+            for (u32 s = 0; s < gradientWeights_[l].size(); s++) {
                 gradientWeights_[l][s].convert(matrix);
                 matrix.write(os);
             }
@@ -394,7 +389,7 @@ bool Statistics<T>::write(Core::BinaryOutputStream &os) const {
 }
 
 template<typename T>
-bool Statistics<T>::write(std::ostream &os) const {
+bool Statistics<T>::write(std::ostream& os) const {
     require(!isComputing_);
     os << "#observations: " << nObservations_ << std::endl;
     os << "total weight: " << totalWeight_ << std::endl;
@@ -406,12 +401,12 @@ bool Statistics<T>::write(std::ostream &os) const {
     // show class counts
     if (hasClassCounts_) {
         std::cout << "class counts: " << std::endl;
-        for (std::map<u32,u32>::const_iterator it=classCount_.begin(); it!=classCount_.end(); ++it) {
+        for (std::map<u32, u32>::const_iterator it = classCount_.begin(); it != classCount_.end(); ++it) {
             os << it->first << ": " << it->second << std::endl;
         }
     }
     // show mean and variance statistics
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         std::cout << "sum features: " << std::endl;
         Math::Vector<T> vector(sum_.size());
         Math::copy(sum_.size(), sum_.begin(), 1, &vector.at(0), 1);
@@ -427,7 +422,7 @@ bool Statistics<T>::write(std::ostream &os) const {
         Math::Matrix<T> matrix;
         Math::Vector<T> vector;
         for (u32 l = 0; l < gradientWeights_.size(); l++) {
-            for (u32 s = 0; s < gradientWeights_[l].size(); s++){
+            for (u32 s = 0; s < gradientWeights_[l].size(); s++) {
                 std::cout << "gradient weight matrix of layer: " << l << " stream: " << s << std::endl;
                 gradientWeights_[l][s].convert(matrix);
                 matrix.print(os);
@@ -442,17 +437,16 @@ bool Statistics<T>::write(std::ostream &os) const {
 }
 
 template<typename T>
-bool Statistics<T>::write(Core::XmlWriter &o) const
-{
-    o << Core::XmlOpen("statistics")
-    + Core::XmlAttribute("number-of-observations", nObservations_)
-    + Core::XmlAttribute("total-weight", totalWeight_)
-    + Core::XmlAttribute("number-of-classification-errors", nClassificationErrors_)
-    + Core::XmlAttribute("objective-function", objectiveFunction_);
+bool Statistics<T>::write(Core::XmlWriter& o) const {
+    o << Core::XmlOpen("statistics") +
+                    Core::XmlAttribute("number-of-observations", nObservations_) +
+                    Core::XmlAttribute("total-weight", totalWeight_) +
+                    Core::XmlAttribute("number-of-classification-errors", nClassificationErrors_) +
+                    Core::XmlAttribute("objective-function", objectiveFunction_);
 
     if (hasClassCounts_) {
         o << Core::XmlOpen("class-counts");
-        for (std::map<u32,u32>::const_iterator it=classCount_.begin(); it!=classCount_.end(); ++it) {
+        for (std::map<u32, u32>::const_iterator it = classCount_.begin(); it != classCount_.end(); ++it) {
             std::ostringstream ss;
             ss << it->first;
             o << Core::XmlOpen("class-count") + Core::XmlAttribute(ss.str(), it->second);
@@ -461,7 +455,7 @@ bool Statistics<T>::write(Core::XmlWriter &o) const
         o << Core::XmlClose("class-counts");
     }
     // save mean and variance statistics
-    if (hasMeanAndVariance_){
+    if (hasMeanAndVariance_) {
         Math::Vector<T> vector;
         Math::copy(sum_.size(), sum_.begin(), 1, &vector.at(0), 1);
         o << Core::XmlOpen("sum");
@@ -483,7 +477,7 @@ bool Statistics<T>::write(Core::XmlWriter &o) const
             Math::Matrix<T> gradient(gradientBias_[l].nRows(), totalWeightRows + 1);
             for (u32 i = 0; i < gradientBias_[l].nRows(); i++) {
                 gradient[i][0] = gradientBias_[l].at(i);
-                u32 k = 1;
+                u32 k          = 1;
                 for (u32 s = 0; s < gradientWeights_[l].size(); s++) {
                     for (u32 j = 0; j < gradientWeights_[l][s].nRows(); j++) {
                         gradient[i][k] = gradientWeights_[l][s].at(j, i);
@@ -500,26 +494,25 @@ bool Statistics<T>::write(Core::XmlWriter &o) const
     return true;
 }
 
-
 template<typename T>
 void Statistics<T>::dumpGradientsToFiles(const std::string& prefix) {
     bool wasComputing = isComputing_;
-    if(wasComputing) finishComputation(true);
+    if (wasComputing)
+        finishComputation(true);
     for (u32 layer = 0; layer < gradientWeights_.size(); layer++) {
         {
-            require_eq(gradientWeights_[layer].size(), 1); // streams
+            require_eq(gradientWeights_[layer].size(), 1);  // streams
             gradientWeights_[layer][0].printToFile(Core::form("%slayer%i-weight", prefix.c_str(), layer));
         }
         gradientBias_[layer].printToFile(Core::form("%slayer%i-bias", prefix.c_str(), layer));
     }
-    if(wasComputing) initComputation(false);
+    if (wasComputing)
+        initComputation(false);
 }
 
-
 template<typename T>
-bool Statistics<T>::combine(const std::vector<std::string> &toCombine)
-{
-    if (toCombine.size() == 0){
+bool Statistics<T>::combine(const std::vector<std::string>& toCombine) {
+    if (toCombine.size() == 0) {
         Core::Application::us()->error("no statistics filenames given for combination");
         return false;
     }
@@ -529,8 +522,8 @@ bool Statistics<T>::combine(const std::vector<std::string> &toCombine)
     initComputation();
 
     Statistics<T> tmp(*this, true);
-    for (u32 i = 1; i < toCombine.size(); i++){
-        if (!tmp.read(toCombine.at(i))){
+    for (u32 i = 1; i < toCombine.size(); i++) {
+        if (!tmp.read(toCombine.at(i))) {
             return false;
         }
         tmp.initComputation();
@@ -542,14 +535,14 @@ bool Statistics<T>::combine(const std::vector<std::string> &toCombine)
 }
 
 template<typename T>
-bool Statistics<T>::getTypeFromFile(const std::string &filename, u32 &statisticsType, bool &singlePrecision) {
+bool Statistics<T>::getTypeFromFile(const std::string& filename, u32& statisticsType, bool& singlePrecision) {
     Core::CompressedInputStream cis(filename);
-    Core::BinaryInputStream is(cis);
-    char magic[17];
+    Core::BinaryInputStream     is(cis);
+    char                        magic[17];
     is.read(magic, 16);
-    magic[16] = '\0';
+    magic[16]   = '\0';
     bool result = is.good();
-    if (!result){
+    if (!result) {
         is.close();
         cis.close();
         return false;
@@ -569,10 +562,8 @@ bool Statistics<T>::getTypeFromFile(const std::string &filename, u32 &statistics
     return result;
 }
 
-
 template<typename T>
-const std::string Statistics<T>::readHeader(Core::BinaryInputStream &i)
-{
+const std::string Statistics<T>::readHeader(Core::BinaryInputStream& i) {
     char magic[17];
     i.read(magic, 16);
     magic[16] = '\0';
@@ -590,44 +581,40 @@ const std::string Statistics<T>::readHeader(Core::BinaryInputStream &i)
 }
 
 template<typename T>
-bool Statistics<T>::writeHeader(Core::BinaryOutputStream &o) const
-{
+bool Statistics<T>::writeHeader(Core::BinaryOutputStream& o) const {
     o.write(getMagic().c_str(), 16);
     o << version_;
     return true;
 }
 
-
 template<typename T>
-const std::string Statistics<T>::getMagic() const
-{
+const std::string Statistics<T>::getMagic() const {
     std::string magic("NNSTAT");
-    magic += hasClassCounts_ ? 'C' : '#';	//position 6 of 16
-    magic += hasMeanAndVariance_? 'M' : '#';	//position 7 of 16
-    magic += hasBaseStatistics_ ? 'B' : '#';	//position 8 of 16
-    magic += hasGradient_ ? 'G' : '#';		//position 9 of 16
-    magic += singlePrecision_ ? 'S' : 'D'; 	//position 10 of 16
-    magic += '#';				//position 11 of 16
-    magic += '#';				//position 12 of 16
-    magic += '#';				//position 13 of 16
-    magic += '#';				//position 14 of 16
-    magic += '#';				//position 15 of 16
+    magic += hasClassCounts_ ? 'C' : '#';      //position 6 of 16
+    magic += hasMeanAndVariance_ ? 'M' : '#';  //position 7 of 16
+    magic += hasBaseStatistics_ ? 'B' : '#';   //position 8 of 16
+    magic += hasGradient_ ? 'G' : '#';         //position 9 of 16
+    magic += singlePrecision_ ? 'S' : 'D';     //position 10 of 16
+    magic += '#';                              //position 11 of 16
+    magic += '#';                              //position 12 of 16
+    magic += '#';                              //position 13 of 16
+    magic += '#';                              //position 14 of 16
+    magic += '#';                              //position 15 of 16
     return magic;
 }
 
 template<typename T>
-bool Statistics<T>::isValid(const std::string &magic)
-{
+bool Statistics<T>::isValid(const std::string& magic) {
     return magic != "INVALID";
 }
 
 template<typename T>
-bool Statistics<T>::checkConsistency(bool object, bool file, std::string description){
-    if (object && !file){
+bool Statistics<T>::checkConsistency(bool object, bool file, std::string description) {
+    if (object && !file) {
         Core::Application::us()->error("statistics object requires ") << description;
         return false;
     }
-    else if (!object && file){
+    else if (!object && file) {
         Core::Application::us()->error("statistics object does not require ") << description;
         return false;
     }
@@ -635,11 +622,10 @@ bool Statistics<T>::checkConsistency(bool object, bool file, std::string descrip
 }
 
 template<typename T>
-bool Statistics<T>::isConsistent(const std::string &magic) const
-{
+bool Statistics<T>::isConsistent(const std::string& magic) const {
     bool result = true;
     result |= checkConsistency(hasClassCounts_, hasClassCounts(magic), "class counts");
-    result |= checkConsistency(hasMeanAndVariance_ , hasMeanAndVariance(magic), "mean and variance");
+    result |= checkConsistency(hasMeanAndVariance_, hasMeanAndVariance(magic), "mean and variance");
     result |= checkConsistency(hasBaseStatistics_, hasBaseStatistics(magic), "base statistics");
     result |= checkConsistency(hasGradient_, hasGradient(magic), "gradient");
     if (singlePrecision_ != hasSinglePrecision(magic)) {
@@ -650,33 +636,28 @@ bool Statistics<T>::isConsistent(const std::string &magic) const
 }
 
 template<typename T>
-bool Statistics<T>::hasClassCounts(const std::string &magic)
-{
-    return isValid(magic) and magic.substr(6,1) == "C";
+bool Statistics<T>::hasClassCounts(const std::string& magic) {
+    return isValid(magic) and magic.substr(6, 1) == "C";
 }
 
 template<typename T>
-bool Statistics<T>::hasMeanAndVariance(const std::string &magic)
-{
-    return isValid(magic) and magic.substr(7,1) == "M";
+bool Statistics<T>::hasMeanAndVariance(const std::string& magic) {
+    return isValid(magic) and magic.substr(7, 1) == "M";
 }
 
 template<typename T>
-bool Statistics<T>::hasBaseStatistics(const std::string &magic)
-{
-    return isValid(magic) and magic.substr(8,1) == "B";
+bool Statistics<T>::hasBaseStatistics(const std::string& magic) {
+    return isValid(magic) and magic.substr(8, 1) == "B";
 }
 
 template<typename T>
-bool Statistics<T>::hasGradient(const std::string &magic)
-{
-    return isValid(magic) and magic.substr(9,1) == "G";
+bool Statistics<T>::hasGradient(const std::string& magic) {
+    return isValid(magic) and magic.substr(9, 1) == "G";
 }
 
 template<typename T>
-bool Statistics<T>::hasSinglePrecision(const std::string &magic)
-{
-    return isValid(magic) and magic.substr(10,1) == "S";
+bool Statistics<T>::hasSinglePrecision(const std::string& magic) {
+    return isValid(magic) and magic.substr(10, 1) == "S";
 }
 
 //=============================================================================
@@ -684,4 +665,4 @@ bool Statistics<T>::hasSinglePrecision(const std::string &magic)
 namespace Nn {
 template class Statistics<f32>;
 template class Statistics<f64>;
-}
+}  // namespace Nn

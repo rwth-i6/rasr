@@ -13,9 +13,9 @@
  *  limitations under the License.
  */
 #include "Estimator.hh"
+#include "LinearLayer.hh"
 #include "MeanNormalizedSgdEstimator.hh"
 #include "RpropEstimator.hh"
-#include "LinearLayer.hh"
 
 using namespace Nn;
 
@@ -55,7 +55,6 @@ const Core::ParameterInt Estimator<T>::paramAccumulateMultipleBatches(
         "mini-batch size.",
         0);
 
-
 template<typename T>
 const Core::ParameterFloat Estimator<T>::paramLearningRate("learning-rate", "(initial) learning-rate", 1.0);
 
@@ -68,15 +67,14 @@ const Core::ParameterBool Estimator<T>::paramLogStepSize(
         "log-step-size", "log the step size, if true", false);
 
 template<typename T>
-Estimator<T>::Estimator(const Core::Configuration& config) :
-        Precursor(config),
-        statisticsChannel_(config, "statistics"),
-        fullBatchMode_(paramBatchMode(config)),
-        accumulateMultipleBatches_(paramAccumulateMultipleBatches(config)),
-        initialLearningRate_(paramLearningRate(config)),
-        biasLearningRate_(paramBiasLearningRate(config)),
-        logStepSize_(paramLogStepSize(config))
-{
+Estimator<T>::Estimator(const Core::Configuration& config)
+        : Precursor(config),
+          statisticsChannel_(config, "statistics"),
+          fullBatchMode_(paramBatchMode(config)),
+          accumulateMultipleBatches_(paramAccumulateMultipleBatches(config)),
+          initialLearningRate_(paramLearningRate(config)),
+          biasLearningRate_(paramBiasLearningRate(config)),
+          logStepSize_(paramLogStepSize(config)) {
     this->log("initial learning rate: ") << initialLearningRate_;
     if (fullBatchMode_)
         this->log("using full batch estimator");
@@ -88,7 +86,7 @@ Estimator<T>::Estimator(const Core::Configuration& config) :
         this->criticalError("%s cannot be negative", paramAccumulateMultipleBatches.name().c_str());
     if (fullBatchMode_ && accumulateMultipleBatches_ > 0)
         this->criticalError("full batch (%s=true) and %s does not make sense",
-            paramBatchMode.name().c_str(), paramAccumulateMultipleBatches.name().c_str());
+                            paramBatchMode.name().c_str(), paramAccumulateMultipleBatches.name().c_str());
     if (biasLearningRate_ != 1.0)
         this->log("bias learning rate: ") << biasLearningRate_;
     if (logStepSize_) {
@@ -100,57 +98,57 @@ template<class T>
 Estimator<T>* Estimator<T>::createEstimator(const Core::Configuration& config) {
     Estimator<T>* estimator;
 
-    EstimatorType type = (EstimatorType) paramEstimatorType(config);
-    switch(type) {
-    case steepestDescentEstimator:
-        estimator = new SteepestDescentEstimator<T>(config);
-        Core::Application::us()->log("Create Estimator: steepest-descent");
-        break;
-    case steepestDescentL1Clipping:
-        estimator = new SteepestDescentL1ClippingEstimator<T>(config);
-        Core::Application::us()->log("Create Estimator: steepest-descent-l1-clipping");
-        break;
-    case meanNormalizedSgd:
-        estimator = new MeanNormalizedSgd<T>(config);
-        Core::Application::us()->log("Create Estimator: mean-normalized-steepest-descent");
-        break;
-    case meanNormalizedSgdL1Clipping:
-        estimator = new MeanNormalizedSgdL1Clipping<T>(config);
-        Core::Application::us()->log("Create Estimator: mean-normalized-steepest-descent-l1-clipping-estimator");
-        break;
-    case rprop:
-        estimator = new RpropEstimator<T>(config);
-        Core::Application::us()->log("Create Estimator: Rprop");
-        break;
-    case priorEstimator:
-        estimator = new PriorEstimator<T>(config);
-        Core::Application::us()->log("Create Estimator: Prior estimator");
-        break;
-    case adam:
-        estimator = new Adam<T>(config);
-        Core::Application::us()->log("Create Estimator: Adam");
-        break;
-    case adagrad:
-        estimator = new AdaGrad<T>(config);
-        Core::Application::us()->log("Create Estimator: AdaGrad");
-        break;
-    case adadelta:
-        estimator = new AdaDelta<T>(config);
-        Core::Application::us()->log("Create Estimator: AdaDelta");
-        break;
-    case rmsprop:
-        estimator = new RmsProp<T>(config);
-        Core::Application::us()->log("Create Estimator: RMSProp");
-        break;
-    case dryRun:
-        estimator = new DryRunEstimator<T>(config);
-        Core::Application::us()->log("Create Estimator: dry-run (with gradient calculation)");
-        break;
-    default:
-        verify_eq(type, EstimatorType::dummy);
-        estimator = new Estimator<T>(config);
-        Core::Application::us()->log("Create Estimator: dummy");
-        break;
+    EstimatorType type = (EstimatorType)paramEstimatorType(config);
+    switch (type) {
+        case steepestDescentEstimator:
+            estimator = new SteepestDescentEstimator<T>(config);
+            Core::Application::us()->log("Create Estimator: steepest-descent");
+            break;
+        case steepestDescentL1Clipping:
+            estimator = new SteepestDescentL1ClippingEstimator<T>(config);
+            Core::Application::us()->log("Create Estimator: steepest-descent-l1-clipping");
+            break;
+        case meanNormalizedSgd:
+            estimator = new MeanNormalizedSgd<T>(config);
+            Core::Application::us()->log("Create Estimator: mean-normalized-steepest-descent");
+            break;
+        case meanNormalizedSgdL1Clipping:
+            estimator = new MeanNormalizedSgdL1Clipping<T>(config);
+            Core::Application::us()->log("Create Estimator: mean-normalized-steepest-descent-l1-clipping-estimator");
+            break;
+        case rprop:
+            estimator = new RpropEstimator<T>(config);
+            Core::Application::us()->log("Create Estimator: Rprop");
+            break;
+        case priorEstimator:
+            estimator = new PriorEstimator<T>(config);
+            Core::Application::us()->log("Create Estimator: Prior estimator");
+            break;
+        case adam:
+            estimator = new Adam<T>(config);
+            Core::Application::us()->log("Create Estimator: Adam");
+            break;
+        case adagrad:
+            estimator = new AdaGrad<T>(config);
+            Core::Application::us()->log("Create Estimator: AdaGrad");
+            break;
+        case adadelta:
+            estimator = new AdaDelta<T>(config);
+            Core::Application::us()->log("Create Estimator: AdaDelta");
+            break;
+        case rmsprop:
+            estimator = new RmsProp<T>(config);
+            Core::Application::us()->log("Create Estimator: RMSProp");
+            break;
+        case dryRun:
+            estimator = new DryRunEstimator<T>(config);
+            Core::Application::us()->log("Create Estimator: dry-run (with gradient calculation)");
+            break;
+        default:
+            verify_eq(type, EstimatorType::dummy);
+            estimator = new Estimator<T>(config);
+            Core::Application::us()->log("Create Estimator: dummy");
+            break;
     };
 
     return estimator;
@@ -178,22 +176,21 @@ const Core::ParameterFloat SteepestDescentEstimator<T>::paramMomentumFactor(
         "momentum-factor", "momentum factor, suggested value: 0.9", 0.0);
 
 template<typename T>
-SteepestDescentEstimator<T>::SteepestDescentEstimator(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
-tau_(paramLearningRateTau(config)),
-nUpdates_(paramNumberOfUpdates(config)),
-clippingThreshold_(paramClippingThreshold(config)),
-momentumFactor_(paramMomentumFactor(config)),
-momentum_(momentumFactor_ > 0),
-oldDeltas_(0)
-{
-    if (usePredefinedLearningRateDecay_){
+SteepestDescentEstimator<T>::SteepestDescentEstimator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
+          tau_(paramLearningRateTau(config)),
+          nUpdates_(paramNumberOfUpdates(config)),
+          clippingThreshold_(paramClippingThreshold(config)),
+          momentumFactor_(paramMomentumFactor(config)),
+          momentum_(momentumFactor_ > 0),
+          oldDeltas_(0) {
+    if (usePredefinedLearningRateDecay_) {
         this->log("using predefined learning rate decay with parameter tau: ") << tau_;
         this->log("number of updates so far is ") << nUpdates_;
     }
-    if (clippingThreshold_ < Core::Type<T>::max){
+    if (clippingThreshold_ < Core::Type<T>::max) {
         this->log("clipping updates if larger than ") << clippingThreshold_;
         if (momentum_)
             this->error("momentum with clipping not implemented yet ..");
@@ -203,8 +200,7 @@ oldDeltas_(0)
 }
 
 template<typename T>
-SteepestDescentEstimator<T>::~SteepestDescentEstimator()
-{
+SteepestDescentEstimator<T>::~SteepestDescentEstimator() {
     if (momentum_) {
         delete oldDeltas_;
     }
@@ -212,15 +208,17 @@ SteepestDescentEstimator<T>::~SteepestDescentEstimator()
 
 template<typename T>
 bool SteepestDescentEstimator<T>::isDefaultConfig() {
-    if(usePredefinedLearningRateDecay_) return false;
-    if(clippingThreshold_ < Core::Type<T>::max) return false;
-    if(momentum_) return false;
+    if (usePredefinedLearningRateDecay_)
+        return false;
+    if (clippingThreshold_ < Core::Type<T>::max)
+        return false;
+    if (momentum_)
+        return false;
     return true;
 }
 
 template<typename T>
 void SteepestDescentEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     T learningRate = initialLearningRate_;
     if (usePredefinedLearningRateDecay_) {
         learningRate = initialLearningRate_ * tau_ / (tau_ + nUpdates_);
@@ -240,27 +238,26 @@ void SteepestDescentEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics
     std::vector<T> stepSizes(network.nLayers());
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
-
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
                 /* regular update, if no momentum used */
                 if (!momentum_) {
-                    if (clippingThreshold_ < Core::Type<T>::max){
+                    if (clippingThreshold_ < Core::Type<T>::max) {
                         T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                         statistics.gradientWeights(layer)[stream].clip(localClippingThreshold);
                     }
-                    weights->add(statistics.gradientWeights(layer)[stream],(T) -localLearningRate);
+                    weights->add(statistics.gradientWeights(layer)[stream], (T)-localLearningRate);
                 }
                 /* momentum update */
                 else {
                     // update old deltas (include new statistics)
                     oldDeltas_->gradientWeights(layer)[stream].scale(momentumFactor_);
-                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T) (1 - momentumFactor_));
+                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T)(1 - momentumFactor_));
                     // update weights
-                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T) -localLearningRate);
+                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T)-localLearningRate);
                 }
                 /* log step size */
                 if (logStepSize_) {
@@ -272,24 +269,24 @@ void SteepestDescentEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics
             }
 
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
             /* regular update, if no momentum used */
             if (!momentum_) {
-                if (clippingThreshold_ < Core::Type<T>::max){
-                        T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
+                if (clippingThreshold_ < Core::Type<T>::max) {
+                    T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                     statistics.gradientBias(layer).clip(localClippingThreshold);
                 }
-                bias->add(statistics.gradientBias(layer), (T) -localLearningRate);
+                bias->add(statistics.gradientBias(layer), (T)-localLearningRate);
             }
             /* momentum update */
             else {
                 // update old deltas (include new statistics)
                 oldDeltas_->gradientBias(layer).scale(momentumFactor_);
-                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T) (1 - momentumFactor_));
+                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T)(1 - momentumFactor_));
                 // update bias
-                bias->add(oldDeltas_->gradientBias(layer), (T) -localLearningRate);
+                bias->add(oldDeltas_->gradientBias(layer), (T)-localLearningRate);
             }
             /* log step size */
             if (logStepSize_) {
@@ -311,16 +308,13 @@ void SteepestDescentEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics
 
 //=============================================================================
 
-
 template<typename T>
-SteepestDescentL1ClippingEstimator<T>::SteepestDescentL1ClippingEstimator(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config)
-{}
+SteepestDescentL1ClippingEstimator<T>::SteepestDescentL1ClippingEstimator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config) {}
 
 template<typename T>
 void SteepestDescentL1ClippingEstimator<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     Precursor::estimate(network, statistics);
 
     T learningRate = this->initialLearningRate_;
@@ -332,12 +326,12 @@ void SteepestDescentL1ClippingEstimator<T>::estimate(NeuralNetwork<T>& network, 
         if (network.getLayer(layer).isTrainable()) {
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 weights->l1clipping(network.getLayer(layer).regularizationConstant() * learningRate * network.getLayer(layer).learningRate());
             }
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             bias->l1clipping(network.getLayer(layer).regularizationConstant() * learningRate * network.getLayer(layer).learningRate());
         }
@@ -370,37 +364,41 @@ const Core::ParameterFloat Adam<T>::paramMomentumFactor(
         "momentum-factor", "momentum factor, suggested value: 0.9", 0.0);
 
 template<typename T>
-const Core::ParameterFloat Adam<T>::paramBeta1(	"adam-beta1", "beta1", 0.9);
+const Core::ParameterFloat Adam<T>::paramBeta1("adam-beta1", "beta1", 0.9);
 
 template<typename T>
-const Core::ParameterFloat Adam<T>::paramBeta2(	"adam-beta2", "beta2", 0.999);
+const Core::ParameterFloat Adam<T>::paramBeta2("adam-beta2", "beta2", 0.999);
 
 template<typename T>
 const Core::ParameterFloat Adam<T>::paramEpsilon("adam-epsilon", "epsilon", 1e-8);
 
 template<typename T>
-Adam<T>::Adam(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
-tau_(paramLearningRateTau(config)),
-nUpdates_(paramNumberOfUpdates(config)),
-clippingThreshold_(paramClippingThreshold(config)),
-momentumFactor_(paramMomentumFactor(config)),
-momentum_(momentumFactor_ > 0),
-oldDeltas_(0),
-m_(),v_(),M_(),V_(),g2_(),max_stream_(0),
-b1_(paramBeta1(config)),
-b2_(paramBeta2(config)),
-eps_(paramEpsilon(config))
-{
+Adam<T>::Adam(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
+          tau_(paramLearningRateTau(config)),
+          nUpdates_(paramNumberOfUpdates(config)),
+          clippingThreshold_(paramClippingThreshold(config)),
+          momentumFactor_(paramMomentumFactor(config)),
+          momentum_(momentumFactor_ > 0),
+          oldDeltas_(0),
+          m_(),
+          v_(),
+          M_(),
+          V_(),
+          g2_(),
+          max_stream_(0),
+          b1_(paramBeta1(config)),
+          b2_(paramBeta2(config)),
+          eps_(paramEpsilon(config)) {
     this->log("Initializing Adam with b1=") << b1_ << " b2=" << b2_ << " eps=" << eps_;
 
-    if (usePredefinedLearningRateDecay_){
+    if (usePredefinedLearningRateDecay_) {
         this->log("using predefined learning rate decay with parameter tau: ") << tau_;
         this->log("number of updates so far is ") << nUpdates_;
     }
-    if (clippingThreshold_ < Core::Type<T>::max){
+    if (clippingThreshold_ < Core::Type<T>::max) {
         this->log("clipping updates if larger than ") << clippingThreshold_;
         if (momentum_)
             this->error("momentum with clipping not implemented yet ..");
@@ -410,8 +408,7 @@ eps_(paramEpsilon(config))
 }
 
 template<typename T>
-Adam<T>::~Adam()
-{
+Adam<T>::~Adam() {
     if (momentum_) {
         delete oldDeltas_;
     }
@@ -419,35 +416,24 @@ Adam<T>::~Adam()
 
 template<typename T>
 bool Adam<T>::isDefaultConfig() {
-    if(usePredefinedLearningRateDecay_) return false;
-    if(clippingThreshold_ < Core::Type<T>::max) return false;
-    if(momentum_) return false;
+    if (usePredefinedLearningRateDecay_)
+        return false;
+    if (clippingThreshold_ < Core::Type<T>::max)
+        return false;
+    if (momentum_)
+        return false;
     return true;
 }
 
 template<typename T>
 void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     T learningRate = initialLearningRate_;
-    T b1 = b1_;
-    T b2 = b2_;
-    T eps = eps_;
-
-    /*
-    if (usePredefinedLearningRateDecay_) {
-        learningRate = initialLearningRate_ * tau_ / (tau_ + nUpdates_);
-    }
-    */
+    T b1           = b1_;
+    T b2           = b2_;
+    T eps          = eps_;
 
     /* estimation of parameters */
     require(statistics.hasGradient());
-
-    // if momentum is used and oldDeltas_ not yet initialized, just copy the statistics
-    /*
-    if (momentum_ && (oldDeltas_ == 0)) {
-        oldDeltas_ = new Statistics<T>(statistics);
-    }
-    */
 
     if (usePredefinedLearningRateDecay_ && statisticsChannel_.isOpen())
         statisticsChannel_ << "learningRate: " << learningRate;
@@ -482,14 +468,15 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
         }
 
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
-            if (!network.getLayer(layer).isTrainable()) continue;
+            if (!network.getLayer(layer).isTrainable())
+                continue;
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                idx = layer * (max_stream_+1) + stream;
-                m_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                v_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                V_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                g2_[idx]= new NnMatrix(w->nRows(), w->nColumns());
+                NnMatrix* w = network.getLayer(layer).getWeights(stream);
+                idx         = layer * (max_stream_ + 1) + stream;
+                m_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                v_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                V_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                g2_[idx]    = new NnMatrix(w->nRows(), w->nColumns());
 
                 m_[idx]->setToZero();
                 v_[idx]->setToZero();
@@ -498,15 +485,14 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
                 v_[idx]->initComputation();
                 V_[idx]->initComputation();
                 g2_[idx]->initComputation();
-
             }
             // biases
-            idx = layer * (max_stream_+1) + max_stream_;
-            NnVector *b = network.getLayer(layer).getBias();
-            m_[idx] = new NnMatrix(b->nRows(), 1);
-            v_[idx] = new NnMatrix(b->nRows(), 1);
-            V_[idx] = new NnMatrix(b->nRows(), 1);
-            g2_[idx]= new NnMatrix(b->nRows(), 1);
+            idx         = layer * (max_stream_ + 1) + max_stream_;
+            NnVector* b = network.getLayer(layer).getBias();
+            m_[idx]     = new NnMatrix(b->nRows(), 1);
+            v_[idx]     = new NnMatrix(b->nRows(), 1);
+            V_[idx]     = new NnMatrix(b->nRows(), 1);
+            g2_[idx]    = new NnMatrix(b->nRows(), 1);
 
             m_[idx]->setToZero();
             v_[idx]->setToZero();
@@ -521,15 +507,14 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
     std::vector<T> stepSizes(network.nLayers());
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
-
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
                 /* regular update, if no momentum used */
                 if (!momentum_) {
-                    if (clippingThreshold_ < Core::Type<T>::max){
+                    if (clippingThreshold_ < Core::Type<T>::max) {
                         T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                         statistics.gradientWeights(layer)[stream].clip(localClippingThreshold);
                     }
@@ -547,22 +532,22 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
                     // lr_ = lr * sqrt(1 - b2^t) / (1 - b1^t)
                     // w = w + (-lr_ * m/(sqrt(v)+eps))
 
-                    NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                    NnMatrix *g = &statistics.gradientWeights(layer)[stream];
-                    u32 idx = layer * (max_stream_+1) + stream;
+                    NnMatrix* w   = network.getLayer(layer).getWeights(stream);
+                    NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
+                    u32       idx = layer * (max_stream_ + 1) + stream;
 
-                    NnMatrix *m  = m_[idx];
-                    NnMatrix *v  = v_[idx];
-                    NnMatrix *g2 = g2_[idx];
-                    NnMatrix *V  = V_[idx];
+                    NnMatrix* m  = m_[idx];
+                    NnMatrix* v  = v_[idx];
+                    NnMatrix* g2 = g2_[idx];
+                    NnMatrix* V  = V_[idx];
 
                     m->scale(b1);
-                    m->add(*g, T(1-b1));
+                    m->add(*g, T(1 - b1));
 
                     g2->copy(*g);
                     g2->pow(T(2));
                     v->scale(b2);
-                    v->add(*g2, T(1-b2));
+                    v->add(*g2, T(1 - b2));
 
                     V->copy(*v);
                     V->pow(T(0.5));
@@ -570,59 +555,39 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
                     V->pow(T(-1));
                     V->elementwiseMultiplication(*m);
 
-                    T t = nUpdates_;
-                    T lr_ = -localLearningRate * sqrt(1-pow(b2, t)) / (1-pow(b1, t));
+                    T t   = nUpdates_;
+                    T lr_ = -localLearningRate * sqrt(1 - pow(b2, t)) / (1 - pow(b1, t));
                     w->add(*V, lr_);
-
                 }
-                /* momentum update */
-                /*
-                else {
-                    // update old deltas (include new statistics)
-                    oldDeltas_->gradientWeights(layer)[stream].scale(momentumFactor_);
-                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T) (1 - momentumFactor_));
-                    // update weights
-                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T) -localLearningRate);
-                }
-                */
-                /* log step size */
-                /*
-                if (logStepSize_) {
-                    if (!momentum_)
-                        stepSizes[layer] = statistics.gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                    else
-                        stepSizes[layer] = oldDeltas_->gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                }
-                */
             }
 
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
             /* regular update, if no momentum used */
             if (!momentum_) {
-                if (clippingThreshold_ < Core::Type<T>::max){
-                        T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
+                if (clippingThreshold_ < Core::Type<T>::max) {
+                    T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                     statistics.gradientBias(layer).clip(localClippingThreshold);
                 }
 
-                NnVector *w = network.getLayer(layer).getBias();
-                NnVector *g = &statistics.gradientBias(layer);
-                u32 idx = layer * (max_stream_ + 1) + max_stream_;
+                NnVector* w   = network.getLayer(layer).getBias();
+                NnVector* g   = &statistics.gradientBias(layer);
+                u32       idx = layer * (max_stream_ + 1) + max_stream_;
 
-                NnMatrix *m  = m_[idx];
-                NnMatrix *v  = v_[idx];
-                NnMatrix *g2 = g2_[idx];
-                NnMatrix *V  = V_[idx];
+                NnMatrix* m  = m_[idx];
+                NnMatrix* v  = v_[idx];
+                NnMatrix* g2 = g2_[idx];
+                NnMatrix* V  = V_[idx];
 
                 m->scale(b1);
-                m->addToAllColumns(*g, T(1-b1));
+                m->addToAllColumns(*g, T(1 - b1));
 
                 g2->setColumn(0, *g);
                 g2->pow(T(2));
                 v->scale(b2);
-                v->add(*g2, T(1-b2));
+                v->add(*g2, T(1 - b2));
 
                 V->copy(*v);
                 V->pow(T(0.5));
@@ -630,28 +595,10 @@ void Adam<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
                 V->pow(T(-1));
                 V->elementwiseMultiplication(*m);
 
-                T t = nUpdates_;
-                T lr_ = -localLearningRate * sqrt(1-pow(b2, t)) / (1-pow(b1, t));
+                T t   = nUpdates_;
+                T lr_ = -localLearningRate * sqrt(1 - pow(b2, t)) / (1 - pow(b1, t));
                 w->addSummedColumns(*V, lr_);
             }
-            /* momentum update */
-            /*
-            else {
-                // update old deltas (include new statistics)
-                oldDeltas_->gradientBias(layer).scale(momentumFactor_);
-                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T) (1 - momentumFactor_));
-                // update bias
-                bias->add(oldDeltas_->gradientBias(layer), (T) -localLearningRate);
-            }*/
-            /* log step size */
-            /*
-            if (logStepSize_) {
-                if (!momentum_)
-                    stepSizes[layer] += statistics.gradientBias(layer).l1norm() * localLearningRate;
-                else
-                    stepSizes[layer] += oldDeltas_->gradientBias(layer).l1norm() * localLearningRate;
-            }
-            */
         }
     }
     if (logStepSize_ && statisticsChannel_.isOpen()) {
@@ -690,27 +637,29 @@ template<typename T>
 const Core::ParameterFloat AdaGrad<T>::paramEpsilon("adagrad-epsilon", "epsilon", 1e-8);
 
 template<typename T>
-AdaGrad<T>::AdaGrad(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
-tau_(paramLearningRateTau(config)),
-nUpdates_(paramNumberOfUpdates(config)),
-clippingThreshold_(paramClippingThreshold(config)),
-momentumFactor_(paramMomentumFactor(config)),
-momentum_(momentumFactor_ > 0),
-oldDeltas_(0),
-v_(),V_(),g2_(),max_stream_(0),
-b1_(paramBeta1(config)),
-eps_(paramEpsilon(config))
-{
+AdaGrad<T>::AdaGrad(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
+          tau_(paramLearningRateTau(config)),
+          nUpdates_(paramNumberOfUpdates(config)),
+          clippingThreshold_(paramClippingThreshold(config)),
+          momentumFactor_(paramMomentumFactor(config)),
+          momentum_(momentumFactor_ > 0),
+          oldDeltas_(0),
+          v_(),
+          V_(),
+          g2_(),
+          max_stream_(0),
+          b1_(paramBeta1(config)),
+          eps_(paramEpsilon(config)) {
     this->log("Initializing AdaGrad with b1=") << b1_ << " eps=" << eps_;
 
-    if (usePredefinedLearningRateDecay_){
+    if (usePredefinedLearningRateDecay_) {
         this->log("using predefined learning rate decay with parameter tau: ") << tau_;
         this->log("number of updates so far is ") << nUpdates_;
     }
-    if (clippingThreshold_ < Core::Type<T>::max){
+    if (clippingThreshold_ < Core::Type<T>::max) {
         this->log("clipping updates if larger than ") << clippingThreshold_;
         if (momentum_)
             this->error("momentum with clipping not implemented yet ..");
@@ -720,8 +669,7 @@ eps_(paramEpsilon(config))
 }
 
 template<typename T>
-AdaGrad<T>::~AdaGrad()
-{
+AdaGrad<T>::~AdaGrad() {
     if (momentum_) {
         delete oldDeltas_;
     }
@@ -729,34 +677,23 @@ AdaGrad<T>::~AdaGrad()
 
 template<typename T>
 bool AdaGrad<T>::isDefaultConfig() {
-    if(usePredefinedLearningRateDecay_) return false;
-    if(clippingThreshold_ < Core::Type<T>::max) return false;
-    if(momentum_) return false;
+    if (usePredefinedLearningRateDecay_)
+        return false;
+    if (clippingThreshold_ < Core::Type<T>::max)
+        return false;
+    if (momentum_)
+        return false;
     return true;
 }
 
 template<typename T>
 void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     T learningRate = initialLearningRate_;
-    T b1 = b1_;
-    T eps = eps_;
-
-    /*
-    if (usePredefinedLearningRateDecay_) {
-        learningRate = initialLearningRate_ * tau_ / (tau_ + nUpdates_);
-    }
-    */
+    T b1           = b1_;
+    T eps          = eps_;
 
     /* estimation of parameters */
     require(statistics.hasGradient());
-
-    // if momentum is used and oldDeltas_ not yet initialized, just copy the statistics
-    /*
-    if (momentum_ && (oldDeltas_ == 0)) {
-        oldDeltas_ = new Statistics<T>(statistics);
-    }
-    */
 
     if (usePredefinedLearningRateDecay_ && statisticsChannel_.isOpen())
         statisticsChannel_ << "learningRate: " << learningRate;
@@ -790,13 +727,14 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
         }
 
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
-            if (!network.getLayer(layer).isTrainable()) continue;
+            if (!network.getLayer(layer).isTrainable())
+                continue;
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                idx = layer * (max_stream_+1) + stream;
-                v_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                V_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                g2_[idx]= new NnMatrix(w->nRows(), w->nColumns());
+                NnMatrix* w = network.getLayer(layer).getWeights(stream);
+                idx         = layer * (max_stream_ + 1) + stream;
+                v_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                V_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                g2_[idx]    = new NnMatrix(w->nRows(), w->nColumns());
 
                 v_[idx]->initComputation();
                 V_[idx]->initComputation();
@@ -805,11 +743,11 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                 v_[idx]->fill(b1);
             }
             // biases
-            idx = layer * (max_stream_+1) + max_stream_;
-            NnVector *b = network.getLayer(layer).getBias();
-            v_[idx] = new NnMatrix(b->nRows(), 1);
-            V_[idx] = new NnMatrix(b->nRows(), 1);
-            g2_[idx]= new NnMatrix(b->nRows(), 1);
+            idx         = layer * (max_stream_ + 1) + max_stream_;
+            NnVector* b = network.getLayer(layer).getBias();
+            v_[idx]     = new NnMatrix(b->nRows(), 1);
+            V_[idx]     = new NnMatrix(b->nRows(), 1);
+            g2_[idx]    = new NnMatrix(b->nRows(), 1);
 
             v_[idx]->initComputation();
             V_[idx]->initComputation();
@@ -822,15 +760,14 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
     std::vector<T> stepSizes(network.nLayers());
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
-
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
                 /* regular update, if no momentum used */
                 if (!momentum_) {
-                    if (clippingThreshold_ < Core::Type<T>::max){
+                    if (clippingThreshold_ < Core::Type<T>::max) {
                         T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                         statistics.gradientWeights(layer)[stream].clip(localClippingThreshold);
                     }
@@ -847,13 +784,13 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                     // w = w + (-lr * g/(sqrt(v)+eps))
 
                     //printf("layer %d, stream %d\n", layer, stream);
-                    NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                    NnMatrix *g = &statistics.gradientWeights(layer)[stream];
-                    u32 idx = layer * (max_stream_+1) + stream;
+                    NnMatrix* w   = network.getLayer(layer).getWeights(stream);
+                    NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
+                    u32       idx = layer * (max_stream_ + 1) + stream;
 
-                    NnMatrix *v  = v_[idx];
-                    NnMatrix *g2 = g2_[idx];
-                    NnMatrix *V  = V_[idx];
+                    NnMatrix* v  = v_[idx];
+                    NnMatrix* g2 = g2_[idx];
+                    NnMatrix* V  = V_[idx];
 
                     g2->copy(*g);
                     g2->pow(T(2));
@@ -864,52 +801,34 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                         V->pow(T(0.5));
                         V->addConstantElementwise(eps);
                         V->pow(T(-1));
-                    } else {
+                    }
+                    else {
                         V->pow(T(-0.5));
                     }
                     V->elementwiseMultiplication(*g);
 
                     w->add(*V, -localLearningRate);
                 }
-                /* momentum update */
-                /*
-                else {
-                    // update old deltas (include new statistics)
-                    oldDeltas_->gradientWeights(layer)[stream].scale(momentumFactor_);
-                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T) (1 - momentumFactor_));
-                    // update weights
-                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T) -localLearningRate);
-                }
-                */
-                /* log step size */
-                /*
-                if (logStepSize_) {
-                    if (!momentum_)
-                        stepSizes[layer] = statistics.gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                    else
-                        stepSizes[layer] = oldDeltas_->gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                }
-                */
             }
 
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
             /* regular update, if no momentum used */
             if (!momentum_) {
-                if (clippingThreshold_ < Core::Type<T>::max){
-                        T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
+                if (clippingThreshold_ < Core::Type<T>::max) {
+                    T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                     statistics.gradientBias(layer).clip(localClippingThreshold);
                 }
 
-                NnVector *w = network.getLayer(layer).getBias();
-                NnVector *g = &statistics.gradientBias(layer);
-                u32 idx = layer * (max_stream_ + 1) + max_stream_;
+                NnVector* w   = network.getLayer(layer).getBias();
+                NnVector* g   = &statistics.gradientBias(layer);
+                u32       idx = layer * (max_stream_ + 1) + max_stream_;
 
-                NnMatrix *v  = v_[idx];
-                NnMatrix *g2 = g2_[idx];
-                NnMatrix *V  = V_[idx];
+                NnMatrix* v  = v_[idx];
+                NnMatrix* g2 = g2_[idx];
+                NnMatrix* V  = V_[idx];
 
                 g2->setColumn(0, *g);
                 g2->pow(T(2));
@@ -920,7 +839,8 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                     V->pow(T(0.5));
                     V->addConstantElementwise(eps);
                     V->pow(T(-1));
-                } else {
+                }
+                else {
                     V->pow(T(-0.5));
                 }
                 g2->setColumn(0, *g);
@@ -928,24 +848,6 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
 
                 w->addSummedColumns(*V, localLearningRate);
             }
-            /* momentum update */
-            /*
-            else {
-                // update old deltas (include new statistics)
-                oldDeltas_->gradientBias(layer).scale(momentumFactor_);
-                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T) (1 - momentumFactor_));
-                // update bias
-                bias->add(oldDeltas_->gradientBias(layer), (T) -localLearningRate);
-            }*/
-            /* log step size */
-            /*
-            if (logStepSize_) {
-                if (!momentum_)
-                    stepSizes[layer] += statistics.gradientBias(layer).l1norm() * localLearningRate;
-                else
-                    stepSizes[layer] += oldDeltas_->gradientBias(layer).l1norm() * localLearningRate;
-            }
-            */
         }
     }
     if (logStepSize_ && statisticsChannel_.isOpen()) {
@@ -984,27 +886,30 @@ template<typename T>
 const Core::ParameterFloat AdaDelta<T>::paramEpsilon("adadelta-epsilon", "epsilon", 1e-8);
 
 template<typename T>
-AdaDelta<T>::AdaDelta(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
-tau_(paramLearningRateTau(config)),
-nUpdates_(paramNumberOfUpdates(config)),
-clippingThreshold_(paramClippingThreshold(config)),
-momentumFactor_(paramMomentumFactor(config)),
-momentum_(momentumFactor_ > 0),
-oldDeltas_(0),
-g2_(), Eg2_(), Edx2_(), RMSg_(), max_stream_(0),
-b1_(paramBeta1(config)),
-eps_(paramEpsilon(config))
-{
+AdaDelta<T>::AdaDelta(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
+          tau_(paramLearningRateTau(config)),
+          nUpdates_(paramNumberOfUpdates(config)),
+          clippingThreshold_(paramClippingThreshold(config)),
+          momentumFactor_(paramMomentumFactor(config)),
+          momentum_(momentumFactor_ > 0),
+          oldDeltas_(0),
+          g2_(),
+          Eg2_(),
+          Edx2_(),
+          RMSg_(),
+          max_stream_(0),
+          b1_(paramBeta1(config)),
+          eps_(paramEpsilon(config)) {
     this->log("Initializing AdaDelta with b1=") << b1_ << " eps=" << eps_;
 
-    if (usePredefinedLearningRateDecay_){
+    if (usePredefinedLearningRateDecay_) {
         this->log("using predefined learning rate decay with parameter tau: ") << tau_;
         this->log("number of updates so far is ") << nUpdates_;
     }
-    if (clippingThreshold_ < Core::Type<T>::max){
+    if (clippingThreshold_ < Core::Type<T>::max) {
         this->log("clipping updates if larger than ") << clippingThreshold_;
         if (momentum_)
             this->error("momentum with clipping not implemented yet ..");
@@ -1014,8 +919,7 @@ eps_(paramEpsilon(config))
 }
 
 template<typename T>
-AdaDelta<T>::~AdaDelta()
-{
+AdaDelta<T>::~AdaDelta() {
     if (momentum_) {
         delete oldDeltas_;
     }
@@ -1023,34 +927,23 @@ AdaDelta<T>::~AdaDelta()
 
 template<typename T>
 bool AdaDelta<T>::isDefaultConfig() {
-    if(usePredefinedLearningRateDecay_) return false;
-    if(clippingThreshold_ < Core::Type<T>::max) return false;
-    if(momentum_) return false;
+    if (usePredefinedLearningRateDecay_)
+        return false;
+    if (clippingThreshold_ < Core::Type<T>::max)
+        return false;
+    if (momentum_)
+        return false;
     return true;
 }
 
 template<typename T>
 void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     T learningRate = initialLearningRate_;
-    T b1 = b1_;
-    T eps = eps_;
-
-    /*
-    if (usePredefinedLearningRateDecay_) {
-        learningRate = initialLearningRate_ * tau_ / (tau_ + nUpdates_);
-    }
-    */
+    T b1           = b1_;
+    T eps          = eps_;
 
     /* estimation of parameters */
     require(statistics.hasGradient());
-
-    // if momentum is used and oldDeltas_ not yet initialized, just copy the statistics
-    /*
-    if (momentum_ && (oldDeltas_ == 0)) {
-        oldDeltas_ = new Statistics<T>(statistics);
-    }
-    */
 
     if (usePredefinedLearningRateDecay_ && statisticsChannel_.isOpen())
         statisticsChannel_ << "learningRate: " << learningRate;
@@ -1084,14 +977,15 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
         }
 
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
-            if (!network.getLayer(layer).isTrainable()) continue;
+            if (!network.getLayer(layer).isTrainable())
+                continue;
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                idx = layer * (max_stream_+1) + stream;
-                g2_[idx]   = new NnMatrix(w->nRows(), w->nColumns());
-                Eg2_[idx]  = new NnMatrix(w->nRows(), w->nColumns());
-                Edx2_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                RMSg_[idx] = new NnMatrix(w->nRows(), w->nColumns());
+                NnMatrix* w = network.getLayer(layer).getWeights(stream);
+                idx         = layer * (max_stream_ + 1) + stream;
+                g2_[idx]    = new NnMatrix(w->nRows(), w->nColumns());
+                Eg2_[idx]   = new NnMatrix(w->nRows(), w->nColumns());
+                Edx2_[idx]  = new NnMatrix(w->nRows(), w->nColumns());
+                RMSg_[idx]  = new NnMatrix(w->nRows(), w->nColumns());
 
                 g2_[idx]->initComputation();
                 Eg2_[idx]->initComputation();
@@ -1102,12 +996,12 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                 Edx2_[idx]->setToZero();
             }
             // biases
-            idx = layer * (max_stream_+1) + max_stream_;
-            NnVector *b = network.getLayer(layer).getBias();
-            g2_[idx]   = new NnMatrix(b->nRows(), 1);
-            Eg2_[idx]  = new NnMatrix(b->nRows(), 1);
-            Edx2_[idx] = new NnMatrix(b->nRows(), 1);
-            RMSg_[idx] = new NnMatrix(b->nRows(), 1);
+            idx         = layer * (max_stream_ + 1) + max_stream_;
+            NnVector* b = network.getLayer(layer).getBias();
+            g2_[idx]    = new NnMatrix(b->nRows(), 1);
+            Eg2_[idx]   = new NnMatrix(b->nRows(), 1);
+            Edx2_[idx]  = new NnMatrix(b->nRows(), 1);
+            RMSg_[idx]  = new NnMatrix(b->nRows(), 1);
 
             g2_[idx]->initComputation();
             Eg2_[idx]->initComputation();
@@ -1122,15 +1016,14 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
     std::vector<T> stepSizes(network.nLayers());
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
-
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
                 /* regular update, if no momentum used */
                 if (!momentum_) {
-                    if (clippingThreshold_ < Core::Type<T>::max){
+                    if (clippingThreshold_ < Core::Type<T>::max) {
                         T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                         statistics.gradientWeights(layer)[stream].clip(localClippingThreshold);
                     }
@@ -1159,23 +1052,23 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                     // w = w + dx
 
                     //printf("layer %d, stream %d\n", layer, stream);
-                    NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                    NnMatrix *g = &statistics.gradientWeights(layer)[stream];
-                    u32 idx = layer * (max_stream_+1) + stream;
+                    NnMatrix* w   = network.getLayer(layer).getWeights(stream);
+                    NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
+                    u32       idx = layer * (max_stream_ + 1) + stream;
 
-                    NnMatrix *g2    = g2_[idx];
-                    NnMatrix *Eg2   = Eg2_[idx];
-                    NnMatrix *Edx2  = Edx2_[idx];
-                    NnMatrix *RMSg  = RMSg_[idx];
+                    NnMatrix* g2   = g2_[idx];
+                    NnMatrix* Eg2  = Eg2_[idx];
+                    NnMatrix* Edx2 = Edx2_[idx];
+                    NnMatrix* RMSg = RMSg_[idx];
 
                     g2->copy(*g);
                     g2->pow(T(2));
 
                     Eg2->scale(b1);
-                    Eg2->add(*g2, T(1-b1));
+                    Eg2->add(*g2, T(1 - b1));
 
                     // we don't need g2 anymore, so use it for storing RMSdx now
-                    NnMatrix *RMSdx = g2;
+                    NnMatrix* RMSdx = g2;
 
                     RMSdx->copy(*Edx2);
                     RMSdx->addConstantElementwise(eps);
@@ -1186,7 +1079,7 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                     // RMSg->pow(T(0.5)); // next use RMSg as accumulator 'dx' to save memory
                     RMSg->pow(T(-0.5));
 
-                    NnMatrix *dx = RMSg;
+                    NnMatrix* dx = RMSg;
 
                     dx->elementwiseMultiplication(*RMSdx);
                     dx->elementwiseMultiplication(*g);
@@ -1196,48 +1089,29 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
 
                     dx->pow(T(2.0));
                     Edx2->scale(b1);
-                    Edx2->add(*dx, T(1-b1));
+                    Edx2->add(*dx, T(1 - b1));
                 }
-                /* momentum update */
-                /*
-                else {
-                    // update old deltas (include new statistics)
-                    oldDeltas_->gradientWeights(layer)[stream].scale(momentumFactor_);
-                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T) (1 - momentumFactor_));
-                    // update weights
-                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T) -localLearningRate);
-                }
-                */
-                /* log step size */
-                /*
-                if (logStepSize_) {
-                    if (!momentum_)
-                        stepSizes[layer] = statistics.gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                    else
-                        stepSizes[layer] = oldDeltas_->gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                }
-                */
             }
 
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
             /* regular update, if no momentum used */
             if (!momentum_) {
-                if (clippingThreshold_ < Core::Type<T>::max){
-                        T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
+                if (clippingThreshold_ < Core::Type<T>::max) {
+                    T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                     statistics.gradientBias(layer).clip(localClippingThreshold);
                 }
 
-                NnVector *w = network.getLayer(layer).getBias();
-                NnVector *g = &statistics.gradientBias(layer);
-                u32 idx = layer * (max_stream_ + 1) + max_stream_;
+                NnVector* w   = network.getLayer(layer).getBias();
+                NnVector* g   = &statistics.gradientBias(layer);
+                u32       idx = layer * (max_stream_ + 1) + max_stream_;
 
-                NnMatrix *g2    = g2_[idx];
-                NnMatrix *Eg2   = Eg2_[idx];
-                NnMatrix *Edx2  = Edx2_[idx];
-                NnMatrix *RMSg  = RMSg_[idx];
+                NnMatrix* g2   = g2_[idx];
+                NnMatrix* Eg2  = Eg2_[idx];
+                NnMatrix* Edx2 = Edx2_[idx];
+                NnMatrix* RMSg = RMSg_[idx];
 
                 // matrix representation of NnVector g
                 NnMatrix g_copy(g->nRows(), 1);
@@ -1248,10 +1122,10 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                 g2->pow(T(2));
 
                 Eg2->scale(b1);
-                Eg2->add(*g2, T(1-b1));
+                Eg2->add(*g2, T(1 - b1));
 
                 // we don't need g2 anymore, so use it for storing RMSdx now
-                NnMatrix *RMSdx = g2;
+                NnMatrix* RMSdx = g2;
 
                 RMSdx->copy(*Edx2);
                 RMSdx->addConstantElementwise(eps);
@@ -1262,36 +1136,18 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                 // RMSg->pow(T(0.5)); // next use RMSg as accumulator 'dx' to save memory
                 RMSg->pow(T(-0.5));
 
-                NnMatrix *dx = RMSg;
+                NnMatrix* dx = RMSg;
 
                 dx->elementwiseMultiplication(*RMSdx);
                 dx->elementwiseMultiplication(g_copy);
                 dx->scale(-localLearningRate);
 
-                w->addSummedColumns(*dx); // ==add(*dx), since dx has only 1 column
+                w->addSummedColumns(*dx);  // ==add(*dx), since dx has only 1 column
 
                 dx->pow(T(2.0));
                 Edx2->scale(b1);
-                Edx2->add(*dx, T(1-b1));
+                Edx2->add(*dx, T(1 - b1));
             }
-            /* momentum update */
-            /*
-            else {
-                // update old deltas (include new statistics)
-                oldDeltas_->gradientBias(layer).scale(momentumFactor_);
-                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T) (1 - momentumFactor_));
-                // update bias
-                bias->add(oldDeltas_->gradientBias(layer), (T) -localLearningRate);
-            }*/
-            /* log step size */
-            /*
-            if (logStepSize_) {
-                if (!momentum_)
-                    stepSizes[layer] += statistics.gradientBias(layer).l1norm() * localLearningRate;
-                else
-                    stepSizes[layer] += oldDeltas_->gradientBias(layer).l1norm() * localLearningRate;
-            }
-            */
         }
     }
     if (logStepSize_ && statisticsChannel_.isOpen()) {
@@ -1332,28 +1188,32 @@ template<typename T>
 const Core::ParameterFloat RmsProp<T>::paramEpsilon("rmsprop-epsilon", "epsilon", 1e-10);
 
 template<typename T>
-RmsProp<T>::RmsProp(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config),
-usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
-tau_(paramLearningRateTau(config)),
-nUpdates_(paramNumberOfUpdates(config)),
-clippingThreshold_(paramClippingThreshold(config)),
-momentumFactor_(paramMomentumFactor(config)),
-momentum_(momentumFactor_ > 0),
-oldDeltas_(0),
-m_(),v_(),M_(),V_(),g2_(),max_stream_(0),
-b1_(paramBeta1(config)),
-b2_(paramBeta2(config)),
-eps_(paramEpsilon(config))
-{
+RmsProp<T>::RmsProp(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          usePredefinedLearningRateDecay_(paramUsePredefinedLearningRateDecay(config)),
+          tau_(paramLearningRateTau(config)),
+          nUpdates_(paramNumberOfUpdates(config)),
+          clippingThreshold_(paramClippingThreshold(config)),
+          momentumFactor_(paramMomentumFactor(config)),
+          momentum_(momentumFactor_ > 0),
+          oldDeltas_(0),
+          m_(),
+          v_(),
+          M_(),
+          V_(),
+          g2_(),
+          max_stream_(0),
+          b1_(paramBeta1(config)),
+          b2_(paramBeta2(config)),
+          eps_(paramEpsilon(config)) {
     this->log("Initializing RMSProp with b1=") << b1_ << " b2=" << b2_ << " eps=" << eps_;
 
-    if (usePredefinedLearningRateDecay_){
+    if (usePredefinedLearningRateDecay_) {
         this->log("using predefined learning rate decay with parameter tau: ") << tau_;
         this->log("number of updates so far is ") << nUpdates_;
     }
-    if (clippingThreshold_ < Core::Type<T>::max){
+    if (clippingThreshold_ < Core::Type<T>::max) {
         this->log("clipping updates if larger than ") << clippingThreshold_;
         if (momentum_)
             this->error("momentum with clipping not implemented yet ..");
@@ -1363,8 +1223,7 @@ eps_(paramEpsilon(config))
 }
 
 template<typename T>
-RmsProp<T>::~RmsProp()
-{
+RmsProp<T>::~RmsProp() {
     if (momentum_) {
         delete oldDeltas_;
     }
@@ -1372,35 +1231,24 @@ RmsProp<T>::~RmsProp()
 
 template<typename T>
 bool RmsProp<T>::isDefaultConfig() {
-    if(usePredefinedLearningRateDecay_) return false;
-    if(clippingThreshold_ < Core::Type<T>::max) return false;
-    if(momentum_) return false;
+    if (usePredefinedLearningRateDecay_)
+        return false;
+    if (clippingThreshold_ < Core::Type<T>::max)
+        return false;
+    if (momentum_)
+        return false;
     return true;
 }
 
 template<typename T>
 void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {
-
     T learningRate = initialLearningRate_;
-    T b1 = b1_;
-    T b2 = b2_;
-    T eps = eps_;
-
-    /*
-    if (usePredefinedLearningRateDecay_) {
-        learningRate = initialLearningRate_ * tau_ / (tau_ + nUpdates_);
-    }
-    */
+    T b1           = b1_;
+    T b2           = b2_;
+    T eps          = eps_;
 
     /* estimation of parameters */
     require(statistics.hasGradient());
-
-    // if momentum is used and oldDeltas_ not yet initialized, just copy the statistics
-    /*
-    if (momentum_ && (oldDeltas_ == 0)) {
-        oldDeltas_ = new Statistics<T>(statistics);
-    }
-    */
 
     if (usePredefinedLearningRateDecay_ && statisticsChannel_.isOpen())
         statisticsChannel_ << "learningRate: " << learningRate;
@@ -1434,15 +1282,16 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
         }
 
         for (u32 layer = 0; layer < network.nLayers(); layer++) {
-            if (!network.getLayer(layer).isTrainable()) continue;
+            if (!network.getLayer(layer).isTrainable())
+                continue;
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                idx = layer * (max_stream_+1) + stream;
-                m_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                v_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                M_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                V_[idx] = new NnMatrix(w->nRows(), w->nColumns());
-                g2_[idx]= new NnMatrix(w->nRows(), w->nColumns());
+                NnMatrix* w = network.getLayer(layer).getWeights(stream);
+                idx         = layer * (max_stream_ + 1) + stream;
+                m_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                v_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                M_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                V_[idx]     = new NnMatrix(w->nRows(), w->nColumns());
+                g2_[idx]    = new NnMatrix(w->nRows(), w->nColumns());
 
                 m_[idx]->setToZero();
                 v_[idx]->setToZero();
@@ -1453,16 +1302,15 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                 M_[idx]->initComputation();
                 V_[idx]->initComputation();
                 g2_[idx]->initComputation();
-
             }
             // biases
-            idx = layer * (max_stream_+1) + max_stream_;
-            NnVector *b = network.getLayer(layer).getBias();
-            m_[idx] = new NnMatrix(b->nRows(), 1);
-            v_[idx] = new NnMatrix(b->nRows(), 1);
-            M_[idx] = new NnMatrix(b->nRows(), 1);
-            V_[idx] = new NnMatrix(b->nRows(), 1);
-            g2_[idx]= new NnMatrix(b->nRows(), 1);
+            idx         = layer * (max_stream_ + 1) + max_stream_;
+            NnVector* b = network.getLayer(layer).getBias();
+            m_[idx]     = new NnMatrix(b->nRows(), 1);
+            v_[idx]     = new NnMatrix(b->nRows(), 1);
+            M_[idx]     = new NnMatrix(b->nRows(), 1);
+            V_[idx]     = new NnMatrix(b->nRows(), 1);
+            g2_[idx]    = new NnMatrix(b->nRows(), 1);
 
             m_[idx]->setToZero();
             v_[idx]->setToZero();
@@ -1479,15 +1327,14 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
     std::vector<T> stepSizes(network.nLayers());
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if (network.getLayer(layer).isTrainable()) {
-
             /* estimation of weights */
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 T localLearningRate = learningRate * network.getLayer(layer).learningRate();
                 /* regular update, if no momentum used */
                 if (!momentum_) {
-                    if (clippingThreshold_ < Core::Type<T>::max){
+                    if (clippingThreshold_ < Core::Type<T>::max) {
                         T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                         statistics.gradientWeights(layer)[stream].clip(localClippingThreshold);
                     }
@@ -1506,23 +1353,23 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                     //
                     // w = w + M
 
-                    NnMatrix *w = network.getLayer(layer).getWeights(stream);
-                    NnMatrix *g = &statistics.gradientWeights(layer)[stream];
-                    u32 idx = layer * (max_stream_+1) + stream;
+                    NnMatrix* w   = network.getLayer(layer).getWeights(stream);
+                    NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
+                    u32       idx = layer * (max_stream_ + 1) + stream;
 
-                    NnMatrix *m  = m_[idx];
-                    NnMatrix *v  = v_[idx];
-                    NnMatrix *g2 = g2_[idx];
-                    NnMatrix *V  = V_[idx];
-                    NnMatrix *M  = M_[idx];
+                    NnMatrix* m  = m_[idx];
+                    NnMatrix* v  = v_[idx];
+                    NnMatrix* g2 = g2_[idx];
+                    NnMatrix* V  = V_[idx];
+                    NnMatrix* M  = M_[idx];
 
                     m->scale(b1);
-                    m->add(*g, T(1-b1));
+                    m->add(*g, T(1 - b1));
 
                     g2->copy(*g);
                     g2->pow(T(2));
                     v->scale(b1);
-                    v->add(*g2, T(1-b1));
+                    v->add(*g2, T(1 - b1));
 
                     V->copy(*m);
                     V->pow(T(2));
@@ -1536,57 +1383,37 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                     M->add(*V, T(-localLearningRate));
 
                     w->add(*M);
-
                 }
-                /* momentum update */
-                /*
-                else {
-                    // update old deltas (include new statistics)
-                    oldDeltas_->gradientWeights(layer)[stream].scale(momentumFactor_);
-                    oldDeltas_->gradientWeights(layer)[stream].add(statistics.gradientWeights(layer)[stream], (T) (1 - momentumFactor_));
-                    // update weights
-                    weights->add(oldDeltas_->gradientWeights(layer)[stream], (T) -localLearningRate);
-                }
-                */
-                /* log step size */
-                /*
-                if (logStepSize_) {
-                    if (!momentum_)
-                        stepSizes[layer] = statistics.gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                    else
-                        stepSizes[layer] = oldDeltas_->gradientWeights(layer)[stream].l1norm() * localLearningRate;
-                }
-                */
             }
 
             /* estimation of bias */
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             T localLearningRate = learningRate * biasLearningRate_ * network.getLayer(layer).learningRate();
             /* regular update, if no momentum used */
             if (!momentum_) {
-                if (clippingThreshold_ < Core::Type<T>::max){
-                        T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
+                if (clippingThreshold_ < Core::Type<T>::max) {
+                    T localClippingThreshold = localLearningRate > 0 ? clippingThreshold_ / localLearningRate : 0;
                     statistics.gradientBias(layer).clip(localClippingThreshold);
                 }
 
-                NnVector *w = network.getLayer(layer).getBias();
-                NnVector *g = &statistics.gradientBias(layer);
-                u32 idx = layer * (max_stream_ + 1) + max_stream_;
+                NnVector* w   = network.getLayer(layer).getBias();
+                NnVector* g   = &statistics.gradientBias(layer);
+                u32       idx = layer * (max_stream_ + 1) + max_stream_;
 
-                NnMatrix *m  = m_[idx];
-                NnMatrix *v  = v_[idx];
-                NnMatrix *g2 = g2_[idx];
-                NnMatrix *V  = V_[idx];
-                NnMatrix *M  = M_[idx];
+                NnMatrix* m  = m_[idx];
+                NnMatrix* v  = v_[idx];
+                NnMatrix* g2 = g2_[idx];
+                NnMatrix* V  = V_[idx];
+                NnMatrix* M  = M_[idx];
 
                 m->scale(b1);
-                m->addToAllColumns(*g, T(1-b1));
+                m->addToAllColumns(*g, T(1 - b1));
 
                 g2->setColumn(0, *g);
                 g2->pow(T(2));
                 v->scale(b1);
-                v->add(*g2, T(1-b1));
+                v->add(*g2, T(1 - b1));
 
                 V->copy(*m);
                 V->pow(T(2));
@@ -1603,24 +1430,6 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
 
                 w->addSummedColumns(*M);
             }
-            /* momentum update */
-            /*
-            else {
-                // update old deltas (include new statistics)
-                oldDeltas_->gradientBias(layer).scale(momentumFactor_);
-                oldDeltas_->gradientBias(layer).add(statistics.gradientBias(layer), (T) (1 - momentumFactor_));
-                // update bias
-                bias->add(oldDeltas_->gradientBias(layer), (T) -localLearningRate);
-            }*/
-            /* log step size */
-            /*
-            if (logStepSize_) {
-                if (!momentum_)
-                    stepSizes[layer] += statistics.gradientBias(layer).l1norm() * localLearningRate;
-                else
-                    stepSizes[layer] += oldDeltas_->gradientBias(layer).l1norm() * localLearningRate;
-            }
-            */
         }
     }
     if (logStepSize_ && statisticsChannel_.isOpen()) {
@@ -1634,11 +1443,10 @@ void RmsProp<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
 //=============================================================================
 
 template<typename T>
-PriorEstimator<T>::PriorEstimator(const Core::Configuration& config) :
-Core::Component(config),
-Precursor(config)
-{
-    if (!this->fullBatchMode_){
+PriorEstimator<T>::PriorEstimator(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config) {
+    if (!this->fullBatchMode_) {
         this->fullBatchMode_ = true;
         this->log("using batch mode, because prior estimation only possible in batch mode");
     }
@@ -1670,4 +1478,4 @@ template class AdaDelta<f64>;
 
 template class RmsProp<f32>;
 template class RmsProp<f64>;
-}
+}  // namespace Nn

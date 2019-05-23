@@ -27,36 +27,47 @@ namespace Nn {
  *
  */
 
-template <typename T>
+template<typename T>
 class Activations {
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 private:
-    std::vector<NnMatrix> activations_; 			// activations of each layer
-    std::vector<std::vector<NnMatrix*> > inputActivations_; 	// input activations of each layer
-    std::vector<NnMatrix*> outputActivations_; 			// output activations of each layer
-    mutable bool isComputing_;					// in computing state ? (GPU)
+    std::vector<NnMatrix>               activations_;        // activations of each layer
+    std::vector<std::vector<NnMatrix*>> inputActivations_;   // input activations of each layer
+    std::vector<NnMatrix*>              outputActivations_;  // output activations of each layer
+    mutable bool                        isComputing_;        // in computing state ? (GPU)
 public:
     Activations();
-    virtual ~Activations(){}
+    virtual ~Activations() {}
 
-    void swap(Activations &rhs);
+    void swap(Activations& rhs);
 
-    void setNumberOfActivations(u32 size) { activations_.resize(size); }
-    u32 numberOfActivations() const { return activations_.size(); }
+    void setNumberOfActivations(u32 size) {
+        activations_.resize(size);
+    }
+    u32 numberOfActivations() const {
+        return activations_.size();
+    }
 
     void setBatchSize(u32 batchSize);
 
     void setInputDimension(u32 layer, u32 stream, u32 dim);
     void setOutputDimension(u32 layer, u32 dim);
 
-    NnMatrix& at(u32 index) { require_lt(index, activations_.size()) ; return activations_[index]; }
-    const NnMatrix& at(u32 index) const { require_lt(index, activations_.size()) ; return activations_[index]; }
+    NnMatrix& at(u32 index) {
+        require_lt(index, activations_.size());
+        return activations_[index];
+    }
+    const NnMatrix& at(u32 index) const {
+        require_lt(index, activations_.size());
+        return activations_[index];
+    }
 
-    std::vector<NnMatrix*>& getInput(u32 index);
+    std::vector<NnMatrix*>&       getInput(u32 index);
     const std::vector<NnMatrix*>& getInput(u32 index) const;
 
-    NnMatrix& getOutput(u32 index);
+    NnMatrix&       getOutput(u32 index);
     const NnMatrix& getOutput(u32 index) const;
 
     void connectOutput(u32 layer, u32 globalPort);
@@ -67,12 +78,13 @@ public:
 
     void initComputation(bool sync = true) const;
     void finishComputation(bool sync = true) const;
-    bool isComputing() const { return isComputing_; }
+    bool isComputing() const {
+        return isComputing_;
+    }
 
     void show() const;
-
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_NEURAL_NETWORK_ACTIVATIONS_HH
+#endif  // _NN_NEURAL_NETWORK_ACTIVATIONS_HH

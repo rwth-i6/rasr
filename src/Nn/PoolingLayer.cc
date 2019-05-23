@@ -14,9 +14,9 @@
  */
 #include "PoolingLayer.hh"
 
+#include <Math/Matrix.hh>
 #include <Math/Module.hh>
 #include <Math/Vector.hh>
-#include <Math/Matrix.hh>
 
 using namespace Nn;
 
@@ -37,20 +37,21 @@ const Core::ParameterInt PoolingLayer<T>::paramPoolingPnorm(
         "pooling-pnorm", "Pooling operation: L_p norm (active when p>0); default pooling operation: max", 0);
 
 template<typename T>
-PoolingLayer<T>::PoolingLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    NeuralNetworkLayer<T>(config),
-    trainable_(paramTrainable(config)),
-    poolingSize_(paramPoolingSize(config)),
-    poolingAbs_(paramPoolingAbs(config)),
-    poolingPnorm_(paramPoolingPnorm(config)),
-    argmax_(0),
-    timeForwardLinear_(0),
-    timeBackward_(0)
-{
+PoolingLayer<T>::PoolingLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          trainable_(paramTrainable(config)),
+          poolingSize_(paramPoolingSize(config)),
+          poolingAbs_(paramPoolingAbs(config)),
+          poolingPnorm_(paramPoolingPnorm(config)),
+          argmax_(0),
+          timeForwardLinear_(0),
+          timeBackward_(0) {
     std::string mode = "max";
-    if (poolingPnorm_ > 0) mode = "P-norm";
-    if (poolingAbs_) mode = "max(abs)";
+    if (poolingPnorm_ > 0)
+        mode = "P-norm";
+    if (poolingAbs_)
+        mode = "max(abs)";
 
     Core::Component::log("Pooling layer mode '") << mode << "', pooling size = " << poolingSize_;
 }
@@ -67,7 +68,7 @@ void PoolingLayer<T>::setInputDimension(u32 stream, u32 size) {
 template<typename T>
 void PoolingLayer<T>::setOutputDimension(u32 size) {
     Precursor::outputDimension_ = size;
-    Precursor::needInit_ = false;
+    Precursor::needInit_        = false;
     // TODO: sanity check outsize == insize/poolingsize
 }
 
@@ -79,7 +80,8 @@ void PoolingLayer<T>::_forward(const std::vector<NnMatrix*>& input, NnMatrix& ou
     if (poolingPnorm_ == 0) {
         argmax_.resize(output.nRows(), output.nColumns());
         output.addPoolingMax(*(input.at(0)), argmax_, poolingSize_, poolingAbs_);
-    } else {
+    }
+    else {
         output.addPoolingPnorm(*(input.at(0)), poolingSize_, poolingPnorm_);
     }
 
@@ -95,7 +97,8 @@ void PoolingLayer<T>::_backpropagateWeights(const NnMatrix& errorSignalIn, std::
     if (poolingPnorm_ == 0) {
         require_eq(argmax_.nRows(), errorSignalIn.nRows());
         errorSignalOut.at(0)->backpropPoolingMax(argmax_, errorSignalIn);
-    } else {
+    }
+    else {
         errorSignalOut.at(0)->backpropPoolingPnorm(errorSignalIn, poolingSize_, poolingPnorm_);
     }
 
@@ -136,7 +139,7 @@ void PoolingLayer<T>::finishComputation(bool sync) const {
 
 template<typename T>
 void PoolingLayer<T>::finalize() {
-    if (this->measureTime_){
+    if (this->measureTime_) {
         this->log("Pooling layer: Time for linear part of forward pass: ") << timeForwardLinear_;
         this->log("Pooling layer: Time for backward pass: ") << timeBackward_;
     }
@@ -156,4 +159,4 @@ u32 PoolingLayer<T>::getNumberOfFreeParameters() const {
 namespace Nn {
 template class PoolingLayer<f32>;
 template class PoolingLayer<f64>;
-}
+}  // namespace Nn

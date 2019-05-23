@@ -15,15 +15,15 @@
 #ifndef NN_TRAINERFEATURESCORER_HH
 #define NN_TRAINERFEATURESCORER_HH
 
-#include <Mm/FeatureScorer.hh>
-#include <Mm/Types.hh>
+#include <Core/Types.hh>
 #include <Mm/Feature.hh>
+#include <Mm/FeatureScorer.hh>
 #include <Mm/MixtureSet.hh>
-#include <Nn/Prior.hh>
-#include <Nn/Types.hh>
+#include <Mm/Types.hh>
 #include <Nn/ClassLabelWrapper.hh>
 #include <Nn/NeuralNetworkTrainer.hh>
-#include <Core/Types.hh>
+#include <Nn/Prior.hh>
+#include <Nn/Types.hh>
 #include <deque>
 
 namespace Nn {
@@ -33,29 +33,31 @@ namespace Nn {
 class TrainerFeatureScorer : public Mm::FeatureScorer {
 protected:
     typedef Mm::FeatureScorer Precursor;
-    typedef Mm::Score Float;
+    typedef Mm::Score         Float;
 
     class ContextScorer;
 
-    Prior<Float> prior_;
-    mutable u32 currentFeature_;		/* pointer to current position in buffer */
+    Prior<Float>                          prior_;
+    mutable u32                           currentFeature_; /* pointer to current position in buffer */
     mutable std::deque<Mm::FeatureVector> buffer_;
-    mutable bool scoresComputed_;
-    bool returnScoresInNegLog_;
-    u32 nClasses_;
-    u32 inputDimension_;
-    mutable u32 batchIteration_;
-    ClassLabelWrapper* labelWrapper_;
-    mutable NeuralNetworkTrainer<Float>* trainer_;
+    mutable bool                          scoresComputed_;
+    bool                                  returnScoresInNegLog_;
+    u32                                   nClasses_;
+    u32                                   inputDimension_;
+    mutable u32                           batchIteration_;
+    ClassLabelWrapper*                    labelWrapper_;
+    mutable NeuralNetworkTrainer<Float>*  trainer_;
 
 public:
-    TrainerFeatureScorer(const Core::Configuration &c, Core::Ref<const Mm::MixtureSet> mixtureSet);
+    TrainerFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixtureSet);
     virtual ~TrainerFeatureScorer();
+
 private:
-    void _addFeature(const Mm::FeatureVector &f) const;
+    void _addFeature(const Mm::FeatureVector& f) const;
+
 public:
     virtual Mm::EmissionIndex nMixtures() const;
-    virtual void getFeatureDescription(Mm::FeatureDescription &description) const;
+    virtual void              getFeatureDescription(Mm::FeatureDescription& description) const;
 
     typedef Core::Ref<const ContextScorer> Scorer;
     /**
@@ -68,7 +70,7 @@ public:
     virtual FeatureScorer::Scorer getScorer(Core::Ref<const Mm::Feature> f) const {
         return getScorer(*f->mainStream());
     }
-    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector &f) const;
+    virtual FeatureScorer::Scorer getScorer(const Mm::FeatureVector& f) const;
 
     virtual Mm::Score getScore(Mm::EmissionIndex e, u32 position) const;
 
@@ -90,12 +92,14 @@ public:
     /**
      * Return true if the feature scorer buffers features.
      */
-    virtual bool isBuffered() const { return true; }
+    virtual bool isBuffered() const {
+        return true;
+    }
 
     /**
      * Add a feature to the feature buffer.
      */
-    virtual void addFeature(const Mm::FeatureVector &f) const;
+    virtual void addFeature(const Mm::FeatureVector& f) const;
     virtual void addFeature(Core::Ref<const Mm::Feature> f) const {
         addFeature(*f->mainStream());
     }
@@ -130,11 +134,12 @@ public:
     /**
      * Like CachedNeuralNetworkFeatureScorer, used in SegmentwiseAlignmentGenerator.
      */
-    virtual bool hasTimeIndexedCache() const { return true; }
+    virtual bool hasTimeIndexedCache() const {
+        return true;
+    }
     virtual FeatureScorer::Scorer getTimeIndexedScorer(u32 time) const;
-
 };
 
-}
+}  // namespace Nn
 
-#endif // TRAINERFEATURESCORER_HH
+#endif  // TRAINERFEATURESCORER_HH

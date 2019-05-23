@@ -15,21 +15,21 @@
 #ifndef _NN_PYTHONTRAINER_HH
 #define _NN_PYTHONTRAINER_HH
 
-#include "NeuralNetworkTrainer.hh"
-#include "NeuralNetworkLayer.hh"
-#include <Python.h>
-#include <string>
-#include <Python/Numpy.hh>
 #include <Python/Init.hh>
+#include <Python/Numpy.hh>
+#include <string>
+#include <Python.h>
+#include "NeuralNetworkLayer.hh"
+#include "NeuralNetworkTrainer.hh"
 
 namespace Nn {
 
 template<class T>
 class PythonTrainer : public NeuralNetworkTrainer<T> {
 public:
-    typedef NeuralNetworkTrainer<T> Precursor;
-    typedef typename Types<T>::NnVector NnVector;
-    typedef typename Types<T>::NnMatrix NnMatrix;
+    typedef NeuralNetworkTrainer<T>      Precursor;
+    typedef typename Types<T>::NnVector  NnVector;
+    typedef typename Types<T>::NnMatrix  NnMatrix;
     typedef typename Math::FastVector<T> FastVector;
     typedef typename Math::FastMatrix<T> FastMatrix;
 
@@ -45,32 +45,40 @@ public:
     };
 
 protected:
-    TargetMode targetMode_;
-    bool useNetwork_;
-    int inputDim_, outputDim_;
-    bool allowDownsampling_;
-    Python::Initializer pythonInitializer_;
-    std::string pyModPath_;
-    std::string pyModName_;
-    PyObject* pyMod_;
-    NnMatrix* features_;
-    NnVector* weights_; // via feedInput
-    Bliss::Segment* segment_; // via feedInput
-    NnMatrix posteriors_; // output from Python after we feeded the features (feedInput)
+    TargetMode             targetMode_;
+    bool                   useNetwork_;
+    int                    inputDim_, outputDim_;
+    bool                   allowDownsampling_;
+    Python::Initializer    pythonInitializer_;
+    std::string            pyModPath_;
+    std::string            pyModName_;
+    PyObject*              pyMod_;
+    NnMatrix*              features_;
+    NnVector*              weights_;     // via feedInput
+    Bliss::Segment*        segment_;     // via feedInput
+    NnMatrix               posteriors_;  // output from Python after we feeded the features (feedInput)
     NeuralNetworkLayer<T>* naturalPairingLayer_;
 
     void passErrorSignalToPython();
 
 public:
-    PythonTrainer(const Core::Configuration &config);
+    PythonTrainer(const Core::Configuration& config);
     virtual ~PythonTrainer();
 
-    virtual bool isNetworkOutputRepresentingClassLabels() { return false; }
-    virtual bool hasClassLabelPosteriors();
-    virtual NnMatrix& getClassLabelPosteriors() { return posteriors_; }
-    virtual int getClassLabelPosteriorDimension() { return outputDim_; }
+    virtual bool isNetworkOutputRepresentingClassLabels() {
+        return false;
+    }
+    virtual bool      hasClassLabelPosteriors();
+    virtual NnMatrix& getClassLabelPosteriors() {
+        return posteriors_;
+    }
+    virtual int getClassLabelPosteriorDimension() {
+        return outputDim_;
+    }
 
-    virtual bool allowsDownsampling() const { return allowDownsampling_; }
+    virtual bool allowsDownsampling() const {
+        return allowDownsampling_;
+    }
 
     virtual void initializeTrainer(u32 batchSize, std::vector<u32>& streamSizes);
     virtual void finalize();
@@ -80,11 +88,11 @@ public:
     virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finish();
 
-    void python_feedInput();
-    void python_feedInputAndTarget(Math::CudaVector<u32>* alignment);
-    void python_feedInputAndTargetAlignment(Math::CudaVector<u32>& alignment);
-    void python_feedInputAndTargetSegmentOrth(Bliss::SpeechSegment& segment);
-    Core::Component::Message pythonCriticalError(const char* msg = 0, ...);
+    void                      python_feedInput();
+    void                      python_feedInputAndTarget(Math::CudaVector<u32>* alignment);
+    void                      python_feedInputAndTargetAlignment(Math::CudaVector<u32>& alignment);
+    void                      python_feedInputAndTargetSegmentOrth(Bliss::SpeechSegment& segment);
+    Core::Component::Message  pythonCriticalError(const char* msg = 0, ...);
     Python::CriticalErrorFunc getPythonCriticalErrorFunc();
 };
 
@@ -98,21 +106,26 @@ class PythonEvaluator : public PythonTrainer<T> {
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterString paramDumpPosteriors;
-    static const Core::ParameterString paramDumpBestPosteriorIndices;
-    u32 nObservations_;
-    std::shared_ptr<Core::Archive> dumpPosteriorsArchive_;
-    std::shared_ptr<Core::Archive> dumpBestPosterioIndicesArchive_;
+    static const Core::ParameterString  paramDumpPosteriors;
+    static const Core::ParameterString  paramDumpBestPosteriorIndices;
+    u32                                 nObservations_;
+    std::shared_ptr<Core::Archive>      dumpPosteriorsArchive_;
+    std::shared_ptr<Core::Archive>      dumpBestPosterioIndicesArchive_;
+
 public:
-    PythonEvaluator(const Core::Configuration &config);
+    PythonEvaluator(const Core::Configuration& config);
     virtual ~PythonEvaluator() {}
-    NeuralNetwork<T>& network() { return Precursor::network(); }
+    NeuralNetwork<T>& network() {
+        return Precursor::network();
+    }
     virtual void finalize();
     virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finish();
-    virtual bool needsToProcessAllFeatures() const { return true; }
+    virtual bool needsToProcessAllFeatures() const {
+        return true;
+    }
 };
 
-}
+}  // namespace Nn
 
-#endif // PYTHONTRAINER_HH
+#endif  // PYTHONTRAINER_HH

@@ -17,7 +17,6 @@
 
 #include "NeuralNetworkLayer.hh"
 
-
 /*
  *	Implementation of several feature pre-processing steps as neural network layers
  *
@@ -36,51 +35,60 @@ template<typename T>
 class LogarithmPreprocessingLayer : public virtual NeuralNetworkLayer<T> {
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
-    LogarithmPreprocessingLayer(const Core::Configuration &config);
+    LogarithmPreprocessingLayer(const Core::Configuration& config);
     virtual ~LogarithmPreprocessingLayer();
+
 private:
     void _forward(const NnMatrix& input, NnMatrix& output);
     void _backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut, const NnMatrix& activations);
+
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
     virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations);
+                                          const NnMatrix& activations);
 };
-
 
 /*
  * 	Apply mean and variance normalization to input
  */
 template<typename T>
 class MeanAndVarianceNormalizationPreprocessingLayer : public virtual NeuralNetworkLayer<T> {
-    typedef NeuralNetworkLayer<T> Precursor;
+    typedef NeuralNetworkLayer<T>       Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
     static const Core::ParameterString paramFilenameMean;
     static const Core::ParameterString paramFilenameStandardDeviation;
-    const std::string filenameMean_;
-    const std::string filenameStandardDeviation_;
+    const std::string                  filenameMean_;
+    const std::string                  filenameStandardDeviation_;
+
 protected:
-    bool needInit_;
+    bool     needInit_;
     NnVector mean_;
     NnVector standardDeviation_;
+
 public:
-    MeanAndVarianceNormalizationPreprocessingLayer(const Core::Configuration &config);
+    MeanAndVarianceNormalizationPreprocessingLayer(const Core::Configuration& config);
     virtual ~MeanAndVarianceNormalizationPreprocessingLayer(){};
+
 private:
-    void loadNetworkParameterMean(const std::string &filename);
-    void loadNetworkParameterVariance(const std::string &filename);
+    void loadNetworkParameterMean(const std::string& filename);
+    void loadNetworkParameterVariance(const std::string& filename);
     void _forward(const NnMatrix& input, NnMatrix& output);
+
 public:
-    virtual void loadNetworkParameters(const std::string &filename);
-    virtual void initializeNetworkParameters() { loadNetworkParameters(""); }
+    virtual void loadNetworkParameters(const std::string& filename);
+    virtual void initializeNetworkParameters() {
+        loadNetworkParameters("");
+    }
+
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input) { };
+    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input){};
 };
-
 
 /**
  *  Nth-order polynomial preprocessing layer (useful for log-linear models)
@@ -88,17 +96,21 @@ public:
 
 template<typename T>
 class PolynomialPreprocessingLayer : public virtual NeuralNetworkLayer<T> {
-    typedef NeuralNetworkLayer<T> Precursor;
+    typedef NeuralNetworkLayer<T>       Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterInt paramOrder;
+    static const Core::ParameterInt     paramOrder;
+
 protected:
     const u32 order_;
+
 public:
-    PolynomialPreprocessingLayer(const Core::Configuration &config);
+    PolynomialPreprocessingLayer(const Core::Configuration& config);
     virtual ~PolynomialPreprocessingLayer() {}
+
 private:
     void _forward(const NnMatrix& input, NnMatrix& output);
+
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
 };
@@ -109,21 +121,24 @@ public:
 
 template<typename T>
 class GaussianNoisePreprocessingLayer : public virtual NeuralNetworkLayer<T> {
-    typedef NeuralNetworkLayer<T> Precursor;
+    typedef NeuralNetworkLayer<T>       Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterFloat paramStandardDeviation;
+    static const Core::ParameterFloat   paramStandardDeviation;
+
 protected:
     const T standardDeviation_;
+
 public:
-    GaussianNoisePreprocessingLayer(const Core::Configuration &config);
+    GaussianNoisePreprocessingLayer(const Core::Configuration& config);
     virtual ~GaussianNoisePreprocessingLayer() {}
+
 private:
     void _forward(const NnMatrix& input, NnMatrix& output);
+
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
 };
 
-
-}
-#endif // _NN_NEURAL_NETWORK_LAYER_PROCESSING_FUNCTION_HH
+}  // namespace Nn
+#endif  // _NN_NEURAL_NETWORK_LAYER_PROCESSING_FUNCTION_HH

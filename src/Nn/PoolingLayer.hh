@@ -20,9 +20,8 @@
 
 #include <Core/Types.hh>
 #include <Math/Matrix.hh>
-#include "Types.hh"
 #include "NeuralNetworkLayer.hh"
-
+#include "Types.hh"
 
 namespace Nn {
 
@@ -33,6 +32,7 @@ namespace Nn {
 template<typename T>
 class PoolingLayer : public NeuralNetworkLayer<T> {
     typedef NeuralNetworkLayer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
@@ -40,20 +40,21 @@ protected:
     using Precursor::isComputing_;
 
     static const Core::ParameterBool paramTrainable;
-    static const Core::ParameterInt paramPoolingSize;
+    static const Core::ParameterInt  paramPoolingSize;
     static const Core::ParameterBool paramPoolingAbs;
-    static const Core::ParameterInt paramPoolingPnorm;
+    static const Core::ParameterInt  paramPoolingPnorm;
 
-    bool trainable_;
-    u32 poolingSize_;
-    bool poolingAbs_;
-    u32 poolingPnorm_;
+    bool                          trainable_;
+    u32                           poolingSize_;
+    bool                          poolingAbs_;
+    u32                           poolingPnorm_;
     Types<unsigned int>::NnMatrix argmax_;
 
 private:
     double timeForwardLinear_, timeBackward_;
+
 public:
-    PoolingLayer(const Core::Configuration &config);
+    PoolingLayer(const Core::Configuration& config);
     virtual ~PoolingLayer();
 
     // initialization methods
@@ -61,17 +62,19 @@ public:
     virtual void setOutputDimension(u32 size);
 
     // getter methods
-    virtual bool isTrainable() const { return trainable_; }
+    virtual bool isTrainable() const {
+        return trainable_;
+    }
 
     // forward
-    void forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
+    void         forward(const std::vector<NnMatrix*>& input, NnMatrix& output, bool reset);
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
 
     // backward
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
 
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
+    virtual u32  getNumberOfFreeParameters() const;
 
     virtual void initComputation(bool sync = true) const;
     virtual void finishComputation(bool sync = true) const;
@@ -81,6 +84,6 @@ protected:
     virtual void _backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_NEURAL_NETWORK_POOLING_LAYER_HH
+#endif  // _NN_NEURAL_NETWORK_POOLING_LAYER_HH

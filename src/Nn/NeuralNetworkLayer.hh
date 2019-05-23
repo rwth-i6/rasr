@@ -15,15 +15,15 @@
 #ifndef _NN_NEURAL_NETWORK_LAYER_HH
 #define _NN_NEURAL_NETWORK_LAYER_HH
 
-#include <cmath>
-#include <numeric>
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
+#include <cmath>
+#include <numeric>
 
-#include <Math/Vector.hh>
-#include <Math/Matrix.hh>
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaVector.hh>
+#include <Math/Matrix.hh>
+#include <Math/Vector.hh>
 
 #include <Speech/Feature.hh>
 #include <utility>
@@ -65,12 +65,14 @@ namespace Nn {
  *	Plans: Simplify design of neural network layer, remove redundancy
  *
  */
-template <typename T>
+template<typename T>
 class NeuralNetworkLayer : virtual public Core::Component {
     typedef Core::Component Precursor;
+
 public:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
     enum LayerType {
         featureSource,
@@ -101,14 +103,15 @@ public:
         operationLayer,
         pythonLayer,
     };
-    static const Core::Choice choiceNetworkLayerType;
+    static const Core::Choice          choiceNetworkLayerType;
     static const Core::ParameterChoice paramNetworkLayerType;
+
 protected:
     static const Core::ParameterString paramNetworkLayerName;
-    static const Core::ParameterInt paramDimensionIn;
-    static const Core::ParameterInt paramDimensionOut;
-    static const Core::ParameterInt paramNetworkLayerWindow;
-    static const Core::ParameterInt paramNetworkLayerDelay;
+    static const Core::ParameterInt    paramDimensionIn;
+    static const Core::ParameterInt    paramDimensionOut;
+    static const Core::ParameterInt    paramNetworkLayerWindow;
+    static const Core::ParameterInt    paramNetworkLayerDelay;
 
     /* parameters for collecting activation statistics */
     enum ActivationStatisticsSmoothingMethod {
@@ -116,18 +119,19 @@ protected:
         none,
         exponentialTrace,
     };
-    static const Core::Choice choiceActivationStatisticsSmoothingMethod;
+    static const Core::Choice          choiceActivationStatisticsSmoothingMethod;
     static const Core::ParameterChoice paramActivationStatisticsSmoothingMethod;
     static const Core::ParameterString paramOldActivationMeanFile;
     static const Core::ParameterString paramOldActivationStandardDeviationFile;
     static const Core::ParameterString paramNewActivationMeanFile;
     static const Core::ParameterString paramNewActivationStandardDeviationFile;
-    static const Core::ParameterFloat paramExponentialTraceInterpolationFactor;
-    static const Core::ParameterFloat paramActivationVarianceInterpolation;
-    static const Core::ParameterFloat paramDropoutProbability;
-    static const Core::ParameterFloat paramGaussianNoiseRatio;
-    static const Core::ParameterFloat paramLearningRate;
-    static const Core::ParameterFloat paramRegularizationConstant;
+    static const Core::ParameterFloat  paramExponentialTraceInterpolationFactor;
+    static const Core::ParameterFloat  paramActivationVarianceInterpolation;
+    static const Core::ParameterFloat  paramDropoutProbability;
+    static const Core::ParameterFloat  paramGaussianNoiseRatio;
+    static const Core::ParameterFloat  paramLearningRate;
+    static const Core::ParameterFloat  paramRegularizationConstant;
+
 protected:
     // type of the layer
     const LayerType layerType_;
@@ -135,30 +139,31 @@ protected:
     const std::string layerName_;
     // indices of the input connections
     // activation statistics parameters
-    const std::string oldMeanFile_;
-    const std::string oldStandardDeviationFile_;
-    const std::string newMeanFile_;
-    const std::string newStandardDeviationFile_;
+    const std::string                         oldMeanFile_;
+    const std::string                         oldStandardDeviationFile_;
+    const std::string                         newMeanFile_;
+    const std::string                         newStandardDeviationFile_;
     const ActivationStatisticsSmoothingMethod statisticsSmoothing_;
-    const T exponentialTraceInterpolationFactor_;
-    const T activationVarianceInterpolation_;
+    const T                                   exponentialTraceInterpolationFactor_;
+    const T                                   activationVarianceInterpolation_;
     // layer-specific learning rate (multiplied with general learning rate in Estimator)
-    const T learningRate_;		// TODO change to vector corresponding to the connections
+    const T learningRate_;  // TODO change to vector corresponding to the connections
     // regularization constant
     const T regularizationConstant_;  // TODO change to vector corresponding to the connections
     // dropout probability
     const T dropoutProbability_;
     // ratio for adding gaussian noise to activations
     const T gaussianNoiseRatio_;
+
 protected:
     // indices of inputs & outputs
     std::vector<u32> inputActivationIndices_;
-    u32 outputActivationIndex_;
+    u32              outputActivationIndex_;
     // indices of predecessor layers
     std::vector<u32> predecessorLayers_;
     // input and output dimensions
     std::vector<u32> inputDimensions_;
-    u32 outputDimension_;
+    u32              outputDimension_;
     // needs initialization
     bool needInit_;
     // needs finalization
@@ -169,61 +174,95 @@ protected:
     bool measureTime_;
 
     // activation statistics
-    u32 nObservations_;
+    u32      nObservations_;
     NnVector activationSum_;
     NnVector activationSumOfSquares_;
     NnVector activationMean_;
     NnVector activationVariance_;
-    bool activationStatisticsNeedInit_;
-    bool refreshMean_;
-    bool refreshVariance_;
+    bool     activationStatisticsNeedInit_;
+    bool     refreshMean_;
+    bool     refreshVariance_;
 
 public:
-    NeuralNetworkLayer(const Core::Configuration &config);
+    NeuralNetworkLayer(const Core::Configuration& config);
     virtual ~NeuralNetworkLayer() {}
+
 public:
     // name of the layer specified in configuration
-    virtual std::string getName() const { return layerName_; }
+    virtual std::string getName() const {
+        return layerName_;
+    }
     // type of the layer
-    virtual LayerType getLayerType() const { return layerType_; }
+    virtual LayerType getLayerType() const {
+        return layerType_;
+    }
 
     // number of input activations
-    virtual u32 nInputActivations() const { return inputActivationIndices_.size(); }
+    virtual u32 nInputActivations() const {
+        return inputActivationIndices_.size();
+    }
     // set i'th input activation index
     virtual void setInputActivationIndex(u32 activationIndex, u32 i);
     // get port number with index 'index'
-    virtual u32 getInputActivationIndex(u32 i) const { require_lt(i, inputActivationIndices_.size()); return inputActivationIndices_.at(i); }
+    virtual u32 getInputActivationIndex(u32 i) const {
+        require_lt(i, inputActivationIndices_.size());
+        return inputActivationIndices_.at(i);
+    }
     // set the output activation index
-    virtual void setOutputActivationIndex(u32 activationIndex) { outputActivationIndex_ = activationIndex; }
+    virtual void setOutputActivationIndex(u32 activationIndex) {
+        outputActivationIndex_ = activationIndex;
+    }
     // get output activation index
-    virtual u32 getOutputActivationIndex() { return outputActivationIndex_; }
+    virtual u32 getOutputActivationIndex() {
+        return outputActivationIndex_;
+    }
     // set input dimension of stream 'stream'
     virtual void setInputDimension(u32 stream, u32 dim);
     // set output dimension
-    virtual void setOutputDimension(u32 dim) { outputDimension_ = dim; }
+    virtual void setOutputDimension(u32 dim) {
+        outputDimension_ = dim;
+    }
     // get input dimension of stream 'stream'
-    virtual u32 getInputDimension(u32 stream) const { require_lt(stream, inputDimensions_.size()); return inputDimensions_.at(stream); }
+    virtual u32 getInputDimension(u32 stream) const {
+        require_lt(stream, inputDimensions_.size());
+        return inputDimensions_.at(stream);
+    }
     // get output dimension
-    virtual u32 getOutputDimension() const { return outputDimension_; }
+    virtual u32 getOutputDimension() const {
+        return outputDimension_;
+    }
 
     // manage predecessors (need to be known for backpropagation)
     // add a predecessor
     virtual void addPredecessor(u32 topologyIndex, u32 i);
     // get a predecessor topology index
-    virtual u32 getPredecessor(u32 i) { require_lt(i, predecessorLayers_.size()); return predecessorLayers_.at(i); }
+    virtual u32 getPredecessor(u32 i) {
+        require_lt(i, predecessorLayers_.size());
+        return predecessorLayers_.at(i);
+    }
     // number of layers connecting to this layer (TODO should be the same as nInputActivations)
-    virtual u32 nPredecessors() { return predecessorLayers_.size(); }
+    virtual u32 nPredecessors() {
+        return predecessorLayers_.size();
+    }
 
     // get layer-specific learning rate
-    virtual T learningRate() const { return learningRate_; }
+    virtual T learningRate() const {
+        return learningRate_;
+    }
     // get regularization constant
-    virtual T regularizationConstant() const { return regularizationConstant_; }
+    virtual T regularizationConstant() const {
+        return regularizationConstant_;
+    }
     // initialize activation statistics
     virtual void initializeActivationStatistics(const NnMatrix& output);
     // parameters to be trained?
-    virtual bool isTrainable() const { return false; };
+    virtual bool isTrainable() const {
+        return false;
+    };
     // composed layer: composition of different layers, e.g. linear+softmax
-    virtual bool isComposedLayer() const { return false; };
+    virtual bool isComposedLayer() const {
+        return false;
+    };
     // forward current input
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output) = 0;
     // forward recurrent connection
@@ -234,7 +273,7 @@ public:
     // In backpropagation, we separate the linear part and the activation part.
     // backpropagation: activation part. Usually, &errorSignalOut == &errorSignalIn, thus it can be a no-op if this is identity.
     virtual void backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-            const NnMatrix& activations) {}
+                                          const NnMatrix& activations) {}
     // backpropagation: linear part (default: just forward the error signal).
     // (Note that you can also apply any non-linear functions. It doesn't have to be linear.)
     virtual void backpropagateWeights(const NnMatrix& errorSignalIn, std::vector<NnMatrix*>& errorSignalOut);
@@ -242,32 +281,50 @@ public:
     // calculate weight gradients from layer input and error and store result in gradient{Weights,Bias};
     // this may vary among different layer types, this is why the trainer needs to ask
     // the layer to calculate its own gradients
-    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {};
-    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {};
+    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights){};
+    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias){};
 
     // return pointer to weight matrix and bias vector (if any)
-    virtual NnMatrix* getWeights(u32 stream){ return 0; }
-    virtual NnVector* getBias(){ return 0; }
-    virtual const NnMatrix* getWeights(u32 stream) const { return 0; }
-    virtual const NnVector* getBias() const { return 0; }
+    virtual NnMatrix* getWeights(u32 stream) {
+        return 0;
+    }
+    virtual NnVector* getBias() {
+        return 0;
+    }
+    virtual const NnMatrix* getWeights(u32 stream) const {
+        return 0;
+    }
+    virtual const NnVector* getBias() const {
+        return 0;
+    }
 
     // get activation statistics
-    virtual NnVector& getActivationSum() { require(statisticsSmoothing_ != noStatistics); return activationSum_; }
-    virtual NnVector& getActivationSumOfSquares() { require(statisticsSmoothing_ != noStatistics); return activationSumOfSquares_; }
+    virtual NnVector& getActivationSum() {
+        require(statisticsSmoothing_ != noStatistics);
+        return activationSum_;
+    }
+    virtual NnVector& getActivationSumOfSquares() {
+        require(statisticsSmoothing_ != noStatistics);
+        return activationSumOfSquares_;
+    }
     virtual NnVector& getActivationMean();
     virtual NnVector& getActivationVariance();
-    virtual bool hasActivationStatistics() const { return statisticsSmoothing_ != noStatistics; }
+    virtual bool      hasActivationStatistics() const {
+        return statisticsSmoothing_ != noStatistics;
+    }
 
     // Initialize the parameters
-    virtual void initializeNetworkParameters() {};
+    virtual void initializeNetworkParameters(){};
     // Save the parameters to disk
-    virtual void saveNetworkParameters(const std::string &filename) const {};
+    virtual void saveNetworkParameters(const std::string& filename) const {};
     // Load the parameters from disk
-    virtual void loadNetworkParameters(const std::string &filename) {};
+    virtual void loadNetworkParameters(const std::string& filename){};
 
     virtual void initComputation(bool sync = true) const {}
     virtual void finishComputation(bool sync = true) const {}
-    bool isComputing() const { return isComputing_; }
+    bool         isComputing() const {
+        return isComputing_;
+    }
 
     virtual void finalize();
     // let the layer resize the gradients according to its trainable parameters
@@ -275,30 +332,46 @@ public:
     // (Not really moved, this should be redesigned. A trainable layer can only have these trainable params.
     //  There is no generic way to be able to use any trainable params.
     //  Statistics is collecting the gradients and thus must know about what kind of trainable params there are.)
-    virtual void resizeWeightsGradient(Types<f32>::NnMatrix &gradient, u32 stream) const { gradient.resize(getInputDimension(stream), getOutputDimension()); }
-    virtual void resizeBiasGradient(Types<f32>::NnVector &gradient) const { gradient.resize(getOutputDimension()); }
-    virtual void resizeWeightsGradient(Types<f64>::NnMatrix &gradient, u32 stream) const { gradient.resize(getInputDimension(stream), getOutputDimension()); }
-    virtual void resizeBiasGradient(Types<f64>::NnVector &gradient) const { gradient.resize(getOutputDimension()); }
+    virtual void resizeWeightsGradient(Types<f32>::NnMatrix& gradient, u32 stream) const {
+        gradient.resize(getInputDimension(stream), getOutputDimension());
+    }
+    virtual void resizeBiasGradient(Types<f32>::NnVector& gradient) const {
+        gradient.resize(getOutputDimension());
+    }
+    virtual void resizeWeightsGradient(Types<f64>::NnMatrix& gradient, u32 stream) const {
+        gradient.resize(getInputDimension(stream), getOutputDimension());
+    }
+    virtual void resizeBiasGradient(Types<f64>::NnVector& gradient) const {
+        gradient.resize(getOutputDimension());
+    }
 
     // returns the number of free parameters ( = parameters that are optimized)
-    virtual u32 getNumberOfFreeParameters() const { return 0; };
+    virtual u32 getNumberOfFreeParameters() const {
+        return 0;
+    };
     // get and set measureTime
-    bool measuresTime() const { return measureTime_; }
-    void setMeasureTime(bool val) { measureTime_ = val; }
+    bool measuresTime() const {
+        return measureTime_;
+    }
+    void setMeasureTime(bool val) {
+        measureTime_ = val;
+    }
+
 protected:
     virtual void applyDropout(NnMatrix& output);
     virtual void addGaussianNoise(NnMatrix& output);
+
 private:
     void nonSmoothedStatisticsUpdate(const NnMatrix& output);
     void exponentialTraceStatisticsUpdate(const NnMatrix& output);
     void updateStatistics(const NnMatrix& output);
 
-    static void saveVector(const NnVector& vector, const std::string &filename);
+    static void saveVector(const NnVector& vector, const std::string& filename);
+
 public:
-    static NeuralNetworkLayer<T>* createNeuralNetworkLayer(const Core::Configuration &config);
+    static NeuralNetworkLayer<T>* createNeuralNetworkLayer(const Core::Configuration& config);
 };
 
+}  // namespace Nn
 
-} // namespace Nn
-
-#endif // _NN_NEURAL_NETWORK_LAYER_HH
+#endif  // _NN_NEURAL_NETWORK_LAYER_HH

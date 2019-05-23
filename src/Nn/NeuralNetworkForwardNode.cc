@@ -14,8 +14,8 @@
  */
 #include "NeuralNetworkForwardNode.hh"
 
-#include <Flow/TypedAggregate.hh>
 #include <Flow/Registry.hh>
+#include <Flow/TypedAggregate.hh>
 
 #include "LinearAndActivationLayer.hh"
 
@@ -34,21 +34,20 @@ Core::ParameterBool NeuralNetworkForwardNode::paramCheckValues(
 Core::ParameterBool NeuralNetworkForwardNode::paramDynamicBuffer(
         "dynamic-buffer", "do not use fixed buffer size, but extend it until eos", false);
 
-NeuralNetworkForwardNode::NeuralNetworkForwardNode(const Core::Configuration &c) :
-                        Core::Component(c),
-                        Precursor(c),
-                        bufferSize_(paramBufferSize(config)),
-                        checkValues_(paramCheckValues(config)),
-                        dynamicBuffer_(paramDynamicBuffer(config)),
-                        needInit_(true),
-                        measureTime_(false),
-                        aggregatedFeatures_(false),
-                        outputDimension_(0),
-                        totalOutputFrames_(0u),
-                        currentOutputFrame_(0u),
-                        network_(c),
-                        prior_(c)
-{
+NeuralNetworkForwardNode::NeuralNetworkForwardNode(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c),
+          bufferSize_(paramBufferSize(config)),
+          checkValues_(paramCheckValues(config)),
+          dynamicBuffer_(paramDynamicBuffer(config)),
+          needInit_(true),
+          measureTime_(false),
+          aggregatedFeatures_(false),
+          outputDimension_(0),
+          totalOutputFrames_(0u),
+          currentOutputFrame_(0u),
+          network_(c),
+          prior_(c) {
     log("Neural network forward node: using buffer of size ") << bufferSize_;
     if (checkValues_)
         log("checking output of neural network for finiteness");
@@ -60,7 +59,7 @@ NeuralNetworkForwardNode::~NeuralNetworkForwardNode() {
 }
 
 // Changing the segment id resets the caches for the recurrent connections.
-bool NeuralNetworkForwardNode::setParameter(const std::string &name, const std::string &value) {
+bool NeuralNetworkForwardNode::setParameter(const std::string& name, const std::string& value) {
     if (paramId.match(name)) {
         network_.resetPreviousActivations();
     }
@@ -70,15 +69,15 @@ bool NeuralNetworkForwardNode::setParameter(const std::string &name, const std::
 /* same as Flow::Node::configureDatatype but without the error message
  * used for checking whether aggregated features or single feature stream is received
  * */
-bool NeuralNetworkForwardNode::configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype *d) {
+bool NeuralNetworkForwardNode::configureDataType(Core::Ref<const Flow::Attributes> a, const Flow::Datatype* d) {
     // check for valid attribute reference
     if (not a) {
         return false;
     }
 
-    std::string dtn(a->get("datatype"));
+    std::string           dtn(a->get("datatype"));
     const Flow::Datatype* datatype(0);
-    if (not dtn.empty()) { // get the data type from the attributes
+    if (not dtn.empty()) {  // get the data type from the attributes
         datatype = Flow::Registry::instance().getDatatype(dtn);
     }
 
@@ -100,8 +99,8 @@ bool NeuralNetworkForwardNode::configure() {
     getInputAttributes(0, *attributes);
 
     // check the allowed data types (Vector + aggregate Vector)
-    if (not (configureDataType(attributes, Flow::Vector<FeatureType>::type()) ||
-             configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType> >::type())) ) {
+    if (not(configureDataType(attributes, Flow::Vector<FeatureType>::type()) ||
+            configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type()))) {
         return false;
     }
 
@@ -122,9 +121,9 @@ void NeuralNetworkForwardNode::initialize(std::vector<u32> const& nFeatures) {
         column_.resize(outputDimension_);
 
         // remove log-prior from bias
-        if (prior_.fileName() != ""){
-            LinearAndSoftmaxLayer<f32> *topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>* >(&network_.getTopLayer());
-            if (topLayer){
+        if (prior_.fileName() != "") {
+            LinearAndSoftmaxLayer<f32>* topLayer = dynamic_cast<LinearAndSoftmaxLayer<f32>*>(&network_.getTopLayer());
+            if (topLayer) {
                 network_.finishComputation();
                 prior_.read();
                 topLayer->removeLogPriorFromBias(prior_);
@@ -143,37 +142,37 @@ void NeuralNetworkForwardNode::processBuffer() {
         inputBuffer_[index].resize(nFeatures_[index], aggregatedFeatures_ ? aggregateBuffer_.size() : featureBuffer_.size());
     }
     if (aggregatedFeatures_) {
-      for (size_t b = 0ul; b < aggregateBuffer_.size(); b++) {
-        for (size_t i = 0ul; i < inputBuffer_.size(); i++) {
-          inputBuffer_[i].copy(*(*aggregateBuffer_[b])[i], 0, b);
+        for (size_t b = 0ul; b < aggregateBuffer_.size(); b++) {
+            for (size_t i = 0ul; i < inputBuffer_.size(); i++) {
+                inputBuffer_[i].copy(*(*aggregateBuffer_[b])[i], 0, b);
+            }
         }
-      }
     }
     else {
-      for (size_t b = 0ul; b < featureBuffer_.size(); b++) {
-        inputBuffer_[0].copy(*featureBuffer_[b], 0, b);
-      }
+        for (size_t b = 0ul; b < featureBuffer_.size(); b++) {
+            inputBuffer_[0].copy(*featureBuffer_[b], 0, b);
+        }
     }
 
     bool result = network_.forward(inputBuffer_);
     require(result);
     NnMatrix const& out = network_.getTopLayerOutput();
-    totalOutputFrames_ = out.nColumns();
+    totalOutputFrames_  = out.nColumns();
     currentOutputFrame_ = 0u;
 }
 
 // send next feature from buffer to the output of the node
 bool NeuralNetworkForwardNode::putNextFeature() {
     require(currentOutputFrame_ < totalOutputFrames_);
-    Flow::Vector<FeatureType> *out = nullptr;
-    out = new Flow::Vector<FeatureType>(outputDimension_);
+    Flow::Vector<FeatureType>* out = nullptr;
+    out                            = new Flow::Vector<FeatureType>(outputDimension_);
     out->setTimestamp(aggregatedFeatures_ ? aggregateBuffer_[currentOutputFrame_] : featureBuffer_[currentOutputFrame_]);
     column_.initComputation(false);
     network_.getTopLayerOutput().getColumn(currentOutputFrame_, column_);
     column_.finishComputation();
     ++currentOutputFrame_;
-    if (checkValues_){
-        if (!column_.isFinite()){
+    if (checkValues_) {
+        if (!column_.isFinite()) {
             column_.show();
             this->error("non-finite output of neural network detected");
         }
@@ -194,7 +193,7 @@ bool NeuralNetworkForwardNode::work(Flow::PortId p) {
         // get data type of the flow stream
         Core::Ref<Flow::Attributes> attributes(new Flow::Attributes());
         getInputAttributes(p, *attributes);
-        aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType> >::type());
+        aggregatedFeatures_ = configureDataType(attributes, Flow::TypedAggregate<Flow::Vector<FeatureType>>::type());
     }
     bool endOfStream = false;
     // there is no more output, get features and forward them
@@ -205,16 +204,16 @@ bool NeuralNetworkForwardNode::work(Flow::PortId p) {
         while (not bufferFull() && validData) {
             // pull feature from incoming connections
             if (aggregatedFeatures_) {
-                validData = getData(0, ptrAggregateFeatures);
+                validData   = getData(0, ptrAggregateFeatures);
                 endOfStream = ptrAggregateFeatures == Flow::Data::eos();
             }
             else {
-                validData = getData(0, ptrFeatures);
+                validData   = getData(0, ptrFeatures);
                 endOfStream = ptrFeatures == Flow::Data::eos();
             }
             // init when receiving first feature
             if (needInit_ && validData) {
-                if (not aggregatedFeatures_) { // single feature stream
+                if (not aggregatedFeatures_) {  // single feature stream
                     std::vector<u32> nSizes(1);
                     nSizes[0] = ptrFeatures.get()->size();
                     initialize(nSizes);
@@ -256,4 +255,3 @@ bool NeuralNetworkForwardNode::work(Flow::PortId p) {
 
     return false;
 }
-

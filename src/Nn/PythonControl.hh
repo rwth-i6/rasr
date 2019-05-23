@@ -16,41 +16,44 @@
 #define NN_PYTHONCONTROL_HH
 
 #include <Core/Component.hh>
-#include <Python.h>
-#include <string>
-#include <Python/Numpy.hh>
 #include <Python/Init.hh>
+#include <Python/Numpy.hh>
 #include <memory>
+#include <string>
+#include <Python.h>
 
 namespace Nn {
 
 class PythonControl : virtual public Core::Component {
     typedef Core::Component Precursor;
+
 public:
-    PythonControl(const Core::Configuration &config, const std::string& sprintUnit, bool isOptional);
+    PythonControl(const Core::Configuration& config, const std::string& sprintUnit, bool isOptional);
     virtual ~PythonControl();
     struct Internal;
 
     // All these are save to be called in any state, they don't need the Python GIL (but it's also ok if you hold it).
-    bool isEnabled() const { return pyObject_; }
+    bool isEnabled() const {
+        return pyObject_;
+    }
     void run_iterate_corpus();
     void run_control_loop();
     void run_custom(const char* method, const char* kwArgsFormat, ...) const;
     void exit();
 
     // These expect to be run only with the Python GIL held.
-    PyObject* run_custom_with_result(const char* method, const char* kwArgsFormat, ...) const;
-    Core::Component::Message pythonCriticalError(const char* msg = 0, ...) const;
+    PyObject*                 run_custom_with_result(const char* method, const char* kwArgsFormat, ...) const;
+    Core::Component::Message  pythonCriticalError(const char* msg = 0, ...) const;
     Python::CriticalErrorFunc getPythonCriticalErrorFunc() const;
 
 protected:
-    std::string sprintUnit_;
+    std::string         sprintUnit_;
     Python::Initializer pythonInitializer_;
-    PyObject* pyObject_;
+    PyObject*           pyObject_;
 
     std::shared_ptr<Internal> internal_;
 };
 
-}
+}  // namespace Nn
 
-#endif // PYTHONCONTROL_HH
+#endif  // PYTHONCONTROL_HH

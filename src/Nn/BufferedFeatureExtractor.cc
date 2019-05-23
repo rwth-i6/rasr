@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 #include <BufferedFeatureExtractor.hh>
-#include <Speech/DataSource.hh>
 #include <Math/Random.hh>
+#include <Speech/DataSource.hh>
 
 using namespace Nn;
 
@@ -58,54 +58,52 @@ template<typename T>
 const Core::ParameterInt BufferedFeatureExtractor<T>::paramSlidingWindowSizeDerivatives(
         "window-size-derivatives", "Size of sliding window for derivatives (first + first component of second)", 0);
 
-
 template<typename T>
-BufferedFeatureExtractor<T>::BufferedFeatureExtractor(const Core::Configuration &config,bool loadFromFile) :
-    Core::Component(config),
-    Precursor(config,loadFromFile),
-    bufferType_((BufferType) paramBufferType(config)),
-    regressionWindowSize_(paramRegressionWindowSize(config)),
-    slidingWindowSize_(paramSlidingWindowSize(config)),
-    slidingWindowSizeDerivatives_(paramSlidingWindowSizeDerivatives(config)),
-    shuffle_(paramShuffleBuffer(config)),
-    featureBuffer_(0),
-    derivativesBuffer_(0),
-    maxBufferSize_(paramBufferSize(config)),
-    nBufferedFeatures_(0),
-    utteranceOverflow_(false),
-    nProcessedFeatures_(0),
-    segmentIndex_(0),
-    batchSize_(paramBatchSize(config)),
-    derivativesComputed_(false),
-    maxBufferedFeatureStreams_(0),
-    shuffledIndices_(0),
-    processRemainingFeatures_(false),
-    needInit_(true),
-    nProcessedMiniBatches_(0),
-    totalNumberOfProcessedMiniBatches_(0),
-    trainer_(0)
-{
-    if (regressionWindowSize_ % 2 != 1){
+BufferedFeatureExtractor<T>::BufferedFeatureExtractor(const Core::Configuration& config, bool loadFromFile)
+        : Core::Component(config),
+          Precursor(config, loadFromFile),
+          bufferType_((BufferType)paramBufferType(config)),
+          regressionWindowSize_(paramRegressionWindowSize(config)),
+          slidingWindowSize_(paramSlidingWindowSize(config)),
+          slidingWindowSizeDerivatives_(paramSlidingWindowSizeDerivatives(config)),
+          shuffle_(paramShuffleBuffer(config)),
+          featureBuffer_(0),
+          derivativesBuffer_(0),
+          maxBufferSize_(paramBufferSize(config)),
+          nBufferedFeatures_(0),
+          utteranceOverflow_(false),
+          nProcessedFeatures_(0),
+          segmentIndex_(0),
+          batchSize_(paramBatchSize(config)),
+          derivativesComputed_(false),
+          maxBufferedFeatureStreams_(0),
+          shuffledIndices_(0),
+          processRemainingFeatures_(false),
+          needInit_(true),
+          nProcessedMiniBatches_(0),
+          totalNumberOfProcessedMiniBatches_(0),
+          trainer_(0) {
+    if (regressionWindowSize_ % 2 != 1) {
         this->error("regression window size must be an odd number but is ") << regressionWindowSize_;
     }
     logProperties();
-    if(shuffle_) {
+    if (shuffle_) {
         s32 seed = paramShuffleBufferSeed(config);
-        if(seed == -1)
+        if (seed == -1)
             // Fallback to other seed config setting which is used e.g. by NnTrainer and others.
             seed = Core::ParameterInt("seed", "seed", -1)(config);
-        if(seed == -1)
+        if (seed == -1)
             seed = 0;
-        shuffleRandomEngine_.seed((u32) seed);
+        shuffleRandomEngine_.seed((u32)seed);
         log("Using frame order shuffling with seed %i", seed);
     }
 }
 
 template<typename T>
 BufferedFeatureExtractor<T>::~BufferedFeatureExtractor() {
-    if(trainer_) delete trainer_;
+    if (trainer_)
+        delete trainer_;
 }
-
 
 /**	Shuffle the indices of the buffer.
  *
@@ -123,7 +121,7 @@ void BufferedFeatureExtractor<T>::initShuffle() {
     // Fill the index vector with the corresponding index number
     u32 curIndex = 0;
     for (std::vector<u32>::iterator shuffleIndexIterator = shuffledIndices_.begin();
-            shuffleIndexIterator != shuffledIndices_.end(); ++shuffleIndexIterator, ++curIndex) {
+         shuffleIndexIterator != shuffledIndices_.end(); ++shuffleIndexIterator, ++curIndex) {
         (*shuffleIndexIterator) = curIndex;
     }
 
@@ -132,7 +130,7 @@ void BufferedFeatureExtractor<T>::initShuffle() {
 
     // log some of the random indices (helpful for debugging)
     std::stringstream ss;
-    u32 nIndicesForLogging = std::min((size_t) 5, shuffledIndices_.size() / 2);
+    u32               nIndicesForLogging = std::min((size_t)5, shuffledIndices_.size() / 2);
     for (u32 i = 0; i < nIndicesForLogging; i++)
         ss << shuffledIndices_.at(i) << " ";
     ss << " ... ";
@@ -150,7 +148,7 @@ void BufferedFeatureExtractor<T>::initShuffle() {
  *  @param	nFrames		Number of frames
  */
 template<typename T>
-void BufferedFeatureExtractor<T>::initBuffer(std::vector<u32> &nFeatures) {
+void BufferedFeatureExtractor<T>::initBuffer(std::vector<u32>& nFeatures) {
     segmentIndexBuffer_.resize(maxBufferSize_);
     featureBuffer_.resize(nFeatures.size());
     if (slidingWindowSizeDerivatives_ > 0) {
@@ -167,17 +165,17 @@ void BufferedFeatureExtractor<T>::initBuffer(std::vector<u32> &nFeatures) {
     }
 
     nBufferedFeatures_ = 0;
-    needInit_ = false;
+    needInit_          = false;
 }
 
 template<typename T>
-void BufferedFeatureExtractor<T>::initBuffer(Core::Ref<const Speech::Feature> f){
-    size_t nFeatureStreams = f->nStreams();
+void BufferedFeatureExtractor<T>::initBuffer(Core::Ref<const Speech::Feature> f) {
+    size_t           nFeatureStreams = f->nStreams();
     std::vector<u32> featureStreamSizes;
     featureStreamSizes.resize(nFeatureStreams);
 
     u32 curStreamIndex = 0;
-    for (Mm::Feature::Iterator streamIterator = f->begin();streamIterator != f->end(); ++streamIterator, ++curStreamIndex) {
+    for (Mm::Feature::Iterator streamIterator = f->begin(); streamIterator != f->end(); ++streamIterator, ++curStreamIndex) {
         featureStreamSizes[curStreamIndex] = (*streamIterator)->size();
     }
 
@@ -199,15 +197,13 @@ void BufferedFeatureExtractor<T>::resetBuffer() {
         derivativesBuffer_[streamIndex].setToZero();
     }
     std::fill(segmentIndexBuffer_.begin(), segmentIndexBuffer_.end(), 0);
-    nBufferedFeatures_ = 0;
+    nBufferedFeatures_   = 0;
     derivativesComputed_ = false;
-    utteranceOverflow_ = false;
+    utteranceOverflow_   = false;
     // used for indexing in buffer
-    nProcessedFeatures_ = 0;
+    nProcessedFeatures_    = 0;
     nProcessedMiniBatches_ = 0;
 }
-
-
 
 /**	Update the feature buffer at index.
  *  */
@@ -217,7 +213,7 @@ void BufferedFeatureExtractor<T>::updateBufferedFeature(Core::Ref<const Speech::
     u32 streamIndex = 0;
     for (Mm::Feature::Iterator streamIterator = f->begin(); streamIterator != f->end(); ++streamIterator, ++streamIndex) {
         for (u32 i = 0; i < (*streamIterator)->size(); ++i) {
-            featureBuffer_[streamIndex].at(i,nBufferedFeatures_) = (T) (*streamIterator)->at(i);
+            featureBuffer_[streamIndex].at(i, nBufferedFeatures_) = (T)(*streamIterator)->at(i);
         }
     }
     // buffer segment index (for windowing)
@@ -227,11 +223,11 @@ void BufferedFeatureExtractor<T>::updateBufferedFeature(Core::Ref<const Speech::
 
 template<typename T>
 bool BufferedFeatureExtractor<T>::checkIsTooLongSegment() {
-    if(utteranceOverflow_)
+    if (utteranceOverflow_)
         // We had an overflow earlier. This will be reset in resetBuffer() via setEnteredSegment().
         return true;
 
-    if(nBufferedFeatures_ < maxBufferSize_)
+    if (nBufferedFeatures_ < maxBufferSize_)
         // We have still room.
         return false;
 
@@ -249,7 +245,7 @@ void BufferedFeatureExtractor<T>::processFeature(Core::Ref<const Speech::Feature
         initBuffer(f);
 
     // check for buffer overflow
-    if(checkIsTooLongSegment())
+    if (checkIsTooLongSegment())
         return;
     // Fill/update the buffer
     updateBufferedFeature(f);
@@ -258,54 +254,53 @@ void BufferedFeatureExtractor<T>::processFeature(Core::Ref<const Speech::Feature
     if (nBufferedFeatures_ >= maxBufferSize_) {
         // process full buffer only in online mode, else overflow error or enlarge buffer
         switch (bufferType_) {
-        case BufferedFeatureExtractor::minibatch:
-            log("Process buffer since it is full. Processing ") << (nBufferedFeatures_ / batchSize_) << " mini-batches.";
-            processBuffer();
-            break;
-        case BufferedFeatureExtractor::batch:
-        case BufferedFeatureExtractor::utterance:
-            break;
+            case BufferedFeatureExtractor::minibatch:
+                log("Process buffer since it is full. Processing ") << (nBufferedFeatures_ / batchSize_) << " mini-batches.";
+                processBuffer();
+                break;
+            case BufferedFeatureExtractor::batch:
+            case BufferedFeatureExtractor::utterance:
+                break;
         }
     }
 }
 
 template<typename T>
-void BufferedFeatureExtractor<T>::getRelativePositionsInSlidingWindow(u32 indexOfCentralFeature, u32 windowSize, std::vector<s32> &positions){
-    s32 maxPastSize = windowSize / 2;
+void BufferedFeatureExtractor<T>::getRelativePositionsInSlidingWindow(u32 indexOfCentralFeature, u32 windowSize, std::vector<s32>& positions) {
+    s32 maxPastSize   = windowSize / 2;
     s32 maxFutureSize = windowSize / 2;
     // determine segment boundaries
-    s32 leftBoundary = 0;
+    s32 leftBoundary  = 0;
     s32 rightBoundary = 0;
-    u32 segmentIndex = segmentIndexBuffer_.at(indexOfCentralFeature);
-    for (s32 i = 0 ; i < maxFutureSize; i++){
+    u32 segmentIndex  = segmentIndexBuffer_.at(indexOfCentralFeature);
+    for (s32 i = 0; i < maxFutureSize; i++) {
         if (indexOfCentralFeature + i + 1 >= nBufferedFeatures_ || segmentIndexBuffer_.at(indexOfCentralFeature + i + 1) != segmentIndex)
             break;
-        else{
+        else {
             rightBoundary++;
         }
     }
 
-    for (s32 i = 0 ; i > -maxPastSize; i--){
-        bool atBufferBoundary = (u32) (1 - i) > indexOfCentralFeature;
+    for (s32 i = 0; i > -maxPastSize; i--) {
+        bool atBufferBoundary = (u32)(1 - i) > indexOfCentralFeature;
         if (atBufferBoundary || segmentIndexBuffer_.at(indexOfCentralFeature + i - 1) != segmentIndex)
             break;
         else
             leftBoundary--;
     }
     positions.resize(windowSize);
-    for (s32 i = -maxPastSize; i <= maxFutureSize; i++){
+    for (s32 i = -maxPastSize; i <= maxFutureSize; i++) {
         positions.at(i + maxPastSize) = std::min(std::max(i, leftBoundary), rightBoundary);
     }
 }
 
-
 template<typename T>
 void BufferedFeatureExtractor<T>::setWindowedFeature(u32 streamIndex, u32 indexOfCentralFeatureInBuffer, u32 indexInMiniBatch,
-        NnMatrix &miniBatch){
-    u32 baseFeatureDim = featureBuffer_.at(streamIndex).nRows();
+                                                     NnMatrix& miniBatch) {
+    u32              baseFeatureDim = featureBuffer_.at(streamIndex).nRows();
     std::vector<s32> positions;
     getRelativePositionsInSlidingWindow(indexOfCentralFeatureInBuffer, slidingWindowSize_, positions);
-    for(u32 i = 0; i < slidingWindowSize_; i++) {
+    for (u32 i = 0; i < slidingWindowSize_; i++) {
         u32 indexInBuffer = indexOfCentralFeatureInBuffer + positions.at(i);
         miniBatch.copyBlockFromMatrix(featureBuffer_.at(streamIndex), 0, indexInBuffer, i * baseFeatureDim, indexInMiniBatch, baseFeatureDim, 1);
     }
@@ -313,28 +308,27 @@ void BufferedFeatureExtractor<T>::setWindowedFeature(u32 streamIndex, u32 indexO
 
 template<typename T>
 void BufferedFeatureExtractor<T>::setWindowedFeatureDerivatives(u32 streamIndex, u32 indexOfCentralFeatureInBuffer,
-        u32 indexInMiniBatch, NnMatrix &miniBatch) {
-    u32 windowedFeatureDim = slidingWindowSize_ * featureBuffer_.at(streamIndex).nRows();
-    u32 derivativesDim = derivativesBuffer_.at(streamIndex).nRows();
+                                                                u32 indexInMiniBatch, NnMatrix& miniBatch) {
+    u32              windowedFeatureDim = slidingWindowSize_ * featureBuffer_.at(streamIndex).nRows();
+    u32              derivativesDim     = derivativesBuffer_.at(streamIndex).nRows();
     std::vector<s32> positions;
     getRelativePositionsInSlidingWindow(indexOfCentralFeatureInBuffer, slidingWindowSizeDerivatives_, positions);
     for (u32 i = 0; i < slidingWindowSizeDerivatives_; i++) {
         u32 indexInBuffer = indexOfCentralFeatureInBuffer + positions.at(i);
         miniBatch.copyBlockFromMatrix(derivativesBuffer_.at(streamIndex), 0, indexInBuffer,
-                windowedFeatureDim + i * derivativesDim, indexInMiniBatch, derivativesDim, 1);
+                                      windowedFeatureDim + i * derivativesDim, indexInMiniBatch, derivativesDim, 1);
     }
 }
 
 template<typename T>
 void BufferedFeatureExtractor<T>::computeFirstDerivative(u32 streamIndex, u32 indexInBuffer) {
-
     std::vector<s32> positions;
     getRelativePositionsInSlidingWindow(indexInBuffer, regressionWindowSize_, positions);
 
     // iterate over all feature components
     for (u32 c = 0; c < featureBuffer_.at(streamIndex).nRows(); c++) {
         // compute derivative of component c
-        T numerator = 0.0;
+        T numerator   = 0.0;
         T denominator = 0.0;
         for (u32 i = 0; i < regressionWindowSize_; i++) {
             T pos = i - (regressionWindowSize_ - 1) / 2.0;
@@ -348,15 +342,14 @@ void BufferedFeatureExtractor<T>::computeFirstDerivative(u32 streamIndex, u32 in
 // cf. src/Signal/Regression.cc, derivation of this part unknown, but coefficients are correct!
 template<typename T>
 void BufferedFeatureExtractor<T>::computeSecondDerivative(u32 streamIndex, u32 indexInBuffer) {
-
     std::vector<s32> positions;
     getRelativePositionsInSlidingWindow(indexInBuffer, regressionWindowSize_, positions);
     // index for single second derivative component in derivativesBuffer_
     u32 derivativeBufferIndex = derivativesBuffer_[streamIndex].nRows() - 1;
 
-    T numerator = 0.0;
+    T numerator   = 0.0;
     T denominator = 0.0;
-    T tm = 0.0;
+    T tm          = 0.0;
     for (u32 i = 0; i < regressionWindowSize_; i++) {
         T pos = i - (regressionWindowSize_ - 1) / 2.0;
         tm += pos * pos;
@@ -377,8 +370,7 @@ void BufferedFeatureExtractor<T>::generateMiniBatch(std::vector<NnMatrix>& miniB
     miniBatch.resize(featureBuffer_.size());
     // resize each stream to correct size
     for (u32 streamIndex = 0; streamIndex < miniBatch.size(); streamIndex++) {
-        u32 featureDim = slidingWindowSize_ * featureBuffer_.at(streamIndex).nRows()
-                + slidingWindowSizeDerivatives_ * (featureBuffer_.at(streamIndex).nRows() + 1);
+        u32 featureDim = slidingWindowSize_ * featureBuffer_.at(streamIndex).nRows() + slidingWindowSizeDerivatives_ * (featureBuffer_.at(streamIndex).nRows() + 1);
         miniBatch.at(streamIndex).resize(featureDim, batchSize);
     }
     // fill mini batch
@@ -386,7 +378,7 @@ void BufferedFeatureExtractor<T>::generateMiniBatch(std::vector<NnMatrix>& miniB
         miniBatch.at(streamIndex).finishComputation(false);
         for (u32 column = 0; column < batchSize; column++) {
             u32 featureIndex = nProcessedFeatures_ + column;
-            if (shuffle_){
+            if (shuffle_) {
                 verify_lt(featureIndex, shuffledIndices_.size());
                 featureIndex = shuffledIndices_.at(featureIndex);
             }
@@ -398,7 +390,6 @@ void BufferedFeatureExtractor<T>::generateMiniBatch(std::vector<NnMatrix>& miniB
     }
 }
 
-
 template<typename T>
 void BufferedFeatureExtractor<T>::prepareProcessBuffer() {
     // create trainer, if not yet done
@@ -408,7 +399,7 @@ void BufferedFeatureExtractor<T>::prepareProcessBuffer() {
 
     processRemainingFeatures_ = trainer_->needsToProcessAllFeatures() || (trainer_->hasEstimator() && trainer_->estimator().fullBatchMode());
     // shuffle, if desired
-    if (shuffle_ && (trainer_->hasEstimator() && trainer_->estimator().fullBatchMode())){
+    if (shuffle_ && (trainer_->hasEstimator() && trainer_->estimator().fullBatchMode())) {
         this->log("do not shuffle buffer, because shuffling is irrelevant with batch estimator");
         shuffle_ = false;
     }
@@ -428,13 +419,11 @@ void BufferedFeatureExtractor<T>::prepareProcessBuffer() {
             }
         }
         derivativesComputed_ = true;
-
     }
 }
 
 template<typename T>
 void BufferedFeatureExtractor<T>::processBuffer() {
-
     prepareProcessBuffer();
     std::vector<NnMatrix> miniBatch;
 
@@ -457,7 +446,7 @@ void BufferedFeatureExtractor<T>::processBuffer() {
     // process the remaining feature with a smaller mini batch
     // only done for algorithms where the mini batch size is not critical
     u32 nRemainingFeatures = nBufferedFeatures_ - nProcessedFeatures_;
-    if (processRemainingFeatures_ && nRemainingFeatures > 0){
+    if (processRemainingFeatures_ && nRemainingFeatures > 0) {
         generateMiniBatch(miniBatch, nRemainingFeatures);
         log("Process mini-batch ") << nProcessedMiniBatches_ + 1 << " with " << miniBatch.at(0).nColumns() << " features.";
         trainer_->setBatchSize(nRemainingFeatures);
@@ -482,7 +471,7 @@ void BufferedFeatureExtractor<T>::processBuffer() {
 template<typename T>
 void BufferedFeatureExtractor<T>::finalizeProcessBuffer() {
     log("Processed ") << nProcessedFeatures_ << " features. " << (nBufferedFeatures_ - nProcessedFeatures_)
-            << " remain unprocessed.";
+                      << " remain unprocessed.";
     totalNumberOfProcessedMiniBatches_ += nProcessedMiniBatches_;
     // reset the buffer
     resetBuffer();
@@ -496,13 +485,13 @@ void BufferedFeatureExtractor<T>::enterSegment(Bliss::Segment* segment) {
 
 template<typename T>
 void BufferedFeatureExtractor<T>::setEnteredSegment(Bliss::Segment* segment) {
-    if(!segment) { // We left the segment.
+    if (!segment) {  // We left the segment.
         segmentIndex_++;
 
         // Via checkIsTooLongSegment().
-        if(utteranceOverflow_) {
+        if (utteranceOverflow_) {
             utteranceOverflow_ = false;
-            curSegment_ = NULL;
+            curSegment_        = NULL;
             resetBuffer();
             return;
         }
@@ -536,13 +525,13 @@ void BufferedFeatureExtractor<T>::processCorpus() {
 }
 
 template<typename T>
-void BufferedFeatureExtractor<T>::leaveSegment(Bliss::Segment *segment) {
+void BufferedFeatureExtractor<T>::leaveSegment(Bliss::Segment* segment) {
     setEnteredSegment(NULL);
     Precursor::leaveSegment(segment);
 }
 
 template<typename T>
-void BufferedFeatureExtractor<T>::leaveCorpus(Bliss::Corpus *corpus) {
+void BufferedFeatureExtractor<T>::leaveCorpus(Bliss::Corpus* corpus) {
     if (corpus->level() == 0) {
         processCorpus();
         Core::Component::log("Total number of processed mini-batches: ") << totalNumberOfProcessedMiniBatches_;
@@ -553,20 +542,20 @@ void BufferedFeatureExtractor<T>::leaveCorpus(Bliss::Corpus *corpus) {
 
 template<typename T>
 Bliss::Segment* BufferedFeatureExtractor<T>::getCurSegment() const {
-    if(bufferType_ == BufferedFeatureExtractor::utterance)
+    if (bufferType_ == BufferedFeatureExtractor::utterance)
         return curSegment_;
     return NULL;
 }
 
 template<typename T>
 void BufferedFeatureExtractor<T>::logProperties() const {
-    if (bufferType_ == minibatch){
+    if (bufferType_ == minibatch) {
         this->log("using mini-batch feature buffer");
     }
-    else if (bufferType_ == utterance){
+    else if (bufferType_ == utterance) {
         this->log("using utterance feature buffer");
     }
-    else if (bufferType_ == batch){
+    else if (bufferType_ == batch) {
         this->log("using batch feature buffer");
     }
     this->log("maximal buffer size is ") << paramBufferSize(config);
@@ -590,4 +579,4 @@ NeuralNetworkTrainer<T>* BufferedFeatureExtractor<T>::createTrainer(const Core::
 namespace Nn {
 template class BufferedFeatureExtractor<f32>;
 template class BufferedFeatureExtractor<f64>;
-}
+}  // namespace Nn

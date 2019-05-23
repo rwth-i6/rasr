@@ -17,42 +17,51 @@
 
 using namespace Nn;
 
-NeuralNetwork<f32>* SharedNeuralNetwork::network_ = 0;
-Prior<f32>* SharedNeuralNetwork::prior_ = 0;
-ClassLabelWrapper* SharedNeuralNetwork::labelWrapper_ = 0;
+NeuralNetwork<f32>* SharedNeuralNetwork::network_      = 0;
+Prior<f32>*         SharedNeuralNetwork::prior_        = 0;
+ClassLabelWrapper*  SharedNeuralNetwork::labelWrapper_ = 0;
 
-NeuralNetwork<f32>& SharedNeuralNetwork::network() { return *network_; }
+NeuralNetwork<f32>& SharedNeuralNetwork::network() {
+    return *network_;
+}
 
-const ClassLabelWrapper& SharedNeuralNetwork::labelWrapper() { return *labelWrapper_; }
+const ClassLabelWrapper& SharedNeuralNetwork::labelWrapper() {
+    return *labelWrapper_;
+}
 
-const Prior<f32>& SharedNeuralNetwork::prior() { return *prior_; }
+const Prior<f32>& SharedNeuralNetwork::prior() {
+    return *prior_;
+}
 
-bool SharedNeuralNetwork::hasInstance() { return network_ != 0 && prior_ != 0 && labelWrapper_ != 0; }
+bool SharedNeuralNetwork::hasInstance() {
+    return network_ != 0 && prior_ != 0 && labelWrapper_ != 0;
+}
 
-void SharedNeuralNetwork::create(const Core::Configuration &c){
-    if (!hasInstance()){
+void SharedNeuralNetwork::create(const Core::Configuration& c) {
+    if (!hasInstance()) {
         network_ = new NeuralNetwork<f32>(c);
         network_->initializeNetwork(1);
         labelWrapper_ = new ClassLabelWrapper(Core::Configuration(c, "class-labels"));
-        prior_ = new Prior<f32>(c);
+        prior_        = new Prior<f32>(c);
 
-        auto* topLayer = &network().getTopLayer();
-        auto* softmaxTopLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<f32>* >(topLayer);
-        auto* biasTopLayer = dynamic_cast<Nn::BiasLayer<f32>* >(topLayer);
+        auto* topLayer        = &network().getTopLayer();
+        auto* softmaxTopLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<f32>*>(topLayer);
+        auto* biasTopLayer    = dynamic_cast<Nn::BiasLayer<f32>*>(topLayer);
         if (!softmaxTopLayer && !biasTopLayer) {
-            auto* maxoutLayer = dynamic_cast<Nn::MaxoutVarLayer<f32>* >(topLayer);
-            if(maxoutLayer)
-                softmaxTopLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<f32>* >(&network().getLayer(maxoutLayer->getPredecessor(0)));
+            auto* maxoutLayer = dynamic_cast<Nn::MaxoutVarLayer<f32>*>(topLayer);
+            if (maxoutLayer)
+                softmaxTopLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<f32>*>(&network().getLayer(maxoutLayer->getPredecessor(0)));
         }
 
-        if(softmaxTopLayer) {
+        if (softmaxTopLayer) {
             // forward until softmax only
             // assume that log-prior is already removed from bias parameters of last layer
             // assume that parameters are already scaled according to mixture-scale
-            if (softmaxTopLayer->evaluatesSoftmax()) softmaxTopLayer->setEvaluateSoftmax(false);   // switch off the softmax
+            if (softmaxTopLayer->evaluatesSoftmax())
+                softmaxTopLayer->setEvaluateSoftmax(false);  // switch off the softmax
             Core::printLog("SharedNeuralNetwork: switched off softmax eval on softmax-layer");
         }
-        else if(biasTopLayer) {
+        else if (biasTopLayer) {
             Core::printLog("SharedNeuralNetwork: bias-layer is top layer, we assume it's in log space already");
         }
         else {
@@ -65,7 +74,7 @@ void SharedNeuralNetwork::create(const Core::Configuration &c){
                 softmaxTopLayer->removeLogPriorFromBias(prior());
                 Core::printLog("SharedNeuralNetwork: substract log prior from softmax-layer bias");
             }
-            else if(biasTopLayer) {
+            else if (biasTopLayer) {
                 biasTopLayer->removeLogPriorFromBias(prior());
                 Core::printLog("SharedNeuralNetwork: substract log prior from bias-layer bias");
             }

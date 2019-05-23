@@ -18,19 +18,17 @@
 
 using namespace Nn;
 
-
 template<typename T>
 const u32 NetworkTopologyElement<T>::invalidId = Core::Type<u32>::max;
 
 template<typename T>
-NetworkTopologyElement<T>::NetworkTopologyElement(s32 id, NeuralNetworkLayer<T> *layer) :
-    id_(id),
-    topologicalId_(-1),
-    layer_(layer)
-{}
+NetworkTopologyElement<T>::NetworkTopologyElement(s32 id, NeuralNetworkLayer<T>* layer)
+        : id_(id),
+          topologicalId_(-1),
+          layer_(layer) {}
 
 template<typename T>
-bool NetworkTopologyElement<T>::addPredecessor(u32 elem, u32 portId){
+bool NetworkTopologyElement<T>::addPredecessor(u32 elem, u32 portId) {
     if (predecessors_.size() < portId + 1)
         predecessors_.resize(portId + 1, invalidId);
     if (predecessors_.at(portId) != elem && predecessors_.at(portId) != invalidId)
@@ -40,14 +38,14 @@ bool NetworkTopologyElement<T>::addPredecessor(u32 elem, u32 portId){
 }
 
 template<typename T>
-void NetworkTopology<T>::clear(){
+void NetworkTopology<T>::clear() {
     featureStreamConnections_.clear();
     layers_.clear();
     layerMapping_.clear();
 }
 
 template<typename T>
-s32 NetworkTopology<T>::addLayer(const std::string &layerName, NeuralNetworkLayer<T>* layer){
+s32 NetworkTopology<T>::addLayer(const std::string& layerName, NeuralNetworkLayer<T>* layer) {
     if (layerMapping_.find(layerName) != layerMapping_.end())
         return -1;
     s32 id = layers_.size();
@@ -57,14 +55,14 @@ s32 NetworkTopology<T>::addLayer(const std::string &layerName, NeuralNetworkLaye
 }
 
 template<typename T>
-bool NetworkTopology<T>::addConnection(const std::string &layerNameFrom, const std::string &layerNameTo, u32 targetPortId){
+bool NetworkTopology<T>::addConnection(const std::string& layerNameFrom, const std::string& layerNameTo, u32 targetPortId) {
     if (layerMapping_.find(layerNameFrom) == layerMapping_.end())
         return false;
     if (layerMapping_.find(layerNameTo) == layerMapping_.end())
         return false;
 
-    NetworkTopologyElement<T> *nodeFrom = &(layers_.at(layerMapping_[layerNameFrom]));
-    s32 nodeTo = layerMapping_[layerNameTo];
+    NetworkTopologyElement<T>* nodeFrom = &(layers_.at(layerMapping_[layerNameFrom]));
+    s32                        nodeTo   = layerMapping_[layerNameTo];
     // add connection
     nodeFrom->addConnection(nodeTo);
     // add predecessor
@@ -74,7 +72,7 @@ bool NetworkTopology<T>::addConnection(const std::string &layerNameFrom, const s
 }
 
 template<typename T>
-bool NetworkTopology<T>::addFeatureStreamConnection(u32 featureStreamIndex, const std::string &layerNameTo, u32 targetPortId){
+bool NetworkTopology<T>::addFeatureStreamConnection(u32 featureStreamIndex, const std::string& layerNameTo, u32 targetPortId) {
     if (layerMapping_.find(layerNameTo) == layerMapping_.end())
         return false;
 
@@ -85,13 +83,13 @@ bool NetworkTopology<T>::addFeatureStreamConnection(u32 featureStreamIndex, cons
 }
 
 template<typename T>
-void NetworkTopology<T>::setTopologicalOrdering(std::vector<NeuralNetworkLayer<T>* > &result){
+void NetworkTopology<T>::setTopologicalOrdering(std::vector<NeuralNetworkLayer<T>*>& result) {
     std::vector<bool> discovered(nLayers(), false);
     std::vector<bool> finished(nLayers(), false);
 
-    std::vector<NetworkTopologyElement<T>* > topologicalOrdering;
+    std::vector<NetworkTopologyElement<T>*> topologicalOrdering;
     for (u32 layerIdx = 0; layerIdx < layers_.size(); ++layerIdx) {
-        if (!discovered.at(layerIdx)){
+        if (!discovered.at(layerIdx)) {
             dfsTopologicalOrderingVisit(discovered, finished, topologicalOrdering, layerIdx);
         }
     }
@@ -99,23 +97,26 @@ void NetworkTopology<T>::setTopologicalOrdering(std::vector<NeuralNetworkLayer<T
     std::reverse(topologicalOrdering.begin(), topologicalOrdering.end());
 
     result.clear();
-    for (u32 i = 0; i < topologicalOrdering.size(); i++){
+    for (u32 i = 0; i < topologicalOrdering.size(); i++) {
         topologicalOrdering.at(i)->setTopologicalId(i);
         result.push_back(topologicalOrdering.at(i)->layer());
     }
 }
 
 template<typename T>
-void NetworkTopology<T>::dfsTopologicalOrderingVisit(std::vector<bool> &discovered, std::vector<bool> &finished, std::vector<NetworkTopologyElement<T>* > &topologicalOrdering, u32 layerIdx){
+void NetworkTopology<T>::dfsTopologicalOrderingVisit(std::vector<bool>&                       discovered,
+                                                     std::vector<bool>&                       finished,
+                                                     std::vector<NetworkTopologyElement<T>*>& topologicalOrdering,
+                                                     u32                                      layerIdx) {
     verify_lt(layerIdx, nLayers());
 
-    discovered.at(layerIdx) = true;
-    NetworkTopologyElement<T> *layer = &layers_.at(layerIdx);
+    discovered.at(layerIdx)          = true;
+    NetworkTopologyElement<T>* layer = &layers_.at(layerIdx);
 
-    for (u32 i = 0; i < layer->nConnections(); i++){
-        NetworkTopologyElement<T> *target = &layers_.at(layer->connection(i));
-        s32 targetId = target->id();
-        if (!discovered.at(targetId)){
+    for (u32 i = 0; i < layer->nConnections(); i++) {
+        NetworkTopologyElement<T>* target   = &layers_.at(layer->connection(i));
+        s32                        targetId = target->id();
+        if (!discovered.at(targetId)) {
             dfsTopologicalOrderingVisit(discovered, finished, topologicalOrdering, targetId);
         }
     }
@@ -123,9 +124,8 @@ void NetworkTopology<T>::dfsTopologicalOrderingVisit(std::vector<bool> &discover
     topologicalOrdering.push_back(layer);
 }
 
-
 template<typename T>
-const NetworkTopologyElement<T>* NetworkTopology<T>::layerElement(const std::string &layerName) const {
+const NetworkTopologyElement<T>* NetworkTopology<T>::layerElement(const std::string& layerName) const {
     std::map<std::string, s32>::const_iterator it = layerMapping_.find(layerName);
     if (it == layerMapping_.end())
         return 0;
@@ -134,7 +134,7 @@ const NetworkTopologyElement<T>* NetworkTopology<T>::layerElement(const std::str
 }
 
 template<typename T>
-NetworkTopologyElement<T>* NetworkTopology<T>::layerElement(const std::string &layerName) {
+NetworkTopologyElement<T>* NetworkTopology<T>::layerElement(const std::string& layerName) {
     std::map<std::string, s32>::iterator it = layerMapping_.find(layerName);
     if (it == layerMapping_.end())
         return 0;
@@ -149,4 +149,4 @@ template class NetworkTopologyElement<f32>;
 template class NetworkTopologyElement<f64>;
 template class NetworkTopology<f32>;
 template class NetworkTopology<f64>;
-}
+}  // namespace Nn

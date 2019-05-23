@@ -27,20 +27,17 @@
 
 namespace Nn {
 
+template<typename T>
+MmiSegmentwiseNnTrainer<T>::MmiSegmentwiseNnTrainer(const Core::Configuration& c)
+        : Core::Component(c),
+          Precursor(c) {}
 
 template<typename T>
-MmiSegmentwiseNnTrainer<T>::MmiSegmentwiseNnTrainer(const Core::Configuration &c) :
-    Core::Component(c),
-    Precursor(c)
-{ }
-
-template<typename T>
-Speech::PosteriorFsa MmiSegmentwiseNnTrainer<T>::getDenominatorPosterior(Lattice::ConstWordLatticeRef lattice){
+Speech::PosteriorFsa MmiSegmentwiseNnTrainer<T>::getDenominatorPosterior(Lattice::ConstWordLatticeRef lattice) {
     Speech::PosteriorFsa result;
-    result.fsa = Fsa::posterior64(
-            Fsa::changeSemiring(lattice->part(this->part_), Fsa::LogSemiring),
-            result.totalInv,
-            this->posteriorTolerance());
+    result.fsa = Fsa::posterior64(Fsa::changeSemiring(lattice->part(this->part_), Fsa::LogSemiring),
+                                  result.totalInv,
+                                  this->posteriorTolerance());
     if (Core::isAlmostEqualUlp(f32(result.totalInv), Core::Type<f32>::min, this->posteriorTolerance())) {
         this->log("discard segment because it has vanishing total flow");
         return Speech::PosteriorFsa();
@@ -49,27 +46,22 @@ Speech::PosteriorFsa MmiSegmentwiseNnTrainer<T>::getDenominatorPosterior(Lattice
     return result;
 }
 
-
 // TODO why caching ? just because the FSA is small? on the other hand, the FSA is processed only once
 template<typename T>
-Speech::PosteriorFsa MmiSegmentwiseNnTrainer<T>::getNumeratorPosterior(Lattice::ConstWordLatticeRef lattice)
-{
+Speech::PosteriorFsa MmiSegmentwiseNnTrainer<T>::getNumeratorPosterior(Lattice::ConstWordLatticeRef lattice) {
     Speech::PosteriorFsa result;
-    result.fsa = Fsa::posterior64(
-            Fsa::changeSemiring(lattice->part(this->part_), Fsa::LogSemiring),
-            result.totalInv,
-            this->posteriorTolerance());
+    result.fsa = Fsa::posterior64(Fsa::changeSemiring(lattice->part(this->part_), Fsa::LogSemiring),
+                                  result.totalInv,
+                                  this->posteriorTolerance());
 
     result.fsa = Fsa::cache(Fsa::expm(result.fsa));
 
     return result;
 }
 
-
-
 template<typename T>
 bool MmiSegmentwiseNnTrainer<T>::computeInitialErrorSignal(Lattice::ConstWordLatticeRef lattice, Lattice::ConstWordLatticeRef numeratorLattice,
-        Bliss::SpeechSegment *segment, T &objectiveFunction, bool objectiveFunctionOnly){
+                                                           Bliss::SpeechSegment* segment, T& objectiveFunction, bool objectiveFunctionOnly) {
     require(numeratorLattice);
     Speech::PosteriorFsa numeratorPosterior;
     Speech::PosteriorFsa denominatorPosterior;
@@ -78,15 +70,15 @@ bool MmiSegmentwiseNnTrainer<T>::computeInitialErrorSignal(Lattice::ConstWordLat
         this->log("failed to compute denominator posterior FSA, skipping segment");
         return false;
     }
-    objectiveFunction = f32(denominatorPosterior.totalInv);
+    objectiveFunction     = f32(denominatorPosterior.totalInv);
     u32 nRejectedObsInSeq = 0;
-    if (!objectiveFunctionOnly){
+    if (!objectiveFunctionOnly) {
         this->accumulateStatisticsOnLattice(denominatorPosterior.fsa, lattice->wordBoundaries(), 1.0);
         // frame rejection heuristic described in Vesely et al: Sequence-discriminative training of DNNs, in Interspeech 2013
-        if (this->frameRejectionThreshold_ > 0){
-            for (u32 t = 0; t < alignment_.size(); ++t){
+        if (this->frameRejectionThreshold_ > 0) {
+            for (u32 t = 0; t < alignment_.size(); ++t) {
                 verify_ge(errorSignal_.back().at(alignment_.at(t), t), 0);
-                if (errorSignal_.back().at(alignment_.at(t), t) < this->frameRejectionThreshold_ ){
+                if (errorSignal_.back().at(alignment_.at(t), t) < this->frameRejectionThreshold_) {
                     weights_.at(t) = 0.0;
                     ++nRejectedObsInSeq;
                 }
@@ -112,8 +104,6 @@ bool MmiSegmentwiseNnTrainer<T>::computeInitialErrorSignal(Lattice::ConstWordLat
     return true;
 }
 
-
 template class MmiSegmentwiseNnTrainer<f32>;
-//template class MmiSegmentwiseNnTrainer<f64>;
 
-}
+}  // namespace Nn

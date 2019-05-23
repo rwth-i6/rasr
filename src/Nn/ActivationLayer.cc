@@ -22,8 +22,8 @@ using namespace Nn;
 
 /*===========================================================================*/
 template<typename T>
-IdentityLayer<T>::IdentityLayer(const Core::Configuration &config) :
-Core::Component(config), NeuralNetworkLayer<T>(config) {}
+IdentityLayer<T>::IdentityLayer(const Core::Configuration& config)
+        : Core::Component(config), NeuralNetworkLayer<T>(config) {}
 
 template<typename T>
 IdentityLayer<T>::~IdentityLayer() {}
@@ -42,7 +42,8 @@ void IdentityLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& ou
 
 template<typename T>
 void IdentityLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                NnMatrix&       errorSignalOut,
+                                                const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -52,8 +53,8 @@ void IdentityLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
 
 /*===========================================================================*/
 template<typename T>
-TanhLayer<T>::TanhLayer(const Core::Configuration &config) :
-Core::Component(config), NeuralNetworkLayer<T>(config) {}
+TanhLayer<T>::TanhLayer(const Core::Configuration& config)
+        : Core::Component(config), NeuralNetworkLayer<T>(config) {}
 
 template<typename T>
 TanhLayer<T>::~TanhLayer() {}
@@ -67,8 +68,9 @@ void TanhLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
 }
 
 template<typename T>
-void TanhLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
+void TanhLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
+                                             NnMatrix&       errorSignalOut,
+                                             const NnMatrix& activations) {
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
     }
@@ -87,8 +89,9 @@ void TanhLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& output
 }
 
 template<typename T>
-void TanhLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
+void TanhLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
+                                            NnMatrix&       errorSignalOut,
+                                            const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -105,17 +108,16 @@ const Core::ParameterBool SigmoidLayer<T>::paramLogOutput(
         "log-output", "apply log to the output", false);
 
 template<typename T>
-SigmoidLayer<T>::SigmoidLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-gamma_(paramScaleGamma(config)),
-logOutput_(paramLogOutput(config)),
-timeForwardSigmoid_(0),
-timeBackwardSigmoid_ (0)
-{};
+SigmoidLayer<T>::SigmoidLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          gamma_(paramScaleGamma(config)),
+          logOutput_(paramLogOutput(config)),
+          timeForwardSigmoid_(0),
+          timeBackwardSigmoid_(0){};
 
 template<typename T>
-SigmoidLayer<T>::~SigmoidLayer() {};
+SigmoidLayer<T>::~SigmoidLayer(){};
 
 /**	Apply the sigmoid function to the input features */
 template<typename T>
@@ -131,22 +133,21 @@ void SigmoidLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
         output.logSigmoid(gamma_);
     Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardSigmoid_  += Core::timeDiff(start, end);
+    timeForwardSigmoid_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
-void SigmoidLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
-
+void SigmoidLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
+                                                NnMatrix&       errorSignalOut,
+                                                const NnMatrix& activations) {
     timeval start, end;
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
     }
-    // errorSignalOut = errorSignalIn .* (activations .* (1 - activations))
 
     gettimeofday(&start, NULL);
     errorSignalOut.elementwiseMultiplicationWithSigmoidDerivative(activations);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
     timeBackwardSigmoid_ += Core::timeDiff(start, end);
 }
@@ -164,7 +165,8 @@ void SigmoidLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& out
 
 template<typename T>
 void SigmoidLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                               NnMatrix&       errorSignalOut,
+                                               const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -172,8 +174,8 @@ void SigmoidLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
 }
 
 template<typename T>
-void SigmoidLayer<T>::finalize(){
-    if (this->measureTime_){
+void SigmoidLayer<T>::finalize() {
+    if (this->measureTime_) {
         this->log("Sigmoid layer: Time for forward pass: ") << timeForwardSigmoid_;
         this->log("Sigmoid layer: Time for backward pass: ") << timeBackwardSigmoid_;
     }
@@ -183,12 +185,11 @@ void SigmoidLayer<T>::finalize(){
 /*===========================================================================*/
 
 template<typename T>
-SoftmaxLayer<T>::SoftmaxLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-timeForwardSoftmax_(0),
-timeBackwardSoftmax_ (0)
-{}
+SoftmaxLayer<T>::SoftmaxLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          timeForwardSoftmax_(0),
+          timeBackwardSoftmax_(0) {}
 
 template<typename T>
 SoftmaxLayer<T>::~SoftmaxLayer() {}
@@ -203,21 +204,22 @@ void SoftmaxLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
     }
     gettimeofday(&start, NULL);
     output.softmax();
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardSoftmax_  += Core::timeDiff(start, end);
+    timeForwardSoftmax_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
-void SoftmaxLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
+void SoftmaxLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
+                                                NnMatrix&       errorSignalOut,
+                                                const NnMatrix& activations) {
     timeval start, end;
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
     }
     gettimeofday(&start, NULL);
     errorSignalOut.multiplicationWithSoftmaxDerivative(activations);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
     timeBackwardSoftmax_ += Core::timeDiff(start, end);
 }
@@ -235,7 +237,8 @@ void SoftmaxLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& out
 
 template<typename T>
 void SoftmaxLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                               NnMatrix&       errorSignalOut,
+                                               const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -243,8 +246,8 @@ void SoftmaxLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
 }
 
 template<typename T>
-void SoftmaxLayer<T>::finalize(){
-    if (this->measureTime_){
+void SoftmaxLayer<T>::finalize() {
+    if (this->measureTime_) {
         this->log("Softmax layer: Time for forward pass: ") << timeForwardSoftmax_;
         this->log("Softmax layer: Time for backward pass: ") << timeBackwardSoftmax_;
     }
@@ -253,15 +256,14 @@ void SoftmaxLayer<T>::finalize(){
 
 /*===========================================================================*/
 template<typename T>
-RectifiedLayer<T>::RectifiedLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-timeForwardRectified_(0),
-timeBackwardRectified_ (0)
-{};
+RectifiedLayer<T>::RectifiedLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          timeForwardRectified_(0),
+          timeBackwardRectified_(0){};
 
 template<typename T>
-RectifiedLayer<T>::~RectifiedLayer() {};
+RectifiedLayer<T>::~RectifiedLayer(){};
 
 /**	Apply the rectified linear function to the input features */
 template<typename T>
@@ -272,24 +274,23 @@ void RectifiedLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
     }
     gettimeofday(&start, NULL);
     output.ensureMinimalValue(0);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardRectified_  += Core::timeDiff(start, end);
+    timeForwardRectified_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
-void RectifiedLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
-
+void RectifiedLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
+                                                  NnMatrix&       errorSignalOut,
+                                                  const NnMatrix& activations) {
     timeval start, end;
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
     }
-    // errorSignalOut = errorSignalIn .* sign(activations)
 
     gettimeofday(&start, NULL);
     errorSignalOut.elementwiseMultiplicationWithRectifiedDerivative(activations);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
     timeBackwardRectified_ += Core::timeDiff(start, end);
 }
@@ -307,7 +308,8 @@ void RectifiedLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& o
 
 template<typename T>
 void RectifiedLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                 NnMatrix&       errorSignalOut,
+                                                 const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -315,8 +317,8 @@ void RectifiedLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
 }
 
 template<typename T>
-void RectifiedLayer<T>::finalize(){
-    if (this->measureTime_){
+void RectifiedLayer<T>::finalize() {
+    if (this->measureTime_) {
         this->log("Rlu layer: Time for forward pass: ") << timeForwardRectified_;
         this->log("Rlu layer: Time for backward pass: ") << timeBackwardRectified_;
     }
@@ -325,16 +327,15 @@ void RectifiedLayer<T>::finalize(){
 
 /*===========================================================================*/
 template<typename T>
-ExponentialLinearLayer<T>::ExponentialLinearLayer(const Core::Configuration &config) :
-Core::Component(config),
-NeuralNetworkLayer<T>(config),
-alpha_(1.0), // TODO: make me a configurable
-timeForwardExponentialLinear_(0),
-timeBackwardExponentialLinear_ (0)
-{};
+ExponentialLinearLayer<T>::ExponentialLinearLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          alpha_(1.0),  // TODO: make me a configurable
+          timeForwardExponentialLinear_(0),
+          timeBackwardExponentialLinear_(0){};
 
 template<typename T>
-ExponentialLinearLayer<T>::~ExponentialLinearLayer() {};
+ExponentialLinearLayer<T>::~ExponentialLinearLayer(){};
 
 /**	Apply the exponential linear function to the input features */
 template<typename T>
@@ -345,15 +346,15 @@ void ExponentialLinearLayer<T>::_forward(const NnMatrix& input, NnMatrix& output
     }
     gettimeofday(&start, NULL);
     output.elu(T(1.0));
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardExponentialLinear_  += Core::timeDiff(start, end);
+    timeForwardExponentialLinear_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
-void ExponentialLinearLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn, NnMatrix& errorSignalOut,
-        const NnMatrix& activations) {
-
+void ExponentialLinearLayer<T>::_backpropagateActivations(const NnMatrix& errorSignalIn,
+                                                          NnMatrix&       errorSignalOut,
+                                                          const NnMatrix& activations) {
     timeval start, end;
     if (&errorSignalIn != &errorSignalOut) {
         errorSignalOut.copy(errorSignalIn);
@@ -361,7 +362,7 @@ void ExponentialLinearLayer<T>::_backpropagateActivations(const NnMatrix& errorS
 
     gettimeofday(&start, NULL);
     errorSignalOut.elementwiseMultiplicationWithEluDerivative(activations, alpha_);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
     timeBackwardExponentialLinear_ += Core::timeDiff(start, end);
 }
@@ -379,7 +380,8 @@ void ExponentialLinearLayer<T>::forward(const std::vector<NnMatrix*>& input, NnM
 
 template<typename T>
 void ExponentialLinearLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
-        NnMatrix& errorSignalOut, const NnMatrix& activations) {
+                                                         NnMatrix&       errorSignalOut,
+                                                         const NnMatrix& activations) {
     require_eq(errorSignalIn.nRows(), errorSignalOut.nRows());
     require_eq(errorSignalIn.nColumns(), errorSignalOut.nColumns());
 
@@ -387,8 +389,8 @@ void ExponentialLinearLayer<T>::backpropagateActivations(const NnMatrix& errorSi
 }
 
 template<typename T>
-void ExponentialLinearLayer<T>::finalize(){
-    if (this->measureTime_){
+void ExponentialLinearLayer<T>::finalize() {
+    if (this->measureTime_) {
         this->log("Elu layer: Time for forward pass: ") << timeForwardExponentialLinear_;
         this->log("Elu layer: Time for backward pass: ") << timeBackwardExponentialLinear_;
     }
@@ -397,19 +399,20 @@ void ExponentialLinearLayer<T>::finalize(){
 
 /*===========================================================================*/
 
-template<typename T> const Core::ParameterInt MaxoutVarLayer<T>::paramMaxoutSize("maxout-size", "Size of the non-overlapping input to a maxout node", 0);
-template<typename T> const Core::ParameterString MaxoutVarLayer<T>::paramParameterFile("maxout-sizes", "read hidden variable parameters from file", "");
+template<typename T>
+const Core::ParameterInt MaxoutVarLayer<T>::paramMaxoutSize("maxout-size", "Size of the non-overlapping input to a maxout node", 0);
+template<typename T>
+const Core::ParameterString MaxoutVarLayer<T>::paramParameterFile("maxout-sizes", "read hidden variable parameters from file", "");
 
 template<typename T>
-MaxoutVarLayer<T>::MaxoutVarLayer(const Core::Configuration &config) :
-  Core::Component(config),
-  NeuralNetworkLayer<T>(config),
-  timeForwardMaxoutVar_(0),
-  timeBackwardMaxoutVar_ (0)
-{
+MaxoutVarLayer<T>::MaxoutVarLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config),
+          timeForwardMaxoutVar_(0),
+          timeBackwardMaxoutVar_(0) {
     // set all the necessary parameters here
     std::string parameterFile_ = paramParameterFile(config);
-    u32 maxoutSize_ = paramMaxoutSize(config);
+    u32         maxoutSize_    = paramMaxoutSize(config);
 
     if (this->getOutputDimension() == 0 || this->getInputDimension(0) == 0) {
         this->error("Output & input dimensions should be defined");
@@ -430,8 +433,8 @@ MaxoutVarLayer<T>::MaxoutVarLayer(const Core::Configuration &config) :
         for (u32 row = 0; row < parameters.size(); ++row) {
             inputsize_ += parameters[row];
         }
-        require_eq(this->getInputDimension(0), inputsize_);   // 0th stream size is set per default to 0 or "dimension-input": see NeuralNetworkLayer<T>::NeuralNetworkLayer()
-                                                          // NeuralNetwork<T> call setInputDimension(), additional check is also done there
+        require_eq(this->getInputDimension(0), inputsize_);  // 0th stream size is set per default to 0 or "dimension-input": see NeuralNetworkLayer<T>::NeuralNetworkLayer()
+                                                             // NeuralNetwork<T> call setInputDimension(), additional check is also done there
         avgmixture = inputsize_ / this->getOutputDimension();
 
         mixture.resize(parameters.size());
@@ -442,17 +445,18 @@ MaxoutVarLayer<T>::MaxoutVarLayer(const Core::Configuration &config) :
         offset.resize(parameters.size());
         offset.at(0) = 0;
         for (u32 row = 1; row < parameters.size(); ++row) {
-            offset.at(row) = offset.at(row-1) + mixture.at(row-1);
+            offset.at(row) = offset.at(row - 1) + mixture.at(row - 1);
         }
-    } else {
+    }
+    else {
         avgmixture = maxoutSize_;
-        require_eq(this->getInputDimension(0), maxoutSize_*this->getOutputDimension());   // 0th stream size is set per default to 0 or "dimension-input": see NeuralNetworkLayer<T>::NeuralNetworkLayer()
+        require_eq(this->getInputDimension(0), maxoutSize_ * this->getOutputDimension());  // 0th stream size is set per default to 0 or "dimension-input": see NeuralNetworkLayer<T>::NeuralNetworkLayer()
 
         mixture.resize(this->getOutputDimension());
         offset.resize(this->getOutputDimension());
         for (u32 row = 0; row < this->getOutputDimension(); ++row) {
             mixture.at(row) = maxoutSize_;
-            offset.at(row) = row*maxoutSize_;
+            offset.at(row)  = row * maxoutSize_;
         }
     }
 
@@ -462,7 +466,7 @@ MaxoutVarLayer<T>::MaxoutVarLayer(const Core::Configuration &config) :
 };
 
 template<typename T>
-MaxoutVarLayer<T>::~MaxoutVarLayer() {};
+MaxoutVarLayer<T>::~MaxoutVarLayer(){};
 
 template<typename T>
 void MaxoutVarLayer<T>::setInputDimension(u32 stream, u32 dim) {
@@ -478,9 +482,9 @@ void MaxoutVarLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
     gettimeofday(&start, NULL);
     output.ensureMinimalValue(0);
     output.maxoutvar(mixture, offset, input, maxindex);
-    Math::Cuda::deviceSync(this->measureTime_&& Math::CudaDataStructure::hasGpu());
+    Math::Cuda::deviceSync(this->measureTime_ && Math::CudaDataStructure::hasGpu());
     gettimeofday(&end, NULL);
-    timeForwardMaxoutVar_  += Core::timeDiff(start, end);
+    timeForwardMaxoutVar_ += Core::timeDiff(start, end);
 }
 
 template<typename T>
@@ -506,14 +510,13 @@ void MaxoutVarLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn, 
 }
 
 template<typename T>
-void MaxoutVarLayer<T>::finalize(){
-    if (this->measureTime_){
+void MaxoutVarLayer<T>::finalize() {
+    if (this->measureTime_) {
         this->log("MaxoutVar layer: Time for forward pass: ") << timeForwardMaxoutVar_;
         this->log("MaxoutVar layer: Time for backward pass: ") << timeBackwardMaxoutVar_;
     }
     NeuralNetworkLayer<T>::finalize();
 }
-
 
 /*===========================================================================*/
 // explicit template instantiation
@@ -535,4 +538,4 @@ template class RectifiedLayer<f64>;
 template class MaxoutVarLayer<f64>;
 template class ExponentialLinearLayer<f64>;
 
-}
+}  // namespace Nn

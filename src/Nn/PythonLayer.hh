@@ -15,47 +15,55 @@
 #ifndef NN_PYTHONLAYER_HH
 #define NN_PYTHONLAYER_HH
 
-#include "NeuralNetworkLayer.hh"
 #include <Core/Component.hh>
 #include <Nn/Types.hh>
-#include <Python.h>
-#include <string>
-#include <Python/Numpy.hh>
 #include <Python/Init.hh>
+#include <Python/Numpy.hh>
 #include <Python/Utilities.hh>
+#include <string>
+#include <Python.h>
+#include "NeuralNetworkLayer.hh"
 
 namespace Nn {
 
 template<typename T>
 class PythonLayer : public virtual NeuralNetworkLayer<T> {
 public:
-    typedef NeuralNetworkLayer<T> Precursor;
+    typedef NeuralNetworkLayer<T>       Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
 
 protected:
     Python::Initializer pythonInitializer_;
-    Python::ObjRef pyObject_;
-    Python::ObjRef backpropRes_;
-    double timeForward_, timeBackward_;
+    Python::ObjRef      pyObject_;
+    Python::ObjRef      backpropRes_;
+    double              timeForward_, timeBackward_;
 
 public:
-    PythonLayer(const Core::Configuration &config);
+    PythonLayer(const Core::Configuration& config);
     virtual ~PythonLayer();
 
-    Core::Component::Message pythonCriticalError(const char* msg = 0, ...) const;
+    Core::Component::Message  pythonCriticalError(const char* msg = 0, ...) const;
     Python::CriticalErrorFunc getPythonCriticalErrorFunc() const;
 
     // trainer needs to access weights and bias
-    virtual NnMatrix* getWeights(u32 stream) { return NULL; }
-    virtual NnVector* getBias() { return NULL; }
-    virtual const NnMatrix* getWeights(u32 stream) const { return NULL; }
-    virtual const NnVector* getBias() const { return NULL; }
+    virtual NnMatrix* getWeights(u32 stream) {
+        return NULL;
+    }
+    virtual NnVector* getBias() {
+        return NULL;
+    }
+    virtual const NnMatrix* getWeights(u32 stream) const {
+        return NULL;
+    }
+    virtual const NnVector* getBias() const {
+        return NULL;
+    }
 
     // IO
     virtual void initializeNetworkParameters();
-    virtual void loadNetworkParameters(const std::string &filename);
-    virtual void saveNetworkParameters(const std::string &filename) const;
+    virtual void loadNetworkParameters(const std::string& filename);
+    virtual void saveNetworkParameters(const std::string& filename) const;
 
     // initialization methods
     virtual void setInputDimension(u32 stream, u32 size);
@@ -75,17 +83,23 @@ public:
 
     // If the layer is trainable, the Statistics class will collect the gradients.
     // It will expect these trainable params and call these functions.
-    virtual void resizeWeightsGradient(Types<f32>::NnMatrix &gradient, u32 stream) const { gradient.resize(0, 0); }
-    virtual void resizeBiasGradient(Types<f32>::NnVector &gradient) const { gradient.resize(0); }
-    virtual void resizeWeightsGradient(Types<f64>::NnMatrix &gradient, u32 stream) const { gradient.resize(0, 0); }
-    virtual void resizeBiasGradient(Types<f64>::NnVector &gradient) const { gradient.resize(0); }
+    virtual void resizeWeightsGradient(Types<f32>::NnMatrix& gradient, u32 stream) const {
+        gradient.resize(0, 0);
+    }
+    virtual void resizeBiasGradient(Types<f32>::NnVector& gradient) const {
+        gradient.resize(0);
+    }
+    virtual void resizeWeightsGradient(Types<f64>::NnMatrix& gradient, u32 stream) const {
+        gradient.resize(0, 0);
+    }
+    virtual void resizeBiasGradient(Types<f64>::NnVector& gradient) const {
+        gradient.resize(0);
+    }
 
     virtual void finalize();
-    virtual u32 getNumberOfFreeParameters() const;
-
-
+    virtual u32  getNumberOfFreeParameters() const;
 };
 
-}
+}  // namespace Nn
 
-#endif // PYTHONLAYER_HH
+#endif  // PYTHONLAYER_HH

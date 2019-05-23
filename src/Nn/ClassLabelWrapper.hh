@@ -32,32 +32,41 @@
 namespace Nn {
 
 class ClassLabelWrapper : public Core::Component {
-//    typedef Mm::MixtureToMixtureMap Precursor;
 protected:
     static const Core::ParameterIntVector paramDisregardClasses;
-    static const Core::ParameterString paramLoadFromFile;
-    static const Core::ParameterString paramSaveToFile;
-    static const Core::ParameterInt paramNumberOfClasses;
+    static const Core::ParameterString    paramLoadFromFile;
+    static const Core::ParameterString    paramSaveToFile;
+    static const Core::ParameterInt       paramNumberOfClasses;
+
 protected:
     std::vector<s32> mapping_;
-    u32 nTargets_;
+    u32              nTargets_;
+
 public:
     ClassLabelWrapper(const Core::Configuration& config, u32 nClasses = 0);
     virtual ~ClassLabelWrapper() {}
 
-    u32 nClasses() const { return mapping_.size(); };
-    u32 nClassesToAccumulate() const { return nTargets_;}
+    u32 nClasses() const {
+        return mapping_.size();
+    };
+    u32 nClassesToAccumulate() const {
+        return nTargets_;
+    }
 
-    bool isClassToAccumulate(u32 s) const { return mapping_.at(s) != -1 ; }
-    u32 getOutputIndexFromClassIndex(u32 s) const { return mapping_[s]; }
+    bool isClassToAccumulate(u32 s) const {
+        return mapping_.at(s) != -1;
+    }
+    u32 getOutputIndexFromClassIndex(u32 s) const {
+        return mapping_[s];
+    }
     bool isOneToOneMapping() const;
-    bool load(const std::string &filename);
-    bool save(const std::string &filename) const;
+    bool load(const std::string& filename);
+    bool save(const std::string& filename) const;
+
 protected:
     void initMapping(u32 nClasses);
 };
 
-
-}
+}  // namespace Nn
 
 #endif

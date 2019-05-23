@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 #include "PythonFeatureScorer.hh"
-#include <Python/Utilities.hh>
 #include <Python/Numpy.hh>
+#include <Python/Utilities.hh>
 
 /*
  * PythonFeatureScorer uses a Python interface to get the scores.
@@ -50,43 +50,41 @@
 namespace Nn {
 
 static const Core::ParameterInt paramFeatureDimension(
-	"feature-dimension", "feature = input dimension");
+        "feature-dimension", "feature = input dimension");
 
 static const Core::ParameterInt paramOutputDimension(
-	"python-feature-scorer-output-dimension", "if set, will ignore the number of mixtures", -1);
+        "python-feature-scorer-output-dimension", "if set, will ignore the number of mixtures", -1);
 
-
-PythonFeatureScorer::PythonFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet) :
-	Core::Component(config),
-	Mm::FeatureScorer(config),
-        featureBufferSize_(0),
-        numFeaturesReceived_(0),
-	currentFeature_(0),
-	scoresComputed_(false),
-        scoresCachePosition_(u32(-1)),
-	nClasses_(mixtureSet->nMixtures()),
-	inputDimension_(paramFeatureDimension(config)),
-        batchIteration_(0),
-        pythonControl_(config, /* sprintUnit */ "PythonFeatureScorer", /* isOptional */ false)
-{
+PythonFeatureScorer::PythonFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet)
+        : Core::Component(config),
+          Mm::FeatureScorer(config),
+          featureBufferSize_(0),
+          numFeaturesReceived_(0),
+          currentFeature_(0),
+          scoresComputed_(false),
+          scoresCachePosition_(u32(-1)),
+          nClasses_(mixtureSet->nMixtures()),
+          inputDimension_(paramFeatureDimension(config)),
+          batchIteration_(0),
+          pythonControl_(config, /* sprintUnit */ "PythonFeatureScorer", /* isOptional */ false) {
     int outputDim = paramOutputDimension(config);
-    if(outputDim >= 0) {
+    if (outputDim >= 0) {
         log("PythonFeatureScorer: will ignore mixture-set number of classes %i but use %i instead", nClasses_, outputDim);
-	nClasses_ = outputDim;
+        nClasses_ = outputDim;
     }
     log("PythonFeatureScorer: initialize with feature dimension %i, number of classes %i", inputDimension_, nClasses_);
     require_gt(inputDimension_, 0);
 
     Python::ScopedGIL gil;
-    pythonControl_.run_custom("init", "{s:i,s:i}", "input_dim", (int) inputDimension_, "output_dim", (int) nClasses_);
+    pythonControl_.run_custom("init", "{s:i,s:i}", "input_dim", (int)inputDimension_, "output_dim", (int)nClasses_);
     {
         PyObject* res = pythonControl_.run_custom_with_result("get_feature_buffer_size", "{}");
-        if(res) {
+        if (res) {
             long resLong = PyLong_AsLong(res);
-            if((resLong == -1) && PyErr_Occurred())
+            if ((resLong == -1) && PyErr_Occurred())
                 pythonControl_.pythonCriticalError("PythonFeatureScorer: get_feature_buffer_size did not return an integer");
-            featureBufferSize_ = (u32) resLong;
-            if(featureBufferSize_ == 0)
+            featureBufferSize_ = (u32)resLong;
+            if (featureBufferSize_ == 0)
                 criticalError("PythonFeatureScorer: get_feature_buffer_size returned 0");
             Py_CLEAR(res);
         }
@@ -103,55 +101,57 @@ PythonFeatureScorer::~PythonFeatureScorer() {
  * This class is used only because it is required by the
  * FeatureScorer interface.
  */
-class PythonFeatureScorer::ContextScorer : public FeatureScorer::ContextScorer
-{
+class PythonFeatureScorer::ContextScorer : public FeatureScorer::ContextScorer {
 public:
-    ContextScorer(const PythonFeatureScorer *parent, u32 currentFeature, u32 batchIteration) :
-	parent_(parent),
-	currentFeature_(currentFeature),
-	batchIteration_(batchIteration) {}
+    ContextScorer(const PythonFeatureScorer* parent, u32 currentFeature, u32 batchIteration)
+            : parent_(parent),
+              currentFeature_(currentFeature),
+              batchIteration_(batchIteration) {}
     virtual ~ContextScorer() {}
-    virtual Mm::EmissionIndex nEmissions() const { return parent_->nMixtures(); }
-    virtual Mm::Score score(Mm::EmissionIndex e) const {
-	require_eq(batchIteration_, parent_->batchIteration_);
-	return parent_->getScore(e, currentFeature_);
+    virtual Mm::EmissionIndex nEmissions() const {
+        return parent_->nMixtures();
     }
+    virtual Mm::Score score(Mm::EmissionIndex e) const {
+        require_eq(batchIteration_, parent_->batchIteration_);
+        return parent_->getScore(e, currentFeature_);
+    }
+
 private:
-    const PythonFeatureScorer *parent_;
-    u32 currentFeature_;
-    u32 batchIteration_;
+    const PythonFeatureScorer* parent_;
+    u32                        currentFeature_;
+    u32                        batchIteration_;
 };
 
-void PythonFeatureScorer::_addFeature(const Mm::FeatureVector &f) const {
+void PythonFeatureScorer::_addFeature(const Mm::FeatureVector& f) const {
     require(!bufferFilled());
     require(!scoresComputed_);
-    if(inputDimension_ != f.size()) {
+    if (inputDimension_ != f.size()) {
         criticalError("PythonFeatureScorer: was configured with input dimension %i but we got features with dimension %zu",
-		      inputDimension_, f.size());
+                      inputDimension_, f.size());
     }
 
     Python::ScopedGIL gil;
-    PyObject* numpyArray = NULL;
-    if(!Python::stdVec2numpy(pythonControl_.getPythonCriticalErrorFunc(), numpyArray, f))
+    PyObject*         numpyArray = NULL;
+    if (!Python::stdVec2numpy(pythonControl_.getPythonCriticalErrorFunc(), numpyArray, f))
         return;
-    pythonControl_.run_custom("add_feature", "{s:O,s:i}", "feature", numpyArray, "time", (int) numFeaturesReceived_);
+    pythonControl_.run_custom("add_feature", "{s:O,s:i}", "feature", numpyArray, "time", (int)numFeaturesReceived_);
     numFeaturesReceived_++;
 }
 
-void PythonFeatureScorer::addFeature(const Mm::FeatureVector &f) const {
+void PythonFeatureScorer::addFeature(const Mm::FeatureVector& f) const {
     // Lazily call reset() when flush() went through all the buffer before.
-    if(currentFeature_ > 0 && currentFeature_ >= numFeaturesReceived_)
-	reset();
+    if (currentFeature_ > 0 && currentFeature_ >= numFeaturesReceived_)
+        reset();
     _addFeature(f);
 }
 
 void PythonFeatureScorer::reset() const {
-    pythonControl_.run_custom("reset", "{s:i}", "num_frames", (int) numFeaturesReceived_);
+    pythonControl_.run_custom("reset", "{s:i}", "num_frames", (int)numFeaturesReceived_);
     numFeaturesReceived_ = 0;
-    scoresComputed_ = false;
+    scoresComputed_      = false;
     scoresCache_.clear();
     scoresCachePosition_ = u32(-1);
-    currentFeature_ = 0;
+    currentFeature_      = 0;
     batchIteration_++;
 }
 
@@ -160,7 +160,7 @@ Mm::EmissionIndex PythonFeatureScorer::nMixtures() const {
     return nClasses_;
 }
 
-void PythonFeatureScorer::getFeatureDescription(Mm::FeatureDescription &description) const {
+void PythonFeatureScorer::getFeatureDescription(Mm::FeatureDescription& description) const {
     require_gt(inputDimension_, 0);
     description.mainStream().setValue(Mm::FeatureDescription::nameDimension, inputDimension_);
 }
@@ -184,21 +184,21 @@ Mm::Score PythonFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) const
     require_lt(e, nClasses_);
     // process buffer if needed
     if (!scoresComputed_) {
-        pythonControl_.run_custom("compute", "{s:i}", "num_frames", (int) numFeaturesReceived_);
-	// mark computed
-	scoresComputed_ = true;
+        pythonControl_.run_custom("compute", "{s:i}", "num_frames", (int)numFeaturesReceived_);
+        // mark computed
+        scoresComputed_ = true;
     }
-    if(scoresCachePosition_ != position) {
+    if (scoresCachePosition_ != position) {
         Python::ScopedGIL gil;
-        PyObject* res = pythonControl_.run_custom_with_result("get_scores", "{s:i}", "time", (int) position);
-        if(!res)
+        PyObject*         res = pythonControl_.run_custom_with_result("get_scores", "{s:i}", "time", (int)position);
+        if (!res)
             return 0.0;
-        if(!Python::numpy2stdVec(pythonControl_.getPythonCriticalErrorFunc(), res, scoresCache_))
+        if (!Python::numpy2stdVec(pythonControl_.getPythonCriticalErrorFunc(), res, scoresCache_))
             return 0.0;
         Py_CLEAR(res);
-        if(scoresCache_.size() != nClasses_) {
+        if (scoresCache_.size() != nClasses_) {
             criticalError("PythonFeatureScorer: get_scores returned vector of len %i but we expected len (num classes) %i",
-                          (int) scoresCache_.size(), (int) nClasses_);
+                          (int)scoresCache_.size(), (int)nClasses_);
             return 0.0;
         }
         scoresCachePosition_ = position;
@@ -215,8 +215,14 @@ Mm::FeatureScorer::Scorer PythonFeatureScorer::getTimeIndexedScorer(u32 time) co
 
 // Must never be full. We want to support segments of any len, and we want to
 // get all features in advance before we calculate the scores (to support bi-RNNs).
-bool PythonFeatureScorer::bufferFilled() const { return numFeaturesReceived_ >= bufferSize(); }  // == cannot call addFeature() anymore
-bool PythonFeatureScorer::bufferEmpty() const { return currentFeature_ >= numFeaturesReceived_; }  // == cannot call flush() anymore
-u32 PythonFeatureScorer::bufferSize() const { return featureBufferSize_; }
-
+bool PythonFeatureScorer::bufferFilled() const {
+    return numFeaturesReceived_ >= bufferSize();
+}  // == cannot call addFeature() anymore
+bool PythonFeatureScorer::bufferEmpty() const {
+    return currentFeature_ >= numFeaturesReceived_;
+}  // == cannot call flush() anymore
+u32 PythonFeatureScorer::bufferSize() const {
+    return featureBufferSize_;
 }
+
+}  // namespace Nn

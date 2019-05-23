@@ -17,9 +17,9 @@
 
 #include <Core/Component.hh>
 
-#include "BufferedFeatureExtractor.hh"		// buffered features
-#include <Speech/AlignedFeatureProcessor.hh>	// supervised training
+#include <Speech/AlignedFeatureProcessor.hh>  // supervised training
 #include <Speech/CorpusVisitor.hh>
+#include "BufferedFeatureExtractor.hh"  // buffered features
 
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaVector.hh>
@@ -41,37 +41,38 @@ namespace Nn {
  */
 template<class T>
 class BufferedAlignedFeatureProcessor : protected BufferedFeatureExtractor<T>, public Speech::AlignedFeatureProcessor {
-    typedef Core::Component Precursor;
-    typedef BufferedFeatureExtractor<T> PrecursorBuffer;
+    typedef Core::Component                 Precursor;
+    typedef BufferedFeatureExtractor<T>     PrecursorBuffer;
     typedef Speech::AlignedFeatureProcessor PrecursorAligned;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
 
 public:
-    static const Core::ParameterFloat paramSilenceWeight;
+    static const Core::ParameterFloat  paramSilenceWeight;
     static const Core::ParameterString paramClassWeightsFile;
-    static const Core::ParameterBool paramWeightedAlignment;
+    static const Core::ParameterBool   paramWeightedAlignment;
 
 protected:
     Core::Ref<const Am::AcousticModel> acousticModel_;
-    Fsa::LabelId silence_;
-    bool acousticModelNeedInit_;
+    Fsa::LabelId                       silence_;
+    bool                               acousticModelNeedInit_;
 
-    ClassLabelWrapper *classLabelWrapper_;
-    Math::Vector<T> classWeights_;                    // weights for each class
-    std::vector<u32> alignmentBuffer_;	              // buffer for alignment indices
+    ClassLabelWrapper*      classLabelWrapper_;
+    Math::Vector<T>         classWeights_;            // weights for each class
+    std::vector<u32>        alignmentBuffer_;         // buffer for alignment indices
     std::vector<Mm::Weight> alignmentWeightsBuffer_;  // buffer for weights from the alignment
-    bool weightedAlignment_;
+    bool                    weightedAlignment_;
 
 public:
-    BufferedAlignedFeatureProcessor(const Core::Configuration &config, bool loadFromFile = true);
+    BufferedAlignedFeatureProcessor(const Core::Configuration& config, bool loadFromFile = true);
     virtual ~BufferedAlignedFeatureProcessor();
 
 protected:
     virtual void initAcousticModel();
     virtual void setClassWeights();
-    virtual void initTrainer(const std::vector<NnMatrix> &miniBatch);
+    virtual void initTrainer(const std::vector<NnMatrix>& miniBatch);
     virtual void initBuffer(Core::Ref<const Speech::Feature> f);
     virtual void resetBuffer();
     virtual void processBuffer();
@@ -80,10 +81,13 @@ protected:
     virtual void processAlignedFeature(Core::Ref<const Speech::Feature> f, Am::AllophoneStateIndex e, Mm::Weight w);
 
 public:
-    virtual void signOn(Speech::CorpusVisitor &corpusVisitor) { Speech::AlignedFeatureProcessor::signOn(corpusVisitor); }
+    virtual void signOn(Speech::CorpusVisitor& corpusVisitor) {
+        Speech::AlignedFeatureProcessor::signOn(corpusVisitor);
+    }
     virtual void enterSegment(Bliss::Segment* segment);
     virtual void leaveSegment(Bliss::Segment* segment);
     virtual void leaveCorpus(Bliss::Corpus* corpus);
+
 protected:
     Mm::EmissionIndex classIndex(Am::AllophoneStateIndex e) const;
 
@@ -91,6 +95,6 @@ public:
     virtual NeuralNetworkTrainer<T>* createTrainer(const Core::Configuration& config);
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_BUFFERED_ALIGNED_FEATURE_PROCESSOR_HH
+#endif  // _NN_BUFFERED_ALIGNED_FEATURE_PROCESSOR_HH

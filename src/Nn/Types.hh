@@ -16,11 +16,11 @@
 #define TYPES_HH_
 
 namespace Math {
-    template<typename T>
-    class CudaMatrix;
-    template<typename T>
-    class CudaVector;
-}
+template<typename T>
+class CudaMatrix;
+template<typename T>
+class CudaVector;
+}  // namespace Math
 
 namespace Nn {
 
@@ -31,7 +31,6 @@ public:
     typedef Math::CudaVector<T> NnVector;
 };
 
-}
-
+}  // namespace Nn
 
 #endif /* TYPES_HH_ */

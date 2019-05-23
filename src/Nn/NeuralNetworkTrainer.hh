@@ -16,24 +16,24 @@
 #define _NN_NEURAL_NETWORK_TRAINER_HH
 
 #include <Core/Component.hh>
-#include <Speech/CorpusVisitor.hh>				// for unsupervised training
-#include <Speech/AlignedFeatureProcessor.hh>			// for supervised training
+#include <Speech/AlignedFeatureProcessor.hh>  // for supervised training
+#include <Speech/CorpusVisitor.hh>            // for unsupervised training
 
-#include "NeuralNetwork.hh"					// neural network
+#include "Criterion.hh"
 #include "Estimator.hh"
+#include "NeuralNetwork.hh"  // neural network
 #include "Regularizer.hh"
 #include "Types.hh"
-#include "Criterion.hh"
 
-#include <vector>
 #include <Math/CudaVector.hh>
 #include <Math/Vector.hh>
 #include <memory>
+#include <vector>
 
 namespace Bliss {
 class Segment;
 class SpeechSegment;
-}
+}  // namespace Bliss
 
 namespace Core {
 class Archive;
@@ -65,9 +65,10 @@ namespace Nn {
  */
 template<class T>
 class NeuralNetworkTrainer : virtual public Core::Component {
-    typedef Core::Component Precursor;
+    typedef Core::Component             Precursor;
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 public:
     enum TrainerType {
         dummy,
@@ -84,34 +85,38 @@ public:
         pythonTrainer,
         pythonEvaluator,
     };
+
 public:
-    static const Core::Choice choiceNetworkTrainer;
+    static const Core::Choice          choiceNetworkTrainer;
     static const Core::ParameterChoice paramNetworkTrainer;
-    static const Core::ParameterInt paramEpoch;
-    static const Core::ParameterBool paramWeightedAccumulation;	// relevant for supervised training
-    static const Core::ParameterBool paramMeasureTime;
+    static const Core::ParameterInt    paramEpoch;
+    static const Core::ParameterBool   paramWeightedAccumulation;  // relevant for supervised training
+    static const Core::ParameterBool   paramMeasureTime;
+
 protected:
     Criterion<T>* criterion_;
     // perform weighted accumulation (according to class-weights, relevant for supervised training only)
     // can be set from outside, therefore not const
     bool weightedAccumulation_;
     // needed for prior estimation from class counts, passed by BufferedAlignedFeatureProcessor
-    const Math::Vector<T> *classWeights_;
+    const Math::Vector<T>* classWeights_;
     // measure runtime
     const bool measureTime_;
     // depends on trainer, but normally true
     bool needsNetwork_;
+
 protected:
-    mutable Core::XmlChannel statisticsChannel_; 			// statistics-channel
-    bool needInit_;
+    mutable Core::XmlChannel statisticsChannel_;  // statistics-channel
+    bool                     needInit_;
     // neural network to be trained, use pointer in order to pass a network from outside
-    NeuralNetwork<T> *network_;
+    NeuralNetwork<T>* network_;
     // estimator for weights update
     Estimator<T>* estimator_;
     // Regularizer
     Regularizer<T>* regularizer_;
+
 public:
-    NeuralNetworkTrainer(const Core::Configuration &config);
+    NeuralNetworkTrainer(const Core::Configuration& config);
     virtual ~NeuralNetworkTrainer();
 
     // initialization & finalization methods
@@ -122,44 +127,87 @@ public:
     // getter and setter methods
 
     /** get activations of output layer */
-    NnMatrix& getOutputActivation() { require(network_); return network_->getTopLayerOutput(); }
+    NnMatrix& getOutputActivation() {
+        require(network_);
+        return network_->getTopLayerOutput();
+    }
     /** returns whether trainer has a network */
-    bool hasNetwork() const { return (network_ != 0); }
+    bool hasNetwork() const {
+        return (network_ != 0);
+    }
     /** returns whether trainer has an estimator */
-    bool hasEstimator() const { return (estimator_ != 0); }
+    bool hasEstimator() const {
+        return (estimator_ != 0);
+    }
     /** returns whether frame weights are used */
-    bool weightedAccumulation() const { return weightedAccumulation_; }
+    bool weightedAccumulation() const {
+        return weightedAccumulation_;
+    }
     /** returns current batch size (equal to size of activations)*/
-    u32 batchSize() const { return hasNetwork() ? network_->activationsSize() : 0u ;}
+    u32 batchSize() const {
+        return hasNetwork() ? network_->activationsSize() : 0u;
+    }
     /** returns whether trainer is initialized */
-    bool isInitialized() const { return !needInit_; }
+    bool isInitialized() const {
+        return !needInit_;
+    }
     /** returns whether trainer measures computation time */
-    bool measuresTime() const { return measureTime_; }
-    Criterion<T>& criterion() { require(criterion_); return *criterion_; }
+    bool measuresTime() const {
+        return measureTime_;
+    }
+    Criterion<T>& criterion() {
+        require(criterion_);
+        return *criterion_;
+    }
     /** return reference to network */
-    NeuralNetwork<T>& network() { require(network_); return *network_; }
-    const NeuralNetwork<T>& network() const { require(network_); return *network_; }
+    NeuralNetwork<T>& network() {
+        require(network_);
+        return *network_;
+    }
+    const NeuralNetwork<T>& network() const {
+        require(network_);
+        return *network_;
+    }
     /** return reference to network */
-    u32 nLayers() const { return hasNetwork() ? network_->nLayers() : 0; }
+    u32 nLayers() const {
+        return hasNetwork() ? network_->nLayers() : 0;
+    }
     /** return reference to estimator */
-    Estimator<T>& estimator() { require(estimator_); return *estimator_; }
-    const Estimator<T>& estimator() const { require(estimator_); return *estimator_; }
+    Estimator<T>& estimator() {
+        require(estimator_);
+        return *estimator_;
+    }
+    const Estimator<T>& estimator() const {
+        require(estimator_);
+        return *estimator_;
+    }
     /** return reference to regularizer */
-    Regularizer<T>& regularizer() { require(regularizer_); return *regularizer_; }
-    const Regularizer<T>& regularizer() const { require(regularizer_); return *regularizer_; }
+    Regularizer<T>& regularizer() {
+        require(regularizer_);
+        return *regularizer_;
+    }
+    const Regularizer<T>& regularizer() const {
+        require(regularizer_);
+        return *regularizer_;
+    }
     /** sets class weights to values in vector*/
-    void setClassWeights(const Math::Vector<T> *vector);
+    void setClassWeights(const Math::Vector<T>* vector);
 
     /** returns whether trainer needs to process all features, i.e. for batch training */
-    virtual bool needsToProcessAllFeatures() const { return false; }
+    virtual bool needsToProcessAllFeatures() const {
+        return false;
+    }
     /** resize activations (necessary when batch size has changed) */
     virtual void setBatchSize(u32 batchSize);
 
     /** if we have a network, is its output layer representing the class label posterior probabilities */
-    virtual bool isNetworkOutputRepresentingClassLabels() { return true; }
+    virtual bool isNetworkOutputRepresentingClassLabels() {
+        return true;
+    }
     /** whether we can call getClassLabelPosteriors() */
     virtual bool hasClassLabelPosteriors() {
-        if(hasNetwork() && isNetworkOutputRepresentingClassLabels()) return true;
+        if (hasNetwork() && isNetworkOutputRepresentingClassLabels())
+            return true;
         return false;
     }
     /** returns the posteriors after a call to processBatch_feedInput() */
@@ -175,7 +223,9 @@ public:
         return network().getTopLayer().getOutputDimension();
     }
 
-    virtual bool allowsDownsampling() const { return false; }
+    virtual bool allowsDownsampling() const {
+        return false;
+    }
 
     // interface methods
 
@@ -193,7 +243,7 @@ public:
      * and errorSignal is the gradient of the objective function.
      * If you use this directly, you ignore the training criterion.
      */
-    virtual void processBatch_finishWithError(T error, NnMatrix &errorSignal) {
+    virtual void processBatch_finishWithError(T error, NnMatrix& errorSignal) {
         // This default implementation just uses the backprop implementation of the layer.
         verify(network_);
         NnMatrix outErrorSignal(errorSignal.nRows(), errorSignal.nColumns());
@@ -205,15 +255,19 @@ public:
      * is already related to the natural pairing of the objective function with the last layer
      * activation function.
      */
-    virtual void processBatch_finishWithError_naturalPairing(T error, NnMatrix &errorSignal) {
+    virtual void processBatch_finishWithError_naturalPairing(T error, NnMatrix& errorSignal) {
         processBatch_finish();
     }
 
     /** Override this method for supervised training with a criterion based on an alignment */
-    virtual void processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment) { processBatch_finish(); }
+    virtual void processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment) {
+        processBatch_finish();
+    }
 
     /** Override this method for supervised training with a criterion based on a segment */
-    virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment) { processBatch_finish(); }
+    virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment) {
+        processBatch_finish();
+    }
 
     /** Override this method for unsupervised training to finish a minibatch */
     virtual void processBatch_finish() {}
@@ -222,15 +276,16 @@ public:
     virtual void resetHistory();
 
     virtual void logBatchTimes() const {}
+
 protected:
     // log configuration
     virtual void logProperties() const;
+
 public:
     // factory methods
     static NeuralNetworkTrainer<T>* createSupervisedTrainer(const Core::Configuration& config);
     static NeuralNetworkTrainer<T>* createUnsupervisedTrainer(const Core::Configuration& config);
 };
-
 
 //=============================================================================
 /** only computes frame classification error and objective function
@@ -239,29 +294,36 @@ public:
 template<class T>
 class FrameErrorEvaluator : public NeuralNetworkTrainer<T> {
     typedef NeuralNetworkTrainer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
     using Precursor::statisticsChannel_;
-    NnVector* weights_; // weights of last feedInput call
-    u32 nObservations_;
-    u32 nFrameClassificationErrors_;
-    T objectiveFunction_;
-    bool logFrameEntropy_;
-    T frameEntropy_;
+    NnVector* weights_;  // weights of last feedInput call
+    u32       nObservations_;
+    u32       nFrameClassificationErrors_;
+    T         objectiveFunction_;
+    bool      logFrameEntropy_;
+    T         frameEntropy_;
+
 public:
     static const Core::ParameterBool paramLogFrameEntropy;
 
-    FrameErrorEvaluator(const Core::Configuration &config);
+    FrameErrorEvaluator(const Core::Configuration& config);
     virtual ~FrameErrorEvaluator() {}
-    NeuralNetwork<T>& network() { return Precursor::network(); }
+    NeuralNetwork<T>& network() {
+        return Precursor::network();
+    }
     virtual void finalize();
     virtual void processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment);
     virtual void processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment);
     virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finish();
-    virtual bool needsToProcessAllFeatures() const { return true; }
+    virtual bool needsToProcessAllFeatures() const {
+        return true;
+    }
 };
 
 //=============================================================================
@@ -273,27 +335,32 @@ public:
 template<class T>
 class MeanAndVarianceTrainer : public NeuralNetworkTrainer<T> {
     typedef NeuralNetworkTrainer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
+
 protected:
     using Precursor::statisticsChannel_;
+
 public:
     static const Core::ParameterString paramMeanFile;
     static const Core::ParameterString paramStandardDeviationFile;
     static const Core::ParameterString paramStatisticsFile;
+
 protected:
-    NnVector* weights_; // weights of last feedInput call
-    Statistics<T> *statistics_;
+    NnVector*       weights_;  // weights of last feedInput call
+    Statistics<T>*  statistics_;
     Math::Vector<T> mean_;
     Math::Vector<T> standardDeviation_;
-    NnMatrix tmp_;
+    NnMatrix        tmp_;
 
     std::string meanFile_;
     std::string standardDeviationFile_;
     std::string statisticsFile_;
+
 public:
-    MeanAndVarianceTrainer(const Core::Configuration &config);
+    MeanAndVarianceTrainer(const Core::Configuration& config);
     virtual ~MeanAndVarianceTrainer();
 
     /** initialization method */
@@ -302,10 +369,13 @@ public:
     /** write statistics */
     virtual void finalize();
     /** compute mean and standard deviation and write it to file */
-    virtual void writeMeanAndStandardDeviation(Statistics<T> &statistics);
+    virtual void writeMeanAndStandardDeviation(Statistics<T>& statistics);
     /** accumulates mean and variance on mini-batch */
     virtual void processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment);
-    virtual bool needsToProcessAllFeatures() const { return true; }
+    virtual bool needsToProcessAllFeatures() const {
+        return true;
+    }
+
 private:
     void saveVector(std::string& filename, Math::Vector<T>& vector);
 };
@@ -316,25 +386,31 @@ private:
 template<class T>
 class NetworkEvaluator : public NeuralNetworkTrainer<T> {
     typedef NeuralNetworkTrainer<T> Precursor;
+
 protected:
     typedef typename Types<T>::NnVector NnVector;
     typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterString paramDumpPosteriors;
-    static const Core::ParameterString paramDumpBestPosteriorIndices;
-    u32 nObservations_;
-    std::shared_ptr<Core::Archive> dumpPosteriorsArchive_;
-    std::shared_ptr<Core::Archive> dumpBestPosterioIndicesArchive_;
+    static const Core::ParameterString  paramDumpPosteriors;
+    static const Core::ParameterString  paramDumpBestPosteriorIndices;
+    u32                                 nObservations_;
+    std::shared_ptr<Core::Archive>      dumpPosteriorsArchive_;
+    std::shared_ptr<Core::Archive>      dumpBestPosterioIndicesArchive_;
+
 public:
-    NetworkEvaluator(const Core::Configuration &config);
+    NetworkEvaluator(const Core::Configuration& config);
     virtual ~NetworkEvaluator() {}
-    NeuralNetwork<T>& network() { return Precursor::network(); }
+    NeuralNetwork<T>& network() {
+        return Precursor::network();
+    }
     virtual void finalize();
     virtual void processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment);
     virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finish();
-    virtual bool needsToProcessAllFeatures() const { return true; }
+    virtual bool needsToProcessAllFeatures() const {
+        return true;
+    }
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // _NN_NEURAL_NETWORK_TRAINER_HH
+#endif  // _NN_NEURAL_NETWORK_TRAINER_HH

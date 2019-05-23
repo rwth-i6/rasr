@@ -31,31 +31,30 @@ const Core::ParameterChoice Regularizer<T>::paramRegularizerType(
         "regularizer (adds regularization term to objective function)", none);
 
 template<typename T>
-Regularizer<T>::Regularizer(const Core::Configuration& config) :
-Core::Component(config)
-{}
+Regularizer<T>::Regularizer(const Core::Configuration& config)
+        : Core::Component(config) {}
 
 template<class T>
 Regularizer<T>* Regularizer<T>::createRegularizer(const Core::Configuration& config) {
     Regularizer<T>* regularizer;
 
-    switch ( (RegularizerType) paramRegularizerType(config) ) {
-    case l1Regularizer:
-        regularizer = new L1Regularizer<T>(config);
-        Core::Application::us()->log("Create regularizer: l1-regularizer");
-        break;
-    case l2Regularizer:
-        regularizer = new L2Regularizer<T>(config);
-        Core::Application::us()->log("Create regularizer: l2-regularizer");
-        break;
-    case centeredRegularizer:
-        regularizer = new CenteredL2Regularizer<T>(config);
-        Core::Application::us()->log("Create regularizer: centered-l2-regularizer");
-        break;
-    default:
-        regularizer = new Regularizer<T>(config);
-        Core::Application::us()->log("Create regularizer: none");
-        break;
+    switch ((RegularizerType)paramRegularizerType(config)) {
+        case l1Regularizer:
+            regularizer = new L1Regularizer<T>(config);
+            Core::Application::us()->log("Create regularizer: l1-regularizer");
+            break;
+        case l2Regularizer:
+            regularizer = new L2Regularizer<T>(config);
+            Core::Application::us()->log("Create regularizer: l2-regularizer");
+            break;
+        case centeredRegularizer:
+            regularizer = new CenteredL2Regularizer<T>(config);
+            Core::Application::us()->log("Create regularizer: centered-l2-regularizer");
+            break;
+        default:
+            regularizer = new Regularizer<T>(config);
+            Core::Application::us()->log("Create regularizer: none");
+            break;
     };
 
     return regularizer;
@@ -64,10 +63,9 @@ Regularizer<T>* Regularizer<T>::createRegularizer(const Core::Configuration& con
 //=============================================================================
 
 template<typename T>
-L1Regularizer<T>::L1Regularizer(const Core::Configuration& config):
-Core::Component(config),
-Precursor(config)
-{
+L1Regularizer<T>::L1Regularizer(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config) {
     signMatrix_.initComputation(false);
     signVector_.initComputation(false);
 }
@@ -77,14 +75,14 @@ T L1Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T factor) {
     T objectiveFunction = 0;
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+            (network.getLayer(layer).regularizationConstant() > 0)) {
             T tmpObjectiveFunction = 0;
 
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             tmpObjectiveFunction = bias->l1norm();
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *matrix = network.getLayer(layer).getWeights(stream);
+                NnMatrix* matrix = network.getLayer(layer).getWeights(stream);
                 require(matrix);
                 tmpObjectiveFunction += matrix->l1norm();
             }
@@ -99,9 +97,9 @@ template<typename T>
 void L1Regularizer<T>::addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor) {
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+            (network.getLayer(layer).regularizationConstant() > 0)) {
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
 
                 signMatrix_.resize(weights->nRows(), weights->nColumns());
@@ -109,7 +107,7 @@ void L1Regularizer<T>::addGradient(NeuralNetwork<T>& network, Statistics<T>& sta
 
                 statistics.gradientWeights(layer)[stream].add(signMatrix_, network.getLayer(layer).regularizationConstant() * factor);
             }
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
 
             signVector_.resize(bias->nRows());
@@ -123,24 +121,23 @@ void L1Regularizer<T>::addGradient(NeuralNetwork<T>& network, Statistics<T>& sta
 //=============================================================================
 
 template<typename T>
-L2Regularizer<T>::L2Regularizer(const Core::Configuration& config):
-Core::Component(config),
-Precursor(config)
-{}
+L2Regularizer<T>::L2Regularizer(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config) {}
 
 template<typename T>
 T L2Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T factor) {
     T objectiveFunction = 0;
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
         if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+            (network.getLayer(layer).regularizationConstant() > 0)) {
             T tmpObjectiveFunction = 0;
 
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             tmpObjectiveFunction = bias->sumOfSquares();
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *matrix = network.getLayer(layer).getWeights(stream);
+                NnMatrix* matrix = network.getLayer(layer).getWeights(stream);
                 require(matrix);
                 tmpObjectiveFunction += matrix->sumOfSquares();
             }
@@ -154,14 +151,13 @@ T L2Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T factor) {
 template<typename T>
 void L2Regularizer<T>::addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor) {
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
-        if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+        if ((network.getLayer(layer).isTrainable()) && (network.getLayer(layer).regularizationConstant() > 0)) {
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weights = network.getLayer(layer).getWeights(stream);
+                NnMatrix* weights = network.getLayer(layer).getWeights(stream);
                 require(weights);
                 statistics.gradientWeights(layer)[stream].add(*weights, network.getLayer(layer).regularizationConstant() * factor);
             }
-            NnVector *bias = network.getLayer(layer).getBias();
+            NnVector* bias = network.getLayer(layer).getBias();
             require(bias);
             statistics.gradientBias(layer).add(*bias, network.getLayer(layer).regularizationConstant() * factor);
         }
@@ -175,11 +171,10 @@ const Core::ParameterString CenteredL2Regularizer<T>::paramCenterParameters(
         "center-parameters", "parameters of regularization center");
 
 template<typename T>
-CenteredL2Regularizer<T>::CenteredL2Regularizer(const Core::Configuration& config):
-Core::Component(config),
-Precursor(config),
-centerNetwork_(config)
-{
+CenteredL2Regularizer<T>::CenteredL2Regularizer(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          centerNetwork_(config) {
     centerNetwork_.initializeNetwork(1, paramCenterParameters(config));
 }
 
@@ -187,12 +182,11 @@ template<typename T>
 T CenteredL2Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T factor) {
     T objectiveFunction = 0;
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
-        if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+        if ((network.getLayer(layer).isTrainable()) && (network.getLayer(layer).regularizationConstant() > 0)) {
             T tmpObjectiveFunction = 0;
 
-            NnVector *bias = network.getLayer(layer).getBias();
-            NnVector *centerBias = centerNetwork_.getLayer(layer).getBias();
+            NnVector* bias       = network.getLayer(layer).getBias();
+            NnVector* centerBias = centerNetwork_.getLayer(layer).getBias();
             require(bias);
             require(centerBias);
             // TODO implement matrix functions to do this directly
@@ -201,8 +195,8 @@ T CenteredL2Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T facto
             diffVector_.add(*centerBias, T(-1.0));
             tmpObjectiveFunction = diffVector_.sumOfSquares();
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weightMatrix = network.getLayer(layer).getWeights(stream);
-                NnMatrix *centerWeightMatrix = centerNetwork_.getLayer(layer).getWeights(stream);
+                NnMatrix* weightMatrix       = network.getLayer(layer).getWeights(stream);
+                NnMatrix* centerWeightMatrix = centerNetwork_.getLayer(layer).getWeights(stream);
                 require(weightMatrix);
                 require(centerWeightMatrix);
                 diffMatrix_.resize(weightMatrix->nRows(), weightMatrix->nColumns());
@@ -220,18 +214,17 @@ T CenteredL2Regularizer<T>::objectiveFunction(NeuralNetwork<T>& network, T facto
 template<typename T>
 void CenteredL2Regularizer<T>::addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor) {
     for (u32 layer = 0; layer < network.nLayers(); layer++) {
-        if ((network.getLayer(layer).isTrainable()) &&
-                (network.getLayer(layer).regularizationConstant() > 0)) {
+        if ((network.getLayer(layer).isTrainable()) && (network.getLayer(layer).regularizationConstant() > 0)) {
             for (u32 stream = 0; stream < network.getLayer(layer).nInputActivations(); stream++) {
-                NnMatrix *weightMatrix = network.getLayer(layer).getWeights(stream);
-                NnMatrix *centerWeightMatrix = centerNetwork_.getLayer(layer).getWeights(stream);
+                NnMatrix* weightMatrix       = network.getLayer(layer).getWeights(stream);
+                NnMatrix* centerWeightMatrix = centerNetwork_.getLayer(layer).getWeights(stream);
                 require(weightMatrix);
                 require(centerWeightMatrix);
                 statistics.gradientWeights(layer)[stream].add(*weightMatrix, network.getLayer(layer).regularizationConstant() * factor);
                 statistics.gradientWeights(layer)[stream].add(*centerWeightMatrix, -network.getLayer(layer).regularizationConstant() * factor);
             }
-            NnVector *bias = network.getLayer(layer).getBias();
-            NnVector *centerBias = centerNetwork_.getLayer(layer).getBias();
+            NnVector* bias       = network.getLayer(layer).getBias();
+            NnVector* centerBias = centerNetwork_.getLayer(layer).getBias();
             require(bias);
             require(centerBias);
             statistics.gradientBias(layer).add(*bias, network.getLayer(layer).regularizationConstant() * factor);
@@ -254,4 +247,4 @@ template class L2Regularizer<f64>;
 template class CenteredL2Regularizer<f32>;
 template class CenteredL2Regularizer<f64>;
 
-}
+}  // namespace Nn

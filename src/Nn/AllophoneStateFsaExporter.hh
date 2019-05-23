@@ -28,31 +28,32 @@ public:
     struct ExportedAutomaton {
         size_t           num_states;
         size_t           num_edges;
-        std::vector<u32> edges;   // contains from,to,emissionIdx, thus num_edges == edges.size() / 3 == weights.size()
+        std::vector<u32> edges;  // contains from,to,emissionIdx, thus num_edges == edges.size() / 3 == weights.size()
         std::vector<f32> weights;
     };
 
     AllophoneStateFsaExporter(Core::Configuration const& config)
-                        : Precursor(config),
-                          mc_(select("model-combination"),
-                              Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel,
-                              Am::AcousticModel::noEmissions),
-                          allophone_state_graph_builder_() {
+            : Precursor(config),
+              mc_(select("model-combination"),
+                  Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel,
+                  Am::AcousticModel::noEmissions),
+              allophone_state_graph_builder_() {
         mc_.load();
         allophone_state_graph_builder_ = Core::Ref<Speech::AllophoneStateGraphBuilder>(
-                                             new Speech::AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                                                    mc_.lexicon(),
-                                                                                    mc_.acousticModel(),
-                                                                                    false));
+                new Speech::AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
+                                                       mc_.lexicon(),
+                                                       mc_.acousticModel(),
+                                                       false));
     };
     ~AllophoneStateFsaExporter() {}
 
     ExportedAutomaton exportFsaForOrthography(std::string const& orthography) const;
+
 private:
-    Speech::ModelCombination mc_;
+    Speech::ModelCombination                      mc_;
     Core::Ref<Speech::AllophoneStateGraphBuilder> allophone_state_graph_builder_;
 };
 
-} // namespace Nn
+}  // namespace Nn
 
-#endif // NN_ALIGNMENTFSAEXPORTER_HH
+#endif  // NN_ALIGNMENTFSAEXPORTER_HH

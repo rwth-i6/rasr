@@ -14,20 +14,19 @@
  */
 /* Implementation of neural networks */
 
-#include <Math/Module.hh> // XML I/O stuff
+#include <Math/Module.hh>  // XML I/O stuff
 // all the neural network layer
-#include "NeuralNetworkLayer.hh"
 #include "ActivationLayer.hh"
-#include "LinearLayer.hh"
 #include "LinearAndActivationLayer.hh"
+#include "LinearLayer.hh"
 #include "LookupLayer.hh"
+#include "NeuralNetworkLayer.hh"
 #include "OperationLayer.hh"
 #include "PoolingLayer.hh"
 #ifdef MODULE_PYTHON
 #include "PythonLayer.hh"
 #endif
 #include "PreprocessingLayer.hh"
-
 
 using namespace Nn;
 
@@ -138,39 +137,37 @@ const Core::ParameterFloat NeuralNetworkLayer<T>::paramLearningRate(
 
 template<typename T>
 const Core::ParameterFloat NeuralNetworkLayer<T>::paramRegularizationConstant("regularization-constant",
-        "regularization constant, can be set separately for every layer", 0.0);
-
+                                                                              "regularization constant, can be set separately for every layer", 0.0);
 
 template<typename T>
-NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration &config) :
-    Core::Component(config),
-    layerType_((LayerType) paramNetworkLayerType(config)),
-    layerName_(config.getName()),
-    oldMeanFile_(paramOldActivationMeanFile(config)),
-    oldStandardDeviationFile_(paramOldActivationStandardDeviationFile(config)),
-    newMeanFile_(paramNewActivationMeanFile(config)),
-    newStandardDeviationFile_(paramNewActivationStandardDeviationFile(config)),
-    statisticsSmoothing_((ActivationStatisticsSmoothingMethod) paramActivationStatisticsSmoothingMethod(config)),
-    exponentialTraceInterpolationFactor_(paramExponentialTraceInterpolationFactor(config)),
-    activationVarianceInterpolation_(paramActivationVarianceInterpolation(config)),
-    learningRate_(paramLearningRate(config)),
-    regularizationConstant_(paramRegularizationConstant(config)),
-    dropoutProbability_(paramDropoutProbability(config)),
-    gaussianNoiseRatio_(paramGaussianNoiseRatio(config)),
-    inputActivationIndices_(0),
-    outputActivationIndex_(0),
-    predecessorLayers_(0),
-    inputDimensions_(0),
-    outputDimension_(paramDimensionOut(config)),
-    needInit_(true),
-    isFinalized_(false),
-    isComputing_(false),
-    measureTime_(false),
-    nObservations_(0),
-    activationStatisticsNeedInit_(true),
-    refreshMean_(true),
-    refreshVariance_(true)
-{
+NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration& config)
+        : Core::Component(config),
+          layerType_((LayerType)paramNetworkLayerType(config)),
+          layerName_(config.getName()),
+          oldMeanFile_(paramOldActivationMeanFile(config)),
+          oldStandardDeviationFile_(paramOldActivationStandardDeviationFile(config)),
+          newMeanFile_(paramNewActivationMeanFile(config)),
+          newStandardDeviationFile_(paramNewActivationStandardDeviationFile(config)),
+          statisticsSmoothing_((ActivationStatisticsSmoothingMethod)paramActivationStatisticsSmoothingMethod(config)),
+          exponentialTraceInterpolationFactor_(paramExponentialTraceInterpolationFactor(config)),
+          activationVarianceInterpolation_(paramActivationVarianceInterpolation(config)),
+          learningRate_(paramLearningRate(config)),
+          regularizationConstant_(paramRegularizationConstant(config)),
+          dropoutProbability_(paramDropoutProbability(config)),
+          gaussianNoiseRatio_(paramGaussianNoiseRatio(config)),
+          inputActivationIndices_(0),
+          outputActivationIndex_(0),
+          predecessorLayers_(0),
+          inputDimensions_(0),
+          outputDimension_(paramDimensionOut(config)),
+          needInit_(true),
+          isFinalized_(false),
+          isComputing_(false),
+          measureTime_(false),
+          nObservations_(0),
+          activationStatisticsNeedInit_(true),
+          refreshMean_(true),
+          refreshVariance_(true) {
     if (dropoutProbability_ > 0)
         Core::Component::log("using dropout probability ") << dropoutProbability_ << " for " << layerName_;
     if (gaussianNoiseRatio_ > 0)
@@ -181,17 +178,16 @@ NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration &config) :
 
 template<typename T>
 void NeuralNetworkLayer<T>::setInputActivationIndex(u32 activationIndex, u32 i) {
-    if (! (i < inputActivationIndices_.size()) )
-        inputActivationIndices_.resize(i +1);
+    if (!(i < inputActivationIndices_.size()))
+        inputActivationIndices_.resize(i + 1);
     inputActivationIndices_[i] = activationIndex;
 }
 
 template<typename T>
 void NeuralNetworkLayer<T>::addPredecessor(u32 topologyIndex, u32 i) {
-    if (! (i < predecessorLayers_.size()) )
-        predecessorLayers_.resize(i +1);
+    if (!(i < predecessorLayers_.size()))
+        predecessorLayers_.resize(i + 1);
     predecessorLayers_[i] = topologyIndex;
-
 }
 
 template<typename T>
@@ -204,7 +200,6 @@ void NeuralNetworkLayer<T>::setInputDimension(u32 stream, u32 dim) {
 template<typename T>
 void NeuralNetworkLayer<T>::initializeActivationStatistics(const NnMatrix& output) {
     if (activationStatisticsNeedInit_) {
-
         // initialize statistics containers
         activationSum_.resize(output.nRows());
         activationSumOfSquares_.resize(output.nRows());
@@ -220,7 +215,8 @@ void NeuralNetworkLayer<T>::initializeActivationStatistics(const NnMatrix& outpu
             for (u32 i = 0; i < activationSum_.nRows(); i++)
                 activationSum_.at(i) = mean[i] * nObservations_;
             activationSum_.initComputation();
-        } else {
+        }
+        else {
             activationSum_.initComputation();
             activationSum_.setToZero();
         }
@@ -234,21 +230,22 @@ void NeuralNetworkLayer<T>::initializeActivationStatistics(const NnMatrix& outpu
             for (u32 i = 0; i < activationSumOfSquares_.nRows(); i++)
                 activationSumOfSquares_.at(i) = (standardDeviation[i] * standardDeviation[i] + mean[i] * mean[i]) * nObservations_;
             activationSumOfSquares_.initComputation();
-        } else {
+        }
+        else {
             activationSumOfSquares_.initComputation();
             activationSumOfSquares_.setToZero();
         }
 
         // some logging
-        switch ( statisticsSmoothing_ ) {
-        case none:
-            Core::Component::log() << layerName_ << ": Accumulate activation statistics without smoothing.";
-            break;
-        case exponentialTrace:
-            Core::Component::log() << layerName_ << ": Accumulate activation statistics with exponential trace (factor " << exponentialTraceInterpolationFactor_ << ")";
-            break;
-        default:
-            break;
+        switch (statisticsSmoothing_) {
+            case none:
+                Core::Component::log() << layerName_ << ": Accumulate activation statistics without smoothing.";
+                break;
+            case exponentialTrace:
+                Core::Component::log() << layerName_ << ": Accumulate activation statistics with exponential trace (factor " << exponentialTraceInterpolationFactor_ << ")";
+                break;
+            default:
+                break;
         }
     }
     activationStatisticsNeedInit_ = false;
@@ -278,25 +275,25 @@ void NeuralNetworkLayer<T>::exponentialTraceStatisticsUpdate(const NnMatrix& out
     // update the statistics
     activationSum_.scale(exponentialTraceInterpolationFactor_);
     activationSum_.addSummedColumns(output,
-            (T(1.0) - exponentialTraceInterpolationFactor_) / output.nColumns());
+                                    (T(1.0) - exponentialTraceInterpolationFactor_) / output.nColumns());
     activationSumOfSquares_.scale(exponentialTraceInterpolationFactor_);
     activationSumOfSquares_.addSquaredSummedColumns(output,
-            (T(1.0) - exponentialTraceInterpolationFactor_) / output.nColumns());
+                                                    (T(1.0) - exponentialTraceInterpolationFactor_) / output.nColumns());
 }
 
 template<typename T>
 void NeuralNetworkLayer<T>::updateStatistics(const NnMatrix& output) {
-    switch ( statisticsSmoothing_ ) {
-    case none:
-        nonSmoothedStatisticsUpdate(output);
-        break;
-    case exponentialTrace:
-        exponentialTraceStatisticsUpdate(output);
-        break;
-    default:
-        break;
+    switch (statisticsSmoothing_) {
+        case none:
+            nonSmoothedStatisticsUpdate(output);
+            break;
+        case exponentialTrace:
+            exponentialTraceStatisticsUpdate(output);
+            break;
+        default:
+            break;
     }
-    refreshMean_ = true;
+    refreshMean_     = true;
     refreshVariance_ = true;
 }
 
@@ -340,7 +337,7 @@ typename NeuralNetworkLayer<T>::NnVector& NeuralNetworkLayer<T>::getActivationMe
         require(activationMean_.isComputing());
         u32 nObservations = (statisticsSmoothing_ == exponentialTrace) ? 1 : nObservations_;
         activationMean_.setToZero();
-        activationMean_.add(activationSum_, T (1.0 / nObservations));
+        activationMean_.add(activationSum_, T(1.0 / nObservations));
         refreshMean_ = false;
     }
 
@@ -367,7 +364,7 @@ typename NeuralNetworkLayer<T>::NnVector& NeuralNetworkLayer<T>::getActivationVa
         activationVariance_.add(getActivationMean());
         activationVariance_.elementwiseMultiplication(activationVariance_);
         activationVariance_.scale(-1.0);
-        activationVariance_.add(activationSumOfSquares_, T (1.0 / nObservations));
+        activationVariance_.add(activationSumOfSquares_, T(1.0 / nObservations));
         activationVariance_.scale(activationVarianceInterpolation_);
         activationVariance_.addConstantElementwise(1.0 - activationVarianceInterpolation_);
         refreshVariance_ = false;
@@ -412,22 +409,23 @@ void NeuralNetworkLayer<T>::finalize() {
     }
 }
 
-
 template<typename T>
-void NeuralNetworkLayer<T>::saveVector(const NnVector& vector, const std::string &filename) {
+void NeuralNetworkLayer<T>::saveVector(const NnVector& vector, const std::string& filename) {
     require(!filename.empty());
     // determine file suffix
     std::string suffix;
-    if ((filename.length() >= 4) && (filename.substr(0,4) == "bin:")) {
+    if ((filename.length() >= 4) && (filename.substr(0, 4) == "bin:")) {
         suffix = ".bin";
-    } else {
+    }
+    else {
         suffix = ".xml";
     }
     // save the vector
     std::ostringstream type;
     if (typeid(T) == typeid(f32)) {
         type << "f32";
-    } else if (typeid(T) == typeid(f64)) {
+    }
+    else if (typeid(T) == typeid(f64)) {
         type << "f64";
     }
     std::string newFilename = filename + "-" + type.str() + suffix;
@@ -443,131 +441,131 @@ void NeuralNetworkLayer<T>::saveVector(const NnVector& vector, const std::string
 }
 
 template<typename T>
-NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Core::Configuration &config) {
+NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Core::Configuration& config) {
     NeuralNetworkLayer<T>* layer = 0;
 
     // get the type of the neural network layer ...
-    LayerType layerType = (LayerType) paramNetworkLayerType(config);
+    LayerType layerType = (LayerType)paramNetworkLayerType(config);
 
     // ... and create the correct neural network layer
-    switch ( layerType ) {
-    case NeuralNetworkLayer<T>::featureSource : {
-        layer = new IdentityLayer<T>(config);
-        Core::Application::us()->log("creating new feature source layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::identityLayer : {
-        layer = new IdentityLayer<T>(config);
-        Core::Application::us()->log("creating new identity layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::tanhLayer : {
-        layer = new TanhLayer<T>(config);
-        Core::Application::us()->log("creating new tanh layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::rectifiedLayer : {
-        layer = new RectifiedLayer<T>(config);
-        Core::Application::us()->log("creating new rectified layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::poolingLayer : {
-        layer = new PoolingLayer<T>(config);
-        Core::Application::us()->log("creating new pooling layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::sigmoidLayer : {
-        layer = new SigmoidLayer<T>(config);
-        Core::Application::us()->log("creating new sigmoid layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::softmaxLayer : {
-        layer = new SoftmaxLayer<T>(config);
-        Core::Application::us()->log("creating new softmax layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::maxoutVarLayer : {
-        layer = new MaxoutVarLayer<T>(config);
-        Core::Application::us()->log("creating new maxoutVar layer");
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearLayer : {
-        layer = new LinearLayer<T>(config);
-        Core::Application::us()->log("creating new linear layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::lookupLayer : {
-        layer = new LookupLayer<T>(config);
-        Core::Application::us()->log("creating new lookup layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::biasLayer : {
-        layer = new BiasLayer<T>(config);
-        Core::Application::us()->log("creating new bias layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearAndSigmoidLayer : {
-        layer = new LinearAndSigmoidLayer<T>(config);
-        Core::Application::us()->log("creating new linear+sigmoid layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearAndSoftmaxLayer : {
-        layer = new LinearAndSoftmaxLayer<T>(config);
-        Core::Application::us()->log("creating new linear+softmax layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearAndTanhLayer : {
-        layer = new LinearAndTanhLayer<T>(config);
-        Core::Application::us()->log("creating new linear+tanh layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearAndRectifiedLayer : {
-        layer = new LinearAndRectifiedLayer<T>(config);
-        Core::Application::us()->log("creating new linear+rectified layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::linearAndEluLayer : {
-        layer = new LinearAndEluLayer<T>(config);
-        Core::Application::us()->log("creating new linear+elu layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::logarithmPreprocessingLayer : {
-        layer =  new LogarithmPreprocessingLayer<T>(config);
-        Core::Application::us()->log("creating new logarithm-preprocessing layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::meanAndVarianceNormalizationPreprocessingLayer: {
-        layer = new MeanAndVarianceNormalizationPreprocessingLayer<T>(config);
-        Core::Application::us()->log("creating new mean-and-variance-normalization-preprocessing layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::polynomialPreprocessingLayer: {
-        layer = new PolynomialPreprocessingLayer<T>(config);
-        Core::Application::us()->log("creating new polynomial-preprocessing layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::gaussianNoisePreprocessingLayer: {
-        layer = new GaussianNoisePreprocessingLayer<T>(config);
-        Core::Application::us()->log("creating new Gaussian noise preprocessing layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::operationLayer: {
-        layer = new OperationLayer<T>(config);
-        Core::Application::us()->log("creating new operation layer: ") << layer->name();
-        break;
-    }
-    case NeuralNetworkLayer<T>::pythonLayer: {
+    switch (layerType) {
+        case NeuralNetworkLayer<T>::featureSource: {
+            layer = new IdentityLayer<T>(config);
+            Core::Application::us()->log("creating new feature source layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::identityLayer: {
+            layer = new IdentityLayer<T>(config);
+            Core::Application::us()->log("creating new identity layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::tanhLayer: {
+            layer = new TanhLayer<T>(config);
+            Core::Application::us()->log("creating new tanh layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::rectifiedLayer: {
+            layer = new RectifiedLayer<T>(config);
+            Core::Application::us()->log("creating new rectified layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::poolingLayer: {
+            layer = new PoolingLayer<T>(config);
+            Core::Application::us()->log("creating new pooling layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::sigmoidLayer: {
+            layer = new SigmoidLayer<T>(config);
+            Core::Application::us()->log("creating new sigmoid layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::softmaxLayer: {
+            layer = new SoftmaxLayer<T>(config);
+            Core::Application::us()->log("creating new softmax layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::maxoutVarLayer: {
+            layer = new MaxoutVarLayer<T>(config);
+            Core::Application::us()->log("creating new maxoutVar layer");
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearLayer: {
+            layer = new LinearLayer<T>(config);
+            Core::Application::us()->log("creating new linear layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::lookupLayer: {
+            layer = new LookupLayer<T>(config);
+            Core::Application::us()->log("creating new lookup layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::biasLayer: {
+            layer = new BiasLayer<T>(config);
+            Core::Application::us()->log("creating new bias layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearAndSigmoidLayer: {
+            layer = new LinearAndSigmoidLayer<T>(config);
+            Core::Application::us()->log("creating new linear+sigmoid layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearAndSoftmaxLayer: {
+            layer = new LinearAndSoftmaxLayer<T>(config);
+            Core::Application::us()->log("creating new linear+softmax layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearAndTanhLayer: {
+            layer = new LinearAndTanhLayer<T>(config);
+            Core::Application::us()->log("creating new linear+tanh layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearAndRectifiedLayer: {
+            layer = new LinearAndRectifiedLayer<T>(config);
+            Core::Application::us()->log("creating new linear+rectified layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::linearAndEluLayer: {
+            layer = new LinearAndEluLayer<T>(config);
+            Core::Application::us()->log("creating new linear+elu layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::logarithmPreprocessingLayer: {
+            layer = new LogarithmPreprocessingLayer<T>(config);
+            Core::Application::us()->log("creating new logarithm-preprocessing layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::meanAndVarianceNormalizationPreprocessingLayer: {
+            layer = new MeanAndVarianceNormalizationPreprocessingLayer<T>(config);
+            Core::Application::us()->log("creating new mean-and-variance-normalization-preprocessing layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::polynomialPreprocessingLayer: {
+            layer = new PolynomialPreprocessingLayer<T>(config);
+            Core::Application::us()->log("creating new polynomial-preprocessing layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::gaussianNoisePreprocessingLayer: {
+            layer = new GaussianNoisePreprocessingLayer<T>(config);
+            Core::Application::us()->log("creating new Gaussian noise preprocessing layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::operationLayer: {
+            layer = new OperationLayer<T>(config);
+            Core::Application::us()->log("creating new operation layer: ") << layer->name();
+            break;
+        }
+        case NeuralNetworkLayer<T>::pythonLayer: {
 #ifdef MODULE_PYTHON
-        layer = new PythonLayer<T>(config);
-        Core::Application::us()->log("creating new Python layer: ") << layer->name();
+            layer = new PythonLayer<T>(config);
+            Core::Application::us()->log("creating new Python layer: ") << layer->name();
 #else
-        Core::Application::us()->criticalError("Need MODULE_PYTHON for PythonLayer");
+            Core::Application::us()->criticalError("Need MODULE_PYTHON for PythonLayer");
 #endif
-        break;
-    }
-    default:
-        std::cerr << "The neural network layer type is unknown or not implemented!";
-        break;
+            break;
+        }
+        default:
+            std::cerr << "The neural network layer type is unknown or not implemented!";
+            break;
     };
     Core::Application::us()->log("output dimension of new layer: ") << layer->getOutputDimension();
     // return the new neural network layer
@@ -579,4 +577,4 @@ NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Cor
 namespace Nn {
 template class NeuralNetworkLayer<f32>;
 template class NeuralNetworkLayer<f64>;
-}
+}  // namespace Nn

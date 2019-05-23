@@ -18,90 +18,76 @@
 #include "AlignAutomaton.hh"
 #include "ConditionalLexicon.hh"
 
-
 // history is not treated correctly.
 
 namespace Fsa {
 
-    class SimpleAlignAutomaton : public AlignAutomaton {
-    private:
-        Translation::ConstConditionalLexiconRef lexicon_;
-        const unsigned order_;
-        unsigned I_;
-        unsigned J_;
-        unsigned maxIndex_;
+class SimpleAlignAutomaton : public AlignAutomaton {
+private:
+    Translation::ConstConditionalLexiconRef lexicon_;
+    const unsigned                          order_;
+    unsigned                                I_;
+    unsigned                                J_;
+    unsigned                                maxIndex_;
 
-        Fsa::LabelId nullWordIndex_;
-        Fsa::LabelId sentenceBeginPaddingSymbolIndex_;
+    Fsa::LabelId nullWordIndex_;
+    Fsa::LabelId sentenceBeginPaddingSymbolIndex_;
 
-        std::vector<Fsa::LabelId> mappedSourceSentence_;
-        std::vector<Fsa::LabelId> mappedTargetSentence_;
+    std::vector<Fsa::LabelId> mappedSourceSentence_;
+    std::vector<Fsa::LabelId> mappedTargetSentence_;
 
-        Fsa::StateId indices2StateId(const unsigned nCoveredTargetWords,
-                                     const unsigned nCoveredSourceWords,
-                                     const std::vector<unsigned>& sourcePositionHistory) const {
-            //assert(sourcePositionHistory.size()==order_);
-            //std::cerr << "indices2StateId nCoveredSourceWords=" << nCoveredSourceWords;
-            #if 0
-            for (unsigned j=0; j<sourcePositionHistory.size();++j) {
-                std::cerr << " " << sourcePositionHistory[j];
-            }
-            #endif
-            unsigned multiplyer=I_;
-            unsigned stateNumber=nCoveredTargetWords+multiplyer*nCoveredSourceWords;
-            for (unsigned n=0; n<order_; ++n) {
-                multiplyer *= J_;
-                stateNumber += multiplyer * sourcePositionHistory[n];
-            }
-            //std::cerr << " StateId: " << stateNumber << std::endl;
-            return StateId(stateNumber);
-
+    Fsa::StateId indices2StateId(const unsigned               nCoveredTargetWords,
+                                 const unsigned               nCoveredSourceWords,
+                                 const std::vector<unsigned>& sourcePositionHistory) const {
+        unsigned multiplyer  = I_;
+        unsigned stateNumber = nCoveredTargetWords + multiplyer * nCoveredSourceWords;
+        for (unsigned n = 0; n < order_; ++n) {
+            multiplyer *= J_;
+            stateNumber += multiplyer * sourcePositionHistory[n];
         }
+        return StateId(stateNumber);
+    }
 
-        void stateId2Indices(const StateId stateId, unsigned& nCoveredTargetWords, unsigned& nCoveredSourceWords, std::vector<unsigned>& sourcePositionHistory) const {
-            sourcePositionHistory.resize(order_);
-            unsigned stateNumber(stateId);
-            unsigned divisor=I_;
+    void stateId2Indices(const StateId stateId, unsigned& nCoveredTargetWords, unsigned& nCoveredSourceWords, std::vector<unsigned>& sourcePositionHistory) const {
+        sourcePositionHistory.resize(order_);
+        unsigned stateNumber(stateId);
+        unsigned divisor = I_;
 
-            // not sure about the behaviour of this pow function for negative exponents
-            if (order_>0) {
-                divisor *= unsigned(::pow(J_,order_));
-            }
-            #if 0
-            std::cerr << "divisor=" << divisor << std::endl;
-            #endif
-            for (int n=order_-1; n>=0; --n) {
-                sourcePositionHistory[n] = stateNumber / divisor;
-                //stateNumber -= (stateNumber/divisor) * divisor;
-                stateNumber %= divisor;
-                //if (n>0) divisor /= J_;
-                divisor /= J_;
-                #if 0
-                std::cerr << "-divisor=" << divisor << std::endl;
-                #endif
-            }
-            nCoveredSourceWords = stateNumber / divisor;
-            nCoveredTargetWords = stateNumber % divisor;
+        // not sure about the behaviour of this pow function for negative exponents
+        if (order_ > 0) {
+            divisor *= unsigned(::pow(J_, order_));
         }
+        for (int n = order_ - 1; n >= 0; --n) {
+            sourcePositionHistory[n] = stateNumber / divisor;
+            stateNumber %= divisor;
+            divisor /= J_;
+        }
+        nCoveredSourceWords = stateNumber / divisor;
+        nCoveredTargetWords = stateNumber % divisor;
+    }
 
-        void generateDiagonalOrHorizontalArcs_(State* s,
-                                               const unsigned targetIndexIncrement,
-                                               const unsigned nCoveredTargetWords,
-                                               const unsigned nCoveredSourceWords,
-                                               const std::vector<unsigned>& currentJ) const ;
+    void generateDiagonalOrHorizontalArcs_(State*                       s,
+                                           const unsigned               targetIndexIncrement,
+                                           const unsigned               nCoveredTargetWords,
+                                           const unsigned               nCoveredSourceWords,
+                                           const std::vector<unsigned>& currentJ) const;
 
-    public:
-        SimpleAlignAutomaton(Core::Configuration &config,
-                                      const std::string& source,
-                                      const std::string& target,
-                                      const TransitionProbs& transitionProbs,
-                             Translation::ConstConditionalLexiconRef lexicon,
-                                      const double factorLexicon = 1.0,
-                                                                const double factorTransition = 1.0,
-                                      const unsigned order = 0);
-        virtual ConstStateRef getState(StateId s) const;
-        virtual Fsa::StateId initialStateId() const { return Fsa::StateId(0);};
-        virtual std::string describe() const { return std::string("SimpleAlignAutomaton()"); }
+public:
+    SimpleAlignAutomaton(Core::Configuration&                    config,
+                         const std::string&                      source,
+                         const std::string&                      target,
+                         const TransitionProbs&                  transitionProbs,
+                         Translation::ConstConditionalLexiconRef lexicon,
+                         const double                            factorLexicon    = 1.0,
+                         const double                            factorTransition = 1.0,
+                         const unsigned                          order            = 0);
+    virtual ConstStateRef getState(StateId s) const;
+    virtual Fsa::StateId  initialStateId() const {
+        return Fsa::StateId(0);
     };
-}
+    virtual std::string describe() const {
+        return std::string("SimpleAlignAutomaton()");
+    }
+};
+}  // namespace Fsa
 #endif

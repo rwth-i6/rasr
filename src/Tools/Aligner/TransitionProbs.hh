@@ -20,14 +20,4 @@
 
 typedef std::vector<double> TransitionProbs;
 
-//struct TransitionProbs {
-//   double d;
-//   double h;
-//   double v;
-//   double exponent; //(log-linear) exponent of transition probabilities
-//   operator bool() const {
-//      return (d>0 && h>0 && v>0 && exponent >0);
-//   }
-//};
-
 #endif

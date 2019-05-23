@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
 #include <Bliss/CorpusDescription.hh>
@@ -21,9 +20,10 @@
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
+#include <Modules.hh>
 #include <Signal/Module.hh>
-#include <Speech/Module.hh>
 #include <Speech/CorpusVisitor.hh>
+#include <Speech/Module.hh>
 #include <Speech/Recognizer.hh>
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
@@ -32,16 +32,13 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-class SpeechRecognizer :
-    public Core::Application
-{
+class SpeechRecognizer : public Core::Application {
 public:
     virtual std::string getUsage() const {
         return "off-line (i.e. corpus driven) speech recognizer";
     }
 
-    SpeechRecognizer()
-    {
+    SpeechRecognizer() {
         INIT_MODULE(Flow);
         INIT_MODULE(Am);
         INIT_MODULE(Audio);
@@ -62,53 +59,48 @@ public:
 
     enum RecognitionMode {
         offlineRecognition,
-        offlineLmRescoring,
         offlineConstrainedRecognition,
     };
-    static const Core::Choice recognitionModeChoice;
+    static const Core::Choice          recognitionModeChoice;
     static const Core::ParameterChoice paramRecognitionMode;
+
 public:
-    int main(const std::vector<std::string> &arguments);
+    int main(const std::vector<std::string>& arguments);
 };
 
 APPLICATION(SpeechRecognizer)
 
 const Core::Choice SpeechRecognizer::recognitionModeChoice(
-    "offline",          offlineRecognition,
-    "rescore",          offlineLmRescoring,
-    "constrained",      offlineConstrainedRecognition,
-    Core::Choice::endMark());
+        "offline", offlineRecognition,
+        "constrained", offlineConstrainedRecognition,
+        Core::Choice::endMark());
 const Core::ParameterChoice SpeechRecognizer::paramRecognitionMode(
-    "recognition-mode", &recognitionModeChoice,
-    "operation mode: corpus-base (offline) or online",
-    offlineRecognition);
+        "recognition-mode", &recognitionModeChoice,
+        "operation mode: corpus-base (offline) or online",
+        offlineRecognition);
 
-
-
-int SpeechRecognizer::main(const std::vector<std::string> &arguments) {
+int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
     switch (paramRecognitionMode(config)) {
-    case offlineRecognition:
-    case offlineLmRescoring:
-    case offlineConstrainedRecognition:
-    {
-        Speech::CorpusProcessor *processor = 0;
-        switch (paramRecognitionMode(config)) {
         case offlineRecognition:
-            processor = new Speech::OfflineRecognizer(config);
-            break;
-        case offlineConstrainedRecognition:
-            processor = new Speech::ConstrainedOfflineRecognizer(config);
-            break;
+        case offlineConstrainedRecognition: {
+            Speech::CorpusProcessor* processor = 0;
+            switch (paramRecognitionMode(config)) {
+                case offlineRecognition:
+                    processor = new Speech::OfflineRecognizer(config);
+                    break;
+                case offlineConstrainedRecognition:
+                    processor = new Speech::ConstrainedOfflineRecognizer(config);
+                    break;
+                default: defect();
+            }
+            verify(processor);
+            Speech::CorpusVisitor corpusVisitor(config);
+            processor->signOn(corpusVisitor);
+            Bliss::CorpusDescription corpusDescription(select("corpus"));
+            corpusDescription.accept(&corpusVisitor);
+            delete processor;
+        } break;
         default: defect();
-        }
-        verify(processor);
-        Speech::CorpusVisitor corpusVisitor(config);
-        processor->signOn(corpusVisitor);
-        Bliss::CorpusDescription corpusDescription(select("corpus"));
-        corpusDescription.accept(&corpusVisitor);
-        delete processor;
-    } break;
-    default: defect();
     }
     return 0;
 }

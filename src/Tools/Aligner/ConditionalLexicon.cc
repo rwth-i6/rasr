@@ -16,6 +16,4 @@
 #include <Core/StringUtilities.hh>
 
 namespace Translation {
-//    Core::ParameterString ConditionalLexicon::paramFilename_(
-//		  "file", "lexicon file", "");
 }

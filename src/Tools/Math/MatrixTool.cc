@@ -34,39 +34,39 @@ MatrixTool::MatrixTool() {
     setTitle("matrix-tool");
 }
 
-MatrixTool::~MatrixTool() { }
+MatrixTool::~MatrixTool() {}
 
 void MatrixTool::usage(std::string action) const {
-    if (action == "write"){
+    if (action == "write") {
         std::cout << "action write: write parameter to file" << std::endl;
         std::cout << "parameter: \"new-file\"" << std::endl;
     }
-    else if (action == "scale"){
+    else if (action == "scale") {
         std::cout << "action scale: scale matrix" << std::endl;
         std::cout << "parameter: \"scaling-factor\"" << std::endl;
     }
-    else if (action == "max"){
-
+    else if (action == "max") {
         std::cout << "action max: compute abs max of matrix" << std::endl;
         std::cout << " no parameters" << std::endl;
     }
-    else if (action == "l2norm"){
+    else if (action == "l2norm") {
         std::cout << "action l2norm: compute l2norm of matrix" << std::endl;
         std::cout << " no parameters" << std::endl;
     }
-    else if (action == "add"){
+    else if (action == "add") {
         std::cout << "action add:  add another matrix" << std::endl;
         std::cout << "parameter \"file"
-                "\" (name of summand matrix file)" << std::endl;
+                     "\" (name of summand matrix file)"
+                  << std::endl;
     }
-    else if (action == "expand"){
+    else if (action == "expand") {
         std::cout << "action expand:  expand matrix with zeros" << std::endl;
         std::cout << "parameters \"number-of-rows\", \"number-of-columns\"" << std::endl;
     }
-    else if (action == "exp"){
+    else if (action == "exp") {
         std::cout << "action exp: take exp of all entries" << std::endl;
     }
-    else if (action == "log"){
+    else if (action == "log") {
         std::cout << "action exp: take log of all entries" << std::endl;
     }
     else {
@@ -79,23 +79,23 @@ void MatrixTool::usage(std::string action) const {
     }
 }
 
-int MatrixTool::main(const std::vector<std::string> &arguments){
-    if (arguments.size() == 2 && arguments.at(0) == "help"){
+int MatrixTool::main(const std::vector<std::string>& arguments) {
+    if (arguments.size() == 2 && arguments.at(0) == "help") {
         usage(arguments.at(1));
         return 1;
     }
-    else if (arguments.size() < 3){
+    else if (arguments.size() < 3) {
         usage();
         return 1;
     }
-    std::string filename = arguments.at(0);
-    std::string precision = arguments.at(1);
-    std::vector<std::string> actions = Core::split(arguments.at(2), ",");
+    std::string              filename  = arguments.at(0);
+    std::string              precision = arguments.at(1);
+    std::vector<std::string> actions   = Core::split(arguments.at(2), ",");
 
     bool success = true;
-    if (precision == "f32"){
+    if (precision == "f32") {
         Math::Matrix<f32> matrix;
-        if (!Math::Module::instance().formats().read(filename, matrix)){
+        if (!Math::Module::instance().formats().read(filename, matrix)) {
             error("could not read matrix from file ") << matrix;
             success = 1;
         }
@@ -103,9 +103,9 @@ int MatrixTool::main(const std::vector<std::string> &arguments){
             success = actionLoop(actions, matrix);
         }
     }
-    else if (precision == "f64"){
+    else if (precision == "f64") {
         Math::Matrix<f64> matrix;
-        if (!Math::Module::instance().formats().read(filename, matrix)){
+        if (!Math::Module::instance().formats().read(filename, matrix)) {
             error("could not read matrix from file ") << matrix;
             success = 1;
         }
@@ -120,8 +120,5 @@ int MatrixTool::main(const std::vector<std::string> &arguments){
     int returnVal = success ? 0 : 1;
     return returnVal;
 }
-
-
-
 
 APPLICATION(MatrixTool)

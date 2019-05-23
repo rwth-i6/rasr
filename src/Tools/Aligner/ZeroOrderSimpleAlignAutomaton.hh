@@ -19,21 +19,24 @@
 
 namespace Fsa {
 
-    class ZeroOrderSimpleAlignAutomaton : public AlignAutomaton {
-    private:
-        const TranslationLexicon *lexicon_;
-        u32 I;
-        u32 J;
-        u32 maxIndex;
-    public:
-        ZeroOrderSimpleAlignAutomaton(Core::Configuration &config,
-                                      const std::string& source,
-                                      const std::string& target,
-                                      const TransitionProbs& transitionProbs,
-                                      const TranslationLexicon* lex,
-                                      const double factorLexicon = 1.0);
-        virtual ConstStateRef getState(StateId s) const;
-        virtual std::string describe() const { return std::string("zeroOrderSimpleAlignAutomaton()"); }
-    };
-}
+class ZeroOrderSimpleAlignAutomaton : public AlignAutomaton {
+private:
+    const TranslationLexicon* lexicon_;
+    u32                       I;
+    u32                       J;
+    u32                       maxIndex;
+
+public:
+    ZeroOrderSimpleAlignAutomaton(Core::Configuration&      config,
+                                  const std::string&        source,
+                                  const std::string&        target,
+                                  const TransitionProbs&    transitionProbs,
+                                  const TranslationLexicon* lex,
+                                  const double              factorLexicon = 1.0);
+    virtual ConstStateRef getState(StateId s) const;
+    virtual std::string   describe() const {
+        return std::string("zeroOrderSimpleAlignAutomaton()");
+    }
+};
+}  // namespace Fsa
 #endif

@@ -12,13 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
 #include <Core/Application.hh>
 #include <Core/Parameter.hh>
-#include <Flf/Module.hh>
 #include <Flf/CorpusProcessor.hh>
+#include <Flf/Module.hh>
 #include <Flf/Network.hh>
 #include <Flf/NodeFactory.hh>
 #include <Flf/Processor.hh>
@@ -26,6 +25,7 @@
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
+#include <Modules.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 
@@ -36,32 +36,30 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-class FlfTool : public Core::Application
-{
+class FlfTool : public Core::Application {
 private:
     virtual std::string getApplicationDescription() const {
-        return
-            "The FLF lattice tool runs a lattice processing network\n"
-            "for a Bliss corpus or a sequence of batches depending\n"
-            "on the chosen nodes.\n"
-            "The network has to be provided as Sprint configuration file,\n"
-            "i.e. the use of the option \"--config\" is mandatory for\n"
-            "running a network.\n"
-            "\n"
-            "The following command line commands are supported:\n"
-            "  (none)         runs the network\n"
-            "  init           initializes the network, but does not\n"
-            "                 run it\n"
-            "  parse          parses the network, but neither\n"
-            "                 initializes nor runs it\n"
-            "  help           gives some general help on how setting\n"
-            "                 up a network\n"
-            "  help list      lists all nodes; help is available for\n"
-            "                 each node\n"
-            "  help NODE      gives help to the specific node\n";
+        return "The FLF lattice tool runs a lattice processing network\n"
+               "for a Bliss corpus or a sequence of batches depending\n"
+               "on the chosen nodes.\n"
+               "The network has to be provided as Sprint configuration file,\n"
+               "i.e. the use of the option \"--config\" is mandatory for\n"
+               "running a network.\n"
+               "\n"
+               "The following command line commands are supported:\n"
+               "  (none)         runs the network\n"
+               "  init           initializes the network, but does not\n"
+               "                 run it\n"
+               "  parse          parses the network, but neither\n"
+               "                 initializes nor runs it\n"
+               "  help           gives some general help on how setting\n"
+               "                 up a network\n"
+               "  help list      lists all nodes; help is available for\n"
+               "                 each node\n"
+               "  help NODE      gives help to the specific node\n";
     }
 
-    void printHelp(std::ostream &os) {
+    void printHelp(std::ostream& os) {
         os << "Structure of a network:\n"
            << "\n"
            << "[*.network]\n"
@@ -88,8 +86,8 @@ private:
            << "\n";
     }
 
-    Flf::Processor * createProcessor(Flf::Network *network) {
-        Flf::Processor *processor = 0;
+    Flf::Processor* createProcessor(Flf::Network* network) {
+        Flf::Processor* processor = 0;
         if ((processor = Flf::CorpusProcessor::create(config, network)))
             return processor;
         return new Flf::Processor(config, network);
@@ -117,51 +115,68 @@ public:
         setDefaultOutputXmlHeader(false);
     }
 
-    int main(const std::vector<std::string> &arguments) {
-        enum { Run, Init, Parse, Help } cmd = Run;
-        Flf::Module::Instance &flfApp = Flf::Module::instance();
+    int main(const std::vector<std::string>& arguments) {
+        enum { Run,
+               Init,
+               Parse,
+               Help } cmd             = Run;
+        Flf::Module::Instance& flfApp = Flf::Module::instance();
         if (!arguments.empty()) {
-            if      ((arguments.front() == "init") ||
-                     (arguments.front() == "check")) cmd = Init;
-            else if  (arguments.front() == "parse")  cmd = Parse;
-            else if  (arguments.front() == "help")   cmd = Help;
+            if ((arguments.front() == "init") ||
+                (arguments.front() == "check"))
+                cmd = Init;
+            else if (arguments.front() == "parse")
+                cmd = Parse;
+            else if (arguments.front() == "help")
+                cmd = Help;
         }
         switch (cmd) {
-        case Run: case Init: case Parse: {
-            /*! @todo network, lexicon, processor should not be part of Flf::Module (?) */
-            flfApp.setNetwork(Flf::Network::createNetwork(select("network")));
-            if (cmd == Parse) {
-                std::cout << "Network was successfully parsed:" << std::endl << std::endl;
-                flfApp.network()->dump(std::cout);
-                break;
-            }
-            log("Initialize network ...");
-            flfApp.init();
-            flfApp.setProcessor(createProcessor(flfApp.network()));
-            bool good = flfApp.processor()->init(arguments);
-            if (cmd == Init) {
-                std::cout << "Network was successfully initialized:" << std::endl << std::endl;
-                flfApp.processor()->crawler().dump(std::cout);
-                break;
-            }
-            log("Process network...");
-            if (good) flfApp.processor()->run();
-            flfApp.processor()->finalize();
-        } break;
-        case Help: {
-            if (arguments.size() == 1) {
-                printHelp(std::cout);
-            } else {
-                Flf::NodeFactory factory;
-                if (arguments[1] == "list") {
-                    factory.dumpNodeList(std::cout);
-                    std::cout << "Try \"help <node> to get help for a specific node.\n" << std::endl;
-                } else {
-                    for (u32 i = 1; i < arguments.size(); ++i)
-                        { factory.dumpNodeDescription(std::cout, arguments[i]); std::cout << std::endl; }
+            case Run:
+            case Init:
+            case Parse: {
+                /*! @todo network, lexicon, processor should not be part of Flf::Module (?) */
+                flfApp.setNetwork(Flf::Network::createNetwork(select("network")));
+                if (cmd == Parse) {
+                    std::cout << "Network was successfully parsed:" << std::endl
+                              << std::endl;
+                    flfApp.network()->dump(std::cout);
+                    break;
                 }
-            }
-        } break; }
+                log("Initialize network ...");
+                flfApp.init();
+                flfApp.setProcessor(createProcessor(flfApp.network()));
+                bool good = flfApp.processor()->init(arguments);
+                if (cmd == Init) {
+                    std::cout << "Network was successfully initialized:" << std::endl
+                              << std::endl;
+                    flfApp.processor()->crawler().dump(std::cout);
+                    break;
+                }
+                log("Process network...");
+                if (good)
+                    flfApp.processor()->run();
+                flfApp.processor()->finalize();
+            } break;
+            case Help: {
+                if (arguments.size() == 1) {
+                    printHelp(std::cout);
+                }
+                else {
+                    Flf::NodeFactory factory;
+                    if (arguments[1] == "list") {
+                        factory.dumpNodeList(std::cout);
+                        std::cout << "Try \"help <node> to get help for a specific node.\n"
+                                  << std::endl;
+                    }
+                    else {
+                        for (u32 i = 1; i < arguments.size(); ++i) {
+                            factory.dumpNodeDescription(std::cout, arguments[i]);
+                            std::cout << std::endl;
+                        }
+                    }
+                }
+            } break;
+        }
 
         delete flfApp.processor();
         delete flfApp.network();

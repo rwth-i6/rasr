@@ -14,30 +14,29 @@
  */
 // $Id$
 
-#include <Modules.hh>
 #include <Audio/Module.hh>
 #include <Bliss/CorpusStatistics.hh>
 #include <Core/Application.hh>
 #include <Core/Parameter.hh>
-#include <Lm/CorpusStatistics.hh>
 #include <Flow/Module.hh>
 #include <Flow/Network.hh>
+#include <Lm/CorpusStatistics.hh>
+#include <Modules.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
 
-
-class CorpusVisitor :
-    public Bliss::CompositeCorpusStatisticsVisitor
-{
+class CorpusVisitor : public Bliss::CompositeCorpusStatisticsVisitor {
     typedef Bliss::CompositeCorpusStatisticsVisitor Precursor;
+
 private:
-    Flow::Network *extraction_;
-    Flow::PortId dataPort_;
-    void correctDuration(Bliss::Segment*);
-    Core::Channel recordingsChannel_;
+    Flow::Network* extraction_;
+    Flow::PortId   dataPort_;
+    void           correctDuration(Bliss::Segment*);
+    Core::Channel  recordingsChannel_;
+
 public:
     static const Core::ParameterBool paramEvaluateRecordings;
 
@@ -47,13 +46,12 @@ public:
 };
 
 const Core::ParameterBool CorpusVisitor::paramEvaluateRecordings(
-    "evaluate-recordings", "look at audio files using Flow network", true);
+        "evaluate-recordings", "look at audio files using Flow network", true);
 
-CorpusVisitor::CorpusVisitor(const Core::Configuration &c) :
-    Precursor(c),
-    extraction_(0),
-    recordingsChannel_(config, "recordings")
-{
+CorpusVisitor::CorpusVisitor(const Core::Configuration& c)
+        : Precursor(c),
+          extraction_(0),
+          recordingsChannel_(config, "recordings") {
     if (paramEvaluateRecordings(config)) {
         extraction_ = new Flow::Network(select("feature-extraction"));
         extraction_->respondToDelayedErrors();
@@ -64,9 +62,10 @@ CorpusVisitor::CorpusVisitor(const Core::Configuration &c) :
     }
 }
 
-void CorpusVisitor::enterRecording(Bliss::Recording *r) {
+void CorpusVisitor::enterRecording(Bliss::Recording* r) {
     std::string inputFile(r->video());
-    if (inputFile.empty()) inputFile = r->audio();
+    if (inputFile.empty())
+        inputFile = r->audio();
 
     recordingsChannel_ << inputFile << "\n";
     if (extraction_) {
@@ -74,7 +73,7 @@ void CorpusVisitor::enterRecording(Bliss::Recording *r) {
         extraction_->setParameter("input-file", inputFile);
 
         std::istringstream durationAttr(extraction_->getAttribute(dataPort_, "total-duration"));
-        Bliss::Time duration;
+        Bliss::Time        duration;
         if (durationAttr >> duration) {
             r->setDuration(duration);
         }
@@ -82,9 +81,7 @@ void CorpusVisitor::enterRecording(Bliss::Recording *r) {
     Precursor::enterRecording(r);
 }
 
-class Costa :
-    public Core::Application
-{
+class Costa : public Core::Application {
 public:
     virtual std::string getUsage() const {
         return "creating corpus statistics\n";
@@ -102,34 +99,36 @@ public:
     static const Core::ParameterBool paramLexcialStatistics;
     static const Core::ParameterBool paramLmStatistics;
 
-    virtual int main(const std::vector<std::string> &arguments);
+    virtual int main(const std::vector<std::string>& arguments);
 };
 
 APPLICATION(Costa)
 
 const Core::ParameterBool Costa::paramLexcialStatistics(
-    "lexical-statistics", "create statistics about lexical properties", false);
+        "lexical-statistics", "create statistics about lexical properties", false);
 const Core::ParameterBool Costa::paramLmStatistics(
-    "lm-statistics", "create statistics about language model properties", false);
+        "lm-statistics", "create statistics about language model properties", false);
 
-int Costa::main(const std::vector<std::string> &arguments) {
+int Costa::main(const std::vector<std::string>& arguments) {
     const Core::Configuration statsConfig(config, "statistics");
-    Bliss::LexiconRef lexicon;
+    Bliss::LexiconRef         lexicon;
 
     if (paramLexcialStatistics(config) || paramLmStatistics(config)) {
         const Core::Configuration lexConfig(statsConfig, "lexicon");
         lexicon = Bliss::Lexicon::create(lexConfig);
         if (lexicon) {
             Core::XmlChannel ch(lexConfig, "dump");
-            if (ch.isOpen()) lexicon->writeXml(ch);
-        } else
+            if (ch.isOpen())
+                lexicon->writeXml(ch);
+        }
+        else
             error("failed to initialize lexicon");
     }
 
     const Core::Configuration corpusConfig(statsConfig, "corpus");
-    Bliss::CorpusDescription corpus(corpusConfig);
+    Bliss::CorpusDescription  corpus(corpusConfig);
 
-    Bliss::CompositeCorpusStatisticsVisitor *stat = 0;
+    Bliss::CompositeCorpusStatisticsVisitor* stat = 0;
 
     stat = new CorpusVisitor(statsConfig);
     stat->add(new Bliss::CorpusSizeStatisticsVisitor(statsConfig));

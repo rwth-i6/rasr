@@ -16,12 +16,12 @@
 #include <Audio/Module.hh>
 #include <Core/Application.hh>
 #include <Flow/Module.hh>
+#include <Flow/Registry.hh>
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
-#include <Flow/Registry.hh>
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
@@ -52,8 +52,7 @@ const Core::ParameterChoice FeatureStatistics::paramAction(
 
 APPLICATION(FeatureStatistics)
 
-FeatureStatistics::FeatureStatistics()
-{
+FeatureStatistics::FeatureStatistics() {
     INIT_MODULE(Am);
     INIT_MODULE(Audio);
     INIT_MODULE(Flow);
@@ -71,45 +70,49 @@ FeatureStatistics::FeatureStatistics()
     setTitle("feature-statistics");
 }
 
-int FeatureStatistics::main(const std::vector<std::string> &arguments)
-{
+int FeatureStatistics::main(const std::vector<std::string>& arguments) {
     switch ((Action)paramAction(config)) {
-    case actionDry : dryRun();
-    case actionApplyScatterMatrixThreshold: applyScatterMatrixThreshold();
-    break;
-    case actionEstimateHistograms: estimateHistograms();
-    break;
-    case actionEstimateMean: estimateMean();
-    break;
-    case actionEstimateCovariance: estimateCovariance();
-    break;
-    case actionEstimatePca: estimatePca();
-    break;
-    case actionEstimateCovarianceAndPca: estimateCovarianceAndPca();
-    break;
-    case actionCalculateCovarianceDiagonalNormalization: calculateCovarianceDiagonalNormalization();
-    break;
-    default:
-        criticalError("Action not given.");
+        case actionDry: dryRun();
+        case actionApplyScatterMatrixThreshold:
+            applyScatterMatrixThreshold();
+            break;
+        case actionEstimateHistograms:
+            estimateHistograms();
+            break;
+        case actionEstimateMean:
+            estimateMean();
+            break;
+        case actionEstimateCovariance:
+            estimateCovariance();
+            break;
+        case actionEstimatePca:
+            estimatePca();
+            break;
+        case actionEstimateCovarianceAndPca:
+            estimateCovarianceAndPca();
+            break;
+        case actionCalculateCovarianceDiagonalNormalization:
+            calculateCovarianceDiagonalNormalization();
+            break;
+        default:
+            criticalError("Action not given.");
     };
 
     return 0;
 }
 
-void FeatureStatistics::dryRun(){
+void FeatureStatistics::dryRun() {
     Speech::FeatureExtractor dummy(select("dummy-feature-extractor"));
     visitCorpus(dummy);
 }
 
-void FeatureStatistics::applyScatterMatrixThreshold()
-{
-        Signal::ScatterThresholding scatterThresholding(select("scatter-matrix-thresholding"));
-        scatterThresholding.work();
-        scatterThresholding.write();
+void FeatureStatistics::applyScatterMatrixThreshold() {
+    Signal::ScatterThresholding scatterThresholding(select("scatter-matrix-thresholding"));
+    scatterThresholding.work();
+    scatterThresholding.write();
 }
 
-void FeatureStatistics::estimateHistograms()
-{
+void FeatureStatistics::estimateHistograms() {
 #ifdef MODULE_SIGNAL_ADVANCED
     Speech::HistogramEstimator histogramEstimator(select("histogram-estimator"));
     visitCorpus(histogramEstimator);
@@ -118,8 +121,7 @@ void FeatureStatistics::estimateHistograms()
 #endif
 }
 
-void FeatureStatistics::estimateMean()
-{
+void FeatureStatistics::estimateMean() {
 #ifdef MODULE_SIGNAL_ADVANCED
     Speech::MeanEstimator meanEstimator(select("mean-estimator"));
     visitCorpus(meanEstimator);
@@ -129,22 +131,19 @@ void FeatureStatistics::estimateMean()
 #endif
 }
 
-void FeatureStatistics::estimateCovariance()
-{
+void FeatureStatistics::estimateCovariance() {
     Speech::CovarianceEstimator covarianceEstimator(select("covariance-estimator"));
     visitCorpus(covarianceEstimator);
     covarianceEstimator.write();
 }
 
-void FeatureStatistics::estimatePca()
-{
+void FeatureStatistics::estimatePca() {
     Signal::PrincipalComponentAnalysis pca(select("pca-estimator"));
     pca.work();
     pca.write();
 }
 
-void FeatureStatistics::estimateCovarianceAndPca()
-{
+void FeatureStatistics::estimateCovarianceAndPca() {
     Speech::CovarianceEstimator covarianceEstimator(select("covariance-estimator"));
     visitCorpus(covarianceEstimator);
     Signal::ScatterMatrix covarianceMatrix;
@@ -154,16 +153,14 @@ void FeatureStatistics::estimateCovarianceAndPca()
     pca.write();
 }
 
-void FeatureStatistics::calculateCovarianceDiagonalNormalization()
-{
+void FeatureStatistics::calculateCovarianceDiagonalNormalization() {
     Signal::ScatterDiagonalNormalization scatterDiagonalNormalization(
             select("covariance-diagonal-normalization"));
     scatterDiagonalNormalization.work();
     scatterDiagonalNormalization.write();
 }
 
-void FeatureStatistics::visitCorpus(Speech::CorpusProcessor &corpusProcessor)
-{
+void FeatureStatistics::visitCorpus(Speech::CorpusProcessor& corpusProcessor) {
     Speech::CorpusVisitor corpusVisitor(select("coprus-visitor"));
     corpusProcessor.signOn(corpusVisitor);
 

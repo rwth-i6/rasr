@@ -15,35 +15,33 @@
 #include "LatticeProcessor.hh"
 
 #ifdef MODULE_NN_SEQUENCE_TRAINING
+#include <Nn/EmissionLatticeRescorer.hh>
 #include <Nn/Module.hh>
 #include <Nn/SegmentwiseNnTrainer.hh>
 #include <Nn/SharedNeuralNetwork.hh>
-#include <Nn/EmissionLatticeRescorer.hh>
 #endif
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
 
-LatticeProcessor::LatticeProcessor()
-{
-        INIT_MODULE(Am);
-        INIT_MODULE(Audio);
-        INIT_MODULE(Flow);
-        INIT_MODULE(Lm);
-        INIT_MODULE(Math);
-        INIT_MODULE(Mm);
-        INIT_MODULE(Signal);
-        INIT_MODULE(Speech);
+LatticeProcessor::LatticeProcessor() {
+    INIT_MODULE(Am);
+    INIT_MODULE(Audio);
+    INIT_MODULE(Flow);
+    INIT_MODULE(Lm);
+    INIT_MODULE(Math);
+    INIT_MODULE(Mm);
+    INIT_MODULE(Signal);
+    INIT_MODULE(Speech);
 #ifdef MODULE_NN_SEQUENCE_TRAINING
-        INIT_MODULE(Nn);
+    INIT_MODULE(Nn);
 #endif
 #ifdef MODULE_TENSORFLOW
-        INIT_MODULE(Tensorflow);
+    INIT_MODULE(Tensorflow);
 #endif
-        setTitle("lattice-processor");
-        setupProcessors();
+    setTitle("lattice-processor");
+    setupProcessors();
 }
-
 
 const Core::Choice LatticeProcessor::choiceAction(
         "not-given", actionNotGiven,
@@ -101,7 +99,7 @@ const Core::ParameterStringVector LatticeProcessor::paramSelections(
         "configuration selections corresponding to the actions",
         ",");
 
-const Core::Choice LatticeProcessor::choiceCorpusType("bliss",bliss,Core::Choice::endMark());
+const Core::Choice LatticeProcessor::choiceCorpusType("bliss", bliss, Core::Choice::endMark());
 
 const Core::ParameterChoice LatticeProcessor::paramCorpusType(
         "type", &choiceCorpusType, "selection of corpus type (one of: bliss(default))", bliss);
@@ -117,138 +115,132 @@ Core::ParameterChoice LatticeProcessor::paramApplication(
         "type of application",
         speech);
 
-void LatticeProcessor::setupProcessors()
-{
+void LatticeProcessor::setupProcessors() {
     registerProcessor<Speech::LatticeSetReader>(actionRead,
-            "read lattice from archive\n",
-            "\t# specify which parts of the lattice are read\n"
-            "\t# (keep in mind that '' == 'acoustic')"
-            "\treaders\n"
-            "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
-            "\tlattice-archive.path            = <file-name>\n"
-            "\tlattice-archive.alphabet        = [lemma-pronunciation]|syntactic-token|evaluation-token|no-lexicon-check\n");
+                                                "read lattice from archive\n",
+                                                "\t# specify which parts of the lattice are read\n"
+                                                "\t# (keep in mind that '' == 'acoustic')"
+                                                "\treaders\n"
+                                                "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
+                                                "\tlattice-archive.path            = <file-name>\n"
+                                                "\tlattice-archive.alphabet        = [lemma-pronunciation]|syntactic-token|evaluation-token|no-lexicon-check\n");
 
     registerProcessor<Speech::LatticeSetWriter>(actionWrite,
-            "write lattice to archive\n",
-            "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
-            "\tlattice-archive.path            = <file-name>\n");
+                                                "write lattice to archive\n",
+                                                "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
+                                                "\tlattice-archive.path            = <file-name>\n");
 
     registerProcessor<Speech::WordLatticeMerger>(actionMerge,
-            "merge two lattices, e.g. numerator into denominator for discriminative training\n",
-            "\tfsa-prefix                      = [acoustic]|<prefix>\n"
-            "\t# do merging only if numerator not already in denominator\n"
-            "\tmerge-only-if-spoken-not-in-lattice = [false]|true\n"
-            "\tnumerator-lattice-archive.format = [fsa]|htk|wolfgang\n"
-            "\tnumerator-lattice-archive.path  = <file-name>\n"
-            "\t# requires a language model to determine history of word-conditioned lattices\n");
+                                                 "merge two lattices, e.g. numerator into denominator for discriminative training\n",
+                                                 "\tfsa-prefix                      = [acoustic]|<prefix>\n"
+                                                 "\t# do merging only if numerator not already in denominator\n"
+                                                 "\tmerge-only-if-spoken-not-in-lattice = [false]|true\n"
+                                                 "\tnumerator-lattice-archive.format = [fsa]|htk|wolfgang\n"
+                                                 "\tnumerator-lattice-archive.path  = <file-name>\n"
+                                                 "\t# requires a language model to determine history of word-conditioned lattices\n");
 
     registerProcessor<Speech::WordLatticeUnion>(actionUnite,
-            "unite two lattices\n",
-            "\tfsa-prefix                      = [acoustic]|<prefix>\n"
-            "\tnumerator-lattice-archive.format = [fsa]|htk|wolfgang\n"
-            "\tnumerator-lattice-archive.path  = <file-name>\n");
+                                                "unite two lattices\n",
+                                                "\tfsa-prefix                      = [acoustic]|<prefix>\n"
+                                                "\tnumerator-lattice-archive.format = [fsa]|htk|wolfgang\n"
+                                                "\tnumerator-lattice-archive.path  = <file-name>\n");
 
     registerProcessor<Speech::NumeratorFromDenominatorExtractor>(actionNumeratorFromDenominator,
-            "extract numerator (i.e., correct hypotheses according to transcription) from the denominator lattice\n",
-            "\t# does not require any additional/specific parameters\n");
+                                                                 "extract numerator (i.e., correct hypotheses according to transcription) from the denominator lattice\n",
+                                                                 "\t# does not require any additional/specific parameters\n");
 
     registerProcessor<Speech::PruningLatticeSetNode>(actionPrune,
-            "prune lattice (only a single score is supported) by forward-backward pruning\n",
-            "\tthreshold                       = 15\n"
-            "\t# specify if threshold is relative to best path in lattice\n"
-            "\tthreshold-is-relative           = [true]|false\n");
+                                                     "prune lattice (only a single score is supported) by forward-backward pruning\n",
+                                                     "\tthreshold                       = 15\n"
+                                                     "\t# specify if threshold is relative to best path in lattice\n"
+                                                     "\tthreshold-is-relative           = [true]|false\n");
 
     registerProcessor<Speech::CopyNode>(actionCopy);
     registerProcessor<Speech::CopyNode>(actionCache);
     registerProcessor<Speech::LinearCombinationLatticeProcessorNode>(actionLinearCombination,
-            "calculate linear combination(s) of parts in lattice based on the passed scaling factors (e.g. scaled acoustic + lm score)\n",
-            "\toutputs                         = total accuracy\n"
-            "\ttotal.scales                    = 1.0 0.0\n"
-            "\taccuracy.scales                 = 0.0 1.0\n");
+                                                                     "calculate linear combination(s) of parts in lattice based on the passed scaling factors (e.g. scaled acoustic + lm score)\n",
+                                                                     "\toutputs                         = total accuracy\n"
+                                                                     "\ttotal.scales                    = 1.0 0.0\n"
+                                                                     "\taccuracy.scales                 = 0.0 1.0\n");
 
     registerProcessor<Speech::InfoLatticeProcessorNode>(actionInfo);
     registerProcessor<Speech::DensityLatticeProcessorNode>(actionDensity,
-            "calculate lattice density\n",
-            "\t# specify type of lattice density\n"
-            "\tshall-evaluate-arcs-per-spoken-word = [true]|false\n"
-            "\tshall-evaluate-arcs-per-timeframe = [true]|false\n");
+                                                           "calculate lattice density\n",
+                                                           "\t# specify type of lattice density\n"
+                                                           "\tshall-evaluate-arcs-per-spoken-word = [true]|false\n"
+                                                           "\tshall-evaluate-arcs-per-timeframe = [true]|false\n");
 
     registerProcessor<Speech::GerLatticeProcessorNode>(actionGer,
-            "calculate graph error rate\n",
-            "\t# does not require any additional/specific parameters\n");
+                                                       "calculate graph error rate\n",
+                                                       "\t# does not require any additional/specific parameters\n");
 
     registerProcessor<Speech::LatticeSetGenerator>(actionRescore,
-            "annotate a lattice (aka topology) with scores, e.g. acoustic scores or accuracies for discriminative training\n",
-            "\tacoustic-rescorers              = am1,...\n"
-            "\temission-rescorers              = em1,...\n"
-            "\ttdp-rescorers                   = tdp1,...\n"
-            "\tpronunciation-rescorers         = pron1,...\n"
-            "\tlm-rescorers                    = lm1,...\n"
-            "\tcombined-lm-rescorers           = c-lm1,...\n"
-            "\treaders                         = reader1,...\n"
-            "\tdistance-rescorers              = distance1,...\n"
-            "\tpass-extractors                 = pass1,...\n"
-            "\tshare-acoustic-model            = [false]|true\n"
-            "\t[*.segmentwise-feature-extraction]\n"
-            "\t...\n"
-            "\t[*.segmentwise-alignment]\n"
-            "\t...\n"
-            "\t[*.am1]\n"
-            "\t# specify the port to take features from\n"
-            "\tport-name                       = features\n"
-            "\t[*.reader1]\n"
-            "\t# part to read\n"
-            "\tfsa-prefix                      = <prefix>\n"
-            "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
-            "\tlattice-archive.path            = <file-name>\n"
-            "\t[*.distance1]\n"
-            "\tdistance-type                   = [approximate-word-accuracy]|approximate-phone-accuracy|...\n"
-            "\t# specify where to obtain the correct hypotheses from to generate numerator\n"
-            "\tspoken-source                   = [orthography]|archive\n"
-            "\t[*.approximate-phone-accuracy-lattice-builder]\n"
-            "\t...\n");
+                                                   "annotate a lattice (aka topology) with scores, e.g. acoustic scores or accuracies for discriminative training\n",
+                                                   "\tacoustic-rescorers              = am1,...\n"
+                                                   "\temission-rescorers              = em1,...\n"
+                                                   "\ttdp-rescorers                   = tdp1,...\n"
+                                                   "\tpronunciation-rescorers         = pron1,...\n"
+                                                   "\tlm-rescorers                    = lm1,...\n"
+                                                   "\tcombined-lm-rescorers           = c-lm1,...\n"
+                                                   "\treaders                         = reader1,...\n"
+                                                   "\tdistance-rescorers              = distance1,...\n"
+                                                   "\tpass-extractors                 = pass1,...\n"
+                                                   "\tshare-acoustic-model            = [false]|true\n"
+                                                   "\t[*.segmentwise-feature-extraction]\n"
+                                                   "\t...\n"
+                                                   "\t[*.segmentwise-alignment]\n"
+                                                   "\t...\n"
+                                                   "\t[*.am1]\n"
+                                                   "\t# specify the port to take features from\n"
+                                                   "\tport-name                       = features\n"
+                                                   "\t[*.reader1]\n"
+                                                   "\t# part to read\n"
+                                                   "\tfsa-prefix                      = <prefix>\n"
+                                                   "\tlattice-archive.format          = [fsa]|htk|wolfgang\n"
+                                                   "\tlattice-archive.path            = <file-name>\n"
+                                                   "\t[*.distance1]\n"
+                                                   "\tdistance-type                   = [approximate-word-accuracy]|approximate-phone-accuracy|...\n"
+                                                   "\t# specify where to obtain the correct hypotheses from to generate numerator\n"
+                                                   "\tspoken-source                   = [orthography]|archive\n"
+                                                   "\t[*.approximate-phone-accuracy-lattice-builder]\n"
+                                                   "\t...\n");
 
     processorFactory_.registerClass(actionAccumulateDiscriminatively, createTrainer);
     addDescription(actionAccumulateDiscriminatively,
-            "all lattice-based discriminative training is done with this node\n",
-            "\t# frames with posterior below this threshold are not accumulated\n"
-            "\tweight-threshold                = 1.19209290e-07F\n"
-            "\t# if the posterior calculation exceeds this threshold, a warning is produced\n"
-            "\tposterior-tolerance             = 100\n"
-            "\tapplication                     = [speech]|tagging\n"
-            "\t# ME stands for Minimum Error training like for example MWE/MPE\n"
-            "\tcriterion                       = [MMI]|MCE|ME|gis-ME|log-ME|context-prior|context-accuracy|weighted-ME|ME-with-i-smoothing|log-ME-with-i-smoothing|weighted-ME-with-i-smoothing|CORRECTIVE|minimum-least-squared-error|plain\n"
-            "\t# name of lattice part for probabilistic model\n"
-            "\tlattice-name                    = total\n"
-            "\tport-name                       = features\n"
-            "\t# stream index where features are taken for accumulation\n"
-            "\taccumulation-stream-index       = 0\n"
-            "\tmodel-type                      = [gaussian-mixture]|neural-network|maximum-entropy\n");
+                   "all lattice-based discriminative training is done with this node\n",
+                   "\t# frames with posterior below this threshold are not accumulated\n"
+                   "\tweight-threshold                = 1.19209290e-07F\n"
+                   "\t# if the posterior calculation exceeds this threshold, a warning is produced\n"
+                   "\tposterior-tolerance             = 100\n"
+                   "\tapplication                     = [speech]|tagging\n"
+                   "\t# ME stands for Minimum Error training like for example MWE/MPE\n"
+                   "\tcriterion                       = [MMI]|MCE|ME|gis-ME|log-ME|context-prior|context-accuracy|weighted-ME|ME-with-i-smoothing|log-ME-with-i-smoothing|weighted-ME-with-i-smoothing|CORRECTIVE|minimum-least-squared-error|plain\n"
+                   "\t# name of lattice part for probabilistic model\n"
+                   "\tlattice-name                    = total\n"
+                   "\tport-name                       = features\n"
+                   "\t# stream index where features are taken for accumulation\n"
+                   "\taccumulation-stream-index       = 0\n"
+                   "\tmodel-type                      = [gaussian-mixture]|neural-network|maximum-entropy\n");
 
 #ifdef MODULE_SEARCH_MBR
     registerProcessor<Speech::MinimumBayesRiskSearchNode>(actionSearchMinimumBayesRisk,
-            "decode according to MBR\n",
-            "");
-
+                                                          "decode according to MBR\n",
+                                                          "");
 #endif
 }
 
-
-Speech::LatticeSetProcessor* LatticeProcessor::createTrainer(const Core::Configuration &config)
-{
-    Speech::AbstractSegmentwiseTrainer *trainer = 0;
-    ApplicationType appType = static_cast<ApplicationType>(paramApplication(config));
+Speech::LatticeSetProcessor* LatticeProcessor::createTrainer(const Core::Configuration& config) {
+    Speech::AbstractSegmentwiseTrainer* trainer = 0;
+    ApplicationType                     appType = static_cast<ApplicationType>(paramApplication(config));
     if (appType == speech)
         trainer = Speech::AbstractAcousticSegmentwiseTrainer::createAbstractAcousticSegmentwiseTrainer(config);
     ensure(trainer);
     return trainer;
 }
 
-
-
-void LatticeProcessor::setupSharedNeuralNetwork(){
+void LatticeProcessor::setupSharedNeuralNetwork() {
 #ifdef MODULE_NN_SEQUENCE_TRAINING
-    if (!Nn::SharedNeuralNetwork::hasInstance()){
+    if (!Nn::SharedNeuralNetwork::hasInstance()) {
         Nn::SharedNeuralNetwork::create(config);
         log("l1 norm of all network weights is: ") << Nn::SharedNeuralNetwork::network().l1norm();
     }
@@ -257,20 +249,19 @@ void LatticeProcessor::setupSharedNeuralNetwork(){
 #endif
 }
 
-
-void LatticeProcessor::setSharedNeuralNetwork(Core::Ref<Speech::LatticeSetProcessor> &processor){
+void LatticeProcessor::setSharedNeuralNetwork(Core::Ref<Speech::LatticeSetProcessor>& processor) {
 #ifdef MODULE_NN_SEQUENCE_TRAINING
-    Speech::LatticeSetGenerator *tmpProcessor = dynamic_cast<Speech::LatticeSetGenerator*>(processor.get());
-    if (tmpProcessor && tmpProcessor->hasNnEmissionRescorer()){
-        if (!Nn::SharedNeuralNetwork::hasInstance()){
+    Speech::LatticeSetGenerator* tmpProcessor = dynamic_cast<Speech::LatticeSetGenerator*>(processor.get());
+    if (tmpProcessor && tmpProcessor->hasNnEmissionRescorer()) {
+        if (!Nn::SharedNeuralNetwork::hasInstance()) {
             log("found rescorer lattice processor that has an nn-emission-rescorer, create neural network");
             setupSharedNeuralNetwork();
         }
         return;
     }
-    Nn::SegmentwiseNnTrainer<f32> *tmpProcessor2 = dynamic_cast<Nn::SegmentwiseNnTrainer<f32>*>(processor.get());
-    if (tmpProcessor2){
-        if (!Nn::SharedNeuralNetwork::hasInstance()){
+    Nn::SegmentwiseNnTrainer<f32>* tmpProcessor2 = dynamic_cast<Nn::SegmentwiseNnTrainer<f32>*>(processor.get());
+    if (tmpProcessor2) {
+        if (!Nn::SharedNeuralNetwork::hasInstance()) {
             log("found segmentwise neural network training lattice processor, create neural network");
             setupSharedNeuralNetwork();
         }
@@ -279,128 +270,123 @@ void LatticeProcessor::setSharedNeuralNetwork(Core::Ref<Speech::LatticeSetProces
 #endif
 }
 
-Core::Ref<Speech::LatticeSetProcessor> LatticeProcessor::getProcessor(Action action, const Core::Configuration &config) const {
-        Speech::LatticeSetProcessor *obj = processorFactory_.getObject(action, config);
-        if (!obj)
-            return Core::Ref<Speech::LatticeSetProcessor>();
-        else
-            return Core::Ref<Speech::LatticeSetProcessor>(obj);
+Core::Ref<Speech::LatticeSetProcessor> LatticeProcessor::getProcessor(Action action, const Core::Configuration& config) const {
+    Speech::LatticeSetProcessor* obj = processorFactory_.getObject(action, config);
+    if (!obj)
+        return Core::Ref<Speech::LatticeSetProcessor>();
+    else
+        return Core::Ref<Speech::LatticeSetProcessor>(obj);
 }
 
-
-void LatticeProcessor::addDescription(Action a, const char *desc, const char *options) {
-        std::map<Action, ActionDescription>::iterator i;
-        bool dummy;
-        Core::tie(i, dummy) = descriptions_.insert(std::make_pair(a, ActionDescription()));
-        i->second.desc = desc;
-        i->second.options = options;
+void LatticeProcessor::addDescription(Action a, const char* desc, const char* options) {
+    std::map<Action, ActionDescription>::iterator i;
+    bool                                          dummy;
+    Core::tie(i, dummy) = descriptions_.insert(std::make_pair(a, ActionDescription()));
+    i->second.desc      = desc;
+    i->second.options   = options;
 }
-
 
 std::string LatticeProcessor::getApplicationDescription() const {
-        std::string app = "\n"
-                "lattice-processor.$arch [OPTION(S)]\n"
-                "\n"
-                "corpus driven lattice processor\n"
-                "\n"
-                "options:\n"
-                "   --help            print this page (note: --config must be given)\n"
-                "   --config=file     the configuration file in the sprint format\n"
-                "\n"
-                "The lattice processor build a chain of processor nodes described\n"
-                "by the list in the 'lattice-processor' configuration part, i.e.,\n"
-                "\t[lattice-processor]\n"
-                "\t# define node operations\n"
-                "\tactions                         = <action1>,<action2>,...\n"
-                "\t# define selection names for the configuration\n"
-                "\t# (configuration depends on action, see below)\n"
-                "\tselections                      = <selection1>,<selection2>,..."
-                "\t[*.<selection1>]\n"
-                "\t...\n"
-                "\n"
-                "Simple example:\n"
-                "\t[lattice-processor]\n"
-                "\tactions                 = read,write\n"
-                "\tselections              = lattice-reader,lattice-writer\n"
-                "\n"
-                "Afterwords it initialises the processor nodes and let them walk\n"
-                "throw the corpus described in the corpus configuation part. E.g.:\n"
-                "\t[*.corpus]\n"
-                "\tfile                            = data/corpus.gz\n"
-                "\twarn-about-unexpected-elements  = no\n"
-                "\tcapitalize-transcriptions       = no\n"
-                "\n"
-                "To interprete the corpus it needs a lexicon definition given\n"
-                "in the lexicon configuration part. E.g.:\n"
-                "\t[*.lexicon]\n"
-                "\tfile                            = data/lexicon.gz\n"
-                "\n"
-                "The output is defined in the general ('*') section of the configuration\n"
-                "\t[*]\n"
-                "\tstatistics.channel              = nil\n"
-                "\tlog.channel                     = output-channel\n"
-                "\twarning.channel                 = output-channel\n"
-                "\terror.channel                   = output-channel\n"
-                "\tconfiguration.channel           = output-channel\n"
-                "\tsystem-info.channel             = output-channel\n"
-                "\tdot.channel                     = nil\n"
-                "\tprogress.channel                = output-channel\n"
-                "\toutput-channel.file             = output-channel\n"
-                "\toutput-channel.append           = false\n"
-                "\toutput-channel.encoding         = UTF-8\n"
-                "\toutput-channel.unbuffered       = false\n"
-                "\ton-error                        = delayed-exit\n"
-                "\t\n"
-                "Using this configuration a file output-channel will be created during a\n"
-                "run of lattice-processor. These file contain a lots of additional\n"
-                "information, warnings and errors.\n"
-                "\n"
-                "Every processor node can have its own part in the configuration file.\n"
-                "E.g.:\n"
-                "\t[*.lattice-reader]\n"
-                "\treaders                         = total\n"
-                "\tlattice-archive.path            = data/input/\n"
-                "\tlattice-archive.type            = {fsa|htk}\n"
-                "\t\n"
-                "\t[*.lattice-writer]\n"
-                "\tlattice-archive.path            = data/output/\n"
-                "\ttype                            = {fsa|htk}\n"
-                "\t\n"
-                "\n";
+    std::string app = "\n"
+                      "lattice-processor.$arch [OPTION(S)]\n"
+                      "\n"
+                      "corpus driven lattice processor\n"
+                      "\n"
+                      "options:\n"
+                      "   --help            print this page (note: --config must be given)\n"
+                      "   --config=file     the configuration file in the sprint format\n"
+                      "\n"
+                      "The lattice processor build a chain of processor nodes described\n"
+                      "by the list in the 'lattice-processor' configuration part, i.e.,\n"
+                      "\t[lattice-processor]\n"
+                      "\t# define node operations\n"
+                      "\tactions                         = <action1>,<action2>,...\n"
+                      "\t# define selection names for the configuration\n"
+                      "\t# (configuration depends on action, see below)\n"
+                      "\tselections                      = <selection1>,<selection2>,..."
+                      "\t[*.<selection1>]\n"
+                      "\t...\n"
+                      "\n"
+                      "Simple example:\n"
+                      "\t[lattice-processor]\n"
+                      "\tactions                 = read,write\n"
+                      "\tselections              = lattice-reader,lattice-writer\n"
+                      "\n"
+                      "Afterwords it initialises the processor nodes and let them walk\n"
+                      "throw the corpus described in the corpus configuation part. E.g.:\n"
+                      "\t[*.corpus]\n"
+                      "\tfile                            = data/corpus.gz\n"
+                      "\twarn-about-unexpected-elements  = no\n"
+                      "\tcapitalize-transcriptions       = no\n"
+                      "\n"
+                      "To interprete the corpus it needs a lexicon definition given\n"
+                      "in the lexicon configuration part. E.g.:\n"
+                      "\t[*.lexicon]\n"
+                      "\tfile                            = data/lexicon.gz\n"
+                      "\n"
+                      "The output is defined in the general ('*') section of the configuration\n"
+                      "\t[*]\n"
+                      "\tstatistics.channel              = nil\n"
+                      "\tlog.channel                     = output-channel\n"
+                      "\twarning.channel                 = output-channel\n"
+                      "\terror.channel                   = output-channel\n"
+                      "\tconfiguration.channel           = output-channel\n"
+                      "\tsystem-info.channel             = output-channel\n"
+                      "\tdot.channel                     = nil\n"
+                      "\tprogress.channel                = output-channel\n"
+                      "\toutput-channel.file             = output-channel\n"
+                      "\toutput-channel.append           = false\n"
+                      "\toutput-channel.encoding         = UTF-8\n"
+                      "\toutput-channel.unbuffered       = false\n"
+                      "\ton-error                        = delayed-exit\n"
+                      "\t\n"
+                      "Using this configuration a file output-channel will be created during a\n"
+                      "run of lattice-processor. These file contain a lots of additional\n"
+                      "information, warnings and errors.\n"
+                      "\n"
+                      "Every processor node can have its own part in the configuration file.\n"
+                      "E.g.:\n"
+                      "\t[*.lattice-reader]\n"
+                      "\treaders                         = total\n"
+                      "\tlattice-archive.path            = data/input/\n"
+                      "\tlattice-archive.type            = {fsa|htk}\n"
+                      "\t\n"
+                      "\t[*.lattice-writer]\n"
+                      "\tlattice-archive.path            = data/output/\n"
+                      "\ttype                            = {fsa|htk}\n"
+                      "\t\n"
+                      "\n";
 
-        return app;
+    return app;
 }
-
-
 
 std::string LatticeProcessor::getParameterDescription() const {
-        std::string tmp = "\n"
-                "supported actions:\n"
-                "\n"
-                "\t\"not-given\": do nothing\n"
-                "\t[*.selection]\n"
-                "\t# nothing to configurate\n"
-                "\t\n";
-        std::vector<Action> actions = processorFactory_.identifiers();
-        for (std::vector<Action>::const_iterator a = actions.begin(); a != actions.end(); ++a) {
-            std::string name = choiceAction[*a];
-            tmp += "\t\"" + name + "\": ";
-            std::map<Action, ActionDescription>::const_iterator desc = descriptions_.find(*a);
-            if (desc != descriptions_.end() && !desc->second.desc.empty()) {
-                tmp += desc->second.desc;
-                if (!desc->second.options.empty()) {
-                    tmp += "\t[*.selection]\n";
-                    tmp += desc->second.options;
-                }
-            } else {
-                tmp += "no description available\n";
+    std::string tmp = "\n"
+                      "supported actions:\n"
+                      "\n"
+                      "\t\"not-given\": do nothing\n"
+                      "\t[*.selection]\n"
+                      "\t# nothing to configurate\n"
+                      "\t\n";
+    std::vector<Action> actions = processorFactory_.identifiers();
+    for (std::vector<Action>::const_iterator a = actions.begin(); a != actions.end(); ++a) {
+        std::string name = choiceAction[*a];
+        tmp += "\t\"" + name + "\": ";
+        std::map<Action, ActionDescription>::const_iterator desc = descriptions_.find(*a);
+        if (desc != descriptions_.end() && !desc->second.desc.empty()) {
+            tmp += desc->second.desc;
+            if (!desc->second.options.empty()) {
+                tmp += "\t[*.selection]\n";
+                tmp += desc->second.options;
             }
-            tmp += "\n";
         }
-        return tmp;
+        else {
+            tmp += "no description available\n";
+        }
+        tmp += "\n";
+    }
+    return tmp;
 }
-
-
 
 /**
  * Do these steps:
@@ -413,19 +399,18 @@ std::string LatticeProcessor::getParameterDescription() const {
  *         the create functions :-( or you have some time and start a table...
  *   - call visitCorpus(rootProcessor)
  */
-int LatticeProcessor::main(const std::vector<std::string> &arguments)
-{
+int LatticeProcessor::main(const std::vector<std::string>& arguments) {
     // Build up the processor chain based on the actions and selections
     // definition in the configuration.
     // No work is done in this phase, only Constructors are called.
-    std::vector<Action> actions;
+    std::vector<Action>    actions;
     std::vector<Selection> selections;
     parseActionsSelections(actions, selections);
-    Core::Ref<Speech::LatticeSetProcessor> previousProcessor;
+    Core::Ref<Speech::LatticeSetProcessor>     previousProcessor;
     Core::Ref<Speech::LatticeSetProcessorRoot> rootProcessor;
     // walk throw the actions saved in the config
     {
-        const u32 i = 0;
+        const u32                              i = 0;
         Core::Ref<Speech::LatticeSetProcessor> processor;
 
         require(!rootProcessor);
@@ -440,7 +425,7 @@ int LatticeProcessor::main(const std::vector<std::string> &arguments)
         }
         previousProcessor = processor;
     }
-    for (u32 i = 1; i < actions.size(); ++ i) {
+    for (u32 i = 1; i < actions.size(); ++i) {
         Core::Ref<Speech::LatticeSetProcessor> processor;
         processor = getProcessor(actions[i], select(selections[i]));
         if (!processor) {
@@ -469,7 +454,8 @@ int LatticeProcessor::main(const std::vector<std::string> &arguments)
 
         // finalize training
         finalize(rootProcessor);
-    } else {
+    }
+    else {
         criticalError("No root processor defined.");
     }
 
@@ -483,16 +469,15 @@ APPLICATION(LatticeProcessor)
  * Parse the actions and selections statements in the configuration
  */
 void LatticeProcessor::parseActionsSelections(
-        std::vector<Action> &actions, std::vector<Selection> &selections)
-{
+        std::vector<Action>& actions, std::vector<Selection>& selections) {
     require(actions.empty() && selections.empty());
     std::vector<std::string> _actions = paramActions(config);
-    selections = paramSelections(config);
+    selections                        = paramSelections(config);
     if (_actions.size() != selections.size()) {
         criticalError("Mismatch in number of actions and configuration selections.");
         return;
     }
-    for (size_t i = 0; i < _actions.size(); ++ i) {
+    for (size_t i = 0; i < _actions.size(); ++i) {
         actions.push_back(Action(choiceAction[_actions[i]]));
         if (actions.back() == actionNotGiven) {
             error("action \"") << _actions[i] << "\" not given";
@@ -507,8 +492,7 @@ void LatticeProcessor::parseActionsSelections(
  *    - Create a corpus description class.
  *    - Call corpusDescription.accept to start the walk through the corpus
  */
-void LatticeProcessor::visitCorpus(Core::Ref<Speech::LatticeSetProcessorRoot> root)
-{
+void LatticeProcessor::visitCorpus(Core::Ref<Speech::LatticeSetProcessorRoot> root) {
     // make sure the root processor is initialized
     require(root);
     // the corpus visitor is the class coordinating the walk through the corpus
@@ -516,20 +500,17 @@ void LatticeProcessor::visitCorpus(Core::Ref<Speech::LatticeSetProcessorRoot> ro
     // introduce everyone to each other
     root->signOn(corpusVisitor);
     switch (paramCorpusType(select("corpus"))) {
-    case bliss:
-    {
-        Bliss::CorpusDescription corpusDescription(select("corpus"));
-        // actually do the work
-        corpusDescription.accept(&corpusVisitor);
-    }
-    break;
-    default:
-        defect();
+        case bliss: {
+            Bliss::CorpusDescription corpusDescription(select("corpus"));
+            // actually do the work
+            corpusDescription.accept(&corpusVisitor);
+        } break;
+        default:
+            defect();
     }
 }
 
-void LatticeProcessor::finalize(Core::Ref<Speech::LatticeSetProcessorRoot> root)
-{
+void LatticeProcessor::finalize(Core::Ref<Speech::LatticeSetProcessorRoot> root) {
     // make sure the root processor is initialized
     require(root);
     root->logComputationTime();

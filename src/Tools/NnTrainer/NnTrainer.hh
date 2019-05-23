@@ -15,11 +15,10 @@
 #ifndef _TOOLS_NN_TRAINER_NN_TRAINER_HH
 #define _TOOLS_NN_TRAINER_NN_TRAINER_HH
 
-
-#include <Modules.hh>
 #include <Core/Parameter.hh>
-#include <Speech/AlignedFeatureProcessor.hh>
+#include <Modules.hh>
 #include <Nn/NeuralNetworkTrainer.hh>
+#include <Speech/AlignedFeatureProcessor.hh>
 
 /**	Train the weights of a neural network
  *
@@ -39,16 +38,17 @@ public:
         actionEstimateMeanAndStandardDeviation,
         actionShowStatistics
     };
-    static const Core::Choice choiceAction;
+    static const Core::Choice          choiceAction;
     static const Core::ParameterChoice paramAction;
-    static const Core::ParameterBool paramSinglePrecision;
+    static const Core::ParameterBool   paramSinglePrecision;
     static const Core::ParameterString paramPriorFile;
-    static const Core::ParameterInt paramSeed;
+    static const Core::ParameterInt    paramSeed;
     static const Core::ParameterString paramFilenameInit;
     // statistics IO
     static const Core::ParameterStringVector paramStatisticsFiles;
-    static const Core::ParameterString paramStatisticsFile;
- private:
+    static const Core::ParameterString       paramStatisticsFile;
+
+private:
     void visitCorpus(Speech::CorpusProcessor&);
     // Passes once over the whole corpus controlling the CorpusProcessor object.
     void visitCorpus(Speech::AlignedFeatureProcessor&);
@@ -88,10 +88,13 @@ public:
 
     template<typename T>
     void showStatistics();
+
 public:
     NnTrainer();
-    virtual std::string getUsage() const { return "Corpus driven neural network trainer"; }
-    virtual int main(const std::vector<std::string> &arguments);
+    virtual std::string getUsage() const {
+        return "Corpus driven neural network trainer";
+    }
+    virtual int main(const std::vector<std::string>& arguments);
 };
 
-#endif //_TOOLS_NN_TRAINER_NN_TRAINER_HH
+#endif  //_TOOLS_NN_TRAINER_NN_TRAINER_HH

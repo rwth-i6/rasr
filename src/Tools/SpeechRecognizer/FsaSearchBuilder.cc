@@ -12,13 +12,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <sstream>
-#include <Core/Application.hh>
 #include <Am/Module.hh>
+#include <Core/Application.hh>
 #include <OpenFst/Module.hh>
-#include <Speech/ModelCombination.hh>
-#include <Search/Wfst/Module.hh>
 #include <Search/Wfst/Builder.hh>
+#include <Search/Wfst/Module.hh>
+#include <Speech/ModelCombination.hh>
+#include <sstream>
 
 using namespace Search::Wfst;
 
@@ -27,13 +27,10 @@ using namespace Search::Wfst;
  * the automata produced / modified are organized in
  * a stack.
  */
-class FsaSearchBuilderTool: public virtual Core::Application
-{
+class FsaSearchBuilderTool : public virtual Core::Application {
 public:
-
-    FsaSearchBuilderTool() :
-        Core::Application()
-    {
+    FsaSearchBuilderTool()
+            : Core::Application() {
         INIT_MODULE(Am);
         INIT_MODULE(OpenFst);
         INIT_MODULE(Search::Wfst);
@@ -46,52 +43,50 @@ private:
     static const Core::ParameterStringVector paramOperations;
     typedef std::vector<Builder::Operation*> OperationList;
 
-    std::pair<std::string, std::string> getOperationAndName(const std::string &spec) const
-    {
+    std::pair<std::string, std::string> getOperationAndName(const std::string& spec) const {
         std::string op, name;
-        op = name = spec;
+        op = name                  = spec;
         std::string::size_type pos = spec.find(",");
         if (pos != std::string::npos) {
-            op = spec.substr(0, pos);
+            op   = spec.substr(0, pos);
             name = spec.substr(pos + 1);
         }
         log() << "operation '" << op << "' with name '" << name << "'";
         return std::make_pair(op, name);
     }
 
-    void getOperationList(Builder::Resources &r, OperationList &l)
-    {
+    void getOperationList(Builder::Resources& r, OperationList& l) {
         l.clear();
         std::vector<std::string> operationNames = paramOperations(config);
 
-        const Search::Wfst::Module_ &module = Search::Wfst::Module::instance();
+        const Search::Wfst::Module_& module = Search::Wfst::Module::instance();
         for (std::vector<std::string>::const_iterator i = operationNames.begin(); i != operationNames.end(); ++i) {
             std::string op, name;
-            Core::tie(op, name) = getOperationAndName(*i);
-            Builder::Operation *o = module.getBuilderOperation(op, select(name), r);
+            Core::tie(op, name)   = getOperationAndName(*i);
+            Builder::Operation* o = module.getBuilderOperation(op, select(name), r);
             if (!o) {
                 error("unknown operation '%s'", op.c_str());
-            } else {
+            }
+            else {
                 l.push_back(o);
             }
         }
         log("%d operations", int(l.size()));
     }
 
-    bool runOperations(OperationList &ops)
-    {
+    bool runOperations(OperationList& ops) {
         typedef std::vector<Builder::Operation::AutomatonRef> AutomatonStack;
-        AutomatonStack stack;
+        AutomatonStack                                        stack;
         for (OperationList::iterator iOp = ops.begin(); iOp != ops.end(); ++iOp) {
-            Builder::Operation &op = **iOp;
-            u32 input = op.nInputAutomata();
+            Builder::Operation& op    = **iOp;
+            u32                 input = op.nInputAutomata();
 
             if (stack.size() < input) {
                 error("operation %s requires %d operands, but stack size is: %d", op.name().c_str(), input, int(stack.size()));
                 return false;
             }
             for (u32 i = 0; i < input; ++i) {
-                if(!op.addInput(stack[stack.size() - (i + 1)])) {
+                if (!op.addInput(stack[stack.size() - (i + 1)])) {
                     error("cannot set input for operation '%s'", op.name().c_str());
                     return false;
                 }
@@ -107,7 +102,8 @@ private:
                     error("operation '%s' could not produce any output", op.name().c_str());
                     return false;
                 }
-            } else {
+            }
+            else {
                 stack.push_back(result);
             }
         }
@@ -119,7 +115,6 @@ private:
         return true;
     }
 
-
 public:
     std::string getParameterDescription() const {
         std::ostringstream out;
@@ -129,10 +124,9 @@ public:
         std::copy(opNames.begin(), opNames.end(), std::ostream_iterator<std::string>(out, "\n    "));
         return out.str();
     }
-    int main(const std::vector<std::string> &arguments)
-    {
+    int main(const std::vector<std::string>& arguments) {
         Builder::Resources resources(config);
-        OperationList ops;
+        OperationList      ops;
         getOperationList(resources, ops);
         if (ops.empty()) {
             return 0;

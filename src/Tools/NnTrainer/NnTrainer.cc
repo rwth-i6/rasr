@@ -16,20 +16,20 @@
 
 #include <typeinfo>
 
-#include <Math/Random.hh>
 #include <Audio/Module.hh>
 #include <Flow/Module.hh>
 #include <Math/Module.hh>
+#include <Math/Random.hh>
+#include <Mm/Module.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
-#include <Mm/Module.hh>
 
 #ifdef MODULE_NN
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaWrapper.hh>
+#include <Nn/BatchEstimator.hh>
 #include <Nn/BufferedAlignedFeatureProcessor.hh>
 #include <Nn/BufferedSegmentFeatureProcessor.hh>
-#include <Nn/BatchEstimator.hh>
 #include <Nn/FeatureScorer.hh>
 #include <Nn/Module.hh>
 #include <Nn/NeuralNetwork.hh>
@@ -50,24 +50,24 @@
 APPLICATION(NnTrainer)
 
 const Core::Choice NnTrainer::choiceAction(
-    "notGiven", actionNotGiven,
-    "unsupervised-training", actionUnsupervisedTraining,
-    "supervised-training", actionSupervisedTraining,
-    "supervised-segmentwise-training", actionSupervisedSegmentwiseTraining,
-    "batch-estimation", actionBatchEstimation,
-    "init-network", actionInitNetwork,
-    "python-control", actionPythonControl,
-    "combine-statistics", actionCombineStatistics,
-    "get-log-prior-from-mixture-set", actionGetLogPriorFromMixtureSet,
-    "estimate-mean-and-standard-deviation", actionEstimateMeanAndStandardDeviation,
-    "show-statistics", actionShowStatistics,
-    Core::Choice::endMark());
+        "notGiven", actionNotGiven,
+        "unsupervised-training", actionUnsupervisedTraining,
+        "supervised-training", actionSupervisedTraining,
+        "supervised-segmentwise-training", actionSupervisedSegmentwiseTraining,
+        "batch-estimation", actionBatchEstimation,
+        "init-network", actionInitNetwork,
+        "python-control", actionPythonControl,
+        "combine-statistics", actionCombineStatistics,
+        "get-log-prior-from-mixture-set", actionGetLogPriorFromMixtureSet,
+        "estimate-mean-and-standard-deviation", actionEstimateMeanAndStandardDeviation,
+        "show-statistics", actionShowStatistics,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice NnTrainer::paramAction(
-    "action", &choiceAction, "operation to perform", actionNotGiven);
+        "action", &choiceAction, "operation to perform", actionNotGiven);
 
 const Core::ParameterBool NnTrainer::paramSinglePrecision(
-    "single-precision", "use single or double precision", true);
+        "single-precision", "use single or double precision", true);
 
 const Core::ParameterString NnTrainer::paramPriorFile("new-prior-file", "prior filename", "");
 
@@ -82,7 +82,6 @@ const Core::ParameterString NnTrainer::paramStatisticsFile(
 
 const Core::ParameterString NnTrainer::paramFilenameInit(
         "parameters-init", "Name of the file to save the initialization parameters to", "");
-
 
 // dummy parameter
 const Core::ParameterString paramActionName("action", "", "n/a");
@@ -103,8 +102,7 @@ NnTrainer::NnTrainer() {
 #endif
 }
 
-int NnTrainer::main(const std::vector<std::string> &arguments) {
-
+int NnTrainer::main(const std::vector<std::string>& arguments) {
     {
         long seed = (u32)paramSeed(this->config);
         Math::randomSeed(seed);
@@ -116,67 +114,67 @@ int NnTrainer::main(const std::vector<std::string> &arguments) {
     else
         log() << "using double precision";
 
-    log() << "action: " <<  paramActionName(config);
+    log() << "action: " << paramActionName(config);
 
     // select the action to be performed
-    switch ( (Action) paramAction(config) ) {
-    case actionUnsupervisedTraining:
-        if (paramSinglePrecision(config))
-            neuralNetworkTrainingUnsupervised<f32>();
-        else
-            neuralNetworkTrainingUnsupervised<f64>();
-        break;
-    case actionSupervisedTraining:
-        if (paramSinglePrecision(config))
-            neuralNetworkTrainingSupervised<f32>();
-        else
-            neuralNetworkTrainingSupervised<f64>();
-        break;
-    case actionSupervisedSegmentwiseTraining:
-        if (paramSinglePrecision(config))
-            neuralNetworkTrainingSupervisedSegmentwise<f32>();
-        else
-            neuralNetworkTrainingSupervisedSegmentwise<f64>();
-        break;
-    case actionBatchEstimation:
-        if (paramSinglePrecision(config))
-            neuralNetworkBatchEstimation<f32>();
-        else
-            neuralNetworkBatchEstimation<f64>();
-        break;
-    case actionInitNetwork:
-        if (paramSinglePrecision(config))
-            neuralNetworkInit<f32>();
-        else
-            neuralNetworkInit<f64>();
-        break;
-    case actionPythonControl:
-        pythonControl();
-        break;
-    case actionGetLogPriorFromMixtureSet:
-        getLogPriorFromMixtureSet();
-        break;
-    case actionCombineStatistics:
-        if (paramSinglePrecision(config))
-            combineStatistics<f32>();
-        else
-            combineStatistics<f64>();
-        break;
-    case actionEstimateMeanAndStandardDeviation:
-        if (paramSinglePrecision(config))
-            estimateMeanAndStandardDeviation<f32>();
-        else
-            estimateMeanAndStandardDeviation<f64>();
-        break;
-    case actionShowStatistics:
-        if (paramSinglePrecision(config))
-            showStatistics<f32>();
-        else
-            showStatistics<f64>();
-        break;
-    default:
-        criticalError("Action not given.");
-        break;
+    switch ((Action)paramAction(config)) {
+        case actionUnsupervisedTraining:
+            if (paramSinglePrecision(config))
+                neuralNetworkTrainingUnsupervised<f32>();
+            else
+                neuralNetworkTrainingUnsupervised<f64>();
+            break;
+        case actionSupervisedTraining:
+            if (paramSinglePrecision(config))
+                neuralNetworkTrainingSupervised<f32>();
+            else
+                neuralNetworkTrainingSupervised<f64>();
+            break;
+        case actionSupervisedSegmentwiseTraining:
+            if (paramSinglePrecision(config))
+                neuralNetworkTrainingSupervisedSegmentwise<f32>();
+            else
+                neuralNetworkTrainingSupervisedSegmentwise<f64>();
+            break;
+        case actionBatchEstimation:
+            if (paramSinglePrecision(config))
+                neuralNetworkBatchEstimation<f32>();
+            else
+                neuralNetworkBatchEstimation<f64>();
+            break;
+        case actionInitNetwork:
+            if (paramSinglePrecision(config))
+                neuralNetworkInit<f32>();
+            else
+                neuralNetworkInit<f64>();
+            break;
+        case actionPythonControl:
+            pythonControl();
+            break;
+        case actionGetLogPriorFromMixtureSet:
+            getLogPriorFromMixtureSet();
+            break;
+        case actionCombineStatistics:
+            if (paramSinglePrecision(config))
+                combineStatistics<f32>();
+            else
+                combineStatistics<f64>();
+            break;
+        case actionEstimateMeanAndStandardDeviation:
+            if (paramSinglePrecision(config))
+                estimateMeanAndStandardDeviation<f32>();
+            else
+                estimateMeanAndStandardDeviation<f64>();
+            break;
+        case actionShowStatistics:
+            if (paramSinglePrecision(config))
+                showStatistics<f32>();
+            else
+                showStatistics<f64>();
+            break;
+        default:
+            criticalError("Action not given.");
+            break;
     };
     // clear GPU resources
     Math::Cuda::deviceReset(Math::CudaDataStructure::hasGpu());
@@ -185,7 +183,7 @@ int NnTrainer::main(const std::vector<std::string> &arguments) {
 
 template<typename T>
 void NnTrainer::neuralNetworkTrainingUnsupervised() {
-    auto* trainer = new Nn::BufferedFeatureExtractor<T>(config);
+    auto* trainer   = new Nn::BufferedFeatureExtractor<T>(config);
     auto& processor = dynamic_cast<Speech::CorpusProcessor&>(*trainer);
     visitCorpus(processor);
     delete trainer;
@@ -194,7 +192,7 @@ void NnTrainer::neuralNetworkTrainingUnsupervised() {
 // This loads a fixed alignment and then calls processBatch_finishWithAlignment of the trainer.
 template<typename T>
 void NnTrainer::neuralNetworkTrainingSupervised() {
-    auto* trainer = new Nn::BufferedAlignedFeatureProcessor<T>(config);
+    auto* trainer   = new Nn::BufferedAlignedFeatureProcessor<T>(config);
     auto& processor = dynamic_cast<Speech::AlignedFeatureProcessor&>(*trainer);
     visitCorpus(processor);
     delete trainer;
@@ -203,7 +201,7 @@ void NnTrainer::neuralNetworkTrainingSupervised() {
 // This will call processBatch_finishWithSpeechSegment of the trainer (i.e. no alignment given).
 template<typename T>
 void NnTrainer::neuralNetworkTrainingSupervisedSegmentwise() {
-    auto* trainer = new Nn::BufferedSegmentFeatureProcessor<T>(config);
+    auto* trainer   = new Nn::BufferedSegmentFeatureProcessor<T>(config);
     auto& processor = dynamic_cast<Speech::CorpusProcessor&>(*trainer);
     visitCorpus(processor);
     delete trainer;
@@ -222,10 +220,10 @@ void NnTrainer::neuralNetworkInit() {
     Nn::NeuralNetwork<T> network(config);
     network.initializeNetwork(1);
     // remove prior if softmax output and parameter is set
-    Nn::LinearAndSoftmaxLayer<T> *topLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<T>* >(&network.getTopLayer());
-    if (topLayer){
+    Nn::LinearAndSoftmaxLayer<T>* topLayer = dynamic_cast<Nn::LinearAndSoftmaxLayer<T>*>(&network.getTopLayer());
+    if (topLayer) {
         Nn::Prior<f32> prior(config);
-        if (prior.fileName() != ""){
+        if (prior.fileName() != "") {
             prior.read();
             network.finishComputation();
             topLayer->removeLogPriorFromBias(prior);
@@ -240,27 +238,27 @@ enum PythonControlLoopType {
 };
 
 static const Core::Choice choicePythonControlLoopType(
-    "python-control-loop", pcltPyControlLoop,
-    "iterate-corpus", pcltIterateCorpus,
-    Core::Choice::endMark());
+        "python-control-loop", pcltPyControlLoop,
+        "iterate-corpus", pcltIterateCorpus,
+        Core::Choice::endMark());
 
 static const Core::ParameterChoice paramPythonControlLoopType(
-    "python-control-loop-type", &choicePythonControlLoopType, "type of loop", pcltPyControlLoop);
+        "python-control-loop-type", &choicePythonControlLoopType, "type of loop", pcltPyControlLoop);
 
 void NnTrainer::pythonControl() {
 #ifdef MODULE_PYTHON
     Nn::PythonControl control(config, "NnTrainer.pythonControl", false);
-    switch(paramPythonControlLoopType(config)) {
-    case pcltPyControlLoop:
-        log("PythonControl: run_control_loop");
-        control.run_control_loop();
-        break;
-    case pcltIterateCorpus:
-        log("PythonControl: run_iterate_corpus");
-        control.run_iterate_corpus();
-        break;
-    default:
-        error("PythonControl: invalid python-control-loop-type");
+    switch (paramPythonControlLoopType(config)) {
+        case pcltPyControlLoop:
+            log("PythonControl: run_control_loop");
+            control.run_control_loop();
+            break;
+        case pcltIterateCorpus:
+            log("PythonControl: run_iterate_corpus");
+            control.run_iterate_corpus();
+            break;
+        default:
+            error("PythonControl: invalid python-control-loop-type");
     }
     control.exit();
 #else
@@ -268,14 +266,13 @@ void NnTrainer::pythonControl() {
 #endif
 }
 
-
 template<typename T>
-void NnTrainer::combineStatistics(){
+void NnTrainer::combineStatistics() {
     Nn::NeuralNetwork<T> network(config);
     network.initializeNetwork(1);
 
-    bool singlePrecisionInput;
-    u32 statisticsType = 0;
+    bool                     singlePrecisionInput;
+    u32                      statisticsType = 0;
     std::vector<std::string> filenames(paramStatisticsFiles(config));
     if (filenames.size() == 0)
         this->error("no files given for combination");
@@ -283,7 +280,7 @@ void NnTrainer::combineStatistics(){
         this->error("could not read header from file: ") << filenames.at(0);
     this->log("statistics type: ") << statisticsType;
 
-    if (singlePrecisionInput || (typeid(T) == typeid(double))){
+    if (singlePrecisionInput || (typeid(T) == typeid(double))) {
         Nn::Statistics<T> stats(network.nLayers(), statisticsType);
         stats.initialize(network);
         if (!stats.combine(paramStatisticsFiles(config)))
@@ -312,18 +309,15 @@ void NnTrainer::combineStatistics(){
     }
 }
 
-
-
-
 template<typename T>
-void NnTrainer::estimateMeanAndStandardDeviation(){
+void NnTrainer::estimateMeanAndStandardDeviation() {
     Nn::MeanAndVarianceTrainer<T> trainer(config);
-    Nn::Statistics<T> statistics(0, Nn::Statistics<T>::MEAN_AND_VARIANCE);
-    if (paramStatisticsFiles(config).size() > 0){
-        if (!statistics.combine(paramStatisticsFiles(config))){
+    Nn::Statistics<T>             statistics(0, Nn::Statistics<T>::MEAN_AND_VARIANCE);
+    if (paramStatisticsFiles(config).size() > 0) {
+        if (!statistics.combine(paramStatisticsFiles(config))) {
             error("failed to combine statistics");
         }
-        if (paramStatisticsFile(config) != ""){
+        if (paramStatisticsFile(config) != "") {
             statistics.write(paramStatisticsFile(config));
         }
     }
@@ -335,23 +329,23 @@ void NnTrainer::estimateMeanAndStandardDeviation(){
 }
 
 template<typename T>
-void NnTrainer::showStatistics(){
+void NnTrainer::showStatistics() {
     Nn::NeuralNetwork<T> network(config);
     network.initializeNetwork(1);
-    u32 statisticsType = 0;
-    bool singlePrecision;
+    u32         statisticsType = 0;
+    bool        singlePrecision;
     std::string filename(paramStatisticsFile(config));
-    bool readOk = Nn::Statistics<T>::getTypeFromFile(filename, statisticsType, singlePrecision);
+    bool        readOk = Nn::Statistics<T>::getTypeFromFile(filename, statisticsType, singlePrecision);
     log("statistics type: ") << statisticsType;
     if (!readOk)
         this->error("could not read header from file: ") << filename;
-    if (singlePrecision){
+    if (singlePrecision) {
         Nn::Statistics<f32> stats(network.nLayers(), statisticsType);
         stats.initialize(network);
         stats.read(filename);
         stats.write(std::cout);
     }
-    else{
+    else {
         Nn::Statistics<f64> stats(network.nLayers(), statisticsType);
         stats.initialize(network);
         stats.read(filename);
@@ -360,15 +354,15 @@ void NnTrainer::showStatistics(){
 }
 
 void NnTrainer::getLogPriorFromMixtureSet() {
-    Nn::Prior<f32> prior(config);
+    Nn::Prior<f32>            prior(config);
     Core::Ref<Mm::MixtureSet> mixtureSet = Mm::Module::instance().readMixtureSet(select("mixture-set"));
-    Nn::ClassLabelWrapper labelWrapper(config, mixtureSet->nMixtures());
+    Nn::ClassLabelWrapper     labelWrapper(config, mixtureSet->nMixtures());
 
     prior.setFromMixtureSet(mixtureSet, labelWrapper);
     prior.write();
 }
 
-void NnTrainer::visitCorpus(Speech::CorpusProcessor &corpusProcessor) {
+void NnTrainer::visitCorpus(Speech::CorpusProcessor& corpusProcessor) {
     Speech::CorpusVisitor corpusVisitor(select("corpus"));
     corpusProcessor.signOn(corpusVisitor);
 
@@ -376,7 +370,7 @@ void NnTrainer::visitCorpus(Speech::CorpusProcessor &corpusProcessor) {
     corpusDescription.accept(&corpusVisitor);
 }
 
-void NnTrainer::visitCorpus(Speech::AlignedFeatureProcessor &alignedFeatureProcessor) {
+void NnTrainer::visitCorpus(Speech::AlignedFeatureProcessor& alignedFeatureProcessor) {
     Speech::AligningFeatureExtractor* extractor =
             Speech::Module::instance().createAligningFeatureExtractor(
                     select("aligning-feature-extractor"), alignedFeatureProcessor);

@@ -19,25 +19,30 @@
 #include "ConditionalLexicon.hh"
 
 namespace Fsa {
-    class ZeroOrderAlignAutomaton : public AlignAutomaton {
-    private:
-        typedef enum {diagonal=0, horizontal=1, vertical=2} Transitions;
-       Translation::ConstConditionalLexiconRef lexicon_;
-        u32 I;
-        u32 J;
-        u32 M;
-        u32 maxIndex;
-    public:
-        ZeroOrderAlignAutomaton(Core::Configuration &config,
-                           const std::string& source,
-                           const std::string& target,
-                           const TransitionProbs& transitionProbs,
-                           Translation::ConstConditionalLexiconRef lex,
-                           const double factorLexicon = 1.0,
-                           const double factorTransition = 1.0);
+class ZeroOrderAlignAutomaton : public AlignAutomaton {
+private:
+    typedef enum { diagonal   = 0,
+                   horizontal = 1,
+                   vertical   = 2 } Transitions;
+    Translation::ConstConditionalLexiconRef lexicon_;
+    u32                                     I;
+    u32                                     J;
+    u32                                     M;
+    u32                                     maxIndex;
 
-        virtual ConstStateRef getState(StateId s) const;
-        virtual std::string describe() const { return std::string("zeroOrderAlignAutomaton()"); }
-    };
-}
+public:
+    ZeroOrderAlignAutomaton(Core::Configuration&                    config,
+                            const std::string&                      source,
+                            const std::string&                      target,
+                            const TransitionProbs&                  transitionProbs,
+                            Translation::ConstConditionalLexiconRef lex,
+                            const double                            factorLexicon    = 1.0,
+                            const double                            factorTransition = 1.0);
+
+    virtual ConstStateRef getState(StateId s) const;
+    virtual std::string   describe() const {
+        return std::string("zeroOrderAlignAutomaton()");
+    }
+};
+}  // namespace Fsa
 #endif

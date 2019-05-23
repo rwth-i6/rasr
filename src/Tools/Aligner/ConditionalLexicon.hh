@@ -16,96 +16,92 @@
 #define CONDITIONAL_LEXICON_HH
 
 #include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
 #include <Core/CompressedStream.hh>
-#include <Translation/Common.hh>
-#include <vector>
-#include <Translation/PrefixTree.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Fsa/Automaton.hh>
+#include <Translation/Common.hh>
+#include <Translation/PrefixTree.hh>
+#include <vector>
 
 #include <iostream>
 
-
 namespace Translation {
 
-        typedef enum {
-                lexiconTypePlain,
-                lexiconTypeSri
-    } lexiconTypes ;
+typedef enum {
+    lexiconTypePlain,
+    lexiconTypeSri
+} lexiconTypes;
 
+const Core::Choice lexiconTypeChoice(
+        "plain", lexiconTypePlain,
+        "sri", lexiconTypeSri,
+        Core::Choice::endMark());
 
-        const Core::Choice lexiconTypeChoice(
-                "plain", lexiconTypePlain,
-                "sri", lexiconTypeSri,
-                Core::Choice::endMark()
-                );
+class ConditionalLexicon : public Core::Component, public Core::ReferenceCounted {
+public:
+    ConditionalLexicon(const Core::Configuration& config)
+            : Core::Component(config),
+              tokens_(new Fsa::StaticAlphabet()),
+              tokenRef_(tokens_) {}
 
-    class ConditionalLexicon : public Core::Component, public Core::ReferenceCounted {
-    public:
-                  ConditionalLexicon(const Core::Configuration& config) :
-                                Core::Component(config),
-                                tokens_(new Fsa::StaticAlphabet()),
-                                tokenRef_(tokens_)
-                                {}
+    ConditionalLexicon(const Core::Configuration& config, Fsa::ConstAlphabetRef alphabet)
+            : Core::Component(config),
+              tokens_(staticCopy(alphabet).get()),
+              tokenRef_(tokens_)
 
-        ConditionalLexicon(const Core::Configuration& config, Fsa::ConstAlphabetRef alphabet) :
-            Core::Component(config),
-            tokens_(staticCopy(alphabet).get()),
-            tokenRef_(tokens_)
+    {}
 
-            {}
+    //! this is deprecated and should just exist as long as i am migrating to the new lexicon
+    virtual Translation::Cost getProb(const size_t index, const std::vector<std::string>& key) const = 0;
 
-                  //! this is deprecated and should just exist as long as i am migrating to the new lexicon
-                  virtual Translation::Cost getProb(const size_t index, const std::vector<std::string>& key) const =0;
+    virtual Translation::Cost getCost(const size_t index, const std::vector<Fsa::LabelId>& key) const = 0;
 
-                  virtual Translation::Cost getCost(const size_t index, const std::vector<Fsa::LabelId>& key) const =0;
+    virtual Translation::Cost getReverseCost(const size_t index, const std::vector<Fsa::LabelId>& key) const = 0;
 
-                  virtual Translation::Cost getReverseCost(const size_t index, const std::vector<Fsa::LabelId>& key) const =0;
+    //! get probability of a lexicon entry or floor if it does not exist
+    virtual Translation::Cost getProb(const size_t index, const std::vector<Fsa::LabelId>& key) const = 0;
 
-                  //! get probability of a lexicon entry or floor if it does not exist
-                  virtual Translation::Cost getProb(const size_t index, const std::vector<Fsa::LabelId>& key) const =0;
+    //! add value to existing count/prob or create new if it does not exist
+    virtual void addValue(const size_t index, const std::vector<Fsa::LabelId>& key, Translation::Cost value) = 0;
 
-                  //! add value to existing count/prob or create new if it does not exist
-                  virtual void addValue(const size_t index, const std::vector<Fsa::LabelId>& key, Translation::Cost value) =0;
+    //! add value to existing count/prob or create new if it does not exist
+    virtual void addValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value) = 0;
 
-                  //! add value to existing count/prob or create new if it does not exist
-                  virtual void addValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value) =0;
+    //! set value of the given entry (overwrite if it exists, create if it doesnt)
+    virtual void setValue(const size_t index, const std::vector<Fsa::LabelId>& key, Translation::Cost value) = 0;
 
-                  //! set value of the given entry (overwrite if it exists, create if it doesnt)
-                  virtual void setValue(const size_t index, const std::vector<Fsa::LabelId>& key, Translation::Cost value) =0;
+    //! set value of the given entry (overwrite if it exists, create if it doesnt)
+    virtual void setValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value) = 0;
 
-                  //! set value of the given entry (overwrite if it exists, create if it doesnt)
-                  virtual void setValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value) =0;
+    //! write lexicon to stream
+    virtual void write(std::ostream&) = 0;
 
-                  //! write lexicon to stream
-                  virtual void write(std::ostream &) =0;
+    //! normalize
+    virtual void normalize(int order) = 0;
 
-                  //! normalize
-                  virtual void normalize(int order) =0;
+protected:
+    //! tokens (no distinctions between source or target)
+    Fsa::StaticAlphabet*  tokens_;
+    Fsa::ConstAlphabetRef tokenRef_;
 
-    protected:
-                  //! tokens (no distinctions between source or target)
-                  Fsa::StaticAlphabet* tokens_;
-                  Fsa::ConstAlphabetRef tokenRef_;
+    //! parameter giving the filename to read from
+    //static Core::ParameterString paramFilename_;
 
-                  //! parameter giving the filename to read from
-                  //static Core::ParameterString paramFilename_;
+public:
+    //! read a lexicon from a file stream
+    virtual void read(std::istream&) = 0;
 
+    //! read a lexicon from a file stream
+    virtual void read() = 0;
 
-    public:
-                  //! read a lexicon from a file stream
-                  virtual void read(std::istream&) =0;
+    //! return ConstAlphabetRef of the internal token alphabet
+    //! for matching against other alphabets
+    ConstAlphabetRef getTokenAlphabet() const {
+        return Fsa::ConstAlphabetRef(tokens_);
+    }
+};
 
-                  //! read a lexicon from a file stream
-                  virtual void read() =0;
-
-                  //! return ConstAlphabetRef of the internal token alphabet
-                  //! for matching against other alphabets
-                  ConstAlphabetRef getTokenAlphabet() const {return Fsa::ConstAlphabetRef(tokens_);}
-                  //ConstAlphabetRef getTokenAlphabet() const {return tokenRef_;}
-    };
-
-    typedef Core::Ref<ConditionalLexicon> ConditionalLexiconRef;
-    typedef Core::Ref<const ConditionalLexicon> ConstConditionalLexiconRef;
-}
+typedef Core::Ref<ConditionalLexicon>       ConditionalLexiconRef;
+typedef Core::Ref<const ConditionalLexicon> ConstConditionalLexiconRef;
+}  // namespace Translation
 #endif

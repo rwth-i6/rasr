@@ -16,76 +16,66 @@
 #define ALIGN_AUTOMATON
 
 #include <Core/Configuration.hh>
-//#include <Fsa/Alphabet.hh>
-//#include <Fsa/Automaton.hh>
-//#include <Fsa/Basic.hh>
-//#include <Fsa/Static.hh>
-//#include <Fsa/Vector.hh>
-//#include <Fsa/Types.hh>
-
-//#include "TranslationLexicon.hh"
-#include "TransitionProbs.hh"
 #include <Translation/Common.hh>
-//#include "ConditionalLexicon.hh"
+#include "TransitionProbs.hh"
 
 namespace Fsa {
-         typedef enum {
-                  modelSimple,
-                  modelZeroOrder,
-                  modelZeroOrderNoEmpty,
-                  modelConditional
-    } models ;
+typedef enum {
+    modelSimple,
+    modelZeroOrder,
+    modelZeroOrderNoEmpty,
+    modelConditional
+} models;
 
-
-         const Core::Choice modelChoice(
-                  "simple", modelSimple,
-                  "zeroOrder", modelZeroOrder,
-                  "zeroOrderNoEmpty", modelZeroOrderNoEmpty,
-                  "conditional", modelConditional,
-                  Core::Choice::endMark()
-                  );
-}
-//typedef enum {zeroorder=00,
-//	      zeroordernoempty=01,
-//	      zeroordersimple=02,
-//	      conditional=10,
-//	      hvconditional=11,
-//	      firstorder=20,
-//	      firstorderplus=21,
-//	      pooledfirstorder=22,
-//	      plain=4,
-//	      simple=5,
-//	      unknown=666} AlignmentModel;
+const Core::Choice modelChoice(
+        "simple", modelSimple,
+        "zeroOrder", modelZeroOrder,
+        "zeroOrderNoEmpty", modelZeroOrderNoEmpty,
+        "conditional", modelConditional,
+        Core::Choice::endMark());
+}  // namespace Fsa
 
 namespace Fsa {
 
-    class AlignAutomaton : public Automaton {
-    protected:
-                  std::vector<std::string> source_;
-                  std::vector<std::string> target_;
-                  const TransitionProbs transitionProbs_;
-                  ConstAlphabetRef inputAlphabet_;
-                  ConstAlphabetRef outputAlphabet_;
-                  std::vector<LabelId> inputSentence_;
-                  std::vector<LabelId> outputSentence_;
-                  double factorLexicon_;
-                  double factorTransition_;
-                  AlignAutomaton(Core::Configuration &config,
-                                                          const std::string& source,
-                                                          const std::string& target,
-                                                          const TransitionProbs& transitionProbs,
-                                                          const double factorLexicon = 1.0,
-                                const double factorTransition = 1.0);
-    public:
-                  virtual std::string describe() const { return std::string("AlignAutomaton()"); }
-                  virtual ConstAlphabetRef getInputAlphabet() const { return inputAlphabet_; }
-                  virtual ConstAlphabetRef getOutputAlphabet() const { return outputAlphabet_; }
-                  virtual Type type() const { return TypeTransducer; }
-                  virtual StateId initialStateId() const { return StateId(0); }
-                  virtual ConstSemiringRef semiring() const { return TropicalSemiring; }
+class AlignAutomaton : public Automaton {
+protected:
+    std::vector<std::string> source_;
+    std::vector<std::string> target_;
+    const TransitionProbs    transitionProbs_;
+    ConstAlphabetRef         inputAlphabet_;
+    ConstAlphabetRef         outputAlphabet_;
+    std::vector<LabelId>     inputSentence_;
+    std::vector<LabelId>     outputSentence_;
+    double                   factorLexicon_;
+    double                   factorTransition_;
+    AlignAutomaton(Core::Configuration&   config,
+                   const std::string&     source,
+                   const std::string&     target,
+                   const TransitionProbs& transitionProbs,
+                   const double           factorLexicon    = 1.0,
+                   const double           factorTransition = 1.0);
 
-    };
+public:
+    virtual std::string describe() const {
+        return std::string("AlignAutomaton()");
+    }
+    virtual ConstAlphabetRef getInputAlphabet() const {
+        return inputAlphabet_;
+    }
+    virtual ConstAlphabetRef getOutputAlphabet() const {
+        return outputAlphabet_;
+    }
+    virtual Type type() const {
+        return TypeTransducer;
+    }
+    virtual StateId initialStateId() const {
+        return StateId(0);
+    }
+    virtual ConstSemiringRef semiring() const {
+        return TropicalSemiring;
+    }
+};
 
-}
+}  // namespace Fsa
 
 #endif

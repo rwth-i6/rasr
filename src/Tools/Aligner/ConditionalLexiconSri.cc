@@ -17,71 +17,62 @@
 
 namespace Translation {
 
-    Core::ParameterString ConditionalLexiconSri::paramFilename_(
-                  "file", "lexicon file", "");
+Core::ParameterString ConditionalLexiconSri::paramFilename_(
+        "file", "lexicon file", "");
 
-    Core::ParameterInt ConditionalLexiconSri::paramLmOrder_(
-                  "lmOrder", "order of the language model (optional)", 0);
+Core::ParameterInt ConditionalLexiconSri::paramLmOrder_(
+        "lmOrder", "order of the language model (optional)", 0);
 
-    PREPARE_MALLOC_OPTIMIZED_HISTORY
+PREPARE_MALLOC_OPTIMIZED_HISTORY
 
-    void ConditionalLexiconSri::read() {
-                  if (lexiconFilename_ == "")
-                                criticalError() << "No file name fiven.";
-                  sriTupleVocabulary_.unkIsWord() = true;
-                  File fpTupleLM(lexiconFilename_.c_str(), "r");
-                  srilm_.read(fpTupleLM);
+void ConditionalLexiconSri::read() {
+    if (lexiconFilename_ == "")
+        criticalError() << "No file name fiven.";
+    sriTupleVocabulary_.unkIsWord() = true;
+    File fpTupleLM(lexiconFilename_.c_str(), "r");
+    srilm_.read(fpTupleLM);
 
-                  if (userLmOrder_ > 0) {
-                                lmOrder_ = userLmOrder_;
-                                srilm_.setorder(lmOrder_);
-                  } else
-                                lmOrder_ = srilm_.setorder();
-                  //history_ = new VocabIndex[lmOrder_ + 1]; // We will do a trick with position 0 (see expandHypothesis bellow)
-
-                  std::cerr << "finished reading lexicon" << std::endl;
-
-                  unknownIndex_ = sriTupleVocabulary_.unkIndex();
-                  sentenceBeginIndex_ = sriTupleVocabulary_.ssIndex();
-                  sentenceEndIndex_ = sriTupleVocabulary_.seIndex();
-
-                  std::cerr << "unknown word index = " << unknownIndex_ << std::endl;
-                  std::cerr << "sentence beginindex = " << sentenceBeginIndex_ << std::endl;
-                  std::cerr << "sentence end index = " << sentenceEndIndex_ << std::endl;
-                  std::cerr << "srilm_.setorder() = " << srilm_.setorder(lmOrder_) << std::endl;
-
-                  VocabIter vocabIterator(sriTupleVocabulary_);
-
-                  std::cerr << "extraction monolingual tokens from lm vocab" << std::endl;
-
-                  while (VocabString bilingualWord = vocabIterator.next()) {
-                                //std::cerr << "splitting word " << bilingualWord;
-                                // Now we extract the source and target parts
-                                std::vector<std::string> fields = Core::split(bilingualWord, "|");
-                                if (fields.size() == 2) { // If it is not a special word
-                                         //std::cerr  << " into " << fields[0] << " and " << fields[1];
-                                         Fsa::LabelId sourceLabelId;
-                                         Fsa::LabelId targetLabelId;
-                                         if (fields[0]!="$")
-                                             sourceLabelId=tokens_->addSymbol(fields[0]);
-                                         else
-                                                  sourceLabelId=Fsa::Epsilon;
-
-                                         // std::cerr << " mapped source LabelId = " << unsigned(sourceLabelId);
-
-                                         if (fields[1]!="$")
-                                             targetLabelId=tokens_->addSymbol(fields[1]);
-                                         else
-                                                  targetLabelId=Fsa::Epsilon;
-
-                                         //std::cerr << " mapped target LabelId = " << unsigned(targetLabelId)
-                                         //  		  << std::endl;
-
-                                         vocabMap[make_pair(sourceLabelId,targetLabelId)]=sriTupleVocabulary_.getIndex(bilingualWord);
-                                }
-
-                  }
-
+    if (userLmOrder_ > 0) {
+        lmOrder_ = userLmOrder_;
+        srilm_.setorder(lmOrder_);
     }
+    else
+        lmOrder_ = srilm_.setorder();
 
+    std::cerr << "finished reading lexicon" << std::endl;
+
+    unknownIndex_       = sriTupleVocabulary_.unkIndex();
+    sentenceBeginIndex_ = sriTupleVocabulary_.ssIndex();
+    sentenceEndIndex_   = sriTupleVocabulary_.seIndex();
+
+    std::cerr << "unknown word index = " << unknownIndex_ << std::endl;
+    std::cerr << "sentence beginindex = " << sentenceBeginIndex_ << std::endl;
+    std::cerr << "sentence end index = " << sentenceEndIndex_ << std::endl;
+    std::cerr << "srilm_.setorder() = " << srilm_.setorder(lmOrder_) << std::endl;
+
+    VocabIter vocabIterator(sriTupleVocabulary_);
+
+    std::cerr << "extraction monolingual tokens from lm vocab" << std::endl;
+
+    while (VocabString bilingualWord = vocabIterator.next()) {
+        // Now we extract the source and target parts
+        std::vector<std::string> fields = Core::split(bilingualWord, "|");
+        if (fields.size() == 2) {  // If it is not a special word
+            Fsa::LabelId sourceLabelId;
+            Fsa::LabelId targetLabelId;
+            if (fields[0] != "$")
+                sourceLabelId = tokens_->addSymbol(fields[0]);
+            else
+                sourceLabelId = Fsa::Epsilon;
+
+            if (fields[1] != "$")
+                targetLabelId = tokens_->addSymbol(fields[1]);
+            else
+                targetLabelId = Fsa::Epsilon;
+
+            vocabMap[make_pair(sourceLabelId, targetLabelId)] = sriTupleVocabulary_.getIndex(bilingualWord);
+        }
+    }
 }
+
+}  // namespace Translation

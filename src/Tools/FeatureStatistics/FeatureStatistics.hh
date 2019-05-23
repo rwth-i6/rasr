@@ -14,9 +14,7 @@
  */
 #include <Core/Application.hh>
 
-class FeatureStatistics :
-    public Core::Application
-{
+class FeatureStatistics : public Core::Application {
 public:
     enum Action {
         actionDry,
@@ -30,8 +28,9 @@ public:
         actionNotGiven
     };
 
-    static const Core::Choice choiceAction;
+    static const Core::Choice          choiceAction;
     static const Core::ParameterChoice paramAction;
+
 private:
     void dryRun();
     void applyScatterMatrixThreshold();
@@ -42,11 +41,14 @@ private:
     void estimateCovarianceAndPca();
     void calculateCovarianceDiagonalNormalization();
 
-    void visitCorpus(Speech::CorpusProcessor &corpusProcessor);
+    void visitCorpus(Speech::CorpusProcessor& corpusProcessor);
+
 public:
     FeatureStatistics();
     ~FeatureStatistics() {}
 
-    virtual std::string getUsage() const { return "Creates statistics over the extracted features"; }
-    virtual int main(const std::vector<std::string> &arguments);
+    virtual std::string getUsage() const {
+        return "Creates statistics over the extracted features";
+    }
+    virtual int main(const std::vector<std::string>& arguments);
 };

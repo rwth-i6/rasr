@@ -13,21 +13,26 @@
  *  limitations under the License.
  */
 #include <Am/ClassicAcousticModel.hh>
-#include <Am/ClassicStateModel.hh>
 #include <Am/ClassicDecisionTree.hh>
+#include <Am/ClassicStateModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Application.hh>
 #include <Core/Component.hh>
-
 
 class AllophoneTool : public Core::Application {
 protected:
     // dynamic loading of state tying
     Am::ClassicStateTyingRef getStateTying(Core::Ref<Am::ClassicAcousticModel> am);
+
 public:
-    AllophoneTool() : Core::Application() { setTitle("allophone-tool"); }
-    virtual std::string getUsage() const { return "Information about allophones and allophone to mixture mapping."; }
-    int main(const std::vector<std::string> &arguments);
+    AllophoneTool()
+            : Core::Application() {
+        setTitle("allophone-tool");
+    }
+    virtual std::string getUsage() const {
+        return "Information about allophones and allophone to mixture mapping.";
+    }
+    int main(const std::vector<std::string>& arguments);
 };
 
 Am::ClassicStateTyingRef AllophoneTool::getStateTying(Core::Ref<Am::ClassicAcousticModel> am) {
@@ -39,9 +44,9 @@ Am::ClassicStateTyingRef AllophoneTool::getStateTying(Core::Ref<Am::ClassicAcous
     return stateTying;
 }
 
-int AllophoneTool::main(const std::vector<std::string> &arguments) {
-    Bliss::LexiconRef lexicon = Bliss::Lexicon::create(select("lexicon"));
-    Core::Ref<Am::ClassicAcousticModel> am = Core::ref(new Am::ClassicAcousticModel(select("acoustic-model"), lexicon));
+int AllophoneTool::main(const std::vector<std::string>& arguments) {
+    Bliss::LexiconRef                   lexicon = Bliss::Lexicon::create(select("lexicon"));
+    Core::Ref<Am::ClassicAcousticModel> am      = Core::ref(new Am::ClassicAcousticModel(select("acoustic-model"), lexicon));
     {
         Core::Channel dump(config, "dump-allophone-properties");
         if (dump.isOpen()) {
@@ -74,11 +79,10 @@ int AllophoneTool::main(const std::vector<std::string> &arguments) {
     {
         Core::Channel dump(config, "dump-classify");
         if (dump.isOpen()) {
-
             warning("Deprecated: use *.dump-state-tying.channel=...");
 
             Am::ClassicStateTyingRef stateTying = getStateTying(am);
-            Core::XmlWriter os(dump);
+            Core::XmlWriter          os(dump);
             os.generateFormattingHints();
             os << Core::XmlOpen("allophone-state-mapping");
             Am::ConstAllophoneStateAlphabetRef alloStateAlphabet = am->allophoneStateAlphabet();

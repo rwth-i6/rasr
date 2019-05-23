@@ -23,7 +23,7 @@ using LanguageModelRef = Core::Ref<const Lm::LanguageModel>;
 
 struct LMRequest {
     std::string                  word;
-    Bliss::Lemma          const* lemma;
+    Bliss::Lemma const*          lemma;
     Bliss::SyntacticToken const* token;
     Lm::History                  history;
     Lm::Score                    score;
@@ -34,9 +34,9 @@ void computeAllScores(std::vector<LMRequest>& requests, LanguageModelRef lm, boo
         Lm::Score normalization = 0.0f;
         if (renormalize) {
             normalization = std::numeric_limits<Lm::Score>::infinity();
-            auto iters = lm->lexicon()->syntacticTokens();
+            auto iters    = lm->lexicon()->syntacticTokens();
             for (auto tok = iters.first; tok != iters.second; ++tok) {
-                Lm::Score s = lm->score(r.history, *tok);
+                Lm::Score s   = lm->score(r.history, *tok);
                 normalization = Math::scoreSum(normalization, s);
             }
         }
@@ -49,8 +49,8 @@ void computeAllScores(std::vector<LMRequest>& requests, LanguageModelRef lm, boo
 class LmUtilityTool : public Core::Application {
 public:
     enum Action {
-      actionNotGiven,
-      actionComputePerplexityFromTextFile
+        actionNotGiven,
+        actionComputePerplexityFromTextFile
     };
 
     static const Core::Choice          choiceAction;
@@ -65,6 +65,7 @@ public:
     virtual ~LmUtilityTool() = default;
 
     int main(std::vector<std::string> const& arguments);
+
 private:
     void computePerplexityFromTextFile();
 };
@@ -73,15 +74,16 @@ APPLICATION(LmUtilityTool)
 
 // ---------- Implementations ----------
 
-const Core::Choice          LmUtilityTool::choiceAction    ("compute-perplexity-from-text-file", actionComputePerplexityFromTextFile, Core::Choice::endMark());
-const Core::ParameterChoice LmUtilityTool::paramAction     ("action", &choiceAction, "action to perform", actionNotGiven);
-const Core::ParameterString LmUtilityTool::paramFile       ("file", "input file");
-const Core::ParameterString LmUtilityTool::paramEncoding   ("encoding", "the encoding of the input file", "utf8");
-const Core::ParameterString LmUtilityTool::paramScoreFile  ("score-file", "output path for word scores", "");
-const Core::ParameterInt    LmUtilityTool::paramBatchSize  ("batch-size", "number of sequences to process in one batch", 100);
+const Core::Choice          LmUtilityTool::choiceAction("compute-perplexity-from-text-file", actionComputePerplexityFromTextFile, Core::Choice::endMark());
+const Core::ParameterChoice LmUtilityTool::paramAction("action", &choiceAction, "action to perform", actionNotGiven);
+const Core::ParameterString LmUtilityTool::paramFile("file", "input file");
+const Core::ParameterString LmUtilityTool::paramEncoding("encoding", "the encoding of the input file", "utf8");
+const Core::ParameterString LmUtilityTool::paramScoreFile("score-file", "output path for word scores", "");
+const Core::ParameterInt    LmUtilityTool::paramBatchSize("batch-size", "number of sequences to process in one batch", 100);
 const Core::ParameterBool   LmUtilityTool::paramRenormalize("renormalize", "wether to renormalize the word probabiliies", false);
 
-LmUtilityTool::LmUtilityTool() : Core::Application() {
+LmUtilityTool::LmUtilityTool()
+        : Core::Application() {
     INIT_MODULE(Lm);
     INIT_MODULE(Mm);
     INIT_MODULE(Mc);
@@ -101,16 +103,16 @@ LmUtilityTool::LmUtilityTool() : Core::Application() {
 
 int LmUtilityTool::main(std::vector<std::string> const& arguments) {
     switch (paramAction(config)) {
-      case actionComputePerplexityFromTextFile: computePerplexityFromTextFile(); break;
-      default:
-      case actionNotGiven: error("no action given"); 
+        case actionComputePerplexityFromTextFile: computePerplexityFromTextFile(); break;
+        default:
+        case actionNotGiven: error("no action given");
     }
     return EXIT_SUCCESS;
 }
 
 void LmUtilityTool::computePerplexityFromTextFile() {
     bool                   renormalize = paramRenormalize(config);
-    size_t                 batch_size = paramBatchSize(config);
+    size_t                 batch_size  = paramBatchSize(config);
     Bliss::LexiconRef      lexicon(Bliss::Lexicon::create(select("lexicon")));
     LanguageModelRef       lm(Lm::Module::instance().createLanguageModel(select("lm"), lexicon));
     Core::TextInputStream  tis(new Core::CompressedInputStream(paramFile(config)));
@@ -123,15 +125,15 @@ void LmUtilityTool::computePerplexityFromTextFile() {
     }
 
     std::vector<LMRequest> requests;
-    size_t    num_tokens = 0;
-    Lm::Score corpus_score = 0.0;
+    size_t                 num_tokens   = 0;
+    Lm::Score              corpus_score = 0.0;
 
     do {
         std::string line;
         std::getline(tis, line);
         if (tis.good()) {
             std::stringstream ss(line);
-            Lm::History h = lm->startHistory();
+            Lm::History       h = lm->startHistory();
             while (ss.good()) {
                 std::string word;
                 ss >> word;
@@ -141,14 +143,14 @@ void LmUtilityTool::computePerplexityFromTextFile() {
                 }
                 auto const tokens = lemma->syntacticTokenSequence();
                 for (auto const& t : tokens) {
-                    requests.emplace_back(LMRequest({ word, lemma, t, h, 0.0f }));
+                    requests.emplace_back(LMRequest({word, lemma, t, h, 0.0f}));
                     h = lm->extendedHistory(h, t);
                 }
             }
-            Bliss::Lemma const* lemma = lexicon->specialLemma("sentence-end");
-            auto const tokens = lemma->syntacticTokenSequence();
+            Bliss::Lemma const* lemma  = lexicon->specialLemma("sentence-end");
+            auto const          tokens = lemma->syntacticTokenSequence();
             for (auto const& t : tokens) {
-                requests.emplace_back(LMRequest({ "\\n", lemma, t, h, 0.0f }));
+                requests.emplace_back(LMRequest({"\\n", lemma, t, h, 0.0f}));
                 h = lm->extendedHistory(h, t);
             }
         }
@@ -157,7 +159,7 @@ void LmUtilityTool::computePerplexityFromTextFile() {
             computeAllScores(requests, lm, renormalize);
             for (auto const& r : requests) {
                 corpus_score += r.score;
-                num_tokens   += 1ul;
+                num_tokens += 1ul;
                 if (out.good()) {
                     out << r.word << " " << r.lemma->preferredOrthographicForm().str() << " " << r.score << std::endl;
                 }
@@ -169,6 +171,6 @@ void LmUtilityTool::computePerplexityFromTextFile() {
     Lm::Score ppl = std::exp(corpus_score / num_tokens);
 
     log() << Core::XmlOpen("corpus-score") << corpus_score << Core::XmlClose("corpus-score")
-          << Core::XmlOpen("num-tokens")   << num_tokens   << Core::XmlClose("num-tokens")
-          << Core::XmlOpen("perplexity")   << ppl          << Core::XmlClose("perplexity");
+          << Core::XmlOpen("num-tokens") << num_tokens << Core::XmlClose("num-tokens")
+          << Core::XmlOpen("perplexity") << ppl << Core::XmlClose("perplexity");
 }

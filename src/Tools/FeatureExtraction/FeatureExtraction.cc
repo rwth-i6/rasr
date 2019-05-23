@@ -12,17 +12,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Modules.hh>
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
 #include <Core/Application.hh>
 #include <Flow/Module.hh>
+#include <Flow/Registry.hh>
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
+#include <Modules.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
-#include <Flow/Registry.hh>
 #include <cstdlib>
 #include <unistd.h>
 #ifdef MODULE_NN
@@ -32,29 +32,26 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-
-class ExtractionApplication :
-    public Core::Application
-{
+class ExtractionApplication : public Core::Application {
 private:
-    enum Format {noFormat, sietillFormat, mm2Format};
-    static const Core::Choice choiceFormat;
+    enum Format { noFormat,
+                  sietillFormat,
+                  mm2Format };
+    static const Core::Choice          choiceFormat;
     static const Core::ParameterChoice paramFormat;
-    static const Core::ParameterBool  paramVerbose;
+    static const Core::ParameterBool   paramVerbose;
+
 private:
-
     Speech::CorpusProcessor* createCorpusProcessor() {
-
         switch (paramFormat(config)) {
-        default:
-            log("not storing features");
-            return new Speech::DataExtractor(config);
-            break;
+            default:
+                log("not storing features");
+                return new Speech::DataExtractor(config);
+                break;
         }
     }
 
 public:
-
     ExtractionApplication() {
         INIT_MODULE(Am);
         INIT_MODULE(Audio);
@@ -73,7 +70,7 @@ public:
         setTitle("extraction");
     }
 
-    int main(const std::vector<std::string> &arguments) {
+    int main(const std::vector<std::string>& arguments) {
         // dump useful debugging information
         if (paramVerbose(getConfiguration())) {
             std::cout << "--- filter(s) ---" << std::endl;
@@ -82,7 +79,8 @@ public:
             std::cout << "--- datatype(s) ---" << std::endl;
             Flow::Registry::instance().dumpDatatypes(std::cout);
             std::cout << std::endl;
-        } else {
+        }
+        else {
             Speech::CorpusProcessor* corpusProcessor = createCorpusProcessor();
 
             Speech::CorpusVisitor corpusVisitor(config);
@@ -94,19 +92,18 @@ public:
         }
         return EXIT_SUCCESS;
     }
-
 };
 
 APPLICATION(ExtractionApplication)
 
 const Core::Choice ExtractionApplication::choiceFormat(
-    "none",    noFormat,
-    "sietill", sietillFormat,
-    "mm2", mm2Format,
-    Core::Choice::endMark());
+        "none", noFormat,
+        "sietill", sietillFormat,
+        "mm2", mm2Format,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice ExtractionApplication::paramFormat(
-    "feature-format", &choiceFormat, "file format for generated features", noFormat);
+        "feature-format", &choiceFormat, "file format for generated features", noFormat);
 
-const Core::ParameterBool   ExtractionApplication::paramVerbose(
-    "verbose", "verbose mode", false);
+const Core::ParameterBool ExtractionApplication::paramVerbose(
+        "verbose", "verbose mode", false);

@@ -17,56 +17,56 @@
 
 namespace Translation {
 
-    Core::ParameterString ConditionalLexiconPlain::paramFilename_(
+Core::ParameterString ConditionalLexiconPlain::paramFilename_(
         "file", "lexicon file", "");
-    Core::ParameterFloat ConditionalLexiconPlain::paramFloor_(
+Core::ParameterFloat ConditionalLexiconPlain::paramFloor_(
         "floor", "lexicon floor value", 99);
 
-   void ConditionalLexiconPlain::read() {
-      Core::CompressedInputStream is(lexiconFilename_);
-      std::cerr << "lexicon.file = " << lexiconFilename_ << std::endl;
-      if (is) this->read(is);
-   }
-
-   void ConditionalLexiconPlain::read(std::istream& is) {
-      std::string line;
-      unsigned nEntries=0;
-
-      while (std::getline(is,line)) {
-         //std::cerr << line << std::endl;
-         std::vector<std::string> splitLine=Core::split(line," ");
-         size_t lexiconIndex;
-         Core::strconv(splitLine[0],lexiconIndex);
-
-         if (lexica_.size()<lexiconIndex+1) {
-            std::cerr << "resizing lexicon to " << lexiconIndex+1 << std::endl;
-
-                        //initialize new lexica
-                        size_t oldSize=lexica_.size();
-            lexica_.resize(lexiconIndex+1);
-                        for (size_t i=oldSize; i<=lexiconIndex; ++i) {
-                                lexica_[i]=LexiconRef(new Lexicon);
-                        }
-            std::cerr << "lexica_.size()=" << lexica_.size() << std::endl;
-         }
-
-         Cost value;
-         Core::strconv(splitLine[1],value);
-
-         std::vector<Fsa::LabelId> key;
-         for (size_t i = 2; i < splitLine.size(); ++i) {
-            Fsa::LabelId symbol;
-            if (splitLine[i]!="NULL")
-                                        symbol=tokens_->addSymbol(splitLine[i]);
-            else
-                                        symbol=Fsa::Epsilon;
-            key.push_back(symbol);
-         }
-
-         lexica_[lexiconIndex]->store(key,value);
-         ++nEntries;
-      }
-      std::cerr << "read " << nEntries << " entries" << std::endl;
-   }
-
+void ConditionalLexiconPlain::read() {
+    Core::CompressedInputStream is(lexiconFilename_);
+    std::cerr << "lexicon.file = " << lexiconFilename_ << std::endl;
+    if (is)
+        this->read(is);
 }
+
+void ConditionalLexiconPlain::read(std::istream& is) {
+    std::string line;
+    unsigned    nEntries = 0;
+
+    while (std::getline(is, line)) {
+        std::vector<std::string> splitLine = Core::split(line, " ");
+        size_t                   lexiconIndex;
+        Core::strconv(splitLine[0], lexiconIndex);
+
+        if (lexica_.size() < lexiconIndex + 1) {
+            std::cerr << "resizing lexicon to " << lexiconIndex + 1 << std::endl;
+
+            //initialize new lexica
+            size_t oldSize = lexica_.size();
+            lexica_.resize(lexiconIndex + 1);
+            for (size_t i = oldSize; i <= lexiconIndex; ++i) {
+                lexica_[i] = LexiconRef(new Lexicon);
+            }
+            std::cerr << "lexica_.size()=" << lexica_.size() << std::endl;
+        }
+
+        Cost value;
+        Core::strconv(splitLine[1], value);
+
+        std::vector<Fsa::LabelId> key;
+        for (size_t i = 2; i < splitLine.size(); ++i) {
+            Fsa::LabelId symbol;
+            if (splitLine[i] != "NULL")
+                symbol = tokens_->addSymbol(splitLine[i]);
+            else
+                symbol = Fsa::Epsilon;
+            key.push_back(symbol);
+        }
+
+        lexica_[lexiconIndex]->store(key, value);
+        ++nEntries;
+    }
+    std::cerr << "read " << nEntries << " entries" << std::endl;
+}
+
+}  // namespace Translation

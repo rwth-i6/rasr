@@ -19,7 +19,7 @@
 #include "ConditionalAlignAutomaton.hh"
 
 namespace Fsa {
-    typedef ConditionalAlignAutomaton HVConditionalAlignAutomaton;
+typedef ConditionalAlignAutomaton HVConditionalAlignAutomaton;
 }
 
 #endif

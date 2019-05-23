@@ -49,8 +49,7 @@
  * Aligner: configured in the selection "aligner" @see Speech::Application
  * Trainers: E.g.: accumulater, scorer etc are configured in the selection "trainer"
  */
-class AcousticModelTrainer : public Core::Application
-{
+class AcousticModelTrainer : public Core::Application {
 public:
     enum Action {
         actionNotGiven,
@@ -90,15 +89,16 @@ public:
         actionCalculateAverageFeatureScorerActivation
     };
 
-    static const Core::Choice choiceAction;
+    static const Core::Choice          choiceAction;
     static const Core::ParameterChoice paramAction;
 
-    static const Core::ParameterBool paramMixtureSetFilenamesToCombineUseComma;
+    static const Core::ParameterBool         paramMixtureSetFilenamesToCombineUseComma;
     static const Core::ParameterStringVector paramMixtureSetFilenamesToCombine;
     static const Core::ParameterStringVector paramMixtureSetFilenamesToCombineComma;
-    static const Core::ParameterString paramMappingFilenameToMap;
-    static const Core::ParameterBool paramForceExampleRegeneration;
- private:
+    static const Core::ParameterString       paramMappingFilenameToMap;
+    static const Core::ParameterBool         paramForceExampleRegeneration;
+
+private:
     void visitCorpus(Speech::CorpusProcessor&);
     /** Passes ones over the whole corpus contolling the CorpusProcessor object.
      *  Note: CorpusProcessor object is destroyed in the end.
@@ -140,7 +140,7 @@ public:
     void combineScatterMatrixAccumulators();
     void estimateScatterMatricesFromScatterMatrixAccumulator();
     void estimateLdaFromScatterMatrixAccumulator();
-    void estimateLda(Signal::ScatterMatricesEstimator &estimator);
+    void estimateLda(Signal::ScatterMatricesEstimator& estimator);
     void estimateLda();
 
     void estimateAffineFeatureTransform();
@@ -161,9 +161,11 @@ public:
 
 public:
     AcousticModelTrainer();
-    virtual std::string getUsage() const { return "corpus driven acoustic model trainer"; }
+    virtual std::string getUsage() const {
+        return "corpus driven acoustic model trainer";
+    }
 
-    virtual int main(const std::vector<std::string> &arguments);
+    virtual int main(const std::vector<std::string>& arguments);
 };
 
-#endif //_TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH
+#endif  //_TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH

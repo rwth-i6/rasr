@@ -20,24 +20,25 @@
 
 #include <Fsa/Automaton.hh>
 
-std::string numberTokens(const std::string &sentence);
-std::vector<std::string> numberTokensVector(const std::vector<std::string> &sentence);
-std::vector<std::string> numberTokensVector(const std::string &sentence);
+std::string              numberTokens(const std::string& sentence);
+std::vector<std::string> numberTokensVector(const std::vector<std::string>& sentence);
+std::vector<std::string> numberTokensVector(const std::string& sentence);
 
 namespace Fsa {
-    class ChangePropertiesAutomaton : public SlaveAutomaton {
-    public:
-        ChangePropertiesAutomaton(ConstAutomatonRef f, Property properties) :
-            SlaveAutomaton(f)
-            {
-                setProperties(properties);
-            }
-        virtual std::string describe() const { return fsa_->describe();}
-    };
+class ChangePropertiesAutomaton : public SlaveAutomaton {
+public:
+    ChangePropertiesAutomaton(ConstAutomatonRef f, Property properties)
+            : SlaveAutomaton(f) {
+        setProperties(properties);
+    }
+    virtual std::string describe() const {
+        return fsa_->describe();
+    }
+};
 
-         void writeBiLang(ConstAutomatonRef f, std::ostream &o);
-         void writeAachen(ConstAutomatonRef f, std::ostream &o, size_t sentenceNumber, bool oneToOne=false, double threshold=0);
+void writeBiLang(ConstAutomatonRef f, std::ostream& o);
+void writeAachen(ConstAutomatonRef f, std::ostream& o, size_t sentenceNumber, bool oneToOne = false, double threshold = 0);
 
-}
+}  // namespace Fsa
 
 #endif

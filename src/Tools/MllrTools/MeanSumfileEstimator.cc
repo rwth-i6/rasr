@@ -19,82 +19,69 @@
 #include <Core/Types.hh>
 #include <Core/Version.hh>
 #include <Legacy/DecisionTree.hh>
-#include <Legacy/MixtureSet.hh>
 #include <Legacy/MeanSumfileEstimator.hh>
+#include <Legacy/MixtureSet.hh>
 #include <Mm/MixtureSet.hh>
 
-
-
-class MeanSumfileCreator:
-    public virtual Core::Application
-{
-
+class MeanSumfileCreator : public virtual Core::Application {
     static const Core::ParameterString paramMixtureSetFilename;
     static const Core::ParameterString paramSumfileFilename;
+
 public:
     virtual string getUsage() const {
         return "build sumfile for MLLR regression class tree estimation";
     }
 
-    MeanSumfileCreator(): Core::Application() {
+    MeanSumfileCreator()
+            : Core::Application() {
         setTitle("mean-sumfile-creator");
     }
 
-    int main(const vector<string> &arguments);
+    int main(const vector<string>& arguments);
 };
 
 APPLICATION(MeanSumfileCreator)
 
-
 const Core::ParameterString MeanSumfileCreator::paramMixtureSetFilename(
-    "mixture-set-file",
-    "name of (legacy) reference file to load");
+        "mixture-set-file",
+        "name of (legacy) reference file to load");
 
 const Core::ParameterString MeanSumfileCreator::paramSumfileFilename(
-    "sumfile",
-    "name of sumfile for MLLR regression class tree estimation");
+        "sumfile",
+        "name of sumfile for MLLR regression class tree estimation");
 
-
-int MeanSumfileCreator::main(const vector<string> &arguments){
-
+int MeanSumfileCreator::main(const vector<string>& arguments) {
     select("lexicon");
 
     Bliss::LexiconRef lexicon = Bliss::Lexicon::create(select("lexicon"));
     if (!lexicon)
         criticalError("failed to initialize lexicon");
 
-    const Legacy::PhoneticDecisionTree *dectree = new Legacy::PhoneticDecisionTree(
-        select("decision-tree"),
-        lexicon->phonemeInventory());
+    const Legacy::PhoneticDecisionTree* dectree = new Legacy::PhoneticDecisionTree(select("decision-tree"),
+                                                                                   lexicon->phonemeInventory());
     dectree->respondToDelayedErrors();
 
-    Core::Ref<Legacy::MixtureSet> mixtureSet =
-        Legacy::createMixtureSet(paramMixtureSetFilename(config));
-    if (!mixtureSet) criticalError("failed to load mixture set");
+    Core::Ref<Legacy::MixtureSet> mixtureSet = Legacy::createMixtureSet(paramMixtureSetFilename(config));
+    if (!mixtureSet)
+        criticalError("failed to load mixture set");
 
-
-
-
-    std::vector<std::set<u32> > phonemeToMixtureIndizes = dectree->PhonemeToMixtureIndizes();
-    std::vector<Bliss::Phoneme::Id> mixtureToPhoneme(mixtureSet->nMixtures(),-1);
-    for(Bliss::Phoneme::Id p=1; p<phonemeToMixtureIndizes.size(); ++p){
-        for(std::set<u32>::const_iterator m=phonemeToMixtureIndizes[p].begin();
-            m!=phonemeToMixtureIndizes[p].end(); ++m){
-            mixtureToPhoneme[*m]=p;
+    std::vector<std::set<u32>>      phonemeToMixtureIndizes = dectree->PhonemeToMixtureIndizes();
+    std::vector<Bliss::Phoneme::Id> mixtureToPhoneme(mixtureSet->nMixtures(), -1);
+    for (Bliss::Phoneme::Id p = 1; p < phonemeToMixtureIndizes.size(); ++p) {
+        for (std::set<u32>::const_iterator m = phonemeToMixtureIndizes[p].begin(); m != phonemeToMixtureIndizes[p].end(); ++m) {
+            mixtureToPhoneme[*m] = p;
         }
     }
 
-    for(std::vector<Bliss::Phoneme::Id>::const_iterator m=mixtureToPhoneme.begin();
-        m!=mixtureToPhoneme.end(); ++m)
-        if (*m==-1) error("no entry in mixtureToPhoneme for mixture ") << *m;
+    for (std::vector<Bliss::Phoneme::Id>::const_iterator m = mixtureToPhoneme.begin();
+         m != mixtureToPhoneme.end(); ++m)
+        if (*m == -1)
+            error("no entry in mixtureToPhoneme for mixture ") << *m;
 
-
-    Legacy::MeanSumfileEstimator
-        meanSumfileEstimator(mixtureSet,mixtureToPhoneme,lexicon->phonemeInventory()) ;
+    Legacy::MeanSumfileEstimator meanSumfileEstimator(mixtureSet, mixtureToPhoneme, lexicon->phonemeInventory());
 
     std::string test(paramSumfileFilename(config));
     meanSumfileEstimator.write(test);
-
 
     delete dectree;
     return 0;

@@ -20,8 +20,7 @@ using namespace Flow;
 // FeatureExtractor
 ///////////////////
 
-void FeatureExtractor::processSegment(Bliss::Segment *segment)
-{
+void FeatureExtractor::processSegment(Bliss::Segment* segment) {
     std::string frameShift = dataSource()->getAttribute(dataSource()->mainPortId(), "frame-shift");
 
     if (!frameShift.empty()) {

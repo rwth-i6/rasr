@@ -12,35 +12,36 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Application.hh>
-#include <Core/Parameter.hh>
-#include <Core/XmlStream.hh>
-#include <Cart/Example.hh>
 #include <Cart/Cluster.hh>
 #include <Cart/DecisionTree.hh>
 #include <Cart/DecisionTreeTrainer.hh>
+#include <Cart/Example.hh>
+#include <Core/Application.hh>
+#include <Core/Parameter.hh>
+#include <Core/XmlStream.hh>
 
-class CartTrainer :
-    public Core::Application {
-
+class CartTrainer : public Core::Application {
 public:
-    CartTrainer() { setTitle("cart-trainer"); }
+    CartTrainer() {
+        setTitle("cart-trainer");
+    }
 
-    std::string getUsage() const { return "Generic CART trainer"; }
+    std::string getUsage() const {
+        return "Generic CART trainer";
+    }
 
-    virtual int main(const std::vector<std::string> &arguments);
+    virtual int main(const std::vector<std::string>& arguments);
 };
 
 APPLICATION(CartTrainer)
-
 
 // ============================================================================
 using namespace Cart;
 
 static const Core::ParameterBool paramDry(
-    "dry",
-    "load training file and examples, but don't learn the tree",
-    false);
+        "dry",
+        "load training file and examples, but don't learn the tree",
+        false);
 
 /*
   The default score function calculates the entropy
@@ -51,11 +52,11 @@ static const Core::ParameterBool paramDry(
   collection of properties and a matrix).
 */
 static const Core::ParameterString paramScorer(
-    "score-function",
-    "function to minimize",
-    "ID3");
+        "score-function",
+        "function to minimize",
+        "ID3");
 
-int CartTrainer::main(const std::vector<std::string> &arguments) {
+int CartTrainer::main(const std::vector<std::string>& arguments) {
     bool train = !paramDry(config);
 
     if (paramScorer(config) != paramScorer.defaultValue()) {
@@ -77,7 +78,8 @@ int CartTrainer::main(const std::vector<std::string> &arguments) {
         Core::XmlChannel trainerXmlChannel(select("training"), "xml", Core::Channel::disabled);
         if (trainerXmlChannel.isOpen())
             trainer.writeXml(trainerXmlChannel);
-    } else {
+    }
+    else {
         train = false;
         warning("unable to parse training plan file \"%s\"; cannot proceed training",
                 trainingFilename.c_str());
@@ -94,7 +96,8 @@ int CartTrainer::main(const std::vector<std::string> &arguments) {
         Core::XmlChannel exampleXmlChannel(select("example"), "xml", Core::Channel::disabled);
         if (exampleXmlChannel.isOpen())
             examples.writeXml(exampleXmlChannel);
-    } else {
+    }
+    else {
         train = false;
         warning("unable to parse example list file \"%s\"; cannot proceed training",
                 exampleFilename.c_str());
@@ -102,7 +105,7 @@ int CartTrainer::main(const std::vector<std::string> &arguments) {
 
     if (train) {
         DecisionTree tree(config);
-        ClusterList * clusters;
+        ClusterList* clusters;
         log("train decision tree");
         if (!(clusters = trainer.train(&tree, examples))) {
             error("error while training decision tree");

@@ -18,6 +18,8 @@
 #include <fst/encode.h>
 #include "Types.hh"
 
+#include "Types.hh"
+
 namespace OpenFst {
 
 /**

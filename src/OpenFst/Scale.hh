@@ -20,6 +20,9 @@
 #include <fst/mutable-fst.h>
 #include "Types.hh"
 
+#include <Core/Types.hh>
+#include "Types.hh"
+
 namespace OpenFst {
 
 /**

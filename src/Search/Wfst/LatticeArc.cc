@@ -12,11 +12,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include <Search/Wfst/Lattice.hh>
 #include <fst/register.h>
 #include <fst/script/fstscript.h>
 #include <fst/script/register.h>
-#include <Search/Wfst/Lattice.hh>
-
 
 using namespace fst;
 using namespace fst::script;

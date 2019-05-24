@@ -12,94 +12,97 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Aligner.hh"
+#include <Am/ClassicAcousticModel.hh>
 #include <Fsa/Arithmetic.hh>
-#include <Fsa/Best.hh>
 #include <Fsa/Basic.hh>
+#include <Fsa/Best.hh>
 #include <Fsa/Compose.hh>
 #include <Fsa/Output.hh>
 #include <Fsa/Prune.hh>
 #include <Fsa/Rational.hh>
 #include <Fsa/RemoveEpsilons.hh>
-#include <Lattice/Utilities.hh>
 #include <Lattice/Basic.hh>
-#include <queue>
-#include <Am/ClassicAcousticModel.hh>
-#include <Speech/AllophoneStateGraphBuilder.hh>
+#include <Lattice/Utilities.hh>
 #include <Search/Types.hh>
+#include <Speech/AllophoneStateGraphBuilder.hh>
 #include <algorithm>
-#include "Aligner.hh"
+#include <queue>
 
 using namespace Search;
 using Speech::Alignment;
 using Speech::AlignmentItem;
 
 static const Core::ParameterBool paramLogVariability(
-    "log-variability",
-    "",
-    false);
+        "log-variability",
+        "",
+        false);
 
 class Aligner::SearchSpace : public Core::Component {
 private:
     typedef Fsa::StaticAutomaton Model;
-    Core::Ref<const Model> model_;
-    bool viterbi_;
-    bool logVariability_;
+    Core::Ref<const Model>       model_;
+    bool                         viterbi_;
+    bool                         logVariability_;
+
 public:
     typedef Fsa::StateId StateId;
-    typedef s32 StateHypothesisIndex;
+    typedef s32          StateHypothesisIndex;
 
 private:
     typedef StateHypothesisIndex Trace;
-    static const Trace invalidTrace = -1;
+    static const Trace           invalidTrace = -1;
     struct StateHypothesis {
-        StateId state;
-        Score score;
-        Trace trace;
+        StateId                 state;
+        Score                   score;
+        Trace                   trace;
         Am::AllophoneStateIndex emission;
-        s32 nRefs; /**< number of references by traceback arcs in the following timeframe */
-        StateHypothesis(StateId si, Score sc, Trace tr, Am::AllophoneStateIndex em) :
-            state(si), score(sc), trace(tr), emission(em), nRefs(0) {}
+        s32                     nRefs; /**< number of references by traceback arcs in the following timeframe */
+        StateHypothesis(StateId si, Score sc, Trace tr, Am::AllophoneStateIndex em)
+                : state(si), score(sc), trace(tr), emission(em), nRefs(0) {}
     };
 
-    TimeframeIndex time_;
+    TimeframeIndex                       time_;
     typedef std::vector<StateHypothesis> StateHypothesisList;
-    mutable StateHypothesisList stateHypotheses_;
-    mutable StateHypothesisIndex firstHypCurrentFrame_;
-    std::vector<StateHypothesisIndex> stateHypothesisForState_;
-    mutable Fsa::StaticAutomaton *traceback_;
-    Core::Ref<Fsa::StaticAutomaton> tracebackRef_;
+    mutable StateHypothesisList          stateHypotheses_;
+    mutable StateHypothesisIndex         firstHypCurrentFrame_;
+    std::vector<StateHypothesisIndex>    stateHypothesisForState_;
+    mutable Fsa::StaticAutomaton*        traceback_;
+    Core::Ref<Fsa::StaticAutomaton>      tracebackRef_;
 
-    void activateOrUpdateStateHypothesisViterbi(StateId, Score, Trace, Am::AllophoneStateIndex);
-    void activateOrUpdateStateHypothesisBaumWelch(StateId, Score, Trace, Am::AllophoneStateIndex, Fsa::Weight);
-    void deleteStateHypothesisViterbi(StateHypothesisIndex shi);
-    void deleteStateHypothesisBaumWelch(StateHypothesisIndex shi);
+    void                   activateOrUpdateStateHypothesisViterbi(StateId, Score, Trace, Am::AllophoneStateIndex);
+    void                   activateOrUpdateStateHypothesisBaumWelch(StateId, Score, Trace, Am::AllophoneStateIndex, Fsa::Weight);
+    void                   deleteStateHypothesisViterbi(StateHypothesisIndex shi);
+    void                   deleteStateHypothesisBaumWelch(StateHypothesisIndex shi);
     Fsa::ConstAutomatonRef getAlignmentFsaViterbi() const;
     Fsa::ConstAutomatonRef getAlignmentFsaBaumWelch() const;
 
 public:
     SearchSpace(const Core::Configuration&);
-    void setViterbi(bool viterbi);
-    void setModel(Fsa::ConstAutomatonRef);
-    void clear();
-    void addStartupHypothesis();
-    TimeframeIndex time() const { return time_; }
-    u32 nStateHypothesesCurFrame() const { return stateHypotheses_.size() - firstHypCurrentFrame_; }
-    void expand(Core::Ref<const Am::AcousticModel> acousticModel,
-                Mm::FeatureScorer::Scorer &emissionScores);
+    void           setViterbi(bool viterbi);
+    void           setModel(Fsa::ConstAutomatonRef);
+    void           clear();
+    void           addStartupHypothesis();
+    TimeframeIndex time() const {
+        return time_;
+    }
+    u32 nStateHypothesesCurFrame() const {
+        return stateHypotheses_.size() - firstHypCurrentFrame_;
+    }
+    void  expand(Core::Ref<const Am::AcousticModel> acousticModel,
+                 Mm::FeatureScorer::Scorer&         emissionScores);
     Score minimumScore() const;
-    Score score(StateHypothesisIndex shi) const { return stateHypotheses_[shi].score; }
-    void prune(Score threshold, u32 nBest);
-    void collectGarbage() const;
-    Score finalStatePotential() const;
+    Score score(StateHypothesisIndex shi) const {
+        return stateHypotheses_[shi].score;
+    }
+    void                   prune(Score threshold, u32 nBest);
+    void                   collectGarbage() const;
+    Score                  finalStatePotential() const;
     Fsa::ConstAutomatonRef getAlignmentFsa() const;
 };
 
-Aligner::SearchSpace::SearchSpace(const Core::Configuration &c) :
-    Core::Component(c), viterbi_(true),
-    logVariability_(paramLogVariability(c)),
-    time_(0),
-    traceback_(new Fsa::StaticAutomaton), tracebackRef_(Core::ref(traceback_))
-{}
+Aligner::SearchSpace::SearchSpace(const Core::Configuration& c)
+        : Core::Component(c), viterbi_(true), logVariability_(paramLogVariability(c)), time_(0), traceback_(new Fsa::StaticAutomaton), tracebackRef_(Core::ref(traceback_)) {}
 
 void Aligner::SearchSpace::setViterbi(bool viterbi) {
     viterbi_ = viterbi;
@@ -109,8 +112,7 @@ void Aligner::SearchSpace::setViterbi(bool viterbi) {
     // (E.g. Speech/PhonemeSequenceAlignmentGenerator.)
 }
 
-void Aligner::SearchSpace::setModel(Fsa::ConstAutomatonRef m)
-{
+void Aligner::SearchSpace::setModel(Fsa::ConstAutomatonRef m) {
     require(m);
     model_ = Core::ref((const Model*)(Fsa::staticCopy(m).get()));
     clear();
@@ -123,66 +125,62 @@ void Aligner::SearchSpace::clear() {
     stateHypothesisForState_.resize(model_->size());
     stateHypothesisForState_.shrink_to_fit();
     firstHypCurrentFrame_ = 0;
-    time_ = 0;
+    time_                 = 0;
     if (!viterbi_) {
         traceback_->clear();
         traceback_->setInitialStateId(Fsa::InvalidStateId);
     }
 }
 
-inline void Aligner::SearchSpace::activateOrUpdateStateHypothesisViterbi(
-    StateId state,
-    Score score,
-    Trace trace,
-    Am::AllophoneStateIndex emission)
-{
+inline void Aligner::SearchSpace::activateOrUpdateStateHypothesisViterbi(StateId                 state,
+                                                                         Score                   score,
+                                                                         Trace                   trace,
+                                                                         Am::AllophoneStateIndex emission) {
     require(state < stateHypothesisForState_.size());
     StateHypothesisIndex shi = stateHypothesisForState_[state];
     if (shi >= StateHypothesisIndex(stateHypotheses_.size()) ||
         shi < firstHypCurrentFrame_ ||
-        stateHypotheses_[shi].state != state)
-    {
+        stateHypotheses_[shi].state != state) {
         stateHypothesisForState_[state] = stateHypotheses_.size();
         stateHypotheses_.push_back(StateHypothesis(state, score, trace, emission));
-    } else {
+    }
+    else {
         require(shi < (StateHypothesisIndex)stateHypotheses_.size());
-        StateHypothesis &sh(stateHypotheses_[shi]);
+        StateHypothesis& sh(stateHypotheses_[shi]);
         if (sh.score >= score) {
             sh.score = score;
             require(sh.trace < (StateHypothesisIndex)stateHypotheses_.size());
             require(trace < (StateHypothesisIndex)stateHypotheses_.size());
-            sh.trace = trace;
+            sh.trace    = trace;
             sh.emission = emission;
         }
     }
 }
 
-inline void Aligner::SearchSpace::activateOrUpdateStateHypothesisBaumWelch(
-    StateId toState,
-    Score toStatePotential,
-    StateHypothesisIndex fromShi,
-    Am::AllophoneStateIndex emission,
-    Fsa::Weight arcScore)
-{
-    StateHypothesisIndex toShi = stateHypothesisForState_[toState];
-    Fsa::State *fromShs = traceback_->fastState(fromShi);
-    Fsa::State *toShs;
+inline void Aligner::SearchSpace::activateOrUpdateStateHypothesisBaumWelch(StateId                 toState,
+                                                                           Score                   toStatePotential,
+                                                                           StateHypothesisIndex    fromShi,
+                                                                           Am::AllophoneStateIndex emission,
+                                                                           Fsa::Weight             arcScore) {
+    StateHypothesisIndex toShi   = stateHypothesisForState_[toState];
+    Fsa::State*          fromShs = traceback_->fastState(fromShi);
+    Fsa::State*          toShs;
     StateHypothesisIndex nHypotheses = stateHypotheses_.size();
     if (toShi >= nHypotheses /* invalid */ ||
         toShi < firstHypCurrentFrame_ /* not same time-frame */ ||
-        stateHypotheses_[toShi].state != toState /* invalid, likely toShi == 0, i.e. not yet set */)
-    {
+        stateHypotheses_[toShi].state != toState /* invalid, likely toShi == 0, i.e. not yet set */) {
         // We have the first hypothesis for this state in this time-frame.
         toShs = new Fsa::State(nHypotheses);
         traceback_->setState(toShs);
         stateHypothesisForState_[toState] = nHypotheses;
-        stateHypotheses_.push_back(StateHypothesis(toState, toStatePotential, fromShi, emission)); // trace and emission unused
-    } else {
-        StateHypothesis &sh(stateHypotheses_[toShi]);
-        sh.score = (Score)traceback_->semiring()->collect((Fsa::Weight)sh.score, (Fsa::Weight)toStatePotential);
-        sh.trace = fromShi; // unused in baum-welch training
-        sh.emission = emission; // also unused
-        toShs = traceback_->fastState(toShi);
+        stateHypotheses_.push_back(StateHypothesis(toState, toStatePotential, fromShi, emission));  // trace and emission unused
+    }
+    else {
+        StateHypothesis& sh(stateHypotheses_[toShi]);
+        sh.score    = (Score)traceback_->semiring()->collect((Fsa::Weight)sh.score, (Fsa::Weight)toStatePotential);
+        sh.trace    = fromShi;   // unused in baum-welch training
+        sh.emission = emission;  // also unused
+        toShs       = traceback_->fastState(toShi);
     }
     ++stateHypotheses_[fromShi].nRefs;
     toShs->newArc(fromShs->id(), arcScore, emission);
@@ -192,49 +190,51 @@ void Aligner::SearchSpace::addStartupHypothesis() {
     require_(model_);
     require_eq(stateHypotheses_.size(), 0);
     stateHypotheses_.push_back(StateHypothesis(model_->initialStateId(), 0.0, invalidTrace, invalidTrace));
-    stateHypotheses_[0].nRefs = 1; // never delete the entry state hypothesis!
+    stateHypotheses_[0].nRefs                          = 1;  // never delete the entry state hypothesis!
     stateHypothesisForState_[model_->initialStateId()] = 0;
-    firstHypCurrentFrame_ = 0;
+    firstHypCurrentFrame_                              = 0;
     if (!viterbi_) {
         traceback_->setType(Fsa::TypeAcceptor);
         traceback_->setSemiring(Fsa::LogSemiring);
         traceback_->setInputAlphabet(model_->getInputAlphabet());
         traceback_->addProperties(Fsa::PropertyAcyclic);
-        Fsa::State *final = traceback_->newFinalState(traceback_->semiring()->one());
+        Fsa::State* final = traceback_->newFinalState(traceback_->semiring()->one());
         verify(final->id() == 0);
     }
 }
 
 void Aligner::SearchSpace::expand(
-    Core::Ref<const Am::AcousticModel> acousticModel,
-    Mm::FeatureScorer::Scorer &emissionScores)
-{
+        Core::Ref<const Am::AcousticModel> acousticModel,
+        Mm::FeatureScorer::Scorer&         emissionScores) {
     require_(model_);
     StateHypothesisIndex firstHypPreviousFrame = firstHypCurrentFrame_;
-    firstHypCurrentFrame_ = stateHypotheses_.size();
+    firstHypCurrentFrame_                      = stateHypotheses_.size();
     Core::Statistics<f32> variability("emission score variability");
     for (StateHypothesisIndex shi = firstHypPreviousFrame; shi < firstHypCurrentFrame_; ++shi) {
-        const StateHypothesis &sh(stateHypotheses_[shi]);
-        const Fsa::State *s = model_->fastState(sh.state);
-        const Score score = sh.score;
-        Score minScore = Core::Type<Score>::max, maxScore = Core::Type<Score>::min;
+        const StateHypothesis& sh(stateHypotheses_[shi]);
+        const Fsa::State*      s        = model_->fastState(sh.state);
+        const Score            score    = sh.score;
+        Score                  minScore = Core::Type<Score>::max, maxScore = Core::Type<Score>::min;
         for (Fsa::State::const_iterator a = s->begin(); a != s->end(); ++a) {
             // all the scores in -log space
-            Score emissionScore = emissionScores->score(acousticModel->emissionIndex(a->input_));
+            Score emissionScore   = emissionScores->score(acousticModel->emissionIndex(a->input_));
             Score transitionScore = Score(a->weight_);
-            minScore = std::min(minScore, emissionScore);
-            maxScore = std::max(maxScore, emissionScore);
+            minScore              = std::min(minScore, emissionScore);
+            maxScore              = std::max(maxScore, emissionScore);
             if (viterbi_) {
                 Score sco = score + transitionScore + emissionScore;
                 activateOrUpdateStateHypothesisViterbi(a->target_, sco, shi, a->input_);
-            } else { // baum-welch
+            }
+            else {  // baum-welch
                 Score arcScore = transitionScore + emissionScore;
                 activateOrUpdateStateHypothesisBaumWelch(a->target_, score + arcScore, shi, a->input_, (Fsa::Weight)arcScore);
             }
         }
-        if (logVariability_) variability += (maxScore - minScore);
+        if (logVariability_)
+            variability += (maxScore - minScore);
     }
-    if (logVariability_) log() << variability;
+    if (logVariability_)
+        log() << variability;
     if (viterbi_) {
         for (StateHypothesisIndex shi = firstHypCurrentFrame_; shi < (StateHypothesisIndex)stateHypotheses_.size(); ++shi)
             ++stateHypotheses_[stateHypotheses_[shi].trace].nRefs;
@@ -253,51 +253,54 @@ Score Aligner::SearchSpace::minimumScore() const {
 
 void Aligner::SearchSpace::prune(Score threshold, u32 nBest) {
     // maybe delete all except nBest first
-    if(nBest < nStateHypothesesCurFrame()) {
+    if (nBest < nStateHypothesesCurFrame()) {
         // Store all idx because we cannot simply reorder stateHypotheses_ in-place
         // because of traceback handling in Baum-Welch.
         std::vector<StateHypothesisIndex> nBestList(nStateHypothesesCurFrame());
-        for(size_t i = 0; i < nBestList.size(); ++i)
+        for (size_t i = 0; i < nBestList.size(); ++i)
             nBestList[i] = StateHypothesisIndex(i + firstHypCurrentFrame_);
 
         // This resorts the elements such that nBestList[0,nBest) have score <=
         // the remaining elements. Because we are in -log space, these
         // are the n-best elements then.
         std::nth_element(
-            nBestList.begin(), nBestList.begin() + nBest, nBestList.end(),
-            [this](StateHypothesisIndex x, StateHypothesisIndex y) {
-                return stateHypotheses_[x].score < stateHypotheses_[y].score;
-            });
+                nBestList.begin(), nBestList.begin() + nBest, nBestList.end(),
+                [this](StateHypothesisIndex x, StateHypothesisIndex y) {
+                    return stateHypotheses_[x].score < stateHypotheses_[y].score;
+                });
 
         // Set score of all remaining above threshold so that they get deleted in the next step.
-        for(auto it = nBestList.begin() + nBest; it != nBestList.end(); ++it) {
+        for (auto it = nBestList.begin() + nBest; it != nBestList.end(); ++it) {
             stateHypotheses_[*it].score = threshold + 1;
         }
     }
 
     StateHypothesisList::iterator in, out, in_end;
-    StateHypothesisIndex shi;
+    StateHypothesisIndex          shi;
     in = out = stateHypotheses_.begin() + firstHypCurrentFrame_;
-    in_end = stateHypotheses_.end();
-    shi = firstHypCurrentFrame_;
+    in_end   = stateHypotheses_.end();
+    shi      = firstHypCurrentFrame_;
 
     if (viterbi_) {
         for (; in != in_end; ++in, ++shi) {
             if (in->score <= threshold) {
                 *(out++) = *in;
-            } else {
+            }
+            else {
                 deleteStateHypothesisViterbi(shi);
             }
         }
-    } else { // baum-welch
+    }
+    else {  // baum-welch
         for (; in != in_end; ++in, ++shi) {
             if (in->score <= threshold) {
                 Fsa::StateId out_shi = out - stateHypotheses_.begin();
-                Fsa::State *s = traceback_->fastState(shi);
+                Fsa::State*  s       = traceback_->fastState(shi);
                 s->setId(out_shi);
                 traceback_->setState(s);
                 *(out++) = *in;
-            } else {
+            }
+            else {
                 deleteStateHypothesisBaumWelch(shi);
             }
         }
@@ -315,9 +318,10 @@ inline void Aligner::SearchSpace::deleteStateHypothesisBaumWelch(StateHypothesis
     std::queue<StateHypothesisIndex> hyps;
     hyps.push(shi);
     while (!hyps.empty()) {
-        shi = hyps.front(); hyps.pop();
+        shi = hyps.front();
+        hyps.pop();
         if (--(stateHypotheses_[shi].nRefs) <= 0) {
-            Fsa::State *s = traceback_->fastState(shi);
+            Fsa::State* s = traceback_->fastState(shi);
             for (Fsa::State::const_iterator a = s->begin(); a != s->end(); ++a) {
                 hyps.push(a->target());
             }
@@ -327,59 +331,62 @@ inline void Aligner::SearchSpace::deleteStateHypothesisBaumWelch(StateHypothesis
 
 void Aligner::SearchSpace::collectGarbage() const {
     StateHypothesisList::iterator in, out, in_end;
-    StateHypothesisIndex shi_in, shi_out;
+    StateHypothesisIndex          shi_in, shi_out;
     in = out = stateHypotheses_.begin();
-    in_end = stateHypotheses_.end();
+    in_end   = stateHypotheses_.end();
     shi_in = shi_out = 0;
     if (viterbi_) {
-        StateHypothesisIndex *map = new StateHypothesisIndex[stateHypotheses_.size()];
+        StateHypothesisIndex* map = new StateHypothesisIndex[stateHypotheses_.size()];
         for (; in != in_end; ++in, ++shi_in) {
             if (in->nRefs > 0 || shi_in >= firstHypCurrentFrame_) {
-                *(out++) = *in;
+                *(out++)    = *in;
                 map[shi_in] = shi_out;
                 ++shi_out;
             }
         }
         firstHypCurrentFrame_ = (out - stateHypotheses_.begin()) - nStateHypothesesCurFrame();
         stateHypotheses_.erase(out, stateHypotheses_.end());
-        in = stateHypotheses_.begin()+1;
+        in     = stateHypotheses_.begin() + 1;
         in_end = stateHypotheses_.end();
         for (; in != in_end; ++in)
             in->trace = map[in->trace];
         delete[] map;
-    } else { // baum-welch
+    }
+    else {  // baum-welch
         for (StateHypothesisIndex shi = (StateHypothesisIndex)stateHypotheses_.size();
-             shi <= (StateHypothesisIndex)traceback_->maxStateId(); ++shi)
-        {
+             shi <= (StateHypothesisIndex)traceback_->maxStateId(); ++shi) {
             traceback_->deleteState(shi);
         }
 
         for (; in != in_end; ++in, ++shi_in) {
             if (in->nRefs > 0 || shi_in >= firstHypCurrentFrame_) {
                 *(out++) = *in;
-            } else {
+            }
+            else {
                 traceback_->deleteState(shi_in);
             }
         }
         firstHypCurrentFrame_ = (out - stateHypotheses_.begin()) - nStateHypothesesCurFrame();
         stateHypotheses_.erase(out, stateHypotheses_.end());
         traceback_->normalize();
-        ensure(traceback_->maxStateId() == stateHypotheses_.size()-1);
+        ensure(traceback_->maxStateId() == stateHypotheses_.size() - 1);
     }
 }
 
 Score Aligner::SearchSpace::finalStatePotential() const {
     Score result = Core::Type<Score>::max;
     for (StateHypothesisIndex shi = firstHypCurrentFrame_; shi < (StateHypothesisIndex)stateHypotheses_.size(); ++shi) {
-        const Fsa::State *s = model_->fastState(stateHypotheses_[shi].state);
+        const Fsa::State* s = model_->fastState(stateHypotheses_[shi].state);
         if (s->isFinal()) {
             const Score score = (Score)s->weight_ + stateHypotheses_[shi].score;
             if (viterbi_) {
                 result = std::min(result, score);
-            } else { // baum-welch
+            }
+            else {  // baum-welch
                 if (result == Core::Type<Score>::max) {
                     result = score;
-                } else {
+                }
+                else {
                     result = (Score)traceback_->semiring()->collect((Fsa::Weight)result, (Fsa::Weight)score);
                 }
             }
@@ -389,19 +396,19 @@ Score Aligner::SearchSpace::finalStatePotential() const {
 }
 
 Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaViterbi() const {
-    StateHypothesisIndex bestHyp = invalidTrace;
-    Score bestScore = Core::Type<Score>::max;
+    StateHypothesisIndex bestHyp   = invalidTrace;
+    Score                bestScore = Core::Type<Score>::max;
     for (StateHypothesisIndex shi = firstHypCurrentFrame_; shi < (StateHypothesisIndex)stateHypotheses_.size(); ++shi) {
-        const Fsa::State *s = model_->fastState(stateHypotheses_[shi].state);
+        const Fsa::State* s = model_->fastState(stateHypotheses_[shi].state);
         if (s->isFinal()) {
             const Score score = (Score)s->weight_ + stateHypotheses_[shi].score;
             if (score < bestScore) {
                 bestScore = score;
-                bestHyp = shi;
+                bestHyp   = shi;
             }
         }
     }
-    Fsa::StaticAutomaton *result = new Fsa::StaticAutomaton();
+    Fsa::StaticAutomaton* result = new Fsa::StaticAutomaton();
     result->setType(Fsa::TypeAcceptor);
     result->setSemiring(Fsa::TropicalSemiring);
     result->setInputAlphabet(model_->getInputAlphabet());
@@ -411,17 +418,17 @@ Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaViterbi() const {
         return Core::ref(result);
     }
 
-    Fsa::State *s = new Fsa::State(time_);
+    Fsa::State* s = new Fsa::State(time_);
     s->setFinal(result->semiring()->one());
     result->setState(s);
-    StateHypothesisIndex shi = bestHyp;
+    StateHypothesisIndex shi   = bestHyp;
     StateHypothesisIndex trace = stateHypotheses_[bestHyp].trace;
     for (TimeframeIndex time = time_; time > 0; --time) {
         ensure(trace != invalidTrace);
-        s = new Fsa::State(time-1);
+        s = new Fsa::State(time - 1);
         s->newArc(time, Fsa::Weight(stateHypotheses_[shi].score - stateHypotheses_[trace].score), stateHypotheses_[shi].emission);
         result->setState(s);
-        shi = trace;
+        shi   = trace;
         trace = stateHypotheses_[shi].trace;
     }
     result->setInitialStateId(0);
@@ -429,10 +436,10 @@ Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaViterbi() const {
 }
 
 Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaBaumWelch() const {
-    Fsa::State *final = traceback_->newState();
+    Fsa::State* final = traceback_->newState();
     traceback_->setInitialStateId(final->id());
     for (StateHypothesisIndex shi = firstHypCurrentFrame_; shi < (StateHypothesisIndex)stateHypotheses_.size(); ++shi) {
-        const Fsa::State *s = model_->fastState(stateHypotheses_[shi].state);
+        const Fsa::State* s = model_->fastState(stateHypotheses_[shi].state);
         if (s->isFinal()) {
             final->newArc(shi, s->weight_, Fsa::Epsilon);
         }
@@ -440,7 +447,7 @@ Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaBaumWelch() const {
     Fsa::ConstAutomatonRef result = Fsa::transpose(tracebackRef_);
     hope(result->hasProperty(Fsa::PropertyStorage | Fsa::PropertyAcyclic));
     // otherwise wrap "staticCopy" around transpose or use a non-lazy implementation of transpose
-    traceback_->deleteState(final->id()); // undo changes in the traceback fsa to make this method 'const'
+    traceback_->deleteState(final->id());  // undo changes in the traceback fsa to make this method 'const'
     return result;
 }
 
@@ -452,94 +459,92 @@ Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsa() const {
         return getAlignmentFsaBaumWelch();
 }
 
-
 // ================================================================================
 
-
 const Core::ParameterFloat Aligner::paramMinAcousticPruningThreshold(
-    "min-acoustic-pruning",
-    "minimal threshold for pruning of state hypotheses",
-    50, Core::Type<f32>::delta);
+        "min-acoustic-pruning",
+        "minimal threshold for pruning of state hypotheses",
+        50, Core::Type<f32>::delta);
 
 const Core::ParameterFloat Aligner::paramMaxAcousticPruningThreshold(
-    "max-acoustic-pruning",
-    "maximal threshold for pruning of state hypotheses",
-    Core::Type<f32>::max, 0.0);
+        "max-acoustic-pruning",
+        "maximal threshold for pruning of state hypotheses",
+        Core::Type<f32>::max, 0.0);
 
 const Core::ParameterFloat Aligner::paramAcousticPruningThresholdIncrementFactor(
-    "acoustic-pruning-increment-factor",
-    "maximal threshold for pruning of state hypotheses",
-    2, 1);
+        "acoustic-pruning-increment-factor",
+        "maximal threshold for pruning of state hypotheses",
+        2, 1);
 
 const Core::ParameterFloat Aligner::paramMinAverageNumberOfStateHypotheses(
-    "min-average-number-of-states",
-    "alignments with less average number of states per time-frame are repeated with a higher pruning",
-    0, 0);
+        "min-average-number-of-states",
+        "alignments with less average number of states per time-frame are repeated with a higher pruning",
+        0, 0);
 
 const Core::ParameterBool Aligner::paramIncreasePruningUntilNoScoreDifference(
-    "increase-pruning-until-no-score-difference",
-    "alignments are repeated with increasing pruning threshold until final score does not change",
-    true);
+        "increase-pruning-until-no-score-difference",
+        "alignments are repeated with increasing pruning threshold until final score does not change",
+        true);
 
 const Core::ParameterBool Aligner::paramLogIterations(
-    "log-iterations",
-    "log number of iterations required for determining alignment",
-    false);
+        "log-iterations",
+        "log number of iterations required for determining alignment",
+        false);
 
 const Core::Choice Aligner::choiceMode(
-    "viterbi", modeViterbi,
-    "baum-welch", modeBaumWelch,
-    Core::Choice::endMark());
+        "viterbi", modeViterbi,
+        "baum-welch", modeBaumWelch,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice Aligner::paramMode(
-    "mode", &choiceMode, "describes how alignments are created and observations are weighted", modeViterbi);
+        "mode", &choiceMode, "describes how alignments are created and observations are weighted", modeViterbi);
 
 const Core::ParameterFloat Aligner::paramMinWeight(
-    "min-weight",
-    "alignment items with a weight (i.e. state posterior probability) below this threshold are pruned",
-    0.0);
+        "min-weight",
+        "alignment items with a weight (i.e. state posterior probability) below this threshold are pruned",
+        0.0);
 
 const Core::ParameterInt Aligner::paramNBestPruning(
-    "n-best-pruning", "keep only the n-best in one time frame",
-    Core::Type<s32>::max, 1);
+        "n-best-pruning", "keep only the n-best in one time frame",
+        Core::Type<s32>::max, 1);
 
 const Core::ParameterBool Aligner::paramUsePartialSums(
-    "use-partial-sums",
-    "weigths of alignment items are not normalized over a timeframe",
-    false);
+        "use-partial-sums",
+        "weigths of alignment items are not normalized over a timeframe",
+        false);
 
 const Core::ParameterInt Aligner::paramCollectGarbageTime(
-    "collect-garbage-time",
-    "after how many timeframes do we collect the garbage",
-    500, 1);
+        "collect-garbage-time",
+        "after how many timeframes do we collect the garbage",
+        500, 1);
 
-Aligner::Aligner(const Core::Configuration &c) :
-    Core::Component(c),
-    ss_(0),
-    acousticPruningThreshold_(0),
-    nBestPruning_(paramNBestPruning(c)),
-    collectGarbageTime_(paramCollectGarbageTime(c)),
-    nStateHypotheses_("active states after pruning"),
-    statePosteriorStats_("state-posteriors"),
-    statisticsChannel_(config, "statistics"),
-    alignmentChannel_(config, "dump-alignment")
-{
-    minAcousticPruningThreshold_ = paramMinAcousticPruningThreshold(config);
-    maxAcousticPruningThreshold_ = paramMaxAcousticPruningThreshold(config);
+Aligner::Aligner(const Core::Configuration& c)
+        : Core::Component(c),
+          ss_(0),
+          acousticPruningThreshold_(0),
+          nBestPruning_(paramNBestPruning(c)),
+          collectGarbageTime_(paramCollectGarbageTime(c)),
+          nStateHypotheses_("active states after pruning"),
+          statePosteriorStats_("state-posteriors"),
+          statisticsChannel_(config, "statistics"),
+          alignmentChannel_(config, "dump-alignment") {
+    minAcousticPruningThreshold_             = paramMinAcousticPruningThreshold(config);
+    maxAcousticPruningThreshold_             = paramMaxAcousticPruningThreshold(config);
     acousticPruningThresholdIncrementFactor_ = paramAcousticPruningThresholdIncrementFactor(config);
     if ((minAcousticPruningThreshold_ > maxAcousticPruningThreshold_) ||
         (acousticPruningThresholdIncrementFactor_ <= 1 &&
          minAcousticPruningThreshold_ != maxAcousticPruningThreshold_)) {
-        criticalError() << "Inconsistent acoustic pruning settings:" << " min=" << minAcousticPruningThreshold_
+        criticalError() << "Inconsistent acoustic pruning settings:"
+                        << " min=" << minAcousticPruningThreshold_
                         << " max=" << maxAcousticPruningThreshold_
                         << " increment-factor=" << acousticPruningThresholdIncrementFactor_;
     }
-    minAverageNumberOfStateHypotheses_ = paramMinAverageNumberOfStateHypotheses(config);
+    minAverageNumberOfStateHypotheses_     = paramMinAverageNumberOfStateHypotheses(config);
     increasePruningUntilNoScoreDifference_ = paramIncreasePruningUntilNoScoreDifference(config);
-    logIterations_ = paramLogIterations(config);
-    minWeight_ = paramMinWeight(config);
-    usePartialSums_ = paramUsePartialSums(config);
-    ss_ = new SearchSpace(select("search"));
+    logIterations_                         = paramLogIterations(config);
+    minWeight_                             = paramMinWeight(config);
+    usePartialSums_                        = paramUsePartialSums(config);
+    ss_                                    = new SearchSpace(select("search"));
     selectMode();
 }
 
@@ -552,18 +557,17 @@ Aligner::~Aligner() {
 Mm::Weight Aligner::getLogWeightThreshold() const {
     if (minWeight_ > Core::Type<Mm::Weight>::delta) {
         return -std::log(minWeight_);
-    } else {
+    }
+    else {
         return Core::Type<Mm::Weight>::max;
     }
 }
 
-void Aligner::setModel(
-    Fsa::ConstAutomatonRef model,
-    Core::Ref<const Am::AcousticModel> acousticModel)
-{
+void Aligner::setModel(Fsa::ConstAutomatonRef             model,
+                       Core::Ref<const Am::AcousticModel> acousticModel) {
     require(model);
     require(model->initialStateId() != Fsa::InvalidStateId);
-    model_ = model;
+    model_         = model;
     acousticModel_ = acousticModel;
     ss_->setModel(model_);
     ss_->addStartupHypothesis();
@@ -573,7 +577,8 @@ void Aligner::setModel(
 
 void Aligner::restart() {
     ss_->clear();
-    if (model_) ss_->addStartupHypothesis();
+    if (model_)
+        ss_->addStartupHypothesis();
     nStateHypotheses_.clear();
 }
 
@@ -586,25 +591,28 @@ void Aligner::feed(Mm::FeatureScorer::Scorer emissionScores) {
     nStateHypotheses_ += ss_->nStateHypothesesCurFrame();
 }
 
-void Aligner::feed(const std::vector<Mm::FeatureScorer::Scorer> &emissionScorers) {
+void Aligner::feed(const std::vector<Mm::FeatureScorer::Scorer>& emissionScorers) {
     Score previousScore = Core::Type<Score>::max;
     // make a copy of the feature scorers HERE to reuse the cache over all pruning iterations
     std::vector<Mm::FeatureScorer::Scorer> scorers = emissionScorers;
-    nIterations_ = 0;
-    for(Score t = minAcousticPruningThreshold_;
-        t <= maxAcousticPruningThreshold_;
-        t *= acousticPruningThresholdIncrementFactor_)
-    {
+    nIterations_                                   = 0;
+    for (Score t = minAcousticPruningThreshold_;
+         t <= maxAcousticPruningThreshold_;
+         t *= acousticPruningThresholdIncrementFactor_) {
         nIterations_++;
         restart();
         acousticPruningThreshold_ = t;
         std::vector<Mm::FeatureScorer::Scorer>::iterator s;
-        for(s = scorers.begin(); s != scorers.end(); ++ s) feed(*s);
-        if (acousticPruningThresholdIncrementFactor_ <= 1) break;
+        for (s = scorers.begin(); s != scorers.end(); ++s)
+            feed(*s);
+        if (acousticPruningThresholdIncrementFactor_ <= 1)
+            break;
         Score score = alignmentScore();
         if (reachedFinalState() and nStateHypotheses_.average() >= minAverageNumberOfStateHypotheses_) {
-            if (!increasePruningUntilNoScoreDifference_) break;
-            if (t > minAcousticPruningThreshold_ and Core::isAlmostEqual(score, previousScore)) break;
+            if (!increasePruningUntilNoScoreDifference_)
+                break;
+            if (t > minAcousticPruningThreshold_ and Core::isAlmostEqual(score, previousScore))
+                break;
         }
         previousScore = score;
     }
@@ -616,76 +624,77 @@ Score Aligner::alignmentScore() const {
     return ss_->finalStatePotential();
 }
 
-void Aligner::selectMode(Mode mode)
-{
+void Aligner::selectMode(Mode mode) {
     log("mode is set to '") << choiceMode[mode] << "'";
     viterbi_ = (mode == modeViterbi);
     ss_->setViterbi(viterbi_);
 }
 
-void Aligner::selectMode()
-{
+void Aligner::selectMode() {
     selectMode((Mode)paramMode(config));
 }
 
 Aligner::Mode Aligner::getMode() const {
-    if(viterbi_) return modeViterbi;
-    else return modeBaumWelch;
+    if (viterbi_)
+        return modeViterbi;
+    else
+        return modeBaumWelch;
 }
 
-class AlignmentExtractor : public Fsa::DfsState
-{
+class AlignmentExtractor : public Fsa::DfsState {
 protected:
     TimeframeIndex time_;
-    Alignment *alignment_;
+    Alignment*     alignment_;
+
 public:
-    AlignmentExtractor(Fsa::ConstAutomatonRef f) : Fsa::DfsState(f) {}
+    AlignmentExtractor(Fsa::ConstAutomatonRef f)
+            : Fsa::DfsState(f) {}
     virtual ~AlignmentExtractor() {}
 
-    void exploreArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
+    void exploreArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
         if (a.input() != Fsa::Epsilon) {
             alignment_->push_back(AlignmentItem(time_, a.input(), a.weight()));
             ++time_;
         }
     }
-    virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
+    virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
         exploreArc(from, a);
     }
-    virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-        verify(color(a.target()) == Black); // verify, that the fsa contains no loops
+    virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        verify(color(a.target()) == Black);  // verify, that the fsa contains no loops
         exploreArc(from, a);
     }
-    virtual void finishArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-        if (a.input() != Fsa::Epsilon) --time_;
+    virtual void finishArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        if (a.input() != Fsa::Epsilon)
+            --time_;
     }
-    void extract(Alignment &alignment) {
+    void extract(Alignment& alignment) {
         alignment.clear();
-        fsa_ = Fsa::normalize(fsa_);
-        time_ = 0;
+        fsa_       = Fsa::normalize(fsa_);
+        time_      = 0;
         alignment_ = &alignment;
-        recursiveDfs(); // depth-first search
+        recursiveDfs();  // depth-first search
     }
 };
 
 void Search::extractAlignment(Speech::Alignment& out, Fsa::ConstAutomatonRef alignmentPosteriorFsa, Mm::Weight minProbGT, Mm::Weight gamma) {
     AlignmentExtractor ae(alignmentPosteriorFsa);
     ae.extract(out);  // we get scores in -log space
-    if(out.empty()) return;  // unlikely but would happen if FSA was empty
+    if (out.empty())
+        return;  // unlikely but would happen if FSA was empty
     out.combineItems(Fsa::LogSemiring);
     require(!out.empty());
     out.sortItems(false);  // smallest -log-score means highest scores
     out.clipWeights(0, Core::Type<Mm::Weight>::max);
     out.multiplyWeights(gamma);
     out.shiftMinToZeroWeights();  // more stable expm, is equivalent with normalizeWeights()
-    out.expm();  // to std space
+    out.expm();                   // to std space
     out.normalizeWeights();
     out.filterWeightsGT(minProbGT);
 }
 
-void Aligner::getAlignment(
-    Alignment &result,
-    std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> alignmentPosteriorFsa) const
-{
+void Aligner::getAlignment(Alignment&                                     result,
+                           std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> alignmentPosteriorFsa) const {
     // The weights of resulting alignment are probabilities in std space.
     // In case of Viterbi, they are normally all 1.0.
     AlignmentExtractor ae(alignmentPosteriorFsa.first);
@@ -695,16 +704,18 @@ void Aligner::getAlignment(
         result.sortItems(false);
         result.clipWeights(0, Core::Type<Mm::Weight>::max);
         result.filterWeights(0, getLogWeightThreshold());
-        if (!usePartialSums_) {  // default case is use=false.
+        if (!usePartialSums_) {              // default case is use=false.
             result.shiftMinToZeroWeights();  // more stable expm, is equivalent with normalizeWeights()
-            result.expm();  // to std space
+            result.expm();                   // to std space
             result.normalizeWeights();
             result.filterWeightsGT(0.0);
-        } else {  // weigths of alignment items are not normalized over a timeframe
+        }
+        else {  // weigths of alignment items are not normalized over a timeframe
             result.addWeight(-f32(alignmentPosteriorFsa.second));
             result.expm();
         }
-    } else {
+    }
+    else {
         // This addition is in std space, so it only make sense if we had 0 before. This should be the case.
         result.addWeight(1);
     }
@@ -714,7 +725,7 @@ void Aligner::getAlignment(
     result.setAlphabet(acousticModel_->allophoneStateAlphabet());
 }
 
-void Aligner::getAlignment(Alignment &result) const {
+void Aligner::getAlignment(Alignment& result) const {
     getAlignment(result, getAlignmentPosteriorFsa(getAlignmentFsa()));
 }
 
@@ -724,15 +735,15 @@ Fsa::ConstAutomatonRef Aligner::getAlignmentFsa() const {
         warning("Alignment did not reach any final state.");
     if (statisticsChannel_.isOpen()) {
         statisticsChannel_
-            << Core::XmlOpen("alignment-statistics")
-            << Core::XmlFull("frames", ss_->time())
-            << Core::XmlFull("acoustic-pruning-threshold", acousticPruningThreshold_)
-            << Core::XmlOpen("score")
-            << Core::XmlFull("avg", ss_->finalStatePotential() / f32(ss_->time()))
-            << Core::XmlFull("total", ss_->finalStatePotential())
-            << Core::XmlClose("score")
-            << nStateHypotheses_
-            << Core::XmlClose("alignment-statistics");
+                << Core::XmlOpen("alignment-statistics")
+                << Core::XmlFull("frames", ss_->time())
+                << Core::XmlFull("acoustic-pruning-threshold", acousticPruningThreshold_)
+                << Core::XmlOpen("score")
+                << Core::XmlFull("avg", ss_->finalStatePotential() / f32(ss_->time()))
+                << Core::XmlFull("total", ss_->finalStatePotential())
+                << Core::XmlClose("score")
+                << nStateHypotheses_
+                << Core::XmlClose("alignment-statistics");
     }
     if (alignmentChannel_.isOpen()) {
         Fsa::info(result, alignmentChannel_);
@@ -744,23 +755,18 @@ Fsa::ConstAutomatonRef Aligner::getAlignmentFsa() const {
 }
 
 std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> Aligner::getAlignmentPosteriorFsa(
-    Fsa::ConstAutomatonRef alignmentFsa) const
-{
+        Fsa::ConstAutomatonRef alignmentFsa) const {
     if (alignmentFsa->initialStateId() == Fsa::InvalidStateId) {
         return std::make_pair(alignmentFsa, alignmentFsa->semiring()->one());
     }
     Fsa::ConstAutomatonRef result;
-    Fsa::Weight totalInv = alignmentFsa->semiring()->one();
+    Fsa::Weight            totalInv = alignmentFsa->semiring()->one();
     if (viterbi_) {
         //	result = Fsa::extend(Fsa::multiply(alignmentFsa, (Fsa::Weight)0.0), (Fsa::Weight)1.0);
         result = Fsa::multiply(alignmentFsa, (Fsa::Weight)0.0);
-    } else { // baum-welch
-        result = Fsa::posterior64(
-            Fsa::prunePosterior(
-                alignmentFsa,
-                Fsa::Weight(getLogWeightThreshold()),
-                false),
-            totalInv);
+    }
+    else {  // baum-welch
+        result = Fsa::posterior64(Fsa::prunePosterior(alignmentFsa, Fsa::Weight(getLogWeightThreshold()), false), totalInv);
         result = Fsa::trim(result);
         result = Fsa::normalize(result);
     }
@@ -774,19 +780,21 @@ std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> Aligner::getAlignmentPosteriorFsa
 
 // ================================================================================
 
-class Aligner::WordLatticeBuilder::AddWordBoundaryDisambiguatorsAutomaton : public Fsa::SlaveAutomaton
-{
+class Aligner::WordLatticeBuilder::AddWordBoundaryDisambiguatorsAutomaton : public Fsa::SlaveAutomaton {
     typedef Fsa::SlaveAutomaton Precursor;
+
 protected:
     mutable ConstStateRef lastState_;
-    Fsa::LabelId disambiguator_;
-    Fsa::Weight one_;
-    Fsa::StateId mapStateId(Fsa::StateId id) const {
-        if (id == Fsa::InvalidStateId) return id;
+    Fsa::LabelId          disambiguator_;
+    Fsa::Weight           one_;
+    Fsa::StateId          mapStateId(Fsa::StateId id) const {
+        if (id == Fsa::InvalidStateId)
+            return id;
         return ((id & Fsa::StateIdMask) * 2) | (id & ~Fsa::StateIdMask);
     }
     Fsa::StateId mapStateIdInverse(Fsa::StateId id) const {
-        if (id == Fsa::InvalidStateId) return id;
+        if (id == Fsa::InvalidStateId)
+            return id;
         return ((id & Fsa::StateIdMask) / 2) | (id & ~Fsa::StateIdMask);
     }
     bool isDisambiguatorState(Fsa::StateId id) const {
@@ -794,20 +802,21 @@ protected:
     }
 
 public:
-    AddWordBoundaryDisambiguatorsAutomaton(Fsa::ConstAutomatonRef f, Fsa::LabelId disambiguator) :
-        Precursor(f), disambiguator_(disambiguator), one_(f->semiring()->one()) {}
+    AddWordBoundaryDisambiguatorsAutomaton(Fsa::ConstAutomatonRef f, Fsa::LabelId disambiguator)
+            : Precursor(f), disambiguator_(disambiguator), one_(f->semiring()->one()) {}
 
     virtual Fsa::StateId initialStateId() const {
         return mapStateId(fsa_->initialStateId());
     }
 
     virtual ConstStateRef getState(Fsa::StateId s) const {
-        Fsa::State *sp;
+        Fsa::State* sp;
         if (lastState_->refCount() == 1) {
-            sp = const_cast<State*>(lastState_.get());
+            sp  = const_cast<State*>(lastState_.get());
             *sp = *Precursor::fsa_->getState(mapStateIdInverse(s));
-        } else {
-            sp = new State(*Precursor::fsa_->getState(mapStateIdInverse(s)));
+        }
+        else {
+            sp         = new State(*Precursor::fsa_->getState(mapStateIdInverse(s)));
             lastState_ = ConstStateRef(sp);
         }
         sp->setId(s);
@@ -815,7 +824,7 @@ public:
             a->target_ = mapStateId(a->target());
         }
         if (!isDisambiguatorState(s)) {
-            sp->newArc(s+1, one_, disambiguator_);
+            sp->newArc(s + 1, one_, disambiguator_);
         }
         return lastState_;
     }
@@ -825,28 +834,27 @@ public:
     }
 };
 
-
-class Aligner::WordLatticeBuilder::Converter : public Fsa::DfsState
-{
+class Aligner::WordLatticeBuilder::Converter : public Fsa::DfsState {
     typedef Fsa::DfsState Precursor;
+
 private:
-    Fsa::StaticAutomaton *t_;                      /**< lattice acoustic fsa to build */
-    Lattice::WordBoundaries *wordBoundaries_;      /**< word boundaries to build */
+    Fsa::StaticAutomaton*              t_;              /**< lattice acoustic fsa to build */
+    Lattice::WordBoundaries*           wordBoundaries_; /**< word boundaries to build */
     Am::ConstAllophoneStateAlphabetRef allophoneStateAlphabet_;
 
     struct StateInfo {
-        TimeframeIndex time_;			   /**< current timeframe */
-        Fsa::LabelId   wordLabelId_;		   /**< label of the current word */
-        Fsa::LabelId   lastAllophone_;		   /**< last allophone found on the path */
+        TimeframeIndex time_;          /**< current timeframe */
+        Fsa::LabelId   wordLabelId_;   /**< label of the current word */
+        Fsa::LabelId   lastAllophone_; /**< last allophone found on the path */
 
         void reset(TimeframeIndex time) {
-            time_ = time;
-            wordLabelId_ = Fsa::InvalidLabelId;
+            time_          = time;
+            wordLabelId_   = Fsa::InvalidLabelId;
             lastAllophone_ = Fsa::InvalidLabelId;
         }
     };
     typedef Core::Vector<StateInfo> StateInfos;
-    StateInfos stateInfos_;
+    StateInfos                      stateInfos_;
 
 protected:
     Fsa::State* getState(Fsa::StateId id) {
@@ -854,8 +862,9 @@ protected:
         Fsa::StateRef sp = t_->state(id);
         if (sp) {
             return sp.get();
-        } else {
-            Fsa::State *s = new Fsa::State(id);
+        }
+        else {
+            Fsa::State* s = new Fsa::State(id);
             t_->setState(s);
             Fsa::ConstStateRef orig = fsa_->getState(id);
             if (orig->isFinal()) {
@@ -868,64 +877,64 @@ protected:
     void setCoarticulatedWordBoundary(Fsa::StateId s, TimeframeIndex time, Fsa::LabelId lastAllophone) {
         Lattice::WordBoundary::Transit transit;
         if (lastAllophone != Fsa::InvalidLabelId) {
-            Am::Phonology::SemiContext future =
-                allophoneStateAlphabet_->allophoneState(lastAllophone).allophone()->future();
+            Am::Phonology::SemiContext future = allophoneStateAlphabet_->allophoneState(lastAllophone).allophone()->future();
             if (future.size()) {
                 transit.initial = allophoneStateAlphabet_->allophoneState(lastAllophone).allophone()->central();
-                transit.final = future[0];
+                transit.final   = future[0];
             }
         }
         wordBoundaries_->set(s, Lattice::WordBoundary(time, transit));
     }
 
-    void exploreArc(Fsa::ConstStateRef fromState, const Fsa::Arc &a) {
+    void exploreArc(Fsa::ConstStateRef fromState, const Fsa::Arc& a) {
         Fsa::StateId from = fromState->id();
-        Fsa::StateId to = a.target();
+        Fsa::StateId to   = a.target();
         stateInfos_.grow(to);
-        StateInfo &fromInfo = stateInfos_[from];
-        StateInfo &toInfo = stateInfos_[to];
-        Fsa::State *s = getState(from); getState(to);
+        StateInfo&  fromInfo = stateInfos_[from];
+        StateInfo&  toInfo   = stateInfos_[to];
+        Fsa::State* s        = getState(from);
+        getState(to);
 
         if (a.output_ != Fsa::Epsilon) {
             toInfo.wordLabelId_ = a.output_;
-        } else {
+        }
+        else {
             toInfo.wordLabelId_ = fromInfo.wordLabelId_;
         }
 
         if (a.input() == Fsa::Epsilon) {
             toInfo.lastAllophone_ = fromInfo.lastAllophone_;
-            toInfo.time_ = fromInfo.time_;
+            toInfo.time_          = fromInfo.time_;
             s->newArc(to, a.weight(), Fsa::Epsilon);
-
-        } else if (allophoneStateAlphabet_->isDisambiguator(a.input())) {
+        }
+        else if (allophoneStateAlphabet_->isDisambiguator(a.input())) {
             s->newArc(to, a.weight(), toInfo.wordLabelId_);
             setCoarticulatedWordBoundary(a.target(), fromInfo.time_, fromInfo.lastAllophone_);
             toInfo.reset(fromInfo.time_);
-
-        } else {
+        }
+        else {
             toInfo.lastAllophone_ = a.input_;
-            toInfo.time_ = fromInfo.time_ + 1;
+            toInfo.time_          = fromInfo.time_ + 1;
             s->newArc(to, a.weight(), Fsa::Epsilon);
         }
     }
 
-    virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
+    virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
         exploreArc(from, a);
     }
 
-    virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc &a) {
-        verify(color(a.target()) == Black); // no loops allowed
+    virtual void exploreNonTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& a) {
+        verify(color(a.target()) == Black);  // no loops allowed
         exploreArc(from, a);
     }
 
 public:
-    Converter(Fsa::ConstAutomatonRef allophoneToLemmaPronunciationTransducer,
-              Am::ConstAllophoneStateAlphabetRef allophoneStateAlphabet) :
-        Precursor(allophoneToLemmaPronunciationTransducer),
-        t_(new Fsa::StaticAutomaton()),
-        wordBoundaries_(new Lattice::WordBoundaries()),
-        allophoneStateAlphabet_(allophoneStateAlphabet)
-    {}
+    Converter(Fsa::ConstAutomatonRef             allophoneToLemmaPronunciationTransducer,
+              Am::ConstAllophoneStateAlphabetRef allophoneStateAlphabet)
+            : Precursor(allophoneToLemmaPronunciationTransducer),
+              t_(new Fsa::StaticAutomaton()),
+              wordBoundaries_(new Lattice::WordBoundaries()),
+              allophoneStateAlphabet_(allophoneStateAlphabet) {}
 
     Lattice::ConstWordLatticeRef build() {
         t_->setType(Fsa::TypeAcceptor);
@@ -937,84 +946,67 @@ public:
         require(initial >= 0);
 
         t_->setInitialStateId(initial);
-        StateInfo si; si.reset(0);
+        StateInfo si;
+        si.reset(0);
         stateInfos_.grow(initial);
         stateInfos_[initial] = si;
         setCoarticulatedWordBoundary(initial, si.time_, si.lastAllophone_);
 
         dfs();
 
-        Fsa::ConstAutomatonRef t = Fsa::removeEpsilons(Core::ref(t_));
-        Lattice::WordLattice *wordLattice = new Lattice::WordLattice;
+        Fsa::ConstAutomatonRef t           = Fsa::removeEpsilons(Core::ref(t_));
+        Lattice::WordLattice*  wordLattice = new Lattice::WordLattice;
         wordLattice->setWordBoundaries(Core::ref(wordBoundaries_));
         wordLattice->setFsa(Fsa::ConstAutomatonRef(t), Lattice::WordLattice::acousticFsa);
 
-        Lattice::ConstWordLatticeRef result =
-            Lattice::normalize(Lattice::ConstWordLatticeRef(wordLattice));
+        Lattice::ConstWordLatticeRef result = Lattice::normalize(Lattice::ConstWordLatticeRef(wordLattice));
         /** the following 2 lines are a workaround for the current Lattice::normalize procedure
          *  which produces correct new word boundaries only if all fsa states are accessed afterwards
          *  with 'Fsa::getState'
          */
-        result->part(Lattice::WordLattice::acousticFsa) =
-            Fsa::ConstAutomatonRef(Fsa::staticCopy(result->part(Lattice::WordLattice::acousticFsa)));
+        result->part(Lattice::WordLattice::acousticFsa) = Fsa::ConstAutomatonRef(Fsa::staticCopy(result->part(Lattice::WordLattice::acousticFsa)));
         return result;
     }
 };
 
-
-Aligner::WordLatticeBuilder::WordLatticeBuilder(
-    const Core::Configuration &configuration,
-    Bliss::LexiconRef lexicon,
-    Core::Ref<const Am::AcousticModel> acousticModel) :
-    Core::Component(configuration),
-    lexicon_(lexicon),
-    acousticModel_(acousticModel),
-    dumpAutomaton_(configuration, "dump-automaton")
-{
+Aligner::WordLatticeBuilder::WordLatticeBuilder(const Core::Configuration&         configuration,
+                                                Bliss::LexiconRef                  lexicon,
+                                                Core::Ref<const Am::AcousticModel> acousticModel)
+        : Core::Component(configuration),
+          lexicon_(lexicon),
+          acousticModel_(acousticModel),
+          dumpAutomaton_(configuration, "dump-automaton") {
     lemmaPronunciationAlphabet_ = lexicon_->lemmaPronunciationAlphabet();
-    allophoneStateAlphabet_ = acousticModel_->allophoneStateAlphabet();
+    allophoneStateAlphabet_     = acousticModel_->allophoneStateAlphabet();
 }
 
-void Aligner::WordLatticeBuilder::setModelTransducer(Fsa::ConstAutomatonRef modelTransducer)
-{
+void Aligner::WordLatticeBuilder::setModelTransducer(Fsa::ConstAutomatonRef modelTransducer) {
     require(modelTransducer);
     allophoneToLemmaPronunciationTransducer_ = modelTransducer;
 }
 
-Fsa::ConstAutomatonRef Aligner::WordLatticeBuilder::addWordBoundaryDisambiguators(Fsa::ConstAutomatonRef f) const
-{
+Fsa::ConstAutomatonRef Aligner::WordLatticeBuilder::addWordBoundaryDisambiguators(Fsa::ConstAutomatonRef f) const {
     return Fsa::ConstAutomatonRef(new AddWordBoundaryDisambiguatorsAutomaton(f, allophoneStateAlphabet_->disambiguator(0)));
 }
 
-
-Fsa::ConstAutomatonRef Aligner::WordLatticeBuilder::buildAlignmentToLemmaPronunciationTransducer(
-    Fsa::ConstAutomatonRef alignmentFsaWithDisambiguators) const
-{
-    return
-        Fsa::trim(
-            Fsa::composeMatching(alignmentFsaWithDisambiguators, Fsa::multiply(allophoneToLemmaPronunciationTransducer_, Fsa::Weight(0.0)))
-            );
+Fsa::ConstAutomatonRef Aligner::WordLatticeBuilder::buildAlignmentToLemmaPronunciationTransducer(Fsa::ConstAutomatonRef alignmentFsaWithDisambiguators) const {
+    return Fsa::trim(
+            Fsa::composeMatching(alignmentFsaWithDisambiguators, Fsa::multiply(allophoneToLemmaPronunciationTransducer_, Fsa::Weight(0.0))));
 }
 
-
-Lattice::ConstWordLatticeRef Aligner::WordLatticeBuilder::convertToWordLattice(
-    Fsa::ConstAutomatonRef alignmentToLemmaPronunciationTransducer) const
-{
-
+Lattice::ConstWordLatticeRef Aligner::WordLatticeBuilder::convertToWordLattice(Fsa::ConstAutomatonRef alignmentToLemmaPronunciationTransducer) const {
     Converter transducerToLattice(alignmentToLemmaPronunciationTransducer, allophoneStateAlphabet_);
     return transducerToLattice.build();
 }
 
-
-Lattice::ConstWordLatticeRef Aligner::WordLatticeBuilder::build(Fsa::ConstAutomatonRef alignmentFsa)
-{
+Lattice::ConstWordLatticeRef Aligner::WordLatticeBuilder::build(Fsa::ConstAutomatonRef alignmentFsa) {
     if (alignmentFsa->initialStateId() == Fsa::InvalidStateId) {
         error("Cannot generate word lattice because alignment did not reach a final state.");
         return Lattice::ConstWordLatticeRef();
     }
 
     Fsa::ConstAutomatonRef f = Fsa::staticCopy(
-        Fsa::changeSemiring(addWordBoundaryDisambiguators(alignmentFsa), Fsa::TropicalSemiring));
+            Fsa::changeSemiring(addWordBoundaryDisambiguators(alignmentFsa), Fsa::TropicalSemiring));
     require(f);
     if (dumpAutomaton_.isOpen()) {
         Fsa::info(f, dumpAutomaton_);
@@ -1055,22 +1047,17 @@ Lattice::ConstWordLatticeRef Aligner::WordLatticeBuilder::build(Fsa::ConstAutoma
     return result;
 }
 
-
 // ================================================================================
 
-
-WordSequenceAligner::WordSequenceAligner(
-    const Core::Configuration &c,
-    Core::Ref<const Bliss::Lexicon> lexicon,
-    Core::Ref<const Am::AcousticModel> acousticModel)
-    :
-    Core::Component(c),
-    acousticModel_(acousticModel),
-    lexicon_(lexicon),
-    modelBuilder_(0),
-    aligner_(c),
-    alignmentChannel_(config, "alignment-fsa")
-{
+WordSequenceAligner::WordSequenceAligner(const Core::Configuration&         c,
+                                         Core::Ref<const Bliss::Lexicon>    lexicon,
+                                         Core::Ref<const Am::AcousticModel> acousticModel)
+        : Core::Component(c),
+          acousticModel_(acousticModel),
+          lexicon_(lexicon),
+          modelBuilder_(0),
+          aligner_(c),
+          alignmentChannel_(config, "alignment-fsa") {
     modelBuilder_ = new Speech::AllophoneStateGraphBuilder(config, lexicon, acousticModel_);
 }
 
@@ -1078,12 +1065,10 @@ WordSequenceAligner::~WordSequenceAligner() {
     delete modelBuilder_;
 }
 
-Alignment WordSequenceAligner::align(
-    const Mm::FeatureScorer& featureScorer,
-    const std::vector<Core::Ref<const Mm::Feature> >& featureSequence)
-{
-    std::vector<Core::Ref<const Mm::Feature> >::const_iterator p;
-    std::vector<Mm::FeatureScorer::Scorer> scorers;
+Alignment WordSequenceAligner::align(const Mm::FeatureScorer&                         featureScorer,
+                                     const std::vector<Core::Ref<const Mm::Feature>>& featureSequence) {
+    std::vector<Core::Ref<const Mm::Feature>>::const_iterator p;
+    std::vector<Mm::FeatureScorer::Scorer>                    scorers;
     for (p = featureSequence.begin(); p != featureSequence.end(); ++p)
         scorers.push_back(featureScorer.getScorer(*p));
     aligner_.feed(scorers);

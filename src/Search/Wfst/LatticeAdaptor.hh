@@ -17,36 +17,39 @@
 
 #include <Search/LatticeAdaptor.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class Lattice;
 
-class WfstLatticeAdaptor : public Search::LatticeAdaptor
-{
+class WfstLatticeAdaptor : public Search::LatticeAdaptor {
 public:
-    typedef Search::Wfst::Lattice Lattice;
+    typedef Search::Wfst::Lattice          Lattice;
     typedef ::Lattice::ConstWordLatticeRef WordLatticeRef;
 
-    WfstLatticeAdaptor() : l_(0) {}
-    WfstLatticeAdaptor(const Lattice *l) : l_(l) {}
+    WfstLatticeAdaptor()
+            : l_(0) {}
+    WfstLatticeAdaptor(const Lattice* l)
+            : l_(l) {}
     virtual ~WfstLatticeAdaptor();
 
-    bool write(const std::string &id, Search::LatticeHandler *handler) const;
+    bool write(const std::string& id, Search::LatticeHandler* handler) const;
 
     const Lattice* get() const {
         return l_;
     }
 
-    WordLatticeRef wordLattice(const Search::LatticeHandler *handler) const;
+    WordLatticeRef wordLattice(const Search::LatticeHandler* handler) const;
 
     bool empty() const {
         return !l_;
     }
+
 protected:
-    const Lattice *l_;
+    const Lattice* l_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_LATTICE_ADAPTOR_HH
+#endif  // _SEARCH_WFST_LATTICE_ADAPTOR_HH

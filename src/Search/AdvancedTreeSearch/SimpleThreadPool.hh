@@ -21,45 +21,43 @@
  * The API of this thread-pool is not thread-safe, it must only be used from within the foreground.
  * */
 
-class SimpleThreadPool
-{
+class SimpleThreadPool {
 public:
-  /// Override this class to implement your jobs
-  struct Job
-  {
-    /// This function is executed in the background thread
-    virtual void run() = 0;
-    /// The destructor is always called in the foreground, you can use it to process the results
-    virtual ~Job() {
-    }
-  };
+    /// Override this class to implement your jobs
+    struct Job {
+        /// This function is executed in the background thread
+        virtual void run() = 0;
+        /// The destructor is always called in the foreground, you can use it to process the results
+        virtual ~Job() {
+        }
+    };
 
-  SimpleThreadPool( u32 nThreads );
+    SimpleThreadPool(u32 nThreads);
 
-  ~SimpleThreadPool();
+    ~SimpleThreadPool();
 
-  /// Starts a job.
-  /// If there is no idle thread, or if enforceSync is true, the job is run synchronously.
-  /// Ownership of the job goes to the ThreadJobPool.
-  void start( Job* job, bool enforceSync = false );
+    /// Starts a job.
+    /// If there is no idle thread, or if enforceSync is true, the job is run synchronously.
+    /// Ownership of the job goes to the ThreadJobPool.
+    void start(Job* job, bool enforceSync = false);
 
-  /// If @param one is true, returns after at least one job has finished,
-  /// otherwise waits until _all_ jobs are finished.
-  /// Always returns immediately if there are no running jobs.
-  void wait( bool one = false );
+    /// If @param one is true, returns after at least one job has finished,
+    /// otherwise waits until _all_ jobs are finished.
+    /// Always returns immediately if there are no running jobs.
+    void wait(bool one = false);
 
-  /// Check for finished jobs and eventually call their destructors
-  /// This happens automatically from within wait()
-  /// Returns the number of jobs that were finished.
-  u32 manage();
+    /// Check for finished jobs and eventually call their destructors
+    /// This happens automatically from within wait()
+    /// Returns the number of jobs that were finished.
+    u32 manage();
 
-  /// Returns true if all threads are idle
-  bool idle() const;
+    /// Returns true if all threads are idle
+    bool idle() const;
 
 private:
-  class Thread;
-  std::vector<Thread*> idleThreads_;
-  std::vector<Thread*> busyThreads_;
+    class Thread;
+    std::vector<Thread*> idleThreads_;
+    std::vector<Thread*> busyThreads_;
 };
 
 #endif

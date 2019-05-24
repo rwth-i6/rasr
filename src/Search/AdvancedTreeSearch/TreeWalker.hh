@@ -19,79 +19,78 @@
 
 #include "TreeStructure.hh"
 
-namespace Search
-{
+namespace Search {
 /**
  * Inherit this, and then in the given base, implement nodeVisited(TreeNodeIndex, token),
  * visitExit(uint exit, token), and visitNode(TreeNodeIndex, token)
  */
-template <class Token, class Base>
-class SubTreeWalker : public Base
-{
+template<class Token, class Base>
+class SubTreeWalker : public Base {
 public:
-  SubTreeWalker( HMMStateNetwork& _tree ) : tree( _tree ) {
-  }
-
-///Visits the nodes and all its followers, in the correct order
-  void visit( StateId node, Token token ) {
-    bool hadToken = token;
-
-    if ( token )
-      token = this->visitNode( node, token );
-
-    if ( token )
-    {
-      for( HMMStateNetwork::SuccessorIterator target = tree.successors(node); target; ++target )
-      {
-        if(target.isLabel() )
-        {
-          this->visitExit(target.label(), token );
-        }else{
-          visit( *target, token );
-        }
-      }
+    SubTreeWalker(HMMStateNetwork& _tree)
+            : tree(_tree) {
     }
 
-    if( hadToken )
-      this->nodeVisited( node, token );
-  }
+    ///Visits the nodes and all its followers, in the correct order
+    void visit(StateId node, Token token) {
+        bool hadToken = token;
 
-  HMMStateNetwork& tree;
+        if (token)
+            token = this->visitNode(node, token);
+
+        if (token) {
+            for (HMMStateNetwork::SuccessorIterator target = tree.successors(node); target; ++target) {
+                if (target.isLabel()) {
+                    this->visitExit(target.label(), token);
+                }
+                else {
+                    visit(*target, token);
+                }
+            }
+        }
+
+        if (hadToken)
+            this->nodeVisited(node, token);
+    }
+
+    HMMStateNetwork& tree;
 };
 
 struct CountSizeTreeWalkerBackend {
-  CountSizeTreeWalkerBackend() : totalVisited( 0 ), stopAtVisited( false ), visitedFinalOutputs( 0 ) {
-  }
-
-  void nodeVisited( StateId /*node*/, int /*token*/ ) {
-  }
-
-  int visitNode( StateId node, int token ) {
-    std::unordered_set<Search::StateId>::iterator it = visited.find( node );
-    if ( it == visited.end() ) {
-      visited.insert( node );
-    }else{
-      if( stopAtVisited )
-        return 0;
+    CountSizeTreeWalkerBackend()
+            : totalVisited(0), stopAtVisited(false), visitedFinalOutputs(0) {
     }
 
-    ++totalVisited;
+    void nodeVisited(StateId /*node*/, int /*token*/) {
+    }
 
-    return token + 1;
-  }
+    int visitNode(StateId node, int token) {
+        std::unordered_set<Search::StateId>::iterator it = visited.find(node);
+        if (it == visited.end()) {
+            visited.insert(node);
+        }
+        else {
+            if (stopAtVisited)
+                return 0;
+        }
 
-  void visitExit( u32 /*exit*/, int /*token*/ ) {
-    ++visitedFinalOutputs;
-  }
+        ++totalVisited;
 
-  std::unordered_set<StateId> visited;
-  std::unordered_set<TreeIndex> visitedTrees;
-  u32 totalVisited;
-  bool stopAtVisited;
-  u32 visitedFinalOutputs;
+        return token + 1;
+    }
+
+    void visitExit(u32 /*exit*/, int /*token*/) {
+        ++visitedFinalOutputs;
+    }
+
+    std::unordered_set<StateId>   visited;
+    std::unordered_set<TreeIndex> visitedTrees;
+    u32                           totalVisited;
+    bool                          stopAtVisited;
+    u32                           visitedFinalOutputs;
 };
 
 typedef Search::SubTreeWalker<int, CountSizeTreeWalkerBackend> CountSizeTreeWalker;
-}
+}  // namespace Search
 
-#endif // TREEWALKERS_HH
+#endif  // TREEWALKERS_HH

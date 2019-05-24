@@ -12,9 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/FstOperations.hh>
-#include <OpenFst/Scale.hh>
 #include <OpenFst/Encode.hh>
+#include <OpenFst/Scale.hh>
+#include <Search/Wfst/FstOperations.hh>
 #include <fst/arc-map.h>
 #include <fst/compose.h>
 #include <fst/connect.h>
@@ -23,20 +23,19 @@
 #include <fst/epsnormalize.h>
 #include <fst/matcher-fst.h>
 #include <fst/minimize.h>
-#include <fst/push.h>
 #include <fst/project.h>
+#include <fst/push.h>
 #include <fst/relabel.h>
 #include <fst/synchronize.h>
 
 using namespace Search::Wfst::Builder;
 
 const Core::ParameterBool Minimize::paramEncodeLabels(
-    "encode-labels", "combine labels before minimization", false);
+        "encode-labels", "combine labels before minimization", false);
 const Core::ParameterBool Minimize::paramEncodeWeights(
-    "encode-weights", "combine weights and input label before minimization", false);
+        "encode-weights", "combine weights and input label before minimization", false);
 
-Operation::AutomatonRef Minimize::process()
-{
+Operation::AutomatonRef Minimize::process() {
     uint32 encodeFlags = 0;
     if (paramEncodeLabels(Operation::config)) {
         log("using encoded labels");
@@ -50,9 +49,10 @@ Operation::AutomatonRef Minimize::process()
     if (semiring() == tropicalSemiring) {
         log("using tropical semiring");
         minimize(input_, encodeFlags);
-    } else {
+    }
+    else {
         log("using log semiring");
-        OpenFst::LogVectorFst *l = new OpenFst::LogVectorFst();
+        OpenFst::LogVectorFst* l = new OpenFst::LogVectorFst();
         FstLib::Cast(*input_, l);
         input_->DeleteStates();
         minimize(l, encodeFlags);
@@ -63,10 +63,9 @@ Operation::AutomatonRef Minimize::process()
 }
 
 template<class A>
-void Minimize::minimize(FstLib::VectorFst<A> *a, uint32 encodeFlags) const
-{
+void Minimize::minimize(FstLib::VectorFst<A>* a, uint32 encodeFlags) const {
     typedef FstLib::EncodeMapper<A> Mapper;
-    Mapper mapper(encodeFlags, FstLib::ENCODE);
+    Mapper                          mapper(encodeFlags, FstLib::ENCODE);
     if (encodeFlags) {
         FstLib::Encode(a, &mapper);
     }
@@ -77,56 +76,52 @@ void Minimize::minimize(FstLib::VectorFst<A> *a, uint32 encodeFlags) const
     }
 }
 
-Operation::AutomatonRef Determinize::process()
-{
+Operation::AutomatonRef Determinize::process() {
     log("determinizing");
-    Automaton *result = input_->cloneWithAttributes();
+    Automaton* result = input_->cloneWithAttributes();
     if (semiring() == tropicalSemiring) {
         log("using tropical semiring");
         FstLib::Determinize(*input_, result);
         deleteInput();
-    } else {
+    }
+    else {
         log("using log semiring");
-        OpenFst::LogVectorFst *l = new OpenFst::LogVectorFst;
-        OpenFst::LogVectorFst *detL = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* l    = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* detL = new OpenFst::LogVectorFst;
         FstLib::Cast(*input_, l);
         deleteInput();
         FstLib::Determinize(*l, detL);
-        delete l; l = 0;
+        delete l;
+        l = 0;
         FstLib::Cast(*detL, result);
         delete detL;
     }
     return result;
 }
 
-Operation::AutomatonRef ArcInputSort::process()
-{
+Operation::AutomatonRef ArcInputSort::process() {
     log("sorting arcs by input label");
     FstLib::ArcSort(input_, FstLib::ILabelCompare<OpenFst::Arc>());
     return input_;
 }
 
-Operation::AutomatonRef ArcOutputSort::process()
-{
+Operation::AutomatonRef ArcOutputSort::process() {
     log("sorting arcs by output label");
     FstLib::ArcSort(input_, FstLib::OLabelCompare<OpenFst::Arc>());
     return input_;
 }
 
 const Core::ParameterBool Compose::paramIgnoreSymbols(
-    "ignore-symbols", "do not check symbol table compatibility", false);
+        "ignore-symbols", "do not check symbol table compatibility", false);
 
 const Core::ParameterBool Compose::paramSwap(
-    "swap", "swap order of operands", false);
+        "swap", "swap order of operands", false);
 
-
-bool Compose::precondition() const
-{
+bool Compose::precondition() const {
     return SleeveOperation::precondition() && right_;
 }
 
-bool Compose::addInput(AutomatonRef f)
-{
+bool Compose::addInput(AutomatonRef f) {
     if (!input_)
         return SleeveOperation::addInput(f);
     else if (!right_) {
@@ -134,16 +129,16 @@ bool Compose::addInput(AutomatonRef f)
         if (paramSwap(config))
             std::swap(input_, right_);
         return true;
-    } else
+    }
+    else
         return false;
 }
 
-Operation::AutomatonRef Compose::process()
-{
+Operation::AutomatonRef Compose::process() {
     log("building composition");
     FstLib::ComposeFstOptions<OpenFst::Arc> options;
-    options.gc_limit = 0;
-    Automaton *result = input_->cloneWithAttributes();
+    options.gc_limit  = 0;
+    Automaton* result = input_->cloneWithAttributes();
     if (paramIgnoreSymbols(config)) {
         log("ignoring symbols");
         input_->SetOutputSymbols(0);
@@ -151,11 +146,11 @@ Operation::AutomatonRef Compose::process()
     }
     *result = FstLib::ComposeFst<OpenFst::Arc>(*input_, *right_, options);
     deleteInput();
-    delete right_; right_ = 0;
+    delete right_;
+    right_ = 0;
     FstLib::Connect(result);
     return result;
 }
-
 
 const Core::ParameterString LabelCoding::paramEncoder(
         "encoder", "filename of the encoder (written by encode, read by decode)", "");
@@ -163,33 +158,20 @@ const Core::ParameterString LabelCoding::paramEncoder(
 const Core::ParameterBool LabelEncode::paramProtectEpsilon(
         "protect-epsilon", "force epsilon input labels to be mapped to label 0", false);
 
-Operation::AutomatonRef LabelEncode::process()
-{
+Operation::AutomatonRef LabelEncode::process() {
     log("encoding labels");
-    /* fixed in openfst 1.2
-    if (input_->Properties(FstLib::kInitialCyclic, true) & FstLib::kInitialCyclic) {
-        log("automaton has a cycle containing the intial state. adding a new initial state.");
-        // Decode fails if the encoded automaton has arcs with an epsilon label
-        // an epsilon arc is introduced by Reweight (called by Push (called by Minimize))
-        // if kInitialCyclic is true
-        OpenFst::StateId s = input_->AddState();
-        input_->AddArc(s, OpenFst::Arc(OpenFst::Epsilon, OpenFst::Epsilon, OpenFst::Weight::One(), input_->Start()));
-        input_->SetStart(s);
-    }
-    */
     encode(FstLib::kEncodeLabels);
     return input_;
 }
 
-void LabelEncode::encode(uint32 flags)
-{
-
+void LabelEncode::encode(uint32 flags) {
     if (paramProtectEpsilon(Operation::config)) {
         log("protecting epsilon labels");
         OpenFst::EpsilonEncodeMapper<OpenFst::Arc> encoder(flags, FstLib::ENCODE);
         applyMappping(&encoder);
         writeMapping(&encoder);
-    } else {
+    }
+    else {
         FstLib::EncodeMapper<OpenFst::Arc> encoder(flags, FstLib::ENCODE);
         applyMappping(&encoder);
         writeMapping(&encoder);
@@ -197,27 +179,24 @@ void LabelEncode::encode(uint32 flags)
 }
 
 template<class M>
-void LabelEncode::applyMappping(M *mapper)
-{
+void LabelEncode::applyMappping(M* mapper) {
     mapper->SetInputSymbols(input_->InputSymbols());
     mapper->SetOutputSymbols(input_->OutputSymbols());
     FstLib::ArcMap(input_, mapper);
 }
 
 template<class M>
-void LabelEncode::writeMapping(M *mapper) const
-{
+void LabelEncode::writeMapping(M* mapper) const {
     const std::string encoderFile = paramEncoder(config);
     log("writing encoder '%s'", encoderFile.c_str());
     mapper->Write(encoderFile);
 }
 
-Operation::AutomatonRef LabelDecode::process()
-{
+Operation::AutomatonRef LabelDecode::process() {
     const std::string encoderFile = paramEncoder(config);
     log("reading encoder '%s'", encoderFile.c_str());
-    FstLib::EncodeMapper<OpenFst::Arc> *encoder = FstLib::EncodeMapper<OpenFst::Arc>::Read(encoderFile);
-    uint32 flags = encoder->Flags();
+    FstLib::EncodeMapper<OpenFst::Arc>* encoder = FstLib::EncodeMapper<OpenFst::Arc>::Read(encoderFile);
+    uint32                              flags   = encoder->Flags();
     if (flags & FstLib::kEncodeLabels)
         log("decoding labels");
     if (flags & FstLib::kEncodeWeights)
@@ -227,21 +206,19 @@ Operation::AutomatonRef LabelDecode::process()
     return input_;
 }
 
-Operation::AutomatonRef WeightEncode::process()
-{
+Operation::AutomatonRef WeightEncode::process() {
     log("encoding weights");
     encode(FstLib::kEncodeWeights);
     return input_;
 }
 
 const Core::ParameterStringVector Relabel::paramInputMapping(
-    "input", "input mapping separated by ','", ",");
+        "input", "input mapping separated by ','", ",");
 
 const Core::ParameterStringVector Relabel::paramOutputMapping(
-    "output", "output mapping separated by ','", ",");
+        "output", "output mapping separated by ','", ",");
 
-Operation::AutomatonRef Relabel::process()
-{
+Operation::AutomatonRef Relabel::process() {
     LabelMapping inputMapping;
     LabelMapping outputMapping;
     if (!input_->InputSymbols())
@@ -256,18 +233,17 @@ Operation::AutomatonRef Relabel::process()
     return input_;
 }
 
-void Relabel::getLabelMapping(const std::vector<std::string> &labels,
-                              const OpenFst::SymbolTable *symbols,
-                              LabelMapping *mapping) const
-{
+void Relabel::getLabelMapping(const std::vector<std::string>& labels,
+                              const OpenFst::SymbolTable*     symbols,
+                              LabelMapping*                   mapping) const {
     verify(!(labels.size() % 2));
     for (std::vector<std::string>::const_iterator s = labels.begin(); s != labels.end(); s += 2) {
-        const std::string from = *s;
-        const std::string to = *(s + 1);
-        s32 fromId = -1, toId = -1;
+        const std::string from   = *s;
+        const std::string to     = *(s + 1);
+        s32               fromId = -1, toId = -1;
         if (symbols) {
             fromId = symbols->Find(from);
-            toId = symbols->Find(to);
+            toId   = symbols->Find(to);
         }
         if (fromId < 0) {
             Core::strconv(from, fromId);
@@ -282,22 +258,23 @@ void Relabel::getLabelMapping(const std::vector<std::string> &labels,
     }
 }
 
-Operation::AutomatonRef PushWeights::process()
-{
+Operation::AutomatonRef PushWeights::process() {
     log("pushing weights");
-    Automaton *result = input_->cloneWithAttributes();
+    Automaton* result = input_->cloneWithAttributes();
     if (semiring() == tropicalSemiring) {
         log("using tropical semiring");
         FstLib::Push<FstLib::StdArc, FstLib::REWEIGHT_TO_INITIAL>(*input_, result, FstLib::kPushWeights);
         deleteInput();
-    } else {
+    }
+    else {
         log("using log semiring");
-        OpenFst::LogVectorFst *l = new OpenFst::LogVectorFst;
-        OpenFst::LogVectorFst *r = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* l = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* r = new OpenFst::LogVectorFst;
         FstLib::Cast(*input_, l);
         deleteInput();
         FstLib::Push<FstLib::LogArc, FstLib::REWEIGHT_TO_INITIAL>(*l, r, FstLib::kPushWeights);
-        delete l; l = 0;
+        delete l;
+        l = 0;
         FstLib::Cast(*r, result);
         delete r;
     }
@@ -305,16 +282,16 @@ Operation::AutomatonRef PushWeights::process()
 }
 
 const Core::ParameterBool PushLabels::paramToFinal(
-    "to-final", "push labels ot final states", false);
+        "to-final", "push labels ot final states", false);
 
-Operation::AutomatonRef PushLabels::process()
-{
+Operation::AutomatonRef PushLabels::process() {
     log("pushing labels");
-    Automaton *result = input_->cloneWithAttributes();
+    Automaton* result = input_->cloneWithAttributes();
     if (paramToFinal(config)) {
         log("pushing to final state");
         FstLib::Push<FstLib::StdArc, FstLib::REWEIGHT_TO_FINAL>(*input_, result, FstLib::kPushLabels);
-    } else {
+    }
+    else {
         log("pushing to initial state");
         FstLib::Push<FstLib::StdArc, FstLib::REWEIGHT_TO_INITIAL>(*input_, result, FstLib::kPushLabels);
     }
@@ -322,91 +299,85 @@ Operation::AutomatonRef PushLabels::process()
     return result;
 }
 
-Operation::AutomatonRef NormalizeEpsilon::process()
-{
+Operation::AutomatonRef NormalizeEpsilon::process() {
     log("normalizing epsilon arcs");
-    FstLib::EpsNormalizeType type = (labelType() == LabelTypeDependent::Input) ?
-                                     FstLib::EPS_NORM_INPUT : FstLib::EPS_NORM_OUTPUT;
-    log("using %s arcs", (type == FstLib::EPS_NORM_INPUT ? "input" :  "output"));
-    Automaton *result = input_->cloneWithAttributes();
+    FstLib::EpsNormalizeType type = (labelType() == LabelTypeDependent::Input) ? FstLib::EPS_NORM_INPUT : FstLib::EPS_NORM_OUTPUT;
+    log("using %s arcs", (type == FstLib::EPS_NORM_INPUT ? "input" : "output"));
+    Automaton* result = input_->cloneWithAttributes();
     FstLib::EpsNormalize(*input_, result, type);
     deleteInput();
     return result;
 }
 
-Operation::AutomatonRef Project::process()
-{
-
-    FstLib::ProjectType type = (labelType() == LabelTypeDependent::Input) ?
-                                FstLib::PROJECT_INPUT : FstLib::PROJECT_OUTPUT;
+Operation::AutomatonRef Project::process() {
+    FstLib::ProjectType type = (labelType() == LabelTypeDependent::Input) ? FstLib::PROJECT_INPUT : FstLib::PROJECT_OUTPUT;
     log("projecting to %s", type == FstLib::PROJECT_INPUT ? "input" : "output");
     FstLib::Project(input_, type);
     return input_;
 }
 
-Operation::AutomatonRef RemoveEpsilon::process()
-{
+Operation::AutomatonRef RemoveEpsilon::process() {
     log("removing epsilon arcs");
     if (semiring() == tropicalSemiring) {
         log("using tropical semiring");
         FstLib::RmEpsilon(input_);
-    } else {
+    }
+    else {
         log("using log semiring");
-        OpenFst::LogVectorFst *l = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* l = new OpenFst::LogVectorFst;
         FstLib::Cast(*input_, l);
         input_->DeleteStates();
         FstLib::RmEpsilon(l);
         FstLib::Cast(*l, input_);
-        delete l; l = 0;
+        delete l;
+        l = 0;
     }
     return input_;
 }
 
-Operation::AutomatonRef Synchronize::process()
-{
+Operation::AutomatonRef Synchronize::process() {
     log("synchronizing");
-    Automaton *result = input_->cloneWithAttributes();
+    Automaton* result = input_->cloneWithAttributes();
     if (semiring() == tropicalSemiring) {
         log("using tropical semiring");
         FstLib::Synchronize(*input_, result);
         deleteInput();
-    } else {
+    }
+    else {
         log("using log semiring");
-        OpenFst::LogVectorFst *l = new OpenFst::LogVectorFst;
-        OpenFst::LogVectorFst *syncL = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* l     = new OpenFst::LogVectorFst;
+        OpenFst::LogVectorFst* syncL = new OpenFst::LogVectorFst;
         FstLib::Cast(*input_, l);
         deleteInput();
         FstLib::Synchronize(*l, syncL);
-        delete l; l = 0;
+        delete l;
+        l = 0;
         FstLib::Cast(*syncL, result);
         delete syncL;
     }
     return result;
 }
 
-Operation::AutomatonRef Invert::process()
-{
+Operation::AutomatonRef Invert::process() {
     log("inverting");
     FstLib::Invert(input_);
     return input_;
 }
 
 const Core::ParameterBool CreateLookahead::paramRelabelInput(
-    "relabel-input", "relabel the second input automaton", false);
+        "relabel-input", "relabel the second input automaton", false);
 const Core::ParameterString CreateLookahead::paramRelabelFile(
-    "relabel-filename", "filename to write relabeling pairs", "");
+        "relabel-filename", "filename to write relabeling pairs", "");
 const Core::ParameterBool CreateLookahead::paramSwap(
-    "swap", "swap input automata", false);
+        "swap", "swap input automata", false);
 const Core::ParameterBool CreateLookahead::paramKeepRelabelingData(
-    "keep-relabeling", "store relabeling data in the file", false);
+        "keep-relabeling", "store relabeling data in the file", false);
 
-u32 CreateLookahead::nInputAutomata() const
-{
+u32 CreateLookahead::nInputAutomata() const {
     return paramRelabelInput(config) ? 2 : 1;
 }
 
-bool CreateLookahead::addInput(AutomatonRef f)
-{
+bool CreateLookahead::addInput(AutomatonRef f) {
     if (!input_) {
         return SleeveOperation::addInput(f);
     }
@@ -421,12 +392,11 @@ bool CreateLookahead::addInput(AutomatonRef f)
     return false;
 }
 
-Operation::AutomatonRef CreateLookahead::process()
-{
-    u32 flagV = FLAGS_v;
-    FLAGS_v = 2;
+Operation::AutomatonRef CreateLookahead::process() {
+    u32 flagV                     = FLAGS_v;
+    FLAGS_v                       = 2;
     std::string flagRelabelOpairs = FLAGS_save_relabel_opairs;
-    std::string relabelFile = paramRelabelFile(config);
+    std::string relabelFile       = paramRelabelFile(config);
     if (!relabelFile.empty()) {
         log("writing relabeling pairs to %s", relabelFile.c_str());
         FLAGS_save_relabel_opairs = relabelFile;
@@ -437,33 +407,36 @@ Operation::AutomatonRef CreateLookahead::process()
     typedef FstLib::LabelLookAheadMatcher<
             FstLib::SortedMatcher<BaseFst>,
             FstLib::olabel_lookahead_flags | FstLib::kLookAheadKeepRelabelData,
-            FstLib::FastLogAccumulator<BaseFst::Arc> > Matcher;
+            FstLib::FastLogAccumulator<BaseFst::Arc>>
+            Matcher;
     typedef FstLib::MatcherFst<BaseFst,
-            Matcher,
-            FstLib::olabel_lookahead_fst_type,
-            FstLib::LabelLookAheadRelabeler<BaseFst::Arc> > LookAheadFst;
+                               Matcher,
+                               FstLib::olabel_lookahead_fst_type,
+                               FstLib::LabelLookAheadRelabeler<BaseFst::Arc>>
+            LookAheadFst;
 
-    FstLib::StdFst *result = 0;
+    FstLib::StdFst* result = 0;
     if (paramKeepRelabelingData(config)) {
         log("storing relabeling data");
-        LookAheadFst *l = new LookAheadFst(*input_);
+        LookAheadFst* l = new LookAheadFst(*input_);
         relabel(*l);
         result = l;
-    } else {
-        FstLib::StdOLabelLookAheadFst *l = new FstLib::StdOLabelLookAheadFst(*input_);
+    }
+    else {
+        FstLib::StdOLabelLookAheadFst* l = new FstLib::StdOLabelLookAheadFst(*input_);
         relabel(*l);
         result = l;
     }
     // deleteInput();
     result->Write(paramFilename(config));
     FLAGS_save_relabel_opairs = flagRelabelOpairs;
-    FLAGS_v = flagV;
+    FLAGS_v                   = flagV;
     delete result;
     return 0;
 }
 
 template<class F>
-void CreateLookahead::relabel(const F &f) {
+void CreateLookahead::relabel(const F& f) {
     if (paramRelabelInput(config)) {
         verify(toRelabel_);
         log("relabeling input");
@@ -472,29 +445,29 @@ void CreateLookahead::relabel(const F &f) {
 }
 
 const Core::Choice ReachableCompose::lookAheadChoice(
-    "label", LabelLookAhead,
-    "arc", ArcLookAhead,
-    Core::Choice::endMark());
+        "label", LabelLookAhead,
+        "arc", ArcLookAhead,
+        Core::Choice::endMark());
 const Core::ParameterChoice ReachableCompose::paramLookAheadType(
-    "lookahead-type", &lookAheadChoice, "type of lookahead", LabelLookAhead);
+        "lookahead-type", &lookAheadChoice, "type of lookahead", LabelLookAhead);
 
-Operation::AutomatonRef ReachableCompose::process()
-{
-    LookAheadType laType = static_cast<LookAheadType>(paramLookAheadType(config));
-    AutomatonRef result = input_->cloneWithAttributes();
-    bool flagCompat = FLAGS_fst_compat_symbols;
+Operation::AutomatonRef ReachableCompose::process() {
+    LookAheadType laType     = static_cast<LookAheadType>(paramLookAheadType(config));
+    AutomatonRef  result     = input_->cloneWithAttributes();
+    bool          flagCompat = FLAGS_fst_compat_symbols;
     if (paramIgnoreSymbols(config))
         FLAGS_fst_compat_symbols = false;
     if (laType == LabelLookAhead) {
         log("using label look-ahead");
-        FstLib::StdOLabelLookAheadFst *left = new FstLib::StdOLabelLookAheadFst(*input_);
+        FstLib::StdOLabelLookAheadFst* left = new FstLib::StdOLabelLookAheadFst(*input_);
         deleteInput();
         FstLib::LabelLookAheadRelabeler<OpenFst::Arc>::Relabel(right_, *left, true);
         *result = FstLib::ComposeFst<OpenFst::Arc>(*left, *right_);
         delete left;
-    } else if (laType == ArcLookAhead) {
+    }
+    else if (laType == ArcLookAhead) {
         log("using arc look-ahead");
-        FstLib::StdArcLookAheadFst *left = new FstLib::StdArcLookAheadFst(*input_);
+        FstLib::StdArcLookAheadFst* left = new FstLib::StdArcLookAheadFst(*input_);
         deleteInput();
         *result = FstLib::ComposeFst<OpenFst::Arc>(*left, *right_);
         delete left;
@@ -505,10 +478,9 @@ Operation::AutomatonRef ReachableCompose::process()
 }
 
 const Core::ParameterFloat ScaleWeights::paramScale(
-    "scale", "scaling factor applied to all weights", 1.0);
+        "scale", "scaling factor applied to all weights", 1.0);
 
-Operation::AutomatonRef ScaleWeights::process()
-{
+Operation::AutomatonRef ScaleWeights::process() {
     f32 scale = paramScale(config);
     log("scaling weights: %f", scale);
     OpenFst::scaleWeights(input_, scale);
@@ -516,18 +488,17 @@ Operation::AutomatonRef ScaleWeights::process()
 }
 
 const Core::ParameterFloat ScaleLabelWeights::paramScale(
-    "scale", "scaling factor applied to the selected weights", 1.0);
+        "scale", "scaling factor applied to the selected weights", 1.0);
 const Core::ParameterString ScaleLabelWeights::paramLabel(
-    "label", "label used to select arcs", "");
+        "label", "label used to select arcs", "");
 
-Operation::AutomatonRef ScaleLabelWeights::process()
-{
+Operation::AutomatonRef ScaleLabelWeights::process() {
     if (!input_->OutputSymbols()) {
         error("symbol table required");
         return input_;
     }
     const std::string symbol = paramLabel(config);
-    OpenFst::Label label = input_->OutputSymbols()->Find(symbol);
+    OpenFst::Label    label  = input_->OutputSymbols()->Find(symbol);
     log("using label '%s' = %d", symbol.c_str(), label);
     f32 scale = paramScale(config);
     log("using scale %f", scale);
@@ -537,7 +508,7 @@ Operation::AutomatonRef ScaleLabelWeights::process()
         for (OpenFst::MutableArcIterator aiter(input_, state); !aiter.Done(); aiter.Next()) {
             if (aiter.Value().olabel == label) {
                 OpenFst::Arc arc = aiter.Value();
-                arc.weight = OpenFst::Weight(arc.weight.Value() * scale);
+                arc.weight       = OpenFst::Weight(arc.weight.Value() * scale);
                 aiter.SetValue(arc);
                 ++nModified;
             }
@@ -547,8 +518,7 @@ Operation::AutomatonRef ScaleLabelWeights::process()
     return input_;
 }
 
-Operation::AutomatonRef RemoveWeights::process()
-{
+Operation::AutomatonRef RemoveWeights::process() {
     log("removing weights");
     FstLib::ArcMap(input_, FstLib::RmWeightMapper<OpenFst::Arc>());
     return input_;

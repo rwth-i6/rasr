@@ -15,15 +15,16 @@
 #ifndef _SEARCH_WFST_COMPRESSED_NETWORK_HH
 #define _SEARCH_WFST_COMPRESSED_NETWORK_HH
 
-#include <Core/Component.hh>
 #include <Bliss/Lexicon.hh>
-#include <OpenFst/Types.hh>
-#include <Search/Types.hh>
+#include <Core/Component.hh>
 #include <Fsa/Automaton.hh>
 #include <Fsa/Types.hh>
+#include <OpenFst/Types.hh>
+#include <Search/Types.hh>
 #include <Search/Wfst/AutomatonAdapter.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 /**
  * Compressed version of either Fsa automaton or OpenFst automaton.
@@ -32,83 +33,90 @@ namespace Search { namespace Wfst {
  * number of epsilon arcs per state (u8) and number of labels (u16).
  * Labels are stored in OpenFst format (Epsilon = 0)
  */
-class CompressedNetwork : public Core::Component
-{
+class CompressedNetwork : public Core::Component {
 private:
-    static const Core::Choice choiceAutomatonType;
+    static const Core::Choice          choiceAutomatonType;
     static const Core::ParameterChoice paramAutomatonType_;
     static const Core::ParameterString paramNetworkFile_;
-    static const Core::ParameterBool paramRemoveEpsArcs_;
+    static const Core::ParameterBool   paramRemoveEpsArcs_;
+
 public:
-
-    typedef u32 ArcIndex;
-    typedef u32 StateIndex;
+    typedef u32            ArcIndex;
+    typedef u32            StateIndex;
     typedef OpenFst::Label Label;
-    typedef u16 InternalLabel;
-    typedef u16 ArcCount;
-    typedef u8 EpsArcCount;
+    typedef u16            InternalLabel;
+    typedef u16            ArcCount;
+    typedef u8             EpsArcCount;
 
-    struct Arc
-    {
-        Score weight;
-        Fsa::StateId nextstate; // target;
-        InternalLabel olabel; // output;
-        InternalLabel ilabel; // input;
+    struct Arc {
+        Score         weight;
+        Fsa::StateId  nextstate;  // target;
+        InternalLabel olabel;     // output;
+        InternalLabel ilabel;     // input;
         Arc(Fsa::StateId _target,
-                Label _input, Label _output, Score _weight) :
-            weight(_weight), nextstate(_target), olabel(_output), ilabel(_input) {}
+            Label _input, Label _output, Score _weight)
+                : weight(_weight), nextstate(_target), olabel(_output), ilabel(_input) {}
     };
     typedef Arc* Arcs;
 
-    struct EpsilonArc
-    {
-        Score weight;
-        InternalLabel olabel; // output;
-        Fsa::StateId nextstate; // target;
-        EpsilonArc(Fsa::StateId _target, Label _output, Score _weight) :
-            weight(_weight), olabel(_output), nextstate(_target) {}
+    struct EpsilonArc {
+        Score         weight;
+        InternalLabel olabel;     // output;
+        Fsa::StateId  nextstate;  // target;
+        EpsilonArc(Fsa::StateId _target, Label _output, Score _weight)
+                : weight(_weight), olabel(_output), nextstate(_target) {}
     };
     typedef EpsilonArc* EpsilonArcs;
 
-    struct State
-    {
-        ArcIndex begin;          // index of begin/end in arcs_
-        ArcIndex epsilonArcsBegin; // index of begin/end in epsilonArcs_
-        ArcCount nArcs;
+    struct State {
+        ArcIndex    begin;             // index of begin/end in arcs_
+        ArcIndex    epsilonArcsBegin;  // index of begin/end in epsilonArcs_
+        ArcCount    nArcs;
         EpsArcCount nEpsilonArcs;
         // bool final;
         Score weight;
-        State(bool f = false, Score weight = 0) :
-            begin(InvalidArcIndex), epsilonArcsBegin(InvalidArcIndex), nArcs(0), nEpsilonArcs(0), weight(f ? weight : NonFinalWeight) {}
-
+        State(bool f = false, Score weight = 0)
+                : begin(InvalidArcIndex), epsilonArcsBegin(InvalidArcIndex), nArcs(0), nEpsilonArcs(0), weight(f ? weight : NonFinalWeight) {}
     };
     typedef State* States;
 
 private:
     static const ArcIndex InvalidArcIndex;
-    static const Score NonFinalWeight;
-    States states_;
-    Arcs arcs_;
-    EpsilonArcs epsilonArcs_;
-    StateIndex initialStateIndex_;
-    u32 nStates_, nArcs_, nEpsilonArcs_;
+    static const Score    NonFinalWeight;
+    States                states_;
+    Arcs                  arcs_;
+    EpsilonArcs           epsilonArcs_;
+    StateIndex            initialStateIndex_;
+    u32                   nStates_, nArcs_, nEpsilonArcs_;
 
 public:
     CompressedNetwork(const Core::Configuration&, bool loadNetwork = true);
     virtual ~CompressedNetwork();
-    bool build(Fsa::ConstAutomatonRef f,  bool removeEpsArcs = false);
-    bool build(const OpenFst::VectorFst *f, bool removeEpsArcs = false);
-    bool write(const std::string &file) const;
-    bool read(const std::string &file);
+    bool build(Fsa::ConstAutomatonRef f, bool removeEpsArcs = false);
+    bool build(const OpenFst::VectorFst* f, bool removeEpsArcs = false);
+    bool write(const std::string& file) const;
+    bool read(const std::string& file);
     void setLexicon(Bliss::LexiconRef lexicon) {}
     bool init();
 
-    u32 nArcs() const { return nArcs_; }
-    u32 nEpsilonArcs() const { return nEpsilonArcs_; }
-    u32 nStates() const { return nStates_; }
-    size_t memStates() const { return nStates_ * sizeof(State); }
-    size_t memArcs() const { return nArcs_ * sizeof(Arc); }
-    size_t memEpsilonArcs() const { return nEpsilonArcs_ * sizeof(EpsilonArc); }
+    u32 nArcs() const {
+        return nArcs_;
+    }
+    u32 nEpsilonArcs() const {
+        return nEpsilonArcs_;
+    }
+    u32 nStates() const {
+        return nStates_;
+    }
+    size_t memStates() const {
+        return nStates_ * sizeof(State);
+    }
+    size_t memArcs() const {
+        return nArcs_ * sizeof(Arc);
+    }
+    size_t memEpsilonArcs() const {
+        return nEpsilonArcs_ * sizeof(EpsilonArc);
+    }
 
 public:
     bool isFinal(StateIndex s) const {
@@ -121,19 +129,24 @@ public:
     void reset() {}
     void setSegment(const std::string&) {}
 
-    StateIndex initialStateIndex() const { return initialStateIndex_; }
+    StateIndex initialStateIndex() const {
+        return initialStateIndex_;
+    }
 
-    static bool hasGrammarState() { return false; }
-    StateIndex grammarState(StateIndex) const { return 0; }
+    static bool hasGrammarState() {
+        return false;
+    }
+    StateIndex grammarState(StateIndex) const {
+        return 0;
+    }
 
-    class ArcIterator
-    {
+    class ArcIterator {
     public:
-        ArcIterator(const CompressedNetwork *network, StateIndex s) {
+        ArcIterator(const CompressedNetwork* network, StateIndex s) {
             const States states = network->states_;
-            const Arcs arcs = network->arcs_;
-            a_  = arcs + states[s].begin;
-            end_ = a_ + static_cast<size_t>(states[s].nArcs);
+            const Arcs   arcs   = network->arcs_;
+            a_                  = arcs + states[s].begin;
+            end_                = a_ + static_cast<size_t>(states[s].nArcs);
         }
         void next() {
             ++a_;
@@ -147,19 +160,19 @@ public:
         void reset() {
             defect();
         }
+
     private:
         Arc *a_, *end_;
     };
     friend class ArcIterator;
 
-    class EpsilonArcIterator
-    {
+    class EpsilonArcIterator {
     public:
-        EpsilonArcIterator(const CompressedNetwork *network, StateIndex s) {
-            const States states = network->states_;
-            const EpsilonArcs arcs = network->epsilonArcs_;
-            a_ = arcs + states[s].epsilonArcsBegin;
-            end_ = a_ + static_cast<size_t>(states[s].nEpsilonArcs);
+        EpsilonArcIterator(const CompressedNetwork* network, StateIndex s) {
+            const States      states = network->states_;
+            const EpsilonArcs arcs   = network->epsilonArcs_;
+            a_                       = arcs + states[s].epsilonArcsBegin;
+            end_                     = a_ + static_cast<size_t>(states[s].nEpsilonArcs);
         }
         void next() {
             ++a_;
@@ -173,33 +186,46 @@ public:
         void reset() {
             defect();
         }
+
     private:
         EpsilonArc *a_, *end_;
     };
     friend class EpsilonArcIterator;
 
-    static f32 arcWeight(const Arc &arc) { return arc.weight; }
-    static f32 arcWeight(const Arc &arc, f32 scale) { return scale * arc.weight; }
-    static f32 arcWeight(const EpsilonArc &arc) { return arc.weight; }
-    static f32 arcWeight(const EpsilonArc &arc, f32 scale) { return scale * arc.weight; }
-    static u32 stateSequenceIndex(const Arc &arc) { return arc.ilabel - 1; }
-    static Fsa::LabelId getFsaLabel(Label l) { return OpenFst::convertLabelToFsa(l); }
+    static f32 arcWeight(const Arc& arc) {
+        return arc.weight;
+    }
+    static f32 arcWeight(const Arc& arc, f32 scale) {
+        return scale * arc.weight;
+    }
+    static f32 arcWeight(const EpsilonArc& arc) {
+        return arc.weight;
+    }
+    static f32 arcWeight(const EpsilonArc& arc, f32 scale) {
+        return scale * arc.weight;
+    }
+    static u32 stateSequenceIndex(const Arc& arc) {
+        return arc.ilabel - 1;
+    }
+    static Fsa::LabelId getFsaLabel(Label l) {
+        return OpenFst::convertLabelToFsa(l);
+    }
 
 private:
-    u32 writeData(int) const;
-    bool readData(int);
-    char *mmap_;
+    u32    writeData(int) const;
+    bool   readData(int);
+    char*  mmap_;
     size_t mmapSize_;
-    bool loadNetwork_;
+    bool   loadNetwork_;
     struct ImageHeader;
     friend struct ImageHeader;
-    template<class A> class Builder;
+    template<class A>
+    class Builder;
     friend class Builder<FsaAutomatonAdapter>;
     friend class Builder<FstAutomatonAdapter>;
-
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_COMPRESSED_NETWORK_HH
+#endif  // _SEARCH_WFST_COMPRESSED_NETWORK_HH

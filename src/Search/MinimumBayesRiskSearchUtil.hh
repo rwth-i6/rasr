@@ -28,71 +28,59 @@
 #include <set>
 #include <vector>
 
-namespace Search
-{
+namespace Search {
 
+typedef std::vector<Fsa::LabelId> Sentence;
 
-    typedef std::vector<Fsa::LabelId> Sentence;
+struct StringHypothesis {
+public:
+    std::vector<Fsa::LabelId> sentence_;
+    Fsa::Weight               probability_;
 
-    /**
-     *
-     */
-    struct StringHypothesis
-    {
-    public:
+    StringHypothesis() {}  //end StringHypothesis
 
-        /** */
-        std::vector<Fsa::LabelId> sentence_;
+    StringHypothesis(std::vector<Fsa::LabelId> sentence, Fsa::Weight probability)
+            : sentence_(sentence), probability_(probability) {}  //end StringHypothesis
+};                                                               //end StringHypothesis
 
-        /** */
-        Fsa::Weight probability_;
+typedef std::vector<StringHypothesis> HypothesisVector;
 
-        StringHypothesis ( ) { }//end StringHypothesis
+Fsa::Weight getNbestNormalizationConstant(Fsa::ConstAutomatonRef nbestlist);
 
-        /** */
-        StringHypothesis ( std::vector<Fsa::LabelId> sentence, Fsa::Weight probability ) : sentence_ ( sentence ), probability_ ( probability ) { }//end StringHypothesis
-    };//end StringHypothesis
+Fsa::ConstAutomatonRef normalizeNbestlist(Fsa::ConstAutomatonRef nbestlist);
 
-    typedef std::vector<StringHypothesis> HypothesisVector;
+Fsa::ConstAutomatonRef partialNbestlist(Fsa::ConstAutomatonRef nbestlist, u32 size);
 
-    Fsa::Weight getNbestNormalizationConstant ( Fsa::ConstAutomatonRef nbestlist );
+/**
+ * Compute levenshtein distance between two sentences using the dynamic programming algorithm.
+ *
+ * @return levenshtein distance between sentence A and sentence B
+ */
+u32 levenshteinDistance(const std::vector<Fsa::LabelId>& A, const std::vector<Fsa::LabelId>& B);
 
-    Fsa::ConstAutomatonRef normalizeNbestlist ( Fsa::ConstAutomatonRef nbestlist );
+/**
+ *
+ * @return contour for all states in oldContour
+ */
+std::set<Fsa::StateId> getContour(std::set<Fsa::StateId> oldContour, Fsa::ConstAutomatonRef fsa);
 
-    Fsa::ConstAutomatonRef partialNbestlist ( Fsa::ConstAutomatonRef nbestlist, u32 size );
+/**
+ * Computes the longest distance for a state from the source of the fsa.
+ *
+ * @return vector assigning each state id a distance.
+ */
+std::vector<Fsa::StateId> getDistances(Fsa::ConstAutomatonRef fsa);
 
-    /**
-     * Compute levenshtein distance between two sentences using the dynamic programming algorithm.
-     *
-     * @return levenshtein distance between sentence A and sentence B
-     */
-    u32 levenshteinDistance ( const std::vector<Fsa::LabelId>& A, const std::vector<Fsa::LabelId>& B );
+Fsa::ConstAutomatonRef createLinearAutomatonFromVector(const std::vector<Fsa::LabelId>& sequence,
+                                                       const Fsa::Weight&               score          = Fsa::Weight(),
+                                                       Fsa::ConstAlphabetRef            inputAlphabet  = Fsa::ConstAlphabetRef(),
+                                                       Fsa::ConstAlphabetRef            outputAlphabet = Fsa::ConstAlphabetRef(),
+                                                       Fsa::ConstSemiringRef            semiring       = Fsa::ConstSemiringRef(Fsa::UnknownSemiring));
 
-    /**
-     *
-     * @return contour for all states in oldContour
-     */
-    std::set<Fsa::StateId> getContour ( std::set<Fsa::StateId> oldContour, Fsa::ConstAutomatonRef fsa );
+Fsa::Weight posteriorExpectedRisk(Fsa::ConstAutomatonRef center, Fsa::ConstAutomatonRef hypotheses);
 
-    /**
-     * Computes the longest distance for a state from the source of the fsa.
-     *
-     * @return vector assigning each state id a distance.
-     */
-    std::vector<Fsa::StateId> getDistances ( Fsa::ConstAutomatonRef fsa );
+Fsa::Weight collectWeights(Fsa::ConstSemiringRef sr, const Core::Vector<Fsa::Weight>& weights);
 
-    Fsa::ConstAutomatonRef createLinearAutomatonFromVector
-    ( const std::vector<Fsa::LabelId>& sequence,
-      const Fsa::Weight& score = Fsa::Weight ( ),
-      Fsa::ConstAlphabetRef inputAlphabet  = Fsa::ConstAlphabetRef ( ),
-      Fsa::ConstAlphabetRef outputAlphabet = Fsa::ConstAlphabetRef ( ),
-      Fsa::ConstSemiringRef semiring       = Fsa::ConstSemiringRef ( Fsa::UnknownSemiring ) );
+}  //end namespace Search
 
-    Fsa::Weight posteriorExpectedRisk ( Fsa::ConstAutomatonRef center, Fsa::ConstAutomatonRef hypotheses );
-
-    Fsa::Weight collectWeights ( Fsa::ConstSemiringRef sr, const Core::Vector<Fsa::Weight>& weights );
-
-}//end namespace Search
-
-
-#endif // _SEARCH_MINIMUM_BAYES_RISK_UTIL_HH
+#endif  // _SEARCH_MINIMUM_BAYES_RISK_UTIL_HH

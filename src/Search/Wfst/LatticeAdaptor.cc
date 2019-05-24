@@ -12,27 +12,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/LatticeAdaptor.hh>
-#include <Search/Wfst/Lattice.hh>
-#include <Search/Wfst/Types.hh>
-#include <Search/LatticeHandler.hh>
+#include <Fsa/Output.hh>
 #include <Lattice/Lattice.hh>
 #include <OpenFst/FstMapper.hh>
-#include <Fsa/Output.hh>
+#include <Search/LatticeHandler.hh>
+#include <Search/Wfst/Lattice.hh>
+#include <Search/Wfst/LatticeAdaptor.hh>
+#include <Search/Wfst/Types.hh>
 
 using namespace Search::Wfst;
 
-WfstLatticeAdaptor::~WfstLatticeAdaptor()
-{
+WfstLatticeAdaptor::~WfstLatticeAdaptor() {
     delete l_;
 }
 
-bool WfstLatticeAdaptor::write(const std::string &id, Search::LatticeHandler *handler) const
-{
+bool WfstLatticeAdaptor::write(const std::string& id, Search::LatticeHandler* handler) const {
     return handler->write(id, *this);
 }
 
-WfstLatticeAdaptor::WordLatticeRef  WfstLatticeAdaptor::wordLattice(const Search::LatticeHandler *handler) const
-{
+WfstLatticeAdaptor::WordLatticeRef WfstLatticeAdaptor::wordLattice(const Search::LatticeHandler* handler) const {
     return handler->convert(*this);
 }

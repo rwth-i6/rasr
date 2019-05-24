@@ -15,28 +15,31 @@
 #ifndef _SEARCH_WFST_TYPES_HH
 #define _SEARCH_WFST_TYPES_HH
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-enum OutputType { OutputLemmaPronunciation, OutputLemma, OutputSyntacticToken };
+enum OutputType { OutputLemmaPronunciation,
+                  OutputLemma,
+                  OutputSyntacticToken };
 
 enum LookAheadFlags {
-        NoLookAheadFlag = 0,
-        LabelLookAheadFlag = 1,
-        PushWeightsFlag = 2,
-        PushLabelsFlag = 4,
-        ArcLookAheadFlag = 8
+    NoLookAheadFlag    = 0,
+    LabelLookAheadFlag = 1,
+    PushWeightsFlag    = 2,
+    PushLabelsFlag     = 4,
+    ArcLookAheadFlag   = 8
 };
 
 enum LookAheadType {
-        NoLookAhead = NoLookAheadFlag,
-        LabelLookAhead = LabelLookAheadFlag,
-        PushWeights = LabelLookAheadFlag | PushWeightsFlag,
-        PushLabels = LabelLookAheadFlag | PushWeightsFlag | PushLabelsFlag,
-        PushLabelsOnly = LabelLookAheadFlag | PushLabelsFlag,
-        ArcLookAhead = ArcLookAheadFlag
+    NoLookAhead    = NoLookAheadFlag,
+    LabelLookAhead = LabelLookAheadFlag,
+    PushWeights    = LabelLookAheadFlag | PushWeightsFlag,
+    PushLabels     = LabelLookAheadFlag | PushWeightsFlag | PushLabelsFlag,
+    PushLabelsOnly = LabelLookAheadFlag | PushLabelsFlag,
+    ArcLookAhead   = ArcLookAheadFlag
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_TYPES_HH
+#endif  // _SEARCH_WFST_TYPES_HH

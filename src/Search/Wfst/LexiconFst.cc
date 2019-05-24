@@ -12,10 +12,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/LexiconFst.hh>
-#include <Search/Wfst/ComposeFst.hh>
-#include <OpenFst/Scale.hh>
 #include <Core/Assertions.hh>
+#include <OpenFst/Scale.hh>
+#include <Search/Wfst/ComposeFst.hh>
+#include <Search/Wfst/LexiconFst.hh>
 
 using namespace Search::Wfst;
 
@@ -43,30 +43,27 @@ const Core::ParameterBool LexicalFstFactory::paramMatcherFst_(
 const Core::ParameterFloat LexicalFstFactory::paramScale_(
         "scale", "scale arc weights (only if matcher-fst = false)", 1.0);
 
-LexicalFstFactory::Options LexicalFstFactory::parseOptions() const
-{
+LexicalFstFactory::Options LexicalFstFactory::parseOptions() const {
     Options options;
     options.accumulatorType = static_cast<AccumulatorType>(paramAccumulatorType_(config));
-    options.lookAhead = static_cast<LookAheadType>(paramLookAheadType_(config));
+    options.lookAhead       = static_cast<LookAheadType>(paramLookAheadType_(config));
     return options;
 }
 
-LexicalFstFactory::Options LexicalFstFactory::parseOptions(const Options &defaultValues) const
-{
-    Options options = defaultValues;
+LexicalFstFactory::Options LexicalFstFactory::parseOptions(const Options& defaultValues) const {
+    Options options         = defaultValues;
     options.accumulatorType = static_cast<AccumulatorType>(paramAccumulatorType_(config, options.accumulatorType));
-    options.lookAhead = static_cast<LookAheadType>(paramLookAheadType_(config, options.lookAhead));
+    options.lookAhead       = static_cast<LookAheadType>(paramLookAheadType_(config, options.lookAhead));
     return options;
 }
 
-void LexicalFstFactory::logOptions(const Options &options) const
-{
+void LexicalFstFactory::logOptions(const Options& options) const {
     if (options.lookAhead & LabelLookAheadFlag)
         log("using label look-ahead");
     if (options.lookAhead & PushWeightsFlag) {
         log("using weight pushing");
         log("weight look-ahead accumulator: ")
-            << choiceAccumulatorType_[options.accumulatorType];
+                << choiceAccumulatorType_[options.accumulatorType];
     }
     if (options.lookAhead & PushLabelsFlag)
         log("using label pushing");
@@ -76,67 +73,62 @@ void LexicalFstFactory::logOptions(const Options &options) const
         log("no look-ahead");
 }
 
-AbstractLexicalFst* LexicalFstFactory::load(const std::string &filename, AbstractGrammarFst::GrammarType gType,
-                                              AbstractGrammarFst *g) const
-{
+AbstractLexicalFst* LexicalFstFactory::load(const std::string& filename, AbstractGrammarFst::GrammarType gType,
+                                            AbstractGrammarFst* g) const {
     Options options = parseOptions();
     return read(filename, options, paramMatcherFst_(config), paramScale_(config), g);
 }
 
-AbstractLexicalFst* LexicalFstFactory::load(const std::string &filename, const Options &o,
-                                            AbstractGrammarFst *g) const
-{
-    Options options = parseOptions(o);
+AbstractLexicalFst* LexicalFstFactory::load(const std::string& filename, const Options& o,
+                                            AbstractGrammarFst* g) const {
+    Options options         = parseOptions(o);
     options.accumulatorType = static_cast<AccumulatorType>(paramAccumulatorType_(config, options.accumulatorType));
-    options.lookAhead = static_cast<LookAheadType>(paramLookAheadType_(config, options.lookAhead));
+    options.lookAhead       = static_cast<LookAheadType>(paramLookAheadType_(config, options.lookAhead));
     return read(filename, options, paramMatcherFst_(config), paramScale_(config), g);
 }
 
-AbstractLexicalFst* LexicalFstFactory::convert(OpenFst::VectorFst *base, GrammarType gType,
-                                               AbstractGrammarFst *g) const
-{
+AbstractLexicalFst* LexicalFstFactory::convert(OpenFst::VectorFst* base, GrammarType gType,
+                                               AbstractGrammarFst* g) const {
     Options options = parseOptions();
     logOptions(options);
-    AbstractLexicalFst *l = create(options);
+    AbstractLexicalFst* l = create(options);
     ensure(l);
     convert(base, paramScale_(config), l, g);
     return l;
 }
 
-AbstractLexicalFst* LexicalFstFactory::convert(OpenFst::VectorFst *base, const Options &o,
-                                               AbstractGrammarFst *g) const
-{
+AbstractLexicalFst* LexicalFstFactory::convert(OpenFst::VectorFst* base, const Options& o,
+                                               AbstractGrammarFst* g) const {
     Options options = parseOptions(o);
     logOptions(options);
-    AbstractLexicalFst *l = create(options);
+    AbstractLexicalFst* l = create(options);
     ensure(l);
     convert(base, paramScale_(config), l, g);
     return l;
 }
 
-AbstractLexicalFst* LexicalFstFactory::read(const std::string &filename, const Options &options,
-                                            bool isMatcherFst, f32 scale, AbstractGrammarFst *g) const
-{
+AbstractLexicalFst* LexicalFstFactory::read(const std::string& filename, const Options& options,
+                                            bool isMatcherFst, f32 scale, AbstractGrammarFst* g) const {
     logOptions(options);
-    AbstractLexicalFst *l = create(options);
+    AbstractLexicalFst* l = create(options);
     ensure(l);
     if (isMatcherFst ||
         !(options.lookAhead & (LabelLookAheadFlag | ArcLookAheadFlag))) {
         log("assuming required fst type");
         if (!l->load(filename))
             criticalError("cannot load %s", filename.c_str());
-    } else {
+    }
+    else {
         log("creating required fst type");
-        OpenFst::VectorFst *i = OpenFst::VectorFst::Read(filename);
+        OpenFst::VectorFst* i = OpenFst::VectorFst::Read(filename);
         convert(i, scale, l, g);
         delete i;
     }
     return l;
 }
 
-void LexicalFstFactory::convert(OpenFst::VectorFst *base, f32 scale,
-                                AbstractLexicalFst *result, AbstractGrammarFst *g) const
-{
+void LexicalFstFactory::convert(OpenFst::VectorFst* base, f32 scale,
+                                AbstractLexicalFst* result, AbstractGrammarFst* g) const {
     verify(result);
     if (!Core::isAlmostEqual(scale, static_cast<f32>(1.0), static_cast<f32>(0.001))) {
         log("re-scaling weights of L: %f", scale);
@@ -149,52 +141,49 @@ void LexicalFstFactory::convert(OpenFst::VectorFst *base, f32 scale,
     }
 }
 
-
-AbstractLexicalFst* LexicalFstFactory::create(const Options &options)
-{
+AbstractLexicalFst* LexicalFstFactory::create(const Options& options) {
     switch (options.lookAhead) {
-    case ArcLookAhead:
-        return new ArcLookAheadFst();
-        break;
-    case PushLabels:
-        return createFst<PushLabelsLexicalFst>(options.accumulatorType);
-        break;
-    case PushWeights:
-        return createFst<PushWeightsLexicalFst>(options.accumulatorType);
-        break;
-    case PushLabelsOnly:
-        return new PushLabelsOnlyLexicalFst();
-    case LabelLookAhead:
-        return new LookAheadLexicalFst();
-        break;
-    case NoLookAhead:
-        return new StandardLexicalFst();
-        break;
-    default:
-        defect();
-        return 0;
-        break;
+        case ArcLookAhead:
+            return new ArcLookAheadFst();
+            break;
+        case PushLabels:
+            return createFst<PushLabelsLexicalFst>(options.accumulatorType);
+            break;
+        case PushWeights:
+            return createFst<PushWeightsLexicalFst>(options.accumulatorType);
+            break;
+        case PushLabelsOnly:
+            return new PushLabelsOnlyLexicalFst();
+        case LabelLookAhead:
+            return new LookAheadLexicalFst();
+            break;
+        case NoLookAhead:
+            return new StandardLexicalFst();
+            break;
+        default:
+            defect();
+            return 0;
+            break;
     }
 }
 
-template<template <class> class N>
-AbstractLexicalFst* LexicalFstFactory::createFst(AccumulatorType t)
-{
-    AbstractLexicalFst *f = 0;
+template<template<class> class N>
+AbstractLexicalFst* LexicalFstFactory::createFst(AccumulatorType t) {
+    AbstractLexicalFst* f = 0;
     switch (t) {
-    case DefaultAccumulator:
-        f = new N< FstLib::DefaultAccumulator<Arc> > ();
-        break;
-    case LogAccumulator:
-        f = new N< FstLib::LogAccumulator<Arc> > ();
-        break;
-    case FastLogAccumulator:
-        f = new N< FstLib::FastLogAccumulator<Arc> > ();
-        break;
-    default:
-        defect();
-        f = 0;
-        break;
+        case DefaultAccumulator:
+            f = new N<FstLib::DefaultAccumulator<Arc>>();
+            break;
+        case LogAccumulator:
+            f = new N<FstLib::LogAccumulator<Arc>>();
+            break;
+        case FastLogAccumulator:
+            f = new N<FstLib::FastLogAccumulator<Arc>>();
+            break;
+        default:
+            defect();
+            f = 0;
+            break;
     }
     return f;
 }

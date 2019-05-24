@@ -28,14 +28,12 @@ const Core::Choice LatticeHandler::choiceLatticeFormat(
 const Core::ParameterChoice LatticeHandler::paramLatticeFormat(
         "format", &choiceLatticeFormat, "lattice format", formatDefault);
 
-LatticeHandler::~LatticeHandler()
-{
+LatticeHandler::~LatticeHandler() {
     delete reader_;
     delete writer_;
 }
 
-bool LatticeHandler::createReader()
-{
+bool LatticeHandler::createReader() {
     if (!reader_) {
         verify(lexicon_);
         reader_ = ::Lattice::Archive::openForReading(config, lexicon_);
@@ -47,8 +45,7 @@ bool LatticeHandler::createReader()
     return reader_;
 }
 
-bool LatticeHandler::createWriter()
-{
+bool LatticeHandler::createWriter() {
     if (!writer_) {
         verify(lexicon_);
         writer_ = ::Lattice::Archive::openForWriting(config, lexicon_);
@@ -60,25 +57,25 @@ bool LatticeHandler::createWriter()
     return writer_;
 }
 
-bool LatticeHandler::write(const std::string &id, const WordLatticeAdaptor &l)
-{
-    if (!createWriter()) return false;
+bool LatticeHandler::write(const std::string& id, const WordLatticeAdaptor& l) {
+    if (!createWriter())
+        return false;
     if (format_ != formatDefault) {
         error("cannot write lattice in format '%s'",
-                choiceLatticeFormat[format_].c_str());
+              choiceLatticeFormat[format_].c_str());
         return false;
     }
     writer_->store(id, l.get());
     return true;
 }
 
-Core::Ref<LatticeAdaptor> LatticeHandler::read(const std::string &id, const std::string &name)
-{
-    if (!createReader()) return Core::Ref<LatticeAdaptor>();
+Core::Ref<LatticeAdaptor> LatticeHandler::read(const std::string& id, const std::string& name) {
+    if (!createReader())
+        return Core::Ref<LatticeAdaptor>();
     ::Lattice::ConstWordLatticeRef lattice = reader_->get(id, name);
     return Core::ref(new WordLatticeAdaptor(lattice));
 }
 
-LatticeHandler::ConstWordLatticeRef LatticeHandler::convert(const WordLatticeAdaptor &l) const {
+LatticeHandler::ConstWordLatticeRef LatticeHandler::convert(const WordLatticeAdaptor& l) const {
     return l.get();
 }

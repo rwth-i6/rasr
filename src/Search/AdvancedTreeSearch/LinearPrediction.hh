@@ -15,93 +15,90 @@
 #ifndef SEARCH_LINEARPREDICTION_HH
 #define SEARCH_LINEARPREDICTION_HH
 
-#include <vector>
 #include <Core/Types.hh>
-#include "TreeStructure.hh"
 #include <iostream>
+#include <vector>
+#include "TreeStructure.hh"
 
-namespace Search
-{
-class LinearPrediction
-{
+namespace Search {
+class LinearPrediction {
 public:
-  LinearPrediction( u32 bins, u32 maxKey ) : maxKey_( maxKey ) {
-    recorded.resize( bins, Stat( 0, 0 ) );
-  }
-
-  void add( u32 key, u32 value ) {
-    verify( key < maxKey_ );
-    u32 pos = ( key * recorded.size() ) / maxKey_;
-    recorded[pos].count += 1;
-    recorded[pos].sum += value;
-  }
-
-  u32 totalCount() const {
-    u32 ret = 0;
-    for( u32 bin = 0; bin < recorded.size(); ++bin )
-      ret += recorded[bin].count;
-    return ret;
-  }
-
-  u32 predict( u32 key ) const {
-    // Get the closest 2 filled bins, and interpolate
-    verify( key < maxKey_ );
-    u32 pos = ( key * recorded.size() ) / maxKey_;
-    int lower = pos;
-    int higher = pos;
-
-    while( lower > 0 && recorded[lower].count == 0 )
-      --lower;
-
-    while( higher < recorded.size() - 1 && recorded[higher].count == 0 )
-      ++higher;
-
-    if( recorded[higher].count != 0 && recorded[lower].count != 0 && higher != lower )
-    {
-      // interpolate
-      return ( ( recorded[higher].sum / recorded[higher].count ) * ( pos - lower ) + ( recorded[lower].sum / recorded[lower].count ) * ( higher - pos ) ) / ( higher - lower );
+    LinearPrediction(u32 bins, u32 maxKey)
+            : maxKey_(maxKey) {
+        recorded.resize(bins, Stat(0, 0));
     }
-    else if( recorded[lower].count )
-    {
-      return recorded[lower].sum / recorded[lower].count;
+
+    void add(u32 key, u32 value) {
+        verify(key < maxKey_);
+        u32 pos = (key * recorded.size()) / maxKey_;
+        recorded[pos].count += 1;
+        recorded[pos].sum += value;
     }
-    else if( recorded[higher].count )
-    {
-      return recorded[higher].sum / recorded[higher].count;
-    }else{
-      return 0;
+
+    u32 totalCount() const {
+        u32 ret = 0;
+        for (u32 bin = 0; bin < recorded.size(); ++bin)
+            ret += recorded[bin].count;
+        return ret;
     }
-  }
 
-  bool read( Core::MappedArchiveReader& reader )
-  {
-    u32 maxKey;
-    std::vector<Stat> inRecorded;
+    u32 predict(u32 key) const {
+        // Get the closest 2 filled bins, and interpolate
+        verify(key < maxKey_);
+        u32 pos    = (key * recorded.size()) / maxKey_;
+        int lower  = pos;
+        int higher = pos;
 
-    reader >> maxKey >> inRecorded;
-    if( maxKey != maxKey_  || inRecorded.size() != recorded.size() )
-      return false;
+        while (lower > 0 && recorded[lower].count == 0)
+            --lower;
 
-    recorded.swap( inRecorded );
-    return true;
-  }
+        while (higher < recorded.size() - 1 && recorded[higher].count == 0)
+            ++higher;
 
-  void write( Core::MappedArchiveWriter& file ) {
-    file << maxKey_ << recorded;
-  }
+        if (recorded[higher].count != 0 && recorded[lower].count != 0 && higher != lower) {
+            // interpolate
+            return ((recorded[higher].sum / recorded[higher].count) * (pos - lower) + (recorded[lower].sum / recorded[lower].count) * (higher - pos)) / (higher - lower);
+        }
+        else if (recorded[lower].count) {
+            return recorded[lower].sum / recorded[lower].count;
+        }
+        else if (recorded[higher].count) {
+            return recorded[higher].sum / recorded[higher].count;
+        }
+        else {
+            return 0;
+        }
+    }
+
+    bool read(Core::MappedArchiveReader& reader) {
+        u32               maxKey;
+        std::vector<Stat> inRecorded;
+
+        reader >> maxKey >> inRecorded;
+        if (maxKey != maxKey_ || inRecorded.size() != recorded.size())
+            return false;
+
+        recorded.swap(inRecorded);
+        return true;
+    }
+
+    void write(Core::MappedArchiveWriter& file) {
+        file << maxKey_ << recorded;
+    }
 
 private:
-  struct Stat {
-    Stat( u32 c = 0, u32 s = 0 ) : count( c ), sum( s ) {
-    }
+    struct Stat {
+        Stat(u32 c = 0, u32 s = 0)
+                : count(c), sum(s) {
+        }
 
-    u32 count;
-    u32 sum;
-  };
+        u32 count;
+        u32 sum;
+    };
 
-  u32 maxKey_;
-  std::vector<Stat> recorded;
+    u32               maxKey_;
+    std::vector<Stat> recorded;
 };
-}
+}  // namespace Search
 
 #endif

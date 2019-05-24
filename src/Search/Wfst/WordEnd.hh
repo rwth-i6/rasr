@@ -18,14 +18,16 @@
 #include <Search/Wfst/BookKeeping.hh>
 #include <Search/Wfst/StateSequence.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-class WordEndDetector
-{
+class WordEndDetector {
 public:
-    enum WordEndType { WordEndHmm, WordEndOutput };
+    enum WordEndType { WordEndHmm,
+                       WordEndOutput };
 
-    WordEndDetector() : wordEndType_(WordEndHmm) {}
+    WordEndDetector()
+            : wordEndType_(WordEndHmm) {}
 
     void setType(WordEndType t) {
         wordEndType_ = t;
@@ -34,40 +36,35 @@ public:
         return wordEndType_;
     }
 
-    bool isNonWord(const StateSequence *hmm) const {
+    bool isNonWord(const StateSequence* hmm) const {
         return nonWordHmms_.count(hmm);
     }
 
     template<class T>
-    bool isWordEnd(const T &trace) const
-    {
+    bool isWordEnd(const T& trace) const {
         if (wordEndType_ == WordEndOutput) {
             return trace.output != OpenFst::Epsilon;
-        } else {
+        }
+        else {
             return trace.wordEnd && (nonWordHmms_.empty() || !nonWordHmms_.count(trace.input));
         }
     }
 
-    bool isWordEnd(const StateSequence &hmm, OpenFst::Label output) const
-    {
-        return (wordEndType_ == WordEndOutput ?
-                output != OpenFst::Epsilon :
-                hmm.isFinal());
+    bool isWordEnd(const StateSequence& hmm, OpenFst::Label output) const {
+        return (wordEndType_ == WordEndOutput ? output != OpenFst::Epsilon : hmm.isFinal());
     }
 
-
     bool setNonWordPhones(Core::Ref<const Am::AcousticModel> am,
-                          const StateSequenceList &stateSequences,
-                          const std::vector<std::string> &phones);
-    void setNonWordModels(const StateSequenceList &stateSequences, u32 nNonWordModels);
-
+                          const StateSequenceList&           stateSequences,
+                          const std::vector<std::string>&    phones);
+    void setNonWordModels(const StateSequenceList& stateSequences, u32 nNonWordModels);
 
 protected:
-    WordEndType wordEndType_;
+    WordEndType                    wordEndType_;
     std::set<const StateSequence*> nonWordHmms_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_WORD_END_HH
+#endif  // _SEARCH_WFST_WORD_END_HH

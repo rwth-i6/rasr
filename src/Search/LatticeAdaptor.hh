@@ -28,26 +28,26 @@ class LatticeHandler;
  * an Lattice::WordLattice.
  * I/O is handled by LatticeHandler.
  */
-class LatticeAdaptor : public Core::ReferenceCounted
-{
+class LatticeAdaptor : public Core::ReferenceCounted {
 public:
     virtual ~LatticeAdaptor() {}
     /**
      * dispatch to corresponding method in LatticeHandler
      */
-    virtual bool write(const std::string &id, LatticeHandler *handler) const = 0;
+    virtual bool write(const std::string& id, LatticeHandler* handler) const = 0;
     /**
      * dispatch to corresponding method in LatticeHandler
      */
-    virtual Lattice::ConstWordLatticeRef wordLattice(const LatticeHandler *handler) const = 0;
+    virtual Lattice::ConstWordLatticeRef wordLattice(const LatticeHandler* handler) const = 0;
     /**
      * return false if an actual lattice is contained
      */
     virtual bool empty() const = 0;
+
 protected:
     LatticeAdaptor() {}
 };
 
-} // namespace Search
+}  // namespace Search
 
 #endif /* LATTICEADAPTOR_HH_ */

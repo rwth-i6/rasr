@@ -17,121 +17,119 @@
 using namespace Search;
 
 const Core::ParameterString paramCache(
-  "recombination-pruning-cache",
-  "",
-  "" );
+        "recombination-pruning-cache",
+        "",
+        "");
 
 const Core::ParameterFloat paramConvergenceFactor(
-  "path-recombination-pruning-convergence-factor",
-  "",
-  1.5 );
+        "path-recombination-pruning-convergence-factor",
+        "",
+        1.5);
 
 const Core::ParameterFloat paramDelta(
-  "path-recombination-pruning-delta",
-  "",
-  1.0 );
+        "path-recombination-pruning-delta",
+        "",
+        1.0);
 
 const Core::ParameterInt paramMaxCacheSize(
-  "path-recombination-max-cache-size",
-  "",
-  5000000 );
+        "path-recombination-max-cache-size",
+        "",
+        5000000);
 
 const Core::ParameterInt paramMaxDepth(
-  "path-recombination-max-depth",
-  "maximum depth, starting at zero (eg. max-depth 1 equals 2 levels: level 0 and level 1)",
-  5 );
+        "path-recombination-max-depth",
+        "maximum depth, starting at zero (eg. max-depth 1 equals 2 levels: level 0 and level 1)",
+        5);
 
 const Core::ParameterInt paramMaxExactInterval(
-  "path-recombination-max-exact-interval",
-  "maximum interval-length up to which the interval should be computed exactly",
-  50 );
+        "path-recombination-max-exact-interval",
+        "maximum interval-length up to which the interval should be computed exactly",
+        50);
 
 const Core::ParameterBool paramTruncateNotPromisingPaths(
-  "path-recombination-truncate-not-promising",
-  "this is slow when the network is properly compressed",
-  false );
+        "path-recombination-truncate-not-promising",
+        "this is slow when the network is properly compressed",
+        false);
 
 const Core::ParameterInt paramPromisingApproximation(
-  "path-recombination-promising-approximation",
-  "",
-  0 );
+        "path-recombination-promising-approximation",
+        "",
+        0);
 
 const Core::ParameterBool paramApproximateLinearSequences(
-  "path-recombination-approximate-linear-sequences",
-  "",
-  true );
+        "path-recombination-approximate-linear-sequences",
+        "",
+        true);
 
 void PathRecombination::logStatistics() {
-  if( nVisits_ )
-  {
-    std::cout << "average path-recombination visits: " << ( totalVisits_ / nVisits_ ) << " expensive interval-computations " << nVisits_ << std::endl;
-    Core::Application::us()->log() << "average path-recombination visits: " << ( totalVisits_ / nVisits_ ) << " expensive interval-computations " << nVisits_;
-  }
+    if (nVisits_) {
+        std::cout << "average path-recombination visits: " << (totalVisits_ / nVisits_) << " expensive interval-computations " << nVisits_ << std::endl;
+        Core::Application::us()->log() << "average path-recombination visits: " << (totalVisits_ / nVisits_) << " expensive interval-computations " << nVisits_;
+    }
 }
 
-PathRecombination::PathRecombination( const Search::PersistentStateTree& network, const Core::Configuration& config ) : network_( network ), distancesPtr_( 0 ), offsetAndDistanceStateForStatePtr_( 0 ), currentVisits_( 0 ), nVisits_( 0 ), totalVisits_( 0 ) {
-  convergenceFactor_ = paramConvergenceFactor( config );
-  delta_ = paramDelta( config );
-  cache_ = paramCache( config );
-  truncateNotPromising_ = paramTruncateNotPromisingPaths( config );
-  approximateLinearSequences_ = paramApproximateLinearSequences( config );
-  maxExactInterval_ = paramMaxExactInterval( config );
-  promisingApproximation_ = paramPromisingApproximation( config );
+PathRecombination::PathRecombination(const Search::PersistentStateTree& network, const Core::Configuration& config)
+        : network_(network), distancesPtr_(0), offsetAndDistanceStateForStatePtr_(0), currentVisits_(0), nVisits_(0), totalVisits_(0) {
+    convergenceFactor_          = paramConvergenceFactor(config);
+    delta_                      = paramDelta(config);
+    cache_                      = paramCache(config);
+    truncateNotPromising_       = paramTruncateNotPromisingPaths(config);
+    approximateLinearSequences_ = paramApproximateLinearSequences(config);
+    maxExactInterval_           = paramMaxExactInterval(config);
+    promisingApproximation_     = paramPromisingApproximation(config);
 
-  maxCacheSize_ = paramMaxCacheSize( config );
-  maxDepth_ = paramMaxDepth( config );
+    maxCacheSize_ = paramMaxCacheSize(config);
+    maxDepth_     = paramMaxDepth(config);
 
-  asymmetryFactor_ = delta_ * convergenceFactor_ - delta_ / convergenceFactor_;
-  std::cout << "path-recombination delta " << delta_ << " convergence " << convergenceFactor_ << " asymmetry " << asymmetryFactor_ << std::endl;
+    asymmetryFactor_ = delta_ * convergenceFactor_ - delta_ / convergenceFactor_;
+    std::cout << "path-recombination delta " << delta_ << " convergence " << convergenceFactor_ << " asymmetry " << asymmetryFactor_ << std::endl;
 
-  std::cout << "building recombination states" << std::endl;
-  buildRecombinationStates();
-  std::cout << "connecting recombination states" << std::endl;
-  buildRecombinationNetwork();
-  std::cout << "computing recombination distances" << std::endl;
-  buildDistances();
-  std::cout << "path-recombination ready" << std::endl;
+    std::cout << "building recombination states" << std::endl;
+    buildRecombinationStates();
+    std::cout << "connecting recombination states" << std::endl;
+    buildRecombinationNetwork();
+    std::cout << "computing recombination distances" << std::endl;
+    buildDistances();
+    std::cout << "path-recombination ready" << std::endl;
 }
 
 void PathRecombination::buildRecombinationStates() {
-  std::vector<u32> fanIn( network_.structure.stateCount(), 0 );
+    std::vector<u32> fanIn(network_.structure.stateCount(), 0);
 
-  for( StateId state = 1; state < network_.structure.stateCount(); ++state )
-    for( HMMStateNetwork::SuccessorIterator targ = network_.structure.successors( state ); targ; ++targ )
-      if( !targ.isLabel() )
-        fanIn[*targ] += 1;
+    for (StateId state = 1; state < network_.structure.stateCount(); ++state)
+        for (HMMStateNetwork::SuccessorIterator targ = network_.structure.successors(state); targ; ++targ)
+            if (!targ.isLabel())
+                fanIn[*targ] += 1;
 
-  recombinationStateMap_.resize( network_.structure.stateCount(), 0 );
+    recombinationStateMap_.resize(network_.structure.stateCount(), 0);
 
-  for( std::set<StateId>::iterator it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it )
-    for( HMMStateNetwork::SuccessorIterator targ = network_.structure.successors( *it ); targ; ++targ )
-      if( !targ.isLabel() )
-        recombinationStateMap_[*targ] = 1;
+    for (std::set<StateId>::iterator it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it)
+        for (HMMStateNetwork::SuccessorIterator targ = network_.structure.successors(*it); targ; ++targ)
+            if (!targ.isLabel())
+                recombinationStateMap_[*targ] = 1;
 
-  for( HMMStateNetwork::SuccessorIterator targ = network_.structure.successors( network_.rootState ); targ; ++targ )
-    if( !targ.isLabel() )
-      recombinationStateMap_[*targ] = 1;
+    for (HMMStateNetwork::SuccessorIterator targ = network_.structure.successors(network_.rootState); targ; ++targ)
+        if (!targ.isLabel())
+            recombinationStateMap_[*targ] = 1;
 
-  for( HMMStateNetwork::SuccessorIterator targ = network_.structure.successors( network_.ciRootState ); targ; ++targ )
-    if( !targ.isLabel() )
-      recombinationStateMap_[*targ] = 1;
+    for (HMMStateNetwork::SuccessorIterator targ = network_.structure.successors(network_.ciRootState); targ; ++targ)
+        if (!targ.isLabel())
+            recombinationStateMap_[*targ] = 1;
 
-  recombinationStates_.push_back( RecombinationState() );
-  for( StateId state = 1; state < network_.structure.stateCount(); ++state )
-  {
-    if( fanIn[state] > 1 )
-      recombinationStateMap_[state] = 1;
+    recombinationStates_.push_back(RecombinationState());
+    for (StateId state = 1; state < network_.structure.stateCount(); ++state) {
+        if (fanIn[state] > 1)
+            recombinationStateMap_[state] = 1;
 
-    if( recombinationStateMap_[state] )
-    {
-      recombinationStateMap_[state] = recombinationStates_.size();
-      recombinationStates_.push_back( RecombinationState() );
-      recombinationStates_.back().state = state;
+        if (recombinationStateMap_[state]) {
+            recombinationStateMap_[state] = recombinationStates_.size();
+            recombinationStates_.push_back(RecombinationState());
+            recombinationStates_.back().state = state;
+        }
     }
-  }
-  Core::Application::us()->log() << "recombination-states: " << recombinationStates_.size() - 1;
+    Core::Application::us()->log() << "recombination-states: " << recombinationStates_.size() - 1;
 
-  visitingRecombinationState_.resize( recombinationStates_.size(), false );
+    visitingRecombinationState_.resize(recombinationStates_.size(), false);
 }
 
 void PathRecombination::buildRecombinationNetwork() {
@@ -221,68 +219,68 @@ void PathRecombination::buildRecombinationNetwork() {
 #endif
 }
 
-StateId PathRecombination::getUniqueSuccessor( StateId state ) const {
-  HMMStateNetwork::SuccessorIterator it = network_.structure.successors( state );
-  if( it.countToEnd() == 1 )
-  {
-    if( it.isLabel() )
-    {
-      HMMStateNetwork::SuccessorIterator it2 = network_.structure.successors( network_.exits[it.label()].transitState );
-      if( it2.countToEnd() == 1 )
-      {
-        verify( !it2.isLabel() );
-        return *it2;
-      }
-    }else{
-      return *it;
+StateId PathRecombination::getUniqueSuccessor(StateId state) const {
+    HMMStateNetwork::SuccessorIterator it = network_.structure.successors(state);
+    if (it.countToEnd() == 1) {
+        if (it.isLabel()) {
+            HMMStateNetwork::SuccessorIterator it2 = network_.structure.successors(network_.exits[it.label()].transitState);
+            if (it2.countToEnd() == 1) {
+                verify(!it2.isLabel());
+                return *it2;
+            }
+        }
+        else {
+            return *it;
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 struct VisitManager {
-  VisitManager() : visitingToken( 0 ) {
-  }
+    VisitManager()
+            : visitingToken(0) {
+    }
 
-  void next() {
-    ++visitingToken;
-  }
+    void next() {
+        ++visitingToken;
+    }
 
-  // Returns the depth with which the position was already visited, or Core::Type<u32>::max
-  u32 visited( u32 pos ) const {
-    const_cast<VisitManager&>(*this).updateArray( pos );
-    if( visitedArray[pos].first == visitingToken )
-      return visitedArray[pos].second;
-    else
-      return Core::Type<u32>::max;
-  }
+    // Returns the depth with which the position was already visited, or Core::Type<u32>::max
+    u32 visited(u32 pos) const {
+        const_cast<VisitManager&>(*this).updateArray(pos);
+        if (visitedArray[pos].first == visitingToken)
+            return visitedArray[pos].second;
+        else
+            return Core::Type<u32>::max;
+    }
 
-  void visit( u32 pos, u32 depth ) {
-    updateArray( pos );
-    if( visited( pos ) <= depth )
-      return;
-    visitedArray[pos].first = visitingToken;
-    visitedArray[pos].second = depth;
-  }
+    void visit(u32 pos, u32 depth) {
+        updateArray(pos);
+        if (visited(pos) <= depth)
+            return;
+        visitedArray[pos].first  = visitingToken;
+        visitedArray[pos].second = depth;
+    }
 
-  void updateArray( u32 pos ) {
-    if( visitedArray.size() <= pos )
-      visitedArray.resize( pos + 1000, std::make_pair<u32, u32>( 0, 0 ) );
-  }
+    void updateArray(u32 pos) {
+        if (visitedArray.size() <= pos)
+            visitedArray.resize(pos + 1000, std::make_pair<u32, u32>(0, 0));
+    }
 
-  std::vector<std::pair<u32, u32> > visitedArray;
-  u32 visitingToken;
+    std::vector<std::pair<u32, u32>> visitedArray;
+    u32                              visitingToken;
 } manager;
 
 struct SuccessorPlan {
-  SuccessorPlan( StateId _state = 0, u32 _distance = 0, bool _direct = false ) : state( _state ), distance( _distance ), direct( _direct ) {
-  }
-  StateId state;
-  u32 distance;
-  bool direct;
+    SuccessorPlan(StateId _state = 0, u32 _distance = 0, bool _direct = false)
+            : state(_state), distance(_distance), direct(_direct) {
+    }
+    StateId state;
+    u32     distance;
+    bool    direct;
 };
 
-void PathRecombination::computeDistancesForState( StateId state ) {
+void PathRecombination::computeDistancesForState(StateId state) {
 #if 0
   if( offsetAndDistanceStateForState_[state].second != 0 )
     return;  // Return if already computed
@@ -423,7 +421,7 @@ void PathRecombination::computeDistancesForState( StateId state ) {
 }
 
 void PathRecombination::buildDistances() {
-  offsetAndDistanceStateForState_.resize( network_.structure.stateCount(), std::make_pair<u32, u32>( 0, 0 ) );
+    offsetAndDistanceStateForState_.resize(network_.structure.stateCount(), std::make_pair<u32, u32>(0, 0));
 #if 0
   if( !cache_.empty() && std::ifstream( cache_.c_str(), std::ifstream::in | std::ifstream::binary ).good() )
   {
@@ -452,13 +450,12 @@ void PathRecombination::buildDistances() {
   }
 #endif
 
-  distances_.push_back( DistanceState() );
+    distances_.push_back(DistanceState());
 
-  for( u32 state = 1; state < network_.structure.stateCount(); ++state )
-  {
-    std::cout << "building distance for " << state << " distance-states: " << distances_.size() << std::endl;
-    computeDistancesForState( state );
-  }
+    for (u32 state = 1; state < network_.structure.stateCount(); ++state) {
+        std::cout << "building distance for " << state << " distance-states: " << distances_.size() << std::endl;
+        computeDistancesForState(state);
+    }
 
 #if 0
   if( !cache_.empty() )
@@ -484,137 +481,133 @@ void PathRecombination::buildDistances() {
 #endif
 }
 
-u32 PathRecombination::recombinationInterval( StateId a, StateId b ) const {
-  verify( distancesPtr_ && offsetAndDistanceStateForStatePtr_ );
-  {
-    // Try asymetric linear recombination
-    u32 linear = linearChainLength( a, b );
-    if( linear == Core::Type<u32>::max )
-      linear = linearChainLength( b, a );
-
-    if( linear != Core::Type<u32>::max )
-      return t( linear, 0 );
-  }
-
-  u32 offsetA = offsetAndDistanceStateForStatePtr_[a].first, offsetB = offsetAndDistanceStateForStatePtr_[b].first;
-  const DistanceState& distancesA = distancesPtr_[offsetAndDistanceStateForStatePtr_[a].second];
-  const DistanceState& distancesB = distancesPtr_[offsetAndDistanceStateForStatePtr_[b].second];
-
-  if( approximateLinearSequences_ && ( offsetA || offsetB ) )
-    return t( offsetA, offsetB ) + recombinationInterval( offsetA ? getUniqueSuccessor( a ) : a, offsetB ? getUniqueSuccessor( b ) : b );
-
-  {
-    // Try using the cache
-    IntervalCache::const_iterator cacheIt = intervalCache_.find( std::make_pair( a, b ) );
-    if( cacheIt != intervalCache_.end() )
-      return cacheIt->second;
-
-    cacheIt = intervalCache_.find( std::make_pair( b, a ) );
-    if( cacheIt != intervalCache_.end() )
-      return cacheIt->second;
-  }
-
-  manager.next();
-
-  currentVisits_ = 0;
-
-  u32 maxInterval = 0;
-
-  if( recombinationStateMap_[b] )
-  {
-    maxInterval = const_cast<PathRecombination&>(*this).R( offsetA, distancesA, offsetB, distancesB, recombinationStateMap_[b], 0 );
-  }else{
-    for( std::vector<std::pair<u32, u32> >::const_iterator it = distancesB.directSuccessorStates.begin(); it != distancesB.directSuccessorStates.end(); ++it )
+u32 PathRecombination::recombinationInterval(StateId a, StateId b) const {
+    verify(distancesPtr_ && offsetAndDistanceStateForStatePtr_);
     {
-      if( it->first > 100 )
-        std::cout << "distance to direct successor " << it->first << std::endl;
+        // Try asymetric linear recombination
+        u32 linear = linearChainLength(a, b);
+        if (linear == Core::Type<u32>::max)
+            linear = linearChainLength(b, a);
 
-      u32 interval = const_cast<PathRecombination&>(*this).R( offsetA, distancesA, offsetB + it->first, distancesB, it->second, 0 );
-
-      if( interval > maxInterval )
-        maxInterval = interval;
+        if (linear != Core::Type<u32>::max)
+            return t(linear, 0);
     }
-  }
 
-  if( intervalCache_.size() > maxCacheSize_ )
-  {
-    std::cout << "clearing interval cache" << std::endl;
-    intervalCache_.clear();
-  }
+    u32                  offsetA = offsetAndDistanceStateForStatePtr_[a].first, offsetB = offsetAndDistanceStateForStatePtr_[b].first;
+    const DistanceState& distancesA = distancesPtr_[offsetAndDistanceStateForStatePtr_[a].second];
+    const DistanceState& distancesB = distancesPtr_[offsetAndDistanceStateForStatePtr_[b].second];
 
-  intervalCache_.insert( std::make_pair( std::make_pair( a, b ), maxInterval ) );
+    if (approximateLinearSequences_ && (offsetA || offsetB))
+        return t(offsetA, offsetB) + recombinationInterval(offsetA ? getUniqueSuccessor(a) : a, offsetB ? getUniqueSuccessor(b) : b);
 
-  totalVisits_ += currentVisits_;
-  nVisits_ += 1;
+    {
+        // Try using the cache
+        IntervalCache::const_iterator cacheIt = intervalCache_.find(std::make_pair(a, b));
+        if (cacheIt != intervalCache_.end())
+            return cacheIt->second;
 
-  return maxInterval;
+        cacheIt = intervalCache_.find(std::make_pair(b, a));
+        if (cacheIt != intervalCache_.end())
+            return cacheIt->second;
+    }
+
+    manager.next();
+
+    currentVisits_ = 0;
+
+    u32 maxInterval = 0;
+
+    if (recombinationStateMap_[b]) {
+        maxInterval = const_cast<PathRecombination&>(*this).R(offsetA, distancesA, offsetB, distancesB, recombinationStateMap_[b], 0);
+    }
+    else {
+        for (std::vector<std::pair<u32, u32>>::const_iterator it = distancesB.directSuccessorStates.begin(); it != distancesB.directSuccessorStates.end(); ++it) {
+            if (it->first > 100)
+                std::cout << "distance to direct successor " << it->first << std::endl;
+
+            u32 interval = const_cast<PathRecombination&>(*this).R(offsetA, distancesA, offsetB + it->first, distancesB, it->second, 0);
+
+            if (interval > maxInterval)
+                maxInterval = interval;
+        }
+    }
+
+    if (intervalCache_.size() > maxCacheSize_) {
+        std::cout << "clearing interval cache" << std::endl;
+        intervalCache_.clear();
+    }
+
+    intervalCache_.insert(std::make_pair(std::make_pair(a, b), maxInterval));
+
+    totalVisits_ += currentVisits_;
+    nVisits_ += 1;
+
+    return maxInterval;
 }
 
-bool PathRecombination::isNotPromising( u32 recombinationState, const PathRecombination::DistanceState& distancesA ) {
-  u32 distanceIdx = &distancesA - distancesPtr_;
+bool PathRecombination::isNotPromising(u32 recombinationState, const PathRecombination::DistanceState& distancesA) {
+    u32 distanceIdx = &distancesA - distancesPtr_;
 
-  {
-    PromisingCache::const_iterator it = promisingCache_.find( std::make_pair( recombinationState, distanceIdx ) );
-    if( it != promisingCache_.end() )
-      return ( *it ).second;
-  }
+    {
+        PromisingCache::const_iterator it = promisingCache_.find(std::make_pair(recombinationState, distanceIdx));
+        if (it != promisingCache_.end())
+            return (*it).second;
+    }
 
-  verify( recombinationState );
+    verify(recombinationState);
 
-  const DistanceState& distRec( distancesPtr_[offsetAndDistanceStateForStatePtr_[recombinationStates_[recombinationState].state].second] );
-  verify( distRec.distances.size() == distancesA.distances.size() );
+    const DistanceState& distRec(distancesPtr_[offsetAndDistanceStateForStatePtr_[recombinationStates_[recombinationState].state].second]);
+    verify(distRec.distances.size() == distancesA.distances.size());
 
-  u32 distFromA = distancesA.distances[recombinationState].shortestDistance;
+    u32 distFromA = distancesA.distances[recombinationState].shortestDistance;
 
-  u32 minOtherDist = Core::Type<u32>::max;
-  for( u32 otherRecState = 1; otherRecState < distRec.distances.size(); ++otherRecState )
-  {
-    u32 dist = distancesA.distances[otherRecState].shortestDistance + distRec.distances[otherRecState].shortestDistance;
-    if( dist < minOtherDist )
-      minOtherDist = dist;
-  }
+    u32 minOtherDist = Core::Type<u32>::max;
+    for (u32 otherRecState = 1; otherRecState < distRec.distances.size(); ++otherRecState) {
+        u32 dist = distancesA.distances[otherRecState].shortestDistance + distRec.distances[otherRecState].shortestDistance;
+        if (dist < minOtherDist)
+            minOtherDist = dist;
+    }
 
-  bool ret = distFromA <= minOtherDist + promisingApproximation_;
+    bool ret = distFromA <= minOtherDist + promisingApproximation_;
 
-  if( promisingCache_.size() > maxCacheSize_ )
-    promisingCache_.clear();
+    if (promisingCache_.size() > maxCacheSize_)
+        promisingCache_.clear();
 
-  promisingCache_.insert( std::make_pair( std::make_pair( recombinationState, distanceIdx ), ret ) );
+    promisingCache_.insert(std::make_pair(std::make_pair(recombinationState, distanceIdx), ret));
 
-  return ret;
+    return ret;
 }
 
-u32 PathRecombination::R( u32 offsetA, const DistanceState& distancesA, u32 distB, const DistanceState& distancesB, u32 recombinationState, u32 depth ) {
-  ++currentVisits_;
+u32 PathRecombination::R(u32 offsetA, const DistanceState& distancesA, u32 distB, const DistanceState& distancesB, u32 recombinationState, u32 depth) {
+    ++currentVisits_;
 
-  verify( recombinationState != 0 );
+    verify(recombinationState != 0);
 
-  if( visitingRecombinationState_[recombinationState] )
-    return Core::Type<u32>::max;
+    if (visitingRecombinationState_[recombinationState])
+        return Core::Type<u32>::max;
 
-  visitingRecombinationState_[recombinationState] = true;
+    visitingRecombinationState_[recombinationState] = true;
 
-  u32 distA = offsetA + distancesA.distances[recombinationState].shortestDistance;
+    u32 distA = offsetA + distancesA.distances[recombinationState].shortestDistance;
 
-  u32 intervalHere = t( distA, distB );
+    u32 intervalHere = t(distA, distB);
 
-  u32 intervalNext = 0;
+    u32 intervalNext = 0;
 
-  const RecombinationState& recState( recombinationStates_[recombinationState] );
+    const RecombinationState& recState(recombinationStates_[recombinationState]);
 
-  if( recState.loop || depth >= maxDepth_ || ( truncateNotPromising_ && isNotPromising( recombinationState, distancesA ) ) || distB >= maxExactInterval_ )
-  {
-    intervalNext = Core::Type<u32>::max;
-  }else{
-    for( std::vector<RecombinationState::Successor>::const_iterator succ = recState.successors.begin(); succ != recState.successors.end(); ++succ )
-    {
-      u32 interval = R( offsetA, distancesA, distB + succ->longestDistance, distancesB, recombinationStateMap_[succ->state], depth + 1 );
-      if( interval > intervalNext )
-        intervalNext = interval;
+    if (recState.loop || depth >= maxDepth_ || (truncateNotPromising_ && isNotPromising(recombinationState, distancesA)) || distB >= maxExactInterval_) {
+        intervalNext = Core::Type<u32>::max;
     }
-  }
+    else {
+        for (std::vector<RecombinationState::Successor>::const_iterator succ = recState.successors.begin(); succ != recState.successors.end(); ++succ) {
+            u32 interval = R(offsetA, distancesA, distB + succ->longestDistance, distancesB, recombinationStateMap_[succ->state], depth + 1);
+            if (interval > intervalNext)
+                intervalNext = interval;
+        }
+    }
 
-  visitingRecombinationState_[recombinationState] = false;
+    visitingRecombinationState_[recombinationState] = false;
 
-  return std::min( intervalHere, intervalNext );
+    return std::min(intervalHere, intervalNext);
 }

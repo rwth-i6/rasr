@@ -18,28 +18,29 @@
 #include <Search/LatticeHandler.hh>
 #include <Search/Wfst/LatticeArchive.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class Lattice;
 class LatticeArchive;
 
-class LatticeHandler : public Search::LatticeHandler
-{
+class LatticeHandler : public Search::LatticeHandler {
 public:
-    LatticeHandler(const Core::Configuration &c, Search::LatticeHandler *parent)
-        : Search::LatticeHandler(c),
-          parent_(parent), archive_(c) {}
+    LatticeHandler(const Core::Configuration& c, Search::LatticeHandler* parent)
+            : Search::LatticeHandler(c),
+              parent_(parent),
+              archive_(c) {}
     virtual ~LatticeHandler();
 
-    bool write(const std::string &id, const WordLatticeAdaptor &l) {
+    bool write(const std::string& id, const WordLatticeAdaptor& l) {
         return parent_->write(id, l);
     }
-    bool write(const std::string &id, const FlfLatticeAdaptor &l) {
+    bool write(const std::string& id, const FlfLatticeAdaptor& l) {
         return parent_->write(id, l);
     }
-    bool write(const std::string &id, const WfstLatticeAdaptor &l);
+    bool write(const std::string& id, const WfstLatticeAdaptor& l);
 
-    Core::Ref<LatticeAdaptor> read(const std::string &id, const std::string &name);
+    Core::Ref<LatticeAdaptor> read(const std::string& id, const std::string& name);
 
     void setLexicon(Core::Ref<const Bliss::Lexicon> lexicon) {
         parent_->setLexicon(lexicon);
@@ -48,20 +49,20 @@ public:
         return parent_->lexicon();
     }
 
-    ConstWordLatticeRef convert(const WordLatticeAdaptor &l) const {
+    ConstWordLatticeRef convert(const WordLatticeAdaptor& l) const {
         return parent_->convert(l);
     }
-    ConstWordLatticeRef convert(const FlfLatticeAdaptor &l) const {
+    ConstWordLatticeRef convert(const FlfLatticeAdaptor& l) const {
         return parent_->convert(l);
     }
-    ConstWordLatticeRef convert(const WfstLatticeAdaptor &l) const;
+    ConstWordLatticeRef convert(const WfstLatticeAdaptor& l) const;
 
 private:
-    Search::LatticeHandler *parent_;
-    LatticeArchive archive_;
+    Search::LatticeHandler* parent_;
+    LatticeArchive          archive_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_LATTICE_HANDLER_HH
+#endif  // _SEARCH_WFST_LATTICE_HANDLER_HH

@@ -15,103 +15,92 @@
 #ifndef PATHTRACE_HH
 #define PATHTRACE_HH
 
-#include <Core/ReferenceCounting.hh>
-#include <Core/Component.hh>
-#include <Search/Types.hh>
 #include <Bliss/Lexicon.hh>
+#include <Core/Component.hh>
+#include <Core/ReferenceCounting.hh>
+#include <Search/Types.hh>
 #include <map>
 
 // #define TRACE_PATH
 
-namespace Search
-{
+namespace Search {
 #ifdef TRACE_PATH
 
 struct PathPruningDescriptor : public Core::ReferenceCounted {
-  std::map<std::pair<char const*, int>, Score> offsets;
-  typedef Core::Ref<PathPruningDescriptor> Ref;
+    std::map<std::pair<char const*, int>, Score> offsets;
+    typedef Core::Ref<PathPruningDescriptor>     Ref;
 };
 
-class PathTrace
-{
+class PathTrace {
 public:
+    void log(const Core::Component& component, const Bliss::LemmaPronunciation* pron) {
+        if (!pruning) {
+            std::cout << "pruning missing in path-trace" << std::endl;
+            return;
+        }
 
-  void log( const Core::Component& component, const Bliss::LemmaPronunciation* pron )
-  {
-    if( !pruning )
-    {
-      std::cout << "pruning missing in path-trace" << std::endl;
-      return;
+        if (pron && pron->lemma() && pron->lemma()->symbol()) {
+            component.log() << "Word identity:" << pron->lemma()->symbol();
+            component.log() << "Word pron length:" << pron->pronunciation()->length();
+            if (!pron->lemma()->hasEvaluationTokenSequence())
+                return;  // Don't log tokens which are not evaluated
+        }
+
+        for (std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.begin(); it != pruning->offsets.end(); ++it) {
+            if (it->first.second == -1)
+                component.log() << "Word " << it->first.first << ":" << it->second;
+            else
+                component.log() << "Word " << it->first.first << ": [" << it->first.second << "] " << it->second;
+        }
     }
 
-    if( pron && pron->lemma() && pron->lemma()->symbol() )
-    {
-      component.log() << "Word identity:" << pron->lemma()->symbol();
-      component.log() << "Word pron length:" << pron->pronunciation()->length();
-      if( !pron->lemma()->hasEvaluationTokenSequence() )
-        return;  // Don't log tokens which are not evaluated
+    void maximizeOffset(char const* desc, Score offset, int index = -1) {
+        if (!pruning)
+            makeUnique();
+
+        std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.find(std::make_pair(desc, index));
+        if (it == pruning->offsets.end()) {
+            makeUnique();
+            pruning->offsets.insert(std::make_pair(std::make_pair(desc, index), offset));
+            return;
+        }
+
+        if (offset > it->second) {
+            makeUnique();
+            pruning->offsets[std::make_pair(desc, index)] = offset;
+        }
     }
 
-    for( std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.begin(); it != pruning->offsets.end(); ++it )
-    {
-      if( it->first.second == -1 )
-        component.log() << "Word " << it->first.first << ":" << it->second;
-      else
-        component.log() << "Word " << it->first.first << ": [" << it->first.second << "] " << it->second;
-    }
-  }
-
-  void maximizeOffset( char const* desc, Score offset, int index = -1 )
-  {
-    if( !pruning )
-      makeUnique();
-
-    std::map<std::pair<char const*, int>, Score>::iterator it = pruning->offsets.find( std::make_pair( desc, index ) );
-    if( it == pruning->offsets.end() )
-    {
-      makeUnique();
-      pruning->offsets.insert( std::make_pair( std::make_pair( desc, index ), offset ) );
-      return;
-    }
-
-    if( offset > it->second )
-    {
-      makeUnique();
-      pruning->offsets[std::make_pair( desc, index )] = offset;
-    }
-  }
-
-  enum {
-    Enabled = 1
-  };
+    enum {
+        Enabled = 1
+    };
 
 private:
-  PathPruningDescriptor::Ref pruning;
+    PathPruningDescriptor::Ref pruning;
 
-  ///Makes sure that the given descriptor is referenced only once, else creates a copy.
-  ///Use this before manipulating a descriptor.
-  void makeUnique() {
-    if( !pruning )
-      pruning = PathPruningDescriptor::Ref( new PathPruningDescriptor );
-    if( pruning->refCount() > 1 )
-      pruning =  PathPruningDescriptor::Ref( new PathPruningDescriptor( *pruning ) );
-  }
+    ///Makes sure that the given descriptor is referenced only once, else creates a copy.
+    ///Use this before manipulating a descriptor.
+    void makeUnique() {
+        if (!pruning)
+            pruning = PathPruningDescriptor::Ref(new PathPruningDescriptor);
+        if (pruning->refCount() > 1)
+            pruning = PathPruningDescriptor::Ref(new PathPruningDescriptor(*pruning));
+    }
 };
 
 #else
 
-class PathTrace
-{
+class PathTrace {
 public:
-  void log( const Core::Component&, const Bliss::LemmaPronunciation* pron ) { }
-  enum {
-    Enabled = 0
-  };
-  void maximizeOffset( char const*, Score, int = -1 ) {
-  }
+    void log(const Core::Component&, const Bliss::LemmaPronunciation* pron) {}
+    enum {
+        Enabled = 0
+    };
+    void maximizeOffset(char const*, Score, int = -1) {
+    }
 };
 
 #endif
-}
+}  // namespace Search
 
 #endif

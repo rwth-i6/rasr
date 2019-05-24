@@ -18,38 +18,43 @@
 #include <Flf/Archive.hh>
 #include <Search/Wfst/LatticeArchive.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-class FlfConverter
-{
+class FlfConverter {
 public:
-    Flf::ConstLatticeRef convert(const Search::Wfst::Lattice  &lattice,
-                                 Fsa::ConstAlphabetRef inputAlphabet,
-                                 Fsa::ConstAlphabetRef outputAlphabet);
+    Flf::ConstLatticeRef convert(const Search::Wfst::Lattice& lattice,
+                                 Fsa::ConstAlphabetRef        inputAlphabet,
+                                 Fsa::ConstAlphabetRef        outputAlphabet);
+
 protected:
-    void createSemiring();
+    void                  createSemiring();
     Flf::ConstSemiringRef semiring_;
 };
 
-
-class LatticeArchiveReader : public Flf::LatticeArchiveReader
-{
+class LatticeArchiveReader : public Flf::LatticeArchiveReader {
     static const Core::ParameterString paramInputAlphabet;
     static const Core::ParameterString paramOutputAlphabet;
+
 public:
     LatticeArchiveReader(const Core::Configuration&,
-                  const std::string &pathname);
-    virtual ~LatticeArchiveReader() { delete archive_; }
-    Flf::ConstLatticeRef get(const std::string &id);
+                         const std::string& pathname);
+    virtual ~LatticeArchiveReader() {
+        delete archive_;
+    }
+    Flf::ConstLatticeRef get(const std::string& id);
+
 protected:
 protected:
-    std::string defaultSuffix() const { return ".fst"; }
-    Search::Wfst::LatticeArchive *archive_;
-    Fsa::ConstAlphabetRef inputAlphabet_, outputAlphabet_;
-    FlfConverter converter_;
+    std::string defaultSuffix() const {
+        return ".fst";
+    }
+    Search::Wfst::LatticeArchive* archive_;
+    Fsa::ConstAlphabetRef         inputAlphabet_, outputAlphabet_;
+    FlfConverter                  converter_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_WFST_LATTICE_READER_HH
+#endif  // _SEARCH_WFST_LATTICE_READER_HH

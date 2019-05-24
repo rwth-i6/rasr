@@ -16,97 +16,96 @@
 
 using namespace Search;
 
-void SearchSpaceStatistics::write( Core::XmlWriter &os ) const {
-  os << Core::XmlOpen( "search-space-statistics" )
-     << treesBeforePruning
-     << treesAfterPrePruning
-     << treesAfterPruning
-     << statesBeforePruning
-     << statesAfterPrePruning
-     << statesAfterPruning
-     << wordEndsBeforePruning
-     << wordEndsAfterPruning
-     << epsilonWordEndsAdded
-     << wordEndsAfterRecombination
-     << wordEndsAfterSecondPruning
-     << acousticHistogramPruningThreshold
-     << lmHistogramPruningThreshold
-     << entryStateHypotheses
-     << rootStateHypothesesPerTree;
+void SearchSpaceStatistics::write(Core::XmlWriter& os) const {
+    os << Core::XmlOpen("search-space-statistics")
+       << treesBeforePruning
+       << treesAfterPrePruning
+       << treesAfterPruning
+       << statesBeforePruning
+       << statesAfterPrePruning
+       << statesAfterPruning
+       << wordEndsBeforePruning
+       << wordEndsAfterPruning
+       << epsilonWordEndsAdded
+       << wordEndsAfterRecombination
+       << wordEndsAfterSecondPruning
+       << acousticHistogramPruningThreshold
+       << lmHistogramPruningThreshold
+       << entryStateHypotheses
+       << rootStateHypothesesPerTree;
 
-  for( std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it )
-    os << *( *it ).second;
+    for (std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it)
+        os << *(*it).second;
 
-  for( std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it )
-    os << *( *it ).second;
+    for (std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it)
+        os << *(*it).second;
 
-  os << Core::XmlClose( "search-space-statistics" );
+    os << Core::XmlClose("search-space-statistics");
 }
 
-SearchSpaceStatistics::SearchSpaceStatistics() :
-  treesBeforePruning( "trees before pruning" ),
-  treesAfterPrePruning( "trees after pre-pruning" ),
-  treesAfterPruning( "trees after  pruning" ),
-  statesBeforePruning( "states before pruning" ),
-  statesAfterPrePruning( "states after pre-pruning" ),
-  statesAfterPruning( "states after pruning" ),
-  wordEndsBeforePruning( "ending words before pruning" ),
-  wordEndsAfterPruning( "ending words after pruning" ),
-  epsilonWordEndsAdded( "epsilon word ends added" ),
-  wordEndsAfterRecombination( "ending words after recombi" ),
-  wordEndsAfterSecondPruning( "ending words after 2nd pruning" ),
-  acousticHistogramPruningThreshold( "acoustic histogram pruning threshold" ),
-  lmHistogramPruningThreshold( "lm histogram pruning threshold" ),
-  entryStateHypotheses( "entry state hypotheses" ),
-  rootStateHypothesesPerTree( "entry state hypotheses per network" )
-{}
+SearchSpaceStatistics::SearchSpaceStatistics()
+        : treesBeforePruning("trees before pruning"),
+          treesAfterPrePruning("trees after pre-pruning"),
+          treesAfterPruning("trees after  pruning"),
+          statesBeforePruning("states before pruning"),
+          statesAfterPrePruning("states after pre-pruning"),
+          statesAfterPruning("states after pruning"),
+          wordEndsBeforePruning("ending words before pruning"),
+          wordEndsAfterPruning("ending words after pruning"),
+          epsilonWordEndsAdded("epsilon word ends added"),
+          wordEndsAfterRecombination("ending words after recombi"),
+          wordEndsAfterSecondPruning("ending words after 2nd pruning"),
+          acousticHistogramPruningThreshold("acoustic histogram pruning threshold"),
+          lmHistogramPruningThreshold("lm histogram pruning threshold"),
+          entryStateHypotheses("entry state hypotheses"),
+          rootStateHypothesesPerTree("entry state hypotheses per network") {}
 
 void SearchSpaceStatistics::clear() {
-  treesBeforePruning.clear();
-  treesAfterPrePruning.clear();
-  treesAfterPruning.clear();
-  statesBeforePruning.clear();
-  statesAfterPrePruning.clear();
-  statesAfterPruning.clear();
-  wordEndsBeforePruning.clear();
-  wordEndsAfterPruning.clear();
-  epsilonWordEndsAdded.clear();
-  wordEndsAfterRecombination.clear();
-  wordEndsAfterSecondPruning.clear();
-  acousticHistogramPruningThreshold.clear();
-  lmHistogramPruningThreshold.clear();
-  entryStateHypotheses.clear();
-  rootStateHypothesesPerTree.clear();
+    treesBeforePruning.clear();
+    treesAfterPrePruning.clear();
+    treesAfterPruning.clear();
+    statesBeforePruning.clear();
+    statesAfterPrePruning.clear();
+    statesAfterPruning.clear();
+    wordEndsBeforePruning.clear();
+    wordEndsAfterPruning.clear();
+    epsilonWordEndsAdded.clear();
+    wordEndsAfterRecombination.clear();
+    wordEndsAfterSecondPruning.clear();
+    acousticHistogramPruningThreshold.clear();
+    lmHistogramPruningThreshold.clear();
+    entryStateHypotheses.clear();
+    rootStateHypothesesPerTree.clear();
 
-  for( std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it )
-    ( *it ).second->clear();
+    for (std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it)
+        (*it).second->clear();
 
-  for( std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it )
-    ( *it ).second->clear();
+    for (std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it)
+        (*it).second->clear();
 }
 
-Core::Statistics<f32>& Search::SearchSpaceStatistics::customStatistics( const std::string& name ) {
-  std::map<std::string, Core::Statistics<f32>*>::iterator it = customStatistics_.find( name );
-  if( it == customStatistics_.end() )
-    it = customStatistics_.insert( std::make_pair( name, new Core::Statistics<f32>( name.c_str() ) ) ).first;
+Core::Statistics<f32>& Search::SearchSpaceStatistics::customStatistics(const std::string& name) {
+    std::map<std::string, Core::Statistics<f32>*>::iterator it = customStatistics_.find(name);
+    if (it == customStatistics_.end())
+        it = customStatistics_.insert(std::make_pair(name, new Core::Statistics<f32>(name.c_str()))).first;
 
-  return *( *it ).second;
+    return *(*it).second;
 }
 
-Core::HistogramStatistics& Search::SearchSpaceStatistics::customHistogramStatistics( const std::string& name, u32 buckets ) {
-  std::map<std::string, Core::HistogramStatistics*>::iterator it = customHistogramStatistics_.find( name );
-  if( it == customHistogramStatistics_.end() )
-    it = customHistogramStatistics_.insert( std::make_pair( name, new Core::HistogramStatistics( name.c_str(), buckets ) ) ).first;
+Core::HistogramStatistics& Search::SearchSpaceStatistics::customHistogramStatistics(const std::string& name, u32 buckets) {
+    std::map<std::string, Core::HistogramStatistics*>::iterator it = customHistogramStatistics_.find(name);
+    if (it == customHistogramStatistics_.end())
+        it = customHistogramStatistics_.insert(std::make_pair(name, new Core::HistogramStatistics(name.c_str(), buckets))).first;
 
-  return *( *it ).second;
+    return *(*it).second;
 }
 
 Search::SearchSpaceStatistics::~SearchSpaceStatistics() {
-  for( std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it )
-    delete ( *it ).second;
+    for (std::map<std::string, Core::Statistics<f32>*>::const_iterator it = customStatistics_.begin(); it != customStatistics_.end(); ++it)
+        delete (*it).second;
 
-  for( std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it )
-    delete ( *it ).second;
+    for (std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it)
+        delete (*it).second;
 
-  customHistogramStatistics_.clear();
+    customHistogramStatistics_.clear();
 }

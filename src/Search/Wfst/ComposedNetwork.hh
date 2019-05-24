@@ -21,8 +21,8 @@
 #include <fst/replace.h>
 #include <fst/state-table.h>
 
-
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class AbstractGrammarFst;
 class AbstractLexicalFst;
@@ -30,25 +30,29 @@ class AbstractLexicalFst;
 /**
  * network with dynamic composition of 2 automata
  */
-class ComposedNetwork : public FstNetwork< FstLib::ComposeFst<FstLib::StdArc> >
-{
+class ComposedNetwork : public FstNetwork<FstLib::ComposeFst<FstLib::StdArc>> {
 public:
     typedef FstLib::ComposeFst<Arc> ComposeFst;
+
 protected:
-    typedef FstNetwork<ComposeFst> Precursor;
+    typedef FstNetwork<ComposeFst>     Precursor;
     static const Core::ParameterString paramNetworkLeft_;
     static const Core::ParameterString paramNetworkRight_;
-    static const Core::ParameterInt paramStateCache_;
-    static const Core::ParameterInt paramResetInterval_;
+    static const Core::ParameterInt    paramStateCache_;
+    static const Core::ParameterInt    paramResetInterval_;
     static const Core::ParameterChoice paramGrammarType_;
-    static const Core::Choice choiceGrammarType_;
+    static const Core::Choice          choiceGrammarType_;
 
 public:
-    ComposedNetwork(const Core::Configuration &);
+    ComposedNetwork(const Core::Configuration&);
     virtual ~ComposedNetwork();
     virtual bool init();
-    virtual u32 nStates() const { return 0; }
-    static bool hasGrammarState() { return true; }
+    virtual u32  nStates() const {
+        return 0;
+    }
+    static bool hasGrammarState() {
+        return true;
+    }
     StateIndex grammarState(StateIndex s) const {
         return stateTable_->rightState(s);
     }
@@ -56,25 +60,27 @@ public:
         return stateTable_->leftState(s);
     }
     virtual void reset();
-    void setLexicon(Bliss::LexiconRef lexicon) { lexicon_ = lexicon; }
+    void         setLexicon(Bliss::LexiconRef lexicon) {
+        lexicon_ = lexicon;
+    }
 
 public:
-    class ArcIterator
-    {
+    class ArcIterator {
     public:
-        ArcIterator(const ComposedNetwork *network, StateIndex s) :
-            a_(*network->f_, s) {
+        ArcIterator(const ComposedNetwork* network, StateIndex s)
+                : a_(*network->f_, s) {
             if (!a_.Done() && a_.Value().ilabel == OpenFst::Epsilon)
                 next();
         }
         void next() {
-            do { a_.Next(); } while (!a_.Done() && a_.Value().ilabel == OpenFst::Epsilon);
+            do {
+                a_.Next();
+            } while (!a_.Done() && a_.Value().ilabel == OpenFst::Epsilon);
         }
         bool done() const {
             return a_.Done();
         }
         const Arc& value() const {
-            //verify(a_.Value().ilabel != OpenFst::Epsilon);
             return a_.Value();
         }
         void reset() {
@@ -82,27 +88,28 @@ public:
             if (!a_.Done() && a_.Value().ilabel == OpenFst::Epsilon)
                 next();
         }
+
     private:
         FstLib::ArcIterator<ComposeFst> a_;
     };
     friend class ArcIterator;
 
-    class EpsilonArcIterator
-    {
+    class EpsilonArcIterator {
     public:
-        EpsilonArcIterator(const ComposedNetwork *network, StateIndex s) :
-            a_(*network->f_, s) {
+        EpsilonArcIterator(const ComposedNetwork* network, StateIndex s)
+                : a_(*network->f_, s) {
             if (!a_.Done() && a_.Value().ilabel != OpenFst::Epsilon)
                 next();
         }
         void next() {
-            do { a_.Next(); } while (!a_.Done() && a_.Value().ilabel != OpenFst::Epsilon);
+            do {
+                a_.Next();
+            } while (!a_.Done() && a_.Value().ilabel != OpenFst::Epsilon);
         }
         bool done() {
             return a_.Done();
         }
         const EpsilonArc& value() const {
-            //verify(a_.Value().ilabel == OpenFst::Epsilon);
             return a_.Value();
         }
         void reset() {
@@ -110,18 +117,18 @@ public:
             if (!a_.Done() && a_.Value().ilabel != OpenFst::Epsilon)
                 next();
         }
+
     private:
         FstLib::ArcIterator<ComposeFst> a_;
     };
     friend class EpsilonArcIterator;
 
-
 private:
     void createL();
     void createG();
 
-    AbstractLexicalFst *l_;
-    AbstractGrammarFst *r_;
+    AbstractLexicalFst* l_;
+    AbstractGrammarFst* r_;
     /**
      * This makes grammarState() expensive, as we can't inline but have to
      * call a virtual function instead!
@@ -129,10 +136,10 @@ private:
      * To make ComposedNetwork more efficient (at least if grammarState is used)
      * the ComposeFilter and the StateTable should be fixed.
      */
-    AbstractStateTable *stateTable_;
-    u32 resetCount_, resetInterval_;
-    size_t cacheSize_;
-    Bliss::LexiconRef lexicon_;
+    AbstractStateTable* stateTable_;
+    u32                 resetCount_, resetInterval_;
+    size_t              cacheSize_;
+    Bliss::LexiconRef   lexicon_;
 };
 
 }  // namespace Wfst

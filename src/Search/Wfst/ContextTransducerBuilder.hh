@@ -15,16 +15,15 @@
 #ifndef _SEARCH_CONTEXT_TRANSDUCER_BUILDER_HH
 #define _SEARCH_CONTEXT_TRANSDUCER_BUILDER_HH
 
-#include <Core/Component.hh>
 #include <Am/ClassicAcousticModel.hh>
 #include <Bliss/Lexicon.hh>
+#include <Core/Component.hh>
 #include <OpenFst/Types.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-
-class ContextTransducerBuilder : public Core::Component
-{
+class ContextTransducerBuilder : public Core::Component {
 private:
     class Builder;
     class AcrossWordBuilder;
@@ -32,26 +31,32 @@ private:
     class WithinWordBuilder;
     class MonophoneBuilder;
 
-    static const Core::ParameterBool paramNonDeterministic;
-    static const Core::ParameterBool paramAllowNonCrossWordTransitions;
+    static const Core::ParameterBool   paramNonDeterministic;
+    static const Core::ParameterBool   paramAllowNonCrossWordTransitions;
     static const Core::ParameterString paramSequenceEndSymbol;
-    static const Core::ParameterBool paramUseSentenceEndSymbol;
-    static const Core::ParameterBool paramAddWordDisambiguatorLoops;
-    static const Core::ParameterBool paramAddSuperFinalState;
-    static const Core::ParameterBool paramExploitDisambiguators;
-    static const Core::ParameterBool paramUnshiftCiPhones;
-    static const Core::ParameterBool paramAddNonWords;
-    static const Core::ParameterBool paramFinalCiLoop;
-    static const Core::ParameterBool paramMonophones;
+    static const Core::ParameterBool   paramUseSentenceEndSymbol;
+    static const Core::ParameterBool   paramAddWordDisambiguatorLoops;
+    static const Core::ParameterBool   paramAddSuperFinalState;
+    static const Core::ParameterBool   paramExploitDisambiguators;
+    static const Core::ParameterBool   paramUnshiftCiPhones;
+    static const Core::ParameterBool   paramAddNonWords;
+    static const Core::ParameterBool   paramFinalCiLoop;
+    static const Core::ParameterBool   paramMonophones;
 
 public:
-    ContextTransducerBuilder(const Core::Configuration &c, Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l) :
-        Core::Component(c), model_(m), lexicon_(l), phoneSymbols_(0),
-        initialPhoneOffset_(-1), disambiguatorOffset_(-1), nDisambiguators_(-1),
-        newWordLabelOffset_(-1), newDisambiguatorOffset_(-1) {}
+    ContextTransducerBuilder(const Core::Configuration& c, Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
+            : Core::Component(c),
+              model_(m),
+              lexicon_(l),
+              phoneSymbols_(0),
+              initialPhoneOffset_(-1),
+              disambiguatorOffset_(-1),
+              nDisambiguators_(-1),
+              newWordLabelOffset_(-1),
+              newDisambiguatorOffset_(-1) {}
 
     void setDisambiguators(u32 nDisambiguators, u32 disambiguatorOffset) {
-        nDisambiguators_ = nDisambiguators;
+        nDisambiguators_     = nDisambiguators;
         disambiguatorOffset_ = disambiguatorOffset;
     }
     void setWordDisambiguators(u32 nWordDisambiguators) {
@@ -60,7 +65,7 @@ public:
     void setInitialPhoneOffset(u32 offset) {
         initialPhoneOffset_ = offset;
     }
-    void setPhoneSymbols(const OpenFst::SymbolTable *symbols) {
+    void setPhoneSymbols(const OpenFst::SymbolTable* symbols) {
         phoneSymbols_ = symbols;
     }
     // return the word label offset in the input alphabet
@@ -72,20 +77,19 @@ public:
         return newDisambiguatorOffset_;
     }
 
-
     OpenFst::VectorFst* build();
 
 private:
     Core::Ref<const Am::AcousticModel> model_;
-    Core::Ref<const Bliss::Lexicon> lexicon_;
-    const OpenFst::SymbolTable *phoneSymbols_;
-    s32 initialPhoneOffset_, disambiguatorOffset_;
-    s32 nDisambiguators_;
-    s32 nWordDisambiguators_;
-    s32 newWordLabelOffset_, newDisambiguatorOffset_;
+    Core::Ref<const Bliss::Lexicon>    lexicon_;
+    const OpenFst::SymbolTable*        phoneSymbols_;
+    s32                                initialPhoneOffset_, disambiguatorOffset_;
+    s32                                nDisambiguators_;
+    s32                                nWordDisambiguators_;
+    s32                                newWordLabelOffset_, newDisambiguatorOffset_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif /* _SEARCH_CONTEXT_TRANSDUCER_BUILDER_HH */

@@ -19,118 +19,101 @@
 
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
-#include <Speech/ModelCombination.hh>
+#include <Search/Histogram.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Search.hh>
+#include <Speech/ModelCombination.hh>
 #include "Trace.hh"
-#include <Search/Histogram.hh>
 
-namespace Speech
-{
+namespace Speech {
 class StateTying;
 }
 
-namespace Search
-{
+namespace Search {
 struct SearchSpaceStatistics;
 class SearchSpace;
 
 class LanguageModelLookahead;
 class StateTree;
 
-class AdvancedTreeSearchManager : public SearchAlgorithm
-{
-  class ReverseWordLattice;
-  friend class ReverseWordLattice;
+class AdvancedTreeSearchManager : public SearchAlgorithm {
+    class ReverseWordLattice;
+    friend class ReverseWordLattice;
+
 public:
-  enum LatticeOptimizationMethod {
-    noLatticeOptimization,
-    simpleSilenceLatticeOptimization
-  };
-  enum SearchVariant {
-    WordConditioned,
-    TimeConditioned
-  };
-private:
-  Bliss::LexiconRef lexicon_;
-  const Bliss::Lemma *silence_;
-  Core::Ref<const Am::AcousticModel> acousticModel_;
-  Core::Ref<const Lm::ScaledLanguageModel> lm_;
-
-  Score wpScale_;
-  bool shallCreateLattice_;
-  bool allowSentenceEndFallBack_;
-
-  LatticeOptimizationMethod shallOptimizeLattice_;
-//   f32 startTressIntervalProbabilisticFactor_;
-  u32 startTreesInterval_, cleanupInterval_;
-//   bool startTreesIntervalProbabilistic_;
-  f32 onlineSegmentationLength_, onlineSegmentationMargin_, onlineSegmentationTolerance_;
-  bool onlineSegmentationIncludeGap_;
-  TimeframeIndex time_;
-  TimeframeIndex currentSegmentStart_;
-
-  SearchSpace *ss_;
-
-  mutable Core::XmlChannel statisticsChannel_;
+    enum LatticeOptimizationMethod {
+        noLatticeOptimization,
+        simpleSilenceLatticeOptimization
+    };
+    enum SearchVariant {
+        WordConditioned,
+        TimeConditioned
+    };
 
 private:
-  mutable Core::Ref<Trace> sentenceEnd_;
+    Bliss::LexiconRef                        lexicon_;
+    const Bliss::Lemma*                      silence_;
+    Core::Ref<const Am::AcousticModel>       acousticModel_;
+    Core::Ref<const Lm::ScaledLanguageModel> lm_;
 
-  Core::Ref<Trace> lastPartialTrace_;
+    Score wpScale_;
+    bool  shallCreateLattice_;
+    bool  allowSentenceEndFallBack_;
 
-  Core::Ref<Trace> sentenceEnd() const;
+    LatticeOptimizationMethod shallOptimizeLattice_;
+    u32                       startTreesInterval_, cleanupInterval_;
+    f32                       onlineSegmentationLength_, onlineSegmentationMargin_, onlineSegmentationTolerance_;
+    bool                      onlineSegmentationIncludeGap_;
+    TimeframeIndex            time_;
+    TimeframeIndex            currentSegmentStart_;
 
-  void mergeEpsilonTraces( Core::Ref<Trace> trace ) const;
+    SearchSpace* ss_;
 
-//   struct WordEndStats {
-//     std::deque<Score> lastScores;
-//
-//     int cachedTimeframe;
-//     int lastWETimeframe;
-//
-//     Search::Histogram scoreHistogram;
-//     WordEndStats() : scoreHistogram(100) { ///@todo Check bin-count
-//     }
-//
-//     void clear(Score acousticPruningThreshold) ;
-//   };
+    mutable Core::XmlChannel statisticsChannel_;
 
-//   WordEndStats weStats_;
-  bool shouldComputeWordEnds();
+private:
+    mutable Core::Ref<Trace> sentenceEnd_;
 
-  Core::Ref<Trace> getCorrectedCommonPrefix();
+    Core::Ref<Trace> lastPartialTrace_;
 
-  Core::Ref<const LatticeAdaptor> buildLatticeForTrace( Core::Ref<Trace> trace ) const;
+    Core::Ref<Trace> sentenceEnd() const;
 
-  void traceback( Core::Ref<Trace>, Traceback &result, Core::Ref<Trace> boundary = Core::Ref<Trace>() ) const;
+    void mergeEpsilonTraces(Core::Ref<Trace> trace) const;
+
+    bool shouldComputeWordEnds();
+
+    Core::Ref<Trace> getCorrectedCommonPrefix();
+
+    Core::Ref<const LatticeAdaptor> buildLatticeForTrace(Core::Ref<Trace> trace) const;
+
+    void traceback(Core::Ref<Trace>, Traceback& result, Core::Ref<Trace> boundary = Core::Ref<Trace>()) const;
+
 public:
+    AdvancedTreeSearchManager(const Core::Configuration&);
+    virtual ~AdvancedTreeSearchManager();
+    AdvancedTreeSearchManager(const AdvancedTreeSearchManager& rhs);
 
-  AdvancedTreeSearchManager( const Core::Configuration & );
-  virtual ~AdvancedTreeSearchManager();
-  AdvancedTreeSearchManager( const AdvancedTreeSearchManager& rhs );
+    virtual void                            setAllowHmmSkips(bool allow);
+    virtual bool                            setModelCombination(const Speech::ModelCombination& modelCombination);
+    virtual void                            setGrammar(Fsa::ConstAutomatonRef);
+    virtual void                            restart();
+    virtual void                            feed(const Mm::FeatureScorer::Scorer&);
+    virtual void                            getPartialSentence(Traceback& result);
+    virtual void                            getCurrentBestSentencePartial(Traceback& result) const;
+    virtual void                            getCurrentBestSentence(Traceback& result) const;
+    virtual Core::Ref<const LatticeAdaptor> getCurrentWordLattice() const;
+    virtual Core::Ref<const LatticeAdaptor> getPartialWordLattice();
+    virtual void                            resetStatistics();
+    virtual void                            logStatistics() const;
 
-  virtual void setAllowHmmSkips( bool allow );
-  virtual bool setModelCombination( const Speech::ModelCombination& modelCombination );
-  virtual void setGrammar( Fsa::ConstAutomatonRef );
-  virtual void restart();
-  virtual void feed( const Mm::FeatureScorer::Scorer& );
-  virtual void getPartialSentence( Traceback &result );
-  virtual void getCurrentBestSentencePartial( Traceback& result ) const;
-  virtual void getCurrentBestSentence( Traceback &result ) const;
-  virtual Core::Ref<const LatticeAdaptor> getCurrentWordLattice() const;
-  virtual Core::Ref<const LatticeAdaptor> getPartialWordLattice();
-  virtual void resetStatistics();
-  virtual void logStatistics() const;
+    virtual bool       relaxPruning(f32 factor, f32 offset);
+    virtual void       resetPruning(PruningRef pruning);
+    virtual PruningRef describePruning();
 
-  virtual bool relaxPruning( f32 factor, f32 offset );
-  virtual void resetPruning( PruningRef pruning );
-  virtual PruningRef describePruning();
-
-  virtual u32 lookAheadLength();
-  virtual void setLookAhead( const std::vector<Mm::FeatureVector>& lookahead );
-  virtual RecognitionContext setContext( RecognitionContext context );
+    virtual u32                lookAheadLength();
+    virtual void               setLookAhead(const std::vector<Mm::FeatureVector>& lookahead);
+    virtual RecognitionContext setContext(RecognitionContext context);
 };
-}
+}  // namespace Search
 
 #endif

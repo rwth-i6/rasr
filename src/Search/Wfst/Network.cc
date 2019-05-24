@@ -12,24 +12,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/Network.hh>
 #include <Core/Application.hh>
 #include <OpenFst/Scale.hh>
 #include <OpenFst/Types.hh>
+#include <Search/Wfst/Network.hh>
 #include <fst/arcsort.h>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 const Core::ParameterString StaticNetwork::paramNetworkFile_(
         "file", "search network to load", "");
 const Core::ParameterFloat StaticNetwork::paramScale_(
         "scale", "weight scaling factor", 1.0);
 
-StaticNetwork::StaticNetwork(const Core::Configuration &c) :
-    Precursor(c) {}
+StaticNetwork::StaticNetwork(const Core::Configuration& c)
+        : Precursor(c) {}
 
-bool StaticNetwork::init()
-{
+bool StaticNetwork::init() {
     logMemoryUsage();
     Core::Component::log("reading network: %s", paramNetworkFile_(config).c_str());
     f_ = OpenFst::VectorFst::Read(paramNetworkFile_(config));
@@ -48,5 +48,5 @@ bool StaticNetwork::init()
     return true;
 }
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search

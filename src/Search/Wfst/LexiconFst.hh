@@ -24,81 +24,83 @@
 #include <fst/fst.h>
 #include <fst/lookahead-filter.h>
 #include <fst/lookahead-matcher.h>
-#include <fst/matcher.h>
 #include <fst/matcher-fst.h>
+#include <fst/matcher.h>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class AbstractLexicalFst;
 
 /**
  * Loads and creates (expanded) lexicon transducers (C o L)
  */
-class LexicalFstFactory : public Core::Component
-{
+class LexicalFstFactory : public Core::Component {
     static const Core::ParameterChoice paramAccumulatorType_;
     static const Core::ParameterChoice paramLookAheadType_;
-    static const Core::Choice choiceAccumulatorType_;
-    static const Core::Choice choiceLookAheadType_;
-    static const Core::ParameterBool paramMatcherFst_;
-    static const Core::ParameterFloat paramScale_;
+    static const Core::Choice          choiceAccumulatorType_;
+    static const Core::Choice          choiceLookAheadType_;
+    static const Core::ParameterBool   paramMatcherFst_;
+    static const Core::ParameterFloat  paramScale_;
 
     typedef AbstractGrammarFst::GrammarType GrammarType;
-    typedef FstLib::StdFst StdFst;
-    typedef StdFst::Arc Arc;
+    typedef FstLib::StdFst                  StdFst;
+    typedef StdFst::Arc                     Arc;
 
 public:
-    enum AccumulatorType { DefaultAccumulator, LogAccumulator, FastLogAccumulator };
+    enum AccumulatorType { DefaultAccumulator,
+                           LogAccumulator,
+                           FastLogAccumulator };
 
     struct Options {
         AccumulatorType accumulatorType;
-        LookAheadType lookAhead;
+        LookAheadType   lookAhead;
     };
 
 public:
-    LexicalFstFactory(const Core::Configuration &c) : Core::Component(c) {}
+    LexicalFstFactory(const Core::Configuration& c)
+            : Core::Component(c) {}
 
     /**
      * creates LexicalFst from the given filename using parameter values.
      * relabels g if necessary.
      */
-    AbstractLexicalFst* load(const std::string &filename, GrammarType gType,
-                             AbstractGrammarFst *g) const;
+    AbstractLexicalFst* load(const std::string& filename, GrammarType gType,
+                             AbstractGrammarFst* g) const;
 
     /**
      * creates LexicalFst from the given filename using parameter values,
      * with default values from the given options.
      * relabels g if necessary.
      */
-    AbstractLexicalFst* load(const std::string &filename, const Options &o,
-                             AbstractGrammarFst *g) const;
+    AbstractLexicalFst* load(const std::string& filename, const Options& o,
+                             AbstractGrammarFst* g) const;
 
-    AbstractLexicalFst* convert(OpenFst::VectorFst *base, GrammarType gType,
-                                AbstractGrammarFst *g) const;
+    AbstractLexicalFst* convert(OpenFst::VectorFst* base, GrammarType gType,
+                                AbstractGrammarFst* g) const;
 
-    AbstractLexicalFst* convert(OpenFst::VectorFst *base, const Options &o,
-                                AbstractGrammarFst *g) const;
-
+    AbstractLexicalFst* convert(OpenFst::VectorFst* base, const Options& o,
+                                AbstractGrammarFst* g) const;
 
     /**
      * Factory function to create LexicalFst objects.
      */
-    static AbstractLexicalFst* create(const Options &options);
-private:
-    Options parseOptions() const;
-    Options parseOptions(const Options &defaultValues) const;
-    void logOptions(const Options &options) const;
-    AbstractLexicalFst* read(const std::string &filename, const Options &o,
-                             bool isMatcherFst, f32 scale, AbstractGrammarFst *g) const;
-    void convert(OpenFst::VectorFst *base, f32 scale,
-                 AbstractLexicalFst *result, AbstractGrammarFst *g) const;
+    static AbstractLexicalFst* create(const Options& options);
 
+private:
+    Options             parseOptions() const;
+    Options             parseOptions(const Options& defaultValues) const;
+    void                logOptions(const Options& options) const;
+    AbstractLexicalFst* read(const std::string& filename, const Options& o,
+                             bool isMatcherFst, f32 scale, AbstractGrammarFst* g) const;
+    void                convert(OpenFst::VectorFst* base, f32 scale,
+                                AbstractLexicalFst* result, AbstractGrammarFst* g) const;
 
     /**
      * Internal helper function for create(options).
      * Selects accumulator
      */
-    template<template <class> class N>
+    template<template<class> class N>
     static AbstractLexicalFst* createFst(AccumulatorType t);
 };
 
@@ -108,12 +110,11 @@ private:
  * Interface for LexicalFstImpl.
  * See LexicalFstImpl.
  */
-class AbstractLexicalFstImpl
-{
+class AbstractLexicalFstImpl {
 public:
     virtual ~AbstractLexicalFstImpl() {}
-    virtual bool load(const std::string &filename) = 0;
-    virtual bool create(const OpenFst::VectorFst &src) = 0;
+    virtual bool load(const std::string& filename)     = 0;
+    virtual bool create(const OpenFst::VectorFst& src) = 0;
 };
 
 /**
@@ -124,23 +125,26 @@ public:
  * can use the correct pointer type without casting.
  */
 template<class M>
-class LexicalFstImpl : public AbstractLexicalFstImpl
-{
+class LexicalFstImpl : public AbstractLexicalFstImpl {
 public:
     typedef M Fst;
 
-    LexicalFstImpl(M **fst) : fst_(fst)  {}
-    virtual ~LexicalFstImpl() { delete *fst_; }
-    bool load(const std::string &filename) {
+    LexicalFstImpl(M** fst)
+            : fst_(fst) {}
+    virtual ~LexicalFstImpl() {
+        delete *fst_;
+    }
+    bool load(const std::string& filename) {
         *fst_ = M::Read(filename);
         return *fst_;
     }
-    bool create(const OpenFst::VectorFst &src) {
+    bool create(const OpenFst::VectorFst& src) {
         *fst_ = new M(src);
         return *fst_;
     }
+
 protected:
-    M **fst_;
+    M** fst_;
 };
 
 // ===============================================================
@@ -158,32 +162,35 @@ class AbstractStateTable;
  * relabeling the G transducer (if required) and
  * creating the ComposeFst (using ComposeFstFactory)
  */
-class AbstractLexicalFst
-{
+class AbstractLexicalFst {
 protected:
     typedef FstLib::StdFst StdFst;
-    typedef StdFst::Arc Arc;
+    typedef StdFst::Arc    Arc;
+
 public:
     typedef FstLib::ComposeFst<Arc> ComposeFst;
 
-    AbstractLexicalFst() : impl_(0) {}
+    AbstractLexicalFst()
+            : impl_(0) {}
     virtual ~AbstractLexicalFst() {
         delete impl_;
     }
-    virtual bool load(const std::string &filename) {
+    virtual bool load(const std::string& filename) {
         return impl_->load(filename);
     }
-    virtual bool create(const OpenFst::VectorFst &src) {
+    virtual bool create(const OpenFst::VectorFst& src) {
         return impl_->create(src);
     }
-    virtual void relabel(AbstractGrammarFst *g) const = 0;
+    virtual void        relabel(AbstractGrammarFst* g) const = 0;
     virtual ComposeFst* compose(
-        const AbstractGrammarFst &g, size_t cacheSize,
-        AbstractStateTable **stateTable) const = 0;
+            const AbstractGrammarFst& g, size_t cacheSize,
+            AbstractStateTable** stateTable) const = 0;
 
 protected:
-    void SetImpl(AbstractLexicalFstImpl *impl) { impl_ = impl; }
-    AbstractLexicalFstImpl *impl_;
+    void SetImpl(AbstractLexicalFstImpl* impl) {
+        impl_ = impl;
+    }
+    AbstractLexicalFstImpl* impl_;
 };
 
 // ===============================================================
@@ -191,31 +198,34 @@ protected:
 /**
  * standard fst without any look-ahead
  */
-class StandardLexicalFst : public AbstractLexicalFst
-{
+class StandardLexicalFst : public AbstractLexicalFst {
     typedef AbstractLexicalFst::StdFst StdFst;
-    typedef FstLib::StdVectorFst VectorFst;
-    typedef LexicalFstImpl<VectorFst> Impl;
+    typedef FstLib::StdVectorFst       VectorFst;
+    typedef LexicalFstImpl<VectorFst>  Impl;
 
 public:
     typedef FstLib::SortedMatcher<StdFst> Matcher;
-    typedef Impl::Fst Fst;
+    typedef Impl::Fst                     Fst;
 
     static const LookAheadType FilterType = NoLookAhead;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    StandardLexicalFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {}
+    StandardLexicalFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void relabel(AbstractGrammarFst* g) const {}
 
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(
                 *this, g, cacheSize, stateTable);
     }
 
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
 
 /**
@@ -226,189 +236,206 @@ protected:
  * matcher flags have to be changed.
  */
 template<class A, uint32 flags = FstLib::olabel_lookahead_flags>
-struct MatcherFstSelector
-{
-    typedef A Accumulator;
-    typedef typename Accumulator::Arc Arc;
-    typedef FstLib::ConstFst<Arc> F;
-    typedef FstLib::SortedMatcher<F> M;
+struct MatcherFstSelector {
+    typedef A                                                    Accumulator;
+    typedef typename Accumulator::Arc                            Arc;
+    typedef FstLib::ConstFst<Arc>                                F;
+    typedef FstLib::SortedMatcher<F>                             M;
     typedef FstLib::LabelLookAheadMatcher<M, flags, Accumulator> Matcher;
-    typedef FstLib::LabelLookAheadRelabeler<Arc> Relabeler;
+    typedef FstLib::LabelLookAheadRelabeler<Arc>                 Relabeler;
     typedef FstLib::MatcherFst<
             F, Matcher,
             FstLib::olabel_lookahead_fst_type,
-            Relabeler> MatcherFst;
+            Relabeler>
+            MatcherFst;
 };
-
 
 /**
  * Produces a ComposeFst using a label look-ahead composition filter.
  */
 // template<class R>
-class LookAheadLexicalFst : public AbstractLexicalFst
-{
-    typedef AbstractLexicalFst::StdFst StdFst;
-    typedef StdFst::Arc Arc;
+class LookAheadLexicalFst : public AbstractLexicalFst {
+    typedef AbstractLexicalFst::StdFst      StdFst;
+    typedef StdFst::Arc                     Arc;
     typedef FstLib::DefaultAccumulator<Arc> Accumulator;
 
     static const uint32 LookAheadFlags = FstLib::olabel_lookahead_flags &
-            ~(FstLib::kLookAheadWeight | FstLib::kLookAheadPrefix);
+                                         ~(FstLib::kLookAheadWeight | FstLib::kLookAheadPrefix);
     typedef MatcherFstSelector<Accumulator, LookAheadFlags> Selector;
-    typedef Selector::MatcherFst MatcherFst;
-    typedef LexicalFstImpl<MatcherFst> Impl;
+    typedef Selector::MatcherFst                            MatcherFst;
+    typedef LexicalFstImpl<MatcherFst>                      Impl;
+
 public:
     typedef Selector::Matcher Matcher;
-    typedef Impl::Fst Fst;
+    typedef Impl::Fst         Fst;
 
     static const LookAheadType FilterType = LabelLookAhead;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    LookAheadLexicalFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {
+    LookAheadLexicalFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void relabel(AbstractGrammarFst* g) const {
         g->relabel(GrammarRelabeler<MatcherFst>(*fst_));
     }
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(*this, g, cacheSize, stateTable);
     }
 
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
-
 
 /**
  * Produces a ComposeFst using a weight pushing (label look-ahead)
  * composition filter.
  */
 template<class A>
-class PushWeightsLexicalFst : public AbstractLexicalFst
-{
+class PushWeightsLexicalFst : public AbstractLexicalFst {
     typedef A Accumulator;
 
     static const uint32 LookAheadFlags = FstLib::olabel_lookahead_flags &
-            (~FstLib::kLookAheadPrefix);
+                                         (~FstLib::kLookAheadPrefix);
     typedef MatcherFstSelector<Accumulator, LookAheadFlags> Selector;
-    typedef typename Selector::MatcherFst MatcherFst;
-    typedef LexicalFstImpl<MatcherFst> Impl;
+    typedef typename Selector::MatcherFst                   MatcherFst;
+    typedef LexicalFstImpl<MatcherFst>                      Impl;
+
 public:
     typedef typename Selector::Matcher Matcher;
-    typedef typename Impl::Fst Fst;
+    typedef typename Impl::Fst         Fst;
 
     static const LookAheadType FilterType = PushWeights;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    PushWeightsLexicalFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {
+    PushWeightsLexicalFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void relabel(AbstractGrammarFst* g) const {
         g->relabel(GrammarRelabeler<MatcherFst>(*fst_));
     }
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(*this, g, cacheSize, stateTable);
     }
 
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
-
 
 /**
  * Produces a ComposeFst using a weight and label pushing (label look-ahead)
  * composition filter.
  */
 template<class A>
-class PushLabelsLexicalFst : public AbstractLexicalFst
-{
+class PushLabelsLexicalFst : public AbstractLexicalFst {
     typedef A Accumulator;
 
-    static const uint32 LookAheadFlags = FstLib::olabel_lookahead_flags;
+    static const uint32                                     LookAheadFlags = FstLib::olabel_lookahead_flags;
     typedef MatcherFstSelector<Accumulator, LookAheadFlags> Selector;
-    typedef typename Selector::MatcherFst MatcherFst;
-    typedef LexicalFstImpl<MatcherFst> Impl;
+    typedef typename Selector::MatcherFst                   MatcherFst;
+    typedef LexicalFstImpl<MatcherFst>                      Impl;
+
 public:
     typedef typename Selector::Matcher Matcher;
-    typedef typename Impl::Fst Fst;
+    typedef typename Impl::Fst         Fst;
 
     static const LookAheadType FilterType = PushLabels;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    PushLabelsLexicalFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {
+    PushLabelsLexicalFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void relabel(AbstractGrammarFst* g) const {
         g->relabel(GrammarRelabeler<MatcherFst>(*fst_));
     }
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(*this, g, cacheSize, stateTable);
     }
+
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
 
 /**
  * Produces a ComposeFst using a label pushing (label look-ahead)
  * composition filter (without weight pushing).
  */
-class PushLabelsOnlyLexicalFst : public AbstractLexicalFst
-{
+class PushLabelsOnlyLexicalFst : public AbstractLexicalFst {
     typedef FstLib::DefaultAccumulator<FstLib::StdArc> Accumulator;
 
-    static const uint32 LookAheadFlags = FstLib::olabel_lookahead_flags
-            & (~FstLib::kLookAheadWeight);
+    static const uint32                                     LookAheadFlags = FstLib::olabel_lookahead_flags & (~FstLib::kLookAheadWeight);
     typedef MatcherFstSelector<Accumulator, LookAheadFlags> Selector;
-    typedef Selector::MatcherFst MatcherFst;
-    typedef LexicalFstImpl<MatcherFst> Impl;
+    typedef Selector::MatcherFst                            MatcherFst;
+    typedef LexicalFstImpl<MatcherFst>                      Impl;
+
 public:
     typedef Selector::Matcher Matcher;
-    typedef Impl::Fst Fst;
+    typedef Impl::Fst         Fst;
 
     static const LookAheadType FilterType = PushLabelsOnly;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    PushLabelsOnlyLexicalFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {
+    PushLabelsOnlyLexicalFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void relabel(AbstractGrammarFst* g) const {
         g->relabel(GrammarRelabeler<MatcherFst>(*fst_));
     }
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(*this, g, cacheSize, stateTable);
     }
+
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
 
-
-class ArcLookAheadFst : public AbstractLexicalFst
-{
+class ArcLookAheadFst : public AbstractLexicalFst {
 protected:
     typedef AbstractLexicalFst::StdFst StdFst;
-    typedef StdFst::Arc Arc;
+    typedef StdFst::Arc                Arc;
 
     typedef FstLib::StdArcLookAheadFst MatcherFst;
     typedef LexicalFstImpl<MatcherFst> Impl;
+
 public:
     typedef MatcherFst::FstMatcher Matcher;
-    typedef Impl::Fst Fst;
+    typedef Impl::Fst              Fst;
 
     static const LookAheadType FilterType = ArcLookAhead;
 
-    const Fst &getFst() const { return *fst_; }
+    const Fst& getFst() const {
+        return *fst_;
+    }
 
-    ArcLookAheadFst() { SetImpl(new Impl(&fst_)); }
-    void relabel(AbstractGrammarFst *g) const {}
-    ComposeFst* compose(const AbstractGrammarFst &g, size_t cacheSize,
-                        AbstractStateTable **stateTable) const {
+    ArcLookAheadFst() {
+        SetImpl(new Impl(&fst_));
+    }
+    void        relabel(AbstractGrammarFst* g) const {}
+    ComposeFst* compose(const AbstractGrammarFst& g, size_t cacheSize,
+                        AbstractStateTable** stateTable) const {
         return ComposeFstFactory::create(*this, g, cacheSize, stateTable);
     }
 
 protected:
-    Fst *fst_;
+    Fst* fst_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif  // SEARCH_WFST_LEXICONFST_HH

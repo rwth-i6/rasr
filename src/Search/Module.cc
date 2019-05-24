@@ -29,50 +29,46 @@
 
 using namespace Search;
 
-Module_::Module_()
-{
+Module_::Module_() {
 }
 
-
-SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration &config) const
-{
-    SearchAlgorithm *recognizer = 0;
+SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
+    SearchAlgorithm* recognizer = 0;
     switch (type) {
-    case WordConditionedTreeSearchType:
-        recognizer = new Search::WordConditionedTreeSearch(config);
-        break;
+        case WordConditionedTreeSearchType:
+            recognizer = new Search::WordConditionedTreeSearch(config);
+            break;
 
-    case AdvancedTreeSearch:
+        case AdvancedTreeSearch:
 #ifdef MODULE_ADVANCED_TREE_SEARCH
-        recognizer = new Search::AdvancedTreeSearchManager(config);
+            recognizer = new Search::AdvancedTreeSearchManager(config);
 #else
-        Core::Application::us()->criticalError("Module MODULE_ADVANCED_TREE_SEARCH not available!");
+            Core::Application::us()->criticalError("Module MODULE_ADVANCED_TREE_SEARCH not available!");
 #endif
-        break;
-    case ExpandingFsaSearchType:
+            break;
+        case ExpandingFsaSearchType:
 #ifdef MODULE_SEARCH_WFST
-        recognizer = new Search::Wfst::ExpandingFsaSearch(config);
+            recognizer = new Search::Wfst::ExpandingFsaSearch(config);
 #else
-        Core::Application::us()->criticalError("Module MODULE_SEARCH_WFST not available!");
+            Core::Application::us()->criticalError("Module MODULE_SEARCH_WFST not available!");
 #endif
-        break;
-    case LinearSearchType:
+            break;
+        case LinearSearchType:
 #ifdef MODULE_SEARCH_LINEAR
-        recognizer = new Search::LinearSearch(config);
+            recognizer = new Search::LinearSearch(config);
 #else
-        Core::Application::us()->criticalError("Module MODULE_SEARCH_LINEAR not available!");
+            Core::Application::us()->criticalError("Module MODULE_SEARCH_LINEAR not available!");
 #endif
-        break;
-    default:
-        Core::Application::us()->criticalError("unknown recognizer type: %d", type);
-        break;
+            break;
+        default:
+            Core::Application::us()->criticalError("unknown recognizer type: %d", type);
+            break;
     }
     return recognizer;
 }
 
-LatticeHandler* Module_::createLatticeHandler(const Core::Configuration &c) const
-{
-    LatticeHandler *handler = new LatticeHandler(c);
+LatticeHandler* Module_::createLatticeHandler(const Core::Configuration& c) const {
+    LatticeHandler* handler = new LatticeHandler(c);
 #ifdef MODULE_SEARCH_WFST
     handler = new Search::Wfst::LatticeHandler(c, handler);
 #endif

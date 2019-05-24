@@ -17,17 +17,16 @@
 using namespace Search::Wfst;
 
 bool WordEndDetector::setNonWordPhones(Core::Ref<const Am::AcousticModel> am,
-                                       const StateSequenceList &stateSequences,
-                                       const std::vector<std::string> &phones)
-{
-    Bliss::PhonemeInventoryRef pi = am->phonology()->getPhonemeInventory();
+                                       const StateSequenceList&           stateSequences,
+                                       const std::vector<std::string>&    phones) {
+    Bliss::PhonemeInventoryRef             pi         = am->phonology()->getPhonemeInventory();
     Core::Ref<const Am::AllophoneAlphabet> allophones = am->allophoneAlphabet();
     for (std::vector<std::string>::const_iterator p = phones.begin(); p != phones.end(); ++p) {
-        const Bliss::Phoneme *phone = pi->phoneme(*p);
+        const Bliss::Phoneme* phone = pi->phoneme(*p);
         verify(phone);
         Am::AllophoneIndex ai = allophones->index(
-            Am::Allophone(phone->id(), Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone));
-        const Am::Allophone *allophone = allophones->allophone(ai);
+                Am::Allophone(phone->id(), Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone));
+        const Am::Allophone* allophone = allophones->allophone(ai);
         verify(allophone);
         StateSequence states;
         states.createFromAllophone(am, allophone);
@@ -36,19 +35,19 @@ bool WordEndDetector::setNonWordPhones(Core::Ref<const Am::AcousticModel> am,
             Core::Application::us()->error("unknown non-word allophone %s (phone %s)",
                                            allophones->toString(*allophone).c_str(), p->c_str());
             return false;
-        } else {
+        }
+        else {
             nonWordHmms_.insert(&(*s));
         }
     }
     return true;
 }
 
-void WordEndDetector::setNonWordModels(const StateSequenceList &stateSequences,
-                                       u32 nNonWordModels)
-{
+void WordEndDetector::setNonWordModels(const StateSequenceList& stateSequences,
+                                       u32                      nNonWordModels) {
     u32 i = 0;
     for (StateSequenceList::const_reverse_iterator s = stateSequences.rbegin();
-            s != stateSequences.rend() && i < nNonWordModels; ++s, ++i) {
+         s != stateSequences.rend() && i < nNonWordModels; ++s, ++i) {
         nonWordHmms_.insert(&(*s));
     }
 }

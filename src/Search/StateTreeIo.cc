@@ -18,41 +18,36 @@
 using namespace Search;
 
 template<>
-void StateTreeIo::read<StateTree::Exit>(Input &i, StateTree::Exit &exit) const
-{
+void StateTreeIo::read<StateTree::Exit>(Input& i, StateTree::Exit& exit) const {
     s32 id;
     read(i, exit.transitEntry);
     read(i, id);
-    if(id != Bliss::LemmaPronunciation::invalidId)
+    if (id != Bliss::LemmaPronunciation::invalidId)
         exit.pronunciation = lexicon_->lemmaPronunciation(id);
     else
         exit.pronunciation = 0;
 }
 
 template<>
-void StateTreeIo::write<StateTree::Exit>(Output &o, const StateTree::Exit &exit) const
-{
+void StateTreeIo::write<StateTree::Exit>(Output& o, const StateTree::Exit& exit) const {
     write(o, exit.transitEntry);
     write(o, exit.pronunciation ? exit.pronunciation->id() : Bliss::LemmaPronunciation::invalidId);
 }
 
 template<>
-void StateTreeIo::read<StateTree::StateDesc>(Input &i, StateTree::StateDesc &desc) const
-{
+void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& desc) const {
     read(i, desc.acousticModel);
     read(i, desc.transitionModelIndex);
 }
 
 template<>
-void StateTreeIo::write<StateTree::StateDesc>(Output &o, const StateTree::StateDesc &desc) const
-{
+void StateTreeIo::write<StateTree::StateDesc>(Output& o, const StateTree::StateDesc& desc) const {
     write(o, desc.acousticModel);
     write(o, desc.transitionModelIndex);
 }
 
 template<>
-void StateTreeIo::read<StateTree::State>(Input &i, StateTree::State &state) const
-{
+void StateTreeIo::read<StateTree::State>(Input& i, StateTree::State& state) const {
     read(i, state.desc);
     read(i, state.depth);
     read(i, state.exits);
@@ -60,8 +55,7 @@ void StateTreeIo::read<StateTree::State>(Input &i, StateTree::State &state) cons
 }
 
 template<>
-void StateTreeIo::write<StateTree::State>(Output &o, const StateTree::State &state) const
-{
+void StateTreeIo::write<StateTree::State>(Output& o, const StateTree::State& state) const {
     write(o, state.desc);
     write(o, state.depth);
     write(o, state.exits);
@@ -70,34 +64,29 @@ void StateTreeIo::write<StateTree::State>(Output &o, const StateTree::State &sta
 
 template<>
 void StateTreeIo::read<StateTree::CoarticulationStructure::PhonemePair>(
-    Input &i, StateTree::CoarticulationStructure::PhonemePair &pair) const
-{
+        Input& i, StateTree::CoarticulationStructure::PhonemePair& pair) const {
     read(i, pair.final);
     read(i, pair.initial);
 }
 
 template<>
 void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
-    Output &o, const StateTree::CoarticulationStructure::PhonemePair &pair) const
-{
+        Output& o, const StateTree::CoarticulationStructure::PhonemePair& pair) const {
     write(o, pair.final);
     write(o, pair.initial);
 }
 
-
-const std::string StateTreeIo::magic = "SPRINT-ST";
-const int StateTreeIo::fileFormatVersion = 5;
+const std::string StateTreeIo::magic             = "SPRINT-ST";
+const int         StateTreeIo::fileFormatVersion = 5;
 
 StateTreeIo::StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
-    : lexicon_(lexicon), acousticModel_(acousticModel)
-{
+        : lexicon_(lexicon), acousticModel_(acousticModel) {
     getDependencies();
 }
 
-void StateTreeIo::getDependencies()
-{
-    const Am::ClassicAcousticModel *am = required_cast(const Am::ClassicAcousticModel*, acousticModel_.get());
-    Core::DependencySet d;
+void StateTreeIo::getDependencies() {
+    const Am::ClassicAcousticModel* am = required_cast(const Am::ClassicAcousticModel*, acousticModel_.get());
+    Core::DependencySet             d;
     am->stateModel()->hmmTopologySet().getDependencies(d);
     am->stateTying()->getDependencies(d);
     dependencies_.add("acoustic model", d);
@@ -105,20 +94,16 @@ void StateTreeIo::getDependencies()
     dependencies_.add("state-transitions", am->nStateTransitions());
 }
 
-void StateTreeIo::getTreeDependencies(const StateTree &tree)
-{
+void StateTreeIo::getTreeDependencies(const StateTree& tree) {
     dependencies_.add("skip-transitions", tree.allowSkipTransitions_);
     dependencies_.add("ci-crossword-transitions", tree.allowCiCrossWordTransitions_);
     dependencies_.add("path-recombination-in-fan-in", tree.isPathRecombinationInFanInEnabled_);
 }
 
 StateTreeWriter::StateTreeWriter(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
-    : StateTreeIo(lexicon, acousticModel)
-{}
+        : StateTreeIo(lexicon, acousticModel) {}
 
-
-bool StateTreeWriter::write(const StateTree &tree, const std::string &filename)
-{
+bool StateTreeWriter::write(const StateTree& tree, const std::string& filename) {
     Core::BinaryOutputStream out(filename);
     if (!out.good()) {
         tree.warning("failed to open state tree file");
@@ -141,8 +126,7 @@ bool StateTreeWriter::write(const StateTree &tree, const std::string &filename)
     return true;
 }
 
-StateTreeIo::Position StateTreeWriter::writeHeader(Core::BinaryOutputStream &out) const
-{
+StateTreeIo::Position StateTreeWriter::writeHeader(Core::BinaryOutputStream& out) const {
     StateTreeIo::write<std::string>(out, magic);
     StateTreeIo::write(out, fileFormatVersion);
     Position positionHole = out.position();
@@ -155,18 +139,15 @@ StateTreeIo::Position StateTreeWriter::writeHeader(Core::BinaryOutputStream &out
 /**
  * Write position of the dependencies to the file at position @c position.
  */
-void StateTreeWriter::writeDependenciesPosition(Core::BinaryOutputStream &out, Position position) const
-{
+void StateTreeWriter::writeDependenciesPosition(Core::BinaryOutputStream& out, Position position) const {
     Position dependenciesPosition = out.position();
     out.seek(position);
     StateTreeIo::write(out, dependenciesPosition);
     out.seek(dependenciesPosition);
 }
 
-
-bool StateTreeWriter::writeDependencies(const std::string &filename, Position position) const
-{
-    std::ofstream *ofs = new std::ofstream(filename.c_str(), std::ios::binary | std::ios::app);
+bool StateTreeWriter::writeDependencies(const std::string& filename, Position position) const {
+    std::ofstream* ofs = new std::ofstream(filename.c_str(), std::ios::binary | std::ios::app);
     verify(ofs->good());
     ofs->seekp(position);
     Core::XmlOutputStream xmlOutput(ofs);
@@ -177,8 +158,7 @@ bool StateTreeWriter::writeDependencies(const std::string &filename, Position po
     return true;
 }
 
-bool StateTreeWriter::writeTree(const StateTree &tree, Core::BinaryOutputStream &out) const
-{
+bool StateTreeWriter::writeTree(const StateTree& tree, Core::BinaryOutputStream& out) const {
     verify(out.good());
 
     StateTreeIo::write(out, tree.states_);
@@ -200,12 +180,8 @@ bool StateTreeWriter::writeTree(const StateTree &tree, Core::BinaryOutputStream 
     return true;
 }
 
-
-
-
-bool StateTreeReader::read(StateTree &tree, const std::string &filename)
-{
-    bool error = false;
+bool StateTreeReader::read(StateTree& tree, const std::string& filename) {
+    bool                    error = false;
     Core::BinaryInputStream in(filename);
     if (!in.isOpen()) {
         tree.log("no state tree file to open");
@@ -220,43 +196,41 @@ bool StateTreeReader::read(StateTree &tree, const std::string &filename)
     if (!checkDependencies(tree, filename, dependencyPosition)) {
         tree.warning("failed to read dependencies");
         error = true;
-    } else {
+    }
+    else {
         error = !readTree(tree, in);
     }
     return !error;
 }
 
-bool StateTreeReader::checkDependencies(const StateTree &tree, const std::string &filename, Position position) const
-{
+bool StateTreeReader::checkDependencies(const StateTree& tree, const std::string& filename, Position position) const {
     Core::DependencySet readDependencies;
-    bool ok = true;
-    std::ifstream ifs(filename.c_str());
+    bool                ok = true;
+    std::ifstream       ifs(filename.c_str());
     ifs.seekg(position);
-    if (! (readDependencies.read(tree.config, ifs) &&
-           readDependencies.satisfies(dependencies_)) ) {
+    if (!(readDependencies.read(tree.config, ifs) &&
+          readDependencies.satisfies(dependencies_))) {
         ok = false;
     }
     ifs.close();
     return ok;
 }
 
-bool StateTreeReader::checkHeader(Core::BinaryInputStream &in, Position &dependencyPosition) const
-{
+bool StateTreeReader::checkHeader(Core::BinaryInputStream& in, Position& dependencyPosition) const {
     std::string readMagic;
-    int readVersion;
+    int         readVersion;
     StateTreeIo::read<std::string>(in, readMagic);
     StateTreeIo::read(in, readVersion);
     if (readMagic == magic && readVersion == fileFormatVersion) {
         StateTreeIo::read(in, dependencyPosition);
         return true;
-    } else {
+    }
+    else {
         return false;
     }
-
 }
 
-bool StateTreeReader::readTree(StateTree &tree, Core::BinaryInputStream &in) const
-{
+bool StateTreeReader::readTree(StateTree& tree, Core::BinaryInputStream& in) const {
     StateTreeIo::read(in, tree.states_);
     StateTreeIo::read(in, tree.root_);
     StateTreeIo::read(in, tree.ciRoot_);
@@ -269,7 +243,7 @@ bool StateTreeReader::readTree(StateTree &tree, Core::BinaryInputStream &in) con
     StateTreeIo::read(in, haveCoarticulatedRoot);
     if (haveCoarticulatedRoot) {
         tree.coarticulationStructure_ = new StateTree::CoarticulationStructure();
-        tree.initialPhonemes_ = &tree.coarticulationStructure_->initialPhonemes;
+        tree.initialPhonemes_         = &tree.coarticulationStructure_->initialPhonemes;
         StateTreeIo::read(in, tree.coarticulationStructure_->initialPhonemes);
         StateTreeIo::read(in, tree.coarticulationStructure_->finalPhonemes);
         StateTreeIo::read(in, tree.coarticulationStructure_->roots);

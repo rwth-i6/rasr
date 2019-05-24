@@ -20,142 +20,138 @@
 #include <Core/BinaryStream.hh>
 #include "StateTree.hh"
 
-namespace Search
-{
+namespace Search {
 
-    /**
-     * State tree input / output functions.
-     *
-     * Cannot use global stream operators because reading / writing
-     * some of the objects requires additional information from the
-     * lexicon or the acoustic model.
-     */
-    class StateTreeIo
-    {
-    protected:
-        typedef Core::BinaryInputStream Input;
-        typedef Core::BinaryOutputStream Output;
-        typedef u64 Position;
-        typedef u32 ContainerSize;
-    private:
-        Bliss::LexiconRef lexicon_;
-        Am::AcousticModelRef acousticModel_;
+/**
+ * State tree input / output functions.
+ *
+ * Cannot use global stream operators because reading / writing
+ * some of the objects requires additional information from the
+ * lexicon or the acoustic model.
+ */
+class StateTreeIo {
+protected:
+    typedef Core::BinaryInputStream  Input;
+    typedef Core::BinaryOutputStream Output;
+    typedef u64                      Position;
+    typedef u32                      ContainerSize;
 
-        typedef Am::AcousticModel::StateTransitionIndex StateTransitionIndex;
-        typedef std::unordered_map<const Am::StateTransitionModel*, StateTransitionIndex,
-                                   Core::PointerHash<Am::StateTransitionModel> >
-        TransitionModelToIndexMap;
-        TransitionModelToIndexMap stateTransitionModelIndexes_;
+private:
+    Bliss::LexiconRef    lexicon_;
+    Am::AcousticModelRef acousticModel_;
 
-    protected:
-        void getDependencies();
-        void getTreeDependencies(const StateTree &tree);
-        static const std::string magic;
-        static const int fileFormatVersion;
-        static const std::string sectionDependencies, sectionStateTree;
-        Core::DependencySet dependencies_;
+    typedef Am::AcousticModel::StateTransitionIndex StateTransitionIndex;
+    typedef std::unordered_map<const Am::StateTransitionModel*, StateTransitionIndex,
+                               Core::PointerHash<Am::StateTransitionModel>>
+            TransitionModelToIndexMap;
+    TransitionModelToIndexMap stateTransitionModelIndexes_;
 
-    protected:
-        template<class T>
-        void read(Input &i, T &v) const {
-            i >> v;
-        }
+protected:
+    void                     getDependencies();
+    void                     getTreeDependencies(const StateTree& tree);
+    static const std::string magic;
+    static const int         fileFormatVersion;
+    static const std::string sectionDependencies, sectionStateTree;
+    Core::DependencySet      dependencies_;
 
-        template<class T>
-        void write(Output &o, const T &v) const {
-            o << v;
-        }
+protected:
+    template<class T>
+    void read(Input& i, T& v) const {
+        i >> v;
+    }
 
-        template<class T, template<typename, typename> class Container >
-        void read(Input &i, Container<T, std::allocator<T> > &c) const {
-            ContainerSize size;
-            read(i, size);
-            c.resize(size);
-            read(i, c.begin(), c.end());
-        }
+    template<class T>
+    void write(Output& o, const T& v) const {
+        o << v;
+    }
 
-        template<class T, template<typename, typename> class Container>
-        void write(Output &o, const Container<T, std::allocator<T> > c) const {
-            write(o, static_cast<ContainerSize>(std::distance(c.begin(), c.end())));
-            write(o, c.begin(), c.end());
-        }
+    template<class T, template<typename, typename> class Container>
+    void read(Input& i, Container<T, std::allocator<T>>& c) const {
+        ContainerSize size;
+        read(i, size);
+        c.resize(size);
+        read(i, c.begin(), c.end());
+    }
 
+    template<class T, template<typename, typename> class Container>
+    void write(Output& o, const Container<T, std::allocator<T>> c) const {
+        write(o, static_cast<ContainerSize>(std::distance(c.begin(), c.end())));
+        write(o, c.begin(), c.end());
+    }
 
-        template<class Iterator>
-        void write(Output &o, Iterator begin, Iterator end) const {
-            for (; begin != end; ++begin)
-                write(o, *begin);
-        }
+    template<class Iterator>
+    void write(Output& o, Iterator begin, Iterator end) const {
+        for (; begin != end; ++begin)
+            write(o, *begin);
+    }
 
-        template<class Iterator>
-        void read(Input &i, Iterator begin, Iterator end) const {
-            for (; begin != end; ++begin)
-                read(i, *begin);
-        }
+    template<class Iterator>
+    void read(Input& i, Iterator begin, Iterator end) const {
+        for (; begin != end; ++begin)
+            read(i, *begin);
+    }
 
-    public:
-        StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel);
+public:
+    StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel);
+};
 
-    };
+template<>
+void StateTreeIo::read<StateTree::Exit>(Input& i, StateTree::Exit& exit) const;
 
-    template<>
-    void StateTreeIo::read<StateTree::Exit>(Input &i, StateTree::Exit &exit) const;
+template<>
+void StateTreeIo::write<StateTree::Exit>(Output& o, const StateTree::Exit& exit) const;
 
-    template<>
-    void StateTreeIo::write<StateTree::Exit>(Output &o, const StateTree::Exit &exit) const;
+template<>
+void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& desc) const;
 
-    template<>
-    void StateTreeIo::read<StateTree::StateDesc>(Input &i, StateTree::StateDesc &desc) const;
+template<>
+void StateTreeIo::write<StateTree::StateDesc>(Output& o, const StateTree::StateDesc& desc) const;
 
-    template<>
-    void StateTreeIo::write<StateTree::StateDesc>(Output &o, const StateTree::StateDesc &desc) const;
+template<>
+void StateTreeIo::read<StateTree::State>(Input& i, StateTree::State& state) const;
 
-    template<>
-    void StateTreeIo::read<StateTree::State>(Input &i, StateTree::State &state) const;
+template<>
+void StateTreeIo::write<StateTree::State>(Output& o, const StateTree::State& state) const;
 
-    template<>
-    void StateTreeIo::write<StateTree::State>(Output &o, const StateTree::State &state) const;
+template<>
+void StateTreeIo::read<StateTree::CoarticulationStructure::PhonemePair>(
+        Input& i, StateTree::CoarticulationStructure::PhonemePair& pair) const;
 
-    template<>
-    void StateTreeIo::read<StateTree::CoarticulationStructure::PhonemePair>(
-        Input &i, StateTree::CoarticulationStructure::PhonemePair &pair) const;
+template<>
+void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
+        Output& o, const StateTree::CoarticulationStructure::PhonemePair& pair) const;
 
-    template<>
-    void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
-        Output &o, const StateTree::CoarticulationStructure::PhonemePair &pair) const;
+/**
+ * Writes a state tree to a binary file
+ */
+class StateTreeWriter : public StateTreeIo {
+public:
+    StateTreeWriter(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel);
 
+    bool write(const StateTree& tree, const std::string& filename);
 
-    /**
-     * Writes a state tree to a binary file
-     */
-    class StateTreeWriter : public StateTreeIo
-    {
-    public:
-        StateTreeWriter(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel);
+protected:
+    Position writeHeader(Core::BinaryOutputStream&) const;
+    void     writeDependenciesPosition(Core::BinaryOutputStream&, Position) const;
+    bool     writeDependencies(const std::string& filename, Position) const;
+    bool     writeTree(const StateTree& tree, Core::BinaryOutputStream&) const;
+};
 
-        bool write(const StateTree &tree, const std::string &filename);
-    protected:
-        Position writeHeader(Core::BinaryOutputStream &) const;
-        void writeDependenciesPosition(Core::BinaryOutputStream &, Position) const;
-        bool writeDependencies(const std::string &filename, Position) const;
-        bool writeTree(const StateTree &tree, Core::BinaryOutputStream &) const;
-    };
-
-    /**
-     * Reconstructs a state tree from a file
-     */
-    class StateTreeReader : public StateTreeIo
-    {
-    public:
-        StateTreeReader(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
+/**
+ * Reconstructs a state tree from a file
+ */
+class StateTreeReader : public StateTreeIo {
+public:
+    StateTreeReader(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
             : StateTreeIo(lexicon, acousticModel) {}
 
-        bool read(StateTree &tree, const std::string &filename);
-    protected:
-        bool checkDependencies(const StateTree &tree, const std::string &filename, Position) const;
-        bool checkHeader(Core::BinaryInputStream &in, Position &) const;
-        bool readTree(StateTree &tree, Core::BinaryInputStream &in) const;
-    };
-}
+    bool read(StateTree& tree, const std::string& filename);
+
+protected:
+    bool checkDependencies(const StateTree& tree, const std::string& filename, Position) const;
+    bool checkHeader(Core::BinaryInputStream& in, Position&) const;
+    bool readTree(StateTree& tree, Core::BinaryInputStream& in) const;
+};
+}  // namespace Search
 
 #endif

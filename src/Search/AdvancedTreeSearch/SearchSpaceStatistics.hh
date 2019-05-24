@@ -15,40 +15,37 @@
 #ifndef SEARCH_CONDITIONEDTREESEARCHSPACESTATISTICS_HH
 #define SEARCH_CONDITIONEDTREESEARCHSPACESTATISTICS_HH
 
-#include <map>
-#include <Core/Statistics.hh>
 #include <Core/Hash.hh>
+#include <Core/Statistics.hh>
 #include <Search/Types.hh>
+#include <map>
 
-namespace Search
-{
+namespace Search {
 // ===========================================================================
 struct SearchSpaceStatistics {
-  ///Can be used to easily do statistics, when performance does not matter
-  Core::Statistics<f32>& customStatistics( const std::string& name );
-  Core::HistogramStatistics& customHistogramStatistics( const std::string& name, u32 buckets = 10 );
-  ~SearchSpaceStatistics();
+    ///Can be used to easily do statistics, when performance does not matter
+    Core::Statistics<f32>&     customStatistics(const std::string& name);
+    Core::HistogramStatistics& customHistogramStatistics(const std::string& name, u32 buckets = 10);
+    ~SearchSpaceStatistics();
 
-  Core::Statistics<u32>
-  treesBeforePruning,  treesAfterPrePruning,  treesAfterPruning,
-    statesBeforePruning, statesAfterPrePruning, statesAfterPruning,
-    wordEndsBeforePruning, wordEndsAfterPruning,
-    epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning;
+    Core::Statistics<u32> treesBeforePruning, treesAfterPrePruning, treesAfterPruning,
+            statesBeforePruning, statesAfterPrePruning, statesAfterPruning,
+            wordEndsBeforePruning, wordEndsAfterPruning,
+            epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning;
 
-  Core::Statistics<Score> acousticHistogramPruningThreshold,
-                          lmHistogramPruningThreshold;
+    Core::Statistics<Score> acousticHistogramPruningThreshold, lmHistogramPruningThreshold;
 
-  Core::HistogramStatistics entryStateHypotheses;
-  Core::HistogramStatistics rootStateHypothesesPerTree;
+    Core::HistogramStatistics entryStateHypotheses;
+    Core::HistogramStatistics rootStateHypothesesPerTree;
 
-  SearchSpaceStatistics();
-  void clear();
-  void write( Core::XmlWriter& ) const;
+    SearchSpaceStatistics();
+    void clear();
+    void write(Core::XmlWriter&) const;
 
 private:
-  std::map<std::string, Core::Statistics<f32>*> customStatistics_;
-  std::map<std::string, Core::HistogramStatistics*> customHistogramStatistics_;
+    std::map<std::string, Core::Statistics<f32>*>     customStatistics_;
+    std::map<std::string, Core::HistogramStatistics*> customHistogramStatistics_;
 };
-}
+}  // namespace Search
 
 #endif

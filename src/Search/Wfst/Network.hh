@@ -15,44 +15,59 @@
 #ifndef _SEARCH_WFST_NETWORK_HH
 #define _SEARCH_WFST_NETWORK_HH
 
-#include <Core/Component.hh>
-#include <Core/Parameter.hh>
-#include <Core/MemoryInfo.hh>
 #include <Bliss/Lexicon.hh>
-#include <Search/Types.hh>
-#include <OpenFst/Types.hh>
+#include <Core/Component.hh>
+#include <Core/MemoryInfo.hh>
+#include <Core/Parameter.hh>
 #include <Fsa/Types.hh>
+#include <OpenFst/Types.hh>
+#include <Search/Types.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 /*! @todo: move this type out of global scope */
-enum NetworkType { NetworkTypeCompressed, NetworkTypeStatic, NetworkTypeComposed, NetworkTypeLattice };
+enum NetworkType { NetworkTypeCompressed,
+                   NetworkTypeStatic,
+                   NetworkTypeComposed,
+                   NetworkTypeLattice };
 
 /**
  * base class for OpenFst based networks
  */
 template<class F>
-class FstNetwork : public Core::Component
-{
+class FstNetwork : public Core::Component {
 protected:
     typedef F Fst;
-    Fst *f_;
-    Fst* automaton() const { return f_; }
+    Fst*      f_;
+    Fst*      automaton() const {
+        return f_;
+    }
 
 public:
-    typedef u32 ArcIndex;
-    typedef u32 StateIndex;
-    typedef typename F::Arc Arc;
-    typedef Arc EpsilonArc;
+    typedef u32                 ArcIndex;
+    typedef u32                 StateIndex;
+    typedef typename F::Arc     Arc;
+    typedef Arc                 EpsilonArc;
     typedef typename Arc::Label Label;
 
 public:
-    u32 nArcs() const { return 0; }
-    u32 nEpsilonArcs() const { return 0; }
+    u32 nArcs() const {
+        return 0;
+    }
+    u32 nEpsilonArcs() const {
+        return 0;
+    }
     virtual u32 nStates() const = 0;
-    size_t memStates() const { return 0; }
-    size_t memArcs() const { return 0; }
-    size_t memEpsilonArcs() const { return 0; }
+    size_t      memStates() const {
+        return 0;
+    }
+    size_t memArcs() const {
+        return 0;
+    }
+    size_t memEpsilonArcs() const {
+        return 0;
+    }
 
 public:
     bool isFinal(StateIndex s) const {
@@ -61,27 +76,41 @@ public:
     f32 finalWeight(StateIndex s) const {
         return f_->Final(s).Value();
     }
-    StateIndex initialStateIndex() const { return f_->Start(); }
+    StateIndex initialStateIndex() const {
+        return f_->Start();
+    }
 
-    virtual bool init() { return true; }
+    virtual bool init() {
+        return true;
+    }
     virtual void reset() {}
-    virtual void setSegment(const std::string &name) {}
+    virtual void setSegment(const std::string& name) {}
     virtual void setLexicon(Bliss::LexiconRef lexicon) {}
 
-    static f32 arcWeight(const Arc &arc) { return arc.weight.Value(); }
-    static f32 arcWeight(const Arc &arc, f32 scale) { return scale * arc.weight.Value(); }
-    static u32 stateSequenceIndex(const Arc &arc) { return arc.ilabel - 1; }
+    static f32 arcWeight(const Arc& arc) {
+        return arc.weight.Value();
+    }
+    static f32 arcWeight(const Arc& arc, f32 scale) {
+        return scale * arc.weight.Value();
+    }
+    static u32 stateSequenceIndex(const Arc& arc) {
+        return arc.ilabel - 1;
+    }
 
-    static Fsa::LabelId getFsaLabel(Label l) { return l - 1; }
+    static Fsa::LabelId getFsaLabel(Label l) {
+        return l - 1;
+    }
 
 protected:
-    FstNetwork(const Core::Configuration &c)
-        : Core::Component(c), f_(0), memUsageChannel_(c, "memory-info") {}
-    virtual ~FstNetwork() { delete f_; }
+    FstNetwork(const Core::Configuration& c)
+            : Core::Component(c), f_(0), memUsageChannel_(c, "memory-info") {}
+    virtual ~FstNetwork() {
+        delete f_;
+    }
 
 protected:
     mutable Core::XmlChannel memUsageChannel_;
-    void logMemoryUsage() const {
+    void                     logMemoryUsage() const {
         if (memUsageChannel_.isOpen()) {
             Core::MemoryInfo meminfo;
             memUsageChannel_ << meminfo;
@@ -89,31 +118,34 @@ protected:
     }
 };
 
-
 /**
  * network with direct access to the automaton
  */
-class StaticNetwork : public FstNetwork<OpenFst::VectorFst>
-{
+class StaticNetwork : public FstNetwork<OpenFst::VectorFst> {
 private:
     typedef FstNetwork<OpenFst::VectorFst> Precursor;
-    static const Core::ParameterString paramNetworkFile_;
-    static const Core::ParameterFloat paramScale_;
+    static const Core::ParameterString     paramNetworkFile_;
+    static const Core::ParameterFloat      paramScale_;
 
 public:
-    StaticNetwork(const Core::Configuration &);
+    StaticNetwork(const Core::Configuration&);
     virtual ~StaticNetwork() {}
     virtual bool init();
-    virtual u32 nStates() const { return f_->NumStates(); }
-    static bool hasGrammarState() { return false; }
-    StateIndex grammarState(StateIndex) const { return 0; }
+    virtual u32  nStates() const {
+        return f_->NumStates();
+    }
+    static bool hasGrammarState() {
+        return false;
+    }
+    StateIndex grammarState(StateIndex) const {
+        return 0;
+    }
 
 public:
-    class ArcIterator
-    {
+    class ArcIterator {
     public:
-        ArcIterator(const StaticNetwork *network, StateIndex s) :
-            a_(*network->f_, s), offset_(network->f_->NumInputEpsilons(s)) {
+        ArcIterator(const StaticNetwork* network, StateIndex s)
+                : a_(*network->f_, s), offset_(network->f_->NumInputEpsilons(s)) {
             reset();
         }
         void next() {
@@ -123,23 +155,22 @@ public:
             return a_.Done();
         }
         const Arc& value() const {
-            // verify(a_.Value().ilabel != OpenFst::Epsilon);
             return a_.Value();
         }
         void reset() {
             a_.Seek(offset_);
         }
+
     private:
         OpenFst::ArcIterator a_;
-        size_t offset_;
+        size_t               offset_;
     };
     friend class ArcIterator;
 
-    class EpsilonArcIterator
-    {
+    class EpsilonArcIterator {
     public:
-        EpsilonArcIterator(const StaticNetwork *network, StateIndex s) :
-            a_(*network->f_, s) {}
+        EpsilonArcIterator(const StaticNetwork* network, StateIndex s)
+                : a_(*network->f_, s) {}
         void next() {
             a_.Next();
         }
@@ -147,20 +178,19 @@ public:
             return a_.Done() || a_.Value().ilabel != OpenFst::Epsilon;
         }
         const EpsilonArc& value() const {
-            // verify(a_.Value().ilabel == OpenFst::Epsilon);
             return a_.Value();
         }
         void reset() {
             a_.Reset();
         }
+
     private:
         OpenFst::ArcIterator a_;
     };
     friend class EpsilonArcIterator;
-
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif /* _SEARCH_WFST_NETWORK_HH */

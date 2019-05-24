@@ -15,61 +15,70 @@
 #include "SearchSpaceHelpers.hh"
 
 namespace Search {
-    Instance::~Instance() {
-      if (backOffInstance) {
+Instance::~Instance() {
+    if (backOffInstance) {
         verify(backOffInstance->backOffParent == this);
         backOffInstance->backOffParent = 0;
-      }
-      if (backOffParent) {
+    }
+    if (backOffParent) {
         verify(backOffParent->backOffInstance == this);
         backOffParent->backOffInstance = 0;
-      }
     }
-
-    void Instance::enter(Core::Ref<Trace> trace, StateId entryNode, Score score) {
-      rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory)), score));
-    }
-
-    u32 Instance::backOffChainStates() const {
-      const Instance *tree = this;
-      while (tree->backOffParent)
-        tree = tree->backOffParent;
-
-      u32 states = 0;
-
-      while (tree) {
-        states += tree->states.size();
-        tree = tree->backOffInstance;
-      }
-      return states;
-    }
-
-    void Instance::addLmScore(EarlyWordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) const {
-      SimpleLMCache::const_iterator it = lmCache.find(pron);
-      if (it == lmCache.end()) {
-        Score oldLmScore = hyp.score.lm;
-        if (pron != Bliss::LemmaPronunciation::invalidId) {
-          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
-        }
-        lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
-      } else {
-        hyp.score.lm += (*it).second;
-      }
-    }
-
-    void Instance::addLmScore(WordEndHypothesis &hyp, Bliss::LemmaPronunciation::Id pron, const Core::Ref<const Lm::ScaledLanguageModel> &lm, const Bliss::LexiconRef &lexicon, Score wpScale) const {
-      SimpleLMCache::const_iterator it = lmCache.find(pron);
-      if (it == lmCache.end()) {
-        Score oldLmScore = hyp.score.lm;
-        if (pron != Bliss::LemmaPronunciation::invalidId) {
-          Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
-        }
-        lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
-      } else {
-        hyp.score.lm += (*it).second;
-      }
-    }
-
-    int WordEndHypothesis::meshHistoryPhones = 1;
 }
 
+void Instance::enter(Core::Ref<Trace> trace, StateId entryNode, Score score) {
+    rootStateHypotheses.push_back(StateHypothesis(entryNode, TraceManager::getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory)), score));
+}
+
+u32 Instance::backOffChainStates() const {
+    const Instance* tree = this;
+    while (tree->backOffParent)
+        tree = tree->backOffParent;
+
+    u32 states = 0;
+
+    while (tree) {
+        states += tree->states.size();
+        tree = tree->backOffInstance;
+    }
+    return states;
+}
+
+void Instance::addLmScore(EarlyWordEndHypothesis&                         hyp,
+                          Bliss::LemmaPronunciation::Id                   pron,
+                          const Core::Ref<const Lm::ScaledLanguageModel>& lm,
+                          const Bliss::LexiconRef&                        lexicon,
+                          Score                                           wpScale) const {
+    SimpleLMCache::const_iterator it = lmCache.find(pron);
+    if (it == lmCache.end()) {
+        Score oldLmScore = hyp.score.lm;
+        if (pron != Bliss::LemmaPronunciation::invalidId) {
+            Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
+        }
+        lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
+    }
+    else {
+        hyp.score.lm += (*it).second;
+    }
+}
+
+void Instance::addLmScore(WordEndHypothesis&                              hyp,
+                          Bliss::LemmaPronunciation::Id                   pron,
+                          const Core::Ref<const Lm::ScaledLanguageModel>& lm,
+                          const Bliss::LexiconRef&                        lexicon,
+                          Score                                           wpScale) const {
+    SimpleLMCache::const_iterator it = lmCache.find(pron);
+    if (it == lmCache.end()) {
+        Score oldLmScore = hyp.score.lm;
+        if (pron != Bliss::LemmaPronunciation::invalidId) {
+            Lm::addLemmaPronunciationScoreOmitExtension(lm, lexicon->lemmaPronunciation(pron), wpScale, lm->scale(), scoreHistory, hyp.score.lm);
+        }
+        lmCache.insert(std::make_pair(pron, hyp.score.lm - oldLmScore));
+    }
+    else {
+        hyp.score.lm += (*it).second;
+    }
+}
+
+int WordEndHypothesis::meshHistoryPhones = 1;
+}  // namespace Search

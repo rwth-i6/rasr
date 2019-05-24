@@ -21,42 +21,43 @@
 #include <Search/StateTree.hh>
 #include "TreeStructure.hh"
 
-namespace AdvancedTreeSearch
-{
+namespace AdvancedTreeSearch {
 struct StateWithSuccessors {
 private:
-  Search::StateTree::StateDesc desc_;
-  std::set<Search::StateId> successors_;
-  u32 hash_;
+    Search::StateTree::StateDesc desc_;
+    std::set<Search::StateId>    successors_;
+    u32                          hash_;
 
-  void buildHash() {
-    hash_ = Search::StateTree::StateDesc::Hash() ( desc_ );
-    u32 numSuccessors = successors_.size();
-    hash_ += ( numSuccessors >> 3 ) + ( numSuccessors << 11 );
-    for( std::set<Search::StateId>::iterator it = successors_.begin(); it != successors_.end(); ++it )
-      hash_ += ( ( *it ) >> 11 ) + ( ( *it ) << 5 );
-  }
-public:
-
-  StateWithSuccessors() : hash_( 0 ) {
-  }
-
-  StateWithSuccessors( const Search::StateTree::StateDesc& _desc, const std::set<Search::StateId>& _successors ) : desc_( _desc ), successors_( _successors ) {
-    buildHash();
-  }
-
-  bool operator==( const StateWithSuccessors& rhs ) const {
-    return hash_ == rhs.hash_ && desc_ == rhs.desc_ && successors_ == rhs.successors_;
-  }
-
-  struct Hash {
-    size_t operator()( const StateWithSuccessors& s ) {
-      return s.hash_;
+    void buildHash() {
+        hash_             = Search::StateTree::StateDesc::Hash()(desc_);
+        u32 numSuccessors = successors_.size();
+        hash_ += (numSuccessors >> 3) + (numSuccessors << 11);
+        for (std::set<Search::StateId>::iterator it = successors_.begin(); it != successors_.end(); ++it)
+            hash_ += ((*it) >> 11) + ((*it) << 5);
     }
-  };
+
+public:
+    StateWithSuccessors()
+            : hash_(0) {
+    }
+
+    StateWithSuccessors(const Search::StateTree::StateDesc& _desc, const std::set<Search::StateId>& _successors)
+            : desc_(_desc), successors_(_successors) {
+        buildHash();
+    }
+
+    bool operator==(const StateWithSuccessors& rhs) const {
+        return hash_ == rhs.hash_ && desc_ == rhs.desc_ && successors_ == rhs.successors_;
+    }
+
+    struct Hash {
+        size_t operator()(const StateWithSuccessors& s) {
+            return s.hash_;
+        }
+    };
 };
 
 typedef std::unordered_map<StateWithSuccessors, Search::StateId, StateWithSuccessors::Hash> SuffixStructure;
-}
+}  // namespace AdvancedTreeSearch
 
-#endif // ADVANCEDTREESEARCH_SEARCHNETWORKTRANSFORMATION_HH
+#endif  // ADVANCEDTREESEARCH_SEARCHNETWORKTRANSFORMATION_HH

@@ -16,6 +16,7 @@
 #define _OPENFST_ENCODE_HH
 
 #include <fst/encode.h>
+#include "Types.hh"
 
 namespace OpenFst {
 

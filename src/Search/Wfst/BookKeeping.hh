@@ -15,10 +15,11 @@
 #ifndef _SEARCH_BOOK_KEEPING_HH
 #define _SEARCH_BOOK_KEEPING_HH
 #include <Core/Assertions.hh>
-#include <Search/Types.hh>
 #include <OpenFst/Types.hh>
+#include <Search/Types.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class StateSequence;
 class BestPath;
@@ -29,10 +30,9 @@ class WordEndDetector;
 /**
  * Interface for book keeping classes.
  */
-class TraceRecorder
-{
+class TraceRecorder {
 public:
-    typedef u32 TraceRef;
+    typedef u32           TraceRef;
     static const TraceRef InvalidTraceRef = -1;
 
     virtual ~TraceRecorder() {}
@@ -44,8 +44,8 @@ public:
      * add a new trace
      */
     virtual TraceRef addTrace(TraceRef sibling, TraceRef predecessor, OpenFst::Label output,
-            const StateSequence* input, TimeframeIndex time,
-            Score score, Score arcScore, bool wordEnd) = 0;
+                              const StateSequence* input, TimeframeIndex time,
+                              Score score, Score arcScore, bool wordEnd) = 0;
 
     /**
      * Update the timestamp of the given trace object
@@ -79,7 +79,9 @@ public:
     /**
      * memory usage in bytes.
      */
-    virtual size_t memoryUsage() const { return 0; }
+    virtual size_t memoryUsage() const {
+        return 0;
+    }
 
     /**
      * Check if the number of word boundary time stamps matches the number
@@ -90,8 +92,8 @@ public:
     /**
      * Find the first best path ending in @c end.
      */
-    virtual void createBestPath(const WordEndDetector &wordEnds, bool ignoreLast,
-                                TraceRef end, BestPath *path) = 0;
+    virtual void createBestPath(const WordEndDetector& wordEnds, bool ignoreLast,
+                                TraceRef end, BestPath* path) = 0;
 
     /**
      * Create a lattice.
@@ -105,50 +107,50 @@ public:
  * free storage is organized using a linked list.
  * trace.predecessor is used as pointer for list items
  */
-class FirstBestTraceRecorder : public TraceRecorder
-{
+class FirstBestTraceRecorder : public TraceRecorder {
 protected:
     typedef OpenFst::Label Label;
-    struct Trace
-    {
-        TraceRef predecessor, sibling;
-        Label output;
-        const StateSequence *input;
-        TimeframeIndex time;
-        Score score;
-        bool wordEnd;
-        bool active;
-        bool used;
-        Trace() : active(false), used(false) {}
+    struct Trace {
+        TraceRef             predecessor, sibling;
+        Label                output;
+        const StateSequence* input;
+        TimeframeIndex       time;
+        Score                score;
+        bool                 wordEnd;
+        bool                 active;
+        bool                 used;
+        Trace()
+                : active(false), used(false) {}
         Trace(const TraceRef _predecessor, Label _output, TimeframeIndex _time,
-              Score _score, bool _wordEnd) :
-                predecessor(_predecessor), sibling(InvalidTraceRef), output(_output),
-                input(0), time(_time), score(_score), wordEnd(_wordEnd),
-                active(true), used(true) {}
+              Score _score, bool _wordEnd)
+                : predecessor(_predecessor), sibling(InvalidTraceRef), output(_output), input(0), time(_time), score(_score), wordEnd(_wordEnd), active(true), used(true) {}
     };
 
 public:
-    FirstBestTraceRecorder(bool createLattice = false) : next_(0), createLattice_(createLattice) {}
+    FirstBestTraceRecorder(bool createLattice = false)
+            : next_(0), createLattice_(createLattice) {}
     virtual ~FirstBestTraceRecorder() {}
 
     void setCreateLattice(bool create) {
-        verify(next_ == 0); // called before adding elements
+        verify(next_ == 0);  // called before adding elements
         createLattice_ = create;
     }
     void clear();
 
-    TraceRef addTrace(TraceRef sibling, TraceRef predecessor, OpenFst::Label output,
-                      const StateSequence* input, TimeframeIndex time,
-                      Score score, Score arcScore, bool wordEnd);
+    TraceRef     addTrace(TraceRef sibling, TraceRef predecessor, OpenFst::Label output,
+                          const StateSequence* input, TimeframeIndex time,
+                          Score score, Score arcScore, bool wordEnd);
     virtual void updateTime(TraceRef t, TimeframeIndex time);
-    void purgeBegin();
-    void purgeEnd();
-    void purgeNotify(TraceRef trace);
+    void         purgeBegin();
+    void         purgeEnd();
+    void         purgeNotify(TraceRef trace);
 
-    size_t memoryUsage() const { return data_.capacity() * sizeof(Trace); }
-    bool hasWordEndTime(const WordEndDetector& wordEnds, TraceRef end);
-    void createBestPath(const WordEndDetector &wordEnds, bool ignoreLast,
-                        TraceRef end, BestPath *path);
+    size_t memoryUsage() const {
+        return data_.capacity() * sizeof(Trace);
+    }
+    bool     hasWordEndTime(const WordEndDetector& wordEnds, TraceRef end);
+    void     createBestPath(const WordEndDetector& wordEnds, bool ignoreLast,
+                            TraceRef end, BestPath* path);
     Lattice* createLattice(TraceRef end);
 
 private:
@@ -159,15 +161,14 @@ private:
     void purgeNotifyDfs(TraceRef trace);
     void purgeNotifyLinear(TraceRef trace);
 
-    void enlarge();
+    void                       enlarge();
     typedef std::vector<Trace> TraceArray;
-    TraceArray data_;
-    TraceRef next_;
-    bool createLattice_;
+    TraceArray                 data_;
+    TraceRef                   next_;
+    bool                       createLattice_;
 };
 
-} // namespace Wfst
-} // namespace Search
-
+}  // namespace Wfst
+}  // namespace Search
 
 #endif /* _SEARCH_BOOK_KEEPING_HH */

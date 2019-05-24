@@ -19,56 +19,62 @@
 #include <fst/fst-decl.h>
 #include <fst/matcher-fst.h>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class AbstractGrammarFst;
 class AbstractLexicalFst;
 class Lattice;
 class LatticeArchive;
 
-class LatticeNetwork : public StaticNetwork
-{
+class LatticeNetwork : public StaticNetwork {
     static const Core::ParameterString paramLmFst;
     static const Core::ParameterString paramLexiconFst;
-    static const Core::ParameterBool paramRemoveLexiconWeights;
-    typedef Wfst::Lattice Lattice;
-    typedef Wfst::LatticeArchive LatticeArchive;
+    static const Core::ParameterBool   paramRemoveLexiconWeights;
+    typedef Wfst::Lattice              Lattice;
+    typedef Wfst::LatticeArchive       LatticeArchive;
 
     typedef FstLib::LabelLookAheadMatcher<
-                FstLib::SortedMatcher<FstLib::ConstFst<FstLib::StdArc> >,
-                FstLib::olabel_lookahead_flags,
-                FstLib::DefaultAccumulator<FstLib::StdArc> > Matcher;
+            FstLib::SortedMatcher<FstLib::ConstFst<FstLib::StdArc>>,
+            FstLib::olabel_lookahead_flags,
+            FstLib::DefaultAccumulator<FstLib::StdArc>>
+            Matcher;
 
     typedef FstLib::MatcherFst<
             FstLib::ConstFst<FstLib::StdArc>,
             Matcher,
             FstLib::olabel_lookahead_fst_type,
-            FstLib::LabelLookAheadRelabeler<FstLib::StdArc> > LexiconFst;
+            FstLib::LabelLookAheadRelabeler<FstLib::StdArc>>
+            LexiconFst;
 
 public:
-    LatticeNetwork(const Core::Configuration &c) :
-        StaticNetwork(c), l_(0), g_(0), archive_(0) {}
+    LatticeNetwork(const Core::Configuration& c)
+            : StaticNetwork(c), l_(0), g_(0), archive_(0) {}
     virtual ~LatticeNetwork();
     virtual bool init();
     virtual void reset() {}
-    virtual void setSegment(const std::string &name) {
+    virtual void setSegment(const std::string& name) {
         loadLattice(name);
     }
-    virtual u32 nStates() const { return f_->NumStates(); }
-    static bool hasGrammarState() { return false; }
+    virtual u32 nStates() const {
+        return f_->NumStates();
+    }
+    static bool hasGrammarState() {
+        return false;
+    }
 
 private:
-    bool loadLexicon(const std::string &file);
-    bool loadGrammar(const std::string &file);
-    bool loadLattice(const std::string &name);
-    FstLib::StdFst* getLmLattice(const Lattice &lattice) const;
-    void createNetwork(const FstLib::StdFst &lmLattice);
-    AbstractLexicalFst *l_;
-    AbstractGrammarFst *g_;
-    LatticeArchive *archive_;
+    bool                loadLexicon(const std::string& file);
+    bool                loadGrammar(const std::string& file);
+    bool                loadLattice(const std::string& name);
+    FstLib::StdFst*     getLmLattice(const Lattice& lattice) const;
+    void                createNetwork(const FstLib::StdFst& lmLattice);
+    AbstractLexicalFst* l_;
+    AbstractGrammarFst* g_;
+    LatticeArchive*     archive_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_LATTICE_NETWORK_HH
+#endif  // _SEARCH_LATTICE_NETWORK_HH

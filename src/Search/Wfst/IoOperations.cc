@@ -12,35 +12,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/IoOperations.hh>
-#include <Search/Wfst/CompressedNetwork.hh>
-#include <Search/Wfst/Network.hh>
 #include <Fsa/Input.hh>
 #include <Fsa/Output.hh>
-#include <OpenFst/Output.hh>
 #include <OpenFst/Input.hh>
-#include <fst/const-fst.h>
+#include <OpenFst/Output.hh>
+#include <Search/Wfst/CompressedNetwork.hh>
+#include <Search/Wfst/IoOperations.hh>
+#include <Search/Wfst/Network.hh>
 #include <fst/compact-fst.h>
+#include <fst/const-fst.h>
 
 using namespace Search::Wfst::Builder;
 
 const Core::ParameterString FileOperation::paramFilename(
-    "filename", "filename", "");
+        "filename", "filename", "");
 const Core::Choice FileOperation::choiceType(
-    "vector", TypeVector,
-    "const", TypeConst,
-    "compact", TypeCompact,
-    Core::Choice::endMark());
+        "vector", TypeVector,
+        "const", TypeConst,
+        "compact", TypeCompact,
+        Core::Choice::endMark());
 const Core::ParameterChoice FileOperation::paramType(
-    "type", &choiceType, "fst type", TypeVector);
+        "type", &choiceType, "fst type", TypeVector);
 
-std::string FileOperation::filename() const
-{
+std::string FileOperation::filename() const {
     return paramFilename(config);
 }
 
-bool FileOperation::precondition() const
-{
+bool FileOperation::precondition() const {
     if (filename().empty()) {
         error("no filename given");
         return false;
@@ -53,12 +51,11 @@ const Core::ParameterStringVector ReadOperation::paramAttributes(
         "attributes to attach to the transducer read, format: key:value,key:value",
         ",");
 
-void ReadOperation::attachAttributes(AutomatonRef automaton) const
-{
+void ReadOperation::attachAttributes(AutomatonRef automaton) const {
     std::vector<std::string> attributes, buffer;
     attributes = paramAttributes(config);
     for (std::vector<std::string>::const_iterator a = attributes.begin();
-            a != attributes.end(); ++a) {
+         a != attributes.end(); ++a) {
         buffer = Core::split(*a, ":");
         verify(buffer.size() == 2);
         automaton->setAttribute(buffer[0], buffer[1]);
@@ -66,38 +63,36 @@ void ReadOperation::attachAttributes(AutomatonRef automaton) const
     }
 }
 
-Operation::AutomatonRef ReadFst::process()
-{
+Operation::AutomatonRef ReadFst::process() {
     AutomatonRef r = new Automaton;
     switch (static_cast<FileType>(paramType(config))) {
-    case TypeVector: {
-        OpenFst::VectorFst *i = OpenFst::VectorFst::Read(filename());
-        if (!i) {
-            error("cannot read %s", filename().c_str());
+        case TypeVector: {
+            OpenFst::VectorFst* i = OpenFst::VectorFst::Read(filename());
+            if (!i) {
+                error("cannot read %s", filename().c_str());
+            }
+            FstLib::Cast(*i, r);
+            delete i;
+            break;
         }
-        FstLib::Cast(*i, r);
-        delete i;
-        break;
-    }
-    case TypeConst: {
-        FstLib::StdConstFst *i = FstLib::StdConstFst::Read(filename());
-        if (!i) {
-            error("cannot read %s", filename().c_str());
+        case TypeConst: {
+            FstLib::StdConstFst* i = FstLib::StdConstFst::Read(filename());
+            if (!i) {
+                error("cannot read %s", filename().c_str());
+            }
+            FstLib::Cast(*i, r);
+            delete i;
+            break;
         }
-        FstLib::Cast(*i, r);
-        delete i;
-        break;
-    }
-    default:
-        defect();
+        default:
+            defect();
     }
     log("read %s", filename().c_str());
     attachAttributes(r);
     return r;
 }
 
-Operation::AutomatonRef ReadFsa::process()
-{
+Operation::AutomatonRef ReadFsa::process() {
     Fsa::ConstAutomatonRef fsa = Fsa::read(filename());
     if (!fsa) {
         error("cannot read %s", filename().c_str());
@@ -108,63 +103,62 @@ Operation::AutomatonRef ReadFsa::process()
     return a;
 }
 
-bool WriteOperation::precondition() const
-{
+bool WriteOperation::precondition() const {
     return SleeveOperation::precondition() && FileOperation::precondition();
 }
 
-Operation::AutomatonRef WriteFst::process()
-{
+Operation::AutomatonRef WriteFst::process() {
     bool writeOk = false;
     switch (static_cast<FileType>(paramType(config))) {
-    case TypeVector:
-        writeOk = input_->Write(filename());
-        break;
-    case TypeConst:
-        writeOk = convertAndWrite<FstLib::StdConstFst>(filename());
-        break;
-    case TypeCompact:
-        writeOk = convertAndWrite<FstLib::StdCompactAcceptorFst>(filename());
-        break;
-    default:
-        defect();
+        case TypeVector:
+            writeOk = input_->Write(filename());
+            break;
+        case TypeConst:
+            writeOk = convertAndWrite<FstLib::StdConstFst>(filename());
+            break;
+        case TypeCompact:
+            writeOk = convertAndWrite<FstLib::StdCompactAcceptorFst>(filename());
+            break;
+        default:
+            defect();
     }
-    if(!writeOk) {
+    if (!writeOk) {
         FileOperation::error("cannot write %s", filename().c_str());
-    } else {
+    }
+    else {
         log("wrote %s", filename().c_str());
     }
     return input_;
 }
 
 template<class F>
-bool WriteFst::convertAndWrite(const std::string &filename) const
-{
+bool WriteFst::convertAndWrite(const std::string& filename) const {
     typedef F TargetType;
-    F convert(*input_);
+    F         convert(*input_);
     return convert.Write(filename);
 }
 
-Operation::AutomatonRef WriteFsa::process()
-{
+Operation::AutomatonRef WriteFsa::process() {
     Fsa::ConstAutomatonRef fsa = OpenFst::convertToFsa(*input_, Fsa::TropicalSemiring);
     if (!Fsa::write(fsa, filename())) {
         FileOperation::error("cannot write %s", filename().c_str());
-    } else {
+    }
+    else {
         log("wrote %s", filename().c_str());
     }
     return input_;
 }
 
-Operation::AutomatonRef Compress::process()
-{
+Operation::AutomatonRef Compress::process() {
     CompressedNetwork network(config, false);
     if (!network.build(input_, false)) {
         FileOperation::error("cannot build compressed network");
-    } else {
+    }
+    else {
         if (!network.write(filename())) {
             FileOperation::error("cannot write %s", filename().c_str());
-        } else {
+        }
+        else {
             log("wrote %s", filename().c_str());
         }
     }

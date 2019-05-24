@@ -17,7 +17,8 @@
 
 #include <Search/Wfst/Builder.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class StateSequence;
 class StateSequenceList;
@@ -28,61 +29,75 @@ namespace Builder {
 /**
  * replace all (input) HMM disambiguation symbols by epsilon.
  */
-class RemoveHmmDisambiguators : public SleeveOperation
-{
+class RemoveHmmDisambiguators : public SleeveOperation {
 public:
-    RemoveHmmDisambiguators(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    RemoveHmmDisambiguators(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
-public:
-    static std::string name() { return "remove-hmm-disambiguators"; }
-};
 
+public:
+    static std::string name() {
+        return "remove-hmm-disambiguators";
+    }
+};
 
 /**
  * logs number of states and arcs
  */
-class Info : public SleeveOperation
-{
+class Info : public SleeveOperation {
 public:
-    Info(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    Info(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "info"; }
+    static std::string name() {
+        return "info";
+    }
 };
 
-class Count : public SleeveOperation
-{
+class Count : public SleeveOperation {
     static const Core::ParameterString paramStateSequences;
+
 public:
-    Count(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    Count(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "count"; }
+    static std::string name() {
+        return "count";
+    }
 };
 
-class CreateStateSequenceSymbols : public SleeveOperation
-{
+class CreateStateSequenceSymbols : public SleeveOperation {
     static const Core::ParameterString paramStateSequences;
-    static const Core::ParameterBool paramShortSymbols;
+    static const Core::ParameterBool   paramShortSymbols;
+
 public:
-    CreateStateSequenceSymbols(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    CreateStateSequenceSymbols(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 private:
-    OpenFst::SymbolTable* createSymbols(const StateSequenceList &ss) const;
+    OpenFst::SymbolTable* createSymbols(const StateSequenceList& ss) const;
+
 public:
-    static std::string name() { return "state-sequence-symbols"; }
+    static std::string name() {
+        return "state-sequence-symbols";
+    }
 };
 
-} // namespace Builder
-} // namespace Wfst
-} // namespace Search
+}  // namespace Builder
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_UTILITY_OPERATIONS_HH
+#endif  // _SEARCH_UTILITY_OPERATIONS_HH

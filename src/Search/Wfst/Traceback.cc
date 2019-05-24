@@ -12,27 +12,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/Traceback.hh>
 #include <OpenFst/LabelMap.hh>
 #include <OpenFst/SymbolTable.hh>
+#include <Search/Wfst/Traceback.hh>
 
 using namespace Search::Wfst;
 using OpenFst::Epsilon;
 
 void BestPath::getTraceback(Bliss::LexiconRef lexicon, OutputType outputType,
-                            const OpenFst::LabelMap *olabelMap, Traceback *result) const
-{
+                            const OpenFst::LabelMap* olabelMap, Traceback* result) const {
     typedef SearchAlgorithm::TracebackItem TracebackItem;
-    typedef SearchAlgorithm::ScoreVector ScoreVector;
+    typedef SearchAlgorithm::ScoreVector   ScoreVector;
 
     result->clear();
-    result->push_back(TracebackItem(0, 0, ScoreVector(0,0), TracebackItem::Transit()));
+    result->push_back(TracebackItem(0, 0, ScoreVector(0, 0), TracebackItem::Transit()));
     Core::Ref<const Bliss::LemmaPronunciationAlphabet> alphabet = lexicon->lemmaPronunciationAlphabet();
-    Core::Ref<const Bliss::LemmaAlphabet> lemmas = lexicon->lemmaAlphabet();
-    Core::Ref<const Bliss::SyntacticTokenAlphabet> synt = lexicon->syntacticTokenAlphabet();
+    Core::Ref<const Bliss::LemmaAlphabet>              lemmas   = lexicon->lemmaAlphabet();
+    Core::Ref<const Bliss::SyntacticTokenAlphabet>     synt     = lexicon->syntacticTokenAlphabet();
     for (ConstIterator i = begin(); i != end(); ++i) {
-        const Bliss::LemmaPronunciation *p = 0;
-        const Bliss::Lemma *lemma = 0;
+        const Bliss::LemmaPronunciation* p     = 0;
+        const Bliss::Lemma*              lemma = 0;
         if (i->word != Epsilon) {
             Fsa::LabelId output = OpenFst::convertLabelToFsa(olabelMap ? olabelMap->mapLabel(i->word) : i->word);
 
@@ -47,6 +46,5 @@ void BestPath::getTraceback(Bliss::LexiconRef lexicon, OutputType outputType,
                 p = lemma->pronunciations().first;
         }
         result->push_back(TracebackItem(p, i->time, i->score, TracebackItem::Transit()));
-        // std::cout << id << " " << alphabet->symbol(id) << std::endl;
     }
 }

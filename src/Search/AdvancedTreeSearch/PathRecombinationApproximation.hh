@@ -15,44 +15,43 @@
 #ifndef SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH
 #define SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH
 
-#include "PersistentStateTree.hh"
 #include "PathRecombination.hh"
+#include "PersistentStateTree.hh"
 
-namespace Search
-{
-class PathRecombinationApproximation
-{
+namespace Search {
+class PathRecombinationApproximation {
 public:
-  PathRecombinationApproximation( const PersistentStateTree& network, const Core::Configuration& config, const PathRecombination& pathrec );
-  ~PathRecombinationApproximation();
-private:
-  const PersistentStateTree& network_;
-  const PathRecombination& pathrec_;
-  std::vector<s32> cliqueSizes_;
+    PathRecombinationApproximation(const PersistentStateTree& network, const Core::Configuration& config, const PathRecombination& pathrec);
+    ~PathRecombinationApproximation();
 
-  class CliquePartition
-  {
-public:
-    CliquePartition( const Search::PersistentStateTree& network, const Search::PathRecombination& pathrec, u32 cliqueSize );
 private:
-    std::vector<u32> cliqueForState_;
-    std::vector<std::set<StateId> > statesForClique_;
-    std::vector<u32> recombinationIntervalForClique;
-    std::vector<u32> recombinationIntervalForCliqueWithoutState;
     const PersistentStateTree& network_;
-    const PathRecombination& pathrec_;
-    u32 nCliques_;
-    void removeFromClique( u32 clique, StateId state );
-    u32 cliqueRecombinationInterval( u32 clique );
-    u32 cliqueWithoutStateRecombinationInterval( u32 clique, StateId state );
-    u32 symmetricStateCliqueRecombinationInterval( u32 clique, StateId state );
-    void addToClique( u32 clique, StateId state, u32 symmetricLocalRecombinationInterval );
-  };
+    const PathRecombination&   pathrec_;
+    std::vector<s32>           cliqueSizes_;
 
-  std::map<u32, CliquePartition*> partitionForCliqueSize_;
+    class CliquePartition {
+    public:
+        CliquePartition(const Search::PersistentStateTree& network, const Search::PathRecombination& pathrec, u32 cliqueSize);
 
-  void initialize();
+    private:
+        std::vector<u32>               cliqueForState_;
+        std::vector<std::set<StateId>> statesForClique_;
+        std::vector<u32>               recombinationIntervalForClique;
+        std::vector<u32>               recombinationIntervalForCliqueWithoutState;
+        const PersistentStateTree&     network_;
+        const PathRecombination&       pathrec_;
+        u32                            nCliques_;
+        void                           removeFromClique(u32 clique, StateId state);
+        u32                            cliqueRecombinationInterval(u32 clique);
+        u32                            cliqueWithoutStateRecombinationInterval(u32 clique, StateId state);
+        u32                            symmetricStateCliqueRecombinationInterval(u32 clique, StateId state);
+        void                           addToClique(u32 clique, StateId state, u32 symmetricLocalRecombinationInterval);
+    };
+
+    std::map<u32, CliquePartition*> partitionForCliqueSize_;
+
+    void initialize();
 };
-}
+}  // namespace Search
 
-#endif // SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH
+#endif  // SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH

@@ -29,149 +29,152 @@
 
 namespace Search {
 
-    /** Language model look-ahead */
+/** Language model look-ahead */
 
-    class LanguageModelLookahead :
-        public Core::Component
-    {
-    public:
-        typedef u32 LookaheadId;
-        typedef f32 Score;
-    private:
-        static const LookaheadId invalidId;
-        u32 historyLimit_;
-        s32 cutoffDepth_;
-        u32 minimumRepresentation_;
-        Lm::Score wpScale_;
-        Core::Ref<const Lm::ScaledLanguageModel> lm_;
+class LanguageModelLookahead : public Core::Component {
+public:
+    typedef u32 LookaheadId;
+    typedef f32 Score;
 
-        class ConstructionNode;
-        class ConstructionTree;
-        friend class LanguageModelLookahead::ConstructionTree;
+private:
+    static const LookaheadId                 invalidId;
+    u32                                      historyLimit_;
+    s32                                      cutoffDepth_;
+    u32                                      minimumRepresentation_;
+    Lm::Score                                wpScale_;
+    Core::Ref<const Lm::ScaledLanguageModel> lm_;
 
-        struct Node;
-        typedef std::vector<const Bliss::LemmaPronunciation*> Ends;
-        Ends ends_;
-        typedef std::vector<LookaheadId> Successors;
-        Successors successors_;
-        std::vector<Node> nodes_;
+    class ConstructionNode;
+    class ConstructionTree;
+    friend class LanguageModelLookahead::ConstructionTree;
 
-        LookaheadId nEntries_;
+    struct Node;
+    typedef std::vector<const Bliss::LemmaPronunciation*> Ends;
+    Ends                                                  ends_;
+    typedef std::vector<LookaheadId>                      Successors;
+    Successors                                            successors_;
+    std::vector<Node>                                     nodes_;
 
-        std::vector<LookaheadId> nodeId_; // StateTree::StateId -> nodes_ indes
+    LookaheadId nEntries_;
 
-        bool shouldPruneConstructionNode(const ConstructionNode &sn) const;
-        void buildCompressesLookaheadStructure(const StateTree*, const ConstructionTree&);
-        void buildBatchRequest();
-        void buildLookaheadStructure(const StateTree*);
+    std::vector<LookaheadId> nodeId_;  // StateTree::StateId -> nodes_ indes
 
-        const Lm::CompiledBatchRequest *batchRequest_;
-        void computeScores(const Lm::History&, std::vector<Score>&) const;
+    bool shouldPruneConstructionNode(const ConstructionNode& sn) const;
+    void buildCompressesLookaheadStructure(const StateTree*, const ConstructionTree&);
+    void buildBatchRequest();
+    void buildLookaheadStructure(const StateTree*);
 
-    public:
-        class ContextLookahead;
-    private:
-        friend class ContextLookahead;
-        u32 cacheSizeHighMark_, cacheSizeLowMark_;
-        typedef std::list<ContextLookahead*> List;
-        mutable List tables_, freeTables_;
-        mutable u32 nTables_, nFreeTables_;
-        typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
-        mutable Map map_;
+    const Lm::CompiledBatchRequest* batchRequest_;
+    void                            computeScores(const Lm::History&, std::vector<Score>&) const;
 
-        ContextLookahead *acquireTable(const Lm::History&) const;
-        ContextLookahead *getCachedTable(const Lm::History&) const;
-        void releaseTable(const ContextLookahead*) const;
+public:
+    class ContextLookahead;
 
-        struct CacheStatistics;
-        CacheStatistics *cacheStatistics_;
-        mutable Core::XmlChannel statisticsChannel_;
+private:
+    friend class ContextLookahead;
+    u32                                                                           cacheSizeHighMark_, cacheSizeLowMark_;
+    typedef std::list<ContextLookahead*>                                          List;
+    mutable List                                                                  tables_, freeTables_;
+    mutable u32                                                                   nTables_, nFreeTables_;
+    typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
+    mutable Map                                                                   map_;
 
-    public:
-        static const Core::ParameterInt paramHistoryLimit;
-        static const Core::ParameterInt paramTreeCutoff;
-        static const Core::ParameterInt paramMinimumRepresentation;
-        static const Core::ParameterInt paramCacheSizeLow, paramCacheSizeHigh;
+    ContextLookahead* acquireTable(const Lm::History&) const;
+    ContextLookahead* getCachedTable(const Lm::History&) const;
+    void              releaseTable(const ContextLookahead*) const;
 
-        LanguageModelLookahead(const Core::Configuration&,
-                               Lm::Score wpScale,
-                               Core::Ref<const Lm::ScaledLanguageModel>,
-                               const StateTree*);
-        ~LanguageModelLookahead();
+    struct CacheStatistics;
+    CacheStatistics*         cacheStatistics_;
+    mutable Core::XmlChannel statisticsChannel_;
 
-        void draw(std::ostream&) const;
+public:
+    static const Core::ParameterInt paramHistoryLimit;
+    static const Core::ParameterInt paramTreeCutoff;
+    static const Core::ParameterInt paramMinimumRepresentation;
+    static const Core::ParameterInt paramCacheSizeLow, paramCacheSizeHigh;
 
-        LookaheadId lookaheadId(StateTree::StateId s) const {
-            require_(0 <= s && s < StateTree::StateId(nodeId_.size()));
-            LookaheadId result = nodeId_[s];
-            ensure_(result < nEntries_);
-            return result;
-        };
+    LanguageModelLookahead(const Core::Configuration&,
+                           Lm::Score wpScale,
+                           Core::Ref<const Lm::ScaledLanguageModel>,
+                           const StateTree*);
+    ~LanguageModelLookahead();
 
-        //    public:
+    void draw(std::ostream&) const;
 
-        class ContextLookahead :
-            public Core::ReferenceCounted
-        {
-        private:
-            const LanguageModelLookahead *la_;
-            Lm::History history_;
-            List::iterator pos_, freePos_;
-            std::vector<Score> scores_;
-
-            friend class Core::Ref<const ContextLookahead>;
-            void free() const { la_->releaseTable(this); }
-        protected:
-            friend class LanguageModelLookahead;
-            ContextLookahead(const LanguageModelLookahead*,
-                             const Lm::History&,
-                             u32 nEntries);
-            bool isActive() const { return freePos_ == la_->freeTables_.end(); }
-        public:
-            Score score(StateTree::StateId s) const {
-                return scores_[la_->lookaheadId(s)];
-            }
-
-            //DEBUG_AREA
-            bool checkScores() {
-                int nScores = scores_.size();
-                int nAbnorm = 0;
-                for (std::vector<Score>::iterator i = scores_.begin(); i != scores_.end(); i++) {
-                    if ( (*i > +1.0e+20F) || (*i < -1.0e+20F) )
-                    nAbnorm++;
-                }
-
-                std::cout << "checkScores: abnormal scores:" << nAbnorm << "/"
-                          << nScores << std::endl;
-
-                return (nAbnorm == 0);
-            }
-            //END_DEBUG
-        };
-
-    public:
-        typedef Core::Ref<const ContextLookahead> ContextLookaheadReference;
-
-    private:
-
-        u32 nTables() const {
-            verify_(nTables_ == tables_.size());
-            return nTables_;
-        }
-        u32 nActiveTables() const {
-            verify_(nTables_ == tables_.size());
-            verify_(nFreeTables_ == freeTables_.size());
-            return nTables_ - nFreeTables_;
-        }
-
-    public:
-        ContextLookaheadReference getLookahead(const Lm::History&) const;
-        ContextLookaheadReference tryToGetLookahead(const Lm::History&) const;
-
-        void collectStatistics() const;
-        void logStatistics() const;
+    LookaheadId lookaheadId(StateTree::StateId s) const {
+        require_(0 <= s && s < StateTree::StateId(nodeId_.size()));
+        LookaheadId result = nodeId_[s];
+        ensure_(result < nEntries_);
+        return result;
     };
 
-} // namespace Search
+    //    public:
 
-#endif //_SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+    class ContextLookahead : public Core::ReferenceCounted {
+    private:
+        const LanguageModelLookahead* la_;
+        Lm::History                   history_;
+        List::iterator                pos_, freePos_;
+        std::vector<Score>            scores_;
+
+        friend class Core::Ref<const ContextLookahead>;
+        void free() const {
+            la_->releaseTable(this);
+        }
+
+    protected:
+        friend class LanguageModelLookahead;
+        ContextLookahead(const LanguageModelLookahead*,
+                         const Lm::History&,
+                         u32 nEntries);
+        bool isActive() const {
+            return freePos_ == la_->freeTables_.end();
+        }
+
+    public:
+        Score score(StateTree::StateId s) const {
+            return scores_[la_->lookaheadId(s)];
+        }
+
+        //DEBUG_AREA
+        bool checkScores() {
+            int nScores = scores_.size();
+            int nAbnorm = 0;
+            for (std::vector<Score>::iterator i = scores_.begin(); i != scores_.end(); i++) {
+                if ((*i > +1.0e+20F) || (*i < -1.0e+20F))
+                    nAbnorm++;
+            }
+
+            std::cout << "checkScores: abnormal scores:" << nAbnorm << "/"
+                      << nScores << std::endl;
+
+            return (nAbnorm == 0);
+        }
+        //END_DEBUG
+    };
+
+public:
+    typedef Core::Ref<const ContextLookahead> ContextLookaheadReference;
+
+private:
+    u32 nTables() const {
+        verify_(nTables_ == tables_.size());
+        return nTables_;
+    }
+    u32 nActiveTables() const {
+        verify_(nTables_ == tables_.size());
+        verify_(nFreeTables_ == freeTables_.size());
+        return nTables_ - nFreeTables_;
+    }
+
+public:
+    ContextLookaheadReference getLookahead(const Lm::History&) const;
+    ContextLookaheadReference tryToGetLookahead(const Lm::History&) const;
+
+    void collectStatistics() const;
+    void logStatistics() const;
+};
+
+}  // namespace Search
+
+#endif  //_SEARCH_LANGUAGEMODELLOOKAHEAD_HH

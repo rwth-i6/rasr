@@ -12,16 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/Module.hh>
 #include <Search/Wfst/CreateOperations.hh>
 #include <Search/Wfst/FstOperations.hh>
 #include <Search/Wfst/IoOperations.hh>
+#include <Search/Wfst/Module.hh>
 #include <Search/Wfst/UtilityOperations.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-Search::Wfst::Module_::Module_()
-{
+Search::Wfst::Module_::Module_() {
     registerBuilderOperation<Builder::AddNonWordTokens>();
     registerBuilderOperation<Builder::AddPronunciationWeight>();
     registerBuilderOperation<Builder::ArcInputSort>();
@@ -75,5 +75,5 @@ Search::Wfst::Module_::Module_()
     registerBuilderOperation<Builder::WriteFst>();
 }
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search

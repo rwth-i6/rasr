@@ -12,13 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/CreateOperations.hh>
-#include <Search/Wfst/ContextTransducerBuilder.hh>
-#include <Search/Wfst/LabelMapper.hh>
-#include <Search/Wfst/LexiconBuilder.hh>
-#include <Search/Wfst/NonWordTokens.hh>
-#include <Search/Wfst/StateSequence.hh>
-#include <Search/Wfst/StateTree.hh>
+#include <Am/ClassicTransducerBuilder.hh>
+#include <Bliss/Lexicon.hh>
 #include <Core/CompressedStream.hh>
 #include <Core/Debug.hh>
 #include <Fsa/Compose.hh>
@@ -26,15 +21,20 @@
 #include <Fsa/Sort.hh>
 #include <OpenFst/Count.hh>
 #include <OpenFst/Input.hh>
+#include <OpenFst/LabelMap.hh>
 #include <OpenFst/Output.hh>
 #include <OpenFst/Relabel.hh>
 #include <OpenFst/Scale.hh>
 #include <OpenFst/Utility.hh>
-#include <OpenFst/LabelMap.hh>
-#include <Am/ClassicTransducerBuilder.hh>
-#include <Bliss/Lexicon.hh>
-#include <fst/arcsort.h>
+#include <Search/Wfst/ContextTransducerBuilder.hh>
+#include <Search/Wfst/CreateOperations.hh>
+#include <Search/Wfst/LabelMapper.hh>
+#include <Search/Wfst/LexiconBuilder.hh>
+#include <Search/Wfst/NonWordTokens.hh>
+#include <Search/Wfst/StateSequence.hh>
+#include <Search/Wfst/StateTree.hh>
 #include <fst/arc-map.h>
+#include <fst/arcsort.h>
 #include <fst/compose.h>
 #include <fst/project.h>
 #include <fst/relabel.h>
@@ -43,38 +43,36 @@ using namespace Search::Wfst;
 using namespace Search::Wfst::Builder;
 
 const Core::ParameterBool BuildGrammar::paramAddEmptySyntacticTokens(
-    "add-empty-tokens",
-    "add empty syntactic token sequences (set to false is G is minimized using log semiring)",
-    true);
+        "add-empty-tokens",
+        "add empty syntactic token sequences (set to false is G is minimized using log semiring)",
+        true);
 
 const Core::ParameterBool BuildGrammar::paramAddSentenceBoundaries(
-    "add-sentence-boundaries",
-    "add symbols for the sentence boundary to the G transducer",
-    false);
+        "add-sentence-boundaries",
+        "add symbols for the sentence boundary to the G transducer",
+        false);
 
 const Core::ParameterBool BuildGrammar::paramAddSentenceBegin(
-    "add-sentence-begin",
-    "add symbols for the sentence begin to the G transducer",
-    false);
+        "add-sentence-begin",
+        "add symbols for the sentence begin to the G transducer",
+        false);
 
 const Core::ParameterBool BuildGrammar::paramAddSentenceEnd(
-    "add-sentence-end",
-    "add symbols for the sentence end to the G transducer",
-    false);
+        "add-sentence-end",
+        "add symbols for the sentence end to the G transducer",
+        false);
 
-
-Operation::AutomatonRef BuildGrammar::process()
-{
+Operation::AutomatonRef BuildGrammar::process() {
     Fsa::ConstAutomatonRef fsaG = resources_.languageModel()->getFsa();
-    Fsa::AutomatonCounts cnt = Fsa::count(fsaG);
+    Fsa::AutomatonCounts   cnt  = Fsa::count(fsaG);
     log("G synt: %d states %zu arcs", cnt.nStates_, cnt.nArcs_);
-    Lm::Token se = resources_.languageModel()->unscaled()->sentenceEndToken();
-    const Fsa::LabelId sentenceEnd = se->id();
-    Lm::Token sb = resources_.languageModel()->unscaled()->sentenceBeginToken();
+    Lm::Token          se            = resources_.languageModel()->unscaled()->sentenceEndToken();
+    const Fsa::LabelId sentenceEnd   = se->id();
+    Lm::Token          sb            = resources_.languageModel()->unscaled()->sentenceBeginToken();
     const Fsa::LabelId sentenceBegin = sb->id();
     resources_.deleteLanguageModel();
     bool addSentenceBegin = paramAddSentenceBegin(Operation::config);
-    bool addSentenceEnd = paramAddSentenceEnd(Operation::config);
+    bool addSentenceEnd   = paramAddSentenceEnd(Operation::config);
     log("add sentence begin: %d, add sentence end: %d", addSentenceBegin, addSentenceEnd);
     if (paramAddSentenceBoundaries(Operation::config))
         addSentenceBegin = addSentenceEnd = true;
@@ -87,8 +85,8 @@ Operation::AutomatonRef BuildGrammar::process()
         fsaG = sg;
     }
 
-    u32 nDisambiguators = countDisambiguators(fsaG->getInputAlphabet());
-    AutomatonRef g = OpenFst::convertFromFsa<Fsa::Automaton, Automaton>(fsaG);
+    u32          nDisambiguators = countDisambiguators(fsaG->getInputAlphabet());
+    AutomatonRef g               = OpenFst::convertFromFsa<Fsa::Automaton, Automaton>(fsaG);
     fsaG.reset();
 
     if (outputType() != outputSyntacticTokens) {
@@ -98,16 +96,15 @@ Operation::AutomatonRef BuildGrammar::process()
     return g;
 }
 
-Operation::AutomatonRef BuildGrammar::mapSymbols(AutomatonRef g) const
-{
+Operation::AutomatonRef BuildGrammar::mapSymbols(AutomatonRef g) const {
     u32 nDisambiguators = 0;
     require(outputType() != outputSyntacticTokens);
     bool addEps = paramAddEmptySyntacticTokens(Operation::config);
     log("creating lemma to syntactic token transducer ")
-        << (addEps ? "with" : "without") <<  "empty syntactic tokens";
+            << (addEps ? "with" : "without") << "empty syntactic tokens";
     Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    FstLib::StdProjectFst *result = 0, *intermediate = 0;
-    OpenFst::VectorFst *l2s = 0, *lp2l = 0;
+    FstLib::StdProjectFst *         result = 0, *intermediate = 0;
+    OpenFst::VectorFst *            l2s = 0, *lp2l = 0;
 
     l2s = OpenFst::convertFromFsa(lexicon->createLemmaToSyntacticTokenTransducer(addEps, nDisambiguators));
     log("projecting to lemmas");
@@ -122,7 +119,7 @@ Operation::AutomatonRef BuildGrammar::mapSymbols(AutomatonRef g) const
             OpenFst::scaleWeights(lp2l, pronunciationScale);
         }
         intermediate = result;
-        result = new FstLib::StdProjectFst(FstLib::StdComposeFst(*lp2l, *intermediate), FstLib::PROJECT_INPUT);
+        result       = new FstLib::StdProjectFst(FstLib::StdComposeFst(*lp2l, *intermediate), FstLib::PROJECT_INPUT);
     }
     AutomatonRef staticFst = new Automaton(*result);
     delete g;
@@ -134,12 +131,11 @@ Operation::AutomatonRef BuildGrammar::mapSymbols(AutomatonRef g) const
 }
 
 void BuildGrammar::addSentenceBoundaries(Core::Ref<Fsa::StaticAutomaton> g,
-                                         Fsa::LabelId sentenceBegin,
-                                         Fsa::LabelId sentenceEnd,
-                                         bool addBegin, bool addEnd) const
-{
+                                         Fsa::LabelId                    sentenceBegin,
+                                         Fsa::LabelId                    sentenceEnd,
+                                         bool addBegin, bool addEnd) const {
     if (addEnd) {
-        Fsa::State *finalState = g->newState();
+        Fsa::State* finalState = g->newState();
         log("new final state: %d", finalState->id());
         finalState->setFinal(g->semiring()->one());
         Fsa::StateId final = finalState->id();
@@ -151,7 +147,8 @@ void BuildGrammar::addSentenceBoundaries(Core::Ref<Fsa::StaticAutomaton> g,
                 continue;
             }
             verify(state);
-            if (!state->isFinal() || s == final) continue;
+            if (!state->isFinal() || s == final)
+                continue;
             DBG(1) << "final state: " << state->id() << " " << (float)state->weight() << std::endl;
             Fsa::Weight weight = state->weight();
             state->newArc(final, weight, sentenceEnd);
@@ -161,7 +158,7 @@ void BuildGrammar::addSentenceBoundaries(Core::Ref<Fsa::StaticAutomaton> g,
         }
     }
     if (addBegin) {
-        Fsa::State *initial = g->newState();
+        Fsa::State* initial = g->newState();
         log("new initial state: %d", initial->id());
         initial->newArc(g->initialStateId(), g->semiring()->one(), sentenceBegin);
         g->setInitialStateId(initial->id());
@@ -169,26 +166,25 @@ void BuildGrammar::addSentenceBoundaries(Core::Ref<Fsa::StaticAutomaton> g,
     g->unsetProperties(Fsa::PropertySortedByInput);
 }
 
-const char* BuildLexicon::attrInitialPhoneOffset = "initialPhoneOffset";
-const char* BuildLexicon::attrWordLabelOffset = "wordLabelOffset";
+const char* BuildLexicon::attrInitialPhoneOffset  = "initialPhoneOffset";
+const char* BuildLexicon::attrWordLabelOffset     = "wordLabelOffset";
 const char* BuildLexicon::attrDisambiguatorOffset = "disambiguatorOffset";
 
 const Core::ParameterBool BuildLexicon::paramCloseLexicon(
-    "close", "build closure", true);
+        "close", "build closure", true);
 
 const Core::ParameterBool BuildLexicon::paramCloseWithSilence(
-    "close-with-silence", "add silence/noise arcs for closure", true);
+        "close-with-silence", "add silence/noise arcs for closure", true);
 
-Operation::AutomatonRef BuildLexicon::process()
-{
+Operation::AutomatonRef BuildLexicon::process() {
     Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    LexiconBuilder builder(Operation::select("lexicon-builder"), *lexicon);
+    LexiconBuilder                  builder(Operation::select("lexicon-builder"), *lexicon);
     log("using %d disambiguators", nDisambiguators_);
     builder.setGrammarDisambiguators(nDisambiguators_);
-    const bool closeL = paramCloseLexicon(Operation::config);
-    const bool closeWithSilence = paramCloseWithSilence(Operation::config);
-    bool buildClosed = closeL && !closeWithSilence;
-    OpenFst::VectorFst *l = builder.build(buildClosed);
+    const bool          closeL           = paramCloseLexicon(Operation::config);
+    const bool          closeWithSilence = paramCloseWithSilence(Operation::config);
+    bool                buildClosed      = closeL && !closeWithSilence;
+    OpenFst::VectorFst* l                = builder.build(buildClosed);
     if (outputType() != outputLemmaPronunciations) {
         if (builder.addWordDisambiguators())
             error("cannot use output type other than lemma pronunciations");
@@ -210,13 +206,12 @@ Operation::AutomatonRef BuildLexicon::process()
     return result;
 }
 
-void BuildLexicon::mapOutputSymbols(OpenFst::VectorFst *l) const
-{
+void BuildLexicon::mapOutputSymbols(OpenFst::VectorFst* l) const {
     Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
     log("mapping output symbols");
     if ((outputType() == outputLemmas) || (outputType() == outputSyntacticTokens)) {
-        OpenFst::VectorFst *lp2l = OpenFst::convertFromFsa(lexicon->createLemmaPronunciationToLemmaTransducer(nDisambiguators_));
-        Mm::Score pronunciationScale = resources_.pronunciationScale();
+        OpenFst::VectorFst* lp2l               = OpenFst::convertFromFsa(lexicon->createLemmaPronunciationToLemmaTransducer(nDisambiguators_));
+        Mm::Score           pronunciationScale = resources_.pronunciationScale();
         if (pronunciationScale != 1.0) {
             log("applying pronunciation scale %f", pronunciationScale);
             OpenFst::scaleWeights(lp2l, pronunciationScale);
@@ -226,24 +221,23 @@ void BuildLexicon::mapOutputSymbols(OpenFst::VectorFst *l) const
         delete lp2l;
     }
     if (outputType() == outputSyntacticTokens) {
-        OpenFst::VectorFst *l2s = OpenFst::convertFromFsa(lexicon->createLemmaToSyntacticTokenTransducer(true, nDisambiguators_));
+        OpenFst::VectorFst*    l2s = OpenFst::convertFromFsa(lexicon->createLemmaToSyntacticTokenTransducer(true, nDisambiguators_));
         FstLib::ComposeOptions opts(true, FstLib::SEQUENCE_FILTER);
         FstLib::Compose(*l, *l2s, l);
         delete l2s;
     }
 }
 
-Operation::AutomatonRef BuildOldLexicon::process()
-{
+Operation::AutomatonRef BuildOldLexicon::process() {
     if (!paramCloseLexicon(Operation::config)) {
         warning("lexicon is always closed using this construction");
     }
     log("using %d disambiguators", nDisambiguators_);
-    Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    const bool isAcrossWord = resources_.acousticModel()->isAcrossWordModelEnabled();
-    Fsa::ConstAutomatonRef l = lexicon->createPhonemeToLemmaPronunciationTransducer(nDisambiguators_, true, isAcrossWord);
-    Fsa::AlphabetCounts a = count(l->getInputAlphabet());
-    AutomatonRef result = OpenFst::convertFromFsa<Fsa::Automaton, Automaton>(l);
+    Core::Ref<const Bliss::Lexicon> lexicon      = resources_.lexicon();
+    const bool                      isAcrossWord = resources_.acousticModel()->isAcrossWordModelEnabled();
+    Fsa::ConstAutomatonRef          l            = lexicon->createPhonemeToLemmaPronunciationTransducer(nDisambiguators_, true, isAcrossWord);
+    Fsa::AlphabetCounts             a            = count(l->getInputAlphabet());
+    AutomatonRef                    result       = OpenFst::convertFromFsa<Fsa::Automaton, Automaton>(l);
     l.reset();
     mapOutputSymbols(result);
     result->setAttribute(Automaton::attrNumDisambiguators, a.nDisambiguators_);
@@ -257,13 +251,12 @@ Operation::AutomatonRef BuildOldLexicon::process()
     return result;
 }
 
-Operation::AutomatonRef CloseLexicon::process()
-{
+Operation::AutomatonRef CloseLexicon::process() {
     log("building closure");
     Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    LexiconBuilder builder(Operation::select("lexicon-builder"), *lexicon);
-    const int initialPhoneOffset = input_->getIntAttribute(BuildLexicon::attrInitialPhoneOffset);
-    const int wordLabelOffset = input_->getIntAttribute(BuildLexicon::attrWordLabelOffset);
+    LexiconBuilder                  builder(Operation::select("lexicon-builder"), *lexicon);
+    const int                       initialPhoneOffset = input_->getIntAttribute(BuildLexicon::attrInitialPhoneOffset);
+    const int                       wordLabelOffset    = input_->getIntAttribute(BuildLexicon::attrWordLabelOffset);
     builder.setInitialPhoneOffset(initialPhoneOffset);
     builder.setWordLabelOffset(wordLabelOffset);
     const bool closeWithSilence = BuildLexicon::paramCloseWithSilence(config);
@@ -274,35 +267,34 @@ Operation::AutomatonRef CloseLexicon::process()
 }
 
 const Core::Choice LemmaMapping::mapChoice(
-    "pronunciation-to-lemma", LemmaPronunciationToLemma,
-    "lemma-to-syntactic-token", LemmaToSyntacticToken,
-    Core::Choice::endMark());
+        "pronunciation-to-lemma", LemmaPronunciationToLemma,
+        "lemma-to-syntactic-token", LemmaToSyntacticToken,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice LemmaMapping::paramMapType(
-    "type", &mapChoice, "type of mapping", LemmaPronunciationToLemma);
+        "type", &mapChoice, "type of mapping", LemmaPronunciationToLemma);
 
 const Core::ParameterFloat LemmaMapping::paramScale(
-    "scale", "weight scaling factor", 1.0);
+        "scale", "weight scaling factor", 1.0);
 
-Operation::AutomatonRef LemmaMapping::process()
-{
+Operation::AutomatonRef LemmaMapping::process() {
     Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    MapType mType = static_cast<MapType>(paramMapType(config));
-    nDisambiguators_ = std::max(nDisambiguators_, 0);
+    MapType                         mType   = static_cast<MapType>(paramMapType(config));
+    nDisambiguators_                        = std::max(nDisambiguators_, 0);
     log("using %d disambiguators", nDisambiguators_);
     Fsa::ConstAutomatonRef m;
     switch (mType) {
-    case LemmaPronunciationToLemma:
-        log("lemma pronunciation to lemma mapping");
-        m = lexicon->createLemmaPronunciationToLemmaTransducer(nDisambiguators_);
-        break;
-    case LemmaToSyntacticToken:
-        log("lemma to syntactic token mapping");
-        m = lexicon->createLemmaToSyntacticTokenTransducer(true, nDisambiguators_);
-        break;
-    default:
-        defect();
-        break;
+        case LemmaPronunciationToLemma:
+            log("lemma pronunciation to lemma mapping");
+            m = lexicon->createLemmaPronunciationToLemmaTransducer(nDisambiguators_);
+            break;
+        case LemmaToSyntacticToken:
+            log("lemma to syntactic token mapping");
+            m = lexicon->createLemmaToSyntacticTokenTransducer(true, nDisambiguators_);
+            break;
+        default:
+            defect();
+            break;
     }
     f32 scale = paramScale(config);
     if (scale != 1.0) {
@@ -315,28 +307,26 @@ Operation::AutomatonRef LemmaMapping::process()
 }
 
 const Core::ParameterFloat AddPronunciationWeight::paramScale(
-    "scale", "weight scaling factor", 1.0);
+        "scale", "weight scaling factor", 1.0);
 
-
-Operation::AutomatonRef AddPronunciationWeight::process()
-{
+Operation::AutomatonRef AddPronunciationWeight::process() {
     nDisambiguators_ = std::max(nDisambiguators_, 0);
     log("using %d disambiguators", nDisambiguators_);
 
-    AutomatonRef result = new Automaton();
-    OpenFst::StateId state = result->AddState();
+    AutomatonRef     result = new Automaton();
+    OpenFst::StateId state  = result->AddState();
     result->SetFinal(state, OpenFst::Weight::One());
     result->SetStart(state);
     Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpa = resources_.lexicon()->lemmaPronunciationAlphabet();
-    Bliss::Lexicon::PronunciationIterator piBegin, piEnd;
+    Bliss::Lexicon::PronunciationIterator              piBegin, piEnd;
     Core::tie(piBegin, piEnd) = resources_.lexicon()->pronunciations();
     for (Bliss::Lexicon::PronunciationIterator pi = piBegin; pi != piEnd; ++pi) {
         Bliss::Pronunciation::LemmaIterator liBegin, liEnd;
         Core::tie(liBegin, liEnd) = (*pi)->lemmas();
         for (Bliss::Pronunciation::LemmaIterator li = liBegin; li != liEnd; ++li) {
-            const Bliss::LemmaPronunciation *lemmaPron = li;
-            OpenFst::Weight weight = OpenFst::Weight(lemmaPron->pronunciationScore());
-            OpenFst::Label label = OpenFst::convertLabelFromFsa(lemmaPron->id());
+            const Bliss::LemmaPronunciation* lemmaPron = li;
+            OpenFst::Weight                  weight    = OpenFst::Weight(lemmaPron->pronunciationScore());
+            OpenFst::Label                   label     = OpenFst::convertLabelFromFsa(lemmaPron->id());
             result->AddArc(state, OpenFst::Arc(label, label, weight, state));
         }
     }
@@ -344,7 +334,7 @@ Operation::AutomatonRef AddPronunciationWeight::process()
         OpenFst::Label label = OpenFst::convertLabelFromFsa(lpa->disambiguator(d));
         result->AddArc(state, OpenFst::Arc(label, label, OpenFst::Weight::One(), state));
     }
-    OpenFst::SymbolTable *symbols = OpenFst::convertAlphabet(lpa, "lemma-pronunciations");
+    OpenFst::SymbolTable* symbols = OpenFst::convertAlphabet(lpa, "lemma-pronunciations");
     result->SetInputSymbols(symbols);
     result->SetOutputSymbols(symbols);
     FstLib::ArcSort(result, FstLib::StdILabelCompare());
@@ -356,11 +346,9 @@ Operation::AutomatonRef AddPronunciationWeight::process()
     return result;
 }
 
-
-Operation::AutomatonRef RestoreOutputSymbols::process()
-{
+Operation::AutomatonRef RestoreOutputSymbols::process() {
     log("project to input");
-    FstLib::SymbolTable *outputSymbols = input_->OutputSymbols()->Copy();
+    FstLib::SymbolTable* outputSymbols = input_->OutputSymbols()->Copy();
     FstLib::Project(input_, FstLib::PROJECT_INPUT);
     log("restoring output symbols");
     int wordLabelOffset = input_->getIntAttribute(BuildLexicon::attrWordLabelOffset);
@@ -372,14 +360,13 @@ Operation::AutomatonRef RestoreOutputSymbols::process()
     log("word label offset: %d", wordLabelOffset);
     log("disambiguator offset: %d", disambiguatorOffset);
     FstLib::ArcMap(input_,
-                RestoreOutputLabelMapper<OpenFst::Arc>(wordLabelOffset,
-                                                       disambiguatorOffset));
+                   RestoreOutputLabelMapper<OpenFst::Arc>(wordLabelOffset,
+                                                          disambiguatorOffset));
     input_->SetOutputSymbols(outputSymbols);
     return input_;
 }
 
-bool RemovePhoneDisambiguators::addInput(AutomatonRef f)
-{
+bool RemovePhoneDisambiguators::addInput(AutomatonRef f) {
     if (nDisambiguators_ < 0 && !DisambiguatorDependentOperation::addInput(f)) {
         DisambiguatorDependentOperation::error("disambiguator count required");
         return false;
@@ -387,9 +374,7 @@ bool RemovePhoneDisambiguators::addInput(AutomatonRef f)
     return SleeveOperation::addInput(f);
 }
 
-
-Operation::AutomatonRef RemovePhoneDisambiguators::process()
-{
+Operation::AutomatonRef RemovePhoneDisambiguators::process() {
     log("removing phone disambiguators");
     u32 disambiguatorOffset = input_->getIntAttribute(BuildLexicon::attrDisambiguatorOffset);
     log("using disambiguator offset %d", disambiguatorOffset);
@@ -399,19 +384,16 @@ Operation::AutomatonRef RemovePhoneDisambiguators::process()
     return input_;
 }
 
-
-Operation::AutomatonRef PushOutputLabels::process()
-{
+Operation::AutomatonRef PushOutputLabels::process() {
     log("pushing output labels");
     pushOutputLabels(input_);
     return input_;
 }
 
 const Core::ParameterString CheckLabels::paramStateSequences(
-    "state-sequences", "state sequences file", "");
+        "state-sequences", "state sequences file", "");
 
-Operation::AutomatonRef CheckLabels::process()
-{
+Operation::AutomatonRef CheckLabels::process() {
     log("checking labels");
     std::string stateSequences = paramStateSequences(config);
     log("loading state sequences: %s", stateSequences.c_str());
@@ -420,9 +402,9 @@ Operation::AutomatonRef CheckLabels::process()
         criticalError("cannot read state sequences");
     for (OpenFst::StateIterator siter(*input_); !siter.Done(); siter.Next()) {
         for (OpenFst::ArcIterator aiter(*input_, siter.Value()); !aiter.Done(); aiter.Next()) {
-            const OpenFst::Arc &arc = aiter.Value();
-            if (arc.olabel != OpenFst::Epsilon &&arc.ilabel != OpenFst::Epsilon) {
-                const StateSequence &ss = ssl[arc.ilabel - 1];
+            const OpenFst::Arc& arc = aiter.Value();
+            if (arc.olabel != OpenFst::Epsilon && arc.ilabel != OpenFst::Epsilon) {
+                const StateSequence& ss = ssl[arc.ilabel - 1];
                 if (!ss.isFinal()) {
                     log("invalid arc labels: state=%d output=%d, input=%d, initial=%d, final=%d",
                         siter.Value(), arc.olabel, arc.ilabel, ss.isInitial(), ss.isFinal());
@@ -433,25 +415,22 @@ Operation::AutomatonRef CheckLabels::process()
     return input_;
 }
 
-
 const Core::ParameterFloat AddNonWordTokens::paramWeight(
-    "weight", "weight used for non-word tokens", 0.0);
+        "weight", "weight used for non-word tokens", 0.0);
 const Core::ParameterStringVector AddNonWordTokens::paramNonWordLemmas(
-    "non-word-lemmas", "non-word lemma symbols", ",");
+        "non-word-lemmas", "non-word lemma symbols", ",");
 const Core::ParameterBool AddNonWordTokens::paramAllStates(
-    "all-states", "add loop transitions to all states", true);
+        "all-states", "add loop transitions to all states", true);
 const Core::ParameterBool AddNonWordTokens::paramInitialState(
-    "initial-state", "add loop transitions to the initial state", false);
+        "initial-state", "add loop transitions to the initial state", false);
 const Core::ParameterBool AddNonWordTokens::paramFinalState(
-    "final-state", "add loop transitions to the final states", false);
+        "final-state", "add loop transitions to the final states", false);
 const Core::ParameterBool AddNonWordTokens::paramUnigramState(
-    "unigram-state", "add loop transitions to the unigram state", false);
+        "unigram-state", "add loop transitions to the unigram state", false);
 const Core::ParameterBool AddNonWordTokens::paramRenormalize(
-    "renormalize", "renormalize weights of modified states", false);
+        "renormalize", "renormalize weights of modified states", false);
 
-
-void AddNonWordTokens::addArcs(OpenFst::StateId s, f32 weight, const std::vector<OpenFst::Label> &labels)
-{
+void AddNonWordTokens::addArcs(OpenFst::StateId s, f32 weight, const std::vector<OpenFst::Label>& labels) {
     for (std::vector<OpenFst::Label>::const_iterator l = labels.begin(); l != labels.end(); ++l) {
         input_->AddArc(s, OpenFst::Arc(*l, *l, OpenFst::Weight(weight), s));
     }
@@ -460,59 +439,54 @@ void AddNonWordTokens::addArcs(OpenFst::StateId s, f32 weight, const std::vector
     }
 }
 
-void AddNonWordTokens::renormalizeWeights(OpenFst::StateId s)
-{
+void AddNonWordTokens::renormalizeWeights(OpenFst::StateId s) {
     typedef FstLib::LogWeight LogWeight;
-    LogWeight sum = LogWeight::Zero();
+    LogWeight                 sum = LogWeight::Zero();
     for (OpenFst::ArcIterator aiter(*input_, s); !aiter.Done(); aiter.Next())
         sum = FstLib::Plus(sum, LogWeight(aiter.Value().weight.Value()));
     for (OpenFst::MutableArcIterator aiter(input_, s); !aiter.Done(); aiter.Next()) {
         OpenFst::Arc arc = aiter.Value();
-        arc.weight = OpenFst::Weight(FstLib::Divide(LogWeight(arc.weight.Value()), sum).Value());
+        arc.weight       = OpenFst::Weight(FstLib::Divide(LogWeight(arc.weight.Value()), sum).Value());
         aiter.SetValue(arc);
     }
 }
 
-OpenFst::Label AddNonWordTokens::getLabel(const Bliss::Lemma *lemma) const
-{
+OpenFst::Label AddNonWordTokens::getLabel(const Bliss::Lemma* lemma) const {
     Fsa::LabelId label = Fsa::InvalidLabelId;
     switch (outputType()) {
-    case outputLemmas: {
-        label = lemma->id();
-    }
-    break;
-    case outputLemmaPronunciations: {
-        verify(lemma->nPronunciations() == 1);
-        Bliss::Lemma::LemmaPronunciationRange pron = lemma->pronunciations();
-        label = resources_.lexicon()->lemmaPronunciationAlphabet()->index(
-            pron.first);
-    }
-    break;
-    case outputSyntacticTokens: {
-        const Bliss::SyntacticTokenSequence &tokens = lemma->syntacticTokenSequence();
-        if (tokens.isEpsilon()) {
-            warning("adding empty syntactic token for %s", lemma->symbol().str());
-            label = Fsa::Epsilon;
-        } else {
-            verify(tokens.length() == 1);
-            label = (*tokens.begin())->id();
-        }
-    }
-    break;
-    default:
-        defect();
+        case outputLemmas: {
+            label = lemma->id();
+        } break;
+        case outputLemmaPronunciations: {
+            verify(lemma->nPronunciations() == 1);
+            Bliss::Lemma::LemmaPronunciationRange pron = lemma->pronunciations();
+            label                                      = resources_.lexicon()->lemmaPronunciationAlphabet()->index(
+                    pron.first);
+        } break;
+        case outputSyntacticTokens: {
+            const Bliss::SyntacticTokenSequence& tokens = lemma->syntacticTokenSequence();
+            if (tokens.isEpsilon()) {
+                warning("adding empty syntactic token for %s", lemma->symbol().str());
+                label = Fsa::Epsilon;
+            }
+            else {
+                verify(tokens.length() == 1);
+                label = (*tokens.begin())->id();
+            }
+        } break;
+        default:
+            defect();
     }
     return OpenFst::convertLabelFromFsa(label);
 }
 
-void AddNonWordTokens::getLabels(const std::vector<std::string> &lemmas,
-                                 std::vector<OpenFst::Label> &labels) const
-{
-    Core::Ref<const Bliss::Lexicon> lexicon = resources_.lexicon();
-    Core::Ref<const Bliss::LemmaAlphabet> li = lexicon->lemmaAlphabet();
+void AddNonWordTokens::getLabels(const std::vector<std::string>& lemmas,
+                                 std::vector<OpenFst::Label>&    labels) const {
+    Core::Ref<const Bliss::Lexicon>       lexicon = resources_.lexicon();
+    Core::Ref<const Bliss::LemmaAlphabet> li      = lexicon->lemmaAlphabet();
     for (std::vector<std::string>::const_iterator symbol = lemmas.begin();
-            symbol != lemmas.end(); ++symbol) {
-        const Bliss::Lemma *lemma = lexicon->lemma(*symbol);
+         symbol != lemmas.end(); ++symbol) {
+        const Bliss::Lemma* lemma = lexicon->lemma(*symbol);
         if (!lemma) {
             criticalError("unknown lemma symbol: '%s'", symbol->c_str());
             return;
@@ -522,10 +496,9 @@ void AddNonWordTokens::getLabels(const std::vector<std::string> &lemmas,
     }
 }
 
-OpenFst::StateId AddNonWordTokens::getFinalState() const
-{
-    bool moreThanOne = false;
-    OpenFst::StateId state = OpenFst::findFinalState(*input_, &moreThanOne);
+OpenFst::StateId AddNonWordTokens::getFinalState() const {
+    bool             moreThanOne = false;
+    OpenFst::StateId state       = OpenFst::findFinalState(*input_, &moreThanOne);
     if (moreThanOne)
         error("expected only one final state (sentence end)");
     if (state == OpenFst::InvalidStateId) {
@@ -534,13 +507,12 @@ OpenFst::StateId AddNonWordTokens::getFinalState() const
     return state;
 }
 
-OpenFst::StateId AddNonWordTokens::getUnigramState() const
-{
-    OpenFst::StateId state = input_->Start();
+OpenFst::StateId AddNonWordTokens::getUnigramState() const {
+    OpenFst::StateId state     = input_->Start();
     OpenFst::StateId prevState = state;
     while (input_->NumInputEpsilons(state)) {
         for (OpenFst::ArcIterator aiter(*input_, state); !aiter.Done(); aiter.Next()) {
-            const OpenFst::Arc &arc = aiter.Value();
+            const OpenFst::Arc& arc = aiter.Value();
             if (arc.ilabel == OpenFst::Epsilon) {
                 state = arc.nextstate;
                 break;
@@ -555,8 +527,7 @@ OpenFst::StateId AddNonWordTokens::getUnigramState() const
     return state;
 }
 
-Operation::AutomatonRef AddNonWordTokens::process()
-{
+Operation::AutomatonRef AddNonWordTokens::process() {
     f32 weight = paramWeight(Operation::config);
     SleeveOperation::log("using weight: %f", weight);
     if (renormalize_)
@@ -568,7 +539,8 @@ Operation::AutomatonRef AddNonWordTokens::process()
         for (OpenFst::StateIterator siter(*input_); !siter.Done(); siter.Next()) {
             addArcs(siter.Value(), weight, labels);
         }
-    } else {
+    }
+    else {
         std::set<OpenFst::StateId> silenceStates;
         if (paramInitialState(Operation::config)) {
             log("adding loop arcs to initial state: %d", input_->Start());
@@ -586,7 +558,7 @@ Operation::AutomatonRef AddNonWordTokens::process()
             u32 nFinal = 0;
             for (OpenFst::StateIterator siter(*input_); !siter.Done(); siter.Next()) {
                 if (OpenFst::isFinalState(*input_, siter.Value()) &&
-                        !silenceStates.count(siter.Value())) {
+                    !silenceStates.count(siter.Value())) {
                     addArcs(siter.Value(), weight, labels);
                     ++nFinal;
                 }
@@ -597,17 +569,16 @@ Operation::AutomatonRef AddNonWordTokens::process()
     return input_;
 }
 
-Operation::AutomatonRef RemoveEmptyPath::process()
-{
+Operation::AutomatonRef RemoveEmptyPath::process() {
     log("removing empty path");
-    bool moreThanOne = false;
-    OpenFst::StateId final = OpenFst::findFinalState(*input_, &moreThanOne);
+    bool             moreThanOne = false;
+    OpenFst::StateId final       = OpenFst::findFinalState(*input_, &moreThanOne);
     if (moreThanOne)
         error("expected only one final state");
     if (final == OpenFst::InvalidStateId)
         error("no final state found");
-    OpenFst::StateId state = input_->Start();
-    OpenFst::StateId unigram = OpenFst::InvalidStateId;
+    OpenFst::StateId state        = input_->Start();
+    OpenFst::StateId unigram      = OpenFst::InvalidStateId;
     OpenFst::StateId firstUnigram = input_->AddState();
     log("new state: %d", firstUnigram);
 
@@ -620,13 +591,14 @@ Operation::AutomatonRef RemoveEmptyPath::process()
     backoffArc.nextstate = OpenFst::InvalidStateId;
     verify(input_->NumInputEpsilons(state) <= 2);
     for (OpenFst::MutableArcIterator aiter(input_, state); !aiter.Done(); aiter.Next()) {
-        const OpenFst::Arc &arc = aiter.Value();
+        const OpenFst::Arc& arc = aiter.Value();
         if (arc.nextstate != final) {
             if (arc.ilabel == OpenFst::Epsilon)
                 backoffArc = arc;
             else
                 newArcs.push_back(arc);
-        } else {
+        }
+        else {
             verify(arc.ilabel == OpenFst::Epsilon);
         }
     }
@@ -642,7 +614,7 @@ Operation::AutomatonRef RemoveEmptyPath::process()
     // except for the epsilon arc to the final state (sentence end)
     verify(input_->NumInputEpsilons(unigram) <= 1);
     for (OpenFst::MutableArcIterator aiter(input_, unigram); !aiter.Done(); aiter.Next()) {
-        const OpenFst::Arc &arc = aiter.Value();
+        const OpenFst::Arc& arc = aiter.Value();
         if (arc.nextstate != final) {
             verify(arc.ilabel != OpenFst::Epsilon);
             input_->AddArc(firstUnigram, arc);
@@ -652,20 +624,21 @@ Operation::AutomatonRef RemoveEmptyPath::process()
 }
 
 const Core::ParameterString CreateSubwordGrammar::paramSubwordList(
-    "subword-list", "file with one subword token per line", "");
+        "subword-list", "file with one subword token per line", "");
 const Core::ParameterString CreateSubwordGrammar::paramTransitionSymbol(
-    "transition-symbol", "symbol which activates the subword LM", "[UNKNOWN]");
+        "transition-symbol", "symbol which activates the subword LM", "[UNKNOWN]");
 
-bool CreateSubwordGrammar::readSubwordList(const std::string &filename)
-{
+bool CreateSubwordGrammar::readSubwordList(const std::string& filename) {
     Core::Ref<const Bliss::SyntacticTokenAlphabet> synt =
             resources_.lexicon()->syntacticTokenAlphabet();
     Core::CompressedInputStream cin(filename);
-    if (!cin) return false;
+    if (!cin)
+        return false;
     while (cin) {
         std::string symbol;
         cin >> symbol;
-        if (symbol.empty()) continue;
+        if (symbol.empty())
+            continue;
         Fsa::LabelId syntacticId = synt->index(symbol);
         if (syntacticId == Fsa::InvalidLabelId) {
             error("unknown symbol: '%s'", symbol.c_str());
@@ -679,9 +652,8 @@ bool CreateSubwordGrammar::readSubwordList(const std::string &filename)
     return true;
 }
 
-bool CreateSubwordGrammar::addLemma(Fsa::LabelId synt)
-{
-    const Bliss::SyntacticToken *st = resources_.lexicon()->syntacticTokenAlphabet()->syntacticToken(synt);
+bool CreateSubwordGrammar::addLemma(Fsa::LabelId synt) {
+    const Bliss::SyntacticToken* st = resources_.lexicon()->syntacticTokenAlphabet()->syntacticToken(synt);
     verify(st);
     Bliss::SyntacticToken::LemmaIterator lemma, lend;
     Core::tie(lemma, lend) = st->lemmas();
@@ -695,11 +667,10 @@ bool CreateSubwordGrammar::addLemma(Fsa::LabelId synt)
     return true;
 }
 
-bool CreateSubwordGrammar::addLemmaPronunciation(Fsa::LabelId lemma)
-{
+bool CreateSubwordGrammar::addLemmaPronunciation(Fsa::LabelId lemma) {
     verify(outputType() == outputLemmaPronunciations);
     Core::Ref<const Bliss::LemmaAlphabet> lemmas = resources_.lexicon()->lemmaAlphabet();
-    const Bliss::Lemma *l = lemmas->lemma(lemma);
+    const Bliss::Lemma*                   l      = lemmas->lemma(lemma);
     verify(l);
     Bliss::Lemma::PronunciationIterator pron, pend;
     Core::tie(pron, pend) = l->pronunciations();
@@ -709,17 +680,17 @@ bool CreateSubwordGrammar::addLemmaPronunciation(Fsa::LabelId lemma)
     return true;
 }
 
-Operation::AutomatonRef CreateSubwordGrammar::process()
-{
+Operation::AutomatonRef CreateSubwordGrammar::process() {
     const std::string subwordFile = paramSubwordList(Operation::config);
     log("reading subword list: %s", subwordFile.c_str());
     if (!readSubwordList(subwordFile)) {
         error("cannot read subword list");
         return input_;
-    } else {
+    }
+    else {
         log("%zd subword tokens", subwordTokens_.size());
     }
-    const OpenFst::SymbolTable *symbols = input_->OutputSymbols();
+    const OpenFst::SymbolTable* symbols = input_->OutputSymbols();
     if (!symbols) {
         error("symbol table is required");
         return input_;
@@ -730,27 +701,27 @@ Operation::AutomatonRef CreateSubwordGrammar::process()
     input_->SetFinal(newStart, OpenFst::Weight::One());
     Core::Ref<const Fsa::Alphabet> alphabet;
     switch (outputType()) {
-    case outputSyntacticTokens:
-        alphabet = resources_.lexicon()->syntacticTokenAlphabet();
-        break;
-    case outputLemmas:
-        alphabet = resources_.lexicon()->lemmaAlphabet();
-        break;
-    case outputLemmaPronunciations:
-        alphabet = resources_.lexicon()->lemmaPronunciationAlphabet();
-        break;
+        case outputSyntacticTokens:
+            alphabet = resources_.lexicon()->syntacticTokenAlphabet();
+            break;
+        case outputLemmas:
+            alphabet = resources_.lexicon()->lemmaAlphabet();
+            break;
+        case outputLemmaPronunciations:
+            alphabet = resources_.lexicon()->lemmaPronunciationAlphabet();
+            break;
     }
     const std::string transitionSymbol = paramTransitionSymbol(Operation::config);
-    Fsa::LabelId transitionLabel = alphabet->index(transitionSymbol);
+    Fsa::LabelId      transitionLabel  = alphabet->index(transitionSymbol);
     if (transitionLabel == Fsa::InvalidLabelId) {
         error("unknown transition symbol '%s'", transitionSymbol.c_str());
         return input_;
     }
 
     for (Fsa::Alphabet::const_iterator t = alphabet->begin(); t != alphabet->end(); ++t) {
-        Fsa::LabelId id = t;
-        const std::string symbol = *t;
-        const bool isSubword = subwordTokens_.count(id);
+        Fsa::LabelId      id        = t;
+        const std::string symbol    = *t;
+        const bool        isSubword = subwordTokens_.count(id);
         if (!isSubword && !symbol.empty() && id != transitionLabel) {
             OpenFst::Label label = OpenFst::convertLabelFromFsa(id);
             if (input_->InputSymbols() && input_->InputSymbols()->Find(label).empty())
@@ -760,14 +731,15 @@ Operation::AutomatonRef CreateSubwordGrammar::process()
     }
     for (OpenFst::StateIterator siter(*input_); !siter.Done(); siter.Next()) {
         OpenFst::StateId state = siter.Value();
-        if (state == newStart) continue;
+        if (state == newStart)
+            continue;
         if (OpenFst::isFinalState(*input_, state)) {
             input_->AddArc(state, OpenFst::Arc(OpenFst::Epsilon, OpenFst::Epsilon, OpenFst::Weight::One(), newStart));
             input_->SetFinal(state, OpenFst::Weight::Zero());
         }
         for (OpenFst::MutableArcIterator aiter(input_, state); !aiter.Done(); aiter.Next()) {
             OpenFst::Arc arc = aiter.Value();
-            arc.ilabel = OpenFst::Epsilon;
+            arc.ilabel       = OpenFst::Epsilon;
             aiter.SetValue(arc);
         }
     }
@@ -778,8 +750,7 @@ Operation::AutomatonRef CreateSubwordGrammar::process()
     return input_;
 }
 
-Operation::AutomatonRef ContextBuilder::process()
-{
+Operation::AutomatonRef ContextBuilder::process() {
     const int initialPhoneOffset =
             input_->getIntAttribute(BuildLexicon::attrInitialPhoneOffset);
     verify(initialPhoneOffset != Automaton::InvalidIntAttribute);
@@ -795,7 +766,7 @@ Operation::AutomatonRef ContextBuilder::process()
     log("using %d disambiguators", nDisambiguators);
 
     ContextTransducerBuilder tb(select("context-builder"),
-                                        resources_.acousticModel(), resources_.lexicon());
+                                resources_.acousticModel(), resources_.lexicon());
     tb.setDisambiguators(nDisambiguators, disambiguatorOffset);
     tb.setInitialPhoneOffset(initialPhoneOffset);
     tb.setWordDisambiguators(disambiguatorOffset);
@@ -811,9 +782,7 @@ Operation::AutomatonRef ContextBuilder::process()
     return result;
 }
 
-
-Operation::AutomatonRef HmmBuilder::process()
-{
+Operation::AutomatonRef HmmBuilder::process() {
     log("using %d disambiguators", nDisambiguators_);
     Core::Ref<Am::TransducerBuilder> tb = resources_.acousticModel()->createTransducerBuilder();
     tb->setDisambiguators(nDisambiguators_);
@@ -827,13 +796,11 @@ Operation::AutomatonRef HmmBuilder::process()
     return result;
 }
 
-
 const Core::ParameterString CreateStateSequences::paramFilename(
         "filename",
         "file name of the state sequences of the search network", "");
 
-bool CreateStateSequences::precondition() const
-{
+bool CreateStateSequences::precondition() const {
     if (filename_.empty()) {
         warning("no file name for state sequences");
         return false;
@@ -841,16 +808,15 @@ bool CreateStateSequences::precondition() const
     return SleeveOperation::precondition();
 }
 
-Operation::AutomatonRef CreateStateSequences::process()
-{
+Operation::AutomatonRef CreateStateSequences::process() {
     log("creating state sequencs");
     StateSequenceBuilder builder(select("state-sequences"), resources_.acousticModel(), resources_.lexicon());
-    u32 nDisambiguators = input_->getIntAttribute(Automaton::attrNumDisambiguators);
+    u32                  nDisambiguators = input_->getIntAttribute(Automaton::attrNumDisambiguators);
     verify(nDisambiguators != Automaton::InvalidIntAttribute);
     log("using %d disambiguators", nDisambiguators);
     builder.setNumDisambiguators(nDisambiguators);
     builder.build();
-    StateSequenceList *states = builder.createStateSequenceList();
+    StateSequenceList* states = builder.createStateSequenceList();
     log("number of states sequences: %d", static_cast<int>(states->size()));
     log("writing state sequences to %s", filename_.c_str());
     states->write(filename_);
@@ -859,15 +825,14 @@ Operation::AutomatonRef CreateStateSequences::process()
     return input_;
 }
 
-
 const Core::ParameterBool NonWordDependentOperation::paramAddNonWords(
-    "add-non-words", "consider non-word state sequences", false);
+        "add-non-words", "consider non-word state sequences", false);
 
-u32 NonWordDependentOperation::numSpecialSymbols() const
-{
+u32 NonWordDependentOperation::numSpecialSymbols() const {
     if (!addNonWords_) {
         return 0;
-    } else {
+    }
+    else {
         NonWordTokens nonWordTokens(select("non-word-tokens"), *resources_.lexicon());
         nonWordTokens.init();
         u32 nNonWordModels = nonWordTokens.phones().size();
@@ -876,45 +841,42 @@ u32 NonWordDependentOperation::numSpecialSymbols() const
     }
 }
 
-
 const Core::ParameterString Factorize::paramStateSequences(
-    "state-sequences", "state sequences file", "");
+        "state-sequences", "state sequences file", "");
 const Core::ParameterString Factorize::paramNewStateSequences(
-    "new-state-sequences", "new state sequences file", "");
+        "new-state-sequences", "new state sequences file", "");
 
-
-Operation::AutomatonRef Factorize::process()
-{
+Operation::AutomatonRef Factorize::process() {
     std::string stateSequencesFile = paramStateSequences(config);
     log("loading state sequences: %s", stateSequencesFile.c_str());
     StateSequenceList ssl;
     if (!ssl.read(stateSequencesFile))
         criticalError("cannot read state sequences");
     log("# state sequences: %d", u32(ssl.size()));
-    u32 nSpecialTokens = numSpecialSymbols();
-    u32 specialTokenOffset = ssl.size() - nSpecialTokens;
+    u32                  nSpecialTokens     = numSpecialSymbols();
+    u32                  specialTokenOffset = ssl.size() - nSpecialTokens;
     TiedStateSequenceMap newLabels;
 
     OpenFst::InDegree<OpenFst::Arc> inDegree(*input_);
-    std::stack<OpenFst::StateId> queue;
+    std::stack<OpenFst::StateId>    queue;
     queue.push(input_->Start());
     std::vector<bool> visited(input_->NumStates(), false);
-    visited[queue.top()]  = true;
+    visited[queue.top()] = true;
     while (!queue.empty()) {
         OpenFst::StateId s = queue.top();
         queue.pop();
         for (OpenFst::MutableArcIterator ai(input_, s); !ai.Done(); ai.Next()) {
-            OpenFst::Arc arc = ai.Value();
+            OpenFst::Arc  arc = ai.Value();
             StateSequence seq;
-            s32 seqIndex = -1;
+            s32           seqIndex = -1;
             if (arc.ilabel != OpenFst::Epsilon) {
                 seqIndex = OpenFst::convertLabelToFsa(arc.ilabel);
-                seq = ssl[seqIndex];
+                seq      = ssl[seqIndex];
             }
-            OpenFst::StateId ns = arc.nextstate;
-            OpenFst::Label output = arc.olabel;
-            OpenFst::Label newOutput = output;
-            OpenFst::Weight weight = arc.weight;
+            OpenFst::StateId ns        = arc.nextstate;
+            OpenFst::Label   output    = arc.olabel;
+            OpenFst::Label   newOutput = output;
+            OpenFst::Weight  weight    = arc.weight;
             while (inDegree[ns] == 1 && !seq.isFinal() && seqIndex < specialTokenOffset) {
                 if (OpenFst::isFinalState(*input_, ns))
                     break;
@@ -933,7 +895,8 @@ Operation::AutomatonRef Factorize::process()
                     if (nextSeqIndex >= specialTokenOffset)
                         break;
                     StateSequence nextSeq = ssl[nextSeqIndex];
-                    if (nextSeq.isFinal()) seq.setFinal();
+                    if (nextSeq.isFinal())
+                        seq.setFinal();
                     if (nextSeq.isInitial()) {
                         seq.setInitial();
                         verify_eq(seq.nStates(), 0);
@@ -943,7 +906,7 @@ Operation::AutomatonRef Factorize::process()
                 }
                 output = newOutput;
                 weight = FstLib::Times(weight, nextArc.weight);
-                ns = nextArc.nextstate;
+                ns     = nextArc.nextstate;
             }
             arc.nextstate = ns;
             if (seq.nStates()) {
@@ -982,38 +945,40 @@ Operation::AutomatonRef Factorize::process()
 }
 
 const Core::ParameterString ExpandStates::paramStateSequences(
-    "state-sequences", "state sequences file", "");
+        "state-sequences", "state sequences file", "");
 const Core::ParameterString ExpandStates::paramNewStateSequences(
-    "new-state-sequences", "new state sequences file", "");
+        "new-state-sequences", "new state sequences file", "");
 
-Operation::AutomatonRef ExpandStates::process()
-{
+Operation::AutomatonRef ExpandStates::process() {
     std::string stateSequences = paramStateSequences(config);
     log("loading state sequences: %s", stateSequences.c_str());
     StateSequenceList ssl;
     if (!ssl.read(stateSequences))
         criticalError("cannot read state sequences");
-    u32 nSpecialTokens = numSpecialSymbols();
-    u32 specialTokenOffset = ssl.size() - nSpecialTokens;
-    StateSequenceList newSsl;
-    TiedStateSequenceMap sequences;
+    u32                        nSpecialTokens     = numSpecialSymbols();
+    u32                        specialTokenOffset = ssl.size() - nSpecialTokens;
+    StateSequenceList          newSsl;
+    TiedStateSequenceMap       sequences;
     std::vector<StateSequence> specialSequences;
-    OpenFst::StateId nStates = input_->NumStates();
+    OpenFst::StateId           nStates = input_->NumStates();
     for (OpenFst::StateId state = 0; state < nStates; ++state) {
         for (OpenFst::MutableArcIterator aiter(input_, state); !aiter.Done(); aiter.Next()) {
-            const OpenFst::Arc &arc = aiter.Value();
-            if (arc.ilabel == OpenFst::Epsilon || StateSequenceBuilder::isDisambiguator(arc.ilabel)) continue;
-            s32 seqIndex = OpenFst::convertLabelToFsa(arc.ilabel);
-            const StateSequence &ss = ssl[seqIndex];
-            bool isRegularLabel = (seqIndex < specialTokenOffset);
-            OpenFst::Arc newArc;
+            const OpenFst::Arc& arc = aiter.Value();
+            if (arc.ilabel == OpenFst::Epsilon || StateSequenceBuilder::isDisambiguator(arc.ilabel))
+                continue;
+            s32                  seqIndex       = OpenFst::convertLabelToFsa(arc.ilabel);
+            const StateSequence& ss             = ssl[seqIndex];
+            bool                 isRegularLabel = (seqIndex < specialTokenOffset);
+            OpenFst::Arc         newArc;
             if (ss.nStates() > 1) {
                 expandArc(arc, ss, isRegularLabel, &sequences, &specialSequences, &newArc);
-            } else {
+            }
+            else {
                 newArc = arc;
                 if (isRegularLabel) {
                     newArc.ilabel = OpenFst::convertLabelFromFsa(sequences.index(ss));
-                } else {
+                }
+                else {
                     newArc.ilabel = -1 - specialSequences.size();
                     specialSequences.push_back(ss);
                 }
@@ -1041,12 +1006,11 @@ Operation::AutomatonRef ExpandStates::process()
     return input_;
 }
 
-void ExpandStates::expandArc(const OpenFst::Arc &arc, const StateSequence &ss,
-                             bool isRegularLabel,
-                             TiedStateSequenceMap *sequences,
-                             std::vector<StateSequence> *specialSequences,
-                             OpenFst::Arc *firstArc)
-{
+void ExpandStates::expandArc(const OpenFst::Arc& arc, const StateSequence& ss,
+                             bool                        isRegularLabel,
+                             TiedStateSequenceMap*       sequences,
+                             std::vector<StateSequence>* specialSequences,
+                             OpenFst::Arc*               firstArc) {
     OpenFst::StateId prevState = OpenFst::InvalidStateId;
     for (u32 s = 0; s < ss.nStates(); ++s) {
         OpenFst::Arc newArc;
@@ -1064,19 +1028,22 @@ void ExpandStates::expandArc(const OpenFst::Arc &arc, const StateSequence &ss,
             if (ss.isFinal())
                 newss.addFlag(Am::Allophone::isFinalPhone);
             newArc.nextstate = arc.nextstate;
-        } else {
+        }
+        else {
             newArc.nextstate = input_->AddState();
         }
         if (isRegularLabel || s < (ss.nStates() - 1)) {
             newArc.ilabel = OpenFst::convertLabelFromFsa(sequences->index(newss));
-        } else {
+        }
+        else {
             newArc.ilabel = -1 - specialSequences->size();
             specialSequences->push_back(newss);
         }
 
         if (s == 0) {
             *firstArc = newArc;
-        } else {
+        }
+        else {
             input_->AddArc(prevState, newArc);
         }
         prevState = newArc.nextstate;
@@ -1084,34 +1051,32 @@ void ExpandStates::expandArc(const OpenFst::Arc &arc, const StateSequence &ss,
 }
 
 const Core::ParameterString ConvertStateSequences::paramInput(
-    "hmm-list", "hmm list file", "");
+        "hmm-list", "hmm list file", "");
 const Core::ParameterString ConvertStateSequences::paramOutput(
-    "state-sequences", "state sequences filename", "");
+        "state-sequences", "state sequences filename", "");
 const Core::ParameterString ConvertStateSequences::paramHmmSymbols(
-    "hmm-symbols", "hmm symbol table", "");
+        "hmm-symbols", "hmm symbol table", "");
 const Core::ParameterString ConvertStateSequences::paramStateSymbols(
-    "state-symbols", "hmm state symbol table", "");
-
+        "state-symbols", "hmm state symbol table", "");
 
 bool ConvertStateSequences::precondition() const {
     return !(paramInput(config).empty() || paramOutput(config).empty(),
-            paramHmmSymbols(config).empty() || paramStateSymbols(config).empty());
+             paramHmmSymbols(config).empty() || paramStateSymbols(config).empty());
 }
 
-Operation::AutomatonRef ConvertStateSequences::process()
-{
-    HmmListConverter converter(config);
-    OpenFst::SymbolTable *hmmSymbols = OpenFst::SymbolTable::ReadText(paramHmmSymbols(config));
+Operation::AutomatonRef ConvertStateSequences::process() {
+    HmmListConverter      converter(config);
+    OpenFst::SymbolTable* hmmSymbols = OpenFst::SymbolTable::ReadText(paramHmmSymbols(config));
     verify(hmmSymbols);
     log("read %d hmm symbols", static_cast<u32>(hmmSymbols->NumSymbols()));
-    OpenFst::SymbolTable *stateSymbols = OpenFst::SymbolTable::ReadText(paramStateSymbols(config));
+    OpenFst::SymbolTable* stateSymbols = OpenFst::SymbolTable::ReadText(paramStateSymbols(config));
     verify(stateSymbols);
     log("read %d hmm state symbols", static_cast<u32>(stateSymbols->NumSymbols()));
     converter.setHmmSymbols(hmmSymbols);
     converter.setHmmStateSymbols(stateSymbols);
     const std::string hmmList = paramInput(config);
     log("converting hmm list %s", hmmList.c_str());
-    StateSequenceList *states = converter.creatStateSequenceList(hmmList);
+    StateSequenceList* states = converter.creatStateSequenceList(hmmList);
     verify(states);
     const std::string output = paramOutput(config);
     log("writing state sequences to %s", output.c_str());
@@ -1124,14 +1089,12 @@ Operation::AutomatonRef ConvertStateSequences::process()
     return AutomatonRef(0);
 }
 
-
 const Core::ParameterString BuildStateTree::paramStateSequencesFile(
-    "state-sequences", "state sequences filename", "");
+        "state-sequences", "state sequences filename", "");
 
-Operation::AutomatonRef BuildStateTree::process()
-{
+Operation::AutomatonRef BuildStateTree::process() {
     StateTreeConverter tree(config, resources_.lexicon(), resources_.acousticModel());
-    AutomatonRef result = new Automaton();
+    AutomatonRef       result = new Automaton();
     tree.createFst(result);
     if (!tree.writeStateSequences(paramStateSequencesFile(config)))
         error("failed to write state sequences to %s", paramStateSequencesFile(config).c_str());

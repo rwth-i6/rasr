@@ -12,14 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/ComposedNetwork.hh>
-#include <Search/Wfst/ComposeFst.hh>
-#include <Search/Wfst/LexiconFst.hh>
-#include <Search/Wfst/GrammarFst.hh>
-#include <OpenFst/Scale.hh>
 #include <Core/Application.hh>
+#include <OpenFst/Scale.hh>
+#include <Search/Wfst/ComposeFst.hh>
+#include <Search/Wfst/ComposedNetwork.hh>
+#include <Search/Wfst/GrammarFst.hh>
+#include <Search/Wfst/LexiconFst.hh>
+//#include <OpenFst/Scale.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 const Core::ParameterString ComposedNetwork::paramNetworkLeft_(
         "file-left", "left automaton for composition", "");
@@ -42,16 +44,11 @@ const Core::ParameterChoice ComposedNetwork::paramGrammarType_(
         "grammar-type", &choiceGrammarType_, "type of the right automaton",
         AbstractGrammarFst::TypeVector);
 
-
-ComposedNetwork::ComposedNetwork(const Core::Configuration &c) :
-    Precursor(c), l_(0), r_(0), stateTable_(0),
-    resetCount_(0), resetInterval_(paramResetInterval_(config)),
-    cacheSize_(paramStateCache_(config))
-{
+ComposedNetwork::ComposedNetwork(const Core::Configuration& c)
+        : Precursor(c), l_(0), r_(0), stateTable_(0), resetCount_(0), resetInterval_(paramResetInterval_(config)), cacheSize_(paramStateCache_(config)) {
 }
 
-ComposedNetwork::~ComposedNetwork()
-{
+ComposedNetwork::~ComposedNetwork() {
     delete r_;
     delete l_;
     if (stateTable_)
@@ -60,8 +57,7 @@ ComposedNetwork::~ComposedNetwork()
     // fst_ is deleted by destructor of FstNetwork
 }
 
-bool ComposedNetwork::init()
-{
+bool ComposedNetwork::init() {
     logMemoryUsage();
     createG();
     logMemoryUsage();
@@ -72,11 +68,10 @@ bool ComposedNetwork::init()
     return r_ && l_;
 }
 
-void ComposedNetwork::createG()
-{
-    AbstractGrammarFst::GrammarType t = static_cast<AbstractGrammarFst::GrammarType>(paramGrammarType_(config));
-    const std::string &mainFile = paramNetworkRight_(config);
-    r_ = AbstractGrammarFst::create(t, select("grammar-fst"));
+void ComposedNetwork::createG() {
+    AbstractGrammarFst::GrammarType t        = static_cast<AbstractGrammarFst::GrammarType>(paramGrammarType_(config));
+    const std::string&              mainFile = paramNetworkRight_(config);
+    r_                                       = AbstractGrammarFst::create(t, select("grammar-fst"));
     ensure(r_);
     r_->setLexicon(lexicon_);
     Core::Application::us()->log("reading G: %s", mainFile.c_str());
@@ -85,16 +80,14 @@ void ComposedNetwork::createG()
     }
 }
 
-void ComposedNetwork::createL()
-{
+void ComposedNetwork::createL() {
     const std::string filename = paramNetworkLeft_(config);
     log("reading CL: %s", filename.c_str());
     AbstractGrammarFst::GrammarType gtype = static_cast<AbstractGrammarFst::GrammarType>(paramGrammarType_(config));
-    l_ = LexicalFstFactory(select("lexicon-fst")).load(filename, gtype, r_);
+    l_                                    = LexicalFstFactory(select("lexicon-fst")).load(filename, gtype, r_);
 }
 
-void ComposedNetwork::reset()
-{
+void ComposedNetwork::reset() {
     if (++resetCount_ < resetInterval_) {
         return;
     }
@@ -106,7 +99,6 @@ void ComposedNetwork::reset()
     delete f_;
     log("creating composed fst");
     logMemoryUsage();
-    // const FstLib::StdFst *g = r_->getFst();
     f_ = l_->compose(*r_, cacheSize_, &stateTable_);
     log("composed fst. cache=%zd", cacheSize_);
     logMemoryUsage();

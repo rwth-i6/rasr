@@ -16,20 +16,20 @@
 
 using namespace Search;
 
-void ScoreDependentVectorStatistic::addValue( Score relativeStartScore, u32 offset, f32 value ) {
-  if( relativeStartScore < 0 )
-    relativeStartScore = 0;
+void ScoreDependentVectorStatistic::addValue(Score relativeStartScore, u32 offset, f32 value) {
+    if (relativeStartScore < 0)
+        relativeStartScore = 0;
 
-  if( relativeStartScore > maxRelativeScore_ )
-    relativeStartScore = maxRelativeScore_;
+    if (relativeStartScore > maxRelativeScore_)
+        relativeStartScore = maxRelativeScore_;
 
-  u32 index = (u32)( ( relativeStartScore / maxRelativeScore_ ) * granularity_ );
-  if ( index == granularity_ )
-    --index;
+    u32 index = (u32)((relativeStartScore / maxRelativeScore_) * granularity_);
+    if (index == granularity_)
+        --index;
 
-  if ( effort_[index].size() <= offset )
-    effort_[index].resize( offset + 1, std::make_pair( 0u, 0u ) );
+    if (effort_[index].size() <= offset)
+        effort_[index].resize(offset + 1, std::make_pair(0u, 0u));
 
-  ++effort_[index][offset].first;
-  effort_[index][offset].second += value;
+    ++effort_[index][offset].first;
+    effort_[index][offset].second += value;
 }

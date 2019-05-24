@@ -15,76 +15,64 @@
 #include "MinimumBayesRiskSearch.hh"
 #include <Fsa/Best.hh>
 
-namespace Search
-{
-    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-    /*                                                                                 */
-    /*                 MinimumBayesRiskSearch                                          */
-    /*                                                                                 */
-    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+namespace Search {
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/*                                                                                 */
+/*                 MinimumBayesRiskSearch                                          */
+/*                                                                                 */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-    MinimumBayesRiskSearch::MinimumBayesRiskSearch(
-        const Core::Configuration &config) :
-        Component(config),
-        fsa_(Fsa::ConstAutomatonRef()),
-        bestAutomaton_(Fsa::ConstAutomatonRef()),
-        evaluationSpaceSize_(0),
-        summationSpaceSize_(0),
-        numberEvaluations_(0),
-        numberComputations_(0),
-        statisticsChannel_(config, "statistics")
-    {}
+MinimumBayesRiskSearch::MinimumBayesRiskSearch(const Core::Configuration& config)
+        : Component(config),
+          fsa_(Fsa::ConstAutomatonRef()),
+          bestAutomaton_(Fsa::ConstAutomatonRef()),
+          evaluationSpaceSize_(0),
+          summationSpaceSize_(0),
+          numberEvaluations_(0),
+          numberComputations_(0),
+          statisticsChannel_(config, "statistics") {}
 
-    u32 MinimumBayesRiskSearch::getEvaluationSpaceSize() const
-    {
-        return evaluationSpaceSize_;
+u32 MinimumBayesRiskSearch::getEvaluationSpaceSize() const {
+    return evaluationSpaceSize_;
+}
+
+u32 MinimumBayesRiskSearch::getSummationSpaceSize() const {
+    return summationSpaceSize_;
+}
+
+u32 MinimumBayesRiskSearch::getNumberEvaluations() const {
+    return numberEvaluations_;
+}
+
+u32 MinimumBayesRiskSearch::getNumberComputations() const {
+    return numberComputations_;
+}
+
+void MinimumBayesRiskSearch::performSearch(Fsa::ConstAutomatonRef fsa) {
+    if (statisticsChannel_.isOpen()) {
+        statisticsChannel_ << Core::XmlFull("evaluation-space-size", getEvaluationSpaceSize());
+        statisticsChannel_ << Core::XmlFull("summation-space-size", getSummationSpaceSize());
+
+        statisticsChannel_ << Core::XmlFull("number-evaluations", getNumberEvaluations());
+        statisticsChannel_ << Core::XmlFull("number-computations", getNumberComputations());
     }
+}
 
-    u32 MinimumBayesRiskSearch::getSummationSpaceSize() const
-    {
-        return summationSpaceSize_;
-    }
+Fsa::ConstAutomatonRef MinimumBayesRiskSearch::getBestAutomaton() const {
+    return bestAutomaton_;
+}
 
-    u32 MinimumBayesRiskSearch::getNumberEvaluations() const
-    {
-        return numberEvaluations_;
-    }
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/*                                                                                 */
+/*                 MinimumBayesRiskMapSearch                                       */
+/*                                                                                 */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-    u32 MinimumBayesRiskSearch::getNumberComputations() const
-    {
-        return numberComputations_;
-    }
+MinimumBayesRiskMapSearch::MinimumBayesRiskMapSearch(const Core::Configuration& config)
+        : MinimumBayesRiskSearch(config) {}
 
-    void MinimumBayesRiskSearch::performSearch(Fsa::ConstAutomatonRef fsa)
-    {
-        if (statisticsChannel_.isOpen()) {
-            statisticsChannel_ << Core::XmlFull("evaluation-space-size", getEvaluationSpaceSize());
-            statisticsChannel_ << Core::XmlFull("summation-space-size",  getSummationSpaceSize());
+void MinimumBayesRiskMapSearch::performSearch(Fsa::ConstAutomatonRef fsa) {
+    bestAutomaton_ = Fsa::best(fsa);
+}
 
-            statisticsChannel_ << Core::XmlFull("number-evaluations",  getNumberEvaluations());
-            statisticsChannel_ << Core::XmlFull("number-computations", getNumberComputations());
-        }
-    }
-
-    Fsa::ConstAutomatonRef MinimumBayesRiskSearch::getBestAutomaton() const
-    {
-        return bestAutomaton_;
-    }
-
-    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-    /*                                                                                 */
-    /*                 MinimumBayesRiskMapSearch                                       */
-    /*                                                                                 */
-    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-    MinimumBayesRiskMapSearch::MinimumBayesRiskMapSearch(
-        const Core::Configuration &config) :
-        MinimumBayesRiskSearch(config)
-    {}
-
-    void MinimumBayesRiskMapSearch::performSearch(Fsa::ConstAutomatonRef fsa)
-    {
-        bestAutomaton_ = Fsa::best(fsa);
-    }
-
-}//end namespace Search
+}  //end namespace Search

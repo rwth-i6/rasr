@@ -14,39 +14,37 @@
  */
 #ifndef _SEARCH_MODULE_HH
 #define _SEARCH_MODULE_HH
-#include <Core/Singleton.hh>
 #include <Core/Factory.hh>
+#include <Core/Singleton.hh>
 #include <Search/Wfst/Builder.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
-class Module_
-{
+class Module_ {
 public:
     Module_();
 
-    class BuilderFactory :
-        public Core::Factory<Builder::Operation,
-                             Builder::Operation* (*)(const Core::Configuration&, Builder::Resources&),
-                             std::string>
-    {
+    class BuilderFactory : public Core::Factory<Builder::Operation,
+                                                Builder::Operation* (*)(const Core::Configuration&, Builder::Resources&),
+                                                std::string> {
     public:
         typedef Builder::Operation* Result;
         typedef Result (*CreationFunction)(const Core::Configuration&, Builder::Resources&);
         typedef std::string Identifier;
 
     public:
-         Result getObject(const Identifier &id, const Core::Configuration &c, Builder::Resources &r) const {
-             CreationFunction create = getCreationFunction(id);
-             if(create)
-                 return create(c, r);
-             else
-                 return 0;
-         }
-         template<class T>
-         static Result create(const Core::Configuration &c, Builder::Resources &r) {
-             return new T(c, r);
-         }
+        Result getObject(const Identifier& id, const Core::Configuration& c, Builder::Resources& r) const {
+            CreationFunction create = getCreationFunction(id);
+            if (create)
+                return create(c, r);
+            else
+                return 0;
+        }
+        template<class T>
+        static Result create(const Core::Configuration& c, Builder::Resources& r) {
+            return new T(c, r);
+        }
     };
 
 private:
@@ -57,20 +55,19 @@ private:
     }
 
 public:
-    Builder::Operation* getBuilderOperation(const std::string &id,
-            const Core::Configuration &c, Builder::Resources &r) const {
-        return builderFactory_.getObject(id, c , r);
+    Builder::Operation* getBuilderOperation(const std::string&         id,
+                                            const Core::Configuration& c, Builder::Resources& r) const {
+        return builderFactory_.getObject(id, c, r);
     }
 
     std::vector<std::string> builderOperations() const {
         return builderFactory_.identifiers();
     }
-
 };
 
 typedef Core::SingletonHolder<Module_> Module;
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif /* _SEARCH_MODULE_HH */

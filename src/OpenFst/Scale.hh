@@ -15,8 +15,10 @@
 #ifndef _OPENFST_SCALE_HH
 #define _OPENFST_SCALE_HH
 
+#include <Core/Types.hh>
 #include <fst/arc-map.h>
 #include <fst/mutable-fst.h>
+#include "Types.hh"
 
 namespace OpenFst {
 

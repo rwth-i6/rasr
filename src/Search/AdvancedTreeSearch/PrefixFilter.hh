@@ -18,39 +18,37 @@
 #include <vector>
 #include "PersistentStateTree.hh"
 
-namespace Core
-{
+namespace Core {
 class Configuration;
 }
 
-namespace Search
-{
+namespace Search {
 class PersistentStateTree;
 class SearchSpace;
 struct StateHypothesis;
 
-class PrefixFilter
-{
+class PrefixFilter {
 public:
-  // Must be initialized before the outputs are removed from the network
-  PrefixFilter( const PersistentStateTree& tree, Bliss::LexiconRef lexicon, Core::Configuration config );
-  bool prune( const StateHypothesis& hyp ) const;
-  bool haveFilter() const {
-    return prefixSequence_.size();
-  }
-private:
-  const PersistentStateTree& tree_;
-  Bliss::LexiconRef lexicon_;
-  std::vector<Bliss::Lemma*> prefixSequence_;
-  std::set<const Bliss::Lemma*> nonWordLemmas_;
-  std::vector<int> reachability_;
-  std::set<StateId> nonWordLemmaNodes_;
-  std::vector<std::set<StateId> > prefixReachability_;
+    // Must be initialized before the outputs are removed from the network
+    PrefixFilter(const PersistentStateTree& tree, Bliss::LexiconRef lexicon, Core::Configuration config);
+    bool prune(const StateHypothesis& hyp) const;
+    bool haveFilter() const {
+        return prefixSequence_.size();
+    }
 
-  void setPrefixWords( std::string prefixWords );
-  void prepareReachability();
-  bool reachable( StateId state, const Bliss::Lemma* lemma );
+private:
+    const PersistentStateTree&     tree_;
+    Bliss::LexiconRef              lexicon_;
+    std::vector<Bliss::Lemma*>     prefixSequence_;
+    std::set<const Bliss::Lemma*>  nonWordLemmas_;
+    std::vector<int>               reachability_;
+    std::set<StateId>              nonWordLemmaNodes_;
+    std::vector<std::set<StateId>> prefixReachability_;
+
+    void setPrefixWords(std::string prefixWords);
+    void prepareReachability();
+    bool reachable(StateId state, const Bliss::Lemma* lemma);
 };
-}
+}  // namespace Search
 
 #endif

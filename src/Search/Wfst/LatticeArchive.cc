@@ -14,26 +14,25 @@
  */
 #include <Core/Archive.hh>
 #include <Core/BinaryStream.hh>
+#include <OpenFst/Types.hh>
 #include <Search/Wfst/Lattice.hh>
 #include <Search/Wfst/LatticeArchive.hh>
-#include <OpenFst/Types.hh>
 #include <fst/fst.h>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 const Core::ParameterString LatticeArchive::paramPath(
         "path", "lattice archive path", "");
 
-const char *LatticeArchive::fstSuffix = ".fst";
-const char *LatticeArchive::boundariesSuffix = ".wb";
+const char* LatticeArchive::fstSuffix        = ".fst";
+const char* LatticeArchive::boundariesSuffix = ".wb";
 
-LatticeArchive::~LatticeArchive()
-{
+LatticeArchive::~LatticeArchive() {
     delete archive_;
 }
 
-bool LatticeArchive::write(const std::string &id, const Search::Wfst::Lattice *l)
-{
+bool LatticeArchive::write(const std::string& id, const Search::Wfst::Lattice* l) {
     if (!openArchive(true))
         return false;
     {
@@ -42,16 +41,15 @@ bool LatticeArchive::write(const std::string &id, const Search::Wfst::Lattice *l
             return false;
     }
     {
-        Core::ArchiveWriter writer(*archive_, id + boundariesSuffix);
+        Core::ArchiveWriter      writer(*archive_, id + boundariesSuffix);
         Core::BinaryOutputStream os(writer);
         os << l->wordBoundaries();
     }
     return true;
 }
 
-Lattice* LatticeArchive::read(const std::string &id, bool readBoundaries)
-{
-    Lattice *l = 0;
+Lattice* LatticeArchive::read(const std::string& id, bool readBoundaries) {
+    Lattice* l = 0;
     if (!openArchive(false) || !archive_->hasFile(id + fstSuffix))
         return l;
     {
@@ -59,15 +57,14 @@ Lattice* LatticeArchive::read(const std::string &id, bool readBoundaries)
         l = Lattice::Read(reader, FstLib::FstReadOptions());
     }
     if (l && readBoundaries && archive_->hasFile(id + boundariesSuffix)) {
-        Core::ArchiveReader reader(*archive_, id + boundariesSuffix);
+        Core::ArchiveReader     reader(*archive_, id + boundariesSuffix);
         Core::BinaryInputStream is(reader);
         is >> l->wordBoundaries();
     }
     return l;
 }
 
-bool LatticeArchive::openArchive(bool write)
-{
+bool LatticeArchive::openArchive(bool write) {
     Core::Archive::AccessMode mode = (write ? Core::Archive::AccessModeWrite : Core::Archive::AccessModeRead);
     if (!archive_ || !archive_->hasAccess(mode)) {
         delete archive_;
@@ -80,5 +77,5 @@ bool LatticeArchive::openArchive(bool write)
     return archive_;
 }
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search

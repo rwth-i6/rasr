@@ -15,12 +15,13 @@
 #ifndef _SEARCH_LEXICON_BUILDER_HH
 #define _SEARCH_LEXICON_BUILDER_HH
 
+#include <Bliss/Lexicon.hh>
 #include <Core/Component.hh>
 #include <Core/Hash.hh>
-#include <Bliss/Lexicon.hh>
 #include <OpenFst/Types.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class NonWordTokens;
 
@@ -56,10 +57,9 @@ class NonWordTokens;
  *      disambiguatorOffset() .. disambiguatorOffset() + nPhoneDisambiguators()
  *
  */
-class LexiconBuilder : public Core::Component
-{
+class LexiconBuilder : public Core::Component {
 public:
-    LexiconBuilder(const Core::Configuration &c, const Bliss::Lexicon &lexicon);
+    LexiconBuilder(const Core::Configuration& c, const Bliss::Lexicon& lexicon);
     ~LexiconBuilder();
 
     /**
@@ -71,7 +71,7 @@ public:
      * build the closure.
      * requires initialPhoneOffset_
      */
-    void close(OpenFst::VectorFst *lexiconTransducer, bool useEmptyTokens);
+    void close(OpenFst::VectorFst* lexiconTransducer, bool useEmptyTokens);
 
     void setGrammarDisambiguators(s32 nDisambiguators) {
         nGrammarDisambiguators_ = nDisambiguators;
@@ -119,47 +119,48 @@ private:
     struct Options;
     typedef std::unordered_map<const Bliss::Pronunciation*, int,
                                Bliss::Pronunciation::Hash,
-                               Bliss::Pronunciation::Equality> PronunciationHashMap;
+                               Bliss::Pronunciation::Equality>
+            PronunciationHashMap;
 
-    void addPronunciation(const Bliss::LemmaPronunciation *pron,
+    void addPronunciation(const Bliss::LemmaPronunciation* pron,
                           OpenFst::Label output, bool close);
 
     OpenFst::Label inputLabel(Bliss::Phoneme::Id phone,
                               bool initial = false, bool final = false) const;
-    void addDisambiguatorLoop();
-    void addNonWordLoop(OpenFst::StateId s, OpenFst::Weight w);
-    void addOptionalNonWordArcs(OpenFst::StateId from, OpenFst::StateId to);
-    void addWordDisambiguatorLabels();
-    void addBoundaryPhoneLabels(bool addFinal);
-    void addSentenceEnd(OpenFst::Label output, bool close);
-    void logSettings(bool buildClosed) const;
+    void           addDisambiguatorLoop();
+    void           addNonWordLoop(OpenFst::StateId s, OpenFst::Weight w);
+    void           addOptionalNonWordArcs(OpenFst::StateId from, OpenFst::StateId to);
+    void           addWordDisambiguatorLabels();
+    void           addBoundaryPhoneLabels(bool addFinal);
+    void           addSentenceEnd(OpenFst::Label output, bool close);
+    void           logSettings(bool buildClosed) const;
     OpenFst::Label phoneDisambiguator(u32 disambiguator);
-    void getSentenceEnd();
-    void getPronsWithoutNonWords(const std::vector<std::string> &lemmas);
+    void           getSentenceEnd();
+    void           getPronsWithoutNonWords(const std::vector<std::string>& lemmas);
 
-    const Options *options_;
-    OpenFst::VectorFst *result_;
-    OpenFst::SymbolTable *inputSymbols_, *outputSymbols_;
-    NonWordTokens *nonWordTokens_;
-    const Bliss::Lexicon &lexicon_;
-    s32 nGrammarDisambiguators_;
-    s32 phoneDisambiguatorOffset_;
-    s32 nPhoneDisambiguators_;
-    s32 initialPhoneOffset_;
-    s32 wordLabelOffset_;
-    s32 disambiguatorOffset_;
-    s32 sentenceEndLemma_;
-    OpenFst::Label silencePhone_;
-    OpenFst::StateId initialState_;
+    const Options*           options_;
+    OpenFst::VectorFst*      result_;
+    OpenFst::SymbolTable *   inputSymbols_, *outputSymbols_;
+    NonWordTokens*           nonWordTokens_;
+    const Bliss::Lexicon&    lexicon_;
+    s32                      nGrammarDisambiguators_;
+    s32                      phoneDisambiguatorOffset_;
+    s32                      nPhoneDisambiguators_;
+    s32                      initialPhoneOffset_;
+    s32                      wordLabelOffset_;
+    s32                      disambiguatorOffset_;
+    s32                      sentenceEndLemma_;
+    OpenFst::Label           silencePhone_;
+    OpenFst::StateId         initialState_;
     std::set<OpenFst::Label> pronsWithoutNonWords_;
-    PronunciationHashMap homophones_;
+    PronunciationHashMap     homophones_;
 
 public:
     static const char *initialSuffix, *finalSuffix;
-    static const char *sentenceEndSymbol;
+    static const char* sentenceEndSymbol;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif /* _SEARCH_LEXICON_BUILDER_HH */

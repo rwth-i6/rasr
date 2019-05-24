@@ -15,16 +15,16 @@
 #ifndef _SEARCH_LATTICEHANDLER_HH
 #define _SEARCH_LATTICEHANDLER_HH
 
-#include <Core/Component.hh>
 #include <Bliss/Lexicon.hh>
-#include <Search/LatticeAdaptor.hh>
+#include <Core/Component.hh>
 #include <Lattice/Lattice.hh>
+#include <Search/LatticeAdaptor.hh>
 
 namespace Lattice {
 class ArchiveReader;
 class ArchiveWriter;
 class WordLatticeAdaptor;
-}
+}  // namespace Lattice
 namespace Bliss {
 class Evaluator;
 }
@@ -44,23 +44,26 @@ class WfstLatticeAdaptor;
  * are expected to be handled by derived classes adding read/write methods
  * by applying the decorator pattern.
  */
-class LatticeHandler : public Core::Component
-{
-    static const Core::Choice choiceLatticeFormat;
+class LatticeHandler : public Core::Component {
+    static const Core::Choice          choiceLatticeFormat;
     static const Core::ParameterChoice paramLatticeFormat;
 
 protected:
-    typedef Lattice::WordLatticeAdaptor WordLatticeAdaptor;
-    typedef Flf::FlfLatticeAdaptor FlfLatticeAdaptor;
+    typedef Lattice::WordLatticeAdaptor      WordLatticeAdaptor;
+    typedef Flf::FlfLatticeAdaptor           FlfLatticeAdaptor;
     typedef Search::Wfst::WfstLatticeAdaptor WfstLatticeAdaptor;
-    typedef Lattice::ConstWordLatticeRef ConstWordLatticeRef;
-public:
-    enum LatticeFormat { formatDefault, formatFlf, formatOpenFst };
+    typedef Lattice::ConstWordLatticeRef     ConstWordLatticeRef;
 
-    LatticeHandler(const Core::Configuration &c) :
-        Core::Component(c),
-        format_(static_cast<LatticeFormat>(paramLatticeFormat(config))),
-        reader_(0), writer_(0) {}
+public:
+    enum LatticeFormat { formatDefault,
+                         formatFlf,
+                         formatOpenFst };
+
+    LatticeHandler(const Core::Configuration& c)
+            : Core::Component(c),
+              format_(static_cast<LatticeFormat>(paramLatticeFormat(config))),
+              reader_(0),
+              writer_(0) {}
     virtual ~LatticeHandler();
     virtual void setLexicon(Core::Ref<const Bliss::Lexicon> lexicon) {
         lexicon_ = lexicon;
@@ -69,31 +72,35 @@ public:
         return lexicon_;
     }
 
-    virtual bool write(const std::string &id, const WordLatticeAdaptor &l);
-    virtual bool write(const std::string &id, const FlfLatticeAdaptor &l) { return false; }
-    virtual bool write(const std::string &id, const WfstLatticeAdaptor &l) { return false; }
+    virtual bool write(const std::string& id, const WordLatticeAdaptor& l);
+    virtual bool write(const std::string& id, const FlfLatticeAdaptor& l) {
+        return false;
+    }
+    virtual bool write(const std::string& id, const WfstLatticeAdaptor& l) {
+        return false;
+    }
 
-    virtual Core::Ref<LatticeAdaptor> read(const std::string &id, const std::string &name);
+    virtual Core::Ref<LatticeAdaptor> read(const std::string& id, const std::string& name);
 
-    virtual ConstWordLatticeRef convert(const WordLatticeAdaptor &l) const;
-    virtual ConstWordLatticeRef convert(const FlfLatticeAdaptor &l) const {
+    virtual ConstWordLatticeRef convert(const WordLatticeAdaptor& l) const;
+    virtual ConstWordLatticeRef convert(const FlfLatticeAdaptor& l) const {
         return ConstWordLatticeRef();
     }
-    virtual ConstWordLatticeRef convert(const WfstLatticeAdaptor &l) const {
+    virtual ConstWordLatticeRef convert(const WfstLatticeAdaptor& l) const {
         return ConstWordLatticeRef();
     }
 
 protected:
-    LatticeFormat format_;
+    LatticeFormat                   format_;
     Core::Ref<const Bliss::Lexicon> lexicon_;
 
 private:
-    bool createReader();
-    bool createWriter();
-    Lattice::ArchiveReader *reader_;
-    Lattice::ArchiveWriter *writer_;
+    bool                    createReader();
+    bool                    createWriter();
+    Lattice::ArchiveReader* reader_;
+    Lattice::ArchiveWriter* writer_;
 };
 
-} // namespace Search {
+}  // namespace Search
 
-#endif // _SEARCH_LATTICEHANDLER_HH
+#endif  // _SEARCH_LATTICEHANDLER_HH

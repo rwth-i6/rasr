@@ -16,9 +16,9 @@
 #define CONDITIONEDTREESEARCHTRACE_HH
 
 #include <Core/ReferenceCounting.hh>
+#include <Search/Search.hh>
 #include <Search/StateTree.hh>
 #include <Search/Types.hh>
-#include <Search/Search.hh>
 #include "PathTrace.hh"
 
 namespace Search {
@@ -51,36 +51,36 @@ using AlternativeHistoryQueue = AccessiblePriorityQueue<AlternativeHistory, std:
 class Trace : public Core::ReferenceCounted,
               public SearchAlgorithm::TracebackItem {
 public:
-  Core::Ref<Trace> predecessor;
-  Core::Ref<Trace> sibling;
-  PathTrace        pathTrace;
-  bool             mark;
+    Core::Ref<Trace> predecessor;
+    Core::Ref<Trace> sibling;
+    PathTrace        pathTrace;
+    bool             mark;
 
-  AlternativeHistoryQueue alternativeHistories;
+    AlternativeHistoryQueue alternativeHistories;
 
-  Trace(Core::Ref<Trace> const& pre,
-        Bliss::LemmaPronunciation const* p,
-        TimeframeIndex t,
-        SearchAlgorithm::ScoreVector s,
-        Transit const& transit);
+    Trace(Core::Ref<Trace> const&          pre,
+          Bliss::LemmaPronunciation const* p,
+          TimeframeIndex                   t,
+          SearchAlgorithm::ScoreVector     s,
+          Transit const&                   transit);
 
-  Trace(TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit &transit);
+    Trace(TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit& transit);
 
-  void write(std::ostream &os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
+    void write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
 
-  void getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const;
+    void getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const;
 
-  u32 wordCount() const {
-    u32 count = 0;
-    if( pronunciation )
-      ++count;
-    if( predecessor )
-      count += predecessor->wordCount();
+    u32 wordCount() const {
+        u32 count = 0;
+        if (pronunciation)
+            ++count;
+        if (predecessor)
+            count += predecessor->wordCount();
 
-    return count;
-  }
+        return count;
+    }
 };
 
 }  // namespace Search
 
-#endif // CONDITIONEDTREESEARCHTRACE_HH
+#endif  // CONDITIONEDTREESEARCHTRACE_HH

@@ -15,68 +15,81 @@
 #ifndef _SEARCH_WFST_TRACEBACK_HH
 #define _SEARCH_WFST_TRACEBACK_HH
 
+#include <OpenFst/Types.hh>
 #include <Search/Search.hh>
 #include <Search/Types.hh>
 #include <Search/Wfst/ExpandingFsaSearch.hh>
-#include <OpenFst/Types.hh>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 class WordEndDetector;
 
-class BestPath
-{
+class BestPath {
 protected:
-    typedef OpenFst::Label Label;
+    typedef OpenFst::Label             Label;
     typedef SearchAlgorithm::Traceback Traceback;
+
 public:
     typedef SearchAlgorithm::ScoreVector ScoreVector;
     struct Item {
-        Label word;
+        Label          word;
         TimeframeIndex time;
-        ScoreVector score;
-        Item(Label w, TimeframeIndex t, Score s) :
-            word(w), time(t), score(s, 0) {}
-        Item(Label w, TimeframeIndex t, Score a, Score l) :
-            word(w), time(t), score(a, l) {}
-        Item(Label w, TimeframeIndex t, const ScoreVector &s) :
-            word(w), time(t), score(s) {}
+        ScoreVector    score;
+        Item(Label w, TimeframeIndex t, Score s)
+                : word(w), time(t), score(s, 0) {}
+        Item(Label w, TimeframeIndex t, Score a, Score l)
+                : word(w), time(t), score(a, l) {}
+        Item(Label w, TimeframeIndex t, const ScoreVector& s)
+                : word(w), time(t), score(s) {}
     };
-    struct CompareTime
-    {
-        bool operator()(const Item &a, const Item &b) const {
+    struct CompareTime {
+        bool operator()(const Item& a, const Item& b) const {
             return a.time < b.time;
         }
     };
 
 protected:
     typedef std::vector<Item> Path;
+
 public:
-    typedef Path::iterator Iterator;
+    typedef Path::iterator       Iterator;
     typedef Path::const_iterator ConstIterator;
 
     void append(Label word, TimeframeIndex time, Score score) {
         path_.push_back(Item(word, time, score));
     }
-    void append(const Item &item) {
+    void append(const Item& item) {
         path_.push_back(item);
     }
 
-    void clear() { path_.clear(); }
-    bool empty() const { return path_.empty(); }
-    ConstIterator begin() const { return path_.begin(); }
-    ConstIterator end() const { return path_.end(); }
-    Iterator begin() { return path_.begin(); }
-    Iterator end() { return path_.end(); }
+    void clear() {
+        path_.clear();
+    }
+    bool empty() const {
+        return path_.empty();
+    }
+    ConstIterator begin() const {
+        return path_.begin();
+    }
+    ConstIterator end() const {
+        return path_.end();
+    }
+    Iterator begin() {
+        return path_.begin();
+    }
+    Iterator end() {
+        return path_.end();
+    }
 
     void getTraceback(Bliss::LexiconRef lexicon, OutputType outputType,
-                      const OpenFst::LabelMap *olabelMap, Traceback *result) const;
+                      const OpenFst::LabelMap* olabelMap, Traceback* result) const;
 
 protected:
     std::vector<Item> path_;
 };
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search
 
 #endif  // _SEARCH_WFST_TRACEBACK_HH

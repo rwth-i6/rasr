@@ -20,25 +20,25 @@
 
 namespace Search {
 
-    class SearchAlgorithm;
-    class LatticeHandler;
+class SearchAlgorithm;
+class LatticeHandler;
 
-    enum SearchType {
-        WordConditionedTreeSearchType,
-        AdvancedTreeSearch,
-        LinearSearchType,
-        ExpandingFsaSearchType,
-    };
+enum SearchType {
+    WordConditionedTreeSearchType,
+    AdvancedTreeSearch,
+    LinearSearchType,
+    ExpandingFsaSearchType,
+};
 
-    class Module_ {
-    public:
-        Module_();
+class Module_ {
+public:
+    Module_();
 
-        SearchAlgorithm* createRecognizer(SearchType type, const Core::Configuration &config) const;
-        LatticeHandler* createLatticeHandler(const Core::Configuration &c) const;
-    };
+    SearchAlgorithm* createRecognizer(SearchType type, const Core::Configuration& config) const;
+    LatticeHandler*  createLatticeHandler(const Core::Configuration& c) const;
+};
 
-    typedef Core::SingletonHolder<Module_> Module;
-}
+typedef Core::SingletonHolder<Module_> Module;
+}  // namespace Search
 
-#endif // _SEARCH_MODULE_HH
+#endif  // _SEARCH_MODULE_HH

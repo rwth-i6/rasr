@@ -14,73 +14,69 @@
  */
 #include <unordered_map>
 
-#include <Search/Wfst/GrammarFst.hh>
 #include <Core/MemoryInfo.hh>
 #include <OpenFst/Count.hh>
 #include <OpenFst/ReplaceFst.hh>
 #include <OpenFst/Scale.hh>
+#include <Search/Wfst/GrammarFst.hh>
 #include <fst/arcsort.h>
 #include <fst/compose.h>
 #include <fst/relabel.h>
 
 using namespace Search::Wfst;
 
-AbstractGrammarFst* AbstractGrammarFst::create(GrammarType type, const Core::Configuration &c)
-{
-    AbstractGrammarFst *r = 0;
+AbstractGrammarFst* AbstractGrammarFst::create(GrammarType type, const Core::Configuration& c) {
+    AbstractGrammarFst* r = 0;
     switch (type) {
-    case TypeVector: r = new GrammarFst(); break;
-    case TypeConst: r = new ConstGrammarFst(); break;
-    case TypeCompact: r = new CompactGrammarFst(); break;
-    case TypeCombine: r = new CombinedGrammarFst(c); break;
-    case TypeCompose: r = new ComposedGrammarFst(c); break;
-    case TypeDynamic: r = new DynamicGrammarFst(c); break;
-    case TypeFailArc: r = new FailArcGrammarFst(); break;
-    // case TypeNGram: r = new NGramGrammarFst(); break;
-    default: defect(); break;
+        case TypeVector: r = new GrammarFst(); break;
+        case TypeConst: r = new ConstGrammarFst(); break;
+        case TypeCompact: r = new CompactGrammarFst(); break;
+        case TypeCombine: r = new CombinedGrammarFst(c); break;
+        case TypeCompose: r = new ComposedGrammarFst(c); break;
+        case TypeDynamic: r = new DynamicGrammarFst(c); break;
+        case TypeFailArc: r = new FailArcGrammarFst(); break;
+        // case TypeNGram: r = new NGramGrammarFst(); break;
+        default: defect(); break;
     }
     return r;
 }
 
-
-void GrammarFst::relabel(const GrammarRelabelerBase &relabeler)
-{
+void GrammarFst::relabel(const GrammarRelabelerBase& relabeler) {
     relabeler.apply(fst_);
     FstLib::ArcSort(fst_, FstLib::StdILabelCompare());
 }
 
 const OpenFst::Label FailArcGrammarFst::FailLabel = -2;
 
-bool FailArcGrammarFst::load(const std::string &filename)
-{
-    typedef std::vector< std::pair<OpenFst::Label, OpenFst::Label> > LabelMapping;
+bool FailArcGrammarFst::load(const std::string& filename) {
+    typedef std::vector<std::pair<OpenFst::Label, OpenFst::Label>> LabelMapping;
     if (GrammarFst::load(filename)) {
         LabelMapping map(1);
         map.front() = std::make_pair(OpenFst::Epsilon, FailLabel);
         FstLib::Relabel(fst_, map, LabelMapping());
         return true;
-    } else {
+    }
+    else {
         return false;
     }
 }
 
 const Core::ParameterInt CombinedGrammarFst::paramCacheSize(
-    "cache", "cache size of the ReplaceFst", 0);
+        "cache", "cache size of the ReplaceFst", 0);
 const Core::ParameterStringVector CombinedGrammarFst::paramAddOnFiles(
-    "addon-file", "add on fst files", ",");
+        "addon-file", "add on fst files", ",");
 const Core::ParameterStringVector CombinedGrammarFst::paramReplaceLabels(
-    "replace-label", "labels to be replaced with the respective add on fst", ",");
+        "replace-label", "labels to be replaced with the respective add on fst", ",");
 const Core::ParameterIntVector CombinedGrammarFst::paramReplaceIds(
-    "replace-id", "label ids to be replaced with the respective add on fst", ",");
+        "replace-id", "label ids to be replaced with the respective add on fst", ",");
 const Core::ParameterFloatVector CombinedGrammarFst::paramAddOnScales(
-    "addon-scale", "scaling factor applied to the respective add on fst", ",");
+        "addon-scale", "scaling factor applied to the respective add on fst", ",");
 
-CombinedGrammarFst::~CombinedGrammarFst()
-{
+CombinedGrammarFst::~CombinedGrammarFst() {
     delete fst_;
     delete rootFst_;
     for (std::vector<OpenFst::VectorFst*>::const_iterator i = addOnFsts_.begin();
-            i != addOnFsts_.end(); ++i)
+         i != addOnFsts_.end(); ++i)
         delete *i;
 }
 
@@ -88,10 +84,9 @@ const FstLib::StdFst* CombinedGrammarFst::getFst() const {
     return fst_;
 }
 
-bool CombinedGrammarFst::load(const std::string &root)
-{
+bool CombinedGrammarFst::load(const std::string& root) {
     log("loading root fst: %s", root.c_str());
-    rootFst_ = OpenFst::VectorFst::Read (root);
+    rootFst_ = OpenFst::VectorFst::Read(root);
     if (!rootFst_) {
         error("error loading %s", root.c_str());
         return false;
@@ -99,7 +94,7 @@ bool CombinedGrammarFst::load(const std::string &root)
     const std::vector<std::string> addOnFiles = paramAddOnFiles(config);
     for (std::vector<std::string>::const_iterator f = addOnFiles.begin(); f != addOnFiles.end(); ++f) {
         log("loading add on fst: %s", f->c_str());
-        OpenFst::VectorFst *fst = OpenFst::VectorFst::Read(*f);
+        OpenFst::VectorFst* fst = OpenFst::VectorFst::Read(*f);
         if (!fst) {
             error("error loading %s", f->c_str());
             return false;
@@ -115,7 +110,8 @@ bool CombinedGrammarFst::load(const std::string &root)
             replaceLabels_.push_back(id);
             log("using replace label: %s = %d", l->c_str(), id);
         }
-    } else {
+    }
+    else {
         const std::vector<int> ids = paramReplaceIds(config);
         for (std::vector<int>::const_iterator i = ids.begin(); i != ids.end(); ++i) {
             replaceLabels_.push_back(*i);
@@ -136,10 +132,9 @@ bool CombinedGrammarFst::load(const std::string &root)
     return true;
 }
 
-void CombinedGrammarFst::replaceArcLabels()
-{
+void CombinedGrammarFst::replaceArcLabels() {
     typedef std::pair<OpenFst::Label, OpenFst::Label> LabelPair;
-    std::vector<LabelPair> iLabelMap, oLabelMap;
+    std::vector<LabelPair>                            iLabelMap, oLabelMap;
     for (u32 i = 0; i < addOnFsts_.size(); ++i) {
         OpenFst::Label uniqLabel = -(i + 1);
         log("add on %i: mapping label %d to %d", i, replaceLabels_[i], uniqLabel);
@@ -155,8 +150,7 @@ void CombinedGrammarFst::replaceArcLabels()
     FstLib::Relabel(rootFst_, iLabelMap, oLabelMap);
 }
 
-void CombinedGrammarFst::relabel(const GrammarRelabelerBase &relabeler)
-{
+void CombinedGrammarFst::relabel(const GrammarRelabelerBase& relabeler) {
     relabeler.apply(rootFst_);
     FstLib::ArcSort(rootFst_, FstLib::StdILabelCompare());
     for (std::vector<OpenFst::VectorFst*>::iterator f = addOnFsts_.begin(); f != addOnFsts_.end(); ++f) {
@@ -166,15 +160,14 @@ void CombinedGrammarFst::relabel(const GrammarRelabelerBase &relabeler)
     log("relabeled G and add on G");
 }
 
-void CombinedGrammarFst::reset()
-{
+void CombinedGrammarFst::reset() {
     typedef OpenFst::CompactReplaceFst<FstLib::StdArc> ReplaceFst;
     FLAGS_v = 2;
     delete fst_;
     FLAGS_v = 0;
     FstLib::CacheOptions options;
     options.gc_limit = paramCacheSize(config);
-    options.gc = true;
+    options.gc       = true;
 
     std::vector<ReplaceFst::PartDefinition> def;
     for (u32 i = 0; i < addOnFsts_.size(); ++i) {
@@ -185,18 +178,16 @@ void CombinedGrammarFst::reset()
     log("created ReplaceFst cache=%zd", options.gc_limit);
 }
 
-
 // =======================================
 
 const Core::ParameterInt ComposedGrammarFst::paramCacheSize(
-    "cache", "cache size of the ReplaceFst", 0);
+        "cache", "cache size of the ReplaceFst", 0);
 const Core::ParameterString ComposedGrammarFst::paramAddOnFile(
-    "addon-file", "add on fst", "");
+        "addon-file", "add on fst", "");
 const Core::ParameterFloat ComposedGrammarFst::paramAddOnScale(
-    "addon-scale", "scaling factor applied to the add on fst", 1.0);
+        "addon-scale", "scaling factor applied to the add on fst", 1.0);
 
-ComposedGrammarFst::~ComposedGrammarFst()
-{
+ComposedGrammarFst::~ComposedGrammarFst() {
     FLAGS_v = 2;
     delete cfst_;
     delete pfst_;
@@ -206,15 +197,16 @@ ComposedGrammarFst::~ComposedGrammarFst()
     FLAGS_v = 0;
 }
 
-bool ComposedGrammarFst::load(const std::string &root)
-{
+bool ComposedGrammarFst::load(const std::string& root) {
     log("loading root fst: %s", root.c_str());
-    rootFst_ = OpenFst::VectorFst::Read (root);
-    if (!rootFst_) error("error loading %s", root.c_str());
+    rootFst_ = OpenFst::VectorFst::Read(root);
+    if (!rootFst_)
+        error("error loading %s", root.c_str());
     const std::string addOn = paramAddOnFile(config);
     log("loading add on fst: %s", addOn.c_str());
     addOnFst_ = OpenFst::VectorFst::Read(addOn);
-    if (!addOnFst_) error("error loading %s", addOn.c_str());
+    if (!addOnFst_)
+        error("error loading %s", addOn.c_str());
     if (!(rootFst_ && addOnFst_)) {
         return false;
     }
@@ -229,16 +221,15 @@ bool ComposedGrammarFst::load(const std::string &root)
     return true;
 }
 
-void ComposedGrammarFst::relabel(const GrammarRelabelerBase &relabeler)
-{
+void ComposedGrammarFst::relabel(const GrammarRelabelerBase& relabeler) {
     relabeler.getMap(&iLabelMap_);
     log("relabeling map with %zd entries", iLabelMap_.size());
-    const OpenFst::SymbolTable *symbols = rootFst_->InputSymbols();
-    OpenFst::Label freeLabel = symbols->AvailableKey();
+    const OpenFst::SymbolTable* symbols   = rootFst_->InputSymbols();
+    OpenFst::Label              freeLabel = symbols->AvailableKey();
     log("using dummy label: %d", freeLabel);
     std::unordered_set<OpenFst::Label> mappedLabels(iLabelMap_.size());
     for (GrammarRelabelerBase::LabelMap::const_iterator i = iLabelMap_.begin();
-            i != iLabelMap_.end(); ++i) {
+         i != iLabelMap_.end(); ++i) {
         mappedLabels.insert(i->first);
     }
     for (OpenFst::Label l = 1; l < freeLabel; ++l) {
@@ -252,68 +243,59 @@ void ComposedGrammarFst::relabel(const GrammarRelabelerBase &relabeler)
     FstLib::ArcSort(addOnFst_, FstLib::StdILabelCompare());
 }
 
-void ComposedGrammarFst::reset()
-{
-
+void ComposedGrammarFst::reset() {
     FLAGS_v = 3;
     delete cfst_;
     delete pfst_;
     delete rfst_;
     FLAGS_v = 0;
-    // typedef FstLib::Matcher<FstLib::StdFst> Matcher;
-    // typedef FstLib::AltSequenceComposeFilter<Matcher> Filter;
     FstLib::ComposeFstOptions<FstLib::StdArc, Matcher, Filter> options;
     table_ = options.state_table = new StateTable(*rootFst_, *addOnFst_);
-    options.gc_limit = paramCacheSize(config);
-    options.gc = true;
-    FLAGS_v = 2;
-    cfst_ = new ComposeFst(*rootFst_, *addOnFst_, options);
+    options.gc_limit             = paramCacheSize(config);
+    options.gc                   = true;
+    FLAGS_v                      = 2;
+    cfst_                        = new ComposeFst(*rootFst_, *addOnFst_, options);
     verify(cfst_);
     pfst_ = new ProjectFst(*cfst_, FstLib::PROJECT_OUTPUT);
     FstLib::RelabelFstOptions relabelOptions;
     relabelOptions.gc_limit = 1024 * 1024;
-    rfst_ = new RelabelFst(*pfst_, iLabelMap_, oLabelMap_, relabelOptions);
-    FLAGS_v = 0;
+    rfst_                   = new RelabelFst(*pfst_, iLabelMap_, oLabelMap_, relabelOptions);
+    FLAGS_v                 = 0;
     log("created ComposeFst cache=%zd", options.gc_limit);
 }
 
 // =======================================
 
 const Core::ParameterBool DynamicGrammarFst::paramLemma(
-    "lemma-labels", "use lemma id as labels", true);
+        "lemma-labels", "use lemma id as labels", true);
 
 const Core::ParameterFloat DynamicGrammarFst::paramPronunciationScale(
-    "pronunciation-scale", "scaling of pronunciation scores", 0.0);
+        "pronunciation-scale", "scaling of pronunciation scores", 0.0);
 
-bool DynamicGrammarFst::load(const std::string&)
-{
+bool DynamicGrammarFst::load(const std::string&) {
     require(lexicon_);
     lm_ = Lm::Module::instance().createLanguageModel(select("lm"), lexicon_);
     return lm_;
 }
 
-DynamicGrammarFst::~DynamicGrammarFst()
-{
+DynamicGrammarFst::~DynamicGrammarFst() {
     delete fst_;
 }
 
-void DynamicGrammarFst::relabel(const GrammarRelabelerBase &relabeler)
-{
+void DynamicGrammarFst::relabel(const GrammarRelabelerBase& relabeler) {
     relabeler.getMap(&labelMap_);
 }
 
-void DynamicGrammarFst::reset()
-{
+void DynamicGrammarFst::reset() {
     require(lm_);
     delete fst_;
     DynamicLmFstOptions opts;
-    // opts.gc_limit = 0;
-    opts.lm = lm_;
-    opts.outputType = (paramLemma(config) ? OutputLemma : OutputLemmaPronunciation);
+    opts.lm                 = lm_;
+    opts.outputType         = (paramLemma(config) ? OutputLemma : OutputLemmaPronunciation);
     opts.pronunciationScale = paramPronunciationScale(config);
-    opts.gc = true;
-    opts.gc_limit = 1024 * 1024 * 100; /*! @todo add parameter */
-    fst_ = new DynamicLmFst(opts);
+    opts.gc                 = true;
+    opts.gc_limit           = 1024 * 1024 * 100; /*! @todo add parameter */
+    fst_                    = new DynamicLmFst(opts);
     if (!labelMap_.empty())
         fst_->SetLabelMapping(labelMap_);
     log("created dynamic lm fst");

@@ -18,100 +18,122 @@
 #include <Search/Wfst/Builder.hh>
 #include <Search/Wfst/IoOperations.hh>
 
-namespace Search { namespace Wfst { namespace Builder {
+namespace Search {
+namespace Wfst {
+namespace Builder {
 
 /**
  * minimize weighted transducer
  */
-class Minimize : public SleeveOperation, public SemiringDependent
-{
+class Minimize : public SleeveOperation, public SemiringDependent {
     static const Core::ParameterBool paramEncodeWeights;
     static const Core::ParameterBool paramEncodeLabels;
+
 public:
-    Minimize(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+    Minimize(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 private:
-    template<class A> void minimize(FstLib::VectorFst<A> *a, uint32 encodeFlags) const;
+    template<class A>
+    void minimize(FstLib::VectorFst<A>* a, uint32 encodeFlags) const;
+
 public:
-    static std::string name() { return "minimize"; }
+    static std::string name() {
+        return "minimize";
+    }
 };
 
 /**
  * determinize weighted transducer
  */
-class Determinize : public SleeveOperation, public SemiringDependent
-{
+class Determinize : public SleeveOperation, public SemiringDependent {
 public:
-    Determinize(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+    Determinize(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "determinize"; }
+    static std::string name() {
+        return "determinize";
+    }
 };
 
 /**
  * sort arcs by input label.
  */
-class ArcInputSort : public SleeveOperation
-{
+class ArcInputSort : public SleeveOperation {
 public:
-    ArcInputSort(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    ArcInputSort(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "sort-input"; }
+    static std::string name() {
+        return "sort-input";
+    }
 };
 
 /**
  * sort arcs by output label.
  */
-class ArcOutputSort : public SleeveOperation
-{
+class ArcOutputSort : public SleeveOperation {
 public:
-    ArcOutputSort(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    ArcOutputSort(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "sort-output"; }
+    static std::string name() {
+        return "sort-output";
+    }
 };
 
 /**
  * weighted transducer composition
  */
-class Compose : public SleeveOperation
-{
+class Compose : public SleeveOperation {
 protected:
     static const Core::ParameterBool paramIgnoreSymbols;
     static const Core::ParameterBool paramSwap;
-public:
-    Compose(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), right_(0) {}
-    virtual u32 nInputAutomata() const { return 2; }
-    virtual bool addInput(AutomatonRef f);
-protected:
-    virtual bool precondition() const;
-    virtual AutomatonRef process();
-    AutomatonRef right_;
-public:
-    static std::string name() { return "compose"; }
-};
 
+public:
+    Compose(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), right_(0) {}
+    virtual u32 nInputAutomata() const {
+        return 2;
+    }
+    virtual bool addInput(AutomatonRef f);
+
+protected:
+    virtual bool         precondition() const;
+    virtual AutomatonRef process();
+    AutomatonRef         right_;
+
+public:
+    static std::string name() {
+        return "compose";
+    }
+};
 
 /**
  * base class for LabelEncode, LabelDecode
  */
-class LabelCoding : public SleeveOperation
-{
+class LabelCoding : public SleeveOperation {
 protected:
     static const Core::ParameterString paramEncoder;
+
 public:
-    LabelCoding(const Core::Configuration &c, Resources &r) :
-                Operation(c, r), SleeveOperation(c, r) {}
+    LabelCoding(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
 };
 
 /**
@@ -119,132 +141,160 @@ public:
  * required if the final network is non functional, which
  * happens when the allophone states are tied.
  */
-class LabelEncode : public LabelCoding
-{
+class LabelEncode : public LabelCoding {
     static const Core::ParameterBool paramProtectEpsilon;
+
 public:
-    LabelEncode(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), LabelCoding(c, r) {}
+    LabelEncode(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), LabelCoding(c, r) {}
+
 protected:
     virtual AutomatonRef process();
-    void encode(uint32 flags);
+    void                 encode(uint32 flags);
+
 private:
     template<class M>
-    void applyMappping(M *mapper);
+    void applyMappping(M* mapper);
     template<class M>
-    void writeMapping(M *mapper) const;
+    void writeMapping(M* mapper) const;
+
 public:
-    static std::string name() { return "encode"; }
+    static std::string name() {
+        return "encode";
+    }
 };
 
 /**
  * split combined input/output labels to regular
  * input and output labels.
  */
-class LabelDecode : public LabelCoding
-{
+class LabelDecode : public LabelCoding {
 public:
-    LabelDecode(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), LabelCoding(c, r) {}
+    LabelDecode(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), LabelCoding(c, r) {}
+
 protected:
     virtual AutomatonRef process();
-    void decode();
+    void                 decode();
+
 public:
-    static std::string name() { return "decode"; }
+    static std::string name() {
+        return "decode";
+    }
 };
 
 /**
  * Combine input label and weight.
  * Results in an unweighted transducer.
  */
-class WeightEncode : public LabelEncode
-{
+class WeightEncode : public LabelEncode {
 public:
-    WeightEncode(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), LabelEncode(c, r) {}
+    WeightEncode(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), LabelEncode(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "weight-encode"; }
+    static std::string name() {
+        return "weight-encode";
+    }
 };
 
 /**
  * relabeling
  */
-class Relabel : public SleeveOperation
-{
+class Relabel : public SleeveOperation {
     static const Core::ParameterStringVector paramInputMapping;
     static const Core::ParameterStringVector paramOutputMapping;
+
 public:
-    Relabel(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    Relabel(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 private:
     typedef std::pair<OpenFst::Label, OpenFst::Label> LabelPair;
-    typedef std::vector<LabelPair> LabelMapping;
-    void getLabelMapping(const std::vector<std::string> &labels,
-                         const OpenFst::SymbolTable *symbols,
-                         LabelMapping *mapping) const;
+    typedef std::vector<LabelPair>                    LabelMapping;
+    void                                              getLabelMapping(const std::vector<std::string>& labels,
+                                                                      const OpenFst::SymbolTable*     symbols,
+                                                                      LabelMapping*                   mapping) const;
+
 public:
-    static std::string name() { return "relabel"; }
+    static std::string name() {
+        return "relabel";
+    }
 };
 /**
  * push weights to intial state
  */
-class PushWeights : public SleeveOperation, public SemiringDependent
-{
+class PushWeights : public SleeveOperation, public SemiringDependent {
 public:
-    PushWeights(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+    PushWeights(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "push-weights"; }
+    static std::string name() {
+        return "push-weights";
+    }
 };
 
 /**
  * push weights to intial state
  */
-class PushLabels : public SleeveOperation
-{
+class PushLabels : public SleeveOperation {
     static const Core::ParameterBool paramToFinal;
+
 public:
-    PushLabels(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    PushLabels(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
-public:
-    static std::string name() { return "push-labels"; }
-};
 
+public:
+    static std::string name() {
+        return "push-labels";
+    }
+};
 
 /**
  * produce epsilon-normalized automaton
  */
-class NormalizeEpsilon : public SleeveOperation, public LabelTypeDependent
-{
+class NormalizeEpsilon : public SleeveOperation, public LabelTypeDependent {
 public:
-    NormalizeEpsilon(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+    NormalizeEpsilon(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "epsilon-normalize"; }
+    static std::string name() {
+        return "epsilon-normalize";
+    }
 };
 
 /**
  * Project to input or output labels
  */
-class Project : public SleeveOperation, public LabelTypeDependent
-{
+class Project : public SleeveOperation, public LabelTypeDependent {
 public:
-    Project(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+    Project(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "project"; }
+    static std::string name() {
+        return "project";
+    }
 };
 
 /**
@@ -254,42 +304,51 @@ class RemoveEpsilon : public SleeveOperation, public SemiringDependent
 
 {
 public:
-    RemoveEpsilon(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r),	SemiringDependent(c) {}
+    RemoveEpsilon(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "remove-epsilon"; }
+    static std::string name() {
+        return "remove-epsilon";
+    }
 };
 
 /**
  * synchronize an automaton
  */
-class Synchronize : public SleeveOperation, public SemiringDependent
-{
+class Synchronize : public SleeveOperation, public SemiringDependent {
 public:
-    Synchronize(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+    Synchronize(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "synchronize"; }
+    static std::string name() {
+        return "synchronize";
+    }
 };
 
 /**
  * invert a transduction
  */
-class Invert : public SleeveOperation
-{
+class Invert : public SleeveOperation {
 public:
-    Invert(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    Invert(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
-public:
-    static std::string name() { return "invert"; }
-};
 
+public:
+    static std::string name() {
+        return "invert";
+    }
+};
 
 /**
  * converts the input automaton to an FstLib::StdOLabelLookAheadFst
@@ -297,94 +356,119 @@ public:
  * optionally writes the relabeling (paramRelabelFile).
  * optionally relabels the second input automaton.
  */
-class CreateLookahead : public WriteOperation
-{
+class CreateLookahead : public WriteOperation {
 protected:
     static const Core::ParameterString paramRelabelFile;
-    static const Core::ParameterBool paramRelabelInput;
-    static const Core::ParameterBool paramSwap;
-    static const Core::ParameterBool paramKeepRelabelingData;
+    static const Core::ParameterBool   paramRelabelInput;
+    static const Core::ParameterBool   paramSwap;
+    static const Core::ParameterBool   paramKeepRelabelingData;
+
 public:
-    CreateLookahead(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), WriteOperation(c, r), toRelabel_(0) {}
-    virtual bool consumeInput() const { return false; }
-    virtual bool hasOutput() const { return false; }
-    virtual u32 nInputAutomata() const;
+    CreateLookahead(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), WriteOperation(c, r), toRelabel_(0) {}
+    virtual bool consumeInput() const {
+        return false;
+    }
+    virtual bool hasOutput() const {
+        return false;
+    }
+    virtual u32  nInputAutomata() const;
     virtual bool addInput(AutomatonRef);
+
 protected:
     virtual AutomatonRef process();
-    AutomatonRef toRelabel_;
+    AutomatonRef         toRelabel_;
+
 private:
     template<class F>
-    void relabel(const F &f);
+    void relabel(const F& f);
+
 public:
-    static std::string name() { return "create-lookahead"; }
+    static std::string name() {
+        return "create-lookahead";
+    }
 };
 
 /**
  * applies composition using a label lookahead matcher.
  */
-class ReachableCompose : public Compose
-{
-    enum LookAheadType { LabelLookAhead, ArcLookAhead };
-    static const Core::Choice lookAheadChoice;
+class ReachableCompose : public Compose {
+    enum LookAheadType { LabelLookAhead,
+                         ArcLookAhead };
+    static const Core::Choice          lookAheadChoice;
     static const Core::ParameterChoice paramLookAheadType;
+
 public:
-    ReachableCompose(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), Compose(c, r) {}
+    ReachableCompose(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), Compose(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "reachable-compose"; }
+    static std::string name() {
+        return "reachable-compose";
+    }
 };
 
 /**
  * scale weights of the automaton
  */
-class ScaleWeights : public SleeveOperation
-{
+class ScaleWeights : public SleeveOperation {
     static const Core::ParameterFloat paramScale;
+
 public:
-    ScaleWeights(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    ScaleWeights(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "scale-weights"; }
+    static std::string name() {
+        return "scale-weights";
+    }
 };
 
 /**
  * scale weights of arcs with a specific label.
  */
-class ScaleLabelWeights : public SleeveOperation
-{
-    static const Core::ParameterFloat paramScale;
+class ScaleLabelWeights : public SleeveOperation {
+    static const Core::ParameterFloat  paramScale;
     static const Core::ParameterString paramLabel;
+
 public:
-    ScaleLabelWeights(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
-    protected:
-        virtual AutomatonRef process();
-    public:
-        static std::string name() { return "scale-label-weights"; }
-    };
+    ScaleLabelWeights(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
+protected:
+    virtual AutomatonRef process();
+
+public:
+    static std::string name() {
+        return "scale-label-weights";
+    }
+};
 
 /**
  * map all weights to Weight::One()
  */
-class RemoveWeights : public SleeveOperation
-{
+class RemoveWeights : public SleeveOperation {
 public:
-    RemoveWeights(const Core::Configuration &c, Resources &r) :
-        Operation(c, r), SleeveOperation(c, r) {}
+    RemoveWeights(const Core::Configuration& c, Resources& r)
+            : Operation(c, r), SleeveOperation(c, r) {}
+
 protected:
     virtual AutomatonRef process();
+
 public:
-    static std::string name() { return "remove-weights"; }
+    static std::string name() {
+        return "remove-weights";
+    }
 };
 
-} // namespace Builder
-} // namespace Wfst
-} // namespace Search
+}  // namespace Builder
+}  // namespace Wfst
+}  // namespace Search
 
-#endif // _SEARCH_FST_OPERATIONS_HH
+#endif  // _SEARCH_FST_OPERATIONS_HH

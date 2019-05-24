@@ -12,31 +12,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Search/Wfst/ContextTransducerBuilder.hh>
-#include <Search/Wfst/LexiconBuilder.hh>
-#include <Search/Wfst/NonWordTokens.hh>
 #include <Core/Debug.hh>
 #include <Core/Hash.hh>
 #include <Fsa/Basic.hh>
 #include <OpenFst/SymbolTable.hh>
 #include <OpenFst/Types.hh>
+#include <Search/Wfst/ContextTransducerBuilder.hh>
+#include <Search/Wfst/LexiconBuilder.hh>
+#include <Search/Wfst/NonWordTokens.hh>
 #include <fst/connect.h>
 
-namespace Search { namespace Wfst {
+namespace Search {
+namespace Wfst {
 
 using Am::Allophone;
 using Am::AllophoneAlphabet;
 
-class ContextTransducerBuilder::Builder
-{
+class ContextTransducerBuilder::Builder {
 public:
     Builder(Core::Ref<const Am::AcousticModel>, Core::Ref<const Bliss::Lexicon>);
     virtual ~Builder();
     OpenFst::VectorFst* build();
-    void initialize();
+    void                initialize();
 
     void setDisambiguators(u32 nDisambiguators, u32 disambiguatorOffset) {
-        nDisambiguators_ = nDisambiguators;
+        nDisambiguators_     = nDisambiguators;
         disambiguatorOffset_ = disambiguatorOffset;
     }
 
@@ -47,14 +47,13 @@ public:
     void setInitialPhoneOffset(u32 initialPhoneOffset) {
         initialPhoneOffset_ = initialPhoneOffset;
     }
-    void setPhoneSymbols(const OpenFst::SymbolTable *symbols) {
+    void setPhoneSymbols(const OpenFst::SymbolTable* symbols) {
         phoneSymbols_ = symbols;
     }
-    void setAddNonWordPhones(NonWordTokens *nonWordTokens) {
+    void setAddNonWordPhones(NonWordTokens* nonWordTokens) {
         nonWordTokens_ = nonWordTokens;
     }
-    void setSequenceEndSymbol(const std::string &symbol)
-    {
+    void setSequenceEndSymbol(const std::string& symbol) {
         sequenceEndSymbol_ = symbol;
     }
 
@@ -62,16 +61,13 @@ public:
     u32 getDisambiguatorOffset() const;
 
 protected:
-    struct TriphoneContextAndBoundary
-    {
-        bool boundary_;
-        u8 disambiguator_;
+    struct TriphoneContextAndBoundary {
+        bool               boundary_;
+        u8                 disambiguator_;
         Bliss::Phoneme::Id history_, central_;
 
-        struct Hash
-        {
-            size_t operator()(const TriphoneContextAndBoundary &p) const
-            {
+        struct Hash {
+            size_t operator()(const TriphoneContextAndBoundary& p) const {
                 size_t h = 0;
                 h |= p.central_;
                 h |= (p.history_ << 8);
@@ -81,11 +77,9 @@ protected:
             }
         };
 
-        struct Equal
-        {
-            bool operator()(const TriphoneContextAndBoundary &a,
-                            const TriphoneContextAndBoundary &b) const
-            {
+        struct Equal {
+            bool operator()(const TriphoneContextAndBoundary& a,
+                            const TriphoneContextAndBoundary& b) const {
                 return (a.history_ == b.history_ &&
                         a.central_ == b.central_ &&
                         a.boundary_ == b.boundary_);
@@ -93,119 +87,113 @@ protected:
         };
 
         TriphoneContextAndBoundary(Bliss::Phoneme::Id h, Bliss::Phoneme::Id c,
-                                   u8 disambiguator, bool boundary) :
-            boundary_(boundary), disambiguator_(disambiguator),
-            history_(h), central_(c) {}
+                                   u8 disambiguator, bool boundary)
+                : boundary_(boundary), disambiguator_(disambiguator), history_(h), central_(c) {}
     };
 
-
 protected:
-    typedef std::vector<Bliss::Phoneme::Id> PhoneList;
+    typedef std::vector<Bliss::Phoneme::Id>                              PhoneList;
     typedef std::unordered_map<Bliss::Phoneme::Id, const Am::Allophone*> PhoneMap;
     typedef std::unordered_map<TriphoneContextAndBoundary, OpenFst::StateId,
                                TriphoneContextAndBoundary::Hash,
-                               TriphoneContextAndBoundary::Equal> StateSet;
+                               TriphoneContextAndBoundary::Equal>
+            StateSet;
 
     OpenFst::StateId getStateId(Bliss::Phoneme::Id history, Bliss::Phoneme::Id center,
-                            u8 disambiguator, bool boundary);
-    OpenFst::Label getAllophoneLabel(const Allophone *allophone);
-    OpenFst::Label getAllophoneDisambiguator(u32 disambiguator);
-    OpenFst::Label getPhoneLabel(Bliss::Phoneme::Id phone, bool initialPhone) const;
-    void addArc(OpenFst::StateId from, OpenFst::StateId to,
-                const Allophone *input, Bliss::Phoneme::Id output,
-                bool initialPhone);
-    void addArc(OpenFst::StateId from, OpenFst::StateId to,
-                Fsa::LabelId input, Fsa::LabelId output);
-    void addOutputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                   Fsa::LabelId input, u32 disambiguator);
-    void addWordDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                 Fsa::LabelId input, u32 disambiguator);
-    void addInputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                  u32 disambiguator, Fsa::LabelId output);
-    void addDisambiguatorArcs(OpenFst::StateId from, OpenFst::StateId to, const Allophone *input = 0);
-    bool isCiPhone(Bliss::Phoneme::Id phone) const {
+                                u8 disambiguator, bool boundary);
+    OpenFst::Label   getAllophoneLabel(const Allophone* allophone);
+    OpenFst::Label   getAllophoneDisambiguator(u32 disambiguator);
+    OpenFst::Label   getPhoneLabel(Bliss::Phoneme::Id phone, bool initialPhone) const;
+    void             addArc(OpenFst::StateId from, OpenFst::StateId to,
+                            const Allophone* input, Bliss::Phoneme::Id output,
+                            bool initialPhone);
+    void             addArc(OpenFst::StateId from, OpenFst::StateId to,
+                            Fsa::LabelId input, Fsa::LabelId output);
+    void             addOutputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
+                                               Fsa::LabelId input, u32 disambiguator);
+    void             addWordDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
+                                             Fsa::LabelId input, u32 disambiguator);
+    void             addInputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
+                                              u32 disambiguator, Fsa::LabelId output);
+    void             addDisambiguatorArcs(OpenFst::StateId from, OpenFst::StateId to, const Allophone* input = 0);
+    bool             isCiPhone(Bliss::Phoneme::Id phone) const {
         return ciPhones_.find(phone) != ciPhones_.end();
     }
     OpenFst::Label getSequenceEndSymbol() const {
         if (sequenceEndSymbol_.empty()) {
             return OpenFst::Epsilon;
-        } else {
+        }
+        else {
             OpenFst::Label l = phoneSymbols_->Find(sequenceEndSymbol_);
             verify(l > 0);
             return l;
         }
     }
 
-    virtual void prepare() = 0;
-    virtual void buildAllophone(const Allophone *a) = 0;
+    virtual void prepare()                          = 0;
+    virtual void buildAllophone(const Allophone* a) = 0;
     virtual void finalize() {}
     template<class T>
-    void removeDuplicates(std::vector<T> &list) const;
+    void removeDuplicates(std::vector<T>& list) const;
 
 private:
     void printState(OpenFst::StateId s) const;
 
 protected:
-    OpenFst::VectorFst *c_;
-    const OpenFst::SymbolTable *phoneSymbols_;
-    OpenFst::SymbolTable *allophoneSymbols_;
-    Core::Ref<const Am::AcousticModel> model_;
-    Core::Ref<Fsa::StaticAutomaton> product_;
-    Core::Ref<const Am::AllophoneAlphabet> allophones_;
-    Core::Ref<const Bliss::PhonemeAlphabet> phonemes_;
-    const Am::AllophoneAlphabet::AllophoneList *allophoneList_;
-    NonWordTokens *nonWordTokens_;
-    std::string sequenceEndSymbol_;
-    PhoneMap ciPhones_;
-    PhoneList initialCoartPhones_, initialNonCoartPhones_,
-              innerNonCoartPhones_, contextIndependentInnerPhones_;
-    bool isAcrossWordModel_;
-    u32 nDisambiguators_;
-    s32 disambiguatorOffset_;
-    s32 nWordDisambiguators_;
-    s32 initialPhoneOffset_;
+    OpenFst::VectorFst*                         c_;
+    const OpenFst::SymbolTable*                 phoneSymbols_;
+    OpenFst::SymbolTable*                       allophoneSymbols_;
+    Core::Ref<const Am::AcousticModel>          model_;
+    Core::Ref<Fsa::StaticAutomaton>             product_;
+    Core::Ref<const Am::AllophoneAlphabet>      allophones_;
+    Core::Ref<const Bliss::PhonemeAlphabet>     phonemes_;
+    const Am::AllophoneAlphabet::AllophoneList* allophoneList_;
+    NonWordTokens*                              nonWordTokens_;
+    std::string                                 sequenceEndSymbol_;
+    PhoneMap                                    ciPhones_;
+    PhoneList                                   initialCoartPhones_, initialNonCoartPhones_,
+            innerNonCoartPhones_, contextIndependentInnerPhones_;
+    bool     isAcrossWordModel_;
+    u32      nDisambiguators_;
+    s32      disambiguatorOffset_;
+    s32      nWordDisambiguators_;
+    s32      initialPhoneOffset_;
     StateSet stateMap_;
 };
 
 ContextTransducerBuilder::Builder::Builder(Core::Ref<const Am::AcousticModel> model,
-                                           Core::Ref<const Bliss::Lexicon> lexicon)
-    : model_(model), nonWordTokens_(0), disambiguatorOffset_(-1), nWordDisambiguators_(-1),
-      initialPhoneOffset_(-1)
-{
-    allophones_ = model_->allophoneAlphabet();
-    allophoneList_ = &model_->allophoneAlphabet()->allophones();
-    phonemes_ = lexicon->phonemeInventory()->phonemeAlphabet();
+                                           Core::Ref<const Bliss::Lexicon>    lexicon)
+        : model_(model), nonWordTokens_(0), disambiguatorOffset_(-1), nWordDisambiguators_(-1), initialPhoneOffset_(-1) {
+    allophones_        = model_->allophoneAlphabet();
+    allophoneList_     = &model_->allophoneAlphabet()->allophones();
+    phonemes_          = lexicon->phonemeInventory()->phonemeAlphabet();
     isAcrossWordModel_ = model->isAcrossWordModelEnabled();
-    allophoneSymbols_ = new OpenFst::SymbolTable("allophones");
+    allophoneSymbols_  = new OpenFst::SymbolTable("allophones");
     allophoneSymbols_->AddSymbol("eps", 0);
     initialize();
 }
 
-ContextTransducerBuilder::Builder::~Builder()
-{
+ContextTransducerBuilder::Builder::~Builder() {
     delete allophoneSymbols_;
 }
 
-u32 ContextTransducerBuilder::Builder::getWordLabelOffset() const
-{
+u32 ContextTransducerBuilder::Builder::getWordLabelOffset() const {
     return allophones_->disambiguator(0);
 }
 
-u32 ContextTransducerBuilder::Builder::getDisambiguatorOffset() const
-{
+u32 ContextTransducerBuilder::Builder::getDisambiguatorOffset() const {
     return disambiguatorOffset_;
 }
 
-OpenFst::StateId ContextTransducerBuilder::Builder::getStateId(
-    Bliss::Phoneme::Id history, Bliss::Phoneme::Id center,
-    u8 disambiguator, bool boundary)
-{
+OpenFst::StateId ContextTransducerBuilder::Builder::getStateId(Bliss::Phoneme::Id history, Bliss::Phoneme::Id center,
+                                                               u8 disambiguator, bool boundary) {
     TriphoneContextAndBoundary tcb(history, center, disambiguator, boundary);
-    StateSet::const_iterator i = stateMap_.find(tcb);
-    OpenFst::StateId s;
+    StateSet::const_iterator   i = stateMap_.find(tcb);
+    OpenFst::StateId           s;
     if (i != stateMap_.end()) {
         s = i->second;
-    } else {
+    }
+    else {
         s = c_->AddState();
         stateMap_.insert(StateSet::value_type(tcb, s));
         printState(s);
@@ -213,25 +201,24 @@ OpenFst::StateId ContextTransducerBuilder::Builder::getStateId(
     return s;
 }
 
-
-void ContextTransducerBuilder::Builder::addArc(
-    OpenFst::StateId from, OpenFst::StateId to, OpenFst::Label input, OpenFst::Label output)
-{
+void ContextTransducerBuilder::Builder::addArc(OpenFst::StateId from, OpenFst::StateId to, OpenFst::Label input, OpenFst::Label output) {
     DBG(1) << from << " -> " << to << " i=" << input << " o=" << output << std::endl;
     c_->AddArc(from, OpenFst::Arc(input, output, OpenFst::Weight::One(), to));
 }
 
-OpenFst::Label ContextTransducerBuilder::Builder::getAllophoneLabel(const Allophone *allophone) {
+OpenFst::Label ContextTransducerBuilder::Builder::getAllophoneLabel(const Allophone* allophone) {
     if (!allophone) {
         return OpenFst::Epsilon;
-    } else {
-        Fsa::LabelId ai = Fsa::InvalidLabelId;
-        std::string symbol = "";
+    }
+    else {
+        Fsa::LabelId ai     = Fsa::InvalidLabelId;
+        std::string  symbol = "";
         if (nonWordTokens_ && nonWordTokens_->isNonWordAllophone(allophone)) {
-            ai = nonWordTokens_->allophoneId(allophone);
+            ai     = nonWordTokens_->allophoneId(allophone);
             symbol = allophones_->toString(*allophone);
-        } else {
-            ai = allophones_->index(allophone);
+        }
+        else {
+            ai     = allophones_->index(allophone);
             symbol = allophones_->symbol(ai);
         }
         OpenFst::Label l = allophoneSymbols_->Find(symbol);
@@ -243,9 +230,9 @@ OpenFst::Label ContextTransducerBuilder::Builder::getAllophoneLabel(const Alloph
 }
 
 OpenFst::Label ContextTransducerBuilder::Builder::getAllophoneDisambiguator(u32 disambiguator) {
-    Fsa::LabelId ai = allophones_->disambiguator(disambiguator);
-    std::string symbol = allophones_->symbol(ai);
-    OpenFst::Label l = allophoneSymbols_->Find(symbol);
+    Fsa::LabelId   ai     = allophones_->disambiguator(disambiguator);
+    std::string    symbol = allophones_->symbol(ai);
+    OpenFst::Label l      = allophoneSymbols_->Find(symbol);
     if (l < 0) {
         l = allophoneSymbols_->AddSymbol(symbol, OpenFst::convertLabelFromFsa(ai));
     }
@@ -256,95 +243,85 @@ OpenFst::Label ContextTransducerBuilder::Builder::getAllophoneDisambiguator(u32 
 OpenFst::Label ContextTransducerBuilder::Builder::getPhoneLabel(Bliss::Phoneme::Id phone, bool initialPhone) const {
     if (phone == Bliss::Phoneme::Id(-1)) {
         return OpenFst::Epsilon;
-    } else if (nonWordTokens_ && nonWordTokens_->isNonWordPhone(phone)) {
+    }
+    else if (nonWordTokens_ && nonWordTokens_->isNonWordPhone(phone)) {
         OpenFst::Label l = phoneSymbols_->Find(nonWordTokens_->phoneSymbol(phone));
         verify(l > 0);
         return l;
-    } else {
+    }
+    else {
         std::string phoneSymbol = phonemes_->symbol(phone);
         if (initialPhone)
             phoneSymbol += LexiconBuilder::initialSuffix;
         OpenFst::Label l = phoneSymbols_->Find(phoneSymbol);
-        if (l <= 0) {
-            // Core::Application::us()->error("unknown phone symbol '%s' %d", phoneSymbol.c_str(), int(phone));
-        }
         verify(l > 0);
         return l;
     }
 }
 
-void ContextTransducerBuilder::Builder::addArc(
-    OpenFst::StateId from, OpenFst::StateId to, const Allophone *input,
-    Bliss::Phoneme::Id output, bool initialPhone)
-{
-    OpenFst::Label inputLabel = getAllophoneLabel(input);
+void ContextTransducerBuilder::Builder::addArc(OpenFst::StateId from, OpenFst::StateId to, const Allophone* input,
+                                               Bliss::Phoneme::Id output, bool initialPhone) {
+    OpenFst::Label inputLabel  = getAllophoneLabel(input);
     OpenFst::Label outputLabel = getPhoneLabel(output, initialPhone);
     addArc(from, to, inputLabel, outputLabel);
     printState(from);
     printState(to);
     DBG(1) << " "
-             << (inputLabel != OpenFst::Epsilon ? allophoneSymbols_->Find(inputLabel) : "eps")
-             << " "
-             << (outputLabel != OpenFst::Epsilon ? phoneSymbols_->Find(outputLabel) : "eps")
-             << std::endl;
+           << (inputLabel != OpenFst::Epsilon ? allophoneSymbols_->Find(inputLabel) : "eps")
+           << " "
+           << (outputLabel != OpenFst::Epsilon ? phoneSymbols_->Find(outputLabel) : "eps")
+           << std::endl;
 }
 
-void ContextTransducerBuilder::Builder::addOutputDisambiguatorArc(
-    OpenFst::StateId from, OpenFst::StateId to, OpenFst::Label input, u32 disambiguator)
-{
-    std::string disambiguatorSymbol = LexiconBuilder::phoneDisambiguatorSymbol(disambiguator);
-    OpenFst::Label output = phoneSymbols_->Find(disambiguatorSymbol);
+void ContextTransducerBuilder::Builder::addOutputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to, OpenFst::Label input, u32 disambiguator) {
+    std::string    disambiguatorSymbol = LexiconBuilder::phoneDisambiguatorSymbol(disambiguator);
+    OpenFst::Label output              = phoneSymbols_->Find(disambiguatorSymbol);
     verify(output > 0);
     addArc(from, to, input, output);
     printState(from);
     printState(to);
     DBG(1) << " "
-             << (input != OpenFst::Epsilon ? allophoneSymbols_->Find(input) : "eps")
-             << " "
-             << disambiguatorSymbol << "=" << output
-             << std::endl;
+           << (input != OpenFst::Epsilon ? allophoneSymbols_->Find(input) : "eps")
+           << " "
+           << disambiguatorSymbol << "=" << output
+           << std::endl;
 }
 
 void ContextTransducerBuilder::Builder::addInputDisambiguatorArc(
-    OpenFst::StateId from, OpenFst::StateId to, u32 disambiguator, OpenFst::Label output)
-{
+        OpenFst::StateId from, OpenFst::StateId to, u32 disambiguator, OpenFst::Label output) {
     OpenFst::Label input = getAllophoneDisambiguator(disambiguator);
     addArc(from, to, input, output);
     printState(from);
     printState(to);
     DBG(1) << " "
-             << "#" << disambiguator << "=" << input
-             << " "
-             << (output != OpenFst::Epsilon ? phoneSymbols_->Find(output) : "eps")
-             << std::endl;
+           << "#" << disambiguator << "=" << input
+           << " "
+           << (output != OpenFst::Epsilon ? phoneSymbols_->Find(output) : "eps")
+           << std::endl;
 }
 
 void ContextTransducerBuilder::Builder::addDisambiguatorArcs(
-    OpenFst::StateId from, OpenFst::StateId to, const Allophone *input)
-{
+        OpenFst::StateId from, OpenFst::StateId to, const Allophone* input) {
     for (u32 d = 0; d < nDisambiguators_; ++d) {
-        OpenFst::Label inputLabel = input ? getAllophoneLabel(input) :
-            getAllophoneDisambiguator(d);
+        OpenFst::Label inputLabel = input ? getAllophoneLabel(input) : getAllophoneDisambiguator(d);
         addOutputDisambiguatorArc(from, to, inputLabel, d);
     }
 }
 
 template<class T>
-void ContextTransducerBuilder::Builder::removeDuplicates(std::vector<T> &list) const
-{
+void ContextTransducerBuilder::Builder::removeDuplicates(std::vector<T>& list) const {
     std::sort(list.begin(), list.end());
     list.erase(std::unique(list.begin(), list.end()), list.end());
 }
 
-void ContextTransducerBuilder::Builder::initialize()
-{
+void ContextTransducerBuilder::Builder::initialize() {
     size_t maxHistory = 0, maxFuture = 0;
     for (Am::AllophoneAlphabet::AllophoneList::const_iterator ai = allophoneList_->begin();
-            ai != allophoneList_->end(); ++ai) {
-        const Allophone *a = *ai;
-        maxHistory = std::max(maxHistory, a->history().size());
-        maxFuture = std::max(maxFuture, a->future().size());
-        const Bliss::Phoneme *phoneme = model_->phonemeInventory()->phoneme(a->phoneme());
+         ai != allophoneList_->end(); ++ai) {
+        const Allophone* a            = *ai;
+        maxHistory                    = std::max(maxHistory, a->history().size());
+        maxFuture                     = std::max(maxFuture, a->future().size());
+        const Bliss::Phoneme* phoneme = model_->phonemeInventory()->phoneme(a->phoneme());
         if (!phoneme->isContextDependent()) {
             if ((*ai)->boundary & (Allophone::isInitialPhone | Allophone::isFinalPhone))
                 ciPhones_[phoneme->id()] = a;
@@ -367,9 +344,9 @@ void ContextTransducerBuilder::Builder::initialize()
 
     if (nonWordTokens_) {
         nonWordTokens_->createAllophones(allophones_);
-        const NonWordTokens::AllophoneMap &nonWordAllophones = nonWordTokens_->allophones();
+        const NonWordTokens::AllophoneMap& nonWordAllophones = nonWordTokens_->allophones();
         for (NonWordTokens::AllophoneMap::const_iterator nw = nonWordAllophones.begin();
-                nw != nonWordAllophones.end(); ++nw) {
+             nw != nonWordAllophones.end(); ++nw) {
             verify(!phonemes_->phonemeInventory()->isValidPhonemeId(nw->first));
             ciPhones_[nw->first] = nw->second;
             initialNonCoartPhones_.push_back(nw->first);
@@ -381,21 +358,20 @@ void ContextTransducerBuilder::Builder::initialize()
     require(maxFuture <= 1);
 }
 
-OpenFst::VectorFst* ContextTransducerBuilder::Builder::build()
-{
+OpenFst::VectorFst* ContextTransducerBuilder::Builder::build() {
     verify(phoneSymbols_);
     verify(allophoneSymbols_);
     stateMap_.clear();
     c_ = new OpenFst::VectorFst();
     prepare();
     for (AllophoneAlphabet::AllophoneList::const_iterator ai = allophoneList_->begin();
-            ai != allophoneList_->end(); ++ai) {
+         ai != allophoneList_->end(); ++ai) {
         buildAllophone(*ai);
     }
     if (nonWordTokens_) {
-        const NonWordTokens::AllophoneMap &nonWordAllophones = nonWordTokens_->allophones();
+        const NonWordTokens::AllophoneMap& nonWordAllophones = nonWordTokens_->allophones();
         for (NonWordTokens::AllophoneMap::const_iterator ai = nonWordAllophones.begin();
-                ai != nonWordAllophones.end(); ++ai) {
+             ai != nonWordAllophones.end(); ++ai) {
             buildAllophone(ai->second);
         }
     }
@@ -406,23 +382,22 @@ OpenFst::VectorFst* ContextTransducerBuilder::Builder::build()
     return c_;
 }
 
-void ContextTransducerBuilder::Builder::printState(OpenFst::StateId s) const
-{
+void ContextTransducerBuilder::Builder::printState(OpenFst::StateId s) const {
     if (DBG_LEVEL > 0) {
         StateSet::const_iterator i = stateMap_.begin();
-        while (i != stateMap_.end() && i->second != s) ++i;
+        while (i != stateMap_.end() && i->second != s)
+            ++i;
         verify(i != stateMap_.end());
-        const TriphoneContextAndBoundary &t = i->first;
-        DBG(1)  << s << "=("
-              << (t.history_ == Bliss::Phoneme::term ? "#": phonemes_->symbol(t.history_))
-              << ","
-              << (t.central_ == Bliss::Phoneme::term ? "#" : phonemes_->symbol(t.central_))
-              << (t.boundary_ ? " *, " : ", ")
-              << (int)t.disambiguator_
-              << ")" << std::endl;
+        const TriphoneContextAndBoundary& t = i->first;
+        DBG(1) << s << "=("
+               << (t.history_ == Bliss::Phoneme::term ? "#" : phonemes_->symbol(t.history_))
+               << ","
+               << (t.central_ == Bliss::Phoneme::term ? "#" : phonemes_->symbol(t.central_))
+               << (t.boundary_ ? " *, " : ", ")
+               << (int)t.disambiguator_
+               << ")" << std::endl;
     }
 }
-
 
 /**
  * builds a deterministic context dependency transducer for triphones.
@@ -462,17 +437,19 @@ void ContextTransducerBuilder::Builder::printState(OpenFst::StateId s) const
  * the initial state for all CI phones. The disambiguation symbols occuring
  * directly after a CI phone is deleted.
  */
-class ContextTransducerBuilder::AcrossWordBuilder : public ContextTransducerBuilder::Builder
-{
+class ContextTransducerBuilder::AcrossWordBuilder : public ContextTransducerBuilder::Builder {
 public:
-    AcrossWordBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l) :
-        Builder(m, l),
-        allowNonCrossWord_(false), addSuperFinal_(false), exploitDisambiguators_(false),
-        unshiftCiPhones_(false), nonPhoneSequenceEnd_(false), finalCiLoop_(false) {}
+    AcrossWordBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
+            : Builder(m, l),
+              allowNonCrossWord_(false),
+              addSuperFinal_(false),
+              exploitDisambiguators_(false),
+              unshiftCiPhones_(false),
+              nonPhoneSequenceEnd_(false),
+              finalCiLoop_(false) {}
 
 protected:
-    virtual void prepare()
-    {
+    virtual void prepare() {
         disambiguatorStates_.clear();
         stateMap_.clear();
         iInitial_ = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, true);
@@ -485,7 +462,8 @@ protected:
         if (sequenceEnd == OpenFst::Epsilon || addSuperFinal_ || nonPhoneSequenceEnd_) {
             iFinal_ = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 1, true);
             c_->SetFinal(iFinal_, OpenFst::Weight::One());
-        } else {
+        }
+        else {
             iFinal_ = OpenFst::InvalidStateId;
         }
 
@@ -505,29 +483,33 @@ protected:
         // if unshiftCiPhones_ build for all CI phones P
         // (#,#) -- P{#,#} : P --> (#,#)
         for (PhoneList::const_iterator i = initialNonCoartPhones_.begin();
-                i != initialNonCoartPhones_.end(); ++i) {
-            PhoneMap::const_iterator ci = ciPhones_.find(*i);
-            const bool isCiPhone = ci != ciPhones_.end();
+             i != initialNonCoartPhones_.end(); ++i) {
+            PhoneMap::const_iterator ci        = ciPhones_.find(*i);
+            const bool               isCiPhone = ci != ciPhones_.end();
             if (isCiPhone) {
                 DBG(1) << "initial CI allophone=" << allophones_->symbol(allophones_->index(ci->second)) << " phone=" << phonemes_->symbol(ci->first) << std::endl;
-            } else {
+            }
+            else {
                 DBG(1) << "initial phone: " << phonemes_->symbol(*i) << std::endl;
             }
             if (isCiPhone) {
                 if (exploitDisambiguators_) {
                     DBG(1) << "arc to CI-state" << std::endl;
                     addArc(iInitial_, iCiState, ci->second, ci->first, true);
-                } else if (unshiftCiPhones_) {
+                }
+                else if (unshiftCiPhones_) {
                     DBG(1) << "CI loop" << std::endl;
                     addArc(iInitial_, iInitial_, ci->second, ci->first, true);
-                } else {
+                }
+                else {
                     DBG(1) << "CI initial" << std::endl;
                     addArc(iInitial_, getStateId(Bliss::Phoneme::term, *i, 0, true), 0, *i, true);
                 }
                 if (iFinal_ != OpenFst::InvalidStateId && finalCiLoop_) {
                     addArc(iFinal_, iFinal_, ci->second, ci->first, true);
                 }
-            } else {
+            }
+            else {
                 DBG(1) << "initial arc" << std::endl;
                 OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *i, 0, true);
                 addArc(iInitial_, iTo, 0, *i, true);
@@ -539,20 +521,20 @@ private:
     /**
      * Build transitions for a final allophone with empty right context A{B,#}@f
      */
-    void buildFinalRightCiAllophone(OpenFst::StateId iFrom, const Allophone *a, bool ciPhone)
-    {
+    void buildFinalRightCiAllophone(OpenFst::StateId iFrom, const Allophone* a, bool ciPhone) {
         DBG(1) << "final right-ci" << std::endl;
         if (!ciPhone) {
             DBG(1) << "cd phone" << std::endl;
             if (allowNonCrossWord_) {
                 // for all initial non-coarticulated phones X
                 // (A,B) -- X : B{A+#} --> (#,X)
-                for(PhoneList::const_iterator p = initialNonCoartPhones_.begin();
-                        p != initialNonCoartPhones_.end(); ++p) {
+                for (PhoneList::const_iterator p = initialNonCoartPhones_.begin();
+                     p != initialNonCoartPhones_.end(); ++p) {
                     OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *p, 0, true);
                     addArc(iFrom, iTo, a, *p, true);
                 }
-            } else {
+            }
+            else {
                 // for all non-coarticulated phones X
                 // (A,B) -- X : B{A+#} --> (#,X)
                 DBG(1) << "for all ci phones" << std::endl;
@@ -561,7 +543,8 @@ private:
                     addArc(iFrom, iTo, a, p->first, true);
                 }
             }
-        } else {
+        }
+        else {
             DBG(1) << "ci phone" << std::endl;
             // non-coarticulated phone
             verify(a->history().size() == 0);
@@ -569,14 +552,16 @@ private:
             if (exploitDisambiguators_) {
                 // (#,A) -- #_ : A{#,#} --> (#,#)
                 addDisambiguatorArcs(iFrom, iInitial_, a);
-            } else if (unshiftCiPhones_) {
+            }
+            else if (unshiftCiPhones_) {
                 // (#,A) -- eps : A{#,#} --> (#,#)
                 DBG(1) << "unshifting arc" << std::endl;
                 addArc(iFrom, iInitial_, a, Bliss::Phoneme::Id(-1), false);
-            } else {
+            }
+            else {
                 // (#,A) -- B : A{#,#} --> (#,B)
-                for(PhoneList::const_iterator p = initialNonCoartPhones_.begin();
-                        p != initialNonCoartPhones_.end(); ++p) {
+                for (PhoneList::const_iterator p = initialNonCoartPhones_.begin();
+                     p != initialNonCoartPhones_.end(); ++p) {
                     OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *p, 0, true);
                     addArc(iFrom, iTo, a, *p, true);
                 }
@@ -585,7 +570,8 @@ private:
         if (getSequenceEndSymbol() == OpenFst::Epsilon) {
             // (A,B) -- EPS : B{A+#} --> ((final))
             addArc(iFrom, iFinal_, a, Bliss::Phoneme::Id(-1), false);
-        } else if (nonPhoneSequenceEnd_ && !(unshiftCiPhones_ && ciPhone)) {
+        }
+        else if (nonPhoneSequenceEnd_ && !(unshiftCiPhones_ && ciPhone)) {
             // (A,B) -- $ : B{A+#} --> ((final))
             DBG(1) << "arc to final" << std::endl;
             addArc(iFrom, iFinal_, getAllophoneLabel(a), getSequenceEndSymbol());
@@ -595,43 +581,41 @@ private:
     /**
      * Build transitions for a non-final allophone with empty right context A{B,#}
      */
-    void buildRightCiAllophone(OpenFst::StateId iFrom, const Allophone *a, bool ciPhone)
-    {
+    void buildRightCiAllophone(OpenFst::StateId iFrom, const Allophone* a, bool ciPhone) {
         if (!ciPhone) {
             // empty future, but not a final allophone
             //   -> must be a phone before a CI phone inside a word
             // add transitions for all CI phones X
             // (A,B) --> X : B{A,#} --> (#,X)
             for (PhoneList::const_iterator p = contextIndependentInnerPhones_.begin();
-                    p != contextIndependentInnerPhones_.end(); ++p) {
+                 p != contextIndependentInnerPhones_.end(); ++p) {
                 OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *p, 0, false);
                 addArc(iFrom, iTo, a, *p, false);
             }
-        } else {
+        }
+        else {
             // context-independent phone without the final tag.
             // add transitions for intra-word non-coarticulated phones X
             // (#,P) -- X : P{#,#} --> (#,X)
             for (PhoneList::const_iterator p = innerNonCoartPhones_.begin();
-                    p != innerNonCoartPhones_.end(); ++p) {
+                 p != innerNonCoartPhones_.end(); ++p) {
                 OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *p, 0, false);
                 addArc(iFrom, iTo, a, *p, false);
             }
         }
     }
 
-
 protected:
-    virtual void buildAllophone(const Allophone *a)
-    {
+    virtual void buildAllophone(const Allophone* a) {
         DBG(1) << allophones_->symbol(allophones_->index(a)) << std::endl;
         Bliss::Phoneme::Id history =
                 (a->history().size() ? a->history()[0] : Bliss::Phoneme::term);
         Bliss::Phoneme::Id central = a->central();
-        Bliss::Phoneme::Id future  =
+        Bliss::Phoneme::Id future =
                 (a->future().size() ? a->future()[0] : Bliss::Phoneme::term);
-        const bool ciPhone = isCiPhone(central);
-        const bool finalPhone = a->boundary & Allophone::isFinalPhone;
-        OpenFst::StateId iFrom = getStateId(history, central, 0,
+        const bool       ciPhone    = isCiPhone(central);
+        const bool       finalPhone = a->boundary & Allophone::isFinalPhone;
+        OpenFst::StateId iFrom      = getStateId(history, central, 0,
                                             a->boundary & Allophone::isInitialPhone);
 
         if (finalPhone && !(exploitDisambiguators_ && ciPhone))
@@ -641,13 +625,15 @@ protected:
                 // empty future and final allophone
                 //  -> last phone of a word without across-word context
                 buildFinalRightCiAllophone(iFrom, a, ciPhone);
-            } else {
+            }
+            else {
                 // empty future but not final
                 // phone inside a word having context independent inner phones
                 // (for example silence inside a phrase)
                 buildRightCiAllophone(iFrom, a, ciPhone);
             }
-        } else {
+        }
+        else {
             // (A,B) -- C : B{A,C} --> (B,C)
             OpenFst::StateId iTo = getStateId(central, future, 0,
                                               finalPhone);
@@ -655,11 +641,10 @@ protected:
         }
     }
 
-    virtual void finalize()
-    {
+    virtual void finalize() {
         // create disambiguator loops
         for (std::set<OpenFst::StateId>::const_iterator s = disambiguatorStates_.begin();
-                s != disambiguatorStates_.end(); ++s) {
+             s != disambiguatorStates_.end(); ++s) {
             addDisambiguatorArcs(*s, *s);
         }
         OpenFst::Label seqEnd = getSequenceEndSymbol();
@@ -668,50 +653,45 @@ protected:
             // i.e. use last silence symbol as sequence end symbol
             // verify(isCiPhone(sequenceEndSymbol_));
             TriphoneContextAndBoundary siState(Bliss::Phoneme::term, seqEnd, 0, true);
-            StateSet::const_iterator si = stateMap_.find(siState);
+            StateSet::const_iterator   si = stateMap_.find(siState);
             verify(si != stateMap_.end());
             if (addSuperFinal_) {
                 verify(iFinal_ != Fsa::InvalidStateId);
-                const Allophone *a = allophones_->allophone(
+                const Allophone* a = allophones_->allophone(
                         Allophone(seqEnd, Allophone::isInitialPhone | Allophone::isFinalPhone));
                 addArc(si->second, iFinal_, a, Bliss::Phoneme::Id(-1), false);
-            } else {
+            }
+            else {
                 c_->SetFinal(si->second, OpenFst::Weight::One());
             }
         }
     }
 
 public:
-
-    void setSuperFinalState(bool addSuperFinal)
-    {
+    void setSuperFinalState(bool addSuperFinal) {
         addSuperFinal_ = addSuperFinal;
     }
 
-    void setAllowNonCrossword(bool allow)
-    {
+    void setAllowNonCrossword(bool allow) {
         allowNonCrossWord_ = allow;
     }
 
-    void setExploitDisambiguators(bool exploit)
-    {
+    void setExploitDisambiguators(bool exploit) {
         exploitDisambiguators_ = exploit;
     }
-    void setUnshiftCiPhones(bool unshift)
-    {
+    void setUnshiftCiPhones(bool unshift) {
         unshiftCiPhones_ = unshift;
     }
-    void setFinalCiLoop(bool loop)
-    {
+    void setFinalCiLoop(bool loop) {
         finalCiLoop_ = loop;
     }
 
 private:
-    bool allowNonCrossWord_;
-    bool addSuperFinal_, exploitDisambiguators_, unshiftCiPhones_;
-    bool nonPhoneSequenceEnd_;
-    bool finalCiLoop_;
-    OpenFst::StateId iInitial_, iFinal_;
+    bool                       allowNonCrossWord_;
+    bool                       addSuperFinal_, exploitDisambiguators_, unshiftCiPhones_;
+    bool                       nonPhoneSequenceEnd_;
+    bool                       finalCiLoop_;
+    OpenFst::StateId           iInitial_, iFinal_;
     std::set<OpenFst::StateId> disambiguatorStates_;
 };
 
@@ -724,14 +704,12 @@ private:
 //  (A,B) -- B{A+#} : B --> (#,#,1)
 //  (#,#,1) -- CI{#+#} : CI --> (#,#,0)
 //  to enforce at least one CI phone between allophones A{B+#} C{#+D}
-class ContextTransducerBuilder::NonDeterministicBuilder : public ContextTransducerBuilder::Builder
-{
+class ContextTransducerBuilder::NonDeterministicBuilder : public ContextTransducerBuilder::Builder {
 public:
-    NonDeterministicBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l) :
-        Builder(m, l), iInitial_(OpenFst::InvalidStateId) {}
+    NonDeterministicBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
+            : Builder(m, l), iInitial_(OpenFst::InvalidStateId) {}
 
-    virtual void prepare()
-    {
+    virtual void prepare() {
         stateMap_.clear();
         iInitial_ = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, true);
         c_->SetStart(iInitial_);
@@ -739,17 +717,16 @@ public:
         disambiguatorStates_.insert(iInitial_);
     }
 
-    virtual void buildAllophone(const Allophone *a)
-    {
+    virtual void buildAllophone(const Allophone* a) {
         DBG(1) << allophones_->symbol(allophones_->index(a)) << std::endl;
         Bliss::Phoneme::Id history =
                 (a->history().size() ? a->history()[0] : Bliss::Phoneme::term);
         Bliss::Phoneme::Id center = a->central();
-        Bliss::Phoneme::Id future  =
+        Bliss::Phoneme::Id future =
                 (a->future().size() ? a->future()[0] : Bliss::Phoneme::term);
-        const bool ciPhone = isCiPhone(center);
-        const bool finalPhone = a->boundary & Allophone::isFinalPhone;
-        const bool initialPhone = a->boundary & Allophone::isInitialPhone;
+        const bool       ciPhone      = isCiPhone(center);
+        const bool       finalPhone   = a->boundary & Allophone::isFinalPhone;
+        const bool       initialPhone = a->boundary & Allophone::isInitialPhone;
         OpenFst::StateId iFrom = OpenFst::InvalidStateId, iTo = OpenFst::InvalidStateId;
 
         if (ciPhone) {
@@ -760,10 +737,11 @@ public:
             //   (#,#,1) -- si{#+#} : si --> (#,#,0)
             //   (#,#,0) -- si{#+#} : si --> (#,#,0)
             iFrom = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 1, initialPhone);
-            iTo = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, initialPhone);
+            iTo   = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, initialPhone);
             addArc(iFrom, iTo, a, center, initialPhone);
             addArc(iTo, iTo, a, center, initialPhone);
-        } else {
+        }
+        else {
             if (history == Bliss::Phoneme::term)
                 iFrom = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, initialPhone);
             else
@@ -779,17 +757,16 @@ public:
             disambiguatorStates_.insert(iTo);
     }
 
-    virtual void finalize()
-    {
+    virtual void finalize() {
         // disambiguator loops at word boundary states
         for (std::set<OpenFst::StateId>::const_iterator s = disambiguatorStates_.begin();
-                s != disambiguatorStates_.end(); ++s) {
+             s != disambiguatorStates_.end(); ++s) {
             addDisambiguatorArcs(*s, *s);
         }
         OpenFst::Label seqEnd = getSequenceEndSymbol();
         // all boundary CI-states (#,#,@i) are final
         for (StateSet::const_iterator s = stateMap_.begin(); s != stateMap_.end(); ++s) {
-            const TriphoneContextAndBoundary &tcb = s->first;
+            const TriphoneContextAndBoundary& tcb = s->first;
             if (tcb.boundary_ && tcb.central_ == Bliss::Phoneme::term) {
                 // no "read at least one CI phone state"
                 c_->SetFinal(s->second, OpenFst::Weight::One());
@@ -801,24 +778,21 @@ public:
     }
 
 private:
-    OpenFst::StateId iInitial_;
+    OpenFst::StateId           iInitial_;
     std::set<OpenFst::StateId> disambiguatorStates_;
 };
 
-class ContextTransducerBuilder::WithinWordBuilder : public ContextTransducerBuilder::Builder
-{
+class ContextTransducerBuilder::WithinWordBuilder : public ContextTransducerBuilder::Builder {
 public:
-    WithinWordBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l) :
-        Builder(m, l), exploitDisambiguators_(false) {}
+    WithinWordBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
+            : Builder(m, l), exploitDisambiguators_(false) {}
 
-    void setExploitDisambiguators(bool exploit)
-    {
+    void setExploitDisambiguators(bool exploit) {
         exploitDisambiguators_ = exploit;
     }
-protected:
 
-    virtual void prepare()
-    {
+protected:
+    virtual void prepare() {
         iInitial_ = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, false);
         c_->SetStart(iInitial_);
 
@@ -833,15 +807,15 @@ protected:
                 addInputDisambiguatorArc(iDisambiguatorState, iFinalDisambiguatorState,
                                          d, OpenFst::Epsilon);
             }
-        } else {
+        }
+        else {
             c_->SetFinal(iInitial_, OpenFst::Weight::One());
             c_->SetFinal(getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, true), OpenFst::Weight::One());
         }
 
-
         for (PhoneList::const_iterator i = initialNonCoartPhones_.begin(); i != initialNonCoartPhones_.end(); ++i) {
             if (exploitDisambiguators_) {
-                OpenFst::StateId iTo  = getStateId(Bliss::Phoneme::term, *i, 0, false);
+                OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *i, 0, false);
                 // (#,#) -- a : eps --> (#,a)
                 addArc(iInitial_, iTo, 0, *i, false);
                 for (u32 d = 0; d < nDisambiguators_; ++d) {
@@ -849,7 +823,8 @@ protected:
                     OpenFst::StateId iFrom = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, d + 1, false);
                     addInputDisambiguatorArc(iFrom, iTo, d, *i);
                 }
-            } else {
+            }
+            else {
                 OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *i, 0, true);
                 // (#,#) -- a : eps --> (#,a,*)
                 addArc(iInitial_, iTo, 0, *i, false);
@@ -862,43 +837,47 @@ protected:
         }
     }
 
-    virtual void buildAllophone(const Allophone *a)
-    {
+    virtual void buildAllophone(const Allophone* a) {
         DBG(1) << allophones_->symbol(allophones_->index(a)) << std::endl;
         Bliss::Phoneme::Id future =
                 (a->future().size() ? a->future()[0] : Bliss::Phoneme::term);
         Bliss::Phoneme::Id history =
                 (a->history().size() ? a->history()[0] : Bliss::Phoneme::term);
         Bliss::Phoneme::Id central = a->central();
-        OpenFst::StateId iFrom = OpenFst::InvalidStateId;
+        OpenFst::StateId   iFrom   = OpenFst::InvalidStateId;
         if (exploitDisambiguators_) {
             iFrom = getStateId(history, a->central(), 0, false);
-        } else {
+        }
+        else {
             iFrom = getStateId(history, a->central(), 0, a->boundary & Allophone::isInitialPhone);
         }
 
         if (a->boundary & Allophone::isFinalPhone) {
             if (exploitDisambiguators_) {
                 for (u32 d = 0; d < nDisambiguators_; ++d) {
-                    OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, d+1, false);
-                    OpenFst::Label input = getAllophoneLabel(a);
+                    OpenFst::StateId iTo   = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, d + 1, false);
+                    OpenFst::Label   input = getAllophoneLabel(a);
                     addOutputDisambiguatorArc(iFrom, iTo, input, d);
                 }
-            } else {
+            }
+            else {
                 if (isCiPhone(central)) {
                     addArc(iFrom, iInitial_, a, Bliss::Phoneme::Id(-1), false);
-                } else {
+                }
+                else {
                     OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, true);
                     addArc(iFrom, iTo, a, Bliss::Phoneme::Id(-1), false);
                 }
             }
-        } else {
+        }
+        else {
             if (future != Bliss::Phoneme::term) {
                 OpenFst::StateId iTo = getStateId(a->central(), future, 0, false);
                 addArc(iFrom, iTo, a, future, false);
-            } else {
-                for(PhoneList::const_iterator p = contextIndependentInnerPhones_.begin();
-                        p != contextIndependentInnerPhones_.end(); ++p) {
+            }
+            else {
+                for (PhoneList::const_iterator p = contextIndependentInnerPhones_.begin();
+                     p != contextIndependentInnerPhones_.end(); ++p) {
                     OpenFst::StateId iTo = getStateId(Bliss::Phoneme::term, *p, 0, false);
                     addArc(iFrom, iTo, a, *p, false);
                 }
@@ -908,30 +887,25 @@ protected:
 
 private:
     OpenFst::StateId iInitial_;
-    bool exploitDisambiguators_;
+    bool             exploitDisambiguators_;
 };
 
-
-class ContextTransducerBuilder::MonophoneBuilder : public ContextTransducerBuilder::Builder
-{
+class ContextTransducerBuilder::MonophoneBuilder : public ContextTransducerBuilder::Builder {
 public:
-    MonophoneBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l) :
-        Builder(m, l) {}
+    MonophoneBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
+            : Builder(m, l) {}
 
 protected:
-
-    virtual void prepare()
-    {
+    virtual void prepare() {
         state_ = getStateId(Bliss::Phoneme::term, Bliss::Phoneme::term, 0, false);
         c_->SetStart(state_);
         c_->SetFinal(state_, OpenFst::Weight::One());
         addDisambiguatorArcs(state_, state_);
     }
 
-    virtual void buildAllophone(const Allophone *a)
-    {
-        Bliss::Phoneme::Id phone = a->central();
-        std::string phoneSymbol = phonemes_->symbol(phone);
+    virtual void buildAllophone(const Allophone* a) {
+        Bliss::Phoneme::Id phone       = a->central();
+        std::string        phoneSymbol = phonemes_->symbol(phone);
         if (!isCiPhone(phone)) {
             if (a->boundary & Allophone::isInitialPhone)
                 phoneSymbol += LexiconBuilder::initialSuffix;
@@ -944,90 +918,90 @@ protected:
         }
         addArc(state_, state_, getAllophoneLabel(a), l);
     }
+
 protected:
     OpenFst::StateId state_;
 };
 
-
 const Core::ParameterString ContextTransducerBuilder::paramSequenceEndSymbol(
-    "sequence-end-symbol",
-    "symbol to determine end of phone sequence. empty string means epsilon.",
-    "");
+        "sequence-end-symbol",
+        "symbol to determine end of phone sequence. empty string means epsilon.",
+        "");
 
 const Core::ParameterBool ContextTransducerBuilder::paramUseSentenceEndSymbol(
-    "use-sentence-end",
-    "use the sentence end marker from the lexicon as sequence end symbol",
-    false);
+        "use-sentence-end",
+        "use the sentence end marker from the lexicon as sequence end symbol",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramAllowNonCrossWordTransitions(
-    "allow-non-crossword-transitions",
-    "allow non-across-word transitions between words",
-    false);
+        "allow-non-crossword-transitions",
+        "allow non-across-word transitions between words",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramAddWordDisambiguatorLoops(
-    "add-word-disambiguators",
-    "add loop transitions for word disambiguators",
-    false);
+        "add-word-disambiguators",
+        "add loop transitions for word disambiguators",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramAddSuperFinalState(
-    "add-super-final",
-    "add a final state connect with an output epsilon transition",
-    false);
+        "add-super-final",
+        "add a final state connect with an output epsilon transition",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramExploitDisambiguators(
-    "exploit-disambiguators",
-    "exploits the phone disambiguators which are assumed after the last phone at word ends",
-    false);
+        "exploit-disambiguators",
+        "exploits the phone disambiguators which are assumed after the last phone at word ends",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramUnshiftCiPhones(
-    "unshift-ci-phones",
-    "creates un-shifted loop transitions for CI phones",
-    false);
+        "unshift-ci-phones",
+        "creates un-shifted loop transitions for CI phones",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramAddNonWords(
-    "add-non-words",
-    "add symbols and arcs for non word phones used in the lexicon transducer",
-    false);
+        "add-non-words",
+        "add symbols and arcs for non word phones used in the lexicon transducer",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramNonDeterministic(
-    "non-deterministic",
-    "build non-deterministic C transducer",
-    false);
+        "non-deterministic",
+        "build non-deterministic C transducer",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramFinalCiLoop(
-    "final-ci-loop",
-    "add loop transitions for CI phones on final state",
-    false);
+        "final-ci-loop",
+        "add loop transitions for CI phones on final state",
+        false);
 
 const Core::ParameterBool ContextTransducerBuilder::paramMonophones(
-    "monophones",
-    "build monophonic model",
-    false);
+        "monophones",
+        "build monophonic model",
+        false);
 
-
-OpenFst::VectorFst* ContextTransducerBuilder::build()
-{
+OpenFst::VectorFst* ContextTransducerBuilder::build() {
     verify(disambiguatorOffset_ >= 0);
     verify(initialPhoneOffset_ >= 0);
     verify(nDisambiguators_ >= 0);
 
-    Builder *builder = 0;
+    Builder* builder = 0;
     if (paramNonDeterministic(config)) {
         log("building non-deterministic C");
         builder = new NonDeterministicBuilder(model_, lexicon_);
-    } else if (model_->isAcrossWordModelEnabled()) {
+    }
+    else if (model_->isAcrossWordModelEnabled()) {
         if (paramAllowNonCrossWordTransitions(config))
             log("allowing non-across-word transitions");
         if (paramAddSuperFinalState(config))
             log("adding super final state");
-        AcrossWordBuilder *b = new AcrossWordBuilder(model_, lexicon_);
+        AcrossWordBuilder* b = new AcrossWordBuilder(model_, lexicon_);
         b->setAllowNonCrossword(paramAllowNonCrossWordTransitions(config));
 
         b->setSuperFinalState(paramAddSuperFinalState(config));
         if (paramExploitDisambiguators(config)) {
             log("exploiting phone disambiguators");
             b->setExploitDisambiguators(true);
-        } else if (paramUnshiftCiPhones(config)) {
+        }
+        else if (paramUnshiftCiPhones(config)) {
             log("using un-shifted CI transitions");
             b->setUnshiftCiPhones(true);
         }
@@ -1036,11 +1010,13 @@ OpenFst::VectorFst* ContextTransducerBuilder::build()
             b->setFinalCiLoop(true);
         }
         builder = b;
-    } else if (paramMonophones(config)) {
+    }
+    else if (paramMonophones(config)) {
         log("building monophone model");
         builder = new MonophoneBuilder(model_, lexicon_);
-    } else {
-        WithinWordBuilder *b = new WithinWordBuilder(model_, lexicon_);
+    }
+    else {
+        WithinWordBuilder* b = new WithinWordBuilder(model_, lexicon_);
         if (paramExploitDisambiguators(config)) {
             log("exploiting phone disambiguators");
             b->setExploitDisambiguators(true);
@@ -1055,7 +1031,7 @@ OpenFst::VectorFst* ContextTransducerBuilder::build()
         log("adding word disambiguator loops for %d disambiguators", nWordDisambiguators_);
         builder->setWordDisambiguators(nWordDisambiguators_);
     }
-    NonWordTokens *nonWordTokens = 0;
+    NonWordTokens* nonWordTokens = 0;
     if (paramAddNonWords(config)) {
         log("adding non word phones");
         nonWordTokens = new NonWordTokens(select("non-word-tokens"), *lexicon_);
@@ -1078,13 +1054,13 @@ OpenFst::VectorFst* ContextTransducerBuilder::build()
     }
     builder->setPhoneSymbols(phoneSymbols_);
     builder->initialize();
-    OpenFst::VectorFst *c = builder->build();
-    newWordLabelOffset_ = builder->getWordLabelOffset();
+    OpenFst::VectorFst* c   = builder->build();
+    newWordLabelOffset_     = builder->getWordLabelOffset();
     newDisambiguatorOffset_ = builder->getDisambiguatorOffset();
     delete nonWordTokens;
     delete builder;
     return c;
 }
 
-} // namespace Wfst
-} // namespace Search
+}  // namespace Wfst
+}  // namespace Search

@@ -521,7 +521,7 @@ public:
     }
 };
 const Core::ParameterBool Recognizer::paramPronunciationScore(
-        "add-pronunication-score",
+        "add-pronunciation-score",
         "add an extra dimension containing the pronunciation score",
         false);
 const Core::ParameterBool Recognizer::paramApplyNonWordClosureFilter(

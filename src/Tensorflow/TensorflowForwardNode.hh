@@ -35,7 +35,6 @@ public:
     typedef Flow::Node Precursor;
 
     static Core::ParameterString paramId;
-    static Core::ParameterInt    paramBufferSize;
     static Core::ParameterBool   paramCheckValues;
 
     static std::string filterName();
@@ -50,7 +49,6 @@ public:
     virtual bool work(Flow::PortId p);
 
 private:
-    const size_t bufferSize_;   // number of features that are processed at once
     const bool   checkValues_;  // check output of network for finiteness
     bool         eos_;          // needs initialization of network
 

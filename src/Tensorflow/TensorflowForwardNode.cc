@@ -27,16 +27,12 @@ namespace Tensorflow {
 Core::ParameterString TensorflowForwardNode::paramId(
         "id", "Changing the id resets the caches for the recurrent connections.");
 
-Core::ParameterInt TensorflowForwardNode::paramBufferSize(
-        "buffer-size", "buffer size", std::numeric_limits<int>::max());
-
 Core::ParameterBool TensorflowForwardNode::paramCheckValues(
         "check-values", "check output of network for finiteness", false);
 
 TensorflowForwardNode::TensorflowForwardNode(Core::Configuration const& c)
         : Core::Component(c),
           Precursor(c),
-          bufferSize_(paramBufferSize(config)),
           checkValues_(paramCheckValues(config)),
           eos_(false),
           input_port_names_(),
@@ -104,34 +100,29 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
         auto timer_start = std::chrono::steady_clock::now();
         // gather inputs, we assume that all inputs are of the same length, the length of the shortest input will determine
         // the length of all inputs
-        size_t                                                   num_frames  = 0ul;
         size_t                                                   start_frame = timestamps_.size();
         std::vector<std::vector<Flow::DataPtr<Flow::Timestamp>>> data(input_port_names_.size());
-        while (num_frames < bufferSize_) {
-            for (size_t i = 0ul; i < input_port_names_.size(); i++) {
+        for (size_t i = 0ul; i < input_port_names_.size(); i++) {
+            bool success = true;
+            while (success) {
                 Flow::DataPtr<Flow::Timestamp> d;
-                bool                           success = getData(i, d);
+                success = getData(i, d);
                 if (success and Flow::Data::isNotSentinel(&(*d))) {
                     data[i].push_back(d);
-                }
-                else {
-                    eos_ = true;
-                    goto fetching_inputs_finished;
                 }
                 if (i == 0ul) {
                     timestamps_.push_back(*d.get());
                 }
             }
-            num_frames++;
         }
-    fetching_inputs_finished:
-        // clip input lengths
-        for (size_t i = 0ul; i < data.size(); i++) {
-            data[i].resize(num_frames);
-        }
-        timestamps_.resize(start_frame + num_frames);
+        eos_ = true;
 
-        if (num_frames == 0ul) {
+        // check if there is a non-empty stream
+        bool all_empty = true;
+        for (auto const &stream : data) {
+            all_empty = all_empty and stream.empty();
+        }
+        if (all_empty) {
             return putData(p, Flow::Data::eos());
         }
 
@@ -141,7 +132,7 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
             auto const& tensor_info = tensor_input_map_.get_info(input_name);
             inputs.push_back(std::make_pair(tensor_info.tensor_name(), toTensor(data[i])));
             if (not tensor_info.seq_length_tensor_name().empty()) {
-                inputs.push_back(std::make_pair(tensor_info.seq_length_tensor_name(), Tensor::create(std::vector<s32>{static_cast<s32>(num_frames)})));
+                inputs.push_back(std::make_pair(tensor_info.seq_length_tensor_name(), Tensor::create(std::vector<s32>{static_cast<s32>(data[i].size())})));
             }
         }
 

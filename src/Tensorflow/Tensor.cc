@@ -337,6 +337,66 @@ template void Tensor::get<s64>(size_t, size_t, s64&) const;
 template void Tensor::get<u64>(size_t, size_t, u64&) const;
 template void Tensor::get<std::string>(size_t, size_t, std::string&) const;
 
+template<typename T>
+T const* Tensor::data() const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 1);
+    require_eq(tensor_->dtype(), expected_dtype);
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(0));
+}
+
+template f32 const* Tensor::data<f32>() const;
+template f64 const* Tensor::data<f64>() const;
+template s32 const* Tensor::data<s32>() const;
+template u32 const* Tensor::data<u32>() const;
+template s64 const* Tensor::data<s64>() const;
+template u64 const* Tensor::data<u64>() const;
+template std::string const* Tensor::data<std::string>() const;
+
+template<typename T>
+T const* Tensor::data(size_t dim0_idx) const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 1);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx)));
+}
+
+template f32 const* Tensor::data<f32>(size_t) const;
+template f64 const* Tensor::data<f64>(size_t) const;
+template s32 const* Tensor::data<s32>(size_t) const;
+template u32 const* Tensor::data<u32>(size_t) const;
+template s64 const* Tensor::data<s64>(size_t) const;
+template u64 const* Tensor::data<u64>(size_t) const;
+template std::string const* Tensor::data<std::string>(size_t) const;
+
+template<typename T>
+T const* Tensor::data(size_t dim0_idx, size_t dim1_idx) const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 2);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx)));
+}
+
+template f32 const* Tensor::data<f32>(size_t, size_t) const;
+template f64 const* Tensor::data<f64>(size_t, size_t) const;
+template s32 const* Tensor::data<s32>(size_t, size_t) const;
+template u32 const* Tensor::data<u32>(size_t, size_t) const;
+template s64 const* Tensor::data<s64>(size_t, size_t) const;
+template u64 const* Tensor::data<u64>(size_t, size_t) const;
+template std::string const* Tensor::data<std::string>(size_t, size_t) const;
+
 /* ------------------------- Setters ------------------------- */
 
 template<typename T>

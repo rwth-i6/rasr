@@ -84,6 +84,17 @@ public:
     template<typename T>
     void get(size_t dim0_idx, size_t dim1_idx, T& val) const;
 
+    // raw data access
+
+    template<typename T>
+    T const* data() const;
+
+    template<typename T>
+    T const* data(size_t dim0_idx) const;
+
+    template<typename T>
+    T const* data(size_t dim0_idx, size_t dim1_idx) const;
+
     /* -------------------- Setters -------------------- */
 
     template<typename T>

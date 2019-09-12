@@ -274,13 +274,13 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
         s64 state_size = var.shape.back();
         require_ge(state_size, 0);  // variable must not be of unknown size
         std::vector<float> vec(state_size, 0.0f);
-        auto compression_param_estimator = state_comp_vec_factory_->getEstimator();
+        auto               compression_param_estimator = state_comp_vec_factory_->getEstimator();
         compression_param_estimator->accumulate(vec.data(), vec.size());
         auto compression_params = compression_param_estimator->estimate();
         cache->state.emplace_back(state_comp_vec_factory_->compress(vec.data(), vec.size(), compression_params.get()));
     }
     std::vector<f32> temp(1);
-    auto compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
+    auto             compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
     compression_param_estimator->accumulate(temp.data(), temp.size());
     auto compression_params = compression_param_estimator->estimate();
     // pretend this history has already been evaluated
@@ -425,8 +425,8 @@ void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
     current_time_ = time;
 
     size_t nn_output_cache_size = 0ul;
-    size_t state_cache_size = 0ul;
-    size_t num_histories    = 0ul;
+    size_t state_cache_size     = 0ul;
+    size_t num_histories        = 0ul;
 
     clear_queue(finished_queue_);
 
@@ -673,11 +673,11 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
             --w;
             cache->last_used = current_time_;
             require_eq(static_cast<size_t>(outputs[0ul].dimSize(2)), num_outputs_);
-            auto compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
-            float const* data = outputs[0ul].data<f32>(r, w);
+            auto         compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
+            float const* data                        = outputs[0ul].data<f32>(r, w);
             compression_param_estimator->accumulate(data, num_outputs_);
             auto compression_params = compression_param_estimator->estimate();
-            cache->nn_output = nn_output_comp_vec_factory_->compress(data, num_outputs_, compression_params.get());
+            cache->nn_output        = nn_output_comp_vec_factory_->compress(data, num_outputs_, compression_params.get());
             cache->computed.store(true);
             cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
         }
@@ -691,9 +691,9 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     session_.run({}, read_vars_tensor_names_, {}, outputs);
     for (size_t s = 0ul; s < prev_state.size(); s++) {
         for (size_t r = 0ul; r < requests.size(); r++) {
-            float const* data = outputs[s].data<f32>(r, 0);
-            size_t data_size = outputs[s].dimSize(1);
-            auto compression_param_estimator = state_comp_vec_factory_->getEstimator();
+            float const* data                        = outputs[s].data<f32>(r, 0);
+            size_t       data_size                   = outputs[s].dimSize(1);
+            auto         compression_param_estimator = state_comp_vec_factory_->getEstimator();
             compression_param_estimator->accumulate(data, data_size);
             auto compression_params = compression_param_estimator->estimate();
             requests[r].final_cache->state.emplace_back(state_comp_vec_factory_->compress(data, data_size, compression_params.get()));

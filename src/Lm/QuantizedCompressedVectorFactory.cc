@@ -23,7 +23,7 @@ void QuantizedFloatVector::uncompress(float* data, size_t size) const {
     for (size_t i = 0ul; i < this->size(); i++) {
         unsigned val;
         stream_.read(bits_per_val_, val);
-        data[i] =  min_val_ + val * interval_size_;
+        data[i] = min_val_ + val * interval_size_;
     }
 }
 
@@ -31,42 +31,41 @@ size_t QuantizedFloatVector::usedMemory() const {
     return stream_.capacity() / 8;
 }
 
-__attribute__((optimize("unroll-loops")))
-void QuantizedFloatVector::store(float const* data, size_t size) {
+__attribute__((optimize("unroll-loops"))) void QuantizedFloatVector::store(float const* data, size_t size) {
     stream_.resize(size * bits_per_val_);
     stream_.seekp(0ul);
     float interval_inverse = 1.0f / interval_size_;
-    float adj_min_val = interval_inverse * min_val_ - 0.5;
+    float adj_min_val      = interval_inverse * min_val_ - 0.5;
 #if defined(__AVX__)
     std::vector<unsigned> temp(size + 7);  // we need 32byte aligned data
-    size_t i = 0ul;
-    __m256 m_interval_inverse = _mm256_broadcast_ss(&interval_inverse);
-    __m256 m_adj_min_val = _mm256_broadcast_ss(&adj_min_val);
-    unsigned* temp_data = reinterpret_cast<unsigned*>(temp.data());
+    size_t                i                  = 0ul;
+    __m256                m_interval_inverse = _mm256_broadcast_ss(&interval_inverse);
+    __m256                m_adj_min_val      = _mm256_broadcast_ss(&adj_min_val);
+    unsigned*             temp_data          = reinterpret_cast<unsigned*>(temp.data());
     temp_data += ((32 - (reinterpret_cast<uintptr_t>(temp_data) % 32)) % 32) / sizeof(unsigned);
     for (; i < (size - (size % 8)); i += 8) {
-        __m256 raw = _mm256_loadu_ps(data + i);
-        __m256 quant_float = raw * m_interval_inverse - m_adj_min_val;
-        __m256i quantized = _mm256_cvttps_epi32(quant_float);
+        __m256  raw         = _mm256_loadu_ps(data + i);
+        __m256  quant_float = raw * m_interval_inverse - m_adj_min_val;
+        __m256i quantized   = _mm256_cvttps_epi32(quant_float);
         _mm256_store_si256(reinterpret_cast<__m256i*>(temp_data + i), quantized);
     }
-    for (size_t j = 0ul; j < size % 8; j++,i++) {
+    for (size_t j = 0ul; j < size % 8; j++, i++) {
         temp_data[i] = static_cast<int>(data[i] * interval_inverse - adj_min_val);
     }
     stream_.write(bits_per_val_, 0, temp_data, size);
 #elif defined(__SSE3__)
     std::vector<unsigned> temp(size);
-    size_t i = 0ul;
-    __m128 m_interval_inverse = _mm_load1_ps(&interval_inverse);
-    __m128 m_adj_min_val = _mm_load1_ps(&adj_min_val);
-    unsigned* temp_data = temp.data();
+    size_t                i                  = 0ul;
+    __m128                m_interval_inverse = _mm_load1_ps(&interval_inverse);
+    __m128                m_adj_min_val      = _mm_load1_ps(&adj_min_val);
+    unsigned*             temp_data          = temp.data();
     for (; i < (size - (size % 4)); i += 4) {
-        __m128 raw = _mm_loadu_ps(data + i);
-        __m128 quant_float = raw * m_interval_inverse - m_adj_min_val;
-        __m128i quantized = _mm_cvttps_epi32(quant_float);
+        __m128  raw         = _mm_loadu_ps(data + i);
+        __m128  quant_float = raw * m_interval_inverse - m_adj_min_val;
+        __m128i quantized   = _mm_cvttps_epi32(quant_float);
         _mm_store_si128(reinterpret_cast<__m128i*>(temp_data + i), quantized);
     }
-    for (size_t j = 0ul; j < size % 4; j++,i++) {
+    for (size_t j = 0ul; j < size % 4; j++, i++) {
         temp[i] = static_cast<int>(data[i] * interval_inverse - adj_min_val);
     }
     stream_.write(bits_per_val_, 0, temp.data(), temp.size());
@@ -87,8 +86,8 @@ void QuantizedFloatVector::clear() {
 
 void QuantizedCompressionParameterEstimator::accumulate(float const* data, size_t size) {
     auto minmax = std::minmax_element(data, data + size);
-    min_val_ = std::min(*minmax.first, min_val_);
-    max_val_ = std::max(*minmax.second, max_val_);
+    min_val_    = std::min(*minmax.first, min_val_);
+    max_val_    = std::max(*minmax.second, max_val_);
 }
 
 CompressionParametersPtr QuantizedCompressionParameterEstimator::estimate() {
@@ -97,7 +96,7 @@ CompressionParametersPtr QuantizedCompressionParameterEstimator::estimate() {
 
 // --------------------- QuantizedCompressedVectorFactory ---------------------
 
-const Core::ParameterInt QuantizedCompressedVectorFactory::paramBitsPerVal("bits-per-val",
+const Core::ParameterInt                QuantizedCompressedVectorFactory::paramBitsPerVal("bits-per-val",
                                                                            "Number of bits for the quantized value.",
                                                                            16, 1, 32);
 CompressionParameterEstimatorPtr<float> QuantizedCompressedVectorFactory::getEstimator() const {

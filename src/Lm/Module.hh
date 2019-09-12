@@ -66,7 +66,7 @@ public:
     }
 
 #ifdef MODULE_LM_TFRNN
-    Lm::CompressedVectorFactoryPtr<float>  createCompressedVectorFactory(Core::Configuration const& config);
+    Lm::CompressedVectorFactoryPtr<float> createCompressedVectorFactory(Core::Configuration const& config);
 #endif
 };
 

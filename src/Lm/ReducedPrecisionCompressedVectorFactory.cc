@@ -20,7 +20,7 @@ void ReducedBitsFloatVector::uncompress(float* data, size_t size) const {
     for (size_t i = 0ul; i < this->size(); i++) {
         unsigned val;
         stream_.read(bits_per_val_, val);
-        val = val << drop_bits_;
+        val     = val << drop_bits_;
         data[i] = reinterpret_cast<float&>(val);
     }
 }

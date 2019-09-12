@@ -38,13 +38,13 @@ private:
     std::vector<T> data_;
 };
 
-
 template<typename T>
 class DummyCompressedVectorFactory : public CompressedVectorFactory<T> {
 public:
     using Precursor = CompressedVectorFactory<T>;
 
-    DummyCompressedVectorFactory(Core::Configuration const& config) : Precursor(config) {}
+    DummyCompressedVectorFactory(Core::Configuration const& config)
+            : Precursor(config) {}
     virtual ~DummyCompressedVectorFactory() = default;
 
     virtual CompressedVectorPtr<T> compress(T const* data, size_t size, CompressionParameters const* params) const {
@@ -54,6 +54,6 @@ public:
     }
 };
 
-}
+}  // namespace Lm
 
-#endif  /* _LM_DUMMY_COMPRESSED_VECTOR_FACTORY_HH */
+#endif /* _LM_DUMMY_COMPRESSED_VECTOR_FACTORY_HH */

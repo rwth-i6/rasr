@@ -12,11 +12,11 @@ namespace Lm {
 template<typename T>
 class CompressedVector {
 public:
-    CompressedVector() = default;
+    CompressedVector()          = default;
     virtual ~CompressedVector() = default;
 
-    virtual size_t size() const = 0;
-    virtual T      get(size_t pos) const = 0;
+    virtual size_t size() const                           = 0;
+    virtual T      get(size_t pos) const                  = 0;
     virtual void   uncompress(T* data, size_t size) const = 0;
     virtual void   clear();
     virtual size_t usedMemory() const = 0;
@@ -26,7 +26,7 @@ using CompressedVectorPtr = std::unique_ptr<CompressedVector<T>>;
 
 struct CompressionParameters {
 public:
-    CompressionParameters() = default;
+    CompressionParameters()          = default;
     virtual ~CompressionParameters() = default;
 };
 using CompressionParametersPtr = std::unique_ptr<CompressionParameters>;
@@ -34,10 +34,10 @@ using CompressionParametersPtr = std::unique_ptr<CompressionParameters>;
 template<typename U>
 class CompressionParameterEstimator {
 public:
-    CompressionParameterEstimator() = default;
+    CompressionParameterEstimator()          = default;
     virtual ~CompressionParameterEstimator() = default;
 
-    virtual void accumulate(U const* data, size_t size) {}
+    virtual void                     accumulate(U const* data, size_t size) {}
     virtual CompressionParametersPtr estimate() {
         return CompressionParametersPtr();
     }
@@ -50,7 +50,8 @@ class CompressedVectorFactory : public Core::Component {
 public:
     using Precursor = Core::Component;
 
-    CompressedVectorFactory(Core::Configuration const& config) : Precursor(config) {}
+    CompressedVectorFactory(Core::Configuration const& config)
+            : Precursor(config) {}
     virtual ~CompressedVectorFactory() = default;
 
     virtual CompressionParameterEstimatorPtr<T> getEstimator() const {
@@ -63,4 +64,4 @@ using CompressedVectorFactoryPtr = std::unique_ptr<CompressedVectorFactory<T>>;
 
 }  // namespace Lm
 
-#endif  /* _LM_COMPRESSED_VECTOR_HH */
+#endif /* _LM_COMPRESSED_VECTOR_HH */

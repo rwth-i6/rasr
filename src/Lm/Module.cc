@@ -35,8 +35,8 @@
 
 #ifdef MODULE_LM_TFRNN
 #include "DummyCompressedVectorFactory.hh"
-#include "ReducedPrecisionCompressedVectorFactory.hh"
 #include "QuantizedCompressedVectorFactory.hh"
+#include "ReducedPrecisionCompressedVectorFactory.hh"
 #endif
 
 using namespace Lm;

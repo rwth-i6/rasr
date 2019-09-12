@@ -26,6 +26,7 @@
 #include <Core/readerwriterqueue.h>
 
 #include "AbstractNNLanguageModel.hh"
+#include "CompressedVector.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
 
 namespace Lm {
@@ -38,8 +39,8 @@ public:
         std::chrono::duration<double, std::milli> request_duration;
         std::chrono::duration<double, std::milli> prepare_duration;
         std::chrono::duration<double, std::milli> set_state_duration;
-        std::chrono::duration<double, std::milli> run_score_duration;
-        std::chrono::duration<double, std::milli> set_score_duration;
+        std::chrono::duration<double, std::milli> run_nn_output_duration;
+        std::chrono::duration<double, std::milli> set_nn_output_duration;
         std::chrono::duration<double, std::milli> set_new_state_duration;
 
         TimeStatistics  operator+(TimeStatistics const& other) const;
@@ -107,6 +108,9 @@ private:
     std::unique_ptr<Tensorflow::Graph>       graph_;
     Tensorflow::TensorInputMap               tensor_input_map_;
     Tensorflow::TensorOutputMap              tensor_output_map_;
+
+    CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
+    CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
 
     std::vector<std::string> initializer_tensor_names_;
     std::vector<std::string> output_tensor_names_;

@@ -19,6 +19,10 @@
 #include "LanguageModel.hh"
 #include "ScaledLanguageModel.hh"
 
+#ifdef MODULE_LM_TFRNN
+#include "CompressedVector.hh"
+#endif
+
 namespace Lm {
 
 class Module_ {
@@ -26,6 +30,10 @@ private:
     static const Core::Choice          lmTypeChoice;
     static const Core::ParameterChoice lmTypeParam;
 
+#ifdef MODULE_LM_TFRNN
+    static const Core::Choice          compressedVectorFactoryTypeChoice;
+    static const Core::ParameterChoice compressedVectorFactoryTypeParam;
+#endif
 public:
     Module_() {}
 
@@ -56,6 +64,10 @@ public:
             const Core::Configuration& c, Bliss::LexiconRef l) {
         return createScaledLanguageModel(c, createLanguageModel(c, l));
     }
+
+#ifdef MODULE_LM_TFRNN
+    Lm::CompressedVectorFactoryPtr<float>  createCompressedVectorFactory(Core::Configuration const& config);
+#endif
 };
 
 typedef Core::SingletonHolder<Module_> Module;

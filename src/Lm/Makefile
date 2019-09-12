@@ -38,7 +38,9 @@ ifdef MODULE_LM_FFNN
 LIBSPRINTLM_O += $(OBJDIR)/FFNeuralNetworkLanguageModel.o
 endif
 ifdef MODULE_LM_TFRNN
-LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
+LIBSPRINTLM_O += $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o \
+                 $(OBJDIR)/TFRecurrentLanguageModel.o \
+                 $(OBJDIR)/QuantizedCompressedVectorFactory.o
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif

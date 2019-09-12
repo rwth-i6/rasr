@@ -16,16 +16,20 @@
 
 #include <functional>
 
+#include "Module.hh"
+
 namespace {
 struct ScoresWithContext : public Lm::NNCacheWithStats {
-    std::atomic<bool>                  computed;
-    Lm::History                        parent;
-    Math::FastVector<Lm::Score>        scores;
-    std::vector<Math::FastVector<f32>> state;  // for now float is hardcoded, TODO: replace this with Tensor and add merge utility for tensors
-    Lm::SearchSpaceInformation         info;
-    Search::TimeframeIndex             last_used;
-    Search::TimeframeIndex             last_info;
-    bool                               was_expanded;
+    virtual ~ScoresWithContext() = default;
+
+    std::atomic<bool>                           computed;
+    Lm::History                                 parent;
+    Lm::CompressedVectorPtr<float>              nn_output;
+    std::vector<Lm::CompressedVectorPtr<float>> state;
+    Lm::SearchSpaceInformation                  info;
+    Search::TimeframeIndex                      last_used;
+    Search::TimeframeIndex                      last_info;
+    bool                                        was_expanded;
 };
 
 struct FwdRequest {
@@ -107,13 +111,17 @@ void dump_scores(ScoresWithContext const& cache, std::string const& prefix) {
         path << "_" << token;
     }
     std::ofstream out(path.str(), std::ios::out | std::ios::trunc);
-    out << "scores:\n";
-    for (auto score : cache.scores) {
-        out << score << '\n';
+    out << "nn_output:\n";
+    std::vector<float> nn_output(cache.nn_output->size());
+    cache.nn_output->uncompress(nn_output.data(), nn_output.size());
+    for (auto nn_out : nn_output) {
+        out << nn_out << '\n';
     }
     for (size_t s = 0ul; s < cache.state.size(); s++) {
         out << "state " << s << ":\n";
-        for (auto v : cache.state[s]) {
+        std::vector<float> state_data(cache.state[s]->size());
+        cache.state[s]->uncompress(state_data.data(), state_data.size());
+        for (auto v : state_data) {
             out << v << '\n';
         }
     }
@@ -137,8 +145,8 @@ TFRecurrentLanguageModel::TimeStatistics TFRecurrentLanguageModel::TimeStatistic
     res.request_duration       = request_duration + other.request_duration;
     res.prepare_duration       = prepare_duration + other.prepare_duration;
     res.set_state_duration     = set_state_duration + other.set_state_duration;
-    res.run_score_duration     = run_score_duration + other.run_score_duration;
-    res.set_score_duration     = set_score_duration + other.set_score_duration;
+    res.run_nn_output_duration = run_nn_output_duration + other.run_nn_output_duration;
+    res.set_nn_output_duration = set_nn_output_duration + other.set_nn_output_duration;
     res.set_new_state_duration = set_new_state_duration + other.set_new_state_duration;
 
     return res;
@@ -150,8 +158,8 @@ TFRecurrentLanguageModel::TimeStatistics& TFRecurrentLanguageModel::TimeStatisti
     request_duration += other.request_duration;
     prepare_duration += other.prepare_duration;
     set_state_duration += other.set_state_duration;
-    run_score_duration += other.run_score_duration;
-    set_score_duration += other.set_score_duration;
+    run_nn_output_duration += other.run_nn_output_duration;
+    set_nn_output_duration += other.set_nn_output_duration;
     set_new_state_duration += other.set_new_state_duration;
 
     return *this;
@@ -163,8 +171,8 @@ void TFRecurrentLanguageModel::TimeStatistics::write(Core::XmlChannel& channel) 
     channel << Core::XmlOpen("request-duration") + Core::XmlAttribute("unit", "milliseconds") << request_duration.count() << Core::XmlClose("request-duration");
     channel << Core::XmlOpen("prepare-duration") + Core::XmlAttribute("unit", "milliseconds") << prepare_duration.count() << Core::XmlClose("prepare-duration");
     channel << Core::XmlOpen("set-state-duration") + Core::XmlAttribute("unit", "milliseconds") << set_state_duration.count() << Core::XmlClose("set-state-duration");
-    channel << Core::XmlOpen("run-score-duration") + Core::XmlAttribute("unit", "milliseconds") << run_score_duration.count() << Core::XmlClose("run-score-duration");
-    channel << Core::XmlOpen("set-score-duration") + Core::XmlAttribute("unit", "milliseconds") << set_score_duration.count() << Core::XmlClose("set-score-duration");
+    channel << Core::XmlOpen("run-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << run_nn_output_duration.count() << Core::XmlClose("run-nn-output-duration");
+    channel << Core::XmlOpen("set-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << set_nn_output_duration.count() << Core::XmlClose("set-nn-output-duration");
     channel << Core::XmlOpen("set-new-state-duration") + Core::XmlAttribute("unit", "milliseconds") << set_new_state_duration.count() << Core::XmlClose("set-new-state-duration");
 }
 
@@ -174,8 +182,8 @@ void TFRecurrentLanguageModel::TimeStatistics::write(std::ostream& out) const {
         << " r:" << request_duration.count()
         << " p:" << prepare_duration.count()
         << " sst:" << set_state_duration.count()
-        << " rs:" << run_score_duration.count()
-        << " ssc:" << set_score_duration.count()
+        << " rs:" << run_nn_output_duration.count()
+        << " sno:" << set_nn_output_duration.count()
         << " sns:" << set_new_state_duration.count();
 }
 
@@ -188,15 +196,53 @@ Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batc
 Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory("allow-reduced-history", "wether this LM will actually reduce the history length", false);
 Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores("dump-scores", "write all scores from this LM to disk", false);
 Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix("dump-scores-prefix", "prefix for the score dumps", "scores");
-Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory("log-memory", "wether memory usage from scores / states should be logged", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory("free-memory", "wether scores should be deleted after some delay", false);
-Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay("free-memory-delay", "how many time frames without usage before scores are deleted", 40);
+Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory("log-memory", "wether memory usage from nn-outputs / states should be logged", false);
+Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory("free-memory", "wether nn-outputs should be deleted after some delay", false);
+Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay("free-memory-delay", "how many time frames without usage before nn-outputs are deleted", 40);
 Core::ParameterBool   TFRecurrentLanguageModel::paramAsync("async", "wether to forward histories in a separate thread", false);
 Core::ParameterBool   TFRecurrentLanguageModel::paramSingleStepOnly("single-step-only", "workaround for some bug that results in wrong scores when recombination is done in combination with async evaluation", false);
 Core::ParameterBool   TFRecurrentLanguageModel::paramVerbose("verbose", "wether to print detailed statistics to stderr", false);
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
-        : Core::Component(c), Precursor(c, l), transform_output_log_(paramTransformOuputLog(config)), transform_output_negate_(paramTransformOuputNegate(config)), min_batch_size_(paramMinBatchSize(config)), opt_batch_size_(paramOptBatchSize(config)), max_batch_size_(paramMaxBatchSize(config)), batch_pruning_threshold_(paramBatchPruningThreshold(config)), allow_reduced_history_(paramAllowReducedHistory(config)), dump_scores_(paramDumpScores(config)), dump_scores_prefix_(paramDumpScoresPrefix(config)), log_memory_(paramLogMemory(config)), free_memory_(paramFreeMemory(config)), free_memory_delay_(paramFreeMemoryDelay(config)), async_(paramAsync(config)), single_step_only_(paramSingleStepOnly(config)), verbose_(paramVerbose(config)), session_(select("session")), loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))), graph_(loader_->load_graph()), tensor_input_map_(select("input-map")), tensor_output_map_(select("output-map")), statistics_(config, "statistics"), current_time_(0u), run_time_(max_batch_size_, 0.0), run_count_(max_batch_size_, 0ul), total_wait_time_(0.0), total_start_frame_time_(0.0), total_expand_hist_time_(0.0), fwd_statistics_(), background_forwarder_thread_(), should_stop_(false), to_fwd_(nullptr), to_fwd_finished_(), pending_(), fwd_queue_(32768), finished_queue_(32768) {
+        : Core::Component(c),
+          Precursor(c, l),
+          transform_output_log_(paramTransformOuputLog(config)),
+          transform_output_negate_(paramTransformOuputNegate(config)),
+          min_batch_size_(paramMinBatchSize(config)),
+          opt_batch_size_(paramOptBatchSize(config)),
+          max_batch_size_(paramMaxBatchSize(config)),
+          batch_pruning_threshold_(paramBatchPruningThreshold(config)),
+          allow_reduced_history_(paramAllowReducedHistory(config)),
+          dump_scores_(paramDumpScores(config)),
+          dump_scores_prefix_(paramDumpScoresPrefix(config)),
+          log_memory_(paramLogMemory(config)),
+          free_memory_(paramFreeMemory(config)),
+          free_memory_delay_(paramFreeMemoryDelay(config)),
+          async_(paramAsync(config)),
+          single_step_only_(paramSingleStepOnly(config)),
+          verbose_(paramVerbose(config)),
+          session_(select("session")),
+          loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
+          graph_(loader_->load_graph()),
+          tensor_input_map_(select("input-map")),
+          tensor_output_map_(select("output-map")),
+          state_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("state-compression"))),
+          nn_output_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("nn-output-compression"))),
+          statistics_(config, "statistics"),
+          current_time_(0u),
+          run_time_(max_batch_size_, 0.0),
+          run_count_(max_batch_size_, 0ul),
+          total_wait_time_(0.0),
+          total_start_frame_time_(0.0),
+          total_expand_hist_time_(0.0),
+          fwd_statistics_(),
+          background_forwarder_thread_(),
+          should_stop_(false),
+          to_fwd_(nullptr),
+          to_fwd_finished_(),
+          pending_(),
+          fwd_queue_(32768),
+          finished_queue_(32768) {
     session_.addGraph(*graph_);
     loader_->initialize(session_);
 
@@ -227,11 +273,19 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
         require_gt(var.shape.size(), 0ul);
         s64 state_size = var.shape.back();
         require_ge(state_size, 0);  // variable must not be of unknown size
-        cache->state.emplace_back(static_cast<size_t>(state_size));
-        cache->state.back().fill(0.0f);
+        std::vector<float> vec(state_size, 0.0f);
+        auto compression_param_estimator = state_comp_vec_factory_->getEstimator();
+        compression_param_estimator->accumulate(vec.data(), vec.size());
+        auto compression_params = compression_param_estimator->estimate();
+        cache->state.emplace_back(state_comp_vec_factory_->compress(vec.data(), vec.size(), compression_params.get()));
     }
+    std::vector<f32> temp(1);
+    auto compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
+    compression_param_estimator->accumulate(temp.data(), temp.size());
+    auto compression_params = compression_param_estimator->estimate();
+    // pretend this history has already been evaluated
+    cache->nn_output = nn_output_comp_vec_factory_->compress(temp.data(), temp.size(), compression_params.get());
     cache->computed.store(true);
-    cache->scores.resize(1u);  // pretend this history has already been evaluated
     cache->last_used = std::numeric_limits<Search::TimeframeIndex>::max();
     empty_history_   = history(h);
 
@@ -353,7 +407,7 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     sc->last_used = current_time_;
-    return sc->scores.at(output_idx);
+    return output_transform_function_(sc->nn_output->get(output_idx));
 }
 
 bool TFRecurrentLanguageModel::scoreCached(History const& hist, Token w) const {
@@ -370,7 +424,7 @@ void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
 
     current_time_ = time;
 
-    size_t score_cache_size = 0ul;
+    size_t nn_output_cache_size = 0ul;
     size_t state_cache_size = 0ul;
     size_t num_histories    = 0ul;
 
@@ -382,23 +436,27 @@ void TFRecurrentLanguageModel::startFrame(Search::TimeframeIndex time) const {
         ScoresWithContext* c        = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
         bool               computed = c->computed.load();
         if (free_memory_ and computed and c->was_expanded and c->info.numStates == 0 and c->last_used < current_time_ - std::min(free_memory_delay_, current_time_)) {
-            c->scores.clear();
+            c->nn_output->clear();
             c->computed.store(false);
         }
         else if (async_ and not computed and not(c->was_expanded and c->info.numStates == 0)) {
             fwd_queue_.enqueue(new History(history(h)));
         }
-        score_cache_size += c->scores.size() * sizeof(decltype(c->scores)::value_type);
-        for (auto const& s : c->state) {
-            state_cache_size += s.size() * sizeof(float);
+        if (c->nn_output) {
+            nn_output_cache_size += c->nn_output->usedMemory();
+        }
+        for (auto const& state_vec : c->state) {
+            if (state_vec) {
+                state_cache_size += state_vec->usedMemory();
+            }
         }
     });
 
     if (log_memory_ and statistics_.isOpen()) {
         statistics_ << Core::XmlOpen("memory-usage") + Core::XmlAttribute("time-frame", current_time_);
-        statistics_ << Core::XmlOpen("score-cache-size") + Core::XmlAttribute("unit", "MB") << (score_cache_size / (1024. * 1024.)) << Core::XmlClose("score-cache-size");
+        statistics_ << Core::XmlOpen("nn-output-cache-size") + Core::XmlAttribute("unit", "MB") << (nn_output_cache_size / (1024. * 1024.)) << Core::XmlClose("nn-output-cache-size");
         statistics_ << Core::XmlOpen("state-cache-size") + Core::XmlAttribute("unit", "MB") << (state_cache_size / (1024. * 1024.)) << Core::XmlClose("state-cache-size");
-        statistics_ << Core::XmlOpen("num-histories") + Core::XmlAttribute("unit", "MB") << num_histories << Core::XmlClose("num-histories");
+        statistics_ << Core::XmlOpen("num-histories") << num_histories << Core::XmlClose("num-histories");
         statistics_ << Core::XmlClose("memory-usage");
     }
 
@@ -573,13 +631,13 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         require_eq(graph_->state_vars().size(), initial_cache->state.size());
         for (size_t s = 0ul; s < graph_->state_vars().size(); s++) {
             if (s >= prev_state.size()) {
-                prev_state.emplace_back(initial_cache->state[s].size(), requests.size());
+                prev_state.emplace_back(initial_cache->state[s]->size(), requests.size());
             }
             else {
-                require_eq(initial_cache->state[s].size(), prev_state[s].nRows());
+                require_eq(initial_cache->state[s]->size(), prev_state[s].nRows());
             }
             // we place the state for each history in columns and transpose later
-            std::copy(initial_cache->state[s].begin(), initial_cache->state[s].end(), &prev_state[s].at(0u, r));
+            initial_cache->state[s]->uncompress(&prev_state[s].at(0u, r), prev_state[s].nRows());
         }
     }
 
@@ -606,34 +664,39 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     std::vector<Tensorflow::Tensor> outputs;
     session_.run(inputs, output_tensor_names_, graph_->update_ops(), outputs);
 
-    auto end_score = std::chrono::steady_clock::now();
+    auto end_nn_output = std::chrono::steady_clock::now();
 
-    // store outputs in score caches
+    // store outputs in caches
     for (size_t r = 0ul; r < requests.size(); r++) {
         ScoresWithContext* cache = requests[r].final_cache;
         for (size_t w = requests[r].length; w > 0;) {
             --w;
             cache->last_used = current_time_;
-            auto& scores     = cache->scores;
-            outputs[0ul].get(r, w, scores);
-            if (output_transform_function_) {
-                std::transform(scores.begin(), scores.end(), scores.begin(), output_transform_function_);
-            }
-            require_eq(scores.size(), num_outputs_);
+            require_eq(static_cast<size_t>(outputs[0ul].dimSize(2)), num_outputs_);
+            auto compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
+            float const* data = outputs[0ul].data<f32>(r, w);
+            compression_param_estimator->accumulate(data, num_outputs_);
+            auto compression_params = compression_param_estimator->estimate();
+            cache->nn_output = nn_output_comp_vec_factory_->compress(data, num_outputs_, compression_params.get());
             cache->computed.store(true);
             cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
         }
         require_eq(cache, requests[r].initial_cache);
     }
 
-    auto end_set_score = std::chrono::steady_clock::now();
+    auto end_set_nn_output = std::chrono::steady_clock::now();
 
     // fetch new values of state variables, needs to be done in separate Session::run call (for GPU devices)
     // TODO: atm the model only returns the final state, thus if we have fwd. a multiword sequence we do not get the state of the intermediate words
     session_.run({}, read_vars_tensor_names_, {}, outputs);
     for (size_t s = 0ul; s < prev_state.size(); s++) {
         for (size_t r = 0ul; r < requests.size(); r++) {
-            outputs[s].get(r, requests[r].final_cache->state[s]);
+            float const* data = outputs[s].data<f32>(r, 0);
+            size_t data_size = outputs[s].dimSize(1);
+            auto compression_param_estimator = state_comp_vec_factory_->getEstimator();
+            compression_param_estimator->accumulate(data, data_size);
+            auto compression_params = compression_param_estimator->estimate();
+            requests[r].final_cache->state.emplace_back(state_comp_vec_factory_->compress(data, data_size, compression_params.get()));
         }
     }
 
@@ -672,9 +735,9 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     stats.request_duration       = std::chrono::duration<double, std::milli>(end_requests - end_early_requests);
     stats.prepare_duration       = std::chrono::duration<double, std::milli>(end_prepare - end_requests);
     stats.set_state_duration     = std::chrono::duration<double, std::milli>(end_set_state - end_prepare);
-    stats.run_score_duration     = std::chrono::duration<double, std::milli>(end_score - end_set_state);
-    stats.set_score_duration     = std::chrono::duration<double, std::milli>(end_set_score - end_score);
-    stats.set_new_state_duration = std::chrono::duration<double, std::milli>(end_set_new_state - end_set_score);
+    stats.run_nn_output_duration = std::chrono::duration<double, std::milli>(end_nn_output - end_set_state);
+    stats.set_nn_output_duration = std::chrono::duration<double, std::milli>(end_set_nn_output - end_nn_output);
+    stats.set_new_state_duration = std::chrono::duration<double, std::milli>(end_set_new_state - end_set_nn_output);
     if (verbose_) {
         stats.write(std::cerr);
         std::cerr << " #pr:" << num_pending_requests

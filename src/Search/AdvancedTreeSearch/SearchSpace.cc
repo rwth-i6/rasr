@@ -371,7 +371,6 @@ SearchSpace::SearchSpace( const Core::Configuration& config,
   histogramPruningIsMasterPruning_( false ),
   reducedContextWordRecombination_( paramReducedContextWordRecombination( config ) ),
   reducedContextWordRecombinationLimit_( paramReducedContextWordRecombinationLimit( config ) ),
-  reducedContextTreeKey_( paramReducedContextTreeKey( config ) ),
   onTheFlyRescoring_( paramOnTheFlyRescoring( config ) ),
   onTheFlyRescoringMaxHistories_( paramOnTheFlyRescoringMaxHistories( config ) ),
   acousticPruning_( 0 ),
@@ -3541,12 +3540,7 @@ Instance* SearchSpace::activateOrUpdateTree(
   Instance *at = static_cast<Instance*>( instance );
 
   // still keep the full history in the trace
-  if ( reducedContextTreeKey_ )
-  { TraceId tid = TraceManager::getTrace(TraceItem(trace, recombinationHistory, lookaheadHistory, scoreHistory));
-    StateHypothesis st(entry, tid, score);
-    at->enterWithState(st);
-  }else
-    at->enter( trace, entry, score );
+  at->enter( trace, entry, score );
 
   return at;
 }

@@ -145,7 +145,6 @@ namespace Search
         bool histogramPruningIsMasterPruning_;
         bool reducedContextWordRecombination_;
         unsigned reducedContextWordRecombinationLimit_;
-        bool reducedContextTreeKey_;
         bool onTheFlyRescoring_;
         unsigned onTheFlyRescoringMaxHistories_;
 

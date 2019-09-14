@@ -53,7 +53,6 @@ CHECK_CTRANS_O = $(OBJDIR)/check_ctrans.o \
 			  ../../Math/libSprintMath.$(a) \
 			  ../../Math/Lapack/libSprintMathLapack.$(a) \
 			  ../../Math/Nr/libSprintMathNr.$(a) \
-			  ../../Legacy/libSprintLegacy.$(a) \
 			  ../../Bliss/libSprintBliss.$(a) \
 			  ../../Fsa/libSprintFsa.$(a) \
 			  ../../Core/libSprintCore.$(a) \
@@ -65,7 +64,6 @@ CHECK_O = $(OBJDIR)/check.o \
 			  ../../Speech/libSprintSpeech.$(a) \
 			  ../../Am/libSprintAm.$(a) \
 			  ../../Mm/libSprintMm.$(a) \
-			  ../../Legacy/libSprintLegacy.$(a) \
 			  ../../Cart/libSprintCart.$(a) \
 			  ../../Math/libSprintMath.$(a) \
 			  ../../Math/Lapack/libSprintMathLapack.$(a) \

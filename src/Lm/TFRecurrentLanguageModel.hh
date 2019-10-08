@@ -28,6 +28,7 @@
 #include "AbstractNNLanguageModel.hh"
 #include "CompressedVector.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
+#include "SoftmaxAdapter.hh"
 
 namespace Lm {
 
@@ -42,6 +43,7 @@ public:
         std::chrono::duration<double, std::milli> run_nn_output_duration;
         std::chrono::duration<double, std::milli> set_nn_output_duration;
         std::chrono::duration<double, std::milli> set_new_state_duration;
+        std::chrono::duration<double, std::milli> softmax_output_duration;
 
         TimeStatistics  operator+(TimeStatistics const& other) const;
         TimeStatistics& operator+=(TimeStatistics const& other);
@@ -111,6 +113,8 @@ private:
 
     CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
     CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
+
+    std::unique_ptr<SoftmaxAdapter> softmax_adapter_;
 
     std::vector<std::string> initializer_tensor_names_;
     std::vector<std::string> output_tensor_names_;

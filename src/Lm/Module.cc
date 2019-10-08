@@ -129,4 +129,5 @@ Lm::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Cor
         default: defect();
     }
 }
+
 #endif

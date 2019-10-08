@@ -16,7 +16,10 @@
 
 #include <functional>
 
+#include "BlasNceSoftmaxAdapter.hh"
 #include "Module.hh"
+#include "NceSoftmaxAdapter.hh"
+#include "PassthroughSoftmaxAdapter.hh"
 
 namespace {
 struct ScoresWithContext : public Lm::NNCacheWithStats {
@@ -137,17 +140,44 @@ void clear_queue(Lm::TFRecurrentLanguageModel::HistoryQueue& queue) {
 
 namespace Lm {
 
+enum SoftmaxAdapterType {
+    PassthroughSoftmaxAdapterType,
+    NceSoftmaxAdapterType,
+    BlasNceSoftmaxAdapterType
+};
+
+const Core::Choice softmaxAdapterTypeChoice(
+        "passthrough", PassthroughSoftmaxAdapterType,
+        "nce", NceSoftmaxAdapterType,
+        "blas_nce", BlasNceSoftmaxAdapterType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice softmaxAdapterTypeParam(
+        "type", &softmaxAdapterTypeChoice,
+        "type of the softmax adapter",
+        PassthroughSoftmaxAdapterType);
+
+std::unique_ptr<SoftmaxAdapter> createSoftmaxAdapter(Core::Configuration const& config) {
+    switch (softmaxAdapterTypeParam(config)) {
+        case PassthroughSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::PassthroughSoftmaxAdapter(config));
+        case NceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::NceSoftmaxAdapter(config));
+        case BlasNceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::BlasNceSoftmaxAdapter(config));
+        default: defect();
+    }
+}
+
 TFRecurrentLanguageModel::TimeStatistics TFRecurrentLanguageModel::TimeStatistics::operator+(TimeStatistics const& other) const {
     TimeStatistics res;
 
-    res.total_duration         = total_duration + other.total_duration;
-    res.early_request_duration = early_request_duration + other.early_request_duration;
-    res.request_duration       = request_duration + other.request_duration;
-    res.prepare_duration       = prepare_duration + other.prepare_duration;
-    res.set_state_duration     = set_state_duration + other.set_state_duration;
-    res.run_nn_output_duration = run_nn_output_duration + other.run_nn_output_duration;
-    res.set_nn_output_duration = set_nn_output_duration + other.set_nn_output_duration;
-    res.set_new_state_duration = set_new_state_duration + other.set_new_state_duration;
+    res.total_duration          = total_duration + other.total_duration;
+    res.early_request_duration  = early_request_duration + other.early_request_duration;
+    res.request_duration        = request_duration + other.request_duration;
+    res.prepare_duration        = prepare_duration + other.prepare_duration;
+    res.set_state_duration      = set_state_duration + other.set_state_duration;
+    res.run_nn_output_duration  = run_nn_output_duration + other.run_nn_output_duration;
+    res.set_nn_output_duration  = set_nn_output_duration + other.set_nn_output_duration;
+    res.set_new_state_duration  = set_new_state_duration + other.set_new_state_duration;
+    res.softmax_output_duration = softmax_output_duration + other.softmax_output_duration;
 
     return res;
 }
@@ -161,6 +191,7 @@ TFRecurrentLanguageModel::TimeStatistics& TFRecurrentLanguageModel::TimeStatisti
     run_nn_output_duration += other.run_nn_output_duration;
     set_nn_output_duration += other.set_nn_output_duration;
     set_new_state_duration += other.set_new_state_duration;
+    softmax_output_duration += other.softmax_output_duration;
 
     return *this;
 }
@@ -174,6 +205,7 @@ void TFRecurrentLanguageModel::TimeStatistics::write(Core::XmlChannel& channel) 
     channel << Core::XmlOpen("run-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << run_nn_output_duration.count() << Core::XmlClose("run-nn-output-duration");
     channel << Core::XmlOpen("set-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << set_nn_output_duration.count() << Core::XmlClose("set-nn-output-duration");
     channel << Core::XmlOpen("set-new-state-duration") + Core::XmlAttribute("unit", "milliseconds") << set_new_state_duration.count() << Core::XmlClose("set-new-state-duration");
+    channel << Core::XmlOpen("softmax-output-duration") + Core::XmlAttribute("unit", "milliseconds") << softmax_output_duration.count() << Core::XmlClose("softmax-output-duration");
 }
 
 void TFRecurrentLanguageModel::TimeStatistics::write(std::ostream& out) const {
@@ -184,7 +216,8 @@ void TFRecurrentLanguageModel::TimeStatistics::write(std::ostream& out) const {
         << " sst:" << set_state_duration.count()
         << " rs:" << run_nn_output_duration.count()
         << " sno:" << set_nn_output_duration.count()
-        << " sns:" << set_new_state_duration.count();
+        << " sns:" << set_new_state_duration.count()
+        << " smo:" << softmax_output_duration.count();
 }
 
 Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog("transform-output-log", "apply log to tensorflow output", false);
@@ -228,6 +261,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
           tensor_output_map_(select("output-map")),
           state_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("state-compression"))),
           nn_output_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("nn-output-compression"))),
+          softmax_adapter_(createSoftmaxAdapter(select("softmax-adapter"))),
           statistics_(config, "statistics"),
           current_time_(0u),
           run_time_(max_batch_size_, 0.0),
@@ -288,6 +322,8 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     cache->computed.store(true);
     cache->last_used = std::numeric_limits<Search::TimeframeIndex>::max();
     empty_history_   = history(h);
+
+    softmax_adapter_->init(session_, tensor_input_map_, tensor_output_map_);
 
     if (async_) {
         background_forwarder_thread_ = std::thread(std::bind(&TFRecurrentLanguageModel::background_forward, this));
@@ -407,7 +443,11 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
     sc->last_used = current_time_;
-    return output_transform_function_(sc->nn_output->get(output_idx));
+    auto start = std::chrono::steady_clock::now();
+    Score score = output_transform_function_(softmax_adapter_->get_score(sc->nn_output, output_idx));
+    auto end = std::chrono::steady_clock::now();
+    fwd_statistics_.softmax_output_duration += std::chrono::duration<double, std::milli>(end - start);
+    return score;
 }
 
 bool TFRecurrentLanguageModel::scoreCached(History const& hist, Token w) const {
@@ -672,12 +712,12 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         for (size_t w = requests[r].length; w > 0;) {
             --w;
             cache->last_used = current_time_;
-            require_eq(static_cast<size_t>(outputs[0ul].dimSize(2)), num_outputs_);
+            int num_outputs = outputs[0ul].dimSize(2);
             auto         compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
             float const* data                        = outputs[0ul].data<f32>(r, w);
-            compression_param_estimator->accumulate(data, num_outputs_);
+            compression_param_estimator->accumulate(data, num_outputs);
             auto compression_params = compression_param_estimator->estimate();
-            cache->nn_output        = nn_output_comp_vec_factory_->compress(data, num_outputs_, compression_params.get());
+            cache->nn_output        = nn_output_comp_vec_factory_->compress(data, num_outputs, compression_params.get());
             cache->computed.store(true);
             cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(cache->parent.handle()));
         }

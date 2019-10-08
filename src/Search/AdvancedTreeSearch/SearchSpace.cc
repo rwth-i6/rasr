@@ -3090,7 +3090,7 @@ void SearchSpace::recombineWordEndsInternal(bool shallCreateLattice) {
             if (i != wordEndHypothesisMap.end()) {
                 WordEndHypothesis& a(*in);
                 WordEndHypothesis& b(**i);
-                verify_(b.history == a.history);  // found another hypothesis with equal transit and history
+                verify_(b.recombinationHistory == a.recombinationHistory);  // found another hypothesis with equal transit and history
                 verify_(b.transitState == a.transitState);
                 recombineTwoHypotheses<onTheFlyRescoring>(a, b, shallCreateLattice);
             }

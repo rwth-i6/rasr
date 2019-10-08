@@ -50,6 +50,25 @@ struct ToDataType<u64> {
 
 namespace Tensorflow {
 
+template<typename T>
+Tensor Tensor::zeros(std::initializer_list<int64> dim) {
+    Tensor res;
+    res.tensor_.reset(new tf::Tensor(ToDataType<T>::tf_type, dim));
+    tf::int64 total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](tf::int64 a, tf::int64 b){ return a * b; });
+    T* data = res.data<T>();
+    for (tf::int64 i = 0ul; i < total_size; i++) {
+        data[i] = T(0);
+    }
+    return res;
+}
+
+template Tensor Tensor::zeros<f32>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<f64>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<s64>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<u64>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<s32>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<u32>(std::initializer_list<int64> dim);
+
 /* ------------------------- Getters ------------------------- */
 
 std::string Tensor::dimInfo() const {
@@ -337,6 +356,27 @@ template void Tensor::get<s64>(size_t, size_t, s64&) const;
 template void Tensor::get<u64>(size_t, size_t, u64&) const;
 template void Tensor::get<std::string>(size_t, size_t, std::string&) const;
 
+/* ------------------------- raw data access ------------------------- */
+
+template<typename T>
+T* Tensor::data() {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 1);
+    require_eq(tensor_->dtype(), expected_dtype);
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(0));
+}
+
+template f32* Tensor::data<f32>();
+template f64* Tensor::data<f64>();
+template s32* Tensor::data<s32>();
+template u32* Tensor::data<u32>();
+template s64* Tensor::data<s64>();
+template u64* Tensor::data<u64>();
+template std::string* Tensor::data<std::string>();
+
 template<typename T>
 T const* Tensor::data() const {
     tf::DataType expected_dtype = ToDataType<T>::tf_type;
@@ -357,6 +397,27 @@ template u64 const* Tensor::data<u64>() const;
 template std::string const* Tensor::data<std::string>() const;
 
 template<typename T>
+T* Tensor::data(size_t dim0_idx) {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 1);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx)));
+}
+
+template f32* Tensor::data<f32>(size_t);
+template f64* Tensor::data<f64>(size_t);
+template s32* Tensor::data<s32>(size_t);
+template u32* Tensor::data<u32>(size_t);
+template s64* Tensor::data<s64>(size_t);
+template u64* Tensor::data<u64>(size_t);
+template std::string* Tensor::data<std::string>(size_t);
+
+
+template<typename T>
 T const* Tensor::data(size_t dim0_idx) const {
     tf::DataType expected_dtype = ToDataType<T>::tf_type;
     require(not empty());
@@ -375,6 +436,27 @@ template u32 const* Tensor::data<u32>(size_t) const;
 template s64 const* Tensor::data<s64>(size_t) const;
 template u64 const* Tensor::data<u64>(size_t) const;
 template std::string const* Tensor::data<std::string>(size_t) const;
+
+template<typename T>
+T* Tensor::data(size_t dim0_idx, size_t dim1_idx) {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 2);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx)));
+}
+
+template f32* Tensor::data<f32>(size_t, size_t);
+template f64* Tensor::data<f64>(size_t, size_t);
+template s32* Tensor::data<s32>(size_t, size_t);
+template u32* Tensor::data<u32>(size_t, size_t);
+template s64* Tensor::data<s64>(size_t, size_t);
+template u64* Tensor::data<u64>(size_t, size_t);
+template std::string* Tensor::data<std::string>(size_t, size_t);
 
 template<typename T>
 T const* Tensor::data(size_t dim0_idx, size_t dim1_idx) const {

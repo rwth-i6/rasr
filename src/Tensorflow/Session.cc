@@ -78,7 +78,11 @@ bool Session::run(std::vector<std::pair<std::string, Tensor>> const& inputs,
 
     tf::Status status = session_->Run(tf_inputs, output_tensor_names, target_node_names, &tf_outputs);
     if (!status.ok()) {
-        criticalError("error calling Session::Run: %s", status.ToString().c_str());
+        std::string target;
+        for (auto const& t : target_node_names) {
+            target += t + " ";
+        }
+        criticalError("error calling Session::Run (target: %s): %s", target.c_str(), status.ToString().c_str());
     }
 
     outputs.clear();

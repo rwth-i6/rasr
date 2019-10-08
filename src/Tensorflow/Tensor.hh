@@ -23,6 +23,7 @@
 namespace Tensorflow {
 
 namespace tf = tensorflow;
+using int64 = tf::int64;
 
 class Session;
 
@@ -32,6 +33,9 @@ public:
 
     template<typename... Args>
     static Tensor create(Args... value);
+
+    template<typename T>
+    static Tensor zeros(std::initializer_list<int64> dim);
 
     Tensor();
     Tensor(Tensor const& other);
@@ -87,10 +91,19 @@ public:
     // raw data access
 
     template<typename T>
+    T* data();
+
+    template<typename T>
     T const* data() const;
 
     template<typename T>
+    T* data(size_t dim0_idx);
+
+    template<typename T>
     T const* data(size_t dim0_idx) const;
+
+    template<typename T>
+    T* data(size_t dim0_idx, size_t dim1_idx);
 
     template<typename T>
     T const* data(size_t dim0_idx, size_t dim1_idx) const;

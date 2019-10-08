@@ -25,6 +25,20 @@ void ReducedBitsFloatVector::uncompress(float* data, size_t size) const {
     }
 }
 
+void ReducedBitsFloatVector::uncompress(float* data, ContiguousBlockInfo const& block_info) const {
+    require_eq(block_info.totalSize(), this->size());
+    stream_.seekg(0ul);
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        float* block_data = data + block_info.blockOffset(b);
+        for (size_t i = 0ul; i < block_info.blockSize(); i++) {
+            unsigned val;
+            stream_.read(bits_per_val_, val);
+            val           = val << drop_bits_;
+            block_data[i] = reinterpret_cast<float&>(val);
+        }
+    }
+}
+
 size_t ReducedBitsFloatVector::usedMemory() const {
     return stream_.capacity() / 8;
 }
@@ -33,6 +47,15 @@ void ReducedBitsFloatVector::store(float const* data, size_t size) {
     stream_.resize(size * bits_per_val_);
     stream_.seekp(0ul);
     stream_.write(bits_per_val_, drop_bits_, reinterpret_cast<unsigned const*>(data), size);
+}
+
+void ReducedBitsFloatVector::store(float const* data, ContiguousBlockInfo const& block_info) {
+    stream_.resize(block_info.totalSize() * bits_per_val_);
+    stream_.seekp(0ul);
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        float const* block_data = data + block_info.blockOffset(b);
+        stream_.write(bits_per_val_, drop_bits_, reinterpret_cast<unsigned const*>(block_data), block_info.blockSize());
+    }
 }
 
 void ReducedBitsFloatVector::clear() {
@@ -46,6 +69,12 @@ const Core::ParameterInt ReducedPrecisionCompressedVectorFactory::paramDropBits(
 CompressedVectorPtr<float> ReducedPrecisionCompressedVectorFactory::compress(float const* data, size_t size, CompressionParameters const* params) const {
     ReducedBitsFloatVector* vec = new ReducedBitsFloatVector(drop_bits_);
     vec->store(data, size);
+    return CompressedVectorPtr<float>(vec);
+}
+
+CompressedVectorPtr<float> ReducedPrecisionCompressedVectorFactory::compress(float const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const {
+    ReducedBitsFloatVector* vec = new ReducedBitsFloatVector(drop_bits_);
+    vec->store(data, block_info);
     return CompressedVectorPtr<float>(vec);
 }
 

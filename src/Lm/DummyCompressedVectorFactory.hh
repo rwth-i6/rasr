@@ -21,6 +21,16 @@ public:
         std::copy(data_.begin(), data_.end(), data);
     }
 
+    virtual void uncompress(T* data, ContiguousBlockInfo const& block_info) const {
+        require_eq(block_info.totalSize(), size());
+        for (size_t i = 0ul; i < block_info.numBlocks(); i++) {
+            size_t data_offset = i * block_info.blockSize();
+            std::copy(data_.begin() + data_offset,
+                      data_.begin() + data_offset + block_info.blockSize(),
+                      data + block_info.blockOffset(i));
+        }
+    }
+
     virtual size_t usedMemory() const {
         return data_.capacity() * sizeof(T);
     }
@@ -28,6 +38,20 @@ public:
     void store(T const* data, size_t size) {
         data_.resize(size);
         std::copy(data, data + size, data_.begin());
+    }
+
+    void store(T const* data, ContiguousBlockInfo const& block_info) {
+        data_.resize(block_info.totalSize());
+        for (size_t i = 0ul; i < block_info.numBlocks(); i++) {
+            size_t block_offset = block_info.blockOffset(i);
+            std::copy(data + block_offset,
+                      data + block_offset + block_info.blockSize(),
+                      data_.begin() + i * block_info.blockSize());
+        }
+    }
+
+    T const* data() const {
+        return data_.data();
     }
 
     void clear() {
@@ -50,6 +74,12 @@ public:
     virtual CompressedVectorPtr<T> compress(T const* data, size_t size, CompressionParameters const* params) const {
         UncompressedVector<T>* vec = new UncompressedVector<T>();
         vec->store(data, size);
+        return CompressedVectorPtr<T>(vec);
+    }
+
+    virtual CompressedVectorPtr<T> compress(T const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const {
+        UncompressedVector<T>* vec = new UncompressedVector<T>();
+        vec->store(data, block_info);
         return CompressedVectorPtr<T>(vec);
     }
 };

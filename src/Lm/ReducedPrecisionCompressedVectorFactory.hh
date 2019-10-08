@@ -16,8 +16,10 @@ public:
     virtual size_t size() const;
     virtual float  get(size_t pos) const;
     virtual void   uncompress(float* data, size_t size) const;
+    virtual void   uncompress(float* data, ContiguousBlockInfo const& block_info) const;
     virtual size_t usedMemory() const;
     void           store(float const* data, size_t size);
+    void           store(float const* data, ContiguousBlockInfo const& block_info);
     void           clear();
 
 private:
@@ -37,6 +39,7 @@ public:
     virtual ~ReducedPrecisionCompressedVectorFactory() = default;
 
     virtual CompressedVectorPtr<float> compress(float const* data, size_t size, CompressionParameters const* params) const;
+    virtual CompressedVectorPtr<float> compress(float const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const;
 
 private:
     unsigned drop_bits_;

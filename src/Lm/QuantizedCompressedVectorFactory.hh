@@ -27,11 +27,16 @@ public:
     virtual size_t size() const;
     virtual float  get(size_t pos) const;
     virtual void   uncompress(float* data, size_t size) const;
+    virtual void   uncompress(float* data, ContiguousBlockInfo const& block_info) const;
     virtual size_t usedMemory() const;
     void           store(float const* data, size_t size);
+    void           store(float const* data, ContiguousBlockInfo const& block_info);
     void           clear();
 
 private:
+    void uncompress_internal(float* data, size_t size) const;
+    void store_internal(float const* data, size_t size);
+
     mutable Core::BitStream<unsigned> stream_;
     float                             min_val_;
     float                             interval_size_;
@@ -55,6 +60,7 @@ public:
     virtual ~QuantizedCompressionParameterEstimator() = default;
 
     virtual void                     accumulate(float const* data, size_t size);
+    virtual void                     accumulate(float const* data, ContiguousBlockInfo const& block_info);
     virtual CompressionParametersPtr estimate();
 
 private:
@@ -74,6 +80,7 @@ public:
 
     virtual CompressionParameterEstimatorPtr<float> getEstimator() const;
     virtual CompressedVectorPtr<float>              compress(float const* data, size_t size, CompressionParameters const* params) const;
+    virtual CompressedVectorPtr<float>              compress(float const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const;
 
 private:
     unsigned bits_per_val_;

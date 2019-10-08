@@ -1,7 +1,5 @@
 #include "QuantizedCompressedVectorFactory.hh"
 
-#include <chrono>
-
 namespace Lm {
 
 // --------------------------- QuantizedFloatVector ---------------------------
@@ -20,10 +18,14 @@ float QuantizedFloatVector::get(size_t pos) const {
 void QuantizedFloatVector::uncompress(float* data, size_t size) const {
     require_ge(size, this->size());
     stream_.seekg(0ul);
-    for (size_t i = 0ul; i < this->size(); i++) {
-        unsigned val;
-        stream_.read(bits_per_val_, val);
-        data[i] = min_val_ + val * interval_size_;
+    uncompress_internal(data, size);
+}
+
+void QuantizedFloatVector::uncompress(float* data, ContiguousBlockInfo const& block_info) const {
+    require_eq(block_info.totalSize(), this->size());
+    stream_.seekg(0ul);
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        uncompress_internal(data + block_info.blockOffset(b), block_info.blockSize());
     }
 }
 
@@ -31,9 +33,33 @@ size_t QuantizedFloatVector::usedMemory() const {
     return stream_.capacity() / 8;
 }
 
-__attribute__((optimize("unroll-loops"))) void QuantizedFloatVector::store(float const* data, size_t size) {
+void QuantizedFloatVector::store(float const* data, size_t size) {
     stream_.resize(size * bits_per_val_);
     stream_.seekp(0ul);
+    store_internal(data, size);
+}
+
+void QuantizedFloatVector::store(float const* data, ContiguousBlockInfo const& block_info) {
+    stream_.resize(block_info.totalSize() * bits_per_val_);
+    stream_.seekp(0ul);
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        store_internal(data + block_info.blockOffset(b), block_info.blockSize());
+    }
+}
+
+void QuantizedFloatVector::clear() {
+    stream_.clear();
+}
+
+void QuantizedFloatVector::uncompress_internal(float* data, size_t size) const {
+    for (size_t i = 0ul; i < this->size(); i++) {
+        unsigned val;
+        stream_.read(bits_per_val_, val);
+        data[i] = min_val_ + val * interval_size_;
+    }
+}
+
+__attribute__((optimize("unroll-loops"))) void QuantizedFloatVector::store_internal(float const* data, size_t size) {
     float interval_inverse = 1.0f / interval_size_;
     float adj_min_val      = interval_inverse * min_val_ - 0.5;
 #if defined(__AVX__)
@@ -78,10 +104,6 @@ __attribute__((optimize("unroll-loops"))) void QuantizedFloatVector::store(float
 #endif
 }
 
-void QuantizedFloatVector::clear() {
-    stream_.clear();
-}
-
 // ------------------ QuantizedCompressionParameterEstimator ------------------
 
 void QuantizedCompressionParameterEstimator::accumulate(float const* data, size_t size) {
@@ -90,15 +112,22 @@ void QuantizedCompressionParameterEstimator::accumulate(float const* data, size_
     max_val_    = std::max(*minmax.second, max_val_);
 }
 
+void QuantizedCompressionParameterEstimator::accumulate(float const* data, ContiguousBlockInfo const& block_info) {
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        accumulate(data + block_info.blockOffset(b), block_info.blockSize());
+    }
+}
+
 CompressionParametersPtr QuantizedCompressionParameterEstimator::estimate() {
     return CompressionParametersPtr(new QuantizedCompressionParameters(min_val_, max_val_));
 }
 
 // --------------------- QuantizedCompressedVectorFactory ---------------------
 
-const Core::ParameterInt                QuantizedCompressedVectorFactory::paramBitsPerVal("bits-per-val",
-                                                                           "Number of bits for the quantized value.",
-                                                                           16, 1, 32);
+const Core::ParameterInt QuantizedCompressedVectorFactory::paramBitsPerVal("bits-per-val",
+                                                            "Number of bits for the quantized value.",
+                                                            16, 1, 32);
+
 CompressionParameterEstimatorPtr<float> QuantizedCompressedVectorFactory::getEstimator() const {
     return CompressionParameterEstimatorPtr<float>(new QuantizedCompressionParameterEstimator());
 }
@@ -108,6 +137,14 @@ CompressedVectorPtr<float> QuantizedCompressedVectorFactory::compress(float cons
     require(qparams != nullptr);
     QuantizedFloatVector* vec = new QuantizedFloatVector(qparams->min_val, qparams->max_val, bits_per_val_);
     vec->store(data, size);
+    return CompressedVectorPtr<float>(vec);
+}
+
+CompressedVectorPtr<float> QuantizedCompressedVectorFactory::compress(float const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const {
+    QuantizedCompressionParameters const* qparams = dynamic_cast<QuantizedCompressionParameters const*>(params);
+    require(qparams != nullptr);
+    QuantizedFloatVector* vec = new QuantizedFloatVector(qparams->min_val, qparams->max_val, bits_per_val_);
+    vec->store(data, block_info);
     return CompressedVectorPtr<float>(vec);
 }
 

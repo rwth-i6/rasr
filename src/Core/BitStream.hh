@@ -65,26 +65,25 @@ unsigned BitStream<T>::read(unsigned bits, T& val) {
     require_le(bits, bitsizeof<T>());
     bits = static_cast<unsigned>(std::min<size_t>(size_ - posg_, bits));
 
-    if (bits == 0) {
-        val = 0;
-        return bits;
+    val = 0;
+
+    unsigned total_read_bits = 0;
+    while (bits > 0) {
+        unsigned idx       = posg_ / bitsizeof<T>();
+        unsigned skip_bits = posg_ % bitsizeof<T>();
+        unsigned read_bits = static_cast<unsigned>(std::min<size_t>(bits, bitsizeof<T>() - skip_bits));
+
+        T temp = store_[idx];
+        temp = temp >> skip_bits;
+        temp &= ~(T(-1) << read_bits);
+        val |= temp << total_read_bits;
+
+        posg_ += read_bits;
+        total_read_bits += read_bits;
+        bits -= read_bits;
     }
 
-    unsigned idx       = posg_ / bitsizeof<T>();
-    unsigned skip_bits = posg_ % bitsizeof<T>();
-    unsigned read_bits = static_cast<unsigned>(std::min<size_t>(bits, bitsizeof<T>() - skip_bits));
-
-    val = store_[idx];
-    val = val >> skip_bits;
-    val &= ~(T(-1) << read_bits);
-    posg_ += read_bits;
-    if (read_bits < bits) {
-        T rest(0);
-        read(bits - read_bits, rest);
-        val |= rest << read_bits;
-    }
-
-    return bits;
+    return total_read_bits;
 }
 
 template<typename T>

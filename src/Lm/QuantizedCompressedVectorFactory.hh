@@ -20,7 +20,7 @@ class QuantizedFloatVector : public CompressedVector<float> {
 public:
     QuantizedFloatVector(float min_val, float max_val, unsigned bits_per_val)
             : min_val_(min_val),
-              interval_size_((max_val - min_val) / ((1 << bits_per_val) - 1)),
+              interval_size_((max_val - min_val) / ((1ul << bits_per_val) - 1ul)),
               bits_per_val_(bits_per_val) {
     }
 

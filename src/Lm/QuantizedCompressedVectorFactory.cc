@@ -107,9 +107,11 @@ __attribute__((optimize("unroll-loops"))) void QuantizedFloatVector::store_inter
 // ------------------ QuantizedCompressionParameterEstimator ------------------
 
 void QuantizedCompressionParameterEstimator::accumulate(float const* data, size_t size) {
-    auto minmax = std::minmax_element(data, data + size);
-    min_val_    = std::min(*minmax.first, min_val_);
-    max_val_    = std::max(*minmax.second, max_val_);
+    if (size > 0) {
+        auto minmax = std::minmax_element(data, data + size);
+        min_val_    = std::min(*minmax.first, min_val_);
+        max_val_    = std::max(*minmax.second, max_val_);
+    }
 }
 
 void QuantizedCompressionParameterEstimator::accumulate(float const* data, ContiguousBlockInfo const& block_info) {

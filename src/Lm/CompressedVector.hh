@@ -28,7 +28,7 @@ private:
     size_t                totalSize_;
     size_t                numBlocks_;
     size_t                blockSize_;
-    int                   firstIdxDim_;
+    size_t                firstIdxDim_;
 };
 
 // abstract base classes

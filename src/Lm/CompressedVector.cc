@@ -4,18 +4,18 @@ namespace Lm {
 
 ContiguousBlockInfo::ContiguousBlockInfo(std::gslice const& slice) : start_(slice.start()),
                                                                      sizes_(slice.size()),
-                                                                     strides_(slice.size()),
+                                                                     strides_(slice.stride()),
                                                                      totalSize_(0ul),
                                                                      numBlocks_(1ul),
                                                                      blockSize_(1ul),
-                                                                     firstIdxDim_(-1) {
+                                                                     firstIdxDim_(0ul) {
     size_t i                 = sizes_.size();
     size_t contiguous_stride = 1ul;
     while (i > 0ul) {
         i -= 1ul;
         bool contiguous = (contiguous_stride == strides_[i]);
         if (contiguous) {
-            firstIdxDim_ = std::max<int>(firstIdxDim_, i);
+            firstIdxDim_ = i;
         }
         numBlocks_ *= contiguous ? 1ul : sizes_[i];
         blockSize_ *= contiguous ? sizes_[i] : 1ul;
@@ -33,8 +33,10 @@ ContiguousBlockInfo::ContiguousBlockInfo(std::gslice const& slice) : start_(slic
 size_t ContiguousBlockInfo::blockOffset(size_t idx) const {
     size_t res = start_;
     for (int i = firstIdxDim_; i >= 0; i--) {
-        res += strides_[i] * (idx % sizes_[i]);
-        idx /= sizes_[i];
+        if (sizes_[i] > 0) {
+            res += strides_[i] * (idx % sizes_[i]);
+            idx /= sizes_[i];
+        }
     }
 
     return res;

@@ -52,7 +52,7 @@ void QuantizedFloatVector::clear() {
 }
 
 void QuantizedFloatVector::uncompress_internal(float* data, size_t size) const {
-    for (size_t i = 0ul; i < this->size(); i++) {
+    for (size_t i = 0ul; i < size; i++) {
         unsigned val;
         stream_.read(bits_per_val_, val);
         data[i] = min_val_ + val * interval_size_;

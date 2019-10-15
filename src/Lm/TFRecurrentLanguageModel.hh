@@ -28,6 +28,7 @@
 #include "AbstractNNLanguageModel.hh"
 #include "CompressedVector.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
+#include "StateManager.hh"
 #include "SoftmaxAdapter.hh"
 
 namespace Lm {
@@ -114,7 +115,9 @@ private:
     CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
     CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
 
-    std::unique_ptr<SoftmaxAdapter> softmax_adapter_;
+    std::vector<Tensorflow::Variable> state_variables_;
+    std::unique_ptr<StateManager>     state_manager_;
+    std::unique_ptr<SoftmaxAdapter>   softmax_adapter_;
 
     std::vector<std::string> initializer_tensor_names_;
     std::vector<std::string> output_tensor_names_;

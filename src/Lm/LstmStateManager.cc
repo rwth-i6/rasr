@@ -13,7 +13,7 @@ CompressedVectorPtr<float> LstmStateManager::initialState(Tensorflow::Variable c
     return vector_factory.compress(vec.data(), vec.size(), compression_params.get());
 }
 
-Tensorflow::Tensor LstmStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo> const& states) {
+Tensorflow::Tensor LstmStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states) {
     require_gt(states.size(), 0ul);
     require_eq(states.front().state.size(), 1ul);
     Tensorflow::int64 num_states = states.size();

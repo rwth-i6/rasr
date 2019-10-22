@@ -28,7 +28,7 @@ CompressedVectorPtr<float> NaiveTransformerStateManager::initialState(Tensorflow
     return vector_factory.compress(vec.data(), vec.size(), compression_params.get());
 }
 
-Tensorflow::Tensor NaiveTransformerStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo> const& states) {
+Tensorflow::Tensor NaiveTransformerStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states) {
     require_ge(var.shape.size(), 2);
 
     size_t max_prefix = 0ul;
@@ -104,7 +104,7 @@ void NaiveTransformerStateManager::splitStates(Tensorflow::Variable const& var,
         strides[d-1ul] = tensor.dimSize(d) * strides[d];
     }
 
-    for (size_t s = 0ul; s < tensor.dimSize(0); s++) {
+    for (size_t s = 0ul; s < static_cast<size_t>(tensor.dimSize(0)); s++) {
         sizes[time_dim] = states[s].prefixLength + states[s].suffixLength;
         std::gslice slice(s * batch_stride + (max_prefix - states[s].prefixLength) * strides[time_dim], sizes, strides);
         ContiguousBlockInfo block_info(slice);
@@ -117,7 +117,14 @@ void NaiveTransformerStateManager::splitStates(Tensorflow::Variable const& var,
 
 /* ----------------------------------- TransformerStateManager ---------------------------------- */
 
-const Core::ParameterInt TransformerStateManager::paramMaxHistoryLength("max-history", "maximum length of the history to feed to the transformer", std::numeric_limits<int>::max(), 0);
+const Core::ParameterInt TransformerStateManager::paramMaxHistoryLength("max-history",
+                                                                        "maximum length of the history to feed to the transformer",
+                                                                        std::numeric_limits<int>::max(),
+                                                                        0);
+
+const Core::ParameterBool TransformerStateManager::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
+                                                                                     "wether to always include the state of the first token, even if history is restricted by max-history",
+                                                                                     false);
 
 CompressedVectorPtr<float> TransformerStateManager::initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory) {
     std::vector<float> vec(0, 0.0f);
@@ -127,14 +134,14 @@ CompressedVectorPtr<float> TransformerStateManager::initialState(Tensorflow::Var
     return vector_factory.compress(vec.data(), vec.size(), compression_params.get());
 }
 
-Tensorflow::Tensor TransformerStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo> const& states) {
+Tensorflow::Tensor TransformerStateManager::mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states) {
     require_ge(var.shape.size(), 2);
 
     size_t max_prefix = 0ul;
-    for (auto const& info : states) {
+    for (auto& info : states) {
+        info.prefixLength = std::min(info.prefixLength, maxHistory_);
         max_prefix = std::max(max_prefix, info.prefixLength);
     }
-    max_prefix = std::min<size_t>(max_prefix, maxHistory_);
 
     std::vector<Tensorflow::int64> tensor_dim(var.shape.size());
     tensor_dim[0] = states.size();
@@ -164,11 +171,17 @@ Tensorflow::Tensor TransformerStateManager::mergeStates(Tensorflow::Variable con
     Tensorflow::Tensor result = Tensorflow::Tensor::zeros<f32>(tensor_dim);
 
     for (size_t s = 0ul; s < states.size(); s++) {
-        for (size_t p = 0ul; p < std::min<size_t>(maxHistory_, states[s].state.size()); p++) {
-            size_t prefix_length = std::min(states[s].prefixLength, maxHistory_);
+        size_t prefix_length = states[s].prefixLength;
+        size_t state_offset = states[s].state.size() - prefix_length;
+        for (size_t p = 0ul; p < prefix_length; p++) {
             std::gslice slice(s * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim], sizes, strides);
             ContiguousBlockInfo block_info(slice);
-            states[s].state[p]->uncompress(result.data<f32>(), block_info);
+            if (alwaysIncludeFirstTokenState_ and p == 0ul) {
+                states[s].state[0]->uncompress(result.data<f32>(), block_info);
+            }
+            else {
+                states[s].state[state_offset + p]->uncompress(result.data<f32>(), block_info);
+            }
         }
     }
 

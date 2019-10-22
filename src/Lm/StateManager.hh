@@ -26,7 +26,7 @@ public:
     virtual bool requiresAllParentStates() const;
 
     virtual CompressedVectorPtr<float> initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory) = 0;
-    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo> const& states) = 0;
+    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states) = 0;
     virtual void                       splitStates(Tensorflow::Variable const& var,
                                                    Tensorflow::Tensor const& tensor,
                                                    CompressedVectorFactory<float> const& vector_factory,

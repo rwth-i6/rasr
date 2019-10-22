@@ -689,7 +689,6 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
             words.at(r, w) = 0;
         }
         word_lengths[r]                  = requests[r].length;
-        state_lengths[r]                 = requests[r].initial_cache->history->size();
         ScoresWithContext* initial_cache = requests[r].initial_cache;
         require(initial_cache != nullptr);
         require_eq(state_variables_.size(), initial_cache->state.size());
@@ -716,13 +715,18 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
             }
         }
         inputs.emplace_back(std::make_pair(state_variables_[s].initial_value_name, state_manager_->mergeStates(state_variables_[s], state_infos)));
+        for (size_t r = 0ul; r < requests.size(); r++) {
+            state_lengths[r] = state_infos[r].prefixLength;
+        }
     }
+
+    auto end_merge_state = std::chrono::steady_clock::now();
 
     session_.run(inputs, initializer_tensor_names_);
 
     auto end_set_state = std::chrono::steady_clock::now();
 
-    // run softmax calculation
+    // run nn-output calculation
     inputs.clear();
     auto const& word_info = tensor_input_map_.get_info("word");
     inputs.emplace_back(std::make_pair(word_info.tensor_name(), Tensorflow::Tensor::create(words)));

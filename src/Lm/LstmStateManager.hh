@@ -13,7 +13,7 @@ public:
     virtual ~LstmStateManager() = default;
 
     virtual CompressedVectorPtr<float> initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory);
-    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo> const& states);
+    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states);
     virtual void                       splitStates(Tensorflow::Variable const& var,
                                                    Tensorflow::Tensor const& tensor,
                                                    CompressedVectorFactory<float> const& vector_factory,

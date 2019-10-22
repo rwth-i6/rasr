@@ -37,6 +37,9 @@ public:
     template<typename T>
     static Tensor zeros(std::initializer_list<int64> dim);
 
+    template<typename T>
+    static Tensor zeros(std::vector<int64> const& dim);
+
     Tensor();
     Tensor(Tensor const& other);
     Tensor(Tensor&& other) = default;

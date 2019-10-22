@@ -113,7 +113,8 @@ unsigned BitStream<T>::write(unsigned bits, T val) {
 
 template<typename T>
 unsigned BitStream<T>::write(unsigned bits, unsigned shift, T const* ary, size_t size) {
-    if (bits == 0u) {
+    require(ary != nullptr or size == 0ul);
+    if (bits == 0u or size == 0) {
         return 0u;
     }
 

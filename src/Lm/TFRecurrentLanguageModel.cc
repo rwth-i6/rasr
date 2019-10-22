@@ -201,10 +201,12 @@ TFRecurrentLanguageModel::TimeStatistics TFRecurrentLanguageModel::TimeStatistic
     res.early_request_duration  = early_request_duration + other.early_request_duration;
     res.request_duration        = request_duration + other.request_duration;
     res.prepare_duration        = prepare_duration + other.prepare_duration;
+    res.merge_state_duration    = merge_state_duration + other.merge_state_duration;
     res.set_state_duration      = set_state_duration + other.set_state_duration;
     res.run_nn_output_duration  = run_nn_output_duration + other.run_nn_output_duration;
     res.set_nn_output_duration  = set_nn_output_duration + other.set_nn_output_duration;
-    res.set_new_state_duration  = set_new_state_duration + other.set_new_state_duration;
+    res.get_new_state_duration  = get_new_state_duration + other.get_new_state_duration;
+    res.split_state_duration    = split_state_duration + other.split_state_duration;
     res.softmax_output_duration = softmax_output_duration + other.softmax_output_duration;
 
     return res;
@@ -215,10 +217,12 @@ TFRecurrentLanguageModel::TimeStatistics& TFRecurrentLanguageModel::TimeStatisti
     early_request_duration += other.early_request_duration;
     request_duration += other.request_duration;
     prepare_duration += other.prepare_duration;
+    merge_state_duration += other.merge_state_duration;
     set_state_duration += other.set_state_duration;
     run_nn_output_duration += other.run_nn_output_duration;
     set_nn_output_duration += other.set_nn_output_duration;
-    set_new_state_duration += other.set_new_state_duration;
+    get_new_state_duration += other.get_new_state_duration;
+    split_state_duration += other.split_state_duration;
     softmax_output_duration += other.softmax_output_duration;
 
     return *this;
@@ -229,10 +233,12 @@ void TFRecurrentLanguageModel::TimeStatistics::write(Core::XmlChannel& channel) 
     channel << Core::XmlOpen("early-request-duration") + Core::XmlAttribute("unit", "milliseconds") << early_request_duration.count() << Core::XmlClose("early-request-duration");
     channel << Core::XmlOpen("request-duration") + Core::XmlAttribute("unit", "milliseconds") << request_duration.count() << Core::XmlClose("request-duration");
     channel << Core::XmlOpen("prepare-duration") + Core::XmlAttribute("unit", "milliseconds") << prepare_duration.count() << Core::XmlClose("prepare-duration");
+    channel << Core::XmlOpen("merge-state-duration") + Core::XmlAttribute("unit", "milliseconds") << merge_state_duration.count() << Core::XmlClose("merge-state-duration");
     channel << Core::XmlOpen("set-state-duration") + Core::XmlAttribute("unit", "milliseconds") << set_state_duration.count() << Core::XmlClose("set-state-duration");
     channel << Core::XmlOpen("run-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << run_nn_output_duration.count() << Core::XmlClose("run-nn-output-duration");
     channel << Core::XmlOpen("set-nn-output-duration") + Core::XmlAttribute("unit", "milliseconds") << set_nn_output_duration.count() << Core::XmlClose("set-nn-output-duration");
-    channel << Core::XmlOpen("set-new-state-duration") + Core::XmlAttribute("unit", "milliseconds") << set_new_state_duration.count() << Core::XmlClose("set-new-state-duration");
+    channel << Core::XmlOpen("get-new-state-duration") + Core::XmlAttribute("unit", "milliseconds") << get_new_state_duration.count() << Core::XmlClose("get-new-state-duration");
+    channel << Core::XmlOpen("split-state-duration") + Core::XmlAttribute("unit", "milliseconds") << split_state_duration.count() << Core::XmlClose("split-state-duration");
     channel << Core::XmlOpen("softmax-output-duration") + Core::XmlAttribute("unit", "milliseconds") << softmax_output_duration.count() << Core::XmlClose("softmax-output-duration");
 }
 
@@ -241,10 +247,12 @@ void TFRecurrentLanguageModel::TimeStatistics::write(std::ostream& out) const {
         << " er:" << early_request_duration.count()
         << " r:" << request_duration.count()
         << " p:" << prepare_duration.count()
+        << " ms: " << merge_state_duration.count()
         << " sst:" << set_state_duration.count()
         << " rs:" << run_nn_output_duration.count()
         << " sno:" << set_nn_output_duration.count()
-        << " sns:" << set_new_state_duration.count()
+        << " gns:" << get_new_state_duration.count()
+        << " ss: " << split_state_duration.count()
         << " smo:" << softmax_output_duration.count();
 }
 
@@ -470,7 +478,9 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
     auto start = std::chrono::steady_clock::now();
     Score score = output_transform_function_(softmax_adapter_->get_score(sc->nn_output, output_idx));
     auto end = std::chrono::steady_clock::now();
-    fwd_statistics_.softmax_output_duration += std::chrono::duration<double, std::milli>(end - start);
+    auto duration = std::chrono::duration<double, std::milli>(end - start);
+    fwd_statistics_.softmax_output_duration += duration;
+    fwd_statistics_.total_duration += duration;
     return score;
 }
 
@@ -765,6 +775,8 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     // fetch new values of state variables, needs to be done in separate Session::run call (for GPU devices)
     session_.run({}, read_vars_tensor_names_, {}, outputs);
 
+    auto end_get_new_state = std::chrono::steady_clock::now();
+
     std::vector<StateInfo> state_infos(requests.size());
     size_t max_prefix = 0ul;
     size_t max_suffix = 0ul;
@@ -796,9 +808,9 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         }
     }
 
-    auto end_set_new_state = std::chrono::steady_clock::now();
+    auto end_split_state = std::chrono::steady_clock::now();
 
-    std::chrono::duration<double, std::milli> duration = end_set_new_state - end_prepare;
+    std::chrono::duration<double, std::milli> duration = end_split_state - end_prepare;
     size_t bucket = requests.size() - 1;
     run_time_.at(bucket) += duration.count();
     run_count_.at(bucket) += 1ul;
@@ -831,10 +843,12 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     stats.early_request_duration = std::chrono::duration<double, std::milli>(end_early_requests - start);
     stats.request_duration       = std::chrono::duration<double, std::milli>(end_requests - end_early_requests);
     stats.prepare_duration       = std::chrono::duration<double, std::milli>(end_prepare - end_requests);
-    stats.set_state_duration     = std::chrono::duration<double, std::milli>(end_set_state - end_prepare);
+    stats.merge_state_duration   = std::chrono::duration<double, std::milli>(end_merge_state - end_prepare);
+    stats.set_state_duration     = std::chrono::duration<double, std::milli>(end_set_state - end_merge_state);
     stats.run_nn_output_duration = std::chrono::duration<double, std::milli>(end_nn_output - end_set_state);
     stats.set_nn_output_duration = std::chrono::duration<double, std::milli>(end_set_nn_output - end_nn_output);
-    stats.set_new_state_duration = std::chrono::duration<double, std::milli>(end_set_new_state - end_set_nn_output);
+    stats.get_new_state_duration = std::chrono::duration<double, std::milli>(end_get_new_state - end_set_nn_output);
+    stats.split_state_duration   = std::chrono::duration<double, std::milli>(end_split_state - end_get_new_state);
     if (verbose_) {
         stats.write(std::cerr);
         std::cerr << " #pr:" << num_pending_requests

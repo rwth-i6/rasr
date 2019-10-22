@@ -40,10 +40,12 @@ public:
         std::chrono::duration<double, std::milli> early_request_duration;
         std::chrono::duration<double, std::milli> request_duration;
         std::chrono::duration<double, std::milli> prepare_duration;
+        std::chrono::duration<double, std::milli> merge_state_duration;
         std::chrono::duration<double, std::milli> set_state_duration;
         std::chrono::duration<double, std::milli> run_nn_output_duration;
         std::chrono::duration<double, std::milli> set_nn_output_duration;
-        std::chrono::duration<double, std::milli> set_new_state_duration;
+        std::chrono::duration<double, std::milli> get_new_state_duration;
+        std::chrono::duration<double, std::milli> split_state_duration;
         std::chrono::duration<double, std::milli> softmax_output_duration;
 
         TimeStatistics  operator+(TimeStatistics const& other) const;

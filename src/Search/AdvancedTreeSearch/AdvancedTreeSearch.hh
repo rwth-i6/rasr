@@ -17,12 +17,15 @@
 #ifndef _SEARCH_CONDITIONED_TREE_SEARCH_HH
 #define _SEARCH_CONDITIONED_TREE_SEARCH_HH
 
+#include <chrono>
+
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Search/Histogram.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Search.hh>
 #include <Speech/ModelCombination.hh>
+#include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
 
 namespace Speech {
@@ -66,6 +69,10 @@ private:
     bool                      onlineSegmentationIncludeGap_;
     TimeframeIndex            time_;
     TimeframeIndex            currentSegmentStart_;
+
+    f32                                                frameShift_;
+    std::chrono::time_point<std::chrono::steady_clock> segmentStartTime_;
+    std::unique_ptr<DynamicBeamPruningStrategy>        dynamicBeamPruningStrategy_;
 
     SearchSpace* ss_;
 

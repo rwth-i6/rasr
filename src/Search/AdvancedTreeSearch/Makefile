@@ -9,23 +9,24 @@ include $(TOPDIR)/Makefile.cfg
 SUBDIRS		=
 TARGETS		= libSprintAdvancedTreeSearch.$(a)
 
-LIBSPRINTADVANCEDTREESEARCH_O = $(OBJDIR)/AdvancedTreeSearch.o \
-                        $(OBJDIR)/PersistentStateTree.o \
-                        $(OBJDIR)/ScoreDependentStatistics.o \
-                        $(OBJDIR)/SearchSpace.o \
-                        $(OBJDIR)/SearchSpaceStatistics.o \
-                        $(OBJDIR)/Trace.o \
-                        $(OBJDIR)/TraceManager.o \
-                        $(OBJDIR)/SearchSpaceHelpers.o \
-                        $(OBJDIR)/TreeStructure.o \
+LIBSPRINTADVANCEDTREESEARCH_O = $(OBJDIR)/AcousticLookAhead.o \
+                        $(OBJDIR)/AdvancedTreeSearch.o \
+                        $(OBJDIR)/DynamicBeamPruningStrategy.o \
+                        $(OBJDIR)/Helpers.o \
                         $(OBJDIR)/LanguageModelLookahead.o \
-                        $(OBJDIR)/AcousticLookAhead.o \
                         $(OBJDIR)/PathRecombination.o \
                         $(OBJDIR)/PathRecombinationApproximation.o \
-                        $(OBJDIR)/Helpers.o \
+                        $(OBJDIR)/PersistentStateTree.o \
+                        $(OBJDIR)/PrefixFilter.o \
+                        $(OBJDIR)/ScoreDependentStatistics.o \
+                        $(OBJDIR)/SearchSpace.o \
+                        $(OBJDIR)/SearchSpaceHelpers.o \
+                        $(OBJDIR)/SearchSpaceStatistics.o \
                         $(OBJDIR)/SimpleThreadPool.o \
+                        $(OBJDIR)/Trace.o \
+                        $(OBJDIR)/TraceManager.o \
                         $(OBJDIR)/TreeBuilder.o \
-                        $(OBJDIR)/PrefixFilter.o
+                        $(OBJDIR)/TreeStructure.o
 
 ifeq ($(OS),darwin)
 CCFLAGS += -fexceptions

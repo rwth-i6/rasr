@@ -1527,8 +1527,7 @@ void SearchSpace::applyLookaheadInInstance(Instance* network) {
 }
 
 template<class Pruning>
-void SearchSpace::addAcousticScoresInternal(
-        Pruning& pruning, u32 from, u32 to) {
+void SearchSpace::addAcousticScoresInternal(Pruning& pruning, u32 from, u32 to) {
     StateHypothesesList::iterator sh     = stateHypotheses.begin() + from;
     StateHypothesesList::iterator sh_end = stateHypotheses.begin() + to;
 
@@ -3350,8 +3349,8 @@ void SearchSpace::setMasterBeam(Score value) {
         verify(acousticPruning_ < Core::Type<f32>::max);
 
         acousticPruning_ = value;
-        if (oldAcousticPruning != acousticPruning_)
-            std::cout << "t=" << timeFrame_ << ": bp -> " << acousticPruning_ / lm_->scale() << " (previous " << oldAcousticPruning / lm_->scale() << ")" << std::endl;
+        /*if (oldAcousticPruning != acousticPruning_)
+            std::cout << "t=" << timeFrame_ << ": bp -> " << acousticPruning_ / lm_->scale() << " (previous " << oldAcousticPruning / lm_->scale() << ")" << std::endl;*/
         verify(acousticPruning_ != 0);
 
         if (wordEndPruning_ < Core::Type<f32>::max)

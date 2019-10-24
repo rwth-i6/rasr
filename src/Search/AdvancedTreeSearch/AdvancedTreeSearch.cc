@@ -101,6 +101,12 @@ const Core::ParameterChoice paramOptimizeLattice(
         "optimization method for word lattice generation (dafault is 'simple silence approximation')",
         AdvancedTreeSearchManager::simpleSilenceLatticeOptimization);
 
+const Core::ParameterFloat paramFrameShift(
+        "frame-shift",
+        "length of the frame shift in milliseconds",
+        10.0,
+        0.0);
+
 AdvancedTreeSearchManager::AdvancedTreeSearchManager(
         const Core::Configuration& c)
         : Core::Component(c),
@@ -119,6 +125,7 @@ AdvancedTreeSearchManager::AdvancedTreeSearchManager(
     onlineSegmentationMargin_     = paramOnlineSegmentationMargin(config);
     onlineSegmentationTolerance_  = paramOnlineSegmentationTolerance(config);
     onlineSegmentationIncludeGap_ = paramOnlineSegmentationIncludeGap(config);
+    frameShift_                   = paramFrameShift(config);
 
     if (shallCreateLattice_) {
         shallOptimizeLattice_ = LatticeOptimizationMethod(paramOptimizeLattice(config));
@@ -169,6 +176,7 @@ void AdvancedTreeSearchManager::restart() {
 
         ss_ = new SearchSpace(config, acousticModel_, lexicon_, lm_, wpScale_);
         ss_->initialize();
+        dynamicBeamPruningStrategy_ = createDynamicBeamPruningStrategy(select("dynamic-beam-pruning-strategy"), ss_->describePruning());
     }
     else {
         ss_->clear();
@@ -179,6 +187,13 @@ void AdvancedTreeSearchManager::restart() {
     ss_->addStartupWordEndHypothesis(time_);
     ss_->hypothesizeEpsilonPronunciations(0);
     sentenceEnd_.reset();
+    if (dynamicBeamPruningStrategy_) {
+        auto new_pruning = dynamicBeamPruningStrategy_->startNewSegment();
+        if (new_pruning) {
+            ss_->resetPruning(new_pruning);
+        }
+    }
+    segmentStartTime_ = std::chrono::steady_clock::now();
 }
 
 bool AdvancedTreeSearchManager::shouldComputeWordEnds() {
@@ -193,6 +208,7 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     sentenceEnd_.reset();
 
     PerformanceCounter perf(*ss_->statistics, "feed");
+    auto feed_start = std::chrono::steady_clock::now();
 
     // Set current timeframe, compute acoustic look-ahead
     ss_->setCurrentTimeFrame(time_, emissionScores);
@@ -246,6 +262,17 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
         ss_->statistics->epsilonWordEndsAdded += 0;
         ss_->statistics->wordEndsBeforePruning += 0;
         ss_->statistics->wordEndsAfterSecondPruning += 0;
+    }
+
+    if (dynamicBeamPruningStrategy_) {
+        auto feed_end = std::chrono::steady_clock::now();
+        f64 frame_duration = std::chrono::duration<f64, std::milli>(feed_end - feed_start).count();
+        f64 delay = std::chrono::duration<f64, std::milli>(feed_end - segmentStartTime_).count() - time_ * frameShift_;
+        dynamicBeamPruningStrategy_->frameFinished(time_, frame_duration, delay);
+        auto new_pruning = dynamicBeamPruningStrategy_->newPruningThresholds();
+        if (new_pruning) {
+            ss_->resetPruning(new_pruning);
+        }
     }
 }
 

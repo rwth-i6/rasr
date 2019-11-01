@@ -35,6 +35,7 @@
 
 #ifdef MODULE_LM_TFRNN
 #include "DummyCompressedVectorFactory.hh"
+#include "FixedQuantizationCompressedVectorFactory.hh"
 #include "QuantizedCompressedVectorFactory.hh"
 #include "ReducedPrecisionCompressedVectorFactory.hh"
 #endif
@@ -106,14 +107,16 @@ Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
 #ifdef MODULE_LM_TFRNN
 enum CompressedVectorFactoryType {
     DummyCompressedVectorFactoryType,
-    ReducedPrecisionCompressedVectorFactoryType,
-    QuantizedCompressedVectorFactoryType
+    FixedQuantizationCompressedVectorFactoryType,
+    QuantizedCompressedVectorFactoryType,
+    ReducedPrecisionCompressedVectorFactoryType
 };
 
 const Core::Choice Module_::compressedVectorFactoryTypeChoice(
         "dummy", DummyCompressedVectorFactoryType,
-        "reduced-precision", ReducedPrecisionCompressedVectorFactoryType,
+        "fixed-quantization", FixedQuantizationCompressedVectorFactoryType,
         "quantized", QuantizedCompressedVectorFactoryType,
+        "reduced-precision", ReducedPrecisionCompressedVectorFactoryType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
@@ -124,8 +127,9 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
 Lm::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
     switch (compressedVectorFactoryTypeParam(config)) {
         case DummyCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::DummyCompressedVectorFactory<float>(config));
-        case ReducedPrecisionCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::ReducedPrecisionCompressedVectorFactory(config));
+        case FixedQuantizationCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::FixedQuantizationCompressedVectorFactory(config));
         case QuantizedCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::QuantizedCompressedVectorFactory(config));
+        case ReducedPrecisionCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::ReducedPrecisionCompressedVectorFactory(config));
         default: defect();
     }
 }

@@ -40,13 +40,15 @@ endif
 ifdef MODULE_LM_TFRNN
 LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o \
                  $(OBJDIR)/CompressedVector.o \
+                 $(OBJDIR)/FixedQuantizationCompressedVectorFactory.o \
                  $(OBJDIR)/LstmStateManager.o \
                  $(OBJDIR)/NceSoftmaxAdapter.o \
                  $(OBJDIR)/PassthroughSoftmaxAdapter.o \
+                 $(OBJDIR)/QuantizedBlasNceSoftmaxAdapter.o \
+                 $(OBJDIR)/QuantizedCompressedVectorFactory.o \
                  $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o \
                  $(OBJDIR)/TransformerStateManager.o \
-                 $(OBJDIR)/TFRecurrentLanguageModel.o \
-                 $(OBJDIR)/QuantizedCompressedVectorFactory.o
+                 $(OBJDIR)/TFRecurrentLanguageModel.o
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif

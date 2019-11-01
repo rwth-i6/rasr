@@ -22,6 +22,7 @@
 #include "NceSoftmaxAdapter.hh"
 #include "PassthroughSoftmaxAdapter.hh"
 #include "TransformerStateManager.hh"
+#include "QuantizedBlasNceSoftmaxAdapter.hh"
 
 namespace {
 struct ScoresWithContext : public Lm::NNCacheWithStats {
@@ -169,15 +170,17 @@ std::unique_ptr<StateManager> createStateManager(Core::Configuration const& conf
 }
 
 enum SoftmaxAdapterType {
-    PassthroughSoftmaxAdapterType,
+    BlasNceSoftmaxAdapterType,
     NceSoftmaxAdapterType,
-    BlasNceSoftmaxAdapterType
+    PassthroughSoftmaxAdapterType,
+    QuantizedBlasNceSoftmaxAdapter16BitType
 };
 
 const Core::Choice softmaxAdapterTypeChoice(
-        "passthrough", PassthroughSoftmaxAdapterType,
-        "nce", NceSoftmaxAdapterType,
         "blas_nce", BlasNceSoftmaxAdapterType,
+        "nce", NceSoftmaxAdapterType,
+        "passthrough", PassthroughSoftmaxAdapterType,
+        "quantized-blas-nce-16bit", QuantizedBlasNceSoftmaxAdapter16BitType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice softmaxAdapterTypeParam(
@@ -187,9 +190,10 @@ const Core::ParameterChoice softmaxAdapterTypeParam(
 
 std::unique_ptr<SoftmaxAdapter> createSoftmaxAdapter(Core::Configuration const& config) {
     switch (softmaxAdapterTypeParam(config)) {
-        case PassthroughSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::PassthroughSoftmaxAdapter(config));
-        case NceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::NceSoftmaxAdapter(config));
         case BlasNceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::BlasNceSoftmaxAdapter(config));
+        case NceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::NceSoftmaxAdapter(config));
+        case PassthroughSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::PassthroughSoftmaxAdapter(config));
+        case QuantizedBlasNceSoftmaxAdapter16BitType: return std::unique_ptr<SoftmaxAdapter>(new Lm::QuantizedBlasNceSoftmaxAdapter16Bit(config));
         default: defect();
     }
 }

@@ -28,6 +28,10 @@ template struct ToDataType<f32>;
 template struct ToDataType<f64>;
 template struct ToDataType<s32>;
 template struct ToDataType<u32>;
+template struct ToDataType<s16>;
+template struct ToDataType<u16>;
+template struct ToDataType<s8>;
+template struct ToDataType<u8>;
 
 // tf::DataTypeToEnum does not have entries for s64 and u64 (as they are (unsigned) long)
 // instead it has entries for long long and unsigned long long. For our supported data-model
@@ -68,6 +72,10 @@ template Tensor Tensor::zeros<s64>(std::initializer_list<int64> dim);
 template Tensor Tensor::zeros<u64>(std::initializer_list<int64> dim);
 template Tensor Tensor::zeros<s32>(std::initializer_list<int64> dim);
 template Tensor Tensor::zeros<u32>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<s16>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<u16>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<s8>(std::initializer_list<int64> dim);
+template Tensor Tensor::zeros<u8>(std::initializer_list<int64> dim);
 
 template<typename T>
 Tensor Tensor::zeros(std::vector<int64> const& dim) {
@@ -88,6 +96,10 @@ template Tensor Tensor::zeros<s64>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<u64>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<s32>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<u32>(std::vector<int64> const& dim);
+template Tensor Tensor::zeros<s16>(std::vector<int64> const& dim);
+template Tensor Tensor::zeros<u16>(std::vector<int64> const& dim);
+template Tensor Tensor::zeros<s8>(std::vector<int64> const& dim);
+template Tensor Tensor::zeros<u8>(std::vector<int64> const& dim);
 
 /* ------------------------- Getters ------------------------- */
 
@@ -145,6 +157,10 @@ template void Tensor::get<s64>(Math::FastMatrix<s64>&, bool) const;
 template void Tensor::get<u64>(Math::FastMatrix<u64>&, bool) const;
 template void Tensor::get<s32>(Math::FastMatrix<s32>&, bool) const;
 template void Tensor::get<u32>(Math::FastMatrix<u32>&, bool) const;
+template void Tensor::get<s16>(Math::FastMatrix<s16>&, bool) const;
+template void Tensor::get<u16>(Math::FastMatrix<u16>&, bool) const;
+template void Tensor::get<s8>(Math::FastMatrix<s8>&, bool) const;
+template void Tensor::get<u8>(Math::FastMatrix<u8>&, bool) const;
 
 template<typename T>
 void Tensor::get(std::vector<Math::FastMatrix<T>>& batches, bool transpose) const {
@@ -184,6 +200,10 @@ template void Tensor::get<s64>(std::vector<Math::FastMatrix<s64>>&, bool) const;
 template void Tensor::get<u64>(std::vector<Math::FastMatrix<u64>>&, bool) const;
 template void Tensor::get<s32>(std::vector<Math::FastMatrix<s32>>&, bool) const;
 template void Tensor::get<u32>(std::vector<Math::FastMatrix<u32>>&, bool) const;
+template void Tensor::get<s16>(std::vector<Math::FastMatrix<s16>>&, bool) const;
+template void Tensor::get<u16>(std::vector<Math::FastMatrix<u16>>&, bool) const;
+template void Tensor::get<s8>(std::vector<Math::FastMatrix<s8>>&, bool) const;
+template void Tensor::get<u8>(std::vector<Math::FastMatrix<u8>>&, bool) const;
 
 template<typename T>
 void Tensor::get(Math::FastVector<T>& vec) const {
@@ -204,6 +224,10 @@ template void Tensor::get<s64>(Math::FastVector<s64>&) const;
 template void Tensor::get<u64>(Math::FastVector<u64>&) const;
 template void Tensor::get<s32>(Math::FastVector<s32>&) const;
 template void Tensor::get<u32>(Math::FastVector<u32>&) const;
+template void Tensor::get<s16>(Math::FastVector<s16>&) const;
+template void Tensor::get<u16>(Math::FastVector<u16>&) const;
+template void Tensor::get<s8>(Math::FastVector<s8>&) const;
+template void Tensor::get<u8>(Math::FastVector<u8>&) const;
 
 template<typename T>
 void Tensor::get(std::vector<T>& vec) const {
@@ -220,10 +244,14 @@ void Tensor::get(std::vector<T>& vec) const {
 
 template void Tensor::get<f32>(std::vector<f32>&) const;
 template void Tensor::get<f64>(std::vector<f64>&) const;
-template void Tensor::get<s32>(std::vector<s32>&) const;
-template void Tensor::get<u32>(std::vector<u32>&) const;
 template void Tensor::get<s64>(std::vector<s64>&) const;
 template void Tensor::get<u64>(std::vector<u64>&) const;
+template void Tensor::get<s32>(std::vector<s32>&) const;
+template void Tensor::get<u32>(std::vector<u32>&) const;
+template void Tensor::get<s16>(std::vector<s16>&) const;
+template void Tensor::get<u16>(std::vector<u16>&) const;
+template void Tensor::get<s8>(std::vector<s8>&) const;
+template void Tensor::get<u8>(std::vector<u8>&) const;
 
 template<typename T>
 void Tensor::get(T& val) const {
@@ -237,10 +265,14 @@ void Tensor::get(T& val) const {
 
 template void Tensor::get<f32>(f32&) const;
 template void Tensor::get<f64>(f64&) const;
-template void Tensor::get<s32>(s32&) const;
-template void Tensor::get<u32>(u32&) const;
 template void Tensor::get<s64>(s64&) const;
 template void Tensor::get<u64>(u64&) const;
+template void Tensor::get<s32>(s32&) const;
+template void Tensor::get<u32>(u32&) const;
+template void Tensor::get<s16>(s16&) const;
+template void Tensor::get<u16>(u16&) const;
+template void Tensor::get<s8>(s8&) const;
+template void Tensor::get<u8>(u8&) const;
 template void Tensor::get<std::string>(std::string&) const;
 
 // getters for a subset of the data (1-dim subset)
@@ -262,10 +294,14 @@ void Tensor::get(size_t dim0_idx, Math::FastVector<T>& vec) const {
 
 template void Tensor::get<f32>(size_t, Math::FastVector<f32>&) const;
 template void Tensor::get<f64>(size_t, Math::FastVector<f64>&) const;
-template void Tensor::get<s32>(size_t, Math::FastVector<s32>&) const;
-template void Tensor::get<u32>(size_t, Math::FastVector<u32>&) const;
 template void Tensor::get<s64>(size_t, Math::FastVector<s64>&) const;
 template void Tensor::get<u64>(size_t, Math::FastVector<u64>&) const;
+template void Tensor::get<s32>(size_t, Math::FastVector<s32>&) const;
+template void Tensor::get<u32>(size_t, Math::FastVector<u32>&) const;
+template void Tensor::get<s16>(size_t, Math::FastVector<s16>&) const;
+template void Tensor::get<u16>(size_t, Math::FastVector<u16>&) const;
+template void Tensor::get<s8>(size_t, Math::FastVector<s8>&) const;
+template void Tensor::get<u8>(size_t, Math::FastVector<u8>&) const;
 
 template<typename T>
 void Tensor::get(size_t dim0_idx, std::vector<T>& vec) const {
@@ -284,10 +320,14 @@ void Tensor::get(size_t dim0_idx, std::vector<T>& vec) const {
 
 template void Tensor::get<f32>(size_t, std::vector<f32>&) const;
 template void Tensor::get<f64>(size_t, std::vector<f64>&) const;
-template void Tensor::get<s32>(size_t, std::vector<s32>&) const;
-template void Tensor::get<u32>(size_t, std::vector<u32>&) const;
 template void Tensor::get<s64>(size_t, std::vector<s64>&) const;
 template void Tensor::get<u64>(size_t, std::vector<u64>&) const;
+template void Tensor::get<s32>(size_t, std::vector<s32>&) const;
+template void Tensor::get<u32>(size_t, std::vector<u32>&) const;
+template void Tensor::get<s16>(size_t, std::vector<s16>&) const;
+template void Tensor::get<u16>(size_t, std::vector<u16>&) const;
+template void Tensor::get<s8>(size_t, std::vector<s8>&) const;
+template void Tensor::get<u8>(size_t, std::vector<u8>&) const;
 
 template<typename T>
 void Tensor::get(size_t dim0_idx, T& val) const {
@@ -303,10 +343,14 @@ void Tensor::get(size_t dim0_idx, T& val) const {
 
 template void Tensor::get<f32>(size_t, f32&) const;
 template void Tensor::get<f64>(size_t, f64&) const;
-template void Tensor::get<s32>(size_t, s32&) const;
-template void Tensor::get<u32>(size_t, u32&) const;
 template void Tensor::get<s64>(size_t, s64&) const;
 template void Tensor::get<u64>(size_t, u64&) const;
+template void Tensor::get<s32>(size_t, s32&) const;
+template void Tensor::get<u32>(size_t, u32&) const;
+template void Tensor::get<s16>(size_t, s16&) const;
+template void Tensor::get<u16>(size_t, u16&) const;
+template void Tensor::get<s8>(size_t, s8&) const;
+template void Tensor::get<u8>(size_t, u8&) const;
 template void Tensor::get<std::string>(size_t, std::string&) const;
 
 // getters for a subset of the data (2-dim subset)
@@ -328,10 +372,14 @@ void Tensor::get(size_t dim0_idx, size_t dim1_idx, Math::FastVector<T>& vec) con
 
 template void Tensor::get<f32>(size_t, size_t, Math::FastVector<f32>&) const;
 template void Tensor::get<f64>(size_t, size_t, Math::FastVector<f64>&) const;
-template void Tensor::get<s32>(size_t, size_t, Math::FastVector<s32>&) const;
-template void Tensor::get<u32>(size_t, size_t, Math::FastVector<u32>&) const;
 template void Tensor::get<s64>(size_t, size_t, Math::FastVector<s64>&) const;
 template void Tensor::get<u64>(size_t, size_t, Math::FastVector<u64>&) const;
+template void Tensor::get<s32>(size_t, size_t, Math::FastVector<s32>&) const;
+template void Tensor::get<u32>(size_t, size_t, Math::FastVector<u32>&) const;
+template void Tensor::get<s16>(size_t, size_t, Math::FastVector<s16>&) const;
+template void Tensor::get<u16>(size_t, size_t, Math::FastVector<u16>&) const;
+template void Tensor::get<s8>(size_t, size_t, Math::FastVector<s8>&) const;
+template void Tensor::get<u8>(size_t, size_t, Math::FastVector<u8>&) const;
 
 template<typename T>
 void Tensor::get(size_t dim0_idx, size_t dim1_idx, std::vector<T>& vec) const {
@@ -350,10 +398,14 @@ void Tensor::get(size_t dim0_idx, size_t dim1_idx, std::vector<T>& vec) const {
 
 template void Tensor::get<f32>(size_t, size_t, std::vector<f32>&) const;
 template void Tensor::get<f64>(size_t, size_t, std::vector<f64>&) const;
-template void Tensor::get<s32>(size_t, size_t, std::vector<s32>&) const;
-template void Tensor::get<u32>(size_t, size_t, std::vector<u32>&) const;
 template void Tensor::get<s64>(size_t, size_t, std::vector<s64>&) const;
 template void Tensor::get<u64>(size_t, size_t, std::vector<u64>&) const;
+template void Tensor::get<s32>(size_t, size_t, std::vector<s32>&) const;
+template void Tensor::get<u32>(size_t, size_t, std::vector<u32>&) const;
+template void Tensor::get<s16>(size_t, size_t, std::vector<s16>&) const;
+template void Tensor::get<u16>(size_t, size_t, std::vector<u16>&) const;
+template void Tensor::get<s8>(size_t, size_t, std::vector<s8>&) const;
+template void Tensor::get<u8>(size_t, size_t, std::vector<u8>&) const;
 
 template<typename T>
 void Tensor::get(size_t dim0_idx, size_t dim1_idx, T& val) const {
@@ -370,10 +422,14 @@ void Tensor::get(size_t dim0_idx, size_t dim1_idx, T& val) const {
 
 template void Tensor::get<f32>(size_t, size_t, f32&) const;
 template void Tensor::get<f64>(size_t, size_t, f64&) const;
-template void Tensor::get<s32>(size_t, size_t, s32&) const;
-template void Tensor::get<u32>(size_t, size_t, u32&) const;
 template void Tensor::get<s64>(size_t, size_t, s64&) const;
 template void Tensor::get<u64>(size_t, size_t, u64&) const;
+template void Tensor::get<s32>(size_t, size_t, s32&) const;
+template void Tensor::get<u32>(size_t, size_t, u32&) const;
+template void Tensor::get<s16>(size_t, size_t, s16&) const;
+template void Tensor::get<u16>(size_t, size_t, u16&) const;
+template void Tensor::get<s8>(size_t, size_t, s8&) const;
+template void Tensor::get<u8>(size_t, size_t, u8&) const;
 template void Tensor::get<std::string>(size_t, size_t, std::string&) const;
 
 /* ------------------------- raw data access ------------------------- */
@@ -391,10 +447,14 @@ T* Tensor::data() {
 
 template f32* Tensor::data<f32>();
 template f64* Tensor::data<f64>();
-template s32* Tensor::data<s32>();
-template u32* Tensor::data<u32>();
 template s64* Tensor::data<s64>();
 template u64* Tensor::data<u64>();
+template s32* Tensor::data<s32>();
+template u32* Tensor::data<u32>();
+template s16* Tensor::data<s16>();
+template u16* Tensor::data<u16>();
+template s8* Tensor::data<s8>();
+template u8* Tensor::data<u8>();
 template std::string* Tensor::data<std::string>();
 
 template<typename T>
@@ -410,10 +470,14 @@ T const* Tensor::data() const {
 
 template f32 const* Tensor::data<f32>() const;
 template f64 const* Tensor::data<f64>() const;
-template s32 const* Tensor::data<s32>() const;
-template u32 const* Tensor::data<u32>() const;
 template s64 const* Tensor::data<s64>() const;
 template u64 const* Tensor::data<u64>() const;
+template s32 const* Tensor::data<s32>() const;
+template u32 const* Tensor::data<u32>() const;
+template s16 const* Tensor::data<s16>() const;
+template u16 const* Tensor::data<u16>() const;
+template s8 const* Tensor::data<s8>() const;
+template u8 const* Tensor::data<u8>() const;
 template std::string const* Tensor::data<std::string>() const;
 
 template<typename T>
@@ -430,10 +494,14 @@ T* Tensor::data(size_t dim0_idx) {
 
 template f32* Tensor::data<f32>(size_t);
 template f64* Tensor::data<f64>(size_t);
-template s32* Tensor::data<s32>(size_t);
-template u32* Tensor::data<u32>(size_t);
 template s64* Tensor::data<s64>(size_t);
 template u64* Tensor::data<u64>(size_t);
+template s32* Tensor::data<s32>(size_t);
+template u32* Tensor::data<u32>(size_t);
+template s16* Tensor::data<s16>(size_t);
+template u16* Tensor::data<u16>(size_t);
+template s8* Tensor::data<s8>(size_t);
+template u8* Tensor::data<u8>(size_t);
 template std::string* Tensor::data<std::string>(size_t);
 
 
@@ -451,10 +519,12 @@ T const* Tensor::data(size_t dim0_idx) const {
 
 template f32 const* Tensor::data<f32>(size_t) const;
 template f64 const* Tensor::data<f64>(size_t) const;
-template s32 const* Tensor::data<s32>(size_t) const;
-template u32 const* Tensor::data<u32>(size_t) const;
 template s64 const* Tensor::data<s64>(size_t) const;
 template u64 const* Tensor::data<u64>(size_t) const;
+template s16 const* Tensor::data<s16>(size_t) const;
+template u16 const* Tensor::data<u16>(size_t) const;
+template s8 const* Tensor::data<s8>(size_t) const;
+template u8 const* Tensor::data<u8>(size_t) const;
 template std::string const* Tensor::data<std::string>(size_t) const;
 
 template<typename T>
@@ -472,10 +542,14 @@ T* Tensor::data(size_t dim0_idx, size_t dim1_idx) {
 
 template f32* Tensor::data<f32>(size_t, size_t);
 template f64* Tensor::data<f64>(size_t, size_t);
-template s32* Tensor::data<s32>(size_t, size_t);
-template u32* Tensor::data<u32>(size_t, size_t);
 template s64* Tensor::data<s64>(size_t, size_t);
 template u64* Tensor::data<u64>(size_t, size_t);
+template s32* Tensor::data<s32>(size_t, size_t);
+template u32* Tensor::data<u32>(size_t, size_t);
+template s16* Tensor::data<s16>(size_t, size_t);
+template u16* Tensor::data<u16>(size_t, size_t);
+template s8* Tensor::data<s8>(size_t, size_t);
+template u8* Tensor::data<u8>(size_t, size_t);
 template std::string* Tensor::data<std::string>(size_t, size_t);
 
 template<typename T>
@@ -493,10 +567,14 @@ T const* Tensor::data(size_t dim0_idx, size_t dim1_idx) const {
 
 template f32 const* Tensor::data<f32>(size_t, size_t) const;
 template f64 const* Tensor::data<f64>(size_t, size_t) const;
-template s32 const* Tensor::data<s32>(size_t, size_t) const;
-template u32 const* Tensor::data<u32>(size_t, size_t) const;
 template s64 const* Tensor::data<s64>(size_t, size_t) const;
 template u64 const* Tensor::data<u64>(size_t, size_t) const;
+template s32 const* Tensor::data<s32>(size_t, size_t) const;
+template u32 const* Tensor::data<u32>(size_t, size_t) const;
+template s16 const* Tensor::data<s16>(size_t, size_t) const;
+template u16 const* Tensor::data<u16>(size_t, size_t) const;
+template s8 const* Tensor::data<s8>(size_t, size_t) const;
+template u8 const* Tensor::data<u8>(size_t, size_t) const;
 template std::string const* Tensor::data<std::string>(size_t, size_t) const;
 
 /* ------------------------- Setters ------------------------- */
@@ -532,6 +610,10 @@ template void Tensor::set<s64>(Math::FastMatrix<s64> const&, bool);
 template void Tensor::set<u64>(Math::FastMatrix<u64> const&, bool);
 template void Tensor::set<s32>(Math::FastMatrix<s32> const&, bool);
 template void Tensor::set<u32>(Math::FastMatrix<u32> const&, bool);
+template void Tensor::set<s16>(Math::FastMatrix<s16> const&, bool);
+template void Tensor::set<u16>(Math::FastMatrix<u16> const&, bool);
+template void Tensor::set<s8>(Math::FastMatrix<s8> const&, bool);
+template void Tensor::set<u8>(Math::FastMatrix<u8> const&, bool);
 
 template<typename T>
 void Tensor::set(std::vector<Math::FastMatrix<T>> const& batches, bool transpose) {
@@ -589,6 +671,10 @@ template void Tensor::set<s64>(std::vector<Math::FastMatrix<s64>> const&, bool);
 template void Tensor::set<u64>(std::vector<Math::FastMatrix<u64>> const&, bool);
 template void Tensor::set<s32>(std::vector<Math::FastMatrix<s32>> const&, bool);
 template void Tensor::set<u32>(std::vector<Math::FastMatrix<u32>> const&, bool);
+template void Tensor::set<s16>(std::vector<Math::FastMatrix<s16>> const&, bool);
+template void Tensor::set<u16>(std::vector<Math::FastMatrix<u16>> const&, bool);
+template void Tensor::set<s8>(std::vector<Math::FastMatrix<s8>> const&, bool);
+template void Tensor::set<u8>(std::vector<Math::FastMatrix<u8>> const&, bool);
 
 template<typename T>
 void Tensor::set(Math::FastVector<T> const& vec) {
@@ -603,6 +689,10 @@ template void Tensor::set<s64>(Math::FastVector<s64> const&);
 template void Tensor::set<u64>(Math::FastVector<u64> const&);
 template void Tensor::set<s32>(Math::FastVector<s32> const&);
 template void Tensor::set<u32>(Math::FastVector<u32> const&);
+template void Tensor::set<s16>(Math::FastVector<s16> const&);
+template void Tensor::set<u16>(Math::FastVector<u16> const&);
+template void Tensor::set<s8>(Math::FastVector<s8> const&);
+template void Tensor::set<u8>(Math::FastVector<u8> const&);
 
 template<typename T>
 void Tensor::set(std::vector<T> const& vec) {
@@ -613,10 +703,14 @@ void Tensor::set(std::vector<T> const& vec) {
 
 template void Tensor::set<f32>(std::vector<f32> const&);
 template void Tensor::set<f64>(std::vector<f64> const&);
-template void Tensor::set<s32>(std::vector<s32> const&);
-template void Tensor::set<u32>(std::vector<u32> const&);
 template void Tensor::set<s64>(std::vector<s64> const&);
 template void Tensor::set<u64>(std::vector<u64> const&);
+template void Tensor::set<s32>(std::vector<s32> const&);
+template void Tensor::set<u32>(std::vector<u32> const&);
+template void Tensor::set<s16>(std::vector<s16> const&);
+template void Tensor::set<u16>(std::vector<u16> const&);
+template void Tensor::set<s8>(std::vector<s8> const&);
+template void Tensor::set<u8>(std::vector<u8> const&);
 
 template<typename T>
 void Tensor::set(T const& val) {
@@ -626,10 +720,14 @@ void Tensor::set(T const& val) {
 
 template void Tensor::set<f32>(f32 const&);
 template void Tensor::set<f64>(f64 const&);
-template void Tensor::set<s32>(s32 const&);
-template void Tensor::set<u32>(u32 const&);
 template void Tensor::set<s64>(s64 const&);
 template void Tensor::set<u64>(u64 const&);
+template void Tensor::set<s32>(s32 const&);
+template void Tensor::set<u32>(u32 const&);
+template void Tensor::set<s16>(s16 const&);
+template void Tensor::set<u16>(u16 const&);
+template void Tensor::set<s8>(s8 const&);
+template void Tensor::set<u8>(u8 const&);
 template void Tensor::set<std::string>(std::string const&);
 
 }  // namespace Tensorflow

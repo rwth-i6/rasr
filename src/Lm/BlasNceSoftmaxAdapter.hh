@@ -27,5 +27,3 @@ inline BlasNceSoftmaxAdapter::BlasNceSoftmaxAdapter(Core::Configuration const& c
 }  // namespace Lm
 
 #endif /* _LM_BLAS_NCE_SOFTMAX_ADAPTER_HH */
-
-

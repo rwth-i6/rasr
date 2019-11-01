@@ -1,6 +1,6 @@
 #include "BlasNceSoftmaxAdapter.hh"
 
-#include <cblas.h>
+#include <Math/Blas.hh>
 
 #include "DummyCompressedVectorFactory.hh"
 
@@ -26,7 +26,7 @@ Score BlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_
         data = nn_output.data();
     }
 
-    float result = cblas_sdot(nn_out->size(), data, 1, tensors_[0].data<float>(output_idx, 0), 1);
+    float result = Math::dot(nn_out->size(), data, 1, tensors_[0].data<float>(output_idx, 0), 1);
     result += tensors_[1].data<float>()[output_idx];
 
     return result;
@@ -38,7 +38,7 @@ std::vector<Score> BlasNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<flo
 
     std::vector<Score> result(output_idxs.size());
     for (size_t i = 0ul; i < output_idxs.size(); i++) {
-        result[i] = cblas_sdot(nn_output.size(), nn_output.data(), 1, tensors_[0].data<float>(output_idxs[i], 0), 1);
+        result[i] = Math::dot(nn_output.size(), nn_output.data(), 1, tensors_[0].data<float>(output_idxs[i], 0), 1);
         result[i] += tensors_[1].data<float>()[output_idxs[i]];
     }
 

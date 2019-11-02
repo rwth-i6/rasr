@@ -57,6 +57,10 @@ class FastMatrix {
     friend class FastMatrix<u64>;
     friend class FastMatrix<s32>;
     friend class FastMatrix<u32>;
+    friend class FastMatrix<s16>;
+    friend class FastMatrix<u16>;
+    friend class FastMatrix<s8>;
+    friend class FastMatrix<u8>;
 
 protected:
     u32 nRows_;

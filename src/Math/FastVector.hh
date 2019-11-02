@@ -46,9 +46,14 @@ class FastMatrix;
 
 template<typename T>
 class FastVector {
-    friend class FastVector<u32>;
     friend class FastVector<f32>;
     friend class FastVector<f64>;
+    friend class FastVector<s32>;
+    friend class FastVector<u32>;
+    friend class FastVector<s16>;
+    friend class FastVector<u16>;
+    friend class FastVector<s8>;
+    friend class FastVector<u8>;
 
 protected:
     u32 nRows_;

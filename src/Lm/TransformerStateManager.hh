@@ -5,21 +5,6 @@
 
 namespace Lm {
 
-class NaiveTransformerStateManager : public StateManager {
-public:
-    using Precursor = StateManager;
-
-    NaiveTransformerStateManager(Core::Configuration const& config);
-    virtual ~NaiveTransformerStateManager() = default;
-
-    virtual CompressedVectorPtr<float> initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory);
-    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states);
-    virtual void                       splitStates(Tensorflow::Variable const& var,
-                                                   Tensorflow::Tensor const& tensor,
-                                                   CompressedVectorFactory<float> const& vector_factory,
-                                                   std::vector<StateInfo>& states);
-};
-
 class TransformerStateManager : public StateManager {
 public:
     using Precursor = StateManager;
@@ -44,9 +29,6 @@ private:
 };
 
 // inline implementations
-
-inline NaiveTransformerStateManager::NaiveTransformerStateManager(Core::Configuration const& config) : Precursor(config) {
-}
 
 inline TransformerStateManager::TransformerStateManager(Core::Configuration const& config) : Precursor(config),
                                                                                              maxHistory_(paramMaxHistoryLength(config)),

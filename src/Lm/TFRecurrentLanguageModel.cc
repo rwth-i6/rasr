@@ -145,13 +145,11 @@ namespace Lm {
 
 enum StateManagerType {
     LstmStateManagerType,
-    NaiveTransformerStateManagerType,
     TransformerStateManagerType,
 };
 
 const Core::Choice stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
-        "naive_transformer", NaiveTransformerStateManagerType,
         "transformer", TransformerStateManagerType,
         Core::Choice::endMark());
 
@@ -163,7 +161,6 @@ const Core::ParameterChoice stateManagerTypeParam(
 std::unique_ptr<StateManager> createStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case LstmStateManagerType: return std::unique_ptr<StateManager>(new Lm::LstmStateManager(config));
-        case NaiveTransformerStateManagerType: return std::unique_ptr<StateManager>(new Lm::NaiveTransformerStateManager(config));
         case TransformerStateManagerType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager(config));
         default: defect();
     }

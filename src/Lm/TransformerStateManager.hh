@@ -17,12 +17,14 @@ public:
 
     virtual bool requiresAllParentStates() const;
 
-    virtual CompressedVectorPtr<float> initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory);
-    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states);
-    virtual void                       splitStates(Tensorflow::Variable const& var,
-                                                   Tensorflow::Tensor const& tensor,
-                                                   CompressedVectorFactory<float> const& vector_factory,
-                                                   std::vector<StateInfo>& states);
+    virtual HistoryState              initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
+    virtual FeedDict                  mergeStates (StateVariables const& vars,
+                                                   std::vector<size_t>& prefix_lengths,
+                                                   std::vector<HistoryState const*> const& prefix_states);
+    virtual std::vector<HistoryState> splitStates (StateVariables const& vars,
+                                                   std::vector<size_t>& suffix_lengths,
+                                                   std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                   CompressedVectorFactory<float> const& vector_factory);
 private:
     size_t maxHistory_;
     bool   alwaysIncludeFirstTokenState_;

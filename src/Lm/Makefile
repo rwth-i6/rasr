@@ -49,6 +49,7 @@ LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o \
                  $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o \
                  $(OBJDIR)/TransformerStateManager.o \
                  $(OBJDIR)/TFRecurrentLanguageModel.o
+
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif

@@ -9,28 +9,26 @@
 
 namespace Lm {
 
-struct StateInfo {
-    std::vector<CompressedVector<float>*> state;
-
-    size_t prefixLength;
-    size_t suffixLength;
-};
-
 class StateManager : public Core::Component {
 public:
-    using Precursor = Core::Component;
+    using Precursor           = Core::Component;
+    using FeedDict            = std::vector<std::pair<std::string, Tensorflow::Tensor>>;
+    using StateVariables      = std::vector<Tensorflow::Variable>;
+    using HistoryState        = std::vector<CompressedVectorPtr<float>>;
 
     StateManager(Core::Configuration const& config);
     virtual ~StateManager() = default;
 
     virtual bool requiresAllParentStates() const;
 
-    virtual CompressedVectorPtr<float> initialState(Tensorflow::Variable const& var, CompressedVectorFactory<float> const& vector_factory) = 0;
-    virtual Tensorflow::Tensor         mergeStates(Tensorflow::Variable const& var, std::vector<StateInfo>& states) = 0;
-    virtual void                       splitStates(Tensorflow::Variable const& var,
-                                                   Tensorflow::Tensor const& tensor,
-                                                   CompressedVectorFactory<float> const& vector_factory,
-                                                   std::vector<StateInfo>& states) = 0;
+    virtual HistoryState              initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) = 0;
+    virtual FeedDict                  mergeStates (StateVariables const& vars,
+                                                   std::vector<size_t>& prefix_lengths,
+                                                   std::vector<HistoryState const*> const& prefix_states) = 0;
+    virtual std::vector<HistoryState> splitStates (StateVariables const& vars,
+                                                   std::vector<size_t>& suffix_lengths,
+                                                   std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                   CompressedVectorFactory<float> const& vector_factory) = 0;
 };
 
 // inline implementations

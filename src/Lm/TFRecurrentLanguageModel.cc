@@ -342,10 +342,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     TokenIdSequence    ts;
     HistoryHandle      h     = hm->get<ScoresWithContext>(ts);
     ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
-    cache->state.reserve(state_variables_.size());
-    for (auto const& var : state_variables_) {
-        cache->state.emplace_back(state_manager_->initialState(var, *state_comp_vec_factory_));
-    }
+    cache->state = state_manager_->initialState(state_variables_, *state_comp_vec_factory_);
     std::vector<f32> temp(1);
     auto             compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
     compression_param_estimator->accumulate(temp.data(), temp.size());
@@ -689,7 +686,6 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     // prepare the data in Sprint Datastructures
     Math::FastMatrix<s32> words(requests.size(), max_length);
     Math::FastVector<s32> word_lengths(requests.size());
-    Math::FastVector<s32> state_lengths(requests.size());
     for (size_t r = 0ul; r < requests.size(); r++) {
         auto&  history = *(requests[r].final_cache->history);
         size_t offset  = history.size() - requests[r].length;
@@ -705,31 +701,41 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         require_eq(state_variables_.size(), initial_cache->state.size());
     }
 
+    bool   full_prefix_required = state_manager_->requiresAllParentStates();
+    size_t total_prefix_length  = 0ul;
+    size_t total_suffix_length  = 0ul;
+
+    std::vector<size_t> prefix_lengths(requests.size());
+    std::vector<size_t> suffix_lengths(requests.size());
+    for (size_t r = 0ul; r < requests.size(); r++) {
+        prefix_lengths[r] = requests[r].initial_cache->history->size();
+        suffix_lengths[r] = requests[r].length;
+        total_prefix_length += prefix_lengths[r];
+        total_suffix_length += suffix_lengths[r];
+    }
+
+    std::vector<StateManager::HistoryState const*> prefix_states(full_prefix_required ? total_prefix_length : requests.size());
+    size_t current_offset = 0ul;
+    for (size_t r = 0ul; r < requests.size(); r++) {
+        ScoresWithContext* current_cache = requests[r].initial_cache;
+        if (full_prefix_required) {
+            size_t prefix_length = prefix_lengths[r];
+            for (size_t i = 0ul; i < prefix_length; i++) {
+                prefix_states[current_offset + prefix_length - i - 1] = &current_cache->state;
+                current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
+            }
+            current_offset += prefix_length;
+        }
+        else {
+            prefix_states[r] = &current_cache->state;
+        }
+    }
+
     auto end_prepare = std::chrono::steady_clock::now();
 
     // build tensors + set state variables
-    std::vector<std::pair<std::string, Tensorflow::Tensor>> inputs;
-    inputs.reserve(state_variables_.size());
-    for (size_t s = 0ul; s < state_variables_.size(); s++) {
-        std::vector<StateInfo> state_infos(requests.size());
-        for (size_t r = 0ul; r < requests.size(); r++) {
-            ScoresWithContext* current_cache = requests[r].initial_cache;
-            state_infos[r].state.push_back(current_cache->state[s].get());
-            state_infos[r].prefixLength = current_cache->history->size();
-            state_infos[r].suffixLength = word_lengths[r];
-            if (state_manager_->requiresAllParentStates()) {
-                for (size_t i = 1ul; i < state_infos[r].prefixLength; i++) {
-                    current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
-                    state_infos[r].state.push_back(current_cache->state[s].get());
-                }
-                std::reverse(state_infos[r].state.begin(), state_infos[r].state.end());
-            }
-        }
-        inputs.emplace_back(std::make_pair(state_variables_[s].initial_value_name, state_manager_->mergeStates(state_variables_[s], state_infos)));
-        for (size_t r = 0ul; r < requests.size(); r++) {
-            state_lengths[r] = state_infos[r].prefixLength;
-        }
-    }
+    auto inputs = state_manager_->mergeStates(state_variables_, prefix_lengths, prefix_states);
+    std::vector<s32> state_lengths(prefix_lengths.begin(), prefix_lengths.end());
 
     auto end_merge_state = std::chrono::steady_clock::now();
 
@@ -778,35 +784,18 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
 
     auto end_get_new_state = std::chrono::steady_clock::now();
 
-    std::vector<StateInfo> state_infos(requests.size());
-    size_t max_prefix = 0ul;
-    size_t max_suffix = 0ul;
+    auto split_states = state_manager_->splitStates(state_variables_, suffix_lengths, outputs, *state_comp_vec_factory_);
+
+    size_t output_offset = 0ul;
     for (size_t r = 0ul; r < requests.size(); r++) {
-        state_infos[r].state.resize(requests[r].length, nullptr);
-        state_infos[r].prefixLength = requests[r].initial_cache->history->size();
-        state_infos[r].suffixLength = requests[r].length;
-        max_prefix = std::max(max_prefix, state_infos[r].prefixLength);
-        max_suffix = std::max(max_suffix, state_infos[r].suffixLength);
-    }
-    for (size_t s = 0ul; s < state_variables_.size(); s++) {
-        for (size_t r = 0ul; r < requests.size(); r++) {
-            for (auto& s : state_infos[r].state) {
-                s = nullptr;
-            }
+        ScoresWithContext* current_cache = requests[r].final_cache;
+        size_t suffix_length = suffix_lengths[r];
+        while (suffix_length > 0ul) {
+            current_cache->state = std::move(split_states[output_offset + suffix_length - 1]);
+            current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
+            suffix_length -= 1ul;
         }
-        state_manager_->splitStates(state_variables_[s], outputs[s], *state_comp_vec_factory_, state_infos);
-        for (size_t r = 0ul; r < requests.size(); r++) {
-            ScoresWithContext* current_cache = requests[r].final_cache;
-            require_eq(state_infos[r].state.size(), requests[r].length);
-            for (size_t i = state_infos[r].state.size(); i > 0;) {
-                i -= 1ul;
-                if (state_infos[r].state[i] != nullptr) {
-                    current_cache->state.emplace_back(state_infos[r].state[i]);
-                }
-                require(current_cache->state.size() == (s + 1) or current_cache->state.empty());
-                current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
-            }
-        }
+        output_offset += suffix_lengths[r];
     }
 
     auto end_split_state = std::chrono::steady_clock::now();

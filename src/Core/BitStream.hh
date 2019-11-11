@@ -40,8 +40,10 @@ private:
     size_t         size_;
     std::vector<T> store_;
 
+#if defined(__SSE3__) && defined(__SSSE3__)
     unsigned write_16_bits_aligned(T const* ary, size_t size);
     unsigned write_8_bits_aligned(T const* ary, size_t size);
+#endif
 };
 
 // inline implementations
@@ -123,7 +125,7 @@ unsigned BitStream<T>::write(unsigned bits, unsigned shift, T const* ary, size_t
         store_.resize(last_idx + 1, 0);
     }
 
-#ifdef __SSE3__
+#if defined(__SSE3__) && defined(__SSSE3__)
     if (shift == 0 and sizeof(T) == 4 and (reinterpret_cast<uintptr_t>(store_.data() + posp_ / (bits * sizeof(T))) % 16 == 0)) {
         if (bits == 8) {
             return write_8_bits_aligned(ary, size);
@@ -257,6 +259,7 @@ void BitStream<T>::clear() {
     posp_ = 0ul;
 }
 
+#if defined(__SSE3__) && defined(__SSSE3__)
 template<typename T>
 unsigned BitStream<T>::write_16_bits_aligned(T const* ary, size_t size) {
     unsigned  idx          = posp_ / bitsizeof<T>();
@@ -344,6 +347,7 @@ unsigned BitStream<T>::write_8_bits_aligned(T const* ary, size_t size) {
     posp_ += 8 * size;
     return 8 * size;
 }
+#endif
 
 }  // namespace Core
 

@@ -18,12 +18,14 @@ LstmStateManager::HistoryState LstmStateManager::initialState(StateVariables con
     return result;
 }
 
-LstmStateManager::FeedDict LstmStateManager::mergeStates(StateVariables const& vars,
-                                                         std::vector<size_t>& prefix_lengths,
-                                                         std::vector<HistoryState const*> const& prefix_states) {
+void LstmStateManager::mergeStates(StateVariables const& vars,
+                                   std::vector<size_t>& prefix_lengths,
+                                   std::vector<HistoryState const*> const& prefix_states,
+                                   FeedDict& feed_dict,
+                                   TargetList& targets) {
     require_eq(prefix_states.size(), prefix_lengths.size());
-    FeedDict result;
-    result.reserve(vars.size());
+    feed_dict.reserve(vars.size());
+    targets.reserve(vars.size());
     Tensorflow::int64 batch_size = prefix_lengths.size();
     for (size_t v = 0ul; v < vars.size(); v++) {
         Tensorflow::int64 state_size = prefix_states.front()->at(v)->size();
@@ -34,9 +36,9 @@ LstmStateManager::FeedDict LstmStateManager::mergeStates(StateVariables const& v
             require_eq(compressed_state->size(), static_cast<size_t>(state_size));
             compressed_state->uncompress(data + b * state_size, state_size);
         }
-        result.emplace_back(vars[v].initial_value_name, var_tensor);
+        feed_dict.emplace_back(vars[v].initial_value_name, var_tensor);
+        targets.emplace_back(vars[v].initializer_name);
     }
-    return result;
 }
 
 std::vector<LstmStateManager::HistoryState> LstmStateManager::splitStates(StateVariables const& vars,

@@ -734,12 +734,14 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     auto end_prepare = std::chrono::steady_clock::now();
 
     // build tensors + set state variables
-    auto inputs = state_manager_->mergeStates(state_variables_, prefix_lengths, prefix_states);
+    std::vector<std::pair<std::string, Tensorflow::Tensor>> inputs;
+    std::vector<std::string>                                targets;
+    state_manager_->mergeStates(state_variables_, prefix_lengths, prefix_states, inputs, targets);
     std::vector<s32> state_lengths(prefix_lengths.begin(), prefix_lengths.end());
 
     auto end_merge_state = std::chrono::steady_clock::now();
 
-    session_.run(inputs, initializer_tensor_names_);
+    session_.run(inputs, targets);
 
     auto end_set_state = std::chrono::steady_clock::now();
 

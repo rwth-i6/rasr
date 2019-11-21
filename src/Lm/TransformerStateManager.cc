@@ -29,7 +29,6 @@ const Core::ParameterBool TransformerStateManager::paramAlwaysIncludeFirstTokenS
                                                                                      "wether to always include the state of the first token, even if history is restricted by max-history",
                                                                                      false);
 
-
 TransformerStateManager::HistoryState TransformerStateManager::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) {
     TransformerStateManager::HistoryState result;
     result.reserve(vars.size());
@@ -46,9 +45,11 @@ TransformerStateManager::HistoryState TransformerStateManager::initialState(Stat
     return result;
 }
 
-TransformerStateManager::FeedDict TransformerStateManager::mergeStates(StateVariables const& vars,
-                                                                       std::vector<size_t>& prefix_lengths,
-                                                                       std::vector<HistoryState const*> const& prefix_states) {
+void TransformerStateManager::mergeStates(StateVariables const& vars,
+                                          std::vector<size_t>& prefix_lengths,
+                                          std::vector<HistoryState const*> const& prefix_states,
+                                          FeedDict& feed_dict,
+                                          TargetList& targets) {
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
 
     size_t max_prefix = 0ul;
@@ -57,8 +58,8 @@ TransformerStateManager::FeedDict TransformerStateManager::mergeStates(StateVari
         max_prefix = std::max(max_prefix, len);
     }
 
-    FeedDict result;
-    result.reserve(vars.size());
+    feed_dict.reserve(vars.size());
+    targets.reserve(vars.size());
 
     for (size_t v = 0ul; v < vars.size(); v++) {
         auto const& var = vars[v];
@@ -107,10 +108,9 @@ TransformerStateManager::FeedDict TransformerStateManager::mergeStates(StateVari
             state_offset += original_prefix_lengths[b];
         }
 
-        result.emplace_back(vars[v].initial_value_name, var_tensor);
+        feed_dict.emplace_back(vars[v].initial_value_name, var_tensor);
+        targets.emplace_back(vars[v].initializer_name);
     }
-
-    return result;
 }
 
 std::vector<TransformerStateManager::HistoryState> TransformerStateManager::splitStates(StateVariables const& vars,

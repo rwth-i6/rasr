@@ -11,10 +11,11 @@ namespace Lm {
 
 class StateManager : public Core::Component {
 public:
-    using Precursor           = Core::Component;
-    using FeedDict            = std::vector<std::pair<std::string, Tensorflow::Tensor>>;
-    using StateVariables      = std::vector<Tensorflow::Variable>;
-    using HistoryState        = std::vector<CompressedVectorPtr<float>>;
+    using Precursor      = Core::Component;
+    using FeedDict       = std::vector<std::pair<std::string, Tensorflow::Tensor>>;
+    using TargetList     = std::vector<std::string>;
+    using StateVariables = std::vector<Tensorflow::Variable>;
+    using HistoryState   = std::vector<CompressedVectorPtr<float>>;
 
     StateManager(Core::Configuration const& config);
     virtual ~StateManager() = default;
@@ -22,9 +23,11 @@ public:
     virtual bool requiresAllParentStates() const;
 
     virtual HistoryState              initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) = 0;
-    virtual FeedDict                  mergeStates (StateVariables const& vars,
+    virtual void                      mergeStates (StateVariables const& vars,
                                                    std::vector<size_t>& prefix_lengths,
-                                                   std::vector<HistoryState const*> const& prefix_states) = 0;
+                                                   std::vector<HistoryState const*> const& prefix_states,
+                                                   FeedDict& feed_dict,
+                                                   TargetList& targets) = 0;
     virtual std::vector<HistoryState> splitStates (StateVariables const& vars,
                                                    std::vector<size_t>& suffix_lengths,
                                                    std::vector<Tensorflow::Tensor> const& state_tensors,

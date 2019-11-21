@@ -57,6 +57,7 @@ public:
     static const Core::ParameterBool  paramApplyNonWordClosureFilter;
     static const Core::ParameterBool  paramApplyPosteriorPruning;
     static const Core::ParameterFloat paramThreshold;
+    static const Core::ParameterBool  paramAllowSkip;
 
 private:
     std::unique_ptr<Speech::RecognizerDelayHandler> delayedRecognition_;
@@ -71,6 +72,7 @@ private:
     bool addConfidenceScores_;
     bool applyNonWordClosureFilter_;
     bool applyPosteriorPruning_;
+    bool allowSkips_;
 
     Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpAlphabet_;
     Fsa::LabelId                                       sentenceEndLabel_;
@@ -300,6 +302,7 @@ public:
         addConfidenceScores_       = paramConfidenceScore(config);
         applyNonWordClosureFilter_ = paramApplyNonWordClosureFilter(config);
         applyPosteriorPruning_     = paramApplyPosteriorPruning(config);
+        allowSkips_                = paramAllowSkip(config);
         {
             Core::Component::Message msg(log());
             lpAlphabet_                 = mc_->lexicon()->lemmaPronunciationAlphabet();
@@ -376,6 +379,7 @@ public:
         recognizer_->resetStatistics();
         recognizer_->setSegment(segment_->fullName());
         recognizer_->restart();
+        recognizer_->setAllowHmmSkips(allowSkips_);
         traceback_.clear();
 
         acousticModel_->setKey(segment_->fullName());
@@ -544,6 +548,10 @@ const Core::ParameterFloat Recognizer::paramThreshold(
         "threshold",
         "posterior pruning threshold",
         200);
+const Core::ParameterBool Recognizer::paramAllowSkip(
+        "allow-skips",
+        "wether to allow skip transitions",
+        true);
 
 // -------------------------------------------------------------------------
 

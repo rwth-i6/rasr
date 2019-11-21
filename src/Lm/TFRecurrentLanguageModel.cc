@@ -146,13 +146,17 @@ namespace Lm {
 enum StateManagerType {
     LstmStateManagerType,
     TransformerStateManagerType,
+    TransformerStateManager16BitType,
     TransformerStateManagerWithCommonPrefixType,
+    TransformerStateManagerWithCommonPrefix16BitType,
 };
 
 const Core::Choice stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "transformer", TransformerStateManagerType,
+        "transformer-16bit", TransformerStateManager16BitType,
         "transformer-with-common-prefix", TransformerStateManagerWithCommonPrefixType,
+        "transformer-with-common-prefix-16bit", TransformerStateManagerWithCommonPrefix16BitType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice stateManagerTypeParam(
@@ -163,8 +167,10 @@ const Core::ParameterChoice stateManagerTypeParam(
 std::unique_ptr<StateManager> createStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case LstmStateManagerType: return std::unique_ptr<StateManager>(new Lm::LstmStateManager(config));
-        case TransformerStateManagerType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager(config));
-        case TransformerStateManagerWithCommonPrefixType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManagerWithCommonPrefix(config));
+        case TransformerStateManagerType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager<float>(config));
+        case TransformerStateManager16BitType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager<int16_t>(config));
+        case TransformerStateManagerWithCommonPrefixType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManagerWithCommonPrefix<float>(config));
+        case TransformerStateManagerWithCommonPrefix16BitType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManagerWithCommonPrefix<int16_t>(config));
         default: defect();
     }
 }

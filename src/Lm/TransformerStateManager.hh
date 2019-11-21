@@ -5,6 +5,7 @@
 
 namespace Lm {
 
+template<typename T>
 class TransformerStateManager : public StateManager {
 public:
     using Precursor = StateManager;
@@ -32,9 +33,10 @@ protected:
     bool   alwaysIncludeFirstTokenState_;
 };
 
-class TransformerStateManagerWithCommonPrefix : public TransformerStateManager {
+template<typename T>
+class TransformerStateManagerWithCommonPrefix : public TransformerStateManager<T> {
 public:
-    using Precursor = TransformerStateManager;
+    using Precursor = TransformerStateManager<T>;
 
     static const Core::ParameterString paramVarName;
     static const Core::ParameterString paramCommonPrefixInitialValue;
@@ -45,11 +47,11 @@ public:
     TransformerStateManagerWithCommonPrefix(Core::Configuration const& config);
     virtual ~TransformerStateManagerWithCommonPrefix() = default;
 
-    virtual void mergeStates(StateVariables const& vars,
+    virtual void mergeStates(typename Precursor::StateVariables const& vars,
                              std::vector<size_t>& prefix_lengths,
-                             std::vector<HistoryState const*> const& prefix_states,
-                             FeedDict& feed_dict,
-                             TargetList& targets);
+                             std::vector<typename Precursor::HistoryState const*> const& prefix_states,
+                             typename Precursor::FeedDict& feed_dict,
+                             typename Precursor::TargetList& targets);
 protected:
     std::unordered_map<std::string, std::pair<std::string, std::string>> varMap_;
 
@@ -60,15 +62,23 @@ protected:
 
 // inline implementations
 
-inline TransformerStateManager::TransformerStateManager(Core::Configuration const& config) : Precursor(config),
-                                                                                             maxHistory_(paramMaxHistoryLength(config)),
-                                                                                             alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)) {
+template<typename T>
+inline TransformerStateManager<T>::TransformerStateManager(Core::Configuration const& config) : Precursor(config),
+                                                                                                maxHistory_(paramMaxHistoryLength(config)),
+                                                                                                alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)) {
 }
 
-inline TransformerStateManagerWithCommonPrefix::TransformerStateManagerWithCommonPrefix(Core::Configuration const& config) : Precursor(config),
-                                                                                                                             minBatchSize_(paramMinBatchSize(config)),
-                                                                                                                             minCommonPrefixLength_(paramMinCommonPrefixLength(config)) {
-    Core::Configuration varmap_config = select("var-map");
+template<typename T>
+inline bool TransformerStateManager<T>::requiresAllParentStates() const {
+    return true;
+}
+
+
+template<typename T>
+inline TransformerStateManagerWithCommonPrefix<T>::TransformerStateManagerWithCommonPrefix(Core::Configuration const& config) : Precursor(config),
+                                                                                                                                minBatchSize_(paramMinBatchSize(config)),
+                                                                                                                                minCommonPrefixLength_(paramMinCommonPrefixLength(config)) {
+    Core::Configuration varmap_config = this->select("var-map");
     for (size_t i = 0ul; true; i++) {
         Core::Configuration idx_config(varmap_config, std::string("item-") + std::to_string(i));
         std::string var_name      = paramVarName(idx_config);

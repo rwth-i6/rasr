@@ -1,5 +1,7 @@
 #include "TransformerStateManager.hh"
 
+#include "FixedQuantizationCompressedVectorFactory.hh"
+
 namespace {
 
 void print_slice(std::gslice const& slice) {
@@ -14,22 +16,53 @@ void print_slice(std::gslice const& slice) {
     std::cerr << "]" << std::endl;
 }
 
+template<typename B>
+Lm::CompressedVectorPtr<float> compress(float const* data, B const& b, Lm::CompressedVectorFactory<float> const& vector_factory, Lm::CompressionParameters const* parameters) {
+    return vector_factory.compress(data, b, parameters);
+}
+
+template<typename B>
+Lm::CompressedVectorPtr<float> compress(int16_t const* data, B const& b, Lm::CompressedVectorFactory<float> const& vector_factory, Lm::CompressionParameters const* parameters) {
+    Lm::QuantizedFloatVector16Bits* res = new Lm::QuantizedFloatVector16Bits(0.001);
+    res->store(data, b);
+    return Lm::CompressedVectorPtr<float>(res);
+}
+
+template<typename B>
+void uncompress(Lm::CompressedVector<float> const* vec, float* dst, B const& b) {
+    vec->uncompress(dst, b);
+}
+
+template<typename B>
+void uncompress(Lm::CompressedVector<float> const* vec, int16_t* dst, B const& b) {
+    Lm::QuantizedFloatVector16Bits const* qvec = dynamic_cast<Lm::QuantizedFloatVector16Bits const*>(vec);
+    require(qvec != nullptr);
+    qvec->load(dst, b);
+}
+
 }
 
 namespace Lm {
 
 /* ----------------------------------- TransformerStateManager ---------------------------------- */
 
-const Core::ParameterInt TransformerStateManager::paramMaxHistoryLength("max-history",
-                                                                        "maximum length of the history to feed to the transformer",
-                                                                        std::numeric_limits<int>::max(),
-                                                                        0);
+template<typename T>
+const Core::ParameterInt TransformerStateManager<T>::paramMaxHistoryLength("max-history",
+                                                                           "maximum length of the history to feed to the transformer",
+                                                                           std::numeric_limits<int>::max(),
+                                                                           0);
+template const Core::ParameterInt TransformerStateManager<float>::paramMaxHistoryLength;
+template const Core::ParameterInt TransformerStateManager<int16_t>::paramMaxHistoryLength;
 
-const Core::ParameterBool TransformerStateManager::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
-                                                                                     "wether to always include the state of the first token, even if history is restricted by max-history",
-                                                                                     false);
+template<typename T>
+const Core::ParameterBool TransformerStateManager<T>::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
+                                                                                        "wether to always include the state of the first token, even if history is restricted by max-history",
+                                                                                        false);
+template const Core::ParameterBool TransformerStateManager<float>::paramAlwaysIncludeFirstTokenState;
+template const Core::ParameterBool TransformerStateManager<int16_t>::paramAlwaysIncludeFirstTokenState;
 
-TransformerStateManager::HistoryState TransformerStateManager::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) {
+template<typename T>
+typename TransformerStateManager<T>::HistoryState TransformerStateManager<T>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) {
     TransformerStateManager::HistoryState result;
     result.reserve(vars.size());
 
@@ -39,17 +72,20 @@ TransformerStateManager::HistoryState TransformerStateManager::initialState(Stat
     auto compression_params = compression_param_estimator->estimate();
 
     for (size_t i = 0ul; i < vars.size(); i++) {
-        result.emplace_back(vector_factory.compress(vec.data(), vec.size(), compression_params.get()));
+        result.emplace_back(compress<T>(vec.data(), vec.size(), vector_factory, compression_params.get()));
     }
 
     return result;
 }
+template typename TransformerStateManager<float>::HistoryState TransformerStateManager<float>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
+template typename TransformerStateManager<int16_t>::HistoryState TransformerStateManager<int16_t>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
 
-void TransformerStateManager::mergeStates(StateVariables const& vars,
-                                          std::vector<size_t>& prefix_lengths,
-                                          std::vector<HistoryState const*> const& prefix_states,
-                                          FeedDict& feed_dict,
-                                          TargetList& targets) {
+template<typename T>
+void TransformerStateManager<T>::mergeStates(StateVariables const& vars,
+                                             std::vector<size_t>& prefix_lengths,
+                                             std::vector<HistoryState const*> const& prefix_states,
+                                             FeedDict& feed_dict,
+                                             TargetList& targets) {
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
 
     size_t max_prefix = 0ul;
@@ -90,7 +126,7 @@ void TransformerStateManager::mergeStates(StateVariables const& vars,
             strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
         }
 
-        Tensorflow::Tensor var_tensor = Tensorflow::Tensor::zeros<f32>(tensor_dim);
+        Tensorflow::Tensor var_tensor = Tensorflow::Tensor::zeros<T>(tensor_dim);
 
         size_t state_offset = 0ul;
         for (size_t b = 0ul; b < prefix_lengths.size(); b++) {
@@ -103,20 +139,33 @@ void TransformerStateManager::mergeStates(StateVariables const& vars,
                 if (not alwaysIncludeFirstTokenState_ or p != 0ul) {
                     idx += prefix_offset + p;
                 }
-                prefix_states[idx]->at(v)->uncompress(var_tensor.data<f32>(), block_info);
+                uncompress(prefix_states[idx]->at(v).get(), var_tensor.data<T>(), block_info);
             }
             state_offset += original_prefix_lengths[b];
         }
 
         feed_dict.emplace_back(vars[v].initial_value_name, var_tensor);
         targets.emplace_back(vars[v].initializer_name);
+
     }
 }
+template void TransformerStateManager<float>::mergeStates(StateVariables const& vars,
+                                                          std::vector<size_t>& prefix_lengths,
+                                                          std::vector<HistoryState const*> const& prefix_states,
+                                                          FeedDict& feed_dict,
+                                                          TargetList& targets);
+template void TransformerStateManager<int16_t>::mergeStates(StateVariables const& vars,
+                                                            std::vector<size_t>& prefix_lengths,
+                                                            std::vector<HistoryState const*> const& prefix_states,
+                                                            FeedDict& feed_dict,
+                                                            TargetList& targets);
 
-std::vector<TransformerStateManager::HistoryState> TransformerStateManager::splitStates(StateVariables const& vars,
-                                                                                        std::vector<size_t>& suffix_lengths,
-                                                                                        std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                                                        CompressedVectorFactory<float> const& vector_factory) {
+template<typename T>
+std::vector<typename TransformerStateManager<T>::HistoryState>
+TransformerStateManager<T>::splitStates(StateVariables const& vars,
+                                        std::vector<size_t>& suffix_lengths,
+                                        std::vector<Tensorflow::Tensor> const& state_tensors,
+                                        CompressedVectorFactory<float> const& vector_factory) {
     require_eq(vars.size(), state_tensors.size());
 
     size_t max_suffix = *std::max_element(suffix_lengths.begin(), suffix_lengths.end());
@@ -160,9 +209,11 @@ std::vector<TransformerStateManager::HistoryState> TransformerStateManager::spli
                 std::gslice slice(b * batch_stride + (max_prefix + p) * strides[time_dim], sizes, strides);
                 ContiguousBlockInfo block_info(slice);
                 auto compression_param_estimator = vector_factory.getEstimator();
-                compression_param_estimator->accumulate(tensor.data<f32>(), block_info);
+                if (std::is_same<T, float>::value) {
+                    compression_param_estimator->accumulate(tensor.data<float>(), block_info);
+                }
                 auto compression_params = compression_param_estimator->estimate();
-                result[output_idx].emplace_back(vector_factory.compress(tensor.data<f32>(), block_info, compression_params.get()));
+                result[output_idx].emplace_back(compress<ContiguousBlockInfo>(tensor.data<T>(), block_info, vector_factory, compression_params.get()));
                 output_idx += 1ul;
             }
         }
@@ -174,31 +225,54 @@ std::vector<TransformerStateManager::HistoryState> TransformerStateManager::spli
 
     return result;
 }
-
-bool TransformerStateManager::requiresAllParentStates() const {
-    return true;
-}
+template std::vector<typename TransformerStateManager<float>::HistoryState>
+TransformerStateManager<float>::splitStates(StateVariables const& vars,
+                                            std::vector<size_t>& suffix_lengths,
+                                            std::vector<Tensorflow::Tensor> const& state_tensors,
+                                            CompressedVectorFactory<float> const& vector_factory);
+template std::vector<typename TransformerStateManager<int16_t>::HistoryState>
+TransformerStateManager<int16_t>::splitStates(StateVariables const& vars,
+                                              std::vector<size_t>& suffix_lengths,
+                                              std::vector<Tensorflow::Tensor> const& state_tensors,
+                                              CompressedVectorFactory<float> const& vector_factory);
 
 /* ----------------------------------- TransformerStateManagerWithCommonPrefix ---------------------------------- */
 
-const Core::ParameterString TransformerStateManagerWithCommonPrefix::paramVarName("var-name", "the name of the original state variable", "");
-const Core::ParameterString TransformerStateManagerWithCommonPrefix::paramCommonPrefixInitialValue("common-prefix-initial-value", "the name the initial-value of the corresponding common-prefix variable", "");
-const Core::ParameterString TransformerStateManagerWithCommonPrefix::paramCommonPrefixInitializer("common-prefix-initializer", "the name of the initializer of the corresponding common-prefix variable", "");
+template<typename T>
+const Core::ParameterString TransformerStateManagerWithCommonPrefix<T>::paramVarName("var-name", "the name of the original state variable", "");
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramVarName;
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramVarName;
 
-const Core::ParameterInt TransformerStateManagerWithCommonPrefix::paramMinBatchSize("min-batch-size",
-                                                                                    "for batches smaller than the given size we set the common-prefix length to 0",
-                                                                                    2, 0);
+template<typename T>
+const Core::ParameterString TransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitialValue("common-prefix-initial-value", "the name the initial-value of the corresponding common-prefix variable", "");
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitialValue;
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitialValue;
 
-const Core::ParameterInt TransformerStateManagerWithCommonPrefix::paramMinCommonPrefixLength("min-common-prefix-length",
-                                                                                             "if the common-prefix length is smaller than this value, set it to 0",
-                                                                                             1, 0);
+template<typename T>
+const Core::ParameterString TransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitializer("common-prefix-initializer", "the name of the initializer of the corresponding common-prefix variable", "");
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitializer;
+template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitializer;
 
+template<typename T>
+const Core::ParameterInt TransformerStateManagerWithCommonPrefix<T>::paramMinBatchSize("min-batch-size",
+                                                                                       "for batches smaller than the given size we set the common-prefix length to 0",
+                                                                                       2, 0);
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinBatchSize;
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinBatchSize;
 
-void TransformerStateManagerWithCommonPrefix::mergeStates(StateVariables const& vars,
-                                                          std::vector<size_t>& prefix_lengths,
-                                                          std::vector<HistoryState const*> const& prefix_states,
-                                                          FeedDict& feed_dict,
-                                                          TargetList& targets) {
+template<typename T>
+const Core::ParameterInt TransformerStateManagerWithCommonPrefix<T>::paramMinCommonPrefixLength("min-common-prefix-length",
+                                                                                                "if the common-prefix length is smaller than this value, set it to 0",
+                                                                                                1, 0);
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinCommonPrefixLength;
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinCommonPrefixLength;
+
+template<typename T>
+void TransformerStateManagerWithCommonPrefix<T>::mergeStates(typename Precursor::StateVariables const& vars,
+                                                             std::vector<size_t>& prefix_lengths,
+                                                             std::vector<typename Precursor::HistoryState const*> const& prefix_states,
+                                                             typename Precursor::FeedDict& feed_dict,
+                                                             typename Precursor::TargetList& targets) {
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
     std::vector<size_t> batch_offsets;
     batch_offsets.reserve(prefix_lengths.size() + 1ul);
@@ -215,7 +289,7 @@ void TransformerStateManagerWithCommonPrefix::mergeStates(StateVariables const& 
     size_t common_prefix_length = 0ul;
     if (prefix_lengths.size() >= minBatchSize_) {
         for (size_t p = 0ul; p < min_prefix; p++) {
-            HistoryState const* hs = prefix_states[batch_offsets[0] + p];
+            typename Precursor::HistoryState const* hs = prefix_states[batch_offsets[0] + p];
             for (size_t b = 1ul; b < prefix_lengths.size(); b++) {
                 if (hs != prefix_states[batch_offsets[b] + p]) {
                     goto common_prefix_length_computation_finished;
@@ -267,7 +341,7 @@ common_prefix_length_computation_finished:
             strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
         }
 
-        Tensorflow::Tensor var_tensor = Tensorflow::Tensor::zeros<f32>(tensor_dim);
+        Tensorflow::Tensor var_tensor = Tensorflow::Tensor::zeros<T>(tensor_dim);
 
         size_t state_offset = 0ul;
         for (size_t b = 0ul; b < prefix_lengths.size(); b++) {
@@ -277,7 +351,7 @@ common_prefix_length_computation_finished:
                 std::gslice slice(b * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim], sizes, strides);
                 ContiguousBlockInfo block_info(slice);
                 size_t idx = state_offset + prefix_offset + p;
-                prefix_states[idx]->at(v)->uncompress(var_tensor.data<f32>(), block_info);
+                uncompress(prefix_states[idx]->at(v).get(), var_tensor.data<T>(), block_info);
             }
             state_offset += original_prefix_lengths[b];
         }
@@ -292,12 +366,12 @@ common_prefix_length_computation_finished:
             strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
         }
 
-        Tensorflow::Tensor common_prefix_tensor = Tensorflow::Tensor::zeros<f32>(tensor_dim);
+        Tensorflow::Tensor common_prefix_tensor = Tensorflow::Tensor::zeros<T>(tensor_dim);
 
         for (size_t p = 0ul; p < common_prefix_length; p++) {
             std::gslice slice(p * strides[time_dim], sizes, strides);
             ContiguousBlockInfo block_info(slice);
-            prefix_states[p]->at(v)->uncompress(common_prefix_tensor.data<f32>(), block_info);
+            uncompress(prefix_states[p]->at(v).get(), common_prefix_tensor.data<T>(), block_info);
         }
         auto iter = varMap_.find(vars[v].name);
         require(iter != varMap_.end());
@@ -305,5 +379,17 @@ common_prefix_length_computation_finished:
         targets.emplace_back(iter->second.second);
     }
 }
+template
+void TransformerStateManagerWithCommonPrefix<float>::mergeStates(StateVariables const& vars,
+                                                                 std::vector<size_t>& prefix_lengths,
+                                                                 std::vector<HistoryState const*> const& prefix_states,
+                                                                 FeedDict& feed_dict,
+                                                                 TargetList& targets);
+template
+void TransformerStateManagerWithCommonPrefix<int16_t>::mergeStates(StateVariables const& vars,
+                                                                   std::vector<size_t>& prefix_lengths,
+                                                                   std::vector<HistoryState const*> const& prefix_states,
+                                                                   FeedDict& feed_dict,
+                                                                   TargetList& targets);
 
 }  // namespace Lm

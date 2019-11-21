@@ -183,7 +183,8 @@ enum SoftmaxAdapterType {
 };
 
 const Core::Choice softmaxAdapterTypeChoice(
-        "blas_nce", BlasNceSoftmaxAdapterType,
+        "blas_nce", BlasNceSoftmaxAdapterType,  // included for backward compatibility
+        "blas-nce", BlasNceSoftmaxAdapterType,  // more consistent with RASR conventions
         "nce", NceSoftmaxAdapterType,
         "passthrough", PassthroughSoftmaxAdapterType,
         "quantized-blas-nce-16bit", QuantizedBlasNceSoftmaxAdapter16BitType,
@@ -840,16 +841,17 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     auto end = std::chrono::steady_clock::now();
 
     TimeStatistics stats;
-    stats.total_duration         = std::chrono::duration<double, std::milli>(end - start);
-    stats.early_request_duration = std::chrono::duration<double, std::milli>(end_early_requests - start);
-    stats.request_duration       = std::chrono::duration<double, std::milli>(end_requests - end_early_requests);
-    stats.prepare_duration       = std::chrono::duration<double, std::milli>(end_prepare - end_requests);
-    stats.merge_state_duration   = std::chrono::duration<double, std::milli>(end_merge_state - end_prepare);
-    stats.set_state_duration     = std::chrono::duration<double, std::milli>(end_set_state - end_merge_state);
-    stats.run_nn_output_duration = std::chrono::duration<double, std::milli>(end_nn_output - end_set_state);
-    stats.set_nn_output_duration = std::chrono::duration<double, std::milli>(end_set_nn_output - end_nn_output);
-    stats.get_new_state_duration = std::chrono::duration<double, std::milli>(end_get_new_state - end_set_nn_output);
-    stats.split_state_duration   = std::chrono::duration<double, std::milli>(end_split_state - end_get_new_state);
+    stats.total_duration          = std::chrono::duration<double, std::milli>(end - start);
+    stats.early_request_duration  = std::chrono::duration<double, std::milli>(end_early_requests - start);
+    stats.request_duration        = std::chrono::duration<double, std::milli>(end_requests - end_early_requests);
+    stats.prepare_duration        = std::chrono::duration<double, std::milli>(end_prepare - end_requests);
+    stats.merge_state_duration    = std::chrono::duration<double, std::milli>(end_merge_state - end_prepare);
+    stats.set_state_duration      = std::chrono::duration<double, std::milli>(end_set_state - end_merge_state);
+    stats.run_nn_output_duration  = std::chrono::duration<double, std::milli>(end_nn_output - end_set_state);
+    stats.set_nn_output_duration  = std::chrono::duration<double, std::milli>(end_set_nn_output - end_nn_output);
+    stats.get_new_state_duration  = std::chrono::duration<double, std::milli>(end_get_new_state - end_set_nn_output);
+    stats.split_state_duration    = std::chrono::duration<double, std::milli>(end_split_state - end_get_new_state);
+    stats.softmax_output_duration = std::chrono::duration<double, std::milli>();
     if (verbose_) {
         stats.write(std::cerr);
         std::cerr << " #pr:" << num_pending_requests

@@ -18,6 +18,10 @@
 
 namespace Tensorflow {
 
+Core::ParameterBool  Session::paramLogDevicePlacement("log-device-placement",
+                                                      "print placement of tensorflow ops",
+                                                      false);
+
 /* For detailed description of options see:
  * https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/protobuf/config.proto
  */

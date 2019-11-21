@@ -31,6 +31,7 @@ class Session : public Core::Component {
 public:
     typedef Core::Component Precursor;
 
+    static Core::ParameterBool  paramLogDevicePlacement;
     static Core::ParameterInt   paramIntraOpParallelismThreads;
     static Core::ParameterInt   paramInterOpParallelismThreads;
     static Core::ParameterFloat paramPerProcessGpuMemoryFraction;
@@ -58,6 +59,7 @@ private:
 inline Session::Session(Core::Configuration const& config)
         : Precursor(config) {
     tf::SessionOptions options;
+    options.config.set_log_device_placement(paramLogDevicePlacement(config));
     options.config.set_intra_op_parallelism_threads(paramIntraOpParallelismThreads(config));
     options.config.set_inter_op_parallelism_threads(paramInterOpParallelismThreads(config));
     options.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(paramPerProcessGpuMemoryFraction(config));

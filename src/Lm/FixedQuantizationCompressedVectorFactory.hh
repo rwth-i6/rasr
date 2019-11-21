@@ -26,15 +26,21 @@ public:
     virtual void          uncompress(float* data, size_t size) const;
     virtual void          uncompress(float* data, ContiguousBlockInfo const& block_info) const;
     virtual size_t        usedMemory() const;
-    void                  store(float const* data, size_t size);
-    void                  store(float const* data, ContiguousBlockInfo const& block_info);
+    void                  compress(float const* data, size_t size);
+    void                  compress(float const* data, ContiguousBlockInfo const& block_info);
+
+    void store(T const* data, size_t size);
+    void store(T const* data, ContiguousBlockInfo const& block_info);
+    void load(T* data, size_t size) const;
+    void load(T* data, ContiguousBlockInfo const& block_info) const;
+
     void                  clear();
     float                 scale() const;
     std::vector<T> const& data() const;
 
 private:
     void uncompress_internal(float* data, size_t size, size_t pos) const;
-    void store_internal(float const* data, size_t size, size_t pos);
+    void compress_internal(float const* data, size_t size, size_t pos);
 
     mutable std::vector<T> data_;
     float                  scale_;
@@ -97,16 +103,47 @@ size_t QuantizedFloatVectorFixedBits<T>::usedMemory() const {
 }
 
 template<typename T>
-void QuantizedFloatVectorFixedBits<T>::store(float const* data, size_t size) {
+void QuantizedFloatVectorFixedBits<T>::compress(float const* data, size_t size) {
     data_.resize(size);
-    store_internal(data, size, 0ul);
+    compress_internal(data, size, 0ul);
 }
 
 template<typename T>
-void QuantizedFloatVectorFixedBits<T>::store(float const* data, ContiguousBlockInfo const& block_info) {
+void QuantizedFloatVectorFixedBits<T>::compress(float const* data, ContiguousBlockInfo const& block_info) {
     data_.resize(block_info.totalSize());
     for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
-        store_internal(data + block_info.blockOffset(b), block_info.blockSize(), b * block_info.blockSize());
+        compress_internal(data + block_info.blockOffset(b), block_info.blockSize(), b * block_info.blockSize());
+    }
+}
+
+template<typename T>
+void QuantizedFloatVectorFixedBits<T>::store(T const* data, size_t size) {
+    data_.resize(size);
+    std::copy(data, data + size, data_.data());
+}
+
+template<typename T>
+void QuantizedFloatVectorFixedBits<T>::store(T const* data, ContiguousBlockInfo const& block_info) {
+    data_.resize(block_info.totalSize());
+    T* iter = data_.data();
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        T const* start = data + block_info.blockOffset(b);
+        iter = std::copy(start, start + block_info.blockSize(), iter);
+    }
+}
+
+template<typename T>
+void QuantizedFloatVectorFixedBits<T>::load(T* data, size_t size) const {
+    require_ge(size, this->size());
+    std::copy(data_.begin(), data_.end(), data);
+}
+
+template<typename T>
+void QuantizedFloatVectorFixedBits<T>::load(T* data, ContiguousBlockInfo const& block_info) const {
+    require_eq(block_info.totalSize(), this->size());
+    for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
+        T const* start = data_.data() + b * block_info.blockSize();
+        std::copy(start, start + block_info.blockSize(), data + block_info.blockOffset(b));
     }
 }
 

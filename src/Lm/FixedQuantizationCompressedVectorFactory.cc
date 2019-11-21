@@ -39,7 +39,7 @@ void QuantizedFloatVector8Bits::uncompress_internal(float* data, size_t size, si
 }
 
 template<>
-void QuantizedFloatVector8Bits::store_internal(float const* data, size_t size, size_t pos) {
+void QuantizedFloatVector8Bits::compress_internal(float const* data, size_t size, size_t pos) {
 #ifdef __AVX2__
     size_t remain = size % 16ul;
     {
@@ -126,7 +126,7 @@ void QuantizedFloatVector16Bits::uncompress_internal(float* data, size_t size, s
 }
 
 template<>
-void QuantizedFloatVector16Bits::store_internal(float const* data, size_t size, size_t pos) {
+void QuantizedFloatVector16Bits::compress_internal(float const* data, size_t size, size_t pos) {
 #ifdef __AVX2__
     size_t remain = size % 8ul;
     {
@@ -185,12 +185,12 @@ const Core::ParameterFloat FixedQuantizationCompressedVectorFactory::paramEpsilo
 CompressedVectorPtr<float> FixedQuantizationCompressedVectorFactory::compress(float const* data, size_t size, CompressionParameters const* params) const {
     if (bits_per_val_ == 16) {
         QuantizedFloatVector16Bits* vec = new QuantizedFloatVector16Bits(epsilon_);
-        vec->store(data, size);
+        vec->compress(data, size);
         return CompressedVectorPtr<float>(vec);
     }
     else if (bits_per_val_ == 8) {
         QuantizedFloatVector8Bits* vec = new QuantizedFloatVector8Bits(epsilon_);
-        vec->store(data, size);
+        vec->compress(data, size);
         return CompressedVectorPtr<float>(vec);
     }
     defect();
@@ -199,12 +199,12 @@ CompressedVectorPtr<float> FixedQuantizationCompressedVectorFactory::compress(fl
 CompressedVectorPtr<float> FixedQuantizationCompressedVectorFactory::compress(float const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const {
     if (bits_per_val_ == 16) {
         QuantizedFloatVector16Bits* vec = new QuantizedFloatVector16Bits(epsilon_);
-        vec->store(data, block_info);
+        vec->compress(data, block_info);
         return CompressedVectorPtr<float>(vec);
     }
     else if (bits_per_val_ == 8) {
         QuantizedFloatVector8Bits* vec = new QuantizedFloatVector8Bits(epsilon_);
-        vec->store(data, block_info);
+        vec->compress(data, block_info);
         return CompressedVectorPtr<float>(vec);
     }
     defect();

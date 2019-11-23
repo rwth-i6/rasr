@@ -10,7 +10,6 @@ ifeq ($(MACOS_MAJOR),10)
     ifeq ($(shell echo $(MACOS_MINOR) | awk '($$1 >= 5) { print 1 }'),1)
     	# MacOS X >= 10.5 is a 64-bit OS
     	PROC=x86_64
-    	CCFLAGS	+= -DHAS_64BIT
 	CPU=i686
     endif
 endif

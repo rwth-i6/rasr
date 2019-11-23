@@ -44,7 +44,6 @@ constexpr s32         Type<s32>::min;
 constexpr s32         Type<s32>::epsilon;
 constexpr s32         Type<s32>::delta;
 
-#if defined(HAS_64BIT)
 constexpr const char* Type<u64>::name;
 constexpr u64         Type<u64>::max;
 constexpr u64         Type<u64>::min;
@@ -52,7 +51,6 @@ constexpr u64         Type<u64>::min;
 constexpr const char* Type<s64>::name;
 constexpr s64         Type<s64>::max;
 constexpr s64         Type<s64>::min;
-#endif
 
 #ifdef OS_darwin
 constexpr const char* Type<size_t>::name;

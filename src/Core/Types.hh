@@ -109,7 +109,6 @@ struct Type<s32> {
     static constexpr s32         delta   = 1;
 };
 
-#if defined(HAS_64BIT)
 template<>
 struct Type<u64> {
     static constexpr const char* name = "u64";
@@ -123,7 +122,6 @@ struct Type<s64> {
     static constexpr s64         max  = 9223372036854775807LL;
     static constexpr s64         min  = -9223372036854775807LL - 1;
 };
-#endif
 
 #ifdef OS_darwin
 // I don't quite understand why these are different types

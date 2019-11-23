@@ -1,7 +1,5 @@
 # Generate code for AMD 64 bit processors
 
-CCFLAGS		+= -DHAS_64BIT
-
 ifdef _ADD_OPENFST
 ifeq ($(shell test -d $(OPENFSTDIR)/lib64 && echo 1),1)
 LDFLAGS 	+= -L$(OPENFSTDIR)/lib64 $(OPENFSTLIBS)

@@ -298,12 +298,10 @@ template<>
 inline bool strconv(const std::string& s, s32& i) {
     return str2signed(s, i);
 }
-#if defined(HAS_64BIT)
 template<>
 inline bool strconv(const std::string& s, s64& i) {
     return str2signed(s, i);
 }
-#endif
 template<>
 inline bool strconv(const std::string& s, u8& u) {
     return str2unsigned(s, u);
@@ -316,12 +314,10 @@ template<>
 inline bool strconv(const std::string& s, u32& u) {
     return str2unsigned(s, u);
 }
-#if defined(HAS_64BIT)
 template<>
 inline bool strconv(const std::string& s, u64& u) {
     return str2unsigned(s, u);
 }
-#endif
 template<>
 inline bool strconv(const std::string& s, f32& f) {
     return str2float(s, f);
@@ -501,12 +497,10 @@ template<>
 inline bool strconv(const std::string& s, std::vector<u32>& v) {
     return str2vector(s, v, ",", ":");
 }
-#if defined(HAS_64BIT)
 template<>
 inline bool strconv(const std::string& s, std::vector<u64>& v) {
     return str2vector(s, v, ",", ":");
 }
-#endif
 
 template<>
 inline bool strconv(const std::string& s, std::vector<s8>& v) {
@@ -520,12 +514,10 @@ template<>
 inline bool strconv(const std::string& s, std::vector<s32>& v) {
     return str2vector(s, v, ",", ":");
 }
-#if defined(HAS_64BIT)
 template<>
 inline bool strconv(const std::string& s, std::vector<s64>& v) {
     return str2vector(s, v, ",", ":");
 }
-#endif
 
 template<>
 inline bool strconv(const std::string& s, std::vector<f32>& v) {

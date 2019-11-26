@@ -14,6 +14,7 @@
  */
 #include "SearchSpace.hh"
 
+#include <chrono>
 #include <random>
 
 #include <Am/ClassicAcousticModel.hh>
@@ -1807,7 +1808,7 @@ void SearchSpace::updateSsaLm() {
             info.bestScore        = std::min(info.bestScore, hypIter->score);
         }
         info.bestScoreOffset = info.bestScore - bestScore();
-        info.numStates       = inst->states.size();
+        info.numStates       = inst->states.size() + inst->rootStateHypotheses.size();
         ssaLm_->setInfo(inst->scoreHistory, info);
     }
 }
@@ -3208,32 +3209,20 @@ Instance* SearchSpace::instanceForKey(bool create, const InstanceKey& key, Lm::H
 
 void SearchSpace::cleanup() {
     // Cleanup the traces
-    std::unordered_set<TraceId> usingTraceLists;
-
     PerformanceCounter perf(*statistics, "cleanup");
 
+    TraceManager::Cleaner cleaner;
     for (std::vector<StateHypothesis>::const_iterator it = stateHypotheses.begin(); it != stateHypotheses.end(); ++it) {
-        verify(TraceManager::traceItem((*it).trace).range != 0);
-        usingTraceLists.insert((*it).trace);
+        cleaner.visit((*it).trace);
     }
 
     for (std::vector<Instance*>::iterator instIt = activeInstances.begin(); instIt != activeInstances.end(); ++instIt) {
         for (std::vector<StateHypothesis>::const_iterator it = (*instIt)->rootStateHypotheses.begin(); it != (*instIt)->rootStateHypotheses.end(); ++it) {
-            verify(TraceManager::traceItem((*it).trace).range != 0);
-
-            usingTraceLists.insert(it->trace);
+            cleaner.visit(it->trace);
         }
     }
 
-    std::unordered_map<TraceId, TraceId> mapping = TraceManager::cleanup(usingTraceLists);
-
-    for (std::vector<StateHypothesis>::iterator it = stateHypotheses.begin(); it != stateHypotheses.end(); ++it)
-        (*it).trace = mapping[it->trace];
-
-    for (std::vector<Instance*>::iterator instIt = activeInstances.begin(); instIt != activeInstances.end(); ++instIt) {
-        for (std::vector<StateHypothesis>::iterator it = (*instIt)->rootStateHypotheses.begin(); it != (*instIt)->rootStateHypotheses.end(); ++it)
-            it->trace = mapping[it->trace];
-    }
+    cleaner.clean();
 }
 
 int SearchSpace::lookAheadLength() const {
@@ -3451,7 +3440,6 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
     PersistentStateTree::Exit const* we   = &network_.exits[exit];
     TraceItem const&                 item = TraceManager::traceItem(hyp.trace);
 
-    verify_(item.range == 1);
     //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
     verify_(item.scoreHistory.isValid());
 

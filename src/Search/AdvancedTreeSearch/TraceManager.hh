@@ -27,12 +27,27 @@ static const TraceId invalidTraceId = Core::Type<TraceId>::max;
 struct TraceItem final {
 public:
     TraceItem(Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch)
-            : trace(t), recombinationHistory(rch), lookaheadHistory(lah), scoreHistory(sch), range(0) {
+            : trace(t), recombinationHistory(rch), lookaheadHistory(lah), scoreHistory(sch) {
     }
-    TraceItem()
-            : range(0) {
+    TraceItem() {
+    }
+    TraceItem(TraceItem const& ti) = default;
+    TraceItem(TraceItem&& ti) {
+        trace                = ti.trace;
+        recombinationHistory = std::move(ti.recombinationHistory);
+        lookaheadHistory     = std::move(ti.lookaheadHistory);
+        scoreHistory         = std::move(ti.scoreHistory);
     }
     ~TraceItem() {
+    }
+
+    TraceItem& operator=(TraceItem const& ti) = default;
+    TraceItem& operator=(TraceItem&& ti) {
+        trace                = ti.trace;
+        recombinationHistory = std::move(ti.recombinationHistory);
+        lookaheadHistory     = std::move(ti.lookaheadHistory);
+        scoreHistory         = std::move(ti.scoreHistory);
+        return *this;
     }
 
     Core::Ref<Trace> trace;
@@ -40,9 +55,88 @@ public:
     Lm::History      lookaheadHistory;
     Lm::History      scoreHistory;
 
-    u16 range;  //Total number of trace-items in the range, including this one
 private:
     friend class TraceManager;
+};
+
+template<typename T>
+class SparseVector {
+public:
+    T& operator[](size_t idx) {
+        require_lt(idx, items_.size());
+        require(used_[idx]);
+        return items_[idx];
+    }
+
+    T const& operator[](size_t idx) const {
+        require_lt(idx, items_.size());
+        require(used_[idx]);
+        return items_[idx];
+    }
+
+    size_t insert(T const& item) {
+        if (freeList_.empty()) {
+            size_t idx = items_.size();
+            items_.push_back(item);
+            used_.push_back(true);
+            return idx;
+        }
+        else {
+            size_t idx = freeList_.top();
+            require(not used_[idx]);
+            items_[idx] = item;
+            used_[idx] = true;
+            freeList_.pop();
+            return idx;
+        }
+    }
+
+    void erase(size_t idx) {
+        require_lt(idx, items_.size());
+        if (used_[idx]) {
+            items_[idx] = T();
+            used_[idx] = false;
+            freeList_.push(idx);
+        }
+    }
+
+    void clear() {
+        items_.clear();
+        used_.clear();
+        while (not freeList_.empty()) {
+            freeList_.pop();
+        }
+    }
+
+    void filter(std::vector<bool> const& keep) {
+        require_le(keep.size(), items_.size());
+        size_t i = 0ul;
+        for (; i < keep.size(); i++) {
+            if (not keep[i]) {
+                erase(i);
+            }
+        }
+        for (; i < items_.size(); i++) {
+            erase(i);
+        }
+    }
+
+    size_t pos(T const* item) const {
+        return std::distance(items_.data(), item);
+    }
+
+    size_t size() const {
+        return items_.size() - freeList_.size();
+    }
+
+    size_t storageSize() const {
+        return items_.size();
+    }
+
+private:
+    std::vector<T>       items_;
+    std::vector<bool>    used_;
+    std::stack<unsigned> freeList_;
 };
 
 class TraceManager {
@@ -60,15 +154,14 @@ public:
         modifications_.clear();
     }
 
-    /// Returns a trace-id that represents the given list of items
-    static TraceId getTrace(const std::vector<TraceItem>& items);
-
     /// Returns a trace-id that represents only the given item
-    static TraceId getTrace(const TraceItem& item);
+    static TraceId getTrace(const TraceItem& item) {
+        return items_.insert(item);
+    }
 
     /// Returns the trace-id of a trace that already is managed by the TraceManager
     static TraceId getManagedTraceId(const TraceItem* item) {
-        return ((const char*)item - (const char*)items_.data()) / sizeof(TraceItem);
+        return items_.pos(item);
     }
 
     /// Returns the current number of existing trace-items
@@ -145,8 +238,8 @@ public:
         }
         else {
 #endif
-            ret = modifications_.size() | ModifyMask;
-            modifications_.push_back(std::make_pair<u32, Modification>((u32)trace, Modification(value, value2, value3)));
+            ret = modifications_.insert(std::make_pair<u32, Modification>((u32)trace, Modification(value, value2, value3)));
+            ret |= ModifyMask;
 #ifdef FAST_TRACE_MODIFICATION
         }
 #endif
@@ -155,46 +248,41 @@ public:
         return ret;
     }
 
-    /// Calls the given visitor with each TraceItem that is contained by the given TraceId
-    template<class Visitor>
-    inline void visitItems(Visitor& visitor, TraceId trace) {
-        if (trace == invalidTraceId)
-            return;
-
-        trace = getUnmodified(trace);
-
-        const TraceItem& item = items_[trace];
-        if (!visitor.visit(item))
-            return;
-
-        if (item.range != 1) {
-            TraceId until = trace + item.range;
-            for (TraceId pos = trace + 1; pos < until; ++pos)
-                if (!visitor.visit(items_[pos]))
-                    return;
-        }
-    }
-
     /// Returns the (first) trace-item associated to the given trace-id
     /// The trace-id must be valid
     inline static TraceItem& traceItem(TraceId trace) {
         return items_[getUnmodified(trace)];
     }
 
-    /// Returns the number of trace-items associated to the given trace-id
-    /// The trace-id must be valid
-    inline static u32 traceCount(TraceId trace) {
-        return items_[getUnmodified(trace)].range;
-    }
+    // Helper structure to cleanup the Tracemanager
+    struct Cleaner {
+        std::vector<bool> item_filter;
+        std::vector<bool> mod_filter;
 
-    /// Cleans up the trace manager, retaining only the given trace lists
-    /// Returns a map that maps old trace-ids to new ones
-    /// The given set of traces will be altered for internal reasons.
-    static std::unordered_map<TraceId, TraceId> cleanup(std::unordered_set<TraceId>& retain);
+        Cleaner() : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), true) {
+        }
+        ~Cleaner() = default;
+
+        void visit(TraceId traceid) {
+            TraceId idx = traceid & UnModifyMask;
+            if ((traceid & ModifyMask) == ModifyMask) {
+                mod_filter[idx] = true;
+                item_filter[modifications_[idx].first] = true;
+            }
+            else {
+                item_filter[idx] = true;
+            }
+        }
+
+        void clean() {
+            TraceManager::items_.filter(item_filter);
+            TraceManager::modifications_.filter(mod_filter);
+        }
+    };
 
 private:
-    static std::vector<TraceItem>                    items_;
-    static std::vector<std::pair<u32, Modification>> modifications_;
+    static SparseVector<TraceItem>                    items_;
+    static SparseVector<std::pair<u32, Modification>> modifications_;
 };
 }  // namespace Search
 

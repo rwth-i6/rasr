@@ -21,13 +21,13 @@ class QuantizedFloatVectorFixedBits : public CompressedVector<float> {
 public:
     QuantizedFloatVectorFixedBits(float scale);
 
-    virtual size_t        size() const;
-    virtual float         get(size_t pos) const;
-    virtual void          uncompress(float* data, size_t size) const;
-    virtual void          uncompress(float* data, ContiguousBlockInfo const& block_info) const;
-    virtual size_t        usedMemory() const;
-    void                  compress(float const* data, size_t size);
-    void                  compress(float const* data, ContiguousBlockInfo const& block_info);
+    virtual size_t size() const;
+    virtual float  get(size_t pos) const;
+    virtual void   uncompress(float* data, size_t size) const;
+    virtual void   uncompress(float* data, ContiguousBlockInfo const& block_info) const;
+    virtual size_t usedMemory() const;
+    void           compress(float const* data, size_t size);
+    void           compress(float const* data, ContiguousBlockInfo const& block_info);
 
     void store(T const* data, size_t size);
     void store(T const* data, ContiguousBlockInfo const& block_info);
@@ -47,7 +47,7 @@ private:
 };
 
 using QuantizedFloatVector16Bits = QuantizedFloatVectorFixedBits<s16>;
-using QuantizedFloatVector8Bits = QuantizedFloatVectorFixedBits<s8>;
+using QuantizedFloatVector8Bits  = QuantizedFloatVectorFixedBits<s8>;
 
 class FixedQuantizationCompressedVectorFactory : public CompressedVectorFactory<float> {
 public:
@@ -70,7 +70,8 @@ private:
 // inline implementations
 
 template<typename T>
-QuantizedFloatVectorFixedBits<T>::QuantizedFloatVectorFixedBits(float scale) : scale_(scale) {
+QuantizedFloatVectorFixedBits<T>::QuantizedFloatVectorFixedBits(float scale)
+        : scale_(scale) {
 }
 
 template<typename T>
@@ -128,7 +129,7 @@ void QuantizedFloatVectorFixedBits<T>::store(T const* data, ContiguousBlockInfo 
     T* iter = data_.data();
     for (size_t b = 0ul; b < block_info.numBlocks(); b++) {
         T const* start = data + block_info.blockOffset(b);
-        iter = std::copy(start, start + block_info.blockSize(), iter);
+        iter           = std::copy(start, start + block_info.blockSize(), iter);
     }
 }
 

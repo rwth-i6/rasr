@@ -13,8 +13,8 @@ void BlasNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::Tenso
 }
 
 Score BlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
-    std::vector<float> nn_output;
-    float const* data;
+    std::vector<float>                   nn_output;
+    float const*                         data;
     Lm::UncompressedVector<float> const* vec = dynamic_cast<Lm::UncompressedVector<float> const*>(nn_out.get());
 
     if (vec != nullptr) {
@@ -45,5 +45,4 @@ std::vector<Score> BlasNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<flo
     return result;
 }
 
-}
-
+}  // namespace Lm

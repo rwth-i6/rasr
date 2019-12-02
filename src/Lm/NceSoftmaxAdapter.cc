@@ -14,9 +14,9 @@ Score NceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out,
 }
 
 std::vector<Score> NceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
-    auto const& output_idx_tensor_info = input_map_->get_info("output_idxs"); 
-    auto const& nn_output_tensor_info = input_map_->get_info("nn_output"); 
-    auto const& softmax_tensor_info = output_map_->get_info("nce_softmax"); 
+    auto const& output_idx_tensor_info = input_map_->get_info("output_idxs");
+    auto const& nn_output_tensor_info  = input_map_->get_info("nn_output");
+    auto const& softmax_tensor_info    = output_map_->get_info("nce_softmax");
 
     // output indices
     std::vector<int> output_idxs_vec(output_idxs.size());
@@ -40,4 +40,4 @@ std::vector<Score> NceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> 
     return scores;
 }
 
-}
+}  // namespace Lm

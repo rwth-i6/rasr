@@ -28,8 +28,8 @@
 #include "AbstractNNLanguageModel.hh"
 #include "CompressedVector.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
-#include "StateManager.hh"
 #include "SoftmaxAdapter.hh"
+#include "StateManager.hh"
 
 namespace Lm {
 

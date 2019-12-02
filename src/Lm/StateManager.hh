@@ -23,15 +23,15 @@ public:
     virtual bool requiresAllParentStates() const;
 
     virtual HistoryState              initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) = 0;
-    virtual void                      mergeStates (StateVariables const& vars,
-                                                   std::vector<size_t>& prefix_lengths,
-                                                   std::vector<HistoryState const*> const& prefix_states,
-                                                   FeedDict& feed_dict,
-                                                   TargetList& targets) = 0;
-    virtual std::vector<HistoryState> splitStates (StateVariables const& vars,
-                                                   std::vector<size_t>& suffix_lengths,
-                                                   std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                   CompressedVectorFactory<float> const& vector_factory) = 0;
+    virtual void                      mergeStates(StateVariables const&                   vars,
+                                                  std::vector<size_t>&                    prefix_lengths,
+                                                  std::vector<HistoryState const*> const& prefix_states,
+                                                  FeedDict&                               feed_dict,
+                                                  TargetList&                             targets)                                                               = 0;
+    virtual std::vector<HistoryState> splitStates(StateVariables const&                  vars,
+                                                  std::vector<size_t>&                   suffix_lengths,
+                                                  std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                  CompressedVectorFactory<float> const&  vector_factory)                              = 0;
 };
 
 // inline implementations
@@ -40,7 +40,8 @@ inline bool StateManager::requiresAllParentStates() const {
     return false;
 }
 
-inline StateManager::StateManager(Core::Configuration const& config) : Precursor(config) {
+inline StateManager::StateManager(Core::Configuration const& config)
+        : Precursor(config) {
 }
 
 }  // namespace Lm

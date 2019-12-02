@@ -16,11 +16,12 @@ public:
     ~ContiguousBlockInfo() = default;
 
     std::valarray<size_t> const& sizes() const;
-    size_t totalSize() const;
-    size_t numBlocks() const;
-    size_t blockSize() const;
+    size_t                       totalSize() const;
+    size_t                       numBlocks() const;
+    size_t                       blockSize() const;
 
     size_t blockOffset(size_t idx) const;
+
 private:
     size_t                start_;
     std::valarray<size_t> sizes_;
@@ -39,12 +40,12 @@ public:
     CompressedVector()          = default;
     virtual ~CompressedVector() = default;
 
-    virtual size_t size() const = 0;
-    virtual T      get(size_t pos) const = 0;
-    virtual void   uncompress(T* data, size_t size) const = 0;
+    virtual size_t size() const                                                     = 0;
+    virtual T      get(size_t pos) const                                            = 0;
+    virtual void   uncompress(T* data, size_t size) const                           = 0;
     virtual void   uncompress(T* data, ContiguousBlockInfo const& block_info) const = 0;
-    virtual void   clear() = 0;
-    virtual size_t usedMemory() const = 0;
+    virtual void   clear()                                                          = 0;
+    virtual size_t usedMemory() const                                               = 0;
 };
 template<typename T>
 using CompressedVectorPtr = std::unique_ptr<CompressedVector<T>>;
@@ -83,7 +84,7 @@ public:
     virtual CompressionParameterEstimatorPtr<T> getEstimator() const {
         return CompressionParameterEstimatorPtr<T>(new CompressionParameterEstimator<T>());
     }
-    virtual CompressedVectorPtr<T> compress(T const* data, size_t size, CompressionParameters const* params) const = 0;
+    virtual CompressedVectorPtr<T> compress(T const* data, size_t size, CompressionParameters const* params) const                           = 0;
     virtual CompressedVectorPtr<T> compress(T const* data, ContiguousBlockInfo const& block_info, CompressionParameters const* params) const = 0;
 };
 template<typename T>

@@ -6,9 +6,9 @@
 
 float quantized_dot_16bit(size_t size, float scale, s16 const* a, s16 const* b) {
 #ifdef __AVX2__
-    size_t i = 0ul;
-    size_t remainder = size % 16ul;
-    __m256i acc = _mm256_set1_epi32(0);
+    size_t  i         = 0ul;
+    size_t  remainder = size % 16ul;
+    __m256i acc       = _mm256_set1_epi32(0);
     for (; i < size - remainder; i += 16ul) {
         __m256i val_a = _mm256_loadu_si256(reinterpret_cast<__m256i const*>(a + i));
         __m256i val_b = _mm256_loadu_si256(reinterpret_cast<__m256i const*>(b + i));
@@ -16,10 +16,10 @@ float quantized_dot_16bit(size_t size, float scale, s16 const* a, s16 const* b) 
     }
     __m128i lower = _mm256_extracti128_si256(acc, 0);
     __m128i upper = _mm256_extracti128_si256(acc, 1);
-    __m128i s = _mm_hadd_epi32(lower, upper);
-    s = _mm_hadd_epi32(s, s);
-    s = _mm_hadd_epi32(s, s);
-    s32 sum = _mm_extract_epi32(s, 0);
+    __m128i s     = _mm_hadd_epi32(lower, upper);
+    s             = _mm_hadd_epi32(s, s);
+    s             = _mm_hadd_epi32(s, s);
+    s32 sum       = _mm_extract_epi32(s, 0);
     for (; i < size; i++) {
         sum += static_cast<s32>(a[i]) * static_cast<s32>(b[i]);
     }
@@ -49,33 +49,33 @@ const Core::ParameterFloat QuantizedBlasNceSoftmaxAdapter16Bit::paramWeightsBias
 
 template<>
 Score QuantizedBlasNceSoftmaxAdapter16Bit::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
-    std::vector<s16> nn_output;
-    s16 const* data;
-    float scale;
+    std::vector<s16>                  nn_output;
+    s16 const*                        data;
+    float                             scale;
     QuantizedFloatVector16Bits const* vec = dynamic_cast<QuantizedFloatVector16Bits const*>(nn_out.get());
 
     if (vec != nullptr) {
-        data = vec->data().data();
+        data  = vec->data().data();
         scale = vec->scale();
     }
     else {
         float inv_scale = 1.0 / nnOutputEpsilon_;
-        float min_val = std::numeric_limits<s16>::min();
-        float max_val = std::numeric_limits<s16>::max();
+        float min_val   = std::numeric_limits<s16>::min();
+        float max_val   = std::numeric_limits<s16>::max();
         nn_output.resize(nn_out->size());
         std::vector<float> float_out(nn_out->size());
         nn_out->uncompress(float_out.data(), float_out.size());
         for (size_t i = 0ul; i < nn_output.size(); i++) {
-            float val = std::round(float_out[i] * inv_scale);
-            val = std::max(val, min_val);
-            val = std::min(val, max_val);
+            float val    = std::round(float_out[i] * inv_scale);
+            val          = std::max(val, min_val);
+            val          = std::min(val, max_val);
             nn_output[i] = static_cast<s16>(val);
         }
-        data = nn_output.data();
+        data  = nn_output.data();
         scale = nnOutputEpsilon_;
     }
 
     return quantized_dot_16bit(nn_out->size(), weightsBiasEpsilon_ * scale, &weights_(0, output_idx), data) + bias_[output_idx];
 }
 
-}
+}  // namespace Lm

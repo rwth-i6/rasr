@@ -127,8 +127,8 @@ CompressionParametersPtr QuantizedCompressionParameterEstimator::estimate() {
 // --------------------- QuantizedCompressedVectorFactory ---------------------
 
 const Core::ParameterInt QuantizedCompressedVectorFactory::paramBitsPerVal("bits-per-val",
-                                                            "Number of bits for the quantized value.",
-                                                            16, 1, 32);
+                                                                           "Number of bits for the quantized value.",
+                                                                           16, 1, 32);
 
 CompressionParameterEstimatorPtr<float> QuantizedCompressedVectorFactory::getEstimator() const {
     return CompressionParameterEstimatorPtr<float>(new QuantizedCompressionParameterEstimator());

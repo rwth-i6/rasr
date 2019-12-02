@@ -2,13 +2,14 @@
 
 namespace Lm {
 
-ContiguousBlockInfo::ContiguousBlockInfo(std::gslice const& slice) : start_(slice.start()),
-                                                                     sizes_(slice.size()),
-                                                                     strides_(slice.stride()),
-                                                                     totalSize_(0ul),
-                                                                     numBlocks_(1ul),
-                                                                     blockSize_(1ul),
-                                                                     firstIdxDim_(0ul) {
+ContiguousBlockInfo::ContiguousBlockInfo(std::gslice const& slice)
+        : start_(slice.start()),
+          sizes_(slice.size()),
+          strides_(slice.stride()),
+          totalSize_(0ul),
+          numBlocks_(1ul),
+          blockSize_(1ul),
+          firstIdxDim_(0ul) {
     size_t i                 = sizes_.size();
     size_t contiguous_stride = 1ul;
     while (i > 0ul) {

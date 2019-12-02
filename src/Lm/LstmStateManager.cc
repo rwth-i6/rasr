@@ -18,19 +18,19 @@ LstmStateManager::HistoryState LstmStateManager::initialState(StateVariables con
     return result;
 }
 
-void LstmStateManager::mergeStates(StateVariables const& vars,
-                                   std::vector<size_t>& prefix_lengths,
+void LstmStateManager::mergeStates(StateVariables const&                   vars,
+                                   std::vector<size_t>&                    prefix_lengths,
                                    std::vector<HistoryState const*> const& prefix_states,
-                                   FeedDict& feed_dict,
-                                   TargetList& targets) {
+                                   FeedDict&                               feed_dict,
+                                   TargetList&                             targets) {
     require_eq(prefix_states.size(), prefix_lengths.size());
     feed_dict.reserve(vars.size());
     targets.reserve(vars.size());
     Tensorflow::int64 batch_size = prefix_lengths.size();
     for (size_t v = 0ul; v < vars.size(); v++) {
-        Tensorflow::int64 state_size = prefix_states.front()->at(v)->size();
+        Tensorflow::int64  state_size = prefix_states.front()->at(v)->size();
         Tensorflow::Tensor var_tensor = Tensorflow::Tensor::zeros<float>({batch_size, state_size});
-        float* data = var_tensor.data<f32>();
+        float*             data       = var_tensor.data<f32>();
         for (size_t b = 0ul; b < static_cast<size_t>(batch_size); b++) {
             auto const& compressed_state = prefix_states[b]->at(v);
             require_eq(compressed_state->size(), static_cast<size_t>(state_size));
@@ -41,10 +41,10 @@ void LstmStateManager::mergeStates(StateVariables const& vars,
     }
 }
 
-std::vector<LstmStateManager::HistoryState> LstmStateManager::splitStates(StateVariables const& vars,
-                                                                          std::vector<size_t>& suffix_lengths,
+std::vector<LstmStateManager::HistoryState> LstmStateManager::splitStates(StateVariables const&                  vars,
+                                                                          std::vector<size_t>&                   suffix_lengths,
                                                                           std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                                          CompressedVectorFactory<float> const& vector_factory) {
+                                                                          CompressedVectorFactory<float> const&  vector_factory) {
     require_eq(vars.size(), state_tensors.size());
 
     std::vector<HistoryState> result(suffix_lengths.size());

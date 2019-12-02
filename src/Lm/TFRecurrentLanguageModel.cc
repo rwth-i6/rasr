@@ -21,8 +21,8 @@
 #include "Module.hh"
 #include "NceSoftmaxAdapter.hh"
 #include "PassthroughSoftmaxAdapter.hh"
-#include "TransformerStateManager.hh"
 #include "QuantizedBlasNceSoftmaxAdapter.hh"
+#include "TransformerStateManager.hh"
 
 namespace {
 struct ScoresWithContext : public Lm::NNCacheWithStats {
@@ -352,7 +352,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     TokenIdSequence    ts;
     HistoryHandle      h     = hm->get<ScoresWithContext>(ts);
     ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
-    cache->state = state_manager_->initialState(state_variables_, *state_comp_vec_factory_);
+    cache->state             = state_manager_->initialState(state_variables_, *state_comp_vec_factory_);
     std::vector<f32> temp(1);
     auto             compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
     compression_param_estimator->accumulate(temp.data(), temp.size());
@@ -482,11 +482,11 @@ Score TFRecurrentLanguageModel::score(History const& hist, Token w) const {
 
     size_t output_idx = lexicon_mapping_[w->id()];
     useOutput(*sc, output_idx);
-    sc->last_used = current_time_;
-    auto start = std::chrono::steady_clock::now();
-    Score score = output_transform_function_(softmax_adapter_->get_score(sc->nn_output, output_idx));
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration<double, std::milli>(end - start);
+    sc->last_used  = current_time_;
+    auto  start    = std::chrono::steady_clock::now();
+    Score score    = output_transform_function_(softmax_adapter_->get_score(sc->nn_output, output_idx));
+    auto  end      = std::chrono::steady_clock::now();
+    auto  duration = std::chrono::duration<double, std::milli>(end - start);
     fwd_statistics_.softmax_output_duration += duration;
     fwd_statistics_.total_duration += duration;
     return score;
@@ -725,14 +725,14 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     }
 
     std::vector<StateManager::HistoryState const*> prefix_states(full_prefix_required ? total_prefix_length : requests.size());
-    size_t current_offset = 0ul;
+    size_t                                         current_offset = 0ul;
     for (size_t r = 0ul; r < requests.size(); r++) {
         ScoresWithContext* current_cache = requests[r].initial_cache;
         if (full_prefix_required) {
             size_t prefix_length = prefix_lengths[r];
             for (size_t i = 0ul; i < prefix_length; i++) {
                 prefix_states[current_offset + prefix_length - i - 1] = &current_cache->state;
-                current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
+                current_cache                                         = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
             }
             current_offset += prefix_length;
         }
@@ -776,8 +776,8 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
         ScoresWithContext* cache = requests[r].final_cache;
         for (size_t w = requests[r].length; w > 0;) {
             --w;
-            cache->last_used = current_time_;
-            int num_outputs = outputs[0ul].dimSize(2);
+            cache->last_used                         = current_time_;
+            int          num_outputs                 = outputs[0ul].dimSize(2);
             auto         compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
             float const* data                        = outputs[0ul].data<f32>(r, w);
             compression_param_estimator->accumulate(data, num_outputs);
@@ -801,10 +801,10 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     size_t output_offset = 0ul;
     for (size_t r = 0ul; r < requests.size(); r++) {
         ScoresWithContext* current_cache = requests[r].final_cache;
-        size_t suffix_length = suffix_lengths[r];
+        size_t             suffix_length = suffix_lengths[r];
         while (suffix_length > 0ul) {
             current_cache->state = std::move(split_states[output_offset + suffix_length - 1]);
-            current_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
+            current_cache        = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(current_cache->parent.handle()));
             suffix_length -= 1ul;
         }
         output_offset += suffix_lengths[r];
@@ -813,7 +813,7 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     auto end_split_state = std::chrono::steady_clock::now();
 
     std::chrono::duration<double, std::milli> duration = end_split_state - end_prepare;
-    size_t bucket = requests.size() - 1;
+    size_t                                    bucket   = requests.size() - 1;
     run_time_.at(bucket) += duration.count();
     run_count_.at(bucket) += 1ul;
 

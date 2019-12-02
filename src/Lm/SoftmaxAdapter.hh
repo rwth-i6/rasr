@@ -19,14 +19,16 @@ public:
     virtual ~SoftmaxAdapter() = default;
 
     virtual void               init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) = 0;
-    virtual Score              get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) = 0;
+    virtual Score              get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx)                                                     = 0;
     virtual std::vector<Score> get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs);
+
 private:
 };
 
 // inline implementations
 
-inline SoftmaxAdapter::SoftmaxAdapter(Core::Configuration const& config) : Precursor(config) {
+inline SoftmaxAdapter::SoftmaxAdapter(Core::Configuration const& config)
+        : Precursor(config) {
 }
 
 inline std::vector<Score> SoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {

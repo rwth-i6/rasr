@@ -68,6 +68,11 @@ public:
             : mang_(&sentinel), desc_(0) {}
     History(const History& hh)
             : mang_(hh.mang_), desc_(mang_->acquire(hh.desc_)) {}
+    History(History&& other)
+            : mang_(other.mang_), desc_(other.desc_) {
+        other.mang_ = &sentinel;
+        other.desc_ = nullptr;
+    }
     ~History() {
         mang_->release(desc_);
     }
@@ -86,6 +91,12 @@ public:
 
     bool operator<(const History& rhs) const {
         return desc_ < rhs.desc_;
+    }
+
+    History& operator=(History&& other) {
+        std::swap(mang_, other.mang_);
+        std::swap(desc_, other.desc_);
+        return *this;
     }
 
     /** Test for non-voidness. */

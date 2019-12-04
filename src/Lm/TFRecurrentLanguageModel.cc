@@ -147,16 +147,20 @@ enum StateManagerType {
     LstmStateManagerType,
     TransformerStateManagerType,
     TransformerStateManager16BitType,
+    TransformerStateManager8BitType,
     TransformerStateManagerWithCommonPrefixType,
     TransformerStateManagerWithCommonPrefix16BitType,
+    TransformerStateManagerWithCommonPrefix8BitType,
 };
 
 const Core::Choice stateManagerTypeChoice(
         "lstm", LstmStateManagerType,
         "transformer", TransformerStateManagerType,
         "transformer-16bit", TransformerStateManager16BitType,
+        "transformer-8bit", TransformerStateManager8BitType,
         "transformer-with-common-prefix", TransformerStateManagerWithCommonPrefixType,
         "transformer-with-common-prefix-16bit", TransformerStateManagerWithCommonPrefix16BitType,
+        "transformer-with-common-prefix-8bit", TransformerStateManagerWithCommonPrefix8BitType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice stateManagerTypeParam(
@@ -165,14 +169,18 @@ const Core::ParameterChoice stateManagerTypeParam(
         LstmStateManagerType);
 
 std::unique_ptr<StateManager> createStateManager(Core::Configuration const& config) {
+    StateManager* res = nullptr;
     switch (stateManagerTypeParam(config)) {
-        case LstmStateManagerType: return std::unique_ptr<StateManager>(new Lm::LstmStateManager(config));
-        case TransformerStateManagerType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager<float>(config));
-        case TransformerStateManager16BitType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManager<int16_t>(config));
-        case TransformerStateManagerWithCommonPrefixType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManagerWithCommonPrefix<float>(config));
-        case TransformerStateManagerWithCommonPrefix16BitType: return std::unique_ptr<StateManager>(new Lm::TransformerStateManagerWithCommonPrefix<int16_t>(config));
+        case LstmStateManagerType: res = new Lm::LstmStateManager(config); break;
+        case TransformerStateManagerType: res = new Lm::TransformerStateManager<float>(config); break;
+        case TransformerStateManager16BitType: res = new Lm::TransformerStateManager<int16_t>(config); break;
+        case TransformerStateManager8BitType: res = new Lm::TransformerStateManager<int8_t>(config); break;
+        case TransformerStateManagerWithCommonPrefixType: res = new Lm::TransformerStateManagerWithCommonPrefix<float>(config); break;
+        case TransformerStateManagerWithCommonPrefix16BitType: res = new Lm::TransformerStateManagerWithCommonPrefix<int16_t>(config); break;
+        case TransformerStateManagerWithCommonPrefix8BitType: res = new Lm::TransformerStateManagerWithCommonPrefix<int8_t>(config); break;
         default: defect();
     }
+    return std::unique_ptr<StateManager>(res);
 }
 
 enum SoftmaxAdapterType {

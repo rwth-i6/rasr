@@ -29,7 +29,9 @@ Core::ParameterString AbstractNNLanguageModel::paramVocabUnknownWord(
 AbstractNNLanguageModel::AbstractNNLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
         : Core::Component(c), Precursor(c, l), collect_statistics_(paramCollectStatistics(c)), vocab_file_(paramVocabularyFile(c)), unknown_word_(paramVocabUnknownWord(config)), lexicon_(l), num_outputs_(0ul), lexicon_mapping_(), usage_histogram_() {
     NNHistoryManager* hm = new NNHistoryManager();
-    hm->setOnReleaseHandler(std::bind(&AbstractNNLanguageModel::onRelease, this, std::placeholders::_1));
+    if (collect_statistics_) {
+        hm->setOnReleaseHandler(std::bind(&AbstractNNLanguageModel::onRelease, this, std::placeholders::_1));
+    }
     historyManager_ = hm;
 }
 

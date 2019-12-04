@@ -274,6 +274,7 @@ template void Tensor::get<u16>(u16&) const;
 template void Tensor::get<s8>(s8&) const;
 template void Tensor::get<u8>(u8&) const;
 template void Tensor::get<std::string>(std::string&) const;
+template void Tensor::get<bool>(bool&) const;
 
 // getters for a subset of the data (1-dim subset)
 
@@ -729,5 +730,6 @@ template void Tensor::set<u16>(u16 const&);
 template void Tensor::set<s8>(s8 const&);
 template void Tensor::set<u8>(u8 const&);
 template void Tensor::set<std::string>(std::string const&);
+template void Tensor::set<bool>(bool const&);
 
 }  // namespace Tensorflow

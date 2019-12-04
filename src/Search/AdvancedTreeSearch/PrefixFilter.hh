@@ -14,9 +14,12 @@
  */
 #ifndef FILTER_HH
 #define FILTER_HH
+
 #include <set>
 #include <vector>
+
 #include "PersistentStateTree.hh"
+#include "SearchSpaceHelpers.hh"
 
 namespace Core {
 class Configuration;
@@ -31,6 +34,8 @@ class PrefixFilter {
 public:
     // Must be initialized before the outputs are removed from the network
     PrefixFilter(const PersistentStateTree& tree, Bliss::LexiconRef lexicon, Core::Configuration config);
+
+    void startInstance(InstanceKey const& key) {}
     bool prune(const StateHypothesis& hyp) const;
     bool haveFilter() const {
         return prefixSequence_.size();

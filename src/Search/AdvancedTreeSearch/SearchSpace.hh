@@ -151,6 +151,7 @@ protected:
     f64   lmStatePruning_;
     f32   wordEndPhonemePruningThreshold_;
     f32   acousticProspectFactor_;
+    Score perInstanceAcousticPruningScale_;
 
     /// Boundary values for incremental search:
     f32 minimumBeamPruning_, maximumBeamPruning_;
@@ -208,6 +209,8 @@ protected:
     mutable Score     bestScore_, bestProspect_, minWordEndScore_;
     mutable Histogram stateHistogram_;
     mutable Histogram wordEndHistogram_;
+
+    mutable std::unordered_map<InstanceKey, Score, InstanceKey::Hash> bestInstanceProspect_;
 
     typedef std::vector<StateHypothesis> StateHypothesesList;
 
@@ -351,9 +354,7 @@ protected:
     void pruneStatesPerLmState();
 
     template<class Pruning>
-    void addAcousticScoresInternal(Pruning& pruning, u32 from, u32 to);
-    template<class Pruning>
-    void addAcousticScoresInternalForTrees(Pruning& pruning, u32 from, u32 to);
+    void addAcousticScoresInternal(Instance const& instance, Pruning& pruning, u32 from, u32 to);
     template<class Pruning>
     void addAcousticScores();
 
@@ -647,11 +648,12 @@ public:
 
 private:
     // These are implemented in Pruning.hh
+    struct AcousticPruning;
+    struct PerInstanceAcousticPruning;
+    struct RecordMinimum;
+    struct RecordMinimumPerInstance;
     struct NoPruning;
 
-    struct RecordMinimum;
-
-    struct AcousticPruning;
 
     template<class Base, bool shortRec, bool depths>
     struct FadeInPruningCollectMinimum;

@@ -33,8 +33,6 @@
 
 using namespace AdvancedTreeSearch;
 
-// #define COUNT_FILTER_STATES
-
 enum {
     ForbidSecondOrderExpansion = 1
 };
@@ -101,6 +99,16 @@ const Core::ParameterFloat lmStatePruning(
    This pruning is effective only if the search network is minimized (eg. build-minimized-tree-from-scratch=true and min-phones <= 1)",
         Core::Type<f32>::max);
 
+const Core::ParameterFloat paramAcousticLookaheadTemporalApproximationScale(
+        "acoustic-lookahead-temporal-approximation-scale",
+        "scaling factor of temporal acoustic look-ahead (1.5 is a good value)",
+        0);
+
+const Core::ParameterFloat paramPerInstanceAcousticPruningScale(
+        "per-instance-acoustic-pruning-scale",
+        "when using per instance pruning thresholds the pruning threshold is the beam-pruning threshold times this scale",
+        1.0);
+
 const Core::ParameterFloat paramEarlyWordEndPruningMinimumLmScore(
         "early-word-end-pruning-minimum-lm-score",
         "expected lm-score that will be used for early word-end pruning (safe if it is always lower than the real score)",
@@ -115,11 +123,6 @@ const Core::ParameterInt paramWordEndPruningFadeInInterval(
         "word-end-pruning-fadein",
         "inverted depth at which the lm pruning influence reaches zero",
         0, 0, MaxFadeInPruningDistance);
-
-const Core::ParameterFloat paramAcousticLookaheadTemporalApproximationScale(
-        "acoustic-lookahead-temporal-approximation-scale",
-        "scaling factor of temporal acoustic look-ahead (1.5 is a good value)",
-        0);
 
 /// Internal parameters (with good default-values)
 
@@ -378,6 +381,7 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           wordEndPruning_(0),
           lmStatePruning_(lmStatePruning(config)),
           acousticProspectFactor_(1.0 + paramAcousticLookaheadTemporalApproximationScale(config)),
+          perInstanceAcousticPruningScale_(paramPerInstanceAcousticPruningScale(config)),
           minimumBeamPruning_(paramMinimumBeamPruning(config)),
           maximumBeamPruning_(paramMaximumBeamPruning(config)),
           minimumAcousticPruningLimit_(paramMinimumAcousticPruningLimit(config)),
@@ -1354,6 +1358,8 @@ template<bool sparseLookAhead, bool useBackOffOffset, class AcousticLookAhead, c
 void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, AcousticLookAhead& acousticLookAhead, Pruning& pruning) {
     Instance& instance(*_instance);
 
+    pruning.startInstance(instance.key);
+
     verify(instance.states.empty() || instance.states.end <= newStateHypotheses.size());
 
     if (instance.states.empty())
@@ -1515,26 +1521,40 @@ void SearchSpace::applyLookaheadInInstanceWithAcoustic(Instance* network, Acoust
 }
 
 void SearchSpace::applyLookaheadInInstance(Instance* network) {
-    RecordMinimum recordProspect(*this);
+    if (perInstanceAcousticPruningScale_ < 1.0) {
+        RecordMinimumPerInstance recordProspect(*this);
 
-    if (acousticLookAhead_->isEnabled()) {
-        AcousticLookAhead::ApplyPreCachedLookAheadForId lookahead(*acousticLookAhead_);
-        applyLookaheadInInstanceWithAcoustic(network, lookahead, recordProspect);
+        if (acousticLookAhead_->isEnabled()) {
+            AcousticLookAhead::ApplyPreCachedLookAheadForId lookahead(*acousticLookAhead_);
+            applyLookaheadInInstanceWithAcoustic(network, lookahead, recordProspect);
+        }
+        else {
+            AcousticLookAhead::ApplyNoLookahead nolookahead(*acousticLookAhead_);
+            applyLookaheadInInstanceWithAcoustic(network, nolookahead, recordProspect);
+        }
     }
     else {
-        AcousticLookAhead::ApplyNoLookahead nolookahead(*acousticLookAhead_);
-        applyLookaheadInInstanceWithAcoustic(network, nolookahead, recordProspect);
+        RecordMinimum recordProspect(*this);
+
+        if (acousticLookAhead_->isEnabled()) {
+            AcousticLookAhead::ApplyPreCachedLookAheadForId lookahead(*acousticLookAhead_);
+            applyLookaheadInInstanceWithAcoustic(network, lookahead, recordProspect);
+        }
+        else {
+            AcousticLookAhead::ApplyNoLookahead nolookahead(*acousticLookAhead_);
+            applyLookaheadInInstanceWithAcoustic(network, nolookahead, recordProspect);
+        }
     }
 }
 
 template<class Pruning>
-void SearchSpace::addAcousticScoresInternal(Pruning& pruning, u32 from, u32 to) {
+void SearchSpace::addAcousticScoresInternal(Instance const& instance, Pruning& pruning, u32 from, u32 to) {
     StateHypothesesList::iterator sh     = stateHypotheses.begin() + from;
     StateHypothesesList::iterator sh_end = stateHypotheses.begin() + to;
 
-    GaussianDensity temp;
-
     const Mm::CachedFeatureScorer::CachedContextScorerOverlay* scorerCache(dynamic_cast<const Mm::CachedFeatureScorer::CachedContextScorerOverlay*>(scorer_.get()));
+
+    pruning.startInstance(instance.key);
 
     if (scorerCache) {
         // Omit overhead of a virtual function-call for cached scores by calling the score function directly with qualification
@@ -1577,11 +1597,6 @@ void SearchSpace::addAcousticScoresInternal(Pruning& pruning, u32 from, u32 to) 
 }
 
 template<class Pruning>
-void SearchSpace::addAcousticScoresInternalForTrees(Pruning& pruning, u32 fromTree, u32 toTree) {
-    addAcousticScoresInternal(pruning, activeInstances.front()->states.begin, activeInstances.back()->states.end);
-}
-
-template<class Pruning>
 void SearchSpace::addAcousticScores() {
     verify(newStateHypotheses.empty());
 
@@ -1593,7 +1608,9 @@ void SearchSpace::addAcousticScores() {
     {
         Pruning pruning(*this);
 
-        addAcousticScoresInternalForTrees(pruning, 0, activeInstances.size());
+        for (auto instance : activeInstances) {
+            addAcousticScoresInternal(*instance, pruning, instance->states.begin, instance->states.end);
+        }
     }
 
     verify(bestProspect_ != Core::Type<Score>::max || stateHypotheses.empty());
@@ -1774,6 +1791,7 @@ void SearchSpace::pruneStates(Pruning& pruning) {
     hypIn = hypOut = hypBegin = stateHypotheses.begin();
     for (instIn = instOut = 0; instIn < activeInstances.size(); ++instIn) {
         Instance* at(activeInstances[instIn]);
+        pruning.startInstance(at->key);
         verify(hypIn == hypBegin + at->states.begin);
         at->states.begin = hypOut - hypBegin;
 
@@ -1819,17 +1837,7 @@ void SearchSpace::filterStates() {
 
     PerformanceCounter perf(*statistics, "filter states");
 
-#ifdef COUNT_FILTER_STATES
-    u32 kept = 0;
-
-    for (u32 n = 0; n < stateHypotheses.size(); ++n) {
-        if (!prefixFilter_->prune(stateHypotheses[n]))
-            kept += 1;
-    }
-    std::cout << "at " << timeFrame_ << " satisfying filter: " << kept << std::endl;
-#else
     pruneStates(*prefixFilter_);
-#endif
 }
 
 // early acoustic pruning
@@ -1858,8 +1866,14 @@ void SearchSpace::pruneAndAddScores() {
     statistics->treesAfterPrePruning += nActiveTrees();
     statistics->statesAfterPrePruning += nStateHypotheses();
 
-    addAcousticScores<RecordMinimum>();
-    {
+    if (perInstanceAcousticPruningScale_ < 1.0) {
+        addAcousticScores<RecordMinimumPerInstance>();
+        PerformanceCounter         perf(*statistics, "acoustic pruning");
+        PerInstanceAcousticPruning pruning(*this);
+        pruneStates(pruning);
+    }
+    else {
+        addAcousticScores<RecordMinimum>();
         PerformanceCounter perf(*statistics, "acoustic pruning");
         AcousticPruning    pruning(*this);
         pruneStates(pruning);

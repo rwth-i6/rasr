@@ -18,6 +18,14 @@
 
 namespace Tensorflow {
 
+Core::ParameterBool  Session::paramProfileRun("profile-run",
+                                              "store runtime profiles",
+                                              false);
+
+Core::ParameterString Session::paramProfilePrefix("profile-prefix",
+                                                  "filename prefix for stored profiles",
+                                                  "profile");
+
 Core::ParameterBool  Session::paramLogDevicePlacement("log-device-placement",
                                                       "print placement of tensorflow ops",
                                                       false);
@@ -80,7 +88,20 @@ bool Session::run(std::vector<std::pair<std::string, Tensor>> const& inputs,
         tf_inputs.push_back(std::make_pair(input.first, *input.second.tensor_));
     }
 
-    tf::Status status = session_->Run(tf_inputs, output_tensor_names, target_node_names, &tf_outputs);
+    tf::Status status;
+
+    if (profileRun_) {
+        tf::RunOptions options;
+        options.set_trace_level(tf::RunOptions::SOFTWARE_TRACE);
+        tf::RunMetadata meta_data;
+        status = session_->Run(options, tf_inputs, output_tensor_names, target_node_names, &tf_outputs, &meta_data);
+        std::ofstream out(profilePrefix_ + std::to_string(profileCounter_++), std::ios::out | std::ios::trunc);
+        meta_data.SerializeToOstream(&out);
+    }
+    else {
+        status = session_->Run(tf_inputs, output_tensor_names, target_node_names, &tf_outputs);
+    }
+
     if (!status.ok()) {
         std::string target;
         for (auto const& t : target_node_names) {

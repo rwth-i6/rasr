@@ -31,6 +31,9 @@ class Session : public Core::Component {
 public:
     typedef Core::Component Precursor;
 
+    static Core::ParameterBool   paramProfileRun;
+    static Core::ParameterString paramProfilePrefix;
+
     static Core::ParameterBool  paramLogDevicePlacement;
     static Core::ParameterInt   paramIntraOpParallelismThreads;
     static Core::ParameterInt   paramInterOpParallelismThreads;
@@ -51,13 +54,17 @@ public:
              std::vector<Tensor>&                               outputs);
 
 private:
+    const bool        profileRun_;
+    const std::string profilePrefix_;
+    size_t            profileCounter_;
+
     std::unique_ptr<tf::Session> session_;
 };
 
 // Inline implementations of simple functions
 
 inline Session::Session(Core::Configuration const& config)
-        : Precursor(config) {
+        : Precursor(config), profileRun_(paramProfileRun(config)), profilePrefix_(paramProfilePrefix(config)), profileCounter_(0ul) {
     tf::SessionOptions options;
     options.config.set_log_device_placement(paramLogDevicePlacement(config));
     options.config.set_intra_op_parallelism_threads(paramIntraOpParallelismThreads(config));

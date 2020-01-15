@@ -2,7 +2,7 @@ Sprint - The RWTH Speech Recognition Framework
 
 * Requirements
   Debian package name given in brackets
-  - GCC >= 4.6, <= 4.8 (gcc, g++)
+  - GCC >= 4.8 (gcc, g++)
   - GNU Bison  (bison)
   - GNU Make   (make)
   - libxml2    (libxml2, libxml2-dev)
@@ -36,6 +36,6 @@ Sprint - The RWTH Speech Recognition Framework
 
 
 --
-(c) 2000-2015 RWTH Aachen University, Lehrstuhl fuer Informatik 6
+(c) 2000-2020 RWTH Aachen University, Lehrstuhl fuer Informatik 6
 http://www-i6.informatik.rwth-aachen.de/rwth-asr/
 rwthasr@i6.informatik.rwth-aachen.de

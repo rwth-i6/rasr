@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018 RWTH Aachen University. All rights reserved.
+# Copyright 2020 RWTH Aachen University. All rights reserved.
 #
 # Licensed under the RWTH ASR License (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 # Verifies availability of tools (gcc, make), header files, and libraries.
 
 GCC_MIN_MAJOR=4
-GCC_MAX_MAJOR=4
-GCC_MIN_MINOR=0
-GCC_MAX_MINOR=7
+GCC_MAX_MAJOR=7
+GCC_MIN_MINOR=8
+GCC_MAX_MINOR=1
 HEADERS="pthread.h libxml/parser.h zlib.h sndfile.h"
 
 function getTempfile
@@ -130,10 +130,10 @@ function checkGcc()
 	reportWarning cannot determine compiler version
 	return
     fi
-    if [ "${CXX_MAJOR}" -lt "${GCC_MIN_MAJOR}" -o \
-	 "${CXX_MAJOR}" -gt "${GCC_MAX_MAJOR}" -o \
-	 "${CXX_MINOR}" -lt "${GCC_MIN_MINOR}" -o \
-	 "${CXX_MINOR}" -gt "${GCC_MAX_MINOR}" ]; then
+    if [[ "${CXX_MAJOR}" < "${GCC_MIN_MAJOR}" || \
+	 "${CXX_MAJOR}" > "${GCC_MAX_MAJOR}" || \
+     ("${CXX_MAJOR}" == "${GCC_MIN_MAJOR}" && "${CXX_MINOR}" < "${GCC_MIN_MINOR}") || \
+     ("${CXX_MAJOR}" == "${GCC_MAX_MAJOR}" && "${CXX_MINOR}" > "${GCC_MAX_MINOR}") ]]; then
 	reportWarning unsupported version of GCC: ${CXX_MAJOR/ /}.${CXX_MINOR}
     else
 	echo "GCC version ${CXX_MAJOR/ /}.${CXX_MINOR}: OK"

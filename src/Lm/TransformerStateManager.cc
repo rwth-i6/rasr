@@ -241,10 +241,6 @@ std::vector<typename TransformerStateManager<T>::HistoryState>
         }
     }
 
-    for (auto const& r : result) {
-        require_eq(r.size(), 6);
-    }
-
     return result;
 }
 

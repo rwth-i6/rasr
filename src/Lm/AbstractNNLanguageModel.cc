@@ -65,10 +65,10 @@ void AbstractNNLanguageModel::loadVocabulary() {
     auto   unk             = vocab_map.find(unknown_word_);
     if (unk != vocab_map.end()) {
         unknown_word_id = unk->second;
-        log("unknown word: ") << unknown_word_ << " " << unknown_word_id;
+        log("the unknown word token is: ") << unknown_word_ << " " << unknown_word_id;
     }
     else if (not unknown_word_.empty()) {
-        warning("could not find unknown word ") << unknown_word_ << " in vocabulary";
+        warning("could not find the unknown word token ") << unknown_word_ << " in vocabulary";
     }
 
     lexicon_mapping_.resize(lexicon_->nSyntacticTokens());
@@ -79,7 +79,7 @@ void AbstractNNLanguageModel::loadVocabulary() {
             lexicon_mapping_[(*iters.first)->id()] = vm_iter->second;
         }
         else {
-            warning("did not find: ") << (*iters.first)->symbol() << " using output " << unknown_word_id;
+            warning("did not find: ") << (*iters.first)->symbol() << " using unknown word token output " << unknown_word_id;
             lexicon_mapping_[(*iters.first)->id()] = unknown_word_id;
         }
     }

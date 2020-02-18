@@ -38,17 +38,20 @@ ifdef MODULE_LM_FFNN
 LIBSPRINTLM_O += $(OBJDIR)/FFNeuralNetworkLanguageModel.o
 endif
 ifdef MODULE_LM_TFRNN
-LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o \
-                 $(OBJDIR)/CompressedVector.o \
-                 $(OBJDIR)/FixedQuantizationCompressedVectorFactory.o \
-                 $(OBJDIR)/LstmStateManager.o \
-                 $(OBJDIR)/NceSoftmaxAdapter.o \
-                 $(OBJDIR)/PassthroughSoftmaxAdapter.o \
-                 $(OBJDIR)/QuantizedBlasNceSoftmaxAdapter.o \
-                 $(OBJDIR)/QuantizedCompressedVectorFactory.o \
-                 $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o \
-                 $(OBJDIR)/TransformerStateManager.o \
-                 $(OBJDIR)/TFRecurrentLanguageModel.o
+LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o
+LIBSPRINTLM_O += $(OBJDIR)/CompressedVector.o
+LIBSPRINTLM_O += $(OBJDIR)/FixedQuantizationCompressedVectorFactory.o
+LIBSPRINTLM_O += $(OBJDIR)/LstmStateManager.o
+LIBSPRINTLM_O += $(OBJDIR)/NceSoftmaxAdapter.o
+LIBSPRINTLM_O += $(OBJDIR)/PassthroughSoftmaxAdapter.o
+LIBSPRINTLM_O += $(OBJDIR)/QuantizedBlasNceSoftmaxAdapter.o
+LIBSPRINTLM_O += $(OBJDIR)/QuantizedCompressedVectorFactory.o
+LIBSPRINTLM_O += $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o
+LIBSPRINTLM_O += $(OBJDIR)/TransformerStateManager.o
+LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
+#MODF DummyCompressedVectorFactory.hh
+#MODF SoftmaxAdapter.hh
+#MODF StateManager.hh
 
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)

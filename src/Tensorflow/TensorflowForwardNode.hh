@@ -44,13 +44,11 @@ public:
 
     virtual Flow::PortId getInput(std::string const& name);
     virtual Flow::PortId getOutput(std::string const& name);
-    //virtual bool configure();
     virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool work(Flow::PortId p);
 
-private:
-    const bool   checkValues_;  // check output of network for finiteness
-    bool         eos_;          // needs initialization of network
+protected:
+    bool eos_; // current segment finished yes/no
 
     // port management
     std::vector<std::string>                      input_port_names_;
@@ -66,22 +64,53 @@ private:
     TensorInputMap                     tensor_input_map_;
     TensorOutputMap                    tensor_output_map_;
 
-    std::vector<Flow::Timestamp>          timestamps_;
-    std::vector<std::vector<Flow::Data*>> outputs_;
-    std::vector<size_t>                   current_output_frame_;
+    std::deque<Flow::Timestamp>          timestamps_;
+    std::vector<std::deque<Flow::Data*>> outputs_;
+    std::vector<size_t>                  current_output_frame_;
 
-    Tensorflow::Tensor toTensor(std::vector<Flow::DataPtr<Flow::Timestamp>> const& data) const;
+    Tensorflow::Tensor toTensor(std::deque<Flow::DataPtr<Flow::Timestamp>> const& data) const;
     template<typename T>
-    Tensorflow::Tensor vectorToTensor(std::vector<Flow::DataPtr<Flow::Timestamp>> const& data) const;
+    Tensorflow::Tensor vectorToTensor(std::deque<Flow::DataPtr<Flow::Timestamp>> const& data) const;
 
-    void appendToOutput(Tensor const& tensor, size_t start_frame, std::vector<Flow::Data*>& data) const;
+    void appendToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left=0ul, size_t drop_right=0ul) const;
     template<typename T>
-    void appendVectorsToOutput(Tensor const& tensor, size_t start_frame, std::vector<Flow::Data*>& data) const;
+    void appendVectorsToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left=0ul, size_t drop_right=0ul) const;
+};
+
+class TensorflowOverlappingForwardNode : public TensorflowForwardNode {
+public:
+    typedef TensorflowForwardNode Precursor;
+
+    static Core::ParameterInt paramContextSize_;
+    static Core::ParameterInt paramMaxBufferSize_;
+
+    static std::string filterName();
+
+    TensorflowOverlappingForwardNode(Core::Configuration const& c);
+    virtual ~TensorflowOverlappingForwardNode() = default;
+
+    virtual Flow::PortId getInput(std::string const& name);
+    virtual bool setParameter(const std::string& name, const std::string& value);
+    virtual bool work(Flow::PortId p);
+
+private:
+    const unsigned contextSize_;
+    const unsigned maxBufferSize_;
+
+    unsigned leftContextSize_;
+    unsigned rightContextSize_;
+
+    std::vector<std::deque<Flow::DataPtr<Flow::Timestamp>>> featureBuffer_;
 };
 
 // inline implementations
+
 inline std::string TensorflowForwardNode::filterName() {
     return std::string("tensorflow-forward");
+};
+
+inline std::string TensorflowOverlappingForwardNode::filterName() {
+    return std::string("tensorflow-overlapping-forward");
 };
 
 }  // namespace Tensorflow

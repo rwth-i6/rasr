@@ -40,6 +40,7 @@ Module_::Module_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
     registry.registerFilter<TensorflowForwardNode>();
+    registry.registerFilter<TensorflowOverlappingForwardNode>();
 }
 
 std::unique_ptr<GraphLoader> Module_::createGraphLoader(Core::Configuration const& config) {

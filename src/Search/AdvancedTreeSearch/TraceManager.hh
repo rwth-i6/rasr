@@ -259,7 +259,7 @@ public:
         std::vector<bool> item_filter;
         std::vector<bool> mod_filter;
 
-        Cleaner() : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), true) {
+        Cleaner() : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), false) {
         }
         ~Cleaner() = default;
 

@@ -46,6 +46,79 @@ class PrefixFilter;
 
 class SearchSpaceStatistics;
 
+class StaticSearchAutomaton : public Core::Component {
+public:
+    using Precursor = Core::Component;
+
+    /// HMM length of a common phoneme
+    const u32 hmmLength;
+    bool minimized;
+
+    /// Static representation of the search network:
+    PersistentStateTree network;
+
+    // "Temporary network data": Constructed for speedup from the normal network, by the function initialize.
+    // Second order means successors of the target node, always contains first and last of contiguous exits. Only used in ExpandState(Slow) for skip transitions.
+    std::vector<int> secondOrderEdgeSuccessorBatches;
+    std::vector<u32> quickLabelBatches;  // Contiguous successors, only stores first exit for each node.
+    std::vector<s32> slowLabelBatches;   // Simple exit-index lists terminated by -1
+    // -1 if there are no labels on the state
+    // -2 if there are multiple labels
+    // index of the label otherwise
+    std::vector<int> singleLabels;
+    // LM- and acoustic look-ahead ids together, for quicker access
+    std::vector<std::pair<u32, u32>> lookAheadIds;
+    // Sparse LM lookahead hash and acoustic lookahead id paired togeter
+    std::vector<std::pair<u32, u32>> lookAheadIdAndHash;
+
+    std::vector<int> stateDepths;
+    // Inverted depth for each network-state, eg. the distance until the most distant following word-end
+    std::vector<int> invertedStateDepths;
+    // Only correctly filled until an inverted depth of 256, for more efficient access
+    // Also adapted to the fade-in granularity
+    std::vector<unsigned char> truncatedInvertedStateDepths;
+    std::vector<unsigned char> truncatedStateDepths;
+
+    // number of transitions needed untill the next word end (that is not silence)
+    std::vector<unsigned> labelDistance;
+
+    /// Optional filter which allows limiting the search space to a certain word sequence prefix
+    // Checks whether the syntactical tokens of a hypothesis share a common prefix. Has all words from lexicon_, is initialized in initialize() and used in filterStates->pruneStates.
+    PrefixFilter* prefixFilter;
+
+    StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon);
+    ~StaticSearchAutomaton();
+
+    void buildNetwork();
+
+    // Assigns a depth in the automaton_.stateDepths array to each state
+    // If onlyFromRoot is true, then the depths are only computed behind the root state,
+    // and the depths of not encountered states have the value -1
+    void buildDepths(bool onlyFromRoot = false);
+
+    // Clears the state depths
+    void clearDepths();
+
+    // Makes checks and works recursively.
+    int fillStateDepths(Search::StateId state, int depth);
+    int findStateDepth(Search::StateId state);
+
+    int stateDepth(StateId idx) {
+        verify(idx < stateDepths.size());
+        return stateDepths[idx];
+    }
+
+    // fills the labelDistance array, has to be run after buildDepths (as they are used for topological sorting)
+    void buildLabelDistances();
+
+    // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
+    void buildBatches();
+
+private:
+    Core::Ref<const Am::AcousticModel> acousticModel_;
+    Bliss::LexiconRef                  lexicon_;
+};
+
 class SearchSpace : public Core::Component {
 public:
     /// Statistics:
@@ -57,8 +130,6 @@ public:
 
 protected:
     /// ----------    Data ----------:
-
-    const Core::Configuration& config_;
 
     // Descriptors of the current search phase:
     f64                       globalScoreOffset_;  // Offset applied to all hypothesis scores, for numerical stability reasons (corrected in lattice and traceback)
@@ -75,54 +146,11 @@ protected:
     AdvancedTreeSearch::LanguageModelLookahead*  lmLookahead_;
     std::vector<const Am::StateTransitionModel*> transitionModels_;
 
-    const Core::Configuration& config() {
-        return config_;
+    PersistentStateTree const& network() const {
+        return automaton_->network;
     }
 
-    PersistentStateTree& network() {
-        return network_;
-    }
-
-    /// Static representation of the search network:
-    PersistentStateTree network_;
-
-    // "Temporary network data": Constructed for speedup from the normal network, by the function initializeSearchNetwork.
-    // Second order means successors of the target node, always contains first and last of contiguous exits. Only used in ExpandState(Slow) for skip transitions.
-    std::vector<int> secondOrderEdgeSuccessorBatches_;
-    std::vector<u32> quickLabelBatches_;  // Contiguous successors, only stores first exit for each node.
-    std::vector<s32> slowLabelBatches_;   // Simple exit-index lists terminated by -1
-    // -1 if there are no labels on the state
-    // -2 if there are multiple labels
-    // index of the label otherwise
-    std::vector<int> singleLabels_;
-    // LM- and acoustic look-ahead ids together, for quicker access
-    std::vector<std::pair<u32, u32>> lookAheadIds_;
-    // Sparse LM lookahead hash and acoustic lookahead id paired togeter
-    std::vector<std::pair<u32, u32>> lookAheadIdAndHash_;
-
-    std::vector<int> stateDepths_;
-    // Inverted depth for each network-state, eg. the distance until the most distant following word-end
-    std::vector<int> invertedStateDepths_;
-    // Only correctly filled until an inverted depth of 256, for more efficient access
-    // Also adapted to the fade-in granularity
-    std::vector<unsigned char> truncatedInvertedStateDepths_;
-    std::vector<unsigned char> truncatedStateDepths_;
-
-    // number of transitions needed untill the next word end (that is not silence)
-    std::vector<unsigned> labelDistance_;
-
-    template<class From, class To>
-    void truncate(const std::vector<From>& source, std::vector<To>& to) {
-        to.clear();
-        for (typename std::vector<From>::const_iterator it = source.begin(); it != source.end(); ++it) {
-            if (*it < Core::Type<To>::min)
-                to.push_back(Core::Type<To>::min);
-            else if (*it > Core::Type<To>::max)
-                to.push_back(Core::Type<To>::max);
-            else
-                to.push_back(*it);
-        }
-    }
+    StaticSearchAutomaton const* automaton_;
 
     Lm::History                                                           unigramHistory_;
     AdvancedTreeSearch::LanguageModelLookahead::ContextLookaheadReference unigramLookAhead_;
@@ -130,7 +158,6 @@ protected:
     AdvancedTreeSearch::AcousticLookAhead* acousticLookAhead_;
 
     /// Search options
-    bool     minimized_;
     bool     conditionPredecessorWord_;
     bool     decodeMesh_;
     bool     correctPushedBoundaryTimes_;
@@ -159,18 +186,11 @@ protected:
     f32 minimumStatesAfterPruning_, minimumWordEndsAfterPruning_, minimumWordLemmasAfterRecombination_;
     f32 maximumStatesAfterPruning_, maximumWordEndsAfterPruning_, maximumAcousticPruningSaturation_;
 
-    /// HMM length of a common phoneme
-    u32 hmmLength_;
-
     // Minimum anticipated lm score expected during early word end pruning
     f64 earlyWordEndPruningAnticipatedLmScore_;
 
     // Distance over which the word end pruning is faded in
     u32 wordEndPruningFadeInInterval_;
-
-    /// Optional filter which allows limiting the search space to a certain word sequence prefix
-    // Checks whether the syntactical tokens of a hypothesis share a common prefix. Has all words from lexicon_, is initialized in initialize() and used in filterStates->pruneStates.
-    PrefixFilter* prefixFilter_;
 
     /// ---- Lookahead / Instance options -------------
     // After this number of inactive timeframes, network copies (i.e. instances) are deleted
@@ -455,27 +475,6 @@ protected:
 
     StateId rootForCoarticulation(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>) const;
 
-    // Assigns a depth in the stateDepths_ array to each state
-    // If onlyFromRoot is true, then the depths are only computed behind the root state,
-    // and the depths of not encountered states have the value -1
-    void buildDepths(bool onlyFromRoot = false);
-    // Clears the state depths
-    void clearDepths();
-    // Makes checks and works recursively.
-    int fillStateDepths(Search::StateId state, int depth);
-
-    int findStateDepth(Search::StateId state);
-
-    int stateDepth(StateId idx) {
-        verify(idx < stateDepths_.size());
-        return stateDepths_[idx];
-    }
-
-    // fills the labelDistance_ array, has to be run after buildDepths (as they are used for topological sorting)
-    void buildLabelDistances();
-
-    // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
-    void initializeSearchNetwork();
     void initializeLanguageModel();
 
     // Integrated profiling

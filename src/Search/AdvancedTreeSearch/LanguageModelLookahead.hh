@@ -75,7 +75,7 @@ private:
     Lm::Score                                wpScale_;
     u32                                      maxDepth_;
     Core::Ref<const Lm::ScaledLanguageModel> lm_;
-    const Search::HMMStateNetwork&           tree_;
+    Search::HMMStateNetwork const&           tree_;
 
     // Predicts the number of sparse look-ahead nodes based on the number of context-scores
     mutable Search::LinearPrediction sparseNodesPrediction_;
@@ -105,13 +105,13 @@ private:
     Core::ConstantVector<u32>         hashForNode_;
 
     bool shouldPruneConstructionNode(const ConstructionNode& sn) const;
-    void buildCompressesLookaheadStructure(u32 nodeStart, u32 numNodes, const ConstructionTree&);
+    void buildCompressesLookaheadStructure(u32 nodeStart, u32 numNodes, ConstructionTree const&);
     void buildBatchRequest();
     void buildHash();
-    void buildLookaheadStructure(Search::HMMStateNetwork& tree, Search::StateId rootNode, const std::vector<Search::PersistentStateTree::Exit>& exits);
+    void buildLookaheadStructure(Search::HMMStateNetwork const& tree, Search::StateId rootNode, std::vector<Search::PersistentStateTree::Exit> const& exits);
 
     const Lm::CompiledBatchRequest* batchRequest_;
-    void                            computeScores(const Lm::History&, std::vector<Score>&) const;
+    void                            computeScores(Lm::History const&, std::vector<Score>&) const;
 
 public:
     class ContextLookahead;
@@ -128,9 +128,9 @@ private:
     typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
     mutable Map                                                                   map_;
 
-    ContextLookahead* acquireTable(const Lm::History&) const;
-    ContextLookahead* getCachedTable(const Lm::History&) const;
-    void              releaseTable(const ContextLookahead*) const;
+    ContextLookahead* acquireTable(Lm::History const&) const;
+    ContextLookahead* getCachedTable(Lm::History const&) const;
+    void              releaseTable(ContextLookahead const*) const;
 
     struct CacheStatistics;
     CacheStatistics*                   cacheStatistics_;
@@ -163,12 +163,12 @@ public:
     static const Core::ParameterFloat  paramMaxCollisionDeviation;
     static const Core::ParameterString paramCacheArchive;
 
-    LanguageModelLookahead(const Core::Configuration&,
+    LanguageModelLookahead(Core::Configuration const&,
                            Lm::Score wpScale,
                            Core::Ref<const Lm::ScaledLanguageModel>,
-                           Search::HMMStateNetwork&                              tree,
+                           Search::HMMStateNetwork const&                        tree,
                            Search::StateId                                       rootNode,
-                           const std::vector<Search::PersistentStateTree::Exit>& exits,
+                           std::vector<Search::PersistentStateTree::Exit> const& exits,
                            Core::Ref<const Am::AcousticModel>);
 
     ~LanguageModelLookahead();

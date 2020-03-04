@@ -287,18 +287,18 @@ static const int predictionArraySize = 100;
 // #define ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
 
 LanguageModelLookahead::LanguageModelLookahead(
-        const Core::Configuration&                    c,
+        Core::Configuration const&                    c,
         Lm::Score                                     wpScale,
         Core::Ref<const Lm::ScaledLanguageModel>      lm,
-        HMMStateNetwork&                              tree,
+        HMMStateNetwork const&                        tree,
         StateId                                       rootNode,
-        const std::vector<PersistentStateTree::Exit>& exits,
+        std::vector<PersistentStateTree::Exit> const& exits,
         Core::Ref<const Am::AcousticModel>            acousticModel)
         : Core::Component(c),
           wpScale_(wpScale),
           maxDepth_(0),
-          tree_(tree),
           lm_(lm),
+          tree_(tree),
           sparseNodesPrediction_(predictionArraySize, isqrt(lm_->lexicon()->nLemmas()) + 1),
           batchRequest_(0),
           nTables_(0),
@@ -515,7 +515,7 @@ public:
 
     bool        isWellOrdered() const;
     void        writeStatistics(std::ostream&) const;
-    void        build(HMMStateNetwork& tree, StateId rootNode, const std::vector<PersistentStateTree::Exit>& exits, Bliss::LexiconRef lexicon);
+    void        build(HMMStateNetwork const& tree, StateId rootNode, const std::vector<PersistentStateTree::Exit>& exits, Bliss::LexiconRef lexicon);
     void        prune(const LanguageModelLookahead* master);
     void        purge();
     LookaheadId nNodes() const {
@@ -581,9 +581,9 @@ void LanguageModelLookahead::ConstructionTree::writeStatistics(std::ostream& os)
     }
 }
 
-void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork&                              tree,
+void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&                        tree,
                                                      StateId                                       rootNode,
-                                                     const std::vector<PersistentStateTree::Exit>& exits,
+                                                     std::vector<PersistentStateTree::Exit> const& exits,
                                                      Bliss::LexiconRef                             lexicon) {
     std::vector<LookaheadId> nodeId(tree.stateCount(), invalidId);
     typedef std::unordered_set<ConstructionNode*,
@@ -609,13 +609,13 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork&           
     struct Builder {
         std::vector<LookaheadId>&                     nodeId;
         NodeSet&                                      nodeSet;
-        const std::vector<PersistentStateTree::Exit>& exits;
+        std::vector<PersistentStateTree::Exit> const& exits;
         Bliss::LexiconRef                             lexicon;
         NodeList&                                     nodeList_;
-        HMMStateNetwork&                              tree_;
+        HMMStateNetwork const&                        tree_;
         u32&                                          totalEncounteredWordEnds;
 
-        Builder(HMMStateNetwork& tree, const std::vector<PersistentStateTree::Exit>& _exits,
+        Builder(HMMStateNetwork const& tree, std::vector<PersistentStateTree::Exit> const& _exits,
                 Bliss::LexiconRef _lexicon, NodeList& nodeList, std::vector<LookaheadId>& _nodeId,
                 NodeSet& _nodeSet, u32& _totalEncounteredWordEnds)
                 : nodeId(_nodeId),
@@ -1498,7 +1498,7 @@ bool LanguageModelLookahead::readPersistentCache() {
     reader >> lmScale;
 
     if (lmScale != getLmScale()) {
-        log("failed loading persistent LM-lookahead cache because the lm-scale mismatched: real %i stored %i", getLmScale(), lmScale);
+        log("failed loading persistent LM-lookahead cache because the lm-scale mismatched: real %f stored %f", getLmScale(), lmScale);
         return false;
     }
 
@@ -1518,7 +1518,7 @@ bool LanguageModelLookahead::readPersistentCache() {
     return reader.good();
 }
 
-void LanguageModelLookahead::buildLookaheadStructure(HMMStateNetwork& tree, StateId rootNode, const std::vector<PersistentStateTree::Exit>& exits) {
+void LanguageModelLookahead::buildLookaheadStructure(HMMStateNetwork const& tree, StateId rootNode, std::vector<PersistentStateTree::Exit> const& exits) {
     log("building look-ahead structure...");
     verify(lm_);
     ConstructionTree ct;
@@ -1586,7 +1586,7 @@ void LanguageModelLookahead::draw(std::ostream& os) const {
 // ===========================================================================
 // dynamic data and caching
 
-void LanguageModelLookahead::computeScores(const Lm::History& history, std::vector<Score>& scores) const {
+void LanguageModelLookahead::computeScores(Lm::History const& history, std::vector<Score>& scores) const {
     if (scores.size() == nEntries_) {
         std::fill(scores.begin(), scores.end(), Core::Type<Score>::max);
     }
@@ -1755,7 +1755,7 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
 
         if (logSemiringFactor_) {
             for (u32 candidateIdx = 0; candidateIdx < candidatesForDepth.size(); ++candidateIdx) {
-                const std::pair<LookaheadId, Score>& candidate(candidatesForDepth[candidateIdx]);
+                std::pair<LookaheadId, Score> const& candidate(candidatesForDepth[candidateIdx]);
 
                 u32& recombination(nodeRecombination_[candidate.first]);
                 if (recombination < candidateIdx && candidatesForDepth[recombination].first == candidate.first) {
@@ -1770,7 +1770,7 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
         }
         else {
             for (u32 candidateIdx = 0; candidateIdx < candidatesForDepth.size(); ++candidateIdx) {
-                const std::pair<LookaheadId, Score>& candidate(candidatesForDepth[candidateIdx]);
+                std::pair<LookaheadId, Score> const& candidate(candidatesForDepth[candidateIdx]);
 
                 u32& recombination(nodeRecombination_[candidate.first]);
                 if (recombination < candidateIdx && candidatesForDepth[recombination].first == candidate.first) {
@@ -1906,20 +1906,19 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
 }
 
 LanguageModelLookahead::ContextLookahead::ContextLookahead(
-        const LanguageModelLookahead* la,
-        const Lm::History&            _history)
+        LanguageModelLookahead const* la,
+        Lm::History const&            _history)
         : la_(la),
           history_(_history),
           freePos_(la->freeTables_.end()),
+          isFilled_(false),
           sparseScores_(Core::Type<Score>::max),
           approxSparseScores_(),
-          isFilled_(false),
           backOffScore_(Core::Type<Score>::max) {
     verify(Core::Type<Score>::max == F32_MAX);
 }
 
-LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::acquireTable(
-        const Lm::History& h) const {
+LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::acquireTable(Lm::History const& h) const {
     ContextLookahead* t = 0;
     if ((nTables() < cacheSizeLowMark_) || !nFreeTables_) {
         t = new ContextLookahead(this, h);
@@ -1940,7 +1939,7 @@ LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::acquireTable(
     return t;
 }
 
-void LanguageModelLookahead::releaseTable(const ContextLookahead* ct) const {
+void LanguageModelLookahead::releaseTable(ContextLookahead const* ct) const {
     ContextLookahead* t = const_cast<ContextLookahead*>(ct);
     require(t->isActive());
     if (nTables() > cacheSizeHighMark_) {
@@ -1963,7 +1962,7 @@ void LanguageModelLookahead::releaseTable(const ContextLookahead* ct) const {
     }
 }
 
-LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::getCachedTable(const Lm::History& h) const {
+LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::getCachedTable(Lm::History const& h) const {
     ContextLookahead* t = 0;
 
     Map::const_iterator i = map_.find(h);
@@ -1984,7 +1983,7 @@ LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::getCachedTable
     return t;
 }
 
-Lm::History LanguageModelLookahead::getReducedHistory(const Lm::History& history) const {
+Lm::History LanguageModelLookahead::getReducedHistory(Lm::History const& history) const {
     if (historyLimit_ == -1)
         return history;
     else
@@ -1992,7 +1991,7 @@ Lm::History LanguageModelLookahead::getReducedHistory(const Lm::History& history
 }
 
 LanguageModelLookahead::ContextLookaheadReference
-        LanguageModelLookahead::getLookahead(const Lm::History& fh, bool noHistoryLimit) const {
+        LanguageModelLookahead::getLookahead(Lm::History const& fh, bool noHistoryLimit) const {
     Lm::History h((noHistoryLimit || historyLimit_ == -1) ? fh : lm_->reducedHistory(fh, historyLimit_));
 
     ContextLookahead* t = getCachedTable(h);
@@ -2021,7 +2020,7 @@ void LanguageModelLookahead::fill(ContextLookaheadReference lookahead, bool spar
 
     if (sparse) {
         //Only really use sparse look-ahead if the history is not empty
-        const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>(lm_->unscaled().get());
+        Lm::BackingOffLm const* lm = dynamic_cast<Lm::BackingOffLm const*>(lm_->unscaled().get());
         verify(lm);  // Sparse look-ahead is only supported with a backing-off LM
         if (lm->historyLenght(lookahead->history_) == 0)
             sparse = false;
@@ -2047,7 +2046,7 @@ void LanguageModelLookahead::fillZero(ContextLookaheadReference lookahead) {
 }
 
 LanguageModelLookahead::ContextLookaheadReference
-        LanguageModelLookahead::tryToGetLookahead(const Lm::History& fh, bool noHistoryLimit) const {
+        LanguageModelLookahead::tryToGetLookahead(Lm::History const& fh, bool noHistoryLimit) const {
     Lm::History h(noHistoryLimit ? fh : getReducedHistory(fh));
 
     ContextLookahead* t = getCachedTable(h);

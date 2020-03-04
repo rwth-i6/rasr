@@ -345,6 +345,405 @@ const Core::ParameterFloat paramMaximumWordEndsAfterPruning(
         "maximum absolute number of word end hypotheses after pruning allowed during auto-correcting-search (better: use maximum-acoustic-pruning-saturation and acoustic-pruning-limit instead)",
         Core::Type<Score>::max);
 
+namespace {
+template<class From, class To>
+void truncate(const std::vector<From>& source, std::vector<To>& to) {
+    to.clear();
+    for (typename std::vector<From>::const_iterator it = source.begin(); it != source.end(); ++it) {
+        if (*it < Core::Type<To>::min)
+            to.push_back(Core::Type<To>::min);
+        else if (*it > Core::Type<To>::max)
+            to.push_back(Core::Type<To>::max);
+        else
+            to.push_back(*it);
+    }
+}
+} // namespace
+
+StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon) : Precursor(config),
+        hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
+        minimized(paramBuildMinimizedTreeFromScratch(config)),
+        network(config, acousticModel, lexicon),
+        prefixFilter(nullptr),
+        acousticModel_(acousticModel),
+        lexicon_(lexicon) {
+}
+
+StaticSearchAutomaton::~StaticSearchAutomaton() {
+    if (prefixFilter) {
+        delete prefixFilter;
+    }
+}
+
+void StaticSearchAutomaton::buildNetwork() {
+    /// @todo Track the TreeBuilder configuration in transformation if minimizedTree
+    int transformation = minimized ? 32 : 0;
+    if (!network.read(transformation)) {
+        log() << "persistent network image could not be loaded, building it";
+
+        if (minimized) { // Use TreeStructure.hh
+            TreeBuilder builder(config, *lexicon_, *acousticModel_, network);
+            builder.build();
+        }
+        else { // Use StateTree.hh
+            network.build();
+            network.cleanup();
+            network.cleanup();  // Additional cleanup, to make sure that the exits are ordered correctly
+        }
+
+        if (network.write(transformation)) {
+            log() << "writing network image ready";
+        }
+        else {
+            log() << "writing network image failed";
+        }
+    }
+}
+
+void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
+    clearDepths();
+    stateDepths.resize(network.structure.stateCount(), Core::Type<int>::min);
+    invertedStateDepths.resize(network.structure.stateCount(), Core::Type<int>::min);
+    fillStateDepths(network.rootState, 0);
+    fillStateDepths(network.ciRootState, 0);
+
+    bool offsetted = false;
+
+    if (!onlyFromRoot) {
+        for (std::set<StateId>::const_iterator it = network.unpushedCoarticulatedRootStates.begin(); it != network.unpushedCoarticulatedRootStates.end(); ++it)
+            fillStateDepths(*it, 0);
+
+        for (StateId state = 1; state < network.structure.stateCount(); ++state) {
+            findStateDepth(state);
+        }
+
+        for (std::set<StateId>::const_iterator it = network.coarticulatedRootStates.begin(); it != network.coarticulatedRootStates.end(); ++it) {
+            int depth = findStateDepth(*it);
+
+            if (depth < 0) {
+                log() << "offsetting depths by " << depth;
+                offsetted = true;
+                for (u32 a = 1; a < stateDepths.size(); ++a)
+                    if (stateDepths[a] != Core::Type<int>::min)
+                        stateDepths[a] += -depth;
+                depth = 0;
+            }
+            else if (depth == Core::Type<int>::max) {
+                log() << "disconnected subnetwork found";
+                depth = 0;
+            }
+            fillStateDepths(*it, depth);
+        }
+
+        if (!offsetted) {
+            for (std::set<StateId>::const_iterator it = network.coarticulatedRootStates.begin(); it != network.coarticulatedRootStates.end(); ++it) {
+                verify(stateDepths[*it] == 0);
+            }
+        }
+
+        for (u32 a = 1; a < stateDepths.size(); ++a) {
+            verify(stateDepths[a] != Core::Type<int>::min);
+        }
+    }
+
+    // Verify the correctness of the depths
+    for (u32 a = 1; a < stateDepths.size(); ++a) {
+        if (stateDepths[a] != Core::Type<int>::min && stateDepths[a] != Core::Type<int>::max) {
+            for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(a); it; ++it) {
+                if (!it.isLabel()) {
+                    verify(stateDepths[*it] > stateDepths[a]);
+                }
+            }
+        }
+    }
+
+    if (!offsetted) {
+        verify(stateDepths[network.rootState] == 0);
+    }
+
+    truncate(invertedStateDepths, truncatedInvertedStateDepths);
+    truncate(stateDepths, truncatedStateDepths);
+}
+
+void StaticSearchAutomaton::clearDepths() {
+    stateDepths.clear();
+    invertedStateDepths.clear();
+}
+
+int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
+    if (stateDepths[state] != Core::Type<int>::min) {
+        if (stateDepths[state] != depth)  {  /// @todo Find out why this happens on some languages
+            std::cout << "conflicting state depths: " << stateDepths[state] << " vs " << depth << std::endl;
+        }
+        if (depth > stateDepths[state]) {
+            stateDepths[state] = Core::Type<int>::min;  // Re-fill successor depths
+        }
+        else {
+            return depth;
+        }
+    }
+
+    stateDepths[state] = depth;
+
+    int localDepth;
+
+    localDepth = 0;
+
+    for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(state); it; ++it) {
+        if (not it.isLabel()) {
+            int d = fillStateDepths(*it, depth + 1);
+
+            if (d > localDepth) {
+                localDepth = d;
+            }
+        }
+    }
+
+    verify(localDepth != Core::Type<int>::max);
+
+    invertedStateDepths[state] = localDepth;
+    return localDepth + 1;
+}
+
+int StaticSearchAutomaton::findStateDepth(Search::StateId state) {
+    if (stateDepths[state] != Core::Type<int>::min) {
+        return stateDepths[state];
+    }
+
+    int nextDepth = Core::Type<int>::max;
+
+    for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(state); it; ++it) {
+        if (not it.isLabel()) {
+            int d = findStateDepth(*it);
+            if (nextDepth == Core::Type<int>::max) {
+                nextDepth = d;
+            }
+            else {
+                if (d != nextDepth && d != Core::Type<int>::max) {
+                    // This can happen when phones have inconsistent lengths,
+                    // eg. if there are noise/silence phones within words
+                    if (d < nextDepth) {
+                        nextDepth = d;
+                    }
+                }
+            }
+        }
+    }
+
+    if (nextDepth != Core::Type<int>::max) {
+        return nextDepth - 1;
+    }
+    else {
+        return Core::Type<int>::max;
+    }
+}
+
+void StaticSearchAutomaton::buildLabelDistances() {
+    labelDistance.resize(network.structure.stateCount(), Core::Type<unsigned>::max);
+
+    std::vector<StateId> toposort(network.structure.stateCount());
+    std::iota(toposort.begin(), toposort.end(), 0u);
+    std::sort(toposort.begin(), toposort.end(), [&](StateId a, StateId b) {
+        return stateDepths[a] > stateDepths[b];
+    });
+
+    for (StateId s : toposort) {
+        HMMState const& state = network.structure.state(s);
+
+        for (auto successorIt = network.structure.successors(state); successorIt; ++successorIt) {
+            if (successorIt.isLabel()) {
+                Bliss::LemmaPronunciation::Id lemmaPronId = network.exits[successorIt.label()].pronunciation;
+                if (lexicon_->lemmaPronunciation(lemmaPronId)->lemma()->syntacticTokenSequence().size() > 0) {
+                    labelDistance[s] = 0u;
+                    break;
+                }
+            }
+            else {
+                labelDistance[s] = std::min(labelDistance[s], labelDistance[*successorIt] + 1);
+            }
+        }
+    }
+}
+
+void StaticSearchAutomaton::buildBatches() {
+    bool symmetrize = paramSymmetrizePenalties(config);
+
+    secondOrderEdgeSuccessorBatches.push_back(0);
+    secondOrderEdgeSuccessorBatches.push_back(0);
+
+    u32 validSecondOrderBatches = 0, invalidSecondOrderBatches = 0;
+    u32 validFirstOrderBatches        = 0;
+    u32 symmetrizedSecondOrderBatches = 0;
+    u32 invalidFirstOrderBatches[4]   = {0, 0, 0, 0};
+    u32 continuousLabelLists = 0, discontinuousLabelLists = 0;
+
+    u32 currentExit        = 0;
+    u32 multiExits         = 0;
+    u32 nonContinuousExits = 0;
+    u32 singleExits        = 0;
+
+    quickLabelBatches.push_back(currentExit);  // First state is invalid
+    quickLabelBatches.push_back(currentExit);  // Second state starts at zero
+    singleLabels.push_back(0);                 /// TODO: Use bitmask instead of label-batches
+
+    // Build the second-order structure for speedup
+    for (u32 a = 1; a < network.structure.stateCount(); ++a) {
+        HMMState const& state = network.structure.state(a);
+
+        int  firstSecondOrderSuccessor       = -1;
+        int  endSecondOrderSuccessor         = -1;
+        bool secondOrderSuccessorsContinuous = true;
+        bool labelsContinuous                = true;
+        bool hadLabels                       = false;
+        u32  singleLabel                     = Core::Type<u32>::max;
+
+        {
+            std::pair<int, int> directSuccessors = network.structure.batchSuccessorsSimple<false>(state.successors);
+            if (directSuccessors.first == -1) {
+                ++invalidFirstOrderBatches[-directSuccessors.second];
+            }
+            else
+                ++validFirstOrderBatches;
+        }
+        for (HMMStateNetwork::SuccessorIterator successorIt = network.structure.successors(state); successorIt; ++successorIt)
+            if (successorIt.isLabel()) {
+                if (!hadLabels) {
+                    hadLabels   = true;
+                    singleLabel = successorIt.label();
+                }
+                else {
+                    singleLabel = Core::Type<u32>::max;
+                }
+                if (currentExit == successorIt.label()) {
+                    ++currentExit;
+                }
+                else {
+                    currentExit      = successorIt.label() + 1;
+                    labelsContinuous = false;
+                }
+            }
+
+        for (HMMStateNetwork::SuccessorIterator successorIt = network.structure.successors(state); successorIt; ++successorIt) {
+            if (successorIt.isLabel()) {
+                if (successorIt.isLastBatch())
+                    ++continuousLabelLists;
+                else
+                    ++discontinuousLabelLists;
+                continue;
+            }
+
+            for (HMMStateNetwork::SuccessorIterator successorIt2 = network.structure.successors(*successorIt); successorIt2; ++successorIt2) {
+                if (successorIt2.isLabel())
+                    continue;
+
+                int t = *successorIt2;
+                if (firstSecondOrderSuccessor == -1) {
+
+                    firstSecondOrderSuccessor = t;
+                    endSecondOrderSuccessor   = t + 1;
+                }
+                else {
+                    if (endSecondOrderSuccessor == t) {
+                        ++endSecondOrderSuccessor;
+                    }
+                    else if (firstSecondOrderSuccessor == t + 1) {
+                        --firstSecondOrderSuccessor;
+                    }
+                    else {
+                        secondOrderSuccessorsContinuous = false;
+                    }
+                }
+            }
+        }
+
+        if (symmetrize && (stateDepths[a] == stateDepths[network.rootState] || stateDepths[a] == stateDepths[network.rootState] + hmmLength)) {
+            symmetrizedSecondOrderBatches += 1;
+            secondOrderEdgeSuccessorBatches.push_back(ForbidSecondOrderExpansion);
+            secondOrderEdgeSuccessorBatches.push_back(ForbidSecondOrderExpansion);
+        }
+        else if (secondOrderSuccessorsContinuous) {
+            secondOrderEdgeSuccessorBatches.push_back(firstSecondOrderSuccessor);
+            secondOrderEdgeSuccessorBatches.push_back(endSecondOrderSuccessor);
+            ++validSecondOrderBatches;
+        }
+        else {
+            secondOrderEdgeSuccessorBatches.push_back(0);
+            secondOrderEdgeSuccessorBatches.push_back(0);
+            ++invalidSecondOrderBatches;
+        }
+
+        if (hadLabels) {
+            if (singleLabel != Core::Type<u32>::max) {
+                ++singleExits;
+            }
+            else {
+                ++multiExits;
+                if (!labelsContinuous)
+                    ++nonContinuousExits;
+            }
+        }
+
+        if (!hadLabels)
+            singleLabels.push_back(-1);
+        else if (singleLabel != Core::Type<u32>::max)
+            singleLabels.push_back(singleLabel);
+        else if (labelsContinuous)
+            singleLabels.push_back(-2);
+        else {
+            singleLabels.push_back(-(3 + slowLabelBatches.size()));
+            for (HMMStateNetwork::SuccessorIterator successorIt = network.structure.successors(state); successorIt; ++successorIt)
+                if (successorIt.isLabel())
+                    slowLabelBatches.push_back(successorIt.label());
+            slowLabelBatches.push_back(-1);
+        }
+
+        quickLabelBatches.push_back(currentExit);
+    }
+
+    log() << "valid first-order batches: " << validFirstOrderBatches
+          << " invalid first-order batches (reason 1): " << invalidFirstOrderBatches[1]
+          << " invalid first-order batches (reason 2): " << invalidFirstOrderBatches[2]
+          << " invalid first-order batches (reason 3): " << invalidFirstOrderBatches[3];
+    log() << "valid second-order batches: " << validSecondOrderBatches << " invalid second-order batches: " << invalidSecondOrderBatches;
+    log() << "continuous label lists: " << continuousLabelLists << " discontinuous label lists: " << discontinuousLabelLists;
+    log() << "continuous label lists: " << continuousLabelLists << " discontinuous label lists: " << discontinuousLabelLists;
+    log() << "single-label lists: " << singleExits << " multi-label lists: " << multiExits;
+    log() << "irregular exit-list items: " << slowLabelBatches.size();
+    if (symmetrizedSecondOrderBatches)
+        log() << "symmetrized states (skips forbidden): " << symmetrizedSecondOrderBatches;
+
+    if (!paramDumpDotGraph(config).empty())
+        network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
+
+    // Print some useful statistics about pushed and unpushed labels
+    verify(!network.unpushedCoarticulatedRootStates.empty());
+
+    u32 unpushedLabels = 0;
+    u32 pushedLabels   = 0;
+    for (StateId state = 1; state < network.structure.stateCount(); ++state) {
+        for (HMMStateNetwork::SuccessorIterator successor = network.structure.successors(state); successor; ++successor) {
+            if (successor.isLabel()) {
+                StateId transit    = network.exits[successor.label()].transitState;
+                bool    isUnpushed = network.unpushedCoarticulatedRootStates.count(transit) || transit == network.ciRootState || transit == network.rootState;
+                if (isUnpushed) {
+                    ++unpushedLabels;
+                    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
+                    verify(it != network.rootTransitDescriptions.end());
+                }
+                else {
+                    ++pushedLabels;
+                }
+            }
+        }
+    }
+
+    log() << "number of pushed labels: " << pushedLabels << " unpushed: " << unpushedLabels;
+
+    network.removeOutputs();
+}
+
+// ------------------------------- Search Space --------------------------------
+
 SearchSpace::SearchSpace(const Core::Configuration&               config,
                          Core::Ref<const Am::AcousticModel>       acousticModel,
                          Bliss::LexiconRef                        lexicon,
@@ -352,7 +751,6 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
                          Score                                    wpScale)
         : Core::Component(config),
           statistics(new SearchSpaceStatistics),
-          config_(config),
           globalScoreOffset_(0.0),
           timeFrame_(0),
           lexicon_(lexicon),
@@ -362,9 +760,8 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           recombinationLm_(),
           ssaLm_(dynamic_cast<Lm::SearchSpaceAwareLanguageModel const*>(lm_->unscaled().get())),
           lmLookahead_(0),
-          network_(config, acousticModel, lexicon),
+          automaton_(new StaticSearchAutomaton(config, acousticModel, lexicon)),
           acousticLookAhead_(0),
-          minimized_(paramBuildMinimizedTreeFromScratch(config)),
           conditionPredecessorWord_(paramConditionPredecessorWord(config)),
           decodeMesh_(paramDecodeMesh(config)),
           correctPushedBoundaryTimes_(paramCorrectPushedWordBoundaryTimes(config)),
@@ -394,7 +791,6 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           maximumAcousticPruningSaturation_(paramMaximumAcousticPruningSaturation(config)),
           earlyWordEndPruningAnticipatedLmScore_(paramEarlyWordEndPruningMinimumLmScore(config)),
           wordEndPruningFadeInInterval_(paramWordEndPruningFadeInInterval(config)),
-          prefixFilter_(0),
           instanceDeletionLatency_(paramInstanceDeletionLatency(config)),
           fullLookAheadStateMinimum_(paramReduceLookAheadStateMinimum(config)),
           fullLookAheadDominanceMinimum_(paramReduceLookAheadDominanceMinimum(config)),
@@ -434,11 +830,9 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
     if (fullLookAheadDominanceMinimum_)
         log() << "activating context-dependent LM look-ahead only for instances with dominance above " << fullLookAheadDominanceMinimum_;
 
-    hmmLength_ = acousticModel_->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel_->hmmTopologySet()->getDefault().nSubStates();
+    log() << "HMM length of a phoneme: " << automaton_->hmmLength;
 
-    log() << "HMM length of a phoneme: " << hmmLength_;
-
-    if (paramSeparateLookaheadLm(config_)) {
+    if (paramSeparateLookaheadLm(config)) {
         log() << "using new lookahead lm";
         lookaheadLm_ = Lm::Module::instance().createScaledLanguageModel(select("lookahead-lm"), lexicon_);
     }
@@ -450,7 +844,7 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
         lookaheadLm_ = lm_;
     }
 
-    if (paramSeparateRecombinationLm(config_)) {
+    if (paramSeparateRecombinationLm(config)) {
         log() << "using new recombination lm";
         recombinationLm_ = Lm::Module::instance().createLanguageModel(select("recombination-lm"), lexicon_);
     }
@@ -489,19 +883,19 @@ SearchSpace::~SearchSpace() {
     delete applyLookaheadStandardPerf_;
     delete extendedPerf_;
     delete statistics;
-    delete prefixFilter_;
     if (lmLookahead_) {
         unigramLookAhead_.reset();
         delete lmLookahead_;
     }
+    delete automaton_;
 }
 
 void SearchSpace::initializePruning() {
-    acousticPruning_ = paramAcousticPruning(config_);
+    acousticPruning_ = paramAcousticPruning(config);
 
-    Score beamPruning = paramBeamPruning(config_);
+    Score beamPruning = paramBeamPruning(config);
 
-    histogramPruningIsMasterPruning_ = paramHistogramIsMasterPruning(config_);
+    histogramPruningIsMasterPruning_ = paramHistogramIsMasterPruning(config);
 
     if (acousticPruning_ == Core::Type<f32>::max || beamPruning != Core::Type<f32>::max) {
         if (beamPruning == Core::Type<f32>::max) {
@@ -516,29 +910,29 @@ void SearchSpace::initializePruning() {
         log() << "set acoustic-pruning to " << acousticPruning_ << " from beam-pruning " << beamPruning << " with lm-scale " << lm_->scale();
     }
 
-    acousticPruningLimit_ = std::min(paramBeamPruningLimit(config_), paramAcousticPruningLimit(config_));
+    acousticPruningLimit_ = std::min(paramBeamPruningLimit(config), paramAcousticPruningLimit(config));
 
     log() << "using acoustic pruning limit " << acousticPruningLimit_;
 
-    wordEndPruning_ = paramWordEndPruning(config_);
+    wordEndPruning_ = paramWordEndPruning(config);
     if (wordEndPruning_ != Core::Type<f32>::max) {
         if (wordEndPruning_ > 1.0)
             wordEndPruning_ *= lm_->scale();
-        if (paramLmPruning(config_) != Core::Type<f32>::max)
+        if (paramLmPruning(config) != Core::Type<f32>::max)
             warning() << "lm-pruning and word-end-pruning were set at the same time. using word-end-pruning, because lm-pruning is DEPRECATED";
     }
     else {
-        wordEndPruning_ = paramLmPruning(config_);
+        wordEndPruning_ = paramLmPruning(config);
     }
 
     if (wordEndPruning_ <= 1.0)
         wordEndPruning_ *= acousticPruning_;
 
-    wordEndPruningLimit_ = std::min(paramWordEndPruningLimit(config_), paramLmPruningLimit(config_));
+    wordEndPruningLimit_ = std::min(paramWordEndPruningLimit(config), paramLmPruningLimit(config));
 
     log() << "using word end pruning " << wordEndPruning_ << " limit " << wordEndPruningLimit_;
 
-    lmStatePruning_ = lmStatePruning(config_);
+    lmStatePruning_ = lmStatePruning(config);
     if (lmStatePruning_ != Core::Type<f32>::max) {
         if (lmStatePruning_ > 1.0)
             lmStatePruning_ *= lm_->scale();
@@ -547,7 +941,7 @@ void SearchSpace::initializePruning() {
         log() << "using lm state pruning " << lmStatePruning_;
     }
 
-    wordEndPhonemePruningThreshold_ = paramWordEndPhonemePruningThreshold(config_);
+    wordEndPhonemePruningThreshold_ = paramWordEndPhonemePruningThreshold(config);
     if (wordEndPhonemePruningThreshold_ != Core::Type<Score>::max) {
         if (wordEndPhonemePruningThreshold_ > 1.0)
             wordEndPhonemePruningThreshold_ *= lm_->scale();
@@ -558,271 +952,76 @@ void SearchSpace::initializePruning() {
 }
 
 void SearchSpace::initialize() {
-    getTransitionModels();
-
-    initializePruning();
-
     PerformanceCounter perf(*statistics, "initialize");
 
-    /// @todo Track the TreeBuilder configuration in transformation if minimizedTree
+    getTransitionModels();
+    initializePruning();
 
-    int transformation = minimized_ ? 32 : 0;
+    StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
 
-    if (!network_.read(transformation)) {
-        log() << "persistent network image could not be loaded, building it";
+    PersistentStateTree& net = automaton->network;
+    automaton->buildNetwork();
 
-        if (minimized_)  // Use TreeStructure.hh
-        {
-            TreeBuilder builder(config_, *lexicon_, *acousticModel_, network_);
-            builder.build();
-        }
-        else  // Use StateTree.hh
-        {
-            network_.build();
-            network_.cleanup();
-            network_.cleanup();  // Additional cleanup, to make sure that the exits are ordered correctly
-        }
-
-        if (network_.write(transformation))
-            log() << "writing network image ready";
-        else
-            log() << "writing network image failed";
-    }
-
-    acousticLookAhead_ = new AdvancedTreeSearch::AcousticLookAhead(config_, network_.getChecksum());
-
-    if (acousticLookAhead_->isEnabled() && !acousticLookAhead_->loaded())
-        acousticLookAhead_->initializeModelsFromNetwork(network_);
-
-    buildDepths();
-    log() << "depth of root-state: " << stateDepths_[network_.rootState] << " hmm-length " << hmmLength_;
-    if (stateDepths_[network_.rootState] == 0 && minimized_) {
+    automaton->buildDepths();
+    log() << "depth of root-state: " << automaton->stateDepths[net.rootState] << " hmm-length " << automaton->hmmLength;
+    if (automaton->stateDepths[net.rootState] == 0 && automaton->minimized) {
         log() << "tail minimization was not used, root-state has depth 0";
-        minimized_ = false;
+        automaton->minimized = false;
     }
 
-    if (!(stateDepths_[network_.rootState] == (minimized_ ? hmmLength_ : 0)) &&
-        !(stateDepths_[network_.rootState] == (minimized_ ? hmmLength_ + 1 : 1))) {
-        error() << "bad state depths! root-state has depth " << stateDepths_[network_.rootState] << ", should be " << (minimized_ ? hmmLength_ : 0);
+    if (!(automaton->stateDepths[net.rootState] == (automaton->minimized ? automaton->hmmLength : 0)) &&
+        !(automaton->stateDepths[net.rootState] == (automaton->minimized ? automaton->hmmLength + 1 : 1))) {
+        error() << "bad state depths! root-state has depth " << automaton->stateDepths[net.rootState] << ", should be " << (automaton->minimized ? automaton->hmmLength : 0);
     }
 
-    buildLabelDistances();
+    automaton->buildLabelDistances();
 
     // The filter must be created _before_ the outputs are cut off the search network
-    prefixFilter_ = new PrefixFilter(network_, lexicon_, config_);
-    if (!prefixFilter_->haveFilter()) {
-        delete prefixFilter_;
-        prefixFilter_ = 0;
+    automaton->prefixFilter = new PrefixFilter(net, lexicon_, config);
+    if (!automaton->prefixFilter->haveFilter()) {
+        delete automaton->prefixFilter;
+        automaton->prefixFilter = nullptr;
     }
+
+    acousticLookAhead_ = new AdvancedTreeSearch::AcousticLookAhead(config, net.getChecksum());
+    if (acousticLookAhead_->isEnabled() && !acousticLookAhead_->loaded())
+        acousticLookAhead_->initializeModelsFromNetwork(net);
 
     initializeLanguageModel();
+
     // Initialization of the search network cuts away the outputs from the network
     // and puts them into the outputBatches_ data structures instead.
-    initializeSearchNetwork();
+    automaton->buildBatches();
 
-    stateHypothesisRecombinationArray.resize(network_.structure.stateCount());
-}
-
-void SearchSpace::initializeSearchNetwork() {
-    bool symmetrize = paramSymmetrizePenalties(config_);
-
-    secondOrderEdgeSuccessorBatches_.push_back(0);
-    secondOrderEdgeSuccessorBatches_.push_back(0);
-
-    u32 validSecondOrderBatches = 0, invalidSecondOrderBatches = 0;
-    u32 validFirstOrderBatches        = 0;
-    u32 symmetrizedSecondOrderBatches = 0;
-    u32 invalidFirstOrderBatches[4]   = {0, 0, 0, 0};
-    u32 continuousLabelLists = 0, discontinuousLabelLists = 0;
-
-    u32 currentExit        = 0;
-    u32 multiExits         = 0;
-    u32 nonContinuousExits = 0;
-    u32 singleExits        = 0;
-
-    quickLabelBatches_.push_back(currentExit);  // First state is invalid
-    quickLabelBatches_.push_back(currentExit);  // Second state starts at zero
-    singleLabels_.push_back(0);                 /// TODO: Use bitmask instead of label-batches
-
-    // Build the second-order structure for speedup
-    for (u32 a = 1; a < network_.structure.stateCount(); ++a) {
-        HMMState& state = network_.structure.state(a);
-
-        int  firstSecondOrderSuccessor       = -1;
-        int  endSecondOrderSuccessor         = -1;
-        bool secondOrderSuccessorsContinuous = true;
-        bool labelsContinuous                = true;
-        bool hadLabels                       = false;
-        u32  singleLabel                     = Core::Type<u32>::max;
-
-        {
-            std::pair<int, int> directSuccessors = network_.structure.batchSuccessorsSimple<false>(state.successors);
-            if (directSuccessors.first == -1) {
-                ++invalidFirstOrderBatches[-directSuccessors.second];
-            }
-            else
-                ++validFirstOrderBatches;
-        }
-        for (HMMStateNetwork::SuccessorIterator successorIt = network_.structure.successors(state); successorIt; ++successorIt)
-            if (successorIt.isLabel()) {
-                if (!hadLabels) {
-                    hadLabels   = true;
-                    singleLabel = successorIt.label();
-                }
-                else {
-                    singleLabel = Core::Type<u32>::max;
-                }
-                if (currentExit == successorIt.label()) {
-                    ++currentExit;
-                }
-                else {
-                    currentExit      = successorIt.label() + 1;
-                    labelsContinuous = false;
-                }
-            }
-
-        for (HMMStateNetwork::SuccessorIterator successorIt = network_.structure.successors(state); successorIt; ++successorIt) {
-            if (successorIt.isLabel()) {
-                if (successorIt.isLastBatch())
-                    ++continuousLabelLists;
-                else
-                    ++discontinuousLabelLists;
-                continue;
-            }
-
-            for (HMMStateNetwork::SuccessorIterator successorIt2 = network_.structure.successors(*successorIt); successorIt2; ++successorIt2) {
-                if (successorIt2.isLabel())
-                    continue;
-
-                int t = *successorIt2;
-                if (firstSecondOrderSuccessor == -1) {
-                    firstSecondOrderSuccessor = t;
-                    endSecondOrderSuccessor   = t + 1;
-                }
-                else {
-                    if (endSecondOrderSuccessor == t) {
-                        ++endSecondOrderSuccessor;
-                    }
-                    else if (firstSecondOrderSuccessor == t + 1) {
-                        --firstSecondOrderSuccessor;
-                    }
-                    else {
-                        secondOrderSuccessorsContinuous = false;
-                    }
-                }
-            }
-        }
-
-        if (symmetrize && (stateDepths_[a] == stateDepths_[network_.rootState] || stateDepths_[a] == stateDepths_[network_.rootState] + hmmLength_)) {
-            symmetrizedSecondOrderBatches += 1;
-            secondOrderEdgeSuccessorBatches_.push_back(ForbidSecondOrderExpansion);
-            secondOrderEdgeSuccessorBatches_.push_back(ForbidSecondOrderExpansion);
-        }
-        else if (secondOrderSuccessorsContinuous) {
-            secondOrderEdgeSuccessorBatches_.push_back(firstSecondOrderSuccessor);
-            secondOrderEdgeSuccessorBatches_.push_back(endSecondOrderSuccessor);
-            ++validSecondOrderBatches;
-        }
-        else {
-            secondOrderEdgeSuccessorBatches_.push_back(0);
-            secondOrderEdgeSuccessorBatches_.push_back(0);
-            ++invalidSecondOrderBatches;
-        }
-
-        if (hadLabels) {
-            if (singleLabel != Core::Type<u32>::max) {
-                ++singleExits;
-            }
-            else {
-                ++multiExits;
-                if (!labelsContinuous)
-                    ++nonContinuousExits;
-            }
-        }
-
-        if (!hadLabels)
-            singleLabels_.push_back(-1);
-        else if (singleLabel != Core::Type<u32>::max)
-            singleLabels_.push_back(singleLabel);
-        else if (labelsContinuous)
-            singleLabels_.push_back(-2);
-        else {
-            singleLabels_.push_back(-(3 + slowLabelBatches_.size()));
-            for (HMMStateNetwork::SuccessorIterator successorIt = network_.structure.successors(state); successorIt; ++successorIt)
-                if (successorIt.isLabel())
-                    slowLabelBatches_.push_back(successorIt.label());
-            slowLabelBatches_.push_back(-1);
-        }
-
-        quickLabelBatches_.push_back(currentExit);
-    }
-
-    log() << "valid first-order batches: " << validFirstOrderBatches
-          << " invalid first-order batches (reason 1): " << invalidFirstOrderBatches[1]
-          << " invalid first-order batches (reason 2): " << invalidFirstOrderBatches[2]
-          << " invalid first-order batches (reason 3): " << invalidFirstOrderBatches[3];
-    log() << "valid second-order batches: " << validSecondOrderBatches << " invalid second-order batches: " << invalidSecondOrderBatches;
-    log() << "continuous label lists: " << continuousLabelLists << " discontinuous label lists: " << discontinuousLabelLists;
-    log() << "continuous label lists: " << continuousLabelLists << " discontinuous label lists: " << discontinuousLabelLists;
-    log() << "single-label lists: " << singleExits << " multi-label lists: " << multiExits;
-    log() << "irregular exit-list items: " << slowLabelBatches_.size();
-    if (symmetrizedSecondOrderBatches)
-        log() << "symmetrized states (skips forbidden): " << symmetrizedSecondOrderBatches;
-
-    if (!paramDumpDotGraph(config_).empty())
-        network_.dumpDotGraph(paramDumpDotGraph(config_), stateDepths_);
-
-    if (wordEndPhonemePruningThreshold_ != Core::Type<Score>::max) {
-        // Print some useful statistics about pushed and unpushed labels
-        verify(!network_.unpushedCoarticulatedRootStates.empty());
-
-        u32 unpushedLabels = 0;
-        u32 pushedLabels   = 0;
-        for (StateId state = 1; state < network_.structure.stateCount(); ++state) {
-            for (HMMStateNetwork::SuccessorIterator successor = network_.structure.successors(state); successor; ++successor) {
-                if (successor.isLabel()) {
-                    StateId transit    = network_.exits[successor.label()].transitState;
-                    bool    isUnpushed = network_.unpushedCoarticulatedRootStates.count(transit) || transit == network_.ciRootState || transit == network_.rootState;
-                    if (isUnpushed) {
-                        ++unpushedLabels;
-                        std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network_.rootTransitDescriptions.find(transit);
-                        verify(it != network_.rootTransitDescriptions.end());
-                    }
-                    else {
-                        ++pushedLabels;
-                    }
-                }
-            }
-        }
-
-        log() << "number of pushed labels: " << pushedLabels << " unpushed: " << unpushedLabels;
-    }
-
-    network_.removeOutputs();
+    stateHypothesisRecombinationArray.resize(net.structure.stateCount());
 }
 
 void SearchSpace::initializeLanguageModel() {
+    PersistentStateTree const& net = network();
+
     unigramHistory_ = lookaheadLm_->reducedHistory(lookaheadLm_->startHistory(), 0);
 
-    if (paramEnableLmLookahead(config_)) {
-        lmLookahead_ = new AdvancedTreeSearch::LanguageModelLookahead(Core::Configuration(config_, "lm-lookahead"),
+    StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
+
+    if (paramEnableLmLookahead(config)) {
+        lmLookahead_ = new AdvancedTreeSearch::LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
                                                                       wpScale_,
                                                                       lookaheadLm_,
-                                                                      network_.structure,
-                                                                      network_.rootState,
-                                                                      network_.exits,
+                                                                      net.structure,
+                                                                      net.rootState,
+                                                                      net.exits,
                                                                       acousticModel_);
 
         std::set<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId> rootStates;
 
-        rootStates.insert(lmLookahead_->lookaheadId(network_.rootState));
+        rootStates.insert(lmLookahead_->lookaheadId(net.rootState));
 
-        for (std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network_.rootTransitDescriptions.begin(); it != network_.rootTransitDescriptions.end(); ++it)
+        for (std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::const_iterator it = net.rootTransitDescriptions.begin(); it != net.rootTransitDescriptions.end(); ++it)
             rootStates.insert(lmLookahead_->lookaheadId((*it).first));
 
-        int reduceBeforeDepth = paramReduceLookAheadBeforeDepth(config_);
+        int reduceBeforeDepth = paramReduceLookAheadBeforeDepth(config);
         if (reduceBeforeDepth > -1000 && reduceBeforeDepth != Core::Type<int>::max) {
-            int rootDepth         = lmLookahead_->nodeDepth(lmLookahead_->lookaheadId(network_.rootState));
+            int rootDepth         = lmLookahead_->nodeDepth(lmLookahead_->lookaheadId(net.rootState));
             s32 minDepth          = reduceBeforeDepth + rootDepth;
             fullLookaheadAfterId_ = lmLookahead_->lastNodeOnDepth(minDepth);
             log() << "depth of root lookahead state " << rootDepth
@@ -833,175 +1032,21 @@ void SearchSpace::initializeLanguageModel() {
 
         unigramLookAhead_ = lmLookahead_->getLookahead(unigramHistory_);
 
-        if (paramDisableUnigramLookahead(config_))
+        if (paramDisableUnigramLookahead(config))
             lmLookahead_->fillZero(unigramLookAhead_);
         else
             lmLookahead_->fill(unigramLookAhead_);
 
-        lookAheadIds_.resize(network_.structure.stateCount(), std::make_pair(0u, 0u));
-        lookAheadIdAndHash_.resize(network_.structure.stateCount(), std::make_pair(0u, 0u));
-        for (StateId state = 1; state < network_.structure.stateCount(); ++state)
+        automaton->lookAheadIds.resize(net.structure.stateCount(), std::make_pair(0u, 0u));
+        automaton->lookAheadIdAndHash.resize(net.structure.stateCount(), std::make_pair(0u, 0u));
+        for (StateId state = 1; state < net.structure.stateCount(); ++state) {
             if (acousticLookAhead_->isEnabled()) {
-                lookAheadIds_[state]       = std::make_pair<uint, uint>(lmLookahead_->lookaheadId(state), acousticLookAhead_->getLookaheadId(state));
-                lookAheadIdAndHash_[state] = std::make_pair<uint, uint>(lmLookahead_->lookaheadHash(state), acousticLookAhead_->getLookaheadId(state));
+                automaton->lookAheadIds[state]       = std::make_pair<uint, uint>(lmLookahead_->lookaheadId(state), acousticLookAhead_->getLookaheadId(state));
+                automaton->lookAheadIdAndHash[state] = std::make_pair<uint, uint>(lmLookahead_->lookaheadHash(state), acousticLookAhead_->getLookaheadId(state));
             }
             else {
-                lookAheadIds_[state]       = std::make_pair<uint, uint>(lmLookahead_->lookaheadId(state), 0);
-                lookAheadIdAndHash_[state] = std::make_pair<uint, uint>(lmLookahead_->lookaheadHash(state), 0);
-            }
-    }
-}
-
-/// Depths -----------------------------------------------------------------------------
-
-void SearchSpace::clearDepths() {
-    stateDepths_.clear();
-    invertedStateDepths_.clear();
-}
-
-int SearchSpace::findStateDepth(Search::StateId state) {
-    if (stateDepths_[state] != Core::Type<int>::min)
-        return stateDepths_[state];
-
-    int nextDepth = Core::Type<int>::max;
-
-    for (HMMStateNetwork::SuccessorIterator it = network_.structure.successors(state); it; ++it) {
-        if (not it.isLabel()) {
-            int d = findStateDepth(*it);
-            if (nextDepth == Core::Type<int>::max) {
-                nextDepth = d;
-            }
-            else {
-                if (d != nextDepth && d != Core::Type<int>::max) {
-                    // This can happen when phones have inconsistent lengths,
-                    // eg. if there are noise/silence phones within words
-                    if (d < nextDepth)
-                        nextDepth = d;
-                }
-            }
-        }
-    }
-
-    if (nextDepth != Core::Type<int>::max)
-        return nextDepth - 1;
-    else
-        return Core::Type<int>::max;
-}
-
-void SearchSpace::buildDepths(bool onlyFromRoot) {
-    clearDepths();
-    stateDepths_.resize(network_.structure.stateCount(), Core::Type<int>::min);
-    invertedStateDepths_.resize(network_.structure.stateCount(), Core::Type<int>::min);
-    fillStateDepths(network_.rootState, 0);
-    fillStateDepths(network_.ciRootState, 0);
-
-    bool offsetted = false;
-
-    if (!onlyFromRoot) {
-        for (std::set<StateId>::const_iterator it = network_.unpushedCoarticulatedRootStates.begin(); it != network_.unpushedCoarticulatedRootStates.end(); ++it)
-            fillStateDepths(*it, 0);
-
-        for (StateId state = 1; state < network_.structure.stateCount(); ++state)
-            findStateDepth(state);
-
-        for (std::set<StateId>::const_iterator it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it) {
-            int depth = findStateDepth(*it);
-
-            if (depth < 0) {
-                log() << "offsetting depths by " << depth;
-                offsetted = true;
-                for (u32 a = 1; a < stateDepths_.size(); ++a)
-                    if (stateDepths_[a] != Core::Type<int>::min)
-                        stateDepths_[a] += -depth;
-                depth = 0;
-            }
-            else if (depth == Core::Type<int>::max) {
-                log() << "disconnected subnetwork found";
-                depth = 0;
-            }
-            fillStateDepths(*it, depth);
-        }
-
-        if (!offsetted)
-            for (std::set<StateId>::const_iterator it = network_.coarticulatedRootStates.begin(); it != network_.coarticulatedRootStates.end(); ++it)
-                verify(stateDepths_[*it] == 0);
-
-        for (u32 a = 1; a < stateDepths_.size(); ++a)
-            verify(stateDepths_[a] != Core::Type<int>::min);
-    }
-
-    // Verify the correctness of the depths
-    for (u32 a = 1; a < stateDepths_.size(); ++a) {
-        if (stateDepths_[a] != Core::Type<int>::min && stateDepths_[a] != Core::Type<int>::max)
-            for (HMMStateNetwork::SuccessorIterator it = network_.structure.successors(a); it; ++it)
-                if (!it.isLabel())
-                    verify(stateDepths_[*it] > stateDepths_[a]);
-    }
-
-    if (!offsetted)
-        verify(stateDepths_[network_.rootState] == 0);
-
-    truncate(invertedStateDepths_, truncatedInvertedStateDepths_);
-    truncate(stateDepths_, truncatedStateDepths_);
-}
-
-int SearchSpace::fillStateDepths(StateId state, int depth) {
-    if (stateDepths_[state] != Core::Type<int>::min) {
-        if (stateDepths_[state] != depth)  /// @todo Find out why this happens on some languages
-            std::cout << "conflicting state depths: " << stateDepths_[state] << " vs " << depth << std::endl;
-        if (depth > stateDepths_[state]) {
-            stateDepths_[state] = Core::Type<int>::min;  // Re-fill successor depths
-        }
-        else {
-            return depth;
-        }
-    }
-
-    stateDepths_[state] = depth;
-
-    int localDepth;
-
-    localDepth = 0;
-
-    for (HMMStateNetwork::SuccessorIterator it = network_.structure.successors(state); it; ++it) {
-        if (not it.isLabel()) {
-            int d = fillStateDepths(*it, depth + 1);
-
-            if (d > localDepth)
-                localDepth = d;
-        }
-    }
-
-    verify(localDepth != Core::Type<int>::max);
-
-    invertedStateDepths_[state] = localDepth;
-    return localDepth + 1;
-}
-
-/// Label Distance -----------------------------------------------------------------------------
-
-void SearchSpace::buildLabelDistances() {
-    labelDistance_.resize(network_.structure.stateCount(), Core::Type<unsigned>::max);
-
-    std::vector<StateId> toposort(network_.structure.stateCount());
-    std::iota(toposort.begin(), toposort.end(), 0u);
-    std::sort(toposort.begin(), toposort.end(), [&](StateId a, StateId b) {
-        return stateDepths_[a] > stateDepths_[b];
-    });
-
-    for (StateId s : toposort) {
-        HMMState& state = network_.structure.state(s);
-
-        for (auto successorIt = network_.structure.successors(state); successorIt; ++successorIt) {
-            if (successorIt.isLabel()) {
-                Bliss::LemmaPronunciation::Id lemmaPronId = network_.exits[successorIt.label()].pronunciation;
-                if (lexicon_->lemmaPronunciation(lemmaPronId)->lemma()->syntacticTokenSequence().size() > 0) {
-                    labelDistance_[s] = 0u;
-                    break;
-                }
-            }
-            else {
-                labelDistance_[s] = std::min(labelDistance_[s], labelDistance_[*successorIt] + 1);
+                automaton->lookAheadIds[state]       = std::make_pair<uint, uint>(lmLookahead_->lookaheadId(state), 0);
+                automaton->lookAheadIdAndHash[state] = std::make_pair<uint, uint>(lmLookahead_->lookaheadHash(state), 0);
             }
         }
     }
@@ -1130,7 +1175,9 @@ void SearchSpace::activateOrUpdateStateHypothesisDirectly(const Search::StateHyp
 
 template<bool expandForward, bool expandSkip>
 void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
-    const HMMState& state = network_.structure.state(hyp.state);
+    PersistentStateTree const& net = network();
+    std::vector<int> const&    secondOrderEdgeSuccessorBatches = automaton_->secondOrderEdgeSuccessorBatches;
+    HMMState const&            state                           = net.structure.state(hyp.state);
 
     const Am::StateTransitionModel& tdp(*transitionModel(state.stateDesc));
 
@@ -1138,7 +1185,8 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
 
     bool doSkip = expandSkip && skipScore < Core::Type<Score>::max;
 
-    u32 secondStart = secondOrderEdgeSuccessorBatches_[hyp.state * 2], secondEnd = secondOrderEdgeSuccessorBatches_[hyp.state * 2 + 1];
+    u32 secondStart = secondOrderEdgeSuccessorBatches[hyp.state * 2];
+    u32 secondEnd   = secondOrderEdgeSuccessorBatches[hyp.state * 2 + 1];
 
     if (doSkip && secondStart != 0) {
         doSkip = false;  // Omit the second order expansion later.
@@ -1151,7 +1199,7 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
     Score forwardScore = hyp.score + tdp[Am::StateTransitionModel::forward];
 
     if (forwardScore < Core::Type<Score>::max) {
-        std::pair<int, int> successors = network_.structure.batchSuccessorsSimple<true>(state.successors);
+        std::pair<int, int> successors = net.structure.batchSuccessorsSimple<true>(state.successors);
         if (successors.first != -1) {
             //Fast iteration
             for (StateId successor = successors.first; successor != successors.second; ++successor) {
@@ -1160,21 +1208,21 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
 
                 if (expandSkip && doSkip)  // TODO: only doSkip is sufficient
                 {                          // Second order expansion (successors of successor).
-                    std::pair<int, int> skipSuccessors = network_.structure.batchSuccessorsSimple<true>(network_.structure.state(successor).successors);
+                    std::pair<int, int> skipSuccessors = net.structure.batchSuccessorsSimple<true>(net.structure.state(successor).successors);
                     if (skipSuccessors.first != -1) {
                         //Fast iteration
                         for (StateId skipSuccessor = skipSuccessors.first; skipSuccessor != skipSuccessors.second; ++skipSuccessor)
                             activateOrUpdateStateHypothesisTransition(hyp, skipScore, skipSuccessor);
                     }
                     else {
-                        for (HMMStateNetwork::SuccessorIterator skipSuccessorIt = network_.structure.successors(successor); skipSuccessorIt; ++skipSuccessorIt)
+                        for (HMMStateNetwork::SuccessorIterator skipSuccessorIt = net.structure.successors(successor); skipSuccessorIt; ++skipSuccessorIt)
                             activateOrUpdateStateHypothesisTransition(hyp, skipScore, *skipSuccessorIt);
                     }
                 }
             }
         }
         else {
-            for (HMMStateNetwork::SuccessorIterator successorIt = network_.structure.batchSuccessors(state.successors); successorIt; ++successorIt) {
+            for (HMMStateNetwork::SuccessorIterator successorIt = net.structure.batchSuccessors(state.successors); successorIt; ++successorIt) {
                 StateId successor = *successorIt;
 
                 if (expandForward)
@@ -1182,7 +1230,7 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
 
                 if (expandSkip && doSkip)  // TODO: only doSkip is sufficient
                 {
-                    for (HMMStateNetwork::SuccessorIterator skipSuccessorIt = network_.structure.successors(successor); skipSuccessorIt; ++skipSuccessorIt)
+                    for (HMMStateNetwork::SuccessorIterator skipSuccessorIt = net.structure.successors(successor); skipSuccessorIt; ++skipSuccessorIt)
                         activateOrUpdateStateHypothesisTransition(hyp, skipScore, *skipSuccessorIt);
                 }
             }
@@ -1203,8 +1251,10 @@ template<bool allowSkip>
 inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
     // This is the 'fast' state-expansion step, that should work in 99.9% of the expansions
     // Labels were already removed from the network before starting, so they can be ignored
-    const HMMState&                 state = network_.structure.state(hyp.state);
-    Am::StateTransitionModel const& tdp(*transitionModel(state.stateDesc));
+    PersistentStateTree const&      net                             = network();
+    std::vector<int> const&         secondOrderEdgeSuccessorBatches = automaton_->secondOrderEdgeSuccessorBatches;
+    HMMState const&                 state                           = net.structure.state(hyp.state);
+    Am::StateTransitionModel const& tdp                             = *transitionModel(state.stateDesc);
 
     // loops
     Score loopScore = hyp.score + tdp[Am::StateTransitionModel::loop];
@@ -1225,7 +1275,7 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
     }
     else {
         // There are multiple successors
-        std::pair<int, int> successors = network_.structure.batchSuccessorsSimpleIgnoreLabels(state.successors);
+        std::pair<int, int> successors = net.structure.batchSuccessorsSimpleIgnoreLabels(state.successors);
 
         if (successors.first == -1) {
             // The successor structure has irregular linked-list form, use the slow non-optimized expansion
@@ -1242,7 +1292,7 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
 
     if (allowSkip) {
         // skip transition
-        u32 secondStart = secondOrderEdgeSuccessorBatches_[hyp.state * 2], secondEnd = secondOrderEdgeSuccessorBatches_[hyp.state * 2 + 1];
+        u32 secondStart = secondOrderEdgeSuccessorBatches[hyp.state * 2], secondEnd = secondOrderEdgeSuccessorBatches[hyp.state * 2 + 1];
 
         if (secondStart != secondEnd) {
             Score skipScore = hyp.score + tdp[Am::StateTransitionModel::skip];
@@ -1413,7 +1463,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
                 applyLookaheadSparsePrePerf_->start();
 
                 for (; sh != sh_end; ++sh) {
-                    std::pair<uint, uint> ids = lookAheadIds_[sh->state];
+                    std::pair<uint, uint> ids = automaton_->lookAheadIds[sh->state];
 
                     if (ids.first <= fullLookaheadAfterId_ && (!sparseLookaheadSlowPropagation_ || sh->prospect != F32_MAX)) {
                         // Activate the full lookahead, as the active state is deeper than our depth threshold
@@ -1459,7 +1509,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
         Score offset = instance.backOffScore;
 
         for (; sh != sh_end; ++sh) {
-            std::pair<u32, u32>& ids = lookAheadIdAndHash_[sh->state];
+            std::pair<u32, u32> const& ids = automaton_->lookAheadIdAndHash[sh->state];
 
             Score lmScore = 0;
             bool  fail    = false;
@@ -1493,7 +1543,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
         applyLookaheadStandardPerf_->start();
         // Standard, non-sparse LM lookahead (use scoreForLookAheadIdNormal)
         for (; sh != sh_end; ++sh) {
-            std::pair<uint, uint> ids = lookAheadIds_[sh->state];
+            std::pair<uint, uint> ids = automaton_->lookAheadIds[sh->state];
 
             sh->prospect = sh->score + la->scoreForLookAheadIdNormal(ids.first) + acousticLookAhead(ids.second, sh->state) + (useBackOffOffset ? backOffOffset : 0);
             pruning.prepare(*sh);
@@ -1562,7 +1612,7 @@ void SearchSpace::addAcousticScoresInternal(Instance const& instance, Pruning& p
             if (sh->prospect == F32_MAX)
                 continue;  //This state will be pruned
 
-            const HMMState&  state = network_.structure.state(sh->state);
+            const HMMState&  state = network().structure.state(sh->state);
             Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
             verify_(mix != StateTree::invalidAcousticModel);
 
@@ -1580,7 +1630,7 @@ void SearchSpace::addAcousticScoresInternal(Instance const& instance, Pruning& p
             if (sh->prospect == F32_MAX)
                 continue;  //This state will be pruned
 
-            const HMMState&  state = network_.structure.state(sh->state);
+            const HMMState&  state = network().structure.state(sh->state);
             Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
             verify_(mix != StateTree::invalidAcousticModel);
 
@@ -1653,8 +1703,7 @@ void SearchSpace::activateLmLookahead(Search::Instance& instance, bool compute) 
             if (wt.lookaheadHistory == unigramHistory_)
                 instance.lookahead = unigramLookAhead_;
             else
-                instance.lookahead = lmLookahead_->tryToGetLookahead(
-                        wt.lookaheadHistory.isValid() ? wt.lookaheadHistory : wt.key.history);
+                instance.lookahead = lmLookahead_->tryToGetLookahead(wt.lookaheadHistory.isValid() ? wt.lookaheadHistory : wt.key.history);
         }
     }
 }
@@ -1822,7 +1871,7 @@ void SearchSpace::updateSsaLm() {
         info.minLabelDistance = std::numeric_limits<unsigned>::max();
         info.bestScore        = std::numeric_limits<Score>::max();
         for (auto hypIter = stateHypotheses.begin() + inst->states.begin; hypIter < stateHypotheses.begin() + inst->states.end; ++hypIter) {
-            info.minLabelDistance = std::min(info.minLabelDistance, labelDistance_[hypIter->state]);
+            info.minLabelDistance = std::min(info.minLabelDistance, automaton_->labelDistance[hypIter->state]);
             info.bestScore        = std::min(info.bestScore, hypIter->score);
         }
         info.bestScoreOffset = info.bestScore - bestScore();
@@ -1832,12 +1881,12 @@ void SearchSpace::updateSsaLm() {
 }
 
 void SearchSpace::filterStates() {
-    if (!prefixFilter_)
+    if (!automaton_->prefixFilter)
         return;
 
     PerformanceCounter perf(*statistics, "filter states");
 
-    pruneStates(*prefixFilter_);
+    pruneStates(*automaton_->prefixFilter);
 }
 
 // early acoustic pruning
@@ -1859,7 +1908,7 @@ void SearchSpace::pruneAndAddScores() {
 
     doStateStatisticsBeforePruning();
 
-    filterStates();  // pruneStates using prefixFilter_ -> necessary for incremental decoding of partial segments, where we initialize the prefix
+    filterStates();  // pruneStates using automaton_->prefixFilter -> necessary for incremental decoding of partial segments, where we initialize the prefix
     // works with pruneStates() on stateHypotheses
     pruneStatesEarly();  // before applying acoustic scores, uses pruneStates() with score AcousticPruning_
 
@@ -1914,20 +1963,21 @@ void SearchSpace::pruneAndAddScores() {
 }
 
 void SearchSpace::correctPushedTransitions() {
-    if (!correctPushedBoundaryTimes_ || !minimized_)
+    if (!correctPushedBoundaryTimes_ || !automaton_->minimized)
         return;
 
+    PersistentStateTree const& net = network();
     PerformanceCounter perf(*statistics, "correct pushed boundaries");
 
     int alreadyCorrect = 0, corrected = 0, candidates = 0;
 
     bool encodeState = this->encodeState();
 
-    s32 rootDepth = truncatedStateDepths_[network_.rootState];
+    s32 rootDepth = automaton_->truncatedStateDepths[net.rootState];
 
     for (StateHypothesesList::iterator it = stateHypotheses.begin(); it != stateHypotheses.end(); ++it) {
         TraceId& trace((*it).trace);
-        if (truncatedStateDepths_[it->state] == rootDepth) {  // after fanout
+        if (automaton_->truncatedStateDepths[it->state] == rootDepth) {  // after fanout
             ++corrected;
             const Search::Trace& traceItem(*TraceManager::traceItem(trace).trace);
             int                  timeDifference  = 1 + (int)timeFrame_ - (int)traceItem.time;
@@ -1941,7 +1991,7 @@ void SearchSpace::correctPushedTransitions() {
             trace = TraceManager::modify(TraceManager::getUnmodified(trace), timeDifference, scoreDifference, encodeState ? it->state : 0);
         }
         else if (!TraceManager::isModified(trace)) {
-            if (truncatedStateDepths_[it->state] >= rootDepth)  // after fanout
+            if (automaton_->truncatedStateDepths[it->state] >= rootDepth)  // after fanout
             {
                 ++corrected;
                 const Search::Trace& traceItem(*TraceManager::traceItem(trace).trace);
@@ -1952,7 +2002,7 @@ void SearchSpace::correctPushedTransitions() {
 
                 if (correctPushedAcousticScores_ && timeDifference > 0) {
                     // We need to subtract the acoustic score of this timeframe, as that one should be accounted to this word already
-                    Score currentAcousticScore = scorer_->score(network_.structure.state(it->state).stateDesc.acousticModel);
+                    Score currentAcousticScore = scorer_->score(net.structure.state(it->state).stateDesc.acousticModel);
                     Score d                    = (*it).score + globalScoreOffset_ - currentAcousticScore - traceItem.score;
                     scoreDifference            = reinterpret_cast<u32&>(d);
                 }
@@ -2042,6 +2092,9 @@ inline Core::Ref<Trace> SearchSpace::getModifiedTrace(TraceId traceId, const Bli
 void SearchSpace::pruneEarlyWordEnds() {
     Score absoluteProspectThreshold = minWordEndScore_ + std::min(acousticPruning_, wordEndPruning_);
 
+    PersistentStateTree const& net         = network();
+    std::vector<int> const&    stateDepths = automaton_->stateDepths;
+
     PerformanceCounter perf(*statistics, "prune early word ends");
 
     bool               doPhonemePruning = wordEndPhonemePruningThreshold_ < wordEndPruning_;
@@ -2054,7 +2107,7 @@ void SearchSpace::pruneEarlyWordEnds() {
     for (EarlyWordEndHypothesisList::iterator in = earlyWordEndHypotheses.begin(); in != earlyWordEndHypotheses.end(); ++in) {
         if (in->score <= absoluteProspectThreshold) {
             // Expand the _fat_ word end hypotheses
-            const PersistentStateTree::Exit* we   = &network_.exits[in->exit];
+            const PersistentStateTree::Exit* we   = &net.exits[in->exit];
             const Bliss::LemmaPronunciation* pron = (we->pronunciation == Bliss::LemmaPronunciation::invalidId) ? 0 : lexicon_->lemmaPronunciation(we->pronunciation);
 
             TraceItem const&  traceItem = TraceManager::traceItem(in->trace);
@@ -2073,14 +2126,14 @@ void SearchSpace::pruneEarlyWordEnds() {
             }
 
             if (doPhonemePruning) {
-                StateId transit  = network_.exits[in->exit].transitState;
-                bool    isPushed = stateDepths_[transit] < stateDepths_[network_.rootState];
+                StateId transit  = net.exits[in->exit].transitState;
+                bool    isPushed = stateDepths[transit] < stateDepths[net.rootState];
 
                 Bliss::Phoneme::Id group = nPhonemes;
 
                 if (!isPushed) {
-                    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network_.rootTransitDescriptions.find(transit);
-                    verify(it != network_.rootTransitDescriptions.end());
+                    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::const_iterator it = net.rootTransitDescriptions.find(transit);
+                    verify(it != net.rootTransitDescriptions.end());
                     group = it->second.second;
                 }
                 else {
@@ -2099,7 +2152,7 @@ void SearchSpace::pruneEarlyWordEnds() {
 
     if (doPhonemePruning) {
         // Record the best score per first-phoneme
-        verify(!network_.unpushedCoarticulatedRootStates.empty());
+        verify(!net.unpushedCoarticulatedRootStates.empty());
         verify(groups.size() == wordEndHypotheses.size());
 
         u32 phoneSum  = 0;
@@ -2199,6 +2252,11 @@ void SearchSpace::createTraces(TimeframeIndex time) {
 }
 
 void SearchSpace::hypothesizeEpsilonPronunciations(Score bestScore) {
+    PersistentStateTree const& net               = network();
+    std::vector<int> const&    singleLabels      = automaton_->singleLabels;
+    std::vector<u32> const&    quickLabelBatches = automaton_->quickLabelBatches;
+    std::vector<s32> const&    slowLabelBatches  = automaton_->slowLabelBatches;
+
     u32 nWordEnds  = wordEndHypotheses.size();
     u32 considered = 0;
 
@@ -2208,28 +2266,28 @@ void SearchSpace::hypothesizeEpsilonPronunciations(Score bestScore) {
 
     for (u32 w = 0; w < nWordEnds; ++w) {
         StateId transit = wordEndHypotheses[w].transitState;
-        if (singleLabels_[transit] == -1)  // There are no outputs on the state.
+        if (singleLabels[transit] == -1)  // There are no outputs on the state.
             continue;
 
         // Get all outputs of the transit state.
         u32 exitsStart, exitsEnd;
 
-        if (singleLabels_[transit] >= 0)  // There is a single output on the state.
+        if (singleLabels[transit] >= 0)  // There is a single output on the state.
         {
-            exitsStart = singleLabels_[transit];
+            exitsStart = singleLabels[transit];
             exitsEnd   = exitsStart + 1;
         }
-        else if (singleLabels_[transit] == -2)  // There are multiple outputs on the state, on fast batches.
+        else if (singleLabels[transit] == -2)  // There are multiple outputs on the state, on fast batches.
         {
-            exitsStart = quickLabelBatches_[network_.rootState];
-            exitsEnd   = quickLabelBatches_[network_.rootState + 1];
+            exitsStart = quickLabelBatches[net.rootState];
+            exitsEnd   = quickLabelBatches[net.rootState + 1];
         }
         else {  // Negative number: There are multiple outputs on the state, on slow batches. (List with terminator -1).
-            for (s32 current = -(singleLabels_[transit] + 3); slowLabelBatches_[current] != -1; ++current) {
-                u32 exit = slowLabelBatches_[current];
+            for (s32 current = -(singleLabels[transit] + 3); slowLabelBatches[current] != -1; ++current) {
+                u32 exit = slowLabelBatches[current];
 
                 /// @todo Un-copy this code
-                const PersistentStateTree::Exit& wordEnd       = network_.exits[exit];
+                const PersistentStateTree::Exit& wordEnd       = net.exits[exit];
                 const Bliss::LemmaPronunciation* pronunciation = lexicon_->lemmaPronunciation(wordEnd.pronunciation);
                 if (!pronunciation)
                     continue;
@@ -2248,7 +2306,7 @@ void SearchSpace::hypothesizeEpsilonPronunciations(Score bestScore) {
                     Lm::addLemmaPronunciationScoreOmitExtension(lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.scoreHistory, weh.score.lm);
                 }
 
-                weh.score.acoustic += (*transitionModel(network_.structure.state(transit).stateDesc))[Am::StateTransitionModel::exit];
+                weh.score.acoustic += (*transitionModel(net.structure.state(transit).stateDesc))[Am::StateTransitionModel::exit];
                 ++considered;
                 if (weh.score <= threshold) {
                     extendHistoryByLemma(weh, weh.pronunciation->lemma());
@@ -2263,7 +2321,7 @@ void SearchSpace::hypothesizeEpsilonPronunciations(Score bestScore) {
 
         // Consecutive outputs between exitsStart and exitsEnd
         for (u32 exit = exitsStart; exit != exitsEnd; ++exit) {
-            const PersistentStateTree::Exit& wordEnd       = network_.exits[exit];
+            const PersistentStateTree::Exit& wordEnd       = net.exits[exit];
             const Bliss::LemmaPronunciation* pronunciation = lexicon_->lemmaPronunciation(wordEnd.pronunciation);
             if (!pronunciation)
                 continue;
@@ -2282,7 +2340,7 @@ void SearchSpace::hypothesizeEpsilonPronunciations(Score bestScore) {
                 Lm::addLemmaPronunciationScoreOmitExtension(lm_, weh.pronunciation, wpScale_, lm_->scale(), weh.scoreHistory, weh.score.lm);
             }
 
-            weh.score.acoustic += (*transitionModel(network_.structure.state(transit).stateDesc))[Am::StateTransitionModel::exit];
+            weh.score.acoustic += (*transitionModel(net.structure.state(transit).stateDesc))[Am::StateTransitionModel::exit];
             ++considered;
             if (weh.score <= threshold) {
                 extendHistoryByLemma(weh, weh.pronunciation->lemma());
@@ -2325,8 +2383,10 @@ void SearchSpace::optimizeSilenceInWordLattice(
 }
 
 StateId SearchSpace::rootForCoarticulation(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> coarticulation) const {
+    PersistentStateTree const& net = automaton_->network; // TODO(beck): change to network() once this function is const
+
     if (coarticulation.first == Bliss::Phoneme::term && coarticulation.second == Bliss::Phoneme::term)
-        return network_.rootState;
+        return net.rootState;
 
     //   std::cout << "coarticulation " << coarticulation.first << " " << coarticulation.second << std::endl;
 
@@ -2344,12 +2404,12 @@ StateId SearchSpace::rootForCoarticulation(std::pair<Bliss::Phoneme::Id, Bliss::
 
         verify(rootState & (1 << 31));
         rootState &= ((1u << 31) - 1);
-        assert(rootState != 0 && rootState < network_.structure.stateCount());
+        assert(rootState != 0 && rootState < net.structure.stateCount());
         return rootState;
     }
 
     StateId rootState = 0;
-    for (PersistentStateTree::RootTransitDescriptions::const_iterator it = network_.rootTransitDescriptions.begin(); it != network_.rootTransitDescriptions.end(); ++it) {
+    for (PersistentStateTree::RootTransitDescriptions::const_iterator it = net.rootTransitDescriptions.begin(); it != net.rootTransitDescriptions.end(); ++it) {
         if (it->second == coarticulation) {
             if (rootState) {
                 Core::Application::us()->criticalError() << "root coarticulation is ambiguous: " << (coarticulation.first == Bliss::Phoneme::term ? "#" : lexicon_->phonemeInventory()->phoneme(coarticulation.first)->symbol().str()) << ":" << (coarticulation.second == Bliss::Phoneme::term ? "#" : lexicon_->phonemeInventory()->phoneme(coarticulation.second)->symbol().str());
@@ -2405,6 +2465,8 @@ void SearchSpace::dumpWordEnds(
 }
 
 std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> SearchSpace::describeRootState(StateId state) const {
+    PersistentStateTree const& net = automaton_->network; // TODO(beck): change to network() once this function is const
+
     if (encodeState()) {
         union {
             struct {
@@ -2415,8 +2477,8 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> SearchSpace::describeRootState
         rootState = state | (1 << 31);
         return std::make_pair(coart.first, coart.second);
     }
-    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::const_iterator it = network_.rootTransitDescriptions.find(state);
-    if (it != network_.rootTransitDescriptions.end())
+    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::const_iterator it = net.rootTransitDescriptions.find(state);
+    if (it != net.rootTransitDescriptions.end())
         return (*it).second;
     else
         return std::make_pair(Bliss::Phoneme::term, Bliss::Phoneme::term);
@@ -2433,8 +2495,9 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> SearchSpace::describeRootState
  * has siblings corresponding to sub-optimal sentence ends.
  */
 
-Core::Ref<Trace>
-        SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCreateLattice) {
+Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCreateLattice) {
+    PersistentStateTree const& net = network();
+
     if (recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::No)
         shallCreateLattice = false;
     else if (recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::Yes)
@@ -2454,8 +2517,8 @@ Core::Ref<Trace>
                 continue;  // do not allow mismatching sentence end
         }
         else {
-            if (weh->transitState != network_.rootState && weh->transitState != network_.ciRootState &&
-                !network_.uncoarticulatedWordEndStates.count(weh->transitState))
+            if (weh->transitState != net.rootState && weh->transitState != net.ciRootState &&
+                !net.uncoarticulatedWordEndStates.count(weh->transitState))
                 continue;  // do not allow coarticulated sentence end
         }
         Core::Ref<Trace> t(new Trace(weh->trace, 0, time, weh->score, describeRootState(weh->transitState)));
@@ -2496,11 +2559,11 @@ Core::Ref<Trace>
         }
     }
 
-    verify(!forceRoot || network_.uncoarticulatedWordEndStates.size() || network_.coarticulatedRootStates.count(forceRoot));
+    verify(!forceRoot || net.uncoarticulatedWordEndStates.size() || net.coarticulatedRootStates.count(forceRoot));
 
     u32 activeUncoartic = 0;
 
-    if (network_.uncoarticulatedWordEndStates.size()) {
+    if (net.uncoarticulatedWordEndStates.size()) {
         bool encodeState = this->encodeState();
         // We expect early-recombination to be used when this is enabled.
         // Take the trace from the best word-end states
@@ -2514,7 +2577,7 @@ Core::Ref<Trace>
                         continue;
                 }
                 else {
-                    if (!network_.uncoarticulatedWordEndStates.count((*it).state))
+                    if (!net.uncoarticulatedWordEndStates.count((*it).state))
                         continue;
                     else
                         ++activeUncoartic;
@@ -2530,7 +2593,7 @@ Core::Ref<Trace>
                                              scores,
                                              encodeState ? describeRootState(it->state) : SearchAlgorithm::TracebackItem::Transit()));
                 // Append sentence-end epsilon arc
-                t = Core::Ref<Trace>(new Trace(t, 0, time, t->score, describeRootState(network_.rootState)));
+                t = Core::Ref<Trace>(new Trace(t, 0, time, t->score, describeRootState(net.rootState)));
 
                 Lm::History h(TraceManager::traceItem((*it).trace).scoreHistory);
                 verify(h.isValid());
@@ -2579,8 +2642,9 @@ Core::Ref<Trace>
  * network and consider it as a "word end" without a pronunciation.
  */
 
-Core::Ref<Trace>
-        SearchSpace::getSentenceEndFallBack(TimeframeIndex time, bool shallCreateLattice) {
+Core::Ref<Trace> SearchSpace::getSentenceEndFallBack(TimeframeIndex time, bool shallCreateLattice) {
+    PersistentStateTree const& net = network();
+
     Core::Ref<Trace> best;
 
     if (recognitionContext_.latticeMode == SearchAlgorithm::RecognitionContext::No)
@@ -2610,7 +2674,7 @@ Core::Ref<Trace>
             Score score = bestHyp->score;
 
             Core::Ref<Trace> pre(TraceManager::traceItem(activeTrace).trace);
-            best                 = Core::Ref<Trace>(new Trace(pre, 0, time, pre->score, describeRootState(network_.rootState)));
+            best                 = Core::Ref<Trace>(new Trace(pre, 0, time, pre->score, describeRootState(net.rootState)));
             best->score.acoustic = globalScoreOffset_ + score - pre->score.lm;
 
             Lm::History h = TraceManager::traceItem(bestHyp->trace).scoreHistory;
@@ -2872,12 +2936,12 @@ void SearchSpace::doStateStatistics() {
     if (!extendStatistics_)
         return;
 
-    if (!stateDepths_.empty()) {
+    if (!automaton_->stateDepths.empty()) {
         {
             std::vector<u32> perDepth;
 
             for (StateHypothesisIndex idx = 0; idx < stateHypotheses.size(); ++idx) {
-                u32 depth = stateDepths_[stateHypotheses[idx].state];
+                u32 depth = automaton_->stateDepths[stateHypotheses[idx].state];
                 if (depth >= perDepth.size())
                     perDepth.resize(depth + 1, 0);
                 ++perDepth[depth];
@@ -2893,7 +2957,7 @@ void SearchSpace::doStateStatistics() {
                 if (!static_cast<Instance&>(**it).lookahead.get())
                     continue;
                 for (StateHypothesisIndex idx = (*it)->states.begin; idx < (*it)->states.end; ++idx) {
-                    u32 depth = stateDepths_[stateHypotheses[idx].state];
+                    u32 depth = automaton_->stateDepths[stateHypotheses[idx].state];
                     if (depth >= perDepth.size())
                         perDepth.resize(depth + 1, 0);
                     ++perDepth[depth];
@@ -2902,12 +2966,12 @@ void SearchSpace::doStateStatistics() {
         }
     }
 
-    if (!invertedStateDepths_.empty()) {
+    if (!automaton_->invertedStateDepths.empty()) {
         {
             std::vector<u32> perDepth;
 
             for (StateHypothesisIndex idx = 0; idx < stateHypotheses.size(); ++idx) {
-                u32 depth = invertedStateDepths_[stateHypotheses[idx].state];
+                u32 depth = automaton_->invertedStateDepths[stateHypotheses[idx].state];
                 if (depth >= perDepth.size())
                     perDepth.resize(depth + 1, 0);
                 ++perDepth[depth];
@@ -2923,7 +2987,7 @@ void SearchSpace::doStateStatistics() {
                 if (!static_cast<Instance&>(**it).lookahead.get())
                     continue;
                 for (StateHypothesisIndex idx = (*it)->states.begin; idx < (*it)->states.end; ++idx) {
-                    u32 depth = invertedStateDepths_[stateHypotheses[idx].state];
+                    u32 depth = automaton_->invertedStateDepths[stateHypotheses[idx].state];
                     if (depth >= perDepth.size())
                         perDepth.resize(depth + 1, 0);
                     ++perDepth[depth];
@@ -3121,6 +3185,8 @@ void SearchSpace::recombineWordEndsInternal(bool shallCreateLattice) {
 }
 
 void SearchSpace::doWordEndStatistics() {
+    PersistentStateTree const& net = network();
+
     if (lmLookahead_)
         lmLookahead_->collectStatistics();
 
@@ -3150,9 +3216,9 @@ void SearchSpace::doWordEndStatistics() {
          weh != wordEndHypotheses.end(); ++weh) {
         if (weh->pronunciation->lemma() == 0 || !weh->pronunciation->lemma()->hasSyntacticTokenSequence())
             ++specialWordEnds;
-        if (weh->transitState == network_.rootState)
+        if (weh->transitState == net.rootState)
             ++rootWordEnds;
-        else if (weh->transitState == network_.ciRootState)
+        else if (weh->transitState == net.ciRootState)
             ++ciWordEnds;
         else
             ++coarticulatedWordEnds;
@@ -3451,7 +3517,7 @@ Instance* SearchSpace::activateOrUpdateTree(const Core::Ref<Trace>& trace,
 
 template<bool earlyWordEndPruning, bool onTheFlyRescoring>
 void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& hyp, s32 exit, Score exitPenalty, Score relativePruning, Score& bestWordEndPruning) {
-    PersistentStateTree::Exit const* we   = &network_.exits[exit];
+    PersistentStateTree::Exit const* we   = &network().exits[exit];
     TraceItem const&                 item = TraceManager::traceItem(hyp.trace);
 
     //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
@@ -3508,6 +3574,11 @@ template<bool earlyWordEndPruning, bool onTheFlyRescoring>
 void SearchSpace::findWordEndsInternal() {
     PerformanceCounter perf(*statistics, "find word ends");
 
+    PersistentStateTree const& net               = network();
+    std::vector<int> const&    singleLabels      = automaton_->singleLabels;
+    std::vector<u32> const&    quickLabelBatches = automaton_->quickLabelBatches;
+    std::vector<s32> const&    slowLabelBatches  = automaton_->slowLabelBatches;
+
     Score relativePruning    = std::min(acousticPruning_, wordEndPruning_);
     Score bestWordEndPruning = Core::Type<Score>::max;
     minWordEndScore_         = Core::Type<Score>::max;
@@ -3518,12 +3589,12 @@ void SearchSpace::findWordEndsInternal() {
         for (StateHypothesesList::iterator sh = stateHypotheses.begin() + inst->states.begin; sh != stateHypotheses.begin() + inst->states.end; ++sh) {
             StateHypothesis& hyp(*sh);
 
-            s32 exit = singleLabels_[hyp.state];
+            s32 exit = singleLabels[hyp.state];
             if (exit == -1) {
                 continue;  // No labels
             }
 
-            const HMMState& state       = network_.structure.state(hyp.state);
+            const HMMState& state       = net.structure.state(hyp.state);
             Score           exitPenalty = (*transitionModel(state.stateDesc))[Am::StateTransitionModel::exit];
 
             if (earlyWordEndPruning && hyp.score + exitPenalty + earlyWordEndPruningAnticipatedLmScore_ > bestWordEndPruning) {
@@ -3537,8 +3608,8 @@ void SearchSpace::findWordEndsInternal() {
             }
             else if (exit == -2) {
                 // There are multiple labels, with a nice regular structure, use quickLabelBatches_
-                u32 exitsStart = quickLabelBatches_[hyp.state];
-                u32 exitsEnd   = quickLabelBatches_[hyp.state + 1];
+                u32 exitsStart = quickLabelBatches[hyp.state];
+                u32 exitsEnd   = quickLabelBatches[hyp.state + 1];
 
                 for (exit = exitsStart; exit != exitsEnd; ++exit) {
                     processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
@@ -3546,8 +3617,8 @@ void SearchSpace::findWordEndsInternal() {
             }
             else {
                 // There are multiple labels, however we cannot use quickLabelBatches_.
-                for (s32 current = -(exit + 3); slowLabelBatches_[current] != -1; ++current) {
-                    u32 exit = slowLabelBatches_[current];
+                for (s32 current = -(exit + 3); slowLabelBatches[current] != -1; ++current) {
+                    u32 exit = slowLabelBatches[current];
                     processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
                 }
             }

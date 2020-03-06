@@ -58,21 +58,23 @@ public:
     typedef AbstractNNLanguageModel                               Precursor;
     typedef moodycamel::BlockingReaderWriterQueue<History const*> HistoryQueue;
 
-    static Core::ParameterBool   paramTransformOuputLog;
-    static Core::ParameterBool   paramTransformOuputNegate;
-    static Core::ParameterInt    paramMinBatchSize;
-    static Core::ParameterInt    paramOptBatchSize;
-    static Core::ParameterInt    paramMaxBatchSize;
-    static Core::ParameterFloat  paramBatchPruningThreshold;
-    static Core::ParameterBool   paramAllowReducedHistory;
-    static Core::ParameterBool   paramDumpScores;
-    static Core::ParameterString paramDumpScoresPrefix;
-    static Core::ParameterBool   paramLogMemory;
-    static Core::ParameterBool   paramFreeMemory;
-    static Core::ParameterInt    paramFreeMemoryDelay;
-    static Core::ParameterBool   paramAsync;
-    static Core::ParameterBool   paramSingleStepOnly;
-    static Core::ParameterBool   paramVerbose;
+    static const Core::ParameterBool   paramTransformOuputLog;
+    static const Core::ParameterBool   paramTransformOuputNegate;
+    static const Core::ParameterInt    paramMinBatchSize;
+    static const Core::ParameterInt    paramOptBatchSize;
+    static const Core::ParameterInt    paramMaxBatchSize;
+    static const Core::ParameterInt    paramHistoryPruningThreshold;
+    static const Core::ParameterInt    paramPrunedHistoryLength;
+    static const Core::ParameterFloat  paramBatchPruningThreshold;
+    static const Core::ParameterBool   paramAllowReducedHistory;
+    static const Core::ParameterBool   paramDumpScores;
+    static const Core::ParameterString paramDumpScoresPrefix;
+    static const Core::ParameterBool   paramLogMemory;
+    static const Core::ParameterBool   paramFreeMemory;
+    static const Core::ParameterInt    paramFreeMemoryDelay;
+    static const Core::ParameterBool   paramAsync;
+    static const Core::ParameterBool   paramSingleStepOnly;
+    static const Core::ParameterBool   paramVerbose;
 
     TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
     virtual ~TFRecurrentLanguageModel();
@@ -97,6 +99,8 @@ private:
     size_t                      min_batch_size_;
     size_t                      opt_batch_size_;
     size_t                      max_batch_size_;
+    size_t                      history_pruning_threshold_;
+    size_t                      pruned_history_length_;
     Score                       batch_pruning_threshold_;
     bool                        allow_reduced_history_;
     bool                        dump_scores_;
@@ -146,6 +150,8 @@ private:
     mutable std::vector<History const*> pending_;
     mutable HistoryQueue                fwd_queue_;
     mutable HistoryQueue                finished_queue_;
+
+    History extendHistoryWithOutputIdx(History const& hist, size_t w) const;
 
     void background_forward() const;
     template<bool async>

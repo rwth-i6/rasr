@@ -275,21 +275,23 @@ void TFRecurrentLanguageModel::TimeStatistics::write(std::ostream& out) const {
         << " smo:" << softmax_output_duration.count();
 }
 
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog("transform-output-log", "apply log to tensorflow output", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)", false);
-Core::ParameterInt    TFRecurrentLanguageModel::paramMinBatchSize("min-batch-size", "minimum number of histories forwarded in one go", 32);
-Core::ParameterInt    TFRecurrentLanguageModel::paramOptBatchSize("opt-batch-size", "optimum number of histories forwarded in one go", 128);
-Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize("max-batch-size", "maximum number of histories forwarded in one go", 2048);
-Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batch-pruning-threshold", "pruning threshold for all hypothesis beyond min-batch-size during eager forwarding", 10.0);
-Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory("allow-reduced-history", "wether this LM will actually reduce the history length", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores("dump-scores", "write all scores from this LM to disk", false);
-Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix("dump-scores-prefix", "prefix for the score dumps", "scores");
-Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory("log-memory", "wether memory usage from nn-outputs / states should be logged", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory("free-memory", "wether nn-outputs should be deleted after some delay", false);
-Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay("free-memory-delay", "how many time frames without usage before nn-outputs are deleted", 40);
-Core::ParameterBool   TFRecurrentLanguageModel::paramAsync("async", "wether to forward histories in a separate thread", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramSingleStepOnly("single-step-only", "workaround for some bug that results in wrong scores when recombination is done in combination with async evaluation", false);
-Core::ParameterBool   TFRecurrentLanguageModel::paramVerbose("verbose", "wether to print detailed statistics to stderr", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputLog("transform-output-log", "apply log to tensorflow output", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramTransformOuputNegate("transform-output-negate", "negate tensorflow output (after log)", false);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramMinBatchSize("min-batch-size", "minimum number of histories forwarded in one go", 32);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramOptBatchSize("opt-batch-size", "optimum number of histories forwarded in one go", 128);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramMaxBatchSize("max-batch-size", "maximum number of histories forwarded in one go", 2048);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramHistoryPruningThreshold("history-pruning-threshold", "if the history is longer than this parameter it will be pruned", std::numeric_limits<int>::max(), 0);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramPrunedHistoryLength("pruned-history-length", "length of the pruned history (should be smaller than history-pruning-threshold)", std::numeric_limits<int>::max(), 0);
+const Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batch-pruning-threshold", "pruning threshold for all hypothesis beyond min-batch-size during eager forwarding", 10.0);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory("allow-reduced-history", "wether this LM will actually reduce the history length", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores("dump-scores", "write all scores from this LM to disk", false);
+const Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix("dump-scores-prefix", "prefix for the score dumps", "scores");
+const Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory("log-memory", "wether memory usage from nn-outputs / states should be logged", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramFreeMemory("free-memory", "wether nn-outputs should be deleted after some delay", false);
+const Core::ParameterInt    TFRecurrentLanguageModel::paramFreeMemoryDelay("free-memory-delay", "how many time frames without usage before nn-outputs are deleted", 40);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramAsync("async", "wether to forward histories in a separate thread", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramSingleStepOnly("single-step-only", "workaround for some bug that results in wrong scores when recombination is done in combination with async evaluation", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramVerbose("verbose", "wether to print detailed statistics to stderr", false);
 
 TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
         : Core::Component(c),
@@ -299,6 +301,8 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
           min_batch_size_(paramMinBatchSize(config)),
           opt_batch_size_(paramOptBatchSize(config)),
           max_batch_size_(paramMaxBatchSize(config)),
+          history_pruning_threshold_(paramHistoryPruningThreshold(config)),
+          pruned_history_length_(paramPrunedHistoryLength(config)),
           batch_pruning_threshold_(paramBatchPruningThreshold(config)),
           allow_reduced_history_(paramAllowReducedHistory(config)),
           dump_scores_(paramDumpScores(config)),
@@ -333,6 +337,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
           pending_(),
           fwd_queue_(32768),
           finished_queue_(32768) {
+    require_le(pruned_history_length_, history_pruning_threshold_);
     session_.addGraph(*graph_);
     loader_->initialize(session_);
 
@@ -429,26 +434,7 @@ History TFRecurrentLanguageModel::extendedHistory(History const& hist, Token w) 
 }
 
 History TFRecurrentLanguageModel::extendedHistory(History const& hist, Bliss::Token::Id w) const {
-    auto                     timer_start = std::chrono::steady_clock::now();
-    NNHistoryManager*        hm          = dynamic_cast<NNHistoryManager*>(historyManager_);
-    ScoresWithContext const* sc          = reinterpret_cast<ScoresWithContext const*>(hist.handle());
-    TokenIdSequence          ts(*sc->history);
-    ts.push_back(lexicon_mapping_[w]);
-    HistoryHandle      h     = hm->get<ScoresWithContext>(ts);
-    ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
-    if (cache->parent.handle() == nullptr) {
-        cache->parent                   = hist;
-        ScoresWithContext* parent_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
-        parent_cache->was_expanded      = true;
-        if (async_) {
-            fwd_queue_.enqueue(new History(history(h)));
-        }
-    }
-    History ext_hist(history(h));
-    auto    timer_end        = std::chrono::steady_clock::now();
-    double  expand_hist_time = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
-    total_expand_hist_time_ += expand_hist_time;
-    return ext_hist;
+    return extendHistoryWithOutputIdx(hist, lexicon_mapping_[w]);
 }
 
 History TFRecurrentLanguageModel::reducedHistory(History const& hist, u32 limit) const {
@@ -458,7 +444,7 @@ History TFRecurrentLanguageModel::reducedHistory(History const& hist, u32 limit)
     }
     History h = startHistory();
     for (u32 w = limit; w > 0; w--) {
-        h = extendedHistory(h, sc->history->at(sc->history->size() - w));
+        h = extendHistoryWithOutputIdx(h, sc->history->at(sc->history->size() - w));
     }
     return h;
 }
@@ -559,6 +545,32 @@ void TFRecurrentLanguageModel::setInfo(History const& hist, SearchSpaceInformati
     ScoresWithContext* sc = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
     sc->info              = info;
     sc->last_info         = current_time_;
+}
+
+History TFRecurrentLanguageModel::extendHistoryWithOutputIdx(History const& hist, size_t w) const {
+    auto                     timer_start = std::chrono::steady_clock::now();
+    NNHistoryManager*        hm          = dynamic_cast<NNHistoryManager*>(historyManager_);
+    ScoresWithContext const* sc          = reinterpret_cast<ScoresWithContext const*>(hist.handle());
+    TokenIdSequence          ts(*sc->history);
+    ts.push_back(w);
+    HistoryHandle      h     = hm->get<ScoresWithContext>(ts);
+    ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
+    if (cache->parent.handle() == nullptr) {
+        cache->parent                   = hist;
+        ScoresWithContext* parent_cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(hist.handle()));
+        parent_cache->was_expanded      = true;
+        if (async_) {
+            fwd_queue_.enqueue(new History(history(h)));
+        }
+    }
+    History ext_hist(history(h));
+    if (cache->history->size() > history_pruning_threshold_) {
+        ext_hist = reducedHistory(ext_hist, pruned_history_length_);
+    }
+    auto    timer_end        = std::chrono::steady_clock::now();
+    double  expand_hist_time = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
+    total_expand_hist_time_ += expand_hist_time;
+    return ext_hist;
 }
 
 void TFRecurrentLanguageModel::background_forward() const {

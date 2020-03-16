@@ -77,55 +77,49 @@ public:
     void setReferenceTranscription(const std::string&);
 
     /**
-         * Evaluate a word sequence or lattice.
-         *
-         * For "normal" single-best error rates, make sure that the
-         * automaton passed is linear.  For non-linear automata oracle
-         * error rates are computed.  The best sentence hypothesis in
-         * the lattice (according to the evaluation metric) is
-         * reported.
-         *
-         * @param lemmaPron an acceptor representing the single-best
-         * hypothesis or a word lattice.  The labels must be
-         * lemma-pronunciations.
-         * @param name a string identifier that will be attached to
-         * the result.
-         */
-    u32 evaluateWords(
-            Fsa::ConstAutomatonRef lemmaPron,
-            const std::string&     name);
+     * Evaluate a word sequence or lattice.
+     *
+     * For "normal" single-best error rates, make sure that the
+     * automaton passed is linear.  For non-linear automata oracle
+     * error rates are computed.  The best sentence hypothesis in
+     * the lattice (according to the evaluation metric) is
+     * reported.
+     *
+     * @param lemmaPron an acceptor representing the single-best
+     * hypothesis or a word lattice.  The labels must be
+     * lemma-pronunciations.
+     * @param name a string identifier that will be attached to
+     * the result.
+     */
+    u32 evaluateWords(Fsa::ConstAutomatonRef lemmaPron, const std::string& name);
 
     /**
-         * Evaluate a phoneme sequence or lattice.
-         *
-         * This function is intended for use in a phoneme recognizer.
-         * The phoneme error rate of a word sequence or lattice can be
-         * evaluated using evaluateWords().
-         *
-         * For "normal" single-best error rates, make sure that the
-         * automaton passed is linear.  For non-linear automata oracle
-         * error rates are computed.  The best sentence hypothesis in
-         * the lattice (according to the evaluation metric) is
-         * reported.
-         *
-         * @param phonemes an acceptor representing the single-best
-         * hypothesis or a phoneme lattice.  The labels must be
-         * phonemes.
-         * @param name a string identifier that will be attached to
-         * the result.
-         */
-    u32 evaluatePhonemes(
-            Fsa::ConstAutomatonRef phonemes,
-            const std::string&     name);
+     * Evaluate a phoneme sequence or lattice.
+     *
+     * This function is intended for use in a phoneme recognizer.
+     * The phoneme error rate of a word sequence or lattice can be
+     * evaluated using evaluateWords().
+     *
+     * For "normal" single-best error rates, make sure that the
+     * automaton passed is linear.  For non-linear automata oracle
+     * error rates are computed.  The best sentence hypothesis in
+     * the lattice (according to the evaluation metric) is
+     * reported.
+     *
+     * @param phonemes an acceptor representing the single-best
+     * hypothesis or a phoneme lattice.  The labels must be
+     * phonemes.
+     * @param name a string identifier that will be attached to
+     * the result.
+     */
+    u32 evaluatePhonemes(Fsa::ConstAutomatonRef phonemes, const std::string& name);
 
     /**
-         * Evaluate a sequence or a lattice.
-         * This function automatically dispatches to evaluateWords()
-         * or evaluatePhonemes().
-         */
-    u32 evaluate(
-            Fsa::ConstAutomatonRef,
-            const std::string& name);
+     * Evaluate a sequence or a lattice.
+     * This function automatically dispatches to evaluateWords()
+     * or evaluatePhonemes().
+     */
+    u32 evaluate(Fsa::ConstAutomatonRef, const std::string& name);
 };
 
 }  // namespace Bliss

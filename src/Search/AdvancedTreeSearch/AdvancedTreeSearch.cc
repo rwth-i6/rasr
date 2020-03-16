@@ -196,6 +196,10 @@ void AdvancedTreeSearchManager::restart() {
     segmentStartTime_ = std::chrono::steady_clock::now();
 }
 
+void AdvancedTreeSearchManager::setSegment(Bliss::SpeechSegment const* segment) {
+    const_cast<Lm::ScaledLanguageModel*>(lm_.get())->setSegment(segment);
+}
+
 bool AdvancedTreeSearchManager::shouldComputeWordEnds() {
     if (ss_->nActiveTrees() == 0)
         return true;

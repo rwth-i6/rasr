@@ -242,6 +242,12 @@ Core::Ref<const LanguageModel> CombineLanguageModel::recombinationLanguageModel(
     return Core::Ref<LanguageModel>();
 }
 
+void CombineLanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+    for (size_t i = 0ul; i < lms_.size(); i++) {
+        lms_[i]->setSegment(s);
+    }
+}
+
 void CombineLanguageModel::startFrame(Search::TimeframeIndex time) const {
     for (auto lm : ssa_lms_) {
         if (lm) {

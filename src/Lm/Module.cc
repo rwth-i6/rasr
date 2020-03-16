@@ -21,6 +21,7 @@
 #endif
 #ifdef MODULE_LM_FSA
 #include "FsaLm.hh"
+#include "CheatingSegmentLm.hh"
 #endif
 #ifdef MODULE_LM_ZEROGRAM
 #include "Zerogram.hh"
@@ -50,7 +51,8 @@ enum LanguageModelType {
     lmTypeZerogram,
     lmTypeFFNN,
     lmTypeCombine,
-    lmTypeTFRNN
+    lmTypeTFRNN,
+    lmTypeCheatingSegment
 };
 }
 
@@ -62,6 +64,7 @@ const Core::Choice Module_::lmTypeChoice(
         "ffnn", lmTypeFFNN,
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
+        "cheating-segment", lmTypeCheatingSegment,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -79,6 +82,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #endif
 #ifdef MODULE_LM_FSA
         case lmTypeFsa: result = Core::ref(new FsaLm(c, l)); break;
+        case lmTypeCheatingSegment: result = Core::ref(new CheatingSegmentLm(c, l)); break;
 #endif
 #ifdef MODULE_LM_ZEROGRAM
         case lmTypeZerogram: result = Core::ref(new Zerogram(c, l)); break;

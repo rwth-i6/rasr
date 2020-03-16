@@ -104,6 +104,9 @@ public:
     virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const {
         return languageModel_->recombinationLanguageModel();
     }
+    virtual void setSegment(Bliss::SpeechSegment const* s) {
+        languageModel_->setSegment(s);
+    }
 };
 
 /** Language model score convenience function for syntactic tokens. */

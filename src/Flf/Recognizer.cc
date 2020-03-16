@@ -377,7 +377,7 @@ public:
                    << Core::XmlClose("orth");
         }
         recognizer_->resetStatistics();
-        recognizer_->setSegment(segment_->fullName());
+        recognizer_->setSegment(segment_);
         recognizer_->restart();
         recognizer_->setAllowHmmSkips(allowSkips_);
         traceback_.clear();

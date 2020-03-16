@@ -30,6 +30,7 @@ LIBSPRINTLM_O += $(OBJDIR)/ArpaLm.o
 endif
 ifdef MODULE_LM_FSA
 LIBSPRINTLM_O += $(OBJDIR)/FsaLm.o
+LIBSPRINTLM_O += $(OBJDIR)/CheatingSegmentLm.o
 endif
 ifdef MODULE_LM_ZEROGRAM
 LIBSPRINTLM_O += $(OBJDIR)/Zerogram.o

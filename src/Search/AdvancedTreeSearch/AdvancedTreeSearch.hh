@@ -104,6 +104,7 @@ public:
     virtual bool                            setModelCombination(const Speech::ModelCombination& modelCombination);
     virtual void                            setGrammar(Fsa::ConstAutomatonRef);
     virtual void                            restart();
+    virtual void                            setSegment(Bliss::SpeechSegment const* segment);
     virtual void                            feed(const Mm::FeatureScorer::Scorer&);
     virtual void                            getPartialSentence(Traceback& result);
     virtual void                            getCurrentBestSentencePartial(Traceback& result) const;

@@ -21,6 +21,7 @@
 
 #include "HistoryManager.hh"
 
+#include <Bliss/CorpusDescription.hh>
 #include <Bliss/Lexicon.hh>
 #include <Bliss/Symbol.hh>
 #include <Core/Component.hh>
@@ -497,6 +498,13 @@ public:
      * @return the LM that should be used for recombination, can be nullptr (in that case this LM should be used)
      */
     virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
+
+    /**
+     * For some *cheating* language models we need to know the correct transcription. Language models that are used
+     * for real recognition MUST NOT implement this.
+     * @param s the current segment
+     */
+    virtual void setSegment(Bliss::SpeechSegment const* s);
 
 protected:
     class NonCompiledBatchRequest : public CompiledBatchRequest {

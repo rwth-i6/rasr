@@ -47,7 +47,7 @@ protected:
 
 /*****************************************************************************/
 FsaLm::FsaLm(const Core::Configuration& c, Bliss::LexiconRef lexicon)
-        : Core::Component(c), LanguageModel(c, lexicon), syntacticTokens_(lexicon->syntacticTokenAlphabet())
+        : Core::Component(c), LanguageModel(c, lexicon), syntacticTokens_(lexicon->syntacticTokenAlphabet()), infinityScore_(1e9)
 /*****************************************************************************/
 {
     historyManager_ = new HistoryManager;

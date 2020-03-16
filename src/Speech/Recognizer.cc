@@ -170,7 +170,7 @@ void OfflineRecognizer::signOn(CorpusVisitor& corpusVisitor) {
 
 void OfflineRecognizer::enterSpeechSegment(Bliss::SpeechSegment* s) {
     recognizer_->resetStatistics();
-    recognizer_->setSegment(s->fullName());
+    recognizer_->setSegment(s);
     recognizer_->restart();
 
     Precursor::enterSpeechSegment(s);

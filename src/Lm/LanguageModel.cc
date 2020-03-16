@@ -206,3 +206,7 @@ Core::Ref<const LanguageModel> LanguageModel::lookaheadLanguageModel() const {
 Core::Ref<const LanguageModel> LanguageModel::recombinationLanguageModel() const {
     return Core::Ref<LanguageModel>();
 }
+
+void LanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+}
+

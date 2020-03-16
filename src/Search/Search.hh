@@ -92,7 +92,7 @@ public:
 
     virtual void init() {}
     virtual void restart() = 0;
-    virtual void setSegment(const std::string& name) {}
+    virtual void setSegment(Bliss::SpeechSegment const* segment) {}
     virtual void feed(const Mm::FeatureScorer::Scorer&) = 0;
     /// Should return the longest fixed prefix of the final best sentence
     /// which has been been recognized since the last call to getPartialSentence.

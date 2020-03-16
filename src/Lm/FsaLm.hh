@@ -31,6 +31,9 @@ private:
 
     class HistoryManager;
 
+protected:
+    Score infinityScore_;
+
 public:
     typedef Fsa::State HistoryDescriptor;
 
@@ -55,8 +58,8 @@ public:
      * Unfortunatelly the comparison operator will not work
      * normally on 'nan'.
      */
-    static Score infinityScore() {
-        return 1e9;
+    Score infinityScore() const {
+        return infinityScore_;
     }
 };
 

@@ -1707,7 +1707,7 @@ public:
                    << Core::XmlClose("orth");
         }
         recognizer_->resetStatistics();
-        recognizer_->setSegment(segment_->fullName());
+        recognizer_->setSegment(segment_);
         recognizer_->restart();
         traceback_.clear();
 

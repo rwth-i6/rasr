@@ -27,7 +27,6 @@ void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
 
     Core::Ref<Bliss::LemmaAcceptor> orth_automaton = orthParser_->createLemmaAcceptor(orth);  // automaton using orth-alphabet
     auto alphabet = orth_automaton->inputAlphabet();
-    //Fsa::drawDot(orth_automaton, s->name() + std::string(".dot"));
 
     // build automaton using syntactic-token alphabet
     Fsa::StaticAutomaton* synt_automaton = new Fsa::StaticAutomaton();
@@ -74,7 +73,6 @@ void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
         }
     }
     auto synt_ref = Fsa::ConstAutomatonRef(synt_automaton);
-    Fsa::drawDot(synt_ref, s->name() + std::string("_synt.dot"));
     this->setFsa(synt_ref);
 }
 

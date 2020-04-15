@@ -79,7 +79,12 @@ public:
         return hasLeaped_;
     }
     Bliss::Phoneme::Id finalPhoneme() const {
-        return (*pronunciation_)[pronunciation_->length() - 1];
+        if (pronunciation_->length() > 0) {
+            return (*pronunciation_)[pronunciation_->length() - 1];
+        }
+        else {
+            return Bliss::Phoneme::term;
+        }
     }
     /**
      * the successor phoneme is set for across word modelling

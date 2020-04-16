@@ -1,5 +1,6 @@
 #include "PushForwardRescoring.hh"
 
+#include <chrono>
 #include <numeric>
 #include <queue>
 #include <vector>
@@ -399,7 +400,11 @@ ConstLatticeRef PushForwardRescoringNode::rescore(ConstLatticeRef l, ScoreId id)
         return l;
     }
     if (!rescored_lattice_) {
+        auto timer_start = std::chrono::steady_clock::now();
         rescored_lattice_ = rescorer_->rescore(l, id);
+        auto timer_end = std::chrono::steady_clock::now();
+        double duration = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
+        clog() << Core::XmlOpen("flf-push-forward-rescoring-time") + Core::XmlAttribute("unit", "milliseconds") << duration << Core::XmlClose("flf-push-forward-rescoring-time");
     }
 
     return rescored_lattice_;

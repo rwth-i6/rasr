@@ -23,6 +23,8 @@ public:
     static const Core::ParameterFloat  paramPruningThreshold;
     static const Core::ParameterInt    paramHistoryLimit;
     static const Core::ParameterFloat  paramLookaheadScale;
+    static const Core::ParameterBool   paramDelayedRescoring;
+    static const Core::ParameterInt    paramDelayedRescoringMaxHyps;
 
     PushForwardRescorer(Core::Configuration const& config, Core::Ref<Lm::LanguageModel> lm);
     ~PushForwardRescorer() = default;
@@ -36,6 +38,8 @@ private:
     Flf::Score                   pruning_threshold_;
     unsigned                     history_limit_;
     Flf::Score                   lookahead_scale_;
+    bool                         delayed_rescoring_;
+    unsigned                     delayed_rescoring_max_hyps_;
 };
 
 class PushForwardRescoringNode : public RescoreSingleDimensionNode {

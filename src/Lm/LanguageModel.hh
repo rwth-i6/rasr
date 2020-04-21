@@ -518,12 +518,10 @@ protected:
 /**
  * Language model score convenience function for lemma pronunciations.
  */
-inline void extendHistoryByLemmaPronunciation(
-        Core::Ref<const LanguageModel>   lm,
-        const Bliss::LemmaPronunciation* pronunciation,
-        History&                         history) {
-    require(pronunciation);
-    const Bliss::Lemma* lemma = pronunciation->lemma();
+inline void extendHistoryByLemma(
+        Core::Ref<const LanguageModel> lm,
+        const Bliss::Lemma*            lemma,
+        History&                       history) {
     require(lemma);
     const Bliss::SyntacticTokenSequence tokenSequence(lemma->syntacticTokenSequence());
     for (u32 ti = 0; ti < tokenSequence.length(); ++ti) {
@@ -531,6 +529,19 @@ inline void extendHistoryByLemmaPronunciation(
         history                         = lm->extendedHistory(history, st);
     }
 }
+
+/**
+ * Language model score convenience function for lemma pronunciations.
+ */
+inline void extendHistoryByLemmaPronunciation(
+        Core::Ref<const LanguageModel>   lm,
+        const Bliss::LemmaPronunciation* pronunciation,
+        History&                         history) {
+    require(pronunciation);
+    const Bliss::Lemma* lemma = pronunciation->lemma();
+    extendHistoryByLemma(lm, lemma, history);
+}
+
 }  // namespace Lm
 
 #endif  // _LM_LANGUAGE_MODEL_HH

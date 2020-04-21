@@ -21,6 +21,8 @@ struct Hypothesis {
     unsigned     prev_hyp;
     Fsa::StateId start_state;
     unsigned     arc;
+    Fsa::LabelId label_id;
+    bool         rescored;
 };
 
 struct CompareSeqScore {
@@ -76,6 +78,45 @@ SeqScorePriorityQueue recombine(Core::Ref<Lm::LanguageModel> lm, ProspectScorePr
     }
     return result;
 }
+
+    
+void rescoreHypothesis(Hypothesis*                                        hyp,
+                       std::vector<Hypothesis>&                           traceback,
+                       std::vector<Flf::Score> const&                     lookahead,
+                       Core::Ref<Lm::LanguageModel>                       lm,
+                       Flf::ConstLatticeRef                               l,
+                       Core::Ref<const Bliss::LemmaAlphabet>              l_alphabet,
+                       Core::Ref<const Bliss::LemmaPronunciationAlphabet> lp_alphabet,
+                       Flf::Score                                         original_scale,
+                       Flf::ConstSemiringRef                              rescaled_semiring) {
+    std::vector<Hypothesis*> predecessors;
+
+    while (not hyp->rescored) {
+        Hypothesis* predecessor = &traceback[hyp->prev_hyp];
+        predecessors.push_back(hyp);
+
+        if (hyp->label_id != Fsa::Epsilon) {
+            Bliss::Lemma const* lemma = l_alphabet ? l_alphabet->lemma(hyp->label_id) : lp_alphabet->lemmaPronunciation(hyp->label_id)->lemma();
+            Lm::addLemmaScoreOmitExtension(lm, 1.0, lemma, 1.0, predecessor->history, hyp->score);
+        }
+        hyp = predecessor;
+    }
+
+    while (not predecessors.empty()) {
+        Hypothesis*        hyp         = predecessors.back();
+        Hypothesis*        predecessor = &traceback[hyp->prev_hyp];
+        Flf::ConstStateRef s           = l->getState(hyp->start_state);
+        Fsa::StateId       to          = (*s)[hyp->arc]->target();
+
+        hyp->seq_score          = predecessor->seq_score + original_scale * hyp->score + rescaled_semiring->project((*s)[hyp->arc]->weight());
+        hyp->seq_prospect_score = hyp->seq_score + lookahead[to];
+        hyp->rescored           = true;
+
+        predecessors.pop_back();
+    }
+}
+
+
 }  // namespace
 
 namespace Flf {
@@ -130,9 +171,19 @@ const Core::ParameterInt    PushForwardRescorer::paramMaxHypothesis("max-hypothe
 const Core::ParameterFloat  PushForwardRescorer::paramPruningThreshold("pruning-threshold", "pruning threshold for rescoring (relative to lm-scale)", 14.0);
 const Core::ParameterInt    PushForwardRescorer::paramHistoryLimit("history-limit", "reduce history to at most this many tokens (0 = no limit)", 0, 0);
 const Core::ParameterFloat  PushForwardRescorer::paramLookaheadScale("lookahead-scale", "scale lookahead with this factor", 1.0);
+const Core::ParameterBool   PushForwardRescorer::paramDelayedRescoring("delayed-rescoring", "delay computation of rescored lm scores, allows batching of more hypotheses", false);
+const Core::ParameterInt    PushForwardRescorer::paramDelayedRescoringMaxHyps("delayed-rescoring-max-hyps", "how many hypotheses need to be in a node to trigger rescoring", 100, 0);
 
 PushForwardRescorer::PushForwardRescorer(Core::Configuration const& config, Core::Ref<Lm::LanguageModel> lm)
-        : Precursor(config), lm_(lm), rescoring_type_(static_cast<RescorerType>(paramRescorerType(config))), max_hyps_(paramMaxHypothesis(config)), pruning_threshold_(paramPruningThreshold(config)), history_limit_(paramHistoryLimit(config)), lookahead_scale_(paramLookaheadScale(config)) {
+        : Precursor(config),
+          lm_(lm),
+          rescoring_type_(static_cast<RescorerType>(paramRescorerType(config))),
+          max_hyps_(paramMaxHypothesis(config)),
+          pruning_threshold_(paramPruningThreshold(config)),
+          history_limit_(paramHistoryLimit(config)),
+          lookahead_scale_(paramLookaheadScale(config)),
+          delayed_rescoring_(paramDelayedRescoring(config)),
+          delayed_rescoring_max_hyps_(paramDelayedRescoringMaxHyps(config)) {
 }
 
 ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
@@ -169,20 +220,49 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
     // these are our main datastructures
     std::vector<ProspectScorePriorityQueue> all_hyps(toposort->maxSid + 1ul);  // list of unexpanded hypotheses for each state
     std::vector<Hypothesis>                 traceback;                         // list of expanded hypotheses
+    std::vector<size_t>                     state_end;                         // one-past-the-end index for each topo_idx
 
     std::vector<Flf::Score> best_score_per_time(boundaries->time(toposort->back()) + 1, std::numeric_limits<Flf::Score>::infinity());
     std::vector<Flf::Score> lookahead = calculate_lookahead(l, toposort);
     std::transform(lookahead.begin(), lookahead.end(), lookahead.begin(), std::bind(std::multiplies<Flf::Score>(), lookahead_scale_, std::placeholders::_1));
 
     // insert inital hypothesis
-    all_hyps[toposort->front()].push(Hypothesis{lm_->startHistory(), 0.0, lookahead[toposort->front()], 0.0, 0ul, toposort->front(), 0ul});
+    all_hyps[toposort->front()].push(Hypothesis{lm_->startHistory(), 0.0, lookahead[toposort->front()], 0.0, 0ul, toposort->front(), 0ul, Fsa::Epsilon, true});
 
     // now we go through all states and expand their hypotheses
     for (size_t topo_idx = 0ul; topo_idx < toposort->size(); topo_idx++) {
         Fsa::StateId           current_state = (*toposort)[topo_idx];
+        ConstStateRef          s             = l->getState(current_state);
         Speech::TimeframeIndex current_time  = boundaries->time(current_state);
-        SeqScorePriorityQueue  hyps          = recombine(lm_, all_hyps[current_state], history_limit_);
         Flf::Score             pruning_limit = best_score_per_time[current_time] + original_scale * pruning_threshold_;
+
+        SeqScorePriorityQueue hyps;
+        if (delayed_rescoring_ and (all_hyps[current_state].size() > max_hyps_ or not s->hasArcs())) {
+            // actually compute scores
+            ProspectScorePriorityQueue rescored_hyps;
+            while (not all_hyps[current_state].empty()) {
+                Hypothesis  initial_hyp = all_hyps[current_state].top();
+                Hypothesis* hyp         = &initial_hyp;
+
+                rescoreHypothesis(hyp, traceback, lookahead, lm_, l, l_alphabet, lp_alphabet, original_scale, rescaled_semiring);
+
+                all_hyps[current_state].pop();
+                rescored_hyps.push(initial_hyp);
+            }
+            hyps = recombine(lm_, rescored_hyps, history_limit_);
+            while (hyps.size() > delayed_rescoring_max_hyps_) {
+                hyps.pop();
+            }
+        }
+        else if (not delayed_rescoring_) {
+            hyps = recombine(lm_, all_hyps[current_state], history_limit_);
+        }
+        else {
+            while (not all_hyps[current_state].empty()) {
+                hyps.push(all_hyps[current_state].top());
+                all_hyps[current_state].pop();
+            }
+        }
 
         // expand
         while (not hyps.empty()) {
@@ -197,19 +277,25 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
                 continue;
             }
 
-            unsigned      arc_counter = 0ul;
-            ConstStateRef s           = l->getState(current_state);
+            unsigned arc_counter = 0ul;
             for (State::const_iterator a = s->begin(); a != s->end(); ++a) {
                 Fsa::StateId to       = a->target();
                 Fsa::LabelId label_id = a->input();
 
-                Hypothesis new_hyp{hyp.history, hyp.seq_score, 0.0, 0.0, predecessor, current_state, arc_counter};
+                Hypothesis new_hyp{hyp.history, hyp.seq_score, 0.0, 0.0, predecessor, current_state, arc_counter, label_id, false};
 
                 if (label_id != Fsa::Epsilon) {
                     Bliss::Lemma const* lemma = l_alphabet ? l_alphabet->lemma(label_id) : lp_alphabet->lemmaPronunciation(label_id)->lemma();
-                    Lm::addLemmaScore(lm_, 1.0, lemma, 1.0, new_hyp.history, new_hyp.score);
+                    if (delayed_rescoring_) {
+                        Lm::extendHistoryByLemma(lm_, lemma, new_hyp.history);
+                        new_hyp.score = a->weight()->get(id);
+                    }
+                    else {
+                        Lm::addLemmaScore(lm_, 1.0, lemma, 1.0, new_hyp.history, new_hyp.score);
+                    }
                 }
                 else if (to == toposort->back()) {  // word end symbol
+                    // no delay here
                     new_hyp.score = lm_->sentenceEndScore(new_hyp.history);
                 }
                 else {
@@ -226,6 +312,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
 
             hyps.pop();
         }
+        state_end.push_back(traceback.size());
     }
 
     log("num expansions: ") << static_cast<double>(num_expansions) / static_cast<double>(total_num_arcs);
@@ -252,9 +339,23 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
             new_boundaries->set(state->id(), boundaries->get(original_final_state->id()));
 
             require_ge(traceback.size(), 1ul);
-            size_t hyp_idx = traceback.size() - 1ul;
+            size_t     hyp_idx    = 0ul;
+            Flf::Score best_score = Core::Type<Flf::Score>::max;
+            size_t     cur_hyp    = (state_end.size() > 1ul ? state_end[state_end.size() - 2] : 0ul);
+
+            for (; cur_hyp < state_end.back(); cur_hyp++) {
+                if (traceback[cur_hyp].seq_score < best_score) {
+                    best_score = traceback[cur_hyp].seq_score;
+                    hyp_idx    = cur_hyp;
+                }
+            }
+
             while (true) {
-                auto&          hyp            = traceback[hyp_idx];
+                auto& hyp = traceback[hyp_idx];
+                if (hyp_idx == hyp.prev_hyp) {  // check if we arrived at the first hypothesis
+                    break;
+                }
+
                 ConstStateRef  original_state = l->getState(hyp.start_state);
                 Arc const*     original_arc   = original_state->getArc(hyp.arc);
                 Flf::ScoresRef new_weight     = original_semiring->clone(original_arc->weight());
@@ -265,9 +366,6 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
                 new_boundaries->set(prev_state->id(), boundaries->get(original_state->id()));
 
                 state = prev_state;
-                if (hyp_idx == hyp.prev_hyp) {  // check if we arrived at the first hypothesis
-                    break;
-                }
                 hyp_idx = hyp.prev_hyp;
             }
             output_lattice->setInitialStateId(state->id());

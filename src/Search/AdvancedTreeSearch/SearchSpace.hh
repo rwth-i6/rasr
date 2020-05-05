@@ -83,7 +83,8 @@ public:
     std::vector<unsigned> labelDistance;
 
     /// Optional filter which allows limiting the search space to a certain word sequence prefix
-    // Checks whether the syntactical tokens of a hypothesis share a common prefix. Has all words from lexicon_, is initialized in initialize() and used in filterStates->pruneStates.
+    // Checks whether the syntactical tokens of a hypothesis share a common prefix. Has all words from lexicon_,
+    // is initialized in initialize() and used in filterStates->pruneStates.
     PrefixFilter* prefixFilter;
 
     StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon);
@@ -169,6 +170,8 @@ protected:
     unsigned reducedContextWordRecombinationLimit_;
     bool     onTheFlyRescoring_;
     unsigned onTheFlyRescoringMaxHistories_;
+    unsigned maximumMutableSuffixLength_;
+    unsigned maximumMutableSuffixPruningInterval_;
 
     /// Pruning thresholds
     Score acousticPruning_;       // main pruning threshold (log-scores)
@@ -369,6 +372,8 @@ protected:
 
     // Apply special search space filtering
     void filterStates();
+    // make sure that a prefix of the current best hyp is the prefix for all hyps
+    void enforceCommonPrefix();
     // Applies state-pruning _before_ acoustic scores are added
     void pruneStatesEarly();
     void pruneStatesPerLmState();
@@ -652,6 +657,7 @@ private:
     struct RecordMinimum;
     struct RecordMinimumPerInstance;
     struct NoPruning;
+    struct BestTracePruning;
 
 
     template<class Base, bool shortRec, bool depths>

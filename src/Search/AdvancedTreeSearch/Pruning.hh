@@ -214,6 +214,63 @@ struct SearchSpace::NoPruning {
 enum {
     MaxFadeInPruningDistance = 255
 };
+
+struct SearchSpace::BestTracePruning {
+    uintptr_t                   root_ptr;
+    std::unordered_set<TraceId> live_traces;
+    std::unordered_set<TraceId> dead_traces;
+
+    BestTracePruning(Core::Ref<Trace> root) : root_ptr(reinterpret_cast<uintptr_t>(root.get())) {
+        root_ptr = root->pruningMark;
+    }
+
+    inline void startInstance(InstanceKey const& key) {}
+
+    inline bool prune(StateHypothesis const& hyp) {
+        const uintptr_t invalidPruningMark = root_ptr ^ -1;
+        if (live_traces.count(hyp.trace)) {
+            return false;
+        }
+        if (dead_traces.count(hyp.trace)) {
+            return true;
+        }
+
+        Core::Ref<Trace> current = TraceManager::traceItem(hyp.trace).trace;
+        std::vector<Core::Ref<Trace>> chain;
+        bool should_prune = true;
+        while (current) {
+            chain.push_back(current);
+            if (current->pruningMark == root_ptr) {
+                should_prune = false;
+                break;
+            }
+            else if (current->pruningMark == invalidPruningMark) {
+                break;
+            }
+            current = current->predecessor;
+        }
+        if (should_prune) {
+            dead_traces.insert(hyp.trace);
+            for (auto const& e : chain) {
+                e->pruningMark = invalidPruningMark;
+            }
+        }
+        else {
+            live_traces.insert(hyp.trace);
+            for (auto const& e : chain) {
+                e->pruningMark = root_ptr;
+            }
+        }
+        return should_prune;
+    }
+
+    inline void prepare(const StateHypothesis&) const {}
+
+    enum {
+        CanPrune = 1
+    };
+};
+
 }  // namespace Search
 
 #endif

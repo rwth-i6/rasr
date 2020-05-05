@@ -226,6 +226,16 @@ const Core::ParameterInt paramOnTheFlyRescoringMaxHistories(
         "what is the maximum number of alternative histories that should be kept",
         5, 0);
 
+const Core::ParameterInt paramMaximumMutableSuffixLength(
+        "maximum-mutable-suffix-length",
+        "maximum length of words that are allowed to change",
+        Core::Type<int>::max, 0);
+
+const Core::ParameterInt paramMaximumMutableSuffixPruningInterval(
+        "maximum-mutable-suffix-pruning-interval",
+        "perform mutable-suffix-pruning every n frames",
+        0, 0);
+
 const Core::ParameterBool paramExtendedStatistics(
         "expensive-statistics",
         "add additional performance-wise expensive statistics",
@@ -773,6 +783,8 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           reducedContextWordRecombinationLimit_(paramReducedContextWordRecombinationLimit(config)),
           onTheFlyRescoring_(paramOnTheFlyRescoring(config)),
           onTheFlyRescoringMaxHistories_(paramOnTheFlyRescoringMaxHistories(config)),
+          maximumMutableSuffixLength_(paramMaximumMutableSuffixLength(config)),
+          maximumMutableSuffixPruningInterval_(paramMaximumMutableSuffixPruningInterval(config)),
           acousticPruning_(0),
           acousticPruningLimit_(0),
           wordEndPruning_(0),
@@ -1881,12 +1893,65 @@ void SearchSpace::updateSsaLm() {
 }
 
 void SearchSpace::filterStates() {
-    if (!automaton_->prefixFilter)
+    if (!automaton_->prefixFilter) {
         return;
+    }
 
     PerformanceCounter perf(*statistics, "filter states");
 
     pruneStates(*automaton_->prefixFilter);
+}
+
+void SearchSpace::enforceCommonPrefix() {
+    if (maximumMutableSuffixPruningInterval_ <= 0 or timeFrame_ % maximumMutableSuffixPruningInterval_ != maximumMutableSuffixPruningInterval_ - 1) {
+        return;
+    }
+
+    PerformanceCounter perf(*statistics, "enforce common prefix");
+
+    // find best trace
+    Score   best_prospect = Core::Type<Score>::max;
+    TraceId best_trace    = invalidTraceId;
+    for (StateHypothesis const& hyp : stateHypotheses) {
+        if (hyp.prospect < best_prospect) {
+            best_prospect = hyp.prospect;
+            best_trace    = hyp.trace;
+        }
+    }
+    if (best_trace == invalidTraceId) {
+        return;
+    }
+
+    // find root trace for all surviving
+    int remaining_lemmas = maximumMutableSuffixLength_;
+    Core::Ref<Trace> root = TraceManager::traceItem(best_trace).trace;
+    while (root) {
+        size_t                           max_length = 0;
+        Bliss::LemmaPronunciation const* pron       = root->pronunciation;
+        if (pron and reinterpret_cast<uintptr_t>(pron) != 1) {
+            Bliss::Lemma const* lemma = pron->lemma();
+            if (lemma->hasEvaluationTokenSequence()) {
+                for (auto eval_seqs = lemma->evaluationTokenSequences(); eval_seqs.first != eval_seqs.second; ++eval_seqs.first) {
+                    max_length = std::max(max_length, eval_seqs.first->size());
+                }
+            }
+        }
+        remaining_lemmas -= max_length;
+        if (remaining_lemmas > 0 or max_length == 0) {
+            root = root->predecessor;
+        }
+        else {
+            break;
+        }
+    }
+
+    if (not root) {
+        return;  // nothing to do, utterance shorter than maximumMutableSuffixLength_
+    }
+
+    PerformanceCounter perf2(*statistics, "enforce common prefix - pruning");
+    BestTracePruning pruning(root);
+    pruneStates<BestTracePruning>(pruning);
 }
 
 // early acoustic pruning
@@ -1909,6 +1974,7 @@ void SearchSpace::pruneAndAddScores() {
     doStateStatisticsBeforePruning();
 
     filterStates();  // pruneStates using automaton_->prefixFilter -> necessary for incremental decoding of partial segments, where we initialize the prefix
+    enforceCommonPrefix();
     // works with pruneStates() on stateHypotheses
     pruneStatesEarly();  // before applying acoustic scores, uses pruneStates() with score AcousticPruning_
 

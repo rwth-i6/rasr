@@ -54,6 +54,7 @@ public:
     Core::Ref<Trace> predecessor;
     Core::Ref<Trace> sibling;
     PathTrace        pathTrace;
+    uintptr_t        pruningMark;  // used by BestTracePruning
     bool             mark;
 
     AlternativeHistoryQueue alternativeHistories;

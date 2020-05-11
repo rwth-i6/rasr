@@ -235,8 +235,8 @@ struct SearchSpace::BestTracePruning {
             return true;
         }
 
-        Core::Ref<Trace> current = TraceManager::traceItem(hyp.trace).trace;
-        std::vector<Core::Ref<Trace>> chain;
+        Trace* current = TraceManager::traceItem(hyp.trace).trace.get();
+        std::vector<Trace*> chain;
         bool should_prune = true;
         while (current) {
             chain.push_back(current);
@@ -247,17 +247,17 @@ struct SearchSpace::BestTracePruning {
             else if (current->pruningMark == invalidPruningMark) {
                 break;
             }
-            current = current->predecessor;
+            current = current->predecessor.get();
         }
         if (should_prune) {
             dead_traces.insert(hyp.trace);
-            for (auto const& e : chain) {
+            for (Trace* e : chain) {
                 e->pruningMark = invalidPruningMark;
             }
         }
         else {
             live_traces.insert(hyp.trace);
-            for (auto const& e : chain) {
+            for (Trace* e : chain) {
                 e->pruningMark = root_ptr;
             }
         }

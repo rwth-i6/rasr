@@ -39,7 +39,7 @@ Trace::Trace(const Core::Ref<Trace>&                                pre,
              SearchAlgorithm::TimeframeIndex                        t,
              SearchAlgorithm::ScoreVector                           s,
              const Search::SearchAlgorithm::TracebackItem::Transit& transit)
-        : TracebackItem(p, t, s, transit), predecessor(pre) {}
+        : TracebackItem(p, t, s, transit), predecessor(pre), pruningMark(0) {}
 
 void Trace::getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const {
     if (predecessor) {

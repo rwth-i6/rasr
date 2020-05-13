@@ -46,13 +46,14 @@ LDFLAGS     += -L$(TBB_DIR)/lib -ltbb
 endif
 
 ifdef MODULE_TENSORFLOW
-TF_COMPILE_BASE = /tf_compile_base_not_set
+TF_COMPILE_BASE = /opt/tensorflow/tensorflow
 
 TF_CXXFLAGS  = -fexceptions
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-genfiles/
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/eigen_archive/
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/protobuf_archive/src/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_protobuf/src/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_absl/
 
 TF_LDFLAGS  = -L$(TF_COMPILE_BASE)/bazel-bin/tensorflow -ltensorflow_cc -ltensorflow_framework
 TF_LDFLAGS += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-bin/tensorflow
@@ -109,9 +110,6 @@ NVCCFLAGS   = -gencode arch=compute_20,code=sm_20 \
 	      -gencode arch=compute_61,code=sm_61
 endif
 
-ifneq ($(shell ldd /usr/lib/liblapack.so | grep g2c),)
-    LDFLAGS += -lg2c
-endif
 ifeq ($(PROFILE),gprof)
 # This works around a problem with the current installation of Lapack at i6
 LDFLAGS     += -Xlinker --allow-multiple-definition

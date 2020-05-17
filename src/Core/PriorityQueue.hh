@@ -117,7 +117,7 @@ bool PriorityQueueBase<H, PF>::invariant() const {
 }
 
 template<class T_Key, class T_Item, class T_HashFunction>
-class DefaultHashMap : public std::unordered_map<T_Key, T_Item, T_HashFunction, std::equal_to<T_Key>, std::allocator<T_Item>> {};
+class DefaultHashMap : public std::unordered_map<T_Key, T_Item, T_HashFunction, std::equal_to<T_Key>, std::allocator< std::pair<const T_Key, T_Item>>> {};
 
 template<class T_Item>
 class UntracedHeap {

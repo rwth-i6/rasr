@@ -567,8 +567,8 @@ History TFRecurrentLanguageModel::extendHistoryWithOutputIdx(History const& hist
     if (cache->history->size() > history_pruning_threshold_) {
         ext_hist = reducedHistory(ext_hist, pruned_history_length_);
     }
-    auto    timer_end        = std::chrono::steady_clock::now();
-    double  expand_hist_time = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
+    auto   timer_end        = std::chrono::steady_clock::now();
+    double expand_hist_time = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
     total_expand_hist_time_ += expand_hist_time;
     return ext_hist;
 }

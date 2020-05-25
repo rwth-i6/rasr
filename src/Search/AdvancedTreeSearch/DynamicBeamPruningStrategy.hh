@@ -17,8 +17,9 @@ public:
     virtual ~DynamicBeamPruningStrategy() = default;
 
     virtual SearchAlgorithm::PruningRef startNewSegment();
-    virtual void frameFinished(TimeframeIndex time, f64 current_frame_time, f64 delay) = 0;
-    virtual SearchAlgorithm::PruningRef newPruningThresholds() = 0;
+    virtual void                        frameFinished(TimeframeIndex time, f64 current_frame_time, f64 delay) = 0;
+    virtual SearchAlgorithm::PruningRef newPruningThresholds()                                                = 0;
+
 protected:
     SearchAlgorithm::PruningRef initialPruning_;
 };
@@ -39,12 +40,13 @@ public:
     virtual ~MaximumDelayBeamPruningStrategy() = default;
 
     virtual SearchAlgorithm::PruningRef startNewSegment();
-    virtual void frameFinished(TimeframeIndex time, f64 current_frame_time, f64 delay);
+    virtual void                        frameFinished(TimeframeIndex time, f64 current_frame_time, f64 delay);
     virtual SearchAlgorithm::PruningRef newPruningThresholds();
+
 private:
-    f64 addInitialDelayPerFrameTime_;
-    f64 decrementBeamThreshold_;
-    f64 incrementBeamThreshold_;
+    f64   addInitialDelayPerFrameTime_;
+    f64   decrementBeamThreshold_;
+    f64   incrementBeamThreshold_;
     Score maximumBeamScale_;
     Score minimumBeamScale_;
     Score decrementBeamFactor_;
@@ -56,24 +58,25 @@ private:
 
 // iniline implementations
 
-inline DynamicBeamPruningStrategy::DynamicBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning) : Precursor(config), initialPruning_(initialPruning) {
+inline DynamicBeamPruningStrategy::DynamicBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning)
+        : Precursor(config), initialPruning_(initialPruning) {
 }
 
 inline SearchAlgorithm::PruningRef DynamicBeamPruningStrategy::startNewSegment() {
     return SearchAlgorithm::PruningRef();
 }
 
-inline MaximumDelayBeamPruningStrategy::MaximumDelayBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning) :
-    Precursor(config, initialPruning),
-    addInitialDelayPerFrameTime_(paramAddInitialDelayPerFrameTime(config)),
-    decrementBeamThreshold_(paramDecrementBeamThreshold(config)),
-    incrementBeamThreshold_(paramIncrementBeamThreshold(config)),
-    maximumBeamScale_(paramMaximumBeamScale(config)),
-    minimumBeamScale_(paramMinimumBeamScale(config)),
-    decrementBeamFactor_(paramDecrementBeamFactor(config)),
-    incrementBeamFactor_(paramIncrementBeamFactor(config)) {
+inline MaximumDelayBeamPruningStrategy::MaximumDelayBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning)
+        : Precursor(config, initialPruning),
+          addInitialDelayPerFrameTime_(paramAddInitialDelayPerFrameTime(config)),
+          decrementBeamThreshold_(paramDecrementBeamThreshold(config)),
+          incrementBeamThreshold_(paramIncrementBeamThreshold(config)),
+          maximumBeamScale_(paramMaximumBeamScale(config)),
+          minimumBeamScale_(paramMinimumBeamScale(config)),
+          decrementBeamFactor_(paramDecrementBeamFactor(config)),
+          incrementBeamFactor_(paramIncrementBeamFactor(config)) {
 }
 
 }  // namespace Search
 
-#endif  /* _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH */
+#endif /* _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH */

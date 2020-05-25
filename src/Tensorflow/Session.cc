@@ -18,37 +18,37 @@
 
 namespace Tensorflow {
 
-Core::ParameterBool  Session::paramProfileRun("profile-run",
-                                              "store runtime profiles",
-                                              false);
+Core::ParameterBool Session::paramProfileRun("profile-run",
+                                             "store runtime profiles",
+                                             false);
 
 Core::ParameterString Session::paramProfilePrefix("profile-prefix",
                                                   "filename prefix for stored profiles",
                                                   "profile");
 
-Core::ParameterBool  Session::paramLogDevicePlacement("log-device-placement",
-                                                      "print placement of tensorflow ops",
-                                                      false);
+Core::ParameterBool Session::paramLogDevicePlacement("log-device-placement",
+                                                     "print placement of tensorflow ops",
+                                                     false);
 
 /* For detailed description of options see:
  * https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/protobuf/config.proto
  */
 Core::ParameterInt   Session::paramIntraOpParallelismThreads("intra-op-parallelism-threads",
-                                                             "Number of threads of execution of parallelizable ops, 0 = system picks appropriate number",
-                                                             1, 0);
+                                                           "Number of threads of execution of parallelizable ops, 0 = system picks appropriate number",
+                                                           1, 0);
 Core::ParameterInt   Session::paramInterOpParallelismThreads("inter-op-parallelism-threads",
-                                                             "Execute parallel nodes with this many threads",
-                                                             1, 0);
-Core::ParameterFloat Session::paramPerProcessGpuMemoryFraction("per-process-gpu-memory-fraction", 
+                                                           "Execute parallel nodes with this many threads",
+                                                           1, 0);
+Core::ParameterFloat Session::paramPerProcessGpuMemoryFraction("per-process-gpu-memory-fraction",
                                                                "Fraction of GPU memory to allocate on session creation",
                                                                0.95, 0.0, 1.0);
 Core::ParameterBool  Session::paramAllowGpuMemoryGrowth("allow-gpu-memory-growth",
-                                                        "Allow GPU memory allocations after session creation",
-                                                        true);
+                                                       "Allow GPU memory allocations after session creation",
+                                                       true);
 
 void Session::addGraph(Graph const& graph) {
-    auto timer_start = std::chrono::steady_clock::now();
-    tf::Env* env = tf::Env::Default();
+    auto     timer_start = std::chrono::steady_clock::now();
+    tf::Env* env         = tf::Env::Default();
     for (std::string const& lib : graph.libraries()) {
         void*      handle = nullptr;
         tf::Status status = env->LoadLibrary(lib.c_str(), &handle);

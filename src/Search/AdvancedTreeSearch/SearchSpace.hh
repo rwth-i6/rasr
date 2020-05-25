@@ -52,7 +52,7 @@ public:
 
     /// HMM length of a common phoneme
     const u32 hmmLength;
-    bool minimized;
+    bool      minimized;
 
     /// Static representation of the search network:
     PersistentStateTree network;
@@ -658,7 +658,6 @@ private:
     struct RecordMinimumPerInstance;
     struct NoPruning;
     struct BestTracePruning;
-
 
     template<class Base, bool shortRec, bool depths>
     struct FadeInPruningCollectMinimum;

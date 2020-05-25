@@ -368,15 +368,16 @@ void truncate(const std::vector<From>& source, std::vector<To>& to) {
             to.push_back(*it);
     }
 }
-} // namespace
+}  // namespace
 
-StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon) : Precursor(config),
-        hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
-        minimized(paramBuildMinimizedTreeFromScratch(config)),
-        network(config, acousticModel, lexicon),
-        prefixFilter(nullptr),
-        acousticModel_(acousticModel),
-        lexicon_(lexicon) {
+StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon)
+        : Precursor(config),
+          hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
+          minimized(paramBuildMinimizedTreeFromScratch(config)),
+          network(config, acousticModel, lexicon),
+          prefixFilter(nullptr),
+          acousticModel_(acousticModel),
+          lexicon_(lexicon) {
 }
 
 StaticSearchAutomaton::~StaticSearchAutomaton() {
@@ -391,11 +392,11 @@ void StaticSearchAutomaton::buildNetwork() {
     if (!network.read(transformation)) {
         log() << "persistent network image could not be loaded, building it";
 
-        if (minimized) { // Use TreeStructure.hh
+        if (minimized) {  // Use TreeStructure.hh
             TreeBuilder builder(config, *lexicon_, *acousticModel_, network);
             builder.build();
         }
-        else { // Use StateTree.hh
+        else {  // Use StateTree.hh
             network.build();
             network.cleanup();
             network.cleanup();  // Additional cleanup, to make sure that the exits are ordered correctly
@@ -482,7 +483,7 @@ void StaticSearchAutomaton::clearDepths() {
 
 int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     if (stateDepths[state] != Core::Type<int>::min) {
-        if (stateDepths[state] != depth)  {  /// @todo Find out why this happens on some languages
+        if (stateDepths[state] != depth) {  /// @todo Find out why this happens on some languages
             std::cout << "conflicting state depths: " << stateDepths[state] << " vs " << depth << std::endl;
         }
         if (depth > stateDepths[state]) {
@@ -648,7 +649,6 @@ void StaticSearchAutomaton::buildBatches() {
 
                 int t = *successorIt2;
                 if (firstSecondOrderSuccessor == -1) {
-
                     firstSecondOrderSuccessor = t;
                     endSecondOrderSuccessor   = t + 1;
                 }
@@ -1187,7 +1187,7 @@ void SearchSpace::activateOrUpdateStateHypothesisDirectly(const Search::StateHyp
 
 template<bool expandForward, bool expandSkip>
 void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
-    PersistentStateTree const& net = network();
+    PersistentStateTree const& net                             = network();
     std::vector<int> const&    secondOrderEdgeSuccessorBatches = automaton_->secondOrderEdgeSuccessorBatches;
     HMMState const&            state                           = net.structure.state(hyp.state);
 
@@ -1923,8 +1923,8 @@ void SearchSpace::enforceCommonPrefix() {
     }
 
     // find root trace for all surviving
-    int remaining_lemmas = maximumMutableSuffixLength_;
-    Core::Ref<Trace> root = TraceManager::traceItem(best_trace).trace;
+    int              remaining_lemmas = maximumMutableSuffixLength_;
+    Core::Ref<Trace> root             = TraceManager::traceItem(best_trace).trace;
     while (root) {
         size_t                           max_length = 0;
         Bliss::LemmaPronunciation const* pron       = root->pronunciation;
@@ -1950,7 +1950,7 @@ void SearchSpace::enforceCommonPrefix() {
     }
 
     PerformanceCounter perf2(*statistics, "enforce common prefix - pruning");
-    BestTracePruning pruning(root);
+    BestTracePruning   pruning(root);
     pruneStates<BestTracePruning>(pruning);
 }
 
@@ -2033,7 +2033,7 @@ void SearchSpace::correctPushedTransitions() {
         return;
 
     PersistentStateTree const& net = network();
-    PerformanceCounter perf(*statistics, "correct pushed boundaries");
+    PerformanceCounter         perf(*statistics, "correct pushed boundaries");
 
     int alreadyCorrect = 0, corrected = 0, candidates = 0;
 
@@ -2449,7 +2449,7 @@ void SearchSpace::optimizeSilenceInWordLattice(
 }
 
 StateId SearchSpace::rootForCoarticulation(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> coarticulation) const {
-    PersistentStateTree const& net = automaton_->network; // TODO(beck): change to network() once this function is const
+    PersistentStateTree const& net = automaton_->network;  // TODO(beck): change to network() once this function is const
 
     if (coarticulation.first == Bliss::Phoneme::term && coarticulation.second == Bliss::Phoneme::term)
         return net.rootState;
@@ -2531,7 +2531,7 @@ void SearchSpace::dumpWordEnds(
 }
 
 std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> SearchSpace::describeRootState(StateId state) const {
-    PersistentStateTree const& net = automaton_->network; // TODO(beck): change to network() once this function is const
+    PersistentStateTree const& net = automaton_->network;  // TODO(beck): change to network() once this function is const
 
     if (encodeState()) {
         union {

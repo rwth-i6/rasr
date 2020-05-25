@@ -115,7 +115,7 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
 
         // check if there is a non-empty stream
         bool all_empty = true;
-        for (auto const &stream : data) {
+        for (auto const& stream : data) {
             all_empty = all_empty and stream.empty();
         }
         if (all_empty) {
@@ -247,9 +247,7 @@ Core::ParameterInt TensorflowOverlappingForwardNode::paramMaxBufferSize_(
         "max-buffer-size", "Maximum number of input features to be forwarded in one run.", 1000, 1);
 
 TensorflowOverlappingForwardNode::TensorflowOverlappingForwardNode(Core::Configuration const& c)
-        : Core::Component(c), Precursor(c),
-          contextSize_(paramContextSize_(config)),
-          maxBufferSize_(paramMaxBufferSize_(config)) {
+        : Core::Component(c), Precursor(c), contextSize_(paramContextSize_(config)), maxBufferSize_(paramMaxBufferSize_(config)) {
     require_gt(maxBufferSize_, 2 * contextSize_);
 }
 
@@ -281,11 +279,11 @@ bool TensorflowOverlappingForwardNode::work(Flow::PortId p) {
         require_ge(timestamps_.size(), leftContextSize_);
         size_t start_frame = timestamps_.size() - leftContextSize_;
         while (featureBuffer_[0].size() < maxBufferSize_ and not eos_) {
-            Flow::Timestamp ts;
+            Flow::Timestamp                             ts;
             std::vector<Flow::DataPtr<Flow::Timestamp>> data;
             for (size_t i = 0ul; i < input_port_names_.size(); i++) {
                 Flow::DataPtr<Flow::Timestamp> d;
-                bool success = getData(i, d);
+                bool                           success = getData(i, d);
                 if (success and Flow::Data::isNotSentinel(&(*d))) {
                     data.push_back(d);
                 }
@@ -351,7 +349,6 @@ bool TensorflowOverlappingForwardNode::work(Flow::PortId p) {
     else {
         return putData(p, outputs_[p][current_output_frame_[p]++]);
     }
-
 }
 
 }  // namespace Tensorflow

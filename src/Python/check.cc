@@ -15,8 +15,8 @@
 #include <Core/Application.hh>
 #include <Modules.hh>
 
-#include "Numpy.hh"
 #include "Init.hh"
+#include "Numpy.hh"
 
 class TestApplication : public virtual Core::Application {
 public:

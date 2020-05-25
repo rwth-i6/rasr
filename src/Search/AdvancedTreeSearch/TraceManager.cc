@@ -18,4 +18,3 @@ using namespace Search;
 
 SparseVector<TraceItem>                                  TraceManager::items_;
 SparseVector<std::pair<u32, TraceManager::Modification>> TraceManager::modifications_;
-

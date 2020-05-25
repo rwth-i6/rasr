@@ -209,4 +209,3 @@ Core::Ref<const LanguageModel> LanguageModel::recombinationLanguageModel() const
 
 void LanguageModel::setSegment(Bliss::SpeechSegment const* s) {
 }
-

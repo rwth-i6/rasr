@@ -20,8 +20,8 @@
 #include "ArpaLm.hh"
 #endif
 #ifdef MODULE_LM_FSA
-#include "FsaLm.hh"
 #include "CheatingSegmentLm.hh"
+#include "FsaLm.hh"
 #endif
 #ifdef MODULE_LM_ZEROGRAM
 #include "Zerogram.hh"

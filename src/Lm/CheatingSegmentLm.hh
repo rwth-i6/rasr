@@ -18,6 +18,7 @@ public:
 
     virtual void load();
     virtual void setSegment(Bliss::SpeechSegment const* s);
+
 private:
     Core::Ref<const Bliss::Lexicon>            lexicon_;
     Core::Ref<const Bliss::OrthographicParser> orthParser_;
@@ -26,7 +27,7 @@ private:
 // inline implementation
 
 inline CheatingSegmentLm::CheatingSegmentLm(Core::Configuration const& c, Bliss::LexiconRef l)
-    : Core::Component(c), Precursor(c, l), lexicon_(l), orthParser_(Core::ref(new Bliss::OrthographicParser(config, lexicon_))) {
+        : Core::Component(c), Precursor(c, l), lexicon_(l), orthParser_(Core::ref(new Bliss::OrthographicParser(config, lexicon_))) {
     infinityScore_ = paramInfinityScore(config);
 }
 

@@ -212,7 +212,7 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     sentenceEnd_.reset();
 
     PerformanceCounter perf(*ss_->statistics, "feed");
-    auto feed_start = std::chrono::steady_clock::now();
+    auto               feed_start = std::chrono::steady_clock::now();
 
     // Set current timeframe, compute acoustic look-ahead
     ss_->setCurrentTimeFrame(time_, emissionScores);
@@ -269,9 +269,9 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     }
 
     if (dynamicBeamPruningStrategy_) {
-        auto feed_end = std::chrono::steady_clock::now();
-        f64 frame_duration = std::chrono::duration<f64, std::milli>(feed_end - feed_start).count();
-        f64 delay = std::chrono::duration<f64, std::milli>(feed_end - segmentStartTime_).count() - time_ * frameShift_;
+        auto feed_end       = std::chrono::steady_clock::now();
+        f64  frame_duration = std::chrono::duration<f64, std::milli>(feed_end - feed_start).count();
+        f64  delay          = std::chrono::duration<f64, std::milli>(feed_end - segmentStartTime_).count() - time_ * frameShift_;
         dynamicBeamPruningStrategy_->frameFinished(time_, frame_duration, delay);
         auto new_pruning = dynamicBeamPruningStrategy_->newPruningThresholds();
         if (new_pruning) {

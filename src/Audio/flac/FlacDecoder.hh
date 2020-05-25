@@ -15,8 +15,8 @@
 #ifndef FLACDECODER_HH_INCLUDED
 #define FLACDECODER_HH_INCLUDED
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 extern "C" {
 #include <FLAC/stream_decoder.h>
@@ -24,41 +24,40 @@ extern "C" {
 
 class FlacDecoder {
 private:
-    FILE* file_;
-    FLAC__StreamDecoder *decoder_;
+    FILE*                file_;
+    FLAC__StreamDecoder* decoder_;
 
     struct FlacData {
         unsigned long int samplesToRead;
         unsigned long int samplesRead;
         unsigned long int samplePos;
-        void *buffer;
+        void*             buffer;
         unsigned long int channels;
         unsigned long int bitsPerSample;
         unsigned long int sampleRate;
         unsigned long int totalSamples;
     } clientData_;
 
-    static FLAC__StreamDecoderWriteStatus stream_decoder_write_callback_   (FLAC__StreamDecoder const*, FLAC__Frame const*, const FLAC__int32 * const *, void *);
-    static void                           stream_decoder_metadata_callback_(FLAC__StreamDecoder const*, FLAC__StreamMetadata const*, void *);
-    static void                           stream_decoder_error_callback_   (FLAC__StreamDecoder const*, FLAC__StreamDecoderErrorStatus, void *);
+    static FLAC__StreamDecoderWriteStatus stream_decoder_write_callback_(FLAC__StreamDecoder const*, FLAC__Frame const*, const FLAC__int32* const*, void*);
+    static void                           stream_decoder_metadata_callback_(FLAC__StreamDecoder const*, FLAC__StreamMetadata const*, void*);
+    static void                           stream_decoder_error_callback_(FLAC__StreamDecoder const*, FLAC__StreamDecoderErrorStatus, void*);
 
 public:
-
-    FlacDecoder() { }
+    FlacDecoder() {}
     ~FlacDecoder() {
         FLAC__stream_decoder_delete(decoder_);
     }
-  
+
     bool open(const char*);
-  
+
     bool seek(unsigned long);
-  
+
     unsigned long int getChannels() const;
     unsigned long int getBitsPerSample() const;
     unsigned long int getSampleRate() const;
     unsigned long int getTotalSamples() const;
-  
-    unsigned long int read(unsigned long int, void *);
+
+    unsigned long int read(unsigned long int, void*);
 };
 
 #endif

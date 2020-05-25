@@ -244,11 +244,11 @@ bool numpy2nnMatrix(CriticalErrorFunc criticalErrorFunc, PyObject* nparr, Math::
     if (!_nparr)
         _nparr.copyRef(nparr);
     // Just handle both cases without warning about casts.
-    int npTypeNum = PyArray_TYPE((PyArrayObject*) _nparr.obj);
-    if(npTypeNum == NPY_FLOAT)
-        numpy2rawMat<float, Math::CudaMatrix<T> >((PyArrayObject*) _nparr.obj, nnmat);
-    else if(npTypeNum == NPY_DOUBLE)
-        numpy2rawMat<double, Math::CudaMatrix<T> >((PyArrayObject*) _nparr.obj, nnmat);
+    int npTypeNum = PyArray_TYPE((PyArrayObject*)_nparr.obj);
+    if (npTypeNum == NPY_FLOAT)
+        numpy2rawMat<float, Math::CudaMatrix<T>>((PyArrayObject*)_nparr.obj, nnmat);
+    else if (npTypeNum == NPY_DOUBLE)
+        numpy2rawMat<double, Math::CudaMatrix<T>>((PyArrayObject*)_nparr.obj, nnmat);
     else
         assert(false);
 
@@ -264,32 +264,31 @@ bool numpy2nnVector(CriticalErrorFunc criticalErrorFunc, PyObject* nparr, Math::
     nnvec.resize(s1);
 
     // Just handle both cases without warning about casts.
-    int npTypeNum = PyArray_TYPE((PyArrayObject*) nparr);
-    if(npTypeNum == NPY_FLOAT)
-        numpy2rawVec<float, Math::CudaVector<T> >((PyArrayObject*) nparr, nnvec);
-    else if(npTypeNum == NPY_DOUBLE)
-        numpy2rawVec<double, Math::CudaVector<T> >((PyArrayObject*) nparr, nnvec);
+    int npTypeNum = PyArray_TYPE((PyArrayObject*)nparr);
+    if (npTypeNum == NPY_FLOAT)
+        numpy2rawVec<float, Math::CudaVector<T>>((PyArrayObject*)nparr, nnvec);
+    else if (npTypeNum == NPY_DOUBLE)
+        numpy2rawVec<double, Math::CudaVector<T>>((PyArrayObject*)nparr, nnvec);
     else
         assert(false);
 
     return true;
 }
 
-
 template<typename T>
 bool numpy2stdVec(CriticalErrorFunc criticalErrorFunc, PyObject* nparr, std::vector<T>& vec) {
-    if(!arraySanityChecks_base(criticalErrorFunc, nparr, vec, 1, "numpy2nnVector"))
+    if (!arraySanityChecks_base(criticalErrorFunc, nparr, vec, 1, "numpy2nnVector"))
         return false;
 
-    size_t s1 = PyArray_DIM((PyArrayObject*) nparr, 0);
+    size_t s1 = PyArray_DIM((PyArrayObject*)nparr, 0);
     vec.resize(s1);
 
     // Just handle both cases without warning about casts.
-    int npTypeNum = PyArray_TYPE((PyArrayObject*) nparr);
-    if(npTypeNum == NPY_FLOAT)
-        numpy2rawVec<float, std::vector<T> >((PyArrayObject*) nparr, vec);
-    else if(npTypeNum == NPY_DOUBLE)
-        numpy2rawVec<double, std::vector<T> >((PyArrayObject*) nparr, vec);
+    int npTypeNum = PyArray_TYPE((PyArrayObject*)nparr);
+    if (npTypeNum == NPY_FLOAT)
+        numpy2rawVec<float, std::vector<T>>((PyArrayObject*)nparr, vec);
+    else if (npTypeNum == NPY_DOUBLE)
+        numpy2rawVec<double, std::vector<T>>((PyArrayObject*)nparr, vec);
     else
         assert(false);
 

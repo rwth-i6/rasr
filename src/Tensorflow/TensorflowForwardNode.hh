@@ -44,11 +44,11 @@ public:
 
     virtual Flow::PortId getInput(std::string const& name);
     virtual Flow::PortId getOutput(std::string const& name);
-    virtual bool setParameter(const std::string& name, const std::string& value);
-    virtual bool work(Flow::PortId p);
+    virtual bool         setParameter(const std::string& name, const std::string& value);
+    virtual bool         work(Flow::PortId p);
 
 protected:
-    bool eos_; // current segment finished yes/no
+    bool eos_;  // current segment finished yes/no
 
     // port management
     std::vector<std::string>                      input_port_names_;
@@ -72,9 +72,9 @@ protected:
     template<typename T>
     Tensorflow::Tensor vectorToTensor(std::deque<Flow::DataPtr<Flow::Timestamp>> const& data) const;
 
-    void appendToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left=0ul, size_t drop_right=0ul) const;
+    void appendToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left = 0ul, size_t drop_right = 0ul) const;
     template<typename T>
-    void appendVectorsToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left=0ul, size_t drop_right=0ul) const;
+    void appendVectorsToOutput(Tensor const& tensor, size_t start_frame, std::deque<Flow::Data*>& data, size_t drop_left = 0ul, size_t drop_right = 0ul) const;
 };
 
 class TensorflowOverlappingForwardNode : public TensorflowForwardNode {
@@ -90,8 +90,8 @@ public:
     virtual ~TensorflowOverlappingForwardNode() = default;
 
     virtual Flow::PortId getInput(std::string const& name);
-    virtual bool setParameter(const std::string& name, const std::string& value);
-    virtual bool work(Flow::PortId p);
+    virtual bool         setParameter(const std::string& name, const std::string& value);
+    virtual bool         work(Flow::PortId p);
 
 private:
     const unsigned contextSize_;

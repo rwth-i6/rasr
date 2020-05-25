@@ -79,7 +79,6 @@ SeqScorePriorityQueue recombine(Core::Ref<Lm::LanguageModel> lm, ProspectScorePr
     return result;
 }
 
-    
 void rescoreHypothesis(Hypothesis*                                        hyp,
                        std::vector<Hypothesis>&                           traceback,
                        std::vector<Flf::Score> const&                     lookahead,
@@ -115,7 +114,6 @@ void rescoreHypothesis(Hypothesis*                                        hyp,
         predecessors.pop_back();
     }
 }
-
 
 }  // namespace
 
@@ -365,7 +363,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
                 prev_state->newArc(state->id(), new_weight, original_arc->input(), original_arc->output());
                 new_boundaries->set(prev_state->id(), boundaries->get(original_state->id()));
 
-                state = prev_state;
+                state   = prev_state;
                 hyp_idx = hyp.prev_hyp;
             }
             output_lattice->setInitialStateId(state->id());
@@ -498,10 +496,10 @@ ConstLatticeRef PushForwardRescoringNode::rescore(ConstLatticeRef l, ScoreId id)
         return l;
     }
     if (!rescored_lattice_) {
-        auto timer_start = std::chrono::steady_clock::now();
+        auto timer_start  = std::chrono::steady_clock::now();
         rescored_lattice_ = rescorer_->rescore(l, id);
-        auto timer_end = std::chrono::steady_clock::now();
-        double duration = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
+        auto   timer_end  = std::chrono::steady_clock::now();
+        double duration   = std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
         clog() << Core::XmlOpen("flf-push-forward-rescoring-time") + Core::XmlAttribute("unit", "milliseconds") << duration << Core::XmlClose("flf-push-forward-rescoring-time");
     }
 

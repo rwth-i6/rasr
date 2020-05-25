@@ -733,16 +733,16 @@ bool CtcCriterion<FloatT>::getAlignment(Speech::Alignment& out,
 template<typename FloatT>
 bool CtcCriterion<FloatT>::calcStateProbErrors(FloatT&   error,  // the error (objective function value) + the reference prob
                                                NnMatrix& referenceProb) {
-    typedef typename CalcTypes<FloatT>::Semiring Semiring;
+    typedef typename CalcTypes<FloatT>::Semiring         Semiring;
     typedef typename CalcTypes<FloatT>::ConstSemiringRef ConstSemiringRef;
-    TimeStats<20> timeStats(logTimeStatistics_, this->clog(), "calcStateProbErrors");
+    TimeStats<20>                                        timeStats(logTimeStatistics_, this->clog(), "calcStateProbErrors");
 
     u32       nClasses = stateLogPosteriors_.nRows();
     TimeIndex T        = stateLogPosteriors_.nColumns();
     require_eq(acousticModel_->nEmissions(), nClasses);
     require_eq(statePriors_->size(), nClasses);
 
-    ConstSemiringRef logSemiring = CalcTypes<FloatT>::logSemiring();
+    ConstSemiringRef            logSemiring = CalcTypes<FloatT>::logSemiring();
     ClassProbsExtractor<FloatT> classProbsExtractor(nClasses,
                                                     T,
                                                     logSemiring,

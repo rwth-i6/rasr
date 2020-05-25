@@ -23,7 +23,7 @@
 namespace Tensorflow {
 
 namespace tf = tensorflow;
-using int64 = tf::int64;
+using int64  = tf::int64;
 
 class Session;
 

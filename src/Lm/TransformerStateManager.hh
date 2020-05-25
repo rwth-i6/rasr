@@ -82,7 +82,7 @@ inline bool TransformerStateManager<T>::requiresAllParentStates() const {
 }
 
 template<typename T>
-inline TransformerStateManagerWithCommonPrefix<T>::TransformerStateManagerWithCommonPrefix(Core::Configuration const&         config)
+inline TransformerStateManagerWithCommonPrefix<T>::TransformerStateManagerWithCommonPrefix(Core::Configuration const& config)
         : Precursor(config),
           cachePrefix_(paramCachePrefix(config)),
           minBatchSize_(paramMinBatchSize(config)),

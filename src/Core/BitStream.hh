@@ -76,7 +76,7 @@ unsigned BitStream<T>::read(unsigned bits, T& val) {
         unsigned read_bits = static_cast<unsigned>(std::min<size_t>(bits, bitsizeof<T>() - skip_bits));
 
         T temp = store_[idx];
-        temp = temp >> skip_bits;
+        temp   = temp >> skip_bits;
         temp &= ~(T(-1) << read_bits);
         val |= temp << total_read_bits;
 

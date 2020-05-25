@@ -26,7 +26,7 @@ void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
     Core::enforceTrailingBlank(orth);
 
     Core::Ref<Bliss::LemmaAcceptor> orth_automaton = orthParser_->createLemmaAcceptor(orth);  // automaton using orth-alphabet
-    auto alphabet = orth_automaton->inputAlphabet();
+    auto                            alphabet       = orth_automaton->inputAlphabet();
 
     // build automaton using syntactic-token alphabet
     Fsa::StaticAutomaton* synt_automaton = new Fsa::StaticAutomaton();

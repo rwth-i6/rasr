@@ -80,14 +80,14 @@ struct SearchSpace::PerInstanceAcousticPruning {
 
     inline void startInstance(InstanceKey const& key) {
         ss_.bestInstanceProspect_[prevInstance_] = instanceMinimum_;
-        prevInstance_ = key;
-        auto iter = ss_.bestInstanceProspect_.find(key);
+        prevInstance_                            = key;
+        auto iter                                = ss_.bestInstanceProspect_.find(key);
         if (iter != ss_.bestInstanceProspect_.end()) {
-            instanceMinimum_ = iter->second;
+            instanceMinimum_   = iter->second;
             instanceThreshold_ = instanceMinimum_ + relativeThreshold_ * instanceRelativeThresholdScale_;
         }
         else {
-            instanceMinimum_ = Core::Type<Score>::max;
+            instanceMinimum_   = Core::Type<Score>::max;
             instanceThreshold_ = Core::Type<Score>::max;
         }
     }
@@ -98,7 +98,7 @@ struct SearchSpace::PerInstanceAcousticPruning {
             absoluteThreshold_ = minimum_ + relativeThreshold_;
         }
         if (hyp.prospect < instanceMinimum_) {
-            instanceMinimum_ = hyp.prospect;
+            instanceMinimum_   = hyp.prospect;
             instanceThreshold_ = instanceMinimum_ + relativeThreshold_ * instanceRelativeThresholdScale_;
         }
     }
@@ -151,10 +151,11 @@ struct SearchSpace::RecordMinimum {
 };
 
 struct SearchSpace::RecordMinimumPerInstance {
-    RecordMinimumPerInstance(SearchSpace& ss) : ss_(ss),
-                                                minimum_(Core::Type<Score>::max),
-                                                instanceMinimum_(Core::Type<Score>::max),
-                                                prevInstance_() {
+    RecordMinimumPerInstance(SearchSpace& ss)
+            : ss_(ss),
+              minimum_(Core::Type<Score>::max),
+              instanceMinimum_(Core::Type<Score>::max),
+              prevInstance_() {
         ss_.bestInstanceProspect_.clear();
     }
 
@@ -166,8 +167,8 @@ struct SearchSpace::RecordMinimumPerInstance {
 
     inline void startInstance(InstanceKey const& key) {
         ss_.bestInstanceProspect_[prevInstance_] = instanceMinimum_;
-        instanceMinimum_ = Core::Type<Score>::max;
-        prevInstance_ = key;
+        instanceMinimum_                         = Core::Type<Score>::max;
+        prevInstance_                            = key;
     }
 
     inline void prepare(const StateHypothesis& hyp) {
@@ -220,7 +221,8 @@ struct SearchSpace::BestTracePruning {
     std::unordered_set<TraceId> live_traces;
     std::unordered_set<TraceId> dead_traces;
 
-    BestTracePruning(Core::Ref<Trace> root) : root_ptr(reinterpret_cast<uintptr_t>(root.get())) {
+    BestTracePruning(Core::Ref<Trace> root)
+            : root_ptr(reinterpret_cast<uintptr_t>(root.get())) {
         root_ptr = root->pruningMark;
     }
 
@@ -235,9 +237,9 @@ struct SearchSpace::BestTracePruning {
             return true;
         }
 
-        Trace* current = TraceManager::traceItem(hyp.trace).trace.get();
+        Trace*              current = TraceManager::traceItem(hyp.trace).trace.get();
         std::vector<Trace*> chain;
-        bool should_prune = true;
+        bool                should_prune = true;
         while (current) {
             chain.push_back(current);
             if (current->pruningMark == root_ptr) {

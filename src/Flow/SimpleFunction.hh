@@ -301,7 +301,7 @@ template<class T>
 class VectorMinimumFunction : public SimpleFunction<Vector<T>, T> {
 public:
     void apply(Vector<T>& v, T value) {
-        std::transform(v.begin(), v.end(), v.begin(), [value](T a){ return std::min<T>(a, value); });
+        std::transform(v.begin(), v.end(), v.begin(), [value](T a) { return std::min<T>(a, value); });
     }
     static std::string name() {
         return Vector<T>::type()->name() + "-minimum";
@@ -323,7 +323,7 @@ template<class T>
 class VectorMaximumFunction : public SimpleFunction<Vector<T>, T> {
 public:
     void apply(Vector<T>& v, T value) {
-        std::transform(v.begin(), v.end(), v.begin(), [value](T a){ return std::max<T>(a, value); });
+        std::transform(v.begin(), v.end(), v.begin(), [value](T a) { return std::max<T>(a, value); });
     }
     static std::string name() {
         return Vector<T>::type()->name() + "-maximum";

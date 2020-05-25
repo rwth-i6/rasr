@@ -12,34 +12,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Core/Types.hh>
 #include "FlacDecoder.hh"
+#include <Core/Types.hh>
 
-FLAC__StreamDecoderWriteStatus FlacDecoder::stream_decoder_write_callback_(const FLAC__StreamDecoder *decoder_, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *clientData) {
-    if ( ((FlacData*) clientData)->samplesToRead >
-         ((FlacData*) clientData)->samplesRead ) {
+FLAC__StreamDecoderWriteStatus FlacDecoder::stream_decoder_write_callback_(const FLAC__StreamDecoder* decoder_, const FLAC__Frame* frame, const FLAC__int32* const buffer[], void* clientData) {
+    if (((FlacData*)clientData)->samplesToRead >
+        ((FlacData*)clientData)->samplesRead) {
         unsigned long int blockSamples = frame->header.blocksize;
-        unsigned long int channels = ((FlacData*) clientData)->channels;
-        unsigned long int blockPos = 0;
+        unsigned long int channels     = ((FlacData*)clientData)->channels;
+        unsigned long int blockPos     = 0;
 
-        while( (((FlacData*) clientData)->samplesToRead >
-                ((FlacData*) clientData)->samplesRead )
-               && blockPos < blockSamples ) {
-            for(unsigned int channel = 0; channel < channels; channel++) {
-                ((short int*) ((FlacData*) clientData)->buffer)[(channels*(((FlacData*) clientData)->samplesRead))+channel] = (short int) buffer[channel][blockPos];
+        while ((((FlacData*)clientData)->samplesToRead >
+                ((FlacData*)clientData)->samplesRead) &&
+               blockPos < blockSamples) {
+            for (unsigned int channel = 0; channel < channels; channel++) {
+                ((short int*)((FlacData*)clientData)->buffer)[(channels * (((FlacData*)clientData)->samplesRead)) + channel] = (short int)buffer[channel][blockPos];
             }
             blockPos++;
-            ((FlacData*) clientData)->samplesRead++;
+            ((FlacData*)clientData)->samplesRead++;
         }
     }
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
-void FlacDecoder::stream_decoder_metadata_callback_(const FLAC__StreamDecoder *decoder_,const FLAC__StreamMetadata *metadata, void *clientData) {
+void FlacDecoder::stream_decoder_metadata_callback_(const FLAC__StreamDecoder* decoder_, const FLAC__StreamMetadata* metadata, void* clientData) {
     return;
 }
 
-void FlacDecoder::stream_decoder_error_callback_(const FLAC__StreamDecoder *decoder_, FLAC__StreamDecoderErrorStatus status, void *clientData) {
+void FlacDecoder::stream_decoder_error_callback_(const FLAC__StreamDecoder* decoder_, FLAC__StreamDecoderErrorStatus status, void* clientData) {
     //std::cout << "ERROR: error callback" << std::endl;
     return;
 }
@@ -118,11 +118,11 @@ unsigned long int FlacDecoder::getTotalSamples() const {
     return clientData_.totalSamples;
 }
 
-unsigned long int FlacDecoder::read(unsigned long int nSamples, void *buffer) {
+unsigned long int FlacDecoder::read(unsigned long int nSamples, void* buffer) {
     unsigned long int prevSamples = 0;
-    clientData_.buffer = buffer;
-    clientData_.samplesToRead = nSamples;
-    clientData_.samplesRead = 0;
+    clientData_.buffer            = buffer;
+    clientData_.samplesToRead     = nSamples;
+    clientData_.samplesRead       = 0;
 
     FLAC__stream_decoder_seek_absolute(decoder_, clientData_.samplePos);
     while (prevSamples != clientData_.samplesRead) {
@@ -131,7 +131,7 @@ unsigned long int FlacDecoder::read(unsigned long int nSamples, void *buffer) {
     }
     clientData_.samplePos += clientData_.samplesRead;
     unsigned long int samplesRead = clientData_.samplesRead;
-    clientData_.samplesRead = 0;
-    clientData_.samplesToRead = 0;
+    clientData_.samplesRead       = 0;
+    clientData_.samplesToRead     = 0;
     return (samplesRead);
 }

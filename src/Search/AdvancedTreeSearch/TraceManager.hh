@@ -42,7 +42,7 @@ public:
     }
 
     TraceItem& operator=(TraceItem const& ti) = default;
-    TraceItem& operator=(TraceItem&& ti) {
+    TraceItem& operator                       =(TraceItem&& ti) {
         trace                = ti.trace;
         recombinationHistory = std::move(ti.recombinationHistory);
         lookaheadHistory     = std::move(ti.lookaheadHistory);
@@ -85,7 +85,7 @@ public:
             size_t idx = freeList_.top();
             require(not used_[idx]);
             items_[idx] = item;
-            used_[idx] = true;
+            used_[idx]  = true;
             freeList_.pop();
             return idx;
         }
@@ -95,7 +95,7 @@ public:
         require_lt(idx, items_.size());
         if (used_[idx]) {
             items_[idx] = T();
-            used_[idx] = false;
+            used_[idx]  = false;
             freeList_.push(idx);
         }
     }
@@ -259,14 +259,15 @@ public:
         std::vector<bool> item_filter;
         std::vector<bool> mod_filter;
 
-        Cleaner() : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), false) {
+        Cleaner()
+                : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), false) {
         }
         ~Cleaner() = default;
 
         void visit(TraceId traceid) {
             TraceId idx = traceid & UnModifyMask;
             if ((traceid & ModifyMask) == ModifyMask) {
-                mod_filter[idx] = true;
+                mod_filter[idx]                        = true;
                 item_filter[modifications_[idx].first] = true;
             }
             else {

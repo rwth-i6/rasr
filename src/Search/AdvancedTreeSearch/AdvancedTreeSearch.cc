@@ -227,7 +227,7 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
 
     ss_->pruneAndAddScores();
 
-    if (time_ % cleanupInterval_ == 0 || TraceManager::needCleanup()) {
+    if (time_ % cleanupInterval_ == 0 || ss_->needCleanup()) {
         //We have to rescale before activating the word ends
         ss_->rescale(ss_->bestScore());
         ss_->cleanup();

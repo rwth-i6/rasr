@@ -1101,7 +1101,7 @@ void SearchSpace::clear() {
     bestScore_       = Core::Type<Score>::max;
     minWordEndScore_ = Core::Type<Score>::max;
     cleanup();
-    TraceManager::clear();
+    trace_manager_.clear();
 }
 
 inline bool SearchSpace::eventuallyDeactivateTree(Instance* at, bool increaseInactiveCounter) {
@@ -1858,7 +1858,7 @@ void SearchSpace::pruneStates(Pruning& pruning) {
 
         for (instHypEnd = hypBegin + at->states.end; hypIn < instHypEnd; ++hypIn) {
             verify_(hypIn < stateHypotheses.end());
-            if (!pruning.prune(*hypIn))
+            if (!pruning.prune(trace_manager_, *hypIn))
                 *(hypOut++) = *hypIn;
         }
 
@@ -1872,6 +1872,7 @@ void SearchSpace::pruneStates(Pruning& pruning) {
 
     activeInstances.resize(instOut);
 }
+
 
 void SearchSpace::updateSsaLm() {
     if (!ssaLm_) {
@@ -1924,7 +1925,7 @@ void SearchSpace::enforceCommonPrefix() {
 
     // find root trace for all surviving
     int              remaining_lemmas = maximumMutableSuffixLength_;
-    Core::Ref<Trace> root             = TraceManager::traceItem(best_trace).trace;
+    Core::Ref<Trace> root             = trace_manager_.traceItem(best_trace).trace;
     while (root) {
         size_t                           max_length = 0;
         Bliss::LemmaPronunciation const* pron       = root->pronunciation;
@@ -2045,7 +2046,7 @@ void SearchSpace::correctPushedTransitions() {
         TraceId& trace((*it).trace);
         if (automaton_->truncatedStateDepths[it->state] == rootDepth) {  // after fanout
             ++corrected;
-            const Search::Trace& traceItem(*TraceManager::traceItem(trace).trace);
+            const Search::Trace& traceItem(*trace_manager_.traceItem(trace).trace);
             int                  timeDifference  = 1 + (int)timeFrame_ - (int)traceItem.time;
             u32                  scoreDifference = 0;
 
@@ -2054,13 +2055,13 @@ void SearchSpace::correctPushedTransitions() {
                 scoreDifference = reinterpret_cast<u32&>(d);
             }
 
-            trace = TraceManager::modify(TraceManager::getUnmodified(trace), timeDifference, scoreDifference, encodeState ? it->state : 0);
+            trace = trace_manager_.modify(trace_manager_.getUnmodified(trace), timeDifference, scoreDifference, encodeState ? it->state : 0);
         }
-        else if (!TraceManager::isModified(trace)) {
+        else if (!trace_manager_.isModified(trace)) {
             if (automaton_->truncatedStateDepths[it->state] >= rootDepth)  // after fanout
             {
                 ++corrected;
-                const Search::Trace& traceItem(*TraceManager::traceItem(trace).trace);
+                const Search::Trace& traceItem(*trace_manager_.traceItem(trace).trace);
                 int                  timeDifference = (int)timeFrame_ - (int)traceItem.time;
                 verify(timeDifference >= 0);
 
@@ -2073,7 +2074,7 @@ void SearchSpace::correctPushedTransitions() {
                     scoreDifference            = reinterpret_cast<u32&>(d);
                 }
 
-                trace = TraceManager::modify(trace, timeDifference, scoreDifference, encodeState ? it->state : 0);
+                trace = trace_manager_.modify(trace, timeDifference, scoreDifference, encodeState ? it->state : 0);
             }
             else {  // still in fanout
                 ++candidates;
@@ -2122,15 +2123,15 @@ Score SearchSpace::quantileWordEndScore(Score minScore, Score maxScore, u32 nHyp
 }
 
 inline Core::Ref<Trace> SearchSpace::getModifiedTrace(TraceId traceId, const Bliss::Phoneme::Id initial) const {
-    TraceItem&       item(TraceManager::traceItem(traceId));
+    TraceItem const& item(trace_manager_.traceItem(traceId));
     Core::Ref<Trace> trace = item.trace;
 
-    if (TraceManager::isModified(traceId)) {
+    if (trace_manager_.isModified(traceId)) {
         bool encodeState = this->encodeState();
 
         verify(trace.get());
         SearchAlgorithm::TracebackItem::Transit transit;
-        TraceManager::Modification              offsets = TraceManager::getModification(traceId);
+        TraceManager::Modification              offsets = trace_manager_.getModification(traceId);
         if (offsets.first || offsets.second || offsets.third) {
             // Add an epsilon traceback entry which corrects the time, score and transit-entry
             TimeframeIndex time = trace->time + offsets.first;
@@ -2176,7 +2177,7 @@ void SearchSpace::pruneEarlyWordEnds() {
             const PersistentStateTree::Exit* we   = &net.exits[in->exit];
             const Bliss::LemmaPronunciation* pron = (we->pronunciation == Bliss::LemmaPronunciation::invalidId) ? 0 : lexicon_->lemmaPronunciation(we->pronunciation);
 
-            TraceItem const&  traceItem = TraceManager::traceItem(in->trace);
+            TraceItem const&  traceItem = trace_manager_.traceItem(in->trace);
             WordEndHypothesis end(traceItem.recombinationHistory,
                                   traceItem.lookaheadHistory,
                                   traceItem.scoreHistory,
@@ -2649,11 +2650,11 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                         ++activeUncoartic;
                 }
                 Score                        score = (*it).score + globalScoreOffset_;
-                SearchAlgorithm::ScoreVector scores(TraceManager::traceItem((*it).trace).trace->score);
+                SearchAlgorithm::ScoreVector scores(trace_manager_.traceItem((*it).trace).trace->score);
                 scores.acoustic = score - scores.lm - at.totalBackOffOffset;
 
                 // Append score- and time correcting epsilon item
-                Core::Ref<Trace> t(new Trace(TraceManager::traceItem((*it).trace).trace,
+                Core::Ref<Trace> t(new Trace(trace_manager_.traceItem((*it).trace).trace,
                                              epsilonLemmaPronunciation(),
                                              time - 1,
                                              scores,
@@ -2661,7 +2662,7 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                 // Append sentence-end epsilon arc
                 t = Core::Ref<Trace>(new Trace(t, 0, time, t->score, describeRootState(net.rootState)));
 
-                Lm::History h(TraceManager::traceItem((*it).trace).scoreHistory);
+                Lm::History h(trace_manager_.traceItem((*it).trace).scoreHistory);
                 verify(h.isValid());
 
                 for (std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.suffix.begin(); it != recognitionContext_.suffix.end(); ++it)
@@ -2739,11 +2740,11 @@ Core::Ref<Trace> SearchSpace::getSentenceEndFallBack(TimeframeIndex time, bool s
         if (bestHypIndex >= at->states.begin && bestHypIndex < at->states.end) {
             Score score = bestHyp->score;
 
-            Core::Ref<Trace> pre(TraceManager::traceItem(activeTrace).trace);
+            Core::Ref<Trace> pre(trace_manager_.traceItem(activeTrace).trace);
             best                 = Core::Ref<Trace>(new Trace(pre, 0, time, pre->score, describeRootState(net.rootState)));
             best->score.acoustic = globalScoreOffset_ + score - pre->score.lm;
 
-            Lm::History h = TraceManager::traceItem(bestHyp->trace).scoreHistory;
+            Lm::History h = trace_manager_.traceItem(bestHyp->trace).scoreHistory;
 
             verify(h.isValid());
             for (std::vector<const Bliss::Lemma*>::const_iterator it = recognitionContext_.suffix.begin(); it != recognitionContext_.suffix.end(); ++it)
@@ -2831,7 +2832,7 @@ Core::Ref<Trace>
 
     std::vector<Core::Ref<Trace>> traces;
     for (std::set<TraceId>::iterator it = considerTraceIds.begin(); it != considerTraceIds.end(); ++it) {
-        Core::Ref<Trace> trace = TraceManager::traceItem(*it).trace;
+        Core::Ref<Trace> trace = trace_manager_.traceItem(*it).trace;
         traces.push_back(trace);
     }
 
@@ -2935,7 +2936,7 @@ void SearchSpace::changeInitialTrace(Core::Ref<Trace> trace) {
 
     for (StateHypothesesList::iterator sh = stateHypotheses.begin(); sh != stateHypotheses.end(); ++sh) {
         verify(sh->score > -0.01);
-        Core::Ref<Trace> trace = TraceManager::traceItem(sh->trace).trace;
+        Core::Ref<Trace> trace = trace_manager_.traceItem(sh->trace).trace;
         bool             ok    = changer.check(trace);
         verify(ok);
     }
@@ -3357,7 +3358,7 @@ void SearchSpace::cleanup() {
     // Cleanup the traces
     PerformanceCounter perf(*statistics, "cleanup");
 
-    TraceManager::Cleaner cleaner;
+    TraceManager::Cleaner cleaner = trace_manager_.getCleaner();
     for (std::vector<StateHypothesis>::const_iterator it = stateHypotheses.begin(); it != stateHypotheses.end(); ++it) {
         cleaner.visit((*it).trace);
     }
@@ -3576,7 +3577,7 @@ Instance* SearchSpace::activateOrUpdateTree(const Core::Ref<Trace>& trace,
     Instance* at = static_cast<Instance*>(instance);
 
     // still keep the full history in the trace
-    at->enter(trace, entry, score);
+    at->enter(trace_manager_, trace, entry, score);
 
     return at;
 }
@@ -3584,7 +3585,7 @@ Instance* SearchSpace::activateOrUpdateTree(const Core::Ref<Trace>& trace,
 template<bool earlyWordEndPruning, bool onTheFlyRescoring>
 void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& hyp, s32 exit, Score exitPenalty, Score relativePruning, Score& bestWordEndPruning) {
     PersistentStateTree::Exit const* we   = &network().exits[exit];
-    TraceItem const&                 item = TraceManager::traceItem(hyp.trace);
+    TraceItem const&                 item = trace_manager_.traceItem(hyp.trace);
 
     //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
     verify_(item.scoreHistory.isValid());
@@ -3624,11 +3625,11 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
             }
 
             if (not earlyWordEndPruning or newScore <= bestWordEndPruning) {
-                TraceItem const& item    = TraceManager::traceItem(hyp.trace);  // item might be relocated by call to getTrace
-                TraceId          traceId = TraceManager::getTrace(TraceItem(h.trace, item.recombinationHistory, item.lookaheadHistory, h.hist));
-                if (TraceManager::isModified(hyp.trace)) {
-                    TraceManager::Modification mod = TraceManager::getModification(hyp.trace);
-                    traceId                        = TraceManager::modify(TraceManager::getUnmodified(traceId), mod.first, mod.second, mod.third);
+                TraceItem const& item    = trace_manager_.traceItem(hyp.trace);  // item might be relocated by call to getTrace
+                TraceId          traceId = trace_manager_.getTrace(TraceItem(h.trace, item.recombinationHistory, item.lookaheadHistory, h.hist));
+                if (trace_manager_.isModified(hyp.trace)) {
+                    TraceManager::Modification mod = trace_manager_.getModification(hyp.trace);
+                    traceId                        = trace_manager_.modify(trace_manager_.getUnmodified(traceId), mod.first, mod.second, mod.third);
                 }
                 earlyWordEndHypotheses.emplace_back(traceId, newScore, exit, hyp.pathTrace);
             }

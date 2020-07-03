@@ -106,10 +106,10 @@ bool PrefixFilter::reachable(StateId state, const Bliss::Lemma* lemma) {
     return false;
 }
 
-bool PrefixFilter::prune(const StateHypothesis& hyp) const {
+bool PrefixFilter::prune(const TraceManager &trace_manager, const StateHypothesis& hyp) const {
     verify(hyp.trace != invalidTraceId);
 
-    const Search::Trace&       traceItem(*TraceManager::traceItem(hyp.trace).trace);
+    const Search::Trace&       traceItem(*trace_manager.traceItem(hyp.trace).trace);
     std::vector<Bliss::Lemma*> lemmaSequence(0);
     traceItem.getLemmaSequence(lemmaSequence);
 

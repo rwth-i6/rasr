@@ -36,7 +36,7 @@ public:
     PrefixFilter(const PersistentStateTree& tree, Bliss::LexiconRef lexicon, Core::Configuration config);
 
     void startInstance(InstanceKey const& key) {}
-    bool prune(const StateHypothesis& hyp) const;
+    bool prune(const TraceManager &trace_manager, const StateHypothesis& hyp) const;
     bool haveFilter() const {
         return prefixSequence_.size();
     }

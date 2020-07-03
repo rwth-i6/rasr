@@ -24,7 +24,6 @@ LIBSPRINTADVANCEDTREESEARCH_O = $(OBJDIR)/AcousticLookAhead.o \
                         $(OBJDIR)/SearchSpaceStatistics.o \
                         $(OBJDIR)/SimpleThreadPool.o \
                         $(OBJDIR)/Trace.o \
-                        $(OBJDIR)/TraceManager.o \
                         $(OBJDIR)/TreeBuilder.o \
                         $(OBJDIR)/TreeStructure.o
 

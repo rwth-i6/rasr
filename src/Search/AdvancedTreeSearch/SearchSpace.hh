@@ -120,6 +120,7 @@ private:
     Bliss::LexiconRef                  lexicon_;
 };
 
+
 class SearchSpace : public Core::Component {
 public:
     /// Statistics:
@@ -146,6 +147,8 @@ protected:
     Lm::SearchSpaceAwareLanguageModel const*     ssaLm_;
     AdvancedTreeSearch::LanguageModelLookahead*  lmLookahead_;
     std::vector<const Am::StateTransitionModel*> transitionModels_;
+
+    TraceManager trace_manager_;
 
     PersistentStateTree const& network() const {
         return automaton_->network;
@@ -321,6 +324,9 @@ public:
     // Rescales the scores, for better numeric stability,
     // removes the common score offset and remember it in globalScoreOffset_
     void rescale(Score offset, bool ignoreWordEnds = false);
+
+    // Returns the info from trace manager about whether it needs cleanup
+    inline bool needCleanup() const { return trace_manager_.needCleanup();}
 
     // Needs to be called once in a while, but not every timeframe,
     // deletes all traces that did not survive in stateHypotheses and rootStateHypotheses of activeTrees

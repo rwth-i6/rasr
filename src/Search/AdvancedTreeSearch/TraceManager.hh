@@ -149,38 +149,38 @@ private:
     };
 
 public:
-    static void clear() {
+    void clear() {
         items_.clear();
         modifications_.clear();
     }
 
     /// Returns a trace-id that represents only the given item
-    static TraceId getTrace(const TraceItem& item) {
+    TraceId getTrace(const TraceItem& item) {
         return items_.insert(item);
     }
 
     /// Returns the trace-id of a trace that already is managed by the TraceManager
-    static TraceId getManagedTraceId(const TraceItem* item) {
+    TraceId getManagedTraceId(const TraceItem* item) {
         return items_.pos(item);
     }
 
     /// Returns the current number of existing trace-items
-    static uint numTraceItems() {
+    uint numTraceItems() const {
         return items_.size();
     }
 
     /// Returns the maximum number of trace-items
-    static uint maxTraceItems() {
+    uint maxTraceItems() const {
         return UnModifyMask;
     }
 
     /// Returns whether a cleanup is currently strictly necessary (see cleanup())
-    static bool needCleanup() {
+    bool needCleanup() const {
         return numTraceItems() > maxTraceItems() / 2;
     }
 
     /// Returns whether the given trace-id is additionally modified by a custom value
-    inline static bool isModified(TraceId trace) {
+    inline bool isModified(const TraceId trace) const {
         return trace & ModifyMask;
     }
 
@@ -196,7 +196,7 @@ public:
     };
 
     /// Returns the custom modification-value that was attached to the trace-id. Must only be called if isModified(trace).
-    inline static Modification getModification(TraceId trace) {
+    inline Modification getModification(TraceId trace) const {
         verify_(isModified(trace));
         u32          mod = ((trace & ModifyMask) >> 24);
         Modification ret;
@@ -213,7 +213,16 @@ public:
     }
 
     /// Returns the unmodified version of the given trace.
-    inline static TraceId getUnmodified(TraceId trace) {
+    inline TraceId getUnmodified(TraceId trace) const {
+        verify_(isModified(trace));
+        if ((trace & ModifyMask) == ModifyMask) {
+            return modifications_[trace & UnModifyMask].first;
+        }
+        else {
+            return trace & UnModifyMask;
+        }
+    }
+    inline TraceId getUnmodified(TraceId trace) {
         verify_(isModified(trace));
         if ((trace & ModifyMask) == ModifyMask) {
             return modifications_[trace & UnModifyMask].first;
@@ -225,7 +234,7 @@ public:
 
     /// Modifies the given trace-id with a specific value. The value can later be retrieved through
     /// getModification(traceid), where traceid is the returned value.
-    static TraceId modify(TraceId trace, u32 value, u32 value2 = 0, u32 value3 = 0) {
+    TraceId modify(TraceId trace, u32 value, u32 value2 = 0, u32 value3 = 0) {
         verify_(trace != invalidTraceId);
         verify_(!isModified(trace));
         TraceId ret;
@@ -250,17 +259,26 @@ public:
 
     /// Returns the (first) trace-item associated to the given trace-id
     /// The trace-id must be valid
-    inline static TraceItem& traceItem(TraceId trace) {
+    inline TraceItem const& traceItem(TraceId trace) const {
+        return items_[getUnmodified(trace)];
+    }
+    inline TraceItem & traceItem(TraceId trace) {
         return items_[getUnmodified(trace)];
     }
 
     // Helper structure to cleanup the Tracemanager
     struct Cleaner {
+        SparseVector<TraceItem>                    &items_;
+        SparseVector<std::pair<u32, Modification>> &modifications_;
         std::vector<bool> item_filter;
         std::vector<bool> mod_filter;
 
-        Cleaner()
-                : item_filter(items_.storageSize(), false), mod_filter(modifications_.storageSize(), false) {
+
+        Cleaner(SparseVector<TraceItem> &items, SparseVector<std::pair<u32, Modification>> &modifications)
+                : items_(items),
+                  modifications_(modifications),
+                  item_filter(items.storageSize(), false),
+                  mod_filter(modifications.storageSize(), false) {
         }
         ~Cleaner() = default;
 
@@ -276,15 +294,20 @@ public:
         }
 
         void clean() {
-            TraceManager::items_.filter(item_filter);
-            TraceManager::modifications_.filter(mod_filter);
+            items_.filter(item_filter);
+            modifications_.filter(mod_filter);
         }
     };
+    Cleaner getCleaner() {
+      return Cleaner(items_, modifications_);
+    }
 
 private:
-    static SparseVector<TraceItem>                    items_;
-    static SparseVector<std::pair<u32, Modification>> modifications_;
+    SparseVector<TraceItem>                    items_;
+    SparseVector<std::pair<u32, Modification>> modifications_;
 };
+
+
 }  // namespace Search
 
 #endif  // SEARCH_TRACEMANAGER_HH

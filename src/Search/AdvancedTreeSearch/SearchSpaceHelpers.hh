@@ -160,7 +160,7 @@ struct Instance {
     std::vector<StateHypothesis> rootStateHypotheses;
 
     /// Enter this tree with the given trace, entry-node and score
-    void enter(Core::Ref<Trace> trace, StateId entryNode, Score score);
+    void enter(TraceManager &trace_manager, Core::Ref<Trace> trace, StateId entryNode, Score score);
 
     /// Enter this tree with the given StateHypothesis whose trace can have longer histories than tree's
     void enterWithState(const StateHypothesis& st);

@@ -62,17 +62,17 @@ namespace Lm {
 
 template<typename T>
 const Core::ParameterInt          TransformerStateManager<T>::paramMaxHistoryLength("max-history",
-                                                                           "maximum length of the history to feed to the transformer",
-                                                                           std::numeric_limits<int>::max(),
-                                                                           0);
+                                                                                    "maximum length of the history to feed to the transformer",
+                                                                                    std::numeric_limits<int>::max(),
+                                                                                    0);
 template const Core::ParameterInt TransformerStateManager<float>::paramMaxHistoryLength;
 template const Core::ParameterInt TransformerStateManager<int16_t>::paramMaxHistoryLength;
 template const Core::ParameterInt TransformerStateManager<int8_t>::paramMaxHistoryLength;
 
 template<typename T>
 const Core::ParameterBool          TransformerStateManager<T>::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
-                                                                                        "wether to always include the state of the first token, even if history is restricted by max-history",
-                                                                                        false);
+                                                                                                 "wether to always include the state of the first token, even if history is restricted by max-history",
+                                                                                                 false);
 template const Core::ParameterBool TransformerStateManager<float>::paramAlwaysIncludeFirstTokenState;
 template const Core::ParameterBool TransformerStateManager<int16_t>::paramAlwaysIncludeFirstTokenState;
 template const Core::ParameterBool TransformerStateManager<int8_t>::paramAlwaysIncludeFirstTokenState;
@@ -288,19 +288,28 @@ template const Core::ParameterBool TransformerStateManagerWithCommonPrefix<int8_
 
 template<typename T>
 const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMinBatchSize("min-batch-size",
-                                                                                       "for batches smaller than the given size we set the common-prefix length to 0",
-                                                                                       2, 0);
+                                                                                                "for batches smaller than the given size we set the common-prefix length to 0",
+                                                                                                2, 0);
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinBatchSize;
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinBatchSize;
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMinBatchSize;
 
 template<typename T>
 const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMinCommonPrefixLength("min-common-prefix-length",
-                                                                                                "if the common-prefix length is smaller than this value, set it to 0",
-                                                                                                1, 0);
+                                                                                                         "if the common-prefix length is smaller than this value, set it to 0",
+                                                                                                         1, 0);
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinCommonPrefixLength;
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinCommonPrefixLength;
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMinCommonPrefixLength;
+
+template<typename T>
+const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMaxCommonPrefixLength("max-common-prefix-length",
+                                                                                                         "Truncate the common prefix to this length. Observes always-include-first-token-state.",
+                                                                                                         std::numeric_limits<int>::max(), 0);
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMaxCommonPrefixLength;
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMaxCommonPrefixLength;
+template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMaxCommonPrefixLength;
+
 
 template<typename T>
 void TransformerStateManagerWithCommonPrefix<T>::mergeStates(typename Precursor::StateVariables const&                   vars,
@@ -412,9 +421,12 @@ common_prefix_length_computation_finished:
         targets.emplace_back(vars[v].initializer_name);
 
         if (reset_common_prefix) {
+            const size_t truncated_prefix_length = std::min(common_prefix_length, maxCommonPrefixLength_);
+            const size_t common_prefix_offset    = common_prefix_length - truncated_prefix_length;
+
             tensor_dim[0]                 = 1ul;
-            tensor_dim[time_dim + 1ul]    = common_prefix_length;
-            sizes[time_dim]               = std::min(common_prefix_length, 1ul);
+            tensor_dim[time_dim + 1ul]    = truncated_prefix_length;
+            sizes[time_dim]               = std::min(truncated_prefix_length, 1ul);
             strides[strides.size() - 1ul] = 1ul;
             for (size_t d = strides.size() - 1ul; d > 0ul; d--) {
                 strides[d - 1ul] = tensor_dim[d + 1] * strides[d];
@@ -422,10 +434,14 @@ common_prefix_length_computation_finished:
 
             Tensorflow::Tensor common_prefix_tensor = Tensorflow::Tensor::zeros<T>(tensor_dim);
 
-            for (size_t p = 0ul; p < common_prefix_length; p++) {
+            for (size_t p = 0ul; p < truncated_prefix_length; p++) {
+                size_t pos = p;
+                if (not Precursor::alwaysIncludeFirstTokenState_ or p != 0) {
+                    pos += common_prefix_offset;
+                }
                 std::gslice         slice(p * strides[time_dim], sizes, strides);
                 ContiguousBlockInfo block_info(slice);
-                uncompress(prefix_states[p]->at(v).get(), common_prefix_tensor.data<T>(), block_info);
+                uncompress(prefix_states[pos]->at(v).get(), common_prefix_tensor.data<T>(), block_info);
             }
             auto iter = varMap_.find(vars[v].name);
             require(iter != varMap_.end());

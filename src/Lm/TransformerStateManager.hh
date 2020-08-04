@@ -32,8 +32,8 @@ public:
                                                   CompressedVectorFactory<float> const&  vector_factory);
 
 protected:
-    size_t maxHistory_;
-    bool   alwaysIncludeFirstTokenState_;
+    const size_t maxHistory_;
+    const bool   alwaysIncludeFirstTokenState_;
 };
 
 template<typename T>
@@ -47,6 +47,7 @@ public:
     static const Core::ParameterBool   paramCachePrefix;
     static const Core::ParameterInt    paramMinBatchSize;
     static const Core::ParameterInt    paramMinCommonPrefixLength;
+    static const Core::ParameterInt    paramMaxCommonPrefixLength;
 
     TransformerStateManagerWithCommonPrefix(Core::Configuration const& config);
     virtual ~TransformerStateManagerWithCommonPrefix() = default;
@@ -60,9 +61,10 @@ public:
 protected:
     std::unordered_map<std::string, std::pair<std::string, std::string>> varMap_;
 
-    bool   cachePrefix_;
-    size_t minBatchSize_;
-    size_t minCommonPrefixLength_;
+    const bool   cachePrefix_;
+    const size_t minBatchSize_;
+    const size_t minCommonPrefixLength_;
+    const size_t maxCommonPrefixLength_;
 
     std::vector<typename Precursor::HistoryState const*> previousPrefix_;
 };
@@ -86,7 +88,8 @@ inline TransformerStateManagerWithCommonPrefix<T>::TransformerStateManagerWithCo
         : Precursor(config),
           cachePrefix_(paramCachePrefix(config)),
           minBatchSize_(paramMinBatchSize(config)),
-          minCommonPrefixLength_(paramMinCommonPrefixLength(config)) {
+          minCommonPrefixLength_(paramMinCommonPrefixLength(config)),
+          maxCommonPrefixLength_(paramMaxCommonPrefixLength(config)) {
     Core::Configuration varmap_config = this->select("var-map");
     for (size_t i = 0ul; true; i++) {
         Core::Configuration idx_config(varmap_config, std::string("item-") + std::to_string(i));

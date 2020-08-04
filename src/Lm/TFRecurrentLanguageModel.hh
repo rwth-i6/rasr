@@ -67,6 +67,8 @@ public:
     static const Core::ParameterInt    paramPrunedHistoryLength;
     static const Core::ParameterFloat  paramBatchPruningThreshold;
     static const Core::ParameterBool   paramAllowReducedHistory;
+    static const Core::ParameterBool   paramDumpInputs;
+    static const Core::ParameterString paramDumpInputsPrefix;
     static const Core::ParameterBool   paramDumpScores;
     static const Core::ParameterString paramDumpScoresPrefix;
     static const Core::ParameterBool   paramLogMemory;
@@ -103,6 +105,8 @@ private:
     size_t                      pruned_history_length_;
     Score                       batch_pruning_threshold_;
     bool                        allow_reduced_history_;
+    bool                        dump_inputs_;
+    std::string                 dump_inputs_prefix_;
     bool                        dump_scores_;
     std::string                 dump_scores_prefix_;
     bool                        log_memory_;
@@ -139,6 +143,7 @@ private:
     mutable double                 total_start_frame_time_;
     mutable double                 total_expand_hist_time_;
     mutable TimeStatistics         fwd_statistics_;
+    mutable size_t                 dump_inputs_counter_;
 
     // members for async forwarding
     std::thread background_forwarder_thread_;

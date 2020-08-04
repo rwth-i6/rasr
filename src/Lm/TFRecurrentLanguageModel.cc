@@ -284,6 +284,8 @@ const Core::ParameterInt    TFRecurrentLanguageModel::paramHistoryPruningThresho
 const Core::ParameterInt    TFRecurrentLanguageModel::paramPrunedHistoryLength("pruned-history-length", "length of the pruned history (should be smaller than history-pruning-threshold)", std::numeric_limits<int>::max(), 0);
 const Core::ParameterFloat  TFRecurrentLanguageModel::paramBatchPruningThreshold("batch-pruning-threshold", "pruning threshold for all hypothesis beyond min-batch-size during eager forwarding", 10.0);
 const Core::ParameterBool   TFRecurrentLanguageModel::paramAllowReducedHistory("allow-reduced-history", "wether this LM will actually reduce the history length", false);
+const Core::ParameterBool   TFRecurrentLanguageModel::paramDumpInputs("dump-inputs", "write all inputs from this LM to disk", false);
+const Core::ParameterString TFRecurrentLanguageModel::paramDumpInputsPrefix("dump-inputs-prefix", "prefix for the input dumps", "inputs");
 const Core::ParameterBool   TFRecurrentLanguageModel::paramDumpScores("dump-scores", "write all scores from this LM to disk", false);
 const Core::ParameterString TFRecurrentLanguageModel::paramDumpScoresPrefix("dump-scores-prefix", "prefix for the score dumps", "scores");
 const Core::ParameterBool   TFRecurrentLanguageModel::paramLogMemory("log-memory", "wether memory usage from nn-outputs / states should be logged", false);
@@ -305,6 +307,8 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
           pruned_history_length_(paramPrunedHistoryLength(config)),
           batch_pruning_threshold_(paramBatchPruningThreshold(config)),
           allow_reduced_history_(paramAllowReducedHistory(config)),
+          dump_inputs_(paramDumpInputs(config)),
+          dump_inputs_prefix_(paramDumpInputsPrefix(config)),
           dump_scores_(paramDumpScores(config)),
           dump_scores_prefix_(paramDumpScoresPrefix(config)),
           log_memory_(paramLogMemory(config)),
@@ -330,6 +334,7 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
           total_start_frame_time_(0.0),
           total_expand_hist_time_(0.0),
           fwd_statistics_(),
+          dump_inputs_counter_(0ul),
           background_forwarder_thread_(),
           should_stop_(false),
           to_fwd_(nullptr),
@@ -769,6 +774,13 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     state_manager_->mergeStates(state_variables_, prefix_lengths, prefix_states, inputs, targets);
     std::vector<s32> state_lengths(prefix_lengths.begin(), prefix_lengths.end());
 
+    if (dump_inputs_) {
+        std::string out = dump_inputs_prefix_ + "_" + std::to_string(dump_inputs_counter_) + "_state_";
+        for (size_t i = 0ul; i < inputs.size(); i++) {
+            inputs[i].second.save<s16>(out + std::to_string(i));
+        }
+    }
+
     auto end_merge_state = std::chrono::steady_clock::now();
 
     session_.run(inputs, targets);
@@ -789,6 +801,18 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
     std::vector<Tensorflow::Tensor> outputs;
     session_.run(inputs, output_tensor_names_, graph_->update_ops(), outputs);
 
+    if (dump_inputs_) {
+        std::string out = dump_inputs_prefix_ + "_" + std::to_string(dump_inputs_counter_) + "_nn_in_";
+        for (size_t i = 0ul; i < inputs.size(); i++) {
+            inputs[i].second.save<s32>(out + std::to_string(i));
+        }
+        out = dump_inputs_prefix_ + "_" + std::to_string(dump_inputs_counter_) + "_nn_out_";
+        for (size_t i = 0ul; i < outputs.size(); i++) {
+            outputs[i].save<f32>(out + std::to_string(i));
+        }
+        dump_inputs_counter_ += 1ul;
+    }
+
     auto end_nn_output = std::chrono::steady_clock::now();
 
     // store outputs in caches
@@ -799,7 +823,7 @@ void TFRecurrentLanguageModel::forward(Lm::History const* hist) const {
             cache->last_used                         = current_time_;
             int          num_outputs                 = outputs[0ul].dimSize(2);
             auto         compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
-            float const* data                        = outputs[0ul].data<f32>(r, w);
+            float const* data                        = outputs[0ul].data<f32>(r, w, 0);
             compression_param_estimator->accumulate(data, num_outputs);
             auto compression_params = compression_param_estimator->estimate();
             cache->nn_output        = nn_output_comp_vec_factory_->compress(data, num_outputs, compression_params.get());

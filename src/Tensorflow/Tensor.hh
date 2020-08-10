@@ -111,6 +111,12 @@ public:
     template<typename T>
     T const* data(size_t dim0_idx, size_t dim1_idx) const;
 
+    template<typename T>
+    T* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx);
+
+    template<typename T>
+    T const* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const;
+
     /* -------------------- Setters -------------------- */
 
     template<typename T>
@@ -127,6 +133,9 @@ public:
 
     template<typename T>
     void set(T const& val);
+
+    template<typename T>
+    void save(std::string const& path) const;
 
 protected:
     std::unique_ptr<tf::Tensor> tensor_;

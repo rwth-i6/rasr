@@ -577,6 +577,58 @@ template s8 const*          Tensor::data<s8>(size_t, size_t) const;
 template u8 const*          Tensor::data<u8>(size_t, size_t) const;
 template std::string const* Tensor::data<std::string>(size_t, size_t) const;
 
+template<typename T>
+T* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 3);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+    require_gt(tensor_->dim_size(2), static_cast<s64>(dim2_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx)));
+}
+
+template f32* Tensor::data<f32>(size_t, size_t, size_t);
+template f64* Tensor::data<f64>(size_t, size_t, size_t);
+template s64* Tensor::data<s64>(size_t, size_t, size_t);
+template u64* Tensor::data<u64>(size_t, size_t, size_t);
+template s32* Tensor::data<s32>(size_t, size_t, size_t);
+template u32* Tensor::data<u32>(size_t, size_t, size_t);
+template s16* Tensor::data<s16>(size_t, size_t, size_t);
+template u16* Tensor::data<u16>(size_t, size_t, size_t);
+template s8* Tensor::data<s8>(size_t, size_t, size_t);
+template u8* Tensor::data<u8>(size_t, size_t, size_t);
+template std::string* Tensor::data<std::string>(size_t, size_t, size_t);
+
+template<typename T>
+T const* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 3);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+    require_gt(tensor_->dim_size(2), static_cast<s64>(dim2_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx)));
+}
+
+template f32 const* Tensor::data<f32>(size_t, size_t, size_t) const;
+template f64 const* Tensor::data<f64>(size_t, size_t, size_t) const;
+template s64 const* Tensor::data<s64>(size_t, size_t, size_t) const;
+template u64 const* Tensor::data<u64>(size_t, size_t, size_t) const;
+template s32 const* Tensor::data<s32>(size_t, size_t, size_t) const;
+template u32 const* Tensor::data<u32>(size_t, size_t, size_t) const;
+template s16 const* Tensor::data<s16>(size_t, size_t, size_t) const;
+template u16 const* Tensor::data<u16>(size_t, size_t, size_t) const;
+template s8 const* Tensor::data<s8>(size_t, size_t, size_t) const;
+template u8 const* Tensor::data<u8>(size_t, size_t, size_t) const;
+template std::string const* Tensor::data<std::string>(size_t, size_t, size_t) const;
+
 /* ------------------------- Setters ------------------------- */
 
 template<typename T>
@@ -730,5 +782,47 @@ template void Tensor::set<s8>(s8 const&);
 template void Tensor::set<u8>(u8 const&);
 template void Tensor::set<std::string>(std::string const&);
 template void Tensor::set<bool>(bool const&);
+
+template<typename T>
+void Tensor::save(std::string const& path) const {
+    std::ofstream out(path, std::ios::out | std::ios::trunc);
+    for (int i = 0; i < numDims(); i++) {
+        if (i > 0) {
+            out << ' ';
+        }
+        out << dimSize(i);
+    }
+    out << '\n';
+
+    auto tensor_map = tensor_->flat_inner_dims<typename ToDataType<T>::cpp_type, 2>();
+    int rows = 1;
+    int cols = dimSize(numDims() - 1);
+    for (int i = 0; i < numDims() - 1; i++) {
+        rows *= dimSize(i);
+    }
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            out << tensor_map(r, c);
+            if (c + 1 < cols) {
+                out << ' ';
+            }
+        }
+        out << '\n';
+    }
+}
+
+template void Tensor::save<f32>(std::string const&) const;
+template void Tensor::save<f64>(std::string const&) const;
+template void Tensor::save<s64>(std::string const&) const;
+template void Tensor::save<u64>(std::string const&) const;
+template void Tensor::save<s32>(std::string const&) const;
+template void Tensor::save<u32>(std::string const&) const;
+template void Tensor::save<s16>(std::string const&) const;
+template void Tensor::save<u16>(std::string const&) const;
+template void Tensor::save<s8>(std::string const&) const;
+template void Tensor::save<u8>(std::string const&) const;
+template void Tensor::save<std::string>(std::string const&) const;
+template void Tensor::save<bool>(std::string const&) const;
 
 }  // namespace Tensorflow

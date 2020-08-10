@@ -93,7 +93,7 @@ void addSysPath(const std::string& path) {
         criticalError("Python: no sys.path. cannot add '%s'", path.c_str());
         return;
     }
-    PyObject* res = PyObject_CallMethod(pySysPath, (char*)"append", (char*)"s", path.c_str());
+    PyObject* res = PyObject_CallMethod(pySysPath, (char*)"insert", (char*)"is", 0, path.c_str());
     if (!res) {
         criticalError("Python: sys.path.append failed. cannot add '%s'", path.c_str());
         return;

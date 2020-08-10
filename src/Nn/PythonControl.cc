@@ -924,6 +924,7 @@ PythonControl::PythonControl(const Core::Configuration& config, const std::strin
         pythonCriticalError(
                 "PythonControl(%s): cannot import module '%s'",
                 sprintUnit.c_str(), pyModName.c_str());
+        Python::dumpModulesEnv();
         return;
     }
 

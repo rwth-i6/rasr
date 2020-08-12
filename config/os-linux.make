@@ -33,7 +33,7 @@ endif
 
 ifdef _ADD_OPENFST
 OPENFST_VERSION = 1.6.5
-OPENFSTDIR  = /path/to/your/openfst-$(OPENFST_VERSION)
+OPENFSTDIR  = /opt/openfst
 OPENFSTLIBS = -lfst
 INCLUDES    += -isystem $(OPENFSTDIR)/include
 DEFINES     += -DOPENFST_$(shell echo $(OPENFST_VERSION) | tr . _)

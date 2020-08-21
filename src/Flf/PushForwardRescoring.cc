@@ -32,6 +32,7 @@ struct Hypothesis {
     Flf::Score   seq_score;
     Flf::Score   seq_prospect_score;
     Flf::Score   score;
+    unsigned     index;
     unsigned     prev_hyp;
     Fsa::StateId start_state;
     unsigned     arc;
@@ -239,7 +240,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
     std::transform(lookahead.begin(), lookahead.end(), lookahead.begin(), std::bind(std::multiplies<Flf::Score>(), lookahead_scale_, std::placeholders::_1));
 
     // insert inital hypothesis
-    all_hyps[toposort->front()].push(Hypothesis{lm_->startHistory(), 0.0, lookahead[toposort->front()], 0.0, 0ul, toposort->front(), 0ul, Fsa::Epsilon, true});
+    all_hyps[toposort->front()].push(Hypothesis{lm_->startHistory(), 0.0, lookahead[toposort->front()], 0.0, 0u, 0u, toposort->front(), 0ul, Fsa::Epsilon, true});
 
     // now we go through all states and expand their hypotheses
     for (size_t topo_idx = 0ul; topo_idx < toposort->size(); topo_idx++) {
@@ -247,6 +248,17 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         ConstStateRef          s             = l->getState(current_state);
         Speech::TimeframeIndex current_time  = boundaries->time(current_state);
         Flf::Score             pruning_limit = best_score_per_time[current_time] + original_scale * pruning_threshold_;
+
+        // all hyps that made it this far are added to the traceback (does not mean they will get expanded further)
+        ProspectScorePriorityQueue tmp;
+        while (not all_hyps[current_state].empty()) {
+            Hypothesis hyp = all_hyps[current_state].top();
+            hyp.index = traceback.size();
+            traceback.push_back(hyp);
+            tmp.push(hyp);
+            all_hyps[current_state].pop();
+        }
+        all_hyps[current_state] = tmp;
 
         SeqScorePriorityQueue hyps;
         if (delayed_rescoring_ and (all_hyps[current_state].size() > max_hyps_ or not s->hasArcs())) {
@@ -280,8 +292,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         while (not hyps.empty()) {
             // always generate a traceback
             Hypothesis const& hyp         = hyps.top();
-            unsigned          predecessor = traceback.size();
-            traceback.push_back(hyp);
+            unsigned          predecessor = hyp.index;
 
             // prune by not expanding
             if (not hyps.size() <= 1 and (hyps.size() > max_hyps_ or hyps.top().seq_prospect_score > pruning_limit)) {
@@ -294,7 +305,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
                 Fsa::StateId to       = a->target();
                 Fsa::LabelId label_id = a->input();
 
-                Hypothesis new_hyp{hyp.history, hyp.seq_score, 0.0, 0.0, predecessor, current_state, arc_counter, label_id, false};
+                Hypothesis new_hyp{hyp.history, hyp.seq_score, 0.0, 0.0, 0u, predecessor, current_state, arc_counter, label_id, false};
 
                 if (label_id != Fsa::Epsilon) {
                     Bliss::Lemma const* lemma = l_alphabet ? l_alphabet->lemma(label_id) : lp_alphabet->lemmaPronunciation(label_id)->lemma();

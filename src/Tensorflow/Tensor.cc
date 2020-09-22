@@ -50,6 +50,48 @@ struct ToDataType<u64> {
     static constexpr tf::DataType tf_type = tf::DT_UINT64;
 };
 
+template<typename T, unsigned N>
+void static_rank_concat(tf::Tensor& out, tf::Tensor const& a, tf::Tensor const& b, int axis) {
+    out.tensor<T, N>() = a.tensor<T, N>().concatenate(b.tensor<T, N>(), axis);
+}
+
+template<typename T>
+void dynamic_rank_concat(tf::Tensor& out, tf::Tensor const& a, tf::Tensor const& b, int axis) {
+    switch (out.dims()) {
+        case 5: static_rank_concat<T, 5>(out, a, b, axis); break;
+        case 4: static_rank_concat<T, 4>(out, a, b, axis); break;
+        case 3: static_rank_concat<T, 3>(out, a, b, axis); break;
+        case 2: static_rank_concat<T, 2>(out, a, b, axis); break;
+        case 1: static_rank_concat<T, 1>(out, a, b, axis); break;
+        case 0: break;
+        default: defect();
+    }
+}
+
+template<typename T, unsigned N>
+void static_rank_slice(tf::Tensor& left, tf::Tensor const& right, std::vector<tf::int64> const& start, std::vector<tf::int64> const& size) {
+    Eigen::array<long int, N> o;
+    Eigen::array<long int, N> e;
+    for (size_t i = 0ul; i < N; i++) {
+        o[i] = start[i];
+        e[i] = size[i];
+    }
+    left.tensor<T, N>() = right.tensor<T, N>().slice(o, e);
+}
+
+template<typename T>
+void dynamic_rank_slice(tf::Tensor& left, tf::Tensor const& right, std::vector<tf::int64> const& start, std::vector<tf::int64> const& size) {
+    switch (start.size()) {
+        case 5: static_rank_slice<T, 5>(left, right, start, size); break;
+        case 4: static_rank_slice<T, 4>(left, right, start, size); break;
+        case 3: static_rank_slice<T, 3>(left, right, start, size); break;
+        case 2: static_rank_slice<T, 2>(left, right, start, size); break;
+        case 1: static_rank_slice<T, 1>(left, right, start, size); break;
+        case 0: break;
+        default: defect();
+    }
+}
+
 }  // namespace
 
 namespace Tensorflow {
@@ -100,6 +142,82 @@ template Tensor Tensor::zeros<s16>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<u16>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<s8>(std::vector<int64> const& dim);
 template Tensor Tensor::zeros<u8>(std::vector<int64> const& dim);
+
+Tensor Tensor::concat(Tensor const& a, Tensor const& b, int axis) {
+    require_eq(a.numDims(), b.numDims());
+    require_eq(a.tensor_->dtype(), b.tensor_->dtype());
+
+    if (axis < 0) {
+        axis = a.numDims() + axis;
+    }
+    require_lt(axis, a.numDims());
+    std::vector<int64> new_shape(a.numDims());
+    for (int i = 0u; i < a.numDims(); i++) {
+        if (i != axis) {
+            require_eq(a.dimSize(i), b.dimSize(i));
+            new_shape[i] = a.dimSize(i);
+        }
+        else {
+            new_shape[i] = a.dimSize(i) + b.dimSize(i);
+        }
+    }
+
+    Tensor res;
+
+    switch (a.tensor_->dtype()) {
+        case tf::DT_FLOAT: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_FLOAT>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_FLOAT>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_DOUBLE: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_INT64: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_INT64>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_INT64>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_UINT64: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_UINT64>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_UINT64>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_INT32: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_INT32>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_INT32>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_UINT32: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_UINT32>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_UINT32>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_INT16: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_INT16>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_INT16>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_UINT16: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_UINT16>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_UINT16>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_INT8: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_INT8>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_INT8>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        case tf::DT_UINT8: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_UINT8>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
+        default: defect();
+    }
+}
 
 /* ------------------------- Getters ------------------------- */
 
@@ -628,6 +746,40 @@ template u16 const* Tensor::data<u16>(size_t, size_t, size_t) const;
 template s8 const* Tensor::data<s8>(size_t, size_t, size_t) const;
 template u8 const* Tensor::data<u8>(size_t, size_t, size_t) const;
 template std::string const* Tensor::data<std::string>(size_t, size_t, size_t) const;
+
+Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end) {
+    require_eq(static_cast<int>(start.size()), numDims());
+    require_eq(start.size(), end.size());
+
+    std::vector<int64> start_vec(start.size());
+    std::vector<int64> size_vec(start.size());
+    for (size_t i = 0ul; i < start.size(); i++) {
+        int dim_start = start[i] >= 0 ? start[i] : (dimSize(i) + start[i]);
+        int dim_end   = end[i] >= 0 ? end[i] : (dimSize(i) + 1 + end[i]);
+        start_vec[i]  = dim_start;
+        size_vec[i]   = dim_end - dim_start;
+        require_ge(size_vec[i], 0);
+    }
+
+    Tensor res;
+    res.tensor_.reset(new tf::Tensor(tensor_->dtype(), tf::TensorShape(size_vec)));
+
+    switch (tensor_->dtype()) {
+        case tf::DT_FLOAT: dynamic_rank_slice<tf::EnumToDataType<tf::DT_FLOAT>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_DOUBLE: dynamic_rank_slice<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_INT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_UINT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_INT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_UINT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_INT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_UINT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_INT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_UINT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        default: defect();
+    }
+
+    return res;
+}
 
 /* ------------------------- Setters ------------------------- */
 

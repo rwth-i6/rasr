@@ -40,12 +40,17 @@ public:
     template<typename T>
     static Tensor zeros(std::vector<int64> const& dim);
 
+    static Tensor concat(Tensor const& a, Tensor const& b, int axis);
+
     Tensor();
     Tensor(Tensor const& other);
     Tensor(Tensor&& other) = default;
     ~Tensor()              = default;
 
     bool empty() const;
+
+    Tensor& operator=(Tensor& other);
+    Tensor& operator=(Tensor&& other);
 
     /* -------------------- Getters -------------------- */
 
@@ -117,6 +122,8 @@ public:
     template<typename T>
     T const* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const;
 
+    Tensor slice(std::vector<int> const& start, std::vector<int> const& end);
+
     /* -------------------- Setters -------------------- */
 
     template<typename T>
@@ -168,6 +175,16 @@ inline bool Tensor::empty() const {
 
 inline Tensor::Tensor(tf::Tensor&& tensor)
         : tensor_(new tf::Tensor(tensor)) {
+}
+
+inline Tensor& Tensor::operator=(Tensor& other) {
+    *tensor_ = *other.tensor_;
+    return *this;
+}
+
+inline Tensor& Tensor::operator=(Tensor&& other) {
+    std::swap(tensor_, other.tensor_);
+    return *this;
 }
 
 inline int Tensor::numDims() const {

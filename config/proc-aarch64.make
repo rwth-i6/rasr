@@ -2,9 +2,9 @@
 
 ifdef _ADD_OPENFST
 ifeq ($(shell test -d $(OPENFSTDIR)/lib64 && echo 1),1)
-LDFLAGS 	+= -L$(OPENFSTDIR)/lib64 $(OPENFSTLIBS)
+LDFLAGS         += -L$(OPENFSTDIR)/lib64 $(OPENFSTLIBS)
 else
-LDFLAGS 	+= -L$(OPENFSTDIR)/lib -Wl,-rpath=$(OPENFSTDIR)/lib $(OPENFSTLIBS)
+LDFLAGS         += -L$(OPENFSTDIR)/lib -Wl,-rpath=$(OPENFSTDIR)/lib $(OPENFSTLIBS)
 endif
 endif
 
@@ -13,7 +13,6 @@ ifeq ($(COMPILER),gcc)
 CCFLAGS		+= -ffast-math
 # CCFLAGS     += -mfpmath=sse
 # CCFLAGS     += -funroll-loops
-CCFLAGS     += -msse3
 ifneq ($(findstring($(CPU),Opteron)),)
 CCFLAGS     += -march=opteron
 endif

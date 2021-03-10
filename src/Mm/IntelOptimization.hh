@@ -17,8 +17,10 @@
 
 #if (defined(PROC_intel) || defined(PROC_x86_64))
 #include "IntelCodeGenerator.hh"
+#endif
+#if defined(__SSE2__)
 #include "SSE2CodeGenerator.hh"
-
+#endif
 #include "CovarianceFeatureScorerElement.hh"
 #include "GaussDensity.hh"
 #include "MixtureFeatureScorerElement.hh"
@@ -37,8 +39,8 @@ public:
     typedef std::vector<QuantizedType>                          PreparedFeatureVector;
 
 private:
-#if !defined(DISABLE_SIMD)
-#if defined(ENABLE_SSE2)
+#if defined(__SSE__)
+#if defined(__SSE2__)
     SSE2L2NormCodeGenerator l2norm_;
     enum {BlockSize = 16};
 #else
@@ -71,7 +73,7 @@ public:
     int distanceNoMmx(const PreparedFeatureVector& mean,
                       const PreparedFeatureVector& featureVector) const;
 
-#if defined(DISABLE_SIMD)
+#if !defined(__SSE__)
     int  distance(const PreparedFeatureVector& mean,
                   const PreparedFeatureVector& featureVector) const;
     void resetFloatingPointCalculation() const {}
@@ -97,5 +99,5 @@ public:
 
 }  // namespace Mm
 
-#endif  // PROC_intel
+//#endif  // PROC_intel
 #endif  //_MM_INTEL_OPTIMAZATION_HH

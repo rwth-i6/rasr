@@ -111,5 +111,5 @@ int FeatureScorerIntelOptimization::distance(const PreparedFeatureVector& mean, 
     return score;
 }
 
-#endif  // DISABLE_SIMD
+#endif  // !(__SSE__)
 

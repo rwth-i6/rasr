@@ -47,10 +47,10 @@ private:
     IntelMMXL2NormCodeGenerator l2norm_;
     IntelMMXResetCodeGenerator  reset_;
     enum {BlockSize = 8};
-#endif  // ENABLE_SSE2
+#endif  // __SSE2__
 #else
     enum { BlockSize = 8 };
-#endif  // DISABLE_SIMD
+#endif  //__SSE__ 
 
 private:
     /** @return is @param vectorSize rounded up to the next integer divisible by BlockSize. */
@@ -92,9 +92,9 @@ public:
     void resetFloatingPointCalculation() const {
         reset_.run();
     }
-#endif  // ENABLE_SSE2
+#endif  // __SSE2__
 
-#endif  // DISABLE_SIMD
+#endif  // __SSE__
 };
 
 }  // namespace Mm

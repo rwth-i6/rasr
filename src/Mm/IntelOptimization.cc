@@ -30,7 +30,7 @@ FeatureScorerIntelOptimization::FeatureScorerIntelOptimization(
 #endif
 #endif
 {
-#if defined(__SSE2__)
+#if !defined(__SSE__)
     Core::Application::us()->warning("SIMD is not supported (in Valgrind executables)");
 #endif
 }

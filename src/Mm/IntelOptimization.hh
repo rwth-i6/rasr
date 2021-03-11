@@ -99,5 +99,4 @@ public:
 
 }  // namespace Mm
 
-//#endif  // PROC_intel
 #endif  //_MM_INTEL_OPTIMAZATION_HH

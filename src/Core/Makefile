@@ -77,19 +77,9 @@ check$(exe): $(CHECK_O)
 
 check-xml$(exe): $(CHECK_XML_O)
 	$(LD) $^ -o $@ $(LDFLAGS)
-	
-# patch bison files for incompatible changes between Bison 2.3 and 2.4
-# in bison >= 2.4 we can use '%code requires' to include declarations 
-# in the header file. In prior versions, the first prologue was always
-# included in the header file.    
 ArithmeticExpressionParser.yy: ArithmeticExpressionParser.in
-	@echo generating $@
-	@if (( $(BISON_MAJOR) < 2 )) || (( ($(BISON_MAJOR) == 2) && ($(BISON_MINOR) < 4) )); then \
-	  sed -e '5s/%code requires {/%{/' -e '70s/^}$$/%}/' $< > $@ ; \
-	else \
-	  cp $< $@ ; \
-	fi ;
-
+	@echo generating $@;
+	cp $< $@ ;
 # make sure ArithmeticExpressionParser.hh is generated before Configuration.cc is compiled.
 # (in case the dependency files haven't been generated yet)
 $(OBJDIR)/Configuration.o : ArithmeticExpressionParser.hh

@@ -1,7 +1,7 @@
 %skeleton "lalr1.cc"
-%name-prefix="BisonParser"
+%define api.prefix {BisonParser}
 %defines
-%define "parser_class_name" "ArithmeticExpressionParser"
+%define parser_class_name {ArithmeticExpressionParser}
 %code requires {
 #include <string>
 #include <map>
@@ -73,7 +73,7 @@ namespace Core
 %lex-param   { Core::ArithmeticExpressionParserDriver *driver }
 %locations
 %debug
-%error-verbose
+%define parse.error verbose
 
 %union
 {
@@ -247,7 +247,6 @@ int yylex(BISON_SEMANTIC_TYPE *yylval,
           BISON_LOCATION_TYPE *yyloc)
 #endif
 {
-    typedef BISON_TOKEN_TYPE token;
     char c;
     ArithmeticExpressionParserDriver::LexerInput *input = driver->getLexerInput();
 

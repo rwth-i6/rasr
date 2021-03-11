@@ -86,7 +86,7 @@ public:
                  const PreparedFeatureVector& featureVector) const {
         return l2norm_.run(&mean[0], &featureVector[0]);
     }
-#if defined(ENABLE_SSE2)
+#if defined(__SSE2__)
     void resetFloatingPointCalculation() const {}
 #else
     void resetFloatingPointCalculation() const {

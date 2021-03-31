@@ -63,7 +63,7 @@ CHECK_XML_O		= $(OBJDIR)/check-xml.o \
 			  libSprintCore.$(a)
 
 # non-deleted intermediate files
-.SECONDARY : ArithmeticExpressionParser.cc ArithmeticExpressionParser.hh ArithmeticExpressionParser.yy
+.SECONDARY : ArithmeticExpressionParser.cc ArithmeticExpressionParser.hh 
 
 # -----------------------------------------------------------------------------
 
@@ -77,9 +77,6 @@ check$(exe): $(CHECK_O)
 
 check-xml$(exe): $(CHECK_XML_O)
 	$(LD) $^ -o $@ $(LDFLAGS)
-ArithmeticExpressionParser.yy: ArithmeticExpressionParser.in
-	@echo generating $@;
-	cp $< $@ ;
 # make sure ArithmeticExpressionParser.hh is generated before Configuration.cc is compiled.
 # (in case the dependency files haven't been generated yet)
 $(OBJDIR)/Configuration.o : ArithmeticExpressionParser.hh

@@ -182,18 +182,26 @@ bool LutStateTying::loadLut(const std::string& filename) {
 
 const u32 NoStateTyingDense::numBoundaryClasses_ = 4;  // 0: none, 1: start (@i), 2: end (@f), 3: start+end (@i@f)
 
+const Core::ParameterBool NoStateTyingDense::paramUseBoundaryClasses("use-boundary-classes", "wether boundary classes should be considered during state-tying", true);
+
 NoStateTyingDense::NoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel)
         : Core::Component(config),
           ClassicStateTying(config, stateModel),
           numPhoneClasses_(stateModel->getPhonemeInventory()->nPhonemes() + 1),                                                     // +1 for additional 0 phone == no-context
           numStates_(stateModel->getHmmTopologySet()->getDefault().nPhoneStates()),                                                 // usually 3
           contextLength_(std::max(stateModel->phonology().maximumHistoryLength(), stateModel->phonology().maximumFutureLength())),  // usually 1
+          useBoundaryClasses_(paramUseBoundaryClasses(config)),
           nClasses_(0) {
-    nClasses_ = numBoundaryClasses_ * numStates_;
-    for (u32 i = 0; i < 2 * contextLength_ + 1; ++i)
+    nClasses_ = numStates_;
+    if (useBoundaryClasses_) {
+        nClasses_ *= numBoundaryClasses_;
+    }
+    for (u32 i = 0; i < 2 * contextLength_ + 1; ++i) {
         nClasses_ *= numPhoneClasses_;
-    if (classifyDumpChannel_.isOpen())
+    }
+    if (classifyDumpChannel_.isOpen()) {
         dumpStateTying(classifyDumpChannel_);
+    }
 }
 
 Mm::MixtureIndex NoStateTyingDense::nClasses() const {
@@ -205,8 +213,16 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
     require_le(0, a.state());
     require_lt(u32(a.state()), numStates_);
     u32 result = 0;
-    for (u32 i = 0; i < 2 * contextLength_ + 1; ++i) {  // context len is usually 1
-        // pos sequence: 0, -1, 1, [-2, 2, ...]
+
+    u32 phoneIdx = a.allophone()->phoneme(0);
+    require_lt(phoneIdx, numPhoneClasses_);
+    result += phoneIdx;   
+
+    result *= numStates_;
+    result += u32(a.state());
+
+    for (u32 i = 1; i < 2 * contextLength_ + 1; ++i) {  // context len is usually 1
+        // pos sequence: -1, 1, [-2, 2, ...]
         s16 pos = i / 2;
         if (i % 2 == 1)
             pos = -pos - 1;
@@ -215,16 +231,63 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
         require_lt(phoneIdx, numPhoneClasses_);
         result += phoneIdx;
     }
-    result *= numStates_;
-    result += u32(a.state());
-    result *= numBoundaryClasses_;
-    result += a.allophone()->boundary;
+
+    if (useBoundaryClasses_){ 
+      result *= numBoundaryClasses_;
+      result += a.allophone()->boundary;
+    }
     require_lt(result, nClasses_);
+
     return result;
 }
 
 Mm::MixtureIndex NoStateTyingDense::classifyIndex(AllophoneStateIndex index) const {
     return classify(alphabetRef_->allophoneState(index));
+}
+
+// ============================================================================
+
+DiphoneNoStateTyingDense::DiphoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel)
+        : Core::Component(config),
+          NoStateTyingDense(config, stateModel) {
+    nClasses_ = numStates_;
+    if (useBoundaryClasses_) {
+        nClasses_ *= numBoundaryClasses_;
+    }
+
+    nClasses_ *= numPhoneClasses_ * numPhoneClasses_;
+
+    if (classifyDumpChannel_.isOpen()) {
+        dumpStateTying(classifyDumpChannel_);
+    }   
+}
+
+Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) const {
+    require_lt(a.allophone()->boundary, numBoundaryClasses_);
+    require_le(0, a.state());
+    require_lt(u32(a.state()), numStates_);
+    require_eq(contextLength_, 1);
+    u32 result = 0;
+    
+    u32 phoneIdx = a.allophone()->phoneme(0);
+    require_lt(phoneIdx, numPhoneClasses_);
+    result += phoneIdx;   
+
+    result *= numStates_;
+    result += u32(a.state());
+
+    result *= numPhoneClasses_;
+    phoneIdx = a.allophone()->phoneme(-1);
+    require_lt(phoneIdx, numPhoneClasses_);
+    result += phoneIdx;   
+
+    if (useBoundaryClasses_) { 
+        result *= numBoundaryClasses_;
+        result += a.allophone()->boundary;
+    }
+    require_lt(result, nClasses_);
+
+    return result;
 }
 
 }  // namespace Am

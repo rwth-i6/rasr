@@ -106,6 +106,7 @@ const Core::Choice ClassicAcousticModel::choiceStateTying(
         "none", noTying,
         "no-tying", noTying,
         "no-tying-dense", noTyingDense,
+        "diphone-no-tying-dense", diphoneNoStateTyingDense, 
         "monophone", monophoneTying,
         "lut", lutTying,
         "lookup", lutTying,

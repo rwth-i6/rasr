@@ -144,17 +144,29 @@ public:
 
 class NoStateTyingDense : public ClassicStateTying {
 public:
+    static const Core::ParameterBool paramUseBoundaryClasses;
+
     NoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex nClasses() const;
     virtual Mm::MixtureIndex classifyIndex(AllophoneStateIndex i) const;
     virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
 
-private:
+protected:
     static const u32 numBoundaryClasses_;
     u32              numPhoneClasses_;
     u32              numStates_;
     u32              contextLength_;
     u32              nClasses_;
+    const bool       useBoundaryClasses_;
+};
+
+// ============================================================================
+
+class DiphoneNoStateTyingDense : public NoStateTyingDense {
+public:
+    DiphoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
+    virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
+
 };
 
 // ============================================================================

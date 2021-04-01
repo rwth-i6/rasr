@@ -40,6 +40,7 @@ const Core::ParameterChoice Module_::paramAmType(
 Module_::Module_() {
     registerStateTying<NoStateTying>(ClassicAcousticModel::noTying);
     registerStateTying<NoStateTyingDense>(ClassicAcousticModel::noTyingDense);
+    registerStateTying<DiphoneNoStateTyingDense>(ClassicAcousticModel::diphoneNoStateTyingDense);
     registerStateTying<MonophoneStateTying>(ClassicAcousticModel::monophoneTying);
     registerStateTying<LutStateTying>(ClassicAcousticModel::lutTying);
 #ifdef MODULE_CART

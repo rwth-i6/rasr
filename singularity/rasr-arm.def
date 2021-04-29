@@ -1,5 +1,5 @@
 Bootstrap: localimage
-From: tensorflow.sif
+From: tensorflow-arm.sif
 Stage: tensorflow
 
 %setup

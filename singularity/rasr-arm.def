@@ -1,0 +1,127 @@
+Bootstrap: localimage
+From: tensorflow-arm.sif
+Stage: tensorflow
+
+%setup
+    echo "Importing tensorflow container"
+
+Bootstrap: library
+From: ubuntu-arm64:18.04
+Stage: rasr
+
+%files from tensorflow
+    /opt/tensorflow/tensorflow/tensorflow
+    /opt/tensorflow/tensorflow/third_party
+    /opt/tensorflow/bazel_out/external/eigen_archive
+    /opt/tensorflow/bazel_out/external/com_google_protobuf/src
+    /opt/tensorflow/bazel_out/external/com_google_absl
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/libtensorflow_cc.so.1.15.2
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/libtensorflow_framework.so.1.15.2
+
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/debug/debug_service.grpc.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/debug/debug_service.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/debug/debugger_event_metadata.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/example/example.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/example/example_parser_configuration.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/example/feature.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/allocation_description.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/api_def.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/attr_value.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/cost_graph.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/device_attributes.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/function.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/graph.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/graph_transfer_info.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/kernel_def.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/log_memory.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/node_def.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/op_def.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/reader_base.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/remote_fused_graph_execute_info.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/resource_handle.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/step_stats.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/summary.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/tensor.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/tensor_description.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/tensor_shape.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/tensor_slice.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/types.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/variable.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/framework/versions.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/grappler/costs/op_performance_data.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/kernels/boosted_trees/boosted_trees.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/lib/core/error_codes.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/profiler/profile.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/profiler/tfprof_log.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/profiler/tfprof_options.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/profiler/tfprof_output.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/autotuning.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/cluster.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/config.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/control_flow.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/conv_autotuning.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/data/experimental/snapshot.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/debug.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/device_properties.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/eager_service.grpc.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/eager_service.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/graph_debug_info.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/master.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/meta_graph.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/named_tensor.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/queue_runner.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/rewriter_config.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/saved_model.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/saved_object_graph.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/saver.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/struct.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/tensor_bundle.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/tensorflow_server.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/tpu/optimization_parameters.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/tpu/tpu_embedding_configuration.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/tpu/tpu_embedding_output_layout.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/trace_events.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/trackable_object_graph.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/transport_options.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/verifier_config.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/protobuf/worker.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/util/event.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/util/memmapped_file_system.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/util/saved_tensor_slice.pb.h
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/core/util/test_log.pb.h
+
+%post
+    export OPENFST_VERSION=1.6.3
+
+    echo "deb http://ports.ubuntu.com/ubuntu-ports/ bionic universe" >> /etc/apt/sources.list
+    apt update -y
+    apt upgrade -y
+
+    apt install -y gcc g++ make liblapack-dev python2.7 python2.7-dev python-numpy pkg-config git wget python3 python3-dev libavformat-dev libavcodec-dev libavutil-dev bison libz-dev libxml++2.6-dev libjpeg9-dev libnetpbm10-dev libpng-dev libcppunit-dev libflac-dev libsndfile1-dev
+
+    cd /opt/
+    wget http://www.openfst.org/twiki/pub/FST/FstDownload/openfst-${OPENFST_VERSION}.tar.gz
+    tar xzvf openfst-${OPENFST_VERSION}.tar.gz
+    mkdir openfst
+    mkdir openfst-${OPENFST_VERSION}/build
+    cd openfst-${OPENFST_VERSION}/build
+    ../configure --prefix /opt/openfst --enable-bin --enable-compact-fsts --enable-const-fsts --enable-far --enable-lookahead-fsts --enable-pdt
+    make -j && make -j install
+    cd /opt
+    rm -r /opt/openfst-${OPENFST_VERSION}*
+
+    cd /opt/tensorflow/tensorflow/
+    ln -s /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin bazel-bin
+    ln -s /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin bazel-genfiles
+    ln -s /opt/tensorflow/bazel_out/execroot/org_tensorflow                      bazel-tensorflow
+
+    mkdir -p bazel-tensorflow/external/com_google_protobuf/
+    ln -s /opt/tensorflow/bazel_out/external/eigen_archive           bazel-tensorflow/external/eigen_archive
+    ln -s /opt/tensorflow/bazel_out/external/com_google_protobuf/src bazel-tensorflow/external/com_google_protobuf/src
+    ln -s /opt/tensorflow/bazel_out/external/com_google_absl         bazel-tensorflow/external/com_google_absl
+
+    cd /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/aarch64-opt/bin/tensorflow/
+    ln -s libtensorflow_cc.so.1.15.2        libtensorflow_cc.so
+    ln -s libtensorflow_cc.so.1.15.2        libtensorflow_cc.so.1
+    ln -s libtensorflow_framework.so.1.15.2 libtensorflow_framework.so
+    ln -s libtensorflow_framework.so.1.15.2 libtensorflow_framework.so.1

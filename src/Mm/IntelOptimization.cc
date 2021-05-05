@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#if (defined(PROC_intel) || defined(PROC_x86_64))
 
 #include "IntelOptimization.hh"
 #include <Core/Application.hh>
@@ -22,16 +21,16 @@ using namespace Mm;
 FeatureScorerIntelOptimization::FeatureScorerIntelOptimization(
         const Core::Configuration& c, ComponentIndex dimension)
         : Precursor(c)
-#if !defined(DISABLE_SIMD)
+#if defined(__SSE__)
           ,
           l2norm_(c, dimension)
-#if !defined(ENABLE_SSE2)
+#if !defined(__SSE2__)
           ,
           reset_(c)
 #endif
 #endif
 {
-#if defined(DISABLE_SIMD)
+#if !defined(__SSE__)
     Core::Application::us()->warning("SIMD is not supported (in Valgrind executables)");
 #endif
 }
@@ -66,7 +65,7 @@ void FeatureScorerIntelOptimization::multiplyAndQuantize(const std::vector<Featu
     std::fill(ri, r.end(), 0);
 }
 
-#if defined(DISABLE_SIMD)
+#if !defined(__SSE__)
 
 int FeatureScorerIntelOptimization::distance(const PreparedFeatureVector& mean, const PreparedFeatureVector& featureVector) const {
     int            df, score = 0;
@@ -112,6 +111,5 @@ int FeatureScorerIntelOptimization::distance(const PreparedFeatureVector& mean, 
     return score;
 }
 
-#endif  // DISABLE_SIMD
+#endif  // !(__SSE__)
 
-#endif  // PROC_intel

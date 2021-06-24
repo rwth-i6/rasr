@@ -32,41 +32,16 @@ endif
 # -----------------------------------------------------------------------------
 # auto-detected processor and operating system settings
 
-MIPS		= IP22
-IA32		= i386 i486 i586 i686
-ALPHA		= alpha
-X86_64		= x86_64
-
-PROC		= $(shell uname -m)
-OS		    = $(shell uname -s)
-CPU         = $(shell test -e /proc/cpuinfo && cat /proc/cpuinfo | grep "model name" | head -n 1)
+PROC = $(shell uname -m)
+OS   = $(shell uname -s)
+CPU  = $(shell test -e /proc/cpuinfo && cat /proc/cpuinfo | grep "model name" | head -n 1)
 ifeq ($(CPU),)
 CPU = unknown
 endif
 
-PROC_LIST	= intel alpha mips x86_64
-ifneq ($(findstring $(PROC),$(IA32)),)
-PROC		= intel
-endif
-ifneq ($(findstring $(PROC),$(X86_64)),)
-PROC		= x86_64
-endif
-ifneq ($(findstring $(PROC),$(ALPHA)),)
-PROC		= alpha
-endif
-ifneq ($(findstring $(PROC),$(MIPS)),)
-PROC		= mips
-endif
-ifeq ($(PROC),Power Macintosh)
-PROC		= ppc
-endif
-
-OS_LIST		= linux irix darwin
+OS_LIST		= linux darwin
 ifeq ($(OS),Linux)
 OS		= linux
-endif
-ifeq ($(OS),IRIX)
-OS		= irix
 endif
 ifeq ($(OS),Darwin)
 OS		= darwin

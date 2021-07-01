@@ -133,8 +133,8 @@ LDFLAGS     += -lm
 endif
 
 ifdef MODULE_PYTHON
-INCLUDES    += `python2.7-config --includes 2>/dev/null || pkg-config --cflags python`
-LDFLAGS     += `python2.7-config --libs 2>/dev/null || pkg-config --libs python`
+INCLUDES    += `python3-config --includes 2>/dev/null || pkg-config --cflags python`
+LDFLAGS     += `python3-config --libs 2>/dev/null || pkg-config --libs python`
 endif
 
 # X11 and QT

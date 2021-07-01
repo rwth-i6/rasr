@@ -663,9 +663,9 @@ void PythonTrainer<T>::passErrorSignalToPython() {
         if (naturalPairingLayer_) {
             std::string natPairLayerTypeName = NeuralNetworkLayer<T>::choiceNetworkLayerType[(s32)naturalPairingLayer_->getLayerType()];
             require_ne(natPairLayerTypeName, "");
-            pyNatPairLayerTypeName = PyString_FromString(natPairLayerTypeName.c_str());
+            pyNatPairLayerTypeName = PyUnicode_FromString(natPairLayerTypeName.c_str());
             if (!pyNatPairLayerTypeName) {
-                pythonCriticalError("PythonTrainer: PyString_FromString error");
+                pythonCriticalError("PythonTrainer: PyUnicode_FromString error");
                 Py_CLEAR(pyErrorSignal);
                 return;
             }

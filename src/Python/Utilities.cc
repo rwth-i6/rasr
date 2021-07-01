@@ -104,26 +104,25 @@ void addSysPath(const std::string& path) {
 bool pyObjToStr(PyObject* obj, std::string& str) {
     if (!obj)
         return false;
-    if (PyString_Check(obj)) {
-        str = std::string(PyString_AS_STRING(obj), PyString_GET_SIZE(obj));
-        return true;
-    }
-    else if (PyUnicode_Check(obj)) {
+    if (PyUnicode_CheckExact(obj)) {
         PyObject* strObj = PyUnicode_AsUTF8String(obj);
         if (!strObj)
             return false;
         bool res = false;
-        if (PyString_Check(strObj))
+        if (PyUnicode_Check(strObj)) {
             res = pyObjToStr(strObj, str);
+        }
+        str = PyBytes_AsString(strObj);
+        res = true;
         Py_DECREF(strObj);
         return res;
     }
     else {
-        PyObject* unicodeObj = PyObject_Unicode(obj);
+        PyObject* unicodeObj = obj;
         if (!unicodeObj)
             return false;
         bool res = false;
-        if (PyString_Check(unicodeObj) || PyUnicode_Check(unicodeObj))
+        if (PyUnicode_Check(unicodeObj))
             res = pyObjToStr(unicodeObj, str);
         Py_DECREF(unicodeObj);
         return res;
@@ -133,12 +132,12 @@ bool pyObjToStr(PyObject* obj, std::string& str) {
 
 template<>
 PyObject* newObject(const std::string& source) {
-    return PyString_FromStringAndSize(source.data(), source.size());
+    return PyUnicode_FromStringAndSize(source.data(), source.size());
 }
 
 template<>
 PyObject* newObject(const size_t& source) {
-    return PyInt_FromSize_t(source);
+    return PyLong_FromSize_t(source);
 }
 
 template<>

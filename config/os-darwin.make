@@ -84,7 +84,7 @@ endif
 ifdef MODULE_PYTHON
 LDFLAGS		+= $(shell pkg-config --libs python)
 CCFLAGS		+= $(shell pkg-config --cflags python)
-CCFLAGS		+= -I/usr/local/lib/python2.7/site-packages/numpy/core/include  # not sure how to detect automatically
+CCFLAGS		+= -I/usr/local/lib/python3/site-packages/numpy/core/include  # not sure how to detect automatically
 endif
 
 ifdef MODULE_TEST

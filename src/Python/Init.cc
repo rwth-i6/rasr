@@ -76,10 +76,11 @@ void Initializer::init() {
     if (Core::Application::us()) {
         _pythonHome        = paramPythonHome(Core::Application::us()->getConfiguration());
         _pythonProgramName = paramPythonProgramName(Core::Application::us()->getConfiguration());
+
         if (!_pythonHome.empty())
-            Py_SetPythonHome((char*)_pythonHome.c_str());
+            Py_SetPythonHome(Py_DecodeLocale(_pythonHome.c_str(), nullptr));
         if (!_pythonProgramName.empty())
-            Py_SetProgramName((char*)_pythonProgramName.c_str());
+            Py_SetProgramName(Py_DecodeLocale(_pythonProgramName.c_str(), nullptr));
     }
     else
         Core::printWarning("Python::Initializer: no Application instance found, cannot load parameters");

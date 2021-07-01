@@ -277,15 +277,15 @@ struct PythonControl::Internal : public Core::Component {
         vr.reportVersion(xml);
         xml.flush();
         std::string s = ss.str();
-        return PyString_FromStringAndSize(s.data(), s.size());
+        return PyUnicode_FromStringAndSize(s.data(), s.size());
     }
 
     PyObject* versionNumber() {
-        return PyInt_FromLong(::versionNumber);
+        return PyLong_FromLong(::versionNumber);
     }
 
     PyObject* help() {
-        return PyString_FromString(
+        return PyUnicode_FromString(
                 "Usage: callback(cmd, *args).\n"
                 "callback comes via Sprint PythonControl.\n"
                 "See Sprint src/Nn/PythonControl.cpp for available commands.\n");
@@ -601,7 +601,7 @@ struct PythonControl::Internal : public Core::Component {
             return NULL;
         }
 
-        return PyString_FromString(iter->second.c_str());
+        return PyUnicode_FromString(iter->second.c_str());
     }
 
     bool _readAlignmentFromCacheArchive(const std::shared_ptr<Core::Archive>&                a,
@@ -849,7 +849,7 @@ struct PythonControl::Internal : public Core::Component {
         }
 
         PyObject*   cmd    = PyTuple_GetItem(args, 0);  // borrowed
-        const char* cmd_cs = PyString_AsString(cmd);
+        const char* cmd_cs = PyUnicode_AS_DATA(cmd);
         if (!cmd_cs) {
             PyErr_SetString(PyExc_TypeError, "PythonControl callback(): first arg must be a string");
             return NULL;
@@ -969,7 +969,7 @@ void PythonControl::exit() {
 
     Python::ScopedGIL gil;
 
-    PyObject* res = Python::PyCallKw(pyObject_, "exit", "");
+    PyObject* res = Python::PyCallKw(pyObject_, "exit", "{}");
     if (!res) {
         pythonCriticalError("PythonControl(%s): exit() failed", sprintUnit_.c_str());
         return;
@@ -1103,9 +1103,12 @@ public:
         Python::ScopedGIL gil;
 
         Bliss::SpeechSegment* ss           = dynamic_cast<Bliss::SpeechSegment*>(s);
-        const char*           orth         = ss ? ss->orth().c_str() : NULL;
         const Bliss::Speaker* speaker      = ss ? ss->speaker() : NULL;
         const char*           speaker_name = speaker ? speaker->name().c_str() : NULL;
+        Python::ObjRef        pyOrth;
+        if (ss) {
+            pyOrth.takeOver(PyBytes_FromStringAndSize(ss->orth().data(), ss->orth().size()));
+        }
 
         if (extractFeatures)
             _extractFeatures();
@@ -1137,9 +1140,9 @@ public:
         }
 
         control_.run_custom(
-                "process_segment", "{s:s,s:s,s:s,s:O,s:O,s:O}",
+                "process_segment", "{s:s,s:O,s:s,s:O,s:O,s:O}",
                 "name", s->fullName().c_str(),
-                "orthography", orth,
+                "orthography", pyOrth.obj ? pyOrth.obj : Py_None,
                 "speaker_name", speaker_name,
                 "features", pyFeatures.obj ? pyFeatures.obj : Py_None,
                 "alignment", pyAlignment.obj ? pyAlignment.obj : Py_None,

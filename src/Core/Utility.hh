@@ -80,7 +80,7 @@ struct conversion : public std::unary_function<S, T> {
 
 /** A helper for conveniently assigning the two values from a pair
  * into separate variables. The idea for this comes from Jaakko
- * J�rvi's Binder/Lambda Library.  Code stolen from Boost, to
+ * Järvi's Binder/Lambda Library.  Code stolen from Boost, to
  * which it was constributed by Jeremy Siek */
 
 template<class A, class B>

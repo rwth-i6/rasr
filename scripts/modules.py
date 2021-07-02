@@ -24,8 +24,8 @@ class FileCutter:
 
     def stripFile(self, inputFilename, outputFilename):
         self.initialize()
-        self.outputFile = file(outputFilename, "w")
-        for line in file(inputFilename, "r"):
+        self.outputFile = open(outputFilename, "wt")
+        for line in open(inputFilename, "rt"):
             sLine = line.strip()
             if self.shallParseLine(sLine):
                 if self.handleDirective(sLine):
@@ -50,7 +50,7 @@ class FileCutter:
 
     def output(self, line, remove = False):
         if not remove:
-            print line.rstrip()
+            print(line.rstrip())
 
     def pushCon(self, con, directive, isModule):
         debug("pushCon(%s, %s, %d)" % (con, directive, isModule))
@@ -66,7 +66,7 @@ class MakeFileCutter (FileCutter):
         if not remove:
             self.outputFile.write(line.rstrip() + "\n")
         elif not self.release:
-            print '# removed: ' + line.rstrip()
+            print('# removed: ' + line.rstrip())
 
     def shallParseLine(self, line):
         r = (len(line) and line.split()[0] in [ 'ifdef', 'ifndef', 'endif', 'ifeq', 'ifneq', 'else', 'elif' ])
@@ -93,13 +93,13 @@ class MakeFileCutter (FileCutter):
         elif tokens[0] == 'else':
             prev = self.conStack.pop()
             if prev[2]:
-		self.pushCon(not prev[0], "", prev[2])
-		if self.isActive():
-		    self.output("ifeq (1,1)")
-		return False
-	    else:
-		self.pushCon(True, "", False)
-		retval = self.isActive()
+                self.pushCon(not prev[0], "", prev[2])
+                if self.isActive():
+                    self.output("ifeq (1,1)")
+                return False
+            else:
+                self.pushCon(True, "", False)
+                retval = self.isActive()
         elif tokens[0] == 'endif':
             retval = self.isActive()
             self.conStack.pop()
@@ -121,7 +121,7 @@ class SourceFileCutter (FileCutter):
         if not remove:
             self.outputFile.write(line.rstrip() + "\n")
         elif not self.release:
-            print '/* removed: ' + line.rstrip() + ' */'
+            print('/* removed: ' + line.rstrip() + ' */')
 
     def shallParseLine(self, line):
         return (len(line) and line[0] == '#')
@@ -190,9 +190,9 @@ class SourceFileCutter (FileCutter):
             return True, sym, False
         else:
             val = (token in self.enabledModules)
-	    if ifdef == "#ifndef":
-		val = not val
-	    return val, sym, True
+            if ifdef == "#ifndef":
+                val = not val
+            return val, sym, True
 
     def evalIf(self, tokens):
         s = []
@@ -240,31 +240,31 @@ class SourceFileCutter (FileCutter):
 def parseMakefile(filename, modFiles):
     curMod = []
     basedir = os.path.dirname(os.path.realpath(filename))
-    for line in file(filename):
-	line = line.strip()
-	if line == "":
-	    continue
-	aline = line.split()
-	if aline[0] == "ifdef":
-	    curMod.append(aline[1])
-	    # print "curMod: ", str(curMod)
-	elif aline[0] == "endif" and len(curMod) > 0:
-	    curMod.pop()
-	    # print "curMod: ", str(curMod)
-	else:
-	    if len(curMod) > 0:
-		curFile = ""
-		if len(aline) > 1 and aline[1] == '+=' and aline[0].split("_")[-1] == "O":
+    for line in open(filename, "rt"):
+        line = line.strip()
+        if line == "":
+            continue
+        aline = line.split()
+        if aline[0] == "ifdef":
+            curMod.append(aline[1])
+            # print("curMod: ", str(curMod))
+        elif aline[0] == "endif" and len(curMod) > 0:
+            curMod.pop()
+            # print("curMod: ", str(curMod))
+        else:
+            if len(curMod) > 0:
+                curFile = ""
+                if len(aline) > 1 and aline[1] == '+=' and aline[0].split("_")[-1] == "O":
                     curFile = "/".join(aline[2].split("/")[1:])
-		    # print "added: ", str(modFiles)
-		elif aline[0] == "#MODF":
-		    curFile = aline[1]
-		if curFile != "":
-		    for mod in curMod:
-			if not modFiles.has_key(mod):
-			    modFiles[mod] = ModInfo()
-			f = basedir + "/" + os.path.basename(curFile)
-			modFiles[mod].files.append(f)
+                    # print("added: ", str(modFiles))
+                elif aline[0] == "#MODF":
+                    curFile = aline[1]
+                if curFile != "":
+                    for mod in curMod:
+                        if not modFiles.has_key(mod):
+                            modFiles[mod] = ModInfo()
+                        f = basedir + "/" + os.path.basename(curFile)
+                        modFiles[mod].files.append(f)
                         if not filename in modFiles[mod].makefiles:
                             modFiles[mod].makefiles.append(filename)
     return modFiles
@@ -272,15 +272,15 @@ def parseMakefile(filename, modFiles):
 def parseModulesMake(filename):
     disabled = []
     enabled = []
-    for line in file(filename):
-	line = line.strip()
-	if line == "":
-	    continue
-	aline = line.split()
-	if len(aline) < 3:
-	    continue
-	if aline[0] == '#' and aline[1] == "MODULES":
-	    disabled.append(aline[3])
+    for line in open(filename, "rt"):
+        line = line.strip()
+        if line == "":
+            continue
+        aline = line.split()
+        if len(aline) < 3:
+            continue
+        if aline[0] == '#' and aline[1] == "MODULES":
+            disabled.append(aline[3])
         elif aline[0] == "MODULES" and aline[1] == "+=":
             enabled.append(aline[2])
     sys.stderr.write("enabled  modules:\n%s\n" % str(enabled))
@@ -289,81 +289,81 @@ def parseModulesMake(filename):
 
 def addSourceFiles(modFiles):
     for mod in modFiles.keys():
-	newarr = []
-	for item in modFiles[mod].files:
-	    name, e = os.path.splitext(item)
-	    if e == ".o":
-		for ext in ["cc","hh"]:
-		    f = name + "." + ext
-		    if os.path.exists(f):
-			newarr.append(f)
-	    else:
-		newarr.append(item)
-	modFiles[mod].files = newarr
+        newarr = []
+        for item in modFiles[mod].files:
+            name, e = os.path.splitext(item)
+            if e == ".o":
+                for ext in ["cc","hh"]:
+                    f = name + "." + ext
+                    if os.path.exists(f):
+                        newarr.append(f)
+            else:
+                newarr.append(item)
+        modFiles[mod].files = newarr
 
-    print "addSourceFiles: ", [  (k, len(v.files)) for k, v in modFiles.items() ]
+    print("addSourceFiles: ", [  (k, len(v.files)) for k, v in modFiles.items() ])
 
 
 def main(options, args):
     modFiles = {}
     for makefile in args:
-	# sys.stderr.write("parse %s\n" % makefile)
-	parseMakefile(makefile, modFiles)
+        # sys.stderr.write("parse %s\n" % makefile)
+        parseMakefile(makefile, modFiles)
     addSourceFiles(modFiles)
     disabledModules, enabledModules = [], []
 
     if options.modulesMake != None:
         if (not options.action in [ "check", "strip" ]) and \
            (not (options.enabledModules or options.disabledModules)):
-            print "Error: you have to specify whether you want to use"
-            print "       disabled or enabled modules from Modules.make"
+            print("Error: you have to specify whether you want to use")
+            print("       disabled or enabled modules from Modules.make")
             return False
 
-	disabledModules, enabledModules = parseModulesMake(options.modulesMake)
+        disabledModules, enabledModules = parseModulesMake(options.modulesMake)
         if options.enabledModules:
             options.modules = enabledModules
         else:
             options.modules = disabledModules
 
     if options.action == "files":
-        print "options.modules: ", options.modules
-	for module in options.modules:
-	    try:
-		for f in modFiles[module].files:
-		    print f
-	    except KeyError:
-		pass
+        print("options.modules: ", options.modules)
+        for module in options.modules:
+            try:
+                for f in modFiles[module].files:
+                    print(f)
+            except KeyError:
+                pass
     elif options.action == "modules":
-	modules = modFiles.keys()
-	modules.sort()
-	for m in modules:
-	    print m
+        modules = modFiles.keys()
+        modules.sort()
+        for m in modules:
+            print(m)
     elif options.action == "check":
         if options.modulesMake == None:
-            print "Error: no Modules.make specified"
+            print("Error: no Modules.make specified")
             return False
         foundModules = modFiles.keys()
         foundModules.sort()
         definedModules = enabledModules + disabledModules
         for m in modFiles.keys():
             if not m in definedModules:
-                print "Warning: unspecified module %s in %s" % (m, str(modFiles[m].makefiles))
+                print("Warning: unspecified module %s in %s" % (m, str(modFiles[m].makefiles)))
     elif options.action == "rename":
-        print options
-	for module in options.modules:
-	    try:
-		for f in modFiles[module].files:
-		    nf = os.path.dirname(f) + "/" + options.prefix + os.path.basename(f)
-		    print f, " -> ", nf
-		    try:
-			os.rename(f, nf)
-		    except Exception, e:
-			sys.stderr.write("error: %s\n" % str(e))
-	    except KeyError:
-		pass
+        print(options)
+        for module in options.modules:
+            try:
+                for f in modFiles[module].files:
+                    nf = os.path.dirname(f) + "/" + options.prefix + os.path.basename(f)
+                    print(f, " -> ", nf)
+                    try:
+                        os.rename(f, nf)
+                    except Exception as e:
+                        sys.stderr.write("error: %s\n" % str(e))
+            except KeyError:
+                pass
     elif options.action == "strip":
         if options.modulesMake == None:
-            print "Error: no Modules.make specified"
+            print("Error: no Modules.make specified")
             return False
         sf = SourceFileCutter(enabledModules, options.release)
         mf = MakeFileCutter(enabledModules, options.release)
@@ -372,7 +372,7 @@ def main(options, args):
             oldfile = filename + ".bak"
             sys.stderr.write(filename + " -> " + oldfile + "\n")
             os.rename(filename, oldfile)
-	    aFilename = filename.split(".")
+            aFilename = filename.split(".")
             if aFilename[-1] in [ 'cc', 'hh', 'c', 'h', 'tcc' ]:
                 sys.stderr.write('source file: %s\n' % filename)
                 sf.stripFile(oldfile, filename)
@@ -380,16 +380,16 @@ def main(options, args):
                 sys.stderr.write('make   file: %s\n' % filename)
                 mf.stripFile(oldfile, filename)
     else:
-	print "Error: unknown action: ", options.action
+        print("Error: unknown action: ", options.action)
         return False
     return True
 
 
 if __name__ == "__main__":
     actions = "actions:\n"\
-	          "  modules      print all modules found in the given makefiles\n"\
-	          "  files        print filenames of given modules\n"\
-	          "  rename       rename files of given modules to _<filename>\n"\
+              "  modules      print all modules found in the given makefiles\n"\
+              "  files        print filenames of given modules\n"\
+              "  rename       rename files of given modules to _<filename>\n"\
               "  check        check files for consitency\n"\
               "  strip        remove code for disabled modules from source files and makefiles\n"
 
@@ -398,7 +398,7 @@ if __name__ == "__main__":
     optparser.add_option("-m", "--module", help="set module(s)", action="append", dest="modules", default=[])
     optparser.add_option("-p", "--prefix", help="prefix used for renaming [default: _]", default="_")
     optparser.add_option("-f", "--modules-file", help="Modules.make", default=None,
-			 dest="modulesMake")
+                         dest="modulesMake")
     optparser.add_option("-e", "--enabled", help="get enabled modules from Modules.make",
                          default=False, action="store_true", dest="enabledModules")
     optparser.add_option("-d", "--disabled", help="get disabled modules from Modules.make",
@@ -410,8 +410,8 @@ if __name__ == "__main__":
 
     options, args = optparser.parse_args()
     if len(args) < 1:
-	optparser.print_help()
-	sys.exit(1)
+        optparser.print_help()
+        sys.exit(1)
     main(options, args)
 
 

@@ -27,6 +27,8 @@
 #include <Speech/ModelCombination.hh>
 #include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
+#include <Mm/Types.hh> // include this so that the Mm::Feature type in setLookAhead() function can be recognized
+
 
 namespace Speech {
 class StateTying;
@@ -119,7 +121,7 @@ public:
     virtual PruningRef describePruning();
 
     virtual u32                lookAheadLength();
-    virtual void               setLookAhead(const std::vector<Mm::FeatureVector>& lookahead);
+    virtual void               setLookAhead(const std::deque<Core::Ref<const Mm::Feature>>& lookahead);
     virtual RecognitionContext setContext(RecognitionContext context);
 };
 }  // namespace Search

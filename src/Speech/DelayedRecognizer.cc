@@ -144,10 +144,7 @@ Core::Ref<const Feature> RecognizerDelayHandler::flush() {
 
 void RecognizerDelayHandler::setLookAhead() {
     // @todo avoid copying the feature vectors, use vector< Core::Ref<FeatureVector> > instead.
-    std::vector<Mm::FeatureVector> lah;
-    for (FeatureBuffer::const_iterator f = featureBuffer_.begin(); f != featureBuffer_.end(); ++f)
-        lah.push_back(*(*f)->mainStream());
-    recognizer_->setLookAhead(lah);
+    recognizer_->setLookAhead(featureBuffer_);
 }
 
 void RecognizerDelayHandler::initializeBatchScorer() {

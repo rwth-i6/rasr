@@ -248,7 +248,7 @@ class StatisticsReporter(Processor):
 
     def reportGroup(self, groupName, layers):
         layerList = list(layers.keys())
-        layerList.sort()
+        layerList.sort(key=lambda s: '' if s is None else s)
 
         for layer in layerList:
             data = pivot(layers[layer])

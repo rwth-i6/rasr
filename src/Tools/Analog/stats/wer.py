@@ -41,6 +41,7 @@ class SingleBestWordErrorRate(EditErrorRate):
     name   = 'word errors'
     dataField = 'word errors'
     fields = EditErrorRate.makeFields('words')
+
 class LatticeWordErrorRate(EditErrorRate):
     id     = 'lattice-wer'
     name   = 'lattice word errors'
@@ -52,6 +53,7 @@ class SingleBestLetterErrorRate(EditErrorRate):
     name   = 'letter errors'
     dataField = 'letter errors'
     fields = EditErrorRate.makeFields('letter')
+
 class LatticeLetterErrorRate(EditErrorRate):
     id     = 'lattice-ler'
     name   = 'lattice letter errors'
@@ -63,6 +65,7 @@ class SingleBestPhonemeErrorRate(EditErrorRate):
     name   = 'phoneme errors'
     dataField = 'phoneme errors'
     fields = EditErrorRate.makeFields('phonemes')
+
 class LatticePhonemeErrorRate(EditErrorRate):
     id     = 'lattice-per'
     name   = 'lattice phoneme errors'

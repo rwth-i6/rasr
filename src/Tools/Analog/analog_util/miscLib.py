@@ -55,10 +55,12 @@ def zclose(fd):
 # using the specified encoding and unicode is expected when
 # characters are written (and decoded using the specified encoding);
 # file type detection is supported (see zopen)
-def uopen(fileName, encoding = 'ascii', mode = 'r'):
+def uopen(fileName, encoding = 'utf-8', mode = 'r'):
     encoder, decoder, streamReader, streamWriter = codecs.lookup(encoding)
 
     fd = zopen(fileName, mode)
+    if fd in [sys.stdout, sys.stdin, sys.stderr]:
+        return fd
 
     if mode == 'w' or mode == 'a':
         return streamWriter(fd)
@@ -68,15 +70,15 @@ def uopen(fileName, encoding = 'ascii', mode = 'r'):
         return codecs.StreamReaderWriter(fd, streamReader, streamWriter)
 
 
-def uread(fileName, encoding = 'ascii'):
+def uread(fileName, encoding = 'utf-8'):
     return uopen(fileName, encoding, 'r')
 
 
-def uappend(fileName, encoding = 'ascii'):
+def uappend(fileName, encoding = 'utf-8'):
     return uopen(fileName, encoding, 'a')
 
 
-def uwrite(fileName, encoding = 'ascii'):
+def uwrite(fileName, encoding = 'utf-8'):
     return uopen(fileName, encoding, 'w')
 
 def uclose(fd):

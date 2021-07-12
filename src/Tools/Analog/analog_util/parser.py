@@ -10,7 +10,7 @@ the date.  Such parts should be removed after, say, 6 months.
 __version__   = '$Revision$'
 __date__      = '$Date$'
 
-import string, re, sys
+import re, sys
 from .miscLib import zopen, zclose, uopen, uclose
 from .xmlparser import *
 
@@ -119,7 +119,7 @@ class TracebackElement(XmlDataOnlyElement):
 
     def end(self):
         items = []
-        data = string.join(self.data, '')
+        data = ''.join(self.data)
         for match in self.parseTracebackElement.finditer(data):
             time, score, orth, phon, transit = match.groups()
             items += [(time, score, orth)]
@@ -181,22 +181,22 @@ class EditDistanceAlignmentElement(XmlDataOnlyElement):
         # Note: word tokens in Sprint contain a trailing blank per definition
         match = self.parseAlignmentElement.match(line)
         if match:
-            return tuple([ string.strip(g) for g in match.groups() ])
+            return tuple([ g.strip() for g in match.groups() ])
 
         match = self.oldParseAlignmentElement.match(line)
         if match:
-            return tuple([ string.strip(g) for g in match.groups() ])
+            return tuple([ g.strip() for g in match.groups() ])
 
         raise self.BadAlignmentLine
 
     def end(self):
         matches = []
-        lines = string.split(string.join(self.data, ''), '\n')
+        lines = ''.join(self.data).split('\n')
         for line in lines:
             try:
                 matches.append(self.parseLine(line))
             except self.BadAlignmentLine:
-                if len(string.strip(line)):
+                if len(line.strip()):
                     print('could not parse line:', repr(line), file=sys.stderr)
         self.handler(matches)
 

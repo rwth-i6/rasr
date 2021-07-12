@@ -6,7 +6,7 @@ __version__   = '$Revision$'
 __date__      = '$Date$'
 
 
-from statutils import MinAvgMaxStatistic
+from analog_util.statutils import MinAvgMaxStatistic
 
 class StatesBeforePruning(MinAvgMaxStatistic):
     id   = 'states-before-pruning'

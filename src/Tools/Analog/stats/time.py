@@ -6,18 +6,18 @@ __version__   = '$Revision$'
 __date__      = '$Date$'
 
 
-from analog import Collector, Field
+from analog_util.analog import Collector, Field
 
 
 class RealTime(Collector):
     id     = 'time'
     name   = 'time'
     fields = [Field('duration', 7, '%7.1f', 's'),
-	      Field('CPU',      7, '%7.1f', 's'),
-	      Field('rtf',      6, '%6.2f') ]
+              Field('CPU',      7, '%7.1f', 's'),
+              Field('rtf',      6, '%6.2f') ]
 
     def __call__(self, data):
-	cpuTime  = sum(data['user time'])
-	duration = sum(data['real time'])
-	return zip(self.fields, [
-	    duration, cpuTime, cpuTime / duration if duration > 0.0 else 0.0 ])
+        cpuTime  = sum(data['user time'])
+        duration = sum(data['real time'])
+        return list(zip(self.fields, [
+            duration, cpuTime, cpuTime / duration if duration > 0.0 else 0.0 ]))

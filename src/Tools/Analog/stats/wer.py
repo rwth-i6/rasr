@@ -6,35 +6,35 @@ __version__   = '$Revision$'
 __date__      = '$Date$'
 
 
-from analog import Collector, Field, pivot
+from analog_util.analog import Collector, Field, pivot
 
 class EditErrorRate(Collector):
     def makeFields(cls, unit):
-	return [
-	    Field('seg'),
-	    Field('del'),
-	    Field('ins'),
-	    Field('sub'),
-	    Field('errors'),
-	    Field(unit),
-	    Field(unit[0] + 'er', 6, '%6.2f', '%') ]
+        return [
+            Field('seg'),
+            Field('del'),
+            Field('ins'),
+            Field('sub'),
+            Field('errors'),
+            Field(unit),
+            Field(unit[0] + 'er', 6, '%6.2f', '%') ]
     makeFields = classmethod(makeFields)
     dataField = None
 
     def __call__(self, data):
-	data = data[self.dataField]
-	nSegments = len(data)
-	data = pivot(data)
-	nInsertions = sum(data['insertion'])
-	nDeletions = sum(data['deletion'])
-	nSubstitutions = sum(data['substitution'])
-	nTokens = sum(data['token'])
-	nErrors = nDeletions + nInsertions + nSubstitutions
-	errorPercent = 100
-	if nTokens  != 0: errorPercent = 100.0 * nErrors / nTokens
-	return zip(self.fields, [
-	    nSegments, nDeletions, nInsertions, nSubstitutions,
-	    nErrors, nTokens, errorPercent ])
+        data = data[self.dataField]
+        nSegments = len(data)
+        data = pivot(data)
+        nInsertions = sum(data['insertion'])
+        nDeletions = sum(data['deletion'])
+        nSubstitutions = sum(data['substitution'])
+        nTokens = sum(data['token'])
+        nErrors = nDeletions + nInsertions + nSubstitutions
+        errorPercent = 100
+        if nTokens  != 0: errorPercent = 100.0 * nErrors / nTokens
+        return list(zip(self.fields, [
+            nSegments, nDeletions, nInsertions, nSubstitutions,
+            nErrors, nTokens, errorPercent ]))
 
 class SingleBestWordErrorRate(EditErrorRate):
     id     = 'sb-wer'
@@ -74,14 +74,14 @@ class LatticeDensity(Collector):
     id     = 'lattice-density'
     name   = 'word lattice density'
     fields = [ Field('min', 6, '%6.1f'),
-	       Field('avg', 6, '%6.1f'),
-	       Field('max', 6, '%6.1f') ]
+               Field('avg', 6, '%6.1f'),
+               Field('max', 6, '%6.1f') ]
 
     def __call__(self, data):
-	nan = float("-nan")
-	inf = float("inf")
-	dens = [ d for d in data['lattice density'] if d != nan and d != inf ]
-	minDns = min(dens)
-	avgDns = sum(dens) / len(dens)
-	maxDns = max(dens)
-	return zip(self.fields, [ minDns, avgDns, maxDns ])
+        nan = float("-nan")
+        inf = float("inf")
+        dens = [ d for d in data['lattice density'] if d != nan and d != inf ]
+        minDns = min(dens)
+        avgDns = sum(dens) / len(dens)
+        maxDns = max(dens)
+        return list(zip(self.fields, [ minDns, avgDns, maxDns ]))

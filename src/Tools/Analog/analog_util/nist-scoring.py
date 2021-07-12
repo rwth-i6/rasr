@@ -13,11 +13,11 @@ optparser = OptionParser( \
     )
 
 optparser.add_option("-g", "--glm-file", dest="glm", default=None,
-		    help="hypotheses and references are filtered according to glm-file", metavar="FILE")
+                    help="hypotheses and references are filtered according to glm-file", metavar="FILE")
 optparser.add_option("-s", "--spoken-file", dest="ref", default=None,
-		     help="reference file in stm format", metavar="FILE")
+                     help="reference file in stm format", metavar="FILE")
 optparser.add_option("-r", "--recognized-file", dest="rec", default=None,
-		     help="hypotheses file in ctm format", metavar="FILE")
+                     help="hypotheses file in ctm format", metavar="FILE")
 
 if len(sys.argv) == 1:
     sys.argv.append('--help')

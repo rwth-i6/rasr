@@ -7,14 +7,14 @@ __date__ = '$Date$'
 
 
 import string, sys
-from analog import Writer
+from analog_util.analog import Writer
 
 
 def nistRecordingAndTrack(segment, useName=False):
     if useName:
-	rec = segment['name']
+        rec = segment['name']
     else:
-	rec = segment['recording']
+        rec = segment['recording']
 
     track = segment['track'] + 1
     return '%s %d' % (rec, track)
@@ -24,49 +24,46 @@ class NistStmList(Writer):
     defaultPostfix = '.stm'
 
     def __call__(self, file, data):
-	for segment in data:
-	    print >> file, \
-		nistRecordingAndTrack(segment), \
-		segment.get('speaker', 'unknown'), \
-		segment['start'], \
-		segment['end'], \
-		string.join(string.split(segment['reference']), ' ')
+        for segment in data:
+            print(nistRecordingAndTrack(segment), \
+                segment.get('speaker', 'unknown'), \
+                segment['start'], \
+                segment['end'], \
+                string.join(string.split(segment['reference']), ' '), file=file)
 
 class NistStmRecList(Writer):
     id = 'nist-stm-rec'
     defaultPostfix = '.stm'
 
     def __call__(self, file, data):
-	for segment in data:
-	    print >> file, \
-		nistRecordingAndTrack(segment), \
-		segment.get('speaker', 'unknown'), \
-		segment['start'], \
-		segment['end'], \
-		string.join(string.split(segment['recognized']), ' ')
+        for segment in data:
+            print(nistRecordingAndTrack(segment), \
+                segment.get('speaker', 'unknown'), \
+                segment['start'], \
+                segment['end'], \
+                string.join(string.split(segment['recognized']), ' '), file=file)
 
 class NistCtmList(Writer):
     id = 'nist-ctm'
     defaultPostfix = '.ctm'
 
     def __init__(self, options):
-	super(NistCtmList, self).__init__(options)
-	self.frameShift = float(options.frameShift)
-	self.silence = options.silenceLemma
-	self.useFullName = options.fullName
+        super(NistCtmList, self).__init__(options)
+        self.frameShift = float(options.frameShift)
+        self.silence = options.silenceLemma
+        self.useFullName = options.fullName
 
     def __call__(self, file, data):
-	for segment in data:
-	    recording = nistRecordingAndTrack(segment, self.useFullName)
-	    segmentStartTime = float(segment['start'])
-	    traceback = segment['traceback']
-	    previousFrameIndex = 0
-	    for frameIndex, score, lemma in traceback[1:-1]:
-		frameIndex = int(frameIndex)
-		if lemma == self.silence : lemma = "@"
-		print >> file, \
-		      recording, \
-		      "%.3f" % (segmentStartTime + float(previousFrameIndex) * self.frameShift), \
-		      "%.3f" % (float(frameIndex - previousFrameIndex) * self.frameShift), \
-		      lemma
-		previousFrameIndex = frameIndex
+        for segment in data:
+            recording = nistRecordingAndTrack(segment, self.useFullName)
+            segmentStartTime = float(segment['start'])
+            traceback = segment['traceback']
+            previousFrameIndex = 0
+            for frameIndex, score, lemma in traceback[1:-1]:
+                frameIndex = int(frameIndex)
+                if lemma == self.silence : lemma = "@"
+                print(recording, \
+                      "%.3f" % (segmentStartTime + float(previousFrameIndex) * self.frameShift), \
+                      "%.3f" % (float(frameIndex - previousFrameIndex) * self.frameShift), \
+                      lemma, file=file)
+                previousFrameIndex = frameIndex

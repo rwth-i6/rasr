@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Analog: Sprint Log-file Analyser
@@ -12,7 +12,7 @@ __date__      = '$Date$'
 
 
 import glob, imp, os, sys
-import analog
+from analog_util import analog
 
 def loadPlugins(dir, pattern):
     for fname in glob.glob(os.path.join(dir, pattern)):
@@ -21,8 +21,8 @@ def loadPlugins(dir, pattern):
         fp, pathname, description = imp.find_module(name, [dir])
         try:
             imp.load_module(name, fp, pathname, description)
-        except ImportError:
-            print >> sys.stderr, 'failed to load plug-in "%s"' % name
+        except ImportError as e:
+            print('failed to load plug-in "%s": %s' % (name, e), file=sys.stderr)
         fp.close()
 
 

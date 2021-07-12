@@ -248,7 +248,6 @@ class Dependencies:
             includes = []
             for ext in INCLUDE_EXT:
                 if os.path.isfile(filename + ext):
-                    print(filename + ext)
                     includes += self._parseFile(filename + ext)
             entities = self._getEntities(entityDict, name, includes)
             self._addDependencies(id, entities)

@@ -21,13 +21,13 @@
 
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Mm/Types.hh>
 #include <Search/Histogram.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Search.hh>
 #include <Speech/ModelCombination.hh>
 #include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
-#include <Mm/Types.hh> // include this so that the Mm::Feature type in setLookAhead() function can be recognized
 
 
 namespace Speech {

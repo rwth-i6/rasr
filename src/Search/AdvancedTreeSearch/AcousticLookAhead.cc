@@ -674,8 +674,8 @@ void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Mm::Feature>> co
     acousticLookAhead_.clear();
 
     for (u32 a = 0; a < lookahead_size; ++a) {
-        acousticLookAhead_.push_back(std::make_pair(acousticLookAheadScorer_->multiplyAndQuantize(*(*lookahead.at(a)).mainStream())[0],
-                                                    acousticLookAheadScorer_->getScorer(*(*lookahead.at(a)).mainStream())));
+        acousticLookAhead_.push_back(std::make_pair(acousticLookAheadScorer_->multiplyAndQuantize(*lookahead.at(a)->mainStream())[0],
+                                                    acousticLookAheadScorer_->getScorer(*lookahead.at(a)->mainStream())));
         verify(acousticLookAhead_[a].first.size());
     }
 }

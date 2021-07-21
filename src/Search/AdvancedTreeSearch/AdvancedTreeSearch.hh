@@ -21,12 +21,14 @@
 
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Mm/Types.hh>
 #include <Search/Histogram.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Search.hh>
 #include <Speech/ModelCombination.hh>
 #include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
+
 
 namespace Speech {
 class StateTying;
@@ -119,7 +121,7 @@ public:
     virtual PruningRef describePruning();
 
     virtual u32                lookAheadLength();
-    virtual void               setLookAhead(const std::vector<Mm::FeatureVector>& lookahead);
+    virtual void               setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>& lookahead);
     virtual RecognitionContext setContext(RecognitionContext context);
 };
 }  // namespace Search

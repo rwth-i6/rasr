@@ -3382,7 +3382,7 @@ Search::SearchAlgorithm::RecognitionContext SearchSpace::setContext(Search::Sear
     return ret;
 }
 
-void SearchSpace::setLookAhead(const std::vector<Mm::FeatureVector>& lookahead) {
+void SearchSpace::setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>& lookahead) {
     acousticLookAhead_->setLookAhead(lookahead);
 }
 

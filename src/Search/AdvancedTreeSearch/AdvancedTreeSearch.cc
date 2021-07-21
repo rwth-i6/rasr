@@ -610,10 +610,10 @@ Search::SearchAlgorithm::RecognitionContext AdvancedTreeSearchManager::setContex
     return ss_->setContext(context);
 }
 
-void AdvancedTreeSearchManager::setLookAhead(const std::deque<Core::Ref<const Mm::Feature>>& lookahead) {
+void AdvancedTreeSearchManager::setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>& lookahead) {
     if ((int)lookahead.size() < lookAheadLength())
         // Disable acoustic look-ahead if we don't have enough data
-        ss_->setLookAhead(std::deque<Core::Ref<const Mm::Feature>>());
+        ss_->setLookAhead(std::deque<Core::Ref<const Speech::Feature>>());
     else
         ss_->setLookAhead(lookahead);
 }

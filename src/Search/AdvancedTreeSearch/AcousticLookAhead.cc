@@ -664,7 +664,7 @@ void AcousticLookAhead::getSuccessorMixtures(const PersistentStateTree&         
     }
 }
 
-void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Mm::Feature>> const& lookahead) {
+void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Speech::Feature>> const& lookahead) {
     
     if (!acousticLookAheadScorer_)
         return;

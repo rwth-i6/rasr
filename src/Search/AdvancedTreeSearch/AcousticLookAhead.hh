@@ -207,7 +207,7 @@ public:
     /// compute look-ahead scores
     int length() const;
 
-    void setLookAhead(std::deque<Core::Ref<const Mm::Feature>> const& lookahead);
+    void setLookAhead(std::deque<Core::Ref<const Speech::Feature>> const& lookahead);
 
     void clear();
 

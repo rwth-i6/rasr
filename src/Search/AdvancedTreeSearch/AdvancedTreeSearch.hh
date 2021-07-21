@@ -121,7 +121,7 @@ public:
     virtual PruningRef describePruning();
 
     virtual u32                lookAheadLength();
-    virtual void               setLookAhead(const std::deque<Core::Ref<const Mm::Feature>>& lookahead);
+    virtual void               setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>& lookahead);
     virtual RecognitionContext setContext(RecognitionContext context);
 };
 }  // namespace Search

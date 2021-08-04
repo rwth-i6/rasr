@@ -21,6 +21,7 @@
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
 #include <Modules.hh>
+#include <Search/Module.hh>
 #include <Signal/Module.hh>
 #include <Speech/CorpusVisitor.hh>
 #include <Speech/Module.hh>
@@ -45,6 +46,7 @@ public:
         INIT_MODULE(Lm);
         INIT_MODULE(Math);
         INIT_MODULE(Mm);
+        INIT_MODULE(Search);
         INIT_MODULE(Signal);
         INIT_MODULE(Speech);
 #ifdef MODULE_NN
@@ -60,6 +62,7 @@ public:
     enum RecognitionMode {
         offlineRecognition,
         offlineConstrainedRecognition,
+        initOnlyRecognition,
     };
     static const Core::Choice          recognitionModeChoice;
     static const Core::ParameterChoice paramRecognitionMode;
@@ -73,6 +76,7 @@ APPLICATION(SpeechRecognizer)
 const Core::Choice SpeechRecognizer::recognitionModeChoice(
         "offline", offlineRecognition,
         "constrained", offlineConstrainedRecognition,
+        "init-only", initOnlyRecognition,
         Core::Choice::endMark());
 const Core::ParameterChoice SpeechRecognizer::paramRecognitionMode(
         "recognition-mode", &recognitionModeChoice,
@@ -99,6 +103,14 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
             Bliss::CorpusDescription corpusDescription(select("corpus"));
             corpusDescription.accept(&corpusVisitor);
             delete processor;
+        } break;
+        case initOnlyRecognition: {
+            auto recognizer = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
+            auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
+            modelCombinationRef->load();
+            recognizer->setModelCombination(*modelCombinationRef);
+            recognizer->init();
+            delete recognizer;
         } break;
         default: defect();
     }

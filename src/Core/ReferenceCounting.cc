@@ -20,78 +20,35 @@ using namespace Core;
 
 namespace Core {
 
-/**
- * Central manager for weak references.
- *
- * When a reference counted object is deleted, we need to reset
- * any weak reference to it.  For this reason, we keep track of
- * all existing weak references.
- *
- * ReferenceManager is a Singleton.
- */
-
-class ReferenceManager {
-private:
-    typedef const ReferenceCounted* const Pointee;
-    typedef WeakRefBase*                  Reference;
-
-    typedef std::unordered_multimap<Pointee, Reference, conversion<Pointee, size_t>> Map;
-
-    static ReferenceManager* us_;
-
-    Map map_;
-
-public:
-    static ReferenceManager* us() {
-        if (!us_)
-            us_ = new ReferenceManager;
-        return us_;
-    }
-
-    void registerWeakReference(Pointee object, Reference reference) {
-        map_.insert(std::make_pair(object, reference));
-    }
-
-    void unregisterWeakReference(Pointee object, Reference reference) {
-        std::pair<Map::iterator, Map::iterator> rr = map_.equal_range(object);
-        for (Map::iterator ii = rr.first; ii != rr.second; ++ii) {
-            if (ii->second == reference) {
-                map_.erase(ii);
-                break;
-            }
-        }
-    }
-
-    void notifyDeletion(Pointee object) {
-        std::pair<Map::iterator, Map::iterator> rr = map_.equal_range(object);
-        for (Map::iterator ii = rr.first; ii != rr.second; ++ii) {
-            (ii->second)->invalidate();
-        }
-        map_.erase(rr.first, rr.second);
-    }
-};
-
-ReferenceManager* ReferenceManager::us_ = 0;
-
-};  // namespace Core
-
 ReferenceCounted::~ReferenceCounted() {}
 
 void ReferenceCounted::acquireWeakReference(WeakRefBase* reference) const {
     // require(*reference == this);
-    if (!isSentinel(this))
-        ReferenceManager::us()->registerWeakReference(this, reference);
+    if (!isSentinel(this)) {
+        if (not weak_refs_) {
+            weak_refs_.reset(new WeakRefSet());
+        }
+        weak_refs_->insert(reference);
+    }
 }
 
 void ReferenceCounted::releaseWeakReference(WeakRefBase* reference) const {
     // require(*reference == this);
-    if (!isSentinel(this))
-        ReferenceManager::us()->unregisterWeakReference(this, reference);
+    if (!isSentinel(this)) {
+        verify_(weak_refs_);
+        weak_refs_->erase(reference);
+    }
 }
 
 void ReferenceCounted::free() const {
     require_(!referenceCount_);
     verify_(!isSentinel(this));
-    ReferenceManager::us()->notifyDeletion(this);
+    if (weak_refs_) {
+        for (auto iter = weak_refs_->begin(); iter != weak_refs_->end(); ++iter) {
+            (*iter)->invalidate();
+        }
+    }
     delete this;
 }
+
+}  // namespace Core

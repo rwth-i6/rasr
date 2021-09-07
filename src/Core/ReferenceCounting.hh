@@ -17,6 +17,9 @@
 #ifndef _CORE_REFERENCE_COUNTING
 #define _CORE_REFERENCE_COUNTING
 
+#include <unordered_set>
+#include <memory>
+
 #include "Assertions.hh"
 #include "Types.hh"
 
@@ -39,8 +42,12 @@ private:
     friend class Ref;
     template<class T>
     friend class WeakRef;
-    friend class ReferenceManager;
+
+    using WeakRefSet = std::unordered_set<WeakRefBase*>;
+
     mutable u32 referenceCount_;
+    mutable std::unique_ptr<WeakRefSet> weak_refs_;
+
     explicit ReferenceCounted(u32 rc)
             : referenceCount_(rc) {}
 
@@ -60,9 +67,9 @@ protected:
 
 public:
     ReferenceCounted()
-            : referenceCount_(0) {}
+            : referenceCount_(0), weak_refs_(nullptr) {}
     ReferenceCounted(const ReferenceCounted&)
-            : referenceCount_(0) {}
+            : referenceCount_(0), weak_refs_(nullptr) {}
     ReferenceCounted& operator=(const ReferenceCounted&) {
         return *this;
     }
@@ -299,7 +306,7 @@ inline Ref<T> ref(T* o) {
  * Base class of the WeakRef template.
  *
  * This is needed to have an unparametrized interface
- * used by the ReferenceManager
+ * used for the unordered_set that maintains weak-refs
  */
 class WeakRefBase {
 public:
@@ -307,7 +314,7 @@ public:
 
 private:
     virtual void invalidate() = 0;
-    friend class ReferenceManager;
+    friend class ReferenceCounted;
 };
 
 /**
@@ -346,7 +353,6 @@ private:
     virtual void invalidate() {
         object_ = sentinel();
     }
-    friend class ReferenceManager;
 
 public:
     WeakRef()

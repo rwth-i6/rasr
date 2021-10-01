@@ -15,7 +15,8 @@
 #ifndef _TENSORFLOW_TENSOR_HH
 #define _TENSORFLOW_TENSOR_HH
 
-#include "tensorflow/core/framework/tensor.h"
+#include <tensorflow/core/framework/tensor.h>
+#include <tensorflow/core/public/version.h>
 
 #include <Math/FastMatrix.hh>
 #include <Math/FastVector.hh>
@@ -24,6 +25,12 @@ namespace Tensorflow {
 
 namespace tf = tensorflow;
 using int64  = tf::int64;
+
+#if TF_MAJOR_VERSION < 2
+typedef std::string tstring;
+#else
+typedef tf::tstring tstring;
+#endif
 
 class Session;
 

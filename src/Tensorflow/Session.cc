@@ -15,6 +15,7 @@
 #include "Session.hh"
 
 #include <tensorflow/core/platform/env.h>
+#include <tensorflow/core/public/version.h>
 
 namespace Tensorflow {
 
@@ -51,7 +52,11 @@ void Session::addGraph(Graph const& graph) {
     tf::Env* env         = tf::Env::Default();
     for (std::string const& lib : graph.libraries()) {
         void*      handle = nullptr;
+#if TF_MAJOR_VERSION < 2 || (TF_MAJOR_VERSION == 2 && TF_MINOR_VERSION < 4)
         tf::Status status = env->LoadLibrary(lib.c_str(), &handle);
+#else
+        tf::Status status = env->LoadDynamicLibrary(lib.c_str(), &handle);
+#endif
         log("Loading library: ") << lib.c_str();
         if (!status.ok()) {
             criticalError("error loading library: %s", status.ToString().c_str());

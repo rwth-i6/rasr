@@ -391,7 +391,7 @@ template void Tensor::get<s16>(s16&) const;
 template void Tensor::get<u16>(u16&) const;
 template void Tensor::get<s8>(s8&) const;
 template void Tensor::get<u8>(u8&) const;
-template void Tensor::get<std::string>(std::string&) const;
+template void Tensor::get<tstring>(tstring&) const;
 template void Tensor::get<bool>(bool&) const;
 
 // getters for a subset of the data (1-dim subset)
@@ -470,7 +470,7 @@ template void Tensor::get<s16>(size_t, s16&) const;
 template void Tensor::get<u16>(size_t, u16&) const;
 template void Tensor::get<s8>(size_t, s8&) const;
 template void Tensor::get<u8>(size_t, u8&) const;
-template void Tensor::get<std::string>(size_t, std::string&) const;
+template void Tensor::get<tstring>(size_t, tstring&) const;
 
 // getters for a subset of the data (2-dim subset)
 
@@ -549,7 +549,7 @@ template void Tensor::get<s16>(size_t, size_t, s16&) const;
 template void Tensor::get<u16>(size_t, size_t, u16&) const;
 template void Tensor::get<s8>(size_t, size_t, s8&) const;
 template void Tensor::get<u8>(size_t, size_t, u8&) const;
-template void Tensor::get<std::string>(size_t, size_t, std::string&) const;
+template void Tensor::get<tstring>(size_t, size_t, tstring&) const;
 
 /* ------------------------- raw data access ------------------------- */
 
@@ -574,7 +574,7 @@ template s16*         Tensor::data<s16>();
 template u16*         Tensor::data<u16>();
 template s8*          Tensor::data<s8>();
 template u8*          Tensor::data<u8>();
-template std::string* Tensor::data<std::string>();
+template tstring* Tensor::data<tstring>();
 
 template<typename T>
 T const* Tensor::data() const {
@@ -597,7 +597,7 @@ template s16 const*         Tensor::data<s16>() const;
 template u16 const*         Tensor::data<u16>() const;
 template s8 const*          Tensor::data<s8>() const;
 template u8 const*          Tensor::data<u8>() const;
-template std::string const* Tensor::data<std::string>() const;
+template tstring const* Tensor::data<tstring>() const;
 
 template<typename T>
 T* Tensor::data(size_t dim0_idx) {
@@ -621,7 +621,7 @@ template s16*         Tensor::data<s16>(size_t);
 template u16*         Tensor::data<u16>(size_t);
 template s8*          Tensor::data<s8>(size_t);
 template u8*          Tensor::data<u8>(size_t);
-template std::string* Tensor::data<std::string>(size_t);
+template tstring* Tensor::data<tstring>(size_t);
 
 template<typename T>
 T const* Tensor::data(size_t dim0_idx) const {
@@ -643,7 +643,7 @@ template s16 const*         Tensor::data<s16>(size_t) const;
 template u16 const*         Tensor::data<u16>(size_t) const;
 template s8 const*          Tensor::data<s8>(size_t) const;
 template u8 const*          Tensor::data<u8>(size_t) const;
-template std::string const* Tensor::data<std::string>(size_t) const;
+template tstring const* Tensor::data<tstring>(size_t) const;
 
 template<typename T>
 T* Tensor::data(size_t dim0_idx, size_t dim1_idx) {
@@ -668,7 +668,7 @@ template s16*         Tensor::data<s16>(size_t, size_t);
 template u16*         Tensor::data<u16>(size_t, size_t);
 template s8*          Tensor::data<s8>(size_t, size_t);
 template u8*          Tensor::data<u8>(size_t, size_t);
-template std::string* Tensor::data<std::string>(size_t, size_t);
+template tstring* Tensor::data<tstring>(size_t, size_t);
 
 template<typename T>
 T const* Tensor::data(size_t dim0_idx, size_t dim1_idx) const {
@@ -693,7 +693,7 @@ template s16 const*         Tensor::data<s16>(size_t, size_t) const;
 template u16 const*         Tensor::data<u16>(size_t, size_t) const;
 template s8 const*          Tensor::data<s8>(size_t, size_t) const;
 template u8 const*          Tensor::data<u8>(size_t, size_t) const;
-template std::string const* Tensor::data<std::string>(size_t, size_t) const;
+template tstring const* Tensor::data<tstring>(size_t, size_t) const;
 
 template<typename T>
 T* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) {
@@ -719,7 +719,7 @@ template s16* Tensor::data<s16>(size_t, size_t, size_t);
 template u16* Tensor::data<u16>(size_t, size_t, size_t);
 template s8* Tensor::data<s8>(size_t, size_t, size_t);
 template u8* Tensor::data<u8>(size_t, size_t, size_t);
-template std::string* Tensor::data<std::string>(size_t, size_t, size_t);
+template tstring* Tensor::data<tstring>(size_t, size_t, size_t);
 
 template<typename T>
 T const* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const {
@@ -745,7 +745,7 @@ template s16 const* Tensor::data<s16>(size_t, size_t, size_t) const;
 template u16 const* Tensor::data<u16>(size_t, size_t, size_t) const;
 template s8 const* Tensor::data<s8>(size_t, size_t, size_t) const;
 template u8 const* Tensor::data<u8>(size_t, size_t, size_t) const;
-template std::string const* Tensor::data<std::string>(size_t, size_t, size_t) const;
+template tstring const* Tensor::data<tstring>(size_t, size_t, size_t) const;
 
 Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end) {
     require_eq(static_cast<int>(start.size()), numDims());
@@ -932,7 +932,7 @@ template void Tensor::set<s16>(s16 const&);
 template void Tensor::set<u16>(u16 const&);
 template void Tensor::set<s8>(s8 const&);
 template void Tensor::set<u8>(u8 const&);
-template void Tensor::set<std::string>(std::string const&);
+template void Tensor::set<tstring>(tstring const&);
 template void Tensor::set<bool>(bool const&);
 
 template<typename T>
@@ -974,7 +974,7 @@ template void Tensor::save<s16>(std::string const&) const;
 template void Tensor::save<u16>(std::string const&) const;
 template void Tensor::save<s8>(std::string const&) const;
 template void Tensor::save<u8>(std::string const&) const;
-template void Tensor::save<std::string>(std::string const&) const;
+template void Tensor::save<tstring>(std::string const&) const;
 template void Tensor::save<bool>(std::string const&) const;
 
 }  // namespace Tensorflow

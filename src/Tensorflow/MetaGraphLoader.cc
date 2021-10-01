@@ -140,7 +140,7 @@ void MetaGraphLoader::initialize(Session& session) {
 
     std::vector<Tensor> outputs;
     Tensor              filename_tensor;
-    filename_tensor.set(saved_model_file_);
+    filename_tensor.set<Tensorflow::tstring>(saved_model_file_);
     session.run({std::make_pair<>(restore_filename_tensor_name_, filename_tensor)}, {}, {restore_op_name_}, outputs);
 
     auto timer_end = std::chrono::steady_clock::now();

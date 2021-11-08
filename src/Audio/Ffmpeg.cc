@@ -345,7 +345,7 @@ u32 FfmpegInputNode::read(u32 nSamples, Flow::Timestamp*& d) {
                     out_frame->format = av_get_packed_sample_fmt(static_cast<AVSampleFormat>(frame->format));
                     int error_code    = swr_convert_frame(internal_->swr_ctx, out_frame, frame);
                     if (error_code < 0) {
-                        error("Error converting frame: ");
+                        error("Error converting frame");
                         return 0u;
                     }
                 }

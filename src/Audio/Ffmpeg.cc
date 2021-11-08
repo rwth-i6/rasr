@@ -174,6 +174,17 @@ bool FfmpegInputNode::openFile_() {
     }
     internal_->cdc_ctx = internal_->fmt_ctx->streams[internal_->stream_idx]->codec;
 
+    if (internal_->cdc_ctx->channels == 1) {
+	// explicitly ask for mono-layout, as swresample can throw an error if the input channel layout is 0 (=default)
+        internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_MONO;
+        internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_MONO;
+    }
+    else if (internal_->cdc_ctx->channels == 2) {
+	// explicitly ask for stereo-layout, as swresample can throw an error if the input channel layout is 0 (=default)
+        internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
+        internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_STEREO;
+    }
+
     av_dict_set(&opts, "refcounted_frames", "0", 0);
     error_code = avcodec_open2(internal_->cdc_ctx, codec, &opts);
     if (error_code < 0) {
@@ -182,7 +193,7 @@ bool FfmpegInputNode::openFile_() {
         goto cleanup;
     }
 
-    channel_layout = av_get_default_channel_layout(internal_->cdc_ctx->channels);
+    channel_layout = internal_->cdc_ctx->channel_layout;
     input_fmt      = internal_->cdc_ctx->sample_fmt;
     packed_fmt     = av_get_packed_sample_fmt(input_fmt);
     output_sr      = resampleRate_ > 0 ? resampleRate_ : internal_->cdc_ctx->sample_rate;
@@ -193,16 +204,23 @@ bool FfmpegInputNode::openFile_() {
         goto cleanup;
     }
 
-    if ((input_fmt != packed_fmt and channel_layout != AV_CH_LAYOUT_MONO) or resampleRate_ > 0) {
+    if (input_fmt != packed_fmt or resampleRate_ > 0) {
         internal_->swr_ctx = swr_alloc_set_opts(internal_->swr_ctx,
-                                                channel_layout, packed_fmt, internal_->cdc_ctx->sample_rate,
-                                                channel_layout, input_fmt, output_sr,
+                                                channel_layout, packed_fmt, output_sr,
+                                                channel_layout, input_fmt, internal_->cdc_ctx->sample_rate,
                                                 0, nullptr);
         if (internal_->swr_ctx == nullptr) {
             error("could not allocate SwrContext");
             success = false;
             goto cleanup;
         }
+
+	error_code = swr_init(internal_->swr_ctx);
+	if (error_code) {
+            error("could not initialize SwrContext: ") << error_code;
+            success = false;
+            goto cleanup;
+	}
     }
 
     setSampleRate(output_sr);
@@ -327,7 +345,7 @@ u32 FfmpegInputNode::read(u32 nSamples, Flow::Timestamp*& d) {
                     out_frame->format = av_get_packed_sample_fmt(static_cast<AVSampleFormat>(frame->format));
                     int error_code    = swr_convert_frame(internal_->swr_ctx, out_frame, frame);
                     if (error_code < 0) {
-                        error("Error converting frame");
+                        error("Error converting frame: ");
                         return 0u;
                     }
                 }

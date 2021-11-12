@@ -848,8 +848,12 @@ struct PythonControl::Internal : public Core::Component {
             return NULL;
         }
 
-        PyObject*   cmd    = PyTuple_GetItem(args, 0);  // borrowed
-        const char* cmd_cs = PyUnicode_AS_DATA(cmd);
+        PyObject* cmd = PyTuple_GetItem(args, 0);  // borrowed
+        if (PyUnicode_KIND(cmd) != PyUnicode_1BYTE_KIND){
+            PyErr_SetString(PyExc_TypeError, "PythonControl callback(): first arg is not a 1BYTE unicode string");
+            return NULL;
+        }
+        const char* cmd_cs = (const char*)PyUnicode_1BYTE_DATA(cmd);
         if (!cmd_cs) {
             PyErr_SetString(PyExc_TypeError, "PythonControl callback(): first arg must be a string");
             return NULL;

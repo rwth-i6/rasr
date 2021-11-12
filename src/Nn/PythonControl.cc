@@ -847,7 +847,8 @@ struct PythonControl::Internal : public Core::Component {
             PyErr_SetString(PyExc_TypeError, "PythonControl callback(): requires at least one arg. try callback('help')");
             return NULL;
         }
-        PyObject* cmd    = PyTuple_GetItem(args, 0);  // borrowed
+
+        PyObject* cmd = PyTuple_GetItem(args, 0);  // borrowed
         if (PyUnicode_KIND(cmd) != PyUnicode_1BYTE_KIND){
             PyErr_SetString(PyExc_TypeError, "PythonControl callback(): first arg is not a 1BYTE unicode string");
             return NULL;

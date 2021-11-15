@@ -175,12 +175,12 @@ bool FfmpegInputNode::openFile_() {
     internal_->cdc_ctx = internal_->fmt_ctx->streams[internal_->stream_idx]->codec;
 
     if (internal_->cdc_ctx->channels == 1) {
-	// explicitly ask for mono-layout, as swresample can throw an error if the input channel layout is 0 (=default)
+        // explicitly ask for mono-layout, as swresample can throw an error if the input channel layout is 0 (=default)
         internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_MONO;
         internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_MONO;
     }
     else if (internal_->cdc_ctx->channels == 2) {
-	// explicitly ask for stereo-layout, as swresample can throw an error if the input channel layout is 0 (=default)
+        // explicitly ask for stereo-layout, as swresample can throw an error if the input channel layout is 0 (=default)
         internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
         internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_STEREO;
     }
@@ -215,12 +215,12 @@ bool FfmpegInputNode::openFile_() {
             goto cleanup;
         }
 
-	error_code = swr_init(internal_->swr_ctx);
-	if (error_code) {
+        error_code = swr_init(internal_->swr_ctx);
+        if (error_code) {
             error("could not initialize SwrContext: ") << error_code;
             success = false;
             goto cleanup;
-	}
+       }
     }
 
     setSampleRate(output_sr);

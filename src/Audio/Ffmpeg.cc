@@ -220,7 +220,7 @@ bool FfmpegInputNode::openFile_() {
             error("could not initialize SwrContext: ") << error_code;
             success = false;
             goto cleanup;
-       }
+        }
     }
 
     setSampleRate(output_sr);

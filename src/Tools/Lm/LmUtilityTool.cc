@@ -64,6 +64,7 @@ class LmUtilityTool : public Core::Application {
 public:
     enum Action {
         actionNotGiven,
+        actionLoadLm,
         actionComputePerplexityFromTextFile
     };
 
@@ -81,6 +82,7 @@ public:
     int main(std::vector<std::string> const& arguments);
 
 private:
+    void loadLm();
     void computePerplexityFromTextFile();
 };
 
@@ -88,7 +90,7 @@ APPLICATION(LmUtilityTool)
 
 // ---------- Implementations ----------
 
-const Core::Choice          LmUtilityTool::choiceAction("compute-perplexity-from-text-file", actionComputePerplexityFromTextFile, Core::Choice::endMark());
+const Core::Choice          LmUtilityTool::choiceAction("load-lm", actionLoadLm, "compute-perplexity-from-text-file", actionComputePerplexityFromTextFile, Core::Choice::endMark());
 const Core::ParameterChoice LmUtilityTool::paramAction("action", &choiceAction, "action to perform", actionNotGiven);
 const Core::ParameterString LmUtilityTool::paramFile("file", "input file");
 const Core::ParameterString LmUtilityTool::paramEncoding("encoding", "the encoding of the input file", "utf8");
@@ -117,11 +119,17 @@ LmUtilityTool::LmUtilityTool()
 
 int LmUtilityTool::main(std::vector<std::string> const& arguments) {
     switch (paramAction(config)) {
+        case actionLoadLm: loadLm(); break;
         case actionComputePerplexityFromTextFile: computePerplexityFromTextFile(); break;
         default:
         case actionNotGiven: error("no action given");
     }
     return EXIT_SUCCESS;
+}
+
+void LmUtilityTool::loadLm() {
+    Bliss::LexiconRef      lexicon(Bliss::Lexicon::create(select("lexicon")));
+    LanguageModelRef       lm(Lm::Module::instance().createLanguageModel(select("lm"), lexicon));
 }
 
 void LmUtilityTool::computePerplexityFromTextFile() {

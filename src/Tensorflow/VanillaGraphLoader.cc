@@ -12,50 +12,54 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Session.hh"
 #include "VanillaGraphLoader.hh"
 
-#include <tensorflow/core/platform/env.h>
 
 namespace Tensorflow {
 
-Core::ParameterString VanillaGraphLoader::paramFile(
-        "file",
-        "path of the GraphDef protobuffer to load",
+Core::ParameterString VanillaGraphLoader::paramSavedModelDir(
+        "saved-model-dir",
+        "path of the SavedModel dir to load",
         "");
 
 std::unique_ptr<Graph> VanillaGraphLoader::load_graph() {
-    if (file_.empty()) {
+    auto timer_start = std::chrono::steady_clock::now();
+    if (saved_model_dir_.empty()) {
         criticalError("no graph-def-path set");
     }
 
-    tf::Env*     env = tf::Env::Default();
-    tf::GraphDef graph_def;
-    tf::Status   status = ReadBinaryProto(env, file_, &graph_def);
+    tf::SessionOptions session_options;
+    tf::RunOptions run_options;
+    tf::Status status = tf::LoadSavedModel(session_options, run_options, saved_model_dir_, {"serve"},
+		                   &bundle);
     if (not status.ok()) {
         criticalError("error reading graph def %s", status.ToString().c_str());
     }
 
-    std::unique_ptr<Graph> result(new Graph());
-    setGraphDef(*result, graph_def);
-
-    for (int i = 0; i < graph_def.node_size(); i++) {
-        auto& node = graph_def.node(i);
-        if (node.op() == "Placeholder" or node.op() == "PlaceholderV2") {
-            result->addInput(node.name());
-        }
-        else if (node.op() == "Variable" or node.op() == "VariableV2") {
-            DataType         dt       = node.attr().find("dtype")->second.type();
-            std::string      var_name = node.name() + ":0";  // to use the same name as is used inside collections we append ":0" here
-            auto const&      shape    = node.attr().find("_output_shapes")->second.list().shape(0);
-            std::vector<s64> dims(static_cast<size_t>(shape.dim_size()));
-            for (int i = 0; i < shape.dim_size(); i++) {
-                dims[i] = shape.dim(i).size();
-            }
-            result->addVariable({var_name, "", "", "", dt, dims});
-        }
+    if (not bundle.meta_graph_def.has_graph_def()) {
+	criticalError("meta-graph has not graph def");
+    }
+    if (not bundle.meta_graph_def.has_saver_def()) {
+	criticalError("meta-graph has not saver def");
     }
 
+
+    tf::GraphDef const&    graph_def = bundle.meta_graph_def.graph_def();
+    std::unique_ptr<Graph> result(new Graph());
+    setGraphDef(*result, graph_def);
+    auto timer_end = std::chrono::steady_clock::now();
+    log("Session::loadGraph: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count() << "ms";
+
     return result;
+}
+
+void VanillaGraphLoader::initialize(Session& session) {
+    auto timer_start = std::chrono::steady_clock::now();
+
+    session.setSession(bundle.GetSession());
+    auto timer_end = std::chrono::steady_clock::now();
+    log("Session::initialize: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count() << "ms " << saved_model_dir_;
 }
 
 }  // namespace Tensorflow

@@ -44,6 +44,7 @@ public:
     virtual ~Session();
 
     void addGraph(Graph const& graph);
+    void setSession(tf::Session* session);
 
     bool run(std::vector<std::pair<std::string, Tensor>> const& inputs,
              std::vector<std::string> const&                    target_node_names);

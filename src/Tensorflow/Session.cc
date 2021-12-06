@@ -123,4 +123,9 @@ bool Session::run(std::vector<std::pair<std::string, Tensor>> const& inputs,
     return status.ok();
 }
 
+void Session::setSession(tf::Session* session) {
+    session_->Close();
+    session_.reset(session);
+}
+
 }  // namespace Tensorflow

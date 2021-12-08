@@ -15,6 +15,8 @@
 #ifndef _TENSORFLOW_VANILLA_GRAPH_LOADER_HH
 #define _TENSORFLOW_VANILLA_GRAPH_LOADER_HH
 
+#include <tensorflow/cc/saved_model/loader.h>
+#include <tensorflow/core/public/session.h>
 #include "GraphLoader.hh"
 
 namespace Tensorflow {
@@ -23,19 +25,21 @@ class VanillaGraphLoader : public GraphLoader {
 public:
     typedef GraphLoader Precursor;
 
-    static Core::ParameterString paramFile;
+    static Core::ParameterString paramSavedModelDir;
 
     VanillaGraphLoader(Core::Configuration const& config);
     ~VanillaGraphLoader() = default;
 
     virtual std::unique_ptr<Graph> load_graph();
+    virtual void                   initialize(Session& session);
 
 private:
-    std::string file_;
+    std::string saved_model_dir_;
+    tf::SavedModelBundle bundle;
 };
 
 inline VanillaGraphLoader::VanillaGraphLoader(Core::Configuration const& config)
-        : Core::Component(config), VanillaGraphLoader::Precursor(config), file_(paramFile(config)) {
+        : Core::Component(config), VanillaGraphLoader::Precursor(config), saved_model_dir_(paramSavedModelDir(config)) {
 }
 
 }  // namespace Tensorflow

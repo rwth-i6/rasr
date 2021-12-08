@@ -54,6 +54,9 @@ public:
              std::vector<std::string> const&                    target_node_names,
              std::vector<Tensor>&                               outputs);
 
+protected:
+    void setSession(tf::Session* session);
+
 private:
     const bool        profileRun_;
     const std::string profilePrefix_;

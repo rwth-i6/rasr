@@ -19,12 +19,14 @@
 #include "MetaGraphLoader.hh"
 #include "TensorflowForwardNode.hh"
 #include "VanillaGraphLoader.hh"
+#include "SavedModelGraphLoader.hh"
 
 namespace {
 enum GraphLoaderChoice {
     graphLoaderNotGiven,
     graphLoaderVanilla,
-    graphLoaderMeta
+    graphLoaderMeta,
+    graphLoaderSavedModel
 };
 }
 
@@ -33,6 +35,7 @@ namespace Tensorflow {
 const Core::Choice Module_::choiceGraphLoader(
         "vanilla", GraphLoaderChoice::graphLoaderVanilla,
         "meta", GraphLoaderChoice::graphLoaderMeta,
+        "saved-model", GraphLoaderChoice::graphLoaderSavedModel,
         Core::Choice::endMark());
 const Core::ParameterChoice Module_::paramGraphLoader("type", &choiceGraphLoader, "graph-loader to use", GraphLoaderChoice::graphLoaderNotGiven);
 
@@ -50,6 +53,8 @@ std::unique_ptr<GraphLoader> Module_::createGraphLoader(Core::Configuration cons
             return std::unique_ptr<GraphLoader>(new VanillaGraphLoader(config));
         case graphLoaderMeta:
             return std::unique_ptr<GraphLoader>(new MetaGraphLoader(config));
+        case graphLoaderSavedModel:
+            return std::unique_ptr<GraphLoader>(new SavedModelGraphLoader(config))
         case graphLoaderNotGiven:
         default:
             return std::unique_ptr<GraphLoader>();

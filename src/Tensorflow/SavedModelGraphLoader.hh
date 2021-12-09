@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _TENSORFLOW_VANILLA_GRAPH_LOADER_HH
-#define _TENSORFLOW_VANILLA_GRAPH_LOADER_HH
+#ifndef _TENSORFLOW_SAVEDMODEL_GRAPH_LOADER_HH
+#define _TENSORFLOW_SAVEDMODEL_GRAPH_LOADER_HH
 
 #include <tensorflow/cc/saved_model/loader.h>
 #include <tensorflow/core/public/session.h>
@@ -21,14 +21,14 @@
 
 namespace Tensorflow {
 
-class VanillaGraphLoader : public GraphLoader {
+class SavedModelGraphLoader : public GraphLoader {
 public:
     typedef GraphLoader Precursor;
 
     static Core::ParameterString paramSavedModelDir;
 
-    VanillaGraphLoader(Core::Configuration const& config);
-    ~VanillaGraphLoader() = default;
+    SavedModelGraphLoader(Core::Configuration const& config);
+    ~SavedModelGraphLoader() = default;
 
     virtual std::unique_ptr<Graph> load_graph();
     virtual void                   initialize(Session& session);
@@ -38,10 +38,10 @@ private:
     tf::SavedModelBundle bundle;
 };
 
-inline VanillaGraphLoader::VanillaGraphLoader(Core::Configuration const& config)
-        : Core::Component(config), VanillaGraphLoader::Precursor(config), saved_model_dir_(paramSavedModelDir(config)) {
+inline SavedModelGraphLoader::SavedModelGraphLoader(Core::Configuration const& config)
+        : Core::Component(config), SavedModelGraphLoader::Precursor(config), saved_model_dir_(paramSavedModelDir(config)) {
 }
 
 }  // namespace Tensorflow
 
-#endif  // _TENSORFLOW_VANILLA_GRAPH_LOADER_HH
+#endif  // _TENSORFLOW_SAVEDMODEL_GRAPH_LOADER_HH

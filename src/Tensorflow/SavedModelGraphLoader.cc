@@ -13,17 +13,17 @@
  *  limitations under the License.
  */
 #include "Session.hh"
-#include "VanillaGraphLoader.hh"
+#include "SavedModelGraphLoader.hh"
 
 
 namespace Tensorflow {
 
-Core::ParameterString VanillaGraphLoader::paramSavedModelDir(
+Core::ParameterString SavedModelGraphLoader::paramSavedModelDir(
         "saved-model-dir",
         "path of the SavedModel dir to load",
         "");
 
-std::unique_ptr<Graph> VanillaGraphLoader::load_graph() {
+std::unique_ptr<Graph> SavedModelGraphLoader::load_graph() {
     auto timer_start = std::chrono::steady_clock::now();
     if (saved_model_dir_.empty()) {
         criticalError("no graph-def-path set");
@@ -54,7 +54,7 @@ std::unique_ptr<Graph> VanillaGraphLoader::load_graph() {
     return result;
 }
 
-void VanillaGraphLoader::initialize(Session& session) {
+void SavedModelGraphLoader::initialize(Session& session) {
     auto timer_start = std::chrono::steady_clock::now();
 
     session.setSession(bundle.GetSession());

@@ -17,6 +17,7 @@
 #include <functional>
 
 #include "BlasNceSoftmaxAdapter.hh"
+#include "BlasNceUnbiasedSoftmaxAdapter.hh"
 #include "LstmStateManager.hh"
 #include "Module.hh"
 #include "NceSoftmaxAdapter.hh"
@@ -185,6 +186,7 @@ std::unique_ptr<StateManager> createStateManager(Core::Configuration const& conf
 
 enum SoftmaxAdapterType {
     BlasNceSoftmaxAdapterType,
+    BlasNceUnbiasedSoftmaxAdapterType,
     NceSoftmaxAdapterType,
     PassthroughSoftmaxAdapterType,
     QuantizedBlasNceSoftmaxAdapter16BitType
@@ -193,6 +195,7 @@ enum SoftmaxAdapterType {
 const Core::Choice softmaxAdapterTypeChoice(
         "blas_nce", BlasNceSoftmaxAdapterType,  // included for backward compatibility
         "blas-nce", BlasNceSoftmaxAdapterType,  // more consistent with RASR conventions
+	"blas-nce-unbiased", BlasNceUnbiasedSoftmaxAdapterType,
         "nce", NceSoftmaxAdapterType,
         "passthrough", PassthroughSoftmaxAdapterType,
         "quantized-blas-nce-16bit", QuantizedBlasNceSoftmaxAdapter16BitType,
@@ -206,6 +209,7 @@ const Core::ParameterChoice softmaxAdapterTypeParam(
 std::unique_ptr<SoftmaxAdapter> createSoftmaxAdapter(Core::Configuration const& config) {
     switch (softmaxAdapterTypeParam(config)) {
         case BlasNceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::BlasNceSoftmaxAdapter(config));
+	case BlasNceUnbiasedSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::BlasNceUnbiasedSoftmaxAdapter(config));
         case NceSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::NceSoftmaxAdapter(config));
         case PassthroughSoftmaxAdapterType: return std::unique_ptr<SoftmaxAdapter>(new Lm::PassthroughSoftmaxAdapter(config));
         case QuantizedBlasNceSoftmaxAdapter16BitType: return std::unique_ptr<SoftmaxAdapter>(new Lm::QuantizedBlasNceSoftmaxAdapter16Bit(config));

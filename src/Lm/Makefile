@@ -40,6 +40,7 @@ LIBSPRINTLM_O += $(OBJDIR)/FFNeuralNetworkLanguageModel.o
 endif
 ifdef MODULE_LM_TFRNN
 LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o
+LIBSPRINTLM_O += $(OBJDIR)/BlasNceUnbiasedSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/CompressedVector.o
 LIBSPRINTLM_O += $(OBJDIR)/FixedQuantizationCompressedVectorFactory.o
 LIBSPRINTLM_O += $(OBJDIR)/LstmStateManager.o

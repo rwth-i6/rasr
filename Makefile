@@ -62,7 +62,7 @@ report-make-environment:
 	$(ECHO) "Version:\t\t$(VERSION)  - $(COMPILE)"
 	$(ECHO) "Profiling:\t\t$(PROFILE)"
 	$(ECHO)
-	$(ECHO) "Compiler:\t\t$(CC)  /  $(CXX)"
+	$(ECHO) "Compiler:\t\t$(CC)  /  $(CXX) / version $(CXX_MAJOR).$(CXX_MINOR)"
 	$(ECHO) "Preprocessor flags:\t$(CPPFLAGS)"
 	$(ECHO) "C compiler flags:\t$(CFLAGS)"
 	$(ECHO) "C++ compiler flags:\t$(CXXFLAGS)"

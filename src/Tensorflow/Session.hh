@@ -22,6 +22,7 @@
 #include <Core/Component.hh>
 #include "Graph.hh"
 #include "Tensor.hh"
+#include "SavedModelGraphLoader.hh"
 
 namespace Tensorflow {
 
@@ -44,7 +45,6 @@ public:
     virtual ~Session();
 
     void addGraph(Graph const& graph);
-    void setSession(tf::Session* session);
 
     bool run(std::vector<std::pair<std::string, Tensor>> const& inputs,
              std::vector<std::string> const&                    target_node_names);
@@ -53,6 +53,8 @@ public:
              std::vector<std::string> const&                    output_tensor_names,
              std::vector<std::string> const&                    target_node_names,
              std::vector<Tensor>&                               outputs);
+
+    friend class SavedModelGraphLoader;
 
 protected:
     void setSession(tf::Session* session);

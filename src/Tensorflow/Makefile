@@ -20,7 +20,8 @@ LIBSPRINTTENSORFLOW_O = $(OBJDIR)/Graph.o \
                         $(OBJDIR)/Tensor.o \
                         $(OBJDIR)/TensorflowForwardNode.o \
                         $(OBJDIR)/TensorMap.o \
-                        $(OBJDIR)/VanillaGraphLoader.o
+                        $(OBJDIR)/VanillaGraphLoader.o \
+			$(OBJDIR)/SavedModelGraphLoader.o
 
 CHECK_O = $(OBJDIR)/check.o \
           libSprintTensorflow.$(a) \

@@ -54,7 +54,7 @@ std::unique_ptr<GraphLoader> Module_::createGraphLoader(Core::Configuration cons
         case graphLoaderMeta:
             return std::unique_ptr<GraphLoader>(new MetaGraphLoader(config));
         case graphLoaderSavedModel:
-            return std::unique_ptr<GraphLoader>(new SavedModelGraphLoader(config))
+            return std::unique_ptr<GraphLoader>(new SavedModelGraphLoader(config));
         case graphLoaderNotGiven:
         default:
             return std::unique_ptr<GraphLoader>();

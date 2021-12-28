@@ -74,7 +74,8 @@ PYTHON_AS_DEP =
 endif
 
 ifdef MODULE_TENSORFLOW
-SUBDIRS         += Tensorflow
+SUBDIRS       += Tensorflow
+TOOLS_MODULES += Tensorflow
 endif
 
 ifdef MODULE_TEST
@@ -149,7 +150,7 @@ Bliss: Core $(PYTHON_AS_DEP)
 Cart: Core
 	$(MAKE) -C Cart libSprintCart.$(a)
 
-Core: source-version
+Core: source-version Modules.hh
 	$(MAKE) -C Core libSprintCore.$(a)
 
 Flow: Core

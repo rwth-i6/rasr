@@ -46,7 +46,6 @@ endif
 ifeq ($(OS),Darwin)
 OS		= darwin
 endif
-
 # -----------------------------------------------------------------------------
 # preprocesor defines
 
@@ -141,10 +140,10 @@ CC		:= $(CCACHE) $(CC)
 CXX		:= $(CCACHE) $(CXX)
 
 # share compiler cache inside i6
-ifeq ($(shell test -d /u/ccache; echo $$?),0)
-CCACHE_DIR	= /u/ccache
-CCACHE_UMASK	= 000
-endif # i6
+#ifeq ($(shell test -d /u/ccache; echo $$?),0)
+#CCACHE_DIR	= /u/ccache
+#CCACHE_UMASK	= 000
+#endif # i6
 endif # cluster
 endif # ccache
 

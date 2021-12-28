@@ -25,8 +25,13 @@
 # it really complicated.
 # I would use a different Make system...
 
+ifeq ($(shell command -v parallel 2> /dev/null),)
 subdirs_%:
 	@sh -c 'set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $*; done'
+else
+subdirs_%:
+	@sh -c 'set -e; parallel -j100% -k $(MAKE) -C {} $* ::: $(SUBDIRS)'
+endif
 
 recursive_%:	%
 	@sh -c 'set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done'
@@ -127,6 +132,14 @@ $(OBJDIR)/%.ss: %.cc
 %.cc %.hh: %.yy
 	@echo processing $<
 	@$(BISON) -o $(patsubst %.hh,%.cc,$@) $<
+
+%.pb.cc %.pb.h: %.proto
+	@echo proto-buf compile $<
+	$(PROTOC) --cpp_out=. $<
+
+%.grpc.pb.cc %.grpc.pb.h: %.proto
+	@echo grpc compile $<
+	$(PROTOC) --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` $<
 
 moc_%.cc: %.hh
 	$(MOC) $< -o $@

@@ -12,6 +12,11 @@ BISON_MINOR = $(shell $(BISON) --version | grep bison | sed -e 's/.* \([0-9]\+\)
 CXXFLAGS        += -DBISON_VERSION_$(BISON_MAJOR)
 
 # -----------------------------------------------------------------------------
+# protobuf
+
+PROTOC = protoc
+
+# -----------------------------------------------------------------------------
 # special libraries
 #
 # If the libraries are not installed in a standard path, you need to setup the
@@ -46,17 +51,23 @@ LDFLAGS     += -L$(TBB_DIR)/lib -ltbb
 endif
 
 ifdef MODULE_TENSORFLOW
-TF_COMPILE_BASE = /opt/tensorflow/tensorflow
+ifndef TF_INCLUDEDIR
+  TF_INCLUDEDIR := $(shell python3 -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
+endif
 
-TF_CXXFLAGS  = -fexceptions
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-genfiles/
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/eigen_archive/
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_protobuf/src/
-TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_absl/
+ifndef TF_LIBDIR
+  TF_LIBDIR := "/opt/apptek/thirdparty/usr/lib/"
+endif
 
-TF_LDFLAGS  = -L$(TF_COMPILE_BASE)/bazel-bin/tensorflow -ltensorflow_cc -ltensorflow_framework
-TF_LDFLAGS += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-bin/tensorflow
+TF_CXXFLAGS := -fexceptions
+TF_CXXFLAGS += -I$(TF_INCLUDEDIR)
+TF_LDFLAGS  := -L$(TF_LIBDIR)
+TF_LDFLAGS  += -liomp5 -ltensorflow_cc -ltensorflow_framework
+endif
+
+ifdef MODULE_TEST
+#LDFLAGS += -L/usr/lib/x86_64-linux-gnu
+#INCLUDES = -I/usr/nonstandard/path/include
 endif
 
 # -----------------------------------------------------------------------------
@@ -87,27 +98,32 @@ INCLUDES    += -I/usr/local/acml-4.4.0/gfortran64/include/
 LDFLAGS     += -llapack 
 else
 ifdef MODULE_INTEL_MKL
-LDFLAGS		+= -L/opt/intel/mkl/10.2.6.038/lib/em64t -L/opt/intel/mkl/10.2.6.038/lib/32 -lrwthmkl -liomp5 -lpthread
-INCLUDES	+= -I/opt/intel/mkl/10.2.6.038/include -I/opt/intel/mkl/10.2.6.038/include/fftw -I/opt/intel/mkl/10.2.6.038/include/em64t/lp64 -I/opt/intel/mkl/10.2.6.038/include/32
+MKL_PATH    = /opt/apptek/src/intel/compilers_and_libraries_2019.2.187
+LDFLAGS     += -L$(MKL_PATH)/linux/compiler/lib/intel64_lin -liomp5 
+LDFLAGS     += -L$(MKL_PATH)/linux/mkl/lib/intel64_lin -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
+INCLUDES    += -I$(MKL_PATH)/linux/mkl/include/
 else
-INCLUDES    += `pkg-config --cflags blas`
-INCLUDES    += `pkg-config --cflags lapack`
-LDFLAGS     += `pkg-config --libs blas`
-LDFLAGS     += `pkg-config --libs lapack`
+INCLUDES    += -I/usr/include/openblas
+LDFLAGS     += -llapack -lopenblas
+#INCLUDES    += `pkg-config --cflags blas`
+#INCLUDES    += `pkg-config --cflags lapack`
+#LDFLAGS     += `pkg-config --libs blas`
+#LDFLAGS     += `pkg-config --libs lapack`
 endif
 endif
 
 ifdef MODULE_CUDA
-CUDAROOT    = /usr/local/cuda-7.0
+CUDAROOT    = /usr/local/cuda
 INCLUDES    += -I$(CUDAROOT)/include/
 LDFLAGS     += -L$(CUDAROOT)/lib64/ -lcublas -lcudart -lcurand
 NVCC        = $(CUDAROOT)/bin/nvcc
 # optimal for GTX680; set sm_35 for K20
 NVCCFLAGS   = -gencode arch=compute_20,code=sm_20 \
-	      -gencode arch=compute_30,code=sm_30 \
+              -gencode arch=compute_30,code=sm_30 \
 	      -gencode arch=compute_35,code=sm_35 \
 	      -gencode arch=compute_52,code=sm_52 \
-	      -gencode arch=compute_61,code=sm_61
+	      -gencode arch=compute_61,code=sm_61 \
+              --compiler-options -fPIC
 endif
 
 ifeq ($(PROFILE),gprof)
@@ -133,8 +149,25 @@ LDFLAGS     += -lm
 endif
 
 ifdef MODULE_PYTHON
-INCLUDES    += `python3-config --includes 2>/dev/null || pkg-config --cflags python`
-LDFLAGS     += `python3-config --libs 2>/dev/null || pkg-config --libs python`
+ifneq ($(shell which python3-config 2>/dev/null),)
+PYTHON_CONFIG = python3-config
+else
+# in CentOS 7, the tool is called python-config, even if it comes with Python 3;
+# make sure it returns paths to Python 3 location
+PYTHON_CONFIG = python-config
+endif
+INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += $(shell $(PYTHON_CONFIG) --includes 2>/dev/null || pkg-config --cflags python3)
+LDFLAGS     += $(shell $(PYTHON_CONFIG) --libs 2>/dev/null || pkg-config --libs python3)
+LDFLAGS     += -lpython3.8
+endif
+
+#INCLUDES    += -I/library/data4/tools/boost_1_66_0
+#LDFLAGS     += -L/library/data4/tools/boost_1_66_0/stage/lib
+
+ifdef MODULE_FLOW_REMOTE
+LDFLAGS     += -L$(APPTEK_THIRDPARTY_USR)/lib
+LDFLAGS     += -lboost_system
 endif
 
 # X11 and QT
@@ -150,8 +183,7 @@ MAKE        = make
 MAKEDEPEND  = makedepend -v -D__GNUC__=3 -D__GNUC_MINOR__=3
 # AR usage: either 'ar rucs' or 'rm -f $@; ar qcs'
 AR          = ar
-ARFLAGS     = rucs
-#MAKELIB     = rm -f $@; $(AR) $(ARFLAGS)
+ARFLAGS     = qcs
 ifeq ($(COMPILER),sun)
 MAKELIB     = $(CXX) $(CXXFLAGS) -xar -o 
 else ifeq ($(COMPILE),debug_dynamic)
@@ -159,4 +191,5 @@ MAKELIB     = $(LD) $(LDFLAGS) -shared -o
 else
 MAKELIB     = $(AR) $(ARFLAGS)
 endif
+#MAKELIB     = rm -f $@; $(AR) qcs
 ECHO        = @/bin/echo -e

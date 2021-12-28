@@ -1,7 +1,7 @@
 # GCC Compiler Settings
 
-BINDIR          =
-GCC_VERSION	=
+BINDIR      =
+GCC_VERSION =
 
 # -----------------------------------------------------------------------------
 # Compiler
@@ -16,17 +16,18 @@ CCFLAGS		= 		# common for C and C++
 CXXFLAGS        = $(CCFLAGS)    # options for C++ compiler
 CFLAGS		= $(CCFLAGS)	# options for C compiler
 
-CXX_MAJOR = $(shell $(CXX) --version | head -n 1 | sed -e 's/.*[ \t]\([0-9]\)\.\([0-9]\)\.\([0-9]\)\([ \t].*\)*$$/\1/')
-CXX_MINOR = $(shell $(CXX) --version | head -n 1 | sed -e 's/.*[ \t]\([0-9]\)\.\([0-9]\)\.\([0-9]\)\([ \t].*\)*$$/\2/')
+CXX_MAJOR = $(shell $(CXX) -dumpversion -dumpfullversion | cut -d. -f1)
+CXX_MINOR = $(shell $(CXX) -dumpversion -dumpfullversion | cut -d. -f2)
 
 # -----------------------------------------------------------------------------
 # compiler options
 DEFINES		+= -D_GNU_SOURCE
+CCFLAGS		+= -fPIC
 CCFLAGS		+= -pipe
 CCFLAGS		+= -funsigned-char
 CCFLAGS		+= -fno-exceptions
 CFLAGS		+= -std=c99
-CXXFLAGS	+= -std=gnu++0x
+CXXFLAGS	+= -std=c++14
 CXXFLAGS	+= -Wno-unknown-pragmas
 #CCFLAGS	+= -pedantic
 CCFLAGS		+= -Wall
@@ -39,6 +40,12 @@ CCFLAGS		+= -Wno-long-long
 ifdef MODULE_OPENMP
 CCFLAGS		+= -fopenmp
 LDFLAGS     += -fopenmp
+endif
+ifdef DIAGNOSTICS_COLOR_NEVER
+CCFLAGS += -fdiagnostics-color=never
+endif
+ifdef ENABLE_APPTEK_MKL_ENV_FIX
+CXXFLAGS += -DAPPTEK_MKL_ENV_FIX=1
 endif
 
 ifeq ($(strip $(CXX_MAJOR)),4)
@@ -55,8 +62,8 @@ endif
 endif
 
 ifeq ($(COMPILE),debug)
-CCFLAGS		+= -g
-DEFINES		+= -D_GLIBCXX_DEBUG
+CCFLAGS         += -g -gdwarf-3
+#DEFINES		+= -D_GLIBCXX_DEBUG
 endif
 
 ifneq ($(COMPILE),release)

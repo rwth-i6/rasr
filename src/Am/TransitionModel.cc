@@ -532,11 +532,25 @@ private:
     void doExit(const StackItem& current, const Fsa::Arc* ra) {
         require(alphabet_->isDisambiguator(ra->input()));
         verify(!applyExitTransitionToFinalStates_);
+        Fsa::Weight correctedWeight;
+        if (current.emission == silenceLabel_){
+            //we need to correct for the algorithmic bug introduced by epsilon arcs in case of exit,
+            //where independently from the source state identity (speech/silence)
+            //the speech forward penalty is applied. Please note that leaving silence is conceptually
+            //exiting and forwarding from silence, we can never only forward from silence.
+            StateType speechType = TransitionModel::phone0;
+            StateType silType    = TransitionModel::silence;
+            Fsa::Weight speechFwdToSubtract = t_->semiring()->invert(Fsa::Weight((*transitionModel_[speechType])[StateTransitionModel::forward]));
+            Fsa::Weight correctedTdp = t_->semiring()->extend(ra->weight(),  speechFwdToSubtract);
+            correctedWeight = t_->semiring()->extend(correctedTdp, Fsa::Weight((*transitionModel_[silType])[StateTransitionModel::forward]));
+        }
+        else
+            correctedWeight = ra->weight();
         current.result->newArc(getStateId(State::allowForward | State::allowSkip | State::allowExit | State::isFinal,
                                           Fsa::Epsilon,
                                           TransitionModel::entryM1,
                                           ra->target()),
-                               t_->semiring()->extend(ra->weight(), weight(current, StateTransitionModel::exit)),
+                               t_->semiring()->extend(correctedWeight, weight(current, StateTransitionModel::exit)),
                                ra->input(), ra->output());
     }
 

@@ -783,7 +783,7 @@ typedef std::unordered_map<MinimizedState, Fsa::State*, MinimizedState::Hash,
  *  phone0	   the first state of a phone segment
  *  phone1	   the second state of a phone segment
  *
- * silence.exit = silence.forward - phone?.forward   but why?
+ * silence.exit = silence.forward - phone?.forward due to epsilon arcs. This is corrected in doExit() funtion.
  **/
 Fsa::ConstAutomatonRef ClassicTransducerBuilder::createEmissionLoopTransducer(
         bool transitionModel) {

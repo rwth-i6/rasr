@@ -78,6 +78,7 @@ public:
         nStateTypes
     };
     class Applicator;
+    class ApplicatorWithContext;
 
 public:
     enum TyingType { global,
@@ -117,6 +118,11 @@ public:
     TransitionModel& operator+=(const TransitionModel& m);
 
     Fsa::ConstAutomatonRef apply(
+            Fsa::ConstAutomatonRef in,
+            Fsa::LabelId           silenceLabel,
+            bool                   applyExitTransitionToFinalStates) const;
+
+    Fsa::ConstAutomatonRef applyWithContext(
             Fsa::ConstAutomatonRef in,
             Fsa::LabelId           silenceLabel,
             bool                   applyExitTransitionToFinalStates) const;
@@ -225,6 +231,12 @@ public:
             Fsa::LabelId           silenceLabel,
             bool                   applyExitTransitionToFinalStates) const {
         return transitionModel_->apply(in, silenceLabel, applyExitTransitionToFinalStates);
+    }
+    Fsa::ConstAutomatonRef applyWithContext(
+            Fsa::ConstAutomatonRef in,
+            Fsa::LabelId           silenceLabel,
+            bool                   applyExitTransitionToFinalStates) const {
+        return transitionModel_->applyWithContext(in, silenceLabel, applyExitTransitionToFinalStates);
     }
     TransitionModel::StateType classify(AllophoneState phone, s8 subState = 0) const {
         return transitionModel_->classify(phone, subState);

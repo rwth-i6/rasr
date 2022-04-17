@@ -137,6 +137,12 @@ static const Core::ParameterBool paramFixAllophoneContextAtWordBoundaries(
         "Enabling this option would fix that.",
         false);
 
+static const Core::ParameterBool paramFixTdpLeavingEpsilonArc(
+        "fix-tdp-leaving-epsilon-arc",
+        "Calls a different applicator that keeps track of the emission label at previous step "
+        "This solved the inconsistent transition model application due to epsilon arcs ",
+        false);
+
 ClassicTransducerBuilder::ClassicTransducerBuilder(Core::Ref<
                                                    const ClassicAcousticModel>
                                                            model)
@@ -153,6 +159,7 @@ ClassicTransducerBuilder::ClassicTransducerBuilder(Core::Ref<
     inputType_                              = inputAcceptsEmissionLabels;
     filterOutInvalidAllophones_             = paramFilterOutInvalidAllophones(model->getConfiguration());
     fixAllophoneContextAtWordBoundaries_    = paramFixAllophoneContextAtWordBoundaries(model_->getConfiguration());
+    fixTdpLeavingEpsilonArc_                = paramFixTdpLeavingEpsilonArc(model_->getConfiguration());
     statistics_                             = new Statistics;
 }
 
@@ -644,7 +651,13 @@ Fsa::ConstAutomatonRef ClassicTransducerBuilder::applyTransitionModel(
     else if (ff->inputAlphabet() == emissions_)
         silenceLabel = model_->stateTyingRef_->classify(silenceState);
 
+    if (fixTdpLeavingEpsilonArc_){
+        return model_->transitionModel_->applyWithContext(ff, silenceLabel, (nDisambiguators_ == 0));
+    }
+
     return model_->transitionModel_->apply(ff, silenceLabel, (nDisambiguators_ == 0));
+
+
 }
 
 void ClassicTransducerBuilder::applyStateTying() {

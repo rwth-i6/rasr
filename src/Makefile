@@ -85,7 +85,7 @@ TARGETS		=
 
 # -----------------------------------------------------------------------------
 
-build:	source-version Modules.hh $(SUBDIRS)
+build:	source-version $(SUBDIRS)
 
 include $(TOPDIR)/Rules.make
 

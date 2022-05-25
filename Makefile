@@ -23,6 +23,7 @@ world:
 all:	build test
 
 build:	config
+	$(MAKE) -C src Modules.hh
 	$(MAKE) -C src build
 
 test:	build

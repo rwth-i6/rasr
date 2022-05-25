@@ -22,8 +22,7 @@ world:
 
 all:	build test
 
-build:	config
-	$(MAKE) -C src Modules.hh
+build:	config src/Modules.hh
 	$(MAKE) -C src build
 
 test:	build
@@ -45,6 +44,15 @@ statistics:
 
 clean:	clean_
 clean_: subdirs_clean
+
+src/Modules.hh : $(TOPDIR)/Modules.make
+	@if [ -f $(TOPDIR)/scripts/dependencies.py ]; then \
+	$(TOPDIR)/scripts/dependencies.py --basedir $(TOPDIR) --check 2> /dev/null; \
+	fi
+	$(ECHO) '#ifndef _MODULES_HH' > $@
+	$(ECHO) '#define _MODULES_HH' >> $@
+	@printf "$(foreach module, $(MODULES),'#define' $(module) '\n')" | tr -d "'" | sed -e 's/^ *//' >> $@
+	$(ECHO) '#endif' >> $@
 
 .PHONY:	world all build test tar config install statistics
 

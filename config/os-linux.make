@@ -50,6 +50,7 @@ TF_COMPILE_BASE = /opt/tensorflow/tensorflow
 
 TF_CXXFLAGS  = -fexceptions
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-bin/
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-genfiles/
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/eigen_archive/
 TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_protobuf/src/

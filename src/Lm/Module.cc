@@ -41,6 +41,8 @@
 #include "ReducedPrecisionCompressedVectorFactory.hh"
 #endif
 
+#include "SimpleHistoryLm.hh"
+
 using namespace Lm;
 
 namespace Lm {
@@ -52,7 +54,8 @@ enum LanguageModelType {
     lmTypeFFNN,
     lmTypeCombine,
     lmTypeTFRNN,
-    lmTypeCheatingSegment
+    lmTypeCheatingSegment,
+    lmTypeSimpleHistory
 };
 }
 
@@ -65,6 +68,7 @@ const Core::Choice Module_::lmTypeChoice(
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
         "cheating-segment", lmTypeCheatingSegment,
+        "simple-history", lmTypeSimpleHistory,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -94,6 +98,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
 #endif
+        case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:
             Core::Application::us()->criticalError("unknwon language model type: %d", lmTypeParam(c));
     }

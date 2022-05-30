@@ -45,10 +45,10 @@ set_python () {
     if [ $MINOR -ge 8 ]; then
         # python version beginning from 3.8 do not include -lpython3.X when calling
         # python3-config without --embed, so add it if such minor version is found
-        grep "python3-config --libs --embed" config/os-${OS}.make > /dev/null
+        grep "python3-config --ldflags --embed" config/os-${OS}.make > /dev/null
         if [ $? -ne 0 ]; then
             echo "Python minor version is > 8, add --embed"
-            sed -i "s/\\(python3-config --libs\\)/\1 --embed/g" config/os-${OS}.make
+            sed -i "s/\\(python3-config --ldflags\\)/\1 --embed/g" config/os-${OS}.make
         else
             echo "Python3: --embed already set"
         fi

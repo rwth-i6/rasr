@@ -136,7 +136,7 @@ endif
 ifdef MODULE_PYTHON
 PYTHON_BIN_PATH =
 INCLUDES    += `${PYTHON_BIN_PATH}/python3-config --includes 2>/dev/null`
-LDFLAGS     += `${PYTHON_BIN_PATH}/python3-config --libs 2>/dev/null`
+LDFLAGS     += `${PYTHON_BIN_PATH}/python3-config --ldflags --embed 2>/dev/null`
 # IF you want to use Python2 for whatever reason:
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`

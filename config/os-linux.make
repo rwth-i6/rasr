@@ -134,8 +134,12 @@ LDFLAGS     += -lm
 endif
 
 ifdef MODULE_PYTHON
-INCLUDES    += `python3-config --includes 2>/dev/null || pkg-config --cflags python`
-LDFLAGS     += `python3-config --libs 2>/dev/null || pkg-config --libs python`
+PYTHON_BIN_PATH =
+INCLUDES    += `${PYTHON_BIN_PATH}/python3-config --includes 2>/dev/null`
+LDFLAGS     += `${PYTHON_BIN_PATH}/python3-config --libs 2>/dev/null`
+# IF you want to use Python2 for whatever reason:
+# INCLUDES    += `pkg-config --cflags python`
+# LDFLAGS     += `pkg-config --libs python`
 endif
 
 # X11 and QT

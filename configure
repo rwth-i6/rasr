@@ -73,21 +73,35 @@ set_march () {
     sed -i "s/-march=.*/-march=$1/g" config/proc-x86_64.make
 }
 
-
-
 enable_module () {
     echo "Enable module $1"
-    grep "^MODULES += MODULE_$1" Modules.make > /dev/null
+    grep "^MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
     if [ $? -eq 0 ]; then
         echo "Module already activated"
         return
     fi
-    grep "^#[ ]*MODULES += MODULE_$1" Modules.make > /dev/null
+    grep "^#[ ]*MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
     if [ $? -ne 0 ]; then
         echo "Error: Module not found"
         exit 1
     else
-        sed -i "s/^#[ ]*MODULES += MODULE_$1/MODULES += MODULE_$1/g" Modules.make
+        sed -i "s/^#[ ]*MODULES[ ]*+= MODULE_$1/MODULES += MODULE_$1/g" Modules.make
+    fi
+}
+
+disable_module () {
+    echo "Disable module $1"
+    grep "^#[ ]*MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "Module already deactivated"
+        return
+    fi
+    grep "^MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Error: Module not found"
+        exit 1
+    else
+        sed -i "s/^MODULES[ ]*+= MODULE_$1/# MODULES += MODULE_$1/g" Modules.make
     fi
 }
 
@@ -121,6 +135,7 @@ GCC Options:
 
 Module options:
   --enable-module=<MOD_NAME>            enables module "MODULE_<MOD_NAME>"
+  --disable-module=<MOD_NAME>           disables module "MODULE_<MOD_NAME>"
 
 Dependency options:
   --set-openfst=OPENFST_DIR             set the path to an OpenFST directory
@@ -162,6 +177,11 @@ for i in "$@"; do
         --enable-module=*)
             MODULE="${i#*=}"
             enable_module $MODULE
+            shift
+            ;;
+        --disable-module=*)
+            MODULE="${i#*=}"
+            disable_module $MODULE
             shift
             ;;
         -*|--*)

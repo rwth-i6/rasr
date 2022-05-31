@@ -19,6 +19,7 @@ LIBSPRINTCORE_O	= $(OBJDIR)/Application.o \
 		  $(OBJDIR)/BinaryStream.o \
 		  $(OBJDIR)/BinaryTree.o \
 		  $(OBJDIR)/BundleArchive.o \
+		  $(OBJDIR)/CacheManager.o \
 		  $(OBJDIR)/Channel.o \
 		  $(OBJDIR)/Choice.o \
 		  $(OBJDIR)/CodeGenerator.o \

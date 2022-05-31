@@ -13,6 +13,7 @@
  *  limitations under the License.
  */
 #include "NetworkParser.hh"
+#include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
 #include <Modules.hh>
 #include <cstdlib>
@@ -352,14 +353,33 @@ void NodeBuilder::registerNodeInNetwork(AbstractNode* node, Network& network) {
                 // set default value from configuration
                 parameterValueExpression.setVariables(network.getConfiguration());
 
-                // register as user of network parameter
-                bool res = network.addParameterUse(node, parameterName, parameterValueExpression);
+#ifdef MODULE_CORE_CACHE_MANAGER
+                std::string value;
+                parameterValueExpression.value(value, true);
+                value                    = Core::Configuration::resolveArithmeticExpressions(value);
+                value                    = Core::resolveCacheManagerCommands(value);
+                parameterValueExpression = Core::makeStringExpression(value);
 
-                if (!res) {
-                    error("Network parameter does not exist in \"%s\"=\"%s\"",
-                          parameterName.c_str(), parameterValue.c_str());
+                if (!parameterValueExpression.isConstant()) {
+#endif
+
+                    // register as user of network parameter
+                    bool res = network.addParameterUse(node, parameterName, parameterValueExpression);
+
+                    if (!res) {
+                        error("Network parameter does not exist in \"%s\"=\"%s\"",
+                        parameterName.c_str(), parameterValue.c_str());
+                    }
                 }
+#ifdef MODULE_CORE_CACHE_MANAGER
             }
+            else {
+                std::string value;
+                parameterValueExpression.value(value);
+                value                    = Core::resolveCacheManagerCommands(value);
+                parameterValueExpression = Core::makeStringExpression(value);
+            }
+#endif
 
             if (!node->addParameter(parameterName, parameterValueExpression)) {
                 error("Failed to add parameter in \"%s\"=\"%s\"",

@@ -239,6 +239,7 @@ public:
      *
      * @see Configuration::resolveReferences
      * @see Configuration::resolveArithmeticExpressions
+     * @see Configuration::resolveCacheManagerCommands
      */
     std::string resolve(const std::string& value) const;
 
@@ -287,6 +288,23 @@ private:
      * @return @c value with all references substituted.
      **/
     std::string resolveReferences(const std::string& value) const;
+
+#ifdef MODULE_CORE_CACHE_MANAGER
+    /**
+     * Substitute cache manager commands in a string
+     *
+     * A cache manager command is enclosed by "`cf" and "`". Arguments are
+     * separated by whitespace (no escape characters). If the "-d" flag is
+     * given the local file will be copied to the origin when the application
+     * terminates.
+     * This should be called after Configuration::resolveReferences and
+     * Configuration::resolveArithmeticExpressions
+     *
+     * @param value is a string which may contain cache manager commands.
+     * @return @c value with all cache manager commands substituted.
+     **/
+    std::string resolveCacheManagerCommands(const std::string& value) const;
+#endif
 
     std::string getResolvedValue(const Resource* resource) const;
 };

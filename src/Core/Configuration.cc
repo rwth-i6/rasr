@@ -24,6 +24,7 @@
 #include <string>
 #include "Application.hh"
 #include "ArithmeticExpressionParser.hh"
+#include "CacheManager.hh"
 #include "Directory.hh"
 #include "StringUtilities.hh"
 #include "Tokenizer.hh"
@@ -840,6 +841,9 @@ std::string Configuration::resolve(const std::string& value) const {
     std::string result;
     result = resolveReferences(value);
     result = resolveArithmeticExpressions(result);
+#ifdef MODULE_CORE_CACHE_MANAGER
+    result = resolveCacheManagerCommands(result);
+#endif
     return result;
 }
 
@@ -948,6 +952,12 @@ std::string Configuration::resolveArithmeticExpressions(const std::string& value
 
     return result;
 }
+
+#ifdef MODULE_CORE_CACHE_MANAGER
+std::string Configuration::resolveCacheManagerCommands(const std::string& value) const {
+    return Core::resolveCacheManagerCommands(value);
+}
+#endif
 
 bool Configuration::get(const std::string& parameter, std::string& value) const {
     require(parameter.find(resource_separation_char) == std::string::npos);

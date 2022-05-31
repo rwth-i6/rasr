@@ -108,6 +108,12 @@ MODULES += MODULE_TENSORFLOW
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 
+# ****** Additional Checks ******
+ifdef MODULE_LM_TFRNN
+ifndef MODULE_TENSORFLOW
+$(error Module LM_TFRNN requires module TENSORFLOW)
+endif
+endif
 
 # ****** Tools ******
 TOOLS += AcousticModelTrainer

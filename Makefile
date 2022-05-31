@@ -44,6 +44,7 @@ statistics:
 
 clean:	clean_
 clean_: subdirs_clean
+	rm src/Modules.hh
 
 src/Modules.hh : $(TOPDIR)/Modules.make
 	@if [ -f $(TOPDIR)/scripts/dependencies.py ]; then \

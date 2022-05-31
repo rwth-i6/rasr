@@ -58,6 +58,8 @@ TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_absl/
 
 TF_LDFLAGS  = -L$(TF_COMPILE_BASE)/bazel-bin/tensorflow -ltensorflow_cc -ltensorflow_framework
 TF_LDFLAGS += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-bin/tensorflow
+
+# USE_TENSORFLOW_MKL=1
 endif
 
 # -----------------------------------------------------------------------------
@@ -91,10 +93,17 @@ ifdef MODULE_INTEL_MKL
 LDFLAGS		+= -L/opt/intel/mkl/10.2.6.038/lib/em64t -L/opt/intel/mkl/10.2.6.038/lib/32 -lrwthmkl -liomp5 -lpthread
 INCLUDES	+= -I/opt/intel/mkl/10.2.6.038/include -I/opt/intel/mkl/10.2.6.038/include/fftw -I/opt/intel/mkl/10.2.6.038/include/em64t/lp64 -I/opt/intel/mkl/10.2.6.038/include/32
 else
+ifdef USE_TENSORFLOW_MKL
+LDFLAGS   += -L$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/lib/
+INCLUDES  += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/include/
+LDFLAGS   += -lmklml_intel -liomp5
+LDFLAGS   += -llapack
+else
 INCLUDES    += `pkg-config --cflags blas`
 INCLUDES    += `pkg-config --cflags lapack`
 LDFLAGS     += `pkg-config --libs blas`
 LDFLAGS     += `pkg-config --libs lapack`
+endif
 endif
 endif
 

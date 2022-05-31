@@ -59,6 +59,16 @@ set_python () {
     set_variable "PYTHON_BIN_PATH" $PYTHON_BIN_PATH
 }
 
+set_tensorflow () {
+    set_variable "TF_COMPILE_BASE" $1
+    if [ -d $1/bazel-tensorflow/external/mkl_linux ]; then
+        echo "Found MKL, will compile with MKL library from TF"
+        sed -i "s/^#[ ]*USE_TENSORFLOW_MKL/USE_TENSORFLOW_MKL/g" config/os-${OS}.make
+    else
+        echo "MKL not found, please manually set the correct BLAS lib if needed"
+    fi
+}
+
 set_march () {
     sed -i "s/-march=.*/-march=$1/g" config/proc-x86_64.make
 }
@@ -83,7 +93,7 @@ enable_module () {
 
 configure_i6 () {
     set_python "/work/tools/asr/python/3.8.0/bin"
-    set_variable "TF_COMPILE_BASE" "/work/tools/asr/tensorflow/2.3.4-generic+cuda10.1+mkl/tensorflow"
+    set_tensorflow "/work/tools/asr/tensorflow/2.3.4-generic+cuda10.1+mkl/tensorflow"
     set_openfst "/work/speech/tools/openfst-1.6.3"
     set_march "barcelona"
 }
@@ -121,7 +131,7 @@ EOF
 }
 
 for i in "$@"; do
-	case $i in
+    case $i in
         -h|--help)
             show_help
             ;;
@@ -131,8 +141,8 @@ for i in "$@"; do
             ;;
         --set-tensorflow=*)
             TF_DIR="${i#*=}"
-            set_variable "TF_COMPILE_BASE" $TF_DIR
-			shift
+            set_tensorflow $TF_DIR
+            shift
             ;;
         --set-openfst=*)
             OPENFST_DIR="${i#*=}"
@@ -152,18 +162,13 @@ for i in "$@"; do
         --enable-module=*)
             MODULE="${i#*=}"
             enable_module $MODULE
-			shift
+            shift
             ;;
-		--default)
-			DEFAULT=YES
-            echo "default"
-			shift
-			;;
-		-*|--*)
-			echo "Error: Unknown option $i"
-			exit 1
-			;;
-		*)
-			;;
-	esac
+        -*|--*)
+            echo "Error: Unknown option $i"
+            exit 1
+            ;;
+        *)
+            ;;
+    esac
 done

@@ -95,6 +95,7 @@ INCLUDES	+= -I/opt/intel/mkl/10.2.6.038/include -I/opt/intel/mkl/10.2.6.038/incl
 else
 ifdef USE_TENSORFLOW_MKL
 LDFLAGS   += -L$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/lib/
+LDFLAGS   += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/lib/
 INCLUDES  += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/include/
 LDFLAGS   += -lmklml_intel -liomp5
 LDFLAGS   += -llapack

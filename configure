@@ -33,7 +33,8 @@ set_openfst () {
 }
 
 set_python () {
-    PYTHON_BIN_PATH=$1
+    PYTHON_PATH=$1
+    PYTHON_BIN_PATH=$1/bin
     VERSION_STRING=$(${PYTHON_BIN_PATH}/python3 --version | grep -o "[0-9.]*")
     if [ $? -ne 0 ];then exit 1;fi
     VERSION_ARRAY=( ${VERSION_STRING//./ } )
@@ -53,8 +54,8 @@ set_python () {
         fi
     fi
     # make sure there is a trailing slash
-    [[ "${PYTHON_BIN_PATH}" != */ ]] && PYTHON_BIN_PATH="${PYTHON_BIN_PATH}/"
-    set_variable "PYTHON_BIN_PATH" "$PYTHON_BIN_PATH"
+    [[ "${PYTHON_PATH}" != */ ]] && PYTHON_PATH="${PYTHON_PATH}/"
+    set_variable "PYTHON_PATH" "$PYTHON_PATH"
 }
 
 set_tensorflow () {
@@ -137,7 +138,8 @@ Module options:
 
 Dependency options:
   --set-openfst=OPENFST_DIR             set the path to an OpenFST directory
-  --set-python=PYTHON_BIN_DIR           set the bin folder of a python installation
+  --set-python=PYTHON_DIR           set the folder of a python installation
+                                        which contains /bin, /lib etc..
   --set-tensorflow=TF_COMPILE_BASE      set the Tensorflow root directory path
 EOF
     exit 0

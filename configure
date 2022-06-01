@@ -138,7 +138,7 @@ Module options:
 
 Dependency options:
   --set-openfst=OPENFST_DIR             set the path to an OpenFST directory
-  --set-python=PYTHON_DIR           set the folder of a python installation
+  --set-python=PYTHON_DIR               set the folder of a python installation
                                         which contains /bin, /lib etc..
   --set-tensorflow=TF_COMPILE_BASE      set the Tensorflow root directory path
 EOF
@@ -165,8 +165,8 @@ for i in "$@"; do
             shift
             ;;
         --set-python=*)
-            PYTHON_BIN_PATH="${i#*=}"
-            set_python $PYTHON_BIN_PATH
+            PYTHON_DIR="${i#*=}"
+            set_python $PYTHON_DIR
             shift
             ;;
         --set-march=*)

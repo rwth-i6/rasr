@@ -1,0 +1,194 @@
+#!/bin/bash
+
+OS=$(uname -s | tr [:upper:] [:lower:])
+OS_LIST="linux darwin"
+
+echo $OS_LIST | grep -w -i -q $OS
+if [ $? -ne 0 ]; then
+    echo "Error: unsupported OS $OS"
+    exit 1
+fi
+
+
+set_variable () {
+    echo "Setting $1 to $2"
+    grep "^$1" config/os-${OS}.make > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Error: dependency path variable $1 not found"
+        exit 1
+    fi
+    sed -i "s:\\(^$1[ ]*=\\).*:\1 $2:g" config/os-${OS}.make
+}
+
+set_openfst () {
+    echo "Setting up OpenFST at $1"
+    version=$(cat $1/configure.ac | head -n 1 | grep -oE "[0-9][0-9.]*[0-9]")
+    if [ $? -ne 0 ]; then
+        echo "Error: version information not found, please validate directory"
+        exit 1
+    fi
+    echo "found OpenFST version $version"
+    set_variable "OPENFSTDIR" $1
+    set_variable "OPENFST_VERSION" $version  
+}
+
+set_python () {
+    PYTHON_PATH=$1
+    PYTHON_BIN_PATH=$1/bin
+    VERSION_STRING=$(${PYTHON_BIN_PATH}/python3 --version | grep -o "[0-9.]*")
+    if [ $? -ne 0 ];then exit 1;fi
+    VERSION_ARRAY=( ${VERSION_STRING//./ } )
+    MAJOR=${VERSION_ARRAY[0]}
+    MINOR=${VERSION_ARRAY[1]}
+    if [ $MAJOR -ne 3 ]; then
+        echo "Error: Expected Python version 3, found $MAJOR"
+        exit 1
+    fi
+    if [ $MINOR -ge 8 ]; then
+        # python version beginning from 3.8 do not include -lpython3.X when calling
+        # python3-config without --embed, so add it if such minor version is found
+        grep "python3-config --ldflags --embed" config/os-${OS}.make > /dev/null
+        if [ $? -ne 0 ]; then
+            echo "Python minor version is > 8, adding --embed"
+            sed -i "s/\\(python3-config --ldflags\\)/\1 --embed/g" config/os-${OS}.make
+        fi
+    fi
+    # make sure there is a trailing slash
+    [[ "${PYTHON_PATH}" != */ ]] && PYTHON_PATH="${PYTHON_PATH}/"
+    set_variable "PYTHON_PATH" "$PYTHON_PATH"
+}
+
+set_tensorflow () {
+    set_variable "TF_COMPILE_BASE" $1
+    if [ -d $1/bazel-tensorflow/external/mkl_linux ]; then
+        echo "Found MKL, will compile with MKL library from TF"
+        sed -i "s/^#[ ]*USE_TENSORFLOW_MKL/USE_TENSORFLOW_MKL/g" config/os-${OS}.make
+    else
+        echo "MKL not found, please manually set the correct BLAS lib if needed"
+    fi
+}
+
+set_march () {
+    sed -i "s/-march=.*/-march=$1/g" config/proc-x86_64.make
+}
+
+enable_module () {
+    echo "Enable module $1"
+    grep "^MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "Module already activated"
+        return
+    fi
+    grep "^#[ ]*MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Error: Module not found"
+        exit 1
+    else
+        sed -i "s/^#[ ]*MODULES[ ]*+= MODULE_$1/MODULES += MODULE_$1/g" Modules.make
+    fi
+}
+
+disable_module () {
+    echo "Disable module $1"
+    grep "^#[ ]*MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "Module already deactivated"
+        return
+    fi
+    grep "^MODULES[ ]*+= MODULE_$1" Modules.make > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Error: Module not found"
+        exit 1
+    else
+        sed -i "s/^MODULES[ ]*+= MODULE_$1/# MODULES += MODULE_$1/g" Modules.make
+    fi
+}
+
+configure_i6 () {
+    set_python "/work/tools/asr/python/3.8.0"
+    set_tensorflow "/work/tools/asr/tensorflow/2.3.4-generic+cuda10.1+mkl/tensorflow"
+    set_openfst "/work/speech/tools/openfst-1.6.3"
+    set_march "barcelona"
+}
+
+
+show_help(){
+    cat <<EOF
+Usage: configure [options]
+Options: [defaults in brackets after descriptions]
+
+This tool can be used to configure the most used options for compiling RASR.
+For more fine-grained control please manually edit Config.make,
+Options.make and Modules.make, as well as the files under config/
+
+Help options:
+  --help                                print this message
+
+General options:
+  --i6                                  configures RASR for a default i6 build,
+                                        including default modules and tensorflow path.
+                                        Please use this always as first argument.
+GCC Options:
+  --set-march                           set the target architecture to compile for
+                                        (see: https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)
+
+Module options:
+  --enable-module=<MOD_NAME>            enables module "MODULE_<MOD_NAME>"
+  --disable-module=<MOD_NAME>           disables module "MODULE_<MOD_NAME>"
+
+Dependency options:
+  --set-openfst=OPENFST_DIR             set the path to an OpenFST directory
+  --set-python=PYTHON_DIR               set the folder of a python installation
+                                        which contains /bin, /lib etc..
+  --set-tensorflow=TF_COMPILE_BASE      set the Tensorflow root directory path
+EOF
+    exit 0
+}
+
+for i in "$@"; do
+    case $i in
+        -h|--help)
+            show_help
+            ;;
+        --i6)
+            configure_i6
+            shift
+            ;;
+        --set-tensorflow=*)
+            TF_DIR="${i#*=}"
+            set_tensorflow $TF_DIR
+            shift
+            ;;
+        --set-openfst=*)
+            OPENFST_DIR="${i#*=}"
+            set_openfst $OPENFST_DIR
+            shift
+            ;;
+        --set-python=*)
+            PYTHON_DIR="${i#*=}"
+            set_python $PYTHON_DIR
+            shift
+            ;;
+        --set-march=*)
+            MARCH="${i#*=}"
+            set_march $MARCH
+            shift
+            ;;
+        --enable-module=*)
+            MODULE="${i#*=}"
+            enable_module $MODULE
+            shift
+            ;;
+        --disable-module=*)
+            MODULE="${i#*=}"
+            disable_module $MODULE
+            shift
+            ;;
+        -*|--*)
+            echo "Error: Unknown option $i"
+            exit 1
+            ;;
+        *)
+            ;;
+    esac
+done

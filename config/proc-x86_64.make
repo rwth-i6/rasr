@@ -14,9 +14,7 @@ CCFLAGS		+= -ffast-math
 # CCFLAGS     += -mfpmath=sse
 # CCFLAGS     += -funroll-loops
 CCFLAGS     += -msse3
-ifneq ($(findstring($(CPU),Opteron)),)
-CCFLAGS     += -march=opteron
-endif
+CCFLAGS     += -march=native
 endif
 
 

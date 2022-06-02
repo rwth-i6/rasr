@@ -108,7 +108,6 @@ MODULES += MODULE_TENSORFLOW
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 
-
 # ****** Tools ******
 TOOLS += AcousticModelTrainer
 TOOLS += Archiver

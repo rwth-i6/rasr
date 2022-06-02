@@ -109,6 +109,7 @@ configure_i6 () {
     set_tensorflow "/work/tools/asr/tensorflow/2.3.4-generic+cuda10.1+mkl/tensorflow"
     set_openfst "/work/speech/tools/openfst-1.6.3"
     set_march "barcelona"
+    enable_module "CORE_CACHE_MANAGER"
 }
 
 

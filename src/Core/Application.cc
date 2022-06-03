@@ -23,6 +23,7 @@
 #endif
 #include <Modules.hh>
 #include "Application.hh"
+#include "CacheManager.hh"
 #include "Channel.hh"
 #include "Configuration.hh"
 #include "Directory.hh"
@@ -360,6 +361,9 @@ int Application::main(int argc, char* argv[]) {
     }
     else {
         status = app_->run(arguments);
+#ifdef MODULE_CORE_CACHE_MANAGER
+        copyLocalCacheFiles();
+#endif
     }
 
     // Do an early reset of this variable, so that code in exit handlers can check for it.

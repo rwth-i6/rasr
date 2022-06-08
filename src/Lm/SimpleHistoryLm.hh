@@ -7,7 +7,7 @@
 namespace Lm {
 
   /**
-   * A simple language model for token history extension and hashing (so far full history)
+   * A simple language model for token history extension and hashing (recombination)
    * also useful for no-LM recognition but still with recombination capability
    */
 
@@ -16,6 +16,7 @@ namespace Lm {
     TokenIdSequence tokIdSeq;
     mutable u32 refCount;
 
+    SimpleHistory(): refCount(0) {}
     SimpleHistory(Bliss::Token::Id tid): tokIdSeq(1, tid), refCount(0) {}
     SimpleHistory(const TokenIdSequence& r, Bliss::Token::Id tid): tokIdSeq(r), refCount(0) { tokIdSeq.push_back(tid); }
   };
@@ -51,7 +52,6 @@ namespace Lm {
       { // lhd != rhd when reaching here
         const SimpleHistory* lsh = static_cast<const SimpleHistory*>(lhd);
         const SimpleHistory* rsh = static_cast<const SimpleHistory*>(rhd);
-        //return token_id_sequence_hash(lsh->tokIdSeq) == token_id_sequence_hash(rsh->tokIdSeq);
         return lsh->tokIdSeq == rsh->tokIdSeq;
       }
   };
@@ -79,8 +79,18 @@ namespace Lm {
         return history(nsh);
       }
 
-      // TODO reduced history for limited context
-      History reducedHistory(const History& h, u32 limit) const { return h; }
+      // reduced history for limited context
+      History reducedHistory(const History& h, u32 limit) const 
+      { 
+        const SimpleHistory* sh = static_cast<const SimpleHistory*>(h.handle());
+        if ( limit >= sh->tokIdSeq.size() )
+          return h;
+        else {
+          SimpleHistory* nsh = new SimpleHistory();
+          nsh->tokIdSeq.insert(nsh->tokIdSeq.end(), sh->tokIdSeq.end()-limit, sh->tokIdSeq.end());
+          return history(nsh);
+        }
+      }
 
       // can be used for noLM recognition
       Score score(const History&, Token w) const { return 0.0; }

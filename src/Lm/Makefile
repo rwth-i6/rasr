@@ -54,6 +54,8 @@ LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
 #MODF SoftmaxAdapter.hh
 #MODF StateManager.hh
 
+LIBSPRINTLM_O += $(OBJDIR)/SimpleTFNeuralLm.o
+
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif

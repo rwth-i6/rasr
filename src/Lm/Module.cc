@@ -42,6 +42,9 @@
 #endif
 
 #include "SimpleHistoryLm.hh"
+#ifdef MODULE_LM_TFRNN
+#include "SimpleTFNeuralLm.hh" 
+#endif
 
 using namespace Lm;
 
@@ -55,7 +58,8 @@ enum LanguageModelType {
     lmTypeCombine,
     lmTypeTFRNN,
     lmTypeCheatingSegment,
-    lmTypeSimpleHistory
+    lmTypeSimpleHistory,
+    lmTypeSimpleTFNeural
 };
 }
 
@@ -69,6 +73,7 @@ const Core::Choice Module_::lmTypeChoice(
         "tfrnn", lmTypeTFRNN,
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
+        "simple-tf-neural", lmTypeSimpleTFNeural,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -97,6 +102,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
         case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
+        case lmTypeSimpleTFNeural: result = Core::ref(new SimpleTFNeuralLm(c, l)); break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:

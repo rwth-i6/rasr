@@ -17,19 +17,34 @@
 using namespace Speech;
 
 const Core::ParameterString AligningFeatureExtractor::paramAlignmentPortName(
-        "alignment-port-name",
-        "name of the main data source port",
-        "alignments");
+    "alignment-port-name",
+    "name of the main data source port",
+    "alignments");
 
 const Core::ParameterBool AligningFeatureExtractor::paramEnforceWeightedProcessing(
-        "enforce-weighted-processing",
-        "enforce weighted processing even for weights=1 etc.",
-        false);
+    "enforce-weighted-processing",
+    "enforce weighted processing even for weights=1 etc.",
+    false);
 
 const Core::ParameterString AligningFeatureExtractor::paramAlignment2PortName(
-        "alignment-2-port-name",
-        "name of the second data source port",
-        "alignments-2");
+    "alignment-2-port-name",
+    "name of the second data source port",
+    "alignments-2");
+
+const Core::ParameterBool AligningFeatureExtractor::paramPeakyAlignment(
+    "peaky-alignment",
+    "peaky alignment: label segment of the same labels with one label and blank elsewhere",
+    false);
+
+const Core::ParameterFloat AligningFeatureExtractor::paramPeakPosition(
+    "peak-position",
+    "relative position of peaky alignment in the label segment",
+    0.5);
+
+const Core::ParameterBool AligningFeatureExtractor::paramForceSingleState(
+    "force-single-state",
+    "force the alignment allophone to be single state",
+    false);
 
 AligningFeatureExtractor::AligningFeatureExtractor(const Core::Configuration& c,
                                                    AlignedFeatureProcessor&   alignedFeatureProcessor)
@@ -40,7 +55,10 @@ AligningFeatureExtractor::AligningFeatureExtractor(const Core::Configuration& c,
           processWeighted_(paramEnforceWeightedProcessing(config)),
           alignment_(0),
           alignment2PortId_(Flow::IllegalPortId),
-          alignment2_(0) {
+          alignment2_(0),
+          peakyAlignment_(paramPeakyAlignment(c)),
+          peakPos_(paramPeakPosition(c)),
+          forceSingleState_(paramForceSingleState(c)) {
     alignedFeatureProcessor_.setDataSource(dataSource());
 
     const std::string alignmentPortName(paramAlignmentPortName(c));
@@ -50,6 +68,16 @@ AligningFeatureExtractor::AligningFeatureExtractor(const Core::Configuration& c,
 
     const std::string alignment2PortName(paramAlignment2PortName(c));
     alignment2PortId_ = dataSource()->getOutput(alignment2PortName);
+    // enforce peaky alignment (mainly for blank-based transducer topology)
+    if ( peakyAlignment_ ) {
+        verify( alignment2PortId_ == Flow::IllegalPortId ); // not supported
+        blankIndex_ = alignedFeatureProcessor_.getSilenceAllophoneStateIndex();
+        verify( blankIndex_ != Fsa::InvalidLabelId );
+        log() << "apply peaky alignment with relative position " << peakPos_
+              << " and blank allophoneStateIndex (silence) " << blankIndex_;
+        alignedFeatureProcessor_.setPeakyAlignment();
+    } else if ( forceSingleState_ )
+        log() << "force the alignemnt to have single allophone state";
 }
 
 AligningFeatureExtractor::~AligningFeatureExtractor() {}
@@ -104,53 +132,48 @@ void AligningFeatureExtractor::setFeatureDescription(const Mm::FeatureDescriptio
 }
 
 void AligningFeatureExtractor::processFeature(Core::Ref<const Feature> f) {
-    verify(alignment_ and !alignment_->empty());
-    if (!processWeighted_) {
-        if (currentAlignmentItem_ != alignment_->end()) {
-            if (currentAlignmentItem_->time > currentFeatureId_) {
-                warning("Alignment item further than current timeframe (alignment=%zd, current=%zd), skipping!", (size_t)currentAlignmentItem_->time, (size_t)currentFeatureId_);
-                while (currentFeatureId_ < currentAlignmentItem_->time)
-                    ++currentFeatureId_;
-            }
-            alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission);
-            ++currentAlignmentItem_;
-        }
-        else {
-            warning("Alignment (size=%zd) shorter than the feature stream.", alignment_->size());
-        }
-    }
-    else {
-        if (!alignment2_) {
-            unaryProcessFeature(f);
-        }
-        else {
+    verify(alignment_ && !alignment_->empty());
+    if ( currentAlignmentItem_ == alignment_->end() )
+    {   // allow already sub-sampled alignment input: just process extra features
+        if ( alignedFeatureProcessor_.needReducedAlignment() )
+            alignedFeatureProcessor_.processExtraFeature(f, alignment_->size());
+        else
+            warning("Alignment (size=%zd) shorter than the feature stream (current=%zd)", alignment_->size(), (size_t)currentFeatureId_);
+    } else { // possible gap in the alignment: ensure processing
+        while( currentFeatureId_ < currentAlignmentItem_->time )
+            ++currentFeatureId_;
+        verify( currentFeatureId_ == currentAlignmentItem_->time );
+        if ( alignment2_ )
             binaryProcessFeature(f);
-        }
+        else
+            unaryProcessFeature(f);
     }
     ++currentFeatureId_;
 }
 
 void AligningFeatureExtractor::unaryProcessFeature(Core::Ref<const Feature> f) {
-    verify(processWeighted_);
     while (currentAlignmentItem_ != alignment_->end() && currentAlignmentItem_->time == currentFeatureId_) {
         verify(currentAlignmentItem_ == alignment_->begin() ? true : (currentAlignmentItem_ - 1)->time <= currentAlignmentItem_->time);
-        alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission, currentAlignmentItem_->weight);
+        if ( processWeighted_ )
+            alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission, currentAlignmentItem_->weight);
+        else
+            alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission);
         ++currentAlignmentItem_;
     }
 }
 
 void AligningFeatureExtractor::binaryProcessFeature(Core::Ref<const Feature> f) {
-    verify(alignment2_);
-    verify(!alignment2_->empty());
-    verify(processWeighted_);
+    verify(alignment2_ && !alignment2_->empty());
     while (currentAlignmentItem_ != alignment_->end() && currentAlignmentItem_->time == currentFeatureId_) {
         verify(currentAlignmentItem_ == alignment_->begin() ? true : (currentAlignmentItem_ - 1)->time <= currentAlignmentItem_->time);
         verify(currentAlignmentItem_->time == currentAlignment2Item_->time);
         verify(currentAlignmentItem_->emission == currentAlignment2Item_->emission);
-        alignedFeatureProcessor_.processAlignedFeature(f,
-                                                       currentAlignmentItem_->emission,
-                                                       currentAlignmentItem_->weight,
-                                                       currentAlignment2Item_->weight);
+        if ( processWeighted_ ) {
+            Mm::Weight w1 = currentAlignmentItem_->weight;
+            Mm::Weight w2 = currentAlignment2Item_->weight;
+            alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission, w1, w2);
+        } else
+            alignedFeatureProcessor_.processAlignedFeature(f, currentAlignmentItem_->emission);
         ++currentAlignmentItem_;
         ++currentAlignment2Item_;
     }
@@ -164,6 +187,10 @@ bool AligningFeatureExtractor::initializeAlignment() {
         error("Failed to extract alignment.");
         return false;
     }
+    if ( peakyAlignment_ )
+        makePeakyAlignment(&alignmentRef_->data());
+    else if ( forceSingleState_ )
+        makeSingleStateAlignment(&alignmentRef_->data());
     alignment_            = &alignmentRef_->data();
     currentFeatureId_     = 0;
     currentAlignmentItem_ = alignment_->begin();
@@ -171,7 +198,9 @@ bool AligningFeatureExtractor::initializeAlignment() {
         warning("Segment has been discarded because of empty alignment.");
         return false;
     }
-    processWeighted_ = (processWeighted_ || alignment_->hasWeights() || (currentAlignmentItem_->time != 0));
+
+    // fixed behavior: per alignment decision
+    processWeighted_ = paramEnforceWeightedProcessing(config) || alignment_->hasWeights() || currentAlignmentItem_->time != 0;
 
     if (alignment2PortId_ != Flow::IllegalPortId) {
         if (!dataSource()->getData(alignment2PortId_, alignment2Ref_)) {
@@ -180,7 +209,6 @@ bool AligningFeatureExtractor::initializeAlignment() {
         }
         alignment2_            = &alignment2Ref_->data();
         currentAlignment2Item_ = alignment2_->begin();
-        processWeighted_       = true;
         if (alignment2_->empty()) {
             warning("Segment has been discarded because of empty alignment.");
             return false;
@@ -189,7 +217,57 @@ bool AligningFeatureExtractor::initializeAlignment() {
             error("Mismatch in size of alignments.");
             return false;
         }
+        if ( !processWeighted_ )
+            processWeighted_ = alignment2_->hasWeights();
     }
 
     return true;
 }
+
+// always single state only
+void AligningFeatureExtractor::makePeakyAlignment(Alignment* align)
+{
+    if ( align->empty() )
+        return;
+    std::vector<std::pair<u32, Fsa::LabelId> > peaks;
+    u32 start = 0, end = 0; s16 state = 0;
+    Fsa::LabelId currentAlloIdx = align->begin()->emission & Am::AllophoneAlphabet::IdMask;
+    Fsa::LabelId currentEmission = currentAlloIdx | state << 26;
+    for (u32 idx = 0; idx < align->size(); ++idx) 
+    {
+        Fsa::LabelId alloIdx = align->at(idx).emission & Am::AllophoneAlphabet::IdMask;
+        if ( alloIdx != currentAlloIdx )
+        {
+            u32 pos = peakPos_ * (end - start) + start;
+            verify( pos >= start && pos <= end );
+            peaks.push_back( std::make_pair(pos, currentEmission) );
+            start = idx; end = idx;
+            currentAlloIdx = alloIdx;
+            currentEmission = currentAlloIdx | state << 26;
+        }
+        align->at(idx).emission = blankIndex_;
+        end = idx; // inclusive
+    }
+    // also the last segment
+    u32 pos = peakPos_ * (end - start) + start;
+    verify( pos >= start && pos <= end );
+    peaks.push_back( std::make_pair(pos, currentEmission) );
+    // assign peaks
+    verify( !peaks.empty() );
+    for (std::vector<std::pair<u32, Fsa::LabelId> >::const_iterator iter=peaks.begin(); iter!=peaks.end(); ++iter)
+        align->at(iter->first).emission = iter->second;
+}
+
+// silence is anyway single state
+void AligningFeatureExtractor::makeSingleStateAlignment(Alignment* align)
+{
+    if ( align->empty() )
+        return;
+    s16 state = 0;
+    for (u32 idx = 0; idx < align->size(); ++idx)
+    {
+        Fsa::LabelId alloIdx = align->at(idx).emission & Am::AllophoneAlphabet::IdMask;
+        align->at(idx).emission = alloIdx | state << 26;
+    }
+}
+

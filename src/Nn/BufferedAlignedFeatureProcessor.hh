@@ -53,6 +53,7 @@ public:
     static const Core::ParameterFloat  paramSilenceWeight;
     static const Core::ParameterString paramClassWeightsFile;
     static const Core::ParameterBool   paramWeightedAlignment;
+    static const Core::ParameterInt    paramReduceAlignmentFactor;
 
 protected:
     Core::Ref<const Am::AcousticModel> acousticModel_;
@@ -64,6 +65,11 @@ protected:
     std::vector<u32>        alignmentBuffer_;         // buffer for alignment indices
     std::vector<Mm::Weight> alignmentWeightsBuffer_;  // buffer for weights from the alignment
     bool                    weightedAlignment_;
+
+    // alignment subsampling
+    u32  reduceAlignFactor_; // reduction factor for downsampling alignment
+    bool alignmentReduced_; // input alignment is already reduced
+    u32  reducedSize_; // size of already reduced input alignment (for verification)
 
 public:
     BufferedAlignedFeatureProcessor(const Core::Configuration& config, bool loadFromFile = true);
@@ -80,6 +86,9 @@ protected:
     virtual void processAlignedFeature(Core::Ref<const Speech::Feature> f, Am::AllophoneStateIndex e);
     virtual void processAlignedFeature(Core::Ref<const Speech::Feature> f, Am::AllophoneStateIndex e, Mm::Weight w);
 
+    virtual bool needReducedAlignment() { return reduceAlignFactor_ > 1; }
+    virtual void processExtraFeature(Core::Ref<const Speech::Feature> f, u32 size);
+
 public:
     virtual void signOn(Speech::CorpusVisitor& corpusVisitor) {
         Speech::AlignedFeatureProcessor::signOn(corpusVisitor);
@@ -93,6 +102,11 @@ protected:
 
 public:
     virtual NeuralNetworkTrainer<T>* createTrainer(const Core::Configuration& config);
+    Fsa::LabelId getSilenceAllophoneStateIndex();
+
+private:
+    void reduceAlignment(u32, u32, std::vector<u32>&);
+    void reducePeakyAlignment(u32, u32, std::vector<u32>&);
 };
 
 }  // namespace Nn

@@ -30,15 +30,19 @@ using namespace Nn;
 
 template<typename T>
 const Core::ParameterFloat BufferedAlignedFeatureProcessor<T>::paramSilenceWeight(
-        "silence-weight", "weight for silence state", 1.0);
+    "silence-weight", "weight for silence state", 1.0);
 
 template<typename T>
 const Core::ParameterString BufferedAlignedFeatureProcessor<T>::paramClassWeightsFile(
-        "class-weights-file", "file with class-weights-vector");
+    "class-weights-file", "file with class-weights-vector");
 
 template<typename T>
 const Core::ParameterBool BufferedAlignedFeatureProcessor<T>::paramWeightedAlignment(
-        "weighted-alignment", "use weights from alignment", false);
+    "weighted-alignment", "use weights from alignment", false);
+
+template<typename T>
+const Core::ParameterInt BufferedAlignedFeatureProcessor<T>::paramReduceAlignmentFactor(
+    "reduce-alignment-factor", "downsample alignment (only for peaky alignment)", 1);
 
 template<typename T>
 BufferedAlignedFeatureProcessor<T>::BufferedAlignedFeatureProcessor(const Core::Configuration& config, bool loadFromFile)
@@ -50,7 +54,9 @@ BufferedAlignedFeatureProcessor<T>::BufferedAlignedFeatureProcessor(const Core::
           classLabelWrapper_(0),
           alignmentBuffer_(0),
           alignmentWeightsBuffer_(0),
-          weightedAlignment_(paramWeightedAlignment(config)) {}
+          weightedAlignment_(paramWeightedAlignment(config)),
+          reduceAlignFactor_(paramReduceAlignmentFactor(config)),
+          alignmentReduced_(false) {}
 
 template<typename T>
 BufferedAlignedFeatureProcessor<T>::~BufferedAlignedFeatureProcessor() {
@@ -147,10 +153,41 @@ void BufferedAlignedFeatureProcessor<T>::processAlignedFeature(Core::Ref<const S
 }
 
 template<typename T>
+void BufferedAlignedFeatureProcessor<T>::processExtraFeature(Core::Ref<const Speech::Feature> f, u32 size) { 
+    // extra features longer than alignment due to down-sampling
+    if ( !alignmentReduced_ )
+    {   // store size for later verification
+        alignmentReduced_ = true;
+        reducedSize_ = size;
+    }
+    BufferedFeatureExtractor<T>::processFeature(f);
+}
+
+template<typename T>
 void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>& miniBatch,
                                                            Math::CudaVector<u32>& miniBatchAlignment,
                                                            std::vector<f64>&      miniBatchAlignmentWeights,
                                                            u32                    batchSize) {
+    // optional downsample alignment (batchSize is feature length)
+    u32 targetSize = batchSize;
+    if ( reduceAlignFactor_ > 1 )
+        targetSize = ceil( float(batchSize) / reduceAlignFactor_ );
+    verify( targetSize <= batchSize );
+    std::vector<u32> keepIdx;
+    if ( targetSize == batchSize || alignmentReduced_ )
+    {   // keep all: original alignment
+        keepIdx.resize(targetSize, 0);
+        std::iota(keepIdx.begin(), keepIdx.end(), 0);
+        // already reduced input alignment should have the same size as targeted output
+        if ( alignmentReduced_ )
+            verify( reducedSize_ == targetSize );
+    } else {
+      if ( peakyAlignment_ )
+          reducePeakyAlignment(targetSize, batchSize, keepIdx);
+      else
+          reduceAlignment(targetSize, batchSize, keepIdx);
+    }
+
     // resize mini batch alignment
     miniBatchAlignment.resize(batchSize, 0, true);
     // fill mini batch alignment
@@ -159,16 +196,186 @@ void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>
     if (weightedAlignment_)
         miniBatchAlignmentWeights.resize(batchSize, 0);
 
+    u32 idx = 0;
     for (u32 i = 0; i < batchSize; i++) {
+        if ( idx >= targetSize || i != keepIdx[idx] )
+            continue;
         u32 alignmentIndex = PrecursorBuffer::nProcessedFeatures_ + i;
         if (PrecursorBuffer::shuffle_) {
             alignmentIndex = PrecursorBuffer::shuffledIndices_.at(alignmentIndex);
         }
-        miniBatchAlignment.at(i) = alignmentBuffer_.at(alignmentIndex);
+        miniBatchAlignment.at(idx) = alignmentBuffer_.at(alignmentIndex);
         if (weightedAlignment_)
-            miniBatchAlignmentWeights.at(i) = alignmentWeightsBuffer_.at(alignmentIndex);
+            miniBatchAlignmentWeights.at(idx) = alignmentWeightsBuffer_.at(alignmentIndex);
+        ++idx;
     }
+    verify( idx == targetSize );
+    // features are not changed (downsample in the network if applied)
     PrecursorBuffer::generateMiniBatch(miniBatch, batchSize);
+}
+
+// subsample alignment containing label loops (no blank)
+template<typename T>
+void BufferedAlignedFeatureProcessor<T>::reduceAlignment(u32 targetSize, u32 batchSize, std::vector<u32>& keepIdx) 
+{
+    verify( targetSize < batchSize );
+    u32 silId = classLabelWrapper_->getOutputIndexFromClassIndex(silence_);
+    u32 start = 0, end = std::min(reduceAlignFactor_, batchSize);
+    u32 lastBlockLabel = Core::Type<u32>::max;
+    u32 conflict = 0; bool hasConflict = false;
+    std::vector<u32> loops; u32 nPreLoops = 0;
+    while ( end <= batchSize && start < end )
+    {   // block-wise processing
+        std::deque<u32> labelIdx;
+        u32 lastLabel = Core::Type<u32>::max;
+        for (u32 i = start; i < end; ++i)
+        {   // might have batch offset
+            u32 label = alignmentBuffer_.at(PrecursorBuffer::nProcessedFeatures_ + i);
+            if ( label != lastLabel )
+            {   // supress silence to reduce block conflict ?
+                //if ( !labelIdx.empty() )
+                //{ if ( label == silId )
+                //    continue;
+                //  if ( lastLabel == silId )
+                //    labelIdx.pop_back();
+                //}
+                labelIdx.push_back(i);
+                lastLabel = label;
+            }
+        }
+        if ( labelIdx.size() == 1 )
+        {   // single label block
+            if ( lastBlockLabel == lastLabel )
+            {   // merge loop to solve conflicts
+                if ( conflict > 0 ) {
+                    labelIdx.pop_front();
+                    --conflict;
+                } else {
+                    loops.push_back(keepIdx.size());
+                    ++nPreLoops; // continous loop
+                }
+            } else
+                nPreLoops = 0;
+        } else {
+            // multi labels in one block (solve conflict by removing closest loop)
+            u32 firstLabel = alignmentBuffer_.at(PrecursorBuffer::nProcessedFeatures_ + labelIdx.front());
+            if ( firstLabel == lastBlockLabel )
+                labelIdx.pop_front();
+            if ( labelIdx.size() > 1 )
+            {
+                hasConflict = true;
+                conflict += labelIdx.size() - 1;
+                while ( nPreLoops > 0 && conflict > 0 )
+                {
+                    keepIdx.pop_back();
+                    loops.pop_back();
+                    --nPreLoops;
+                    --conflict;
+                }
+            }
+            nPreLoops = 0;
+        }
+        keepIdx.insert(keepIdx.end(), labelIdx.begin(), labelIdx.end());
+        lastBlockLabel = lastLabel;
+        start = end;
+        end += reduceAlignFactor_;
+        end = std::min(end, batchSize);
+    }
+
+    if ( loops.size() < conflict )
+        criticalError() << "can not resolve label conflict (too much reduction !)";
+
+    if ( hasConflict )
+    {
+        warning() << "multiple labels in one reduced block (bad alignment with shift behaviour)";
+        // still not solved conflict, just remove remaining loops
+        verify( keepIdx.size() - targetSize == conflict );
+        while ( keepIdx.size() > targetSize && !loops.empty() )
+        {   // backwards so that previous index still valid
+            u32 idx = loops.back(); loops.pop_back();
+            keepIdx.erase(keepIdx.begin() + idx);
+        }
+    }
+    verify( keepIdx.size() == targetSize );
+}
+
+// subsample alignment containing label peaks and blank elsewhere (on-the-fly: fast enough)
+template<typename T>
+void BufferedAlignedFeatureProcessor<T>::reducePeakyAlignment(u32 targetSize, u32 batchSize, std::vector<u32>& keepIdx)
+{
+    verify( targetSize < batchSize );
+    u32 silId = classLabelWrapper_->getOutputIndexFromClassIndex(silence_);
+    u32 nLabels = 0, nPreBlank = 0;
+    u32 start = 0, end = std::min(reduceAlignFactor_, batchSize);
+    std::vector<u32> blanks;
+    // multi labels in one block (solve conflict by removing closest blank block)
+    u32 conflict = 0; bool hasConflict = false;
+    while ( end <= batchSize && start < end )
+    {   // block-wise processing
+        std::vector<u32> labelIdx;
+        for (u32 i = start; i < end; ++i)
+        {   // might have batch offset
+            u32 alignmentIndex = PrecursorBuffer::nProcessedFeatures_ + i;
+            if ( alignmentBuffer_.at(alignmentIndex) != silId )
+            {   // all labels have to be kept
+                ++nLabels;
+                labelIdx.push_back(i);
+            }
+        }
+        if ( labelIdx.empty() ) {
+            if ( conflict > 0 )
+                --conflict;
+            else {
+                blanks.push_back(keepIdx.size());
+                keepIdx.push_back(start);
+                ++nPreBlank; // continuous blank blocks
+            }
+        } else {
+            if ( labelIdx.size() > 1 )
+            {
+                conflict += labelIdx.size() - 1;
+                hasConflict = true;
+                while ( nPreBlank > 0 && conflict > 0 )
+                {
+                    keepIdx.pop_back();
+                    blanks.pop_back();
+                    --nPreBlank;
+                    --conflict;
+                }
+            }
+            keepIdx.insert(keepIdx.end(), labelIdx.begin(), labelIdx.end());
+            nPreBlank = 0;
+        }
+        start = end;
+        end += reduceAlignFactor_;
+        end = std::min(end, batchSize);
+    }
+
+    if ( nLabels > targetSize )
+        criticalError() << "number of labels " << nLabels
+                        << " is larger than target reduced size " << targetSize
+                        << " (too much reduction !)";
+
+    if ( hasConflict )
+    {
+        warning() << "multiple labels in one reduced block (bad alignment with shift behaviour)";
+        // still not solved conflict, just remove remaining blanks
+        verify( keepIdx.size() - targetSize == conflict );
+        while ( keepIdx.size() > targetSize && !blanks.empty() )
+        {   // backwards so that previous index still valid
+            u32 idx = blanks.back(); blanks.pop_back();
+            keepIdx.erase(keepIdx.begin() + idx);
+        }
+    }
+    verify( keepIdx.size() == targetSize );
+}
+
+template<typename T>
+Fsa::LabelId BufferedAlignedFeatureProcessor<T>::getSilenceAllophoneStateIndex()
+{
+    if (acousticModelNeedInit_)
+        initAcousticModel();
+    return acousticModel_->silenceAllophoneStateIndex();
 }
 
 template<typename T>
@@ -293,6 +500,9 @@ void BufferedAlignedFeatureProcessor<T>::enterSegment(Bliss::Segment* segment) {
     // by an underlying feature extractor.
     PrecursorAligned::enterSegment(segment);
     PrecursorBuffer::setEnteredSegment(segment);
+    // treat each segment individually: allow mixed input (some sub-sampled already, some not) 
+    alignmentReduced_ = false;
+    reducedSize_ = 0;
 }
 
 template<typename T>

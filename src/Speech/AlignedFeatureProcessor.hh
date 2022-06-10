@@ -29,10 +29,18 @@ namespace Speech {
  *    an instance of this class can be used for dry runs since it does not have any abstract functions.
  */
 class AlignedFeatureProcessor : virtual public Core::Component {
+protected:
+        bool peakyAlignment_;
+
 public:
     AlignedFeatureProcessor(const Core::Configuration& c)
-            : Component(c) {}
+            : Component(c), peakyAlignment_(false) {}
     virtual ~AlignedFeatureProcessor() {}
+
+    // peaky and sub-sampled alignment
+    virtual void setPeakyAlignment() { peakyAlignment_ = true; }
+    virtual bool needReducedAlignment() { return false; }
+    virtual void processExtraFeature(Core::Ref<const Feature> f, u32 size) {}
 
     /** Override this function to sign on to services of the corpus visitor.
      *  Note: call the signOn function of your predecessor.
@@ -79,6 +87,8 @@ public:
      *  This function is called once before the first feature vector is processed.
      */
     virtual void setFeatureDescription(const Mm::FeatureDescription&) {}
+
+    virtual Fsa::LabelId getSilenceAllophoneStateIndex() { return Fsa::InvalidLabelId; }
 };
 
 }  // namespace Speech

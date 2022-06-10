@@ -107,6 +107,21 @@ struct AlignmentToPython {
         return true;
     }
 
+    // pass as-is alignments regardless of 1-to-1 correspondence to features
+    void passAlignment(const Speech::Alignment& alignment, Python::ObjRef& pyAlignment) {
+        std::vector<u32> alignmentVec;
+        alignmentVec.reserve(alignment.size());
+        for(auto iter = alignment.begin(); iter != alignment.end(); ++iter) {
+            const Speech::AlignmentItem& item = *iter;
+            u32 classIdx = 0;
+            verify(_alignmentLabelIndex(alignment, item.emission, classIdx));
+            alignmentVec.push_back(classIdx);
+        }
+        verify(alignmentVec.size() == alignment.size());
+        pyAlignment.clear();
+        Python::stdVec2numpy(criticalErrorFunc_, pyAlignment.obj, alignmentVec);
+    }
+
     void extractViterbiAlignment(const Speech::Alignment& alignment, Python::ObjRef& pyAlignment) {
         u32              time     = 0;
         u32              t_offset = 0;
@@ -987,6 +1002,11 @@ static const Core::ParameterBool paramExtractAlignments(
         "extract alignments for PythonControl",
         false);
 
+static const Core::ParameterBool paramAsIsAlignments(
+        "as-is-alignments",
+        "extract alignments as-is without any checking",
+        false);
+
 static const Core::ParameterBool paramSoftAlignments(
         "soft-alignments",
         "soft alignments / Baum-Welch alignments",
@@ -1017,6 +1037,7 @@ public:
     std::shared_ptr<ClassLabelWrapper> classLabelWrapper_;
     Math::FastMatrix<f32>              features_;  // dim * time
     bool                               extractAlignments_;
+    bool                               asisAlignments_;
     bool                               softAlignments_;
     Flow::PortId                       alignmentPortId_;
     size_t                             nTotalFrames_;
@@ -1028,6 +1049,7 @@ public:
               control_(control),
               firstSegment_(true),
               extractAlignments_(paramExtractAlignments(c)),
+              asisAlignments_(paramAsIsAlignments(c)),
               softAlignments_(paramSoftAlignments(c)),
               alignmentPortId_(Flow::IllegalPortId),
               nTotalFrames_(0) {
@@ -1043,6 +1065,10 @@ public:
             alignmentToPython_.acousticModel_     = acousticModel_;
             alignmentToPython_.classLabelWrapper_ = classLabelWrapper_;
             alignmentToPython_.features_          = &features_;
+
+            control.log() << "extract alignments as well";
+            if (asisAlignments_)
+                control.log() << "pass alignments as-is";
         }
     }
 
@@ -1093,7 +1119,9 @@ public:
         Flow::DataPtr<Flow::DataAdaptor<Speech::Alignment>> alignmentRef;
         if (this->dataSource()->getData(alignmentPortId_, alignmentRef)) {
             const Speech::Alignment& alignment = alignmentRef->data();
-            if (softAlignments_)
+            if (asisAlignments_) // Viterbi only
+                alignmentToPython_.passAlignment(alignment, pyAlignment);
+            else if (softAlignments_)
                 alignmentToPython_.extractSoftAlignment(alignment, pySoftAlignment);
             else
                 alignmentToPython_.extractViterbiAlignment(alignment, pyAlignment);

@@ -31,6 +31,9 @@ public:
     static const Core::ParameterString paramAlignmentPortName;
     static const Core::ParameterBool   paramEnforceWeightedProcessing;
     static const Core::ParameterString paramAlignment2PortName;
+    static const Core::ParameterBool   paramPeakyAlignment;
+    static const Core::ParameterFloat  paramPeakPosition;
+    static const Core::ParameterBool   paramForceSingleState;
 
 protected:
     AlignedFeatureProcessor&                    alignedFeatureProcessor_;
@@ -48,12 +51,20 @@ protected:
     /** Fast access to the alignment-2 object. */
     const Alignment* alignment2_;
 
+    bool         peakyAlignment_;
+    f32          peakPos_;
+    Fsa::LabelId blankIndex_; // silence allophoneStateIndex
+    bool         forceSingleState_;
+
 protected:
     virtual void setFeatureDescription(const Mm::FeatureDescription& description);
     virtual void processFeature(Core::Ref<const Feature> f);
     void         unaryProcessFeature(Core::Ref<const Feature> f);
     void         binaryProcessFeature(Core::Ref<const Feature> f);
     bool         initializeAlignment();
+
+    void makePeakyAlignment(Alignment* align);
+    void makeSingleStateAlignment(Alignment* align);
 
 public:
     AligningFeatureExtractor(const Core::Configuration&, AlignedFeatureProcessor&);

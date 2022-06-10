@@ -25,18 +25,6 @@
 
 namespace {
 
-struct Edge {
-    Edge()
-            : from(0u), to(0u), emission_idx(0u), weight(0.0f) {}
-    Edge(Fsa::StateId from, Fsa::StateId to, Am::AcousticModel::EmissionIndex emission_idx, float cost)
-            : from(from), to(to), emission_idx(emission_idx), weight(cost) {}
-
-    Fsa::StateId                     from;
-    Fsa::StateId                     to;
-    Am::AcousticModel::EmissionIndex emission_idx;
-    float                            weight;
-};
-
 static void apply_state_map(std::vector<Fsa::StateId> const&             state_map,
                             std::vector<Fsa::StateId>&                   states,
                             std::vector<std::pair<Fsa::StateId, float>>& final_states,
@@ -135,11 +123,115 @@ static void make_single_final_state(std::vector<Fsa::StateId>& states, std::vect
     final_states.front() = std::make_pair(new_final, 0.0f);
 }
 
+u32 getStateDepth(Fsa::StateId sId, std::vector<u32>& stateDepth, Core::Ref<const Fsa::StaticAutomaton> fsa) 
+{
+    verify( sId < stateDepth.size() );
+    if ( stateDepth[sId] == Core::Type<u32>::max ) 
+    {
+        const Fsa::State* state = fsa->fastState(sId);
+        for (Fsa::State::const_iterator arc=state->begin(); arc!=state->end(); ++arc)
+        {
+            Fsa::StateId target = arc->target_;
+            if ( target == sId )
+                continue;
+            u32 depth = getStateDepth(target, stateDepth, fsa) + 1;
+            if ( depth < stateDepth[sId] )
+                stateDepth[sId] = depth;
+        }
+        if ( state->isFinal() )
+            stateDepth[sId] = 0;
+    }
+    return stateDepth[sId];
+}
+
 }  // namespace
 
 namespace Nn {
 
-AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFsaForOrthography(std::string const& orthography) const {
+// blank-based topology: CTC by default or RNA if no loop
+Core::ParameterBool paramAddBlankTransition(
+    "add-blank-transition",
+    "insert optional blank arcs between states of automaton",
+    false);
+Core::ParameterInt paramBlankIndex("blank-label-index", "class id of blank label", -1);
+Core::ParameterBool paramAllowLabelLoop(
+    "allow-label-loop",
+    "allow label loop in addition to blank transition",
+    true);
+
+// HMM topology only
+Core::ParameterInt paramMinOccur("label-min-occurance", "speech only", 1, 1);
+Core::ParameterFloat paramFrameShift("feature-frame-shift", "in seconds", 0.01, 0.0);
+Core::ParameterInt paramReduceFrameFactor("reduce-frame-factor", "subsampling", 1, 1);
+// overwrite transition weights of the automaton for more flexibility (-log_prob)
+// Note: sent-begin ratio is directly applied as transition for the initial arcs
+//       cross-word ratio is further applied to the forward transition
+Core::ParameterFloatVector paramTransitionWeights(
+    "transition-weights",
+    "speech forward|loop, sil forward|loop, optional ratio sent-begin speech|sil, cross-word speech|sil",
+    ",", 0.0);
+
+AllophoneStateFsaExporter::AllophoneStateFsaExporter(Core::Configuration const& config) :
+  Precursor(config),
+  mc_(select("model-combination"), Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel, Am::AcousticModel::noEmissions) 
+{
+    mc_.load();
+    Am::AllophoneStateIndex idx = mc_.acousticModel()->silenceAllophoneStateIndex();
+    silenceIndex_ = mc_.acousticModel()->emissionIndex(idx);
+
+    if ( paramAddBlankTransition(config) )
+    {   // blank-based transducer topology
+        int paramBlank = paramBlankIndex(config);
+        if ( paramBlank == -1 )
+        {   // blank replace silence
+            blankIndex_ = silenceIndex_;
+            silenceIndex_ = Core::Type<u32>::max;
+        } else {
+            blankIndex_ = paramBlank;
+            verify( blankIndex_ != silenceIndex_ );
+        }
+        log() << "Add blank transitions to automaton (blank labelId: " << blankIndex_ << ")";
+        // Note: set TDP accordingly to control label loop (infinity to disallow)
+        // here is more for automaton modification logic
+        labelLoop_ = paramAllowLabelLoop(config);
+        if ( !labelLoop_ )
+            log() << "disallow label loop";
+        minOccur_ = 1;
+    } else { // HMM topology
+        blankIndex_ = Core::Type<u32>::max;
+        labelLoop_ = true; // no effect: determined in allophone_state_graph_builder_
+        minOccur_ = paramMinOccur(config);
+        frameShift_ = paramFrameShift(config);
+        reduceFrameFactor_ = paramReduceFrameFactor(config);
+        transitionWeights_ = paramTransitionWeights(config);
+
+        log() << "HMM topology based automaton";
+        if ( minOccur_ > 1 )
+            log() << "each speech label has to occur for at least " << minOccur_ << " frames"
+                  << " (" << frameShift_ << " seconds shift in audio and reduced by factor " << reduceFrameFactor_ << ")";
+
+        if ( !transitionWeights_.empty() ) 
+        {
+            verify( transitionWeights_.size() >= 4 );
+            transitionWeights_.resize(8, 0.0);
+            log() << "apply transition weight: speech-forward=" << transitionWeights_[0]
+                  << " speech-loop=" << transitionWeights_[1]
+                  << " silence-forward=" << transitionWeights_[2]
+                  << " silence-loop=" << transitionWeights_[3]
+                  << "  sent-begin ratio speech=" << transitionWeights_[4]
+                  << " silence=" << transitionWeights_[5]
+                  << "  cross-word ratio speech=" << transitionWeights_[6]
+                  << " silence=" << transitionWeights_[7];
+        }
+    }
+
+    allophone_state_graph_builder_ = Core::Ref<Speech::AllophoneStateGraphBuilder>(
+                                       new Speech::AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
+                                       mc_.lexicon(), mc_.acousticModel()));
+}
+
+
+AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFsaForOrthography(std::string const& orthography, f64 time) const {
     Core::Ref<Am::AcousticModel>   am    = mc_.acousticModel();
     Speech::AllophoneStateGraphRef graph = allophone_state_graph_builder_->build(orthography);
     graph                                = Fsa::projectInput(graph);
@@ -154,20 +246,63 @@ AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFs
     std::vector<std::pair<Fsa::StateId, float>> final_states;
     std::vector<Edge>                           edges;
 
+    std::unordered_set<Fsa::StateId> silLoopStates;
+
     for (Fsa::StateId s = 0ul; s <= automaton->maxStateId(); s++) {
         if (automaton->hasState(s)) {
             states.push_back(s);
             Fsa::State const* state = automaton->fastState(s);
             for (Fsa::State::const_iterator a = state->begin(); a != state->end(); ++a) {
                 verify(automaton->hasState(a->target_));
+                // Note: set TDPs to dis-allow certain transitions (filtered here)
                 if (Speech::Score(a->weight_) >= Core::Type<Speech::Score>::max)
                     continue;
+                if ( !labelLoop_ )
+                    verify( s != a->target_ );
+                else if ( !transitionWeights_.empty() ) {
+                    if ( s == a->target_ && am->emissionIndex(a->input_) == silenceIndex_ )
+                        silLoopStates.insert(s);
+                }
                 edges.push_back(Edge(s, a->target_, am->emissionIndex(a->input_), Speech::Score(a->weight_)));
             }
             if (state->isFinal()) {
                 final_states.push_back(std::make_pair(s, Speech::Score(state->weight())));
             }
         }
+    }
+
+    if ( blankIndex_ != Core::Type<u32>::max )
+    {   // blank-based topology: add blank transitions to the automaton
+        // no label loop, simply add blank loop arcs on each state including initial and final
+        if ( !labelLoop_ )
+            for (std::vector<Fsa::StateId>::const_iterator sIt=states.begin(); sIt!=states.end(); ++sIt)
+                edges.emplace_back(*sIt, *sIt, blankIndex_, 0);
+        else { // label loop preserved: add additional path with blank arcs
+            Fsa::StateId maxStateId = automaton->maxStateId();
+            u32 nEdges = edges.size();
+            for (u32 idx = 0; idx < nEdges; ++idx)
+            {   // skip loop and blank arcs
+                Edge e = edges[idx]; // copy on purpose as reference may be invalidated
+                if ( e.from == e.to || e.emission_idx == blankIndex_ )
+                    continue;
+                states.push_back(++maxStateId);
+                edges.emplace_back(e.from, maxStateId, blankIndex_, 0);
+                edges.emplace_back(maxStateId, maxStateId, blankIndex_, 0);
+                edges.emplace_back(maxStateId, e.to, e.emission_idx, e.weight);
+            }
+            // transitionWeights_ also applicable ?
+        }
+    } else { // HMM topology
+        if ( !transitionWeights_.empty() )
+            modifyTransitionWeights(edges, silLoopStates);
+        if ( minOccur_ > 1 )
+            modifyMinDuration(edges, states, automaton, time);
+    }
+
+    if ( blankIndex_ != Core::Type<u32>::max && labelLoop_ )
+    {   // tailing blanks: loop on the single final state
+        verify( final_states.size() == 1 );
+        edges.emplace_back(final_states.front().first, final_states.front().first, blankIndex_, 0);
     }
 
     toposort(states, final_states, edges);
@@ -188,6 +323,62 @@ AllophoneStateFsaExporter::ExportedAutomaton AllophoneStateFsaExporter::exportFs
     }
 
     return result;
+}
+
+// Note: pronunciation variants ignored here, i.e. no normalization
+void AllophoneStateFsaExporter::modifyTransitionWeights(std::vector<Edge>& edges, const std::unordered_set<Fsa::StateId>& silLoopStates) const
+{   // HMM topology (label loop and no blank): overwrite transition weights
+    verify( labelLoop_ && silenceIndex_ != Core::Type<u32>::max );
+    u32 nEdges = edges.size();
+    for (u32 idx = 0; idx < nEdges; ++idx) 
+    {
+        Edge& e = edges[idx]; // no size change: always valid
+        if ( e.from == 0 )
+            e.weight = e.emission_idx == silenceIndex_ ? transitionWeights_[5] : transitionWeights_[4];
+        else if ( e.from == e.to )
+            e.weight = e.emission_idx == silenceIndex_ ? transitionWeights_[3] : transitionWeights_[1];
+        else if ( silLoopStates.count(e.from) > 0 )
+            e.weight = transitionWeights_[2]; // silence forward
+        else { // speech forward
+            float factor = e.emission_idx == silenceIndex_ ? transitionWeights_[7] : transitionWeights_[6];
+            e.weight = transitionWeights_[0] + factor;
+        }
+    }
+}
+
+void AllophoneStateFsaExporter::modifyMinDuration(std::vector<Edge>& edges, std::vector<Fsa::StateId>& states, Core::Ref<const Fsa::StaticAutomaton> automaton, f64 time) const
+{   // expanded sequence should not exceed number of frames
+    u32 expand = minOccur_;
+    if ( time >= 0 ) 
+    {   // if negative time: unknown length, assume always expandable
+        u32 maxLength = time / frameShift_ / reduceFrameFactor_;
+        std::vector<u32> stateDepth(automaton->size(), Core::Type<u32>::max);
+        u32 seqLength = getStateDepth(0, stateDepth, automaton); // shortest sequence length
+        while ( seqLength * expand > maxLength && expand > 1 )
+            --expand; // reduce expansion
+    }
+    if ( expand > 1 ) 
+    {
+        verify( silenceIndex_ != Core::Type<u32>::max );
+        Fsa::StateId maxStateId = automaton->maxStateId();
+        u32 nEdges = edges.size();
+        for (u32 idx = 0; idx < nEdges; ++idx)
+        {   // expand each speech forward transition to minOccur_
+            Edge e = edges[idx];
+            verify( e.emission_idx != blankIndex_ );
+            if ( e.from == e.to || e.emission_idx == silenceIndex_ )
+                continue;
+            Fsa::StateId target = e.to;
+            for (u32 rp = 1; rp < expand; ++rp) 
+            {   // Note: no weight for forced loop
+                states.push_back(++maxStateId);
+                edges.emplace_back(maxStateId, target, e.emission_idx, 0);
+                target = maxStateId;
+            }
+            edges[idx].to = maxStateId;
+        }
+    } else
+        warning() << "can't expand segment for label-min-occurance " << minOccur_ << " (exceeding number of frames)";
 }
 
 }  // namespace Nn

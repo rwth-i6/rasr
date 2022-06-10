@@ -207,15 +207,18 @@ struct BuildSegmentToOrthMapVisitor : public Bliss::CorpusVisitor {
 
     virtual void visitSpeechSegment(Bliss::SpeechSegment* s) {
         (*map_)[s->fullName()] = s->orth();
+        times_[s->fullName()] = s->end() - s->start();
     }
 
     std::shared_ptr<Core::StringHashMap<std::string>> map_;
+    std::unordered_map<std::string, f64>              times_;
 };
 
-static std::shared_ptr<Core::StringHashMap<std::string>> build_segment_to_orth_map(Core::Configuration const& config) {
+static std::shared_ptr<Core::StringHashMap<std::string>> build_segment_to_orth_map(Core::Configuration const& config, std::unordered_map<std::string, f64>& segTimes) {
     Bliss::CorpusDescription     corpus(config);
     BuildSegmentToOrthMapVisitor visitor;
     corpus.accept(&visitor);
+    segTimes.swap(visitor.times_);
     return visitor.map_;
 }
 
@@ -233,6 +236,7 @@ struct PythonControl::Internal : public Core::Component {
     std::shared_ptr<Criterion<f32>>                       criterion_;
     std::shared_ptr<AllophoneStateFsaExporter>            allophoneStateFsaExporter_;
     std::shared_ptr<Core::StringHashMap<std::string>>     segmentToOrthMap_;
+    std::unordered_map<std::string, f64>                  segmentTimes_;
     std::map<std::string, std::shared_ptr<Core::Archive>> cacheArchives_;
     Core::Ref<const Am::AcousticModel>                    acousticModel_;
 
@@ -307,7 +311,7 @@ struct PythonControl::Internal : public Core::Component {
     void _initSegmentToOrthMap() {
         if (segmentToOrthMap_)
             return;
-        segmentToOrthMap_ = build_segment_to_orth_map(select("corpus"));
+        segmentToOrthMap_ = build_segment_to_orth_map(select("corpus"), segmentTimes_);
     }
 
     std::shared_ptr<Core::Archive> getCacheArchive(const std::string& cacheFilename) {
@@ -569,7 +573,7 @@ struct PythonControl::Internal : public Core::Component {
                          segment_name);
             return NULL;
         }
-        AllophoneStateFsaExporter::ExportedAutomaton automaton = allophoneStateFsaExporter_->exportFsaForOrthography(iter->second);
+        AllophoneStateFsaExporter::ExportedAutomaton automaton = allophoneStateFsaExporter_->exportFsaForOrthography(iter->second, segmentTimes_.at(std::string(segment_name)));
 
         PyObject* edges   = NULL;
         PyObject* weights = NULL;

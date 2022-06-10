@@ -19,6 +19,21 @@
 #include <Speech/AllophoneStateGraphBuilder.hh>
 #include <Speech/ModelCombination.hh>
 
+namespace {
+
+struct Edge {
+    Edge()  : from(0u), to(0u), emission_idx(0u), weight(0.0f) {}
+    Edge(Fsa::StateId from, Fsa::StateId to, Am::AcousticModel::EmissionIndex emission_idx, float cost)
+            : from(from), to(to), emission_idx(emission_idx), weight(cost) {}
+
+    Fsa::StateId                     from;
+    Fsa::StateId                     to;
+    Am::AcousticModel::EmissionIndex emission_idx;
+    float                            weight;
+};
+
+}
+
 namespace Nn {
 
 class AllophoneStateFsaExporter : Core::Component {
@@ -28,30 +43,33 @@ public:
     struct ExportedAutomaton {
         size_t           num_states;
         size_t           num_edges;
-        std::vector<u32> edges;  // contains from,to,emissionIdx, thus num_edges == edges.size() / 3 == weights.size()
+        // separate from,to,emissionIdx: num_edges == edges.size() / 3 == weights.size()
+        std::vector<u32> edges;
         std::vector<f32> weights;
     };
 
-    AllophoneStateFsaExporter(Core::Configuration const& config)
-            : Precursor(config),
-              mc_(select("model-combination"),
-                  Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel,
-                  Am::AcousticModel::noEmissions),
-              allophone_state_graph_builder_() {
-        mc_.load();
-        allophone_state_graph_builder_ = Core::Ref<Speech::AllophoneStateGraphBuilder>(
-                new Speech::AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                       mc_.lexicon(),
-                                                       mc_.acousticModel(),
-                                                       false));
-    };
+    AllophoneStateFsaExporter(Core::Configuration const& config);
     ~AllophoneStateFsaExporter() {}
 
-    ExportedAutomaton exportFsaForOrthography(std::string const& orthography) const;
+    ExportedAutomaton exportFsaForOrthography(std::string const& orthography, f64 time=-1.0) const;
+
+protected:
+    void modifyTransitionWeights(std::vector<Edge>&, const std::unordered_set<Fsa::StateId>&) const;
+    void modifyMinDuration(std::vector<Edge>&, std::vector<Fsa::StateId>&, Core::Ref<const Fsa::StaticAutomaton>, f64) const;
 
 private:
     Speech::ModelCombination                      mc_;
     Core::Ref<Speech::AllophoneStateGraphBuilder> allophone_state_graph_builder_;
+
+    u32 silenceIndex_;
+    u32 blankIndex_;
+    bool labelLoop_;
+
+    // HMM topology only (no blank)
+    u32 minOccur_; // minimum occurance of each speech label (force loop)
+    f64 frameShift_; // frame shift in seconds: to compute audio length T for each segment
+    u32 reduceFrameFactor_; // subsampling
+    std::vector<f64> transitionWeights_; // transition scores
 };
 
 }  // namespace Nn

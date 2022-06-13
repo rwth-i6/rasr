@@ -182,10 +182,10 @@ void BufferedAlignedFeatureProcessor<T>::generateMiniBatch(std::vector<NnMatrix>
         if ( alignmentReduced_ )
             verify( reducedSize_ == targetSize );
     } else {
-      if ( peakyAlignment_ )
-          reducePeakyAlignment(targetSize, batchSize, keepIdx);
-      else
-          reduceAlignment(targetSize, batchSize, keepIdx);
+        if ( peakyAlignment_ )
+            reducePeakyAlignment(targetSize, batchSize, keepIdx);
+        else
+            reduceAlignment(targetSize, batchSize, keepIdx);
     }
 
     // resize mini batch alignment

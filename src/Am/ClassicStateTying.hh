@@ -172,10 +172,9 @@ public:
 // ============================================================================
 
 class MonophoneStateTying : public ClassicStateTying {
-private:
+protected:
     typedef std::vector<Mm::MixtureIndex> MixtureIndexList;
 
-private:
     Mm::MixtureIndex nPhonemes_;
     Mm::MixtureIndex nClasses_;
     MixtureIndexList classIds_;
@@ -189,8 +188,22 @@ public:
     Mm::MixtureIndex classifyIndex(AllophoneStateIndex i) const {
         return classify(alphabetRef_->allophoneState(i));
     }
-    Mm::MixtureIndex classify(const AllophoneState& as) const {
+    virtual Mm::MixtureIndex classify(const AllophoneState& as) const {
         return classIds_[as.allophone()->central() + as.state() * nPhonemes_];
+    }
+};
+
+// ============================================================================
+
+class MonophoneEOWStateTying : public MonophoneStateTying {
+public:
+    MonophoneEOWStateTying(const Core::Configuration& config, ClassicStateModelRef stateModel);
+
+    Mm::MixtureIndex classify(const AllophoneState& as) const {
+        u32 idx = as.allophone()->central();
+        if ( as.allophone()->boundary & Allophone::isFinalPhone && !alphabetRef_->isSilence(as) )
+            idx += nPhonemes_;
+        return classIds_[idx + as.state() * 2 * nPhonemes_];
     }
 };
 

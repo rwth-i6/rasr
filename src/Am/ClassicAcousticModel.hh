@@ -31,6 +31,7 @@ public:
     enum StateTyingType {
         noTying = 0,
         monophoneTying,
+        monophoneEOWTying,
         lutTying,
         cartTying,
         oldCartTying,

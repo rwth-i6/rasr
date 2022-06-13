@@ -134,6 +134,55 @@ MonophoneStateTying::MonophoneStateTying(const Core::Configuration& config,
 // ============================================================================
 
 // ============================================================================
+MonophoneEOWStateTying::MonophoneEOWStateTying(const Core::Configuration& config,
+                                               ClassicStateModelRef       stateModel)
+        : Core::Component(config),
+          MonophoneStateTying(config, stateModel) {
+    verify( nPhonemes_ > 0 );
+    nClasses_ = 0;
+    classIds_.clear();
+    // loop over all monophones (disregard existence in the allophone alphabet)
+    for (Bliss::Phoneme::Id id = 1; id <= nPhonemes_; ++id) {
+        for (int state = 0; state < stateModel->hmmTopologySet().get(id)->nPhoneStates(); ++state) {
+            // use 2 * nPhonemes_ (max possible) as step size
+            u32 i = id + state * 2 * nPhonemes_;
+            if ( classIds_.size() < i + 1 )
+                classIds_.resize(i + 1);
+            classIds_[i] = nClasses_++;
+        }
+    }
+
+    // loop over allophones in alphabet: set EOW for uniq speech phonemes once
+    std::unordered_set<Bliss::Phoneme::Id> visited;
+    ConstAllophoneAlphabetRef alloAlphabet = stateModel->getAllophoneAlphabet();
+    const AllophoneAlphabet::AllophoneList& allophones = alloAlphabet->allophones();
+    for (AllophoneAlphabet::AllophoneList::const_iterator iter = allophones.begin(); iter != allophones.end(); ++iter) {
+        const Allophone* allo = *(iter);
+        if ( allo->boundary & Allophone::isFinalPhone && !alloAlphabet->isSilence(*allo) ) {
+            // id + nPhonemes_ as new id for eow-phone
+            Bliss::Phoneme::Id id = allo->central();
+            if ( visited.count(id) > 0 )
+                continue;
+            std::string p = stateModel->phonology().getPhonemeInventory()->phoneme(id)->symbol();
+            // Note: fixed format for non-speech [...] => skip for EOW
+            bool nonSpeech = (p.front() == '[' && p.back() == ']');
+            for (int state = 0; state < stateModel->hmmTopologySet().get(id)->nPhoneStates(); ++state) {
+                // use 2 * nPhonemes_ (max possible) as step size
+                u32 i = id + nPhonemes_ + state * 2 * nPhonemes_;
+                if ( classIds_.size() < i + 1 )
+                    classIds_.resize(i + 1);
+                if ( nonSpeech )
+                    classIds_[i] = classIds_[i - nPhonemes_];
+                else
+                    classIds_[i] = nClasses_++;
+            }
+            visited.insert(id);
+        }
+    }
+}
+// ============================================================================
+
+// ============================================================================
 bool LutStateTying::loadLut(const std::string& filename) {
     /*
      *  nClasses_ and lut_ are set

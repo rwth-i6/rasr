@@ -42,7 +42,7 @@ const Core::ParameterBool BufferedAlignedFeatureProcessor<T>::paramWeightedAlign
 
 template<typename T>
 const Core::ParameterInt BufferedAlignedFeatureProcessor<T>::paramReduceAlignmentFactor(
-    "reduce-alignment-factor", "downsample alignment (only for peaky alignment)", 1);
+    "reduce-alignment-factor", "factor of down-sampling alignment", 1);
 
 template<typename T>
 BufferedAlignedFeatureProcessor<T>::BufferedAlignedFeatureProcessor(const Core::Configuration& config, bool loadFromFile)

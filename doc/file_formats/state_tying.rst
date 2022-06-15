@@ -101,6 +101,7 @@ Format per line:
 :ref:`Allophone State` followed by Mixture-ID
 
 **Example** ::
+
     t{a+#}@f.1 593
     t{a+#}@f.2 796
     a{B+n}.0 1404

@@ -138,7 +138,7 @@ MonophoneEOWStateTying::MonophoneEOWStateTying(const Core::Configuration& config
                                                ClassicStateModelRef       stateModel)
         : Core::Component(config),
           MonophoneStateTying(config, stateModel) {
-    verify( nPhonemes_ > 0 );
+    verify(nPhonemes_ > 0);
     nClasses_ = 0;
     classIds_.clear();
     // loop over all monophones (disregard existence in the allophone alphabet)
@@ -146,22 +146,22 @@ MonophoneEOWStateTying::MonophoneEOWStateTying(const Core::Configuration& config
         for (int state = 0; state < stateModel->hmmTopologySet().get(id)->nPhoneStates(); ++state) {
             // use 2 * nPhonemes_ (max possible) as step size
             u32 i = id + state * 2 * nPhonemes_;
-            if ( classIds_.size() < i + 1 )
+            if (classIds_.size() < i + 1)
                 classIds_.resize(i + 1);
             classIds_[i] = nClasses_++;
         }
     }
 
     // loop over allophones in alphabet: set EOW for uniq speech phonemes once
-    std::unordered_set<Bliss::Phoneme::Id> visited;
-    ConstAllophoneAlphabetRef alloAlphabet = stateModel->getAllophoneAlphabet();
-    const AllophoneAlphabet::AllophoneList& allophones = alloAlphabet->allophones();
+    std::unordered_set<Bliss::Phoneme::Id>  visited;
+    ConstAllophoneAlphabetRef               alloAlphabet = stateModel->getAllophoneAlphabet();
+    const AllophoneAlphabet::AllophoneList& allophones   = alloAlphabet->allophones();
     for (AllophoneAlphabet::AllophoneList::const_iterator iter = allophones.begin(); iter != allophones.end(); ++iter) {
         const Allophone* allo = *(iter);
-        if ( allo->boundary & Allophone::isFinalPhone && !alloAlphabet->isSilence(*allo) ) {
+        if (allo->boundary & Allophone::isFinalPhone && !alloAlphabet->isSilence(*allo)) {
             // id + nPhonemes_ as new id for eow-phone
             Bliss::Phoneme::Id id = allo->central();
-            if ( visited.count(id) > 0 )
+            if (visited.count(id) > 0)
                 continue;
             std::string p = stateModel->phonology().getPhonemeInventory()->phoneme(id)->symbol();
             // Note: fixed format for non-speech [...] => skip for EOW
@@ -169,9 +169,9 @@ MonophoneEOWStateTying::MonophoneEOWStateTying(const Core::Configuration& config
             for (int state = 0; state < stateModel->hmmTopologySet().get(id)->nPhoneStates(); ++state) {
                 // use 2 * nPhonemes_ (max possible) as step size
                 u32 i = id + nPhonemes_ + state * 2 * nPhonemes_;
-                if ( classIds_.size() < i + 1 )
+                if (classIds_.size() < i + 1)
                     classIds_.resize(i + 1);
-                if ( nonSpeech )
+                if (nonSpeech)
                     classIds_[i] = classIds_[i - nPhonemes_];
                 else
                     classIds_[i] = nClasses_++;
@@ -265,7 +265,7 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
 
     u32 phoneIdx = a.allophone()->phoneme(0);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
     result *= numStates_;
     result += u32(a.state());
@@ -281,9 +281,9 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
         result += phoneIdx;
     }
 
-    if (useBoundaryClasses_){ 
-      result *= numBoundaryClasses_;
-      result += a.allophone()->boundary;
+    if (useBoundaryClasses_) {
+        result *= numBoundaryClasses_;
+        result += a.allophone()->boundary;
     }
     require_lt(result, nClasses_);
 
@@ -308,7 +308,7 @@ DiphoneNoStateTyingDense::DiphoneNoStateTyingDense(const Core::Configuration& co
 
     if (classifyDumpChannel_.isOpen()) {
         dumpStateTying(classifyDumpChannel_);
-    }   
+    }
 }
 
 Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) const {
@@ -317,10 +317,10 @@ Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) con
     require_lt(u32(a.state()), numStates_);
     require_eq(contextLength_, 1);
     u32 result = 0;
-    
+
     u32 phoneIdx = a.allophone()->phoneme(0);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
     result *= numStates_;
     result += u32(a.state());
@@ -328,9 +328,9 @@ Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) con
     result *= numPhoneClasses_;
     phoneIdx = a.allophone()->phoneme(-1);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
-    if (useBoundaryClasses_) { 
+    if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;
     }

@@ -166,7 +166,6 @@ class DiphoneNoStateTyingDense : public NoStateTyingDense {
 public:
     DiphoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
-
 };
 
 // ============================================================================
@@ -201,7 +200,7 @@ public:
 
     Mm::MixtureIndex classify(const AllophoneState& as) const {
         u32 idx = as.allophone()->central();
-        if ( as.allophone()->boundary & Allophone::isFinalPhone && !alphabetRef_->isSilence(as) )
+        if (as.allophone()->boundary & Allophone::isFinalPhone && !alphabetRef_->isSilence(as))
             idx += nPhonemes_;
         return classIds_[idx + as.state() * 2 * nPhonemes_];
     }

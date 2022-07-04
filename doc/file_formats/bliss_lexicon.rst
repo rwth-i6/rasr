@@ -278,70 +278,81 @@ If the line <eval/> was absent, the evaluation behaviour would be the following:
 File Format Specification
 -------------------------
 
-.. list-table:: Bliss Corpus File Format
-    :widths: 10, 20, 20, 50
-    :header-rows: 1
+<lexicon>
+"""""""""
 
-    * - Tag
-      - Description
-      - Context
-      - Attributes
-    * - ``<lexicon>``
-      - root element
-      - xml root element
-      -
-    * - ``<phoneme-inventory>``
-      - List of all phonemes (and phoneme modifiers) used in the dictionary.
-      - ``<lexicon>``
-      -
-    * - ``<phoneme>``
-      - Define a phoneme
-      - ``<phoneme-inventory>``
-      -
-    * - ``<symbol>``
-      - Define a phonemic symbol
-      - ``<phoneme>``
-      -
-    * - ``<variation>``
-      - | Define phoneme variation. Either context or none. Use none for
-        | context independent phonemes like silence and noise.
-      - ``<phoneme>``
-      -
-    * - ``<lemma>``
-      - Definition of an abstract lemma
-      - ``<lexicon>``
-      - | ``special`` declare this lemma as a special lemma. The attribute value is the special lemma identifier
-        |             for which one can query using Bliss::Lexicon::specialLemma().
-        |             The meaningful identifiers are (usually) hard-coded.
-        | ``id`` explicitly specify the ID number of a lemma. The attribute value must be an integer
-        |        (in decimal representation). Normally IDs are assigned internally, but if the lexicon is
-        |        edited and data files with lemma references
-        |        (e.g. recognition lattices) are reused, it could be necessary to specify IDs externally.
-        |        It is not recommended to mix explicit IDs with implicit IDs.
-    * - ``<orth>``
-      - | specifies an orthographic form of a lemma. If more than one
-        | orthographic form is given, the first will be used in recognition
-        | output (so-called "preferred orthographic form").
-      - ``<lemma>``
-      -
-    * - ``<phon>``
-      - specifies a phonemic pronunciation of a lemma
-      - ``<lemma>``
-      - | ``weight`` pronunciation weight: probability of the pronunciation given the lemma
-        | ``score`` pronunciation score: negative logarithm of the pronunciation weight
-        | either weight or score can be defined
-    * - ``<synt>``
-      - specifies an syntactic token sequence for a lemma.
-      - ``<lemma>``
-      -
-    * - ``<eval>``
-      - specifies an evaluation token sequence for a lemma.
-      - ``<lemma>``
-      -
-    * - ``<tok>``
-      - one single token in a syntactic or evaluation token sequence.
-      - ``<synt>``, ``<eval>``
-      -
+* Description: root element
+* Allowed contexts: xml root element
+
+<phoneme-inventory>
+"""""""""""""""""""
+
+* Description: List of all phonemes (and phoneme modifiers) used in the dictionary.
+* Allowed contexts: ``<lexicon>``
+
+<phoneme>
+"""""""""
+
+* Description: Define a phoneme
+* Allowed contexts: ``<phoneme-inventory>``
+
+<symbol>
+""""""""
+
+* Description: Define a phonemic symbol
+* Allowed contexts: ``<phoneme>``
+
+<variation>
+"""""""""""
+
+* Description: Define phoneme variation. Either context or none. Use none for context independent phonemes like silence and noise.
+* Allowed contexts: ``<phoneme>``
+
+<lemma>
+"""""""
+
+* Description: Definition of an abstract lemma
+* Allowed contexts: ``<lexicon>``
+* Attributes:
+
+  * ``special`` declare this lemma as a special lemma. The attribute value is the special lemma identifier for which one can query using Bliss::Lexicon::specialLemma(). The meaningful identifiers are (usually) hard-coded.
+  * ``id`` explicitly specify the ID number of a lemma. The attribute value must be an integer (in decimal representation). Normally IDs are assigned internally, but if the lexicon is edited and data files with lemma references (e.g. recognition lattices) are reused, it could be necessary to specify IDs externally. It is not recommended to mix explicit IDs with implicit IDs.
+
+<orth>
+""""""
+
+* Description: Specifies an orthographic form of a lemma. If more than one orthographic form is given, the first will be used in recognition output (so-called "preferred orthographic form").
+* Allowed contexts: ``<lemma>``
+
+<phon>
+""""""
+
+* Description: specifies a phonemic pronunciation of a lemma
+* Allowed contexts: ``<lemma>``
+* Attributes:
+
+  * ``weight`` pronunciation weight: probability of the pronunciation given the lemma
+  * ``score`` pronunciation score: negative logarithm of the pronunciation weight either weight or score can be defined
+
+<synt>
+""""""
+
+* Description: specifies an syntactic token sequence for a lemma.
+* Allowed contexts: ``<lemma>``
+* Attributes:
+
+<eval>
+""""""
+
+* Description: specifies an evaluation token sequence for a lemma.
+* Allowed contexts: ``<lemma>``
+* Attributes:
+
+<tok>
+""""""
+
+* Description: one single token in a syntactic or evaluation token sequence.
+* Allowed contexts: ``<synt>``, ``<eval>``
 
 **Example**
 

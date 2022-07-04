@@ -100,111 +100,116 @@ A transcription is a textual representation of a (speech) segment. Most of the t
 File Format Specification
 -------------------------
 
-.. list-table:: Bliss Corpus File Format
-    :widths: 10, 20, 20, 50
-    :header-rows: 1
+<corpus>
+""""""""
 
-    * - tag
-      - description
-      - context
-      - attributes
-    * - ``<corpus>``
-      - root element
-      - xml root element
-      - ``name`` (required) If the corpus description file is included from another corpus, the corpus name must match the name of the corpus into which it is included.
-    * - ``<subcorpus>``
-      - define a sub-corpus, a part of a corpus
-      - | ``<corpus>``
-        | ``<subcorpus>``
-      - ``name`` (required)
-    * - ``<include>``
-      - | include another corpus description file
-        | as part of the current corpus
-      - | ``<corpus>``
-        | ``<subcorpus>``
-      - | ``file`` (required) The attribute value is first resolved using the configuration of the corpus description object.
-        |          The result is then intepreted as a path relative to the corpus file.
-    * - ``<recording>``
-      - describes a recording
-      - | ``<corpus>``
-        | ``<subcorpus>``
-      - | ``name`` (required) needs to be unique
-        | ``audio`` (required) name of the corresponding audio file. The attribute value is first resolved using the configuration of the corpus description object.
-        |           The result is then interpreted as a path relative to a configurable base directory. By default the directory of the corpus file is used.
-    * - ``<segment>``
-      - | describes a segment
-        | (part of a recording).
-      - ``<recording>``
-      - | ``name`` (optional) If no name is given, the segments within a recording will be numbered starting with one. 
-        |          Note that in this case the order in which segments are specified is significant and must not be changed.
-        |          Named and unnamed segments should not be mixed within the same recording.
-        | ``start``, ``end`` (required) Start and end time of a segment.
-        | ``track`` select a particular track of a multi-track recording
-    * - ``<condition-description>``
-      - | Define a new acoustic recording
-        | condition and describe it.
-      - | ``<corpus>``
-        | ``<subcorpus>``
-        | ``<recording>``
-        | ``<segment>``
-      - ``name`` (optional) If name is not given, an annonymous condition is defined, which is the default for the enclosing corpus section.
-    * - ``<environment>``
-      - currently not used
-      - ``<corpus-description>``
-      - \-
-    * - ``<microphone>``
-      - currently not used
-      - ``<corpus-description>``
-      - \-
-    * - ``<channel>``
-      - currently not used
-      - ``<corpus-description>``
-      - \-
-    * - ``<condition>``
-      - | Identify the acoustic condition
-        | of a segment or select a default.
-      - | ``<corpus>``
-        | ``<recording>``
-        | ``<segment>``
-      - ``name`` (required) identifier of an acoustic condition defined previously (using ``<condition-description>``)
-    * - ``<speaker-description>``
-      - | Create a new speaker definition
-        | and describe the speaker.
-      - | ``<corpus>``
-        | ``<subcorpus>``
-        | ``<recording>``
-        | ``<segment>``
-      - ``name`` (optional) If name is not given, an annonymous speaker is defined, which is the default speaker of the enclosing corpus section.
-    * - ``<speaker>``
-      - | Identify the speaker who produced
-        | an utterance or select a default
-        | speaker.
-      - | ``<corpus>``
-        | ``<subcorpus>``
-        | ``<recording>``
-        | ``<segment>``
-      - ``name`` (required) identifier of a previously defined speaker (using ``<speaker-description>``)
-    * - ``<name>``
-      - real name of a speaker
-      - ``<speaker-description>``
-      - 
-    * - ``<gender>``
-      - gender of a speaker
-      - ``<speaker-description>``
-      - 
-    * - ``<age>``
-      - age of a speaker
-      - ``<speaker-description>``
-      - 
-    * - ``<native-language>``
-      - native language of a speaker
-      - ``<speaker-description>``
-      - 
-    * - ``<orth>``
-      - | orthographic transcription of a
-        | segment (if appropriate and known)
-      - ``<segment>``
-      - 
+* Description: root element
+* Allowed contexts: xml root element
+* Attributes:
+
+  * ``name`` (required) If the corpus description file is included from another corpus, the corpus name must match the name of the corpus into which it is included.
+
+<subcorpus>
+"""""""""""
+
+* Description: define a sub-corpus, a part of a corpus
+* Allowed contexts: ``<corpus>``, ``<subcorpus>``
+* Attributes:
+
+  * ``name`` (required)
+
+<include>
+"""""""""
+* Description: include another corpus description file as part of the current corpus
+* Allowed contexts: ``<corpus>``, ``<subcorpus>``
+* Attributes:
+
+  * ``file`` (required) The attribute value is first resolved using the configuration of the corpus description object. The result is then intepreted as a path relative to the corpus file.
+
+<recording>
+"""""""""""
+
+* Description: describes a recording
+* Allowed contexts: ``<corpus>``, ``<subcorpus>``
+* Attributes:
+
+  * ``name`` (required) needs to be unique
+  * ``audio`` (required) name of the corresponding audio file. The attribute value is first resolved using the configuration of the corpus description object. The result is then interpreted as a path relative to a configurable base directory. By default the directory of the corpus file is used.
+
+<segment>
+"""""""""
+
+* Description: describes a segment (part of a recording).
+* Allowed contexts: ``<recording>``
+* Attributes:
+
+  * ``name`` (optional) If no name is given, the segments within a recording will be numbered starting with one. Note that in this case the order in which segments are specified is significant and must not be changed. Named and unnamed segments should not be mixed within the same recording.
+  * ``start``, ``end`` (required) Start and end time of a segment.
+  * ``track`` select a particular track of a multi-track recording
+
+<orth>
+""""""
+
+* Description: orthographic transcription of a segment (if appropriate and known)
+* Allowed contexts: ``<segment>``
+
+<condition-description>
+"""""""""""""""""""""""
+
+* Description: Define a new acoustic recording condition and describe it.
+* Allowed contexts: ``<corpus>``,  ``<subcorpus>``,  ``<recording>``,  ``<segment>``
+* Attributes:
+
+  * ``name`` (optional) If name is not given, an annonymous condition is defined, which is the default for the enclosing corpus section.
+
+<condition>
+"""""""""""
+
+* Description: Identify the acoustic condition of a segment or select a default.
+* Allowed contexts: ``<corpus>``, ``<recording>``, ``<segment>``
+* Attributes:
+
+  * ``name`` (required) identifier of an acoustic condition defined previously (using ``<condition-description>``)
+
+<speaker-description>
+"""""""""""""""""""""
+
+* Description: Create a new speaker definition and describe the speaker.
+* Allowed contexts: ``<corpus>``, ``<subcorpus>``, ``<recording>``, ``<segment>``
+* Attributes: ``name`` (optional) If name is not given, an annonymous speaker is defined, which is the default speaker of the enclosing corpus section.
+
+<speaker>
+"""""""""
+
+* Description: Identify the speaker who produced an utterance or select a default speaker.
+* Allowed contexts: ``<corpus>``, ``<subcorpus>``, ``<recording>``, ``<segment>``
+* Attributes:
+
+  * ``name`` (required) identifier of a previously defined speaker (using ``<speaker-description>``)
+
+<name>
+""""""
+
+* Description: real name of a speaker
+* Allowed contexts: ``<speaker-description>``
+
+<gender>
+""""""""
+
+* Description: gender of a speaker
+* Allowed contexts: ``<speaker-description>``
+
+<age>
+"""""
+
+* Description: age of a speaker
+* Allowed contexts: ``<speaker-description>``
+
+<native-language>
+"""""""""""""""""
+
+* Description: native language of a speaker
+* Allowed contexts: ``<speaker-description>``
 
 See also
 --------

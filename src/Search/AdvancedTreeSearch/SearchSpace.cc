@@ -726,7 +726,7 @@ void StaticSearchAutomaton::buildBatches() {
         network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
 
     // Print some useful statistics about pushed and unpushed labels
-    verify(!network.unpushedCoarticulatedRootStates.empty());
+    // verify(!network.unpushedCoarticulatedRootStates.empty());
 
     u32 unpushedLabels = 0;
     u32 pushedLabels   = 0;

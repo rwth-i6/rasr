@@ -18,7 +18,7 @@ Uses equal probability for all words.
 n-gram LM
 ---------
 
-Language model in `ARPA <http://www.speech.sri.com/projects/srilm/manpages/ngram-format.5.html>`_ format.
+Language model in `ARPA <http://www.cs.cmu.edu/afs/cs/project/cmt-55/lti/Courses/731/homework/HW8/srilm/man/html/ngram-format.5.html>`_ format.
 (aka count LM or ARPA LM)
 
 language model type: ``ARPA``
@@ -229,7 +229,7 @@ Please note that the ``*.lm.scale`` refers to the global LM scale while the comp
 **Caveats**
 
 Linear vs Log-Linear interpolation:
-This can be switched by setting the boolean parameter ``linear-combination`` that defaults to false.
+This can be configured by setting the boolean parameter ``linear-combination``. Default is false (log-linear combination).
 
 Lookahead LM:
 It is better to use a single (backing off) LM for lookahead purposes by specifying it explicitly either via a separate ``[*.lookahead-lm]`` or by selecting one of the models used in combination: ``lookahead-lm = 1``. A somewhat hidden consequence is that the lookahead scores are going to be scaled with the *relative* LM scale, so it's better to set it explicitly to the ''absolute'' LM scale via

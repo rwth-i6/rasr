@@ -46,7 +46,7 @@ The modules that require the most attention are MODULE_PYTHON and MODULE_TENSORF
 MODULE_PYTHON
 ^^^^^^^^^^^^^
 
-It should support both Python 2 and Python 3. <!-- please note, apptek's branch has moved to Py 3 completely -->
+It should support both Python 2 and Python 3.
 Use `numpy.get_include() <https://numpy.org/devdocs/reference/generated/numpy.get_include.html>`_ to obtain include path from a local virtual environment.
 
 It can be used for various purpose:
@@ -64,7 +64,7 @@ On RETURNN side, several implementations for these interfaces exists:
 * Sequence training
 * `Full-sum training <https://www-i6.informatik.rwth-aachen.de/publications/download/1035/Zeyer--2017.pdf>`_ (gets FSA via PythonControl)
 
-Note that there is also the Tensorflow module which provides an own FeatureScorer.
+Note that there is also the Tensorflow module which provides a separate FeatureScorer.
 
 MODULE_TENSORFLOW
 ^^^^^^^^^^^^^^^^^
@@ -77,8 +77,6 @@ Dependencies
 You can run ``scripts/requirements.sh`` to verify if your build environment meets the requirements. As of January 2020, RASR is known to compile with gcc between 4.8 and 7.3, optionally with Python 3.6 and TF 1.12 to 1.15. 
 
 Currently, RASR requires C++11. As of January 2020, we plan to upgrade to C++14 or 17 at some later point in time because of some internal dependencies in our infrastructure.
-
-Please note that for the streaming recognizer, the set of dependencies is larger (gRPC, Protobuf, Boost, streaming API, OPUS resampling library).
 
 Run time environment
 --------------------
@@ -208,7 +206,7 @@ Alignment
 
 See :ref:`Alignment`, :doc:`training/alignment_generation.rst` and :doc:`training/converting_alignment_formats.rst`
 
-The alignment is a frame-level mapping from feature vector index within a segment (no time stamps are stored here, just integer indices 0, 1, 2, ... relative to segment start) to a triphone HMM state. Please note that the alignment always stores triphones, even if the user is only interested in monophones. Also, we don't store tied states (although we support this feature) so that we can apply any state tying strategy on top of an existing alignment. Alignment format can store frame weights (float), e.g. for sophisticated AM training. The alignment stores both, the allophone index and the state index in one 32-bit integer: the first 26 bits of the allphone state id are used for the allophone index; the latter 6 bits for the state. This means that the maximal id for the allophone index is 2^26 and for HMM state is 2^6 (we mostly use 3 in ASR and a little bit more in sign language or handwriting recognition).
+The alignment is a frame-level mapping from feature vector index within a segment (no time stamps are stored here, just integer indices 0, 1, 2, ... relative to segment start) to a triphone HMM state. Please note that the alignment always stores triphones, even if the user is only interested in monophones. Also, we don't store tied states (although we support this feature) so that we can apply any state tying strategy on top of an existing alignment. Alignment format can store frame weights (float), e.g. for sophisticated AM training. The alignment stores both, the allophone index and the state index in one 32-bit integer: the 26 most significant bits of the allphone state id are used for the allophone index; the 6 least-significant bits for the state. This means that the maximal id for the allophone index is 2^26 and for HMM state is 2^6 (we mostly use 3 in ASR and a little bit more in sign language or handwriting recognition).
 
 The alignment only stores integer indices instead of strings, so in order to be able to read an existing alignment, we have to specify an :ref:`Allophone Symbol` (similar to symbol or alphabet file in OpenFST) where the line number corresponds to the integer index and the string represents the triphone label.
 
@@ -254,49 +252,6 @@ Channel
 ^^^^^^^
 
 See :ref:`Channel`
-
-Channels are named output streams that can be configured and redirected individually. Channels also take care of character set conversion and (optionally) XML formatting. They are used for logging and for storing small data structures in XML format. A Channel inherits from ``std::ostream`` so the usage is intuitive. Channels are managed by a singleton ``Core::Channel::Manager`` that wraps ``rdbuf`` of ``std::cout`` and ``std::cerr``, which might cause problems under certain circumstances.
-
-Channels cause NO (!) overhead compared to standard streams if
-you use only a single destination stream.  Multiple destination
-streams through redirection have the overhead of making multiple
-copies of the data to be written (conversion to character strings
-occurs only once!).
-
-Upon creation a Channel determines its set of targets via the
-standard configuration process.  E.g. if your component is
-called ``"recognizer"`` then ``Channel(config, "statistics")``, will
-look for a resource matching ``"recognizer.statistics.channel"``.
-The resource's value is interpreted as a comma separated list
-of target names, specifying were the channel's data is sent.
-
-The following channel targets are predefined:
-
-* ``stdout`` - standard output of process
-* ``stderr`` - standard error output of process
-* ``nil``    - suppress output
-
-All other target names cause the channel manager to create
-additional targets as needed.  Each target is a Configurable
-registered under ``<application-title>.channels.<target-name>``.
-If the target name contains a dot, only the part after the dot
-is used as parameter name.  By default a channel target will
-open a file by its own name and write all output to this
-file. This can be overridden with the ``file`` parameter.
-
-Channel targets can be configured in several ways:
-
-* The file name can be changed to something different from the target name using the ``"file"`` parameter.
-* If the file already exists it is overwritten by default. By setting ``"append"`` to true, the channel manager will append to the file instead of overwriting.
-* File output is buffered by default, which can cause long delay in the output.  Set ``"unbuffered"`` to change to line-buffering mode.
-* Internally channels expect to be provided with UTF-8 encoded character data.  (Plain ASCII is a subset of UTF-8.)  It is  possible to specify a specific output encoding for each channel target, by setting the parameter ``"encoding"`` (ISO-8859-1 by default, set via ``Core::defaultEncoding`` in ``src/Core/Unicode.hh``).  The channel will convert the data into this character set encoding upon output.
-* Channels feature automatic word-wrapping, which is disabled by default.  To enable word-wrapping, set the parameter ``"margin"`` to the number of characters per line.
-* XML (and possibly other) text is automatically indented. The parameter "indentation" controls the depth of indentation.  Naturally, a value of zero, disable auto-indentation.
-* zlib compression can be activated using the "compressed" parameter. The filename will be extended by the suffix ``".gz"`` if not already present
-
-You can check whether a channel's output is actually used by calling ``isOpen()``.  Make use of this especially if your output needs additional calculations.
-
-For plain text output use Channel.  If you want to produce XML output, use the derived class ``Core::XmlChannel``.
 
 Configuration
 ^^^^^^^^^^^^^

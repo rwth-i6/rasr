@@ -84,9 +84,21 @@ An example HMM configuration may look like this:
 Mixture Set
 ^^^^^^^^^^^
 
-| ``feature-scorer-type`` (enum): There are several feature scorers available, depending on the used RWTH ASR version. Default is the ``SIMD-diagonal-maximum`` feature scorer, which uses a maximum approximation and a diagonal covariance matrix to calculate the scores. Additionally, the Single Instruction Multiple Data (SIMD) technique is used to achieve data level parallelism and thus improve the computing performance.
+Common
+""""""
+
+| ``feature-scorer-type`` (enum): There are several feature scorers available, depending on the used RWTH ASR version. Default is the ``SIMD-diagonal-maximum`` feature scorer, which is used for GMMs. For more details see below.
 | ``file`` (string): The location of the acoustic model is given with this parameter. See also :ref:`Mixture File`
 | ``scale`` (float): The acoustic model scale is set with this parameter. It is usually set to ``1``.
+| ``normalize-mixture-weights`` (bool): normalize mixture weights after split, not required in the Viterbi approximation (default False)
+
+GMM
+"""
+
+The default feature-scorer for GMM setups is ``SIMD-diagonal-maximum`` which uses a maximum approximation and a diagonal covariance matrix to calculate the scores. Additionally, the Single Instruction Multiple Data (SIMD) technique is used to achieve data level parallelism and thus improve the computing performance.
+
+The additional parameters for this feature-scorer are:
+
 | ``covariance-tying`` (enum): Type of covariance matrix is used, it can be "pooled-covariance" (default) or "mixture-specific-covariance".
 | ``minimum-variance`` (float): Floor variance value (it can be necessary if the number of mixture is very high).
 | ``reduced-mixture-set-dimension`` (int): Clip the mean and variance vectors to the given dimension.
@@ -101,6 +113,27 @@ An example configuration:
     scale                           = 1.0
     #covariance-tying                = pooled-covariance
     #minimum-variance                = 0.01
+
+Neural Networks
+"""""""""""""""
+Neural network acoustic models are handled by the ``tf-fwd`` node in the flow file. The feature-scorer itself just needs to add the prior. The prefered featur-scorer for this is ``nn-precomputed-hybrid``.
+
+The additional parameters are:
+
+| ``prior-file`` (string) (optional): A prior specified in xml format. If no ``prior-file`` is given then the prior is computed from the mixture weigths.
+| ``priori-scale`` (float): (log-linear) scale to apply to the prior probabilites
+
+.. code-block:: ini
+
+   [*.mixture-set]
+   feature-scorer-type       = nn-precomputed-hybrid
+   file                      = small.mix
+   normalize-mixture-weights = no
+   prior-file                = prior.xml
+   priori-scale              = 0.7
+   scale                     = 1.0
+
+
 
 Channel Configuration
 ---------------------

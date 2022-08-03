@@ -160,6 +160,11 @@ const Core::ParameterBool CorpusDescriptionParser::paramGemenizeTranscriptions(
         "convert all transcriptions to lower case: yes/no",
         false);
 
+const Core::ParameterBool CorpusDescriptionParser::paramIgnoreSuperCorpusName(
+        "ignore-super-corpus-name",
+        "if the top-level corpus name should be ignored. Can be useful to get the original names of merged corpora.",
+        false);
+
 const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         "progress",
         "show progress meter",
@@ -359,7 +364,8 @@ void CorpusDescriptionParser::startCorpus(const XmlAttributes atts) {
     else {
         verify(!superCorpus_);
         corpus_ = new Corpus();
-        corpus_->setName(name);
+        if (!shallIgnoreSuperCorpusName_)
+            corpus_->setName(name);
         if (corpusVisitor_) {
             corpusVisitor_->enterCorpus(corpus_);
         }
@@ -727,5 +733,6 @@ int CorpusDescriptionParser::accept(const std::string& filename, CorpusVisitor* 
     videoDir_                      = paramVideoDir(config, corpusDir_);
     shallCaptializeTranscriptions_ = paramCaptializeTranscriptions(config);
     shallGemenizeTranscriptions_   = paramGemenizeTranscriptions(config);
+    shallIgnoreSuperCorpusName_    = paramIgnoreSuperCorpusName(config);
     return XmlParser::parseFile(filename.c_str());
 }

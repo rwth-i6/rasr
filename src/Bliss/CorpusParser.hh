@@ -46,6 +46,7 @@ private:
     std::string    videoDir_;
     bool           shallCaptializeTranscriptions_;
     bool           shallGemenizeTranscriptions_;
+    bool           shallIgnoreSuperCorpusName_;
     bool           isSubParser_;
     Corpus *       superCorpus_, *corpus_;
     Recording*     recording_;
@@ -96,6 +97,7 @@ public:
     static const Core::ParameterString paramVideoDir;
     static const Core::ParameterBool   paramCaptializeTranscriptions;
     static const Core::ParameterBool   paramGemenizeTranscriptions;
+    static const Core::ParameterBool   paramIgnoreSuperCorpusName;
     static const Core::ParameterBool   paramProgress;
 
     CorpusDescriptionParser(const Core::Configuration&);

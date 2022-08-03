@@ -45,9 +45,12 @@ NamedCorpusEntity::NamedCorpusEntity(ParentEntity* _parent)
           name_(anonymous) {}
 
 std::string NamedCorpusEntity::fullName() const {
-    if (parent())
-        return parent()->fullName() + "/" + name();
-    else
+    if (parent()) {
+        if (parent()->fullName() == anonymous)
+            return name();
+        else
+            return parent()->fullName() + "/" + name();
+    } else
         return name();
 }
 

@@ -726,6 +726,7 @@ void StaticSearchAutomaton::buildBatches() {
         network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
 
     // Print some useful statistics about pushed and unpushed labels
+    // this assertion is not needed and leads to crashes. not clear why
     // verify(!network.unpushedCoarticulatedRootStates.empty());
 
     u32 unpushedLabels = 0;

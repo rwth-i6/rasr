@@ -160,20 +160,16 @@ const Core::ParameterBool CorpusDescriptionParser::paramGemenizeTranscriptions(
         "convert all transcriptions to lower case: yes/no",
         false);
 
-const Core::ParameterBool CorpusDescriptionParser::paramIgnoreSuperCorpusName(
-        "ignore-super-corpus-name",
-        "if the top-level corpus name should be ignored. Can be useful to get the original names of merged corpora.",
-        false);
-
 const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         "progress",
         "show progress meter",
         false);
 
-const Core::ParameterString CorpusDescriptionParser::paramRemovePrefix(
-        "remove_prefix",
-        "remove this prefix from all corpus full-names",
-        std::string());
+const Core::ParameterString CorpusDescriptionParser::paramRemoveCorpusNamePrefix(
+        "remove_corpus_name_prefix",
+        "remove this prefix from the corpus part full-names",
+        "",
+        "Remove this prefix from the top-level corpus and corpora for the full segment name. Can be useful to get the original names of merged corpora.");
 
 void CorpusDescriptionParser::initSchema() {
     XmlElement* conditionDesc        = collect(new ConditionDescriptionElement(
@@ -369,8 +365,8 @@ void CorpusDescriptionParser::startCorpus(const XmlAttributes atts) {
     else {
         verify(!superCorpus_);
         corpus_ = new Corpus();
-        if (!shallIgnoreSuperCorpusName_)
-            corpus_->setName(name);
+        corpus_->setName(name);
+        corpus_->setRemovePrefix(removeCorpusNamePrefix_);
         if (corpusVisitor_) {
             corpusVisitor_->enterCorpus(corpus_);
         }
@@ -395,6 +391,7 @@ void CorpusDescriptionParser::startSubcorpus(const XmlAttributes atts) {
     else {
         superCorpus_->reserveName(name);
         corpus_->setName(name);
+        corpus_->setRemovePrefix(removeCorpusNamePrefix_);
     }
 
     currentSection_ = corpus_;
@@ -736,8 +733,8 @@ int CorpusDescriptionParser::accept(const std::string& filename, CorpusVisitor* 
     corpusDir_                     = Core::directoryName(filename);
     audioDir_                      = paramAudioDir(config, corpusDir_);
     videoDir_                      = paramVideoDir(config, corpusDir_);
+    removeCorpusNamePrefix_        = paramRemoveCorpusNamePrefix(config);
     shallCaptializeTranscriptions_ = paramCaptializeTranscriptions(config);
     shallGemenizeTranscriptions_   = paramGemenizeTranscriptions(config);
-    shallIgnoreSuperCorpusName_    = paramIgnoreSuperCorpusName(config);
     return XmlParser::parseFile(filename.c_str());
 }

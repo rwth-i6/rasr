@@ -44,9 +44,9 @@ private:
     std::string    corpusDir_;
     std::string    audioDir_;
     std::string    videoDir_;
+    std::string    removeCorpusNamePrefix_;
     bool           shallCaptializeTranscriptions_;
     bool           shallGemenizeTranscriptions_;
-    bool           shallIgnoreSuperCorpusName_;
     bool           isSubParser_;
     Corpus *       superCorpus_, *corpus_;
     Recording*     recording_;
@@ -95,9 +95,9 @@ private:
 public:
     static const Core::ParameterString paramAudioDir;
     static const Core::ParameterString paramVideoDir;
+    static const Core::ParameterString paramRemoveCorpusNamePrefix;
     static const Core::ParameterBool   paramCaptializeTranscriptions;
     static const Core::ParameterBool   paramGemenizeTranscriptions;
-    static const Core::ParameterBool   paramIgnoreSuperCorpusName;
     static const Core::ParameterBool   paramProgress;
 
     CorpusDescriptionParser(const Core::Configuration&);

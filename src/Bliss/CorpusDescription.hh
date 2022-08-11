@@ -44,7 +44,7 @@ class NamedCorpusEntity {
 private:
     ParentEntity*            parent_;
     std::string              name_;
-    std::string              removal_prefix_;
+    std::string              removePrefix_;
     static const char* const anonymous /*= "ANONYMOUS"*/;
 
 protected:
@@ -70,6 +70,10 @@ public:
         require(n != anonymous);
         require(n.empty() || (n[0] != '/' && n[n.size() - 1] != '/'));
         name_ = n;
+    }
+
+    void setRemovePrefix(const std::string& p) {
+        removePrefix_ = p;
     }
 
     bool isAnonymous() const {

@@ -44,6 +44,7 @@ class NamedCorpusEntity {
 private:
     ParentEntity*            parent_;
     std::string              name_;
+    std::string              removal_prefix_;
     static const char* const anonymous /*= "ANONYMOUS"*/;
 
 protected:

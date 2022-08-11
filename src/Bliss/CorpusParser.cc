@@ -170,6 +170,11 @@ const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         "show progress meter",
         false);
 
+const Core::ParameterString CorpusDescriptionParser::paramRemovePrefix(
+        "remove_prefix",
+        "remove this prefix from all corpus full-names",
+        std::string());
+
 void CorpusDescriptionParser::initSchema() {
     XmlElement* conditionDesc        = collect(new ConditionDescriptionElement(
             this, ConditionDescriptionElement::handler(&Self::defineCondition)));

@@ -166,7 +166,7 @@ const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         false);
 
 const Core::ParameterString CorpusDescriptionParser::paramRemoveCorpusNamePrefix(
-        "remove_corpus_name_prefix",
+        "remove-corpus-name-prefix",
         "remove this prefix from the corpus part full-names",
         "",
         "Remove this prefix from the top-level corpus and corpora for the full segment name. Can be useful to get the original names of merged corpora.");

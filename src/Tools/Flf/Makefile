@@ -25,6 +25,10 @@ FLF_TOOL_O	= $(OBJDIR)/FlfTool.o \
 
 FLF_TOOL_O += $(subst src,../..,$(LIBS_SEARCH))
 
+ifdef MODULE_FLF_EXT
+FLF_TOOL_O += ../../Flf/FlfExt/libSprintFlfExt.$(a)
+endif
+
 FLF_TOOL_O += ../../Signal/libSprintSignal.$(a)
 FLF_TOOL_O += ../../Flow/libSprintFlow.$(a)
 FLF_TOOL_O += ../../Math/libSprintMath.$(a)

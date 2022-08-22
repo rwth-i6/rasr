@@ -79,6 +79,9 @@ endif
 ifdef MODULE_FLF_CORE
 UNIT_TEST_O += ../Flf/FlfCore/libSprintFlfCore.$(a)
 endif
+ifdef MODULE_FLF_EXT
+UNIT_TEST_O += ../Flf/FlfExt/libSprintFlfExt.$(a)
+endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 UNIT_TEST_O += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
 endif

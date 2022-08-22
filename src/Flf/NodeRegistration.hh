@@ -65,6 +65,13 @@
 #include "Traceback.hh"
 #include "Union.hh"
 
+#ifdef MODULE_FLF_EXT
+#include "FlfExt/AcousticAlignment.hh"
+#include "FlfExt/MapDecoder.hh"
+#include "FlfExt/MtConfusionNetwork.hh"
+#include "FlfExt/WindowedLevenshteinDistanceDecoder.hh"
+#endif  // MODULE_FLF_EXT
+
 namespace Flf {
 /**
  * List of nodes:
@@ -2273,6 +2280,349 @@ void registerNodeCreators(NodeFactory* factory) {
                     "output:\n"
                     "  0:lattice",
                     &createCleanUpNode));
+
+#ifdef MODULE_FLF_EXT
+    factory->add(
+            NodeCreator(
+                    "forced-arc-alignment",
+                    "Perform an acoustic alignment on arcs either to split them into\n"
+                    "phonemes or subword units.\n"
+                    "Subword unit lattices are derived via a label map; the label map\n"
+                    "has to map from lemma pronunciation to a lemma pronunciation sequence,\n"
+                    "which might be of length 1 or even empty.",
+                    "[*.network.arc-aligner]\n"
+                    "type                        = forced-arc-alignment\n"
+                    "subword-map-1.file          = \n"
+                    "subword-map-1.encoding      = utf-8\n"
+                    "...\n"
+                    "project-input               = false",
+                    "input:\n"
+                    "  0:lemma-pronunciation-lattice 1:bliss-speech-segment\n"
+                    "output:\n"
+                    "  0:phoneme-lattice [1:subword-lattice [2:subword-lattice ...]]",
+                    &createArcAlignmentNode));
+
+    factory->add(
+            NodeCreator(
+                    "allophone-state-fCN-builder",
+                    "Build allophone state fCN\n"
+                    "using the arcs Fwd./Bwd. scores.",
+                    "[*.network.allophone-state-fCN-builder]\n"
+                    "type                        = allophone-state-fCN-builder\n"
+                    "[*.network.allophone-state-fCN-builder.fb]\n"
+                    "see FB-builder ...",
+                    "input:\n"
+                    "  0:lattice 1:bliss-speech-segment [2:lattice [...]]\n"
+                    "output:\n"
+                    "  0:lattice 1:fCN",
+                    &createAllophoneStatePosteriorCnNode));
+
+    factory->add(
+            NodeCreator(
+                    "phoneme-posterior-fCN-features",
+                    "Perform a phoneme alignemnt and calculate features derived from\n"
+                    "the frame-wise phoneme posteriors.\n"
+                    "Confidence is the Frank Wessel confidence for the least confident\n"
+                    "phoneme in the pronunciation.",
+                    "[*.network.extend-by-phoneme-posterior]\n"
+                    "type                        = extend-by-phoneme-posterior\n"
+                    "rescore-mode                = {clone*, in-place-cached, in-place}\n"
+                    "confidence-key              = <unset>\n"
+                    "score-key                   = <unset>\n"
+                    "# smooth score\n"
+                    "score.alpha                 = 0.05\n"
+                    "[*.network.extend-by-phoneme-posterior.fb]\n"
+                    "see FB-builder ...",
+                    "  0:lemma-pronunciation-lattice 1:bliss-speech-segment\n"
+                    "output:\n"
+                    "  0:lemma-pronunciation-lattice",
+                    &createPhonemePosteriorFeatureNode));
+
+    factory->add(
+            NodeCreator(
+                    "extend-by-acoustic-score",
+                    "A single dimension is extended by the acoustic score.\n"
+                    "Score flooring allows to define a maximum score,\n"
+                    "otherwise the score of a failed alignment is infinitiy.\n"
+                    "By default epsilon arcs get a score of zero, but if\n"
+                    "epsilon arc scoring is activated, then each epsilon\n"
+                    "arc gets the score of the best scoring non-word.\n"
+                    "Arcs of length zero get a score of zero.\n"
+                    "Valid input alphabet are the lemma-pronunciation and\n"
+                    "the lemma alphabet. If the input alphabet is the\n"
+                    "lemma-alphabet, then each arc gets the score of the best\n"
+                    "scoring pronunciation associated with the lemma.",
+                    "[*.network.extend-by-acustic-score]\n"
+                    "type                        = extend-by-acoustic-score\n"
+                    "append                      = false\n"
+                    "key                         = <symbolic key or dim>\n"
+                    "scale                       = 1.0\n"
+                    "max-score                   = <inf>\n"
+                    "score-eps                   = false\n"
+                    "rescore-mode                = {clone*, in-place-cached, in-place}",
+                    "input:\n"
+                    "  0:lattice\n"
+                    "output:\n"
+                    "  0:lattice",
+                    &createExtendByAcousticScoreNode));
+
+    factory->add(
+            NodeCreator(
+                    "forced-alignment",
+                    "Perform an acoustic alignment for a given orthography.\n"
+                    "Result is either a lattice or a speech alignment.\n"
+                    "If no semiring is specified, a single dimension\n"
+                    " tropical semiring is used.",
+                    "[*.network.forced-alignment]\n"
+                    "type                        = forced-alignment\n"
+                    "[*.network.forced-alignment.semiring]\n"
+                    "type                        = tropical|log\n"
+                    "tolerance                   = <default-tolerance>\n"
+                    "keys                        = key1 key2 ...\n"
+                    "key1.scale                  = <f32>\n"
+                    "key2.scale                  = <f32>\n"
+                    "...\n"
+                    "score-key                   = <unset>",
+                    "input:\n"
+                    "  1:bliss-speech-segment\n"
+                    "output:\n"
+                    "  0:lemma-pronunciation-lattice 1:speech-alignment",
+                    &createOrthographyAlignmentNode));
+
+    /**
+     * CN based lattice features used by MT people,
+     * in particular by Evgeny Matusov and Yuqi Zhang;
+     * if not needed anymore, please remove
+     **/
+    factory->add(
+            NodeCreator(
+                    "MT-CN-features",
+                    "...",
+                    "[*.network.MT-CN-features]\n"
+                    "type                        = CN-features\n"
+                    "compose                     = false\n"
+                    "duplicate-output            = false\n"
+                    "# features\n"
+                    "confidence.key              = <unset>\n"
+                    "score.key                   = <unset>\n"
+                    "cost.key                    = <unset>\n"
+                    "oracle-output               = false\n"
+                    "entropy.key                 = <unset>\n"
+                    "slot.key                    = <unset>\n"
+                    "non-eps-slot.key            = <unset>\n"
+                    "non-eps-slot.threshold      = 1.0\n"
+                    "[*.network.MT-CN-features.cn]\n"
+                    "posterior-key               = <unset>",
+                    "input:\n"
+                    "  0:lattice 1:CN\n"
+                    "output:\n"
+                    "  0:lattice",
+                    &createMtCnFeatureNode));
+    factory->add(
+            NodeCreator(
+                    "Evgeny-CN-features",
+                    "DEPRECATED: see \"MT-CN-features\"",
+                    "",
+                    "input:\n"
+                    "  0:lattice 1:CN\n"
+                    "output:\n"
+                    "  0:lattice",
+                    &createMtCnFeatureNode));
+
+    factory->add(
+            NodeCreator(
+                    "MT-prune-CN",
+                    "...",
+                    "[*.network.MT-prune-CN]\n"
+                    "type                        = MT-prune-CN\n"
+                    "threshold                   = <unset>\n"
+                    "max-slot-size               = <unset>\n"
+                    "normalize                   = true\n"
+                    "remove-eps-slots            = false\n"
+                    "eps-slot-removal.threshold  = 1.0",
+                    "input:\n"
+                    "  x:CN\n"
+                    "output:\n"
+                    "  x:CN",
+                    &createMtNormalizedCnPruningNode));
+    factory->add(
+            NodeCreator(
+                    "Evgeny-prune-CN",
+                    "DEPRECATED: see \"MT-prune-CN\"",
+                    "",
+                    "input:\n"
+                    "  x:CN\n"
+                    "output:\n"
+                    "  x:CN",
+                    &createMtNormalizedCnPruningNode));
+
+    /**
+     * MAP and Viterbi decoding of a single lattice,
+     * a lattice intersection, or a lattice union
+     **/
+    factory->add(
+            NodeCreator(
+                    "MAP-decoder",
+                    "MAP (or Viterbi) decoder for lattices.",
+                    "[*.network.MAP-decoder]\n"
+                    "type                        = MAP-decoder\n"
+                    "viterbi                     = false\n"
+                    "alpha                       = <unset>",
+                    "input:\n"
+                    "input:\n"
+                    "  0:lattice\n"
+                    "output:\n"
+                    "  0:best",
+                    &createMapDecoderNode));
+    factory->add(
+            NodeCreator(
+                    "lattice-decoder",
+                    "DEPRECATED: see \"MAP-decoder\"",
+                    "",
+                    "input:\n"
+                    "input:\n"
+                    "  0:lattice\n"
+                    "output:\n"
+                    "  0:best",
+                    &createMapDecoderNode));
+
+    factory->add(
+            NodeCreator(
+                    "intersection-MAP-decoder",
+                    "MAP (or Viterbi) decoder for lattice intersection.",
+                    "[*.network.intersection-MAP-decoder]\n"
+                    "type                        = intersection-MAP-decoder\n"
+                    "viterbi                     = false\n"
+                    "alpha                       = <unset>\n"
+                    "[*.network.intersection-MAP-decoder.fcn.fb]\n"
+                    "see FB-builder ...",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best",
+                    &createIntersectionMapDecoderNode));
+    factory->add(
+            NodeCreator(
+                    "lattice-intersection-decoder",
+                    "DEPRECATED: see \"intersection-MAP-decoder\"",
+                    "",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best",
+                    &createIntersectionMapDecoderNode));
+
+    factory->add(
+            NodeCreator(
+                    "union-MAP-decoder",
+                    "MAP (or Viterbi) decoder for normalized lattice union.",
+                    "[*.network.union-MAP-decoder]\n"
+                    "type                        = union-MAP-decoder\n"
+                    "viterbi                     = false\n"
+                    "alpha                       = <unset>\n"
+                    "prune.statistics.channel    = nil\n"
+                    "relative                    = true\n"
+                    "as-probability              = false\n"
+                    "threshold                   = inf\n"
+                    "lattice-0.weight            = 1.0\n"
+                    "lattice-1.weight            = 1.0\n"
+                    "...\n"
+                    "[*.network.union-MAP-decoder.fcn.fb]\n"
+                    "see FB-builder ...",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best",
+                    &createUnionMapDecoderNode));
+    factory->add(
+            NodeCreator(
+                    "lattice-union-decoder",
+                    "DEPRECATED: see \"union-MAP-decoder\"",
+                    "",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best",
+                    &createUnionMapDecoderNode));
+
+    /**
+     * dump posterior probabilities of the form p(w_n| w_{n-1}, w_{n-2}, ..., X),
+     * where the word index n denotes the position in a given CN alignment
+     **/
+    factory->add(
+            NodeCreator(
+                    "dump-conditional-posteriors",
+                    "WARNING: beta status\n"
+                    "Compute and dump conditional posterior probabilities.\n"
+                    "For a context of length c the posteriors P(w_n| w_{n-1}...w_{n-c}, x_1^T)\n"
+                    "are computed, where the word positions are taken from a CN.\n"
+                    "If compact is set, then pure epsilon slots are removed from the CN.",
+                    "[*.network.dump-conditional-posteriors]\n"
+                    "type                        = dump-conditional-posteriors\n"
+                    "context                     = 2\n"
+                    "compact                     = true\n"
+                    "cn.algorithm                = arc-clustering*|state-clustering|center-frame\n"
+                    "# arc-clustering parameters\n"
+                    "# state-clustering parameters\n"
+                    "# center-frame parameters\n"
+                    "cn.center-frame.compact    = true\n"
+                    "dump.channel                = <unset>",
+                    "input:\n"
+                    "  0:lattice [1:segment]\n"
+                    "output:\n"
+                    "  0:lattice",
+                    &createConditionalPosteriorsNode));
+
+    /**
+     * windowed Levenshtein distance deocder
+     **/
+    factory->add(
+            NodeCreator(
+                    "windowed-Lev-decoder",
+                    "WARNING: beta status\n"
+                    "Decode incoming lattice(s).\n"
+                    "A windowed minimum Bayes risk decoding is performed,\n"
+                    "where the window is centered and of size 2*context+1.\n"
+                    "For summation and search space a window of same size is used.\n"
+                    "The CN used for initialization is a pivot-CN; see the\n"
+                    "pivot-CN-builder node for further information.\n"
+                    "The alignment- and cost-lattice are only available if the\n"
+                    "compiled with the WINDOWED_LEVENSHTEIN_DECODER_FULL_ALIGNMENT\n"
+                    "flag; tracking the alignment is memory expensive.",
+                    "[*.network.windowed-Lev-decoder]\n"
+                    "type                        = windowed-Lev-decoder\n"
+                    "context                     = 2\n"
+                    "confidence-key              = <unset>\n"
+                    "cn.algorithm                = arc-clustering*|state-clustering|center-frame\n"
+                    "# arc-clustering parameters\n"
+                    "# state-clustering parameters\n"
+                    "# center-frame parameters\n"
+                    "cn.center-frame.compact    = true\n"
+                    "# search\n"
+                    "search-space.restricted     = false\n"
+                    "# CN based pre-pruning;\n"
+                    "# threshold is the probability mass kept per CN slot\n"
+                    "pre-pruning.threshold       = <unset>\n"
+                    "pre-pruning.max-slot-size   = <unset>\n"
+                    "# risk based dynamic pruning\n"
+                    "pruning.threshold           = <unset>\n"
+                    "pruning.supply              = <unset>",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best-lattice 1:union-lattice [2:alignment-lattice 3:cost-lattice]",
+                    &createWindowedLevenshteinDistanceDecoderNode));
+    factory->add(
+            NodeCreator(
+                    "MBR-decoder",
+                    "DEPRECATED: see \"windowed-Lev-decoder\"",
+                    "",
+                    "input:\n"
+                    "  0:lattice [1:lattice [...]]\n"
+                    "output:\n"
+                    "  0:best-lattice 1:union-lattice [2:alignment-lattice 3:cost-lattice]",
+                    &createWindowedLevenshteinDistanceDecoderNode));
+#endif  // MODULE_FLF_EXT
 
 }  // registerNodeCreators
 

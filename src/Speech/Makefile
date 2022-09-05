@@ -87,6 +87,10 @@ LIBSPRINTSPEECH_O += $(OBJDIR)/NBestListExtractor.o
 LIBSPRINTSPEECH_O += $(OBJDIR)/RpropDiscriminativeMixtureSetTrainer.o
 endif
 
+ifdef MODULE_FLF_EXT
+LIBSPRINTSPEECH_O += $(OBJDIR)/AlignedFeatureCache.o
+endif
+
 ifdef MODULE_SPEECH_LATTICE_FLOW_NODES
 LIBSPRINTSPEECH_O += $(OBJDIR)/AlignmentFromLattice.o
 LIBSPRINTSPEECH_O += $(OBJDIR)/LatticeNodes.o

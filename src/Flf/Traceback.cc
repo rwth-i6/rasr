@@ -27,13 +27,18 @@
 #include "Map.hh"
 #include "Segment.hh"
 #include "Traceback.hh"
+#ifdef MODULE_FLF_EXT
+#include "FlfExt/AcousticAlignment.hh"
+#endif
 
 namespace Flf {
 
+#ifndef MODULE_FLF_EXT
 class LatticeAlignmentBuilder : public Core::ReferenceCounted {};
 typedef Core::Ref<LatticeAlignmentBuilder> LatticeAlignmentBuilderRef;
 class LatticeAlignment : public Core::ReferenceCounted {};
 typedef Core::Ref<const LatticeAlignment> ConstLatticeAlignmentRef;
+#endif
 
 // -------------------------------------------------------------------------
 class DumpTracebackNode : public FilterNode {
@@ -221,6 +226,59 @@ protected:
                 os << " " << TypeChoice[type];
             os << tail << std::endl;
         }
+
+#ifdef MODULE_FLF_EXT
+        void printSubwordAlignment(f32 start, f32 duration, ConstSubWordAlignmentRef subwordAlignment, bool dumpOrthography = true) {
+            Lexicon::LemmaPronunciationAlphabetRef lpAlphabet = Lexicon::us()->lemmaPronunciationAlphabet();
+            Lexicon::LemmaAlphabetRef              lAlphabet  = Lexicon::us()->lemmaAlphabet();
+            f32                                    subStart   = start;
+            for (u32 i = 0, i_last = subwordAlignment->size() - 1; i <= i_last; ++i) {
+                const SubWord& sw          = (*subwordAlignment)[i];
+                f32            subDuration = f32(sw.duration) / 100.0;
+                if ((Fsa::FirstLabelId <= sw.label) && (sw.label <= Fsa::LastLabelId)) {
+                    os << name
+                       << " " << track
+                       << " " << Core::form("%.3f", subStart)
+                       << " " << Core::form("%.3f", subDuration)
+                       << " " << (dumpOrthography ? std::string(lpAlphabet->lemmaPronunciation(sw.label)->lemma()->preferredOrthographicForm()) : lpAlphabet->symbol(sw.label));
+                    for (ScoreIdList::const_iterator itId = scoreIds.begin(); itId != scoreIds.end(); ++itId)
+                        os << " "
+                           << "0";
+                    if (i == 0)
+                        os << " " << TypeChoice[TypeSubLexicalBegin];
+                    else if (i == i_last)
+                        os << " " << TypeChoice[TypeSubLexicalWithin];
+                    else
+                        os << " " << TypeChoice[TypeSubLexicalEnd];
+                    os << tail << std::endl;
+                }
+                else if (sw.label == Fsa::InvalidLabelId)
+                    Core::Application::us()->warning(
+                            "Invalid label ID found in subwords of \"%s\".",
+                            lpAlphabet->symbol(subwordAlignment->label()).c_str());
+                subStart += subDuration;
+            }
+        }
+
+        void printPhonemeAlignment(f32 start, f32 duration, ConstSubWordAlignmentRef phonemeAlignment) {
+            Lexicon::PhonemeAlphabetRef pAlphabet  = Lexicon::us()->phonemeInventory()->phonemeAlphabet();
+            f32                         phoneStart = start;
+            for (SubWordAlignment::const_iterator itAlign = phonemeAlignment->begin(), endAlign = phonemeAlignment->end(); itAlign != endAlign; ++itAlign) {
+                f32 phoneDuration = f32(itAlign->duration) / 100.0;
+                os << name
+                   << " " << track
+                   << " " << Core::form("%.3f", phoneStart)
+                   << " " << Core::form("%.3f", phoneDuration)
+                   << " " << pAlphabet->symbol(itAlign->label);
+                for (ScoreIdList::const_iterator itId = scoreIds.begin(); itId != scoreIds.end(); ++itId)
+                    os << " "
+                       << "0";
+                os << " " << TypeChoice[TypePhone]
+                   << tail << std::endl;
+                phoneStart += phoneDuration;
+            }
+        }
+#endif
     };
 
     void dumpCtmTraceback(ConstLatticeRef l, std::ostream& os) {
@@ -404,15 +462,35 @@ protected:
     }
 
     ConstLatticeAlignmentRef getLatticeAlignment(ConstLatticeRef l) {
+#ifdef MODULE_FLF_EXT
+        if (!segment_->hasBlissSpeechSegment())
+            criticalError("Acoustic alignment requires a Bliss speech segment.");
+        return alignmentBuilder_->build(l, segment_->blissSpeechSegment());
+#else
         criticalError("Acoustic alignment requires module FLF_EXT");
         return ConstLatticeAlignmentRef();
+#endif
     }
 
     bool dumpPhonemeAlignment(CtmPrinter& cp, ConstLatticeAlignmentRef latticeAlignment, ConstStateRef sr, f32 absoluteBegin, f32 duration) {
+#ifdef MODULE_FLF_EXT
+        ConstSubWordAlignmentRef phonemeAlignment = latticeAlignment->phonemeAlignment(sr.get(), sr->begin());
+        if (phonemeAlignment) {
+            cp.printPhonemeAlignment(absoluteBegin, duration, phonemeAlignment);
+            return true;
+        }
+#endif
         return false;
     }
 
     bool dumpSubwordAlignment(CtmPrinter& cp, ConstLatticeAlignmentRef latticeAlignment, ConstStateRef sr, f32 absoluteBegin, f32 duration) {
+#ifdef MODULE_FLF_EXT
+        ConstSubWordAlignmentRef subwordAlignment = latticeAlignment->subwordAlignment(sr.get(), sr->begin());
+        if (subwordAlignment) {
+            cp.printSubwordAlignment(absoluteBegin, duration, subwordAlignment, dumpOrthography_);
+            return true;
+        }
+#endif
         return false;
     }
 
@@ -523,7 +601,19 @@ public:
     }
 
     void createAlignmentBuilder(const Core::Configuration& ctmConfig) {
+#ifdef MODULE_FLF_EXT
+        LabelMapList subwordMapList;
+        if (dumpSubwordAlignment_) {
+            Fsa::ConstAlphabetRef lpAlphabet = Lexicon::us()->alphabet(Lexicon::LemmaPronunciationAlphabetId);
+            subwordMapList.push_back(LabelMap::load(Core::Configuration(ctmConfig, "subword-map"), lpAlphabet));
+            if (!subwordMapList.back())
+                criticalError("Dumping of subwords requires a word-to-subword mapping.");
+        }
+        alignmentBuilder_ = LatticeAlignmentBuilder::create(config, subwordMapList);
+        dumpType_         = true;
+#else
         criticalError("lattice alignment requires module FLF_EXT.");
+#endif
     }
 };
 const Core::Choice DumpTracebackNode::CtmPrinter::TypeChoice(

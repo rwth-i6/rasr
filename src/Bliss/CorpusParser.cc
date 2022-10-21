@@ -165,6 +165,12 @@ const Core::ParameterBool CorpusDescriptionParser::paramProgress(
         "show progress meter",
         false);
 
+const Core::ParameterString CorpusDescriptionParser::paramRemoveCorpusNamePrefix(
+        "remove-corpus-name-prefix",
+        "remove this prefix from the corpus part full-names",
+        "",
+        "Remove this prefix from the top-level corpus and corpora for the full segment name. Can be useful to get the original names of merged corpora.");
+
 void CorpusDescriptionParser::initSchema() {
     XmlElement* conditionDesc        = collect(new ConditionDescriptionElement(
             this, ConditionDescriptionElement::handler(&Self::defineCondition)));
@@ -360,6 +366,7 @@ void CorpusDescriptionParser::startCorpus(const XmlAttributes atts) {
         verify(!superCorpus_);
         corpus_ = new Corpus();
         corpus_->setName(name);
+        corpus_->setRemovePrefix(removeCorpusNamePrefix_);
         if (corpusVisitor_) {
             corpusVisitor_->enterCorpus(corpus_);
         }
@@ -384,6 +391,7 @@ void CorpusDescriptionParser::startSubcorpus(const XmlAttributes atts) {
     else {
         superCorpus_->reserveName(name);
         corpus_->setName(name);
+        corpus_->setRemovePrefix(removeCorpusNamePrefix_);
     }
 
     currentSection_ = corpus_;
@@ -725,6 +733,7 @@ int CorpusDescriptionParser::accept(const std::string& filename, CorpusVisitor* 
     corpusDir_                     = Core::directoryName(filename);
     audioDir_                      = paramAudioDir(config, corpusDir_);
     videoDir_                      = paramVideoDir(config, corpusDir_);
+    removeCorpusNamePrefix_        = paramRemoveCorpusNamePrefix(config);
     shallCaptializeTranscriptions_ = paramCaptializeTranscriptions(config);
     shallGemenizeTranscriptions_   = paramGemenizeTranscriptions(config);
     return XmlParser::parseFile(filename.c_str());

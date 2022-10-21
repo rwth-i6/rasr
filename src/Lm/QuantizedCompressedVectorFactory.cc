@@ -14,6 +14,10 @@
  */
 #include "QuantizedCompressedVectorFactory.hh"
 
+#ifdef __AVX__
+#include <immintrin.h>
+#endif
+
 namespace Lm {
 
 // --------------------------- QuantizedFloatVector ---------------------------

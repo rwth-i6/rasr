@@ -24,9 +24,9 @@ Stage: tensorflow
     mkdir -p /opt/tensorflow/
     cd /opt/tensorflow/
 
-    wget https://github.com/tensorflow/tensorflow/archive/v1.15.4.tar.gz
-    tar xzvf v1.15.4.tar.gz
-    mv tensorflow-1.15.4 tensorflow
+    wget https://github.com/tensorflow/tensorflow/archive/v1.15.5.tar.gz
+    tar xzvf v1.15.5.tar.gz
+    mv tensorflow-1.15.5 tensorflow
 
     cat << EOF > /opt/tensorflow/tensorflow/.tf_configure.bazelrc
 build --host_force_python=PY3

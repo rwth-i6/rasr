@@ -231,6 +231,7 @@ public:
     typedef std::stack<Node*>        NodePtrStack;
 
     static const Core::ParameterString paramCartFilename;
+    static const Core::ParameterString paramCartEncoding;
 
     // path of a classification
     struct Path {

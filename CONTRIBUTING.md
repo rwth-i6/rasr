@@ -4,12 +4,11 @@ Overview
 Coding conventions
 
 - use clangformat
-- no tabs, 4 spaces per indentation level
 - camel case for files and directories (start with a capital)
 - camel case for variables (classes: start with capital, everything else: start with lower case)
 - avoid abbreviations
 - avoid subdirectories
-- private variables should end with an underscore
+- private members should end with an underscore
 - include guard should include folder name
 - no exceptions
 
@@ -46,7 +45,7 @@ Source Code Layout
 **Recommendation**: Logical units within a block should be separated by one blank line. 
 
 ---
-**Rule**: Whenever a block exceeds one screen-full in length the closing brace should be commented. 
+**Rule**: Whenever a block exceeds one screen-full in length (about 70 lines) the closing brace should be commented. 
 ```
 namespace Core {
     ...

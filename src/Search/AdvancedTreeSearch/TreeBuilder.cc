@@ -454,6 +454,14 @@ std::vector<TreeBuilder::StateId> TreeBuilder::minimize(bool forceDeterminizatio
 
     std::vector<u32> fanIn(network_.structure.stateCount(), 0);
 
+    // Collect all zero-depth roots to skip them during clean-up
+    std::set<StateId> usefulRoots;
+    for (RootHash::const_iterator rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt) {
+        if (rootIt->first.depth == 0) {
+            usefulRoots.insert(rootIt->second);
+        }
+    }
+
     for (StateId node = 1; node < network_.structure.stateCount(); ++node) {
         active.push_back(node);
         for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(node); target; ++target) {
@@ -467,16 +475,17 @@ std::vector<TreeBuilder::StateId> TreeBuilder::minimize(bool forceDeterminizatio
         }
     }
 
-    log() << "keeping " << usedRoots.size() << " out of " << network_.coarticulatedRootStates.size() << " roots";
     std::set<StateId> oldCoarticulatedRoots = network_.coarticulatedRootStates;
     for (std::set<StateId>::iterator it = oldCoarticulatedRoots.begin(); it != oldCoarticulatedRoots.end(); ++it) {
-        if (usedRoots.count(*it) == 0) {
+        // not clean up 0-depth roots' connection if needed
+        if (usedRoots.count(*it) == 0 && usefulRoots.count(*it) == 0) {
             network_.coarticulatedRootStates.erase(*it);
             network_.rootTransitDescriptions.erase(*it);
             network_.unpushedCoarticulatedRootStates.erase(*it);
             network_.structure.clearOutputEdges(*it);
         }
     }
+    log() << "keeping " << network_.coarticulatedRootStates.size() << " out of " << oldCoarticulatedRoots.size() << " roots";
 
     std::vector<StateId> determinizeMap(network_.structure.stateCount(), 0);
 
@@ -536,7 +545,9 @@ std::vector<TreeBuilder::StateId> TreeBuilder::minimize(bool forceDeterminizatio
     }
 
     // Minimize: Join states with the same successors/exits
-    predecessors_.clear();
+    // record original FanIn/Out related predecessor hash
+    PredecessorsHash oldPredecessors;
+    oldPredecessors.swap(predecessors_);
 
     std::vector<StateId> minimizeMap(network_.structure.stateCount(), 0);
 
@@ -546,10 +557,20 @@ std::vector<TreeBuilder::StateId> TreeBuilder::minimize(bool forceDeterminizatio
     for (std::set<StateId>::iterator it = skipRootSet_.begin(); it != skipRootSet_.end(); ++it)
         minimizeState(*it, minimizeMap);
 
+    // loop over 0-depth roots to make sure they are mapped and connected with updated successors
+    for (std::set<StateId>::iterator it = usefulRoots.begin(); it != usefulRoots.end(); ++it) {
+        if (determinizeMap[*it]) {
+            minimizeState(determinizeMap[*it], minimizeMap);
+        } else {
+            minimizeState(*it, minimizeMap);
+        }
+    }
+
     verify(minimizeMap[network_.rootState] == network_.rootState);
 
+    std::vector<u32> minimizeExitsMap;
     if (!keepRoots_) {
-        std::vector<u32> minimizeExitsMap(network_.exits.size(), Core::Type<u32>::max);
+        minimizeExitsMap.resize(network_.exits.size(), Core::Type<u32>::max);
         {
             std::vector<PersistentStateTree::Exit> oldExits;
             oldExits.swap(network_.exits);
@@ -634,6 +655,10 @@ std::vector<TreeBuilder::StateId> TreeBuilder::minimize(bool forceDeterminizatio
     }
     log() << "transformed states: " << kept << " lost: " << lost;
     //   verify( allowLost || !lost );
+
+    // update necessary hashs w.r.t. minimizeMap
+    predecessors_.swap(oldPredecessors);
+    updateHashFromMap(minimizeMap, minimizeExitsMap);
 
     printStats("after minimization");
     return minimizeMap;
@@ -1054,4 +1079,68 @@ std::string TreeBuilder::describe(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::
 
 Core::Component::Message TreeBuilder::log() const {
     return Core::Application::us()->log("TreeBuilder: ");
+}
+
+
+// update hash structures according to minimizeMap (invalid ones are removed)
+// should be ok for any number of minimize iterations
+void TreeBuilder::updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
+    Core::HashMap<StateId, RootKey> tmpKeyHash;
+    for (Core::HashMap<StateId, RootKey>::iterator iter = stateUniqueKeys_.begin(); iter != stateUniqueKeys_.end(); ++iter)
+        if (iter->first < map.size() && map[iter->first])
+            tmpKeyHash.insert(std::make_pair(map[iter->first], iter->second));
+    stateUniqueKeys_.swap(tmpKeyHash);
+
+    mapCoarticulationJointHash(initialPhoneSuffix_, map, exitMap);
+    mapCoarticulationJointHash(initialFinalPhoneSuffix_, map, exitMap);
+
+    RootHash tmpRootHash;
+    for (RootHash::const_iterator rootIt = roots_.begin(); rootIt != roots_.end(); ++rootIt)
+        if (rootIt->second < map.size() && map[rootIt->second])
+            tmpRootHash.insert(std::make_pair(rootIt->first, map[rootIt->second]));
+    roots_.swap(tmpRootHash);
+
+    // exits are changed in cleanup
+    exitHash_.clear();
+    for (u32 idx = 0; idx != network_.exits.size(); ++idx)
+        exitHash_.insert(std::make_pair(network_.exits[idx], idx));
+
+    // PredecessorsHash still the FanIn/Out ones at this point (recorded in minimize())
+    PredecessorsHash tmpPredHash;
+    for (PredecessorsHash::iterator pIt = predecessors_.begin(); pIt != predecessors_.end(); ++pIt) {
+        if (pIt->second >= map.size() || !map[pIt->second])
+            continue;
+        const StatePredecessor& sp = pIt->first;
+        std::set<StateId>       tmpSet;
+        mapSuccessors(sp.successors, tmpSet, map, exitMap);
+        if (!tmpSet.empty()) {
+            StatePredecessor spNew(tmpSet, sp.desc, sp.isWordEnd);
+            tmpPredHash.insert(std::make_pair(spNew, map[pIt->second]));
+        }
+    }
+    predecessors_.swap(tmpPredHash);
+}
+
+inline void TreeBuilder::mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
+    CoarticulationJointHash tmpHash;
+    for (CoarticulationJointHash::iterator iter = hash.begin(); iter != hash.end(); ++iter) {
+        std::set<StateId> tmpSet;
+        mapSuccessors(iter->second, tmpSet, map, exitMap);
+        if (!tmpSet.empty())
+            tmpHash.insert(std::make_pair(iter->first, tmpSet));
+    }
+    hash.swap(tmpHash);
+}
+
+inline void TreeBuilder::mapSuccessors(const std::set<StateId>& successors, std::set<StateId>& tmpSet, const std::vector<StateId>& map, const std::vector<u32>& exitMap) {
+    for (std::set<StateId>::const_iterator sIt = successors.cbegin(); sIt != successors.cend(); ++sIt)
+        if (IS_LABEL(*sIt)) {
+            u32 eIdx = LABEL_FROM_ID(*sIt);
+            if (exitMap.empty() || eIdx >= exitMap.size())
+                tmpSet.insert(*sIt);
+            else
+                tmpSet.insert(ID_FROM_LABEL(exitMap[eIdx]));
+        }
+        else if (*sIt < map.size() && map[*sIt])
+            tmpSet.insert(map[*sIt]);
 }

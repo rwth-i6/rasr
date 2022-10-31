@@ -18,6 +18,7 @@ IGNORE_DEP = [ ("Audio", "Wav") ]
 DIR_MODULES = { "Nn": "MODULE_NN",
                 "Flf": "MODULE_FLF",
                 "Flf/FlfCore": "MODULE_FLF_CORE",
+                "Flf/FlfExt": "MODULE_FLF_EXT",
                 "Math/Nr": "MODULE_MATH_NR",
                 "Search/Wfst": "MODULE_SEARCH_WFST",
                 "Search/AdvancedTreeSearch": "MODULE_ADVANCED_TREE_SEARCH",

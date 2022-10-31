@@ -42,13 +42,22 @@ const char* const NamedCorpusEntity::anonymous = "ANONYMOUS";
 
 NamedCorpusEntity::NamedCorpusEntity(ParentEntity* _parent)
         : parent_(_parent),
-          name_(anonymous) {}
+          name_(anonymous),
+          removePrefix_(std::string()) {}
 
 std::string NamedCorpusEntity::fullName() const {
+    std::string new_name;
     if (parent())
-        return parent()->fullName() + "/" + name();
+        new_name = parent()->fullName() + "/" + name();
     else
-        return name();
+        new_name = name();
+    if (!removePrefix_.empty()) {
+        auto res = std::mismatch(removePrefix_.begin(), removePrefix_.end(), new_name.begin());
+        if (res.first == removePrefix_.end()){
+            new_name = std::string(res.second, new_name.end());
+        }
+    }
+    return new_name;
 }
 
 // ========================================================================

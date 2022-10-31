@@ -193,6 +193,9 @@ void DecisionTree::Path::write(std::ostream& out) const {
 const Core::ParameterString DecisionTree::paramCartFilename(
         "decision-tree-file",
         "name of decision tree (aka cart) file");
+const Core::ParameterString DecisionTree::paramCartEncoding(
+        "encoding",
+        "encoding of the cart file");
 
 DecisionTree::DecisionTree(const Core::Configuration& config,
                            PropertyMapRef             map,
@@ -365,9 +368,10 @@ void DecisionTree::writeXml(Core::XmlWriter& xml, const std::string& name) const
 
 void DecisionTree::writeToFile() const {
     std::string filename(paramCartFilename(config));
+    std::string encoding(paramCartEncoding(config));
     if (!filename.empty()) {
         log() << "write decision tree to \"" << filename << "\"";
-        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename));
+        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename), encoding);
         xml.generateFormattingHints(true);
         xml.setIndentation(4);
         xml.setMargin(78);

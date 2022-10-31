@@ -233,6 +233,10 @@ protected:
 
     typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash> PredecessorsHash;
     PredecessorsHash                                                                 predecessors_;
+protected:
+    void updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap);
+    void mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap);
+    void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
 };
 
 #endif

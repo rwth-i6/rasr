@@ -130,6 +130,7 @@ const char* const UnicodeInputConverter ::defaultEncoding = "ISO-8859-1";
 
 void CharsetConverter::deactivate() {
     if (isConversionActive()) {
+        std::lock_guard<std::mutex> lock(iconv_mutex_);
         if (iconv_close(iconvHandle_)) {
             perror("iconv_close");
             errno = 0;
@@ -144,6 +145,7 @@ void UnicodeInputConverter::setInputEncoding(const char* inputEncoding) {
     if (!strcmp(inputEncoding, "UTF-8"))
         return;
 
+    std::lock_guard<std::mutex> lock(iconv_mutex_);
     iconvHandle_ = iconv_open("UTF-8", inputEncoding);
 
     if (iconvHandle_ == (iconv_t)-1 && errno == EINVAL) {
@@ -163,6 +165,7 @@ void UnicodeOutputConverter::setOutputEncoding(const char* outputEncoding) {
     if (!strcmp(outputEncoding, "UTF-8"))
         return;
 
+    std::lock_guard<std::mutex> lock(iconv_mutex_);
     iconvHandle_ = iconv_open(outputEncoding, "UTF-8");
 
     if (iconvHandle_ == (iconv_t)-1 && errno == EINVAL) {
@@ -195,48 +198,52 @@ OutIterator CharsetConverter::convert(
     std::vector<char> inBuffer(begin, end);
     size_t            inBufferLen = inBuffer.size();
 
-    for (char* inBufferPtr = &inBuffer[0]; inBufferLen > 0;) {
-        char   outBuffer[512];
-        size_t outBufferLen = sizeof(outBuffer);
-        char*  outBufferPtr = outBuffer;
+    if (inBufferLen > 0) {
+        for (char* inBufferPtr = &inBuffer[0]; inBufferLen > 0;) {
+            char   outBuffer[512];
+            size_t outBufferLen = sizeof(outBuffer);
+            char*  outBufferPtr = outBuffer;
 
-        size_t nconv = iconv(iconvHandle_, &inBufferPtr, &inBufferLen, &outBufferPtr, &outBufferLen);
-        out          = std::copy(outBuffer, outBufferPtr, out);
+            iconv_mutex_.lock();
+            size_t nconv = iconv(iconvHandle_, &inBufferPtr, &inBufferLen, &outBufferPtr, &outBufferLen);
+            iconv_mutex_.unlock();
+            out = std::copy(outBuffer, outBufferPtr, out);
 
-        if (nconv != (size_t)-1) {
-            converted += nconv;
-            verify(outBufferPtr > outBuffer);
-        }
-        else {
-            switch (errno) {
-                case E2BIG:
-                    /* Not an error: The conversion stopped because it ran out
-                     * of space in the output buffer.  */
-                    break;
-                case EINVAL:
-                    /* The conversion stopped because of an incomplete byte
-                     * sequence at the end of the input buffer.
-                     *
-                     * FIXME: Currently we do not handle this case, since
-                     * it requires buffer to be a non-static member.
-                     * It is also unclear if this ever occurs. */
-                    defect();
-                    break;
-                case EILSEQ:
-                    /* The conversion stopped because of an invalid byte
-                     * sequence in the input.  Non-representable
-                     * characters are replaced by question marks. */
-                    verify(inBufferLen > 0);
-                    inBufferPtr++;
-                    inBufferLen--;
-                    converted++;
-                    *out++ = '?';
-                    nErrors_++;
-                    break;
-                default:
-                    perror("iconv");
+            if (nconv != (size_t)-1) {
+                converted += nconv;
+                verify(outBufferPtr > outBuffer);
             }
-            errno = 0;
+            else {
+                switch (errno) {
+                    case E2BIG:
+                        /* Not an error: The conversion stopped because it ran out
+                         * of space in the output buffer.  */
+                        break;
+                    case EINVAL:
+                        /* The conversion stopped because of an incomplete byte
+                         * sequence at the end of the input buffer.
+                         *
+                         * FIXME: Currently we do not handle this case, since
+                         * it requires buffer to be a non-static member.
+                         * It is also unclear if this ever occurs. */
+                        defect();
+                        break;
+                    case EILSEQ:
+                        /* The conversion stopped because of an invalid byte
+                         * sequence in the input.  Non-representable
+                         * characters are replaced by question marks. */
+                        verify(inBufferLen > 0);
+                        inBufferPtr++;
+                        inBufferLen--;
+                        converted++;
+                        *out++ = '?';
+                        nErrors_++;
+                        break;
+                    default:
+                        perror("iconv");
+                }
+                errno = 0;
+            }
         }
     }
     verify(inBufferLen == 0);

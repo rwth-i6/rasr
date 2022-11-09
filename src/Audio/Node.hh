@@ -92,34 +92,34 @@ private:
 
 protected:
     /** Set total number of sample in audio file.
-         * Call this function from openFile(), if you know the total
-         * length of the audio file.
-         * Note: One samples always means one sample per track! */
+     * Call this function from openFile(), if you know the total
+     * length of the audio file.
+     * Note: One samples always means one sample per track! */
     void setTotalSampleCount(SampleCount);
 
     /** Open audio file and read sample format.
-         * Implement this in concrete input nodes.
-         * @return true on success.  On failure call error() and
-         * return false. */
+     * Implement this in concrete input nodes.
+     * @return true on success.  On failure call error() and
+     * return false. */
     virtual bool openFile_() = 0;
 
     /** Set file position.
-         * Implement this in concrete file input nodes, iff seeking is
-         * possible.  Default implementation disallows seeking.
-         * @param newSamplePos number of next sample to be read,
-         * counted from beginning of stream
-         * @return true on success.  On failure call error() and
-         * return false. */
+     * Implement this in concrete file input nodes, iff seeking is
+     * possible.  Default implementation disallows seeking.
+     * @param newSamplePos number of next sample to be read,
+     * counted from beginning of stream
+     * @return true on success.  On failure call error() and
+     * return false. */
     virtual bool seek(SampleCount newSamplePos);
 
     /** Read at most @c nSamples samples from file.
-         * Implement this in concrete input nodes.
-         * @param nSamples number of samples to read
-         * @param d store pointer of new data packet here. If EOF or
-         * an error occurs d must be set to zero.
-         * @return number of samples read, may be less than @c nSamples.
-         * On failure call error() and return 0.
-         * Note: One samples always means one sample per track! */
+     * Implement this in concrete input nodes.
+     * @param nSamples number of samples to read
+     * @param d store pointer of new data packet here. If EOF or
+     * an error occurs d must be set to zero.
+     * @return number of samples read, may be less than @c nSamples.
+     * On failure call error() and return 0.
+     * Note: One samples always means one sample per track! */
     virtual u32 read(u32 nSamples, Flow::Timestamp*& d) = 0;
 
     /** @return is sample position of startTime_. */
@@ -154,7 +154,8 @@ public:
 };
 
 /** Abstract Flow node for audio output.
-        Forwards all input on its first output port. */
+ *  Forwards all input on its first output port.
+ */
 class SinkNode : public virtual Node {
     typedef Node Predecessor;
 

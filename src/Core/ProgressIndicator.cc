@@ -220,7 +220,7 @@ void ProgressIndicator::sigWinchHandler(int sig) {
 
 ProgressIndicator::ProgressIndicator(const std::string& task,
                                      const std::string& unit)
-        : align_(Left), task_(task), unit_(unit), isVisible_(false), draw(0), write_return_val_(0) {}
+        : align_(Left), task_(task), unit_(unit), done_(0), isVisible_(false), draw(0), write_return_val_(0) {}
 
 ProgressIndicator::~ProgressIndicator() {
     if (activeInstance == this)

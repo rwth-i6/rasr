@@ -169,7 +169,8 @@ FileArchive::FileArchive(const Configuration& c, const std::string& p, AccessMod
     // create file archive if necessary
     open_ = false;
     struct stat64 fs;
-    if (stat64(path().c_str(), &fs) != 0) {
+    if (stat64(path().c_str(), &fs) != 0 ||
+        (stat64(path().c_str(), &fs) == 0 && fs.st_size == 0)) {
         // create new file archive
         if (access & AccessModeWrite) {
             createDirectory(directoryName(path()));

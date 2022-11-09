@@ -177,6 +177,11 @@ public:
     void writeResources(XmlWriter&) const;
 
     /**
+     * Return all configuration resources in command-line format
+     */
+    std::vector<std::string> writeResourcesToCommandlineArgs() const;
+
+    /**
      * Report how configuration ressources where used by which
      * parameters.
      **/

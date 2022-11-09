@@ -166,7 +166,6 @@ class DiphoneNoStateTyingDense : public NoStateTyingDense {
 public:
     DiphoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
-
 };
 
 // ============================================================================

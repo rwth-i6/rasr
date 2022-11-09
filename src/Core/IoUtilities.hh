@@ -17,10 +17,13 @@
 
 #include <Core/Types.hh>
 #include <algorithm>
+#include <cerrno>
 #include <iostream>
 #include <list>
 #include <set>
 #include <vector>
+#include <limits.h>
+#include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -111,6 +114,10 @@ ListWriter<typename std::list<T>::const_iterator> str(const std::list<T>& v, con
  */
 bool writeLargeBlock(int fd, const char* buf, u64 count);
 
+/**
+ * Similar to Linux' readlink -f
+ */
+std::string realPath(const std::string& filename);
 }  // namespace Core
 
 inline std::ostream& operator<<(std::ostream& out, const Core::OStreamWriter& w) {

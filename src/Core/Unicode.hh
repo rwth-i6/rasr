@@ -16,6 +16,7 @@
 #define _CORE_UNICODE_HH
 
 #include <functional>
+#include <mutex>
 #include <string>
 #include <iconv.h>
 #include "Assertions.hh"
@@ -118,9 +119,10 @@ const char* const defaultEncoding = "ISO-8859-1";
 
 class CharsetConverter {
 protected:
-    iconv_t iconvHandle_;
-    size_t  nErrors_;
-    void    deactivate();
+    mutable std::mutex iconv_mutex_;
+    iconv_t            iconvHandle_;
+    size_t             nErrors_;
+    void               deactivate();
 
 public:
     CharsetConverter() {
@@ -133,6 +135,7 @@ public:
     }
 
     bool isConversionActive() const {
+        std::lock_guard<std::mutex> lock(iconv_mutex_);
         return iconvHandle_ != (iconv_t)-1;
     }
     size_t nErrors() const {

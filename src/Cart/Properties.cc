@@ -13,6 +13,7 @@
  *  limitations under the License.
  */
 #include "Properties.hh"
+#include "Core/Application.hh"
 
 #include <map>
 
@@ -42,8 +43,11 @@ void PropertyMap::set(const StringList&              keys,
     ListOfIndexedStringList::const_iterator valueIt;
     for (choicePtrIt = values_->begin(), valueIt = values.begin();
          choicePtrIt != values_->end(); ++choicePtrIt, ++valueIt) {
-        // it makes no sense to have only one possible answer
-        verify(valueIt->size() > 1);
+        verify(valueIt->size() > 0);
+        if (valueIt->size() == 1) {
+            int i = std::distance(values.begin(), valueIt);
+            Core::Application::us()->warning("The property %s has only one option: %s. If this is not done on purpose, please check your configurations.", (keys[i]).c_str(), ((*valueIt)[0].first).c_str());
+        }
         *choicePtrIt = new Choice(*valueIt);
     }
 }

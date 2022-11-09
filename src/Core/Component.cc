@@ -32,6 +32,13 @@ const Choice Component::errorActionChoice(
         "immediate-exit", ErrorActionImmediateExit,
         Choice::endMark());
 
+const Choice Component::logTimingChoice(
+        "no", LogTimingNo,
+        "yes", LogTimingYes,
+        "unix-time", LogTimingUnix,
+        "milliseconds", LogTimingMilliseconds,
+        Choice::endMark());
+
 const char* Component::errorNames[nErrorTypes] = {
         "information",
         "warning",
@@ -106,6 +113,18 @@ void Component::initialize() {
     if (errorActions_[ErrorTypeCriticalError] != ErrorActionImmediateExit) {
         warning("Critical errors will be delayed or ignored. Expect unpredictable behaviour!");
     }
+
+    initializeTimeLogging(config);
+}
+
+void Component::initializeTimeLogging(const Configuration& c) {
+    static const ParameterChoice logTiming(
+            "log-timing",
+            &logTimingChoice,
+            "add time stamp to all log messages",
+            LogTimingNo);
+
+    logTiming_ = LogTimingMode(logTiming(c));
 }
 
 XmlChannel* Component::errorChannel(ErrorType mt) const {
@@ -177,7 +196,14 @@ XmlChannel* Component::vErrorMessage(ErrorType type, const char* msg, va_list ap
 
     XmlChannel* chn = errorChannel(type);
 
-    *chn << XmlOpen(errorNames[type]) + XmlAttribute("component", fullName());
+    if (logTiming_ != LogTimingNo) {
+        std::string time = getTime(logTiming_);
+        *chn << XmlOpen(errorNames[type]) + XmlAttribute("component", fullName()) + XmlAttribute("time", time);
+    }
+    else {
+        *chn << XmlOpen(errorNames[type]) + XmlAttribute("component", fullName());
+    }
+
     if (msg) {
         (*chn) << vform(msg, ap);
     }
@@ -213,7 +239,13 @@ Component::Message Component::log(const char* msg, ...) const {
 
 Component::Message Component::log() const {
     XmlChannel* chn = errorChannel(ErrorTypeInfo);
-    *chn << XmlOpen(errorNames[ErrorTypeInfo]) + XmlAttribute("component", fullName());
+    if (logTiming_ != LogTimingNo) {
+        std::string time = getTime(logTiming_);
+        *chn << XmlOpen(errorNames[ErrorTypeInfo]) + XmlAttribute("component", fullName()) + XmlAttribute("time", time);
+    }
+    else {
+        *chn << XmlOpen(errorNames[ErrorTypeInfo]) + XmlAttribute("component", fullName());
+    }
     return Message(this, ErrorTypeInfo, chn);
 }
 
@@ -279,6 +311,38 @@ Component::Message::~Message() {
     if (component_) {
         *ostream_ << XmlClose(errorNames[type_]);
         component_->errorOccured(type_);
+    }
+}
+
+std::string Component::getTime(LogTimingMode mode) const {
+    if (mode == LogTimingYes) {
+        char        buffer[80];
+        auto        now          = std::chrono::system_clock::now();
+        std::time_t rawtime      = std::chrono::system_clock::to_time_t(now);
+        std::tm*    timeinfo     = std::localtime(&rawtime);
+        double      epoch        = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
+        unsigned    milliseconds = static_cast<size_t>(epoch) % 1000ul;
+
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+        std::stringstream ss;
+        ss << buffer << '.' << std::setw(3) << std::setfill('0') << milliseconds;
+
+        return ss.str();
+    }
+    else if (mode == LogTimingUnix) {
+        std::time_t       seconds = std::time(nullptr);
+        std::stringstream ss;
+        ss << seconds;
+        return ss.str();
+    }
+    else if (mode == LogTimingMilliseconds) {
+        std::chrono::time_point<std::chrono::system_clock> now      = std::chrono::system_clock::now();
+        auto                                               duration = now.time_since_epoch();
+        auto                                               millis   = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        return std::to_string(millis);
+    }
+    else {
+        return "";
     }
 }
 

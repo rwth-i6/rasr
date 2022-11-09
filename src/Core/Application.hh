@@ -118,6 +118,7 @@ protected:
     static bool                     setFromFile(const std::string& filename);
     static std::vector<std::string> setFromCommandline(const std::vector<std::string>& arguments);
     void                            runAtExitFuncs();
+    static bool                     setMaxStackSize(size_t new_size_in_mb);
 
 public:
     Application();
@@ -241,6 +242,9 @@ public:
      * The archive has to be configured through "archive-name.file=..." and "archive-name.read-only=..." configuration
      * */
     MappedArchiveWriter getCacheArchiveWriter(const std::string& archive_name, const std::string& item);
+
+    // update cacheArchives_ to reuse the I/O interface
+    void updateCacheArchive(const std::string& archive, const Core::Configuration& extraConfig, bool reset = false);
 
     /**
      * Main entry point for an application.

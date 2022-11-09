@@ -216,7 +216,7 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
 
     u32 phoneIdx = a.allophone()->phoneme(0);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
     result *= numStates_;
     result += u32(a.state());
@@ -232,9 +232,9 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
         result += phoneIdx;
     }
 
-    if (useBoundaryClasses_){ 
-      result *= numBoundaryClasses_;
-      result += a.allophone()->boundary;
+    if (useBoundaryClasses_) {
+        result *= numBoundaryClasses_;
+        result += a.allophone()->boundary;
     }
     require_lt(result, nClasses_);
 
@@ -259,7 +259,7 @@ DiphoneNoStateTyingDense::DiphoneNoStateTyingDense(const Core::Configuration& co
 
     if (classifyDumpChannel_.isOpen()) {
         dumpStateTying(classifyDumpChannel_);
-    }   
+    }
 }
 
 Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) const {
@@ -268,10 +268,10 @@ Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) con
     require_lt(u32(a.state()), numStates_);
     require_eq(contextLength_, 1);
     u32 result = 0;
-    
+
     u32 phoneIdx = a.allophone()->phoneme(0);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
     result *= numStates_;
     result += u32(a.state());
@@ -279,9 +279,9 @@ Mm::MixtureIndex DiphoneNoStateTyingDense::classify(const AllophoneState& a) con
     result *= numPhoneClasses_;
     phoneIdx = a.allophone()->phoneme(-1);
     require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;   
+    result += phoneIdx;
 
-    if (useBoundaryClasses_) { 
+    if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;
     }

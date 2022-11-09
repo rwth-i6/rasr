@@ -72,8 +72,13 @@ const Core::ParameterString AllophoneAlphabet::paramStoreToFile(
         "");
 
 AllophoneAlphabet::AllophoneAlphabet(const Core::Configuration& config, ConstPhonologyRef phonology, Bliss::LexiconRef lexicon)
-        : Fsa::Alphabet(), Core::Component(config), phonology_(phonology), pi_(phonology->getPhonemeInventory()), isCrossWord_(phonology->isCrossWord()) {
-    nDisambiguators_     = 0;
+        : Fsa::Alphabet(),
+          Core::Component(config),
+          phonology_(phonology),
+          pi_(phonology->getPhonemeInventory()),
+          isCrossWord_(phonology->isCrossWord()),
+          nDisambiguators_(0),
+          storeToFile_(paramStoreToFile(config)) {
     std::string filename = paramAddFromFile(config);
     if (!filename.empty()) {
         load(filename);
@@ -90,7 +95,7 @@ AllophoneAlphabet::AllophoneAlphabet(const Core::Configuration& config, ConstPho
         log("%d allophones after adding all allophones",
             (int)allophones_.size());
     }
-    for (s32 p = 0; p < pi_->nPhonemes(); ++p) {
+    for (u32 p = 0; p < pi_->nPhonemes(); ++p) {
         std::string phoneme(pi_->phoneme(p + 1)->symbol());
         /* names of phonemes must not conflict with allophone specification
            syntax, otherwise allophone-mapping may fail */
@@ -106,11 +111,10 @@ AllophoneAlphabet::AllophoneAlphabet(const Core::Configuration& config, ConstPho
 }
 
 AllophoneAlphabet::~AllophoneAlphabet() {
-    std::string filename = paramStoreToFile(config);
-    if (!filename.empty()) {
+    if (!storeToFile_.empty()) {
         log("store %d allophones to \"%s\"",
-            (int)allophones_.size(), filename.c_str());
-        store(filename);
+            (int)allophones_.size(), storeToFile_.c_str());
+        store(storeToFile_);
     }
     clear();
 }

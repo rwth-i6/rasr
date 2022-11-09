@@ -77,7 +77,10 @@ ScalarQuestion::ScalarQuestion(PropertyMapRef     map,
           valueIndex_(map_->undefinedIndex) {
     verify(map_->isDefined(keyIndex_));
     valueIndex_ = (*map_)[keyIndex_][value];
-    verify(map_->isDefined(valueIndex_));
+    if (!map_->isDefined(valueIndex_)) {
+        std::cerr << "undefined phoneme in question: key='" << key << "' value='" << value << "' (" << desc << ")\n";
+        defect();
+    }
 }
 
 void ScalarQuestion::write(std::ostream& out) const {

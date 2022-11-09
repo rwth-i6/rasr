@@ -108,12 +108,14 @@ void XmlWriter::putDeclaration(const std::string& encoding) {
 void XmlWriter::putTag(const XmlOpen& open, bool isEmpty) {
     os_ << "<" << open.element_;
     for (std::vector<XmlAttribute>::const_iterator a = open.attributes_.begin(); a != open.attributes_.end(); ++a) {
-        os_ << " ";
-        formattingHint(TextOutputStream::protect);
-        os_ << a->name_ << "=\"";
-        putEscaped(a->value_, "&<>\"'");
-        os_ << "\"";
-        formattingHint(TextOutputStream::unprotect);
+        if (!a->name_.empty()) {
+            os_ << " ";
+            formattingHint(TextOutputStream::protect);
+            os_ << a->name_ << "=\"";
+            putEscaped(a->value_, "&<>\"'");
+            os_ << "\"";
+            formattingHint(TextOutputStream::unprotect);
+        }
     }
     if (isEmpty)
         os_ << "/";
@@ -204,6 +206,14 @@ XmlOutputStream::XmlOutputStream()
 XmlOutputStream::XmlOutputStream(std::ostream* os)
         : XmlWriter(textOutputStream_),
           textOutputStream_(os) {
+    generateFormattingHints(true);
+    putDeclaration();
+}
+
+XmlOutputStream::XmlOutputStream(std::ostream* os, const std::string& encoding)
+        : XmlWriter(textOutputStream_),
+          textOutputStream_(os) {
+    setEncoding(encoding);
     generateFormattingHints(true);
     putDeclaration();
 }

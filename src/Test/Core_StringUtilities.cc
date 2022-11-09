@@ -74,4 +74,37 @@ TEST(Core, StringUtilities, Form) {
     EXPECT_EQ(c, string("10 1.2345"));
 }
 
+TEST(Core, StringUtilities, ReplaceAll) {
+    string haystack = "abc";
+    replaceAll(haystack, "a", "x");
+    EXPECT_EQ(haystack, string("xbc"));
+
+    haystack = "abaaca";
+    replaceAll(haystack, "a", "x");
+    EXPECT_EQ(haystack, string("xbxxcx"));
+
+    haystack = "abaaca";
+    replaceAll(haystack, "a", "");
+    EXPECT_EQ(haystack, string("bc"));
+
+    haystack = "abaaca";
+    replaceAll(haystack, "a", "xx");
+    EXPECT_EQ(haystack, string("xxbxxxxcxx"));
+
+    haystack = "abaaca";
+    replaceAll(haystack, "", "xxx");
+    EXPECT_EQ(haystack, string("abaaca"));
+
+    haystack = "aa";
+    replaceAll(haystack, "aa", "");
+    EXPECT_EQ(haystack, string(""));
+
+    haystack = "aa";
+    replaceAll(haystack, "aaa", "");
+    EXPECT_EQ(haystack, string("aa"));
+
+    haystack = "aa";
+    replaceAll(haystack, "aa", "bbb");
+    EXPECT_EQ(haystack, string("bbb"));
+}
 }  // namespace Core

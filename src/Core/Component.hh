@@ -18,6 +18,7 @@
 #define _CORE_COMPONENT_HH
 
 #include <cstdarg>
+#include <ctime>
 #include "Channel.hh"
 #include "Choice.hh"
 #include "Configurable.hh"
@@ -81,6 +82,12 @@ protected:
         ErrorTypeCriticalError,
         nErrorTypes
     };
+    enum LogTimingMode {
+        LogTimingNo,
+        LogTimingYes,
+        LogTimingUnix,
+        LogTimingMilliseconds
+    };
 
 private:
     enum ErrorAction {
@@ -90,6 +97,7 @@ private:
     };
 
     static const Choice           errorActionChoice;
+    static const Choice           logTimingChoice;
     static const char*            errorNames[nErrorTypes];
     static const char*            errorChannelNames[nErrorTypes];
     static const Channel::Default errorChannelDefaults[nErrorTypes];
@@ -134,6 +142,16 @@ protected:
      * @return the channel the message was written to.
      **/
     virtual XmlChannel* vErrorMessage(ErrorType mt, const char* msg, va_list) const;
+
+    /**
+     * Child classes should be able to call this method explicitly because
+     * in some cases (see Application) the Configuration object is not
+     * available when the Component c'tor is called.
+     */
+    void          initializeTimeLogging(const Configuration& c);
+    LogTimingMode logTiming_;
+
+    std::string getTime(LogTimingMode mode) const;
 
 public:
     /**

@@ -176,12 +176,12 @@ bool FfmpegInputNode::openFile_() {
 
     if (internal_->cdc_ctx->channels == 1) {
         // explicitly ask for mono-layout, as swresample can throw an error if the input channel layout is 0 (=default)
-        internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_MONO;
+        internal_->cdc_ctx->channel_layout         = AV_CH_LAYOUT_MONO;
         internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_MONO;
     }
     else if (internal_->cdc_ctx->channels == 2) {
         // explicitly ask for stereo-layout, as swresample can throw an error if the input channel layout is 0 (=default)
-        internal_->cdc_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
+        internal_->cdc_ctx->channel_layout         = AV_CH_LAYOUT_STEREO;
         internal_->cdc_ctx->request_channel_layout = AV_CH_LAYOUT_STEREO;
     }
 

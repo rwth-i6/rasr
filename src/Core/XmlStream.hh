@@ -44,12 +44,30 @@ protected:
     std::string name_, value_;
 
 public:
+    using manipulator = std::ios_base& (*)(std::ios_base&);
+
     XmlAttribute(){};
     template<typename V>
     XmlAttribute(const std::string& name, const V& value) {
         name_ = name;
         std::ostringstream ss;
         ss << value;
+        value_ = ss.str();
+    }
+
+    template<typename V>
+    XmlAttribute(const std::string& name, const V& value, const int precision) {
+        name_ = name;
+        std::ostringstream ss;
+        ss << std::setprecision(precision) << value;
+        value_ = ss.str();
+    }
+
+    template<typename V>
+    XmlAttribute(const std::string& name, const V& value, const int precision, manipulator m) {
+        name_ = name;
+        std::ostringstream ss;
+        ss << m << std::setprecision(precision) << value;
         value_ = ss.str();
     }
 };
@@ -332,10 +350,14 @@ private:
 public:
     XmlOutputStream();
     XmlOutputStream(std::ostream*);
+    XmlOutputStream(std::ostream*, const std::string& encoding);
     XmlOutputStream(const std::string& filename, int mode = 0);
     void open(const std::string& filename, int mode = 0);
     void close() {
         textOutputStream_.close();
+    }
+    void flush() {
+        textOutputStream_.flush();
     }
     virtual ~XmlOutputStream();
 

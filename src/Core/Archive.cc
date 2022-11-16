@@ -12,6 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <zlib.h>
@@ -294,7 +295,9 @@ Archive::Type Archive::test(const std::string& path) {
 }
 
 Archive* Archive::create(const Configuration& config, const std::string& path, AccessMode access) {
-    Archive* result = 0;
+    Archive*      result    = 0;
+    size_t        file_size = 0;
+    std::ifstream in;
     switch (test(path)) {
         case TypeDirectory:
             result = new DirectoryArchive(config, path, access);
@@ -306,7 +309,17 @@ Archive* Archive::create(const Configuration& config, const std::string& path, A
             result = new BundleArchive(config, path, access);
             break;
         case TypeUnknown:
-            Application::us()->error("unknown type of archive (requested path: '%s').", path.c_str());
+            in.open(path.c_str(), std::ifstream::ate | std::ifstream::binary);
+            file_size = in.tellg();
+            in.close();
+
+            if (file_size > 0) {
+                Application::us()->error("unknown type of archive (requested path: '%s').", path.c_str());
+            }
+            else if (file_size == 0 && (access & AccessModeWrite)) {
+                Application::us()->warning("overwriting empty file '%s'", path.c_str());
+                result = new FileArchive(config, path, access);
+            }
             break;
         default:
             defect();

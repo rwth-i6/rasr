@@ -33,7 +33,9 @@ private:
     struct StaticHolder {
         Instance* instance_;  // will be inited with zero (because it's static)
         ~StaticHolder() {
-            delete instance_;
+            if (instance_) {
+                delete instance_;
+            }
         }
     };
 

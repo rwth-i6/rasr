@@ -277,7 +277,7 @@ public:
 
     template<class T>
     void readVector(std::vector<T>& vec) {
-        u64 size;
+        u64 size = 0ul;
         readValue<u64>(size);
 
         if (!good() || get()->offset_ + sizeof(T) * size > get()->initialOffset_ + get()->size_) {
@@ -292,7 +292,7 @@ public:
 
     template<class T>
     void readVectorVector(std::vector<std::vector<T>>& vectors) {
-        u32 nVectors;
+        u32 nVectors = 0u;
         readValue(nVectors);
         vectors.resize(nVectors);
 
@@ -302,7 +302,7 @@ public:
 
     template<class T>
     void readVector(ConstantVector<T>& vec) {
-        u64 size;
+        u64 size = 0ul;
         readValue<u64>(size);
 
         if (!good() || get()->offset_ + sizeof(T) * size > get()->initialOffset_ + get()->size_) {

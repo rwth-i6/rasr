@@ -48,4 +48,18 @@ bool writeLargeBlock(int fd, const char* buf, u64 count) {
     return count == 0;
 }
 
+std::string realPath(const std::string& filename) {
+    char  buff[PATH_MAX];
+    char* ret = ::realpath(filename.c_str(), buff);
+    if (ret) {
+        return std::string(buff);
+    }
+    else {
+        if (errno) {
+            std::cerr << "resolveSymlink failed (" << strerror(errno) << ")\n";
+            errno = 0;
+        }
+        return filename;  // safe fall back
+    }
+}
 }  // namespace Core

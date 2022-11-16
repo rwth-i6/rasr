@@ -17,8 +17,8 @@
 #ifndef _CORE_REFERENCE_COUNTING
 #define _CORE_REFERENCE_COUNTING
 
-#include <unordered_set>
 #include <memory>
+#include <unordered_set>
 
 #include "Assertions.hh"
 #include "Types.hh"
@@ -45,7 +45,7 @@ private:
 
     using WeakRefSet = std::unordered_set<WeakRefBase*>;
 
-    mutable u32 referenceCount_;
+    mutable u32                         referenceCount_;
     mutable std::unique_ptr<WeakRefSet> weak_refs_;
 
     explicit ReferenceCounted(u32 rc)

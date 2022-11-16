@@ -96,7 +96,7 @@ CHECK_O 	+= libSprintFlf.$(a) \
 
 # -----------------------------------------------------------------------------
 
-all: $(TARGETS)
+all: $(TARGETS) $(SUBDIRS)
 
 .PHONY: $(SUBDIRS)
 
@@ -106,7 +106,7 @@ FlfCore:
 FlfExt:
 	$(MAKE) -C FlfExt libSprintFlfExt.$(a)
 
-libSprintFlf.$(a): $(SUBDIRS) $(LIBSPRINTFLF_O)
+libSprintFlf.$(a): $(LIBSPRINTFLF_O)
 	$(MAKELIB) $@ $(LIBSPRINTFLF_O)
 
 check$(exe): $(CHECK_O)

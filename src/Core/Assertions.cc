@@ -28,7 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "Application.hh"
 #include "Debug.hh"
 
 using namespace Core;

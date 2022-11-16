@@ -25,19 +25,19 @@ namespace Core {
 
 template<class T>
 struct PointerHash {
-    size_t operator()(const T* p) const {
+    size_t operator()(const T* p) const noexcept {
         return reinterpret_cast<size_t>(p);
     }
 };
 
 struct StringHash {
-    size_t operator()(const char* s) const {
+    size_t operator()(const char* s) const noexcept {
         size_t result = 0;
         while (*s)
             result = 5 * result + size_t(*s++);
         return result;
     }
-    size_t operator()(const std::string& s) const {
+    size_t operator()(const std::string& s) const noexcept {
         return (*this)(s.c_str());
     }
 };

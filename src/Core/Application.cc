@@ -16,6 +16,7 @@
 #include <string>
 #include <ctype.h>
 #include <pwd.h>
+#include <sys/resource.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 #ifdef OS_linux
@@ -71,18 +72,30 @@ Application::Application()
     // load process environment into configuration
     for (const char* const* env = environ; *env; ++env) {
         const char* sep = strchr(*env, '=');
-        if (sep)
-            config.set(std::string(*env, sep - *env), std::string(sep + 1));
+        if (sep) {
+            std::string key   = std::string(*env, sep - *env);
+            std::string value = std::string(sep + 1);
+            config.set(key, value);
+        }
     }
 
     // get the real (!) home directory
-    if ((user = getlogin()) != NULL)
+    if ((user = getlogin()) != NULL) {
         p = getpwnam(user);
-    if (p != NULL)
+    }
+    if (p != NULL) {
         value = p->pw_dir;
-    else
+    }
+    else {
         value = getenv("HOME");
-    config.set("*.home", value);
+    }
+
+    if (value) {
+        config.set("*.home", value);
+    }
+    else {
+        config.set("*.home", "");
+    }
 }
 
 Application::~Application() {
@@ -209,6 +222,7 @@ void Application::logSystemInfo() const {
           << XmlFull("type", info.machine)
           << XmlFull("operating-system", info.sysname)
           << XmlFull("build-date", __DATE__)
+          << XmlFull("local-time", getTime(Component::LogTimingYes))
           << XmlClose("system-information");
     }
 }
@@ -318,6 +332,24 @@ void Application::closeLogging(bool configAvailable) {
     channelManager_ = 0;
 }
 
+bool Application::setMaxStackSize(size_t new_size_in_mb) {
+    struct rlimit rl;
+    int           success;
+    const rlim_t  new_size_in_bytes = new_size_in_mb * 1024 * 1024;
+    success                         = getrlimit(RLIMIT_STACK, &rl);
+    if (success == 0) {
+        if (rl.rlim_cur < new_size_in_bytes) {
+            rl.rlim_cur = new_size_in_bytes;
+            success     = setrlimit(RLIMIT_STACK, &rl);
+            return success == 0;
+        }
+        else {
+            return true;  // no need to increase
+        }
+    }
+    return false;  // can't read = can't write
+}
+
 int Application::main(int argc, char* argv[]) {
     /**
      * @bug This is a workaround for possible bug in LIBC 2.3.2. We are waiting for an answer on our bug report.
@@ -354,6 +386,9 @@ int Application::main(int argc, char* argv[]) {
         std::string title = app_->getBaseName();
         title.erase(title.find("."));
         app_->setTitle(title);
+    }
+    if (!setMaxStackSize(64)) {
+        app_->warning("failed to increase max stack size");
     }
 
     if (paramHelp(getConfig())) {
@@ -411,6 +446,34 @@ MappedArchive* Application::getCacheArchive(const std::string& archive) {
 
     cacheArchives_[archive] = ret;
     return ret;
+}
+
+void Application::updateCacheArchive(const std::string& archive, const Core::Configuration& extraConfig, bool reset) {
+    if (archive.empty())
+        return;
+
+    if (reset) {
+        if (cacheArchives_.count(archive)) {
+            delete cacheArchives_[archive];
+            cacheArchives_.erase(archive);
+        }
+        return;
+    }
+
+    Core::Configuration keyConfig(extraConfig, archive);
+    std::string         file     = paramCacheArchiveFile(keyConfig);
+    bool                readOnly = paramCacheArchiveReadOnly(keyConfig);
+
+    log() << "update cache archive " << archive << " file \"" << file << "\" read-only " << readOnly;
+
+    // Note: we always create new ones (reload) in case cache content changed for the same file
+    if (cacheArchives_.count(archive))
+        delete cacheArchives_[archive];
+
+    MappedArchive* ret = 0;
+    if (!file.empty())
+        ret = new MappedArchive(file, readOnly);
+    cacheArchives_[archive] = ret;
 }
 
 bool Application::setFromEnvironment(const std::string& variable) {

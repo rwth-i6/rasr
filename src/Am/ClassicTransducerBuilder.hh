@@ -33,7 +33,6 @@ protected:  // configurable options
     } inputType_;
     bool filterOutInvalidAllophones_;
     bool fixAllophoneContextAtWordBoundaries_;
-    bool fixTdpLeavingEpsilonArc_;
 
 public:  // configurable options
     virtual void setDisambiguators(u32);

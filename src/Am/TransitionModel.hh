@@ -77,21 +77,21 @@ public:
         phone1,
         nStateTypes
     };
-    class Applicator;
-    class ApplicatorWithContext;
-
-public:
     enum TyingType { global,
                      globalPlusNonWord,
                      cart };
+    enum ApplicatorType { LegacyBuggyApplicator,
+                          CorrectedApplicator };
+
     static Core::Choice          choiceTyingType;
+    static Core::Choice          choiceApplicatorType;
     static Core::ParameterChoice paramTyingType;
+    static Core::ParameterChoice paramApplicatorType;
     static Core::ParameterString paramTdpValuesFile;
+
 
 protected:
     std::vector<StateTransitionModel*> transitionModels_;
-
-protected:
     void dump(Core::XmlWriter&) const;
 
 public:
@@ -118,11 +118,6 @@ public:
     TransitionModel& operator+=(const TransitionModel& m);
 
     Fsa::ConstAutomatonRef apply(
-            Fsa::ConstAutomatonRef in,
-            Fsa::LabelId           silenceLabel,
-            bool                   applyExitTransitionToFinalStates) const;
-
-    Fsa::ConstAutomatonRef applyWithContext(
             Fsa::ConstAutomatonRef in,
             Fsa::LabelId           silenceLabel,
             bool                   applyExitTransitionToFinalStates) const;
@@ -231,12 +226,6 @@ public:
             Fsa::LabelId           silenceLabel,
             bool                   applyExitTransitionToFinalStates) const {
         return transitionModel_->apply(in, silenceLabel, applyExitTransitionToFinalStates);
-    }
-    Fsa::ConstAutomatonRef applyWithContext(
-            Fsa::ConstAutomatonRef in,
-            Fsa::LabelId           silenceLabel,
-            bool                   applyExitTransitionToFinalStates) const {
-        return transitionModel_->applyWithContext(in, silenceLabel, applyExitTransitionToFinalStates);
     }
     TransitionModel::StateType classify(AllophoneState phone, s8 subState = 0) const {
         return transitionModel_->classify(phone, subState);

@@ -145,6 +145,7 @@ public:
 class NoStateTyingDense : public ClassicStateTying {
 public:
     static const Core::ParameterBool paramUseBoundaryClasses;
+    static const Core::ParameterBool paramUseWordEndClasses;
 
     NoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex nClasses() const;

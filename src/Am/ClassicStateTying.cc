@@ -184,7 +184,7 @@ const u32 NoStateTyingDense::numBoundaryClasses_ = 4;  // 0: none, 1: start (@i)
 const u32 NoStateTyingDense::numWordEndClasses_ = 2; // 0: {none, start (@i)}, 1: {end (@f), 3: start+end (@i@f)}
 
 const Core::ParameterBool NoStateTyingDense::paramUseBoundaryClasses("use-boundary-classes",
-                                                                     "wether boundary classes should be considered during state-tying",
+                                                                     "whether boundary classes should be considered during state-tying",
                                                                      true);
 
 const Core::ParameterBool NoStateTyingDense::paramUseWordEndClasses("use-word-end-classes",
@@ -321,7 +321,7 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
 
 // ============================================================================
 
-MonophoneDense::MonophoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel)
+MonophoneDense::MonophoneDense(const Core::Configuration& config, ClassicStateModelRef stateModel)
         : Core::Component(config),
           NoStateTyingDense(config, stateModel) {
     require(!(useBoundaryClasses_ &&  useWordEndClasses_));

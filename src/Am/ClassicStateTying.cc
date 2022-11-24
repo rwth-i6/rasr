@@ -233,6 +233,16 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
     result *= numStates_;
     result += u32(a.state());
 
+    if (useBoundaryClasses_) {
+        result *= numBoundaryClasses_;
+        result += a.allophone()->boundary;
+    }
+    if (useWordEndClasses_) {
+        result *= numWordEndClasses_;
+        u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
+        result += weClass;
+    }
+
     for (u32 i = 1; i < 2 * contextLength_ + 1; ++i) {  // context len is usually 1
         // pos sequence: -1, 1, [-2, 2, ...]
         s16 pos = i / 2;
@@ -244,15 +254,6 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
         result += phoneIdx;
     }
 
-    if (useBoundaryClasses_) {
-        result *= numBoundaryClasses_;
-        result += a.allophone()->boundary;
-    }
-    if (useWordEndClasses_) {
-        result *= numWordEndClasses_;
-        u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
-        result += weClass;
-    }
     require_lt(result, nClasses_);
 
     return result;
@@ -296,11 +297,6 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
     result *= numStates_;
     result += u32(a.state());
 
-    result *= numPhoneClasses_;
-    phoneIdx = a.allophone()->phoneme(-1);
-    require_lt(phoneIdx, numPhoneClasses_);
-    result += phoneIdx;
-
     if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;
@@ -310,6 +306,12 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
         u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
         result += weClass;
     }
+
+    result *= numPhoneClasses_;
+    phoneIdx = a.allophone()->phoneme(-1);
+    require_lt(phoneIdx, numPhoneClasses_);
+    result += phoneIdx;
+
     require_lt(result, nClasses_);
 
     return result;

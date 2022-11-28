@@ -29,7 +29,7 @@ CHECK_O 	=						\
 ifdef MODULE_NN
   LIBSPRINTNN_O += $(OBJDIR)/ActivationLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/Activations.o
-  LIBSPRINTNN_O += $(OBJDIR)/AllophoneStateFsaExporter.o
+  LIBSPRINTNN_O += $(OBJDIR)/AllophoneStateFsa.o
   LIBSPRINTNN_O += $(OBJDIR)/BatchEstimator.o
   LIBSPRINTNN_O += $(OBJDIR)/BatchFeatureScorer.o
   LIBSPRINTNN_O += $(OBJDIR)/BufferedAlignedFeatureProcessor.o

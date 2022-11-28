@@ -48,7 +48,7 @@ See the code below for reference about supported commands.
 #include <Flow/Module.hh>
 #include <Flow/Registry.hh>
 #include <Nn/ActivationLayer.hh>
-#include <Nn/AllophoneStateFsaExporter.hh>
+#include <Nn/AllophoneStateFsa.hh>
 #include <Nn/ClassLabelWrapper.hh>
 #include <Nn/Criterion.hh>
 #include <Nn/CtcCriterion.hh>

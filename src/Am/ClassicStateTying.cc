@@ -200,7 +200,7 @@ NoStateTyingDense::NoStateTyingDense(const Core::Configuration& config, ClassicS
           useBoundaryClasses_(paramUseBoundaryClasses(config)),
           useWordEndClasses_(paramUseWordEndClasses(config)),
           nClasses_(0) {
-    require(!(useBoundaryClasses_ &&  useWordEndClasses_));
+    require(!(useBoundaryClasses_ && useWordEndClasses_));
     nClasses_ = numStates_;
     if (useBoundaryClasses_) {
         nClasses_ *= numBoundaryClasses_;
@@ -322,7 +322,7 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
 MonophoneDense::MonophoneDense(const Core::Configuration& config, ClassicStateModelRef stateModel)
         : Core::Component(config),
           NoStateTyingDense(config, stateModel) {
-    require(!(useBoundaryClasses_ &&  useWordEndClasses_));
+    require(!(useBoundaryClasses_ && useWordEndClasses_));
     nClasses_ = numStates_;
     if (useBoundaryClasses_) {
         nClasses_ *= numBoundaryClasses_;

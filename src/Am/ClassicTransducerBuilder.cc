@@ -784,8 +784,8 @@ typedef std::unordered_map<MinimizedState, Fsa::State*, MinimizedState::Hash,
  *  phone1	   the second state of a phone segment
  *
  * silence.exit = silence.forward - phone?.forward due to epsilon arcs. This happens in the legacy
- * StandardApplicator that is buggy, and has been corrector by implementing
- * ApplicatorWithContext, where the weights are read by refering to the correct source state
+ * LegacyApplicator that is buggy, and has been corrector by implementing
+ * CorrectedApplicator, where the weights are read by refering to the correct source state
  * in case we have an epsilon arc
  **/
 Fsa::ConstAutomatonRef ClassicTransducerBuilder::createEmissionLoopTransducer(

@@ -597,9 +597,9 @@ Fsa::ConstAutomatonRef AbstractApplicator<AppState>::apply(Fsa::ConstAutomatonRe
     return result;
 }
 
-class StandardApplicator : public AbstractApplicator<ApplicatorState> {
+class LegacyApplicator : public AbstractApplicator<ApplicatorState> {
 public:
-    StandardApplicator(const Am::TransitionModel& tm)
+    LegacyApplicator(const Am::TransitionModel& tm)
             : AbstractApplicator<ApplicatorState>(tm) {}
 
 protected:
@@ -619,7 +619,7 @@ protected:
 
 };
 
-class ApplicatorWithContext : public AbstractApplicator<ApplicatorStateWithContext> {
+class CorrectedApplicator : public AbstractApplicator<ApplicatorStateWithContext> {
 protected:
     virtual ApplicatorStateWithContext createStateFromCurrentState(ApplicatorStateWithContext const& current, ApplicatorStateWithContext::Mask m, Fsa::LabelId e, StateType t, Fsa::StateId r) {
         return ApplicatorStateWithContext(m, e, current.emission, t, r);
@@ -654,7 +654,7 @@ protected:
     }
 
 public:
-    ApplicatorWithContext(Am::TransitionModel const& tm)
+    CorrectedApplicator(Am::TransitionModel const& tm)
             : AbstractApplicator(tm) {}
 };
 
@@ -803,11 +803,11 @@ Fsa::ConstAutomatonRef Am::TransitionModel::apply(Fsa::ConstAutomatonRef in,
         criticalError("Unknwon Transition Applicator type.");
 
     switch (appChoice) {
-        case LegacyBuggyApplicator:
-            ap.reset(new StandardApplicator(*this));
+        case LegacyType:
+            ap.reset(new LegacyApplicator(*this));
             break;
-        case CorrectedApplicator:
-            ap.reset(new ApplicatorWithContext(*this));
+        case Correctedtype:
+            ap.reset(new CorrectedApplicator(*this));
             break;
         default:
             defect();
@@ -911,15 +911,16 @@ Core::ParameterChoice Am::TransitionModel::paramTyingType(
         global);
 
 Core::Choice Am::TransitionModel::choiceApplicatorType(
-        "legacy-buggy", LegacyBuggyApplicator,
-        "corrected", CorrectedApplicator,
+        "legacy", LegacyType,
+        "corrected", Correctedtype,
          Core::Choice::endMark());
 
 Core::ParameterChoice Am::TransitionModel::paramApplicatorType(
         "applicator-type",
         &choiceApplicatorType,
-        "The applicator used for adding weights on the FSA, legacy version has a bug",
-        LegacyBuggyApplicator);
+        "The applicator used for adding weights on the FSA."
+        "The LegacyType applicator has a buggy behavior, namely silence.exit = silence.forward - phone?.forward due to epsilon arcs",
+        LegacyType);
 
 /**
  * This solution is supported because the parameter

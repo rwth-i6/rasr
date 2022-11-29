@@ -239,7 +239,7 @@ Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
     }
     if (useWordEndClasses_) {
         result *= numWordEndClasses_;
-        u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
+        u32 weClass = (a.allophone()->boundary & Am::Allophone::isFinalPhone) ? 1 : 0;
         result += weClass;
     }
 
@@ -303,7 +303,7 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
     }
     if (useWordEndClasses_) {
         result *= numWordEndClasses_;
-        u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
+        u32 weClass = (a.allophone()->boundary & Am::Allophone::isFinalPhone) ? 1 : 0;
         result += weClass;
     }
 
@@ -358,7 +358,7 @@ Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
     }
     if (useWordEndClasses_) {
         result *= numWordEndClasses_;
-        u32 weClass = a.allophone()->boundary & Am::Allophone::isFinalPhone ? 1 : 0;
+        u32 weClass = (a.allophone()->boundary & Am::Allophone::isFinalPhone) ? 1 : 0;
         result += weClass;
     }
     require_lt(result, nClasses_);

@@ -145,6 +145,7 @@ public:
 class NoStateTyingDense : public ClassicStateTying {
 public:
     static const Core::ParameterBool paramUseBoundaryClasses;
+    static const Core::ParameterBool paramUseWordEndClasses;
 
     NoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex nClasses() const;
@@ -153,19 +154,30 @@ public:
 
 protected:
     static const u32 numBoundaryClasses_;
+    static const u32 numWordEndClasses_; //word end classes for all dense state tyings
     u32              numPhoneClasses_;
     u32              numStates_;
     u32              contextLength_;
     u32              nClasses_;
     const bool       useBoundaryClasses_;
+    const bool       useWordEndClasses_;
 };
 
 // ============================================================================
 
-class DiphoneNoStateTyingDense : public NoStateTyingDense {
+class DiphoneDense : public NoStateTyingDense {
 public:
-    DiphoneNoStateTyingDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
+    DiphoneDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
     virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
+};
+
+// ============================================================================
+
+class MonophoneDense : public NoStateTyingDense {
+public:
+    MonophoneDense(const Core::Configuration& config, ClassicStateModelRef stateModel);
+    virtual Mm::MixtureIndex classify(const AllophoneState& as) const;
+
 };
 
 // ============================================================================

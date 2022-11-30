@@ -78,12 +78,12 @@ public:
         nStateTypes
     };
     enum TyingType {
-        global            = 1,
-        globalPlusNonWord = 2,
-        cart              = 3 };
+        global,
+        globalPlusNonWord,
+        cart};
     enum ApplicatorType {
-        LegacyType    = 1,
-        Correctedtype = 2 };
+        LegacyType,
+        Correctedtype,};
 
     static Core::Choice          choiceTyingType;
     static Core::Choice          choiceApplicatorType;

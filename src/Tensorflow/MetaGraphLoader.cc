@@ -26,6 +26,7 @@ Core::ParameterString MetaGraphLoader::paramMetaGraphFile(
         "meta-graph-file",
         "path of the MetaGraphDef protobuffer to load",
         "");
+
 Core::ParameterString MetaGraphLoader::paramSavedModelFile(
         "saved-model-file",
         "path to the stored model variables",
@@ -35,6 +36,9 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
     auto timer_start = std::chrono::steady_clock::now();
     if (meta_graph_file_.empty()) {
         criticalError("no graph-def-path set");
+    }
+    else {
+        log() << "load meta-graph-file " << meta_graph_file_;
     }
 
     tf::Env*         env = tf::Env::Default();
@@ -68,10 +72,12 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
         if (node.op() == "Placeholder" or node.op() == "PlaceholderV2") {
             result->addInput(node.name());
         }
-        else if (node.op() == "Variable" or node.op() == "VariableV2") {
-            DataType         dt       = node.attr().find("dtype")->second.type();
-            std::string      var_name = node.name() + ":0";  // to use the same name as is used inside collections we append ":0" here
-            auto const&      shape    = node.attr().find("_output_shapes")->second.list().shape(0);
+        else if (node.op() == "Variable" or node.op() == "VariableV2" or node.op() == "VarHandleOp") {
+            DataType    dt       = node.attr().find("dtype")->second.type();
+            std::string var_name = node.name() + ":0"; // same name as used in collections + ":0"
+            // different attr for shapes for VarHandleOp
+            const auto& shape = (node.op() == "VarHandleOp") ? node.attr().find("shape")->second.shape() :
+                                                               node.attr().find("_output_shapes")->second.list().shape(0);
             std::vector<s64> dims(static_cast<size_t>(shape.dim_size()));
             for (int i = 0; i < shape.dim_size(); i++) {
                 dims[i] = shape.dim(i).size();
@@ -123,6 +129,66 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
                 result->addStateVar(list.value(i));
             }
         }
+        else if (keyval.first == "encode_ops") {
+            if (not keyval.second.has_node_list()) {
+                error("encode_ops collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addEncodeOp(list.value(i));
+            }
+        }
+        else if (keyval.first == "decode_ops") {
+            if (not keyval.second.has_node_list()) {
+                error("decode_ops collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addDecodeOp(list.value(i));
+            }
+        }
+        else if (keyval.first == "post_update_ops") {
+            if (not keyval.second.has_node_list()) {
+                error("post_update_ops collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addPostUpdateOp(list.value(i));
+            }
+        }
+        else if (keyval.first == "decoder_input_vars") {
+            if (not keyval.second.has_node_list()) {
+                error("decoder_input_vars collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addDecoderInputVar(list.value(i));
+            }
+        }
+        else if (keyval.first == "decoder_output_vars") {
+            if (not keyval.second.has_node_list()) {
+                error("decoder_output_vars collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addDecoderOutputVar(list.value(i));
+            }
+        }
+        else if (keyval.first == "global_vars") {
+            if (not keyval.second.has_node_list()) {
+                error("global_vars collection is not a node-list");
+                break;
+            }
+            auto const& list = keyval.second.node_list();
+            for (int i = 0; i < list.value_size(); i++) {
+                result->addGlobalVar(list.value(i));
+            }
+        }
     }
 
     auto timer_end = std::chrono::steady_clock::now();
@@ -136,6 +202,9 @@ void MetaGraphLoader::initialize(Session& session) {
 
     if (saved_model_file_.empty()) {
         criticalError("no saved-model-file set");
+    }
+    else {
+        log() << "load saved-model-file " << saved_model_file_;
     }
 
     std::vector<Tensor> outputs;

@@ -800,13 +800,13 @@ Fsa::ConstAutomatonRef Am::TransitionModel::apply(Fsa::ConstAutomatonRef in,
 
     Core::Choice::Value appChoice = Am::TransitionModel::paramApplicatorType(config);
     if (appChoice == Core::Choice::IllegalValue)
-        criticalError("Unknwon Transition Applicator type.");
+        criticalError("unknwon transition applicator type.");
 
-    switch (appChoice) {
-        case LegacyType:
+    switch(Am::TransitionModel::ApplicatorType(appChoice)) {
+        case Am::TransitionModel::ApplicatorType::LegacyApplicator:
             ap.reset(new LegacyApplicator(*this));
             break;
-        case Correctedtype:
+        case Am::TransitionModel::ApplicatorType::CorrectedApplicator:
             ap.reset(new CorrectedApplicator(*this));
             break;
         default:
@@ -899,20 +899,21 @@ CartTransitionModel::CartTransitionModel(const Core::Configuration& c,
 
 // ===========================================================================
 Core::Choice Am::TransitionModel::choiceTyingType(
-        "global", global,
-        "cart", cart,
-        "global-and-nonword", globalPlusNonWord,
+        "global",             static_cast<int>(Am::TransitionModel::TyingType::GlobalTransitionModel),
+        "global-and-nonword", static_cast<int>(Am::TransitionModel::TyingType::NonWordAwareTransitionModel),
+        "cart",               static_cast<int>(Am::TransitionModel::TyingType::CartTransitionModel),
+
         Core::Choice::endMark());
 
 Core::ParameterChoice Am::TransitionModel::paramTyingType(
         "tying-type",
         &choiceTyingType,
         "type of tying scheme",
-        global);
+        static_cast<int>(Am::TransitionModel::TyingType::GlobalTransitionModel));
 
 Core::Choice Am::TransitionModel::choiceApplicatorType(
-        "legacy", LegacyType,
-        "corrected", Correctedtype,
+        "legacy",    static_cast<int>(Am::TransitionModel::ApplicatorType::LegacyApplicator),
+        "corrected", static_cast<int>(Am::TransitionModel::ApplicatorType::CorrectedApplicator),
          Core::Choice::endMark());
 
 Core::ParameterChoice Am::TransitionModel::paramApplicatorType(
@@ -920,7 +921,7 @@ Core::ParameterChoice Am::TransitionModel::paramApplicatorType(
         &choiceApplicatorType,
         "The applicator used for adding weights on the FSA."
         "The LegacyType applicator has a buggy behavior, namely silence.exit = silence.forward - phone?.forward due to epsilon arcs",
-        LegacyType);
+        static_cast<int>(Am::TransitionModel::ApplicatorType::LegacyApplicator));
 
 /**
  * This solution is supported because the parameter
@@ -933,15 +934,18 @@ Core::ParameterString Am::TransitionModel::paramTdpValuesFile(
         "");
 
 Am::TransitionModel* Am::TransitionModel::createTransitionModel(const Core::Configuration& configuration,
-                                                        ClassicStateModelRef       stateModel) {
-    switch (TransitionModel::paramTyingType(configuration)) {
-        case TransitionModel::global:
+                                                                ClassicStateModelRef       stateModel) {
+
+    Core::Choice::Value transChoice = TransitionModel::paramTyingType(configuration);
+
+    switch (Am::TransitionModel::TyingType(transChoice)) {
+        case Am::TransitionModel::TyingType::GlobalTransitionModel:
             return new GlobalTransitionModel(configuration);
             break;
-        case TransitionModel::globalPlusNonWord:
+        case Am::TransitionModel::TyingType::NonWordAwareTransitionModel:
             return new NonWordAwareTransitionModel(configuration, stateModel);
             break;
-        case TransitionModel::cart:
+        case Am::TransitionModel::TyingType::CartTransitionModel:
             CartTransitionModel* result = new CartTransitionModel(configuration, stateModel);
             return result;
             break;

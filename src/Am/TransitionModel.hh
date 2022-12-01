@@ -77,14 +77,15 @@ public:
         phone1,
         nStateTypes
     };
-    enum TyingType {
-        global,
-        globalPlusNonWord,
-        cart};
-    enum ApplicatorType {
-        LegacyType,
-        Correctedtype,};
-
+    enum class TyingType {
+        GlobalTransitionModel       = 1,
+        NonWordAwareTransitionModel = 2,
+        CartTransitionModel         = 3
+    };
+    enum class ApplicatorType {
+        LegacyApplicator    = 1,
+        CorrectedApplicator = 2
+    };
     static Core::Choice          choiceTyingType;
     static Core::Choice          choiceApplicatorType;
     static Core::ParameterChoice paramTyingType;

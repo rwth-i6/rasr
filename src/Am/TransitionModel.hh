@@ -77,20 +77,24 @@ public:
         phone1,
         nStateTypes
     };
-    class Applicator;
-
-public:
-    enum TyingType { global,
-                     globalPlusNonWord,
-                     cart };
+    enum class TyingType {
+        GlobalTransitionModel       = 1,
+        NonWordAwareTransitionModel = 2,
+        CartTransitionModel         = 3
+    };
+    enum class ApplicatorType {
+        LegacyApplicator    = 1,
+        CorrectedApplicator = 2
+    };
     static Core::Choice          choiceTyingType;
+    static Core::Choice          choiceApplicatorType;
     static Core::ParameterChoice paramTyingType;
+    static Core::ParameterChoice paramApplicatorType;
     static Core::ParameterString paramTdpValuesFile;
+
 
 protected:
     std::vector<StateTransitionModel*> transitionModels_;
-
-protected:
     void dump(Core::XmlWriter&) const;
 
 public:

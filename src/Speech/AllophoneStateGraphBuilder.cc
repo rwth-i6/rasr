@@ -194,7 +194,7 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildTransducer(const std::st
 Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildTransducer(std::string const& orth, std::string const& leftContextOrth, std::string const& rightContextOrth) {
     Core::Vector<Fsa::ConstAutomatonRef> lemma_acceptors;
     if (not leftContextOrth.empty()) {
-        lemma_acceptors.push_back(Fsa::allSuffixes(orthographicParser().createLemmaAcceptor(rightContextOrth)));
+        lemma_acceptors.push_back(Fsa::allSuffixes(orthographicParser().createLemmaAcceptor(leftContextOrth)));
     }
     lemma_acceptors.push_back(orthographicParser().createLemmaAcceptor(orth));
     if (not rightContextOrth.empty()) {

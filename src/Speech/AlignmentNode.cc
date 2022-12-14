@@ -31,6 +31,7 @@
 #include <Mm/FeatureScorer.hh>
 #include "AllophoneStateGraphBuilder.hh"
 #include "FsaCache.hh"
+#include "Module.hh"
 
 using namespace Speech;
 using Search::Aligner;
@@ -216,7 +217,7 @@ void AlignmentNode::initialize() {
     modelCombination.load();
     acousticModel_ = modelCombination.acousticModel();
     verify(!allophoneStateGraphBuilder_);
-    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
             select("allophone-state-graph-builder"),
             modelCombination.lexicon(),
             modelCombination.acousticModel());

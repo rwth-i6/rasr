@@ -19,6 +19,7 @@
 #include "AligningFeatureExtractor.hh"
 #include "AlignmentNode.hh"
 #include "AlignmentWithLinearSegmentation.hh"
+#include "AllophoneStateGraphBuilder.hh"
 #include "DataSource.hh"
 #include "FeatureScorerNode.hh"
 #include "MixtureSetTrainer.hh"
@@ -113,6 +114,50 @@ Module_::Module_() {
     registry.registerFilter<FeatureShiftAdaptor>();
 #endif
 }
+
+namespace {
+enum GraphBuilderTopology {
+    HMMTopology,
+    CTCTopology,
+    RNATopology
+};
+
+const Core::Choice GraphBuilderTopologyChoice(
+    "hmm", HMMTopology,
+    "ctc", CTCTopology,
+    "rna", RNATopology,
+    Core::Choice::endMark());
+
+const Core::ParameterChoice paramTopology(
+    "topology", &GraphBuilderTopologyChoice, "topology of graph builder", HMMTopology);
+}
+
+AllophoneStateGraphBuilder* Module_::createAllophoneStateGraphBuilder(
+        const Core::Configuration& config,
+        Core::Ref<const Bliss::Lexicon> lexicon,
+        Core::Ref<const Am::AcousticModel> acousticModel,
+        bool flatModelAcceptor) const {
+
+    AllophoneStateGraphBuilder* result = nullptr;
+    switch (paramTopology(config)) {
+        case HMMTopology:
+            Core::Application::us()->log("create HMM topology graph builder");
+            result = new HMMTopologyGraphBuilder(config, lexicon, acousticModel, flatModelAcceptor);
+            break;
+        case CTCTopology:
+            Core::Application::us()->log("create CTC topology graph builder");
+            result = new CTCTopologyGraphBuilder(config, lexicon, acousticModel, flatModelAcceptor);
+            break;
+        case RNATopology:
+            Core::Application::us()->log("create RNA topology graph builder");
+            result = new RNATopologyGraphBuilder(config, lexicon, acousticModel, flatModelAcceptor);
+            break;
+        default:
+            Core::Application::us()->criticalError("unknown topology for allophone-state-graph-builder");
+    }
+    return result;
+}
+
 
 AligningFeatureExtractor* Module_::createAligningFeatureExtractor(
         const Core::Configuration& configuration, AlignedFeatureProcessor& featureProcessor) const {

@@ -34,16 +34,19 @@
 
 using namespace Speech;
 
+const Core::ParameterInt paramMinDuration("label-min-duration", "minimum occurance of speech label", 1);
+
 AllophoneStateGraphBuilder::AllophoneStateGraphBuilder(const Core::Configuration&         c,
                                                        Core::Ref<const Bliss::Lexicon>    lexicon,
                                                        Core::Ref<const Am::AcousticModel> acousticModel,
                                                        bool                               flatModelAcceptor)
         : Precursor(c),
           lexicon_(lexicon),
-          acousticModel_(acousticModel),
           orthographicParser_(0),
           modelChannel_(config, "model-automaton"),
-          flatModelAcceptor_(flatModelAcceptor) {}
+          acousticModel_(acousticModel),
+          flatModelAcceptor_(flatModelAcceptor),
+          minDuration_(paramMinDuration(c)) {}
 
 AllophoneStateGraphBuilder::~AllophoneStateGraphBuilder() {
     delete orthographicParser_;
@@ -213,7 +216,7 @@ AllophoneStateGraphRef AllophoneStateGraphBuilder::build(Fsa::ConstAutomatonRef 
     return finalizeTransducer(buildTransducer(lemmaAcceptor));
 }
 
-Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildTransducer(
+Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildFlatTransducer(
         Fsa::ConstAutomatonRef lemmaAcceptor) {
     if (modelChannel_.isOpen()) {
         Fsa::info(lemmaAcceptor, modelChannel_);
@@ -269,16 +272,10 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildTransducer(
         Fsa::drawDot(model, "/tmp/allophon.dot");
         Fsa::write(model, "bin:/tmp/allophon.binfsa.gz");
     }
+    return model;
+}
 
-    if (!flatModelAcceptor_) {
-        model                               = Fsa::cache(model);
-        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
-        tb->selectAllophoneStatesAsInput();
-        tb->selectTransitionModel();
-        tb->setDisambiguators(1);  // word end disambiguators
-        model = tb->applyTransitionModel(model);
-    }
-
+Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::finishTransducer(Fsa::ConstAutomatonRef model) {
     if (modelChannel_.isOpen()) {
         Fsa::info(model, log());
         Fsa::drawDot(model, "/tmp/states.dot");
@@ -289,7 +286,6 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::buildTransducer(
     }
     if (model->initialStateId() == Fsa::InvalidStateId)
         criticalError("allophone-state graph is empty.");
-
     return model;
 }
 
@@ -354,3 +350,195 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::createAlignmentGraph(const Al
     f->normalize();
     return f;
 }
+
+
+// -------- HMM Topology --------
+Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::buildTransducer(Fsa::ConstAutomatonRef lemmaAcceptor) {
+    Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
+    if (!flatModelAcceptor_) {
+        model                               = Fsa::cache(model);
+        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
+        tb->selectAllophoneStatesAsInput();
+        tb->selectTransitionModel();
+        tb->setDisambiguators(1); // word end disambiguators
+        model = tb->applyTransitionModel(model);
+    }
+    if (minDuration_ > 1)
+        model = applyMinimumDuration(model);
+    return finishTransducer(model);
+}
+
+Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::applyMinimumDuration(Fsa::ConstAutomatonRef model) {
+    Fsa::LabelId silenceId = acousticModel_->silenceAllophoneStateIndex();
+    Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(model);
+
+    std::deque<Fsa::StateId> stateQueue;
+    std::unordered_set<Fsa::StateId> doneStates;
+    stateQueue.push_back(automaton->initialStateId());
+    Fsa::StateId staticMaxId = automaton->maxStateId();
+
+    while (!stateQueue.empty()) {
+        Fsa::StateId s = stateQueue.front();
+        stateQueue.pop_front();
+        if (doneStates.count(s) > 0)
+            continue;
+        // newly inserted states should not be traversed
+        verify(s <= staticMaxId);
+
+        Fsa::State* state = automaton->fastState(s);
+        u32 nArcs = state->nArcs();
+        for (u32 idx = 0; idx < nArcs; ++idx) {
+            Fsa::Arc* a = const_cast<Fsa::Arc*>(state->getArc(idx));
+            Fsa::StateId target = a->target_;
+            stateQueue.push_back(target);
+            if (target == s || a->input_ == silenceId || a->output_ == Fsa::Epsilon ||
+                Score(a->weight_) >= Core::Type<Score>::max)
+                continue;
+            // repeat forward with zero weight
+            for (u32 repeat = 1; repeat < minDuration_; ++repeat) { 
+                Fsa::State* ns = automaton->newState();
+                ns->newArc(target, Fsa::Weight(0), a->input_, Fsa::Epsilon);
+                target = automaton->maxStateId();
+            }
+            a->target_ = target;
+        }
+        doneStates.insert(s);
+    }
+
+    return automaton;
+}
+
+// -------- CTC Topology --------
+const Core::ParameterInt paramBlankLabelId("blank-label-index", "", 0);
+
+CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration& config,
+                                                 Core::Ref<const Bliss::Lexicon> lexicon,
+                                                 Core::Ref<const Am::AcousticModel> acousticModel,
+                                                 bool flatModelAcceptor) :
+        Precursor(config, lexicon, acousticModel, flatModelAcceptor),
+        blankId_(paramBlankLabelId(config)),
+        labelLoop_(true),
+        transitionChecked_(false),
+        finalStateId_(Core::Type<Fsa::StateId>::max) {
+    // silence is allowed but not necessarily used
+    silenceId_ = acousticModel_->silenceAllophoneStateIndex(); 
+}
+
+void CTCTopologyGraphBuilder::checkTransitionModel() {
+    if (!labelLoop_ || transitionChecked_)
+        return;
+
+    // label loop, no skip, no weights: realized via transition model
+    bool correct = true;
+    for (u32 idx = 0, total = acousticModel_->nStateTransitions(); idx < total; ++idx) {
+        const Am::StateTransitionModel& st = *(acousticModel_->stateTransition(idx));
+        bool correct = st[Am::StateTransitionModel::forward] == 0 &&
+                       st[Am::StateTransitionModel::skip] >= Core::Type<Score>::max &&
+                       st[Am::StateTransitionModel::exit] == 0;
+        if (idx == Am::TransitionModel::entryM1 || idx == Am::TransitionModel::entryM2)
+            correct = correct && st[Am::StateTransitionModel::loop] >= Core::Type<Score>::max;
+        else
+            correct = correct && st[Am::StateTransitionModel::loop] == 0;
+        if (!correct)
+            criticalError("wrong transitions ! please set forward:0, skip:inf, exit:0 and loop:inf(entry)/0(*)");
+    }
+    verify(correct);
+    transitionChecked_ = true;
+}
+
+Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::buildTransducer(Fsa::ConstAutomatonRef lemmaAcceptor) {
+    Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
+    if (labelLoop_) {
+        checkTransitionModel();
+        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
+        tb->selectAllophoneStatesAsInput();
+        tb->selectTransitionModel();
+        tb->setDisambiguators(1);  // word end disambiguators
+        model = tb->applyTransitionModel(model);
+    }
+    Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(model);
+
+    finalStateId_ = Core::Type<Fsa::StateId>::max;
+    std::deque<Fsa::StateId> stateQueue;
+    std::unordered_set<Fsa::StateId> doneStates;
+    stateQueue.push_back(automaton->initialStateId());
+    Fsa::StateId staticMaxId = automaton->maxStateId();
+
+    while (!stateQueue.empty()) {
+        Fsa::StateId s = stateQueue.front();
+        stateQueue.pop_front();
+        if (doneStates.count(s) > 0)
+            continue;
+        // newly inserted states should not be traversed
+        verify(s <= staticMaxId);
+        addBlank(automaton, s, stateQueue);
+        doneStates.insert(s);
+    }
+
+    return finishTransducer(automaton);
+}
+
+void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automaton,
+                                       Fsa::StateId s,
+                                       std::deque<Fsa::StateId>& stateQueue) {
+    Fsa::Weight zeroWeight(0);
+    Fsa::State* state = automaton->fastState(s);
+    u32 nArcs = state->nArcs();
+    for (u32 idx = 0; idx < nArcs; ++idx) {
+        const Fsa::Arc* a = state->getArc(idx);
+        Fsa::StateId target = a->target_;
+        stateQueue.push_back(target);
+        // skip loop and useless arcs for blank
+        if (target == s || a->input_ == blankId_ || a->output_ == Fsa::Epsilon ||
+            Score(a->weight_) >= Core::Type<Score>::max)
+            continue;
+        // add blank
+        Fsa::State* blankState = automaton->newState();
+        Fsa::StateId blankStateId = automaton->maxStateId();
+        state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);
+        blankState->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);
+        blankState->newArc(target, a->weight_, a->input_, a->output_);
+        // apply minimum duration here to avoid traversing the automaton again
+        if (minDuration_ > 1 && a->input_ != silenceId_) {
+            // repeat forward with zero weight
+            for (u32 repeat = 1; repeat < minDuration_; ++repeat) {
+                Fsa::State* ns = automaton->newState();
+                ns->newArc(target, zeroWeight, a->input_, Fsa::Epsilon);
+                target = automaton->maxStateId();
+            }
+            Fsa::Arc* aa = const_cast<Fsa::Arc*>(a);
+            aa->target_ = target;
+            blankState->rbegin()->target_ = target;
+        }
+    }
+
+    // tailing blanks: loop on a single additional final state
+    if (state->isFinal()) {
+        if (finalStateId_ == Core::Type<Fsa::StateId>::max) {
+            Fsa::State* finalState = automaton->newState();
+            finalStateId_ = automaton->maxStateId();
+            verify(finalStateId_ != Core::Type<Fsa::StateId>::max);
+            finalState->newArc(finalStateId_, zeroWeight, blankId_, Fsa::Epsilon);
+            automaton->setStateFinal(finalState);
+        }
+        state->newArc(finalStateId_, zeroWeight, blankId_, Fsa::Epsilon);
+    }
+}
+
+
+// -------- RNA Topology --------
+void RNATopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automaton,
+                                       Fsa::StateId s,
+                                       std::deque<Fsa::StateId>& stateQueue) {
+    Fsa::State* state = automaton->fastState(s);
+    u32 nArcs = state->nArcs();
+    for (u32 idx = 0; idx < nArcs; ++idx) {
+        const Fsa::Arc* a = state->getArc(idx);
+        Fsa::StateId target = a->target_;
+        stateQueue.push_back(target);
+        verify(target != s); // no loop
+    }
+    state->newArc(s, Fsa::Weight(0), blankId_, Fsa::Epsilon);
+}
+
+

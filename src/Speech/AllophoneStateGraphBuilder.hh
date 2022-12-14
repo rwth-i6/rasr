@@ -20,6 +20,7 @@
 #include <Core/Component.hh>
 #include <Fsa/Automaton.hh>
 #include <Fsa/Static.hh>
+#include <deque>
 
 namespace Am {
 class AcousticModel;
@@ -41,6 +42,9 @@ typedef Fsa::Automaton::ConstRef AllophoneStateGraphRef;
 
 /**
  *  AllophoneStateGraphBuilder
+ *  - base class for FSA graph building
+ *  - output flat automaton/transducer without additional transitions (e.g. loop, skip ...)
+ *  - configurable inclusion of alternative paths (e.g. pronunciation variants)
  */
 class AllophoneStateGraphBuilder : public Core::Component, public Core::ReferenceCounted {
     typedef Core::Component Precursor;
@@ -137,14 +141,12 @@ public:
 
 private:
     Bliss::LexiconRef                        lexicon_;
-    Core::Ref<const Am::AcousticModel>       acousticModel_;
     Bliss::OrthographicParser*               orthographicParser_;
     Core::Ref<Fsa::StaticAutomaton>          lemmaPronunciationToLemmaTransducer_;
     Core::Ref<Fsa::StaticAutomaton>          phonemeToLemmaPronunciationTransducer_;
     Core::Ref<Fsa::StaticAutomaton>          allophoneStateToPhonemeTransducer_;
     Fsa::ConstAutomatonRef                   singlePronunciationAllophoneStateToPhonemeTransducer_;
     Core::XmlChannel                         modelChannel_;
-    bool                                     flatModelAcceptor_;
     std::vector<const Bliss::Pronunciation*> silencesAndNoises_;
 
 private:
@@ -157,12 +159,24 @@ private:
     Fsa::ConstAutomatonRef createAlignmentGraph(const Alignment&);
     AllophoneStateGraphRef build(const Alignment& alignment, AllophoneStateGraphRef);
 
+protected:
+    Core::Ref<const Am::AcousticModel> acousticModel_;
+
+    bool flatModelAcceptor_; // true: single path only
+    u32  minDuration_; // minimum duration
+
+protected:
+    // compose-builds allophone-state transducer from lemma acceptor (no additional transitions)
+    Fsa::ConstAutomatonRef buildFlatTransducer(Fsa::ConstAutomatonRef lemmaAcceptor);
+    // finalize the built transducer
+    Fsa::ConstAutomatonRef finishTransducer(Fsa::ConstAutomatonRef model);
+
 public:
     AllophoneStateGraphBuilder(
-            const Core::Configuration&,
+            const Core::Configuration&         config,
             Core::Ref<const Bliss::Lexicon>    lexicon,
             Core::Ref<const Am::AcousticModel> acousticModel,
-            bool                               flatModelAcceptor = false);
+            bool                               flatModelAcceptor);
 
     virtual ~AllophoneStateGraphBuilder();
 
@@ -263,8 +277,76 @@ public:
 
     /** Builds allophone state acceptor from a lemma accertor. */
     AllophoneStateGraphRef build(Fsa::ConstAutomatonRef);
-    /** Builds a allophone state to lemma pronunciation transducer from lemma acceptor. */
+
+    /** builds the final transducer
+     *  forces concrete behavior in derived classes (mostly specific topology upon flat automaton)
+     */
+    virtual Fsa::ConstAutomatonRef buildTransducer(Fsa::ConstAutomatonRef) = 0;
+};
+
+// -------- Graphs of various topologies --------
+
+class HMMTopologyGraphBuilder : public AllophoneStateGraphBuilder {
+    typedef AllophoneStateGraphBuilder Precursor;
+
+public:
+    HMMTopologyGraphBuilder(
+            const Core::Configuration&         config,
+            Core::Ref<const Bliss::Lexicon>    lexicon,
+            Core::Ref<const Am::AcousticModel> acousticModel,
+            bool                               flatModelAcceptor) :
+        Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
+
+    // further apply transition model (loop, skip + weights)
     Fsa::ConstAutomatonRef buildTransducer(Fsa::ConstAutomatonRef);
+
+private:
+    Fsa::ConstAutomatonRef applyMinimumDuration(Fsa::ConstAutomatonRef);
+};
+
+
+class CTCTopologyGraphBuilder : public AllophoneStateGraphBuilder {
+    typedef AllophoneStateGraphBuilder Precursor;
+
+public:
+    CTCTopologyGraphBuilder(
+            const Core::Configuration&         config,
+            Core::Ref<const Bliss::Lexicon>    lexicon,
+            Core::Ref<const Am::AcousticModel> acousticModel,
+            bool                               flatModelAcceptor);
+
+    // further add label loop and blank (no weights)
+    Fsa::ConstAutomatonRef buildTransducer(Fsa::ConstAutomatonRef);
+
+protected:
+    Fsa::LabelId blankId_;
+    bool         labelLoop_;
+
+    virtual void addBlank(Core::Ref<Fsa::StaticAutomaton>&, Fsa::StateId, std::deque<Fsa::StateId>&);
+
+private:
+    bool transitionChecked_;
+    Fsa::StateId finalStateId_;
+    Fsa::LabelId silenceId_;
+
+    void checkTransitionModel();
+};
+
+
+class RNATopologyGraphBuilder : public CTCTopologyGraphBuilder {
+    typedef CTCTopologyGraphBuilder Precursor;
+
+public:
+    RNATopologyGraphBuilder(
+            const Core::Configuration&         config,
+            Core::Ref<const Bliss::Lexicon>    lexicon,
+            Core::Ref<const Am::AcousticModel> acousticModel,
+            bool                               flatModelAcceptor):
+        Precursor(config, lexicon, acousticModel, flatModelAcceptor) { labelLoop_ = false; }
+
+protected:
+    // no label loop
+    void addBlank(Core::Ref<Fsa::StaticAutomaton>&, Fsa::StateId, std::deque<Fsa::StateId>&);
 };
 
 }  // namespace Speech

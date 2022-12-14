@@ -15,6 +15,7 @@
 #include "AlignerModelAcceptor.hh"
 #include "FsaCache.hh"
 #include "ModelCombination.hh"
+#include "Module.hh"
 
 using namespace Speech;
 
@@ -28,9 +29,10 @@ AlignerModelAcceptorGenerator::AlignerModelAcceptorGenerator(const Core::Configu
                                       Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying);
     modelCombination.load();
 
-    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                                 modelCombination.lexicon(),
-                                                                 modelCombination.acousticModel());
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+            select("allophone-state-graph-builder"),
+            modelCombination.lexicon(),
+            modelCombination.acousticModel());
 
     cache_ = new FsaCache(select("model-acceptor-cache"), Fsa::storeStates);
     Core::DependencySet dependencies;

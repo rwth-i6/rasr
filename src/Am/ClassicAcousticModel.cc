@@ -53,6 +53,21 @@ void ClassicAcousticModel::determineSilenceAllophoneStateIndex() {
     }
 }
 
+AllophoneStateIndex ClassicAcousticModel::blankAllophoneStateIndex() const {
+    LexiconUtilities            lexiconUtilities(config, lexiconRef_);
+    const Bliss::Pronunciation* blankPronunciation =
+            lexiconUtilities.determineBlankPronunciation()->pronunciation();
+    if (blankPronunciation) {
+        Allophone allo(stateModelRef_->phonology()(*blankPronunciation, 0),
+                       Allophone::isInitialPhone | Allophone::isFinalPhone);
+        return allophoneStateAlphabet()->index(&allo, 0);
+    }
+    else {
+        error("Could not determine blank allophone state index.");
+        return Fsa::InvalidLabelId;
+    }
+}
+
 void ClassicAcousticModel::load(Mode mode) {
     if ((mode & noStateTying) == 0) {
         if (!loadStateTying())

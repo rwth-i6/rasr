@@ -91,6 +91,9 @@ public:
         return silenceAllophoneStateIndex_;
     }
 
+    // on demand only
+    virtual AllophoneStateIndex blankAllophoneStateIndex() const;
+
     ClassicStateModelRef stateModel() const {
         return stateModelRef_;
     }

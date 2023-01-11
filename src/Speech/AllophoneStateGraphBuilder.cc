@@ -409,17 +409,17 @@ Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::applyMinimumDuration(Fsa::ConstA
 }
 
 // -------- CTC Topology --------
-const Core::ParameterInt paramBlankLabelId("blank-label-index", "", 0);
-
 CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration& config,
                                                  Core::Ref<const Bliss::Lexicon> lexicon,
                                                  Core::Ref<const Am::AcousticModel> acousticModel,
                                                  bool flatModelAcceptor) :
         Precursor(config, lexicon, acousticModel, flatModelAcceptor),
-        blankId_(paramBlankLabelId(config)),
         labelLoop_(true),
         transitionChecked_(false),
         finalStateId_(Core::Type<Fsa::StateId>::max) {
+    // Note: not emission index yet
+    blankId_ = acousticModel_->blankAllophoneStateIndex();
+    verify(blankId_ != Fsa::InvalidLabelId);
     // silence is allowed but not necessarily used
     silenceId_ = acousticModel_->silenceAllophoneStateIndex(); 
 }

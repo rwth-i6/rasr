@@ -20,6 +20,19 @@ LexiconUtilities::LexiconUtilities(const Core::Configuration& c, Bliss::LexiconR
         : Component(c),
           lexicon_(l) {}
 
+const Bliss::LemmaPronunciation* LexiconUtilities::determineSpecialLemmaPronunciation(const std::string& specialKey) const {
+    const Bliss::Lemma* specialLemma = lexicon_->specialLemma(specialKey);
+    if (!specialLemma)
+        error() << "No special lemma \"" << specialKey << "\" defined in lexicon.";
+    else if (specialLemma->nPronunciations() < 1)
+        error() << "Special lemma \"" << specialKey << "\" does not have a pronunciation.";
+    else if (specialLemma->nPronunciations() > 1)
+        warning() << "Special lemma \"" << specialKey << "\" has multiple pronunciations. Using /"
+                  << specialLemma->pronunciations().first->pronunciation()->format(lexicon_->phonemeInventory())
+                  << "/.";
+    return specialLemma->pronunciations().first;
+}
+
 Bliss::Phoneme::Id LexiconUtilities::determineSilencePhoneme() const {
     Bliss::Phoneme::Id          result = Bliss::Phoneme::term;
     const Bliss::Pronunciation* silencePronunciation =
@@ -39,19 +52,6 @@ Bliss::Phoneme::Id LexiconUtilities::determineSilencePhoneme() const {
         criticalError("Failed to determine silence phoneme.");
 
     return result;
-}
-
-const Bliss::LemmaPronunciation* LexiconUtilities::determineSilencePronunciation() const {
-    const Bliss::Lemma* silenceLemma = lexicon_->specialLemma("silence");
-    if (!silenceLemma)
-        error("No special lemma \"silence\" defined in lexicon.");
-    else if (silenceLemma->nPronunciations() < 1)
-        error("Special lemma \"silence\" does not have a pronunciation.");
-    else if (silenceLemma->nPronunciations() > 1)
-        warning("Special lemma \"silence\" has multiple pronunciations."
-                " Using /%s/.",
-                silenceLemma->pronunciations().first->pronunciation()->format(lexicon_->phonemeInventory()).c_str());
-    return silenceLemma->pronunciations().first;
 }
 
 Fsa::LabelId LexiconUtilities::determineSilenceLemmaPronunciationId() const {

@@ -415,3 +415,4 @@ Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
     return result;
 }
 }  // namespace
+

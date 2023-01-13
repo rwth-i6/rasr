@@ -176,12 +176,11 @@ void ExampleList::writeToFile() const {
     std::string filename = paramExampleFilename(config);
     std::string encoding = paramExampleFileEncoding(config);
     if (!filename.empty()) {
-        log() << "write example list to \"" << filename << "\"";
-        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename));
+        log() << "write example list to \"" << filename << "\" with encoding \"" << encoding << "\"";
+        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename), encoding);
         xml.generateFormattingHints(true);
         xml.setIndentation(4);
         xml.setMargin(78);
-        xml.setEncoding(encoding);
         writeXml(xml);
     }
     else {

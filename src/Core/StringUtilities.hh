@@ -109,6 +109,11 @@ std::vector<std::string> split(const std::string& string, const std::string& sep
 bool startsWith(const std::string& string, const std::string& search);
 
 /**
+ * Replaces all occurrences of 'from' by 'to' in 'str'.
+ */
+void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
+/**
  * Convinient functions to parse strings.
  *
  * returns true on successful conversion;

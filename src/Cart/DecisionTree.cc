@@ -77,7 +77,10 @@ ScalarQuestion::ScalarQuestion(PropertyMapRef     map,
           valueIndex_(map_->undefinedIndex) {
     verify(map_->isDefined(keyIndex_));
     valueIndex_ = (*map_)[keyIndex_][value];
-    verify(map_->isDefined(valueIndex_));
+    if (!map_->isDefined(valueIndex_)) {
+        std::cerr << "undefined phoneme in question: key='" << key << "' value='" << value << "' (" << desc << ")\n";
+        defect();
+    }
 }
 
 void ScalarQuestion::write(std::ostream& out) const {
@@ -193,6 +196,9 @@ void DecisionTree::Path::write(std::ostream& out) const {
 const Core::ParameterString DecisionTree::paramCartFilename(
         "decision-tree-file",
         "name of decision tree (aka cart) file");
+const Core::ParameterString DecisionTree::paramCartEncoding(
+        "encoding",
+        "encoding of the cart file");
 
 DecisionTree::DecisionTree(const Core::Configuration& config,
                            PropertyMapRef             map,
@@ -365,9 +371,10 @@ void DecisionTree::writeXml(Core::XmlWriter& xml, const std::string& name) const
 
 void DecisionTree::writeToFile() const {
     std::string filename(paramCartFilename(config));
+    std::string encoding(paramCartEncoding(config));
     if (!filename.empty()) {
         log() << "write decision tree to \"" << filename << "\"";
-        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename));
+        Core::XmlOutputStream xml(new Core::CompressedOutputStream(filename), encoding);
         xml.generateFormattingHints(true);
         xml.setIndentation(4);
         xml.setMargin(78);

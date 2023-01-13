@@ -36,7 +36,8 @@ public:
         cartTying,
         oldCartTying,
         noTyingDense,
-        diphoneNoStateTyingDense
+        diphoneDense,
+        monophoneDense,
     };
     static const Core::Choice          choiceStateTying;
     static const Core::ParameterChoice paramType;

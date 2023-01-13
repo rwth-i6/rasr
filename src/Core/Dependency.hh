@@ -102,8 +102,9 @@ public:
     unsigned int getChecksum() const {
         unsigned int ret = 0;
 
-        for (DependencySet::Dependencies::const_iterator d = dependencies_.begin(); d != dependencies_.end(); ++d)
+        for (DependencySet::Dependencies::const_iterator d = dependencies_.begin(); d != dependencies_.end(); ++d) {
             ret += d->second.getChecksum();
+        }
 
         return ret;
     }

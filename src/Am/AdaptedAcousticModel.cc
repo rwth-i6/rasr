@@ -148,4 +148,3 @@ bool AdaptedAcousticModel::setKey(const std::string& key) {
 
     return setFeatureScorer(featureScorer);
 }
-

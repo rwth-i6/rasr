@@ -128,6 +128,8 @@ private:
 
     mutable Fsa::LabelId nDisambiguators_;
 
+    const std::string storeToFile_;
+
 protected:
     /**
      *  takes ownership

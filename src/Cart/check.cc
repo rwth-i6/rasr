@@ -27,18 +27,10 @@ public:
     virtual std::string getUsage() const {
         return "short program to test Cart\n";
     }
-    int main(const std::vector<std::string>& arguments);
-} app;
-
-using namespace Cart;
-
-/*****************************************************************************/
-int TestApplication::main(const std::vector<std::string>& argv)
-/*****************************************************************************/
-{
-    require(!argv.empty());
-    DecisionTree dt(config);
-    return 0;
-}
+    int main(const std::vector<std::string>& arguments) {
+        Cart::DecisionTree dt(config);
+        return 0;
+    }
+};
 
 APPLICATION(TestApplication)

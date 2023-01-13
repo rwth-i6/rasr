@@ -7,6 +7,9 @@ include $(TOPDIR)/Makefile.cfg
 # -----------------------------------------------------------------------------
 
 SUBDIRS 	= FlfCore
+ifdef MODULE_FLF_EXT
+SUBDIRS 	+= FlfExt
+endif
 
 ifdef MODULE_FLF
 TARGETS		= libSprintFlf.$(a) check$(exe)
@@ -75,6 +78,9 @@ LIBSPRINTFLF_O 	= \
 
 CHECK_O		= $(OBJDIR)/check.o \
 		  FlfCore/libSprintFlfCore.$(a)
+ifdef MODULE_FLF_EXT
+CHECK_O 	+= FlfExt/libSprintFlfExt.$(a)
+endif
 CHECK_O 	+= libSprintFlf.$(a) \
 		  ../Speech/libSprintSpeech.$(a) \
 		  ../Lattice/libSprintLattice.$(a) \
@@ -90,7 +96,7 @@ CHECK_O 	+= libSprintFlf.$(a) \
 
 # -----------------------------------------------------------------------------
 
-all: $(TARGETS)
+all: $(TARGETS) $(SUBDIRS)
 
 .PHONY: $(SUBDIRS)
 
@@ -100,7 +106,7 @@ FlfCore:
 FlfExt:
 	$(MAKE) -C FlfExt libSprintFlfExt.$(a)
 
-libSprintFlf.$(a): $(SUBDIRS) $(LIBSPRINTFLF_O)
+libSprintFlf.$(a): $(LIBSPRINTFLF_O)
 	$(MAKELIB) $@ $(LIBSPRINTFLF_O)
 
 check$(exe): $(CHECK_O)

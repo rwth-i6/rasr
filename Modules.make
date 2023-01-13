@@ -40,6 +40,7 @@ MODULES += MODULE_CART
 
 # ****** Flf ******
 MODULES += MODULE_FLF_CORE
+MODULES += MODULE_FLF_EXT
 MODULES += MODULE_FLF
 
 # ****** Lattice ******

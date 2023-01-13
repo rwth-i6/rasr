@@ -1008,6 +1008,17 @@ void Configuration::writeResolvedResources(XmlWriter& os) const {
     os << XmlFull("selection", getSelection());
 }
 
+std::vector<std::string> Configuration::writeResourcesToCommandlineArgs() const {
+    std::vector<std::string> res;
+    for (std::set<Resource>::const_iterator itResource = db_->getResources().begin();
+         itResource != db_->getResources().end();
+         ++itResource) {
+        res.push_back(std::string("--") + itResource->getName());
+        res.push_back(itResource->getValue());
+    }
+    return res;
+}
+
 void Configuration::writeUsage(XmlWriter& os) const {
     db_->writeUsage(os);
 }

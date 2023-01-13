@@ -48,6 +48,11 @@ BASIC_MODULES   += FlfCore
 TOOLS_MODULES   += FlfCore
 endif
 
+ifdef MODULE_FLF_EXT
+SUBDIRS         += Flf/FlfExt
+TOOLS_MODULES   += FlfExt
+endif
+
 ifdef MODULE_FLF
 SUBDIRS         += Flf
 TOOLS_MODULES   += Flf

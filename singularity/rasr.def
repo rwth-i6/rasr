@@ -16,8 +16,8 @@ Stage: rasr
     /opt/tensorflow/bazel_out/external/eigen_archive
     /opt/tensorflow/bazel_out/external/com_google_protobuf/src
     /opt/tensorflow/bazel_out/external/com_google_absl
-    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/libtensorflow_cc.so.1.15.4
-    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/libtensorflow_framework.so.1.15.4
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/libtensorflow_cc.so.1.15.5
+    /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/libtensorflow_framework.so.1.15.5
 
     /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/core/debug/debug_service.grpc.pb.h
     /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/core/debug/debug_service.pb.h
@@ -122,7 +122,7 @@ Stage: rasr
     ln -s /opt/tensorflow/bazel_out/external/com_google_absl         bazel-tensorflow/external/com_google_absl
 
     cd /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/
-    ln -s libtensorflow_cc.so.1.15.4        libtensorflow_cc.so
-    ln -s libtensorflow_cc.so.1.15.4        libtensorflow_cc.so.1
-    ln -s libtensorflow_framework.so.1.15.4 libtensorflow_framework.so
-    ln -s libtensorflow_framework.so.1.15.4 libtensorflow_framework.so.1
+    ln -s libtensorflow_cc.so.1.15.5        libtensorflow_cc.so
+    ln -s libtensorflow_cc.so.1.15.5        libtensorflow_cc.so.1
+    ln -s libtensorflow_framework.so.1.15.5 libtensorflow_framework.so
+    ln -s libtensorflow_framework.so.1.15.5 libtensorflow_framework.so.1

@@ -109,6 +109,7 @@ const Core::Choice ClassicAcousticModel::choiceStateTying(
         "diphone-dense", diphoneDense,
         "monophone-dense", monophoneDense,
         "monophone", monophoneTying,
+        "monophone-eow", monophoneEOWTying,  // monophone: differ within-word and end-of-word
         "lut", lutTying,
         "lookup", lutTying,
         "cart", cartTying,

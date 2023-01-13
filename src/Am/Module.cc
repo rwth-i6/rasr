@@ -43,6 +43,7 @@ Module_::Module_() {
     registerStateTying<DiphoneDense>(ClassicAcousticModel::diphoneDense);
     registerStateTying<MonophoneDense>(ClassicAcousticModel::monophoneDense);
     registerStateTying<MonophoneStateTying>(ClassicAcousticModel::monophoneTying);
+    registerStateTying<MonophoneEOWStateTying>(ClassicAcousticModel::monophoneEOWTying);
     registerStateTying<LutStateTying>(ClassicAcousticModel::lutTying);
 #ifdef MODULE_CART
     registerStateTying<DecisionTreeStateTying>(ClassicAcousticModel::cartTying);

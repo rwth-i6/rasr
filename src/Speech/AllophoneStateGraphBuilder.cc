@@ -510,8 +510,8 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
         // add blank
         Fsa::State* blankState = automaton->newState();
         Fsa::StateId blankStateId = automaton->maxStateId();
-        blankState->newArc(target, a->weight_, input, a->output_);
         blankState->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);
+        blankState->newArc(target, a->weight_, input, a->output_);
         state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon); // invalidate a
 
         // apply minimum duration here to avoid traversing the automaton again

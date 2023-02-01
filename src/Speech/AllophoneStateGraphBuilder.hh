@@ -146,7 +146,6 @@ private:
     Core::Ref<Fsa::StaticAutomaton>          phonemeToLemmaPronunciationTransducer_;
     Core::Ref<Fsa::StaticAutomaton>          allophoneStateToPhonemeTransducer_;
     Fsa::ConstAutomatonRef                   singlePronunciationAllophoneStateToPhonemeTransducer_;
-    Core::XmlChannel                         modelChannel_;
     std::vector<const Bliss::Pronunciation*> silencesAndNoises_;
 
 private:
@@ -161,6 +160,7 @@ private:
 
 protected:
     Core::Ref<const Am::AcousticModel> acousticModel_;
+    Core::XmlChannel                   modelChannel_;
 
     bool flatModelAcceptor_; // true: single path only
     u32  minDuration_; // minimum duration

@@ -1,4 +1,5 @@
 /** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2020 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -1208,7 +1209,16 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
             activateOrUpdateStateHypothesisTransition(hyp, skipScore, a);
     }
 
-    Score forwardScore = hyp.score + tdp[Am::StateTransitionModel::forward];
+    Score forwardScore;
+    if (scorer_->isDelta()){
+        Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
+        Mm::MixtureIndex index = scorer_->getDeltaIndex(mix);
+
+        forwardScore = hyp.score + forwardCache_[index];
+    }
+    else{
+        forwardScore = hyp.score +  tdp[Am::StateTransitionModel::forward];
+    }
 
     if (forwardScore < Core::Type<Score>::max) {
         std::pair<int, int> successors = net.structure.batchSuccessorsSimple<true>(state.successors);
@@ -1269,7 +1279,23 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
     Am::StateTransitionModel const& tdp                             = *transitionModel(state.stateDesc);
 
     // loops
-    Score loopScore = hyp.score + tdp[Am::StateTransitionModel::loop];
+        Score loopScore;
+
+        if (scorer_->isDelta()){
+            Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
+            verify_(mix != StateTree::invalidAcousticModel);
+            //You do not loop on the virtual start state
+            if(mix > acousticModel_->nEmissions()){
+                loopScore = hyp.score + tdp[Am::TransitionModel::entryM1];
+            }
+            else{
+                Mm::MixtureIndex index   = scorer_->getDeltaIndex(mix);
+                loopScore = hyp.score + loopCache_[index];
+            }
+        }
+        else{
+            loopScore = hyp.score + tdp[Am::StateTransitionModel::loop];
+        }
 
     if (loopScore < Core::Type<Score>::max)
         activateOrUpdateStateHypothesisLoop(hyp, loopScore);
@@ -1280,7 +1306,16 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
 
         StateId forwardSuccessor = state.successors & (~SingleSuccessorBatchMask);
 
-        Score forwardScore = hyp.score + tdp[Am::StateTransitionModel::forward];
+        Score forwardScore;
+        if (scorer_->isDelta()){
+            Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
+            verify_(mix != StateTree::invalidAcousticModel);
+            Mm::MixtureIndex index = scorer_->getDeltaIndex(mix);
+            forwardScore = hyp.score + forwardCache_[index];
+        }
+        else{
+            forwardScore = hyp.score +  tdp[Am::StateTransitionModel::forward];
+        }
 
         if (forwardScore < Core::Type<Score>::max)
             activateOrUpdateStateHypothesisTransition(hyp, forwardScore, forwardSuccessor);
@@ -1295,7 +1330,23 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
             return;
         }
 
-        Score forwardScore = hyp.score + tdp[Am::StateTransitionModel::forward];
+        Score forwardScore;
+        if (scorer_->isDelta()){
+            Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
+            verify_(mix != StateTree::invalidAcousticModel);
+            //You might have invalid states you do not want to forward to
+            if(mix > acousticModel_->nEmissions()){
+                forwardScore = hyp.score;
+            }
+            else{
+                Mm::MixtureIndex index   = scorer_->getDeltaIndex(mix);
+                forwardScore = hyp.score + forwardCache_[index];
+            }
+        }
+
+        else{
+            forwardScore = hyp.score + tdp[Am::StateTransitionModel::forward];
+        }
 
         if (forwardScore < Core::Type<Score>::max)
             for (int successor = successors.first; successor < successors.second; ++successor)
@@ -1666,6 +1717,36 @@ void SearchSpace::addAcousticScores() {
 
     bestProspect_ = Core::Type<Score>::max;
     bestScore_    = Core::Type<Score>::max;
+
+    if (scorer_->isTriphone()){
+        StateHypothesesList::iterator activeStart     = stateHypotheses.begin();
+        StateHypothesesList::iterator activeEnd       = stateHypotheses.end();
+        std::vector<Mm::MixtureIndex> activeLabels;
+        std::vector<bool> visited(acousticModel_->nEmissions());
+
+        for (; activeStart != activeEnd; ++activeStart) {
+            if (activeStart->prospect == F32_MAX)
+                continue;
+
+            const HMMState&  state = network().structure.state(activeStart->state);
+            Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
+            verify_(mix != StateTree::invalidAcousticModel);
+            if (visited[mix])
+                continue;
+            else{
+                visited[mix] = true;
+                activeLabels.emplace_back(mix);
+            }
+        }
+        if (activeLabels.size() > 0){
+            scorer_->scoreActiveStates(activeLabels);
+        }
+    }
+
+    if (scorer_->isDelta()){
+        loopCache_    = scorer_->getTransitionScores(true);
+        forwardCache_ = scorer_->getTransitionScores(false);
+    }
 
     {
         Pruning pruning(*this);

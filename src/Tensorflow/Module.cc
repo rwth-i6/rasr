@@ -15,7 +15,9 @@
 #include "Module.hh"
 
 #include <Flow/Registry.hh>
+#include <Mm/FeatureScorerFactory.hh>
 
+#include "FactoredHybridFeatureScorer.hh"
 #include "MetaGraphLoader.hh"
 #include "TensorflowForwardNode.hh"
 #include "VanillaGraphLoader.hh"
@@ -41,6 +43,8 @@ Module_::Module_() {
 
     registry.registerFilter<TensorflowForwardNode>();
     registry.registerFilter<TensorflowOverlappingForwardNode>();
+    Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<TFFactoredHybridFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
+            tfFactoredHybridFeatureScorer, "tf-factored-hybrid-scorer");
 }
 
 std::unique_ptr<GraphLoader> Module_::createGraphLoader(Core::Configuration const& config) {

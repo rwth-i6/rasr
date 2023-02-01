@@ -41,6 +41,19 @@ protected:
         virtual Score         score(EmissionIndex e, u32 modelIndex) {
             return 0.0;
         }
+        // Following three functions are needed only for emission model calculation in FactoredHybridFeatureScorer
+        virtual void               scoreActiveStates(const std::vector<EmissionIndex>& stateIdentities) const {};
+        virtual bool               isTriphone() const {
+            return false;
+        }
+        virtual bool               isDelta() const {
+            return false;
+        }
+        //following two functions are needed for using trained transition probabilities using FactoredHybridFeatureScorer
+        virtual EmissionIndex      getDeltaIndex(EmissionIndex stateId) const {
+            return stateId;
+        };
+        virtual std::vector<Score> getTransitionScores(const bool isLoop) const { return std::vector<Score>(nEmissions());};
     };
     friend class ContextScorer;
 

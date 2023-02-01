@@ -12,7 +12,8 @@ LDFLAGS  += $(TF_LDFLAGS)
 SUBDIRS		=
 TARGETS		= libSprintTensorflow.$(a) check$(exe)
 
-LIBSPRINTTENSORFLOW_O = $(OBJDIR)/Graph.o \
+LIBSPRINTTENSORFLOW_O = $(OBJDIR)/FactoredHybridFeatureScorer.o \
+						$(OBJDIR)/Graph.o \
                         $(OBJDIR)/GraphLoader.o \
                         $(OBJDIR)/MetaGraphLoader.o \
                         $(OBJDIR)/Module.o \

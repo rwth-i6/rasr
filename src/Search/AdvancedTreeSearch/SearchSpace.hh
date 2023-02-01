@@ -240,6 +240,10 @@ protected:
 
     typedef std::vector<StateHypothesis> StateHypothesesList;
 
+    //For factored hybrid with delta, caches the delta probs for the next step
+    mutable std::vector<Mm::Score> loopCache_;
+    mutable std::vector<Mm::Score> forwardCache_;
+
     /// The dynamic search space:
     // The state hypotheses of the two current frames.
     StateHypothesesList stateHypotheses;

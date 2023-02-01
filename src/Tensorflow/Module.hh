@@ -28,6 +28,11 @@ public:
     static const Core::Choice          choiceGraphLoader;
     static const Core::ParameterChoice paramGraphLoader;
 
+    enum { FeatureScorerTypeOffset = 0x300 };
+    enum FeatureScorerType {
+        tfFactoredHybridFeatureScorer = FeatureScorerTypeOffset + 7,
+    };
+
     Module_();
     ~Module_() = default;
 

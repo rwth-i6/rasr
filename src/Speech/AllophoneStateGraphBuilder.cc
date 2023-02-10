@@ -289,6 +289,23 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::finishTransducer(Fsa::ConstAu
     return model;
 }
 
+Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::addLoopTransition(Fsa::ConstAutomatonRef model) {
+    if (!flatModelAcceptor_) {
+        model                               = Fsa::cache(model);
+        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
+        tb->selectAllophoneStatesAsInput();
+        tb->selectTransitionModel();
+        tb->setDisambiguators(1); // word end disambiguators
+        model = tb->applyTransitionModel(model);
+        if (modelChannel_.isOpen()) {
+            Fsa::info(model, modelChannel_);
+            Fsa::drawDot(model, "/tmp/allophon-transiton.dot");
+            Fsa::write(model, "bin:/tmp/allophon-transiton.binfsa.gz");
+        }
+    }
+    return model;
+}
+
 AllophoneStateGraphRef AllophoneStateGraphBuilder::finalizeTransducer(Fsa::ConstAutomatonRef allophoneStateToLemmaPronuncationTransducer) {
     AllophoneStateGraphRef modelAcceptor = Fsa::removeEpsilons(
             Fsa::removeDisambiguationSymbols(
@@ -355,19 +372,7 @@ Fsa::ConstAutomatonRef AllophoneStateGraphBuilder::createAlignmentGraph(const Al
 // -------- HMM Topology --------
 Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::buildTransducer(Fsa::ConstAutomatonRef lemmaAcceptor) {
     Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
-    if (!flatModelAcceptor_) {
-        model                               = Fsa::cache(model);
-        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
-        tb->selectAllophoneStatesAsInput();
-        tb->selectTransitionModel();
-        tb->setDisambiguators(1); // word end disambiguators
-        model = tb->applyTransitionModel(model);
-        if (modelChannel_.isOpen()) {
-            Fsa::info(model, modelChannel_);
-            Fsa::drawDot(model, "/tmp/allophon-transiton.dot");
-            Fsa::write(model, "bin:/tmp/allophon-transiton.binfsa.gz");
-        }
-    }
+    model = addLoopTransition(model);
     if (minDuration_ > 1)
         model = applyMinimumDuration(model);
     return finishTransducer(model);
@@ -421,7 +426,6 @@ CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration& conf
                                                  Core::Ref<const Am::AcousticModel> acousticModel,
                                                  bool flatModelAcceptor) :
         Precursor(config, lexicon, acousticModel, flatModelAcceptor),
-        labelLoop_(true),
         transitionChecked_(false),
         finalStateId_(Core::Type<Fsa::StateId>::max) {
     // Note: not emission index yet
@@ -433,7 +437,7 @@ CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration& conf
 }
 
 void CTCTopologyGraphBuilder::checkTransitionModel() {
-    if (!labelLoop_ || transitionChecked_)
+    if (transitionChecked_)
         return;
 
     // label loop, no skip, no weights: realized via transition model
@@ -454,21 +458,14 @@ void CTCTopologyGraphBuilder::checkTransitionModel() {
     transitionChecked_ = true;
 }
 
+Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::addLoopTransition(Fsa::ConstAutomatonRef model) {
+    checkTransitionModel();
+    return Precursor::addLoopTransition(model);
+}
+
 Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::buildTransducer(Fsa::ConstAutomatonRef lemmaAcceptor) {
     Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
-    if (labelLoop_) {
-        checkTransitionModel();
-        Core::Ref<Am::TransducerBuilder> tb = acousticModel_->createTransducerBuilder();
-        tb->selectAllophoneStatesAsInput();
-        tb->selectTransitionModel();
-        tb->setDisambiguators(1);  // word end disambiguators
-        model = tb->applyTransitionModel(model);
-        if (modelChannel_.isOpen()) {
-            Fsa::info(model, modelChannel_);
-            Fsa::drawDot(model, "/tmp/allophon-transiton.dot");
-            Fsa::write(model, "bin:/tmp/allophon-transiton.binfsa.gz");
-        }
-    }
+    model = addLoopTransition(model);
     Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(model);
 
     finalStateId_ = Core::Type<Fsa::StateId>::max;

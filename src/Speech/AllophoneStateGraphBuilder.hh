@@ -171,6 +171,8 @@ protected:
     // finalize the built transducer
     Fsa::ConstAutomatonRef finishTransducer(Fsa::ConstAutomatonRef model);
 
+    virtual Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model);
+
 public:
     AllophoneStateGraphBuilder(
             const Core::Configuration&         config,
@@ -320,9 +322,10 @@ public:
 
 protected:
     Fsa::LabelId blankId_;
-    bool         labelLoop_;
 
     virtual void addBlank(Core::Ref<Fsa::StaticAutomaton>&, Fsa::StateId, std::deque<Fsa::StateId>&);
+
+    virtual Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model);
 
 private:
     bool transitionChecked_;
@@ -342,11 +345,13 @@ public:
             Core::Ref<const Bliss::Lexicon>    lexicon,
             Core::Ref<const Am::AcousticModel> acousticModel,
             bool                               flatModelAcceptor):
-        Precursor(config, lexicon, acousticModel, flatModelAcceptor) { labelLoop_ = false; }
+        Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
 
 protected:
-    // no label loop
     void addBlank(Core::Ref<Fsa::StaticAutomaton>&, Fsa::StateId, std::deque<Fsa::StateId>&);
+
+    // no label loop
+    Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model) { return model; }
 };
 
 }  // namespace Speech

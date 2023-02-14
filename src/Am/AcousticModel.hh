@@ -80,6 +80,7 @@ public:
     virtual Core::Ref<const Phonology>               phonology() const                  = 0;
     virtual Bliss::Phoneme::Id                       silence() const                    = 0;
     virtual AllophoneStateIndex                      silenceAllophoneStateIndex() const = 0;
+    virtual AllophoneStateIndex                      blankAllophoneStateIndex() const   = 0;
 
     virtual Core::Ref<Mm::AbstractMixtureSet> mixtureSet() = 0;
 

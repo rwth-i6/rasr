@@ -24,12 +24,20 @@ class LexiconUtilities : public virtual Core::Component {
 private:
     Bliss::LexiconRef lexicon_;
 
+    const Bliss::LemmaPronunciation* determineSpecialLemmaPronunciation(const std::string&) const;
+
 public:
     LexiconUtilities(const Core::Configuration&, Bliss::LexiconRef);
 
-    Bliss::Phoneme::Id               determineSilencePhoneme() const;
-    const Bliss::LemmaPronunciation* determineSilencePronunciation() const;
-    Fsa::LabelId                     determineSilenceLemmaPronunciationId() const;
+    Bliss::Phoneme::Id determineSilencePhoneme() const;
+    Fsa::LabelId       determineSilenceLemmaPronunciationId() const;
+
+    const Bliss::LemmaPronunciation* determineSilencePronunciation() const {
+        return determineSpecialLemmaPronunciation("silence");
+    }
+    const Bliss::LemmaPronunciation* determineBlankPronunciation() const {
+        return determineSpecialLemmaPronunciation("blank");
+    }
 
     void getInitialAndFinalPhonemes(std::vector<Bliss::Phoneme::Id>& initialPhonemes,
                                     std::vector<Bliss::Phoneme::Id>& finalPhonemes) const;

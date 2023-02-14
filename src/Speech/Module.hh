@@ -25,6 +25,8 @@ class SearchAlgorithm;
 
 namespace Speech {
 
+class AllophoneStateGraphBuilder;
+
 class AligningFeatureExtractor;
 class MixtureSetTrainer;
 class AlignedFeatureProcessor;
@@ -40,6 +42,13 @@ class LatticeRescorer;
 class Module_ {
 public:
     Module_();
+
+    // create FSA graph builder of specific topology
+    AllophoneStateGraphBuilder* createAllophoneStateGraphBuilder(
+            const Core::Configuration&,
+            Core::Ref<const Bliss::Lexicon>,
+            Core::Ref<const Am::AcousticModel>,
+            bool flatModelAcceptor = false) const;
 
     /**
      * Creates and initializes a AligningFeatureExtractor as configured.

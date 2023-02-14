@@ -21,6 +21,7 @@
 #include "AllophoneStateGraphBuilder.hh"
 #include "FsaCache.hh"
 #include "ModelCombination.hh"
+#include "Module.hh"
 
 using namespace Speech;
 
@@ -378,10 +379,11 @@ void AlignmentWithLinearSegmentationNode::initialize() {
     modelCombination.load();
 
     verify(!allophoneStateGraphBuilder_);
-    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                                 modelCombination.lexicon(),
-                                                                 modelCombination.acousticModel(),
-                                                                 true);
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+            select("allophone-state-graph-builder"),
+            modelCombination.lexicon(),
+            modelCombination.acousticModel(),
+            true);
 
     Core::DependencySet dependencies;
     modelCombination.getDependencies(dependencies);

@@ -25,7 +25,7 @@
 #include <Lattice/Basic.hh>
 #include <Lattice/Utilities.hh>
 #include <Search/Types.hh>
-#include <Speech/AllophoneStateGraphBuilder.hh>
+#include <Speech/Module.hh>
 #include <algorithm>
 #include <queue>
 
@@ -1058,7 +1058,8 @@ WordSequenceAligner::WordSequenceAligner(const Core::Configuration&         c,
           modelBuilder_(0),
           aligner_(c),
           alignmentChannel_(config, "alignment-fsa") {
-    modelBuilder_ = new Speech::AllophoneStateGraphBuilder(config, lexicon, acousticModel_);
+    modelBuilder_ = Speech::Module::instance().createAllophoneStateGraphBuilder(
+            config, lexicon, acousticModel_);
 }
 
 WordSequenceAligner::~WordSequenceAligner() {

@@ -25,6 +25,7 @@
 #include <Lattice/Archive.hh>
 #include <Mm/Feature.hh>
 #include "FsaCache.hh"
+#include "Module.hh"
 
 using namespace Speech;
 
@@ -55,9 +56,11 @@ SegmentwiseAlignmentGenerator::SegmentwiseAlignmentGenerator(const Core::Configu
         modelCombination_ = mc;
     }
     verify(modelCombination_->acousticModel());
-    allophoneStateGraphBuilder_                = new AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                                 modelCombination_->lexicon(),
-                                                                 modelCombination_->acousticModel());
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+            select("allophone-state-graph-builder"),
+            modelCombination_->lexicon(),
+            modelCombination_->acousticModel());
+
     std::vector<std::string> silencesAndNoises = paramSilencesAndNoises(config);
     allophoneStateGraphBuilder_->setSilencesAndNoises(silencesAndNoises);
     modelCombination_->getDependencies(dependencySet_);

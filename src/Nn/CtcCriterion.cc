@@ -957,9 +957,9 @@ void CtcCriterion<FloatT>::initAllophoneStateGraphBuilder() {
     // which itself uses the lexion + HMM topology and related things.
     // It does not use the mixtureSet/featureScorer.
     // This is needed to build up DFA through all possible allophone states.
-    allophoneStateGraphBuilder_ = std::make_shared<Speech::AllophoneStateGraphBuilder>(Core::Component::select("allophone-state-graph-builder"),
-                                                                                       lexicon_,
-                                                                                       acousticModel_);
+    allophoneStateGraphBuilder_.reset(Speech::Module::instance().createAllophoneStateGraphBuilder(
+            Core::Component::select("allophone-state-graph-builder"), lexicon_, acousticModel_));
+
     // AllophoneStateGraphBuilder will load all transducers lazily when it first needs them.
     // For better timing statistics, just load them now.
     // To do that, just build a orthography now.

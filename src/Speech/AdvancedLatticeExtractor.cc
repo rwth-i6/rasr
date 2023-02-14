@@ -42,6 +42,7 @@
 #include "DataExtractor.hh"
 #include "LatticeExtractorAutomaton.hh"
 #include "ModelCombination.hh"
+#include "Module.hh"
 
 using namespace Speech;
 using namespace LatticeExtratorInternal;
@@ -282,7 +283,7 @@ TdpLatticeRescorer::TdpLatticeRescorer(const Core::Configuration& c, bool initia
                                           ModelCombination::useAcousticModel,
                                           Am::AcousticModel::noEmissions);
         modelCombination.load();
-        allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(
+        allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
                 select("allophone-state-graph-builder"),
                 modelCombination.lexicon(),
                 modelCombination.acousticModel());
@@ -431,8 +432,9 @@ CombinedAcousticLatticeRescorer::CombinedAcousticLatticeRescorer(const Core::Con
                                       ModelCombination::useAcousticModel,
                                       Am::AcousticModel::complete);
     modelCombination.load();
-    allophoneStateGraphBuilder_                = new AllophoneStateGraphBuilder(config, modelCombination.lexicon(),
-                                                                 modelCombination.acousticModel());
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+        config, modelCombination.lexicon(), modelCombination.acousticModel());
+
     std::vector<std::string> silencesAndNoises = paramSilencesAndNoises(config);
     allophoneStateGraphBuilder_->setSilencesAndNoises(silencesAndNoises);
     acousticModel_ = modelCombination.acousticModel();
@@ -446,7 +448,9 @@ CombinedAcousticLatticeRescorer::CombinedAcousticLatticeRescorer(const Core::Con
           shouldSumOverPronunciations_(paramShouldSumOverPronunciations(config)) {
     ModelCombination modelCombination(select("model-combination"), ModelCombination::useLexicon);
     modelCombination.load();
-    allophoneStateGraphBuilder_                = new AllophoneStateGraphBuilder(config, modelCombination.lexicon(), acousticModel);
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+            config, modelCombination.lexicon(), acousticModel);
+
     std::vector<std::string> silencesAndNoises = paramSilencesAndNoises(config);
     allophoneStateGraphBuilder_->setSilencesAndNoises(silencesAndNoises);
     acousticModel_ = acousticModel;

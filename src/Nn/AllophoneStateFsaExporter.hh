@@ -18,6 +18,7 @@
 #include <Core/Component.hh>
 #include <Speech/AllophoneStateGraphBuilder.hh>
 #include <Speech/ModelCombination.hh>
+#include <Speech/Module.hh>
 
 namespace Nn {
 
@@ -40,10 +41,10 @@ public:
               allophone_state_graph_builder_() {
         mc_.load();
         allophone_state_graph_builder_ = Core::Ref<Speech::AllophoneStateGraphBuilder>(
-                new Speech::AllophoneStateGraphBuilder(select("allophone-state-graph-builder"),
-                                                       mc_.lexicon(),
-                                                       mc_.acousticModel(),
-                                                       false));
+                Speech::Module::instance().createAllophoneStateGraphBuilder(
+                        select("allophone-state-graph-builder"),
+                        mc_.lexicon(),
+                        mc_.acousticModel()));
     };
     ~AllophoneStateFsaExporter() {}
 

@@ -219,6 +219,133 @@ Tensor Tensor::concat(Tensor const& a, Tensor const& b, int axis) {
     }
 }
 
+Tensor Tensor::concatN(const std::vector<const Tensor*>& inputs, int axis) {
+    require(!inputs.empty() && !inputs[0]->empty());
+    switch (inputs[0]->tensor_->dtype()) {
+        case tf::DT_FLOAT:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_FLOAT>::Type>(inputs, axis);
+        case tf::DT_DOUBLE:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(inputs, axis);
+        case tf::DT_INT64:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_INT64>::Type>(inputs, axis);
+        case tf::DT_UINT64:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_UINT64>::Type>(inputs, axis);
+        case tf::DT_INT32:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_INT32>::Type>(inputs, axis);
+        case tf::DT_UINT32:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_UINT32>::Type>(inputs, axis);
+        case tf::DT_INT16:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_INT16>::Type>(inputs, axis);
+        case tf::DT_UINT16:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_UINT16>::Type>(inputs, axis);
+        case tf::DT_INT8:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_INT8>::Type>(inputs, axis);
+        case tf::DT_UINT8:
+            return Tensor::concatN<tf::EnumToDataType<tf::DT_UINT8>::Type>(inputs, axis);
+        default: defect();
+    }
+}
+
+template<typename T>
+Tensor Tensor::concatN(const std::vector<const Tensor*>& inputs, int axis) {
+    require(!inputs.empty() && !inputs[0]->empty());
+
+    tf::DataType type = ToDataType<T>::tf_type;
+    if (inputs.size() == 1) {
+        require_eq(type, inputs[0]->tensor_->dtype());
+        return Tensor(*(inputs[0]));
+    }
+
+    int nDim = inputs[0]->numDims();
+    require(1 <= nDim && nDim <= 3); // higher rank not supported here
+    require(axis < nDim && -axis < nDim);
+    if (axis < 0)
+        axis = nDim + axis;
+
+    u32 concatSize = 0;
+    for (const Tensor* input : inputs) {
+        require_eq(type, input->tensor_->dtype());
+        require_eq(nDim, input->numDims());
+        concatSize += input->dimSize(axis);
+    }
+
+    Tensor res;
+    if (nDim == 1) {
+        u32 offset = 0;
+        res.tensor_.reset(new tf::Tensor(type, {concatSize}));
+        auto res_tensor_map = res.tensor_->flat<typename ToDataType<T>::cpp_type>();
+        for (const Tensor* input : inputs) {
+            auto tensor_map = input->tensor_->flat<typename ToDataType<T>::cpp_type>();
+            u32 size0 = input->dimSize(0);
+            for (u32 idx0 = 0; idx0 < size0; ++idx0)
+                res_tensor_map(offset + idx0) = tensor_map(idx0);
+            offset += size0;
+        }
+    } else if (nDim == 2) {
+        // some efficiency gain with explicit separation
+        u32 size0 = inputs[0]->dimSize(0), size1 = inputs[0]->dimSize(1), offset = 0;
+        if (axis == 0) {
+            res.tensor_.reset(new tf::Tensor(type, {concatSize, size1}));
+            auto res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
+            for (const Tensor* input : inputs) {
+                auto tensor_map = input->tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
+                size0 = input->dimSize(0);
+                require_eq(size1, input->dimSize(1));
+                for (u32 idx0 = 0; idx0 < size0; ++idx0)
+                    for (u32 idx1 = 0; idx1 < size1; ++idx1)
+                        res_tensor_map(offset + idx0, idx1) = tensor_map(idx0, idx1);
+                offset += size0;
+            }
+        } else {
+            res.tensor_.reset(new tf::Tensor(type, {size0, concatSize}));
+            auto res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
+            for (const Tensor* input : inputs) {
+                auto tensor_map = input->tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
+                require_eq(size0, input->dimSize(0));
+                size1 = input->dimSize(1);
+                for (u32 idx0 = 0; idx0 < size0; ++idx0)
+                    for (u32 idx1 = 0; idx1 < size1; ++idx1)
+                        res_tensor_map(idx0, offset + idx1) = tensor_map(idx0, idx1);
+                offset += size1;
+            }
+        }
+    } else if (nDim == 3) {
+        // code simplicity instead of efficiency here (anyway very rarely used)
+        std::vector<u32> offsets(3, 0);
+        std::vector<int64> shape({inputs[0]->dimSize(0), inputs[0]->dimSize(1),
+                                  inputs[0]->dimSize(2)});
+        shape[u32(axis)] = concatSize;
+        res.tensor_.reset(new tf::Tensor(type, tf::TensorShape(shape)));
+        auto res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+        for (const Tensor* input : inputs) {
+            auto tensor_map = input->tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+            u32 size0 = input->dimSize(0), size1 = input->dimSize(1), size2 = input->dimSize(2);
+            require(size0 == shape[0] || axis == 0);
+            require(size1 == shape[1] || axis == 1);
+            require(size2 == shape[2] || axis == 2);
+            for (u32 idx0 = 0; idx0 < size0; ++idx0)
+                for (u32 idx1 = 0; idx1 < size1; ++idx1)
+                    for (u32 idx2 = 0; idx2 < size2; ++idx2)
+                        res_tensor_map(offsets[0] + idx0, offsets[1] + idx1, offsets[2] + idx2) =
+                                tensor_map(idx0, idx1, idx2);
+            offsets[axis] += input->dimSize(axis);
+        }
+    }
+
+    return res;
+}
+
+template Tensor Tensor::concatN<f32>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<f64>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<s64>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<u64>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<s32>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<u32>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<s16>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<u16>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<s8>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concatN<u8>(const std::vector<const Tensor*>& inputs, int axis);
+
 /* ------------------------- Getters ------------------------- */
 
 std::string Tensor::dimInfo() const {
@@ -748,16 +875,22 @@ template u8 const* Tensor::data<u8>(size_t, size_t, size_t) const;
 template tstring const* Tensor::data<tstring>(size_t, size_t, size_t) const;
 
 Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end) {
-    require_eq(static_cast<int>(start.size()), numDims());
+    require(static_cast<int>(start.size()) <= numDims());
     require_eq(start.size(), end.size());
 
-    std::vector<int64> start_vec(start.size());
-    std::vector<int64> size_vec(start.size());
-    for (size_t i = 0ul; i < start.size(); i++) {
-        int dim_start = start[i] >= 0 ? start[i] : (dimSize(i) + start[i]);
-        int dim_end   = end[i] >= 0 ? end[i] : (dimSize(i) + 1 + end[i]);
-        start_vec[i]  = dim_start;
-        size_vec[i]   = dim_end - dim_start;
+    u32 nDim = numDims();
+    std::vector<int64> start_vec(nDim);
+    std::vector<int64> size_vec(nDim);
+    for (size_t i = 0ul; i < nDim; ++i) {
+        int dim_start = 0, dim_end = 0;
+        if (i < start.size()) {
+            dim_start = start[i] >= 0 ? start[i] : (dimSize(i) + start[i]);
+            dim_end   = end[i] >= 0 ? end[i] : (dimSize(i) + 1 + end[i]);
+        } else {
+            dim_end = dimSize(i);
+        }
+        start_vec[i] = dim_start;
+        size_vec[i]  = dim_end - dim_start;
         require_ge(size_vec[i], 0);
     }
 

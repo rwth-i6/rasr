@@ -50,10 +50,7 @@ public:
     static Tensor concat(Tensor const& a, Tensor const& b, int axis);
 
     // multiple Tensor conatenation along the specified axis
-    static Tensor concatN(const std::vector<const Tensor*>& inputs, int axis);
-
-    template<typename T>
-    static Tensor concatN(const std::vector<const Tensor*>& inputs, int axis);
+    static Tensor concat(const std::vector<const Tensor*>& inputs, int axis);
 
     Tensor();
     Tensor(Tensor const& other);
@@ -158,6 +155,10 @@ public:
 
     template<typename T>
     void save(std::string const& path) const;
+
+protected:
+    template<typename T>
+    static Tensor concat(const std::vector<const Tensor*>& inputs, int axis);
 
 protected:
     std::unique_ptr<tf::Tensor> tensor_;

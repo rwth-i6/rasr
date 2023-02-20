@@ -194,10 +194,12 @@ inline Tensor::Tensor(tf::Tensor&& tensor)
 }
 
 inline Tensor& Tensor::operator=(Tensor& other) {
-    if (other.empty())
+    if (other.empty()) {
         tensor_.release();
-    else
+    }
+    else {
         tensor_.reset(new tf::Tensor(*other.tensor_));
+    }
     return *this;
 }
 

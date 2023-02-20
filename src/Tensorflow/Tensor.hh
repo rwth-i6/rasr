@@ -49,6 +49,9 @@ public:
 
     static Tensor concat(Tensor const& a, Tensor const& b, int axis);
 
+    // multiple Tensor conatenation along the specified axis
+    static Tensor concat(const std::vector<const Tensor*>& inputs, int axis);
+
     Tensor();
     Tensor(Tensor const& other);
     Tensor(Tensor&& other) = default;
@@ -58,6 +61,8 @@ public:
 
     Tensor& operator=(Tensor& other);
     Tensor& operator=(Tensor&& other);
+
+    void swap(Tensor& other);
 
     /* -------------------- Getters -------------------- */
 
@@ -152,6 +157,10 @@ public:
     void save(std::string const& path) const;
 
 protected:
+    template<typename T>
+    static Tensor concat(const std::vector<const Tensor*>& inputs, int axis);
+
+protected:
     std::unique_ptr<tf::Tensor> tensor_;
 
     Tensor(tf::Tensor&& tensor);
@@ -185,13 +194,22 @@ inline Tensor::Tensor(tf::Tensor&& tensor)
 }
 
 inline Tensor& Tensor::operator=(Tensor& other) {
-    *tensor_ = *other.tensor_;
+    if (other.empty()) {
+        tensor_.release();
+    }
+    else {
+        tensor_.reset(new tf::Tensor(*other.tensor_));
+    }
     return *this;
 }
 
 inline Tensor& Tensor::operator=(Tensor&& other) {
     std::swap(tensor_, other.tensor_);
     return *this;
+}
+
+inline void Tensor::swap(Tensor& other) {
+    std::swap(tensor_, other.tensor_);
 }
 
 inline int Tensor::numDims() const {

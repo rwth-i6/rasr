@@ -85,6 +85,9 @@ endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 UNIT_TEST_O += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
 endif
+ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
+UNIT_TEST_O += ../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
+endif
 ifdef MODULE_PYTHON
 UNIT_TEST_O += ../Python/libSprintPython.$(a)
 endif

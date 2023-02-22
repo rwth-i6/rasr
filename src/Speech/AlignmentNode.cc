@@ -412,7 +412,7 @@ void Seq2SeqAlignmentNode::initialize() {
     aligner_.initialize(modelCombination);
 
     verify(!allophoneStateGraphBuilder_);
-    allophoneStateGraphBuilder_ = new AllophoneStateGraphBuilder(
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
             select("allophone-state-graph-builder"),
             modelCombination.lexicon(),
             modelCombination.acousticModel());

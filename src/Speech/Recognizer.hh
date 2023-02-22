@@ -31,6 +31,10 @@ namespace Am {
 class AcousticModel;
 }
 
+namespace Nn{
+class LabelScorer;
+}
+
 namespace Search {
 class LatticeHandler;
 }
@@ -50,9 +54,12 @@ protected:
     Core::Ref<Am::AcousticModel>               acousticModel_;
     Search::SearchAlgorithm*                   recognizer_;
 
+    bool seq2seq_ = false;
+    Core::Ref<Nn::LabelScorer> labelScorer_;
+
 protected:
     void         initializeRecognizer(Am::AcousticModel::Mode acousticModelMode);
-    void         initializeRecognizer(const Speech::ModelCombination&);
+    void         initializeRecognizer(Speech::ModelCombination&);
     virtual void createRecognizer();
 
 public:

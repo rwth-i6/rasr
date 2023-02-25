@@ -148,7 +148,7 @@ void Seq2SeqTreeSearchManager::decodeNext() {
   ss_->setInputLength(labelScorer_->getEncoderLength());
 
   if (debug_)
-    debugPrint("labelStep", true);
+    debugPrint("decodeStep", true);
 
   if (!ss_->mayStopEarly()) {
     ss_->startNewTrees();

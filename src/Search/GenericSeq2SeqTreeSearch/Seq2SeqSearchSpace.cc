@@ -1677,10 +1677,14 @@ void Seq2SeqSearchSpace::_recombineWordEnds(bool createLattice) {
 // full-sum should be with full LM history, thus more for pronunciation/spelling variants here
 inline void Seq2SeqSearchSpace::recombineTwoWordEnds(WordEndHypothesis& keep, 
                                                      WordEndHypothesis& remove, bool createLattice) {
-  // replace keep by remove if better score or same score but smaller lemma id (deterministic order)
-  bool replace = keep.prospect > remove.prospect || 
-                 (keep.prospect == remove.prospect && 
-                     (staticLabelTree_.getExit(keep.exitId)).lemma->id() > (staticLabelTree_.getExit(remove.exitId)).lemma->id()) ;
+  // replace keep by remove if better score or some deterministic order
+  bool replace = keep.prospect > remove.prospect;
+  if (!replace && keep.prospect == remove.prospect) {
+    replace = keep.nLabels > remove.nLabels ||
+              ( keep.nLabels == remove.nLabels &&
+                (staticLabelTree_.getExit(keep.exitId)).lemma->id() > (staticLabelTree_.getExit(remove.exitId)).lemma->id() );
+  }
+
   if (fullSumDecoding_) {
     Score sumAcoustic = Math::scoreSum<Score>(keep.score.acoustic, remove.score.acoustic);
     if (replace)
@@ -2054,7 +2058,7 @@ TraceRef Seq2SeqSearchSpace::getBestTrace(const HistoryTraceMap& historyTraceMap
     if (createLattice)
       last->sibling = current;
     if (current->prospect < best->prospect || 
-        (!useLmScore_ && current->prospect == best->prospect && current->nWords < best->nWords)) {
+        (!useLmScore_ && current->prospect == best->prospect && current->nLabels < best->nLabels)) {
       best = current;
       bestParent = last;
     }
@@ -2144,7 +2148,7 @@ TraceRef Seq2SeqSearchSpace::getSentenceEndFromHypotheses(bool createLattice) {
     }
 
     if (!best || t->prospect < best->prospect || 
-        (!useLmScore_ && t->prospect == best->prospect && t->nWords < best->nWords)) {
+        (!useLmScore_ && t->prospect == best->prospect && t->nLabels < best->nLabels)) {
       if (createLattice)
         t->sibling = best;
       best = t;
@@ -2189,7 +2193,7 @@ TraceRef Seq2SeqSearchSpace::getSentenceEndFromHypotheses(bool createLattice) {
         }
 
         if (!best || t->prospect < best->prospect ||
-            (!useLmScore_ && t->prospect == best->prospect && t->nWords < best->nWords)) {
+            (!useLmScore_ && t->prospect == best->prospect && t->nLabels < best->nLabels)) {
           if (createLattice)
             t->sibling = best;
           best = t;

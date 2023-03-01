@@ -371,6 +371,11 @@ TFRecurrentLanguageModel::TFRecurrentLanguageModel(Core::Configuration const& c,
     HistoryHandle      h     = hm->get<ScoresWithContext>(ts);
     ScoresWithContext* cache = const_cast<ScoresWithContext*>(reinterpret_cast<ScoresWithContext const*>(h));
     cache->state             = state_manager_->initialState(state_variables_, *state_comp_vec_factory_);
+
+    if (cache->state.empty()) {
+        error("LM has no state variables. Did you forget to compile with 'initial_state': 'keep_over_epoch_no_init'?");
+    }
+
     std::vector<f32> temp(1);
     auto             compression_param_estimator = nn_output_comp_vec_factory_->getEstimator();
     compression_param_estimator->accumulate(temp.data(), temp.size());

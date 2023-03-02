@@ -179,8 +179,8 @@ class Seq2SeqSearchSpace : public Core::Component {
 
     // global pruning across labels and wordEnds
     void pruneLabelsAndWordEnds();
-    // fixed beam pruning across labels, wordEnds and endTraces
-    void pruneGlobalWithFixedBeam(u32 beamSize);
+    // fixed beam pruning across (expandable) labels, wordEnds and endTraces
+    void pruneGlobalWithFixedBeam(u32 beamSize, bool expandable=true);
     // beam insertion with score comparison
     typedef std::multimap<Score, std::pair<u32, u32>, std::greater<Score>> Beam;
     void insertBeam(Beam& beam, u32 beamSize, Score score, u32 category, u32 idx);

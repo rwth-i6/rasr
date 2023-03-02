@@ -475,6 +475,8 @@ void Seq2SeqSearchSpace::initializePruning(bool simpleBeamSearch) {
     log() << "apply simple beam search with one global beam on all hyps level";
     if (fixedBeamSearch_) 
       log() << "using word end pruning limit as fixed beam size";
+    else
+      log() << "using word end pruning and limit for global pruning";
     pruneTrace_ = false;
     pruneWordsWithLabels_ = true; // just for cleanUp flag
     wordLenBalance_ = false;
@@ -938,7 +940,7 @@ void Seq2SeqSearchSpace::applyLabelPruning() {
   // word length dependent pruning
   if (wordLenBalance_) {
     // one bestProspect of each word length + same threshold
-    if (restrictWithInputLength_)
+    if (restrictWithInputLength_ && decodeStep_ > inputLength_)
       pruneLabels<true, false, true, true>(labelPruning_);
     else
       pruneLabels<false, false, true, true>(labelPruning_);
@@ -960,7 +962,7 @@ void Seq2SeqSearchSpace::applyLabelPruning() {
   // simple score-based pruning
   verify(bestLabelProspect_ != Core::Type<Score>::max || labelHypotheses_.size() <= 1);
   Score threshold = bestLabelProspect_ + labelPruning_;
-  if (restrictWithInputLength_)
+  if (restrictWithInputLength_ && decodeStep_ > inputLength_)
     pruneLabels<true, false, false, true>(threshold);
   else
     pruneLabels<false, false, false, true>(threshold);
@@ -970,7 +972,7 @@ void Seq2SeqSearchSpace::applyLabelPruning() {
 
   // histogram pruning
   if (labelHypotheses_.size() > labelPruningLimit_) {
-    Score hpThreshold = quantileScore(bestLabelProspect_, threshold , labelPruningLimit_, true, false); 
+    Score hpThreshold = quantileScore(bestLabelProspect_, threshold, labelPruningLimit_, true, false);
     pruneLabels<false, false, false, true>(hpThreshold);
     // add threshold and saturation statistics
     statistics_.customStatistics("label pruning") += hpThreshold - bestLabelProspect_; 
@@ -1278,6 +1280,9 @@ void Seq2SeqSearchSpace::findEarlyWordEnds(bool exitPenalty) {
       // blank status can be carried over in next root
       if (!staticLabelTree_.hasExit(lh->treeNodeId) || lh->isBlank)
         continue;
+      // length constraint
+      if (restrictWithInputLength_ && lh->nLabels > inputLength_)
+        continue;
       // forbid exit if not loop at least n times
       if (lh->nLoop < minLoopOccur_)
         continue;
@@ -1460,42 +1465,45 @@ void Seq2SeqSearchSpace::pruneLabelsAndWordEnds() {
 
 // simple beam search with global pruning across labels, word-ends and endTraces
 void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
-  // scores are comparable at all levels
+  // scores are comparable at all levels (label prospect computed already)
   verify(globalScoreOffset_ == 0);
   verify(wordEndHypotheses_.empty());
   verify(earlyWordEndHypotheses_.empty());
   bestWordEndProspect_ = Core::Type<Score>::max;
 
-  // filter out invalid labels first (no score/limit pruning)
-  if (restrictWithInputLength_)
-    pruneLabels<true, false, false, true>(Core::Type<Score>::max);
-  else if (eosThreshold_ != Core::Type<Score>::max)
-    pruneLabels<false, false, false, true>(Core::Type<Score>::max);
+  // filter out invalid labels + apply safe pruning if score-based search
+  Score threshold = fixedBeamSearch_ ? Core::Type<Score>::max : bestLabelProspect_ + wordEndPruning_;
+  if (!fixedBeamSearch_ || eosThreshold_ != Core::Type<Score>::max) {
+    if (restrictWithInputLength_ && decodeStep_ > inputLength_)
+      pruneLabels<true, false, false, true>(threshold);
+    else
+      pruneLabels<false, false, false, true>(threshold);
+  }
 
   if (fixedBeamSearch_) {
-    // label prospect computed already and best prospect is not needed
-    findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
-    pruneGlobalWithFixedBeam(wordEndPruningLimit_);
-    recombineLabels();
+    // expand word-ends for joint pruning only if different scoring due to LM
+    if (!useLmScore_ || (lmLookahead_ && lookaheadLm_ == languageModel_->unscaled())) {
+      pruneGlobalWithFixedBeam(wordEndPruningLimit_, false);
+      recombineLabels();
+      findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
+    } else {
+      findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
+      pruneGlobalWithFixedBeam(wordEndPruningLimit_);
+      recombineLabels();
+    }
     pruneAndExpandEarlyWordEnds<false>(Core::Type<Score>::max);
     return;
   }
 
-  // expand word-ends and record best prospect
-  if (lmLookahead_) {
-    // label prospect computed already
-    findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
-    if (bestLabelProspect_ < bestWordEndProspect_)
-      bestWordEndProspect_ = bestLabelProspect_;
-  } else { // also expandable label prospect
-    findEarlyWordEnds<false, false, true>(staticLabelTree_.useTransitionPenalty());
-  }
-  if (!endTraces_.empty())
-    if (bestEndTraceProspect_ < bestWordEndProspect_)
-      bestWordEndProspect_ = bestEndTraceProspect_;
+  // expand word-ends upon pruned labels
+  findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
 
   // misuse wordend pruning for global pruning
-  Score threshold = bestWordEndProspect_ + wordEndPruning_;
+  if (bestLabelProspect_ < bestWordEndProspect_)
+    bestWordEndProspect_ = bestLabelProspect_;
+  if (!endTraces_.empty() && bestEndTraceProspect_ < bestWordEndProspect_)
+    bestWordEndProspect_ = bestEndTraceProspect_;
+  threshold = bestWordEndProspect_ + wordEndPruning_;
 
   pruneLabels<false, true, false, false>(threshold);
   recombineLabels();
@@ -1521,16 +1529,19 @@ void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
 }
 
 // global fixed beam pruning (only for simple beam search)
-void Seq2SeqSearchSpace::pruneGlobalWithFixedBeam(u32 beamSize) {
+void Seq2SeqSearchSpace::pruneGlobalWithFixedBeam(u32 beamSize, bool expandable) {
   // Note: wordends are not expanded yet
   u32 size = labelHypotheses_.size() + earlyWordEndHypotheses_.size() + endTraces_.size();
   if (size <= beamSize)
     return;
 
-  // beam category: expandable label = 0, wordend = 1, trace = 2
+  // beam category: (expandable) label = 0, wordend = 1, trace = 2
   Beam beam;
   for (u32 idx = 0, size = labelHypotheses_.size(); idx < size; ++idx) {
-    if (!staticLabelTree_.hasSuccessors(labelHypotheses_[idx].treeNodeId))
+    if (expandable && !staticLabelTree_.hasSuccessors(labelHypotheses_[idx].treeNodeId))
+      continue;
+    // length constraint
+    if (restrictWithInputLength_ && labelHypotheses_[idx].nLabels > inputLength_)
       continue;
     insertBeam(beam, beamSize, labelHypotheses_[idx].prospect, 0, idx);
   }
@@ -1538,7 +1549,10 @@ void Seq2SeqSearchSpace::pruneGlobalWithFixedBeam(u32 beamSize) {
     insertBeam(beam, beamSize, earlyWordEndHypotheses_[idx].prospect, 1, idx);
   for (u32 idx = 0, size = endTraces_.size(); idx < size; ++idx)
     insertBeam(beam, beamSize, endTraces_[idx]->prospect, 2, idx);
-  verify(beam.size() == beamSize);
+
+  if (beam.size() < beamSize)
+    return;
+  require_eq(beam.size(), beamSize);
 
   std::vector<u32> beamLabel, beamWord;
   TraceList beamTrace;
@@ -1802,7 +1816,7 @@ void Seq2SeqSearchSpace::processEnd() {
     pruneEndTraces(threshold);
     if (endTraces_.size() > tracePruningLimit_) {
       // histogram limit and statistics 
-      Score hpThreshold = quantileScore(bestEndTraceProspect_ , threshold, tracePruningLimit_, false, false, true);
+      Score hpThreshold = quantileScore(bestEndTraceProspect_, threshold, tracePruningLimit_, false, false, true);
       pruneEndTraces(hpThreshold);
       statistics_.customStatistics("trace pruning") += hpThreshold - bestEndTraceProspect_;
       statistics_.customStatistics("trace hypotheses") += endTraces_.size();
@@ -2008,12 +2022,19 @@ void Seq2SeqSearchSpace::checkStoppingCriteria() {
 
 
 bool Seq2SeqSearchSpace::mayStopEarly() {
-  if (needEndProcessing_ && !verticalTransition_ && restrictWithInputLength_ && 
-      decodeStep_ > inputLength_) {
-    // all labels will be pruned away anyway 
-    labelHypotheses_.clear();
-    wordEndHypotheses_.clear();
-    return true;
+  if (needEndProcessing_ && !verticalTransition_) {
+    bool stop = restrictWithInputLength_ && decodeStep_ > inputLength_;
+    if (!stop && !lengthNorm_ && !stepReNorm_ && !endTraces_.empty() && !wordLenBalance_) {
+      // no further hyps can be better anymore
+      stop = bestEndTraceProspect_ < bestLabelProspect_ &&
+             bestEndTraceProspect_ < bestWordEndProspect_;
+    }
+    if (stop) {
+      // all labels will be pruned away anyway
+      labelHypotheses_.clear();
+      wordEndHypotheses_.clear();
+      return true;
+    }
   } 
   return false;
 }

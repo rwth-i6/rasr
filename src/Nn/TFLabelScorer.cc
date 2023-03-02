@@ -227,6 +227,9 @@ void TFModelBase::encode() {
     return;
   }
 
+  log() << "encode input features (" << inputBuffer_[0].size() << ", "
+        << inputBuffer_.size() << ")";
+
   MappedTensorList inputs; 
   std::vector<Math::FastMatrix<f32>> batchMat; // single sequence: D * T
   batchMat.emplace_back(inputBuffer_[0].size(), inputBuffer_.size());

@@ -1478,6 +1478,10 @@ void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
       pruneLabels<true, false, false, true>(threshold);
     else
       pruneLabels<false, false, false, true>(threshold);
+    if (!fixedBeamSearch_ && labelHypotheses_.size() > wordEndPruningLimit_) {
+      Score hpThreshold = quantileScore(bestLabelProspect_, threshold, wordEndPruningLimit_, true, false);
+      pruneLabels<false, false, false, true>(hpThreshold);
+    }
   }
 
   if (fixedBeamSearch_) {

@@ -41,7 +41,8 @@ const Core::ParameterBool paramOptimizeLattice(
 
 const Core::ParameterBool paramSimpleBeamSearch(
   "simple-beam-search",
-  "apply simple beam search with one global beam size",
+  "apply simple beam search with one global beam for all levels of hyps, \
+   otherwise apply hyp-level-individual beam search",
   false);
 
 const Core::ParameterBool paramDebug(

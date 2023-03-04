@@ -1509,6 +1509,7 @@ void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
     bestWordEndProspect_ = bestEndTraceProspect_;
   threshold = bestWordEndProspect_ + wordEndPruning_;
 
+  // non-expandable labels can be removed now
   pruneLabels<false, true, false, false>(threshold);
   recombineLabels();
   pruneAndExpandEarlyWordEnds<false>(threshold);

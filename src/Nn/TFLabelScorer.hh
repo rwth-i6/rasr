@@ -45,8 +45,8 @@ struct TFLabelHistory : public LabelHistoryBase {
 };
 
 
-// general base class for tensorflow graph interface
-// computation logics based on a predefined order of op-collections
+// Encoder-Decoder Label Scorer based on Tensorflow back-end
+// computation logics based on a predefined order of I/O and op collections in graph
 // prerequisite: model graph compilation that parse the model into these collections
 class TFModelBase : public LabelScorer {
     typedef LabelScorer Precursor;

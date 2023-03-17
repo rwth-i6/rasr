@@ -1503,11 +1503,12 @@ void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
   findEarlyWordEnds<false, false, false>(staticLabelTree_.useTransitionPenalty());
 
   // misuse wordend pruning for global pruning
-  if (bestLabelProspect_ < bestWordEndProspect_)
-    bestWordEndProspect_ = bestLabelProspect_;
-  if (!endTraces_.empty() && bestEndTraceProspect_ < bestWordEndProspect_)
-    bestWordEndProspect_ = bestEndTraceProspect_;
-  threshold = bestWordEndProspect_ + wordEndPruning_;
+  Score bestProspect = bestWordEndProspect_;
+  if (bestLabelProspect_ < bestProspect)
+    bestProspect = bestLabelProspect_;
+  if (!endTraces_.empty() && bestEndTraceProspect_ < bestProspect)
+    bestProspect = bestEndTraceProspect_;
+  threshold = bestProspect + wordEndPruning_;
 
   // non-expandable labels can be removed now
   pruneLabels<false, true, false, false>(threshold);
@@ -1518,12 +1519,12 @@ void Seq2SeqSearchSpace::findWordEndsAndPruneGlobal() {
   u32 size = labelHypotheses_.size() + wordEndHypotheses_.size() + endTraces_.size();
   if (size > wordEndPruningLimit_) {
     // histogram pruning
-    Score hpThreshold = quantileScore(bestWordEndProspect_, threshold, wordEndPruningLimit_, true, true, true);
+    Score hpThreshold = quantileScore(bestProspect, threshold, wordEndPruningLimit_, true, true, true);
     pruneLabels<false, false, false, true>(hpThreshold);
     pruneWordEnds(hpThreshold);
     pruneEndTraces(hpThreshold);
     // add threshold and saturation statistics
-    statistics_.customStatistics("word-end pruning") += hpThreshold - bestWordEndProspect_;
+    statistics_.customStatistics("word-end pruning") += hpThreshold - bestProspect;
     statistics_.customStatistics("word-end hypotheses") += wordEndHypotheses_.size();
     statistics_.customStatistics("word-end histogram saturation") += 1.0;
   } else {
@@ -2029,10 +2030,10 @@ void Seq2SeqSearchSpace::checkStoppingCriteria() {
 bool Seq2SeqSearchSpace::mayStopEarly() {
   if (needEndProcessing_ && !verticalTransition_) {
     bool stop = restrictWithInputLength_ && decodeStep_ > inputLength_;
-    if (!stop && !lengthNorm_ && !stepReNorm_ && !endTraces_.empty() && !wordLenBalance_) {
+    if (!stop && !endTraces_.empty() && !lengthNorm_ && !stepReNorm_ && !wordLenBalance_) {
       // no further hyps can be better anymore
-      stop = bestEndTraceProspect_ < bestLabelProspect_ &&
-             bestEndTraceProspect_ < bestWordEndProspect_;
+      stop = bestEndTraceProspect_ < bestLabelProspect_ + globalScoreOffset_ &&
+             bestEndTraceProspect_ < bestWordEndProspect_ + globalScoreOffset_;
     }
     if (stop) {
       // all labels will be pruned away anyway

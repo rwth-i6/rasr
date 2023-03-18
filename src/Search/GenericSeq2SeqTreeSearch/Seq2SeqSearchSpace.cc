@@ -1942,6 +1942,9 @@ void Seq2SeqSearchSpace::detectEndTraces() {
 // position reaching input(encoder) length always no more expansion
 template<bool stepReNorm, bool wordLen>
 void Seq2SeqSearchSpace::detectEndTracesFromStates(TraceList& stepEndTraces) {
+  if (labelHypotheses_.empty())
+    return;
+
   LabelHypothesesList::iterator hypIn, hypOut, hypBegin, instHypEnd;
   hypIn = hypOut = hypBegin = labelHypotheses_.begin();
 

@@ -107,8 +107,15 @@ class LabelHistoryManager {
 class LabelHistory {
   public:
     LabelHistory() : mang_(0), desc_(0) {}
-    LabelHistory(const LabelHistory & ref) : mang_(ref.mang_), desc_(mang_->acquire(ref.desc_)) {}
-    ~LabelHistory() { mang_->release(desc_); }
+    LabelHistory(const LabelHistory & ref) : mang_(ref.mang_), desc_(ref.desc_) {
+      if (desc_)
+        mang_->acquire(desc_);
+    }
+
+    ~LabelHistory() {
+      if (desc_)
+        mang_->release(desc_);
+    }
 
     const LabelHistory& operator=(const LabelHistory &rhs);
 
@@ -208,10 +215,12 @@ inline CacheUpdateResult LabelHistoryManager::updateCache(LabelHistoryHandle lhd
 
 
 inline const LabelHistory& LabelHistory::operator=(const LabelHistory &rhs) {
-  LabelHistoryHandle oldDesc = desc_;
-  desc_ = rhs.mang_->acquire(rhs.desc_);
-  mang_->release(oldDesc);
+  if (rhs.desc_)
+    rhs.mang_->acquire(rhs.desc_);
+  if (desc_)
+    mang_->release(desc_);
   mang_ = rhs.mang_;
+  desc_ = rhs.desc_;
   return *this;
 }
 

@@ -2034,7 +2034,7 @@ bool Seq2SeqSearchSpace::mayStopEarly() {
   if (needEndProcessing_ && !verticalTransition_) {
     bool stop = restrictWithInputLength_ && decodeStep_ > inputLength_;
     if (!stop && !endTraces_.empty() && !lengthNorm_ && !stepReNorm_ && !wordLenBalance_) {
-      // no further hyps can be better anymore
+      // early stopping for deterministic scoring: no further hyps can be better anymore
       stop = bestEndTraceProspect_ < bestLabelProspect_ + globalScoreOffset_ &&
              bestEndTraceProspect_ < bestWordEndProspect_ + globalScoreOffset_;
     }

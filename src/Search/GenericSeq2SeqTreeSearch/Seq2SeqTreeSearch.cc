@@ -67,6 +67,8 @@ Seq2SeqTreeSearchManager::Seq2SeqTreeSearchManager(const Core::Configuration &c)
 }
 
 Seq2SeqTreeSearchManager::~Seq2SeqTreeSearchManager() {
+  // end trace may contain separate recombineLM history sometimes, free before delete
+  sentenceEnd_.reset();
   if (ss_)
     delete ss_;
 }

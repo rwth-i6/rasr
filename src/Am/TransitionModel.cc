@@ -175,6 +175,8 @@ public:
     Fsa::ConstAlphabetRef alphabet_;
     Fsa::LabelId          silenceLabel_;
     bool                  applyExitTransitionToFinalStates_;
+
+    virtual ~Applicator() = default;
 };
 
 template<class AppState>

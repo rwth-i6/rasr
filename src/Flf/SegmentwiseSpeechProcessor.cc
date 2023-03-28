@@ -20,8 +20,11 @@
 namespace Flf {
 
 // -------------------------------------------------------------------------
-AcousticModelRef getAm(const Core::Configuration& config) {
-    return Am::Module::instance().createAcousticModel(config, Bliss::LexiconRef(Lexicon::us()));
+AcousticModelRef getAm(const Core::Configuration& config, bool useMixture) {
+    if (useMixture)
+        return Am::Module::instance().createAcousticModel(config, Bliss::LexiconRef(Lexicon::us()));
+    else
+        return Am::Module::instance().createAcousticModel(config, Bliss::LexiconRef(Lexicon::us()), Am::AcousticModel::noEmissions);
 }
 
 ScaledLanguageModelRef getLm(const Core::Configuration& config) {

@@ -101,15 +101,24 @@ protected:
 
         Core::XmlWriter& os(clog());
         os << Core::XmlOpen("traceback");
-        traceback_.write(os, lexicon_->phonemeInventory());
+        if (seq2seq_)
+            traceback_.writeSeq2Seq(os, lexicon_->phonemeInventory());
+        else
+            traceback_.write(os, lexicon_->phonemeInventory());
         os << Core::XmlClose("traceback");
         os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
-        for (u32 i = 0; i < traceback_.size(); ++i)
-            if (traceback_[i].pronunciation)
-                os << traceback_[i].pronunciation->lemma()->preferredOrthographicForm()
-                   << Core::XmlBlank();
+        if (seq2seq_) {
+            for (u32 i = 0; i < traceback_.size(); ++i)
+                if (traceback_[i].lemma)
+                    os << traceback_[i].lemma->preferredOrthographicForm() << Core::XmlBlank();
+        } else {
+            for (u32 i = 0; i < traceback_.size(); ++i)
+                if (traceback_[i].pronunciation)
+                    os << traceback_[i].pronunciation->lemma()->preferredOrthographicForm()
+                       << Core::XmlBlank();
+        }
         os << Core::XmlClose("orth");
-        if (tracebackChannel_.isOpen()) {
+        if (tracebackChannel_.isOpen() && !seq2seq_) {
             logTraceback(traceback_);
             featureTimes_.clear();
         }
@@ -117,41 +126,59 @@ protected:
 
     /*
      * In case of a valid label id:
-     * Before:
-     * am_score = emission_scale * emission + transition_scale * transition
-     * am_scale = 1.0
-     * lm_score = pronunciation_scale * pronunciation + lm_scale * lm
-     * lm_scale = 1.0
-     * Afterwards:
-     * am_score = emission_scale * emission + transition_scale * transition + pronunciation_scale * pronunciation
-     * am_scale = 1.0
-     * lm_score = lm
-     * lm_scale = lm_scale
+     * Hybrid HMM:
+     *   before:
+     *     am_score = emission_scale * emission + transition_scale * transition
+     *     am_scale = 1.0
+     *     lm_score = pronunciation_scale * pronunciation + lm_scale * lm
+     *     lm_scale = 1.0
+     *   after:
+     *     am_score = emission_scale * emission + transition_scale * transition + pronunciation_scale * pronunciation
+     *     am_scale = 1.0
+     *     lm_score = lm
+     *     lm_scale = lm_scale
+     * Seq2Seq:
+     *   before:
+     *     am_score = posterior_scale * posterior (+ pronunciation_scale * pronunciation)
+     *     am_scale = 1.0
+     *     lm_score = lm_scale * lm
+     *     lm_scale = 1.0
+     *   after:
+     *     am_score = posterior_scale * posterior (+ pronunciation_scale * pronunciation)
+     *     am_scale = 1.0
+     *     lm_score = lm
+     *     lm_scale = lm_scale
+     * (separate posterior_scale into am_sacle for full-sum ?)
      */
-    ScoresRef buildScore(Fsa::LabelId label, Score amRecogScore, Score lmRecogScore) {
+    ScoresRef buildScore(Fsa::LabelId label, Score amRecogScore, Score lmRecogScore, bool useLemmaAlphabet=false) {
         verify(amRecogScore != Semiring::Zero);
         verify(lmRecogScore != Semiring::Zero);
 
         Score amScore, pronScore, lmScore;
-        if ((Fsa::FirstLabelId <= label) && (label <= Fsa::LastLabelId)) {
-            amScore   = amRecogScore;
+        if (!useLemmaAlphabet && (Fsa::FirstLabelId <= label) && (label <= Fsa::LastLabelId)) {
             pronScore = lpAlphabet_->lemmaPronunciation(label)->pronunciationScore();
             verify(pronScore != Semiring::Zero);
-            lmScore = (lmRecogScore - pronScale_ * pronScore) / lmScale_;
-        }
-        else {
+            if (seq2seq_) {
+                // pronunciation score is included in the acoustic already
+                amScore = amRecogScore - pronScale_ * pronScore;
+                lmScore = lmRecogScore / lmScale_;
+            } else {
+                amScore = amRecogScore;
+                lmScore = (lmRecogScore - pronScale_ * pronScore) / lmScale_;
+            }
+        } else {
             amScore   = amRecogScore;
             pronScore = Semiring::One;
             lmScore   = lmRecogScore / lmScale_;
         }
 
         ScoresRef scores = semiring_->create();
-        if (addPronunciationScores_) {
+        if (!useLemmaAlphabet && addPronunciationScores_) {
             scores->set(amId_, amScore);
             scores->set(pronunciationId_, pronScore);
-        }
-        else
+        } else {
             scores->set(amId_, amScore + pronScale_ * pronScore);
+        }
         scores->set(lmId_, lmScore);
         if (addConfidenceScores_)
             scores->set(confidenceId_, 0.0);
@@ -165,6 +192,9 @@ protected:
         handler->setLexicon(Lexicon::us());
         if (la->empty())
             return ConstLatticeRef();
+
+        bool useLemmaAlphabet = !(recognizer_->hasPronunciation());
+
         ::Lattice::ConstWordLatticeRef             lattice    = la->wordLattice(handler);
         Core::Ref<const ::Lattice::WordBoundaries> boundaries = lattice->wordBoundaries();
         Fsa::ConstAutomatonRef                     amFsa      = lattice->part(::Lattice::WordLattice::acousticFsa);
@@ -175,7 +205,10 @@ protected:
         StaticLatticeRef    s = StaticLatticeRef(new StaticLattice);
         s->setType(Fsa::TypeAcceptor);
         s->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
-        s->setInputAlphabet(lpAlphabet_);
+        if (useLemmaAlphabet)
+            s->setInputAlphabet(lexicon_->lemmaAlphabet());
+        else
+            s->setInputAlphabet(lpAlphabet_);
         s->setSemiring(semiring_);
         s->setDescription(Core::form("recog(%s)", segment_->name().c_str()));
         s->setBoundaries(ConstBoundariesRef(b));
@@ -200,7 +233,7 @@ protected:
             b->set(sp->id(), Boundary(boundary.time() - timeOffset,
                                       Boundary::Transit(boundary.transit().final, boundary.transit().initial)));
             if (amSr->isFinal()) {
-                sp->newArc(1, buildScore(Fsa::InvalidLabelId, amSr->weight(), lmSr->weight()), sentenceEndLabel_);
+                sp->newArc(1, buildScore(Fsa::InvalidLabelId, amSr->weight(), lmSr->weight(), useLemmaAlphabet), sentenceEndLabel_);
                 finalTime = std::max(finalTime, boundary.time() - timeOffset);
             }
             for (Fsa::State::const_iterator am_a = amSr->begin(), lm_a = lmSr->begin(); (am_a != amSr->end()) && (lm_a != lmSr->end()); ++am_a, ++lm_a) {
@@ -213,16 +246,16 @@ protected:
                 Fsa::ConstStateRef targetLmSr = amFsa->getState(lm_a->target());
                 if (targetAmSr->isFinal() && targetLmSr->isFinal()) {
                     if (am_a->input() == Fsa::Epsilon) {
-                        ScoresRef scores = buildScore(am_a->input(), am_a->weight(), lm_a->weight());
+                        ScoresRef scores = buildScore(am_a->input(), am_a->weight(), lm_a->weight(), useLemmaAlphabet);
                         scores->add(amId_, Score(targetAmSr->weight()));
                         scores->add(lmId_, Score(targetLmSr->weight()) / lmScale_);
                         sp->newArc(1, scores, sentenceEndLabel_);
+                    } else {
+                        sp->newArc(sidMap[am_a->target()], buildScore(am_a->input(), am_a->weight(), lm_a->weight(), useLemmaAlphabet), am_a->input());
                     }
-                    else
-                        sp->newArc(sidMap[am_a->target()], buildScore(am_a->input(), am_a->weight(), lm_a->weight()), am_a->input());
+                } else {
+                    sp->newArc(sidMap[am_a->target()], buildScore(am_a->input(), am_a->weight(), lm_a->weight(), useLemmaAlphabet), am_a->input());
                 }
-                else
-                    sp->newArc(sidMap[am_a->target()], buildScore(am_a->input(), am_a->weight(), lm_a->weight()), am_a->input());
             }
         }
         State* sp = new State(1);
@@ -357,7 +390,8 @@ public:
             }
         }
         initializeRecognizer(*mc_);
-        delayedRecognition_.reset(new Speech::RecognizerDelayHandler(recognizer_, acousticModel_));
+        if (!seq2seq_)
+            delayedRecognition_.reset(new Speech::RecognizerDelayHandler(recognizer_, acousticModel_));
         verify(recognizer_);
     }
 
@@ -382,7 +416,8 @@ public:
         recognizer_->setAllowHmmSkips(allowSkips_);
         traceback_.clear();
 
-        acousticModel_->setKey(segment_->fullName());
+        if (acousticModel_)
+            acousticModel_->setKey(segment_->fullName());
 
         modelAdaptor_->enterSegment(segment_);
         featureExtractor_->enterSegment(segment_);
@@ -392,7 +427,7 @@ public:
         if (dataSource_->getData(feature)) {
             // check the dimension segment
             AcousticModelRef acousticModel = modelAdaptor_->modelCombination()->acousticModel();
-            if (acousticModel) {
+            if (!seq2seq_ && acousticModel) {
                 Mm::FeatureDescription* description = feature->getDescription(*featureExtractor_);
                 if (!acousticModel->isCompatible(*description))
                     acousticModel->respondToDelayedErrors();
@@ -404,7 +439,15 @@ public:
 
     void putFeature(FeatureRef feature) {
         featureTimes_.push_back(feature->timestamp());
-        delayedRecognition_->add(feature);
+        if (seq2seq_) {
+            labelScorer_->addInput(feature);
+            if (labelScorer_->bufferFilled()) {
+                labelScorer_->encode();
+                recognizer_->decode(); // buffer will be cleared after decode
+            }
+        } else {
+            delayedRecognition_->add(feature);
+        }
     }
 
     void reset() {
@@ -488,8 +531,13 @@ public:
                 return buildLatticeAndSegment(la);
         }
 
-        while (delayedRecognition_->flush())
-            ;
+        if (seq2seq_) {
+            labelScorer_->setEOS();
+            labelScorer_->encode();
+            recognizer_->decode();
+        } else {
+            while (delayedRecognition_->flush()) {}
+        }
 
         std::pair<ConstLatticeRef, ConstSegmentRef> ret;
 
@@ -521,7 +569,10 @@ public:
         subSegment_ = 0;
         dataSource_.reset();
         featureTimes_.clear();
-        delayedRecognition_->reset();
+        if (seq2seq_)
+            labelScorer_->reset();
+        else
+            delayedRecognition_->reset();
     }
 };
 const Core::ParameterBool Recognizer::paramPronunciationScore(
@@ -559,6 +610,8 @@ const Core::ParameterBool Recognizer::paramAllowSkip(
 
 class RecognizerNode : public Node {
 public:
+    static const Core::ParameterBool   paramUseAcousticModel;
+    static const Core::ParameterBool   paramUseMixture;
     static const Core::ParameterString paramGrammarKey;
     static const Core::ParameterInt    paramGrammarArcsLimit;
     static const Core::ParameterFloat  paramGrammarDensity;
@@ -721,7 +774,10 @@ public:
         if (!Lexicon::us()->isReadOnly())
             warning("Lexicon is not read-only, "
                     "dynamically added/modified lemmas are not considered by the recognizer.");
-        AcousticModelRef       am = getAm(select("acoustic-model"));
+        // possible to skip conventional AM or load it without GMM
+        AcousticModelRef am;
+        if (paramUseAcousticModel(config))
+            am = getAm(select("acoustic-model"), paramUseMixture(config));
         ScaledLanguageModelRef lm;
         if (connected(0)) {
             Core::Component::Message msg(log());
@@ -795,6 +851,15 @@ public:
         return recognizer_->recognitionPending();
     }
 };
+
+const Core::ParameterBool RecognizerNode::paramUseAcousticModel(
+        "use-acoustic-model",
+        "whether to initialize convential acoustic model",
+        true);
+const Core::ParameterBool RecognizerNode::paramUseMixture(
+        "use-mixture",
+        "whether to load GMM for convential acoustic model",
+        true);
 const Core::ParameterString RecognizerNode::paramGrammarKey(
         "key",
         "dimension storing the grammar scores",

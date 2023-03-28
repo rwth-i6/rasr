@@ -36,13 +36,14 @@ public:
     typedef u32 LookaheadId;
     typedef f32 Score;
 
+    class ContextLookahead;
+    typedef Core::Ref<const ContextLookahead> ContextLookaheadReference;
+
 private:
-    static const LookaheadId                 invalidId;
-    u32                                      historyLimit_;
-    s32                                      cutoffDepth_;
-    u32                                      minimumRepresentation_;
-    Lm::Score                                wpScale_;
-    Core::Ref<const Lm::ScaledLanguageModel> lm_;
+    static const LookaheadId invalidId;
+
+    s32 cutoffDepth_;
+    u32 minimumRepresentation_;
 
     class ConstructionNode;
     class ConstructionTree;
@@ -55,37 +56,39 @@ private:
     Successors                                            successors_;
     std::vector<Node>                                     nodes_;
 
-    LookaheadId nEntries_;
-
-    std::vector<LookaheadId> nodeId_;  // StateTree::StateId -> nodes_ indes
-
     bool shouldPruneConstructionNode(const ConstructionNode& sn) const;
     void buildCompressesLookaheadStructure(const StateTree*, const ConstructionTree&);
     void buildBatchRequest();
     void buildLookaheadStructure(const StateTree*);
 
-    const Lm::CompiledBatchRequest* batchRequest_;
-    void                            computeScores(const Lm::History&, std::vector<Score>&) const;
+protected:
+    s32 historyLimit_;
 
-public:
-    class ContextLookahead;
+    LookaheadId              nEntries_;
+    std::vector<LookaheadId> nodeId_;  // StateTree::StateId -> nodes_ indes
+    Lm::Score                wpScale_;
 
-private:
+    Core::Ref<const Lm::ScaledLanguageModel> lm_;
+    const Lm::CompiledBatchRequest*          batchRequest_;
+
     friend class ContextLookahead;
-    u32                                                                           cacheSizeHighMark_, cacheSizeLowMark_;
-    typedef std::list<ContextLookahead*>                                          List;
-    mutable List                                                                  tables_, freeTables_;
-    mutable u32                                                                   nTables_, nFreeTables_;
+    u32                                  cacheSizeHighMark_, cacheSizeLowMark_;
+    typedef std::list<ContextLookahead*> List;
+    mutable List                         tables_, freeTables_;
+    mutable u32                          nTables_, nFreeTables_;
+
     typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
     mutable Map                                                                   map_;
+
+    struct CacheStatistics;
+    CacheStatistics*         cacheStatistics_;
+    mutable Core::XmlChannel statisticsChannel_;
 
     ContextLookahead* acquireTable(const Lm::History&) const;
     ContextLookahead* getCachedTable(const Lm::History&) const;
     void              releaseTable(const ContextLookahead*) const;
 
-    struct CacheStatistics;
-    CacheStatistics*         cacheStatistics_;
-    mutable Core::XmlChannel statisticsChannel_;
+    virtual void computeScores(const Lm::History&, std::vector<Score>&) const;
 
 public:
     static const Core::ParameterInt paramHistoryLimit;
@@ -153,10 +156,7 @@ public:
         //END_DEBUG
     };
 
-public:
-    typedef Core::Ref<const ContextLookahead> ContextLookaheadReference;
-
-private:
+protected:
     u32 nTables() const {
         verify_(nTables_ == tables_.size());
         return nTables_;

@@ -28,6 +28,7 @@ enum SearchType {
     AdvancedTreeSearch,
     LinearSearchType,
     ExpandingFsaSearchType,
+    GenericSeq2SeqTreeSearchType
 };
 
 class Module_ {

@@ -32,6 +32,7 @@ template struct ToDataType<s16>;
 template struct ToDataType<u16>;
 template struct ToDataType<s8>;
 template struct ToDataType<u8>;
+template struct ToDataType<bool>;
 
 // tf::DataTypeToEnum does not have entries for s64 and u64 (as they are (unsigned) long)
 // instead it has entries for long long and unsigned long long. For our supported data-model
@@ -215,6 +216,11 @@ Tensor Tensor::concat(Tensor const& a, Tensor const& b, int axis) {
             dynamic_rank_concat<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
             return res;
         }
+        case tf::DT_BOOL: {
+            Tensor res = Tensor::zeros<tf::EnumToDataType<tf::DT_BOOL>::Type>(new_shape);
+            dynamic_rank_concat<tf::EnumToDataType<tf::DT_BOOL>::Type>(*res.tensor_, *a.tensor_, *b.tensor_, axis);
+            return res;
+        }
         default: defect();
     }
 }
@@ -242,6 +248,8 @@ Tensor Tensor::concat(const std::vector<const Tensor*>& inputs, int axis) {
             return Tensor::concat<tf::EnumToDataType<tf::DT_INT8>::Type>(inputs, axis);
         case tf::DT_UINT8:
             return Tensor::concat<tf::EnumToDataType<tf::DT_UINT8>::Type>(inputs, axis);
+        case tf::DT_BOOL:
+            return Tensor::concat<tf::EnumToDataType<tf::DT_BOOL>::Type>(inputs, axis);
         default: defect();
     }
 }
@@ -338,6 +346,7 @@ template Tensor Tensor::concat<s16>(const std::vector<const Tensor*>& inputs, in
 template Tensor Tensor::concat<u16>(const std::vector<const Tensor*>& inputs, int axis);
 template Tensor Tensor::concat<s8>(const std::vector<const Tensor*>& inputs, int axis);
 template Tensor Tensor::concat<u8>(const std::vector<const Tensor*>& inputs, int axis);
+template Tensor Tensor::concat<bool>(const std::vector<const Tensor*>& inputs, int axis);
 
 /* ------------------------- Getters ------------------------- */
 
@@ -901,6 +910,7 @@ Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end)
         case tf::DT_UINT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
         case tf::DT_INT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
         case tf::DT_UINT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+        case tf::DT_BOOL: dynamic_rank_slice<tf::EnumToDataType<tf::DT_BOOL>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
         default: defect();
     }
 

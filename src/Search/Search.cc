@@ -41,6 +41,24 @@ void SearchAlgorithm::Traceback::write(std::ostream& os, Core::Ref<const Bliss::
     }
 }
 
+void SearchAlgorithm::Traceback::writeSeq2Seq(std::ostream& os,
+                                              Core::Ref<const Bliss::PhonemeInventory> phi) const {
+  for (const_iterator tbi = begin(); tbi != end(); ++tbi) {
+      os << "n=" << std::setw(5) << tbi->step << "    s=" << std::setw(8) << tbi->score;
+      if (tbi->lemma) {
+          os << "    " << tbi->lemma->preferredOrthographicForm();
+          if (tbi->pronunciation) {
+              u32 len = tbi->lemma->preferredOrthographicForm().length();
+              os << std::setw(25-len) << "    /"
+                 << tbi->pronunciation->pronunciation()->format(phi) << "/";
+          }
+      } else {
+          os << "    #|#";
+      }
+      os << std::endl;
+  }
+}
+
 Fsa::ConstAutomatonRef SearchAlgorithm::Traceback::lemmaAcceptor(Core::Ref<const Bliss::Lexicon> lexicon) const {
     Bliss::LemmaAcceptor* result = new Bliss::LemmaAcceptor(lexicon);
     Fsa::State *          s1, *s2;

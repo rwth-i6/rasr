@@ -273,7 +273,7 @@ private:
     Fsa::State *                    initialState_, *finalState_;
 
 public:
-    StandardWordLattice(Bliss::LexiconRef);
+    StandardWordLattice(Bliss::LexiconRef, bool useLemmaAlphabet = false);
 
     Fsa::State* newState();
     Fsa::State* initialState() {
@@ -286,6 +286,11 @@ public:
     void newArc(Fsa::State* source,
                 Fsa::State* target,
                 const Bliss::LemmaPronunciation*,
+                Speech::Score acoustic, Speech::Score lm);
+
+    void newArc(Fsa::State *source,
+                Fsa::State *target,
+                const Bliss::Lemma*,
                 Speech::Score acoustic, Speech::Score lm);
 
     void addAcyclicProperty();

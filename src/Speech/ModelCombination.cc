@@ -15,6 +15,8 @@
 #include "ModelCombination.hh"
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
+#include <Nn/Module.hh>
+
 
 using namespace Speech;
 
@@ -111,4 +113,8 @@ void ModelCombination::getDependencies(Core::DependencySet& dependencies) const 
 
     dependencies.add(name(), d);
     Mc::Component::getDependencies(dependencies);
+}
+
+void ModelCombination::createLabelScorer() {
+    labelScorer_ = Nn::Module::instance().createLabelScorer(select("label-scorer"));
 }

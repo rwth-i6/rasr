@@ -62,6 +62,7 @@ namespace Tensorflow {
         static const Core::ParameterFloat  paramForwardScale;
         static const Core::ParameterFloat  paramSilLoopPenalty;
         static const Core::ParameterFloat  paramSilForwardPenalty;
+        static const Core::ParameterBool   paramBatchMajor;
         static const Core::ParameterBool   paramMinDuration;
         static const Core::ParameterBool   paramUseWordEndClasses;
         static const Core::ParameterBool   paramUseBoundaryClasses;
@@ -93,6 +94,7 @@ namespace Tensorflow {
                   forwardScale_(paramForwardScale(config)),
                   silLoopPenalty_(paramSilLoopPenalty(config)),
                   silForwardPenalty_(paramSilForwardPenalty(config)),
+                  isBatchMajor_(paramBatchMajor(config)),
                   isMinimumDuration_(paramMinDuration(config)),
                   useWordEndClasses_(paramUseWordEndClasses(config)),
                   useBoundaryClasses_(paramUseBoundaryClasses(config)),
@@ -194,6 +196,7 @@ namespace Tensorflow {
         f32                    silLoopPenalty_;
         f32                    silForwardPenalty_;
         bool                   isMultiEncoderOutput_;
+        bool                   isBatchMajor_;
         bool                   isMinimumDuration_;
         bool                   useWordEndClasses_;
         bool                   useBoundaryClasses_;
@@ -271,10 +274,12 @@ namespace Tensorflow {
             virtual void setMonophoneScores() const;
             virtual void setMonophoneScoresWithTransition() const;
             virtual void setDiphoneScoresForAllContextsWithSilAdjust() const;
+            virtual void setDiphoneScoresForAllContextsSilAdjustBatchMajor() const;
 
             // only active hypotheses
             virtual void scoreActiveStates(const std::vector<Mm::MixtureIndex>& stateIdentities) const;
             virtual void scoreActiveStatesTriphoneForward(const std::vector<Mm::MixtureIndex>& stateIdentities) const;
+            virtual void scoreActiveStatesTriphoneForwardBatchMajor(const std::vector<Mm::MixtureIndex>& stateIdentities) const;
 
         private:
             TFFactoredHybridFeatureScorer const*  parentScorer_;

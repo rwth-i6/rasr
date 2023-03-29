@@ -116,6 +116,11 @@ namespace Tensorflow {
             "silence forward penalty for only input dependent delta model",
             0.0);
 
+    const Core::ParameterBool TFFactoredHybridFeatureScorer::paramBatchMajor(
+            "is-batch-major",
+            "set to false for the conformer encoder",
+            false);
+
     const Core::ParameterBool TFFactoredHybridFeatureScorer::paramMinDuration(
             "is-min-duration",
             "set true when the center phoneme three states have the same label",
@@ -215,7 +220,6 @@ namespace Tensorflow {
             forwardScores_.push_back(0);
             loopScores_.push_back(0);
         }
-
         return;
 
     }
@@ -729,6 +733,76 @@ namespace Tensorflow {
 
         }
 
+    void TFFactoredHybridFeatureScorer::TFFactoredHybridContextScorer::setDiphoneScoresForAllContextsSilAdjustBatchMajor() const {
+
+        u32 batchSize   = static_cast<u32>(parentScorer_->nContextLabels());
+
+        std::vector<Math::FastMatrix<f32>> encoderOutput;
+        Math::FastMatrix<s32>              currentStateIdentity(batchSize, 1);
+
+        Math::FastMatrix<f32> f(1, parentScorer_->lenEncoderOutput_);
+        for (ModelIndex i = 0u; i < parentScorer_->lenEncoderOutput_; i++) {
+            f.at(0, i) = currentFeature_[i];
+        }
+
+        for (ModelIndex pIdx = 0; pIdx < parentScorer_->nContextLabels(); pIdx++) {
+            encoderOutput.emplace_back(f);
+            currentStateIdentity.at(pIdx, 0) = static_cast<s32>(mapLabelSetToDense(pIdx, 0, 0));
+        }
+
+        std::vector<std::pair<std::string, Tensor>> inputs;
+        inputs.push_back(std::make_pair(parentScorer_->inputsTensorNames_[0], Tensor::create(encoderOutput)));
+        inputs.push_back(std::make_pair(parentScorer_->inputsTensorNames_[1], Tensor::create(currentStateIdentity)));
+
+        //declare output for the session run
+        std::vector<Tensor> output;
+        //run the session
+        parentScorer_->session_.run(inputs, parentScorer_->outputTensorNames_, {}, output);
+
+        //get the output of softmax and store it
+        std::vector<Math::FastMatrix<Mm::Score>> contextDependentCenterStateScores;
+        std::vector<Math::FastMatrix<Mm::Score>> contextScores;
+        output[0].get(contextDependentCenterStateScores, true);
+        output[1].get(contextScores, true); //(B, Label, T)
+
+
+        Bliss::Phoneme::Id silenceId = parentScorer_->getSilenceId();
+        Mm::Score mergedScore = contextScores[0](0, 0) + contextScores[0](silenceId, 0);
+
+
+        std::vector<Mm::Score> mergedDpSore(parentScorer_->nCenterStates());
+        for (ModelIndex midx = 0u; midx < parentScorer_->nCenterStates(); midx++) {
+            mergedDpSore[midx] += contextDependentCenterStateScores[0](midx, 0) + contextDependentCenterStateScores[silenceId](midx, 0);
+
+        }
+
+
+
+        for (ModelIndex lidx = 0u; lidx < parentScorer_->nContextLabels(); lidx++) {
+            for (ModelIndex cidx = 0u; cidx < parentScorer_->nCenterStates(); cidx++) {
+                ModelIndex outIdx = calculateCacheIndex(cidx, lidx, 0);
+
+                Mm::Score  score;
+                if (lidx == 0 or lidx == silenceId){
+                    score  = -(parentScorer_->centerStateScale_ * Core::log(mergedDpSore[cidx]) +
+                               parentScorer_->leftContextScale_ * Core::log(mergedScore));
+                }
+                else{
+                    //left context will have repetitive vectores you can also get just index (0, contextScores)
+                    score  = -(parentScorer_->centerStateScale_ * Core::log(contextDependentCenterStateScores[lidx](cidx, 0)) +
+                               parentScorer_->leftContextScale_ * Core::log(contextScores[0](lidx, 0)));
+                }
+                // subtract negative prior score
+                score += (parentScorer_->centerStatePriorScale_ * parentScorer_->contextDependentCenterStatePriors_[lidx][cidx]) +
+                         (parentScorer_->leftContextPriorScale_ * parentScorer_->leftContextPriors_[lidx]);
+
+                cache_.set(outIdx, score);
+
+            }
+        }
+
+    }
+
     void TFFactoredHybridFeatureScorer::TFFactoredHybridContextScorer::scoreActiveStatesTriphoneForward(const std::vector<Mm::MixtureIndex>& stateIdentities) const {
 
         auto batchSize   = stateIdentities.size();
@@ -825,6 +899,103 @@ namespace Tensorflow {
 
     }
 
+    void TFFactoredHybridFeatureScorer::TFFactoredHybridContextScorer::scoreActiveStatesTriphoneForwardBatchMajor(const std::vector<Mm::MixtureIndex>& stateIdentities) const {
+
+        auto batchSize   = stateIdentities.size();
+        auto featureSize = static_cast<ModelIndex>(currentFeature_.size());
+        std::vector<bool> visited(parentScorer_->nContextLabels() * parentScorer_->nCenterStates());
+
+        std::vector<Math::FastMatrix<f32>> encoderOutput;
+        Math::FastMatrix<f32> f(1, featureSize);
+        for (ModelIndex i = 0u; i < currentFeature_.size(); i++) {
+            f.at(0, i) = currentFeature_[i];
+        }
+
+        std::vector<ModelIndex>            pastContextIds;
+        std::vector<ModelIndex>            centerStateIds;
+        std::vector<s32>                   denseLabels;
+
+        for (ModelIndex b = 0u; b < batchSize; b++){
+
+            Mm::MixtureIndex     stateId            = stateIdentities[b];
+
+            std::vector<u32> labels = getLabelIndices(stateId);
+            Bliss::Phoneme::Id   pastContextLabel   = labels[0];
+            Mm::EmissionIndex    centerStateLabel   = labels[1];
+
+            ModelIndex vIdx = (pastContextLabel * parentScorer_->nCenterStates()) + centerStateLabel;
+            if (!visited[vIdx]){
+
+                visited[vIdx] = true;
+                pastContextIds.emplace_back(pastContextLabel);
+                centerStateIds.emplace_back(centerStateLabel);
+
+                encoderOutput.emplace_back(f);
+                denseLabels.emplace_back(stateId);
+
+            }
+
+        }
+
+        batchSize = pastContextIds.size();
+        Math::FastMatrix<s32>     currentStateIdentity(batchSize, 1);
+        for (ModelIndex i = 0u; i < batchSize; i++) {
+            currentStateIdentity.at(i, 0) = denseLabels[i];
+        }
+
+
+
+        std::vector<std::pair<std::string, Tensor>> inputs;
+        inputs.push_back(std::make_pair(parentScorer_->inputsTensorNames_[0], Tensor::create(encoderOutput)));
+        inputs.push_back(std::make_pair(parentScorer_->inputsTensorNames_[1], Tensor::create(currentStateIdentity)));
+
+        //declare output for the session run
+        std::vector<Tensor> output;
+        //run the session
+        //auto start = std::chrono::steady_clock::now();
+        parentScorer_->session_.run(inputs, parentScorer_->outputTensorNames_, {}, output);
+
+        //auto end = std::chrono::steady_clock::now();
+        //double tf_time = std::chrono::duration<double, std::milli>(end - start).count();
+        //addSetTime(tf_time);
+
+        std::vector<Math::FastMatrix<Mm::Score>> triphoneScores;
+        std::vector<Math::FastMatrix<Mm::Score>> diphoneScores;
+        std::vector<Math::FastMatrix<Mm::Score>> pastContextScores;
+        output[0].get(triphoneScores, true);
+        output[1].get(diphoneScores, true);
+        output[2].get(pastContextScores, true);
+
+
+
+
+        for (ModelIndex b = 0u; b < batchSize; b++) {
+            ModelIndex        e              = centerStateIds[b];
+            ModelIndex        pastContextIdx = pastContextIds[b];
+
+            for (ModelIndex futureIdx = 0u; futureIdx < parentScorer_->nContextLabels(); futureIdx++) {
+                ModelIndex outIdx = calculateCacheIndex(e, pastContextIdx, futureIdx);
+
+                Mm::Score score;
+
+
+                score = -(parentScorer_->rightContextScale_ * Core::log(triphoneScores[b](futureIdx, 0)) +
+                          parentScorer_->centerStateScale_ * Core::log(diphoneScores[b](e, 0)) +
+                          parentScorer_->leftContextScale_ * Core::log(pastContextScores[b](pastContextIdx, 0)));
+
+                score += (parentScorer_->rightContextPriorScale_ * parentScorer_->contextDependentRightContextPriors_[pastContextIdx * parentScorer_->nCenterStates() + e][futureIdx]) +
+                         (parentScorer_->centerStatePriorScale_  * parentScorer_->contextDependentCenterStatePriors_[pastContextIdx][e]) +
+                         (parentScorer_->leftContextPriorScale_  * parentScorer_->leftContextPriors_[pastContextIdx]);
+
+
+                cache_.set(outIdx, score);
+            }
+        }
+
+
+    }
+
+
     void TFFactoredHybridFeatureScorer::TFFactoredHybridContextScorer::scoreActiveStates(const std::vector<Mm::MixtureIndex>& stateIdentities) const {
 
         switch (parentScorer_->contextType_) {
@@ -835,12 +1006,22 @@ namespace Tensorflow {
                 setMonophoneScoresWithTransition();
                 break;
             case ContextTypeDiphone:
-                setDiphoneScoresForAllContextsWithSilAdjust();
+                if (parentScorer_->isBatchMajor_){
+                    setDiphoneScoresForAllContextsSilAdjustBatchMajor();
+                }
+                else{
+                    setDiphoneScoresForAllContextsWithSilAdjust();
+                }
                 break;
             case ContextTypeDiphoneDelta:
                 //ToDo:: implement
             case ContextTypeTriphoneForward:
-                scoreActiveStatesTriphoneForward(stateIdentities);
+                if (parentScorer_->isBatchMajor_){
+                    scoreActiveStatesTriphoneForwardBatchMajor(stateIdentities);
+                }
+                else{
+                    scoreActiveStatesTriphoneForward(stateIdentities);
+                }
                 break;
             case ContextTypeTriphoneForwardDelta:
                 //ToDo:: implement
@@ -884,7 +1065,12 @@ namespace Tensorflow {
                 setMonophoneScoresWithTransition();
                 break;
             case ContextTypeDiphone:
-                setDiphoneScoresForAllContextsWithSilAdjust();
+                if (parentScorer_->isBatchMajor_){
+                    setDiphoneScoresForAllContextsSilAdjustBatchMajor();
+                }
+                else{
+                    setDiphoneScoresForAllContextsWithSilAdjust();
+                }
                 break;
             case ContextTypeDiphoneDelta:
                 //ToDo:: implement

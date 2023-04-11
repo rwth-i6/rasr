@@ -268,12 +268,24 @@ public:
  * near future, when the WordLattice interface is refactored.
  */
 class StandardWordLattice : public WordLattice {
+public:
+    enum class AlphabetType {
+        LemmaAlphabet              = 1,
+        LemmaPronunciationAlphabet = 2
+    };
+
 private:
     Core::Ref<Fsa::StaticAutomaton> acoustic_, lm_;
     Fsa::State *                    initialState_, *finalState_;
+    AlphabetType                    alphabetType_;
+    
+    void newArc(Fsa::State* source,
+                Fsa::State* target,
+                Fsa::LabelId id,
+                Speech::Score acoustic, Speech::Score lm);
 
 public:
-    StandardWordLattice(Bliss::LexiconRef, bool useLemmaAlphabet = false);
+    StandardWordLattice(Bliss::LexiconRef, AlphabetType alphabetType = AlphabetType::LemmaAlphabet);
 
     Fsa::State* newState();
     Fsa::State* initialState() {

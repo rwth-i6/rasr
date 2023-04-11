@@ -43,6 +43,7 @@ public:
     static const Mode useLexicon;
     static const Mode useAcousticModel;
     static const Mode useLanguageModel;
+    static const Mode useLabelScorer;
 
     static const Core::ParameterFloat paramPronunciationScale;
 
@@ -87,8 +88,7 @@ public:
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void createLabelScorer();
-    void setLabelScorer(Core::Ref<Nn::LabelScorer>& ls) { labelScorer_ = ls; }
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) { labelScorer_ = ls; }
     Core::Ref<Nn::LabelScorer> labelScorer() const { return labelScorer_; }
 };
 

@@ -125,7 +125,7 @@ class Seq2SeqAlignmentNode : public AlignmentBaseNode {
 
 public:
     static std::string               filterName() {
-        return "speech-seq2seq-alignment";
+        return "speech-generic-seq2seq-alignment";
     }
 
 public:

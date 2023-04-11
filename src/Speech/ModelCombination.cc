@@ -20,10 +20,11 @@
 
 using namespace Speech;
 
-const ModelCombination::Mode ModelCombination::complete         = 0xFFFF;
+const ModelCombination::Mode ModelCombination::complete         = 0x3;
 const ModelCombination::Mode ModelCombination::useLexicon       = 0x0;
 const ModelCombination::Mode ModelCombination::useAcousticModel = 0x1;
 const ModelCombination::Mode ModelCombination::useLanguageModel = 0x2;
+const ModelCombination::Mode ModelCombination::useLabelScorer   = 0x4;
 
 //======================================================================================
 
@@ -54,6 +55,12 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
         setLanguageModel(Lm::Module::instance().createScaledLanguageModel(select("lm"), lexicon_));
         if (!languageModel_)
             criticalError("failed to initialize language model");
+    }
+
+    if (mode & useLabelScorer) {
+        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
+        if (!labelScorer_)
+            criticalError("failed to initialize label scorer");
     }
 }
 
@@ -113,8 +120,4 @@ void ModelCombination::getDependencies(Core::DependencySet& dependencies) const 
 
     dependencies.add(name(), d);
     Mc::Component::getDependencies(dependencies);
-}
-
-void ModelCombination::createLabelScorer() {
-    labelScorer_ = Nn::Module::instance().createLabelScorer(select("label-scorer"));
 }

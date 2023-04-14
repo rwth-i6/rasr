@@ -155,7 +155,6 @@ ClassicTransducerBuilder::ClassicTransducerBuilder(Core::Ref<
     fixAllophoneContextAtWordBoundaries_    = paramFixAllophoneContextAtWordBoundaries(model_->getConfiguration());
     statistics_                             = new Statistics;
 
-    // TODO make unique endState (including [SILENCE] ...)
     if ( model_->phonology()->maximumHistoryLength() == 0 && model_->phonology()->maximumFutureLength() == 0 )
       linkWordEndStart_ = true;
     else

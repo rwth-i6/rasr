@@ -26,6 +26,8 @@ class FormatSet;
 
 namespace Nn {
 
+class LabelScorer;
+
 class Module_ {
 private:
     Core::FormatSet* formats_;
@@ -47,6 +49,8 @@ public:
     /** Set of file format class.
      */
     Core::FormatSet& formats();
+
+    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

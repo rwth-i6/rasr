@@ -39,7 +39,7 @@ namespace Speech {
 class ModelCombination : public Mc::Component, public Core::ReferenceCounted {
 public:
     typedef u32       Mode;
-    static const Mode complete;
+    static const Mode complete;  // Includes lexicon, AM and LM but NOT label scorer; named 'complete' for legacy reasons.
     static const Mode useLexicon;
     static const Mode useAcousticModel;
     static const Mode useLanguageModel;

@@ -18,6 +18,9 @@
 #include <Core/Archive.hh>
 #include <Lattice/Lattice.hh>
 #include <Search/Aligner.hh>
+#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
+#include <Search/GenericSeq2SeqTreeSearch/Seq2SeqAligner.hh>
+#endif
 #include "Alignment.hh"
 #include "ModelCombination.hh"
 
@@ -114,6 +117,25 @@ public:
     virtual bool configure();
     virtual bool work(Flow::PortId);
 };
+
+#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
+/** Seq2Seq AlignmentNode */
+class Seq2SeqAlignmentNode : public AlignmentBaseNode {
+    typedef AlignmentBaseNode Precursor;
+
+public:
+    static std::string               filterName() {
+        return "speech-generic-seq2seq-alignment";
+    }
+
+public:
+    Seq2SeqAlignmentNode(const Core::Configuration&);
+    virtual bool work(Flow::PortId);
+
+protected:
+    void createModel();
+};
+#endif
 
 /** Dumps alignments in a plain text format */
 class AlignmentDumpNode : public Flow::Node {

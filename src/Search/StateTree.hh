@@ -122,12 +122,10 @@ public:
      * use StateDesc as key in a map.
      */
     struct StateDesc {
-        typedef u16 AcousticModelIndex;
-        // This should remain the default!
-        typedef u8 TransitionModelIndex;
+        typedef u32 ModelIndex;
 
-        AcousticModelIndex   acousticModel;
-        TransitionModelIndex transitionModelIndex;
+        ModelIndex acousticModel : 24;
+        ModelIndex transitionModelIndex : 8;
 
         StateDesc()
                 : acousticModel(0), transitionModelIndex(0) {

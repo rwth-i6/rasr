@@ -186,8 +186,9 @@ inline void LabelHistoryManager::release(LabelHistoryHandle lhd) const {
 }
 
 inline size_t LabelHistoryManager::reducedHashKey(const LabelSequence& labelSeq, s32 limit) const {
-    if (limit < 0 || (u32)limit >= labelSeq.size())
+    if (limit < 0 || (u32)limit >= labelSeq.size()) {
         return label_sequence_hash(labelSeq);
+    }
     LabelSequence reducedLabelSeq(labelSeq.end() - limit, labelSeq.end());
     return label_sequence_hash(reducedLabelSeq);
 }
@@ -199,8 +200,9 @@ inline size_t LabelHistoryManager::extendedHashKey(const LabelHistoryHandle lhd,
 }
 
 inline size_t LabelHistoryManager::reducedExtendedHashKey(const LabelHistoryHandle lhd, s32 limit, LabelIndex lIdx) const {
-    if (limit < 0 || (u32)limit > lhd->labelSeq.size())
+    if (limit < 0 || (u32)limit > lhd->labelSeq.size()) {
         return extendedHashKey(lhd, lIdx);
+    }
     LabelSequence reducedLabelSeq(lhd->labelSeq.end() - (limit - 1), lhd->labelSeq.end());
     reducedLabelSeq.push_back(lIdx);
     return label_sequence_hash(reducedLabelSeq);
@@ -231,45 +233,53 @@ inline CacheUpdateResult LabelHistoryManager::updateCache(LabelHistoryHandle lhd
 }
 
 inline const LabelHistory& LabelHistory::operator=(const LabelHistory& rhs) {
-    if (rhs.desc_)
+    if (rhs.desc_) {
         rhs.mang_->acquire(rhs.desc_);
-    if (desc_)
+    }
+    if (desc_) {
         mang_->release(desc_);
+    }
     mang_ = rhs.mang_;
     desc_ = rhs.desc_;
     return *this;
 }
 
 inline size_t LabelHistory::hashKey() const {
-    if (desc_)
+    if (desc_) {
         return mang_->hashKey(desc_);
+    }
     return 0;
 }
 
 inline size_t LabelHistory::reducedHashKey(s32 limit) const {
-    if (desc_ && limit != 0)
+    if (desc_ && limit != 0) {
         return mang_->reducedHashKey(desc_, limit);
+    }
     return 0;
 }
 
 inline size_t LabelHistory::reducedExtendedHashKey(s32 limit, LabelIndex lIdx) const {
-    if (desc_ && limit != 0)
+    if (desc_ && limit != 0) {
         return mang_->reducedExtendedHashKey(desc_, limit, lIdx);
+    }
     return 0;
 }
 
 inline LabelIndex LabelHistory::getLastLabel() const {
-    if (desc_ && !desc_->labelSeq.empty())
+    if (desc_ && !desc_->labelSeq.empty()) {
         return desc_->labelSeq.back();
+    }
     return Core::Type<LabelIndex>::max;
 }
 
 // debug
 inline void LabelHistory::format() const {
     std::cout << "  LabelHistory: ";
-    if (desc_)
-        for (LabelIndex label : desc_->labelSeq)
+    if (desc_) {
+        for (LabelIndex label : desc_->labelSeq) {
             std::cout << label << " ";
+        }
+    }
     std::cout << std::endl;
 }
 

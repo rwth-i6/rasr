@@ -167,8 +167,9 @@ private:
 };
 
 inline LabelHistoryHandle LabelHistoryManager::acquire(LabelHistoryHandle lhd) const {
-    if (lhd)
+    if (lhd) {
         ++(lhd->ref_count);
+    }
     return lhd;
 }
 

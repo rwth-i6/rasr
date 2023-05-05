@@ -118,8 +118,9 @@ public:
             : mang_(0), desc_(0) {}
     LabelHistory(const LabelHistory& ref)
             : mang_(ref.mang_), desc_(ref.desc_) {
-        if (desc_)
+        if (desc_) {
             mang_->acquire(desc_);
+        }
     }
 
     ~LabelHistory() {

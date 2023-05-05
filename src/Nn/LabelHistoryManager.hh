@@ -24,10 +24,12 @@
 // Note: not 100% collision-free, better with additional safety where it's applied
 static size_t updateHashKey(size_t hash, size_t update) {
     // nothing to update
-    if (update == 0)
+    if (update == 0) {
         return hash;
-    if (hash == 0)
+    }
+    if (hash == 0) {
         return update;
+    }
     return hash ^ (update + 0x9e3779b9 + (hash << 6) + (hash >> 2));
 }
 

@@ -34,21 +34,8 @@ index 765fd38..7a5b1d1 100644
  MODULES += MODULE_SEARCH_LINEAR
  MODULES += MODULE_ADVANCED_TREE_SEARCH
  MODULES += MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-diff --git a/config/cc-gcc.make b/config/cc-gcc.make
-index bb6b97e..8f1ae43 100644
---- a/config/cc-gcc.make
-+++ b/config/cc-gcc.make
-@@ -26,7 +26,7 @@ CCFLAGS		+= -pipe
- CCFLAGS		+= -funsigned-char
- CCFLAGS		+= -fno-exceptions
- CFLAGS		+= -std=c99
--CXXFLAGS	+= -std=gnu++0x
-+CXXFLAGS	+= -std=c++14
- CXXFLAGS	+= -Wno-unknown-pragmas
- #CCFLAGS	+= -pedantic
- CCFLAGS		+= -Wall
 diff --git a/config/os-linux.make b/config/os-linux.make
-index bad41bf..8373474 100644
+index bad41bf..eaa0fb4 100644
 --- a/config/os-linux.make
 +++ b/config/os-linux.make
 @@ -46,18 +46,12 @@ LDFLAGS     += -L$(TBB_DIR)/lib -ltbb
@@ -91,9 +78,9 @@ index bad41bf..8373474 100644
 -	      -gencode arch=compute_52,code=sm_52 \
 -	      -gencode arch=compute_61,code=sm_61
 +NVCCFLAGS   = -gencode arch=compute_61,code=sm_61 \  # GTX 1080
-+		      -gencode arch=compute_75,code=sm_75 \  # RTX 2080
-+			  -gencode arch=compute_86,code=sm_86 \  # RTX 3090
-+			  --compiler-options -fPIC
++	      -gencode arch=compute_75,code=sm_75 \  # RTX 2080
++	      -gencode arch=compute_86,code=sm_86 \  # RTX 3090
++	      --compiler-options -fPIC
  endif
  
  ifeq ($(PROFILE),gprof)
@@ -112,7 +99,7 @@ index bad41bf..8373474 100644
  # INCLUDES    += `pkg-config --cflags python`
  # LDFLAGS     += `pkg-config --libs python`
  endif
-+INCLUDES    += -I/usr/local/lib/python3.8/dist-packages/numpy/core/include
++INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
  endif
  
  # X11 and QT

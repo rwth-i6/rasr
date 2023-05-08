@@ -12,4 +12,6 @@ Contains:
 Issues:
  - Ffmpeg module needs to be turned off for now since API has changed with never versions
  - OpenFST is not installed and related modules are disabled
+ - The definition file specifies a tensorflow build for compute capabilities 6.1, 7.5 and 8.6;
+ for others, adapt the build command in the file before creating the image.
 

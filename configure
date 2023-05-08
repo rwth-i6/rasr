@@ -115,7 +115,6 @@ configure_i6 () {
 apply_apptainer_patchfile() {
     BASE_DIR=$(dirname "$0")
     FULL_PATH=$BASE_DIR/apptainer/$1/makefiles.patch
-    echo $FULL_PATH
     if [ -f $FULL_PATH ] ; then
         echo "Apply patchfile $FULL_PATH"
         git apply $FULL_PATH

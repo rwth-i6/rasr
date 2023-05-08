@@ -119,7 +119,7 @@ apply_apptainer_patchfile() {
         echo "Apply patchfile $FULL_PATH"
         git apply $FULL_PATH
     else
-        echo "Error: Apptainer version $1 not found!"
+        echo "Error: Patchfile $FULL_PATH does not exist!"
         exit 1
     fi
 }
@@ -143,7 +143,7 @@ General options:
                                         Please use this always as first argument.
   --apptainer-patch=<VERSION_NAME>      apply the patchfile in
                                         apptainer/<VERSION_NAME>/makefiles.patch
-                                        to the makefiles for compiling with the image
+                                        to the makefiles for compilation with the image
                                         given by apptainer/<VERSION_NAME>/image.def
 GCC Options:
   --set-march                           set the target architecture to compile for

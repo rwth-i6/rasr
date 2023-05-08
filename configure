@@ -112,6 +112,19 @@ configure_i6 () {
     enable_module "CORE_CACHE_MANAGER"
 }
 
+apply_apptainer_patchfile() {
+    BASE_DIR=$(dirname "$0")
+    FULL_PATH=$BASE_DIR/apptainer/$1/makefiles.patch
+    echo $FULL_PATH
+    if [ -f $FULL_PATH ] ; then
+        echo "Apply patchfile $FULL_PATH"
+        git apply $FULL_PATH
+    else
+        echo "Error: Apptainer version $1 not found!"
+        exit 1
+    fi
+}
+
 
 show_help(){
     cat <<EOF
@@ -129,6 +142,10 @@ General options:
   --i6                                  configures RASR for a default i6 build,
                                         including default modules and tensorflow path.
                                         Please use this always as first argument.
+  --apptainer-patch=<VERSION_NAME>      apply the patchfile in
+                                        apptainer/<VERSION_NAME>/makefiles.patch
+                                        to the makefiles for compiling with the image
+                                        given by apptainer/<VERSION_NAME>/image.def
 GCC Options:
   --set-march                           set the target architecture to compile for
                                         (see: https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)
@@ -153,6 +170,11 @@ for i in "$@"; do
             ;;
         --i6)
             configure_i6
+            shift
+            ;;
+        --apptainer-patch=*)
+            VERSION_NAME="${i#*=}"
+            apply_apptainer_patchfile $VERSION_NAME
             shift
             ;;
         --set-tensorflow=*)

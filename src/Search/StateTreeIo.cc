@@ -36,8 +36,17 @@ void StateTreeIo::write<StateTree::Exit>(Output& o, const StateTree::Exit& exit)
 
 template<>
 void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& desc) const {
-    read(i, desc.acousticModel);
-    read(i, desc.transitionModelIndex);
+    StateTree::StateDesc::ModelIndex           am = 0;
+    StateTree::StateDesc::TransitionModelIndex tm = 0;
+
+    read(i, am);
+    read(i, tm);
+
+    require(am < (1 << 24));
+
+    // cannot read to the bitfields directly
+    desc.acousticModel = am;
+    desc.transitionModelIndex = tm;
 }
 
 template<>
@@ -77,7 +86,7 @@ void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
 }
 
 const std::string StateTreeIo::magic             = "SPRINT-ST";
-const int         StateTreeIo::fileFormatVersion = 5;
+const int         StateTreeIo::fileFormatVersion = 6;
 
 StateTreeIo::StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
         : lexicon_(lexicon), acousticModel_(acousticModel) {

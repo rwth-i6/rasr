@@ -123,6 +123,7 @@ public:
      */
     struct StateDesc {
         typedef u32 ModelIndex;
+        typedef u8  TransitionModelIndex; // keep the typedef for max legal value
 
         ModelIndex acousticModel : 24;
         ModelIndex transitionModelIndex : 8;
@@ -152,7 +153,7 @@ public:
         };
     };
 
-    static const StateDesc::AcousticModelIndex invalidAcousticModel;
+    static const StateDesc::ModelIndex invalidAcousticModel;
 
     /**
      * A node in the state tree.

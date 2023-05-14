@@ -27,25 +27,24 @@ namespace Mm {
 /** Abstract feature scorer interface. */
 class FeatureScorer : public virtual Core::Component,
                       public Core::ReferenceCounted {
-protected:
-    /** Implement emission independent precalculations for feature vector */
-    class ContextScorer : public Core::ReferenceCounted {
-    protected:
-        ContextScorer() {}
-
-    public:
-        virtual ~ContextScorer() {}
-
-        virtual EmissionIndex nEmissions() const           = 0;
-        virtual Score         score(EmissionIndex e) const = 0;
-        virtual Score         score(EmissionIndex e, u32 modelIndex) {
-            return 0.0;
-        }
-    };
-    friend class ContextScorer;
-
 public:
-    FeatureScorer(const Core::Configuration& c)
+    /** Implement emission independent precalculations for feature vector */
+   class ContextScorer : public Core::ReferenceCounted {
+   protected:
+       ContextScorer() {}
+
+   public:
+       virtual ~ContextScorer() {}
+
+       virtual EmissionIndex nEmissions() const           = 0;
+       virtual Score         score(EmissionIndex e) const = 0;
+       virtual Score         score(EmissionIndex e, u32 modelIndex) {
+           return 0.0;
+       }
+   };
+   friend class ContextScorer;
+
+   FeatureScorer(const Core::Configuration& c)
             : Core::Component(c) {}
     virtual ~FeatureScorer() {}
 

@@ -151,11 +151,8 @@ INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
 LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
-INCLUDES    += `python3-config --includes 2>/dev/null`
-LDFLAGS     += `python3-config --ldflags 2>/dev/null`
-# IF you want to use Python2 for whatever reason:
-# INCLUDES    += `pkg-config --cflags python`
-# LDFLAGS     += `pkg-config --libs python`
+INCLUDES    += $(shell python3-config --includes 2>/dev/null || pkg-config --cflags python3)
+LDFLAGS     += $(shell python3-config --ldflags --embed | grep -v Usage || $(PYTHON_CONFIG) --libs 2>/dev/null || pkg-config --libs python3)
 endif
 endif
 

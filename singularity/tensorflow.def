@@ -81,7 +81,7 @@ EOF
 
     mkdir -p /opt/tensorflow/bazel_out/
     cd /opt/tensorflow/tensorflow
-    bazel --output_base=/opt/tensorflow/bazel_out build --local_cpu_resources=6 --config=opt --config=nogcp //tensorflow:libtensorflow_cc.so //tensorflow:libtensorflow.so
+    bazel --output_base=/opt/tensorflow/bazel_out build --config=opt --config=nogcp //tensorflow:libtensorflow_cc.so //tensorflow:libtensorflow.so
 
     #Cleanup
     rm -rf /opt/cuda

@@ -11,20 +11,6 @@ Stage: tensorflow
 
     update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
 
-    #CMake
-    version=3.25
-    build=1
-    cmake_dir=$(mktemp -d)
-    cd $cmake_dir
-    wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz
-    tar -xzvf cmake-$version.$build.tar.gz
-    cd cmake-$version.$build/
-    ./bootstrap
-    make -j$(nproc)
-    make install
-    cd /opt
-    rm -rf $cmake_dir
-
     mkdir -p /opt/cuda/
     cd /opt/cuda
 

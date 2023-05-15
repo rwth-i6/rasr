@@ -206,6 +206,6 @@ Stage: rasr
 
     cd /opt/tensorflow/bazel_out/execroot/org_tensorflow/bazel-out/k8-opt/bin/tensorflow/
     ln -s libtensorflow_cc.so.2.12.0        libtensorflow_cc.so
-    ln -s libtensorflow_cc.so.2.12.0        libtensorflow_cc.so.1
+    ln -s libtensorflow_cc.so.2.12.0        libtensorflow_cc.so.2
     ln -s libtensorflow_framework.so.2.12.0 libtensorflow_framework.so
-    ln -s libtensorflow_framework.so.2.12.0 libtensorflow_framework.so.1
+    ln -s libtensorflow_framework.so.2.12.0 libtensorflow_framework.so.2

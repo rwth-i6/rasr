@@ -45,14 +45,17 @@ void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& des
     require(am < (1 << 24));
 
     // cannot read to the bitfields directly
-    desc.acousticModel = am;
+    desc.acousticModel        = am;
     desc.transitionModelIndex = tm;
 }
 
 template<>
 void StateTreeIo::write<StateTree::StateDesc>(Output& o, const StateTree::StateDesc& desc) const {
-    write(o, desc.acousticModel);
-    write(o, desc.transitionModelIndex);
+    StateTree::StateDesc::ModelIndex           am = desc.acousticModel;
+    StateTree::StateDesc::TransitionModelIndex tm = desc.transitionModelIndex;
+
+    write(o, am);
+    write(o, tm);
 }
 
 template<>

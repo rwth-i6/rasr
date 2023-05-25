@@ -109,7 +109,7 @@ endif
 endif
 
 ifdef MODULE_CUDA
-CUDAROOT    = /usr/local/cuda-7.0
+CUDAROOT    = /usr/local/cuda-11.8
 INCLUDES    += -I$(CUDAROOT)/include/
 LDFLAGS     += -L$(CUDAROOT)/lib64/ -lcublas -lcudart -lcurand
 NVCC        = $(CUDAROOT)/bin/nvcc

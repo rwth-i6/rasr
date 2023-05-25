@@ -54,6 +54,9 @@ build --action_env GCC_HOST_COMPILER_PATH="/usr/bin/x86_64-linux-gnu-gcc-11"
 build --config=cuda
 build:opt --copt=-Wno-sign-compare
 build:opt --host_copt=-Wno-sign-compare
+build:opt --copt=-march=native
+build:opt --host_copt=-march=native
+build:opt --cxxopt=-march=native
 build:opt --host_copt=-march=core-avx2
 build:opt --define with_default_optimizations=true
 test --flaky_test_attempts=3

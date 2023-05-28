@@ -1,3 +1,25 @@
+This branch is dedicated for the integration of the generic seq-to-seq decoder developed by Wei Zhou
+during his PhD study, which was initiated before RASR github version was created.
+For simplicity, the complete decoder is adapted and rebased onto the master in one shot for various 
+testings using differernt seq-to-seq models, LMs, label units/topologies, NN architectures and search
+settings, etc.
+
+For citation and more details of this decoder, please refer to the following paper:
+@InProceedings {zhou:rasr2:interspeech2023,
+author= {Wei Zhou and Eugen Beck and Simon Berger and Ralf Schlüter and Hermann Ney},
+title= {{RASR2: The RWTH ASR Toolkit for Generic Sequence-to-sequence Speech Recognition}},
+booktitle= {Interspeech},
+year= 2023,
+month= Aug,
+note= {To appear}
+}
+
+Example configs related to the experiments in the paper can be found in the 'examples' folder.
+
+(merging status: #45)
+
+--------------------------------------------------------------------------------------------
+
 Sprint - The RWTH Speech Recognition Framework
 
 * Requirements

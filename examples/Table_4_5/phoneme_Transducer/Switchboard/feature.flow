@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<network name="network">
+  <out name="features"/>
+  <param name="end-time"/>
+  <param name="id"/>
+  <param name="start-time"/>
+  <node filter="generic-cache" id="$(id)" name="feature-cache-ivec" path="/work/asr3/zhou/hiwis/wu/asr-exps/swb1/2022-04-27_hmm-transducer/adaptation/ivector/IVectorExtractionJob.Y0GzU9D0iAmA/output/ivec.bundle"/>
+  <node filter="generic-cache" id="$(id)" name="cache" path="/u/zhou/asr-exps/swb1/2022-06-24_speaker/work/features/extraction/FeatureExtraction.Gammatone.sWcK8K0pJPvX/output/gt.cache.bundle"/>
+  <node filter="signal-repeating-frame-prediction" name="sync"/>
+  <link from="feature-cache-ivec" to="sync"/>
+  <link from="cache" to="sync:target"/>
+  <node check-same-length="true" filter="generic-vector-f32-concat" name="concatenation" timestamp-port="feature-1"/>
+  <link from="cache" to="concatenation:feature-1"/>
+  <link from="sync" to="concatenation:feature-2"/>
+  <node filter="tensorflow-forward" id="$(id)" name="tf-fwd"/>
+  <link from="concatenation" to="tf-fwd:features"/>
+  <link from="tf-fwd:log-posteriors" to="network:features"/>
+</network>

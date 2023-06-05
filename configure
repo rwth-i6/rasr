@@ -112,14 +112,14 @@ configure_i6 () {
     enable_module "CORE_CACHE_MANAGER"
 }
 
-apply_apptainer_patchfile() {
+apply_apptainer_setup() {
     BASE_DIR=$(dirname "$0")
-    FULL_PATH=$BASE_DIR/apptainer/$1/makefiles.patch
+    FULL_PATH=$BASE_DIR/apptainer/$1/setup_makefiles.sh
     if [ -f $FULL_PATH ] ; then
-        echo "Apply patchfile $FULL_PATH"
-        git apply $FULL_PATH
+        echo "Set up makefiles via $FULL_PATH"
+        $FULL_PATH
     else
-        echo "Error: Patchfile $FULL_PATH does not exist!"
+        echo "Error: Setup-script $FULL_PATH does not exist!"
         exit 1
     fi
 }
@@ -141,9 +141,9 @@ General options:
   --i6                                  configures RASR for a default i6 build,
                                         including default modules and tensorflow path.
                                         Please use this always as first argument.
-  --apptainer-patch=<VERSION_NAME>      apply the patchfile in
-                                        apptainer/<VERSION_NAME>/makefiles.patch
-                                        to the makefiles for compilation with the image
+  --apptainer-setup=<VERSION_NAME>      apply the setup-script in
+                                        apptainer/<VERSION_NAME>/setup_makefiles.sh
+                                        to enable compilation with the image
                                         given by apptainer/<VERSION_NAME>/image.def
 GCC Options:
   --set-march                           set the target architecture to compile for
@@ -171,9 +171,9 @@ for i in "$@"; do
             configure_i6
             shift
             ;;
-        --apptainer-patch=*)
+        --apptainer-setup=*)
             VERSION_NAME="${i#*=}"
-            apply_apptainer_patchfile $VERSION_NAME
+            apply_apptainer_setup $VERSION_NAME
             shift
             ;;
         --set-tensorflow=*)

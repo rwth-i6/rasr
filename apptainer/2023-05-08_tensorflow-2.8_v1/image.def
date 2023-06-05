@@ -10,7 +10,7 @@ Stage: build
     # all the fundamental basics, zsh is need because calling the cache manager might launch the user shell
     DEBIAN_FRONTEND=noninteractive apt install -y wget git unzip gzip libssl-dev lsb-release zsh \
         bison libxml2-dev libopenblas-dev libsndfile1-dev libcrypto++-dev libcppunit-dev \
-        parallel xmlstarlet python3-lxml htop strace gdb sox python3-pip
+        parallel xmlstarlet python3-lxml htop strace gdb sox python3-pip cmake
 
     # download the cache manager and place in /usr/local
     cd /usr/local
@@ -23,6 +23,10 @@ Stage: build
     sed -i "s/D_GLIBCXX_USE_CXX11_ABI=0/D_GLIBCXX_USE_CXX11_ABI=1/" nvbuildopts  # Enable CXX11 ABI
     ./nvbuild.sh --v2 --sm 6.1,7.5,8.6  # GTX 1080, RTX 2080, RTX 3090
 
+    ln -s /usr/local/lib/tensorflow/libtensorflow_cc.so.2 /usr/local/lib/tensorflow/libtensorflow_cc.so
+    ln -s /usr/local/lib/python3.8/dist-packages/tensorflow/libtensorflow_framework.so.2 /usr/local/lib/tensorflow/libtensorflow_framework.so.2
+    ln -s /usr/local/lib/tensorflow/libtensorflow_framework.so.2 /usr/local/lib/tensorflow/libtensorflow_framework.so
+
 %environment
-    # Location of libtensorflow_cc.so.2 and libtensorflow_framework.so.2
-    export LD_LIBRARY_PATH=/usr/local/lib/tensorflow/:/usr/local/lib/python3.8/dist-packages/tensorflow/:$LD_LIBRARY_PATH
+    # Location of libtensorflow_cc.so and libtensorflow_framework.so
+    export LD_LIBRARY_PATH=/usr/local/lib/tensorflow/:$LD_LIBRARY_PATH

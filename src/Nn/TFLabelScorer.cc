@@ -943,9 +943,14 @@ void TFFfnnTransducer::makeBatch(LabelHistoryDescriptor* targetLhd) {
   } else if (batchHashQueue_.erase(targetLhd->cacheHash) > 0)
     batchHash_.push_back(targetLhd->cacheHash);
 
+  const HistoryCache& cache = labelHistoryManager_->historyCache();
   std::unordered_set<size_t>::const_iterator iter = batchHashQueue_.begin();
-  while (batchHash_.size() < maxBatchSize_ && iter != batchHashQueue_.end())
-    batchHash_.push_back(*(iter++));
+  while (batchHash_.size() < maxBatchSize_ && iter != batchHashQueue_.end()) {
+    if (!cacheHistory_ && cache.count(*iter) == 0)
+      ++iter;
+    else
+      batchHash_.push_back(*(iter++));
+  }
   batchHashQueue_.erase(batchHashQueue_.begin(), iter);
 }
 

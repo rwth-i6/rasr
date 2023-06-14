@@ -77,14 +77,6 @@ static const Core::ParameterString paramPyModConfig(
         "config-string, passed to init()",
         "");
 
-static const Core::ParameterInt paramSubsamplingFactor(
-        "subsampling-factor",
-        "the subsampling factor for allowing less targets than features",
-        1,
-        1,
-        Core::Type<s8>::max,
-        "Configures the ratio of acoustic features to target labels. Defaults to 1, but can be set to higher values (e.g. 3 or 4) for models that subsample the audio data.");
-
 // Increase this number when we add some new feature to Sprint
 // and you want to check in Python whether Sprint is new enough to have that feature.
 static const long versionNumber = 5;
@@ -96,10 +88,9 @@ struct AlignmentToPython {
     Core::Component*                       parent_;
     Python::CriticalErrorFunc              criticalErrorFunc_;
     Math::FastMatrix<f32>*                 features_;  // optional. dim * time
-    int                                    subsamplingFactor_;
 
     AlignmentToPython()
-            : nSkippedAlignmentFrames_(0), parent_(NULL), features_(NULL), subsamplingFactor_(1) {}
+            : nSkippedAlignmentFrames_(0), parent_(NULL), features_(NULL) {}
 
     bool _alignmentLabelIndex(const Speech::Alignment& alignment, Fsa::LabelId emissionIndex, u32& index) {
         u32 labelIndex = emissionIndex;
@@ -154,7 +145,11 @@ struct AlignmentToPython {
         }
         require_eq(time, alignmentVec.size());
         if (features_) {
-            require_eq(time, (features_->nColumns() + subsamplingFactor_ - 1) / subsamplingFactor_);
+            // Make sure we do not have more targets than features.
+            //
+            // This is not require_eq to allow for subsampled alignments with fewer
+            // targets than features.
+            require_le(time, features_->nColumns());
         }
         pyAlignment.clear();
         Python::stdVec2numpy(criticalErrorFunc_, pyAlignment.obj, alignmentVec);
@@ -244,7 +239,6 @@ struct PythonControl::Internal : public Core::Component {
     std::shared_ptr<Core::StringHashMap<std::string>>     segmentToOrthMap_;
     std::map<std::string, std::shared_ptr<Core::Archive>> cacheArchives_;
     Core::Ref<const Am::AcousticModel>                    acousticModel_;
-    int                                                   subsamplingFactor_;
 
     Internal(const Core::Configuration& c)
             : Core::Component(c),
@@ -252,8 +246,7 @@ struct PythonControl::Internal : public Core::Component {
               callback_(NULL),
               criterion_(NULL),
               allophoneStateFsaExporter_(NULL),
-              segmentToOrthMap_(NULL),
-              subsamplingFactor_(paramSubsamplingFactor(c)) {
+              segmentToOrthMap_(NULL) {
         Python::ScopedGIL gil;
         capsule_  = PyCapsule_New(this, capsule_internal_name, NULL);
         callback_ = PyCFunction_New(&callback_method_def, capsule_);
@@ -524,7 +517,6 @@ struct PythonControl::Internal : public Core::Component {
         alignmentToPython.parent_            = this;
         alignmentToPython.criticalErrorFunc_ = getPythonCriticalErrorFunc();
         alignmentToPython.acousticModel_     = ctc->getAcousticModel();
-        alignmentToPython.subsamplingFactor_ = this->subsamplingFactor_;
         Python::ObjRef alignmentPy;
         if (soft)
             alignmentToPython.extractSoftAlignment(alignment, alignmentPy);
@@ -1055,7 +1047,6 @@ public:
             alignmentToPython_.acousticModel_     = acousticModel_;
             alignmentToPython_.classLabelWrapper_ = classLabelWrapper_;
             alignmentToPython_.features_          = &features_;
-            alignmentToPython_.subsamplingFactor_ = paramSubsamplingFactor(c);
         }
     }
 

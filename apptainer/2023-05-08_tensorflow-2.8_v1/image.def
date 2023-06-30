@@ -21,11 +21,15 @@ Stage: build
     # Rebuild TF for right compute capabilities and CXX11_ABI
     cd /opt/tensorflow
     sed -i "s/D_GLIBCXX_USE_CXX11_ABI=0/D_GLIBCXX_USE_CXX11_ABI=1/" nvbuildopts  # Enable CXX11 ABI
+    sed -i 's/$/ --local_cpu_resources=HOST_CPUS*0.5 --local_ram_resources=HOST_RAM*0.5/' nvbuildopts # prevent bazel from taking all the resources
     ./nvbuild.sh --v2 --sm 6.1,7.5,8.6  # GTX 1080, RTX 2080, RTX 3090
 
     ln -s /usr/local/lib/tensorflow/libtensorflow_cc.so.2 /usr/local/lib/tensorflow/libtensorflow_cc.so
     ln -s /usr/local/lib/python3.8/dist-packages/tensorflow/libtensorflow_framework.so.2 /usr/local/lib/tensorflow/libtensorflow_framework.so.2
     ln -s /usr/local/lib/tensorflow/libtensorflow_framework.so.2 /usr/local/lib/tensorflow/libtensorflow_framework.so
+
+    echo /usr/local/lib/tensorflow > /etc/ld.so.conf.d/tensorflow.conf
+    ldconfig
 
 %environment
     # Location of libtensorflow_cc.so and libtensorflow_framework.so

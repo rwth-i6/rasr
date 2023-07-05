@@ -47,12 +47,17 @@ private:
     TransitionModelToIndexMap stateTransitionModelIndexes_;
 
 protected:
-    void                     getDependencies();
-    void                     getTreeDependencies(const StateTree& tree);
-    static const std::string magic;
-    static const int         fileFormatVersion;
-    static const std::string sectionDependencies, sectionStateTree;
-    Core::DependencySet      dependencies_;
+    typedef enum {
+        fileFormatVersionV5 = 5,
+        fileFormatVersionV6 = 6,
+    } FileFormatVersion;
+
+    void                      getDependencies();
+    void                      getTreeDependencies(const StateTree& tree);
+    static const std::string  magic;
+    static const std::string  sectionDependencies, sectionStateTree;
+    Core::DependencySet       dependencies_;
+    mutable FileFormatVersion fileFormatVersionParsed;
 
 protected:
     template<class T>

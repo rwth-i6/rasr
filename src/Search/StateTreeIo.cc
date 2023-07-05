@@ -36,12 +36,35 @@ void StateTreeIo::write<StateTree::Exit>(Output& o, const StateTree::Exit& exit)
 
 template<>
 void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& desc) const {
-    StateTree::StateDesc::ModelIndex val = 0;
-    read(i, val);
+    require(this->fileFormatVersionParsed == fileFormatVersionV6
+        || this->fileFormatVersionParsed == fileFormatVersionV5);
 
-    StateTree::StateDesc::ModelIndex mask = (1 << 24) - 1;
-    desc.acousticModel                    = val & mask;
-    desc.transitionModelIndex             = val >> 24;
+    switch (this->fileFormatVersionParsed) {
+    case fileFormatVersionV6:
+        {
+            StateTree::StateDesc::ModelIndex val = 0;
+            read(i, val);
+
+            StateTree::StateDesc::ModelIndex mask = (1 << 24) - 1;
+            desc.acousticModel                    = val & mask;
+            desc.transitionModelIndex             = val >> 24;
+            break;
+        }
+    case fileFormatVersionV5:
+        {
+            StateTree::StateDesc::ModelIndex           am = 0;
+            StateTree::StateDesc::TransitionModelIndex tm = 0;
+
+            read(i, am);
+            read(i, tm);
+
+            require(am < (1 << 24));
+
+            desc.acousticModel        = am;
+            desc.transitionModelIndex = tm;
+            break;
+        }
+    }
 }
 
 template<>
@@ -81,7 +104,6 @@ void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
 }
 
 const std::string StateTreeIo::magic             = "SPRINT-ST";
-const int         StateTreeIo::fileFormatVersion = 6;
 
 StateTreeIo::StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
         : lexicon_(lexicon), acousticModel_(acousticModel) {
@@ -132,7 +154,7 @@ bool StateTreeWriter::write(const StateTree& tree, const std::string& filename) 
 
 StateTreeIo::Position StateTreeWriter::writeHeader(Core::BinaryOutputStream& out) const {
     StateTreeIo::write<std::string>(out, magic);
-    StateTreeIo::write(out, fileFormatVersion);
+    StateTreeIo::write(out, fileFormatVersionV6);
     Position positionHole = out.position();
     // write current position as place holder
     // will be overwriten later by writeTreeSize
@@ -225,7 +247,9 @@ bool StateTreeReader::checkHeader(Core::BinaryInputStream& in, Position& depende
     int         readVersion;
     StateTreeIo::read<std::string>(in, readMagic);
     StateTreeIo::read(in, readVersion);
-    if (readMagic == magic && readVersion == fileFormatVersion) {
+    if (readMagic == magic
+        && (readVersion == fileFormatVersionV5 || readVersion == fileFormatVersionV6)) {
+        this->fileFormatVersionParsed = static_cast<FileFormatVersion>(readVersion);
         StateTreeIo::read(in, dependencyPosition);
         return true;
     }

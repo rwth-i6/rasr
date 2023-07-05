@@ -272,16 +272,17 @@ Mm::MixtureIndex NoStateTyingDense::nClasses() const {
 Mm::MixtureIndex NoStateTyingDense::classify(const AllophoneState& a) const {
     require_lt(a.allophone()->boundary, numBoundaryClasses_);
     require_le(0, a.state());
-    require_lt(u32(a.state()), numStates_);
     u32 result = 0;
 
     u32 phoneIdx = a.allophone()->phoneme(0);
     require_lt(phoneIdx, numPhoneClasses_);
     result += phoneIdx;
 
-    result *= numStates_;
-    result += u32(a.state());
-
+    if (numStates_ > 1) {
+        require_lt(u32(a.state()), numStates_);
+        result *= numStates_;
+        result += u32(a.state());
+    }
     if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;
@@ -335,7 +336,6 @@ DiphoneDense::DiphoneDense(const Core::Configuration& config, ClassicStateModelR
 Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
     require_lt(a.allophone()->boundary, numBoundaryClasses_);
     require_le(0, a.state());
-    require_lt(u32(a.state()), numStates_);
     require_eq(contextLength_, 1);
     u32 result = 0;
 
@@ -343,9 +343,11 @@ Mm::MixtureIndex DiphoneDense::classify(const AllophoneState& a) const {
     require_lt(phoneIdx, numPhoneClasses_);
     result += phoneIdx;
 
-    result *= numStates_;
-    result += u32(a.state());
-
+    if (numStates_ > 1) {
+        require_lt(u32(a.state()), numStates_);
+        result *= numStates_;
+        result += u32(a.state());
+    }
     if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;
@@ -390,7 +392,6 @@ MonophoneDense::MonophoneDense(const Core::Configuration& config, ClassicStateMo
 Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
     require_lt(a.allophone()->boundary, numBoundaryClasses_);
     require_le(0, a.state());
-    require_lt(u32(a.state()), numStates_);
     require_eq(contextLength_, 1);
     u32 result = 0;
 
@@ -398,9 +399,11 @@ Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
     require_lt(phoneIdx, numPhoneClasses_);
     result += phoneIdx;
 
-    result *= numStates_;
-    result += u32(a.state());
-
+    if (numStates_ > 1) {
+        require_lt(u32(a.state()), numStates_);
+        result *= numStates_;
+        result += u32(a.state());
+    }
     if (useBoundaryClasses_) {
         result *= numBoundaryClasses_;
         result += a.allophone()->boundary;

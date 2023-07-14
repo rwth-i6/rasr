@@ -92,8 +92,8 @@ void setParameter(size_t index, Bliss::Segment* segment, ParameterAdaptor parame
     parameterAdaptor.set("segment-index", Core::form("%zd", index));
     parameterAdaptor.set("segment-type", std::string(Bliss::Segment::typeId[segment->type()]));
     parameterAdaptor.set("acoustic-condition", segment->condition() ? segment->condition()->name() : "");
-    parameterAdaptor.set("start-time", Core::form("%g", segment->start()));
-    parameterAdaptor.set("end-time", Core::form("%g", segment->end()));
+    parameterAdaptor.set("start-time", Core::form("%f", segment->start()));
+    parameterAdaptor.set("end-time", Core::form("%f", segment->end()));
     parameterAdaptor.set("track", Core::form("%d", segment->track()));
 
     // disassemble segment fullname: .../segment-1/segment-0 and corpus-0/corpus-1/...

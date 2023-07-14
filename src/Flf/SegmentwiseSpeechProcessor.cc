@@ -71,8 +71,8 @@ void SegmentwiseFeatureExtractor::enterSegment(const Bliss::SpeechSegment* segme
     dataSource_->setParameter("segment-index", Core::form("%d", u32(nSegments_)));
     dataSource_->setParameter("segment-type", std::string(Bliss::Segment::typeId[segment->type()]));
     dataSource_->setParameter("acoustic-condition", segment->condition() ? segment->condition()->name() : "");
-    dataSource_->setParameter("start-time", Core::form("%g", segment->start()));
-    dataSource_->setParameter("end-time", Core::form("%g", segment->end()));
+    dataSource_->setParameter("start-time", Core::form("%f", segment->start()));
+    dataSource_->setParameter("end-time", Core::form("%f", segment->end()));
     dataSource_->setParameter("track", Core::form("%d", segment->track()));
     // disassemble segment fullname: .../segment-1/segment-0 and corpus-0/corpus-1/...
     dataSource_->setParameter("segment", segment->fullName());

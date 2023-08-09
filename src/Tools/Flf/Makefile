@@ -46,6 +46,9 @@ endif
 ifdef MODULE_NN
 FLF_TOOL_O += ../../Nn/libSprintNn.$(a)
 endif
+ifdef MODULE_ONNX
+FLF_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 FLF_TOOL_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

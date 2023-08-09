@@ -49,6 +49,9 @@ ifdef MODULE_MATH_NR
 ACOUSTIC_MODEL_TRAINER_O += ../../Math/Nr/libSprintMathNr.$(a)
 ALLOPHONE_TOOL_O         += ../../Math/Nr/libSprintMathNr.$(a)
 endif
+ifdef MODULE_ONNX
+ACOUSTIC_MODEL_TRAINER_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_PYTHON
 ACOUSTIC_MODEL_TRAINER_O += ../../Python/libSprintPython.$(a)
 endif

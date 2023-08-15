@@ -53,12 +53,13 @@ TF_LDFLAGS  += -lcrypto
 TF_LDFLAGS  += -L/usr/local/lib/tensorflow
 TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/tensorflow
 TF_LDFLAGS  += -ltensorflow_cc -ltensorflow_framework
+endif
+
 ifdef MODULE_ONNX
 LDFLAGS += -L$(APPTEK_THIRDPARTY_USR)/lib
 LDFLAGS += -lonnxruntime
 ifndef MODULE_TENSORFLOW
 CXXFLAGS += -fexceptions
-endif
 endif
 
 

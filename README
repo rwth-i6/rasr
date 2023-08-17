@@ -10,8 +10,7 @@ author= {Wei Zhou and Eugen Beck and Simon Berger and Ralf Schlüter and Hermann
 title= {{RASR2: The RWTH ASR Toolkit for Generic Sequence-to-sequence Speech Recognition}},
 booktitle= {Interspeech},
 year= 2023,
-month= Aug,
-note= {To appear}
+month= Aug
 }
 
 Example configs related to the experiments in the paper can be found in the 'examples' folder.

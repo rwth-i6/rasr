@@ -17,9 +17,7 @@ LM_UTIL_TOOL_O = $(OBJDIR)/LmUtilityTool.o \
 		 ../../Mc/libSprintMc.$(a) \
 		 ../../Bliss/libSprintBliss.$(a) \
 		 ../../Nn/libSprintNn.$(a) \
-		 ../../Me/libSprintMe.$(a) \
 		 ../../Mm/libSprintMm.$(a) \
-		 ../../Legacy/libSprintLegacy.$(a) \
 		 ../../Signal/libSprintSignal.$(a) \
 		 ../../Flow/libSprintFlow.$(a) \
 		 ../../Math/libSprintMath.$(a) \

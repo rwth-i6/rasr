@@ -120,6 +120,7 @@ TOOLS += CorpusStatistics
 TOOLS += FeatureExtraction
 TOOLS += FeatureStatistics
 TOOLS += Fsa
+TOOLS += Lm
 TOOLS += SpeechRecognizer
 TOOLS += Xml
 

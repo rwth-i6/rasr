@@ -79,7 +79,8 @@ PYTHON_AS_DEP =
 endif
 
 ifdef MODULE_TENSORFLOW
-SUBDIRS         += Tensorflow
+SUBDIRS       += Tensorflow
+TOOLS_MODULES += Tensorflow
 endif
 
 ifdef MODULE_TEST

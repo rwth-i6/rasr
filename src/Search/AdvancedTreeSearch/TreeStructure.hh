@@ -109,6 +109,8 @@ struct HMMState {
 struct StateDescV1 {
     u16 acousticModel;
     u8  transitionModelIndex;
+
+    static const u16 invalidAcousticModel = 0xffff;
 };
 
 /// A network state using the old on-disk data representation.
@@ -121,12 +123,15 @@ struct HMMStateV1 {
     /// Converts the old on-disk data format into the current representation.
     inline_ HMMState toHMMState() {
         StateTree::StateDesc desc;
-        desc.acousticModel        = this->stateDesc.acousticModel;
-        desc.transitionModelIndex = this->stateDesc.transitionModelIndex;
 
         HMMState result;
-        result.stateDesc  = desc;
+        result.stateDesc.acousticModel = this->stateDesc.acousticModel;
+        result.stateDesc.transitionModelIndex = this->stateDesc.transitionModelIndex;
         result.successors = this->successors;
+
+        if (result.stateDesc.acousticModel == StateDescV1::invalidAcousticModel) {
+            result.stateDesc.acousticModel = StateTree::invalidAcousticModel;
+        }
 
         return result;
     }

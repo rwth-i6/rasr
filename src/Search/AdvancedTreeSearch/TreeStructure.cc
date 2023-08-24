@@ -135,14 +135,18 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
         std::vector<HMMStateV1> states;
         reader >> subTreeListBatches_ >> states >> edgeTargetLists_ >> edgeTargetBatches_ >> trees_;
 
-        if (!reader.good())
+        if (!reader.good()) {
             return false;
+        }
+
+        states_.clear();
+        states_.reserve(states.size());
 
         std::transform(
-            states.begin(),
-            states.end(),
-            std::back_inserter(states_),
-            [](HMMStateV1 s){ return s.toHMMState(); });
+                states.begin(),
+                states.end(),
+                std::back_inserter(states_),
+                [](HMMStateV1 s){ return s.toHMMState(); });
     }
     else if (version == DiskFormatVersionV2) {
         reader >> subTreeListBatches_ >> states_ >> edgeTargetLists_ >> edgeTargetBatches_ >> trees_;

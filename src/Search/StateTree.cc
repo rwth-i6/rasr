@@ -921,7 +921,7 @@ StateTree::StateTree(const Core::Configuration&         c,
         earlyRecombinationLimit_ = paramEarlyRecombinationLimit(config);
     }
 
-    if (acousticModel_->nStateTransitions() >= StateDesc::MAX_AM) {
+    if (acousticModel_->nStateTransitions() >= Core::Type<StateDesc::TransitionModelIndex>::max) {
         criticalError("Too many transition models. Current state tree implementation handles max %d transition models",
                       Core::Type<StateDesc::TransitionModelIndex>::max);
     }

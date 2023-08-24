@@ -36,12 +36,10 @@ void StateTreeIo::write<StateTree::Exit>(Output& o, const StateTree::Exit& exit)
 
 template<>
 void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& desc) const {
-    require(this->fileFormatVersionParsed == fileFormatVersionV6
-        || this->fileFormatVersionParsed == fileFormatVersionV5);
+    require(this->fileFormatVersionParsed == fileFormatVersionV6 || this->fileFormatVersionParsed == fileFormatVersionV5);
 
     switch (this->fileFormatVersionParsed) {
-    case fileFormatVersionV6:
-        {
+        case fileFormatVersionV6: {
             StateTree::StateDesc::ModelIndex val = 0;
             read(i, val);
 
@@ -50,8 +48,7 @@ void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& des
             desc.transitionModelIndex             = val >> 24;
             break;
         }
-    case fileFormatVersionV5:
-        {
+        case fileFormatVersionV5: {
             StateTree::StateDesc::ModelIndex           am = 0;
             StateTree::StateDesc::TransitionModelIndex tm = 0;
 
@@ -62,6 +59,11 @@ void StateTreeIo::read<StateTree::StateDesc>(Input& i, StateTree::StateDesc& des
 
             desc.acousticModel        = am;
             desc.transitionModelIndex = tm;
+
+            if (desc.acousticModel == 0xffff) {
+                desc.acousticModel = StateTree::invalidAcousticModel;
+            }
+
             break;
         }
     }
@@ -103,7 +105,7 @@ void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
     write(o, pair.initial);
 }
 
-const std::string StateTreeIo::magic             = "SPRINT-ST";
+const std::string StateTreeIo::magic = "SPRINT-ST";
 
 StateTreeIo::StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
         : lexicon_(lexicon), acousticModel_(acousticModel) {
@@ -247,8 +249,7 @@ bool StateTreeReader::checkHeader(Core::BinaryInputStream& in, Position& depende
     int         readVersion;
     StateTreeIo::read<std::string>(in, readMagic);
     StateTreeIo::read(in, readVersion);
-    if (readMagic == magic
-        && (readVersion == fileFormatVersionV5 || readVersion == fileFormatVersionV6)) {
+    if (readMagic == magic && (readVersion == fileFormatVersionV5 || readVersion == fileFormatVersionV6)) {
         this->fileFormatVersionParsed = static_cast<FileFormatVersion>(readVersion);
         StateTreeIo::read(in, dependencyPosition);
         return true;

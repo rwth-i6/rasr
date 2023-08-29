@@ -31,13 +31,9 @@ Stage: build
     # i6_core / i6_experiments
     pip3 install black==22.3.0 matplotlib sequitur-g2p==1.0.1668.23 typing-extensions typeguard
 
-    pip3 install onnx onnxruntime==1.13.1
-
     pip3 install tree
     pip3 install dm-tree
 
-    #ln -s /usr/local/lib/python3.8/dist-packages/tensorflow/include/third_party/gpus/cuda/include/cublas_*.h /usr/local/cuda-11.8/targets/x86_64-linux/include/
-    
 %environment
     # Location of libtensorflow_cc.so and libtensorflow_framework.so
     export LD_LIBRARY_PATH=/usr/local/lib/tensorflow/:$LD_LIBRARY_PATH

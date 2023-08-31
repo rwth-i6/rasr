@@ -16,23 +16,6 @@ Stage: build
     cd bin
     ln -s ../cache-manager/cf cf
 
-    apt install -y python3 python3-pip
-
-    # general
-    pip3 install -U pip setuptools wheel
-
-    # Returnn
-    pip3 install h5py six soundfile librosa==0.10 better-exchook
-
-    # Sisyphus
-    pip3 install psutil flask ipython
-    pip3 install git+https://github.com/rwth-i6/sisyphus
-
-    # i6_core / i6_experiments
-    pip3 install black==22.3.0 matplotlib sequitur-g2p==1.0.1668.23 typing-extensions typeguard
-
-    pip3 install tree
-    pip3 install dm-tree
 
 %environment
     # Location of libtensorflow_cc.so and libtensorflow_framework.so

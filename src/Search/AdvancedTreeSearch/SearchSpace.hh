@@ -355,7 +355,7 @@ public:
     u32 nActiveTrees() const;
 
     int                                         lookAheadLength() const;
-    void                                        setLookAhead(const std::vector<Mm::FeatureVector>&);
+    void                                        setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>&);
     Search::SearchAlgorithm::RecognitionContext setContext(Search::SearchAlgorithm::RecognitionContext);
 
     ///Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score

@@ -14,7 +14,7 @@ CCFLAGS		+= -ffast-math
 # CCFLAGS     += -mfpmath=sse
 # CCFLAGS     += -funroll-loops
 CCFLAGS     += -msse3
-CCFLAGS     += -march=barcelona
+CCFLAGS     += -march=native
 endif
 
 

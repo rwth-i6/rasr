@@ -882,9 +882,9 @@ StateTree::State::State() {
     successors = invalidBatch;
 }
 
-const StateTree::Depth                         StateTree::invalidDepth         = Core::Type<StateTree::Depth>::max;
-const StateTree::BatchId                       StateTree::invalidBatch         = Core::Type<StateTree::BatchId>::max;
-const StateTree::StateDesc::AcousticModelIndex StateTree::invalidAcousticModel = Core::Type<StateTree::StateDesc::AcousticModelIndex>::max;
+const StateTree::Depth                 StateTree::invalidDepth         = Core::Type<StateTree::Depth>::max;
+const StateTree::BatchId               StateTree::invalidBatch         = Core::Type<StateTree::BatchId>::max;
+const StateTree::StateDesc::ModelIndex StateTree::invalidAcousticModel = StateTree::StateDesc::MAX_AM;
 
 const Core::ParameterBool StateTree::paramEarlyRecombination(
         "early-recombination",
@@ -921,7 +921,7 @@ StateTree::StateTree(const Core::Configuration&         c,
         earlyRecombinationLimit_ = paramEarlyRecombinationLimit(config);
     }
 
-    if (acousticModel_->nStateTransitions() >= Core::Type<StateDesc::AcousticModelIndex>::max) {
+    if (acousticModel_->nStateTransitions() >= Core::Type<StateDesc::TransitionModelIndex>::max) {
         criticalError("Too many transition models. Current state tree implementation handles max %d transition models",
                       Core::Type<StateDesc::TransitionModelIndex>::max);
     }
@@ -933,9 +933,9 @@ StateTree::StateTree(const Core::Configuration&         c,
 
     getTransitionModels();
 
-    if (acousticModel_->nEmissions() >= Core::Type<StateDesc::AcousticModelIndex>::max) {
+    if (acousticModel_->nEmissions() >= StateDesc::MAX_AM) {
         criticalError("Too many mixtures. Current state tree implementation handles max %d mixtures",
-                      Core::Type<StateDesc::AcousticModelIndex>::max);
+                      StateDesc::MAX_AM);
     }
 
     root_ = ciRoot_ = -1;

@@ -23,7 +23,7 @@ class SprintParser(XmlSchemaParser):
         self.setRoot(root)
 
     def parseFile(self, fname):
-        fd = zopen(fname, 'r')
+        fd = zopen(fname, 'rt')
         data = fd.read()
         zclose(fd)
         self.reset()

@@ -126,7 +126,7 @@ public:
      * as returned by lookaheadLength().  At the end of a segment, less than requested,
      * or even zero feature vectors may be given.
      */
-    virtual void setLookAhead(const std::vector<Mm::FeatureVector>&) {}
+    virtual void setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>&) {}
 
     class Pruning : public Core::ReferenceCounted {
     public:

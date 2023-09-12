@@ -664,18 +664,18 @@ void AcousticLookAhead::getSuccessorMixtures(const PersistentStateTree&         
     }
 }
 
-void AcousticLookAhead::setLookAhead(std::vector<Mm::FeatureVector> lookahead) {
+void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Speech::Feature>> const& lookahead) {
+    
     if (!acousticLookAheadScorer_)
         return;
 
-    if (lookahead.size() > acousticLookaheadDepth_)
-        lookahead.resize(acousticLookaheadDepth_);
+    size_t lookahead_size = std::min(int(lookahead.size()), int(acousticLookaheadDepth_));
 
     acousticLookAhead_.clear();
 
-    for (u32 a = 0; a < lookahead.size(); ++a) {
-        acousticLookAhead_.push_back(std::make_pair(acousticLookAheadScorer_->multiplyAndQuantize(lookahead.at(a))[0],
-                                                    acousticLookAheadScorer_->getScorer(lookahead.at(a))));
+    for (u32 a = 0; a < lookahead_size; ++a) {
+        acousticLookAhead_.push_back(std::make_pair(acousticLookAheadScorer_->multiplyAndQuantize(*lookahead.at(a)->mainStream())[0],
+                                                    acousticLookAheadScorer_->getScorer(*lookahead.at(a)->mainStream())));
         verify(acousticLookAhead_[a].first.size());
     }
 }

@@ -69,6 +69,11 @@ BASIC_MODULES += Nn
 TOOLS_MODULES += Nn
 endif
 
+ifdef MODULE_ONNX
+SUBDIRS       += Onnx
+TOOLS_MODULES += Onnx
+endif
+
 ifdef MODULE_PYTHON
 PYTHON_AS_DEP = Python
 SUBDIRS       += Python
@@ -79,7 +84,8 @@ PYTHON_AS_DEP =
 endif
 
 ifdef MODULE_TENSORFLOW
-SUBDIRS         += Tensorflow
+SUBDIRS       += Tensorflow
+TOOLS_MODULES += Tensorflow
 endif
 
 ifdef MODULE_TEST
@@ -122,7 +128,7 @@ source-version:
 
 modules: $(TOOLS_MODULES)
 
-.PHONY: modules	
+.PHONY: modules
 
 install:
 	$(MAKE) -C Tools $@
@@ -145,7 +151,7 @@ Bliss: Core $(PYTHON_AS_DEP)
 Cart: Core
 	$(MAKE) -C Cart libSprintCart.$(a)
 
-Core: source-version
+Core: source-version Modules.hh
 	$(MAKE) -C Core libSprintCore.$(a)
 
 Flow: Core
@@ -186,6 +192,9 @@ Nn: Core Flow Math Signal $(PYTHON_AS_DEP)
 
 OpenFst: Core Fsa
 	$(MAKE) -C OpenFst libSprintOpenFst.$(a)
+
+Onnx: Core Math
+	$(MAKE) -C Onnx libSprintOnnx.$(a)
 
 Python: Core Math
 	$(MAKE) -C Python libSprintPython.$(a)

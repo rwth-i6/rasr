@@ -471,7 +471,7 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(
         wordBoundaries->set((Fsa::StateId) /* WARNING: this looses a few bits */ (long)result->initialState(), Lattice::WordBoundary(0));
         Fsa::State* finalState = result->newState();
         wordBoundaries->set(finalState->id(), Lattice::WordBoundary(time_));
-        result->newArc(result->initialState(), finalState, 0, 0, 0);
+        result->newArc(result->initialState(), finalState, static_cast<const Bliss::LemmaPronunciation*>(nullptr), 0, 0);
         result->setWordBoundaries(wordBoundaries);
         result->addAcyclicProperty();
         return Core::ref(new Lattice::WordLatticeAdaptor(result));
@@ -610,10 +610,10 @@ Search::SearchAlgorithm::RecognitionContext AdvancedTreeSearchManager::setContex
     return ss_->setContext(context);
 }
 
-void AdvancedTreeSearchManager::setLookAhead(const std::vector<Mm::FeatureVector>& lookahead) {
+void AdvancedTreeSearchManager::setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>& lookahead) {
     if ((int)lookahead.size() < lookAheadLength())
         // Disable acoustic look-ahead if we don't have enough data
-        ss_->setLookAhead(std::vector<Mm::FeatureVector>());
+        ss_->setLookAhead(std::deque<Core::Ref<const Speech::Feature>>());
     else
         ss_->setLookAhead(lookahead);
 }

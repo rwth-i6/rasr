@@ -29,6 +29,9 @@
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
+#ifdef MODULE_ONNX
+#include <Onnx/Module.hh>
+#endif
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
@@ -51,6 +54,9 @@ public:
         INIT_MODULE(Speech);
 #ifdef MODULE_NN
         INIT_MODULE(Nn);
+#endif
+#ifdef MODULE_ONNX
+        INIT_MODULE(Onnx);
 #endif
 #ifdef MODULE_TENSORFLOW
         INIT_MODULE(Tensorflow);
@@ -105,7 +111,7 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
             delete processor;
         } break;
         case initOnlyRecognition: {
-            auto recognizer = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
+            auto recognizer          = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
             auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
             modelCombinationRef->load();
             recognizer->setModelCombination(*modelCombinationRef);

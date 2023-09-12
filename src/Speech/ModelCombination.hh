@@ -21,10 +21,12 @@
 #include <Core/ReferenceCounting.hh>
 #include <Lm/ScaledLanguageModel.hh>
 #include <Mc/Component.hh>
+#include <Nn/LabelScorer.hh>
+
 
 namespace Speech {
 
-/** Combination of a lexicon, an acoustic model, and a language model.
+/** Combination of a lexicon, an acoustic model or label scorer, and a language model.
  *  It supports creation and initialization of these three mutually dependent objects.
  *
  *  Usage:
@@ -37,10 +39,11 @@ namespace Speech {
 class ModelCombination : public Mc::Component, public Core::ReferenceCounted {
 public:
     typedef u32       Mode;
-    static const Mode complete;
+    static const Mode complete;  // Includes lexicon, AM and LM but NOT label scorer; named 'complete' for legacy reasons.
     static const Mode useLexicon;
     static const Mode useAcousticModel;
     static const Mode useLanguageModel;
+    static const Mode useLabelScorer;
 
     static const Core::ParameterFloat paramPronunciationScale;
 
@@ -49,6 +52,7 @@ protected:
     Mm::Score                          pronunciationScale_;
     Core::Ref<Am::AcousticModel>       acousticModel_;
     Core::Ref<Lm::ScaledLanguageModel> languageModel_;
+    Core::Ref<Nn::LabelScorer>         labelScorer_;
 
 private:
     void setPronunciationScale(Mm::Score scale) {
@@ -83,6 +87,9 @@ public:
         return languageModel_;
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
+
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) { labelScorer_ = ls; }
+    Core::Ref<Nn::LabelScorer> labelScorer() const { return labelScorer_; }
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

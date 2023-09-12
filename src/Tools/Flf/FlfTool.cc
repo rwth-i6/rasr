@@ -32,6 +32,9 @@
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
+#ifdef MODULE_ONNX
+#include <Onnx/Module.hh>
+#endif
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif
@@ -106,6 +109,9 @@ public:
         INIT_MODULE(Speech);
 #ifdef MODULE_NN
         INIT_MODULE(Nn);
+#endif
+#ifdef MODULE_ONNX
+        INIT_MODULE(Onnx);
 #endif
 #ifdef MODULE_TENSORFLOW
         INIT_MODULE(Tensorflow);

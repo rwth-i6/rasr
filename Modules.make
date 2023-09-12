@@ -69,11 +69,11 @@ MODULES += MODULE_THEANO_INTERFACE
 MODULES += MODULE_PYTHON
 
 # ****** OpenFst ******
-# MODULES += MODULE_OPENFST
+MODULES += MODULE_OPENFST
 
 # ****** Search ******
 MODULES += MODULE_SEARCH_MBR
-# MODULES += MODULE_SEARCH_WFST
+MODULES += MODULE_SEARCH_WFST
 MODULES += MODULE_SEARCH_LINEAR
 MODULES += MODULE_ADVANCED_TREE_SEARCH
 MODULES += MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
@@ -110,6 +110,9 @@ MODULES += MODULE_TEST
 # Tensorflow integration
 MODULES += MODULE_TENSORFLOW
 
+# ONNX integration
+# MODULES += MODULE_ONNX
+
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 
@@ -120,6 +123,7 @@ TOOLS += CorpusStatistics
 TOOLS += FeatureExtraction
 TOOLS += FeatureStatistics
 TOOLS += Fsa
+TOOLS += Lm
 TOOLS += SpeechRecognizer
 TOOLS += Xml
 

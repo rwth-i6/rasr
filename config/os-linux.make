@@ -32,8 +32,8 @@ _ADD_OPENFST=1
 endif
 
 ifdef _ADD_OPENFST
-OPENFST_VERSION = 1.6.5
-OPENFSTDIR  = /opt/openfst
+OPENFST_VERSION = 1.6.3
+OPENFSTDIR  = /work/speech/tools/openfst-1.6.3
 OPENFSTLIBS = -lfst
 INCLUDES    += -isystem $(OPENFSTDIR)/include
 DEFINES     += -DOPENFST_$(shell echo $(OPENFST_VERSION) | tr . _)
@@ -46,15 +46,20 @@ LDFLAGS     += -L$(TBB_DIR)/lib -ltbb
 endif
 
 ifdef MODULE_TENSORFLOW
-TF_CXXFLAGS  = -fexceptions
-TF_CXXFLAGS += -I/usr/local/lib/python3.8/dist-packages/tensorflow/include
-TF_LDFLAGS  += -Wl,--no-as-needed -Wl,--allow-multiple-definition
-TF_LDFLAGS  += -lcrypto
-TF_LDFLAGS  += -L/usr/local/lib/tensorflow
-TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/tensorflow
-TF_LDFLAGS  += -ltensorflow_cc -ltensorflow_framework
+TF_COMPILE_BASE = /work/tools/asr/tensorflow/2.3.4-generic+cuda10.1+mkl/tensorflow
 
-# USE_TENSORFLOW_MKL=1
+TF_CXXFLAGS  = -fexceptions
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-bin/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-genfiles/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/eigen_archive/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_protobuf/src/
+TF_CXXFLAGS += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/com_google_absl/
+
+TF_LDFLAGS  = -L$(TF_COMPILE_BASE)/bazel-bin/tensorflow -ltensorflow_cc -ltensorflow_framework
+TF_LDFLAGS += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-bin/tensorflow
+
+USE_TENSORFLOW_MKL=1
 endif
 
 # -----------------------------------------------------------------------------
@@ -95,18 +100,19 @@ INCLUDES  += -I$(TF_COMPILE_BASE)/bazel-tensorflow/external/mkl_linux/include/
 LDFLAGS   += -lmklml_intel -liomp5
 LDFLAGS   += -llapack
 else
-INCLUDES += -I/usr/include/openblas
-LDFLAGS  += -llapack -lopenblas
+INCLUDES    += `pkg-config --cflags blas`
+INCLUDES    += `pkg-config --cflags lapack`
+LDFLAGS     += `pkg-config --libs blas`
+LDFLAGS     += `pkg-config --libs lapack`
 endif
 endif
 endif
 
 ifdef MODULE_CUDA
-CUDAROOT    = /usr/local/cuda-11.6
+CUDAROOT    = /usr/local/cuda-7.0
 INCLUDES    += -I$(CUDAROOT)/include/
 LDFLAGS     += -L$(CUDAROOT)/lib64/ -lcublas -lcudart -lcurand
 NVCC        = $(CUDAROOT)/bin/nvcc
-# optimal for GTX680; set sm_35 for K20
 NVCCFLAGS   = -gencode arch=compute_61,code=sm_61 \  # GTX 1080
 	      -gencode arch=compute_75,code=sm_75 \  # RTX 2080
 	      -gencode arch=compute_86,code=sm_86 \  # RTX 3090
@@ -137,9 +143,10 @@ endif
 
 ifdef MODULE_PYTHON
 # Use --ldflags --embed for python >= 3.8
-PYTHON_PATH =
+PYTHON_PATH = /work/tools/asr/python/3.8.0
 ifneq (${PYTHON_PATH},)
 INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
+INCLUDES    += -I${PYTHON_PATH}/lib/python3.8/site-packages/numpy/core/include/
 LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags --embed 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
@@ -149,7 +156,6 @@ LDFLAGS     += `python3-config --ldflags --embed 2>/dev/null`
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`
 endif
-INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
 endif
 
 # X11 and QT

@@ -9,6 +9,7 @@ For citation and more details of this decoder, please refer to the following pap
 author= {Wei Zhou and Eugen Beck and Simon Berger and Ralf Schlüter and Hermann Ney},
 title= {{RASR2: The RWTH ASR Toolkit for Generic Sequence-to-sequence Speech Recognition}},
 booktitle= {Interspeech},
+pages= {4094-4098},
 year= 2023,
 month= Aug
 }

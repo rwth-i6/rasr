@@ -20,21 +20,31 @@
 
 using namespace Nn;
 
+/// Flag for applying logarithmic transformation to TensorFlow output.
 const Core::ParameterBool TFModelBase::paramTransformOuputLog(
   "transform-output-log",
   "apply log to tensorflow output",
   false);
 
+/// Flag for negating TensorFlow output (applies after any log transformation).
 const Core::ParameterBool TFModelBase::paramTransformOuputNegate(
   "transform-output-negate",
   "negate tensorflow output (after log)",
   false);
 
+/// Maximum batch size for TensorFlow session.
 const Core::ParameterInt TFModelBase::paramMaxBatchSize(
   "max-batch-size",
   "maximum number of histories forwarded in one go",
   64, 1);
 
+/**
+ * @brief Construct a new TFModelBase object
+ *
+ * Initializes various components based on the configuration provided.
+ *
+ * @param config Configuration object containing various settings
+ */
 TFModelBase::TFModelBase(const Core::Configuration& config) :
     Core::Component(config),
     Precursor(config),
@@ -43,6 +53,7 @@ TFModelBase::TFModelBase(const Core::Configuration& config) :
     graph_(loader_->load_graph()), // tf::GraphDef, libraries and necessary param names
     maxBatchSize_(paramMaxBatchSize(config)) {
 
+  // Determine which kind of output transformation function to use based on settings
   bool transform_output_log = paramTransformOuputLog(config);
   bool transform_output_negate = paramTransformOuputNegate(config);
   if (transform_output_log && transform_output_negate) {
@@ -58,32 +69,45 @@ TFModelBase::TFModelBase(const Core::Configuration& config) :
     decoding_output_transform_function_ = [](Score v, Score scale){ return scale * v; };
   }
 
-  init();
-  reset();
+  init(); // Initialization method for TFModelBase
+  reset(); // Reset state
 
-  // debug
+  // Debugging flag
   Core::ParameterBool paramDebug("debug", "", false);
   debug_ = paramDebug(config);
 }
 
+
+/**
+ * @brief Destroy the TFModelBase object
+ *
+ */
 TFModelBase::~TFModelBase() {
   reset();
   delete startHistoryDescriptor_;
 }
 
+/**
+ * @brief Reset the TFModelBase state
+ *
+ */
 void TFModelBase::reset() {
   Precursor::reset();
   batch_.clear();
   cacheHashQueue_.clear();
 }
 
+/**
+ * @brief Initialize the TFModelBase object, including TensorFlow session and feature mapping
+ *
+ */
 void TFModelBase::init() {
-  // create tf::Session with graph(tf::GraphDef) and default initialization of variables 
+  // Initialize TensorFlow session with graph and default variables
   session_.addGraph(*graph_);
-  // restore model checkpoint
+  // Restore model checkpoint
   loader_->initialize(session_);
 
-  // --- encoder ---
+  // Feature Input Map for Encoder
   Tensorflow::TensorInputMap featureInputMap(select("feature-input-map"));
   const Tensorflow::TensorInputInfo& info = featureInputMap.get_info("feature");
   encoding_input_tensor_name_ = info.tensor_name();
@@ -92,38 +116,48 @@ void TFModelBase::init() {
   else
     encoding_input_seq_length_tensor_name_.clear();
 
-  // --- decoder ---
+  // Initialize Decoder
   initDecoder();
 
-  // --- step ops --- 
+  // Get operations for encoding, decoding, and variable updating
   encoding_ops_ = graph_->encoding_ops();
   decoding_ops_ = graph_->decoding_ops();
   var_update_ops_ = graph_->update_ops();
   var_post_update_ops_ = graph_->post_update_ops();
 
-  // each stochastic_var_scores has a corresponding decoding_op
+  // Sanity check: Number of decoding output tensor names should match number of decoding ops
   verify(decoding_output_tensor_names_.size() == decoding_ops_.size());
 
-  // unique start history handle
+  // Create a unique handle for start history
   initStartHistory();
 
-  // optional static context-dependent prior
+  // Load static context-dependent prior if applicable
   if (usePrior_ && priorContextSize_ > 0)
     loadPrior();
 }
 
-void TFModelBase::initDecoder() {
-  // label-dependent variables (stored in the graph and can be assigned/fetched)
+/**
+ * @brief Initializes decoder-specific variables and tensors.
+ *
+ * Reads from the graph object to populate decoder-related
+ * variables and tensor names. Performs necessary validations.
+ */
+ void TFModelBase::initDecoder() {
+  // Initialize variables required for decoding.
   for (const std::string& s : graph_->decoder_input_vars()) {
+    // Fetch variable information from graph
     const auto& var = graph_->getVariable(s);
+    // Store initial value names for later reference
     decoding_input_tensor_names_.push_back(var.initial_value_name);
     var_feed_names_.push_back(var.initial_value_name);
     var_feed_ops_.push_back(var.initializer_name);
     u32 ndim = var.shape.size();
+    // Verify dimensionality is at least 1
     verify(ndim >= 1);
     decoding_input_ndims_.push_back(ndim);
   }
 
+  // ... similar steps for output variables and state variables
   for (const std::string& s : graph_->decoder_output_vars()) {
     const auto& var = graph_->getVariable(s);
     decoding_output_tensor_names_.push_back(var.snapshot_name);
@@ -147,16 +181,25 @@ void TFModelBase::initDecoder() {
   }
 }
 
-// also allow (truncated) context-dependent prior (prior scale independent of posterior scale)
-void TFModelBase::loadPrior() {
+/**
+ * @brief Load priors based on configurations.
+ *
+ * This function loads the prior probabilities for label sequences based
+ * on the provided configurations. It supports context-dependent priors.
+ */
+ void TFModelBase::loadPrior() {
+  // Early return if priors are not used or context size is zero
   if (!usePrior_ || priorContextSize_ == 0)
     return;
 
   log() << "use context-dependent label pirors (context-size:" << priorContextSize_ << ")";
+  // Initialize prior based on config
   Prior<f32> prior(config);
   if (prior.fileName().empty())
     error() << "no prior file provided";
+  // Logging prior scale
   log() << "logPrior scale: " << prior.scale();
+  // Base file name for prior
   std::string baseName = prior.fileName();
 
   // sentence begin context: replace invalid context instead of append new
@@ -220,16 +263,23 @@ void TFModelBase::loadPrior() {
   log() << "successfully loaded " << contextLogPriors_.size() << " context-dependent label pirors";
 }
 
-// compute encoding and initialize prev_state_vars in the graph
+/**
+ * @brief Encode the input features.
+ *
+ * Run the encoding part of the model to transform input features.
+ */
 void TFModelBase::encode() {
+  // Warning if input buffer is empty
   if (inputBuffer_.empty()) {
     warning() << "no features to feed to encoder ?!";
     return;
   }
 
+  // Log the dimensions of input features
   log() << "encode input features (" << inputBuffer_[0].size() << ", "
         << inputBuffer_.size() << ")";
 
+  // Create a batch matrix from input buffer
   MappedTensorList inputs; 
   std::vector<Math::FastMatrix<f32>> batchMat; // single sequence: D * T
   batchMat.emplace_back(inputBuffer_[0].size(), inputBuffer_.size());
@@ -252,9 +302,17 @@ void TFModelBase::encode() {
   initComputation();
 }
 
+/**
+ * @brief Initialize computation for the model.
+ *
+ * Set up the initial conditions for computation including batch and history.
+ */
 void TFModelBase::initComputation() {
+  // Get initial label history descriptor
   LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(startHistory().handle());
+  // Ensure there are no existing scores
   verify(lhd->scores.empty());
+  // Create initial batch based on whether start labels are used
   if (useStartLabel_) {
     // not using makeBatch, still need to compute scores later with start label input
     batch_.push_back(lhd);
@@ -269,18 +327,31 @@ void TFModelBase::initComputation() {
   batch_.clear();
 }
 
+/**
+ * @brief Initializes the history for the start label.
+ *
+ * This function sets up the initial history using the start label.
+ */
 void TFModelBase::initStartHistory() {
+  // Get the index for the start label
   startLabelIndex_ = getStartLabelIndex();
+  // Verify if the start label index should be used and is valid
   if (useStartLabel_) {
     verify(startLabelIndex_ != Core::Type<LabelIndex>::max);
     log() << "use start label index " << startLabelIndex_;
   }
+  // Create and initialize a new Label History Descriptor
   startHistoryDescriptor_ = new LabelHistoryDescriptor();
   startHistoryDescriptor_->labelSeq.push_back(startLabelIndex_);
   startHistoryDescriptor_->variables.resize(var_fetch_names_.size());
   // + other possible unified operations (if always the same)
 }
 
+/**
+ * @brief Fetches the starting history of labels.
+ *
+ * @return LabelHistory - The starting history.
+ */
 LabelHistory TFModelBase::startHistory() {
   LabelHistoryDescriptor* lhd = new LabelHistoryDescriptor(*startHistoryDescriptor_);
   CacheUpdateResult result = labelHistoryManager_->updateCache(lhd, startPosition_);
@@ -294,6 +365,14 @@ LabelHistory TFModelBase::startHistory() {
   return labelHistoryManager_->history(lhd);
 }
 
+/**
+ * @brief Extends the current label history with a new label.
+ *
+ * @param h Current label history.
+ * @param idx New label index to add.
+ * @param position Position in the sequence.
+ * @param isLoop Indicates if this is part of a loop.
+ */
 void TFModelBase::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop) {
   LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(h.handle());
   // check without creating new (avoid lots of copying)
@@ -324,6 +403,13 @@ void TFModelBase::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 positi
   h = labelHistoryManager_->history(nlhd);
 }
 
+/**
+ * @brief Retrieves the scores associated with a given label history.
+ *
+ * @param h The label history.
+ * @param isLoop Indicates if this is part of a loop.
+ * @return std::vector<Score> The scores.
+ */
 const std::vector<Score>& TFModelBase::getScores(const LabelHistory& h, bool isLoop) {
   LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(h.handle());
   if (!lhd->scores.empty())
@@ -338,8 +424,13 @@ const std::vector<Score>& TFModelBase::getScores(const LabelHistory& h, bool isL
   return lhd->scores;
 }
 
-// oldest first, still active, uniq, not-scored
+/**
+ * @brief Constructs a batch for processing.
+ *
+ * @param targetLhd Target label history descriptor.
+ */
 void TFModelBase::makeBatch(LabelHistoryDescriptor* targetLhd) {
+  // oldest first, still active, uniq, not-scored
   batch_.push_back(targetLhd);
   const HistoryCache& cache = labelHistoryManager_->historyCache();
   std::unordered_set<size_t> batchHash;
@@ -356,6 +447,11 @@ void TFModelBase::makeBatch(LabelHistoryDescriptor* targetLhd) {
   }
 }
 
+/**
+ * @brief Decodes the batch.
+ *
+ * This function is responsible for the actual decoding of the batch.
+ */
 void TFModelBase::decodeBatch() {
   feedBatchVariables();
   updateBatchVariables();
@@ -364,6 +460,11 @@ void TFModelBase::decodeBatch() {
   batch_.clear();
 }
 
+/**
+ * @brief Feeds batch variables to the model.
+ *
+ * Feeds variables like inputs and state variables for the decoding process.
+ */
 void TFModelBase::feedBatchVariables() {
   if (var_feed_names_.empty())
     return;
@@ -386,17 +487,27 @@ void TFModelBase::feedBatchVariables() {
   session_.run(inputs, var_feed_ops_);
 }
 
-// mainly label feedback
+/**
+ * @brief Feed decoding input tensors with the latest labels from the batch.
+ * @param inputs List of mapped tensors for the decoding input.
+ */
 void TFModelBase::feedDecodeInput(MappedTensorList& inputs) {
+  // mainly label feedback
+  // Iterate through tensor names for decoding
   for (u32 vIdx = 0, vSize = decoding_input_tensor_names_.size(); vIdx < vSize; ++vIdx) {
+    // Check if tensor is sparse (ndim == 1)
     if (decoding_input_ndims_[vIdx] == 1) { // sparse
+      // Create a vector for labels
       std::vector<s32> vec(batch_.size());
+      // Populate the vector with the last label of each sequence in the batch
       for (u32 bIdx = 0, bSize = batch_.size(); bIdx < bSize; ++bIdx)
         vec[bIdx] = batch_[bIdx]->labelSeq.back();
+      // Add the tensor to the inputs
       inputs.emplace_back(std::make_pair(var_feed_names_[vIdx], Tensorflow::Tensor::create(vec)));
-    } else if (decoding_input_ndims_[vIdx] == 2) {
-      u32 len = 1; // Note: no multi-step feedback yet
+    } else if (decoding_input_ndims_[vIdx] == 2) { // Check if tensor is a matrix (ndim == 2)
+      u32 len = 1;  // Length is hardcoded to 1 for now; no multi-step feedback implemented
       Math::FastMatrix<s32> mat(batch_.size(), len);
+      // Populate the matrix
       for (u32 bIdx = 0, bSize = batch_.size(); bIdx < bSize; ++bIdx) {
         // Note: no mask handling, all has to be evaluated for len
         verify(batch_[bIdx]->labelSeq.size() >= len);
@@ -404,25 +515,37 @@ void TFModelBase::feedDecodeInput(MappedTensorList& inputs) {
         for (u32 tIdx = 0; tIdx < len; ++tIdx)
           mat.at(bIdx, tIdx) = batch_[bIdx]->labelSeq[idx+tIdx];
       }
+      // Add the tensor to the inputs
       inputs.emplace_back(std::make_pair(var_feed_names_[vIdx], Tensorflow::Tensor::create(mat)));
-    } else {
+    } else {    // Catch unsupported ndim values
       criticalError() << "unsupported ndims " << decoding_input_ndims_[vIdx]
                       << " of decoding input tensor " << decoding_input_tensor_names_[vIdx];
     }
   }
 }
 
+/**
+ * @brief Updates variables for the current batch, either post-session or pre-session.
+ * @param post Indicates whether the update is post-session.
+ */
 void TFModelBase::updateBatchVariables(bool post) {
+  // Check for post-session updates
   if ( post ) {
+    // Execute post-session updates if available
     if (!var_post_update_ops_.empty())
       session_.run({}, var_post_update_ops_);
   } else {
+    // Execute pre-session updates if available
     if (!var_update_ops_.empty())
       session_.run({}, var_update_ops_);
   }
 }
 
+/**
+ * @brief Fetches variables related to the current batch.
+ */
 void TFModelBase::fetchBatchVariables() {
+  // Check if any variables need to be fetched
   if (var_fetch_names_.empty())
     return;
 
@@ -430,13 +553,15 @@ void TFModelBase::fetchBatchVariables() {
   session_.run({}, var_fetch_names_, {}, outputs);
   verify(batch_[0]->variables.size() == outputs.size());
 
-  // slice along the batch dim (inclusive)
+  // Fetch and slice tensor along the batch dimension
   for (u32 vIdx = 0, vSize = var_fetch_names_.size(); vIdx < vSize; ++vIdx)
     for (u32 bIdx = 0, bSize = batch_.size(); bIdx < bSize; ++bIdx)
       batch_[bIdx]->variables[vIdx] = outputs[vIdx].slice({bIdx}, {bIdx+1});
 }
 
-// batch-wise score computation (also update states)
+/**
+ * @brief Computes scores for the current batch (also update states).
+ */
 void TFModelBase::computeBatchScores() {
   // base class only support single stochastic_var_scores (support multiple in derived classes)
   verify(decoding_output_tensor_names_.size() == 1);
@@ -462,7 +587,10 @@ void TFModelBase::computeBatchScores() {
     addPriorToBatch();
 }
 
-// assign scores to batch
+/**
+ * @brief Process the output tensors to extract scores for the current batch.
+ * @param outputs The output tensor list from the model.
+ */
 void TFModelBase::processBatchOutput(const TensorList& outputs) {
   if ( debug_ ) {
     std::vector<std::string> fetchNames;
@@ -492,7 +620,11 @@ void TFModelBase::processBatchOutput(const TensorList& outputs) {
   }
 }
 
+/**
+ * @brief Adds priors to the scores for the current batch.
+ */
 void TFModelBase::addPriorToBatch() {
+  // Loop through each element in the batch
   for (u32 bIdx = 0, bSize = batch_.size(); bIdx < bSize; ++bIdx) {
     LabelHistoryDescriptor* lhd = batch_[bIdx];
     if (priorContextSize_ == 0) { // context-independent prior
@@ -508,6 +640,11 @@ void TFModelBase::addPriorToBatch() {
 }
 
 // -------------- debug: check related tensor ----------------
+/**
+ * @brief Debug function to fetch and print tensor values.
+ * @param fetchNames List of tensor names to fetch.
+ * @param msg Debug message to display.
+ */
 void TFModelBase::debugFetch(const std::vector<std::string>& fetchNames, std::string msg) {
   std::cout << "# " << msg << " ==> debug check  batch_size=" << batch_.size() << std::endl;
   if (fetchNames.empty())
@@ -530,16 +667,25 @@ void TFModelBase::debugFetch(const std::vector<std::string>& fetchNames, std::st
 
 
 // --- RNN Transducer ---
+
+/**
+ * @brief Parameter to set whether loop feedback should be treated as blank.
+ */
 const Core::ParameterBool TFRnnTransducer::paramLoopFeedbackAsBlank(
   "loop-feedback-as-blank",
   "label loop feedback as blank (mainly for masked computation to skip certain computation in the graph)",
   false);
 
+/// @brief Parameter to decide if vertical transitions should be used.
 const Core::ParameterBool TFRnnTransducer::paramVerticalTransition(
   "use-vertical-transition",
   "standard RNNT topology with veritical transition, otherwise strictly-monotonic",
   false);
 
+/**
+ * @brief Constructs a TFRnnTransducer object.
+ * @param config Configuration object.
+ */
 TFRnnTransducer::TFRnnTransducer(const Core::Configuration& config) :
     Core::Component(config),
     Precursor(config),
@@ -552,7 +698,7 @@ TFRnnTransducer::TFRnnTransducer(const Core::Configuration& config) :
   else if (blankUpdateHistory_)
     log() << "blank label updates history";
 
-  // topology variants with label loop
+  // Check topology variants
   if (loopUpdateHistory_)
     log() << "label loop updates history";
   else if (loopFeedbackAsBlank_)
@@ -570,10 +716,15 @@ TFRnnTransducer::TFRnnTransducer(const Core::Configuration& config) :
   }
 }
 
-// either globally set the encoding position once for all at each decode step
-// or empty global_vars: each history has its own position state_var in the graph
-// model graph should have the topology-dependent update scheme -> update_ops based on feedback
-// TODO streaming case where clearBuffer reset decodeStep_: mismatch with encodings ?
+/**
+ * @brief Increases the decoding step for the transducer model.
+ *
+ * This method will either globally set the decoding position at each decoding step or leave it for individual histories.
+ * For the latter case, the global variables must be empty, and each history will have its own position state in the graph.
+ *
+ * @note The model graph should have a topology-dependent update scheme based on feedback.
+ * @todo There might be issues in the streaming case where `clearBuffer` resets `decodeStep_`, causing mismatches with encodings.
+ */
 void TFRnnTransducer::increaseDecodeStep() {
   Precursor::increaseDecodeStep();
   if (!global_var_feed_names_.empty()) {
@@ -583,17 +734,30 @@ void TFRnnTransducer::increaseDecodeStep() {
   }
 }
 
-// set global position of encodings to the next step (time synchronous)
-// called after each decoding step (position 0 is initialized via encoding_ops_)
+/**
+ * @brief Sets the global position of encodings to a specific value.
+ *
+ * This function is invoked after each decoding step. The initial position at 0 is set via encoding operations.
+ *
+ * @param pos The position to set for decoding.
+ */
 void TFRnnTransducer::setDecodePosition(u32 pos) {
   MappedTensorList inputs;
   inputs.emplace_back(std::make_pair(global_var_feed_names_[0], Tensorflow::Tensor::create(s32(pos))));
   session_.run(inputs, global_var_feed_ops_);
 }
 
-// history extension and position update based on topology
-// cacheHash depends on both label history and position
-// additional special blank status to feed in blank label for next computation
+/**
+ * @brief Extends the label history and updates its position based on the chosen topology.
+ *
+ * The `cacheHash` for the history depends on both the label history and its position. This function can also
+ * account for special cases where the blank label is to be fed into the next computation.
+ *
+ * @param h Current LabelHistory object.
+ * @param idx Label index to extend.
+ * @param position Position for the new label.
+ * @param isLoop Whether this extension is part of a loop.
+ */
 void TFRnnTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop) {
   // position updated by search if vertical transition or segmental decoding
   // otherwise use the global decode step
@@ -640,7 +804,14 @@ void TFRnnTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 po
   h = labelHistoryManager_->history(nlhd);
 }
 
-// always one time-step (sparse)
+/**
+ * @brief Feeds decoding inputs into the model for a single time step.
+ *
+ * This method always works on a single time-step and is used to feed inputs into the TensorFlow model for decoding.
+ * It assumes that the decoding input dimensions are 1-D.
+ *
+ * @param inputs List of mapped tensors to which the method will add the decoding input.
+ */
 void TFRnnTransducer::feedDecodeInput(MappedTensorList& inputs) {
   for (u32 vIdx = 0, vSize = decoding_input_tensor_names_.size(); vIdx < vSize; ++vIdx) {
     verify(decoding_input_ndims_[vIdx] == 1);
@@ -661,39 +832,47 @@ void TFRnnTransducer::feedDecodeInput(MappedTensorList& inputs) {
 
 
 // --- FFNN Transducer ---
+/// @brief Parameter for label context size
 const Core::ParameterInt TFFfnnTransducer::paramContextSize(
   "context-size",
   "label context size (min 1: otherwise use precomputed label scorer)",
   1, 1);
 
+/// @brief Flag for caching ngram history
 const Core::ParameterBool TFFfnnTransducer::paramCacheHistory(
   "cache-history",
   "cache appeared ngram history to avoid redundant computation (memory for high order !)",
   true);
 
-// HMM-topology: implicit transition
+/// @brief Implicit HMM topology transition flag
 const Core::ParameterBool TFFfnnTransducer::paramImplicitTransition(
   "implicit-transition",
   "derived implicit transition from label posterior: p(forward) = 1 - p(loop)",
   false);
 
-// HMM-topology: explicit transition
+/// @brief Explicit HMM topology transition flag
 const Core::ParameterBool TFFfnnTransducer::paramExplicitTransition(
   "explicit-transition",
   "explicit transition modeling: p(loop) appended as the last score element (|V|+1)",
   false);
 
+/// @brief Renormalize model transition flag
 const Core::ParameterBool TFFfnnTransducer::paramRenormTransition(
   "renorm-transition",
   "renormalize model over forward+loop (only for explicit-transition)",
   true);
 
+/// @brief Use relative position flag
 const Core::ParameterBool TFFfnnTransducer::paramUseRelativePosition(
   "use-relative-position",
   "use (1st order) relative-position dependency",
   false);
 
 
+/**
+ *  @brief Constructor for TFFfnnTransducer
+ *  @param config Core::Configuration object containing settings
+ */
 TFFfnnTransducer::TFFfnnTransducer(Core::Configuration const& config) :
     Core::Component(config),
     Precursor(config),
@@ -764,44 +943,61 @@ TFFfnnTransducer::TFFfnnTransducer(Core::Configuration const& config) :
   verify(decoding_output_ndims_[0] == 2);
 }
 
+/**
+ * @brief Destructor for TFFfnnTransducer
+ * @details If caching is enabled, explicitly frees the cache.
+ */
 TFFfnnTransducer::~TFFfnnTransducer() {
   if (cacheHistory_) {
-    // free cache expicitly
+    // Explicitly free the history cache
     const HistoryCache cache = labelHistoryManager_->historyCache();
     for (HistoryCache::const_iterator iter = cache.begin(); iter != cache.end(); ++iter)
-      delete iter->second;
-    labelHistoryManager_->reset();
+      delete iter->second; // Free each cached item
+    labelHistoryManager_->reset(); // Reset the history manager
   }
 }
 
+/**
+ * @brief Resets the transducer's internal state
+ * @details Clears various internal buffers and counters.
+ */
 void TFFfnnTransducer::reset() {
+  // Clear the input buffer and counters
   inputBuffer_.clear();
   nInput_ = 0;
   eos_ = false;
   decodeStep_ = 0;
 
+  // Clear various internal caches
   scoreCache_.clear();
   batchHashQueue_.clear();
   batchHash_.clear();
   scoreTransitionCache_.clear();
   positionScoreCache_.clear();
 
+  // If history caching is not enabled, clear the label sequence cache
   if (!cacheHistory_) {
     labelSeqCache_.clear();
     labelHistoryManager_->reset();
   }
 }
 
+/**
+ * @brief Cleanup function before sequence extension
+ * @param minPos Minimum position among all hypotheses
+ * @details Cleans up caches to minimize memory usage.
+ */
 void TFFfnnTransducer::cleanUpBeforeExtension(u32 minPos) {
+  // Clear various caches
   scoreCache_.clear();
   batchHashQueue_.clear();
   scoreTransitionCache_.clear();
 
+  // If position-dependent scoring is used, clean the cache with respect to minPos
   if (isPositionDependent_) {
-    // cache clean up w.r.t min position among all hypotheses (otherwise memory expensive ?)
     for (std::pair<const u32, ScoreCache>& kv : positionScoreCache_)
       if (kv.first < minPos)
-        kv.second.clear();
+        kv.second.clear(); // Clear the cache for positions less than minPos
   }
 }
 

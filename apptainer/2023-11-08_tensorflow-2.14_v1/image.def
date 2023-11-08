@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: tensorflow/tensorflow:2.13.0-gpu 
+From: tensorflow/tensorflow:2.14.0-gpu 
 Stage: build
 
 %post

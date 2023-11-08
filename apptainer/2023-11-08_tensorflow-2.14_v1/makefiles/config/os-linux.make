@@ -47,11 +47,11 @@ endif
 
 ifdef MODULE_TENSORFLOW
 TF_CXXFLAGS  = -fexceptions
-TF_CXXFLAGS += -I/usr/local/lib/python3.8/dist-packages/tensorflow/include
+TF_CXXFLAGS += -I/usr/local/lib/python3.11/dist-packages/tensorflow/include
 TF_LDFLAGS  += -Wl,--no-as-needed -Wl,--allow-multiple-definition
 TF_LDFLAGS  += -lcrypto
-TF_LDFLAGS  += -L/usr/local/lib/python3.8/dist-packages/tensorflow
-TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/python3.8/dist-packages/tensorflow
+TF_LDFLAGS  += -L/usr/local/lib/python3.11/dist-packages/tensorflow
+TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/python3.11/dist-packages/tensorflow
 TF_LDFLAGS  += -l:libtensorflow_cc.so.2 -l:libtensorflow_framework.so.2
 
 # USE_TENSORFLOW_MKL=1

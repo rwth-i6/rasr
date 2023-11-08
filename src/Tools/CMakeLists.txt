@@ -1,2 +1,3 @@
-add_subdirectory(AcousticModelTrainer)
-add_subdirectory(Cart)
+foreach(TOOL ${TOOLS})
+    add_subdirectory(${TOOL})
+endforeach ()

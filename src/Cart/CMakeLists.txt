@@ -10,6 +10,3 @@ set(Cart_SOURCES
         )
 
 add_library(RasrCart STATIC ${Cart_SOURCES})
-#target_link_libraries(RasrCart PRIVATE RasrCore)
-
-target_include_directories(RasrCart PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

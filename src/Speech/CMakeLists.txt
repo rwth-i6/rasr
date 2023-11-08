@@ -1,30 +1,30 @@
 set(SPEECH_SOURCES
-        /AcousticModelTrainer.cc
-        /AlignerModelAcceptor.cc
-        /AligningFeatureExtractor.cc
-        /Alignment.cc
-        /AlignmentNode.cc
-        /AlignmentWithLinearSegmentation.cc
-        /AllophoneStateGraphBuilder.cc
-        /AverageFeatureScorerActivation.cc
-        /CorpusProcessor.cc
-        /CorpusVisitor.cc
-        /CovarianceEstimator.cc
-        /DataExtractor.cc
-        /DataSource.cc
-        /DelayedRecognizer.cc
-        /Feature.cc
-        /FeatureScorer.cc
-        /FeatureScorerNode.cc
-        /FsaCache.cc
-        /LabelingFeatureExtractor.cc
-        /MixtureSetTrainer.cc
-        /ModelCombination.cc
-        /Module.cc
-        /Recognizer.cc
-        /ScatterMatricesEstimator.cc
-        /TextDependentSequenceFiltering.cc
-        /TextIndependentMixtureSetTrainer.cc
+        AcousticModelTrainer.cc
+        AlignerModelAcceptor.cc
+        AligningFeatureExtractor.cc
+        Alignment.cc
+        AlignmentNode.cc
+        AlignmentWithLinearSegmentation.cc
+        AllophoneStateGraphBuilder.cc
+        AverageFeatureScorerActivation.cc
+        CorpusProcessor.cc
+        CorpusVisitor.cc
+        CovarianceEstimator.cc
+        DataExtractor.cc
+        DataSource.cc
+        DelayedRecognizer.cc
+        Feature.cc
+        FeatureScorer.cc
+        FeatureScorerNode.cc
+        FsaCache.cc
+        LabelingFeatureExtractor.cc
+        MixtureSetTrainer.cc
+        ModelCombination.cc
+        Module.cc
+        Recognizer.cc
+        ScatterMatricesEstimator.cc
+        TextDependentSequenceFiltering.cc
+        TextIndependentMixtureSetTrainer.cc
 )
 
 if(${MODULE_SPEECH_LATTICE_ALIGNMENT})

@@ -44,6 +44,8 @@ set(Core_SOURCES
         XmlStream.cc
         )
 
+find_package(BISON REQUIRED)
+
 BISON_TARGET(
         ArithmeticExpressionParser
         ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.yy
@@ -51,10 +53,7 @@ BISON_TARGET(
         DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.hh
         COMPILE_FLAGS "-d"
 )
-set(Core_SOURCES ${Core_SOURCES} ${BISON_ArithmeticExpressionParser_OUTPUTS})
+list(APPEND Core_SOURCES ${BISON_ArithmeticExpressionParser_OUTPUTS})
 
 add_library(RasrCore STATIC ${Core_SOURCES})
-
-target_include_directories(RasrCore PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
 add_dependencies(RasrCore SourceVersion)

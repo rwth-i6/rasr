@@ -17,7 +17,8 @@
 /src/Core/stack.hh
 
 # From build.
-.build
+.build*
+cmake-build*
 *.a
 *.pyc
 *.o

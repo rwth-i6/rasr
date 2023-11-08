@@ -1,4 +1,4 @@
-Image based on official tensorflow image tensorflow/tensorflow:2.13.0-gpu.
+Image based on official tensorflow image tensorflow/tensorflow:2.14.0-gpu.
 
 Contains:
  - Ubuntu 22.04

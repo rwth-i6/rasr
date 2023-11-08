@@ -139,12 +139,12 @@ ifdef MODULE_PYTHON
 # Use --ldflags --embed for python >= 3.8
 PYTHON_PATH =
 ifneq (${PYTHON_PATH},)
-INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
-LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags --embed 2>/dev/null`
+INCLUDES    += `${PYTHON_PATH}/bin/python3.11-config --includes 2>/dev/null`
+LDFLAGS     += `${PYTHON_PATH}/bin/python3.11-config --ldflags --embed 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
-INCLUDES    += `python3-config --includes 2>/dev/null`
-LDFLAGS     += `python3-config --ldflags --embed 2>/dev/null`
+INCLUDES    += `python3.11-config --includes 2>/dev/null`
+LDFLAGS     += `python3.11-config --ldflags --embed 2>/dev/null`
 # IF you want to use Python2 for whatever reason:
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`

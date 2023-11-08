@@ -48,7 +48,6 @@
 /Sprint.includes
 # CLion
 /.idea
-/CMakeLists.txt
 # Other
 .history*
 *.autosave

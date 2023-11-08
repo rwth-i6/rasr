@@ -44,8 +44,9 @@
 #include <Fsa/Static.hh>
 #include <Fsa/Types.hh>
 
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
-
+#endif
 #ifdef MODULE_OPENFST
 #include <OpenFst/Module.hh>
 #endif

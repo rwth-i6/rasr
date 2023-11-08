@@ -15,7 +15,9 @@
 #include "MixtureSet.hh"
 #include <Core/Application.hh>
 #include <Core/Statistics.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <typeinfo>
 
 using namespace Mm;

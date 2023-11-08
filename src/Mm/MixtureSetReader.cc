@@ -15,7 +15,9 @@
 #include "MixtureSetReader.hh"
 #include <Core/Directory.hh>
 #include <Core/FormatSet.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include "Module.hh"
 namespace Mm {
 class LogLinearMixtureSet : public Core::ReferenceCounted {};

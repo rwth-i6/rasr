@@ -16,7 +16,9 @@
 #define _MATH_RANDOM_HH
 
 #include <Core/Parameter.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <algorithm>
 #include <random>
 

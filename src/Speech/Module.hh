@@ -16,7 +16,9 @@
 #define _SPEECH_MODULE_HH
 
 #include <Core/Singleton.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <Speech/Recognizer.hh>
 
 namespace Search {

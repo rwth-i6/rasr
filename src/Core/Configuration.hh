@@ -17,8 +17,9 @@
 #ifndef _CORE_CONFIGURATION_HH
 #define _CORE_CONFIGURATION_HH
 
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
-
+#endif
 #include <iostream>
 #include <set>
 #include <vector>

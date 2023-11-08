@@ -13,7 +13,9 @@
  *  limitations under the License.
  */
 #include <Core/Application.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 
 #include "Init.hh"
 #include "Numpy.hh"

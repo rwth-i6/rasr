@@ -14,7 +14,9 @@
  */
 #include "Module.hh"
 #include <Flow/Registry.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include "ComplexVectorFunction.hh"
 #include "CosineTransform.hh"
 #include "DcDetection.hh"

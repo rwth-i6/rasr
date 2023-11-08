@@ -18,7 +18,9 @@
 #include <Core/Component.hh>
 #include <Math/CudaMatrix.hh>
 #include <Math/CudaVector.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <cstring>
 
 #include "BufferedAlignedFeatureProcessor.hh"

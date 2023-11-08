@@ -25,9 +25,9 @@
 #include "AlignmentNode.hh"
 #include "Module.hh"
 
-/*! @todo: remove Modules.hh dependency (see below) */
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
-
+#endif
 using namespace Speech;
 
 /**

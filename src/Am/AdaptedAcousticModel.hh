@@ -22,7 +22,9 @@
 #include <Core/IoRef.hh>
 #include <Core/ObjectCache.hh>
 #include <Mm/MllrAdaptation.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <Speech/CorpusVisitor.hh>
 
 namespace Am {

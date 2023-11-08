@@ -29,7 +29,9 @@
 #include <Fsa/Output.hh>
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include "Histogram.hh"
 #include "LanguageModelLookahead.hh"
 #include "StateTree.hh"

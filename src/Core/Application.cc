@@ -22,7 +22,9 @@
 #ifdef OS_linux
 #include <malloc.h>
 #endif
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include "Application.hh"
 #include "CacheManager.hh"
 #include "Channel.hh"

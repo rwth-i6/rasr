@@ -16,7 +16,9 @@
 
 #include <Core/Utility.hh>
 #include <Math/CudaDataStructure.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <sstream>
 #include <sys/time.h>
 

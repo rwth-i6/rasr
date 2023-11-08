@@ -16,7 +16,9 @@
 #define _TOOLS_NN_TRAINER_NN_TRAINER_HH
 
 #include <Core/Parameter.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <Nn/NeuralNetworkTrainer.hh>
 #include <Speech/AlignedFeatureProcessor.hh>
 

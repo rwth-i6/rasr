@@ -17,7 +17,9 @@
 #include <Fsa/Dfs.hh>
 #include <Fsa/Static.hh>
 #include <Math/Utilities.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <stack>
 
 // implementation details for the TransitionModel::apply function

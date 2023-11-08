@@ -14,7 +14,9 @@
  */
 #include "Module.hh"
 #include <Core/Application.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include "ClassLm.hh"
 #ifdef MODULE_LM_ARPA
 #include "ArpaLm.hh"

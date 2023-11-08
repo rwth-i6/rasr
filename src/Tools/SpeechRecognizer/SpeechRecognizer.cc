@@ -20,7 +20,9 @@
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <Search/Module.hh>
 #include <Signal/Module.hh>
 #include <Speech/CorpusVisitor.hh>

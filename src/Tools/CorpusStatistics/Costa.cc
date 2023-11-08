@@ -21,7 +21,9 @@
 #include <Flow/Module.hh>
 #include <Flow/Network.hh>
 #include <Lm/CorpusStatistics.hh>
+#ifndef CMAKE_DISABLE_MODULE_HH
 #include <Modules.hh>
+#endif
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW

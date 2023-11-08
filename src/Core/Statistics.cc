@@ -15,7 +15,7 @@
 // $Id$
 
 #include "Statistics.hh"
-#include <Application.hh>
+#include "Application.hh"
 #include <algorithm>
 #include <cerrno>
 #include <numeric>

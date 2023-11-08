@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 #include "WindowFunction.hh"
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #if defined(MODULE_MATH_NR) && defined(MODULE_SIGNAL_ADVANCED)

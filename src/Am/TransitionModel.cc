@@ -17,7 +17,7 @@
 #include <Fsa/Dfs.hh>
 #include <Fsa/Static.hh>
 #include <Math/Utilities.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <stack>

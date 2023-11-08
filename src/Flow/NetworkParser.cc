@@ -15,7 +15,7 @@
 #include "NetworkParser.hh"
 #include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <cstdlib>

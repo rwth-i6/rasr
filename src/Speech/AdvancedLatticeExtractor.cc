@@ -33,7 +33,7 @@
 #include <Lattice/Lattice.hh>
 #include <Lattice/Static.hh>
 #include <Lm/FsaLm.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <Search/Module.hh>

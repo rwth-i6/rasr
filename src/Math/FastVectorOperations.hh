@@ -15,7 +15,7 @@
 #ifndef FAST_VECTOR_OPERATIONS_HH_
 #define FAST_VECTOR_OPERATIONS_HH_
 
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <Core/OpenMPWrapper.hh>

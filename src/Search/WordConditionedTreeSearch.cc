@@ -29,7 +29,7 @@
 #include <Fsa/Output.hh>
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include "Histogram.hh"

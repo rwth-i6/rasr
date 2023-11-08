@@ -15,7 +15,7 @@
 #include "Module.hh"
 #include <Core/Application.hh>
 #include <Core/FormatSet.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include "FeatureScorerFactory.hh"

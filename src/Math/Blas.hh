@@ -16,7 +16,7 @@
 #define MATH_BLAS_HH_
 
 // ACML is included with cblas.h and linking to correct cblas library
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <complex>

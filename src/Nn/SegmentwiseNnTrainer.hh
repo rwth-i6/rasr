@@ -17,7 +17,7 @@
 
 #include <Core/Channel.hh>
 #include <Core/Hash.hh>  // for mix2phoneme map ( lattice coverage statistics)
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 #include <Speech/AcousticSegmentwiseTrainer.hh>

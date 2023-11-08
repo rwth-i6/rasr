@@ -21,7 +21,7 @@
 #include <Fsa/Semiring.hh>
 #include <Fsa/Sort.hh>
 #include <Fsa/Static.hh>
-#ifndef CMAKE_DISABLE_MODULE_HH
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
 

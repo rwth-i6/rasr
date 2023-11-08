@@ -16,8 +16,6 @@ Stage: build
     cd bin
     ln -s ../cache-manager/cf cf
 
-
-%environment
-    # Location of libtensorflow_cc.so and libtensorflow_framework.so
-    export LD_LIBRARY_PATH=/usr/local/lib/tensorflow/:$LD_LIBRARY_PATH
+    echo /usr/local/lib/python3.11/dist-packages/tensorflow > /etc/ld.so.conf.d/tensorflow.conf
+    ldconfig
 

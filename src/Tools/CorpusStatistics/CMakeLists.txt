@@ -1,4 +1,5 @@
 add_executable(costa Costa.cc)
+add_install_executable(costa)
 
 target_link_libraries(costa PRIVATE
         RasrLm

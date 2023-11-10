@@ -1,4 +1,5 @@
 add_executable(feature-extraction FeatureExtraction.cc FeatureExtractor.cc)
+add_install_executable(feature-extraction)
 
 target_link_libraries(feature-extraction PRIVATE
         RasrSpeech

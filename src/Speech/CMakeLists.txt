@@ -1,4 +1,4 @@
-set(SPEECH_SOURCES
+set(Speech_SOURCES
         AcousticModelTrainer.cc
         AlignerModelAcceptor.cc
         AligningFeatureExtractor.cc
@@ -28,7 +28,7 @@ set(SPEECH_SOURCES
 )
 
 if(${MODULE_SPEECH_LATTICE_ALIGNMENT})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             PhonemeSequenceAlignmentGenerator.cc
             SegmentwiseAlignmentGenerator.cc
             SegmentwiseFeatureExtractor.cc
@@ -36,7 +36,7 @@ if(${MODULE_SPEECH_LATTICE_ALIGNMENT})
 endif ()
 
 if (${MODULE_SPEECH_DT})
-    list(APPEND Speech_Sources
+    list(APPEND Speech_SOURCES
             AbstractSegmentwiseTrainer.cc
             AccuracyFsaBuilder.cc
             AcousticSegmentwiseTrainer.cc
@@ -53,7 +53,7 @@ if (${MODULE_SPEECH_DT})
 endif ()
 
 if (${MODULE_SPEECH_DT_ADVANCED})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             AdvancedAccuracyFsaBuilder.cc
             AdvancedLatticeExtractor.cc
             AuxiliarySegmentwiseTrainer.cc
@@ -65,11 +65,11 @@ if (${MODULE_SPEECH_DT_ADVANCED})
 endif ()
 
 if (${MODULE_FLF_EXT})
-    list(APPEND SPEECH_SOURCES AlignedFeatureCache.cc)
+    list(APPEND Speech_SOURCES AlignedFeatureCache.cc)
 endif ()
 
 if (${MODULE_SPEECH_LATTICE_FLOW_NODES})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             AlignmentFromLattice.cc
             LatticeNodes.cc
             LatticeArcAccumulator.cc
@@ -77,7 +77,7 @@ if (${MODULE_SPEECH_LATTICE_FLOW_NODES})
 endif ()
 
 if (${MODULE_SPEECH_ALIGNMENT_FLOW_NODES})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             AlignmentGeneratorNode.cc
             AlignmentTransformNode.cc
             SegmentNode.cc
@@ -85,28 +85,27 @@ if (${MODULE_SPEECH_ALIGNMENT_FLOW_NODES})
 endif ()
 
 if (${MODULE_ADAPT_MLLR})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             ModelTransformEstimator.cc
             FeatureShiftAdaptor.cc
     )
 endif ()
 
 if (${MODULE_ADAPT_CMLLR})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             AffineFeatureTransformEstimator.cc
             KeyedEstimator.cc
     )
 endif ()
 
 if (${MODULE_CART})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             DecisionTreeTrainer.cc
-            KeyedEstimator.cc
     )
 endif ()
 
 if (${MODULE_SPEECH_LATTICE_RESCORING})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             LatticeRescorerAutomaton.cc
             LatticeRescorerNodes.cc
             StatePosteriorFeatureScorerNode.cc
@@ -114,19 +113,65 @@ if (${MODULE_SPEECH_LATTICE_RESCORING})
 endif ()
 
 if (${MODULE_SIGNAL_ADVANCED})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             HistogramEstimator.cc
             MeanEstimator.cc
     )
 endif ()
 
 if (${MODULE_SEARCH_MBR})
-    list(APPEND SPEECH_SOURCES
+    list(APPEND Speech_SOURCES
             MinimumBayesRiskSearch.cc
     )
 endif ()
 
-add_library(RasrCart STATIC ${Cart_SOURCES})
-target_link_libraries(RasrCart PRIVATE RasrCore)
+add_library(RasrSpeech STATIC ${Speech_SOURCES})
 
-target_include_directories(RasrCart PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(RasrSpeech INTERFACE
+        RasrLm
+        RasrAm
+        RasrMm
+        RasrMc
+        RasrSearch
+        RasrBliss
+        RasrFlow
+        RasrFsa
+        RasrCore
+        RasrLattice
+        RasrMath
+        RasrMathLapack
+)
+
+if (${MODULE_CART})
+    target_link_libraries(RasrSpeech INTERFACE RasrCart)
+endif ()
+
+if (${MODULE_MATH_NR})
+    target_link_libraries(RasrSpeech INTERFACE RasrMathNr)
+endif ()
+
+if (${MODULE_NN_SEQUENCE_TRAINING})
+    target_link_libraries(RasrSpeech INTERFACE RasrNn)
+endif ()
+
+if (${MODULE_SEARCH_WFST})
+    target_link_libraries(RasrSpeech INTERFACE RasrSearchWfst RasrOpenFst)
+endif ()
+
+if (${MODULE_ADVANCED_TREE_SEARCH})
+    target_link_libraries(RasrSpeech INTERFACE RasrAdvancedTreeSearch)
+endif ()
+
+if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
+    target_link_libraries(RasrSpeech INTERFACE RasrGenericSeq2SeqTreeSearch)
+endif ()
+
+if (${MODULE_PYTHON})
+    target_link_libraries(RasrSpeech INTERFACE RasrPython)
+    add_python_dependencies(RasrSpeech)
+endif ()
+
+if (${MODULE_TENSORFLOW})
+    add_tf_dependencies(RasrSpeech)
+    target_link_libraries(RasrSpeech INTERFACE RasrTensorflow)
+endif ()

@@ -9,6 +9,7 @@ set(Flow_SOURCES
         DataAdaptor.cc
         Datatype.cc
         Demo.cc
+        Dump.cc
         Link.cc
         Module.cc
         Network.cc

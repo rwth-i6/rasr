@@ -24,6 +24,7 @@ if (${MODULE_NN})
             LookupLayer.cc
             MeanNormalizedSgdEstimator.cc
             NetworkTopology.cc
+            NeuralNetwork.cc
             NeuralNetworkForwardNode.cc
             NeuralNetworkLayer.cc
             NeuralNetworkTrainer.cc
@@ -71,6 +72,10 @@ target_link_libraries(RasrNn INTERFACE
         RasrFlow
         RasrSignal
 )
+
+if (${MODULE_PYTHON})
+    add_python_dependencies(RasrNn)
+endif ()
 
 if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH} AND ${MODULE_TENSORFLOW})
     add_tf_dependencies(RasrNn)

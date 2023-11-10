@@ -1,6 +1,7 @@
-set(EXE_NAMES "cart-trainer" "cart-viewer")
-foreach(EXE_NAME ${EXE_NAMES})
-    add_executable(${EXE_NAME} CartTrainer.cc)
-    target_link_libraries(${EXE_NAME} PRIVATE RasrCart RasrCore)
-    add_install_executable(${EXE_NAME})
-endforeach ()
+add_executable(cart-trainer CartTrainer.cc)
+target_link_libraries(cart-trainer PRIVATE RasrCart RasrCore)
+add_install_executable(cart-trainer)
+
+add_executable(cart-viewer CartViewer.cc)
+target_link_libraries(cart-viewer PRIVATE RasrCart RasrCore)
+add_install_executable(cart-viewer)

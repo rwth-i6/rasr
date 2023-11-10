@@ -26,31 +26,46 @@ if(${MODULE_LM_ZEROGRAM})
     list(APPEND Lm_SOURCES Zerogram.cc)
 endif()
 
+if (${MODULE_LM_FFNN})
+    list(APPEND Lm_SOURCES FFNeuralNetworkLanguageModel.cc)
+endif ()
+
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
-    list(APPEND Lm_SOURCES Zerogram.cc)
+    list(APPEND Lm_SOURCES
+            BlasNceSoftmaxAdapter.cc
+            CompressedVector.cc
+            FixedQuantizationCompressedVectorFactory.cc
+            LstmStateManager.cc
+            NceSoftmaxAdapter.cc
+            PassthroughSoftmaxAdapter.cc
+            QuantizedBlasNceSoftmaxAdapter.cc
+            QuantizedCompressedVectorFactory.cc
+            ReducedPrecisionCompressedVectorFactory.cc
+            TransformerStateManager.cc
+            TFRecurrentLanguageModel.cc
+    )
 endif()
 
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
-target_link_libraries(RasrLm INTERFACE
-        RasrFlf
-        RasrFlfCore
-        RasrSpeech
-        RasrAm
-        RasrMc
-        RasrBliss
-        RasrNn
-        RasrMe
-        RasrMm
-        RasrSignal
-        RasrFlow
-        RasrMath
-        RasrMathLapack
-        ${SEARCH_LIBS}
-        RasrLattice
-        RasrFsa
-        RasrCore
-)
+ target_link_libraries(RasrLm INTERFACE
+         RasrFlf
+         RasrFlfCore
+         RasrSpeech
+         RasrAm
+         RasrMc
+         RasrBliss
+         RasrNn
+         RasrMm
+         RasrSignal
+         RasrFlow
+         RasrMath
+         RasrMathLapack
+         ${SEARCH_LIBS}
+         RasrLattice
+         RasrFsa
+         RasrCore
+ )
 if(${MODULE_CART})
     target_link_libraries(RasrLm INTERFACE RasrCart)
 endif()

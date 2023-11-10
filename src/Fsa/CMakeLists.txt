@@ -38,12 +38,3 @@ set(Fsa_SOURCES
 add_library(RasrFsa STATIC ${Fsa_SOURCES})
 
 target_link_libraries(RasrFsa INTERFACE RasrCore)
-
-if(${MODULE_PYTHON})
-    find_package(SWIG REQUIRED)
-    include(${SWIG_USE_FILE})
-    set_source_files_properties(fsa.i PROPERTIES CPLUSPLUS ON)
-    swig_add_library(_fsa TYPE MODULE LANGUAGE python OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR} SOURCES fsa.i )
-    target_include_directories(_fsa PRIVATE ${Python3_INCLUDE_DIRS})
-    target_link_libraries(_fsa INTERFACE ${Python3_LIBRARIES})
-endif()

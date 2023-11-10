@@ -5,5 +5,5 @@ set(RasrPython_SOURCES
 )
 
 add_library(RasrPython STATIC ${RasrPython_SOURCES})
-
-target_link_libraries(RasrPython INTERFACE RasrMath RasrCore)
+add_python_dependencies(RasrPython)
+target_compile_options(RasrPython PRIVATE "-fexceptions")

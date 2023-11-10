@@ -4,6 +4,6 @@ set(RasrMathLapack_SOURCES
         Svd.cc
 )
 
-add_library(RasrMathLapack STATIC ${RasrMathLapack_SOURCE})
+add_library(RasrMathLapack STATIC ${RasrMathLapack_SOURCES})
 
 target_link_libraries(RasrMathLapack INTERFACE RasrCore)

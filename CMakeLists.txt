@@ -6,11 +6,7 @@ project(RASR)
 include(cmake_resources/ConfigurationTypes.cmake)
 include(cmake_resources/Modules.cmake)
 include(cmake_resources/Python.cmake)
-
-if(${MODULE_CUDA})
-    enable_language(CUDA)
-    set(CMAKE_CUDA_ARCHITECTURES 61;75;86)
-endif()
+include(cmake_resources/UniversalSettings.cmake)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSTEM_NAME)
 string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
@@ -34,21 +30,4 @@ add_custom_command(
 add_custom_target(SourceVersion
                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/SourceVersion.cc)
 
-find_package(LibXml2 REQUIRED)
-find_package(Threads REQUIRED)
-find_package(ZLIB REQUIRED)
-
-link_libraries(LibXml2::LibXml2 ZLIB::ZLIB Threads::Threads)
-
-include_directories(${LIBXML2_INCLUDE_DIR})
-include_directories(${CMAKE_SOURCE_DIR}/src)
-
-
-add_subdirectory(src/Am)
-add_subdirectory(src/Audio)
-add_subdirectory(src/Bliss)
-add_subdirectory(src/Cart)
-add_subdirectory(src/Core)
-add_subdirectory(src/Flf)
-add_subdirectory(src/Fsa)
-add_subdirectory(src/Tools)
+add_subdirectory(src/)

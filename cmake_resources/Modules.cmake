@@ -2,9 +2,9 @@ function(add_module_option MODULE_NAME DEFAULT_VALUE)
     option(${MODULE_NAME} "Enable module ${MODULE_NAME})" ${DEFAULT_VALUE})
     if(${MODULE_NAME})
         add_compile_definitions(${MODULE_NAME})
-#        message(STATUS "Module ${MODULE_NAME} is enabled")
+        message(STATUS "Module ${MODULE_NAME} is enabled")
     else()
-#        message(STATUS "Module ${MODULE_NAME} disabled")
+        message(STATUS "Module ${MODULE_NAME} disabled")
     endif()
 endfunction()
 
@@ -14,9 +14,9 @@ function(add_tool_option TOOL_NAME DEFAULT_VALUE)
     option(${TOOL_NAME} "Enable tool ${TOOL_NAME})" ${DEFAULT_VALUE})
     if(${TOOL_NAME})
         set(TOOLS ${TOOLS} ${TOOL_NAME} PARENT_SCOPE)
-#        message(STATUS "Tool ${TOOL_NAME} is enabled")
+        message(STATUS "Tool ${TOOL_NAME} is enabled")
     else()
-#        message(STATUS "Tool ${TOOL_NAME} is disabled")
+        message(STATUS "Tool ${TOOL_NAME} is disabled")
     endif()
 endfunction()
 
@@ -70,11 +70,11 @@ add_module_option(MODULE_THEANO_INTERFACE ON)
 add_module_option(MODULE_PYTHON ON)
 
 # ****** OpenFst ******
-add_module_option(MODULE_OPENFST ON)
+add_module_option(MODULE_OPENFST OFF)
 
 # ****** Search ******
 add_module_option(MODULE_SEARCH_MBR ON)
-add_module_option(MODULE_SEARCH_WFST ON)
+add_module_option(MODULE_SEARCH_WFST OFF)
 add_module_option(MODULE_SEARCH_LINEAR ON)
 add_module_option(MODULE_ADVANCED_TREE_SEARCH ON)
 add_module_option(MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH ON)
@@ -96,7 +96,7 @@ add_module_option(MODULE_SPEECH_LATTICE_ALIGNMENT ON)
 add_module_option(MODULE_SPEECH_LATTICE_RESCORING ON)
 
 # ****** Unit Tests ******
-add_module_option(MODULE_TEST ON)
+add_module_option(MODULE_TEST OFF)
 
 # ****** Intel Threading Building Blocks ******
 add_module_option(MODULE_TBB OFF)
@@ -140,8 +140,6 @@ endif()
 if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
 endif()
-
-set(TOOLS Cart)
 
 set(SEARCH_LIBS RasrSearch)
 if(${MODULE_SEARCH_WFST})

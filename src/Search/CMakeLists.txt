@@ -1,10 +1,10 @@
-if (${MOULE_SEARCH_WFST})
+if (${MODULE_SEARCH_WFST})
     add_subdirectory(Wfst)
 endif ()
-if (${MOULE_ADVANCED_TREE_SEARCH})
+if (${MODULE_ADVANCED_TREE_SEARCH})
     add_subdirectory(AdvancedTreeSearch)
 endif ()
-if (${MOULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
+if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
     add_subdirectory(GenericSeq2SeqTreeSearch)
 endif ()
 
@@ -27,7 +27,7 @@ if (${MODULE_SEARCH_MBR})
             MinimumBayesRiskSearchUtil.cc
     )
 endif ()
-if (${MOULE_SEARCH_LINEAR})
+if (${MODULE_SEARCH_LINEAR})
     list(APPEND RasrSearch_SOURCES LinearSearch.cc)
 endif ()
 

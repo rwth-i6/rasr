@@ -4,6 +4,7 @@ set(Am_SOURCES
         ClassicAcousticModel.cc
         ClassicHmmTopologySet.cc
         ClassicStateModel.cc
+        ClassicStateTying.cc
         ClassicTransducerBuilder.cc
         Module.cc
         TransitionModel.cc

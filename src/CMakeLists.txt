@@ -1,0 +1,49 @@
+
+
+add_subdirectory(Am)
+add_subdirectory(Audio)
+add_subdirectory(Bliss)
+add_subdirectory(Core)
+add_subdirectory(Flow)
+add_subdirectory(Fsa)
+add_subdirectory(Lattice)
+add_subdirectory(Lm)
+add_subdirectory(Math)
+add_subdirectory(Mc)
+add_subdirectory(Mm)
+add_subdirectory(Search)
+add_subdirectory(Signal)
+add_subdirectory(Speech)
+add_subdirectory(Tools)
+
+if (${MODULE_CART})
+    add_subdirectory(Cart)
+endif ()
+
+if (${MODULE_FLF})
+    add_subdirectory(Flf)
+endif ()
+
+if (${MODULE_OPENFST})
+    add_subdirectory(OpenFst)
+endif ()
+
+if (${MODULE_NN})
+    add_subdirectory(Nn)
+endif ()
+
+if (${MODULE_ONNX})
+    add_subdirectory(Onnx)
+endif ()
+
+if (${MODULE_PYTHON})
+    add_subdirectory(Python)
+endif ()
+
+if (${MODULE_TENSORFLOW})
+    add_subdirectory(Tensorflow)
+endif ()
+
+if (${MODULE_TEST})
+    add_subdirectory(Test)
+endif ()

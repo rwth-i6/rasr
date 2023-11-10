@@ -57,3 +57,5 @@ list(APPEND Core_SOURCES ${BISON_ArithmeticExpressionParser_OUTPUTS})
 
 add_library(RasrCore STATIC ${Core_SOURCES})
 add_dependencies(RasrCore SourceVersion)
+
+target_compile_options(RasrCore PRIVATE "-fexceptions")

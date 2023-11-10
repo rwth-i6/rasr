@@ -6,3 +6,4 @@ set(FlfExt_SOURCES
 )
 
 add_library(RasrFlfExt STATIC ${FlfExt_SOURCES})
+target_link_libraries(RasrFlfExt INTERFACE RasrFlf RasrFsa RasrCore)

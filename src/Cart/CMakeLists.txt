@@ -7,6 +7,8 @@ set(Cart_SOURCES
         Cluster.cc
         DecisionTreeTrainer.cc
         Parser.cc
-        )
+)
 
 add_library(RasrCart STATIC ${Cart_SOURCES})
+
+target_link_libraries(RasrCart INTERFACE RasrCore)

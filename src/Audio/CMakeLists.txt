@@ -24,3 +24,5 @@ if(${MODULE_AUDIO_WAV_SYSTEM})
 endif()
 
 add_library(RasrAudio ${Audio_SOURCES})
+
+target_link_libraries(RasrAudio INTERFACE RasrFlow RasrCore)

@@ -25,13 +25,13 @@ if(${MODULE_TENSORFLOW})
     find_library(
             Tensorflow_CC
             NAMES tensorflow_cc
-            HINTS ${Tensorflow_LIB_DIR}
+            HINTS ${Tensorflow_LIB_DIR} /usr/local/lib/tensorflow
             PATH_SUFFIXES lib REQUIRED)
 
     find_library(
             Tensorflow_FRAMEWORK
             NAMES tensorflow_framework
-            HINTS ${Tensorflow_LIB_DIR}
+            HINTS ${Tensorflow_LIB_DIR} /usr/local/lib/tensorflow
             PATH_SUFFIXES lib REQUIRED)
 
     if(Tensorflow_CC)
@@ -46,5 +46,13 @@ if(${MODULE_TENSORFLOW})
         message(FATAL_ERROR "TensorFlow Framework library not found")
     endif()
 
-    set(Tensorflow_LIBRARIES ${Tensorflow_CC} ${Tensorflow_FRAMEWORK})
+    find_package(OpenSSL REQUIRED)
+
+    function(add_tf_dependencies TARGET)
+        target_compile_options(${TARGET} PUBLIC "-fexceptions")
+        target_include_directories(${TARGET} PUBLIC ${Tensorflow_INCLUDE_DIR})
+        target_link_options(${TARGET} PUBLIC "LINKER:-Wl,--no-as-needed -Wl,--allow-multiple-definition")
+        target_link_libraries(${TARGET} PUBLIC OpenSSL::Crypto)
+        target_link_libraries(${TARGET} ${Tensorflow_CC} ${Tensorflow_FRAMEWORK})
+    endfunction()
 endif()

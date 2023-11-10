@@ -13,3 +13,5 @@ set(FlfCore_SOURCES
 )
 
 add_library(RasrFlfCore STATIC ${FlfCore_SOURCES})
+
+target_link_libraries(RasrFlfCore INTERFACE RasrFsa RasrCore)

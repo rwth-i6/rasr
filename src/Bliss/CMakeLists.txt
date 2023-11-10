@@ -27,7 +27,10 @@ endif()
 
 add_library(RasrBliss ${Bliss_SOURCES})
 
+target_link_libraries(RasrBliss INTERFACE RasrFsa RasrMath RasrCore)
+
 if(${MODULE_PYTHON})
     target_compile_definitions(RasrBliss PRIVATE ${Python3_DEFINITIONS})
     target_include_directories(RasrBliss PRIVATE ${Python3_INCLUDE_DIRS})
+    target_link_libraries(RasrBliss INTERFACE RasrPython ${Python3_LIBRARIES})
 endif()

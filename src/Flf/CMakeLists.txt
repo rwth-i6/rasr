@@ -65,3 +65,23 @@ set(Flf_SOURCES
 )
 
 add_library(RasrFlf STATIC ${Flf_SOURCES})
+
+target_link_libraries(RasrFlf INTERFACE RasrFlfCore)
+
+if(${MODULE_FLF_EXT})
+        target_link_libraries(RasrFlf INTERFACE RasrFlfExt)
+endif()
+
+target_link_libraries(RasrFlf INTERFACE
+        RasrSpeech
+        RasrLattice
+        RasrLm
+        RasrAm
+        RasrMm
+        RasrMc
+        RasrCart
+        RasrBliss
+        RasrFlow
+        RasrFsa
+        RasrCore
+)

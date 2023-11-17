@@ -43,6 +43,7 @@ if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
             ReducedPrecisionCompressedVectorFactory.cc
             TransformerStateManager.cc
             TFRecurrentLanguageModel.cc
+            SimpleTransformerLm.cc
     )
 endif()
 

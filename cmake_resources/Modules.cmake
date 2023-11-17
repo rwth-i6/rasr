@@ -28,6 +28,7 @@ add_module_option(MODULE_ADAPT_ADVANCED ON)
 # ****** Audio ******
 add_module_option(MODULE_AUDIO_FFMPEG OFF)
 add_module_option(MODULE_AUDIO_FLAC ON)
+add_module_option(MODULE_AUDIO_NIST ON)
 add_module_option(MODULE_AUDIO_OTK ON)
 add_module_option(MODULE_AUDIO_OSS ON)
 add_module_option(MODULE_AUDIO_RAW ON)

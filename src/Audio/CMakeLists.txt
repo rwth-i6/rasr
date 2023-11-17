@@ -7,6 +7,11 @@ if(${MODULE_AUDIO_FFMPEG})
     list(APPEND Audio_SOURCES Ffmpeg.cc)
 endif()
 
+if (${MODULE_AUDIO_NIST})
+    add_subdirectory(nist)
+    list(APPEND Audio_SOURCES Nist.cc)
+endif ()
+
 if(${MODULE_AUDIO_FLAC})
     list(APPEND Audio_SOURCES Flac.cc flac/FlacDecoder.cc)
 endif()
@@ -23,6 +28,11 @@ if(${MODULE_AUDIO_WAV_SYSTEM})
     list(APPEND Audio_SOURCES Wav.cc)
 endif()
 
-add_library(RasrAudio ${Audio_SOURCES})
+add_library(RasrAudio STATIC ${Audio_SOURCES})
 
 target_link_libraries(RasrAudio INTERFACE RasrFlow RasrCore)
+
+if (${MODULE_AUDIO_NIST})
+    target_include_directories(RasrAudio PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/nist)
+    target_link_libraries(RasrAudio INTERFACE RasrNist)
+endif ()

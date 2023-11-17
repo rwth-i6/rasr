@@ -1,0 +1,70 @@
+set(Nist_SOURCES
+        array.c
+        cfg.c
+        comments.c
+        dif_wavf.c
+        dir.c
+        ds.c
+        dupfinfo.c
+        err_util.c
+        exit.c
+        fixio.c
+        fobops.c
+        h_fix.c
+        hist.c
+        hsgetopt.c
+        itoa.c
+        license.c
+        lpc.c
+        maldie.c
+        mtrf.c
+        nat_bord.c
+        nist_alaw.c
+        nist_ulaw.c
+        order.c
+        pad.c
+        poly.c
+        rsprintf.c
+        sdatamod.c
+        sfgets.c
+        shorten.c
+        shpack_s.c
+        shpacki2.c
+        shpackio.c
+        sp_ntoh.c
+        sp_utils.c
+        spalloc.c
+        spchksum.c
+        spclose.c
+        speof.c
+        sperror.c
+        sphere.c
+        sphio.c
+        spinput.c
+        sploadf.c
+        spopen.c
+        spoutput.c
+        spread.c
+        sprewind.c
+        sprstat.c
+        spseek.c
+        sptell.c
+        sptemp.c
+        sputils2.c
+        spvers.c
+        spwrite.c
+        statdist.c
+        stdfield.c
+        str_srch.c
+        string.c
+        t_or_f.c
+        vario.c
+        verbose.c
+        wavedit.c
+        wavpack.c
+        word.c
+)
+
+add_library(RasrNist STATIC ${Nist_SOURCES})
+target_include_directories(RasrNist PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(RasrNist PRIVATE "-w")

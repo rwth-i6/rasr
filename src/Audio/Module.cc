@@ -26,6 +26,9 @@
 #ifdef MODULE_AUDIO_FLAC
 #include "Flac.hh"
 #endif
+#ifdef MODULE_AUDIO_NIST
+#include "Nist.hh"
+#endif
 #if defined(MODULE_AUDIO_OSS) && defined(OS_linux)
 #include "Oss.hh"
 #endif
@@ -47,6 +50,10 @@ Audio::Module_::Module_() {
 
 #ifdef MODULE_AUDIO_FLAC
     registry.registerFilter<FlacInputNode>();
+#endif
+
+#ifdef MODULE_AUDIO_NIST
+    registry.registerFilter<NistInputNode>();
 #endif
 
 #if defined(MODULE_AUDIO_OSS) && defined(OS_linux)

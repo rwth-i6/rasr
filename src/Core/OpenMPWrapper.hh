@@ -16,7 +16,9 @@
 #define OPENMP_WRAPPER_HH_
 
 #include <Core/Types.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 
 #ifdef MODULE_OPENMP
 #include <omp.h>

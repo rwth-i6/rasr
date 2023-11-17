@@ -15,7 +15,9 @@
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include "Module.hh"
 #include "Statistics.hh"
 

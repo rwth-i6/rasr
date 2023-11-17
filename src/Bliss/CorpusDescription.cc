@@ -23,7 +23,9 @@
 #include <Core/ProgressIndicator.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/TextStream.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <iomanip>
 
 #ifdef MODULE_THEANO_INTERFACE

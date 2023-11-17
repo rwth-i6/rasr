@@ -19,7 +19,9 @@
 #include <Fsa/Automaton.hh>
 #include <Lattice/Archive.hh>
 #include <Lattice/Lattice.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include "CorpusProcessor.hh"
 #include "LatticeSetProcessor.hh"
 

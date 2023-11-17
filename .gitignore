@@ -17,7 +17,8 @@
 /src/Core/stack.hh
 
 # From build.
-.build
+.build*
+cmake-build*
 *.a
 *.pyc
 *.o
@@ -48,7 +49,6 @@
 /Sprint.includes
 # CLion
 /.idea
-/CMakeLists.txt
 # Other
 .history*
 *.autosave

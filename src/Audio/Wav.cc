@@ -15,7 +15,9 @@
 #include "Wav.hh"
 #include <Core/Directory.hh>
 #include <Flow/Vector.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <cstdio>
 #include <math.h>
 

@@ -64,22 +64,32 @@ Recognizer::~Recognizer() {
 void Recognizer::createRecognizer() {
     delete recognizer_;
     recognizer_ = 0;
-    recognizer_ = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(paramSearch(config)),
-                                                              select("recognizer"));
+
+    Search::SearchType type = static_cast<Search::SearchType>(paramSearch(config));
+    seq2seq_ = type == Search::GenericSeq2SeqTreeSearchType;
+    recognizer_ = Search::Module::instance().createRecognizer(type, select("recognizer"));
 }
 
 void Recognizer::initializeRecognizer(Am::AcousticModel::Mode acousticModelMode) {
     createRecognizer();
     ModelCombination modelCombination(select("model-combination"), recognizer_->modelCombinationNeeded(), acousticModelMode);
     modelCombination.load();
+    if (seq2seq_) {
+        modelCombination.createLabelScorer();
+        labelScorer_ = modelCombination.labelScorer();
+    }
     recognizer_->setModelCombination(modelCombination);
     recognizer_->init();
     lexicon_       = modelCombination.lexicon();
     acousticModel_ = modelCombination.acousticModel();
 }
 
-void Recognizer::initializeRecognizer(const Speech::ModelCombination& modelCombination) {
+void Recognizer::initializeRecognizer(Speech::ModelCombination& modelCombination) {
     createRecognizer();
+    if (seq2seq_) {
+        modelCombination.createLabelScorer();
+        labelScorer_ = modelCombination.labelScorer();
+    }
     recognizer_->setModelCombination(modelCombination);
     recognizer_->init();
     lexicon_       = modelCombination.lexicon();
@@ -184,7 +194,8 @@ void OfflineRecognizer::enterSpeechSegment(Bliss::SpeechSegment* s) {
            << Core::XmlClose("orth");
     }
     traceback_.clear();
-    acousticModel_->featureScorer()->reset();
+    if (!seq2seq_)
+        acousticModel_->featureScorer()->reset();
 }
 
 void OfflineRecognizer::processResultAndLogStatistics(Bliss::SpeechSegment* s) {
@@ -197,10 +208,16 @@ void OfflineRecognizer::leaveSegment(Bliss::Segment* s) {
 }
 
 void OfflineRecognizer::leaveSpeechSegment(Bliss::SpeechSegment* s) {
-    Core::Ref<const Mm::ScaledFeatureScorer> scorer = acousticModel_->featureScorer();
-    if (scorer->isBuffered()) {
-        while (!scorer->bufferEmpty()) {
-            recognizer_->feed(scorer->flush());
+    if (seq2seq_) {
+        labelScorer_->setEOS();
+        labelScorer_->encode();
+        recognizer_->decode();
+    } else {
+        Core::Ref<const Mm::ScaledFeatureScorer> scorer = acousticModel_->featureScorer();
+        if (scorer->isBuffered()) {
+            while (!scorer->bufferEmpty()) {
+                recognizer_->feed(scorer->flush());
+            }
         }
     }
     finishSegment(s);
@@ -211,6 +228,8 @@ void OfflineRecognizer::finishSegment(Bliss::SpeechSegment* segment) {
     recognizer_->logStatistics();
     if (!layerName_.empty())
         clog() << Core::XmlClose("layer");
+    if (seq2seq_)
+        labelScorer_->reset();
     Precursor::leaveSpeechSegment(segment);
 }
 
@@ -221,15 +240,24 @@ void OfflineRecognizer::processResult(Bliss::SpeechSegment* s) {
 
     Core::XmlWriter& os(clog());
     os << Core::XmlOpen("traceback");
-    traceback_.write(os, lexicon_->phonemeInventory());
+    if (seq2seq_)
+        traceback_.writeSeq2Seq(os, lexicon_->phonemeInventory());
+    else
+        traceback_.write(os, lexicon_->phonemeInventory());
     os << Core::XmlClose("traceback");
     os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
-    for (u32 i = 0; i < traceback_.size(); ++i)
-        if (traceback_[i].pronunciation)
-            os << traceback_[i].pronunciation->lemma()->preferredOrthographicForm()
-               << Core::XmlBlank();
+    if (seq2seq_) {
+        for (u32 i = 0; i < traceback_.size(); ++i)
+            if (traceback_[i].lemma)
+                os << traceback_[i].lemma->preferredOrthographicForm() << Core::XmlBlank();
+    } else {
+        for (u32 i = 0; i < traceback_.size(); ++i)
+            if (traceback_[i].pronunciation)
+                os << traceback_[i].pronunciation->lemma()->preferredOrthographicForm()
+                   << Core::XmlBlank();
+    }
     os << Core::XmlClose("orth");
-    if (tracebackChannel_.isOpen()) {
+    if (tracebackChannel_.isOpen() && !seq2seq_) {
         logTraceback(traceback_);
         featureTimes_.clear();
     }
@@ -251,7 +279,7 @@ void OfflineRecognizer::processResult(Bliss::SpeechSegment* s) {
         tracebackArchiveWriter_->store(s->fullName(), traceback_.wordLattice(lexicon_));
     }
 
-    if (shouldEvaluateResult_) {
+    if (shouldEvaluateResult_ && !seq2seq_) {
         evaluator_->setReferenceTranscription(s->orth());
         evaluator_->evaluate(
                 traceback_.lemmaPronunciationAcceptor(lexicon_),
@@ -271,15 +299,21 @@ void OfflineRecognizer::addPartialToTraceback(Recognizer::Traceback& partialTrac
 }
 
 void OfflineRecognizer::processFeature(Core::Ref<const Feature> f) {
-    Core::Ref<const Mm::ScaledFeatureScorer> scorer = acousticModel_->featureScorer();
-
-    if (scorer->isBuffered() && !scorer->bufferFilled()) {
-        scorer->addFeature(f);
+    if (seq2seq_) {
+        labelScorer_->addInput(f);
+        if (labelScorer_->bufferFilled()) {
+            labelScorer_->encode();
+            recognizer_->decode(); // buffer will be cleared after decode
+        }
+        // no partial result yet
+    } else {
+        Core::Ref<const Mm::ScaledFeatureScorer> scorer = acousticModel_->featureScorer();
+        if (scorer->isBuffered() && !scorer->bufferFilled())
+            scorer->addFeature(f);
+        else
+            recognizer_->feed(scorer->getScorer(f));
+        processFeatureTimestamp(f->timestamp());
     }
-    else {
-        recognizer_->feed(scorer->getScorer(f));
-    }
-    processFeatureTimestamp(f->timestamp());
 }
 
 void OfflineRecognizer::processFeatureTimestamp(const Flow::Timestamp& timestamp) {
@@ -305,6 +339,7 @@ void OfflineRecognizer::setFeatureDescription(const Mm::FeatureDescription& desc
 }
 
 void OfflineRecognizer::logTraceback(const Recognizer::Traceback& traceback) {
+    verify(!seq2seq_); // add if needed
     tracebackChannel_ << Core::XmlOpen("traceback") + Core::XmlAttribute("type", "xml");
     u32                                  previousIndex = traceback.begin()->time;
     Search::SearchAlgorithm::ScoreVector previousScore(0.0, 0.0);

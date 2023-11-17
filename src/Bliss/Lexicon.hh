@@ -642,7 +642,7 @@ public:
                 LemmaIterator(lemmas_.end()));
     }
 
-#ifdef OBSOLETE
+#if defined(OBSOLETE) || defined(MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH)
     /**
      * Find a lemma via ID number.
      * Remember that lemma IDs must not be associated with a
@@ -657,13 +657,13 @@ public:
      */
     const Lemma* lemma(Lemma::Id id) const {
         const Lemma* result = 0;
-        if (id < lemmas_.size()) {
-            result = lemmas_[id];
+        if (id >=0 && (u32)id < lemmas_.size()) {
+            result = (const Lemma*)(lemmas_[id]);
             ensure(result->id() == id);
         }
         return result;
     }
-#endif  // OBSOLETE
+#endif
 
     /**
      * Find a lemma via ID string. This name can either be given

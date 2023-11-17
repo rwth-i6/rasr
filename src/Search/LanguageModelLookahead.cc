@@ -86,8 +86,8 @@ struct LanguageModelLookahead::CacheStatistics {
 
 const Core::ParameterInt LanguageModelLookahead::paramHistoryLimit(
         "history-limit",
-        "length of history considered for look-ahead (effective m-grammity of the look-ahead model - 1)",
-        1, 0);
+        "length of history considered for look-ahead (effective m-grammity of the look-ahead model - 1). no limit for for negative values",
+        1);
 const Core::ParameterInt LanguageModelLookahead::paramTreeCutoff(
         "tree-cutoff",
         "maximum depth of state tree covered by look-ahead (number of HMM state covered)",
@@ -122,15 +122,21 @@ LanguageModelLookahead::LanguageModelLookahead(const Core::Configuration&       
           nTables_(0),
           nFreeTables_(0),
           statisticsChannel_(config, "statistics") {
-    historyLimit_          = paramHistoryLimit(config);
+
+    historyLimit_ = paramHistoryLimit(config);
+    if (historyLimit_ >= 0)
+        log("look-ahead history limit is %d (usually means %d-gram look-ahead)",
+            historyLimit_, historyLimit_ + 1);
+    else
+        log("look-ahead history limit is %d (using full history)", historyLimit_);
+
     cutoffDepth_           = paramTreeCutoff(config);
     minimumRepresentation_ = paramMinimumRepresentation(config);
     cacheSizeHighMark_     = paramCacheSizeHigh(config);
     cacheSizeLowMark_      = paramCacheSizeLow(config);
 
-    log("look-ahead history limit is %d (usually means %d-gram look-ahead)",
-        historyLimit_, historyLimit_ + 1);
-    buildLookaheadStructure(st);
+    if (st != nullptr)
+        buildLookaheadStructure(st);
 
     cacheStatistics_ = new CacheStatistics;
 }
@@ -666,7 +672,7 @@ LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::getCachedTable
 }
 
 LanguageModelLookahead::ContextLookaheadReference LanguageModelLookahead::getLookahead(const Lm::History& fh) const {
-    Lm::History h(lm_->reducedHistory(fh, historyLimit_));
+    Lm::History h = historyLimit_ >= 0 ? lm_->reducedHistory(fh, historyLimit_) : fh;
 
     ContextLookahead* t = getCachedTable(h);
     if (!t) {
@@ -682,7 +688,7 @@ LanguageModelLookahead::ContextLookaheadReference LanguageModelLookahead::getLoo
 }
 
 LanguageModelLookahead::ContextLookaheadReference LanguageModelLookahead::tryToGetLookahead(const Lm::History& fh) const {
-    Lm::History h(lm_->reducedHistory(fh, historyLimit_));
+    Lm::History h = historyLimit_ >= 0 ? lm_->reducedHistory(fh, historyLimit_) : fh;
 
     ContextLookahead* t = getCachedTable(h);
 

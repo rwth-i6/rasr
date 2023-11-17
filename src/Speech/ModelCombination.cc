@@ -121,3 +121,7 @@ void ModelCombination::getDependencies(Core::DependencySet& dependencies) const 
     dependencies.add(name(), d);
     Mc::Component::getDependencies(dependencies);
 }
+
+void ModelCombination::createLabelScorer() {
+    labelScorer_ = Nn::Module::instance().createLabelScorer(select("label-scorer"));
+}

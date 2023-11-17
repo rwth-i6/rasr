@@ -267,6 +267,18 @@ void StandardWordLattice::newArc(
     newArc(source, target, id, acoustic, lm);
 }
 
+void StandardWordLattice::newArc(
+        Fsa::State* source,
+        Fsa::State* target,
+        const Bliss::Lemma* lemma,
+        Speech::Score acoustic, Speech::Score lm) {
+    source->newArc(target->id(), Fsa::Weight(acoustic),
+                   (lemma) ? lemma->id() : Fsa::Epsilon);
+
+    lm_->state(source->id())->newArc(target->id(), Fsa::Weight(lm),
+                                     (lemma) ? lemma->id() : Fsa::Epsilon);
+}
+
 void StandardWordLattice::addAcyclicProperty() {
     if (Fsa::isAcyclic(acoustic_)) {
         acoustic_->setProperties(Fsa::PropertyAcyclic, Fsa::PropertyAcyclic);

@@ -10,6 +10,9 @@ SUBDIRS		=
 TARGETS		= libSprintGenericSeq2SeqTreeSearch.$(a)
 
 LIBSPRINTSEQ2SEQTREESEARCH_O = $(OBJDIR)/Seq2SeqTreeSearch.o \
+                               $(OBJDIR)/LabelTree.o \
+                               $(OBJDIR)/Seq2SeqSearchSpace.o \
+                               $(OBJDIR)/LanguageModelLookahead.o \
                                $(OBJDIR)/Seq2SeqAligner.o
 
 ifeq ($(OS),darwin)

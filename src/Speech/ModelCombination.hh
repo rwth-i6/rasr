@@ -88,7 +88,8 @@ public:
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) { labelScorer_ = ls; }
+    void createLabelScorer();
+    void setLabelScorer(Core::Ref<Nn::LabelScorer>& ls) { labelScorer_ = ls; }
     Core::Ref<Nn::LabelScorer> labelScorer() const { return labelScorer_; }
 };
 

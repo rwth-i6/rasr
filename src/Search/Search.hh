@@ -39,8 +39,9 @@ public:
 
     struct ScoreVector {
         Score acoustic, lm;
+        Score local; // scoring within local expansion: mainly used for pruning
         ScoreVector(Score a, Score l)
-                : acoustic(a), lm(l) {}
+                : acoustic(a), lm(l), local(0) {}
         operator Score() const {
             return acoustic + lm;
         };
@@ -67,15 +68,24 @@ public:
 
     public:
         const Bliss::LemmaPronunciation* pronunciation;
-        TimeframeIndex                   time;     // Ending time
+        const Bliss::Lemma*              lemma;    // possible no pronunciation
+        TimeframeIndex                   time;     // Ending time or position in input
+        Index                            step;     // decoding step
         ScoreVector                      score;    // Absolute score
         Transit                          transit;  // Final transition description
+
         TracebackItem(const Bliss::LemmaPronunciation* p, TimeframeIndex t, ScoreVector s, Transit te)
-                : pronunciation(p), time(t), score(s), transit(te) {}
+                : pronunciation(p), lemma(nullptr), time(t), step(0), score(s), transit(te) {}
+
+        TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l,
+                      Index decStep, ScoreVector s, TimeframeIndex pos)
+                : pronunciation(p), lemma(l), time(pos), step(decStep), score(s) {}
     };
     class Traceback : public std::vector<TracebackItem> {
     public:
-        void                    write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
+        void write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
+        void writeSeq2Seq(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
+
         Fsa::ConstAutomatonRef  lemmaAcceptor(Core::Ref<const Bliss::Lexicon>) const;
         Fsa::ConstAutomatonRef  lemmaPronunciationAcceptor(Core::Ref<const Bliss::Lexicon>) const;
         Lattice::WordLatticeRef wordLattice(Core::Ref<const Bliss::Lexicon>) const;
@@ -94,6 +104,7 @@ public:
     virtual void restart() = 0;
     virtual void setSegment(Bliss::SpeechSegment const* segment) {}
     virtual void feed(const Mm::FeatureScorer::Scorer&) = 0;
+    virtual void decode() {}
     /// Should return the longest fixed prefix of the final best sentence
     /// which has been been recognized since the last call to getPartialSentence.
     /// Optional: Only required for online recognition
@@ -110,6 +121,9 @@ public:
     virtual void                            logStatistics() const = 0;
 
     ////// Optional methods:
+
+    /// flag for recogniztion with lemmaPronunciation or not
+    virtual bool hasPronunciation() const { return true; }
 
     /// Allow HMM skips during decoding ? By default, HMM skips are allowed.
     virtual void setAllowHmmSkips(bool allow = true) {}

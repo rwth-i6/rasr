@@ -88,12 +88,69 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
+namespace {
+enum LabelScorerType {
+  // precomputed in front-end flow
+  PrecomputedLogPosteriorType,
+  // so far only tensorflow-based models
+  TFAttentionType,
+  TFRnnTransducerType,
+  TFFfnnTransducerType,
+  TFSegmentalType
+};
+
+const Core::Choice labelScorerTypeChoice(
+  "precomputed-log-posterior", PrecomputedLogPosteriorType,
+  "tf-attention",              TFAttentionType,
+  "tf-rnn-transducer",         TFRnnTransducerType,
+  "tf-ffnn-transducer",        TFFfnnTransducerType,
+  "tf-segmental",              TFSegmentalType,
+  Core::Choice::endMark());
+
+const Core::ParameterChoice paramLabelScorerType(
+  "label-scorer-type", &labelScorerTypeChoice,
+  "select label scorer type",
+  PrecomputedLogPosteriorType);
+}
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
 #ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
   LabelScorer* labelScorer = nullptr;
+  LabelScorerType type = static_cast<LabelScorerType>(paramLabelScorerType(config));
+  switch (type) {
+    case PrecomputedLogPosteriorType:
+      labelScorer = new PrecomputedScorer(config);
+      break;
+#ifdef MODULE_TENSORFLOW
+    case TFAttentionType:
+      labelScorer = new TFAttentionModel(config);
+      break;
+    case TFRnnTransducerType:
+      labelScorer = new TFRnnTransducer(config);
+      break;
+    case TFFfnnTransducerType:
+      labelScorer = new TFFfnnTransducer(config);
+      break;
+    // TODO
+    case TFSegmentalType:
+      Core::Application::us()->criticalError("tf-segmental not implemented yet !");
+      break;
+#else
+    case TFAttentionType:
+    case TFRnnTransducerType:
+    case TFFfnnTransducerType:
+    case TFSegmentalType:
+      Core::Application::us()->criticalError("Module MODULE_TENSORFLOW not available!");
+      break;
+#endif
+    default:
+      Core::Application::us()->criticalError("Unknown label-scorer-type ");
+      break;
+  }
+  verify(labelScorer);
   return Core::ref(labelScorer);
 #else
   Core::Application::us()->criticalError("Module MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH not available!");
 #endif
 }
+

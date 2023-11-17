@@ -378,17 +378,119 @@ void AlignmentNode::logTraceback(Lattice::ConstWordLatticeRef wordLattice) const
 #ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
 /** Seq2SeqAlignmentNode
 */
+const Core::ParameterBool Seq2SeqAlignmentNode::paramOutputLabelId(
+        "output-label-id",
+        "use label Id for alignment output instead of default AllophoneStateIndex",
+        false);
 
 Seq2SeqAlignmentNode::Seq2SeqAlignmentNode(const Core::Configuration& c) :
         Core::Component(c),
-        Precursor(c) {
+        Precursor(c),
+        aligner_(select("aligner")),
+        outputLabelId_(paramOutputLabelId(c)) {
+    log() << "alignment using seq2seq aligner";
 }
 
+bool Seq2SeqAlignmentNode::configure() {
+    if (!Precursor::configure(Feature::FlowFeature::type()))
+        return false;
+    if (needInit_)
+        initialize();
+    createModel();
+    return true;
+}
+
+void Seq2SeqAlignmentNode::initialize() {
+    // might need the State and Transition model from AM, but not the mixture set
+    ModelCombination modelCombination(select("model-combination"),
+                                      ModelCombination::useAcousticModel,
+                                      Am::AcousticModel::noEmissions);
+    modelCombination.load();
+    modelCombination.createLabelScorer();
+    labelScorer_ = modelCombination.labelScorer();
+    acousticModel_ = modelCombination.acousticModel();
+    aligner_.initialize(modelCombination);
+
+    verify(!allophoneStateGraphBuilder_);
+    allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
+            select("allophone-state-graph-builder"),
+            modelCombination.lexicon(),
+            modelCombination.acousticModel());
+
+    Core::DependencySet dependencies;
+    modelCombination.getDependencies(dependencies);
+
+    verify(!modelCache_);
+    modelCache_ = new FsaCache(select("model-acceptor-cache"), Fsa::storeStates);
+    modelCache_->setDependencies(dependencies);
+    modelCache_->respondToDelayedErrors();
+
+    if (outputLabelId_)
+        setLabelAlphabet();
+
+    needInit_ = false;
+}
+
+void Seq2SeqAlignmentNode::setLabelAlphabet() {
+    if (labelAlphabet_)
+        return;
+    // label (string) to index mapping
+    const Nn::LabelIndexMap& labelIndexMap = labelScorer_->getLabelIndexMap();
+    verify(!labelIndexMap.empty());
+
+    Fsa::StaticAlphabet *alphabet = new Fsa::StaticAlphabet();
+    for (const auto& kv : labelIndexMap)
+        if (!alphabet->addIndexedSymbol(kv.first, kv.second))
+            error() << "can not create label alphabet";
+    labelAlphabet_ = Fsa::ConstAlphabetRef(alphabet);
+}
 
 void Seq2SeqAlignmentNode::createModel() {
+    verify(modelCache_ && allophoneStateGraphBuilder_);
+    Fsa::ConstAutomatonRef model = modelCache_->find(segmentId_);
+    if (!model) {
+        // once only for each segment: allophoneStateIndex as arcInput and tdp as arcWeight
+        model = allophoneStateGraphBuilder_->createFunctor(segmentId_, orthography_,
+                                                           leftContextOrthography_,
+                                                           rightContextOrthography_).build();
+        modelCache_->insert(segmentId_, model);
+    }
+    acousticModel_->setKey(segmentId_);
+    labelScorer_->reset();
+    aligner_.restart(model);
 }
 
 bool Seq2SeqAlignmentNode::work(Flow::PortId p) {
+    Flow::DataAdaptor<Alignment> *alignment = new Flow::DataAdaptor<Alignment>();
+    alignment->invalidateTimestamp();
+    // always write alphabet together with the alignment
+    if (outputLabelId_)
+        alignment->data().setAlphabet(labelAlphabet_);
+    else
+        alignment->data().setAlphabet(acousticModel_->allophoneStateAlphabet());
+
+    Flow::DataPtr<Feature::FlowFeature> in;
+    while (getData(0, in)) {
+        Core::Ref<const Feature> feature(new Feature(in));
+        // overall boundary time
+        alignment->expandTimestamp(feature->timestamp());
+        labelScorer_->addInput(feature);
+        if (labelScorer_->bufferFilled()) {
+            // possible buffer-wise processing, although mostly whole sequence
+            labelScorer_->encode();
+            aligner_.align(); // buffer will be cleared after align
+        }
+    }
+    labelScorer_->setEOS();
+    labelScorer_->encode();
+    aligner_.align();
+    if (!aligner_.reachedFinalState())
+        warning("Alignment did not reach any final state in segment '%s'", segmentId_.c_str());
+
+    // TODO alignmentFSA for lattice creation
+
+    aligner_.setAlignment(alignment->data(), outputLabelId_);
+    return putData(0, alignment) && putData(0, in.get());
 }
 #endif
 

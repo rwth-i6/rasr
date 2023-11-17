@@ -64,7 +64,7 @@ public:
     void operator+=(Score s) {
         bins_[bin(s)] += 1;
     }
-    Score quantile(Count nn) const {
+    Score quantile(Count nn, bool safe=false) const {
         Bin b = 0;
         for (s32 n = nn; b < bins_.size(); ++b) {  // n must be signed!
             n -= bins_[b];
@@ -72,6 +72,8 @@ public:
                 break;
         }
         verify(b <= bins_.size());
+        if (b == 0 && safe)
+            b = 1; // at least one bin, otherwise only single best left
         Score result = Score(b) / scale_ + lower_;
         ensure(lower_ <= result);
         ensure(result < upper_ + 2.0 / scale_);

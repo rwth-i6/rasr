@@ -42,6 +42,7 @@ class LabelScorer : public virtual Core::Component,
     static const Core::ParameterBool paramLoopUpdateHistory;
     static const Core::ParameterBool paramBlankUpdateHistory;
     static const Core::ParameterBool paramPositionDependent;
+    static const Core::ParameterInt paramReductionSubtrahend;
     static const Core::ParameterIntVector paramReductionFactors;
     static const Core::ParameterBool paramUseStartLabel;
     static const Core::ParameterFloat paramSegmentLengthScale;
@@ -132,6 +133,7 @@ class LabelScorer : public virtual Core::Component,
     std::vector<std::vector<f32> > inputBuffer_; // hard coded Mm::FeatureType = f32
     u32 nInput_; // total number of inputs
     std::vector<int> redFactors_; // input (time) reduction factors
+    int redSubtrahend_; // input (time) reduction offsets
     bool eos_; // end of input stream
 
     f32 scale_;

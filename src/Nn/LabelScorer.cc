@@ -65,6 +65,11 @@ const Core::ParameterBool LabelScorer::paramPositionDependent(
   "whether model is position dependent",
   false);
 
+const Core::ParameterInt LabelScorer::paramReductionSubtrahend(
+  "reduction-subtrahend",
+  "input (time) reduction offset that is subtracted from the time axis to compute the maximum length",
+  0, 0);
+
 const Core::ParameterIntVector LabelScorer::paramReductionFactors(
   "reduction-factors",
   "input (time) reduction factors of each downsampling layer to compute the maximum length",
@@ -96,6 +101,7 @@ LabelScorer::LabelScorer(const Core::Configuration& config) :
     Core::Component(config),
     dependency_(paramLabelFile(config)),
     redFactors_(paramReductionFactors(config)),
+    redSubtrahend_(paramReductionSubtrahend(config)),
     scale_(paramScale(config)),
     numClasses_(paramNumOfClasses(config)),
     usePrior_(paramUsePrior(config)),
@@ -209,6 +215,7 @@ LabelIndex LabelScorer::getNoContextLabelIndex() const {
 }
 
 u32 LabelScorer::getReducedLength(u32 len) const {
+  len -= redSubtrahend_;
   for (u32 idx = 0; idx < redFactors_.size(); ++idx)
     len = (len + redFactors_[idx] - 1) / redFactors_[idx];
   return len;
@@ -220,7 +227,7 @@ bool LabelScorer::reachEnd() const {
   } else {
     u32 len = inputBuffer_.size();
     // adjust to downsampled input length (including 0-padding)
-    if (!redFactors_.empty())
+    if (!redFactors_.empty() or redSubtrahend_ != 0)
       len = getReducedLength(len);
     return decodeStep_ >= len;
   }
@@ -232,7 +239,7 @@ u32 LabelScorer::getEncoderLength() const {
     return Core::Type<u32>::max;
   u32 len = nInput_;
   // adjust to downsampled input length (including 0-padding)
-  if (!redFactors_.empty())
+  if (!redFactors_.empty() or redSubtrahend_ != 0)
     len = getReducedLength(len);
   return len + 1; // plus 1 for ending
 }
@@ -274,6 +281,7 @@ PrecomputedScorer::PrecomputedScorer(const Core::Configuration& config) :
     firstOrder_(paramFirstOrder(config)) {
   log() << "use precomputed scorer (log-posterior)";
   redFactors_.clear(); // input is already reduced
+  redSubtrahend_ = 0; // input is already reduced
   isPositionDependent_ = false;
 
   if (firstOrder_) {

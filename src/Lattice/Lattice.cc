@@ -263,15 +263,6 @@ void StandardWordLattice::newArc(
         Fsa::State* target,
         const Bliss::Lemma* lemma,
         Speech::Score acoustic, Speech::Score lm) {
-    Fsa::LabelId id = lemma ? lemma->id() : Fsa::Epsilon;
-    newArc(source, target, id, acoustic, lm);
-}
-
-void StandardWordLattice::newArc(
-        Fsa::State* source,
-        Fsa::State* target,
-        const Bliss::Lemma* lemma,
-        Speech::Score acoustic, Speech::Score lm) {
     source->newArc(target->id(), Fsa::Weight(acoustic),
                    (lemma) ? lemma->id() : Fsa::Epsilon);
 

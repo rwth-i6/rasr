@@ -254,8 +254,14 @@ Core::Ref<const LatticeAdaptor> Seq2SeqTreeSearchManager::buildLatticeForTrace(T
   // graphemic systems w/o pronunciation
   // switch input alphabet to lemmaAlphabet (arc also use lemma id)
   bool useLemmaAlphabet = !(ss_->hasPronunciation());
+  Lattice::StandardWordLattice::AlphabetType alphabet_type;
+  if (ss_->hasPronunciation()) {
+    alphabet_type = Lattice::StandardWordLattice::AlphabetType::LemmaAlphabet;
+  } else {
+    alphabet_type = Lattice::StandardWordLattice::AlphabetType::LemmaPronunciationAlphabet;
+  }
 
-  Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon_, useLemmaAlphabet));
+  Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon_, alphabet_type));
   Core::Ref<Lattice::WordBoundaries> wordBoundaries(new Lattice::WordBoundaries);
   TraceRef initialTrace;
 

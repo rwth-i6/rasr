@@ -31,6 +31,7 @@
 #endif
 #ifdef MODULE_LM_TFRNN
 #include "TFRecurrentLanguageModel.hh"
+#include "SimpleTransformerLm.hh"
 #endif
 #include "CombineLm.hh"
 
@@ -55,7 +56,8 @@ enum LanguageModelType {
     lmTypeCombine,
     lmTypeTFRNN,
     lmTypeCheatingSegment,
-    lmTypeSimpleHistory
+    lmTypeSimpleHistory,
+    lmTypeSimpleTransformer
 };
 }
 
@@ -68,6 +70,7 @@ const Core::Choice Module_::lmTypeChoice(
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
         "cheating-segment", lmTypeCheatingSegment,
+        "simple-transformer", lmTypeSimpleTransformer,
         "simple-history", lmTypeSimpleHistory,
         Core::Choice::endMark());
 
@@ -97,6 +100,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
         case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
+        case lmTypeSimpleTransformer: result = Core::ref(new SimpleTransformerLm(c, l));          break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:

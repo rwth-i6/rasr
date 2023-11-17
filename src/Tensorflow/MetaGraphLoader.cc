@@ -109,9 +109,9 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
                 }
             }
         }
-        else if (keyval.first == "update_ops") {
+        else if (keyval.first == "decoder_update_ops") {
             if (not keyval.second.has_node_list()) {
-                error("update_ops collection is not a node-list");
+                error("decoder_update_ops collection is not a node-list");
                 break;
             }
             auto const& list = keyval.second.node_list();
@@ -149,9 +149,9 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
                 result->addDecodeOp(list.value(i));
             }
         }
-        else if (keyval.first == "post_update_ops") {
+        else if (keyval.first == "decoder_post_update_ops") {
             if (not keyval.second.has_node_list()) {
-                error("post_update_ops collection is not a node-list");
+                error("decoder_post_update_ops collection is not a node-list");
                 break;
             }
             auto const& list = keyval.second.node_list();

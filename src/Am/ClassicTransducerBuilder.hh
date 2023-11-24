@@ -34,6 +34,9 @@ protected:  // configurable options
     bool filterOutInvalidAllophones_;
     bool fixAllophoneContextAtWordBoundaries_;
 
+    // for context-independent allophones
+    bool linkWordEndStart_;
+
 public:  // configurable options
     virtual void setDisambiguators(u32);
 

@@ -1,4 +1,5 @@
 add_executable(flf-tool FlfTool.cc)
+add_install_executable(flf-tool)
 
 target_link_libraries(flf-tool PRIVATE
         RasrFlf

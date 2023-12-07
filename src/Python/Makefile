@@ -6,6 +6,11 @@ include $(TOPDIR)/Makefile.cfg
 
 CCFLAGS		+= -fexceptions
 
+ifdef MODULE_TENSORFLOW
+CXXFLAGS += $(TF_CXXFLAGS)
+LDFLAGS  += $(TF_LDFLAGS)
+endif
+
 # -----------------------------------------------------------------------------
 
 SUBDIRS 	=

@@ -5,5 +5,3 @@ function(add_python_dependencies TARGET)
     target_include_directories(${TARGET} PUBLIC ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
     target_link_libraries(${TARGET} PUBLIC ${Python3_LIBRARIES})
 endfunction()
-
-include(cmake_resources/Tensorflow.cmake)

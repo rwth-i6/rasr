@@ -82,3 +82,11 @@ endif()
 if(${MODULE_PYTHON})
   include(cmake_resources/Python.cmake)
 endif()
+
+if (${MODULE_TENSORFLOW})
+    include(cmake_resources/Tensorflow.cmake)
+endif ()
+
+if (${MODULE_ONNX})
+    include(cmake_resources/Onnx.cmake)
+endif ()

@@ -46,6 +46,7 @@ if (${MODULE_NN})
 endif ()
 
 if (${MODULE_ONNX})
+    add_onnx_dependencies(flf-tool)
     target_link_libraries(flf-tool PRIVATE RasrOnnx)
 endif ()
 

@@ -49,7 +49,9 @@ endif()
 
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
- target_link_libraries(RasrLm INTERFACE
+target_compile_options(RasrLm PRIVATE "-fexceptions")
+
+target_link_libraries(RasrLm INTERFACE
          RasrFlf
          RasrFlfCore
          RasrSpeech
@@ -66,7 +68,7 @@ add_library(RasrLm STATIC ${Lm_SOURCES})
          RasrLattice
          RasrFsa
          RasrCore
- )
+)
 if(${MODULE_CART})
     target_link_libraries(RasrLm INTERFACE RasrCart)
 endif()

@@ -24,4 +24,6 @@ endif()
 
 add_library(RasrMath STATIC ${RasrMath_SOURCES})
 
+target_compile_options(RasrMath PRIVATE "-fexceptions")
+
 target_link_libraries(RasrMath INTERFACE RasrMathNr RasrMathLapack RasrCore)

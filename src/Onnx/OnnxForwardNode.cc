@@ -102,9 +102,12 @@ bool OnnxForwardNode::work(Flow::PortId p) {
         }
 
         // Create session inputs
+        log("Create inputs");
         std::vector<std::pair<std::string, Value>> inputs;
         inputs.emplace_back(features_onnx_name_, toValue(data));
+        log("Data (") << features_onnx_name_ << "): ";
         if (mapping_.hasOnnxName("features-size")) {
+            log("Size (") << features_size_onnx_name_ << "): ";
             inputs.emplace_back(features_size_onnx_name_,
                                 Value::create(std::vector<s32>{static_cast<s32>(data.size())}));
         }

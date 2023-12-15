@@ -47,11 +47,15 @@ if (${MODULE_NN})
     list(APPEND SpeechRecognizer_LIBRARIES RasrNn)
 endif ()
 
-if (${MODULE_NN})
+if (${MODULE_TENSORFLOW})
     list(APPEND SpeechRecognizer_LIBRARIES RasrTensorflow)
 endif ()
 
 target_link_libraries(speech-recognizer PRIVATE ${SpeechRecognizer_LIBRARIES})
+
+if (${MODULE_ONNX})
+    add_onnx_dependencies(speech-recognizer)
+endif ()
 
 if (${MODULE_SEARCH_WFST})
     add_executable(fsa-search-builder FsaSearchBuilder.cc)

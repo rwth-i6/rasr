@@ -45,6 +45,7 @@ if (${MODULE_MATH_NR})
 endif ()
 
 if (${MODULE_ONNX})
+    add_onnx_dependencies(acoustic-model-trainer)
     target_link_libraries(acoustic-model-trainer PRIVATE RasrOnnx)
 endif ()
 

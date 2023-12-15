@@ -73,6 +73,8 @@ target_link_libraries(RasrNn INTERFACE
         RasrSignal
 )
 
+target_compile_options(RasrNn PRIVATE "-fexceptions")
+
 if (${MODULE_PYTHON})
     add_python_dependencies(RasrNn)
 endif ()

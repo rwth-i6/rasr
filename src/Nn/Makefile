@@ -86,6 +86,9 @@ ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
     LDFLAGS  += $(TF_LDFLAGS)
     CHECK_O  += ../Tensorflow/libSprintTensorflow.$(a)
   endif
+  ifdef MODULE_ONNX
+    LIBSPRINTNN_O += $(OBJDIR)/OnnxLabelScorer.o
+  endif
 endif
 
 # -----------------------------------------------------------------------------

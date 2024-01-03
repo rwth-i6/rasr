@@ -301,6 +301,7 @@ PrecomputedScorer::PrecomputedScorer(const Core::Configuration& config) :
 void PrecomputedScorer::addInput(Core::Ref<const Speech::Feature> f) {
   Precursor::addInput(f);
   if (inputBuffer_.size() == 1) {
+    log() << "Number of input features / scores: " << inputBuffer_.front().size();  
     if (firstOrder_)
       verify(inputBuffer_.front().size() >= numClasses_ * numClasses_);
     else 

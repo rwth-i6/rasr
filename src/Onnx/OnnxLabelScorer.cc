@@ -787,7 +787,7 @@ TFFfnnTransducer::TFFfnnTransducer(Core::Configuration const& config) :
 
   for (u32 vIdx = 0; vIdx < nInput; ++vIdx)
     verify(decoding_input_ndims_[vIdx] == 1); // all scalars
-  // verify(var_feed_ops_.size() == nInput); // there should be no hidden states
+  verify(var_feed_ops_.size() == nInput); // there should be no hidden states
   verify(decoding_ops_.size() == 1);
   verify(decoding_output_tensor_names_.size() == 1);
   verify(decoding_output_ndims_[0] == 2);

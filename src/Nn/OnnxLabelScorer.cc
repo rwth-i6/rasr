@@ -18,9 +18,96 @@
 
 using namespace Nn;
 
+const Core::ParameterBool OnnxModelBase::paramTransformOuputLog(
+        "transform-output-log",
+        "apply log to tensorflow output",
+        false);
+
+const Core::ParameterBool OnnxModelBase::paramTransformOuputNegate(
+        "transform-output-negate",
+        "negate tensorflow output (after log)",
+        false);
+
+const Core::ParameterInt OnnxModelBase::paramMaxBatchSize(
+        "max-batch-size",
+        "maximum number of histories forwarded in one go",
+        64, 1);
+
 OnnxModelBase::OnnxModelBase(const Core::Configuration& config) :
-	Core::Component(config),
-	Precursor(config) {}
+        Core::Component(config),
+        Precursor(config),
+        session_(select("session")),
+        mapping_(select("io-map"), ioSpec_),
+        validator_(select("validator")),
+        features_onnx_name_(mapping_.getOnnxName("features")),
+        features_size_onnx_name_(mapping_.getOnnxName("features-size")),
+        output_onnx_names_({mapping_.getOnnxName("output")}),
+        maxBatchSize_(paramMaxBatchSize(config)) {
+
+  bool valid = validator_.validate(ioSpec_, mapping_, session_);
+  if (not valid) {
+    warning("Failed to validate input model.");
+  }
+
+  bool transform_output_log = paramTransformOuputLog(config);
+  bool transform_output_negate = paramTransformOuputNegate(config);
+  if (transform_output_log && transform_output_negate) {
+    decoding_output_transform_function_ = [](Score v, Score scale){ return -scale * std::log(v); };
+    log() << "apply -log(.) to model output";
+  } else if (transform_output_log) {
+    decoding_output_transform_function_ = [](Score v, Score scale){ return scale * std::log(v); };
+    log() << "apply log(.) to model output";
+  } else if (transform_output_negate) {
+    decoding_output_transform_function_ = [](Score v, Score scale){ return -scale * v; };
+    log() << "apply -(.) to model output";
+  } else if (scale_ != 1.0) {
+    decoding_output_transform_function_ = [](Score v, Score scale){ return scale * v; };
+  }
+
+  init();
+  reset();
+
+  // debug
+  Core::ParameterBool paramDebug("debug", "", false);
+  debug_ = paramDebug(config);
+}
+
+
+OnnxModelBase::~OnnxModelBase() {
+    reset();
+    //delete startHistoryDescriptor_;
+}
+
+const std::vector<Onnx::IOSpecification> OnnxModelBase::ioSpec_ = {
+        Onnx::IOSpecification{
+                "features",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {1, -1, -2}}},
+        Onnx::IOSpecification{
+                "features-size",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{-1}}},
+        Onnx::IOSpecification{
+                "output",
+                Onnx::IODirection::OUTPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -1, -2}, {1, -1, -2}}}};
+
+void OnnxModelBase::reset() {
+    Precursor::reset();
+    //batch_.clear();
+    cacheHashQueue_.clear();
+}
+
+void OnnxModelBase::init() {}
 
 OnnxFfnnTransducer::OnnxFfnnTransducer(const Core::Configuration& config) :
 	Core::Component(config),
@@ -32,8 +119,9 @@ LabelHistory OnnxFfnnTransducer::startHistory() {
 }
 
 const std::vector<Score>& OnnxFfnnTransducer::getScores(const LabelHistory& h, bool isLoop) {
-	
+
 	return inputBuffer_.at(decodeStep_);
+
 }
 
 /*void OnnxFfnnTransducer::cleanUpBeforeExtension(u32 minPos) {

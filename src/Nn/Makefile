@@ -88,6 +88,9 @@ ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
   endif
   ifdef MODULE_ONNX
     LIBSPRINTNN_O += $(OBJDIR)/OnnxLabelScorer.o
+
+	CXXFLAGS += -fexceptions -g
+	CHECK_O += ../Onnx/libSprintOnnx.$(a)
   endif
 endif
 

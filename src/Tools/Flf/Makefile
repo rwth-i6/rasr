@@ -54,6 +54,10 @@ FLF_TOOL_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
+ifdef MODULE_ONNX
+FLF_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
+CXXFLAGS += -fexceptions -g
+endif
 
 # -----------------------------------------------------------------------------
 

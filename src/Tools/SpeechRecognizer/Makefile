@@ -58,10 +58,6 @@ COMMON_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
-ifdef MODULE_ONNX
-COMMON_O += ../../Onnx/libSprintOnnx.$(a)
-CXXFLAGS += -fexceptions -g
-endif
 
 # -----------------------------------------------------------------------------
 

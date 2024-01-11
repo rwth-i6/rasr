@@ -95,40 +95,9 @@ void TFModelBase::init() {
 
   // --- step ops --- 
   encoding_ops_ = graph_->encoding_ops();
-
-  std::stringstream ss;
-  ss << "Encoding Operations: ";
-  for (const auto& op : encoding_ops_) {
-    ss << op << " ";
-  }
-  log() << ss.str();
-
   decoding_ops_ = graph_->decoding_ops();
-
-  ss.str("");
-  ss << "Decoding Operations: ";
-  for (const auto& op : decoding_ops_) {
-    ss << op << " ";
-  }
-  log() << ss.str();
-
   var_update_ops_ = graph_->update_ops();
-
-  ss.str("");
-  ss << "Variable Update Operations: ";
-  for (const auto& op : var_update_ops_) {
-    ss << op << " ";
-  }
-  log() << ss.str();
-
   var_post_update_ops_ = graph_->post_update_ops();
-
-  ss.str("");
-  ss << "Variable Post-Update Operations: ";
-  for (const auto& op : var_post_update_ops_) {
-    ss << op << " ";
-  }
-  log() << ss.str();
 
   // each stochastic_var_scores has a corresponding decoding_op
   verify(decoding_output_tensor_names_.size() == decoding_ops_.size());

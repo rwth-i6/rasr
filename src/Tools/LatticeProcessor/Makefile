@@ -47,7 +47,6 @@ LDFLAGS  += $(TF_LDFLAGS)
 endif
 ifdef MODULE_ONNX
 LATTICE_PROCESSOR_O += ../../Onnx/libSprintOnnx.$(a)
-CXXFLAGS += -fexceptions -g
 endif
 # -----------------------------------------------------------------------------
 

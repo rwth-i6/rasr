@@ -52,7 +52,6 @@ LDFLAGS  += $(TF_LDFLAGS)
 endif
 ifdef MODULE_ONNX
 ARCHIVER_O += ../../Onnx/libSprintOnnx.$(a)
-CXXFLAGS += -fexceptions -g
 endif
 
 # -----------------------------------------------------------------------------

@@ -50,6 +50,7 @@ LIBSPRINTLM_O += $(OBJDIR)/QuantizedCompressedVectorFactory.o
 LIBSPRINTLM_O += $(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o
 LIBSPRINTLM_O += $(OBJDIR)/TransformerStateManager.o
 LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
+LIBSPRINTLM_O += $(OBJDIR)/TFSimpleTransformerLm.o
 #MODF DummyCompressedVectorFactory.hh
 #MODF SoftmaxAdapter.hh
 #MODF StateManager.hh

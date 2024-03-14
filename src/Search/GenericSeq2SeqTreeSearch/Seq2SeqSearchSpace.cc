@@ -594,6 +594,7 @@ void Seq2SeqSearchSpace::startNewTrees() {
     TreeInstance* instance = activateOrUpdateTree(weh);
     verify(instance);
   }
+  statistics_.customStatistics("active trees") += nActiveTrees();
   wordEndHypotheses_.clear();
 }
 

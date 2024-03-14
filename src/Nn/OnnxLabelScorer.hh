@@ -25,7 +25,7 @@
 
 namespace Nn {
 
-typedef std::vector<Onnx::Value> ValueList; // How to deal with Onnx::Value issue ?????
+typedef std::vector<Onnx::Value> ValueList;
 typedef std::vector<std::pair<std::string, Onnx::Value>> MappedValueList;
 
 struct OnnxLabelHistory : public LabelHistoryBase {
@@ -44,8 +44,6 @@ struct OnnxLabelHistory : public LabelHistoryBase {
 };
 
 // Encoder-Decoder Label Scorer based on Onnx back-end
-// computation logics based on a predefined order of I/O and op collections in graph ????
-// prerequisite: model graph compilation that parse the model into these collections ????
 class OnnxModelBase : public LabelScorer {
     typedef LabelScorer Precursor;
 
@@ -117,7 +115,9 @@ protected:
 
     const std::string              decoder_input_name_;
     const std::string              decoder_input_size_name_;
+    const std::string              decoder_hidden_input_name_;
     const std::string              decoder_feedback_name_;
+    const std::string              decoder_hidden_output_name_;
     const std::string              decoder_output_name_;
 
     // binary function including scaling
@@ -184,7 +184,7 @@ protected:
         void initComputation() {}
         void makeBatch(LabelHistoryDescriptor* targetLhd);
         void decodeBatch(ScoreCache& scoreCache);
-        void computeBatchScores(ScoreCache& scoreCache);
+        void computeBatchScores(ScoreCache& scoreCache, MappedValueList& inputs);
 //        void setDecodePosition(u32 pos);
 
         const std::vector<Score>& getScoresWithTransition(const LabelHistory& h, bool isLoop);

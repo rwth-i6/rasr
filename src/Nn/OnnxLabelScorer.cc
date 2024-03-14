@@ -47,7 +47,9 @@ OnnxModelBase::OnnxModelBase(const Core::Configuration& config)
           encoder_output_size_name_(encoderMapping_.getOnnxName("encoder-output-size")),
           decoder_input_name_(decoderMapping_.getOnnxName("encoder-output")),
           decoder_input_size_name_(decoderMapping_.getOnnxName("encoder-output-size")),
+//          decoder_hidden_input_name_(decoderMapping_.getOnnxName("hidden-input")),
           decoder_feedback_name_(decoderMapping_.getOnnxName("feedback")),
+//          decoder_hidden_output_name_(decoderMapping_.getOnnxName("hidden-output")),
           decoder_output_name_(decoderMapping_.getOnnxName("output")),
           maxBatchSize_(paramMaxBatchSize(config)) {
     scores.resize(numClasses_, 0.0f);
@@ -79,8 +81,6 @@ OnnxModelBase::OnnxModelBase(const Core::Configuration& config)
         decoding_output_transform_function_ = [](Score v, Score scale) { return scale * v; };
     }
 
-    // initDecoder() completely omitted ???????
-
     // unique start history handle
     initStartHistory();
 
@@ -109,7 +109,7 @@ const std::vector<Onnx::IOSpecification> OnnxModelBase::encoderIoSpec_ = {
                 Onnx::IODirection::INPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::INT32},
+                {Onnx::ValueDataType::INT64},
                 {{-1}}},
         Onnx::IOSpecification{
                 "encoder-output",
@@ -123,7 +123,7 @@ const std::vector<Onnx::IOSpecification> OnnxModelBase::encoderIoSpec_ = {
                     Onnx::IODirection::OUTPUT,
                     true,
                     {Onnx::ValueType::TENSOR},
-                    {Onnx::ValueDataType::INT32},
+                    {Onnx::ValueDataType::INT64},
                     {{-1}}}};
 
 const std::vector<Onnx::IOSpecification> OnnxModelBase::decoderIoSpec_ = {
@@ -139,15 +139,29 @@ const std::vector<Onnx::IOSpecification> OnnxModelBase::decoderIoSpec_ = {
                 Onnx::IODirection::INPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::INT32},
+                {Onnx::ValueDataType::INT64},
                 {{-1}}},
+//        Onnx::IOSpecification{
+//                "hidden-input",
+//                Onnx::IODirection::INPUT,
+//                false,
+//                {Onnx::ValueType::TENSOR},
+//                {Onnx::ValueDataType::FLOAT},
+//                {{-1, -1, -2}, {1, -1, -2}}}, //??????
         Onnx::IOSpecification{
                 "feedback",
                 Onnx::IODirection::INPUT,
                 false,
                 {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::FLOAT},
-                {{-1, -1, -2}, {1, -1, -2}}},
+                {Onnx::ValueDataType::INT64},
+                {{-1, -1, -2}, {1, -1, -2}}}, //??????
+//        Onnx::IOSpecification{
+//                "hidden-output",
+//                Onnx::IODirection::OUTPUT,
+//                false,
+//                {Onnx::ValueType::TENSOR},
+//                {Onnx::ValueDataType::FLOAT},
+//                {{-1, -1, -2}, {1, -1, -2}}}, //??????
         Onnx::IOSpecification{
                 "output",
                 Onnx::IODirection::OUTPUT,
@@ -255,13 +269,11 @@ void OnnxModelBase::encode() {
     inputs.emplace_back(std::make_pair(encoder_features_name_,
                                        Onnx::Value::create(batchMat, true)));
     if (encoderMapping_.hasOnnxName("features-size")) {
-        std::vector<s32> seq_length({static_cast<s32>(inputBuffer_.size())});
+        std::vector<s64> seq_length({static_cast<s32>(inputBuffer_.size())});
         inputs.emplace_back(std::make_pair(encoder_features_size_name_,
                                            Onnx::Value::create(seq_length)));
     }
 
-    // init all stat vars including the encoding states (stored in the graph now) ???????
-    // Note: tile_batch automatically done in the graph ???????
     encoderSession_.run(std::move(inputs), {encoder_output_name_, encoder_output_size_name_}, encoder_outputs);
 
     initComputation();
@@ -293,7 +305,7 @@ void OnnxModelBase::initStartHistory() {
     }
     startHistoryDescriptor_ = new LabelHistoryDescriptor();
     startHistoryDescriptor_->labelSeq.push_back(startLabelIndex_);
-    // startHistoryDescriptor_->variables->resize(var_fetch_names_.size()); ???????
+//     startHistoryDescriptor_->variables->resize(var_fetch_names_.size()); //???????
     //  + other possible unified operations (if always the same)
 }
 
@@ -679,7 +691,7 @@ const std::vector<Score>& OnnxFfnnTransducer::getScores(const LabelHistory& h, b
     // batch computation
     makeBatch(lhd);
     verify(batchHash_.size() > 0);
-    //decodeBatch(scoreCache_);
+    decodeBatch(scoreCache_);
 
     // results
     verify(!scores.empty());
@@ -706,82 +718,80 @@ void OnnxFfnnTransducer::makeBatch(LabelHistoryDescriptor* targetLhd) {
     batchHashQueue_.erase(batchHashQueue_.begin(), iter);
 }
 
-//void OnnxFfnnTransducer::decodeBatch(ScoreCache& scoreCache) {
-//    // feed in label context: left to right (right-most latest)
-//    MappedTensorList inputs;
-//    std::vector<std::vector<s32>> vecs(contextSize_, std::vector<s32>(batchHash_.size()));
-//    u32 offset = 0;
-//    if (hmmTopology_ && !loopUpdateHistory_) {
-//        for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
-//            const LabelSequence& seq = labelSeqCache_[batchHash_[bIdx]];
-//            for (u32 vIdx = 0; vIdx < contextSize_; ++vIdx)
-//                vecs[vIdx][bIdx] = seq[vIdx];
-//        }
-//    } else {
-//        const HistoryCache& cache = labelHistoryManager_->historyCache();
-//        std::vector<s32> pos(batchHash_.size()); // optional first-order relative position
-//        for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
-//            LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(cache.at(batchHash_[bIdx]));
-//            for (u32 vIdx = 0; vIdx < contextSize_; ++vIdx)
-//                vecs[vIdx][bIdx] = lhd->labelSeq[vIdx];
-//            pos[bIdx] = lhd->position;
-//        }
+void OnnxFfnnTransducer::decodeBatch(ScoreCache& scoreCache) {
+    // feed in label context: left to right (right-most latest)
+    MappedValueList inputs;
+    std::vector<Math::FastMatrix<s64>> mat;
+    mat.emplace_back(contextSize_, batchHash_.size());
+    if (hmmTopology_ && !loopUpdateHistory_) {
+        for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
+            const LabelSequence& seq = labelSeqCache_[batchHash_[bIdx]];
+            std::copy(seq.begin(), seq.end(), &(mat.front().at(0, bIdx)));
+        }
+    } else {
+        const HistoryCache &cache = labelHistoryManager_->historyCache();
+        std::vector <s32> pos(batchHash_.size()); // optional first-order relative position
+        for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
+            LabelHistoryDescriptor *lhd = static_cast<LabelHistoryDescriptor *>(cache.at(batchHash_[bIdx]));
+            std::copy(lhd->labelSeq.begin(), lhd->labelSeq.end(), &(mat.front().at(0, bIdx)));
+            pos[bIdx] = lhd->position;
+        }
 //        if (useRelativePosition_) {
-//            inputs.emplace_back(std::make_pair(var_feed_names_[0], Tensorflow::Tensor::create(pos)));
+//            inputs.emplace_back(std::make_pair(var_feed_names_[0], Onnx::Value::create(pos)));
 //            offset = 1; // first input is always relative position
 //        }
-//        pos.clear();
-//    }
-//    for (u32 vIdx = 0; vIdx < contextSize_; ++vIdx)
-//        inputs.emplace_back(std::make_pair(var_feed_names_[vIdx+offset], Tensorflow::Tensor::create(vecs[vIdx])));
-//    vecs.clear();
-//
-//    session_.run(inputs, var_feed_ops_);
-//    updateBatchVariables();
-//    computeBatchScores(scoreCache);
-//    batchHash_.clear();
-//}
-//
-//void OnnxFfnnTransducer::computeBatchScores(ScoreCache& scoreCache) {
-//    // compute batch scores (optional prior)
-//    session_.run({}, decoding_ops_);
-//    TensorList outputs;
-//    session_.run({}, decoding_output_tensor_names_, {}, outputs);
-//    verify(outputs.size() == 1);
-//
-//    for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
-//        // cache score to reuse
-//        std::vector<Score>& score = scoreCache[batchHash_[bIdx]];
-//        verify(score.empty());
-//        outputs[0].get(bIdx, score);
-//
-//        // -scale * log(posterior)
-//        if (decoding_output_transform_function_)
-//            std::transform(score.begin(), score.end(), score.begin(),
-//                           std::bind(decoding_output_transform_function_, std::placeholders::_1, scale_));
-//
-//        // optional adding static log priors
-//        if (usePrior_) {
-//            if (priorContextSize_ == 0) { // context-independent prior
-//                std::transform(logPriors_.begin(), logPriors_.end(), score.begin(), score.begin(),
-//                               std::plus<Score>());
-//            } else { // (truncated) context-dependent prior
-//                size_t hash;
-//                if (hmmTopology_ && !loopUpdateHistory_) {
-//                    const LabelSequence& seq = labelSeqCache_[batchHash_[bIdx]];
-//                    hash = labelHistoryManager_->reducedHashKey(seq, priorContextSize_);
-//                } else {
-//                    const LabelSequence& seq = labelHistoryManager_->historyCache().at(batchHash_[bIdx])->labelSeq;
-//                    hash = labelHistoryManager_->reducedHashKey(seq, priorContextSize_);
-//                }
-//                ScoreCache::iterator iter = contextLogPriors_.find(hash);
-//                verify(iter != contextLogPriors_.end());
-//                std::transform(iter->second.begin(), iter->second.end(), score.begin(), score.begin(),
-//                               std::plus<Score>());
-//            }
-//        }
-//    }
-//}
+        pos.clear();
+    }
+    inputs.emplace_back(std::make_pair(decoder_feedback_name_, Onnx::Value::create(mat, true))); // transpose??????
+
+    inputs.emplace_back(std::make_pair(decoder_input_name_, std::move(encoder_outputs[0])));
+    inputs.emplace_back(std::make_pair(decoder_input_size_name_, std::move(encoder_outputs[1])));
+
+    computeBatchScores(scoreCache, inputs);
+    batchHash_.clear();
+}
+
+void OnnxFfnnTransducer::computeBatchScores(ScoreCache& scoreCache, MappedValueList& inputs) {
+    // compute batch scores (optional prior)
+    ValueList outputs;
+    decoderSession_.run(std::move(inputs), {decoder_output_name_}, outputs);
+    verify(outputs.size() == 1);
+
+    for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {
+        // cache score to reuse
+        std::vector<Score>& score = scoreCache[batchHash_[bIdx]];
+        verify(score.empty());
+        log() << "1";
+        outputs[0].get(bIdx, score);
+        log() << "2";
+
+        // -scale * log(posterior)
+        if (decoding_output_transform_function_)
+            std::transform(score.begin(), score.end(), score.begin(),
+                           std::bind(decoding_output_transform_function_, std::placeholders::_1, scale_));
+
+        // optional adding static log priors
+        if (usePrior_) {
+            if (priorContextSize_ == 0) { // context-independent prior
+                std::transform(logPriors_.begin(), logPriors_.end(), score.begin(), score.begin(),
+                               std::plus<Score>());
+            } else { // (truncated) context-dependent prior
+                size_t hash;
+                if (hmmTopology_ && !loopUpdateHistory_) {
+                    const LabelSequence& seq = labelSeqCache_[batchHash_[bIdx]];
+                    hash = labelHistoryManager_->reducedHashKey(seq, priorContextSize_);
+                } else {
+                    const LabelSequence& seq = labelHistoryManager_->historyCache().at(batchHash_[bIdx])->labelSeq;
+                    hash = labelHistoryManager_->reducedHashKey(seq, priorContextSize_);
+                }
+                ScoreCache::iterator iter = contextLogPriors_.find(hash);
+                verify(iter != contextLogPriors_.end());
+                std::transform(iter->second.begin(), iter->second.end(), score.begin(), score.begin(),
+                               std::plus<Score>());
+            }
+        }
+    }
+}
 
 // Transducer w/o blank - HMM topology: p(label|...) p(transition|...)
 const std::vector<Score>& OnnxFfnnTransducer::getScoresWithTransition(const LabelHistory& h, bool isLoop) {
@@ -798,7 +808,7 @@ const std::vector<Score>& OnnxFfnnTransducer::getScoresWithTransition(const Labe
         // batch computation
         makeBatch(lhd);
         verify(batchHash_.size() > 0);
-        //decodeBatch(scoreCache_);
+        decodeBatch(scoreCache_);
     }
 
     if (implicitTransition_) {
@@ -893,7 +903,7 @@ const std::vector<Score>& OnnxFfnnTransducer::getPositionScores(size_t hash, u32
     if (scores.empty()) {
         makePositionBatch(hash, scoreCache);
         //setDecodePosition(pos);
-        //decodeBatch(scoreCache);
+        decodeBatch(scoreCache);
     }
     verify(!scores.empty());
     return scores;

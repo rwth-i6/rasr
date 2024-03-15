@@ -30,7 +30,7 @@ set(RasrSearchWfst_SOURCES
         WordEnd.cc
 )
 
-add_library(RasrSearchWfst STATIC ${SearchWfst_SOURCES})
+add_library(RasrSearchWfst STATIC ${RasrSearchWfst_SOURCES})
 
 target_compile_options(RasrSearchWfst PRIVATE "-Wno-sign-compare")
 

@@ -1,3 +1,3 @@
 foreach(TOOL ${TOOLS})
-    add_subdirectory(${TOOL})
-endforeach ()
+  add_subdirectory(${TOOL})
+endforeach()

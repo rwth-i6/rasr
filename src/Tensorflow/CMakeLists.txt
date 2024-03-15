@@ -1,14 +1,13 @@
 set(RasrTensorflow_SOURCES
-        Graph.cc
-        GraphLoader.cc
-        MetaGraphLoader.cc
-        Module.cc
-        Session.cc
-        Tensor.cc
-        TensorflowForwardNode.cc
-        TensorMap.cc
-        VanillaGraphLoader.cc
-)
+    Graph.cc
+    GraphLoader.cc
+    MetaGraphLoader.cc
+    Module.cc
+    Session.cc
+    Tensor.cc
+    TensorflowForwardNode.cc
+    TensorMap.cc
+    VanillaGraphLoader.cc)
 
 add_library(RasrTensorflow STATIC ${RasrTensorflow_SOURCES})
 

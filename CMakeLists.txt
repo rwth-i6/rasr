@@ -3,7 +3,7 @@ project(RASR)
 
 include(cmake_resources/ConfigurationTypes.cmake)
 include(cmake_resources/Modules.cmake)
-include(cmake_resources/UniversalSettings.cmake)
+include(cmake_resources/GeneralCompileOptions.cmake)
 
 if (${MODULE_PYTHON})
     include(cmake_resources/Python.cmake)

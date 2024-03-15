@@ -1,12 +1,10 @@
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "standard" "debug"
-                                             "release")
+        "release")
 
-if(NOT CMAKE_BUILD_TYPE)
-  message(STATUS "Setting build type to 'standard' as none was specified.")
-  set(CMAKE_BUILD_TYPE
-      standard
-      CACHE STRING "Choose the type of build." FORCE)
-endif()
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "Setting build type to 'standard' as none was specified.")
+    set(CMAKE_BUILD_TYPE standard CACHE STRING "Choose the type of build." FORCE)
+endif ()
 
 set(CMAKE_C_FLAGS_STANDARD "-O2")
 set(CMAKE_CXX_FLAGS_STANDARD "-O2")

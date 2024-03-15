@@ -49,3 +49,9 @@ target_link_libraries(RasrSearchWfst INTERFACE
         RasrMc
         RasrCore
 )
+
+add_executable(check-search-wfst check.cc)
+target_link_libraries(check-search-wfst PRIVATE RasrSearchWfst)
+
+add_executable(check-search-wfst-ctrans check_ctrans.cc)
+target_link_libraries(check-search-wfst-ctrans PRIVATE RasrSearchWfst)

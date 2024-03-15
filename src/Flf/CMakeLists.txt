@@ -84,8 +84,7 @@ target_link_libraries(
         RasrBliss
         RasrFlow
         RasrFsa
-        RasrCore
-)
+        RasrCore)
 
 add_executable(check-flf check.cc)
 target_link_libraries(check-flf PRIVATE RasrFlf)

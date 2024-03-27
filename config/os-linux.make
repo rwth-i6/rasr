@@ -152,7 +152,9 @@ LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
 INCLUDES    += `python3-config --includes 2>/dev/null`
-LDFLAGS     += `python3-config --ldflags 2>/dev/null`
+INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += `python3 -m pybind11 --includes 2>/dev/null`
+LDFLAGS     += `python3-config --ldflags --embed 2>/dev/null`
 # IF you want to use Python2 for whatever reason:
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`

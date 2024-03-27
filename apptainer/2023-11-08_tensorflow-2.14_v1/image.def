@@ -9,6 +9,8 @@ Stage: build
     DEBIAN_FRONTEND=noninteractive apt install -y wget git unzip gzip libssl-dev lsb-release zsh \
         bison libxml2-dev libopenblas-dev libsndfile1-dev libcrypto++-dev libcppunit-dev \
         parallel xmlstarlet python3-lxml htop strace gdb sox python3-pip cmake ffmpeg vim
+    
+    pip3 install pybind11==2.11.1
 
     # download the cache manager and place in /usr/local
     cd /usr/local

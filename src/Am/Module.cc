@@ -15,7 +15,9 @@
 #include "Module.hh"
 
 #include <Core/Application.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 
 #include "ClassicAcousticModel.hh"
 #ifdef MODULE_CART

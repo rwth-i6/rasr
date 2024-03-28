@@ -18,7 +18,9 @@
 #include <Core/Parameter.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/XmlStream.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <Search/Search.hh>
 
 #include "Best.hh"

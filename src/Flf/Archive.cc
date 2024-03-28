@@ -20,7 +20,9 @@
 #include <Fsa/Output.hh>
 #include <Fsa/Static.hh>
 #include <Fsa/Storage.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 
 #include "Archive.hh"
 #include "ConfusionNetworkIo.hh"

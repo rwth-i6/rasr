@@ -154,6 +154,13 @@ ClassicTransducerBuilder::ClassicTransducerBuilder(Core::Ref<
     filterOutInvalidAllophones_             = paramFilterOutInvalidAllophones(model->getConfiguration());
     fixAllophoneContextAtWordBoundaries_    = paramFixAllophoneContextAtWordBoundaries(model_->getConfiguration());
     statistics_                             = new Statistics;
+
+    if (model_->phonology()->maximumHistoryLength() == 0 && model_->phonology()->maximumFutureLength() == 0) {
+        linkWordEndStart_ = true;
+    }
+    else {
+        linkWordEndStart_ = false;
+    }
 }
 
 ClassicTransducerBuilder::~ClassicTransducerBuilder() {
@@ -244,11 +251,16 @@ void ClassicTransducerBuilder::setupWordStart(Fsa::State* s, const PhoneBoundary
 }
 
 void ClassicTransducerBuilder::setupWordEnd(Fsa::State* s, const PhoneBoundaryStateDescriptor& pbsd) {
-    if (acceptCoarticulatedSinglePronunciation_) {
+    if ( linkWordEndStart_ ) {
+        Fsa::StateId initialId = product_->initialStateId();
+        if ( initialId != Fsa::InvalidStateId ) {
+            Fsa::State* initial = product_->fastState(initialId);
+            buildWordBoundaryLinks(s, initial);
+        }
+    } else if (acceptCoarticulatedSinglePronunciation_) {
         s->addTags(Fsa::StateTagFinal);
         s->weight_ = product_->semiring()->one();
-    }
-    else {
+    } else {
         PhoneBoundaryStateDescriptor pbsd2(pbsd);
         pbsd2.flag &= ~wordEnd;
         pbsd2.flag |= wordStart;

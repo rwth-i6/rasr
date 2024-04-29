@@ -102,6 +102,41 @@ struct HMMState {
     }
 };
 
+/// A state description using the old on-disk data representation with 16 bits for the
+/// acoustic model index.
+///
+/// Only used for parsing.
+struct StateDescV1 {
+    u16 acousticModel;
+    u8  transitionModelIndex;
+
+    static const u16 invalidAcousticModel = 0xffff;
+};
+
+/// A network state using the old on-disk data representation.
+///
+/// Only used for parsing.
+struct HMMStateV1 {
+    StateDescV1      stateDesc;
+    SuccessorBatchId successors;
+
+    /// Converts the old on-disk data format into the current representation.
+    inline_ HMMState toHMMState() {
+        StateTree::StateDesc desc;
+
+        HMMState result;
+        result.stateDesc.acousticModel = this->stateDesc.acousticModel;
+        result.stateDesc.transitionModelIndex = this->stateDesc.transitionModelIndex;
+        result.successors = this->successors;
+
+        if (result.stateDesc.acousticModel == StateDescV1::invalidAcousticModel) {
+            result.stateDesc.acousticModel = StateTree::invalidAcousticModel;
+        }
+
+        return result;
+    }
+};
+
 struct Tree {
     Tree()
             : nodes(InvalidBatchId) {
@@ -119,7 +154,8 @@ public:
     };
 
     enum {
-        DiskFormatVersion = 1
+        DiskFormatVersionV1 = 1,
+        DiskFormatVersionV2 = 2,
     };
 
     typedef Tools::BatchIndexIterator<SubTreeListId, StateId, InvalidBatchId, 0> SubTreeIterator;

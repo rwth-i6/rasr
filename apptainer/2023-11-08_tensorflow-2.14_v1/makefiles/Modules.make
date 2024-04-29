@@ -54,7 +54,6 @@ MODULES += MODULE_LM_FSA
 MODULES += MODULE_LM_ZEROGRAM
 MODULES += MODULE_LM_FFNN
 MODULES += MODULE_LM_TFRNN
-MODULES += MODULE_LM_ONNX
 
 # ****** Math ******
 MODULES += MODULE_MATH_NR
@@ -111,9 +110,6 @@ MODULES += MODULE_TEST
 # Tensorflow integration
 MODULES += MODULE_TENSORFLOW
 
-# ONNX integration
-#MODULES += MODULE_ONNX
-
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 
@@ -126,7 +122,6 @@ TOOLS += FeatureStatistics
 TOOLS += Fsa
 TOOLS += SpeechRecognizer
 TOOLS += Xml
-TOOLS += LibRASR
 
 ifdef MODULE_CART
 TOOLS += Cart

@@ -1,14 +1,14 @@
-# GCC Compiler Settings
+# LLVM/Clang Compiler Settings
 
 BINDIR          =
 GCC_VERSION	=
 
 # -----------------------------------------------------------------------------
 # Compiler
-CC		= $(BINDIR)gcc$(GCC_VERSION)
-LD              = $(BINDIR)g++$(GCC_VERSION)
-CXX             = $(BINDIR)g++$(GCC_VERSION)
-CXXLD           = $(BINDIR)g++$(GCC_VERSION)
+CC		= $(BINDIR)clang$(GCC_VERSION)
+LD              = $(BINDIR)clang++$(GCC_VERSION)
+CXX             = $(BINDIR)clang++$(GCC_VERSION)
+CXXLD           = $(BINDIR)clang++$(GCC_VERSION)
 
 CPPFLAGS        += $(SYS_INCLUDES)
 
@@ -22,14 +22,17 @@ CXX_MINOR = $(shell $(CXX) --version | head -n 1 | sed -e 's/.*[ \t]\([0-9]\)\.\
 # -----------------------------------------------------------------------------
 # compiler options
 DEFINES		+= -D_GNU_SOURCE
+DEFINES		+= -D_GLIBCXX_PERMIT_BACKWARD_HASH
 CCFLAGS		+= -pipe
 CCFLAGS		+= -funsigned-char
-CCFLAGS		+= -fno-exceptions
 CFLAGS		+= -std=c99
-CXXFLAGS	+= -std=c++17
-CXXFLAGS	+= -Wno-unknown-pragmas
+CXXFLAGS	+= -std=gnu++0x
+ifeq ($(OS),darwin)
+CXXFLAGS	+= -stdlib=libc++
+else
+CXXFLAGS	+= -D__float128=void  # hack: http://llvm.org/bugs/show_bug.cgi?id=13530
+endif
 #CCFLAGS	+= -pedantic
-CCFLAGS		+= -fPIC
 CCFLAGS		+= -Wall
 CCFLAGS		+= -Wno-long-long
 #CXXFLAGS	+= -Woverloaded-virtual
@@ -39,7 +42,8 @@ CCFLAGS		+= -Wno-long-long
 #LDFLAGS         += -pg
 ifdef MODULE_OPENMP
 CCFLAGS		+= -fopenmp
-LDFLAGS     += -fopenmp
+LDFLAGS		+= -fopenmp
+CPPFLAGS	+= -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include/
 endif
 
 ifeq ($(strip $(CXX_MAJOR)),4)
@@ -58,6 +62,16 @@ endif
 ifeq ($(COMPILE),debug)
 CCFLAGS		+= -g
 DEFINES		+= -D_GLIBCXX_DEBUG
+endif
+
+ifeq ($(COMPILE),debug_light)
+CCFLAGS		+= -g
+endif
+
+ifeq ($(COMPILE),debug_dynamic)
+CFLAGS		+= -g -fPIC
+CCFLAGS		+= -g -fPIC
+LDFLAGS		+= -Wl,--allow-shlib-undefined
 endif
 
 ifneq ($(COMPILE),release)

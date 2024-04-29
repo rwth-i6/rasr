@@ -6,14 +6,22 @@ include $(TOPDIR)/Makefile.cfg
 
 CCFLAGS		+= -fexceptions
 
+ifdef MODULE_TENSORFLOW
+CXXFLAGS += $(TF_CXXFLAGS)
+LDFLAGS  += $(TF_LDFLAGS)
+endif
+
 # -----------------------------------------------------------------------------
 
 SUBDIRS 	=
 TARGETS		= libSprintPython.$(a) check$(exe)
 
 LIBPYTHON_O    = \
-		$(OBJDIR)/Init.o		\
-		$(OBJDIR)/Numpy.o		\
+		$(OBJDIR)/AllophoneStateFsaBuilder.o \
+		$(OBJDIR)/Configuration.o            \
+		$(OBJDIR)/Init.o                     \
+		$(OBJDIR)/Numpy.o                    \
+		$(OBJDIR)/PybindModule.o             \
 		$(OBJDIR)/Utilities.o
 
 CHECK_O		= $(OBJDIR)/check.o 			\

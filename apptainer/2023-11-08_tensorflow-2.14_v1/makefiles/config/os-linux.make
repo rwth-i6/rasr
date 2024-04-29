@@ -47,21 +47,12 @@ endif
 
 ifdef MODULE_TENSORFLOW
 TF_CXXFLAGS  = -fexceptions
-TF_CXXFLAGS += -I/usr/local/lib/python3.8/dist-packages/tensorflow/include
+TF_CXXFLAGS += -I/usr/local/lib/python3.11/dist-packages/tensorflow/include
 TF_LDFLAGS  += -Wl,--no-as-needed -Wl,--allow-multiple-definition
 TF_LDFLAGS  += -lcrypto
-TF_LDFLAGS  += -L/usr/local/lib/tensorflow
-TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/tensorflow
-TF_LDFLAGS  += -ltensorflow_cc -ltensorflow_framework
-endif
-
-ifdef MODULE_ONNX
-LDFLAGS += -L$(APPTEK_THIRDPARTY_USR)/lib
-LDFLAGS += -lonnxruntime
-ifndef MODULE_TENSORFLOW
-CXXFLAGS += -fexceptions
-endif
-
+TF_LDFLAGS  += -L/usr/local/lib/python3.11/dist-packages/tensorflow
+TF_LDFLAGS  += -Wl,-rpath -Wl,/usr/local/lib/python3.11/dist-packages/tensorflow
+TF_LDFLAGS  += -l:libtensorflow_cc.so.2 -l:libtensorflow_framework.so.2
 
 # USE_TENSORFLOW_MKL=1
 endif
@@ -148,14 +139,14 @@ ifdef MODULE_PYTHON
 # Use --ldflags --embed for python >= 3.8
 PYTHON_PATH =
 ifneq (${PYTHON_PATH},)
-INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
-LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags --embed 2>/dev/null`
+INCLUDES    += `${PYTHON_PATH}/bin/python3.11-config --includes 2>/dev/null`
+LDFLAGS     += `${PYTHON_PATH}/bin/python3.11-config --ldflags --embed 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
-INCLUDES    += `python3-config --includes 2>/dev/null`
-INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
-INCLUDES    += `python3 -m pybind11 --includes 2>/dev/null`
-LDFLAGS     += `python3-config --ldflags --embed 2>/dev/null`
+INCLUDES    += `python3.11-config --includes 2>/dev/null`
+INCLUDES    += -I$(shell python3.11 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += `python3.11 -m pybind11 --includes 2>/dev/null`
+LDFLAGS     += `python3.11-config --ldflags --embed 2>/dev/null`
 # IF you want to use Python2 for whatever reason:
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`

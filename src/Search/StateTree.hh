@@ -122,12 +122,16 @@ public:
      * use StateDesc as key in a map.
      */
     struct StateDesc {
-        typedef u16 AcousticModelIndex;
-        // This should remain the default!
-        typedef u8 TransitionModelIndex;
+        static const u32 AM_WIDTH = 24;
+        static const u32 TM_WIDTH = 8;
 
-        AcousticModelIndex   acousticModel;
-        TransitionModelIndex transitionModelIndex;
+        static const u32 MAX_AM   = (1 << AM_WIDTH) - 1;
+
+        typedef u32 ModelIndex;
+        typedef u8  TransitionModelIndex; // keep the typedef for max legal value
+
+        ModelIndex acousticModel        : AM_WIDTH;
+        ModelIndex transitionModelIndex : TM_WIDTH;
 
         StateDesc()
                 : acousticModel(0), transitionModelIndex(0) {
@@ -154,7 +158,7 @@ public:
         };
     };
 
-    static const StateDesc::AcousticModelIndex invalidAcousticModel;
+    static const StateDesc::ModelIndex invalidAcousticModel;
 
     /**
      * A node in the state tree.

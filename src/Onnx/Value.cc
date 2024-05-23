@@ -12,9 +12,11 @@ struct ToDataType {
     static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 };
 
-#define DEFINE_ONNX_TENSOR_TYPE_MAPING(TYPE, ENUM) \
-    template<>                                     \
-    struct ToDataType<TYPE> { static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ENUM; };
+#define DEFINE_ONNX_TENSOR_TYPE_MAPING(TYPE, ENUM)                                  \
+    template<>                                                                      \
+    struct ToDataType<TYPE> {                                                       \
+        static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ENUM; \
+    };
 
 DEFINE_ONNX_TENSOR_TYPE_MAPING(float, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
 DEFINE_ONNX_TENSOR_TYPE_MAPING(uint8_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8)
@@ -725,7 +727,7 @@ void Value::set(Math::FastMatrix<T> const& mat, bool transpose) {
         // if we transpose we can iterate over both matrices linearly
         for (u32 c = 0u; c < mat.nColumns(); c++) {
             for (u32 r = 0u; r < mat.nRows(); r++) {
-                data[c * mat.nColumns() + r] = mat.at(r, c);
+                data[c * mat.nRows() + r] = mat.at(r, c);
             }
         }
     }

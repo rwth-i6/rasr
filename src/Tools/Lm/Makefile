@@ -49,6 +49,9 @@ LM_UTIL_TOOL_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
+ifdef MODULE_ONNX
+LM_UTIL_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 
 # -----------------------------------------------------------------------------
 

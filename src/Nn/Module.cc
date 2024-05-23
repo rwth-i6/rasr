@@ -41,6 +41,9 @@
 #ifdef MODULE_TENSORFLOW
 #include "TFLabelScorer.hh"
 #endif
+#ifdef MODULE_ONNX
+#include "OnnxLabelScorer.hh"
+#endif
 #endif
 
 using namespace Nn;
@@ -98,7 +101,9 @@ enum LabelScorerType {
   TFAttentionType,
   TFRnnTransducerType,
   TFFfnnTransducerType,
-  TFSegmentalType
+  TFSegmentalType,
+  // onnx-based trial model
+  OnnxFfnnTransducerType,
 };
 
 const Core::Choice labelScorerTypeChoice(
@@ -107,6 +112,7 @@ const Core::Choice labelScorerTypeChoice(
   "tf-rnn-transducer",         TFRnnTransducerType,
   "tf-ffnn-transducer",        TFFfnnTransducerType,
   "tf-segmental",              TFSegmentalType,
+  "onnx-ffnn-transducer",      OnnxFfnnTransducerType,
   Core::Choice::endMark());
 
 const Core::ParameterChoice paramLabelScorerType(
@@ -145,6 +151,15 @@ Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& con
       Core::Application::us()->criticalError("Module MODULE_TENSORFLOW not available!");
       break;
 #endif
+#ifdef MODULE_ONNX
+    case OnnxFfnnTransducerType:
+      labelScorer = new OnnxFfnnTransducer(config);
+      break;
+#else
+    case OnnxFfnnTransducerType:
+      Core::Application::us()->criticalError("Module MODULE_ONNX not available!");
+      break;
+#endif  
     default:
       Core::Application::us()->criticalError("Unknown label-scorer-type ");
       break;

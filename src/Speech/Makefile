@@ -154,6 +154,9 @@ CHECK_O += ../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
+ifdef MODULE_ONNX
+CHECK_O += ../Onnx/libSprintOnnx.$(a)
+endif
 
 
 

@@ -1,4 +1,4 @@
-#include "libRASR.hh"
+#include "LibRASR.hh"
 
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
@@ -20,7 +20,8 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-_DummyApplication::_DummyApplication() : Core::Application() {
+_DummyApplication::_DummyApplication()
+        : Core::Application() {
     setTitle("lib-rasr");
     config.set("*.encoding", "utf-8");
     openLogging();

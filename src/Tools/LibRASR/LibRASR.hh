@@ -1,8 +1,8 @@
 #ifndef _TOOLS_LIBRASR_LIBRASR_HH
 #define _TOOLS_LIBRASR_LIBRASR_HH
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <Core/Application.hh>
 

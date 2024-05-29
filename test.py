@@ -5,7 +5,7 @@ from src.Tools.LibRASR import PhonemeInventory
 help(Lexicon)
 config = Configuration()
 lex = Lexicon(config)
-lex.set_phoneme_inventory(PhonemeInventory())
-phon = lex.phoneme_inventory()
-print(phon.num_phonemes())
-lex.log_statistics()
+lemma = lex.new_lemma("banana")
+print(lemma.name().str())
+del lex
+print(lemma.name().str())

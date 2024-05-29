@@ -42,8 +42,9 @@ ifdef MODULE_MATH_NR
 RASR_LIB_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_PYTHON
-RASR_LIB_O += ../../Python/libSprintPython.$(a)
-CXXFLAGS += $(shell python3 -m pybind11 --includes)
+RASR_LIB_O += $(OBJDIR)/PybindModule.o \
+              ../../Python/libSprintPython.$(a)
+CXXFLAGS += $(shell python3 -m pybind11 --includes) -fexceptions
 LDFLAGS += $(shell python3-config --ldflags) -Wl,-u,PyInit_librasr
 endif
 ifdef MODULE_NN

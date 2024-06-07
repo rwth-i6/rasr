@@ -63,7 +63,10 @@ class TFModelBase : public LabelScorer {
     virtual ~TFModelBase();
 
     virtual void reset();
+    virtual void clearBuffer();
     virtual void cleanUpBeforeExtension(u32 minPos) { cacheHashQueue_.clear(); }
+
+    virtual std::chrono::duration<double, std::milli> segmentDecoderDuration() { return segmentDecoderTime_; }
 
     // history handling
     virtual LabelHistory startHistory();
@@ -101,6 +104,8 @@ class TFModelBase : public LabelScorer {
     void debugFetch(const std::vector<std::string>& fetchNames, std::string msg="");
 
   protected:
+    std::chrono::duration<double, std::milli> segmentDecoderTime_;
+  
     // Note: graph related params follow snake_case naming style
     mutable Tensorflow::Session              session_;
     std::unique_ptr<Tensorflow::GraphLoader> loader_;

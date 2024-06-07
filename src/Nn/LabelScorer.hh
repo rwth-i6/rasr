@@ -88,6 +88,8 @@ class LabelScorer : public virtual Core::Component,
     void setEOS() { eos_ = true; }
     bool reachEOS() const { return eos_; }
 
+    virtual std::chrono::duration<double, std::milli> segmentDecoderDuration() { return std::chrono::duration<double, std::milli>::zero(); }
+
     virtual void increaseDecodeStep() { ++decodeStep_; }
     // stopping criteria
     // - needEndProcessing_: stop by search (additional max input length stop)

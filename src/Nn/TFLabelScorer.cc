@@ -14,6 +14,9 @@
  */
 
 #include "TFLabelScorer.hh"
+#include <chrono>
+#include <ratio>
+#include "Nn/LabelScorer.hh"
 #include "Prior.hh"
 
 using namespace Nn;
@@ -36,9 +39,10 @@ const Core::ParameterInt TFModelBase::paramMaxBatchSize(
 TFModelBase::TFModelBase(const Core::Configuration& config) :
     Core::Component(config),
     Precursor(config),
-    session_(select("session")), 
-    loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))),
-    graph_(loader_->load_graph()), // tf::GraphDef, libraries and necessary param names
+    segmentDecoderTime_(std::chrono::duration<double, std::milli>::zero()), 
+    session_(select("session")),
+    loader_(Tensorflow::Module::instance().createGraphLoader(select("loader"))), // tf::GraphDef, libraries and necessary param names
+    graph_(loader_->load_graph()),
     maxBatchSize_(paramMaxBatchSize(config)) {
 
   bool transform_output_log = paramTransformOuputLog(config);
@@ -73,6 +77,13 @@ void TFModelBase::reset() {
   Precursor::reset();
   batch_.clear();
   cacheHashQueue_.clear();
+  segmentDecoderTime_ = std::chrono::duration<double, std::milli>::zero();
+}
+
+void TFModelBase::clearBuffer() {
+  LabelScorer::clearBuffer();
+  log("decoder fwd time ") << segmentDecoderTime_.count();
+  segmentDecoderTime_ = std::chrono::duration<double, std::milli>::zero();
 }
 
 void TFModelBase::init() {
@@ -245,7 +256,10 @@ void TFModelBase::encode() {
 
   // init all stat vars including the encoding states (stored in the graph now)
   // Note: tile_batch automatically done in the graph
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run(inputs, encoding_ops_);
+  auto timer_end = std::chrono::steady_clock::now();
+  log("encoder fwd time: ") << std::chrono::duration<double, std::milli>(timer_end - timer_start).count();
 
   initComputation();
 }
@@ -381,7 +395,10 @@ void TFModelBase::feedBatchVariables() {
                                        Tensorflow::Tensor::concat(batchVars, 0)));
   }
 
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run(inputs, var_feed_ops_);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
 }
 
 // mainly label feedback
@@ -412,11 +429,19 @@ void TFModelBase::feedDecodeInput(MappedTensorList& inputs) {
 
 void TFModelBase::updateBatchVariables(bool post) {
   if ( post ) {
-    if (!var_post_update_ops_.empty())
+    if (!var_post_update_ops_.empty()) {
+      auto timer_start = std::chrono::high_resolution_clock::now();
       session_.run({}, var_post_update_ops_);
+      auto timer_end = std::chrono::high_resolution_clock::now();
+      segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
+    }
   } else {
-    if (!var_update_ops_.empty())
+    if (!var_update_ops_.empty()) {
+      auto timer_start = std::chrono::steady_clock::now();
       session_.run({}, var_update_ops_);
+      auto timer_end = std::chrono::steady_clock::now();
+      segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
+    }
   }
 }
 
@@ -425,7 +450,11 @@ void TFModelBase::fetchBatchVariables() {
     return;
 
   TensorList outputs;
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run({}, var_fetch_names_, {}, outputs);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
+  
   verify(batch_[0]->variables.size() == outputs.size());
 
   // slice along the batch dim (inclusive)
@@ -442,16 +471,25 @@ void TFModelBase::computeBatchScores() {
 
   // merge post update to the last scoring to avoid redundant computation
   if (var_post_update_ops_.empty()) {
+    auto timer_start = std::chrono::steady_clock::now();
     session_.run({}, decoding_ops_);
+    auto timer_end = std::chrono::steady_clock::now();
+    segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   } else {
     std::vector<std::string> merge_ops(decoding_ops_);
     merge_ops.insert(merge_ops.end(), var_post_update_ops_.begin(), var_post_update_ops_.end());
+    auto timer_start = std::chrono::steady_clock::now();
     session_.run({}, merge_ops);
+    auto timer_end = std::chrono::steady_clock::now();
+    segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   }
 
   // fetch scores
   TensorList outputs;
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run({}, decoding_output_tensor_names_, {}, outputs);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   verify(outputs.size() == 1);
   processBatchOutput(outputs);
 
@@ -512,7 +550,10 @@ void TFModelBase::debugFetch(const std::vector<std::string>& fetchNames, std::st
     return;
 
   TensorList outputs;
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run({}, fetchNames, {}, outputs);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   for (u32 idx = 0; idx < fetchNames.size(); ++idx) {
     // shape and scalar value
     std::cout << "   " << fetchNames[idx] << " "<< outputs[idx].dimInfo();
@@ -586,7 +627,10 @@ void TFRnnTransducer::increaseDecodeStep() {
 void TFRnnTransducer::setDecodePosition(u32 pos) {
   MappedTensorList inputs;
   inputs.emplace_back(std::make_pair(global_var_feed_names_[0], Tensorflow::Tensor::create(s32(pos))));
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run(inputs, global_var_feed_ops_);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
 }
 
 // history extension and position update based on topology
@@ -901,7 +945,10 @@ void TFFfnnTransducer::increaseDecodeStep() {
 void TFFfnnTransducer::setDecodePosition(u32 pos) {
   MappedTensorList inputs;
   inputs.emplace_back(std::make_pair(global_var_feed_names_[0], Tensorflow::Tensor::create(s32(pos))));
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run(inputs, global_var_feed_ops_);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
 }
 
 const std::vector<Score>& TFFfnnTransducer::getScores(const LabelHistory& h, bool isLoop) {
@@ -982,7 +1029,10 @@ void TFFfnnTransducer::decodeBatch(ScoreCache& scoreCache) {
     inputs.emplace_back(std::make_pair(var_feed_names_[vIdx+offset], Tensorflow::Tensor::create(vecs[vIdx])));
   vecs.clear();
 
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run(inputs, var_feed_ops_); 
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   updateBatchVariables();
   computeBatchScores(scoreCache);
   batchHash_.clear();
@@ -990,9 +1040,15 @@ void TFFfnnTransducer::decodeBatch(ScoreCache& scoreCache) {
 
 void TFFfnnTransducer::computeBatchScores(ScoreCache& scoreCache) {
   // compute batch scores (optional prior)
+  auto timer_start = std::chrono::steady_clock::now();
   session_.run({}, decoding_ops_);
+  auto timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   TensorList outputs;
+  timer_start = std::chrono::steady_clock::now();
   session_.run({}, decoding_output_tensor_names_, {}, outputs);
+  timer_end = std::chrono::steady_clock::now();
+  segmentDecoderTime_ += std::chrono::duration<double, std::milli>(timer_end - timer_start);
   verify(outputs.size() == 1);
 
   for (u32 bIdx = 0, bSize = batchHash_.size(); bIdx < bSize; ++bIdx) {

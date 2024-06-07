@@ -241,15 +241,6 @@ void OnnxModelBase::encode() {
         std::vector<s32> seq_length({static_cast<s32>(inputBuffer_.size())});
         inputs.emplace_back(std::make_pair(encoder_features_size_name_, Onnx::Value::create(seq_length)));  // 1
     }
-    std::stringstream ss;
-    ss << "Encode features: \n";
-    for (int i = 0; i < 3; ++i) {
-        for (int f = 0; f < 5; ++f) {
-            ss << batchMat.front().at(f, i) << " ";
-        }
-        ss << "\n";
-    }
-    log() << ss.str();
 
     ValueList outputs;
     encoderSession_.run(std::move(inputs), {encoder_output_name_}, outputs);
@@ -701,18 +692,6 @@ void OnnxFfnnTransducer::decodeBatch(ScoreCache& scoreCache) {
     // Copy column at current timestep to encoder_state
     current_encoder_state.copyBlockFromMatrix(encoder_outputs_.front(), 0, decodeStep_, 0, 0, current_encoder_state.nRows(), 1);
 
-    std::stringstream ss;
-    ss << "Run decoder with source_encodings: \n";
-    for (int i = 0; i < 5; ++i) {
-        ss << current_encoder_state.at(i, 0) << " ";
-    }
-    ss << "\n";
-    ss << "history: \n";
-    for (int i = 0; i < 3 && i < batchHash_.size(); ++i) {
-        ss << mat.at(0, i) << " ";
-    }
-    log() << ss.str();
-
     inputs.emplace_back(std::make_pair(decoder_input_name_, Onnx::Value::create(current_encoder_state, true)));  // transpose to 1 x F
     inputs.emplace_back(std::make_pair(decoder_feedback_name_, Onnx::Value::create(mat, true)));                 // Transpose to B x H
 
@@ -724,20 +703,12 @@ void OnnxFfnnTransducer::computeBatchScores(ScoreCache& scoreCache, MappedValueL
     // compute batch scores (optional prior)
     ValueList outputs;
     decoderSession_.run(std::move(inputs), {decoder_output_name_}, outputs);
-    std::stringstream ss;
-    ss << "Probs:\n";
 
     for (u32 bIdx = 0; bIdx < batchHash_.size(); ++bIdx) {
         // cache score to reuse
         std::vector<Score>& score = scoreCache[batchHash_[bIdx]];
         verify(score.empty());
         outputs.front().get(bIdx, score);
-        if (bIdx < 3) {
-            for (int c = 0; c < 5; ++c) {
-                ss << exp(score[c]) << " ";
-            }
-            ss << "\n";
-        }
 
         // -scale * log(posterior)
         if (decoding_output_transform_function_)
@@ -767,7 +738,6 @@ void OnnxFfnnTransducer::computeBatchScores(ScoreCache& scoreCache, MappedValueL
             }
         }
     }
-    log() << ss.str();
 }
 
 // Transducer w/o blank - HMM topology: p(label|...) p(transition|...)

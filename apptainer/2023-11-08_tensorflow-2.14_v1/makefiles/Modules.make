@@ -110,6 +110,9 @@ MODULES += MODULE_TEST
 # Tensorflow integration
 MODULES += MODULE_TENSORFLOW
 
+# ONNX integration
+# MODULES += MODULE_ONNX
+
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
 
@@ -120,6 +123,8 @@ TOOLS += CorpusStatistics
 TOOLS += FeatureExtraction
 TOOLS += FeatureStatistics
 TOOLS += Fsa
+TOOLS += LibRASR
+TOOLS += Lm
 TOOLS += SpeechRecognizer
 TOOLS += Xml
 

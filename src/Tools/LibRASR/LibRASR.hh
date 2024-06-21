@@ -6,10 +6,10 @@
 
 #include <Core/Application.hh>
 
-class _DummyApplication : Core::Application {
+class DummyApplication : public Core::Application {
 public:
-    _DummyApplication();
-    virtual ~_DummyApplication();
+    DummyApplication();
+    virtual ~DummyApplication();
 
     int main(std::vector<std::string> const& arguments);
 };

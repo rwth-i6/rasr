@@ -20,8 +20,8 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-
-DummyApplication::DummyApplication() : Core::Application() {
+DummyApplication::DummyApplication()
+        : Core::Application() {
     setTitle("lib-rasr");
     config.set("*.encoding", "utf-8");
     openLogging();

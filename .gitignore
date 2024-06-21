@@ -53,6 +53,9 @@
 .history*
 *.autosave
 
+# Singularity/Apptainer images
+*.sif
+
 # Broken NFS.
 .nfs*
 

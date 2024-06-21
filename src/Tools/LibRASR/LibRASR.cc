@@ -1,4 +1,4 @@
-#include "libRASR.hh"
+#include "LibRASR.hh"
 
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
@@ -20,7 +20,8 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-_DummyApplication::_DummyApplication() : Core::Application() {
+
+DummyApplication::DummyApplication() : Core::Application() {
     setTitle("lib-rasr");
     config.set("*.encoding", "utf-8");
     openLogging();
@@ -45,31 +46,25 @@ _DummyApplication::_DummyApplication() : Core::Application() {
 #endif
 }
 
-_DummyApplication::~_DummyApplication() {
+DummyApplication::~DummyApplication() {
     closeLogging();
 }
 
-int _DummyApplication::main(std::vector<std::string> const& arguments) {
+int DummyApplication::main(std::vector<std::string> const& arguments) {
     return EXIT_SUCCESS;
 }
 
+static const Core::Application* app = nullptr;
+
 extern "C" void initRASR() {
-    INIT_MODULE(Flf);
-    INIT_MODULE(Am);
-    INIT_MODULE(Audio);
-    INIT_MODULE(Flow);
-    INIT_MODULE(Math);
-    INIT_MODULE(Mm);
-    INIT_MODULE(Lm);
-    INIT_MODULE(Signal);
-    INIT_MODULE(Speech);
-#ifdef MODULE_NN
-    INIT_MODULE(Nn);
-#endif
-#ifdef MODULE_ONNX
-    INIT_MODULE(Onnx);
-#endif
-#ifdef MODULE_TENSORFLOW
-    INIT_MODULE(Tensorflow);
-#endif
+    if (app == nullptr) {
+        app = new DummyApplication();
+    }
+}
+
+extern "C" void finiRASR() {
+    if (app != nullptr) {
+        delete app;
+        app = nullptr;
+    }
 }

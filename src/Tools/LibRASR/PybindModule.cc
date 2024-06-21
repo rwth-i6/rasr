@@ -10,7 +10,7 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(librasr, m) {
-    static _DummyApplication app;
+    static DummyApplication app;
 
     m.doc() = "RASR python module";
 

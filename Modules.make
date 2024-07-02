@@ -123,6 +123,7 @@ TOOLS += CorpusStatistics
 TOOLS += FeatureExtraction
 TOOLS += FeatureStatistics
 TOOLS += Fsa
+TOOLS += LibRASR
 TOOLS += Lm
 TOOLS += SpeechRecognizer
 TOOLS += Xml

@@ -154,6 +154,8 @@ PYTHON_PATH =
 ifneq (${PYTHON_PATH},)
 INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
 LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags --embed 2>/dev/null`
+INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += `python3 -m pybind11 --includes 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else
 INCLUDES    += `python3-config --includes 2>/dev/null`

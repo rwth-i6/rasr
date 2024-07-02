@@ -22,6 +22,7 @@ CXX_MINOR = $(shell $(CXX) --version | head -n 1 | sed -e 's/.*[ \t]\([0-9]\)\.\
 # -----------------------------------------------------------------------------
 # compiler options
 DEFINES		+= -D_GNU_SOURCE
+CCFLAGS		+= -fPIC
 CCFLAGS		+= -pipe
 CCFLAGS		+= -funsigned-char
 CCFLAGS		+= -fno-exceptions

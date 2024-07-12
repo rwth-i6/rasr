@@ -19,29 +19,28 @@
 #include <Tensorflow/GraphLoader.hh>
 #include <Tensorflow/Module.hh>
 #include <Tensorflow/Session.hh>
-#include <Tensorflow/TensorMap.hh>
 #include <Tensorflow/Tensor.hh>
+#include <Tensorflow/TensorMap.hh>
 #include "LabelScorer.hh"
 
 namespace Nn {
- 
-typedef std::vector<Tensorflow::Tensor> TensorList;
+
+typedef std::vector<Tensorflow::Tensor>                         TensorList;
 typedef std::vector<std::pair<std::string, Tensorflow::Tensor>> MappedTensorList;
 
 struct TFLabelHistory : public LabelHistoryBase {
-  std::vector<Score> scores;
-  TensorList variables;
-  u32 position;
-  bool isBlank; // for next feedback
+    std::vector<Score> scores;
+    TensorList         variables;
+    u32                position;
+    bool               isBlank;  // for next feedback
 
-  typedef LabelHistoryBase Precursor;
+    typedef LabelHistoryBase Precursor;
 
-  TFLabelHistory() : Precursor(), position(0), isBlank(false) {}
-  TFLabelHistory(const TFLabelHistory& ref) : 
-      Precursor(ref), scores(ref.scores), variables(ref.variables), 
-      position(ref.position), isBlank(ref.isBlank) {}
+    TFLabelHistory()
+            : Precursor(), position(0), isBlank(false) {}
+    TFLabelHistory(const TFLabelHistory& ref)
+            : Precursor(ref), scores(ref.scores), variables(ref.variables), position(ref.position), isBlank(ref.isBlank) {}
 };
-
 
 // Encoder-Decoder Label Scorer based on Tensorflow back-end
 // computation logics based on a predefined order of I/O and op collections in graph
@@ -49,28 +48,32 @@ struct TFLabelHistory : public LabelHistoryBase {
 class TFModelBase : public LabelScorer {
     typedef LabelScorer Precursor;
 
-  public:
+public:
     // config params for graph computation
     static const Core::ParameterBool paramTransformOuputLog;
     static const Core::ParameterBool paramTransformOuputNegate;
-    static const Core::ParameterInt paramMaxBatchSize;
+    static const Core::ParameterInt  paramMaxBatchSize;
 
     // overwrite descriptor in derived class for specific history
     typedef TFLabelHistory LabelHistoryDescriptor;
 
-  public:
+public:
     TFModelBase(const Core::Configuration& config);
     virtual ~TFModelBase();
 
     virtual void reset();
     virtual void clearBuffer();
-    virtual void cleanUpBeforeExtension(u32 minPos) { cacheHashQueue_.clear(); }
+    virtual void cleanUpBeforeExtension(u32 minPos) {
+        cacheHashQueue_.clear();
+    }
 
-    virtual std::chrono::duration<double, std::milli> segmentDecoderDuration() { return segmentDecoderTime_; }
+    virtual std::chrono::duration<double, std::milli> segmentDecoderDuration() {
+        return segmentDecoderTime_;
+    }
 
     // history handling
     virtual LabelHistory startHistory();
-    virtual void extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop);
+    virtual void         extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop);
 
     // encoding
     virtual void encode();
@@ -78,7 +81,7 @@ class TFModelBase : public LabelScorer {
     // get scores for the next output position
     virtual const std::vector<Score>& getScores(const LabelHistory& h, bool isLoop);
 
-  protected:
+protected:
     void init();
     void initDecoder();
     void initStartHistory();
@@ -92,7 +95,7 @@ class TFModelBase : public LabelScorer {
 
     virtual void feedBatchVariables();
     virtual void feedDecodeInput(MappedTensorList& inputs);
-    virtual void updateBatchVariables(bool post=false);
+    virtual void updateBatchVariables(bool post = false);
     virtual void fetchBatchVariables();
 
     virtual void addPriorToBatch();
@@ -101,11 +104,11 @@ class TFModelBase : public LabelScorer {
     // --------------------------------------
 
     bool debug_;
-    void debugFetch(const std::vector<std::string>& fetchNames, std::string msg="");
+    void debugFetch(const std::vector<std::string>& fetchNames, std::string msg = "");
 
-  protected:
+protected:
     std::chrono::duration<double, std::milli> segmentDecoderTime_;
-  
+
     // Note: graph related params follow snake_case naming style
     mutable Tensorflow::Session              session_;
     std::unique_ptr<Tensorflow::GraphLoader> loader_;
@@ -118,9 +121,9 @@ class TFModelBase : public LabelScorer {
     // --- decoder ---
     std::vector<std::string> decoding_input_tensor_names_;
     std::vector<std::string> decoding_output_tensor_names_;
-    std::vector<u32> decoding_input_ndims_;
-    std::vector<u32> decoding_output_ndims_;
-    // binary function including scaling 
+    std::vector<u32>         decoding_input_ndims_;
+    std::vector<u32>         decoding_output_ndims_;
+    // binary function including scaling
     std::function<Score(Score, Score)> decoding_output_transform_function_;
 
     std::vector<std::string> var_feed_names_;
@@ -136,31 +139,31 @@ class TFModelBase : public LabelScorer {
     // --- global ---
     std::vector<std::string> global_var_feed_names_;
     std::vector<std::string> global_var_feed_ops_;
-    
-  protected:
-    LabelHistoryDescriptor* startHistoryDescriptor_; // only common stuff, no states or scores
+
+protected:
+    LabelHistoryDescriptor* startHistoryDescriptor_;  // only common stuff, no states or scores
 
     typedef std::vector<LabelHistoryDescriptor*> Batch;
-    Batch batch_;
-    std::deque<size_t> cacheHashQueue_;
-    u32 maxBatchSize_;
+    Batch                                        batch_;
+    std::deque<size_t>                           cacheHashQueue_;
+    u32                                          maxBatchSize_;
 
     typedef std::unordered_map<size_t, std::vector<Score>> ScoreCache;
-    ScoreCache contextLogPriors_;
+    ScoreCache                                             contextLogPriors_;
 };
-
 
 // Attention-based Encoder-Decoder Model
 // attention mechanism only in model graph (soft/hard): no additional latent variable here
 class TFAttentionModel : public TFModelBase {
     typedef TFModelBase Precursor;
 
-  public:
-    TFAttentionModel(const Core::Configuration& config) :
-        Core::Component(config), 
-        Precursor(config) { needEndProcessing_ = true; }
+public:
+    TFAttentionModel(const Core::Configuration& config)
+            : Core::Component(config),
+              Precursor(config) {
+        needEndProcessing_ = true;
+    }
 };
-
 
 // RNN-Transducer|Aligner
 // - blank-based topology
@@ -180,46 +183,48 @@ class TFAttentionModel : public TFModelBase {
 class TFRnnTransducer : public TFModelBase {
     typedef TFModelBase Precursor;
 
-  public:
+public:
     static const Core::ParameterBool paramLoopFeedbackAsBlank;
     static const Core::ParameterBool paramVerticalTransition;
 
-  public:
+public:
     TFRnnTransducer(const Core::Configuration& config);
 
-    bool useVerticalTransition() const { return verticalTransition_; }
+    bool useVerticalTransition() const {
+        return verticalTransition_;
+    }
 
     void increaseDecodeStep();
     void extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop);
 
-  protected:
+protected:
     void feedDecodeInput(MappedTensorList& inputs);
     void setDecodePosition(u32 pos);
 
-  private:
+private:
     LabelIndex blankLabelIndex_;
-    bool loopFeedbackAsBlank_;
-    bool verticalTransition_;
+    bool       loopFeedbackAsBlank_;
+    bool       verticalTransition_;
 };
-
 
 // no state vars or scores: just label sequence and context hash
 struct NgramLabelHistory : public LabelHistoryBase {
-  size_t forwardHash, loopHash;
-  u32 position; // only for position-aware ffnn-transducer
+    size_t forwardHash, loopHash;
+    u32    position;  // only for position-aware ffnn-transducer
 
-  typedef LabelHistoryBase Precursor;
+    typedef LabelHistoryBase Precursor;
 
-  NgramLabelHistory() : Precursor(), forwardHash(0), loopHash(0), position(0) {}
-  NgramLabelHistory(const NgramLabelHistory& ref) : 
-      Precursor(ref), forwardHash(ref.forwardHash), loopHash(ref.loopHash), position(ref.position) {}
-  NgramLabelHistory(const LabelSequence& labSeq, LabelIndex nextIdx) :
-      Precursor(), forwardHash(0), loopHash(0), position(0) {
-    // always fixed context size (+1) and right-most latest 
-    LabelSequence newSeq(labSeq.begin()+1, labSeq.end());
-    newSeq.push_back(nextIdx);
-    labelSeq.swap(newSeq);
-  }
+    NgramLabelHistory()
+            : Precursor(), forwardHash(0), loopHash(0), position(0) {}
+    NgramLabelHistory(const NgramLabelHistory& ref)
+            : Precursor(ref), forwardHash(ref.forwardHash), loopHash(ref.loopHash), position(ref.position) {}
+    NgramLabelHistory(const LabelSequence& labSeq, LabelIndex nextIdx)
+            : Precursor(), forwardHash(0), loopHash(0), position(0) {
+        // always fixed context size (+1) and right-most latest
+        LabelSequence newSeq(labSeq.begin() + 1, labSeq.end());
+        newSeq.push_back(nextIdx);
+        labelSeq.swap(newSeq);
+    }
 };
 
 // FFNN transducer with ngram context (no recurrency in decoder)
@@ -227,36 +232,38 @@ struct NgramLabelHistory : public LabelHistoryBase {
 // - both time-synchronous and label-synchronous search possible
 //   - latter: re-interpreted segmental decoding based on frame-wise output
 // - label topology
-//    - either HMM-topology: loop without blank 
+//    - either HMM-topology: loop without blank
 //    - or RNA-topology: blank without loop
 // - dependency
 //   - output/segment label sequence or alignment sequence
 //   - additional first-order relative-position (so far only for RNA topology)
 // Note: speed-up with context embedding lookup should be configured in the model graph
 class TFFfnnTransducer : public TFModelBase {
-    typedef TFModelBase Precursor;
+    typedef TFModelBase       Precursor;
     typedef NgramLabelHistory LabelHistoryDescriptor;
 
-  public:
-    static const Core::ParameterInt paramContextSize;
+public:
+    static const Core::ParameterInt  paramContextSize;
     static const Core::ParameterBool paramCacheHistory;
     static const Core::ParameterBool paramImplicitTransition;
     static const Core::ParameterBool paramExplicitTransition;
     static const Core::ParameterBool paramUseRelativePosition;
     static const Core::ParameterBool paramRenormTransition;
 
-  public:
+public:
     TFFfnnTransducer(Core::Configuration const& config);
     ~TFFfnnTransducer();
 
     void reset();
     void cleanUpBeforeExtension(u32 minPos);
 
-    bool useRelativePosition() const { return useRelativePosition_; }
+    bool useRelativePosition() const {
+        return useRelativePosition_;
+    }
 
     // history handling
     LabelHistory startHistory();
-    void extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop);
+    void         extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop);
 
     // global position of encodings
     void increaseDecodeStep();
@@ -267,7 +274,7 @@ class TFFfnnTransducer : public TFModelBase {
     // get segment scores for the next label segment given start position
     const SegmentScore& getSegmentScores(const LabelHistory& h, LabelIndex segIdx, u32 startPos);
 
-  protected:
+protected:
     void initComputation() {}
     void makeBatch(LabelHistoryDescriptor* targetLhd);
     void decodeBatch(ScoreCache& scoreCache);
@@ -275,43 +282,41 @@ class TFFfnnTransducer : public TFModelBase {
     void setDecodePosition(u32 pos);
 
     const std::vector<Score>& getScoresWithTransition(const LabelHistory& h, bool isLoop);
-    Score getExclusiveScore(Score score);
+    Score                     getExclusiveScore(Score score);
 
     // for segmental decoding
     const std::vector<Score>& getPositionScores(size_t hash, u32 pos);
-    void makePositionBatch(size_t hash, const ScoreCache& scoreCache);
+    void                      makePositionBatch(size_t hash, const ScoreCache& scoreCache);
 
-  private:
-    u32 contextSize_;
+private:
+    u32  contextSize_;
     bool cacheHistory_;
 
     // context (and position) dependent cache: central handling of scores instead of each history
-    ScoreCache scoreCache_;
+    ScoreCache                 scoreCache_;
     std::unordered_set<size_t> batchHashQueue_;
-    std::vector<size_t> batchHash_;
+    std::vector<size_t>        batchHash_;
 
     // HMM topology differs w.r.t. loopUpdateHistory_, if true then
     // - alignment sequence dependency (otherwise output/segment label sequence)
     // - loop scoring based on previous frame labels (otherwise segment labels)
-    bool hmmTopology_;
+    bool                                              hmmTopology_;
     typedef std::unordered_map<size_t, LabelSequence> LabelSeqCache;
-    LabelSeqCache labelSeqCache_; // only for HMM topology: need clean up if not cacheHistory_ ?
-    ScoreCache scoreTransitionCache_;
-    bool implicitTransition_;
-    bool explicitTransition_;
-    bool renormTransition_;
+    LabelSeqCache                                     labelSeqCache_;  // only for HMM topology: need clean up if not cacheHistory_ ?
+    ScoreCache                                        scoreTransitionCache_;
+    bool                                              implicitTransition_;
+    bool                                              explicitTransition_;
+    bool                                              renormTransition_;
 
     LabelIndex blankLabelIndex_;
-    bool useRelativePosition_;
+    bool       useRelativePosition_;
 
     // for segmental decoding {position: {context: scores}}
     std::unordered_map<u32, ScoreCache> positionScoreCache_;
 };
 
-
 // TODO segmental model with explicit duration model ?
 
-} // namesapce
+}  // namespace Nn
 
 #endif
-

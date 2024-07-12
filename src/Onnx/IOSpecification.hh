@@ -68,6 +68,7 @@ inline IOMapping::IOMapping(Core::Configuration const& config, std::vector<IOSpe
         bool                  default_used = true;
         std::string           onnx_name    = param(config, &default_used);
         if (not default_used) {
+            std::cout << "Insert " << s.name << " = " << onnx_name << " into mapping" << std::endl;
             mapping_[s.name] = onnx_name;
         }
     }

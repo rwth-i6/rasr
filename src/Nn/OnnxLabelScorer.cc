@@ -15,7 +15,9 @@
 
 #include "OnnxLabelScorer.hh"
 #include <cmath>
-#include <cstdint>
+#include "Math/FastVector.hh"
+#include "Onnx/IOSpecification.hh"
+#include "Onnx/Value.hh"
 #include "Prior.hh"
 
 using namespace Nn;
@@ -58,7 +60,7 @@ OnnxModelBase::OnnxModelBase(const Core::Configuration& config)
 
     valid = validator_.validate(decoderIoSpec_, decoderMapping_, decoderSession_);
     if (not valid) {
-        warning("Failed to validate encoder model.");
+        warning("Failed to validate decoder model.");
     }
 
     bool transform_output_log    = paramTransformOuputLog(config);
@@ -131,7 +133,21 @@ const std::vector<Onnx::IOSpecification> OnnxModelBase::decoderIoSpec_ = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{-1, -2}, {1, -2}}},
+                {{-1}, {-1, -2}, {1, -2}}},
+        Onnx::IOSpecification{
+                "hidden-state-in",
+                Onnx::IODirection::INPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -2}}},
+        Onnx::IOSpecification{
+                "hidden-state-out",
+                Onnx::IODirection::OUTPUT,
+                true,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-1, -2}}},
         Onnx::IOSpecification{
                 "output",
                 Onnx::IODirection::OUTPUT,
@@ -268,13 +284,13 @@ void OnnxModelBase::initComputation() {
 }
 
 void OnnxModelBase::initStartHistory() {
-    startLabelIndex_ = getStartLabelIndex();
+    startHistoryDescriptor_ = new LabelHistoryDescriptor();
     if (useStartLabel_) {
+        startLabelIndex_ = getStartLabelIndex();
         verify(startLabelIndex_ != Core::Type<LabelIndex>::max);
         log() << "use start label index " << startLabelIndex_;
+        startHistoryDescriptor_->labelSeq.push_back(startLabelIndex_);
     }
-    startHistoryDescriptor_ = new LabelHistoryDescriptor();
-    startHistoryDescriptor_->labelSeq.push_back(startLabelIndex_);
     //     startHistoryDescriptor_->variables->resize(var_fetch_names_.size()); //???????
     //  + other possible unified operations (if always the same)
 }
@@ -306,9 +322,7 @@ void OnnxModelBase::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 posi
     else {  // creating new (keep parent's states for next computation)
         nlhd = new LabelHistoryDescriptor(*lhd);
         nlhd->labelSeq.push_back(idx);
-        nlhd->isBlank = false;
         nlhd->scores.clear();
-        nlhd->position = position;
 
         result = labelHistoryManager_->updateCache(nlhd, position);
         if (result.second) {
@@ -881,6 +895,219 @@ void OnnxFfnnTransducer::makePositionBatch(size_t hash, const ScoreCache& scoreC
             if (batchHashQueue_.count(iter->first) == 0 && scoreCache.count(iter->first) == 0)
                 batchHash_.push_back(iter->first);
             ++iter;
+        }
+    }
+}
+
+// --- Stateful Transducer ---
+const Core::ParameterBool OnnxStatefulTransducer::paramCacheHistory(
+        "cache-history",
+        "cache appeared ngram history to avoid redundant computation (memory for high order !)",
+        true);
+
+OnnxStatefulTransducer::OnnxStatefulTransducer(Core::Configuration const& config)
+        : Core::Component(config),
+          Precursor(config),
+          cacheHistory_(paramCacheHistory(config)),
+          decoder_in_state_name_(decoderMapping_.getOnnxName("hidden-state-in")),
+          decoder_out_state_name_(decoderMapping_.getOnnxName("hidden-state-out")) {
+    hiddenSize_ = decoderSession_.getInputShape(decoder_in_state_name_).at(1);
+    if (cacheHistory_) {
+        log() << "apply history caching (memory for high order !)";
+    }
+    verify(startPosition_ == 0);
+
+    blankLabelIndex_ = getBlankLabelIndex();
+    log() << "RNA topology with blank label index " << blankLabelIndex_;
+    if (blankUpdateHistory_) {
+        log() << "blank label updates history";
+    }
+    else {
+        log() << "blank label does not updates history";
+    }
+}
+
+OnnxStatefulTransducer::~OnnxStatefulTransducer() {
+    if (cacheHistory_) {
+        // free cache expicitly
+        const HistoryCache cache = labelHistoryManager_->historyCache();
+        for (HistoryCache::const_iterator iter = cache.begin(); iter != cache.end(); ++iter) {
+            delete iter->second;
+        }
+        labelHistoryManager_->reset();
+    }
+}
+
+void OnnxStatefulTransducer::reset() {
+    inputBuffer_.clear();
+    nInput_     = 0;
+    eos_        = false;
+    decodeStep_ = 0;
+
+    scoreCache_.clear();
+    batchHashQueue_.clear();
+    batchHash_.clear();
+    scoreTransitionCache_.clear();
+
+    if (!cacheHistory_) {
+        labelSeqCache_.clear();
+        labelHistoryManager_->reset();
+    }
+}
+
+void OnnxStatefulTransducer::cleanUpBeforeExtension(u32 minPos) {
+    scoreCache_.clear();
+    batchHashQueue_.clear();
+    scoreTransitionCache_.clear();
+}
+
+LabelHistory OnnxStatefulTransducer::startHistory() {
+    LabelHistoryDescriptor* lhd = new LabelHistoryDescriptor(hiddenSize_);
+    lhd->labelSeq.resize(1, startLabelIndex_);
+
+    CacheUpdateResult result = labelHistoryManager_->updateCache(lhd, startPosition_);
+    if (!result.second) {
+        delete lhd;
+        lhd = static_cast<LabelHistoryDescriptor*>(result.first->second);
+    }
+    else {
+        if (cacheHistory_)
+            lhd->ref_count += 1;  // always kept in cache
+    }
+    if (decodeStep_ == 0) {
+        batchHashQueue_.insert(lhd->cacheHash);
+    }
+    return labelHistoryManager_->history(lhd);
+}
+
+// need further speed up ?
+void OnnxStatefulTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop) {
+    LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(h.handle());
+    LabelHistoryDescriptor* nlhd;
+
+    if (idx == blankLabelIndex_ && !blankUpdateHistory_) {
+        // RNA topology: blank does not update history and no loop
+        batchHashQueue_.insert(lhd->cacheHash);
+        return;
+    }
+
+    nlhd = new LabelHistoryDescriptor(*lhd);
+    nlhd->labelSeq.push_back(idx);
+
+    CacheUpdateResult result = labelHistoryManager_->updateCache(nlhd, 0);  // history cache is only label-seq dependent
+    if (!result.second) {
+        delete nlhd;
+        nlhd = static_cast<LabelHistoryDescriptor*>(result.first->second);
+    }
+    else {  // new one: compute hash and cache label sequence
+        if (cacheHistory_)
+            nlhd->ref_count += 1;  // always kept in cache
+    }
+
+    batchHashQueue_.insert(nlhd->cacheHash);
+    h = labelHistoryManager_->history(nlhd);
+}
+
+const std::vector<Score>& OnnxStatefulTransducer::getScores(const LabelHistory& h, bool isLoop) {
+    LabelHistoryDescriptor*   lhd    = static_cast<LabelHistoryDescriptor*>(h.handle());
+    size_t                    hash   = lhd->cacheHash;
+    const std::vector<Score>& scores = scoreCache_[hash];
+    if (!scores.empty())
+        return scores;
+
+    // batch computation
+    makeBatch(lhd);
+    verify(batchHash_.size() > 0);
+    decodeBatch(scoreCache_);
+
+    // results
+    verify(!scores.empty());
+    return scores;
+}
+
+const SegmentScore& OnnxStatefulTransducer::getSegmentScores(const LabelHistory& h, LabelIndex segIdx, u32 startPos) {
+    error("segment-wise scoring not implemented for stateful transducer");
+    return segmentScore_;
+}
+
+void OnnxStatefulTransducer::makeBatch(LabelHistoryDescriptor* targetLhd) {
+    if (batchHashQueue_.erase(targetLhd->cacheHash) > 0) {
+        batchHash_.push_back(targetLhd->cacheHash);
+    }
+
+    const HistoryCache&                        cache = labelHistoryManager_->historyCache();
+    std::unordered_set<size_t>::const_iterator iter  = batchHashQueue_.begin();
+    while (batchHash_.size() < maxBatchSize_ && iter != batchHashQueue_.end()) {
+        if (!cacheHistory_ && cache.count(*iter) == 0) {
+            ++iter;
+        }
+        else {
+            batchHash_.push_back(*(iter++));
+        }
+    }
+    batchHashQueue_.erase(batchHashQueue_.begin(), iter);
+}
+
+void OnnxStatefulTransducer::decodeBatch(ScoreCache& scoreCache) {
+    // feed in label context: left to right (right-most latest)
+    MappedValueList       inputs;
+    Math::FastVector<s32> recentLabels(batchHash_.size());               // B
+    Math::FastMatrix<f32> hiddenStates(hiddenSize_, batchHash_.size());  // H x B
+
+    const HistoryCache& cache = labelHistoryManager_->historyCache();
+    for (u32 bIdx = 0u; bIdx < batchHash_.size(); ++bIdx) {
+        LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(cache.at(batchHash_[bIdx]));
+        recentLabels.at(bIdx)       = lhd->labelSeq.back();
+        std::copy(lhd->hiddenState.begin(), lhd->hiddenState.end(), &(hiddenStates.at(0, bIdx)));  // Copy seq into matrix as column
+    }
+
+    // encoder output has shape 1 x F x T (transposed)
+    Math::FastMatrix<f32> current_encoder_state(encoder_outputs_.front().nRows(), 1);  // F x 1
+
+    // Copy column at current timestep to encoder_state
+    current_encoder_state.copyBlockFromMatrix(encoder_outputs_.front(), 0, decodeStep_, 0, 0, current_encoder_state.nRows(), 1);
+
+    inputs.emplace_back(std::make_pair(decoder_input_name_, Onnx::Value::create(current_encoder_state, true)));  // transpose to 1 x F
+    inputs.emplace_back(std::make_pair(decoder_feedback_name_, Onnx::Value::create(recentLabels)));
+    inputs.emplace_back(std::make_pair(decoder_in_state_name_, Onnx::Value::create(hiddenStates, true)));  // transpose to B x H
+
+    computeBatchScores(scoreCache, inputs);
+    batchHash_.clear();
+}
+
+void OnnxStatefulTransducer::computeBatchScores(ScoreCache& scoreCache, MappedValueList& inputs) {
+    // compute batch scores (optional prior)
+    ValueList outputs;
+    decoderSession_.run(std::move(inputs), {decoder_output_name_, decoder_out_state_name_}, outputs);
+
+    for (u32 bIdx = 0; bIdx < batchHash_.size(); ++bIdx) {
+        // cache score to reuse
+        std::vector<Score>& score = scoreCache[batchHash_[bIdx]];
+        verify(score.empty());
+        outputs.front().get(bIdx, score);
+        auto lhd = static_cast<LabelHistoryDescriptor*>(labelHistoryManager_->historyCache().at(batchHash_[bIdx]));
+        outputs.back().get(bIdx, lhd->hiddenState);
+
+        // -scale * log(posterior)
+        if (decoding_output_transform_function_)
+            std::transform(score.begin(), score.end(), score.begin(),
+                           std::bind(decoding_output_transform_function_, std::placeholders::_1, scale_));
+
+        // optional adding static log priors
+        if (usePrior_) {
+            if (priorContextSize_ == 0) {  // context-independent prior
+                std::transform(logPriors_.begin(), logPriors_.end(), score.begin(), score.begin(),
+                               std::plus<Score>());
+            }
+            else {  // (truncated) context-dependent prior
+                size_t               hash;
+                const LabelSequence& seq  = labelHistoryManager_->historyCache().at(batchHash_[bIdx])->labelSeq;
+                hash                      = labelHistoryManager_->reducedHashKey(seq, priorContextSize_);
+                ScoreCache::iterator iter = contextLogPriors_.find(hash);
+                verify(iter != contextLogPriors_.end());
+                std::transform(iter->second.begin(), iter->second.end(), score.begin(), score.begin(),
+                               std::plus<Score>());
+            }
         }
     }
 }

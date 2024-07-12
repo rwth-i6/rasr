@@ -104,6 +104,7 @@ enum LabelScorerType {
   TFSegmentalType,
   // onnx-based trial model
   OnnxFfnnTransducerType,
+  OnnxStatefulTransducerType,
 };
 
 const Core::Choice labelScorerTypeChoice(
@@ -113,6 +114,7 @@ const Core::Choice labelScorerTypeChoice(
   "tf-ffnn-transducer",        TFFfnnTransducerType,
   "tf-segmental",              TFSegmentalType,
   "onnx-ffnn-transducer",      OnnxFfnnTransducerType,
+  "onnx-stateful-transducer",  OnnxStatefulTransducerType,
   Core::Choice::endMark());
 
 const Core::ParameterChoice paramLabelScorerType(
@@ -155,8 +157,14 @@ Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& con
     case OnnxFfnnTransducerType:
       labelScorer = new OnnxFfnnTransducer(config);
       break;
+    case OnnxStatefulTransducerType:
+      labelScorer = new OnnxStatefulTransducer(config);
+      break;
 #else
     case OnnxFfnnTransducerType:
+      Core::Application::us()->criticalError("Module MODULE_ONNX not available!");
+      break;
+    case OnnxStatefulTransducerType:
       Core::Application::us()->criticalError("Module MODULE_ONNX not available!");
       break;
 #endif  

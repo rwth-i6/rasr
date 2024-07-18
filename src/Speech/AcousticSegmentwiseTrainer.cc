@@ -14,7 +14,9 @@
  */
 #include "AcousticSegmentwiseTrainer.hh"
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include "SegmentwiseGmmTrainer.hh"
 #ifdef MODULE_NN_SEQUENCE_TRAINING
 #include <Nn/SegmentwiseNnTrainer.hh>

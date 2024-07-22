@@ -36,6 +36,19 @@
 
 namespace py = pybind11;
 
+class SpeechCorpusVisitor : public Speech::CorpusVisitor {
+
+public:
+    using Speech::CorpusVisitor::enterCorpus;
+    using Speech::CorpusVisitor::leaveCorpus;
+    using Speech::CorpusVisitor::enterRecording;
+    using Speech::CorpusVisitor::leaveRecording;
+    using Speech::CorpusVisitor::visitSegment;
+    using Speech::CorpusVisitor::visitSpeechSegment;
+    using Speech::CorpusVisitor::CorpusVisitor;
+    using Speech::CorpusVisitor::clearRegistrations;
+};
+
 class _DummyApplication : Core::Application {
 public:
     _DummyApplication();
@@ -81,6 +94,7 @@ int _DummyApplication::main(std::vector<std::string> const& arguments) {
 }
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, Core::Ref<T>, true);
+PYBIND11_DECLARE_HOLDER_TYPE(T, Flow::DataPtr<T>, true); // confirm
 
 PYBIND11_MODULE(librasr, m) {
     static _DummyApplication app;
@@ -315,7 +329,6 @@ PYBIND11_MODULE(librasr, m) {
     file.close();
     });
 
-
     // virtual void           describe(Core::XmlWriter& os) const
 
     py::class_<Bliss::PhonemeAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::PhonemeAlphabet>>(m, "PhonemeAlphabet")
@@ -467,7 +480,7 @@ PYBIND11_MODULE(librasr, m) {
     .value("unknown", Bliss::Speaker::Gender::unknown)
     .value("male", Bliss::Speaker::Gender::male)
     .value("female", Bliss::Speaker::Gender::female)
-    .value("nGenders", Bliss::Speaker::Gender::nGenders)
+    .value("num_genders", Bliss::Speaker::Gender::nGenders)
     .export_values();
 
     py::class_<Bliss::AcousticCondition, Bliss::NamedCorpusEntity>(m, "AcousticCondition")
@@ -552,10 +565,10 @@ PYBIND11_MODULE(librasr, m) {
     .def("accept", &Bliss::SpeechSegment::accept);
 
     py::class_<Bliss::SegmentVisitor>(m, "SegmentVisitor")
-    .def("visitSegment", &Bliss::SegmentVisitor::visitSegment)
-    .def("visitSpeechSegment", &Bliss::SegmentVisitor::visitSpeechSegment);
+    .def("visit_segment", &Bliss::SegmentVisitor::visitSegment)
+    .def("visit_speech_segment", &Bliss::SegmentVisitor::visitSpeechSegment);
 
-    py::class_<Bliss::CorpusVisitor, Bliss::SegmentVisitor>(m, "CorpusVisitor")
+    py::class_<Bliss::CorpusVisitor, Bliss::SegmentVisitor>(m, "BlissCorpusVisitor")
     .def("enter_recording", &Bliss::CorpusVisitor::enterRecording)
     .def("leave_recording", &Bliss::CorpusVisitor::leaveRecording)
     .def("enter_corpus", &Bliss::CorpusVisitor::enterCorpus)
@@ -599,16 +612,24 @@ PYBIND11_MODULE(librasr, m) {
 
      // ProgressReportingVisitorAdaptor(Core::XmlChannel& ch, bool reportOrth = false)
 
-    py::class_<Bliss::CorpusKey, Core::Ref<Bliss::CorpusKey>>(m, "CorpusKey")
+    py::class_<Core::StringExpression>(m, "StringExpression")
+    .def(py::init<>())
+    .def("is_constant", &Core::StringExpression::isConstant)
+    .def("has_variable", &Core::StringExpression::hasVariable)
+    .def("value", &Core::StringExpression::value)
+    .def("is_constant", &Core::StringExpression::isConstant)
+    .def("set_variable", &Core::StringExpression::setVariable)
+    .def("set_variables", &Core::StringExpression::setVariables)
+    .def("clear", (bool (Core::StringExpression::*)(const std::string&)) &Core::StringExpression::clear)
+    .def("clear", (void (Core::StringExpression::*)()) &Core::StringExpression::clear);
+
+    py::class_<Bliss::CorpusKey, Core::StringExpression/*, Core::Ref<Bliss::CorpusKey>*/>(m, "CorpusKey")
     .def(py::init<const Core::Configuration&>())
-    .def_readonly_static("openTag", &Bliss::CorpusKey::openTag)
-    .def_readonly_static("closeTag", &Bliss::CorpusKey::closeTag)
+    .def_readonly_static("open_tag", &Bliss::CorpusKey::openTag)
+    .def_readonly_static("close_tag", &Bliss::CorpusKey::closeTag)
     .def("resolve", &Bliss::CorpusKey::resolve);
 
-     /*
-      * class CorpusKey : public Core::StringExpression, public virtual Core::Component
-      * static const Core::ParameterString paramTemplate
-      */
+     // static const Core::ParameterString paramTemplate
 
      py::class_<Bliss::CorpusDescriptionParser>(m, "CorpusDescriptionParser")
     .def(py::init<const Core::Configuration&>())
@@ -632,11 +653,23 @@ PYBIND11_MODULE(librasr, m) {
     .def("sign_on", (void (Speech::CorpusVisitor::*)(Core::Ref<Speech::DataSource>)) &Speech::CorpusVisitor::signOn)
     .def("sign_on", (void (Speech::CorpusVisitor::*)(Core::Ref<Bliss::CorpusKey>)) &Speech::CorpusVisitor::signOn)
     .def("clear_registrations", &Speech::CorpusVisitor::clearRegistrations)
-    .def("is_signed_on", (bool (Speech::CorpusVisitor::*)(Core::Ref<Speech::DataSource>) const) &Speech::CorpusVisitor::isSignedOn)
-    .def("set_segment_parameters_on_data_source", &Speech::setSegmentParametersOnDataSource) // ask
-    .def("clear_segment_parameters_on_data_source", &Speech::clearSegmentParametersOnDataSource); // ask
+    .def("is_signed_on", (bool (Speech::CorpusVisitor::*)(Core::Ref<Speech::DataSource>) const) &Speech::CorpusVisitor::isSignedOn);
 
-    py::class_<Speech::CorpusProcessor>(m, "CorpusProcessor") // Core::Component
+    py::class_<SpeechCorpusVisitor, Speech::CorpusVisitor>(m, "CorpusVisitor")
+    .def(py::init<const Core::Configuration&>())
+    .def("enter_corpus", &SpeechCorpusVisitor::enterCorpus)
+    .def("leave_corpus", &SpeechCorpusVisitor::leaveCorpus)
+    .def("enter_recording", &SpeechCorpusVisitor::enterRecording)
+    .def("leave_recording", &SpeechCorpusVisitor::leaveRecording)
+    .def("visitSegment", &SpeechCorpusVisitor::visitSegment)
+    .def("visitSpeechSegment", &SpeechCorpusVisitor::visitSpeechSegment)
+    .def("sign_on", (void (SpeechCorpusVisitor::*)(Speech::CorpusProcessor*)) &SpeechCorpusVisitor::signOn)
+    .def("sign_on", (void (SpeechCorpusVisitor::*)(Core::Ref<Speech::DataSource>)) &SpeechCorpusVisitor::signOn)
+    .def("sign_on", (void (SpeechCorpusVisitor::*)(Core::Ref<Bliss::CorpusKey>)) &SpeechCorpusVisitor::signOn)
+    .def("clear_registrations", &SpeechCorpusVisitor::clearRegistrations)
+    .def("is_signed_on", (bool (SpeechCorpusVisitor::*)(Core::Ref<Speech::DataSource>) const) &SpeechCorpusVisitor::isSignedOn);
+
+    py::class_<Speech::CorpusProcessor>(m, "CorpusProcessor")
     .def(py::init<const Core::Configuration&>())
     .def("sign_on", &Speech::CorpusProcessor::signOn)
     .def("enter_corpus", &Speech::CorpusProcessor::enterCorpus)
@@ -649,4 +682,121 @@ PYBIND11_MODULE(librasr, m) {
     .def("enter_speech_segment", &Speech::CorpusProcessor::enterSpeechSegment)
     .def("process_speech_segment", &Speech::CorpusProcessor::processSpeechSegment)
     .def("leave_speech_segment", &Speech::CorpusProcessor::leaveSpeechSegment);
+
+ //    py::class_<Mm::Feature::Vector, Mm::FeatureVector, Core::Ref<Mm::Feature::Vector>>(m, "MmFeatureVector")
+//    .def(py::init<>())
+//    .def(py::init<size_t>())
+//    .def(py::init<const Mm::FeatureVector&>());
+
+    py::class_<Mm::Feature, Core::Ref<Mm::Feature>>(m, "MmFeature")
+    .def(py::init<size_t>())
+    .def("add", (size_t (Mm::Feature::*)(const Core::Ref<const Mm::Feature::Vector>&)) &Mm::Feature::add)
+    .def("add", (void (Mm::Feature::*)(size_t, const Core::Ref<const Mm::Feature::Vector>&)) &Mm::Feature::add)
+    .def("set", (void (Mm::Feature::*)(size_t, const Core::Ref<const Mm::Feature::Vector>&)) &Mm::Feature::set)
+    .def("set", (void (Mm::Feature::*)(const std::vector<size_t>&, const Core::Ref<const Mm::Feature::Vector>&)) &Mm::Feature::set)
+    .def("clear", &Mm::Feature::clear)
+    .def("main_stream", &Mm::Feature::mainStream, py::return_value_policy::take_ownership)
+    .def("set_number_of_streams", &Mm::Feature::setNumberOfStreams)
+    .def("num_streams", &Mm::Feature::nStreams);
+
+    //    typedef std::vector<Core::Ref<const Vector>>::const_iterator Iterator;
+
+    //    static Core::Ref<const Vector> convert(const FeatureVector& f)
+    //    explicit Feature(const Core::Ref<const Vector>& f)
+    //    explicit Feature(const FeatureVector& f)
+    //    bool operator==(const Feature& r) const
+    //    Core::Ref<const Vector> operator[](size_t streamIndex) const
+    //    Iterator begin() const
+    //    Iterator end() const
+
+    py::class_<Flow::Data, Flow::DataPtr<Flow::Data>>(m, "Data")
+    .def(py::init<>())
+    .def(py::init<const Flow::Data&>());
+
+    /*
+     * virtual Data* clone() const
+     * const Datatype* datatype() const
+     * virtual bool operator==(const Data& other) const
+     * virtual Core::XmlWriter& dump(Core::XmlWriter&) const
+     * virtual bool             read(Core::BinaryInputStream&)
+     * virtual bool write(Core::BinaryOutputStream&) const
+     * static inline Data* eos()
+     * static inline Data* ood()
+     * static bool isSentinel(const ThreadSafeReferenceCounted* object)
+     * static bool isNotSentinel(const ThreadSafeReferenceCounted* object)
+     */
+
+    py::class_<Flow::Timestamp, Flow::Data, Flow::DataPtr<Flow::Timestamp>>(m, "Timestamp")
+    .def(py::init<Flow::Time, Flow::Time>())
+    .def("set_start_time", &Flow::Timestamp::setStartTime)
+    .def("get_start_time", &Flow::Timestamp::getStartTime)
+    .def("start_time", &Flow::Timestamp::startTime)
+    .def("set_end_time", &Flow::Timestamp::setEndTime)
+    .def("get_end_time", &Flow::Timestamp::getEndTime)
+    .def("end_time", &Flow::Timestamp::endTime)
+    .def("set_timestamp", &Flow::Timestamp::setTimestamp)
+    .def("expand_timestamp", &Flow::Timestamp::expandTimestamp)
+    .def("invalidate_timestamp", &Flow::Timestamp::invalidateTimestamp)
+    .def("is_valid_timestamp", &Flow::Timestamp::isValidTimestamp)
+    .def("equals_to_start_time", &Flow::Timestamp::equalsToStartTime)
+    .def("equal_start_time", &Flow::Timestamp::equalStartTime)
+    .def("equals_to_end_time", &Flow::Timestamp::equalsToEndTime)
+    .def("equal_end_time", &Flow::Timestamp::equalEndTime)
+    .def("contains", (bool (Flow::Timestamp::*)(Flow::Time) const) &Flow::Timestamp::contains)
+    .def("contains", (bool (Flow::Timestamp::*)(const Flow::Timestamp&) const) &Flow::Timestamp::contains)
+    .def("overlap", &Flow::Timestamp::overlap);
+
+    //    static const Datatype* type()
+    //    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const
+    //    bool read(Core::BinaryInputStream& i)
+    //    bool write(Core::BinaryOutputStream& o) const
+
+    py::class_<Speech::Feature, Mm::Feature, Core::Ref<Speech::Feature>>(m, "Feature")
+    .def(py::init<>())
+    .def(py::init<Flow::DataPtr<Speech::Feature::FlowVector>&>()) // must be tested
+    .def(py::init<Flow::DataPtr<Speech::Feature::FlowFeature>&>())
+    .def("set_timestamp", &Speech::Feature::setTimestamp)
+    .def("timestamp", &Speech::Feature::timestamp, py::return_value_policy::reference_internal)
+    .def("take", (void (Speech::Feature::*)(Flow::DataPtr<Speech::Feature::FlowVector>&)) &Speech::Feature::take)
+    .def("take", (void (Speech::Feature::*)(Flow::DataPtr<Speech::Feature::FlowFeature>&)) &Speech::Feature::take)
+    .def("take", (bool (Speech::Feature::*)(Flow::DataPtr<Flow::Timestamp>&)) &Speech::Feature::take);
+
+    // virtual Mm::FeatureDescription* getDescription(const Core::Configurable& parent) const
+
+    py::class_<Flow::DataSource, Core::Ref<Flow::DataSource>>(m, "FlowDataSource") // Flow::Network
+    .def(py::init<const Core::Configuration&, bool>())
+    .def("get_data", (bool (Flow::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) &Flow::DataSource::getData);
+
+    py::class_<Speech::DataSource, Flow::DataSource, Core::Ref<Speech::DataSource>>(m, "DataSource")
+    .def(py::init<const Core::Configuration&, bool>())
+    .def("initialize", &Speech::DataSource::initialize)
+    .def("finalize", &Speech::DataSource::finalize)
+    .def("get_data", (bool (Speech::DataSource::*)(Flow::PortId, Core::Ref<Speech::Feature>&)) &Speech::DataSource::getData)
+    .def("get_data", (bool (Speech::DataSource::*)(Core::Ref<Speech::Feature>&)) &Speech::DataSource::getData)
+    .def("get_data", (bool (Speech::DataSource::*)()) &Speech::DataSource::getData)
+    .def("convert", &Speech::DataSource::convert)
+    .def("main_port_id", &Speech::DataSource::mainPortId)
+    .def("nun_frames", &Speech::DataSource::nFrames, py::return_value_policy::reference_internal)
+    .def("real_time", &Speech::DataSource::realTime)
+    .def("set_progress_indication", &Speech::DataSource::setProgressIndication)
+    .def("get_data", (bool (Speech::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) &Speech::DataSource::getData)
+    .def("get_data", (bool (Speech::DataSource::*)(Flow::DataPtr<Flow::Data>&)) &Speech::DataSource::getData); // be sure of template issue
+
+    py::class_<Speech::DataExtractor, Speech::CorpusProcessor>(m, "DataExtractor")
+    .def(py::init<const Core::Configuration&, bool>())
+    .def("sign_on", &Speech::DataExtractor::signOn)
+    .def("enter_corpus", &Speech::DataExtractor::enterCorpus)
+    .def("leave_corpus", &Speech::DataExtractor::leaveCorpus)
+    .def("enter_recording", &Speech::DataExtractor::enterRecording)
+    .def("enter_segment", &Speech::DataExtractor::enterSegment)
+    .def("leave_segment", &Speech::DataExtractor::leaveSegment)
+    .def("process_segment", &Speech::DataExtractor::processSegment);
+
+    py::class_<Speech::FeatureExtractor, Speech::DataExtractor>(m, "FeatureExtractor")
+    .def(py::init<const Core::Configuration&, bool>())
+    .def("process_segment", &Speech::FeatureExtractor::processSegment);
+
+    py::class_<Speech::FeatureVectorExtractor, Speech::FeatureExtractor>(m, "FeatureVectorExtractor")
+    .def(py::init<const Core::Configuration&>());
+
 }

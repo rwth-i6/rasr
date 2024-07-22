@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<network name="network">
+  <out name="features"/>
+  <param name="end-time"/>
+  <param name="id"/>
+  <param name="input-file"/>
+  <param name="start-time"/>
+  <param name="track"/>
+  <node block-size="1" end-time="$(end-time)" file="$(input-file)" filter="audio-input-file-wav" name="samples" start-time="$(start-time)"/>
+  <node filter="generic-vector-s16-demultiplex" name="demultiplex" track="$(track)"/>
+  <link from="samples" to="demultiplex"/>
+  <node filter="generic-convert-vector-s16-to-vector-f32" name="convert"/>
+  <link from="demultiplex" to="convert"/>
+  <node filter="generic-vector-f32-multiplication" name="scale" value="3.0517578125e-05"/>
+  <link from="convert" to="scale"/>
+  <link from="scale" to="network:features"/>
+</network>

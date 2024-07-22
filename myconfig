@@ -1,0 +1,10 @@
+[*.corpus]
+capitalize-transcriptions      = no
+file                           = /u/noureldin.bayoumi/setups/lbs_960/2023-09-01--ctc/work/i6_core/audio/encoding/BlissChangeEncodingJob.OZrQakm9Lizy/output/corpus.xml.gz
+progress-indication            = global
+segments.file                  = /u/noureldin.bayoumi/setups/lbs_960/2023-09-01--ctc/work/i6_core/corpus/segments/SegmentCorpusJob.qeWMA4BZVZgD/output/segments.$(TASK)
+warn-about-unexpected-elements = yes
+
+[*.feature-extraction]
+file = feature.flow
+

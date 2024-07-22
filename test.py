@@ -3,7 +3,6 @@ from src.Tools.LibRASR import FeatureExtractor
 from src.Tools.LibRASR import CorpusVisitor
 from src.Tools.LibRASR import CorpusDescription
 
-
 corpus_config = Configuration()
 corpus_config.set_from_file("corpus.config")
 feature_config = Configuration()
@@ -14,4 +13,3 @@ p = FeatureExtractor(feature_config, True)
 p.sign_on(v)
 d = CorpusDescription(corpus_config)
 d.accept(v)
-

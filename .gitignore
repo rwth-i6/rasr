@@ -22,6 +22,7 @@
 *.pyc
 *.o
 *.so
+/RASR.egg-info
 
 # For exec-files, the postfix is ".$(OS)-$(PROC)-$(COMPILE)[-$(SUFFIX)]".
 *.*-*-*
@@ -52,6 +53,9 @@
 # Other
 .history*
 *.autosave
+
+# Singularity/Apptainer images
+*.sif
 
 # Broken NFS.
 .nfs*

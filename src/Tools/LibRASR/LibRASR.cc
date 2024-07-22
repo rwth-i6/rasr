@@ -1,3 +1,5 @@
+#include "LibRASR.hh"
+
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
 #include <Flf/Module.hh>
@@ -18,7 +20,12 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-extern "C" void initRASR() {
+DummyApplication::DummyApplication()
+        : Core::Application() {
+    setTitle("lib-rasr");
+    config.set("*.encoding", "utf-8");
+    openLogging();
+
     INIT_MODULE(Flf);
     INIT_MODULE(Am);
     INIT_MODULE(Audio);
@@ -37,4 +44,27 @@ extern "C" void initRASR() {
 #ifdef MODULE_TENSORFLOW
     INIT_MODULE(Tensorflow);
 #endif
+}
+
+DummyApplication::~DummyApplication() {
+    closeLogging();
+}
+
+int DummyApplication::main(std::vector<std::string> const& arguments) {
+    return EXIT_SUCCESS;
+}
+
+static const Core::Application* app = nullptr;
+
+extern "C" void initRASR() {
+    if (app == nullptr) {
+        app = new DummyApplication();
+    }
+}
+
+extern "C" void finiRASR() {
+    if (app != nullptr) {
+        delete app;
+        app = nullptr;
+    }
 }

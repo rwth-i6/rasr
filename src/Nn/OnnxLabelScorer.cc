@@ -983,7 +983,10 @@ void OnnxStatefulTransducer::cleanUpBeforeExtension(u32 minPos) {
 
 LabelHistory OnnxStatefulTransducer::startHistory() {
     LabelHistoryDescriptor* lhd = new LabelHistoryDescriptor(hiddenSize_);
-    lhd->labelSeq.resize(1, startLabelIndex_);
+    if (useStartLabel_) {
+        lhd->labelSeq.resize(1, startLabelIndex_);
+        updateHiddenState(lhd->hiddenState, startLabelIndex_);
+    }
 
     CacheUpdateResult result = labelHistoryManager_->updateCache(lhd, startPosition_);
     if (!result.second) {

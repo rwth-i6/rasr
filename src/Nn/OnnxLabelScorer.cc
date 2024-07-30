@@ -130,20 +130,13 @@ const std::vector<Onnx::IOSpecification> OnnxModelBase::decoderIoSpec_ = {
         Onnx::IOSpecification{
                 "feedback",
                 Onnx::IODirection::INPUT,
-                false,
+                true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
                 {{-1}, {-1, -2}, {1, -2}}},
         Onnx::IOSpecification{
                 "hidden-state-in",
                 Onnx::IODirection::INPUT,
-                true,
-                {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}}},
-        Onnx::IOSpecification{
-                "hidden-state-out",
-                Onnx::IODirection::OUTPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
@@ -905,12 +898,39 @@ const Core::ParameterBool OnnxStatefulTransducer::paramCacheHistory(
         "cache appeared ngram history to avoid redundant computation (memory for high order !)",
         true);
 
+const std::vector<Onnx::IOSpecification> OnnxStatefulTransducer::hiddenStateIoSpec_ = {
+        Onnx::IOSpecification{
+                "hidden-state-in",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-2}}},
+        Onnx::IOSpecification{
+                "feedback",
+                Onnx::IODirection::INPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::INT32},
+                {{1}}},
+        Onnx::IOSpecification{
+                "hidden-state-out",
+                Onnx::IODirection::OUTPUT,
+                false,
+                {Onnx::ValueType::TENSOR},
+                {Onnx::ValueDataType::FLOAT},
+                {{-2}}}};
+
 OnnxStatefulTransducer::OnnxStatefulTransducer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           cacheHistory_(paramCacheHistory(config)),
+          hiddenStateSession_(select("hidden-state-session")),
+          hiddenStateMapping_(select("hidden-state-io-map"), hiddenStateIoSpec_),
           decoder_in_state_name_(decoderMapping_.getOnnxName("hidden-state-in")),
-          decoder_out_state_name_(decoderMapping_.getOnnxName("hidden-state-out")) {
+          hidden_state_in_name_(hiddenStateMapping_.getOnnxName("hidden-state-in")),
+          hidden_state_feedback_name_(hiddenStateMapping_.getOnnxName("feedback")),
+          hidden_state_out_name_(hiddenStateMapping_.getOnnxName("hidden-state-out")) {
     hiddenSize_ = decoderSession_.getInputShape(decoder_in_state_name_).at(1);
     if (cacheHistory_) {
         log() << "apply history caching (memory for high order !)";
@@ -983,16 +1003,16 @@ LabelHistory OnnxStatefulTransducer::startHistory() {
 // need further speed up ?
 void OnnxStatefulTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx, u32 position, bool isLoop) {
     LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(h.handle());
-    LabelHistoryDescriptor* nlhd;
 
-    if (idx == blankLabelIndex_ && !blankUpdateHistory_) {
+    if ((idx == blankLabelIndex_ and !blankUpdateHistory_) or (isLoop and !loopUpdateHistory_)) {
         // RNA topology: blank does not update history and no loop
         batchHashQueue_.insert(lhd->cacheHash);
         return;
     }
 
-    nlhd = new LabelHistoryDescriptor(*lhd);
+    LabelHistoryDescriptor* nlhd = new LabelHistoryDescriptor(*lhd);
     nlhd->labelSeq.push_back(idx);
+    updateHiddenState(nlhd->hiddenState, idx);
 
     CacheUpdateResult result = labelHistoryManager_->updateCache(nlhd, 0);  // history cache is only label-seq dependent
     if (!result.second) {
@@ -1006,6 +1026,19 @@ void OnnxStatefulTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx,
 
     batchHashQueue_.insert(nlhd->cacheHash);
     h = labelHistoryManager_->history(nlhd);
+}
+
+void OnnxStatefulTransducer::updateHiddenState(Math::FastVector<f32>& hiddenState, LabelIndex idx) {
+    MappedValueList       inputs;
+    Math::FastVector<s32> recentLabels(1);  // B (= 1)
+    recentLabels.at(0) = idx;
+
+    inputs.emplace_back(std::make_pair(hidden_state_in_name_, Onnx::Value::create(hiddenState)));
+    inputs.emplace_back(std::make_pair(hidden_state_feedback_name_, Onnx::Value::create(recentLabels)));
+
+    ValueList outputs;
+    hiddenStateSession_.run(std::move(inputs), {hidden_state_out_name_}, outputs);
+    outputs.front().get(hiddenState);
 }
 
 const std::vector<Score>& OnnxStatefulTransducer::getScores(const LabelHistory& h, bool isLoop) {
@@ -1068,8 +1101,7 @@ void OnnxStatefulTransducer::decodeBatch(ScoreCache& scoreCache) {
     current_encoder_state.copyBlockFromMatrix(encoder_outputs_.front(), 0, decodeStep_, 0, 0, current_encoder_state.nRows(), 1);
 
     inputs.emplace_back(std::make_pair(decoder_input_name_, Onnx::Value::create(current_encoder_state, true)));  // transpose to 1 x F
-    inputs.emplace_back(std::make_pair(decoder_feedback_name_, Onnx::Value::create(recentLabels)));
-    inputs.emplace_back(std::make_pair(decoder_in_state_name_, Onnx::Value::create(hiddenStates, true)));  // transpose to B x H
+    inputs.emplace_back(std::make_pair(decoder_in_state_name_, Onnx::Value::create(hiddenStates, true)));        // transpose to B x H
 
     computeBatchScores(scoreCache, inputs);
     batchHash_.clear();
@@ -1078,15 +1110,13 @@ void OnnxStatefulTransducer::decodeBatch(ScoreCache& scoreCache) {
 void OnnxStatefulTransducer::computeBatchScores(ScoreCache& scoreCache, MappedValueList& inputs) {
     // compute batch scores (optional prior)
     ValueList outputs;
-    decoderSession_.run(std::move(inputs), {decoder_output_name_, decoder_out_state_name_}, outputs);
+    decoderSession_.run(std::move(inputs), {decoder_output_name_}, outputs);
 
     for (u32 bIdx = 0; bIdx < batchHash_.size(); ++bIdx) {
         // cache score to reuse
         std::vector<Score>& score = scoreCache[batchHash_[bIdx]];
         verify(score.empty());
         outputs.front().get(bIdx, score);
-        auto lhd = static_cast<LabelHistoryDescriptor*>(labelHistoryManager_->historyCache().at(batchHash_[bIdx]));
-        outputs.back().get(bIdx, lhd->hiddenState);
 
         // -scale * log(posterior)
         if (decoding_output_transform_function_)

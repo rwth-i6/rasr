@@ -262,11 +262,19 @@ protected:
     void computeBatchScores(ScoreCache& scoreCache, MappedValueList& inputs);
 
 private:
+    void updateHiddenState(Math::FastVector<f32>& hiddenState, LabelIndex idx);
+
     size_t hiddenSize_;
     bool   cacheHistory_;
 
+    Onnx::Session                                   hiddenStateSession_;
+    const Onnx::IOMapping                           hiddenStateMapping_;
+    static const std::vector<Onnx::IOSpecification> hiddenStateIoSpec_;
+
     const std::string decoder_in_state_name_;
-    const std::string decoder_out_state_name_;
+    const std::string hidden_state_in_name_;
+    const std::string hidden_state_feedback_name_;
+    const std::string hidden_state_out_name_;
 
     // context (and position) dependent cache: central handling of scores instead of each history
     ScoreCache                 scoreCache_;

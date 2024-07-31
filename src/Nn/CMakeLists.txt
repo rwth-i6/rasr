@@ -15,10 +15,13 @@ if (${MODULE_NN})
             ClassLabelWrapper.cc
             Criterion.cc
             CtcCriterion.cc
+            Decoder.cc
+            Encoder.cc
             Estimator.cc
             FeatureScorer.cc
             FeedForwardTrainer.cc
             GradientCheck.cc
+            LabelScorer.cc
             LinearAndActivationLayer.cc
             LinearLayer.cc
             LookupLayer.cc
@@ -48,6 +51,9 @@ if (${MODULE_NN_SEQUENCE_TRAINING})
             MeSegmentwiseNnTrainer.cc
             SharedNeuralNetwork.cc)
 endif ()
+if (${MODULE_ONNX})
+    list(APPEND RasrNn_SOURCES OnnxEncoder.cc)
+endif()
 if (${MODULE_PYTHON})
     list(APPEND RasrNn_SOURCES PythonFeatureScorer.cc PythonTrainer.cc
             PythonControl.cc PythonLayer.cc)
@@ -65,6 +71,10 @@ target_link_libraries(RasrNn INTERFACE RasrCore RasrMath RasrMathLapack
         RasrFlow RasrSignal RasrSpeech)
 
 target_compile_options(RasrNn PRIVATE "-fexceptions")
+
+if (${MODULE_ONNX})
+    target_link_libraries(RasrNn INTERFACE RasrOnnx)
+endif()
 
 if (${MODULE_PYTHON})
     add_python_dependencies(RasrNn)

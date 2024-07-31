@@ -16,6 +16,7 @@
 #include "Decoder.hh"
 #include <Mm/Module.hh>
 #include "Core/ReferenceCounting.hh"
+#include "Nn/LabelHistory.hh"
 
 namespace Nn {
 
@@ -62,11 +63,12 @@ void NoOpDecoder::extendHistory(Core::Ref<LabelHistory> history, LabelIndex labe
     ++stepHistory->currentStep;
 }
 
-void NoOpDecoder::getDecoderStepScores(std::vector<ScoreRequest>& requests) {
-    for (auto& request : requests) {
-        auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
-        request.score     = encoderOutputBuffer_.at(stepHistory.currentStep)->at(request.labelIndex);
+std::optional<Score> NoOpDecoder::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
+    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*history);
+    if (encoderOutputBuffer_.size() <= stepHistory.currentStep) {
+        return {};
     }
+    return encoderOutputBuffer_.at(stepHistory.currentStep)->at(labelIndex);
 }
 
 /*
@@ -115,14 +117,13 @@ void LegacyFeatureScorerDecoder::extendHistory(Core::Ref<LabelHistory> history, 
     ++stepHistory->currentStep;
 }
 
-void LegacyFeatureScorerDecoder::getDecoderStepScores(std::vector<ScoreRequest>& requests) {
-    for (auto& request : requests) {
-        auto        x       = request.history.get();
-        const auto& history = dynamic_cast<const StepLabelHistory*>(x);
-
-        // Retrieve score from score cache at the right index
-        request.score = scoreCache_.at(history->currentStep)->score(request.labelIndex);
+std::optional<Score> LegacyFeatureScorerDecoder::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
+    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*history);
+    if (scoreCache_.size() <= stepHistory.currentStep) {
+        return {};
     }
+    // Retrieve score from score cache at the right index
+    return scoreCache_.at(stepHistory.currentStep)->score(labelIndex);
 }
 
 }  // namespace Nn

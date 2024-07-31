@@ -19,14 +19,13 @@
 #include <Core/Singleton.hh>
 
 #include <Flow/Module.hh>
+#include "LabelScorer.hh"
 
 namespace Core {
 class FormatSet;
 }
 
 namespace Nn {
-
-class LabelScorer;
 
 class Module_ {
 private:

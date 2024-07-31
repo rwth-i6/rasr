@@ -65,7 +65,7 @@ public:
     void signalSegmentEnd();
 
     // Runs requests through decoder function of the same name
-    void getDecoderStepScores(std::vector<ScoreRequest>& requests);
+    std::optional<Score> getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop);
 
 protected:
     Core::Ref<Encoder> encoder_;

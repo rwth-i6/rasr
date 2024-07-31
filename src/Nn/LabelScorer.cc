@@ -109,8 +109,8 @@ void LabelScorer::signalSegmentEnd() {
     decoder_->signalSegmentEnd();
 }
 
-void LabelScorer::getDecoderStepScores(std::vector<ScoreRequest>& requests) {
-    decoder_->getDecoderStepScores(requests);
+std::optional<Score> LabelScorer::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
+    return decoder_->getDecoderScore(history, labelIndex, isLoop);
 }
 
 void LabelScorer::encode() {

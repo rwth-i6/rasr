@@ -35,7 +35,6 @@ struct ScoreRequest {
     Core::Ref<const LabelHistory> history;
     LabelIndex                    labelIndex;
     bool                          isLoop;
-    std::optional<Score>          score;
 };
 
 // Base class for models that can score hypotheses based on history and encoder states
@@ -64,8 +63,8 @@ public:
 
     // Decoder will compute score for label given a history ref and a boolean flag that says whether
     // it should score for a loop or forward transition.
-    // The result will be set in the `score` member of the requests
-    virtual void getDecoderStepScores(std::vector<ScoreRequest>& requests) = 0;
+    // May return None if the decoder does not have enough features ready to perform scoring.
+    virtual std::optional<Score> getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) = 0;
 
 protected:
     std::vector<FeatureVectorRef> encoderOutputBuffer_;
@@ -82,7 +81,7 @@ public:
 
     Core::Ref<LabelHistory> getStartHistory() override;
     void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
-    void                    getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
+    std::optional<Score>    getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
 };
 
 // Wrapper around legacy Mm::FeatureScorer.
@@ -102,7 +101,7 @@ public:
     void                    signalSegmentEnd() override;
     Core::Ref<LabelHistory> getStartHistory() override;
     void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
-    void                    getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
+    std::optional<Score>    getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;

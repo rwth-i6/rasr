@@ -38,10 +38,13 @@ ifdef MODULE_NN
   LIBSPRINTNN_O += $(OBJDIR)/ClassLabelWrapper.o
   LIBSPRINTNN_O += $(OBJDIR)/Criterion.o
   LIBSPRINTNN_O += $(OBJDIR)/CtcCriterion.o
+  LIBSPRINTNN_O += $(OBJDIR)/Decoder.o
+  LIBSPRINTNN_O += $(OBJDIR)/Encoder.o
   LIBSPRINTNN_O += $(OBJDIR)/Estimator.o
   LIBSPRINTNN_O += $(OBJDIR)/FeatureScorer.o
   LIBSPRINTNN_O += $(OBJDIR)/FeedForwardTrainer.o
   LIBSPRINTNN_O += $(OBJDIR)/GradientCheck.o
+  LIBSPRINTNN_O += $(OBJDIR)/LabelScorer.o
   LIBSPRINTNN_O += $(OBJDIR)/LinearAndActivationLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/LinearLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/LookupLayer.o
@@ -68,6 +71,11 @@ ifdef MODULE_NN_SEQUENCE_TRAINING
   LIBSPRINTNN_O += $(OBJDIR)/MmiSegmentwiseNnTrainer.o
   LIBSPRINTNN_O += $(OBJDIR)/MeSegmentwiseNnTrainer.o
   LIBSPRINTNN_O += $(OBJDIR)/SharedNeuralNetwork.o
+endif
+
+ifdef MODULE_ONNX
+  LIBSPRINTNN_O += $(OBJDIR)/OnnxEncoder.o
+	CHECK_O       += ../Onnx/libSprintOnnx.$(a)
 endif
 
 ifdef MODULE_PYTHON

@@ -17,16 +17,67 @@
 #define LABEL_SCORER_HH
 
 #include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
+#include "Core/Parameter.hh"
+#include "Decoder.hh"
+#include "Encoder.hh"
+#include "LabelHistory.hh"
 
 namespace Nn {
 
+// struct ContextScorer {
+//     std::vector<Score> getScores(std::vector<History> histories, std::vector<LabelId> labels, std::vector<bool> isLoop);  // TODO: maybe pack in struct?
+// };
 
-// base class of models for label scoring (basic supports except scoring)
-class LabelScorer : public virtual Core::Component,
-                    public Core::ReferenceCounted {
+// TODO: Bonus points for LegacyFeatureScorerLabelScorer
+
+// Define enum values for different predefined label scorers with specific encoder and decoder
+enum LabelScorerType {
+    NoOpLabelScorer,
+    OnnxEncoderLabelScorer,
+    LegacyFeatureScorerLabelScorer,
+};
+
+// Glue class that couples encoder and decoder
+// Purpose is creation of the right encoder/decoder combination according to a set of predefined types
+// as well as automatic information flow between encoder and decoder
+class LabelScorer : public virtual Core::Component, public Core::ReferenceCounted {
+public:
+    static const Core::Choice          choiceType;
+    static const Core::ParameterChoice paramType;
+
+    LabelScorer(const Core::Configuration& config);
+    virtual ~LabelScorer() = default;
+
+    // Reset encoder and decoder
+    void reset();
+
+    // Get start history for decoder
+    LabelHistory getStartHistory();
+
+    // Extend history for decoder
+    void extendHistory(LabelHistory& history, LabelIndex label, bool isLoop);
+
+    // Add a single input feature to the encoder
+    void addInput(FeatureVectorRef input);
+    void addInput(Core::Ref<const Speech::Feature> input);
+
+    // Tells the LabelScorer that there will be no more input features coming in the current segment
+    void signalSegmentEnd();
+
+    // Runs requests through decoder function of the same name
+    void getDecoderStepScores(std::vector<ScoreRequest>& requests);
+
+protected:
+    Core::Ref<Encoder> encoder_;
+    Core::Ref<Decoder> decoder_;
+
+private:
+    LabelScorerType type_;
+    void            initEncoderDecoder();
+
+    void encode();
 };
 
 }  // namespace Nn
 
-#endif
+#endif  // LABEL_SCORER_HH

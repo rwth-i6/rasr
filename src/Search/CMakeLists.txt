@@ -8,12 +8,15 @@ if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
     add_subdirectory(GenericSeq2SeqTreeSearch)
 endif ()
 
+add_subdirectory(GreedySearch)
+
 set(RasrSearch_SOURCES
         Aligner.cc
         LatticeHandler.cc
         LanguageModelLookahead.cc
         Module.cc
         Search.cc
+        SearchV2.cc
         StateTree.cc
         StateTreeIo.cc
         WordConditionedTreeSearch.cc)

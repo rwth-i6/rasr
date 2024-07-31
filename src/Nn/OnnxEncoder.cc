@@ -73,6 +73,7 @@ size_t OnnxEncoder::calcInputsPerOutput(size_t T_in, size_t T_out) const {
             return (T_in + T_out - 1ul) / T_out;
         default:
             error() << "Subsampling type not implemented";
+            return 1ul;
     }
 }
 

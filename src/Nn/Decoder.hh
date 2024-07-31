@@ -49,11 +49,11 @@ public:
     virtual void reset();
 
     // Get initial history to be used at segment begin
-    virtual LabelHistory getStartHistory() = 0;
+    virtual Core::Ref<LabelHistory> getStartHistory() = 0;
 
     // (Maybe) extend a given history using the next label
     // `isLoop` may affect whether the history is updated or not, depending on the specific model
-    virtual void extendHistory(LabelHistory& history, LabelIndex labelIndex, bool isLoop) = 0;
+    virtual void extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) = 0;
 
     // Add a single encoder state to buffer
     virtual void addEncoderOutput(FeatureVectorRef encoderOutput);
@@ -80,9 +80,9 @@ class NoOpDecoder : public Decoder {
 public:
     NoOpDecoder(const Core::Configuration& config);
 
-    LabelHistory getStartHistory() override;
-    void         extendHistory(LabelHistory& history, LabelIndex labelIndex, bool isLoop) override;
-    void         getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
+    Core::Ref<LabelHistory> getStartHistory() override;
+    void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
+    void                    getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
 };
 
 // Wrapper around legacy Mm::FeatureScorer.
@@ -97,12 +97,12 @@ class LegacyFeatureScorerDecoder : public Decoder {
 
 public:
     LegacyFeatureScorerDecoder(const Core::Configuration& config);
-    void         reset() override;
-    void         addEncoderOutput(FeatureVectorRef encoderOutput) override;
-    void         signalSegmentEnd() override;
-    LabelHistory getStartHistory() override;
-    void         extendHistory(LabelHistory& history, LabelIndex labelIndex, bool isLoop) override;
-    void         getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
+    void                    reset() override;
+    void                    addEncoderOutput(FeatureVectorRef encoderOutput) override;
+    void                    signalSegmentEnd() override;
+    Core::Ref<LabelHistory> getStartHistory() override;
+    void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
+    void                    getDecoderStepScores(std::vector<ScoreRequest>& requests) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;

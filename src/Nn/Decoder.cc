@@ -15,6 +15,7 @@
 
 #include "Decoder.hh"
 #include <Mm/Module.hh>
+#include "Core/ReferenceCounting.hh"
 
 namespace Nn {
 
@@ -50,15 +51,15 @@ void Decoder::signalSegmentEnd() {
 NoOpDecoder::NoOpDecoder(const Core::Configuration& config)
         : Core::Component(config), Precursor(config) {}
 
-LabelHistory NoOpDecoder::getStartHistory() {
+Core::Ref<LabelHistory> NoOpDecoder::getStartHistory() {
     StepLabelHistory startHistory;
     startHistory.currentStep = 0ul;
-    return startHistory;
+    return Core::ref(&startHistory);
 }
 
-void NoOpDecoder::extendHistory(LabelHistory& history, LabelIndex labelIndex, bool isLoop) {
-    auto& stepHistory = dynamic_cast<StepLabelHistory&>(history);
-    ++stepHistory.currentStep;
+void NoOpDecoder::extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
+    auto stepHistory = dynamic_cast<StepLabelHistory*>(history.get());
+    ++stepHistory->currentStep;
 }
 
 void NoOpDecoder::getDecoderStepScores(std::vector<ScoreRequest>& requests) {
@@ -103,15 +104,15 @@ void LegacyFeatureScorerDecoder::signalSegmentEnd() {
     }
 }
 
-LabelHistory LegacyFeatureScorerDecoder::getStartHistory() {
+Core::Ref<LabelHistory> LegacyFeatureScorerDecoder::getStartHistory() {
     StepLabelHistory startHistory;
     startHistory.currentStep = 0ul;
-    return startHistory;
+    return Core::ref(&startHistory);
 }
 
-void LegacyFeatureScorerDecoder::extendHistory(LabelHistory& history, LabelIndex labelIndex, bool isLoop) {
-    auto& stepHistory = dynamic_cast<StepLabelHistory&>(history);
-    ++stepHistory.currentStep;
+void LegacyFeatureScorerDecoder::extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
+    auto stepHistory = dynamic_cast<StepLabelHistory*>(history.get());
+    ++stepHistory->currentStep;
 }
 
 void LegacyFeatureScorerDecoder::getDecoderStepScores(std::vector<ScoreRequest>& requests) {

@@ -83,11 +83,11 @@ void LabelScorer ::reset() {
     decoder_->reset();
 }
 
-LabelHistory LabelScorer::getStartHistory() {
+Core::Ref<LabelHistory> LabelScorer::getStartHistory() {
     return decoder_->getStartHistory();
 }
 
-void LabelScorer::extendHistory(LabelHistory& history, LabelIndex label, bool isLoop) {
+void LabelScorer::extendHistory(Core::Ref<LabelHistory> history, LabelIndex label, bool isLoop) {
     decoder_->extendHistory(history, label, isLoop);
 }
 

@@ -52,10 +52,10 @@ public:
     void reset();
 
     // Get start history for decoder
-    LabelHistory getStartHistory();
+    Core::Ref<LabelHistory> getStartHistory();
 
     // Extend history for decoder
-    void extendHistory(LabelHistory& history, LabelIndex label, bool isLoop);
+    void extendHistory(Core::Ref<LabelHistory> history, LabelIndex label, bool isLoop);
 
     // Add a single input feature to the encoder
     void addInput(FeatureVectorRef input);

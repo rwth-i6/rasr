@@ -14,9 +14,10 @@
  */
 
 #include "Decoder.hh"
+#include <Core/ReferenceCounting.hh>
 #include <Mm/Module.hh>
-#include "Core/ReferenceCounting.hh"
-#include "Nn/LabelHistory.hh"
+#include "LabelHistory.hh"
+#include "LabelScorer.hh"
 
 namespace Nn {
 
@@ -39,7 +40,7 @@ void Decoder::addEncoderOutput(FeatureVectorRef encoderOutput) {
     encoderOutputBuffer_.push_back(encoderOutput);
 }
 
-void Decoder::signalSegmentEnd() {
+void Decoder::signalNoMoreEncoderOutputs() {
     segmentEnd_ = true;
 }
 
@@ -58,17 +59,17 @@ Core::Ref<LabelHistory> NoOpDecoder::getStartHistory() {
     return Core::ref(&startHistory);
 }
 
-void NoOpDecoder::extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
-    auto stepHistory = dynamic_cast<StepLabelHistory*>(history.get());
+void NoOpDecoder::extendHistory(LabelScorer::Request& request) {
+    auto stepHistory = dynamic_cast<StepLabelHistory*>(request.history.get());
     ++stepHistory->currentStep;
 }
 
-std::optional<Score> NoOpDecoder::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
-    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*history);
+std::optional<Score> NoOpDecoder::getScore(const LabelScorer::Request& request) {
+    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
     if (encoderOutputBuffer_.size() <= stepHistory.currentStep) {
         return {};
     }
-    return encoderOutputBuffer_.at(stepHistory.currentStep)->at(labelIndex);
+    return encoderOutputBuffer_.at(stepHistory.currentStep)->at(request.nextToken);
 }
 
 /*
@@ -99,8 +100,8 @@ void LegacyFeatureScorerDecoder::addEncoderOutput(FeatureVectorRef encoderOutput
     }
 }
 
-void LegacyFeatureScorerDecoder::signalSegmentEnd() {
-    Precursor::signalSegmentEnd();
+void LegacyFeatureScorerDecoder::signalNoMoreEncoderOutputs() {
+    Precursor::signalNoMoreEncoderOutputs();
     while (!featureScorer_->bufferEmpty()) {
         scoreCache_.push_back(featureScorer_->flush());
     }
@@ -112,18 +113,18 @@ Core::Ref<LabelHistory> LegacyFeatureScorerDecoder::getStartHistory() {
     return Core::ref(&startHistory);
 }
 
-void LegacyFeatureScorerDecoder::extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
-    auto stepHistory = dynamic_cast<StepLabelHistory*>(history.get());
+void LegacyFeatureScorerDecoder::extendHistory(LabelScorer::Request& request) {
+    auto stepHistory = dynamic_cast<StepLabelHistory*>(request.history.get());
     ++stepHistory->currentStep;
 }
 
-std::optional<Score> LegacyFeatureScorerDecoder::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
-    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*history);
+std::optional<Score> LegacyFeatureScorerDecoder::getScore(const LabelScorer::Request& request) {
+    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
     if (scoreCache_.size() <= stepHistory.currentStep) {
         return {};
     }
     // Retrieve score from score cache at the right index
-    return scoreCache_.at(stepHistory.currentStep)->score(labelIndex);
+    return scoreCache_.at(stepHistory.currentStep)->score(request.nextToken);
 }
 
 }  // namespace Nn

@@ -14,7 +14,7 @@
  */
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-#include "Nn/LabelScorer.hh"
+#include "EncoderDecoderLabelScorer.hh"
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
@@ -35,13 +35,6 @@
 #endif
 #ifdef MODULE_PYTHON
 #include "PythonFeatureScorer.hh"
-#endif
-
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
 #endif
 
 using namespace Nn;
@@ -91,6 +84,20 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
+const Core::Choice Module_::labelScorerTypeChoice(
+        "encoder-decoder", LabelScorerType::EncoderDecoder,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::labelScorerTypeParam(
+        "type", &Module_::labelScorerTypeChoice, "type of label scorer", LabelScorerType::EncoderDecoder);
+
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-    return Core::ref(new LabelScorer(config));
+    Core::Ref<LabelScorer> result;
+    switch (labelScorerTypeParam(config)) {
+        case LabelScorerType::EncoderDecoder:
+            result = Core::Ref(new EncoderDecoderLabelScorer(config));
+        default:
+            Core::Application::us()->criticalError("unknown label scorer type: %d", labelScorerTypeParam(config));
+    }
+    return result;
 }

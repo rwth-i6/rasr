@@ -17,65 +17,57 @@
 #define LABEL_SCORER_HH
 
 #include <Core/Component.hh>
-#include "Core/Parameter.hh"
-#include "Decoder.hh"
-#include "Encoder.hh"
+#include <Core/Parameter.hh>
+#include <Speech/Feature.hh>
+#include <optional>
 #include "LabelHistory.hh"
+#include "Types.hh"
 
 namespace Nn {
 
-// struct ContextScorer {
-//     std::vector<Score> getScores(std::vector<History> histories, std::vector<LabelId> labels, std::vector<bool> isLoop);  // TODO: maybe pack in struct?
-// };
+// TODO: Make abstract base and move this stuff to a concrete encoder/decoder label scorer
+// TODO: Add documentation from encoder/decoder interfaces here
+// TODO: Change mechanism from `LabelIndex` to general token from tokenInventory similar to LM -> Fsa::Alphabet
 
-// TODO: Bonus points for LegacyFeatureScorerLabelScorer
-
-// Define enum values for different predefined label scorers with specific encoder and decoder
-enum LabelScorerType {
-    NoOpLabelScorer,
-    OnnxEncoderLabelScorer,
-    LegacyFeatureScorerLabelScorer,
-};
-
-// Glue class that couples encoder and decoder
-// Purpose is creation of the right encoder/decoder combination according to a set of predefined types
-// as well as automatic information flow between encoder and decoder
 class LabelScorer : public virtual Core::Component, public Core::ReferenceCounted {
 public:
-    static const Core::Choice          choiceType;
-    static const Core::ParameterChoice paramType;
+    enum TransitionType {
+        FORWARD,
+        LOOP
+    };
+
+    struct Request {
+        Core::Ref<LabelHistory> history;
+        LabelIndex              nextToken;
+        TransitionType          transitionType;
+    };
 
     LabelScorer(const Core::Configuration& config);
     virtual ~LabelScorer() = default;
 
-    // Reset encoder and decoder
-    void reset();
-
-    // Get start history for decoder
-    Core::Ref<LabelHistory> getStartHistory();
-
-    // Extend history for decoder
-    void extendHistory(Core::Ref<LabelHistory> history, LabelIndex label, bool isLoop);
-
-    // Add a single input feature to the encoder
-    void addInput(FeatureVectorRef input);
-    void addInput(Core::Ref<const Speech::Feature> input);
+    // Prepares the LabelScorer to receive new inputs
+    // e.g. by resetting input buffers and segmentEnd flags
+    virtual void reset() = 0;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
-    void signalSegmentEnd();
+    virtual void signalNoMoreFeatures() = 0;
 
-    // Runs requests through decoder function of the same name
-    std::optional<Score> getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop);
+    // Get start history for decoder
+    virtual Core::Ref<LabelHistory> getStartHistory() = 0;
 
-protected:
-    Core::Ref<Encoder> encoder_;
-    Core::Ref<Decoder> decoder_;
+    // Logic for extending the history in the request by the given labelIndex
+    virtual void extendHistory(Request& request) = 0;
 
-private:
-    LabelScorerType type_;
-    void            initEncoderDecoder();
+    // Add a single input feature
+    virtual void addInput(FeatureVectorRef input)                 = 0;
+    virtual void addInput(Core::Ref<const Speech::Feature> input) = 0;
 
-    void encode();
+    // Perform scoring computation for a single request
+    virtual std::optional<Search::Score> getScore(const Request& request) = 0;
+
+    // Perform scoring computation for a vector of requests
+    // Loops over `getScore` by default but may also implement more efficient batched logic
+    virtual std::vector<std::optional<Score>> getScores(const std::vector<Request>& requests);
 };
 
 }  // namespace Nn

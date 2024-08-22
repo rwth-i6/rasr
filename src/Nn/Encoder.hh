@@ -19,12 +19,9 @@
 #include <Core/Component.hh>
 #include <Speech/Feature.hh>
 #include <optional>
-#include "Flow/Data.hh"
+#include "Types.hh"
 
 namespace Nn {
-
-typedef Flow::Vector<f32>            FeatureVector;
-typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
 
 // Encoder class can take features (e.g. from feature flow) and run them through an encoder model to get encoder states
 // Works with input/output buffer logic, i.e. features get added to an input buffer and outputs are retreived from an
@@ -40,8 +37,8 @@ public:
     void reset();
 
     // Signal that no more features are expected for the current segment
-    // When segment end is signaled, encoder can run regardless of whether the buffer has been filled
-    void signalSegmentEnd();
+    // At that point, encoder can run regardless of whether the buffer has been filled
+    void signalNoMoreFeatures();
 
     // Add single input feature to an input buffer
     void addInput(FeatureVectorRef input);

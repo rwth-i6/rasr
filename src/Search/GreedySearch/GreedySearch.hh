@@ -1,4 +1,3 @@
-
 /** Copyright 2020 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
@@ -13,17 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id: ConditionedTreeSearch.hh 7047 2009-03-02 12:38:56Z nolden $
 
 #ifndef GREEDY_SEARCH_HH
 #define GREEDY_SEARCH_HH
 
+#include <Bliss/CorpusDescription.hh>
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Nn/LabelScorer.hh>
 #include <Nn/Module.hh>
 #include <Search/SearchV2.hh>
-#include "Bliss/CorpusDescription.hh"
 
 namespace Search {
 

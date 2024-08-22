@@ -17,11 +17,13 @@ execute_process(
 
 # Check if we got the include directory
 if (NOT _tensorflow_include_res EQUAL "0")
-    message(FATAL_ERROR "Failed to get TensorFlow include directory")
+        message(FATAL_ERROR "Failed to get TensorFlow include directory")
 endif ()
 
 # Output the found directory for debugging purposes
 message(STATUS "Tensorflow include directory: ${Tensorflow_INCLUDE_DIR}")
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES .so .so.1 .so.2)
 
 find_library(
         Tensorflow_CC
@@ -36,24 +38,24 @@ find_library(
         PATH_SUFFIXES lib REQUIRED)
 
 if (Tensorflow_CC)
-    message(STATUS "Tensorflow CC library found at ${Tensorflow_CC}")
+        message(STATUS "Tensorflow CC library found at ${Tensorflow_CC}")
 else ()
-    message(FATAL_ERROR "Tensorflow CC library not found")
+        message(FATAL_ERROR "Tensorflow CC library not found")
 endif ()
 
 if (Tensorflow_FRAMEWORK)
-    message(
+        message(
             STATUS "Tensorflow Framework library found at ${Tensorflow_FRAMEWORK}")
 else ()
-    message(FATAL_ERROR "TensorFlow Framework library not found")
+        message(FATAL_ERROR "TensorFlow Framework library not found")
 endif ()
 
 find_package(OpenSSL REQUIRED)
 
 function(add_tf_dependencies TARGET)
-    target_compile_options(${TARGET} PUBLIC "-fexceptions")
-    target_include_directories(${TARGET} PUBLIC ${Tensorflow_INCLUDE_DIR})
-    target_link_options(${TARGET} PUBLIC "LINKER:--no-as-needed" "LINKER:--allow-multiple-definition")
-    target_link_libraries(${TARGET} PUBLIC OpenSSL::Crypto)
-    target_link_libraries(${TARGET} PUBLIC ${Tensorflow_CC} ${Tensorflow_FRAMEWORK})
+        target_compile_options(${TARGET} PUBLIC "-fexceptions")
+        target_include_directories(${TARGET} PUBLIC ${Tensorflow_INCLUDE_DIR})
+        target_link_options(${TARGET} PUBLIC "LINKER:--no-as-needed" "LINKER:--allow-multiple-definition")
+        target_link_libraries(${TARGET} PUBLIC OpenSSL::Crypto)
+        target_link_libraries(${TARGET} PUBLIC ${Tensorflow_CC} ${Tensorflow_FRAMEWORK})
 endfunction()

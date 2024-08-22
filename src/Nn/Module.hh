@@ -18,6 +18,7 @@
 #include <Core/Factory.hh>
 #include <Core/Singleton.hh>
 
+#include <Core/Parameter.hh>
 #include <Flow/Module.hh>
 #include "LabelScorer.hh"
 
@@ -30,6 +31,9 @@ namespace Nn {
 class Module_ {
 private:
     Core::FormatSet* formats_;
+
+    static const Core::Choice          labelScorerTypeChoice;
+    static const Core::ParameterChoice labelScorerTypeParam;
 
 public:
     Module_();
@@ -45,9 +49,14 @@ public:
         pythonFeatureScorer    = FeatureScorerTypeOffset + 6,
     };
 
+    enum LabelScorerType {
+        EncoderDecoder
+    };
+
     /** Set of file format class.
      */
-    Core::FormatSet& formats();
+    Core::FormatSet&
+            formats();
 
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 };

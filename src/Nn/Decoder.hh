@@ -22,20 +22,13 @@
 #include <Mm/FeatureScorer.hh>
 #include <Speech/Feature.hh>
 #include <optional>
-#include "Encoder.hh"
 #include "LabelHistory.hh"
-#include "Search/Types.hh"
+#include "LabelScorer.hh"
+#include "Types.hh"
 
 namespace Nn {
 
-typedef Search::Score Score;
-
-// Request that is passed as argument to `getDecoderStepScorer`.
-struct ScoreRequest {
-    Core::Ref<const LabelHistory> history;
-    LabelIndex                    labelIndex;
-    bool                          isLoop;
-};
+// TODO: Maybe add general class for NeuralNetwork backend
 
 // Base class for models that can score hypotheses based on history and encoder states
 class Decoder : public virtual Core::Component,
@@ -52,19 +45,18 @@ public:
 
     // (Maybe) extend a given history using the next label
     // `isLoop` may affect whether the history is updated or not, depending on the specific model
-    virtual void extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) = 0;
+    virtual void extendHistory(LabelScorer::Request& request) = 0;
 
-    // Add a single encoder state to buffer
+    // Add a single encoder outputs to buffer
     virtual void addEncoderOutput(FeatureVectorRef encoderOutput);
 
-    // Tells the Decoder that there will be no more encoder states coming in the current segment
+    // Tells the Decoder that there will be no more encoder outputs coming in the current segment
     // Relevant for e.g. Attention models that require all encoder states of a segment before decoding can begin
-    virtual void signalSegmentEnd();
+    virtual void signalNoMoreEncoderOutputs();
 
-    // Decoder will compute score for label given a history ref and a boolean flag that says whether
-    // it should score for a loop or forward transition.
+    // Decoder will compute score for label given a history and transition type.
     // May return None if the decoder does not have enough features ready to perform scoring.
-    virtual std::optional<Score> getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) = 0;
+    virtual std::optional<Score> getScore(const LabelScorer::Request& request) = 0;
 
 protected:
     std::vector<FeatureVectorRef> encoderOutputBuffer_;
@@ -80,8 +72,8 @@ public:
     NoOpDecoder(const Core::Configuration& config);
 
     Core::Ref<LabelHistory> getStartHistory() override;
-    void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
-    std::optional<Score>    getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
+    void                    extendHistory(LabelScorer::Request& request) override;
+    std::optional<Score>    getScore(const LabelScorer::Request& request) override;
 };
 
 // Wrapper around legacy Mm::FeatureScorer.
@@ -98,10 +90,10 @@ public:
     LegacyFeatureScorerDecoder(const Core::Configuration& config);
     void                    reset() override;
     void                    addEncoderOutput(FeatureVectorRef encoderOutput) override;
-    void                    signalSegmentEnd() override;
+    void                    signalNoMoreEncoderOutputs() override;
     Core::Ref<LabelHistory> getStartHistory() override;
-    void                    extendHistory(Core::Ref<LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
-    std::optional<Score>    getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) override;
+    void                    extendHistory(LabelScorer::Request& request) override;
+    std::optional<Score>    getScore(const LabelScorer::Request& request) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;

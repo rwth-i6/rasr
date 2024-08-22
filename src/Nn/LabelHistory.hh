@@ -16,12 +16,13 @@
 #ifndef LABEL_HISTORY_HH
 #define LABEL_HISTORY_HH
 
+#include <Am/ClassicStateModel.hh>
+#include <Mm/Types.hh>
 #include "Core/ReferenceCounting.hh"
-#include "Search/Types.hh"
 
 namespace Nn {
 
-typedef Search::Index LabelIndex;
+typedef Mm::EmissionIndex LabelIndex;
 
 struct LabelHistory : public Core::ReferenceCounted {
     virtual ~LabelHistory() = default;

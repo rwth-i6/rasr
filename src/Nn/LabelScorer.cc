@@ -14,111 +14,20 @@
  */
 
 #include "LabelScorer.hh"
-#include "Core/Choice.hh"
-#include "Nn/Encoder.hh"
-
-#ifdef MODULE_ONNX
-#include "OnnxEncoder.hh"
-#endif
 
 namespace Nn {
 
-/*
- * =============================
- * = EncoderDecoderLabelScorer =
- * =============================
- */
-
-const Core::Choice LabelScorer::choiceType(
-        // Assume encoder inputs are already finished scores and just pass them on without transformations
-        "no-op", LabelScorerType::NoOpLabelScorer,
-        // Onnx encoder with no-op decoder
-        "onnx-encoder-only", LabelScorerType::OnnxEncoderLabelScorer,
-        // Wrapper around legacy Mm::FeatureScorer for backward compatibility
-        "legacy-feature-scorer", LabelScorerType::LegacyFeatureScorerLabelScorer);
-
-const Core::ParameterChoice LabelScorer::paramType(
-        "type",
-        &choiceType,
-        "Choice from a set of label scorer types.",
-        LabelScorerType::NoOpLabelScorer);
-
 LabelScorer::LabelScorer(const Core::Configuration& config)
-        : Core::Component(config),
-          type_(static_cast<LabelScorerType>(paramType(config))) {
-    initEncoderDecoder();
-}
+        : Core::Component(config) {}
 
-void LabelScorer::initEncoderDecoder() {
-    const auto& encoderConfig = select("encoder");
-    const auto& decoderConfig = select("decoder");
-
-    Encoder* encoder = nullptr;
-    Decoder* decoder = nullptr;
-    switch (type_) {
-        case LabelScorerType::NoOpLabelScorer:
-            encoder = new NoOpEncoder(encoderConfig);
-            decoder = new NoOpDecoder(decoderConfig);
-            break;
-#ifdef MODULE_ONNX
-        case LabelScorerType::OnnxEncoderLabelScorer:
-            encoder = new OnnxEncoder(encoderConfig);
-            decoder = new NoOpDecoder(decoderConfig);
-            break;
-#endif
-        case LabelScorerType::LegacyFeatureScorerLabelScorer:
-            encoder = new NoOpEncoder(encoderConfig);
-            decoder = new LegacyFeatureScorerDecoder(decoderConfig);
-            break;
-        default:
-            error() << "Failed to initialize label scorer. Type is not known.";
-            break;
+std::vector<std::optional<Score>> LabelScorer::getScores(const std::vector<LabelScorer::Request>& requests) {
+    std::vector<std::optional<Score>> results;
+    results.reserve(requests.size());
+    for (auto& request : requests) {
+        results.push_back(getScore(request));
     }
-    encoder_ = Core::Ref<Encoder>(encoder);
-    decoder_ = Core::Ref<Decoder>(decoder);
-}
 
-void LabelScorer ::reset() {
-    encoder_->reset();
-    decoder_->reset();
-}
-
-Core::Ref<LabelHistory> LabelScorer::getStartHistory() {
-    return decoder_->getStartHistory();
-}
-
-void LabelScorer::extendHistory(Core::Ref<LabelHistory> history, LabelIndex label, bool isLoop) {
-    decoder_->extendHistory(history, label, isLoop);
-}
-
-void LabelScorer::addInput(FeatureVectorRef input) {
-    encoder_->addInput(input);
-    encode();
-}
-
-void LabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
-    encoder_->addInput(input);
-    encode();
-}
-
-void LabelScorer::signalSegmentEnd() {
-    encoder_->signalSegmentEnd();
-    // Call `encode()` before signaling segment end to the decoder since the decoder
-    // is supposed to receive all available encoder outputs before this signal
-    encode();
-    decoder_->signalSegmentEnd();
-}
-
-std::optional<Score> LabelScorer::getDecoderScore(Core::Ref<const LabelHistory> history, LabelIndex labelIndex, bool isLoop) {
-    return decoder_->getDecoderScore(history, labelIndex, isLoop);
-}
-
-void LabelScorer::encode() {
-    std::optional<FeatureVectorRef> encoderOutput;
-    // As long as the encoder returns more outputs, add them to the decoder buffer
-    while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addEncoderOutput(*encoderOutput);
-    }
+    return results;
 }
 
 }  // namespace Nn

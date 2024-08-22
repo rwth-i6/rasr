@@ -43,7 +43,7 @@ void Encoder::reset() {
     }
 }
 
-void Encoder::signalSegmentEnd() {
+void Encoder::signalNoMoreFeatures() {
     segmentEnd_ = true;
 }
 

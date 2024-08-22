@@ -30,7 +30,7 @@ public:
 
     // Struct to keep track of a collection of scores
     // E.g. AM score and LM score
-    struct ScoreMap : std::unordered_map<std::string, Score> {
+    struct ScoreMap : std::unordered_map<std::string, Score> {  // TODO: unordered_map is bad, keep old ScoreVector with fixed entries
         using Precursor = std::unordered_map<std::string, Score>;
         ScoreMap()      = default;
         ScoreMap(std::initializer_list<value_type> init)
@@ -90,6 +90,9 @@ public:
 
     // Pass a single feature vector
     virtual void addFeature(Core::Ref<const Speech::Feature>) = 0;
+
+    // TODO: Simplify interface, one function, bool in TracebackItem that shows if it's stable or not
+    // TODO: Mechanism to tell the search to remove some context for very long form recognition
 
     // Return the longest partial traceback that is known to become a prefix
     // of the final best sequence. Only required for online recognition.

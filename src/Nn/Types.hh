@@ -15,6 +15,10 @@
 #ifndef TYPES_HH_
 #define TYPES_HH_
 
+#include <Core/Types.hh>
+#include <Flow/Vector.hh>
+#include <Search/Types.hh>
+
 namespace Math {
 template<typename T>
 class CudaMatrix;
@@ -30,6 +34,11 @@ public:
     typedef Math::CudaMatrix<T> NnMatrix;
     typedef Math::CudaVector<T> NnVector;
 };
+
+typedef Flow::Vector<f32>            FeatureVector;
+typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
+
+typedef Search::Score Score;
 
 }  // namespace Nn
 

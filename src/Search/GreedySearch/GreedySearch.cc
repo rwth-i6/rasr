@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <fstream>
 #include <ios>
+#include "Nn/LabelScorer.hh"
 
 namespace Search {
 
@@ -41,7 +42,7 @@ void GreedyTimeSyncSearch::enterSegment(Bliss::SpeechSegment const*) {
 }
 
 void GreedyTimeSyncSearch::finishSegment() {
-    labelScorer_->signalSegmentEnd();
+    labelScorer_->signalNoMoreFeatures();
     decodeMore();
 }
 
@@ -89,7 +90,7 @@ bool GreedyTimeSyncSearch::decodeStep() {
     Score          bestScore(Core::Type<Score>::max);
     Nn::LabelIndex bestIdx = Core::Type<Nn::LabelIndex>::max;
     std::string    bestLabel;
-    bool           bestIsLoop = false;
+    auto           bestTransitionType = Nn::LabelScorer::TransitionType::FORWARD;
 
     // Fetch prev label from hypothesis because this may be expanded with a loop transition
     Nn::LabelIndex prevLabel = Core::Type<Nn::LabelIndex>::max;
@@ -99,21 +100,25 @@ bool GreedyTimeSyncSearch::decodeStep() {
 
     std::optional<Score> score;
     for (auto& [label, idx] : vocabMap_) {
-        bool isLoop = allowLabelLoop_ and idx == prevLabel;
-        score       = labelScorer_->getDecoderScore(hyp_.history, idx, isLoop);
+        auto transition_type = Nn::LabelScorer::TransitionType::FORWARD;
+        if (allowLabelLoop_ and idx == prevLabel) {
+            transition_type = Nn::LabelScorer::TransitionType::LOOP;
+        }
+        score = labelScorer_->getScore({hyp_.history, idx, transition_type});
         if (not score.has_value()) {
             return false;
         }
 
         if (score < bestScore) {
-            bestLabel  = label;
-            bestIdx    = idx;
-            bestScore  = score.value();
-            bestIsLoop = isLoop;
+            bestLabel          = label;
+            bestIdx            = idx;
+            bestScore          = score.value();
+            bestTransitionType = transition_type;
         }
     }
+    Nn::LabelScorer::Request request{hyp_.history, bestIdx, bestTransitionType};
 
-    labelScorer_->extendHistory(hyp_.history, bestIdx, bestIsLoop);
+    labelScorer_->extendHistory(request);
     hyp_.labelSeq.push_back(bestIdx);
     hyp_.score += bestScore;
 

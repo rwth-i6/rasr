@@ -17,7 +17,9 @@
 
 #include <Core/Application.hh>
 #include <Core/Component.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 
 #ifdef MODULE_CUDA
 #include <cuda_runtime.h>

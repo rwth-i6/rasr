@@ -15,7 +15,9 @@
 #ifndef _TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH
 #define _TOOLS_ACOUSTIC_MODEL_TRAINER_ACOUSTIC_MODEL_TRAINER_HH
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <Signal/ScatterEstimator.hh>
 #include <Speech/AlignedFeatureProcessor.hh>
 #include <Speech/LabeledFeatureProcessor.hh>

@@ -15,8 +15,9 @@
 #ifndef _FLF_NODE_REGISTRATION_HH
 #define _FLF_NODE_REGISTRATION_HH
 
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
-
+#endif
 #include "Archive.hh"
 #include "Best.hh"
 #include "Cache.hh"

@@ -911,7 +911,7 @@ const std::vector<Onnx::IOSpecification> OnnxStatefulTransducer::hiddenStateIoSp
                 Onnx::IODirection::INPUT,
                 false,
                 {Onnx::ValueType::TENSOR},
-                {Onnx::ValueDataType::INT32},
+                {Onnx::ValueDataType::INT64},
                 {{1}}},
         Onnx::IOSpecification{
                 "hidden-state-out",
@@ -1033,8 +1033,8 @@ void OnnxStatefulTransducer::extendLabelHistory(LabelHistory& h, LabelIndex idx,
 
 void OnnxStatefulTransducer::updateHiddenState(Math::FastVector<f32>& hiddenState, LabelIndex idx) {
     MappedValueList       inputs;
-    Math::FastVector<s32> recentLabels(1);  // B (= 1)
-    recentLabels.at(0) = idx;
+    Math::FastVector<s64> recentLabels(1);  // B (= 1)
+    recentLabels.at(0) = static_cast<s64>(idx);
 
     inputs.emplace_back(std::make_pair(hidden_state_in_name_, Onnx::Value::create(hiddenState)));
     inputs.emplace_back(std::make_pair(hidden_state_feedback_name_, Onnx::Value::create(recentLabels)));
@@ -1087,13 +1087,11 @@ void OnnxStatefulTransducer::makeBatch(LabelHistoryDescriptor* targetLhd) {
 void OnnxStatefulTransducer::decodeBatch(ScoreCache& scoreCache) {
     // feed in label context: left to right (right-most latest)
     MappedValueList       inputs;
-    Math::FastVector<s32> recentLabels(batchHash_.size());               // B
     Math::FastMatrix<f32> hiddenStates(hiddenSize_, batchHash_.size());  // H x B
 
     const HistoryCache& cache = labelHistoryManager_->historyCache();
     for (u32 bIdx = 0u; bIdx < batchHash_.size(); ++bIdx) {
         LabelHistoryDescriptor* lhd = static_cast<LabelHistoryDescriptor*>(cache.at(batchHash_[bIdx]));
-        recentLabels.at(bIdx)       = lhd->labelSeq.back();
         std::copy(lhd->hiddenState.begin(), lhd->hiddenState.end(), &(hiddenStates.at(0, bIdx)));  // Copy seq into matrix as column
     }
 

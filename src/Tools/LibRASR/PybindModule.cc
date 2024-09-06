@@ -38,19 +38,6 @@
 
 namespace py = pybind11;
 
-class SpeechCorpusVisitor : public Speech::CorpusVisitor {
-
-public:
-    using Speech::CorpusVisitor::enterCorpus;
-    using Speech::CorpusVisitor::leaveCorpus;
-    using Speech::CorpusVisitor::enterRecording;
-    using Speech::CorpusVisitor::leaveRecording;
-    using Speech::CorpusVisitor::visitSegment;
-    using Speech::CorpusVisitor::visitSpeechSegment;
-    using Speech::CorpusVisitor::CorpusVisitor;
-    using Speech::CorpusVisitor::clearRegistrations;
-};
-
 class _DummyApplication : Core::Application {
 public:
     _DummyApplication();
@@ -122,22 +109,22 @@ PYBIND11_MODULE(librasr, m) {
     .def(py::init<>())
     .def(py::init<const Bliss::Symbol&>())
     .def("length", &Bliss::Symbol::length)
-    .def("__eq__", &Bliss::Symbol::operator==)
-    .def("__ne__", &Bliss::Symbol::operator!=)
-    .def("_bool_", &Bliss::Symbol::operator bool)
+    .def("__eq__", &Bliss::Symbol::operator==, py::is_operator())
+    .def("__ne__", &Bliss::Symbol::operator!=, py::is_operator())
+    .def("_bool_", &Bliss::Symbol::operator bool, py::is_operator())
     .def("to_string", &Bliss::Symbol::operator Bliss::Symbol::String)
     .def("to_cstring", &Bliss::Symbol::str)
     .def_static("cast", &Bliss::Symbol::cast);
 
     py::class_<Bliss::Symbol::Hash>(symbol, "Hash")
-    .def("__call__", &Bliss::Symbol::Hash::operator());
+    .def("__call__", &Bliss::Symbol::Hash::operator(), py::is_operator());
 
     py::class_<Bliss::Symbol::Equality>(symbol, "Equality")
-    .def("__call__", &Bliss::Symbol::Equality::operator());
+    .def("__call__", &Bliss::Symbol::Equality::operator(), py::is_operator());
 
     py::class_<Bliss::OrthographicFormList>(m, "OrthographicFormList")
-    .def(py::init<const Bliss::Symbol*, const Bliss::Symbol*>())
     .def(py::init<>())
+    .def(py::init<const Bliss::Symbol*, const Bliss::Symbol*>())
     .def(py::init<const Bliss::OrthographicFormList&>())
     .def("valid", &Bliss::OrthographicFormList::valid)
     .def("size", &Bliss::OrthographicFormList::size)
@@ -146,7 +133,7 @@ PYBIND11_MODULE(librasr, m) {
     .def("front", &Bliss::OrthographicFormList::front, py::return_value_policy::reference_internal)
     .def("begin", &Bliss::OrthographicFormList::begin, py::return_value_policy::reference_internal)
     .def("end", &Bliss::OrthographicFormList::end, py::return_value_policy::reference_internal)
-    .def("__getitem__", &Bliss::OrthographicFormList::operator[]);
+    .def("__getitem__", &Bliss::OrthographicFormList::operator[], py::is_operator());
 
     py::class_<Bliss::SyntacticTokenSequence>(m, "SyntacticTokenSequence")
     .def(py::init<>())
@@ -156,7 +143,7 @@ PYBIND11_MODULE(librasr, m) {
     .def("length", &Bliss::SyntacticTokenSequence::length)
     .def("is_epsilon", &Bliss::SyntacticTokenSequence::isEpsilon)
     .def("front", &Bliss::SyntacticTokenSequence::front, py::return_value_policy::reference_internal)
-    .def("__getitem__", &Bliss::SyntacticTokenSequence::operator[]);
+    .def("__getitem__", &Bliss::SyntacticTokenSequence::operator[], py::is_operator());
 
     py::class_<Bliss::Token>(m, "Token")
     .def("symbol", &Bliss::Token::symbol)
@@ -178,9 +165,8 @@ PYBIND11_MODULE(librasr, m) {
     .def("num_evaluation_token_sequences", &Bliss::Lemma::nEvaluationTokenSequences);
 
     py::class_<Bliss::Lemma::PronunciationIterator>(lemma, "PronunciationIterator")
-    .def(py::init<>())
     .def("to_lemma_pronunciation", &Bliss::Lemma::PronunciationIterator::operator const Bliss::LemmaPronunciation*)
-    .def("increment", &Bliss::Lemma::PronunciationIterator::operator++, py::return_value_policy::reference_internal);
+    .def("__next__", &Bliss::Lemma::PronunciationIterator::operator++, py::return_value_policy::reference_internal, py::is_operator());
 
     py::class_<Bliss::Pronunciation, std::unique_ptr<Bliss::Pronunciation, py::nodelete>> pronunciation(m, "Pronunciation");
     pronunciation
@@ -188,22 +174,22 @@ PYBIND11_MODULE(librasr, m) {
     .def("length", &Bliss::Pronunciation::length)
     .def("format", &Bliss::Pronunciation::format)
     .def("phonemes", &Bliss::Pronunciation::phonemes, py::return_value_policy::reference_internal)
-    .def("__getitem__", &Bliss::Pronunciation::operator[]);
+    .def("__getitem__", &Bliss::Pronunciation::operator[], py::is_operator());
 
     py::class_<Bliss::Pronunciation::LemmaIterator>(pronunciation, "LemmaIterator")
     .def(py::init<>())
-    .def("__eq__", &Bliss::Pronunciation::LemmaIterator::operator==)
-    .def("__ne__", &Bliss::Pronunciation::LemmaIterator::operator!=)
+    .def("__eq__", &Bliss::Pronunciation::LemmaIterator::operator==, py::is_operator())
+    .def("__ne__", &Bliss::Pronunciation::LemmaIterator::operator!=, py::is_operator())
     .def("to_lemma_pronunciation", &Bliss::Pronunciation::LemmaIterator::operator const Bliss::LemmaPronunciation*)
-    .def("increment", &Bliss::Pronunciation::LemmaIterator::operator++, py::return_value_policy::reference_internal);
+    .def("__next__", &Bliss::Pronunciation::LemmaIterator::operator++, py::return_value_policy::reference_internal, py::is_operator());
 
     py::class_<Bliss::Pronunciation::Hash>(pronunciation, "Hash")
-    .def("__call__", (u32 (Bliss::Pronunciation::Hash::*)(const Bliss::Phoneme::Id*) const) &Bliss::Pronunciation::Hash::operator())
-    .def("__call__", (u32 (Bliss::Pronunciation::Hash::*)(const Bliss::Pronunciation*) const) &Bliss::Pronunciation::Hash::operator());
+    .def("__call__", (u32 (Bliss::Pronunciation::Hash::*)(const Bliss::Phoneme::Id*) const) &Bliss::Pronunciation::Hash::operator(), py::is_operator())
+    .def("__call__", (u32 (Bliss::Pronunciation::Hash::*)(const Bliss::Pronunciation*) const) &Bliss::Pronunciation::Hash::operator(), py::is_operator());
 
     py::class_<Bliss::Pronunciation::Equality>(pronunciation, "Equality")
-    .def("__call__", (bool (Bliss::Pronunciation::Equality::*)(const Bliss::Phoneme::Id*, const Bliss::Phoneme::Id*) const) &Bliss::Pronunciation::Equality::operator())
-    .def("__call__", (bool (Bliss::Pronunciation::Equality::*)(const Bliss::Pronunciation*, const Bliss::Pronunciation*) const) &Bliss::Pronunciation::Equality::operator());
+    .def("__call__", (bool (Bliss::Pronunciation::Equality::*)(const Bliss::Phoneme::Id*, const Bliss::Phoneme::Id*) const) &Bliss::Pronunciation::Equality::operator(), py::is_operator())
+    .def("__call__", (bool (Bliss::Pronunciation::Equality::*)(const Bliss::Pronunciation*, const Bliss::Pronunciation*) const) &Bliss::Pronunciation::Equality::operator(), py::is_operator());
 
     py::class_<Bliss::LemmaPronunciation>(m, "LemmaPronunciation")
     .def("id", &Bliss::LemmaPronunciation::id)
@@ -268,14 +254,14 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<Fsa::Alphabet::const_iterator>(alphabet, "const_iterator")
     .def(py::init<Core::Ref<const Fsa::Alphabet>, Fsa::LabelId>())
-    .def("__eq__", &Fsa::Alphabet::const_iterator::operator==)
-    .def("__ne__", &Fsa::Alphabet::const_iterator::operator!=)
+    .def("__eq__", &Fsa::Alphabet::const_iterator::operator==, py::is_operator())
+    .def("__ne__", &Fsa::Alphabet::const_iterator::operator!=, py::is_operator())
     .def("get_symbol", &Fsa::Alphabet::const_iterator::operator*)
     .def("to_label_id", (Fsa::LabelId (Fsa::Alphabet::const_iterator::*)()) &Fsa::Alphabet::const_iterator::operator Fsa::LabelId)
     .def("to_label_id", (Fsa::LabelId (Fsa::Alphabet::const_iterator::*)() const) &Fsa::Alphabet::const_iterator::operator Fsa::LabelId)
-    .def("increment", &Fsa::Alphabet::const_iterator::operator++, py::return_value_policy::reference_internal);
+    .def("__next__", &Fsa::Alphabet::const_iterator::operator++, py::return_value_policy::reference_internal, py::is_operator());
 
-    py::class_<Bliss::TokenAlphabet, Fsa::Alphabet, Core::Ref<Bliss::TokenAlphabet>>(m, "TokenAlphabet")
+    py::class_<Bliss::TokenAlphabet, Fsa::Alphabet, Core::Ref<Bliss::TokenAlphabet>>(m, "TokenAlphabet", py::multiple_inheritance())
     .def("symbol", &Bliss::TokenAlphabet::symbol)
     .def("end", &Bliss::TokenAlphabet::end)
     .def("index", (Fsa::LabelId (Bliss::TokenAlphabet::*)(const std::string&) const) &Bliss::TokenAlphabet::index)
@@ -293,7 +279,7 @@ PYBIND11_MODULE(librasr, m) {
     file.close();
     });
 
-    py::class_<Bliss::PhonemeAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::PhonemeAlphabet>>(m, "PhonemeAlphabet")
+    py::class_<Bliss::PhonemeAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::PhonemeAlphabet>>(m, "PhonemeAlphabet", py::multiple_inheritance())
     .def("phoneme_inventory", &Bliss::PhonemeAlphabet::phonemeInventory, py::return_value_policy::take_ownership)
     .def("phoneme", &Bliss::PhonemeAlphabet::phoneme, py::return_value_policy::reference_internal)
     .def("symbol", &Bliss::PhonemeAlphabet::symbol)
@@ -310,10 +296,10 @@ PYBIND11_MODULE(librasr, m) {
     file.close();
     });
 
-    py::class_<Bliss::LemmaAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::LemmaAlphabet>>(m, "LemmaAlphabet")
+    py::class_<Bliss::LemmaAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::LemmaAlphabet>>(m, "LemmaAlphabet", py::multiple_inheritance())
     .def("lemma", &Bliss::LemmaAlphabet::lemma, py::return_value_policy::reference_internal);
 
-    py::class_<Bliss::LemmaPronunciationAlphabet, Fsa::Alphabet, Core::Ref<Bliss::LemmaPronunciationAlphabet>>(m, "LemmaPronunciationAlphabet")
+    py::class_<Bliss::LemmaPronunciationAlphabet, Fsa::Alphabet, Core::Ref<Bliss::LemmaPronunciationAlphabet>>(m, "LemmaPronunciationAlphabet", py::multiple_inheritance())
     .def("index", (Fsa::LabelId (Bliss::LemmaPronunciationAlphabet::*)(const std::string&) const) &Bliss::LemmaPronunciationAlphabet::index)
     .def("index", (Fsa::LabelId (Bliss::LemmaPronunciationAlphabet::*)(const Bliss::LemmaPronunciation*) const) &Bliss::LemmaPronunciationAlphabet::index)
     .def("lemma_pronunciation", &Bliss::LemmaPronunciationAlphabet::lemmaPronunciation, py::return_value_policy::reference_internal)
@@ -330,8 +316,8 @@ PYBIND11_MODULE(librasr, m) {
     }
     file.close();
     });
-
-    py::class_<Bliss::SyntacticTokenAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::SyntacticTokenAlphabet>>(m, "SyntacticTokenAlphabet")
+    
+    py::class_<Bliss::SyntacticTokenAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::SyntacticTokenAlphabet>>(m, "SyntacticTokenAlphabet", py::multiple_inheritance())
     .def("syntactic_token", &Bliss::SyntacticTokenAlphabet::syntacticToken, py::return_value_policy::reference_internal);
 
     py::class_<Bliss::TokenInventory>(m, "TokenInventory")
@@ -340,19 +326,19 @@ PYBIND11_MODULE(librasr, m) {
     .def("add", &Bliss::TokenInventory::add)
     .def("size", &Bliss::TokenInventory::size)
     .def("insert", &Bliss::TokenInventory::insert)
-    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(Bliss::Token::Id) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal)
-    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(const std::string&) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal)
-    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(Bliss::Symbol) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal);
+    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(Bliss::Token::Id) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator())
+    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(const std::string&) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator())
+    .def("__getitem__", (Bliss::Token* (Bliss::TokenInventory::*)(Bliss::Symbol) const) &Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator());
 
     py::class_<Bliss::EvaluationToken, Bliss::Token>(m, "EvaluationToken");
 
-    py::class_<Bliss::EvaluationTokenAlphabet, Core::Ref<Bliss::EvaluationTokenAlphabet>>(m, "EvaluationTokenAlphabet")
+    py::class_<Bliss::EvaluationTokenAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::EvaluationTokenAlphabet>>(m, "EvaluationTokenAlphabet")
     .def("evaluation_token", &Bliss::EvaluationTokenAlphabet::evaluationToken, py::return_value_policy::reference_internal);
 
     py::class_<Bliss::LetterAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::LetterAlphabet>>(m, "LetterAlphabet")
     .def("letter", &Bliss::LetterAlphabet::letter, py::return_value_policy::reference_internal);
 
-    py::class_<Bliss::Lexicon>(m, "Lexicon")
+    py::class_<Bliss::Lexicon, Core::Ref<Bliss::Lexicon>>(m, "Lexicon", py::multiple_inheritance())
     .def(py::init<const Core::Configuration&>())
     .def("new_lemma", (Bliss::Lemma* (Bliss::Lexicon::*)()) &Bliss::Lexicon::newLemma, py::return_value_policy::reference_internal)
     .def("new_lemma", (Bliss::Lemma* (Bliss::Lexicon::*)(const std::string&)) &Bliss::Lexicon::newLemma, py::return_value_policy::reference_internal)

@@ -63,6 +63,24 @@ public:
 
 };
 
+class PublicFeatureExtractor : public Speech::FeatureExtractor {
+
+public:
+	// using Speech::FeatureExtractor::setFeatureDescription;
+	using Speech::FeatureExtractor::processFeature;
+};
+
+class PyFeatureExtractor : public Speech::FeatureExtractor {
+
+public:
+	typedef DataExtractor Precursor;
+	PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)
+		: Core::Component(c), Precursor(c, loadFromFile) {}
+	// void setFeatureDescription(const Mm::FeatureDescription& description) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, setFeatureDescription, description); }
+	void processFeature(Core::Ref<const Speech::Feature> pls)  override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processFeature, pls); }
+	// void processSegment(Bliss::Segment* segment) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processSegment, segment); }
+};
+
 
 class _DummyApplication : Core::Application {
 public:
@@ -626,7 +644,7 @@ PYBIND11_MODULE(librasr, m) {
     .def("is_signed_on", (bool (SpeechCorpusVisitor::*)(Core::Ref<Speech::DataSource>) const) &SpeechCorpusVisitor::isSignedOn);
     */
 
-    py::class_<Speech::CorpusVisitor, Bliss::CorpusVisitor, PyCorpusVisitor>(m, "SpeechCorpusVisitor")
+    py::class_<Speech::CorpusVisitor, Bliss::CorpusVisitor, PyCorpusVisitor>(m, "SpeechCorpusVisitor", py::multiple_inheritance())
     .def(py::init<const Core::Configuration&>())
     .def("enter_corpus", &PublicCorpusVisitor::enterCorpus)
     .def("leave_corpus", &PublicCorpusVisitor::leaveCorpus)
@@ -765,11 +783,12 @@ PYBIND11_MODULE(librasr, m) {
     .def("leave_segment", &Speech::DataExtractor::leaveSegment)
     .def("process_segment", &Speech::DataExtractor::processSegment);
 
-    py::class_<Speech::FeatureExtractor, Speech::DataExtractor>(m, "FeatureExtractor")
+    py::class_<Speech::FeatureExtractor, Speech::DataExtractor, PyFeatureExtractor>(m, "FeatureExtractor")
     .def(py::init<const Core::Configuration&, bool>())
-    .def("process_segment", &Speech::FeatureExtractor::processSegment);
+    .def("process_segment", &PublicFeatureExtractor::processSegment)
+    .def("process_feature", &PublicFeatureExtractor::processFeature);
 
-    py::class_<Speech::FeatureVectorExtractor, Speech::FeatureExtractor>(m, "FeatureVectorExtractor")
-    .def(py::init<const Core::Configuration&>());
+    //py::class_<Speech::FeatureVectorExtractor, Speech::FeatureExtractor>(m, "FeatureVectorExtractor")
+    //.def(py::init<const Core::Configuration&>());
 
 }

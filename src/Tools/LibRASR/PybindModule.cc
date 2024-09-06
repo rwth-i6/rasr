@@ -66,19 +66,18 @@ public:
 class PublicFeatureExtractor : public Speech::FeatureExtractor {
 
 public:
-	// using Speech::FeatureExtractor::setFeatureDescription;
+	using Speech::FeatureExtractor::setFeatureDescription;
 	using Speech::FeatureExtractor::processFeature;
 };
 
 class PyFeatureExtractor : public Speech::FeatureExtractor {
 
 public:
-	typedef DataExtractor Precursor;
 	PyFeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)
-		: Core::Component(c), Precursor(c, loadFromFile) {}
-	// void setFeatureDescription(const Mm::FeatureDescription& description) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, setFeatureDescription, description); }
+		: Core::Component(c), Speech::FeatureExtractor(c, loadFromFile){}
+	void setFeatureDescription(const Mm::FeatureDescription& description) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, setFeatureDescription, description); }
 	void processFeature(Core::Ref<const Speech::Feature> pls)  override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processFeature, pls); }
-	// void processSegment(Bliss::Segment* segment) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processSegment, segment); }
+	void processSegment(Bliss::Segment* segment) override { PYBIND11_OVERRIDE(void, Speech::FeatureExtractor, processSegment, segment); }
 };
 
 
@@ -786,8 +785,9 @@ PYBIND11_MODULE(librasr, m) {
     py::class_<Speech::FeatureExtractor, Speech::DataExtractor, PyFeatureExtractor>(m, "FeatureExtractor")
     .def(py::init<const Core::Configuration&, bool>())
     .def("process_segment", &PublicFeatureExtractor::processSegment)
-    .def("process_feature", &PublicFeatureExtractor::processFeature);
-
+    .def("process_feature", &PublicFeatureExtractor::processFeature)
+    .def("process_segment", &PublicFeatureExtractor::setFeatureDescription);
+    
     //py::class_<Speech::FeatureVectorExtractor, Speech::FeatureExtractor>(m, "FeatureVectorExtractor")
     //.def(py::init<const Core::Configuration&>());
 

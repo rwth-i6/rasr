@@ -18,6 +18,7 @@
 
 # From build.
 .build*
+.cache*
 cmake-build*
 *.a
 *.pyc

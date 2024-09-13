@@ -52,6 +52,7 @@
 #include "Prune.hh"
 #include "PushForwardRescoring.hh"
 #include "Recognizer.hh"
+#include "RecognizerV2.hh"
 #include "Rescale.hh"
 #include "Rescore.hh"
 #include "RescoreLm.hh"
@@ -2145,6 +2146,12 @@ void registerNodeCreators(NodeFactory* factory) {
                     "output:\n"
                     "  0:lattice",
                     &createRecognizerNode));
+
+    factory->add(
+            NodeCreator(
+                    "recognizer-v2",
+                    "",
+                    &createRecognizerNodeV2));
 
     factory->add(
             NodeCreator(

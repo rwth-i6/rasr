@@ -50,7 +50,7 @@ public:
     };
 
     enum LabelScorerType {
-        EncoderDecoder
+        EncoderDecoderType
     };
 
     /** Set of file format class.

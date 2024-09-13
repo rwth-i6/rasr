@@ -9,3 +9,4 @@ target_link_libraries(RasrGreedySearch INTERFACE
         RasrFsa
         RasrCore
 )
+target_compile_options(RasrGreedySearch PRIVATE "-fexceptions")

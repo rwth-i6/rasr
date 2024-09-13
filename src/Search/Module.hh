@@ -17,6 +17,7 @@
 
 #include <Core/Configuration.hh>
 #include <Core/Singleton.hh>
+#include "SearchV2.hh"
 
 namespace Search {
 
@@ -31,12 +32,21 @@ enum SearchType {
     GenericSeq2SeqTreeSearchType
 };
 
+enum SearchTypeV2 {
+    GreedyTimesyncSearchType
+};
+
 class Module_ {
+private:
+    static const Core::Choice          searchTypeV2Choice;
+    static const Core::ParameterChoice searchTypeV2Param;
+
 public:
     Module_();
 
-    SearchAlgorithm* createRecognizer(SearchType type, const Core::Configuration& config) const;
-    LatticeHandler*  createLatticeHandler(const Core::Configuration& c) const;
+    SearchAlgorithm*   createRecognizer(SearchType type, const Core::Configuration& config) const;
+    SearchAlgorithmV2* createSearchAlgorithm(const Core::Configuration& config) const;
+    LatticeHandler*    createLatticeHandler(const Core::Configuration& c) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

@@ -18,6 +18,7 @@
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include <Search/WordConditionedTreeSearch.hh>
+#include "GreedySearch/GreedySearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -36,6 +37,13 @@ using namespace Search;
 
 Module_::Module_() {
 }
+
+const Core::Choice Module_::searchTypeV2Choice(
+        "greedy-timesync-search", SearchTypeV2::GreedyTimesyncSearchType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::searchTypeV2Param(
+        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::GreedyTimesyncSearchType);
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
     SearchAlgorithm* recognizer = 0;
@@ -76,6 +84,19 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 
         default:
             Core::Application::us()->criticalError("unknown recognizer type: %d", type);
+            break;
+    }
+    return recognizer;
+}
+
+SearchAlgorithmV2* Module_::createSearchAlgorithm(const Core::Configuration& config) const {
+    SearchAlgorithmV2* recognizer = 0;
+    switch (searchTypeV2Param(config)) {
+        case GreedyTimesyncSearchType:
+            recognizer = new Search::GreedyTimeSyncSearch(config);
+            break;
+        default:
+            Core::Application::us()->criticalError("unknown recognizer type: %d", searchTypeV2Param(config));
             break;
     }
     return recognizer;

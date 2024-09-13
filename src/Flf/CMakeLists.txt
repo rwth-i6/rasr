@@ -1,7 +1,7 @@
 add_subdirectory(FlfCore)
 
 if (${MODULE_FLF_EXT})
-    add_subdirectory(FlfExt)
+        add_subdirectory(FlfExt)
 endif ()
 
 set(Flf_SOURCES
@@ -47,6 +47,7 @@ set(Flf_SOURCES
         Prune.cc
         PushForwardRescoring.cc
         Recognizer.cc
+        RecognizerV2.cc
         IncrementalRecognizer.cc
         Rescore.cc
         RescoreLm.cc
@@ -69,7 +70,7 @@ add_library(RasrFlf STATIC ${Flf_SOURCES})
 target_link_libraries(RasrFlf INTERFACE RasrFlfCore)
 
 if (${MODULE_FLF_EXT})
-    target_link_libraries(RasrFlf INTERFACE RasrFlfExt)
+        target_link_libraries(RasrFlf INTERFACE RasrFlfExt)
 endif ()
 
 target_link_libraries(

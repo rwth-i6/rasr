@@ -61,14 +61,14 @@ public:
     Core::Ref<LabelHistory> getStartHistory();
 
     // Extend history for decoder
-    void extendHistory(Request& request);
+    void extendHistory(Request request);
 
     // Add a single input feature to the encoder
     void addInput(FeatureVectorRef input);
     void addInput(Core::Ref<const Speech::Feature> input);
 
     // Runs requests through decoder given available encoder states
-    std::optional<Score> getScore(const Request& request);
+    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const Request request);
 
 protected:
     Core::Ref<Encoder> encoder_;

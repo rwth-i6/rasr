@@ -62,12 +62,13 @@ protected:
     virtual void distributeScaleUpdate(const Mc::ScaleUpdate& scaleUpdate);
 
 public:
-    ModelCombination(const Core::Configuration&,
-                     Mode                    = complete,
-                     Am::AcousticModel::Mode = Am::AcousticModel::complete);
+    ModelCombination(const Core::Configuration&);
+    ModelCombination(const Core::Configuration&, Mode, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
     ModelCombination(const Core::Configuration&,
                      Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
     virtual ~ModelCombination();
+
+    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
 
     void getDependencies(Core::DependencySet&) const;
 

@@ -18,6 +18,8 @@
 
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
+#include <Core/Types.hh>
+#include <Flow/Timestamp.hh>
 #include <Speech/Feature.hh>
 #include <optional>
 #include "LabelHistory.hh"
@@ -25,11 +27,10 @@
 
 namespace Nn {
 
-// TODO: Make abstract base and move this stuff to a concrete encoder/decoder label scorer
-// TODO: Add documentation from encoder/decoder interfaces here
 // TODO: Change mechanism from `LabelIndex` to general token from tokenInventory similar to LM -> Fsa::Alphabet
 
-class LabelScorer : public virtual Core::Component, public Core::ReferenceCounted {
+class LabelScorer : public virtual Core::Component,
+                    public Core::ReferenceCounted {
 public:
     enum TransitionType {
         FORWARD,
@@ -40,6 +41,11 @@ public:
         Core::Ref<LabelHistory> history;
         LabelIndex              nextToken;
         TransitionType          transitionType;
+    };
+
+    struct ScoreWithTime {
+        NegLogScore     score;
+        Flow::Timestamp timestamp;
     };
 
     LabelScorer(const Core::Configuration& config);
@@ -56,18 +62,18 @@ public:
     virtual Core::Ref<LabelHistory> getStartHistory() = 0;
 
     // Logic for extending the history in the request by the given labelIndex
-    virtual void extendHistory(Request& request) = 0;
+    virtual void extendHistory(Request request) = 0;
 
     // Add a single input feature
     virtual void addInput(FeatureVectorRef input)                 = 0;
     virtual void addInput(Core::Ref<const Speech::Feature> input) = 0;
 
     // Perform scoring computation for a single request
-    virtual std::optional<Search::Score> getScore(const Request& request) = 0;
+    virtual std::optional<ScoreWithTime> getScoreWithTime(const Request request) = 0;
 
     // Perform scoring computation for a vector of requests
     // Loops over `getScore` by default but may also implement more efficient batched logic
-    virtual std::vector<std::optional<Score>> getScores(const std::vector<Request>& requests);
+    virtual std::vector<std::optional<ScoreWithTime>> getScoresWithTime(const std::vector<Request>& requests);
 };
 
 }  // namespace Nn

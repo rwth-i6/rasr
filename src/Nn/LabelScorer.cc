@@ -20,11 +20,11 @@ namespace Nn {
 LabelScorer::LabelScorer(const Core::Configuration& config)
         : Core::Component(config) {}
 
-std::vector<std::optional<Score>> LabelScorer::getScores(const std::vector<LabelScorer::Request>& requests) {
-    std::vector<std::optional<Score>> results;
+std::vector<std::optional<LabelScorer::ScoreWithTime>> LabelScorer::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+    std::vector<std::optional<LabelScorer::ScoreWithTime>> results;
     results.reserve(requests.size());
     for (auto& request : requests) {
-        results.push_back(getScore(request));
+        results.push_back(getScoreWithTime(request));
     }
 
     return results;

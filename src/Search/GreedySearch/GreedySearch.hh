@@ -17,49 +17,49 @@
 #define GREEDY_SEARCH_HH
 
 #include <Bliss/CorpusDescription.hh>
+#include <Bliss/Lexicon.hh>
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Nn/LabelScorer.hh>
 #include <Nn/Module.hh>
+#include <Nn/Types.hh>
 #include <Search/SearchV2.hh>
+#include <Speech/ModelCombination.hh>
 
 namespace Search {
 
 // Bare-bones search algorithm without lexicon, LM, transition model, beam or pruning.
-// Given a vocab file that maps strings to label indices, pick the label index with
+// Given a lexicon only containing labels (without lemmas), pick the label index with
 // maximum probability at each position.
 class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
     struct LabelHypothesis {
         Core::Ref<Nn::LabelHistory> history;
         std::vector<Nn::LabelIndex> labelSeq;
-        Score                       score;
+        Nn::NegLogScore             score;
         Traceback                   traceback;
 
         LabelHypothesis()
-                : history(nullptr), labelSeq(), score(0.0), traceback() {}
+                : history(), labelSeq(), score(), traceback() {}
     };
 
 public:
-    static const Core::ParameterBool   paramUseBlank;
-    static const Core::ParameterBool   paramAllowLabelLoop;
-    static const Core::ParameterInt    paramBlankLabelIndex;
-    static const Core::ParameterString paramVocabFile;
+    static const Core::ParameterBool paramUseBlank;
+    static const Core::ParameterBool paramAllowLabelLoop;
+    static const Core::ParameterInt  paramBlankLabelIndex;
 
     GreedyTimeSyncSearch(const Core::Configuration&);
 
     // Inherited methods
 
+    Speech::ModelCombination::Mode  modelCombinationNeeded() const override;
+    bool                            setModelCombination(const Speech::ModelCombination& modelCombination) override;
     void                            reset() override;
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
     void                            finalize() override;
     void                            addFeature(Core::Ref<const Speech::Feature>) override;
-    Core::Ref<const Traceback>      stablePartialTraceback() override;
-    Core::Ref<const Traceback>      recentStablePartialTraceback() override;
-    Core::Ref<const Traceback>      unstablePartialTraceback() const override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getPartialWordLattice() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;
     void                            logStatistics() const override;
@@ -72,20 +72,15 @@ private:
     // Decode as much as possible given the currently available features
     void decodeMore();
 
-    void parseVocabFile(const std::string& filename);
-
     bool useBlank_;
     bool allowLabelLoop_;
 
     Nn::LabelIndex blankLabelIndex_;
 
-    Core::Ref<Nn::LabelScorer>                      labelScorer_;
-    Nn::LabelIndex                                  numClasses_;
-    std::unordered_map<std::string, Nn::LabelIndex> vocabMap_;
-    LabelHypothesis                                 hyp_;
-    size_t                                          currentStep_;
-
-    Core::Ref<Traceback> previousPassedTraceback_;
+    Core::Ref<Nn::LabelScorer> labelScorer_;
+    Nn::LabelIndex             numClasses_;
+    Bliss::LexiconRef          lexicon_;
+    LabelHypothesis            hyp_;
 };
 
 }  // namespace Search

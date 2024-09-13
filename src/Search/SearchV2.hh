@@ -16,8 +16,11 @@
 #define SEARCH_V2_HH
 
 #include <Bliss/CorpusDescription.hh>
+#include <Bliss/Lexicon.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/Feature.hh>
+#include <Speech/ModelCombination.hh>
+#include "Am/AcousticModel.hh"
 
 namespace Search {
 
@@ -25,36 +28,42 @@ namespace Search {
 // or offline manner.
 class SearchAlgorithmV2 : public virtual Core::Component {
 public:
-    typedef Speech::Score          Score;
-    typedef Speech::TimeframeIndex TimeframeIndex;
-
     // Struct to keep track of a collection of scores
-    // E.g. AM score and LM score
-    struct ScoreMap : std::unordered_map<std::string, Score> {  // TODO: unordered_map is bad, keep old ScoreVector with fixed entries
-        using Precursor = std::unordered_map<std::string, Score>;
-        ScoreMap()      = default;
-        ScoreMap(std::initializer_list<value_type> init)
-                : Precursor(init) {}
+    struct ScoreVector {
+        Nn::NegLogScore acoustic, lm;
 
-        Score    sum() const;
-        ScoreMap operator+(ScoreMap const& other) const;
-        ScoreMap operator-(ScoreMap const& other) const;
-        ScoreMap operator+=(ScoreMap const& other);
-        ScoreMap operator-=(ScoreMap const& other);
+        ScoreVector(Nn::NegLogScore am, Nn::NegLogScore lm)
+                : acoustic(am), lm(lm) {}
+        operator Nn::NegLogScore() const {
+            return acoustic + lm;
+        };
+        ScoreVector operator+(ScoreVector const& other) const {
+            return ScoreVector(acoustic + other.acoustic, lm + other.lm);
+        }
+        ScoreVector operator-(ScoreVector const& other) const {
+            return ScoreVector(acoustic - other.acoustic, lm - other.lm);
+        }
+        ScoreVector& operator+=(ScoreVector const& other) {
+            acoustic += other.acoustic;
+            lm += other.lm;
+            return *this;
+        }
+        ScoreVector& operator-=(ScoreVector const& other) {
+            acoustic -= other.acoustic;
+            lm -= other.lm;
+            return *this;
+        }
     };
 
     // Struct to store data for a single traceback entry
     struct TracebackItem {
     public:
-        typedef Lattice::WordBoundary::Transit Transit;
-
-    public:
-        std::string    pronunciation;  // TODO: Use lexicon or not?
-        TimeframeIndex time;           // Ending time
-        ScoreMap       scores;         // Absolute score
-        Transit        transit;        // Final transition description
-        TracebackItem(const std::string& p, TimeframeIndex t, ScoreMap s, Transit te)
-                : pronunciation(p), time(t), scores(s), transit(te) {}
+        const Bliss::LemmaPronunciation* pronunciation;  // pronunciation for lattice creation
+        const Bliss::Lemma*              lemma;          // possible no pronunciation
+        Flow::Timestamp                  time;           // start-/end-time of current traceback item
+        ScoreVector                      scores;         // Absolute score
+        TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Flow::Timestamp t, ScoreVector s)
+                : pronunciation(p), lemma(l), time(t), scores(s) {}
     };
 
     // List of TracebackItems representing a full traceback path
@@ -69,6 +78,16 @@ public:
 public:
     SearchAlgorithmV2(const Core::Configuration&);
     virtual ~SearchAlgorithmV2() = default;
+
+    // ModelCombination to set important Modules in recognition
+    virtual Speech::ModelCombination::Mode modelCombinationNeeded() const = 0;
+
+    // Needed mode for acoustic model (only in case it's required in the model combination)
+    virtual Am::AcousticModel::Mode acousticModelNeeded() const {
+        return Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying | Am::AcousticModel::noStateTransition;
+    }
+
+    virtual bool setModelCombination(const Speech::ModelCombination& modelCombination) = 0;
 
     // Call before starting a new recognition. Clean up existing data structures
     // from the previous run.
@@ -91,30 +110,8 @@ public:
     // Pass a single feature vector
     virtual void addFeature(Core::Ref<const Speech::Feature>) = 0;
 
-    // TODO: Simplify interface, one function, bool in TracebackItem that shows if it's stable or not
-    // TODO: Mechanism to tell the search to remove some context for very long form recognition
-
-    // Return the longest partial traceback that is known to become a prefix
-    // of the final best sequence. Only required for online recognition.
-    virtual Core::Ref<const Traceback> stablePartialTraceback() = 0;
-
-    // Like `stablePartialTraceback` but only return the most recent part
-    // that's new after the last `stablePartialTraceback` or `recentStablePartialTraceback`
-    // call. Only required for online recognition.
-    virtual Core::Ref<const Traceback> recentStablePartialTraceback() = 0;
-
-    // Return the part of the current best sequence after the stable traceback,
-    // i.e. the part that may still change in the final best.
-    // Only required for online recognition.
-    virtual Core::Ref<const Traceback> unstablePartialTraceback() const = 0;
-
-    // Return the current best sequence which is the composition of stable and
-    // unstable partial traceback.
+    // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
-
-    // Similar to `stablePartialTraceback` but return the partial lattice instead of
-    // traceback.
-    virtual Core::Ref<const LatticeAdaptor> getPartialWordLattice() = 0;
 
     // Similar to `getCurrentBestTraceback` but return the lattice instead of traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;

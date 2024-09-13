@@ -1,11 +1,11 @@
 if (${MODULE_SEARCH_WFST})
-    add_subdirectory(Wfst)
+        add_subdirectory(Wfst)
 endif ()
 if (${MODULE_ADVANCED_TREE_SEARCH})
-    add_subdirectory(AdvancedTreeSearch)
+        add_subdirectory(AdvancedTreeSearch)
 endif ()
 if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    add_subdirectory(GenericSeq2SeqTreeSearch)
+        add_subdirectory(GenericSeq2SeqTreeSearch)
 endif ()
 
 add_subdirectory(GreedySearch)
@@ -22,12 +22,12 @@ set(RasrSearch_SOURCES
         WordConditionedTreeSearch.cc)
 
 if (${MODULE_SEARCH_MBR})
-    list(APPEND RasrSearch_SOURCES MinimumBayesRiskSearch.cc
+        list(APPEND RasrSearch_SOURCES MinimumBayesRiskSearch.cc
             MinimumBayesRiskAStarSearch.cc MinimumBayesRiskNBestListSearch.cc
             MinimumBayesRiskSearchUtil.cc)
 endif ()
 if (${MODULE_SEARCH_LINEAR})
-    list(APPEND RasrSearch_SOURCES LinearSearch.cc)
+        list(APPEND RasrSearch_SOURCES LinearSearch.cc)
 endif ()
 
 add_library(RasrSearch STATIC ${RasrSearch_SOURCES})

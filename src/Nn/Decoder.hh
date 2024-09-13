@@ -45,7 +45,7 @@ public:
 
     // (Maybe) extend a given history using the next label
     // `isLoop` may affect whether the history is updated or not, depending on the specific model
-    virtual void extendHistory(LabelScorer::Request& request) = 0;
+    virtual void extendHistory(LabelScorer::Request request) = 0;
 
     // Add a single encoder outputs to buffer
     virtual void addEncoderOutput(FeatureVectorRef encoderOutput);
@@ -56,7 +56,7 @@ public:
 
     // Decoder will compute score for label given a history and transition type.
     // May return None if the decoder does not have enough features ready to perform scoring.
-    virtual std::optional<Score> getScore(const LabelScorer::Request& request) = 0;
+    virtual std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) = 0;
 
 protected:
     std::vector<FeatureVectorRef> encoderOutputBuffer_;
@@ -71,9 +71,9 @@ class NoOpDecoder : public Decoder {
 public:
     NoOpDecoder(const Core::Configuration& config);
 
-    Core::Ref<LabelHistory> getStartHistory() override;
-    void                    extendHistory(LabelScorer::Request& request) override;
-    std::optional<Score>    getScore(const LabelScorer::Request& request) override;
+    Core::Ref<LabelHistory>                   getStartHistory() override;
+    void                                      extendHistory(LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
 };
 
 // Wrapper around legacy Mm::FeatureScorer.
@@ -82,22 +82,23 @@ public:
 // directly prepare ContextScorers based on them and cache these.
 // Thus, the normal encoder output buffer is not used.
 // Upon receiving segment end signal, all available ContextScorers are flushed.
+// TODO: Timestamp handling for buffered FeatureScorers is not accurate
 class LegacyFeatureScorerDecoder : public Decoder {
     using Precursor   = Decoder;
     using HistoryType = StepLabelHistory;
 
 public:
     LegacyFeatureScorerDecoder(const Core::Configuration& config);
-    void                    reset() override;
-    void                    addEncoderOutput(FeatureVectorRef encoderOutput) override;
-    void                    signalNoMoreEncoderOutputs() override;
-    Core::Ref<LabelHistory> getStartHistory() override;
-    void                    extendHistory(LabelScorer::Request& request) override;
-    std::optional<Score>    getScore(const LabelScorer::Request& request) override;
+    void                                      reset() override;
+    void                                      addEncoderOutput(FeatureVectorRef encoderOutput) override;
+    void                                      signalNoMoreEncoderOutputs() override;
+    Core::Ref<LabelHistory>                   getStartHistory() override;
+    void                                      extendHistory(LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
 
 private:
-    Core::Ref<Mm::FeatureScorer>           featureScorer_;
-    std::vector<Mm::FeatureScorer::Scorer> scoreCache_;
+    Core::Ref<Mm::FeatureScorer>                                       featureScorer_;
+    std::vector<std::pair<Mm::FeatureScorer::Scorer, Flow::Timestamp>> scoreCache_;
 };
 
 }  // namespace Nn

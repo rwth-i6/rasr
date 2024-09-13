@@ -85,17 +85,18 @@ Core::FormatSet& Module_::formats() {
 }
 
 const Core::Choice Module_::labelScorerTypeChoice(
-        "encoder-decoder", LabelScorerType::EncoderDecoder,
+        "encoder-decoder", LabelScorerType::EncoderDecoderType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::labelScorerTypeParam(
-        "type", &Module_::labelScorerTypeChoice, "type of label scorer", LabelScorerType::EncoderDecoder);
+        "type", &Module_::labelScorerTypeChoice, "type of label scorer", LabelScorerType::EncoderDecoderType);
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
     Core::Ref<LabelScorer> result;
     switch (labelScorerTypeParam(config)) {
-        case LabelScorerType::EncoderDecoder:
+        case LabelScorerType::EncoderDecoderType:
             result = Core::Ref(new EncoderDecoderLabelScorer(config));
+            break;
         default:
             Core::Application::us()->criticalError("unknown label scorer type: %d", labelScorerTypeParam(config));
     }

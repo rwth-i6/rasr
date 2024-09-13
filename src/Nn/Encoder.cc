@@ -31,7 +31,7 @@ const Core::ParameterInt Encoder::paramMaxBufferSize(
         Core::Type<u32>::max);
 
 Encoder::Encoder(const Core::Configuration& config)
-        : Core::Component(config), maxBufferSize_() {}
+        : Core::Component(config), maxBufferSize_(paramMaxBufferSize(config)) {}
 
 void Encoder::reset() {
     segmentEnd_ = false;

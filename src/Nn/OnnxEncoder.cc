@@ -99,9 +99,10 @@ void OnnxEncoder::encode() {
         // Copy featureVector into next column of matrix and increment column index
         std::copy(inputVectorRef->begin(), inputVectorRef->end(), &(batchMat.front().at(0, T_in++)));
         inputTimestamps.push_back({inputVectorRef->getStartTime(), inputVectorRef->getEndTime()});
+        inputBuffer_.pop();
     }
 
-    log("Encoder input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
+    log("Encode input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
 
     sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(batchMat, true)));  // transpose to 1 x T x F
 
@@ -125,9 +126,9 @@ void OnnxEncoder::encode() {
     auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds
 
     auto inputTime = inputTimestamps.back().endTime() - inputTimestamps.front().startTime();
-    log("Processed %f seconds of input in %f seconds; AM RTF: %f", inputTime, t_elapsed, t_elapsed / inputTime);
+    log("Processed %.4f seconds of input in %.4f seconds; AM RTF: %.4f", inputTime, t_elapsed, t_elapsed / inputTime);
 
-    log("Compured encoder state of shape (%zu x %zu x %zu)", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), sessionOutputs.front().dimSize(2));
+    log("Computed encoder state of shape (%zu x %zu x %zu)", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), sessionOutputs.front().dimSize(2));
 
     /*
      * Put outputs into buffer

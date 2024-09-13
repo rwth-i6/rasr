@@ -25,7 +25,8 @@ const Core::Choice EncoderDecoderLabelScorer::choiceEncoderType(
         // Assume encoder inputs are already finished states and just pass them on without transformations
         "no-op", EncoderType::NoOpEncoder,
         // Forward encoder inputs through an onnx network
-        "onnx-encoder", EncoderType::OnnxEncoder);
+        "onnx-encoder", EncoderType::OnnxEncoder,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice EncoderDecoderLabelScorer::paramEncoderType(
         "encoder-type",
@@ -37,7 +38,8 @@ const Core::Choice EncoderDecoderLabelScorer::choiceDecoderType(
         // Assume encoder states are already finished scores and just pass them on without transformations
         "no-op", DecoderType::NoOpDecoder,
         // Wrapper around legacy Mm::FeatureScorer
-        "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoder);
+        "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoder,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice EncoderDecoderLabelScorer::paramDecoderType(
         "decoder-type",
@@ -48,13 +50,15 @@ const Core::ParameterChoice EncoderDecoderLabelScorer::paramDecoderType(
 EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config)
         : Core::Component(config),
           Nn::LabelScorer(config) {
+    auto encoderConfig = select("encoder");
+    auto decoderConfig = select("decoder");
     switch (paramEncoderType(config)) {
         case EncoderType::NoOpEncoder:
-            encoder_ = Core::ref(new Nn::NoOpEncoder(config));
+            encoder_ = Core::ref(new Nn::NoOpEncoder(encoderConfig));
             break;
 #ifdef MODULE_ONNX
         case EncoderType::OnnxEncoder:
-            encoder_ = Core::ref(new Nn::OnnxEncoder(config));
+            encoder_ = Core::ref(new Nn::OnnxEncoder(encoderConfig));
             break;
 #endif
         default:
@@ -63,10 +67,10 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& 
 
     switch (paramDecoderType(config)) {
         case DecoderType::NoOpDecoder:
-            decoder_ = Core::ref(new Nn::NoOpDecoder(config));
+            decoder_ = Core::ref(new Nn::NoOpDecoder(decoderConfig));
             break;
         case DecoderType::LegacyFeatureScorerDecoder:
-            decoder_ = Core::ref(new Nn::LegacyFeatureScorerDecoder(config));
+            decoder_ = Core::ref(new Nn::LegacyFeatureScorerDecoder(decoderConfig));
             break;
         default:
             Core::Application::us()->criticalError("unknown decoder type: %d", paramDecoderType(config));
@@ -82,7 +86,7 @@ Core::Ref<LabelHistory> EncoderDecoderLabelScorer::getStartHistory() {
     return decoder_->getStartHistory();
 }
 
-void EncoderDecoderLabelScorer::extendHistory(Request& request) {
+void EncoderDecoderLabelScorer::extendHistory(Request request) {
     decoder_->extendHistory(request);
 }
 
@@ -104,8 +108,8 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreEncoderOutputs();
 }
 
-std::optional<Score> EncoderDecoderLabelScorer::getScore(const Request& request) {
-    return decoder_->getScore(request);
+std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::getScoreWithTime(const Request request) {
+    return decoder_->getScoreWithTime(request);
 }
 
 void EncoderDecoderLabelScorer::encode() {

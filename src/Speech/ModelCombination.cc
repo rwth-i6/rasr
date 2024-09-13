@@ -17,7 +17,6 @@
 #include <Lm/Module.hh>
 #include <Nn/Module.hh>
 
-
 using namespace Speech;
 
 const ModelCombination::Mode ModelCombination::complete         = 0x3;
@@ -31,37 +30,20 @@ const ModelCombination::Mode ModelCombination::useLabelScorer   = 0x4;
 const Core::ParameterFloat ModelCombination::paramPronunciationScale(
         "pronunciation-scale", "scaling exponent for lemma pronunciation probabilities", 0.0);
 
+ModelCombination::ModelCombination(const Core::Configuration& c)
+        : Core::Component(c),
+          Mc::Component(c) {
+    setPronunciationScale(paramPronunciationScale(c));
+}
+
 ModelCombination::ModelCombination(const Core::Configuration& c,
                                    Mode                       mode,
-                                   Am::AcousticModel::Mode    acousticModelMode)
+                                   Am::AcousticModel::Mode    acousticModelMode,
+                                   Bliss::LexiconRef          lexicon)
         : Core::Component(c),
-          Mc::Component(c),
-          pronunciationScale_(0) {
-    setLexicon(Bliss::Lexicon::create(select("lexicon")));
-    if (!lexicon_)
-        criticalError("failed to initialize the lexicon");
-
-    /*! \todo Scalable lexicon not implemented yet */
+          Mc::Component(c) {
     setPronunciationScale(paramPronunciationScale(c));
-
-    if (mode & useAcousticModel) {
-        setAcousticModel(Am::Module::instance().createAcousticModel(
-                select("acoustic-model"), lexicon_, acousticModelMode));
-        if (!acousticModel_)
-            criticalError("failed to initialize the acoustic model");
-    }
-
-    if (mode & useLanguageModel) {
-        setLanguageModel(Lm::Module::instance().createScaledLanguageModel(select("lm"), lexicon_));
-        if (!languageModel_)
-            criticalError("failed to initialize language model");
-    }
-
-    if (mode & useLabelScorer) {
-        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
-        if (!labelScorer_)
-            criticalError("failed to initialize label scorer");
-    }
+    build(mode, acousticModelMode, lexicon);
 }
 
 ModelCombination::ModelCombination(const Core::Configuration&         c,
@@ -76,6 +58,47 @@ ModelCombination::ModelCombination(const Core::Configuration&         c,
 }
 
 ModelCombination::~ModelCombination() {}
+
+void ModelCombination::build(Mode                    mode,
+                             Am::AcousticModel::Mode acousticModelMode,
+                             Bliss::LexiconRef       lexicon) {
+    if (lexicon) {
+        setLexicon(lexicon);
+        log() << "Set lexicon in ModelCombination";
+    }
+    else {
+        log() << "Create lexicon in ModelCombination";
+        setLexicon(Bliss::Lexicon::create(select("lexicon")));
+    }
+    if (!lexicon_) {
+        criticalError("failed to initialize the lexicon");
+    }
+
+    if (mode & useAcousticModel) {
+        log() << "Create acoustic model in ModelCombination";
+        setAcousticModel(Am::Module::instance().createAcousticModel(
+                select("acoustic-model"), lexicon_, acousticModelMode));
+        if (!acousticModel_) {
+            criticalError("failed to initialize the acoustic model");
+        }
+    }
+
+    if (mode & useLanguageModel) {
+        log() << "Create language model in ModelCombination";
+        setLanguageModel(Lm::Module::instance().createScaledLanguageModel(select("lm"), lexicon_));
+        if (!languageModel_) {
+            criticalError("failed to initialize language model");
+        }
+    }
+
+    if (mode & useLabelScorer) {
+        log() << "Create label scorer in ModelCombination";
+        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
+        if (!labelScorer_) {
+            criticalError("failed to initialize label scorer");
+        }
+    }
+}
 
 void ModelCombination::setLexicon(Bliss::LexiconRef lexicon) {
     lexicon_ = lexicon;

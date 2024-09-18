@@ -3,6 +3,7 @@ set(RasrPython_SOURCES
         Configuration.cc
         Init.cc
         Numpy.cc
+        Search.cc
         Utilities.cc
 )
 

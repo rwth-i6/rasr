@@ -67,7 +67,7 @@ public:
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
-    void                            finalize() override;
+    void                            addFeature(Nn::FeatureVectorRef) override;
     void                            addFeature(Core::Ref<const Speech::Feature>) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;

@@ -61,8 +61,9 @@ void GreedyTimeSyncSearch::finishSegment() {
     decodeMore();
 }
 
-void GreedyTimeSyncSearch::finalize() {
-    decodeMore();
+void GreedyTimeSyncSearch::addFeature(Nn::FeatureVectorRef feature) {
+    verify(labelScorer_);
+    labelScorer_->addInput(feature);
 }
 
 void GreedyTimeSyncSearch::addFeature(Core::Ref<const Speech::Feature> feature) {

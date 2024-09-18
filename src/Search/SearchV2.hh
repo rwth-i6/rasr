@@ -15,13 +15,14 @@
 #ifndef SEARCH_V2_HH
 #define SEARCH_V2_HH
 
+#include <Am/AcousticModel.hh>
 #include <Bliss/CorpusDescription.hh>
 #include <Bliss/Lexicon.hh>
+#include <Nn/Types.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/Feature.hh>
 #include <Speech/ModelCombination.hh>
-#include "Am/AcousticModel.hh"
-#include "Speech/Types.hh"
+#include <Speech/Types.hh>
 
 namespace Search {
 
@@ -105,12 +106,8 @@ public:
     // Call after all features of the current segment have been passed
     virtual void finishSegment() = 0;
 
-    // Call to finalize the results of the current recognition run.
-    // This can be after finishing a corpus segment or after finishing
-    // a stream in online recognition.
-    virtual void finalize() = 0;
-
     // Pass a single feature vector
+    virtual void addFeature(Nn::FeatureVectorRef input)       = 0;
     virtual void addFeature(Core::Ref<const Speech::Feature>) = 0;
 
     // Return the current best traceback. May contain unstable results.

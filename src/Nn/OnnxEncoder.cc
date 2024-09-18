@@ -92,6 +92,10 @@ size_t OnnxEncoder::calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput)
 }
 
 void OnnxEncoder::encode() {
+    if (numNewFeatures_ == 0ul) {
+        return;
+    }
+
     /*
      * Create session inputs
      */
@@ -153,7 +157,6 @@ void OnnxEncoder::encode() {
 
     size_t inputsPerOutput = calcInputsPerOutput(T_in, T_out);
     size_t numNewOutputs   = calcNumOutputsForInputs(numNewFeatures_, inputsPerOutput);
-    log() << "Based on chunk step, input size and subsampling factor, " << numNewOutputs << " new outputs are used.";
 
     size_t numDiscardedOutputs = 0ul;
     if (T_out > numNewOutputs) {

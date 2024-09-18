@@ -60,7 +60,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     } while (dataSource->getData(feature));
 
     searchAlgorithm_->finishSegment();
-    searchAlgorithm_->finalize();
+    searchAlgorithm_->decodeMore();
     dataSource->finalize();
     featureExtractor_->leaveSegment(segment);
 

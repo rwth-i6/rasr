@@ -18,6 +18,7 @@
 
 #include <Core/Component.hh>
 #include <Speech/Feature.hh>
+#include <deque>
 #include <optional>
 #include "Types.hh"
 
@@ -29,6 +30,7 @@ namespace Nn {
 class Encoder : public virtual Core::Component, public Core::ReferenceCounted {
 public:
     static const Core::ParameterInt paramMaxBufferSize;
+    static const Core::ParameterInt paramChunkStep;
 
     Encoder(const Core::Configuration& config);
     virtual ~Encoder() = default;
@@ -54,10 +56,12 @@ protected:
     // By default no-op, i.e. just move from input buffer over to output buffer
     virtual void encode() = 0;
 
-    std::queue<FeatureVectorRef> inputBuffer_;
-    std::queue<FeatureVectorRef> outputBuffer_;
+    std::deque<FeatureVectorRef> inputBuffer_;
+    std::deque<FeatureVectorRef> outputBuffer_;
 
-    size_t maxBufferSize_;
+    const size_t maxBufferSize_;
+    const size_t chunkStep_;
+    size_t       numNewFeatures_;
 
     bool segmentEnd_;
 

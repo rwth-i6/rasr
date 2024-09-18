@@ -77,6 +77,20 @@ size_t OnnxEncoder::calcInputsPerOutput(size_t T_in, size_t T_out) const {
     }
 }
 
+size_t OnnxEncoder::calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput) const {
+    switch (subsamplingType_) {
+        case SubsamplingType::None:
+            return 1ul;
+        case SubsamplingType::FloorDivision:
+            return T_in / inputsPerOutput;
+        case SubsamplingType::CeilDivision:
+            return (T_in + inputsPerOutput - 1ul) / inputsPerOutput;
+        default:
+            error() << "Subsampling type not implemented";
+            return 1ul;
+    }
+}
+
 void OnnxEncoder::encode() {
     /*
      * Create session inputs
@@ -85,21 +99,21 @@ void OnnxEncoder::encode() {
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
     std::vector<Math::FastMatrix<f32>>               batchMat;  // will only contain a single element but packed in a vector for 1 x T x F Onnx value creation
 
+    size_t T_in = inputBuffer_.size();
+
     // Keep track of timestamps to be able to set them correctly for the outputs
     std::vector<Flow::Timestamp> inputTimestamps;
-    inputTimestamps.reserve(std::min(inputBuffer_.size(), maxBufferSize_));
+    inputTimestamps.reserve(std::min(T_in, maxBufferSize_));
 
     // Initialize empty matrix of shape F x T.
     // Transposing is done because FastMatrix has col-major storage and this way each column is one feature vector
-    batchMat.emplace_back(inputBuffer_.front()->size(), inputBuffer_.size());
+    batchMat.emplace_back(inputBuffer_.front()->size(), T_in);
 
-    size_t T_in = 0ul;  // Keep track of current column in matrix and end up at total input timesteps
-    while (not inputBuffer_.empty() and T_in < maxBufferSize_) {
-        const auto& inputVectorRef = inputBuffer_.front();
+    for (size_t t = 0ul; t < T_in; ++t) {
+        const auto& inputVectorRef = inputBuffer_[t];
         // Copy featureVector into next column of matrix and increment column index
-        std::copy(inputVectorRef->begin(), inputVectorRef->end(), &(batchMat.front().at(0, T_in++)));
+        std::copy(inputVectorRef->begin(), inputVectorRef->end(), &(batchMat.front().at(0, t)));
         inputTimestamps.push_back({inputVectorRef->getStartTime(), inputVectorRef->getEndTime()});
-        inputBuffer_.pop();
     }
 
     log("Encode input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
@@ -138,9 +152,16 @@ void OnnxEncoder::encode() {
     size_t T_out = sessionOutputs.front().dimSize(1);
 
     size_t inputsPerOutput = calcInputsPerOutput(T_in, T_out);
+    size_t numNewOutputs   = calcNumOutputsForInputs(numNewFeatures_, inputsPerOutput);
+    log() << "Based on chunk step, input size and subsampling factor, " << numNewOutputs << " new outputs are used.";
+
+    size_t numDiscardedOutputs = 0ul;
+    if (T_out > numNewOutputs) {
+        numDiscardedOutputs = T_out - numNewOutputs;
+    }
 
     // TODO: How do existing Apptek FeatureScorers handle subsampling?
-    for (size_t t = 0ul; t < T_out; ++t) {
+    for (size_t t = numDiscardedOutputs; t < T_out; ++t) {
         std::vector<f32> outputVec;
         sessionOutputs.front().get(0, t, outputVec);
         // TODO: Avoid data copying
@@ -151,7 +172,7 @@ void OnnxEncoder::encode() {
         // also make sure to cap off at last index to avoid out-of-bounds access
         outputVectorRef->setStartTime(inputTimestamps.at(std::min(inputTimestamps.size() - 1, t * inputsPerOutput)).startTime());
         outputVectorRef->setEndTime(inputTimestamps.at(std::min(inputTimestamps.size() - 1, (t + 1) * inputsPerOutput - 1)).endTime());
-        outputBuffer_.push(outputVectorRef);
+        outputBuffer_.push_back(outputVectorRef);
     }
 }
 }  // namespace Nn

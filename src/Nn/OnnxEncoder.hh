@@ -44,6 +44,7 @@ protected:
 
 private:
     size_t calcInputsPerOutput(size_t T_in, size_t T_out) const;
+    size_t calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput) const;
 
     Onnx::Session                                   session_;
     static const std::vector<Onnx::IOSpecification> ioSpec_;  // fixed to "features", "feature-size" and "output"

@@ -23,12 +23,17 @@ set(ARCH_DESCRIPTION
         "${SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}-${BUILD_TYPE}")
 set(CMAKE_INSTALL_PREFIX
         "${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH_DESCRIPTION}/")
+set(INSTALL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/${ARCH_DESCRIPTION}")
 
 function(add_install_executable EXECUTABLE_NAME)
     install(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION .)
     set_target_properties(
             ${EXECUTABLE_NAME} PROPERTIES OUTPUT_NAME
             "${EXECUTABLE_NAME}.${ARCH_DESCRIPTION}")
+endfunction()
+
+function(add_install_library LIBRARY_NAME)
+    install(TARGETS ${LIBRARY_NAME} LIBRARY DESTINATION ${INSTALL_LIB_DIR})
 endfunction()
 
 add_custom_command(

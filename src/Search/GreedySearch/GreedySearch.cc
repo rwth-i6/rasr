@@ -86,7 +86,8 @@ Core::Ref<const LatticeAdaptor> GreedyTimeSyncSearch::getCurrentBestWordLattice(
     // create a linear lattice from the traceback
     Fsa::State* currentState = result->initialState();
     for (auto it = hyp_.traceback.begin(); it != hyp_.traceback.end(); ++it) {
-        wordBoundaries->set(currentState->id(), Lattice::WordBoundary(static_cast<Speech::TimeframeIndex>(it->time.endTime())));
+        // wordBoundaries->set(currentState->id(), Lattice::WordBoundary(static_cast<Speech::TimeframeIndex>(it->time.endTime())));
+        wordBoundaries->set(currentState->id(), Lattice::WordBoundary(it->time));
         Fsa::State* nextState;
         if (std::next(it) == hyp_.traceback.end()) {
             nextState = result->finalState();
@@ -112,13 +113,64 @@ void GreedyTimeSyncSearch::resetStatistics() {}
 
 void GreedyTimeSyncSearch::logStatistics() const {}
 
+Nn::LabelScorer::TransitionType GreedyTimeSyncSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+    bool prevIsBlank = (prevLabel == blankLabelIndex_);
+    bool nextIsBlank = (nextLabel == blankLabelIndex_);
+
+    if (prevIsBlank) {
+        if (nextIsBlank) {
+            return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+        }
+        else {
+            return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
+        }
+    }
+    else {
+        if (nextIsBlank) {
+            return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+        }
+        else if (allowLabelLoop_ and prevLabel == nextLabel) {
+            return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+        }
+        else {
+            return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+        }
+    }
+}
+
+void GreedyTimeSyncSearch::LabelHypothesis::extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer) {
+    labelScorer->extendHistory({history, extension.label, extension.transitionType});
+    labelSeq.push_back(extension.label);
+    score += extension.score;
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::LABEL_TO_LABEL:
+        case Nn::LabelScorer::LABEL_TO_BLANK:
+        case Nn::LabelScorer::BLANK_TO_LABEL:
+            if (not traceback.empty()) {
+                // traceback.back().time.setEndTime(extension.timestamp.startTime());
+                traceback.push_back(TracebackItem(nullptr, extension.lemma, ++traceback.back().time, ScoreVector(score, Nn::NegLogScore())));
+            }
+            else {
+                traceback.push_back(TracebackItem(nullptr, extension.lemma, 0, ScoreVector(score, Nn::NegLogScore())));
+            }
+            // traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestamp, ScoreVector(score, Nn::NegLogScore())));
+            break;
+        case Nn::LabelScorer::LABEL_LOOP:
+        case Nn::LabelScorer::BLANK_LOOP:
+            if (not traceback.empty()) {
+                // traceback.back().time.setEndTime(extension.timestamp.endTime());
+                ++traceback.back().time;
+                traceback.back().scores.acoustic = score;
+            }
+            break;
+    }
+}
+
 bool GreedyTimeSyncSearch::decodeStep() {
     verify(labelScorer_);
     verify(hyp_.history);
-    Nn::LabelScorer::ScoreWithTime bestScoreWithTime{Nn::NegLogScore::max(), {}};
-    Nn::LabelIndex                 bestIdx            = Core::Type<Nn::LabelIndex>::max;
-    const Bliss::Lemma*            bestLemma          = nullptr;
-    auto                           bestTransitionType = Nn::LabelScorer::TransitionType::FORWARD;
+
+    HypothesisExtension bestExtension;
 
     // Fetch prev label from hypothesis because this may be expanded with a loop transition
     Nn::LabelIndex prevLabel = Core::Type<Nn::LabelIndex>::max;
@@ -126,44 +178,27 @@ bool GreedyTimeSyncSearch::decodeStep() {
         prevLabel = hyp_.labelSeq.back();
     }
 
-    std::optional<Nn::LabelScorer::ScoreWithTime> scoreWithTime;
     // assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
     for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
         const Bliss::Lemma* lemma(*lemmaIt);
-        verify(lemma->nOrthographicForms() == 1);  // one lemma with exactly one output label as orth
-        Nn::LabelIndex idx             = lemma->id();
-        auto           transition_type = Nn::LabelScorer::TransitionType::FORWARD;
-        if (allowLabelLoop_ and idx == prevLabel) {
-            transition_type = Nn::LabelScorer::TransitionType::LOOP;
-        }
-        scoreWithTime = labelScorer_->getScoreWithTime({hyp_.history, idx, transition_type});
+        Nn::LabelIndex      idx = lemma->id();
+
+        auto transitionType = inferTransitionType(prevLabel, idx);
+
+        auto scoreWithTime = labelScorer_->getScoreWithTime({hyp_.history, idx, transitionType});
         if (not scoreWithTime.has_value()) {
             return false;
         }
 
-        if (scoreWithTime->score < bestScoreWithTime.score) {
-            bestLemma          = lemma;
-            bestIdx            = idx;
-            bestScoreWithTime  = scoreWithTime.value();
-            bestTransitionType = transition_type;
+        if (scoreWithTime->score < bestExtension.score) {
+            bestExtension = {lemma, idx, scoreWithTime->score, scoreWithTime->timestamp, transitionType};
         }
     }
 
-    verify(bestLemma != nullptr);
-
-    labelScorer_->extendHistory({hyp_.history, bestIdx, bestTransitionType});
-    hyp_.labelSeq.push_back(bestIdx);
-    hyp_.score += bestScoreWithTime.score;
-
-    hyp_.traceback.push_back(TracebackItem(nullptr, bestLemma, bestScoreWithTime.timestamp, ScoreVector(hyp_.score, Nn::NegLogScore())));
+    hyp_.extend(bestExtension, labelScorer_);
 
     return true;
-}
-
-void GreedyTimeSyncSearch::decodeMore() {
-    while (decodeStep())
-        ;
 }
 
 }  // namespace Search

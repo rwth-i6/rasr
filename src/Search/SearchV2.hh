@@ -21,6 +21,7 @@
 #include <Speech/Feature.hh>
 #include <Speech/ModelCombination.hh>
 #include "Am/AcousticModel.hh"
+#include "Speech/Types.hh"
 
 namespace Search {
 
@@ -60,9 +61,11 @@ public:
     public:
         const Bliss::LemmaPronunciation* pronunciation;  // pronunciation for lattice creation
         const Bliss::Lemma*              lemma;          // possible no pronunciation
-        Flow::Timestamp                  time;           // start-/end-time of current traceback item
-        ScoreVector                      scores;         // Absolute score
-        TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Flow::Timestamp t, ScoreVector s)
+        // Flow::Timestamp                  time;           // start-/end-time of current traceback item
+        Speech::TimeframeIndex time;    // TODO: Proper word boundaries with Flow::Timestamp instead of indices
+        ScoreVector            scores;  // Absolute score
+        // TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Flow::Timestamp t, ScoreVector s)
+        TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Speech::TimeframeIndex t, ScoreVector s)
                 : pronunciation(p), lemma(l), time(t), scores(s) {}
     };
 
@@ -118,6 +121,12 @@ public:
 
     virtual void resetStatistics()     = 0;
     virtual void logStatistics() const = 0;
+
+    // Try to decode one more step. Return bool indicates whether a step could be made.
+    virtual bool decodeStep() = 0;
+
+    // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
+    virtual bool decodeMore();
 };
 
 }  // namespace Search

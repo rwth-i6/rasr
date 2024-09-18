@@ -32,6 +32,14 @@ namespace Search {
 // Given a lexicon only containing labels (without lemmas), pick the label index with
 // maximum probability at each position.
 class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
+    struct HypothesisExtension {
+        const Bliss::Lemma*             lemma;
+        Nn::LabelIndex                  label;
+        Nn::NegLogScore                 score;
+        Flow::Timestamp                 timestamp;
+        Nn::LabelScorer::TransitionType transitionType;
+    };
+
     struct LabelHypothesis {
         Core::Ref<Nn::LabelHistory> history;
         std::vector<Nn::LabelIndex> labelSeq;
@@ -40,6 +48,8 @@ class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
 
         LabelHypothesis()
                 : history(), labelSeq(), score(), traceback() {}
+
+        void extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer);
     };
 
 public:
@@ -63,14 +73,10 @@ public:
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;
     void                            logStatistics() const override;
+    bool                            decodeStep() override;
 
 private:
-    // Try to decode one more timeframe. Return bool indicates whether next timeframe was
-    // able to be decoded or not.
-    bool decodeStep();
-
-    // Decode as much as possible given the currently available features
-    void decodeMore();
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     bool useBlank_;
     bool allowLabelLoop_;

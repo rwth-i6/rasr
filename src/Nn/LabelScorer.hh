@@ -33,8 +33,11 @@ class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
     enum TransitionType {
-        FORWARD,
-        LOOP
+        LABEL_TO_LABEL,
+        LABEL_LOOP,
+        LABEL_TO_BLANK,
+        BLANK_TO_LABEL,
+        BLANK_LOOP,
     };
 
     struct Request {

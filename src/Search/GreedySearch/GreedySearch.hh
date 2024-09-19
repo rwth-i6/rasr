@@ -42,13 +42,15 @@ class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
 
     struct LabelHypothesis {
         Core::Ref<Nn::LabelHistory> history;
-        std::vector<Nn::LabelIndex> labelSeq;
+        Nn::LabelIndex              currentLabel;
+        size_t                      decodingStep;
         Nn::NegLogScore             score;
         Traceback                   traceback;
 
         LabelHypothesis()
-                : history(), labelSeq(), score(), traceback() {}
+                : history(), currentLabel(Core::Type<Nn::LabelIndex>::max), decodingStep(), score(), traceback() {}
 
+        void reset();
         void extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer);
     };
 

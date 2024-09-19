@@ -4,6 +4,7 @@
 #include <Nn/LabelScorer.hh>
 #include <Speech/ModelCombination.hh>
 #include <Speech/Types.hh>
+#include "Core/Types.hh"
 #include "Nn/LabelHistory.hh"
 #include "Nn/Types.hh"
 
@@ -27,10 +28,8 @@ GreedyTimeSyncSearch::GreedyTimeSyncSearch(const Core::Configuration& config)
 void GreedyTimeSyncSearch::reset() {
     verify(labelScorer_);
     labelScorer_->reset();
-    hyp_.history   = labelScorer_->getStartHistory();
-    hyp_.traceback = Traceback();
-    hyp_.score     = Nn::NegLogScore();
-    hyp_.labelSeq.clear();
+    hyp_.reset();
+    hyp_.history = labelScorer_->getStartHistory();
 }
 
 Speech::ModelCombination::Mode GreedyTimeSyncSearch::modelCombinationNeeded() const {
@@ -139,32 +138,32 @@ Nn::LabelScorer::TransitionType GreedyTimeSyncSearch::inferTransitionType(Nn::La
     }
 }
 
+void GreedyTimeSyncSearch::LabelHypothesis::reset() {
+    history      = Core::Ref<Nn::LabelHistory>();
+    currentLabel = Core::Type<Nn::LabelIndex>::max;
+    decodingStep = 0ul;
+    score        = Nn::NegLogScore();
+    traceback.clear();
+}
+
 void GreedyTimeSyncSearch::LabelHypothesis::extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer) {
     labelScorer->extendHistory({history, extension.label, extension.transitionType});
-    labelSeq.push_back(extension.label);
     score += extension.score;
+    currentLabel = extension.label;
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            if (not traceback.empty()) {
-                // traceback.back().time.setEndTime(extension.timestamp.startTime());
-                traceback.push_back(TracebackItem(nullptr, extension.lemma, ++traceback.back().time, ScoreVector(score, Nn::NegLogScore())));
-            }
-            else {
-                traceback.push_back(TracebackItem(nullptr, extension.lemma, 0, ScoreVector(score, Nn::NegLogScore())));
-            }
-            // traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestamp, ScoreVector(score, Nn::NegLogScore())));
+            traceback.push_back(TracebackItem(nullptr, extension.lemma, decodingStep, ScoreVector(score, {})));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
             if (not traceback.empty()) {
-                // traceback.back().time.setEndTime(extension.timestamp.endTime());
-                ++traceback.back().time;
                 traceback.back().scores.acoustic = score;
             }
             break;
     }
+    ++decodingStep;
 }
 
 bool GreedyTimeSyncSearch::decodeStep() {
@@ -174,10 +173,7 @@ bool GreedyTimeSyncSearch::decodeStep() {
     HypothesisExtension bestExtension;
 
     // Fetch prev label from hypothesis because this may be expanded with a loop transition
-    Nn::LabelIndex prevLabel = Core::Type<Nn::LabelIndex>::max;
-    if (not hyp_.labelSeq.empty()) {
-        prevLabel = hyp_.labelSeq.back();
-    }
+    Nn::LabelIndex prevLabel = hyp_.currentLabel;
 
     // assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();

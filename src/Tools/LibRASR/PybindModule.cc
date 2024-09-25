@@ -12,6 +12,7 @@
 #include <Bliss/CorpusDescription.hh>
 #include <Bliss/CorpusParser.hh>
 #include <Bliss/Lexicon.hh>
+#include <Flow/InputNode.hh>
 #include <Core/Application.hh>
 #include <Flf/Module.hh>
 #include <Flow/Module.hh>
@@ -774,7 +775,31 @@ PYBIND11_MODULE(librasr, m) {
     .def("get_input", &Flow::Node::getInput)           
     .def("get_output", &Flow::Node::getOutput)         
     .def("configure", &Flow::Node::configure)         
-    .def("work", &Flow::Node::work);                  
+    .def("work", &Flow::Node::work);
+
+    py::class_<Flow::SourceNode, Flow::Node>(m, "SourceNode")
+    .def("get_output", &Flow::SourceNode::getOutput);
+
+    py::class_<Flow::InputNode, Flow::SourceNode>(m, "InputNode")
+    .def(py::init<const Core::Configuration&>())
+    .def_readonly_static("param_sample_rate", &Flow::InputNode::paramSampleRate) // Core::Parameters
+    .def_readonly_static("choice_sample_type", &Flow::InputNode::choiceSampleType)
+    .def_readonly_static("param_sample_type", &Flow::InputNode::paramSampleType)
+    .def_readonly_static("param_track_count", &Flow::InputNode::paramTrackCount)
+    .def_readonly_static("param_block_size", &Flow::InputNode::paramBlockSize)
+    .def_static("filter_name", &Flow::InputNode::filterName)
+    .def("set_parameter", &Flow::InputNode::setParameter)
+    .def("configure", &Flow::InputNode::configure)
+    .def("work", &Flow::InputNode::work)
+    .def("set_byte_stream_appender", &Flow::InputNode::setByteStreamAppender)
+    .def("get_eos", &Flow::InputNode::getEOS)
+    .def("set_eos", &Flow::InputNode::setEOS)
+    .def("get_eos_received", &Flow::InputNode::getEOSReceived)
+    .def("set_eos_received", &Flow::InputNode::setEOSReceived)
+    .def("get_reset_sample_count", &Flow::InputNode::getResetSampleCount)
+    .def("set_reset_sample_count", &Flow::InputNode::setResetSampleCount);
+
+    // void setByteStreamAppender(ByteStreamAppender const& bsa);
 
     py::class_<Flow::Network, Flow::AbstractNode>(m, "Network")
     .def(py::init<const Core::Configuration&, bool>())

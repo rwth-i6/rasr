@@ -24,29 +24,11 @@
 namespace Nn {
 
 // Glue class that couples encoder and decoder
-// Purpose is creation of right encoder/decoder combination through choice parameters and
-// automatic information flow between encoder and decoder
+// Purpose is  automatic information flow between encoder and decoder
 class EncoderDecoderLabelScorer : public LabelScorer {
-private:
-    static const Core::Choice          choiceEncoderType;
-    static const Core::ParameterChoice paramEncoderType;
-
-    static const Core::Choice          choiceDecoderType;
-    static const Core::ParameterChoice paramDecoderType;
-
 public:
-    EncoderDecoderLabelScorer(const Core::Configuration& config);
+    EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<Decoder> decoder);
     virtual ~EncoderDecoderLabelScorer() = default;
-
-    enum EncoderType {
-        NoOpEncoder,
-        OnnxEncoder
-    };
-
-    enum DecoderType {
-        NoOpDecoder,
-        LegacyFeatureScorerDecoder
-    };
 
     // Clear buffers and reset segment end flag in both encoder and decoder
     void reset();
@@ -63,12 +45,19 @@ public:
     // Extend history for decoder
     void extendHistory(Request request);
 
+    // Function that returns the mapping of each timeframe index (returned in the getScores functions)
+    // to actual flow timestamps with start-/ and end-time in seconds.
+    const std::vector<Flow::Timestamp>& getTimestamps() const;
+
     // Add a single input feature to the encoder
     void addInput(FeatureVectorRef input);
     void addInput(Core::Ref<const Speech::Feature> input);
 
     // Runs requests through decoder given available encoder states
-    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const Request request);
+    virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request);
+
+    // Batched version of `getScoreWithTime`
+    virtual std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests);
 
 protected:
     Core::Ref<Encoder> encoder_;

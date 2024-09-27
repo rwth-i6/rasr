@@ -15,8 +15,9 @@
 
 #include "Decoder.hh"
 #include <Core/ReferenceCounting.hh>
+#include <Flow/Timestamp.hh>
 #include <Mm/Module.hh>
-#include "Flow/Timestamp.hh"
+#include <utility>
 #include "LabelHistory.hh"
 #include "LabelScorer.hh"
 
@@ -29,12 +30,17 @@ namespace Nn {
  */
 
 Decoder::Decoder(const Core::Configuration& config)
-        : Core::Component(config) {
+        : Core::Component(config), encoderOutputBuffer_(), segmentEnd_(false), timestamps_() {
 }
 
 void Decoder::reset() {
     encoderOutputBuffer_.clear();
     segmentEnd_ = false;
+    timestamps_.clear();
+}
+
+const std::vector<Flow::Timestamp>& Decoder::getTimestamps() const {
+    return timestamps_;
 }
 
 void Decoder::addEncoderOutput(FeatureVectorRef encoderOutput) {
@@ -43,6 +49,33 @@ void Decoder::addEncoderOutput(FeatureVectorRef encoderOutput) {
 
 void Decoder::signalNoMoreEncoderOutputs() {
     segmentEnd_ = true;
+}
+
+std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> Decoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+    std::vector<Score>                  scores;
+    std::vector<Search::TimeframeIndex> timeframes;
+
+    scores.reserve(requests.size());
+    timeframes.reserve(requests.size());
+    for (auto& request : requests) {
+        auto score_time = getScoreWithTime(request);
+        if (not score_time.has_value()) {
+            return {};
+        }
+        scores.push_back(score_time->first);
+        auto timeframe = score_time->second;
+
+        // If all timeframes are the same, `timeframes` should be a size-1 vector with that value
+        // Thus, if it is currently size 1 and the next timeframe is the same, it should not be added
+        // If it is different, the return value will be a vector of size `num_requests`, so expand out
+        // the previous vector and add the new value
+        if (timeframes.size() == 1ul and timeframe != timeframes[0]) {
+            timeframes.resize(scores.size() - 1, timeframes[0]);
+            timeframes.push_back(timeframe);
+        }
+    }
+
+    return std::make_pair(scores, timeframes);
 }
 
 /*
@@ -64,13 +97,16 @@ void NoOpDecoder::extendHistory(LabelScorer::Request request) {
     ++stepHistory.currentStep;
 }
 
-std::optional<LabelScorer::ScoreWithTime> NoOpDecoder::getScoreWithTime(const LabelScorer::Request request) {
+std::optional<std::pair<Score, Speech::TimeframeIndex>> NoOpDecoder::getScoreWithTime(const LabelScorer::Request request) {
     const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
     if (encoderOutputBuffer_.size() <= stepHistory.currentStep) {
         return {};
     }
-    auto encoderOutput = encoderOutputBuffer_.at(stepHistory.currentStep);
-    return LabelScorer::ScoreWithTime{NegLogScore::fromLogProb(encoderOutput->at(request.nextToken)), Flow::Timestamp(*encoderOutput)};
+    while (stepHistory.currentStep >= timestamps_.size()) {
+        timestamps_.push_back(Flow::Timestamp(*encoderOutputBuffer_.at(timestamps_.size())));
+    }
+
+    return std::make_pair(encoderOutputBuffer_.at(stepHistory.currentStep)->at(request.nextToken), stepHistory.currentStep);
 }
 
 /*
@@ -93,18 +129,19 @@ void LegacyFeatureScorerDecoder::reset() {
 
 void LegacyFeatureScorerDecoder::addEncoderOutput(FeatureVectorRef encoderOutput) {
     auto feature = Core::ref(new Mm::Feature(*encoderOutput));
+    timestamps_.push_back(Flow::Timestamp(encoderOutput));
     if (featureScorer_->isBuffered() and not featureScorer_->bufferFilled()) {
         featureScorer_->addFeature(feature);
     }
     else {
-        scoreCache_.push_back(std::make_pair(featureScorer_->getScorer(feature), Flow::Timestamp(encoderOutput)));
+        scoreCache_.push_back(featureScorer_->getScorer(feature));
     }
 }
 
 void LegacyFeatureScorerDecoder::signalNoMoreEncoderOutputs() {
     Precursor::signalNoMoreEncoderOutputs();
     while (!featureScorer_->bufferEmpty()) {
-        scoreCache_.push_back(std::make_pair(featureScorer_->flush(), scoreCache_.back().second));
+        scoreCache_.push_back(featureScorer_->flush());
     }
 }
 
@@ -117,15 +154,14 @@ void LegacyFeatureScorerDecoder::extendHistory(LabelScorer::Request request) {
     ++stepHistory->currentStep;
 }
 
-std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerDecoder::getScoreWithTime(const LabelScorer::Request request) {
+std::optional<std::pair<Score, Speech::TimeframeIndex>> LegacyFeatureScorerDecoder::getScoreWithTime(const LabelScorer::Request request) {
     const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
     if (scoreCache_.size() <= stepHistory.currentStep) {
         return {};
     }
     // Retrieve score from score cache at the right index
     auto cachedScore = scoreCache_.at(stepHistory.currentStep);
-    return LabelScorer::ScoreWithTime{
-            NegLogScore(cachedScore.first->score(request.nextToken)), cachedScore.second};
+    return std::make_pair(cachedScore->score(request.nextToken), stepHistory.currentStep);
 }
 
 }  // namespace Nn

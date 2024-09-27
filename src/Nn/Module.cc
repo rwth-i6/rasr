@@ -14,7 +14,13 @@
  */
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
+#include "Core/Configuration.hh"
+#include "Encoder.hh"
 #include "EncoderDecoderLabelScorer.hh"
+#include "LabelScorer.hh"
+#ifdef MODULE_ONNX
+#include "OnnxEncoder.hh"
+#endif
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
@@ -84,21 +90,96 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
-const Core::Choice Module_::labelScorerTypeChoice(
-        "encoder-decoder", LabelScorerType::EncoderDecoderType,
+const Core::Choice Module_::encoderTypeChoice(
+        // Assume encoder inputs are already finished states and just pass them on without transformations
+        "no-op", EncoderType::NoOpEncoderType,
+        // Forward encoder inputs through an onnx network
+        "onnx-encoder", EncoderType::OnnxEncoderType,
         Core::Choice::endMark());
 
-const Core::ParameterChoice Module_::labelScorerTypeParam(
-        "type", &Module_::labelScorerTypeChoice, "type of label scorer", LabelScorerType::EncoderDecoderType);
+const Core::Choice Module_::decoderTypeChoice(
+        // Assume encoder states are already finished scores and just pass them on without transformations
+        "no-op", DecoderType::NoOpDecoderType,
+        // Wrapper around legacy Mm::FeatureScorer
+        "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoderType,
+        Core::Choice::endMark());
+
+const Core::Choice Module_::labelScorerTypeChoice(
+        "no-op", LabelScorerType::NoOpLabelScorerType,
+        "encoder-decoder", LabelScorerType::EncoderDecoderLabelScorerType,
+        "encoder-only", LabelScorerType::EncoderOnlyLabelScorerType,
+        "decoder-only", LabelScorerType::DecoderOnlyLabelScorerType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::paramEncoderType(
+        "encoder-type",
+        &Module_::encoderTypeChoice,
+        "Choice from a set of encoder types.",
+        EncoderType::NoOpEncoderType);
+
+const Core::ParameterChoice Module_::paramDecoderType(
+        "decoder-type",
+        &decoderTypeChoice,
+        "Choice from a set of decoder types.",
+        DecoderType::NoOpDecoderType);
+
+const Core::ParameterChoice Module_::paramLabelScorerType(
+        "type", &Module_::labelScorerTypeChoice, "Choice from a set of label scorer types.", LabelScorerType::NoOpLabelScorerType);
+
+Core::Ref<Encoder> Module_::createEncoder(const Core::Configuration& config) const {
+    auto encoderConfig = Core::Configuration(config, "encoder");
+
+    Core::Ref<Encoder> result;
+    switch (paramEncoderType(config)) {
+        case EncoderType::NoOpEncoderType:
+            result = Core::ref(new NoOpEncoder(encoderConfig));
+            break;
+#ifdef MODULE_ONNX
+        case EncoderType::OnnxEncoderType:
+            result = Core::ref(new OnnxEncoder(encoderConfig));
+            break;
+#endif
+        default:
+            Core::Application::us()->criticalError("unknown encoder type: %d", paramEncoderType(config));
+    }
+
+    return result;
+}
+
+Core::Ref<Decoder> Module_::createDecoder(const Core::Configuration& config) const {
+    auto decoderConfig = Core::Configuration(config, "decoder");
+
+    Core::Ref<Decoder> result;
+    switch (paramDecoderType(config)) {
+        case DecoderType::NoOpDecoderType:
+            result = Core::ref(new Nn::NoOpDecoder(decoderConfig));
+            break;
+        case DecoderType::LegacyFeatureScorerDecoderType:
+            result = Core::ref(new Nn::LegacyFeatureScorerDecoder(decoderConfig));
+            break;
+        default:
+            Core::Application::us()->criticalError("unknown decoder type: %d", paramDecoderType(config));
+    }
+
+    return result;
+}
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
     Core::Ref<LabelScorer> result;
-    switch (labelScorerTypeParam(config)) {
-        case LabelScorerType::EncoderDecoderType:
-            result = Core::Ref(new EncoderDecoderLabelScorer(config));
+    switch (paramLabelScorerType(config)) {
+        case LabelScorerType::NoOpLabelScorerType:
+            result = Core::ref(new EncoderDecoderLabelScorer(config, Core::ref(new Nn::NoOpEncoder(config)), Core::ref(new Nn::NoOpDecoder(config))));
+        case LabelScorerType::EncoderOnlyLabelScorerType:
+            result = Core::ref(new EncoderDecoderLabelScorer(config, createEncoder(config), Core::ref(new Nn::NoOpDecoder(config))));
+            break;
+        case LabelScorerType::DecoderOnlyLabelScorerType:
+            result = Core::ref(new EncoderDecoderLabelScorer(config, Core::ref(new Nn::NoOpEncoder(config)), createDecoder(config)));
+            break;
+        case LabelScorerType::EncoderDecoderLabelScorerType:
+            result = Core::ref(new EncoderDecoderLabelScorer(config, createEncoder(config), createDecoder(config)));
             break;
         default:
-            Core::Application::us()->criticalError("unknown label scorer type: %d", labelScorerTypeParam(config));
+            Core::Application::us()->criticalError("unknown label scorer type: %d", paramLabelScorerType(config));
     }
     return result;
 }

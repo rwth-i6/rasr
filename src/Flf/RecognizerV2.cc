@@ -28,7 +28,6 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Initialize recognizer and feature extractor
     searchAlgorithm_->reset();
-    searchAlgorithm_->resetStatistics();
     searchAlgorithm_->enterSegment();
 
     featureExtractor_->enterSegment(segment);

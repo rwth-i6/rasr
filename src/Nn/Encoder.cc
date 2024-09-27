@@ -14,8 +14,8 @@
  */
 
 #include "Encoder.hh"
+#include <Flow/Data.hh>
 #include <Mm/Module.hh>
-#include "Flow/Data.hh"
 
 namespace Nn {
 
@@ -30,13 +30,13 @@ const Core::ParameterInt Encoder::paramChunkStep(
         "Number of new features to wait for before allowing next encoding step.",
         Core::Type<u32>::max);
 
-const Core::ParameterInt Encoder::paramMaxBufferSize(
-        "max-buffer-size",
-        "Maximum number of features that can be encoded at once.",
+const Core::ParameterInt Encoder::paramChunkSize(
+        "chunk-size",
+        "Maximum number of features that are encoded at once.",
         Core::Type<u32>::max);
 
 Encoder::Encoder(const Core::Configuration& config)
-        : Core::Component(config), maxBufferSize_(paramMaxBufferSize(config)), chunkStep_(paramChunkStep(config)), numNewFeatures_(0ul) {}
+        : Core::Component(config), chunkSize_(paramChunkSize(config)), chunkStep_(paramChunkStep(config)), numNewFeatures_(0ul) {}
 
 void Encoder::reset() {
     segmentEnd_ = false;
@@ -52,7 +52,7 @@ void Encoder::signalNoMoreFeatures() {
 void Encoder::addInput(FeatureVectorRef input) {
     inputBuffer_.push_back(input);
     ++numNewFeatures_;
-    while (inputBuffer_.size() > maxBufferSize_) {
+    while (inputBuffer_.size() > chunkSize_) {
         inputBuffer_.pop_front();
     }
 }

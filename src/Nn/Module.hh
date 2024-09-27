@@ -20,6 +20,8 @@
 
 #include <Core/Parameter.hh>
 #include <Flow/Module.hh>
+#include "Decoder.hh"
+#include "Encoder.hh"
 #include "LabelScorer.hh"
 
 namespace Core {
@@ -32,8 +34,14 @@ class Module_ {
 private:
     Core::FormatSet* formats_;
 
+    static const Core::Choice          encoderTypeChoice;
+    static const Core::ParameterChoice paramEncoderType;
+
+    static const Core::Choice          decoderTypeChoice;
+    static const Core::ParameterChoice paramDecoderType;
+
     static const Core::Choice          labelScorerTypeChoice;
-    static const Core::ParameterChoice labelScorerTypeParam;
+    static const Core::ParameterChoice paramLabelScorerType;
 
 public:
     Module_();
@@ -49,15 +57,29 @@ public:
         pythonFeatureScorer    = FeatureScorerTypeOffset + 6,
     };
 
+    enum EncoderType {
+        NoOpEncoderType,
+        OnnxEncoderType
+    };
+
+    enum DecoderType {
+        NoOpDecoderType,
+        LegacyFeatureScorerDecoderType
+    };
+
     enum LabelScorerType {
-        EncoderDecoderType
+        NoOpLabelScorerType,
+        EncoderDecoderLabelScorerType,
+        EncoderOnlyLabelScorerType,
+        DecoderOnlyLabelScorerType
     };
 
     /** Set of file format class.
      */
-    Core::FormatSet&
-            formats();
+    Core::FormatSet& formats();
 
+    Core::Ref<Encoder>     createEncoder(const Core::Configuration& config) const;
+    Core::Ref<Decoder>     createDecoder(const Core::Configuration& config) const;
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 };
 

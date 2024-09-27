@@ -17,8 +17,9 @@
 #define LABEL_HISTORY_HH
 
 #include <Am/ClassicStateModel.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
-#include "Core/ReferenceCounting.hh"
+#include <Speech/Types.hh>
 
 namespace Nn {
 
@@ -29,7 +30,7 @@ struct LabelHistory : public Core::ReferenceCounted {
 };
 
 struct StepLabelHistory : public LabelHistory {
-    size_t currentStep = 0ul;
+    Speech::TimeframeIndex currentStep = 0ul;
 };
 
 struct SeqLabelHistory : public LabelHistory {
@@ -38,7 +39,7 @@ struct SeqLabelHistory : public LabelHistory {
 
 struct SeqStepHistory : public LabelHistory {
     std::vector<LabelIndex> labelSeq;
-    size_t                  currentStep = 0ul;
+    Speech::TimeframeIndex  currentStep = 0ul;
 };
 
 }  // namespace Nn

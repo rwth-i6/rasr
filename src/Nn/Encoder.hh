@@ -27,9 +27,10 @@ namespace Nn {
 // Encoder class can take features (e.g. from feature flow) and run them through an encoder model to get encoder states
 // Works with input/output buffer logic, i.e. features get added to an input buffer and outputs are retreived from an
 // output buffer
-class Encoder : public virtual Core::Component, public Core::ReferenceCounted {
+class Encoder : public virtual Core::Component,
+                public Core::ReferenceCounted {
 public:
-    static const Core::ParameterInt paramMaxBufferSize;
+    static const Core::ParameterInt paramChunkSize;
     static const Core::ParameterInt paramChunkStep;
 
     Encoder(const Core::Configuration& config);
@@ -59,7 +60,7 @@ protected:
     std::deque<FeatureVectorRef> inputBuffer_;
     std::deque<FeatureVectorRef> outputBuffer_;
 
-    const size_t maxBufferSize_;
+    const size_t chunkSize_;
     const size_t chunkStep_;
     size_t       numNewFeatures_;
 

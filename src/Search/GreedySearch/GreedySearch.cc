@@ -99,7 +99,7 @@ Core::Ref<const LatticeAdaptor> GreedyTimeSyncSearch::getCurrentBestWordLattice(
         if (it != hyp_.traceback.begin()) {
             scores -= std::prev(it)->scores;
         }
-        result->newArc(currentState, nextState, it->lemma, scores.acoustic(), scores.lm());
+        result->newArc(currentState, nextState, it->lemma, scores.acoustic, scores.lm);
         currentState = nextState;
     }
 
@@ -141,8 +141,7 @@ Nn::LabelScorer::TransitionType GreedyTimeSyncSearch::inferTransitionType(Nn::La
 void GreedyTimeSyncSearch::LabelHypothesis::reset() {
     history      = Core::Ref<Nn::LabelHistory>();
     currentLabel = Core::Type<Nn::LabelIndex>::max;
-    decodingStep = 0ul;
-    score        = Nn::NegLogScore();
+    score        = 0.0f;
     traceback.clear();
 }
 
@@ -154,7 +153,7 @@ void GreedyTimeSyncSearch::LabelHypothesis::extend(const HypothesisExtension& ex
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            traceback.push_back(TracebackItem(nullptr, extension.lemma, decodingStep, ScoreVector(score, {})));
+            traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestep, ScoreVector(score, {})));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
@@ -163,7 +162,6 @@ void GreedyTimeSyncSearch::LabelHypothesis::extend(const HypothesisExtension& ex
             }
             break;
     }
-    ++decodingStep;
 }
 
 bool GreedyTimeSyncSearch::decodeStep() {
@@ -188,8 +186,8 @@ bool GreedyTimeSyncSearch::decodeStep() {
             return false;
         }
 
-        if (scoreWithTime->score < bestExtension.score) {
-            bestExtension = {lemma, idx, scoreWithTime->score, scoreWithTime->timestamp, transitionType};
+        if (scoreWithTime->first < bestExtension.score) {
+            bestExtension = {lemma, idx, scoreWithTime->first, scoreWithTime->second, transitionType};
         }
     }
 

@@ -21,13 +21,13 @@
 #include <Core/Types.hh>
 #include <Flow/Timestamp.hh>
 #include <Speech/Feature.hh>
+#include <Speech/Types.hh>
 #include <optional>
+#include <utility>
 #include "LabelHistory.hh"
 #include "Types.hh"
 
 namespace Nn {
-
-// TODO: Change mechanism from `LabelIndex` to general token from tokenInventory similar to LM -> Fsa::Alphabet
 
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
@@ -46,11 +46,6 @@ public:
         TransitionType          transitionType;
     };
 
-    struct ScoreWithTime {
-        NegLogScore     score;
-        Flow::Timestamp timestamp;
-    };
-
     LabelScorer(const Core::Configuration& config);
     virtual ~LabelScorer() = default;
 
@@ -67,16 +62,22 @@ public:
     // Logic for extending the history in the request by the given labelIndex
     virtual void extendHistory(Request request) = 0;
 
+    // Function that returns the mapping of each timeframe index (returned in the getScores functions)
+    // to actual flow timestamps with start-/ and end-time in seconds.
+    virtual const std::vector<Flow::Timestamp>& getTimestamps() const = 0;
+
     // Add a single input feature
     virtual void addInput(FeatureVectorRef input)                 = 0;
     virtual void addInput(Core::Ref<const Speech::Feature> input) = 0;
 
     // Perform scoring computation for a single request
-    virtual std::optional<ScoreWithTime> getScoreWithTime(const Request request) = 0;
+    // Return score and timeframe index of the corresponding output
+    virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const Request request) = 0;
 
     // Perform scoring computation for a vector of requests
     // Loops over `getScore` by default but may also implement more efficient batched logic
-    virtual std::vector<std::optional<ScoreWithTime>> getScoresWithTime(const std::vector<Request>& requests);
+    // Return two vectors: one with scores and one with times; times vector might have size 1 which means that all timestamps are the same
+    virtual std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<Request>& requests) = 0;
 };
 
 }  // namespace Nn

@@ -15,66 +15,13 @@
 
 #include "EncoderDecoderLabelScorer.hh"
 
-#ifdef MODULE_ONNX
-#include "OnnxEncoder.hh"
-#endif
-
 namespace Nn {
 
-const Core::Choice EncoderDecoderLabelScorer::choiceEncoderType(
-        // Assume encoder inputs are already finished states and just pass them on without transformations
-        "no-op", EncoderType::NoOpEncoder,
-        // Forward encoder inputs through an onnx network
-        "onnx-encoder", EncoderType::OnnxEncoder,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice EncoderDecoderLabelScorer::paramEncoderType(
-        "encoder-type",
-        &choiceEncoderType,
-        "Choice from a set of encoder types.",
-        EncoderType::NoOpEncoder);
-
-const Core::Choice EncoderDecoderLabelScorer::choiceDecoderType(
-        // Assume encoder states are already finished scores and just pass them on without transformations
-        "no-op", DecoderType::NoOpDecoder,
-        // Wrapper around legacy Mm::FeatureScorer
-        "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoder,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice EncoderDecoderLabelScorer::paramDecoderType(
-        "decoder-type",
-        &choiceDecoderType,
-        "Choice from a set of decoder types.",
-        DecoderType::NoOpDecoder);
-
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<Decoder> decoder)
         : Core::Component(config),
-          Nn::LabelScorer(config) {
-    auto encoderConfig = select("encoder");
-    auto decoderConfig = select("decoder");
-    switch (paramEncoderType(config)) {
-        case EncoderType::NoOpEncoder:
-            encoder_ = Core::ref(new Nn::NoOpEncoder(encoderConfig));
-            break;
-#ifdef MODULE_ONNX
-        case EncoderType::OnnxEncoder:
-            encoder_ = Core::ref(new Nn::OnnxEncoder(encoderConfig));
-            break;
-#endif
-        default:
-            Core::Application::us()->criticalError("unknown encoder type: %d", paramEncoderType(config));
-    }
-
-    switch (paramDecoderType(config)) {
-        case DecoderType::NoOpDecoder:
-            decoder_ = Core::ref(new Nn::NoOpDecoder(decoderConfig));
-            break;
-        case DecoderType::LegacyFeatureScorerDecoder:
-            decoder_ = Core::ref(new Nn::LegacyFeatureScorerDecoder(decoderConfig));
-            break;
-        default:
-            Core::Application::us()->criticalError("unknown decoder type: %d", paramDecoderType(config));
-    }
+          Nn::LabelScorer(config),
+          encoder_(encoder),
+          decoder_(decoder) {
 }
 
 void EncoderDecoderLabelScorer ::reset() {
@@ -88,6 +35,10 @@ Core::Ref<LabelHistory> EncoderDecoderLabelScorer::getStartHistory() {
 
 void EncoderDecoderLabelScorer::extendHistory(Request request) {
     decoder_->extendHistory(request);
+}
+
+const std::vector<Flow::Timestamp>& EncoderDecoderLabelScorer::getTimestamps() const {
+    return decoder_->getTimestamps();
 }
 
 void EncoderDecoderLabelScorer::addInput(FeatureVectorRef input) {
@@ -108,8 +59,12 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreEncoderOutputs();
 }
 
-std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::getScoreWithTime(const Request request) {
+std::optional<std::pair<Score, Speech::TimeframeIndex>> EncoderDecoderLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
     return decoder_->getScoreWithTime(request);
+}
+
+std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> EncoderDecoderLabelScorer::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+    return decoder_->getScoresWithTime(requests);
 }
 
 void EncoderDecoderLabelScorer::encode() {

@@ -25,6 +25,7 @@
 #include <Nn/Types.hh>
 #include <Search/SearchV2.hh>
 #include <Speech/ModelCombination.hh>
+#include "Search/Types.hh"
 
 namespace Search {
 
@@ -35,20 +36,25 @@ class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
         Nn::LabelIndex                  label;
-        Nn::NegLogScore                 score;
-        Flow::Timestamp                 timestamp;
+        Score                           score;
+        Search::TimeframeIndex          timestep;
         Nn::LabelScorer::TransitionType transitionType;
+
+        HypothesisExtension()
+                : lemma(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+
+        HypothesisExtension(const Bliss::Lemma* lemma, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : lemma(lemma), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
         Core::Ref<Nn::LabelHistory> history;
         Nn::LabelIndex              currentLabel;
-        size_t                      decodingStep;
-        Nn::NegLogScore             score;
+        Score                       score;
         Traceback                   traceback;
 
         LabelHypothesis()
-                : history(), currentLabel(Core::Type<Nn::LabelIndex>::max), decodingStep(), score(), traceback() {}
+                : history(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
 
         void reset();
         void extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer);

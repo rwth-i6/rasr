@@ -107,7 +107,7 @@ void OnnxEncoder::encode() {
 
     // Keep track of timestamps to be able to set them correctly for the outputs
     std::vector<Flow::Timestamp> inputTimestamps;
-    inputTimestamps.reserve(std::min(T_in, maxBufferSize_));
+    inputTimestamps.reserve(std::min(T_in, chunkSize_));
 
     // Initialize empty matrix of shape F x T.
     // Transposing is done because FastMatrix has col-major storage and this way each column is one feature vector

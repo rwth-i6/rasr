@@ -20,6 +20,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Nn/Types.hh>
 #include <Search/LatticeAdaptor.hh>
+#include <Search/Types.hh>
 #include <Speech/Feature.hh>
 #include <Speech/ModelCombination.hh>
 #include <Speech/Types.hh>
@@ -32,11 +33,11 @@ class SearchAlgorithmV2 : public virtual Core::Component {
 public:
     // Struct to keep track of a collection of scores
     struct ScoreVector {
-        Nn::NegLogScore acoustic, lm;
+        Score acoustic, lm;
 
-        ScoreVector(Nn::NegLogScore am, Nn::NegLogScore lm)
+        ScoreVector(Score am, Score lm)
                 : acoustic(am), lm(lm) {}
-        operator Nn::NegLogScore() const {
+        operator Score() const {
             return acoustic + lm;
         };
         ScoreVector operator+(ScoreVector const& other) const {

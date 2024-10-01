@@ -31,6 +31,14 @@ void SearchAlgorithm::finishSegment() {
 }
 
 void SearchAlgorithm::addFeature(py::array_t<double> feature) {
+    // Transform features of shape [1, F] to [F]
+    if (feature.ndim() == 2) {
+        if (feature.shape(0) != 1) {
+            error() << "Received feature tensor with non-trivial batch dimension " << feature.shape(0) << "; should be 1";
+        }
+        feature = feature.reshape({feature.shape(1)});
+    }
+
     if (feature.ndim() != 1) {
         error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1";
     }
@@ -50,8 +58,16 @@ void SearchAlgorithm::addFeature(py::array_t<double> feature) {
 }
 
 void SearchAlgorithm::addFeatures(py::array_t<double> features) {
+    // Transform features of shape [1, T, F] to [T, F]
+    if (features.ndim() == 3) {
+        if (features.shape(0) != 1) {
+            error() << "Received feature tensor with non-trivial batch dimension " << features.shape(0) << "; should be 1";
+        }
+        features = features.reshape({features.shape(1), features.shape(2)});
+    }
+
     if (features.ndim() != 2) {
-        error() << "Received feature tensor of invalid dim " << features.ndim() << "; should be 2";
+        error() << "Received feature tensor of invalid dim " << features.ndim() << "; should be 2 or 3";
     }
 
     // Read-only view of the array (without bounds checking)

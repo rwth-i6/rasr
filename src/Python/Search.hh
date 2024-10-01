@@ -4,14 +4,14 @@
 #include <Search/SearchV2.hh>
 
 #undef ensure  // macro duplication in pybind11/numpy.h
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
 #include <Core/Application.hh>
 #include <Core/Archive.hh>
 #include <Core/Configuration.hh>
 #include <Flf/FlfCore/Lattice.hh>
 #include <Nn/AllophoneStateFsaExporter.hh>
 #include <vector>
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
@@ -34,10 +34,10 @@ public:
     // Call after all features of the current segment have been passed
     void finishSegment();
 
-    // Pass a feature tensor of shape [F]
+    // Pass a feature tensor of shape [F] or [1, F]
     void addFeature(py::array_t<double>);
 
-    // Pass a tensor of features of shape [T, F]
+    // Pass a tensor of features of shape [T, F] or [1, T, F]
     void addFeatures(py::array_t<double>);
 
     // Return the current best result. May contain unstable results.

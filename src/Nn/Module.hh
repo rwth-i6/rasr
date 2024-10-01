@@ -64,7 +64,8 @@ public:
 
     enum DecoderType {
         NoOpDecoderType,
-        LegacyFeatureScorerDecoderType
+        LegacyFeatureScorerDecoderType,
+        LimitedCtxOnnxDecoderType
     };
 
     enum LabelScorerType {

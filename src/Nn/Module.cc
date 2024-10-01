@@ -19,6 +19,7 @@
 #include "EncoderDecoderLabelScorer.hh"
 #include "LabelScorer.hh"
 #ifdef MODULE_ONNX
+#include "OnnxDecoder.hh"
 #include "OnnxEncoder.hh"
 #endif
 
@@ -102,6 +103,8 @@ const Core::Choice Module_::decoderTypeChoice(
         "no-op", DecoderType::NoOpDecoderType,
         // Wrapper around legacy Mm::FeatureScorer
         "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoderType,
+        // Forward encoder state and (fixed-size) history through an onnx network
+        "limited-ctx-onnx-decoder", DecoderType::LimitedCtxOnnxDecoderType,
         Core::Choice::endMark());
 
 const Core::Choice Module_::labelScorerTypeChoice(
@@ -156,6 +159,9 @@ Core::Ref<Decoder> Module_::createDecoder(const Core::Configuration& config) con
             break;
         case DecoderType::LegacyFeatureScorerDecoderType:
             result = Core::ref(new Nn::LegacyFeatureScorerDecoder(decoderConfig));
+            break;
+        case DecoderType::LimitedCtxOnnxDecoderType:
+            result = Core::ref(new Nn::LimitedCtxOnnxDecoder(decoderConfig));
             break;
         default:
             Core::Application::us()->criticalError("unknown decoder type: %d", paramDecoderType(config));

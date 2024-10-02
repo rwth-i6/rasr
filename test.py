@@ -1,34 +1,37 @@
+from src.Tools.LibRASR import Configuration
 from src.Tools.LibRASR import DataSource
 from src.Tools.LibRASR import AbstractNode
 from src.Tools.LibRASR import InputNode
+import wave
 
-# node_name
-# source_
-# sample_rate
-# sample_type
-# track_count
+# sample_queue // dequeue/list of samples of wav //
+# data         // Flow::DataPtr<Flow::Data>      //
 
 ##########
 
-node = source_.get_node(node_name);
+flow_config = Configuration()
+flow_config.set_from_file("feature.config") # BUG
+source_ = DataSource(flow_config, True)
 
-if isinstance(node, InputNode):
-    input_node_ = node
-    print("Successfully casted to InputNode")
-else:
-    print("Failed to cast to InputNode")
+node_name = "samples"
+input_node_ = source_.get_node(node_name);
 
-# Set inputNode_
+print(type(input_node_)) # BUG
+
+with wave.open("8288-274162-0066.wav", "rb") as wav_file:
+    sample_rate = str(wav_file.getframerate())
+    sample_width = wav_file.getsampwidth()
+    if sample_width == 1:
+        sample_type = "SampleTypeU8"
+    elif sample_width == 2:
+        sample_type = "SampleTypeS16"
+    elif sample_width == 4:
+        sample_type = "SampleTypeF32"
+    else:
+        raise ValueError("Unsupported sample width")
+    track_count = str(wav_file.getnchannels())
+
+# Set input_node_
 input_node_.set_parameter("sample-rate", sample_rate)
 input_node_.set_parameter("sample-type", sample_type)
 input_node_.set_parameter("track-count", track_count)
-# input_node_.set_byte_stream_appender(std::bind(&FlowProcessor::appendDataToInputNode, this, std::placeholders::_1)); 
-# Instead of appendDataToInputNode, pass a python function that append all samples from wav file to the sample_queue
-
-# Set source_
-source_.configure()
-source_.reset()
-# source_.configure_all() # doesn't exist!
-
-# Do feature extraction
-# while (data.get() != Flow::Data::eos()) { source_.getData(portIds_[p], data); // dump data in file }

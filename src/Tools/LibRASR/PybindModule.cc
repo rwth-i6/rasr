@@ -808,7 +808,10 @@ PYBIND11_MODULE(librasr, m) {
     .def("set_type_name", &Flow::Network::setTypeName)
     .def("get_type_name", &Flow::Network::getTypeName, py::return_value_policy::reference_internal)
     .def("add_node", &Flow::Network::addNode)
+
     .def("get_node", &Flow::Network::getNode, py::return_value_policy::reference_internal)
+
+//    .def("get_node", [](Flow::Network &self, const std::string& name) {Flow::AbstractNode* node = self.getNode(name); return dynamic_cast<Flow::InputNode*>(node);}, py::return_value_policy::reference_internal)
     .def("add_link", &Flow::Network::addLink)
     .def("declare_parameter", &Flow::Network::declareParameter)
     .def("add_parameter_use", &Flow::Network::addParameterUse) // Core::StringExpression
@@ -837,11 +840,11 @@ PYBIND11_MODULE(librasr, m) {
 
     // friend std::ostream& operator<<(std::ostream& o, const Network& n);
     
-    py::class_<Flow::DataSource, Flow::Network, Core::Ref<Flow::DataSource>>(m, "FlowDataSource")
+    py::class_<Flow::DataSource, Flow::Network>(m, "FlowDataSource", py::multiple_inheritance())
     .def(py::init<const Core::Configuration&, bool>())
     .def("get_data", (bool (Flow::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) &Flow::DataSource::getData); // vector
 
-    py::class_<Speech::DataSource, Flow::DataSource, Core::Ref<Speech::DataSource>>(m, "DataSource")
+    py::class_<Speech::DataSource, Flow::DataSource>(m, "DataSource")
     .def(py::init<const Core::Configuration&, bool>())
     .def("initialize", &Speech::DataSource::initialize)
     .def("finalize", &Speech::DataSource::finalize)

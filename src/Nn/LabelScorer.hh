@@ -76,8 +76,8 @@ public:
 
     // Perform scoring computation for a vector of requests
     // Loops over `getScore` by default but may also implement more efficient batched logic
-    // Return two vectors: one with scores and one with times; times vector might have size 1 which means that all timestamps are the same
-    virtual std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<Request>& requests) = 0;
+    // Return two vectors: one vector with scores and one (maybe collapsed) vector with times
+    virtual std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<Request>& requests) = 0;
 };
 
 }  // namespace Nn

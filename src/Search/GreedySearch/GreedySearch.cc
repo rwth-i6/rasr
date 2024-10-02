@@ -4,6 +4,8 @@
 #include <Nn/LabelScorer.hh>
 #include <Speech/ModelCombination.hh>
 #include <Speech/Types.hh>
+#include <algorithm>
+#include <iterator>
 #include "Core/Types.hh"
 #include "Nn/LabelHistory.hh"
 #include "Nn/Types.hh"
@@ -174,24 +176,26 @@ bool GreedyTimeSyncSearch::decodeStep() {
     Nn::LabelIndex prevLabel = hyp_.currentLabel;
 
     // assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
-    auto lemmas = lexicon_->lemmas();
+    auto                                  lemmas = lexicon_->lemmas();
+    std::vector<Nn::LabelScorer::Request> requests;
+    requests.reserve(lexicon_->nLemmas());
     for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
         const Bliss::Lemma* lemma(*lemmaIt);
         Nn::LabelIndex      idx = lemma->id();
 
         auto transitionType = inferTransitionType(prevLabel, idx);
-
-        auto scoreWithTime = labelScorer_->getScoreWithTime({hyp_.history, idx, transitionType});
-        if (not scoreWithTime.has_value()) {
-            return false;
-        }
-
-        if (scoreWithTime->first < bestExtension.score) {
-            bestExtension = {lemma, idx, scoreWithTime->first, scoreWithTime->second, transitionType};
-        }
+        requests.push_back({hyp_.history, idx, transitionType});
     }
 
-    hyp_.extend(bestExtension, labelScorer_);
+    auto result = labelScorer_->getScoresWithTime(requests);
+    if (not result.has_value()) {
+        return false;
+    }
+    const auto& [scores, times] = result.value();
+
+    auto  bestIdx     = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
+    auto& bestRequest = requests.at(bestIdx);
+    hyp_.extend({lemmas.first[bestIdx], bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType}, labelScorer_);
 
     return true;
 }

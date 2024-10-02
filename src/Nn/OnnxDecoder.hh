@@ -45,11 +45,11 @@ public:
     LimitedCtxOnnxDecoder(const Core::Configuration& config);
     virtual ~LimitedCtxOnnxDecoder() = default;
 
-    void                                                                              reset() override;
-    Core::Ref<LabelHistory>                                                           getStartHistory() override;
-    void                                                                              extendHistory(LabelScorer::Request request) override;
-    std::optional<std::pair<Score, Speech::TimeframeIndex>>                           getScoreWithTime(const LabelScorer::Request request) override;
-    std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
+    void                                                                                  reset() override;
+    Core::Ref<LabelHistory>                                                               getStartHistory() override;
+    void                                                                                  extendHistory(LabelScorer::Request request) override;
+    std::optional<std::pair<Score, Speech::TimeframeIndex>>                               getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
 
 private:
     size_t startLabelIndex_;
@@ -67,7 +67,7 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    std::unordered_map<SeqStepLabelHistory*, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;
+    std::unordered_map<const SeqStepLabelHistory*, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;
 };
 
 }  // namespace Nn

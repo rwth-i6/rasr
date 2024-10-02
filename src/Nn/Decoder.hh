@@ -60,7 +60,7 @@ public:
     virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) = 0;
 
     // Batched version of `getScoreWithTime`
-    virtual std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests);
+    virtual std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests);
 
 protected:
     std::vector<FeatureVectorRef> encoderOutputBuffer_;

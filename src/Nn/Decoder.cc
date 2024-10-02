@@ -51,9 +51,9 @@ void Decoder::signalNoMoreEncoderOutputs() {
     segmentEnd_ = true;
 }
 
-std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> Decoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
-    std::vector<Score>                  scores;
-    std::vector<Search::TimeframeIndex> timeframes;
+std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> Decoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+    std::vector<Score>                      scores;
+    CollapsedVector<Search::TimeframeIndex> timeframes;
 
     scores.reserve(requests.size());
     timeframes.reserve(requests.size());
@@ -63,16 +63,7 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
             return {};
         }
         scores.push_back(score_time->first);
-        auto timeframe = score_time->second;
-
-        // If all timeframes are the same, `timeframes` should be a size-1 vector with that value
-        // Thus, if it is currently size 1 and the next timeframe is the same, it should not be added
-        // If it is different, the return value will be a vector of size `num_requests`, so expand out
-        // the previous vector and add the new value
-        if (timeframes.size() == 1ul and timeframe != timeframes[0]) {
-            timeframes.resize(scores.size() - 1, timeframes[0]);
-            timeframes.push_back(timeframe);
-        }
+        timeframes.push_back(score_time->second);
     }
 
     return std::make_pair(scores, timeframes);

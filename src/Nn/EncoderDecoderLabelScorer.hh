@@ -31,33 +31,33 @@ public:
     virtual ~EncoderDecoderLabelScorer() = default;
 
     // Clear buffers and reset segment end flag in both encoder and decoder
-    void reset();
+    void reset() override;
 
     // Signal that no more features are expected for the current segment.
     // When segment end is signaled, encoder can run regardless of whether the buffer has been filled.
     // Thus, all encoder states are computed and forwarded to the decoder.
     // Relevant for e.g. Attention models that require all encoder states of a segment before decoding can begin
-    void signalNoMoreFeatures();
+    void signalNoMoreFeatures() override;
 
     // Get start history from decoder
-    Core::Ref<LabelHistory> getStartHistory();
+    Core::Ref<LabelHistory> getStartHistory() override;
 
     // Extend history for decoder
-    void extendHistory(Request request);
+    void extendHistory(Request request) override;
 
     // Function that returns the mapping of each timeframe index (returned in the getScores functions)
     // to actual flow timestamps with start-/ and end-time in seconds.
-    const std::vector<Flow::Timestamp>& getTimestamps() const;
+    const std::vector<Flow::Timestamp>& getTimestamps() const override;
 
     // Add a single input feature to the encoder
-    void addInput(FeatureVectorRef input);
-    void addInput(Core::Ref<const Speech::Feature> input);
+    void addInput(FeatureVectorRef input) override;
+    void addInput(Core::Ref<const Speech::Feature> input) override;
 
     // Runs requests through decoder given available encoder states
-    virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request);
+    std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) override;
 
     // Batched version of `getScoreWithTime`
-    virtual std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests);
+    std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
 
 protected:
     Core::Ref<Encoder> encoder_;

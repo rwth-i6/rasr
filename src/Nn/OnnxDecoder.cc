@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <utility>
+#include "Core/Assertions.hh"
 #include "LabelHistory.hh"
 #include "LabelScorer.hh"
 
@@ -145,7 +146,7 @@ void LimitedCtxOnnxDecoder::extendHistory(LabelScorer::Request request) {
     }
 }
 
-std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>> LimitedCtxOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> LimitedCtxOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
     /*
      * Collect all requests that are based on the same timestep (-> same encoder state) and
      * batch them together
@@ -153,7 +154,7 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
     std::unordered_map<size_t, std::vector<size_t>> requestsWithTimestep;  // Maps timestep to list of all indices of requests with that timestep
 
     // Timeframe return value can already be set along the way
-    std::vector<Speech::TimeframeIndex> timeframeResults;
+    CollapsedVector<Speech::TimeframeIndex> timeframeResults;
     timeframeResults.reserve(requests.size());
 
     for (size_t b = 0ul; b < requests.size(); ++b) {
@@ -169,13 +170,6 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
         it->second.push_back(b);
     }
 
-    // If size of the map is one that means that all requests have the same timestep
-    // So the return value should be a size-1 vector containing only that timestep
-    // And all the other entries can be thrown out
-    if (requestsWithTimestep.size() == 1ul) {
-        timeframeResults.resize(1ul);
-    }
-
     size_t H = historyLength_;
     size_t F = encoderOutputBuffer_.front()->size();
 
@@ -188,8 +182,8 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
          */
         std::unordered_set<SeqStepLabelHistory*, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> uniqueUncachedHistories;
 
-        for (size_t b = 0ul; b < requestIndices.size(); ++b) {
-            auto& request    = requests[requestIndices[b]];
+        for (auto requestIndex : requestIndices) {
+            auto& request    = requests[requestIndex];
             auto* historyPtr = dynamic_cast<SeqStepLabelHistory*>(request.history.get());
             if (scoreCache_.find(historyPtr) == scoreCache_.end()) {
                 // Group by unique history
@@ -215,7 +209,7 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
         // Create batched history input
         Math::FastMatrix<s32> historyMat(H, B);
         size_t                b = 0ul;
-        for (auto* history : uniqueUncachedHistories) {
+        for (const auto* history : uniqueUncachedHistories) {
             std::copy(history->labelSeq.begin(), history->labelSeq.end(), &(historyMat.at(0, b++)));  // Pointer to first element in column b
         }
 
@@ -229,23 +223,17 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
          * Run session
          */
 
-        // auto t_start = std::chrono::steady_clock::now();
-
         // Run Onnx session with given inputs
         std::vector<Onnx::Value> sessionOutputs;
         session_.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
-
-        // auto t_end     = std::chrono::steady_clock::now();
-
-        // log("Computed decoder scores of shape (%zu x %zu) in %.4f seconds", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), t_elapsed);
 
         /*
          * Put resulting scores into cache map
          */
         b = 0ul;
-        for (auto* history : uniqueUncachedHistories) {
+        for (const auto* history : uniqueUncachedHistories) {
             std::vector<f32> scoreVec;
-            sessionOutputs.front().get(b, scoreVec);
+            sessionOutputs.front().get(b++, scoreVec);
             scoreCache_.emplace(history, std::move(scoreVec));
         }
     }
@@ -258,7 +246,10 @@ std::optional<std::pair<std::vector<Score>, std::vector<Speech::TimeframeIndex>>
     for (const auto& request : requests) {
         auto* history = dynamic_cast<SeqStepLabelHistory*>(request.history.get());
 
-        scoreResults.push_back(scoreCache_.at(history).at(request.nextToken));
+        auto cacheResult = scoreCache_.find(history);
+        verify(cacheResult != scoreCache_.end());
+
+        scoreResults.push_back(cacheResult->second.at(request.nextToken));
     }
 
     return std::make_pair(scoreResults, timeframeResults);

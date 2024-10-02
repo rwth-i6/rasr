@@ -51,9 +51,9 @@ void Decoder::signalNoMoreEncoderOutputs() {
     segmentEnd_ = true;
 }
 
-std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> Decoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
-    std::vector<Score>                      scores;
-    CollapsedVector<Search::TimeframeIndex> timeframes;
+std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> Decoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+    std::vector<Score>                            scores;
+    Core::CollapsedVector<Search::TimeframeIndex> timeframes;
 
     scores.reserve(requests.size());
     timeframes.reserve(requests.size());

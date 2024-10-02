@@ -14,6 +14,7 @@
  */
 
 #include "OnnxDecoder.hh"
+#include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Flow/Timestamp.hh>
 #include <Math/FastMatrix.hh>
@@ -22,7 +23,6 @@
 #include <cstddef>
 #include <unordered_map>
 #include <utility>
-#include "Core/Assertions.hh"
 #include "LabelHistory.hh"
 #include "LabelScorer.hh"
 
@@ -59,6 +59,16 @@ const Core::ParameterBool LimitedCtxOnnxDecoder::paramVerticalLabelTransition(
         "Whether (non-blank) label transitions should be vertical, i.e. not increase the time step.",
         false);
 
+const Core::ParameterInt LimitedCtxOnnxDecoder::paramMaxBatchSize(
+        "max-batch-size",
+        "Max number of histories that can be fed into the ONNX model at once.",
+        Core::Type<int>::max);
+
+const Core::ParameterInt LimitedCtxOnnxDecoder::paramMaxCachedScores(
+        "max-cached-scores",
+        "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
+        100000);
+
 LimitedCtxOnnxDecoder::LimitedCtxOnnxDecoder(const Core::Configuration& config)
         : Core::Component(config),
           Precursor(config),
@@ -67,6 +77,8 @@ LimitedCtxOnnxDecoder::LimitedCtxOnnxDecoder(const Core::Configuration& config)
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           verticalLabelTransition_(paramVerticalLabelTransition(config)),
+          maxBatchSize_(paramMaxBatchSize(config)),
+          maxCachedScores_(paramMaxCachedScores(config)),
           session_(select("session")),
           validator_(select("validator")),
           mapping_(select("io-map"), ioSpec_),
@@ -146,15 +158,15 @@ void LimitedCtxOnnxDecoder::extendHistory(LabelScorer::Request request) {
     }
 }
 
-std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> LimitedCtxOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> LimitedCtxOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
     /*
      * Collect all requests that are based on the same timestep (-> same encoder state) and
-     * batch them together
+     * group them together
      */
     std::unordered_map<size_t, std::vector<size_t>> requestsWithTimestep;  // Maps timestep to list of all indices of requests with that timestep
 
     // Timeframe return value can already be set along the way
-    CollapsedVector<Speech::TimeframeIndex> timeframeResults;
+    Core::CollapsedVector<Speech::TimeframeIndex> timeframeResults;
     timeframeResults.reserve(requests.size());
 
     for (size_t b = 0ul; b < requests.size(); ++b) {
@@ -169,9 +181,6 @@ std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeInd
         auto [it, inserted] = requestsWithTimestep.emplace(step, std::vector<size_t>());
         it->second.push_back(b);
     }
-
-    size_t H = historyLength_;
-    size_t F = encoderOutputBuffer_.front()->size();
 
     /*
      * Iterate over distinct timesteps
@@ -195,47 +204,17 @@ std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeInd
             continue;
         }
 
-        /*
-         * Create session inputs
-         */
-
-        size_t B = uniqueUncachedHistories.size();
-
-        // All requests in this iteration share the same encoder state which is set up here
-        Math::FastMatrix<f32> encoderMat(F, 1);
-        auto&                 encoderState = encoderOutputBuffer_[timestep];
-        std::copy(encoderState->begin(), encoderState->end(), encoderMat.begin());
-
-        // Create batched history input
-        Math::FastMatrix<s32> historyMat(H, B);
-        size_t                b = 0ul;
+        std::vector<const SeqStepLabelHistory*> historyBatch;
+        historyBatch.reserve(std::min(uniqueUncachedHistories.size(), maxBatchSize_));
         for (const auto* history : uniqueUncachedHistories) {
-            std::copy(history->labelSeq.begin(), history->labelSeq.end(), &(historyMat.at(0, b++)));  // Pointer to first element in column b
+            historyBatch.push_back(history);
+            if (historyBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
+                forwardBatch(historyBatch);
+                historyBatch.clear();
+            }
         }
 
-        // log("Decode with encoder state of shape (%u x %u) and history batch of shape (%u x %u).", encoderMat.nColumns(), encoderMat.nRows(), historyMat.nColumns(), historyMat.nRows());
-
-        std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-        sessionInputs.emplace_back(encoderStateName_, Onnx::Value::create(encoderMat, true));
-        sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
-
-        /*
-         * Run session
-         */
-
-        // Run Onnx session with given inputs
-        std::vector<Onnx::Value> sessionOutputs;
-        session_.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
-
-        /*
-         * Put resulting scores into cache map
-         */
-        b = 0ul;
-        for (const auto* history : uniqueUncachedHistories) {
-            std::vector<f32> scoreVec;
-            sessionOutputs.front().get(b++, scoreVec);
-            scoreCache_.emplace(history, std::move(scoreVec));
-        }
+        forwardBatch(historyBatch);  // Forward remaining histories
     }
 
     /*
@@ -252,6 +231,11 @@ std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeInd
         scoreResults.push_back(cacheResult->second.at(request.nextToken));
     }
 
+    // Avoid memory overflow due to score cache
+    if (scoreCache_.size() > maxCachedScores_) {
+        scoreCache_.clear();
+    }
+
     return std::make_pair(scoreResults, timeframeResults);
 }
 
@@ -261,5 +245,53 @@ std::optional<std::pair<Score, Speech::TimeframeIndex>> LimitedCtxOnnxDecoder::g
         return {};
     }
     return std::make_pair(result->first.front(), result->second.front());
+}
+
+void LimitedCtxOnnxDecoder::forwardBatch(const std::vector<const SeqStepLabelHistory*> historyBatch) {
+    if (historyBatch.empty()) {
+        return;
+    }
+
+    /*
+     * Create session inputs
+     */
+
+    // All requests in this iteration share the same encoder state which is set up here
+    Math::FastMatrix<f32>
+            encoderMat(encoderOutputBuffer_.front()->size(), 1);
+    auto&   encoderState = encoderOutputBuffer_[historyBatch.front()->currentStep];
+    std::copy(encoderState->begin(), encoderState->end(), encoderMat.begin());
+
+    // Create batched history input
+    Math::FastMatrix<s32> historyMat(historyLength_, historyBatch.size());
+    for (size_t b = 0ul; b < historyBatch.size(); ++b) {
+        const auto* history = historyBatch[b];
+        std::copy(history->labelSeq.begin(), history->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
+    }
+
+    std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
+    sessionInputs.emplace_back(encoderStateName_, Onnx::Value::create(encoderMat, true));
+    sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
+
+    /*
+     * Run session
+     */
+    // auto t_start = std::chrono::steady_clock::now();
+
+    std::vector<Onnx::Value> sessionOutputs;
+    session_.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+
+    // auto t_end     = std::chrono::steady_clock::now();
+    // auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds
+    // log("Ran decoder with encoder state of shape (%u x %u) and history batch of shape (%u x %u) in %.4f seconds.", encoderMat.nColumns(), encoderMat.nRows(), historyMat.nColumns(), historyMat.nRows(), t_elapsed);
+
+    /*
+     * Put resulting scores into cache map
+     */
+    for (size_t b = 0ul; b < historyBatch.size(); ++b) {
+        std::vector<f32> scoreVec;
+        sessionOutputs.front().get(b, scoreVec);
+        scoreCache_.emplace(historyBatch[b], std::move(scoreVec));
+    }
 }
 }  // namespace Nn

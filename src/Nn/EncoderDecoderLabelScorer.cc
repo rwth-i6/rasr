@@ -63,7 +63,7 @@ std::optional<std::pair<Score, Speech::TimeframeIndex>> EncoderDecoderLabelScore
     return decoder_->getScoreWithTime(request);
 }
 
-std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> EncoderDecoderLabelScorer::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
+std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> EncoderDecoderLabelScorer::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
     return decoder_->getScoresWithTime(requests);
 }
 

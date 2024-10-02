@@ -57,7 +57,7 @@ public:
     std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) override;
 
     // Batched version of `getScoreWithTime`
-    std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
+    std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
 
 protected:
     Core::Ref<Encoder> encoder_;

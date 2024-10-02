@@ -40,23 +40,31 @@ class LimitedCtxOnnxDecoder : public Decoder {
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
+    static const Core::ParameterInt  paramMaxBatchSize;
+    static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
     LimitedCtxOnnxDecoder(const Core::Configuration& config);
     virtual ~LimitedCtxOnnxDecoder() = default;
 
-    void                                                                                  reset() override;
-    Core::Ref<LabelHistory>                                                               getStartHistory() override;
-    void                                                                                  extendHistory(LabelScorer::Request request) override;
-    std::optional<std::pair<Score, Speech::TimeframeIndex>>                               getScoreWithTime(const LabelScorer::Request request) override;
-    std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
+    void                                                                                        reset() override;
+    Core::Ref<LabelHistory>                                                                     getStartHistory() override;
+    void                                                                                        extendHistory(LabelScorer::Request request) override;
+    std::optional<std::pair<Score, Speech::TimeframeIndex>>                                     getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
 
 private:
+    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
+    // Assumes that all histories in the batch are based on the same timestep
+    void forwardBatch(const std::vector<const SeqStepLabelHistory*> historyBatch);
+
     size_t startLabelIndex_;
     size_t historyLength_;
     bool   blankUpdatesHistory_;
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
+    size_t maxBatchSize_;
+    size_t maxCachedScores_;
 
     Onnx::Session                                   session_;
     static const std::vector<Onnx::IOSpecification> ioSpec_;  // fixed to "encoder-state", "history", "scores"

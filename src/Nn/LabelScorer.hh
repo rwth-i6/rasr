@@ -16,6 +16,7 @@
 #ifndef LABEL_SCORER_HH
 #define LABEL_SCORER_HH
 
+#include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
 #include <Core/Types.hh>
@@ -77,7 +78,7 @@ public:
     // Perform scoring computation for a vector of requests
     // Loops over `getScore` by default but may also implement more efficient batched logic
     // Return two vectors: one vector with scores and one (maybe collapsed) vector with times
-    virtual std::optional<std::pair<std::vector<Score>, CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<Request>& requests) = 0;
+    virtual std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<Request>& requests) = 0;
 };
 
 }  // namespace Nn

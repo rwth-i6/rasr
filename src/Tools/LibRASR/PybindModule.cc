@@ -699,16 +699,18 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<Flow::Data, Flow::DataPtr<Flow::Data>>(m, "Data")
     .def(py::init<>())
-    .def(py::init<const Flow::Data&>());
+    .def(py::init<const Flow::Data&>())
+    .def_static("eos", &Flow::Data::eos, py::return_value_policy::reference)
+    .def("compare_address", [](Flow::Data &self, const Flow::Data* data) {return &self != data;})
+    .def("__eq__", &Flow::Data::operator==, py::is_operator());
+
 
     /*
      * virtual Data* clone() const
      * const Datatype* datatype() const
-     * virtual bool operator==(const Data& other) const
      * virtual Core::XmlWriter& dump(Core::XmlWriter&) const
      * virtual bool             read(Core::BinaryInputStream&)
      * virtual bool write(Core::BinaryOutputStream&) const
-     * static inline Data* eos()
      * static inline Data* ood()
      * static bool isSentinel(const ThreadSafeReferenceCounted* object)
      * static bool isNotSentinel(const ThreadSafeReferenceCounted* object)
@@ -808,10 +810,7 @@ PYBIND11_MODULE(librasr, m) {
     .def("set_type_name", &Flow::Network::setTypeName)
     .def("get_type_name", &Flow::Network::getTypeName, py::return_value_policy::reference_internal)
     .def("add_node", &Flow::Network::addNode)
-
     .def("get_node", &Flow::Network::getNode, py::return_value_policy::reference_internal)
-
-//    .def("get_node", [](Flow::Network &self, const std::string& name) {Flow::AbstractNode* node = self.getNode(name); return dynamic_cast<Flow::InputNode*>(node);}, py::return_value_policy::reference_internal)
     .def("add_link", &Flow::Network::addLink)
     .def("declare_parameter", &Flow::Network::declareParameter)
     .def("add_parameter_use", &Flow::Network::addParameterUse) // Core::StringExpression

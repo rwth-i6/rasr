@@ -835,7 +835,8 @@ PYBIND11_MODULE(librasr, m) {
     .def("reset", &Flow::Network::reset)
     .def("go", &Flow::Network::go)
     .def("set_filename", &Flow::Network::setFilename)
-    .def("filename", &Flow::Network::filename, py::return_value_policy::reference_internal);
+    .def("filename", &Flow::Network::filename, py::return_value_policy::reference_internal)
+    .def("configure_all", &Flow::Network::configureAll);
 
     // friend std::ostream& operator<<(std::ostream& o, const Network& n);
     

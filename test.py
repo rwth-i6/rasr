@@ -1,5 +1,5 @@
 from src.Tools.LibRASR import Configuration
-from src.Tools.LibRASR import DataSource
+from src.Tools.LibRASR import FlowDataSource
 from src.Tools.LibRASR import AbstractNode
 from src.Tools.LibRASR import InputNode
 from src.Tools.LibRASR import Data
@@ -7,7 +7,7 @@ import wave
 
 flow_config = Configuration()
 flow_config.set_from_file("feature.config")
-source_ = DataSource(flow_config, True)
+source_ = FlowDataSource(flow_config, True)
 
 node_name = "audio"
 input_node_ = source_.get_node(node_name);
@@ -41,9 +41,11 @@ input_node_.set_byte_stream_appender(append_data_to_input_node) # unsure
 # Set source_
 source_.configure()
 source_.reset()
+source_.configure_all()
 
 # Do feature extraction
-data = Data()
+data = []
+flag = True
 
-while (data.compare_address(Data.eos())):
-    source_.get_data(0, data); # dump data in file 
+while (flag):
+    flag = source_.get_data(0, data); # dump data in file 

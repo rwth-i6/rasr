@@ -17,10 +17,46 @@
 #include <Core/StringUtilities.hh>
 #include <Fsa/Output.hh>
 #include <Fsa/Static.hh>
+#include <Fsa/tDraw.hh>
+
+#include "HistoryManager.hh"
 
 namespace Lm {
 
+class CheatingSegmentLm::HistoryManager : public ReferenceCountingHistoryManager {
+protected:
+    virtual HistoryHash hashKey(HistoryHandle hd) const {
+        CheatingHistory const* h = reinterpret_cast<CheatingHistory const*>(hd);
+        return h->seq_idx << 32 xor h->fsa_state->id();
+    }
+
+    virtual bool isEquivalent(HistoryHandle hda, HistoryHandle hdb) const {
+        CheatingHistory const* ha = reinterpret_cast<CheatingHistory const*>(hda);
+        CheatingHistory const* hb = reinterpret_cast<CheatingHistory const*>(hdb);
+        return ha->seq_idx == hb->seq_idx and ha->fsa_state->id() == hb->fsa_state->id();
+    }
+
+    virtual std::string format(HistoryHandle hd) const {
+        CheatingHistory const* h = reinterpret_cast<CheatingHistory const*>(hd);
+        return std::to_string(h->seq_idx) + "-" + std::to_string(h->fsa_state->id());
+    }
+};
+
 const Core::ParameterFloat CheatingSegmentLm::paramInfinityScore("infinity-score", "score to use for incorrect words", 1e9);
+
+CheatingSegmentLm::CheatingSegmentLm(Core::Configuration const& c, Bliss::LexiconRef l)
+        : Core::Component(c),
+          Precursor(c, l),
+          segmentIdx_(0ul),
+          lexicon_(l),
+          orthParser_(Core::ref(new Bliss::OrthographicParser(config, lexicon_))) {
+    infinityScore_ = paramInfinityScore(config);
+    if (historyManager_) {
+        delete historyManager_;
+        historyManager_ = nullptr;
+    }
+    historyManager_ = new HistoryManager();
+}
 
 void CheatingSegmentLm::load() {
     // create Empty LM
@@ -32,6 +68,7 @@ void CheatingSegmentLm::load() {
     s->setInitialStateId(s->newFinalState(Fsa::TropicalSemiring->one())->id());
     Fsa::ConstAutomatonRef f = Fsa::ConstAutomatonRef(s);
     this->setFsa(f);
+    segmentIdx_ += 1ul;
 }
 
 void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
@@ -88,6 +125,42 @@ void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
     }
     auto synt_ref = Fsa::ConstAutomatonRef(synt_automaton);
     this->setFsa(synt_ref);
+    segmentIdx_ += 1ul;
+}
+
+History CheatingSegmentLm::startHistory() const {
+    Core::Ref<CheatingHistory> ch(new CheatingHistory());
+    ch->seq_idx   = segmentIdx_;
+    ch->fsa_state = initialState();
+
+    ch->acquireReference();
+    return history(ch.get());
+}
+
+History CheatingSegmentLm::extendedHistory(History const& h, Token w) const {
+    Core::Ref<const CheatingHistory> prev(descriptor<CheatingSegmentLm>(h));
+
+    Core::Ref<CheatingHistory> ch(new CheatingHistory());
+    ch->seq_idx   = segmentIdx_;
+    ch->fsa_state = nextState(prev->fsa_state, w);
+
+    ch->acquireReference();
+    return history(ch.get());
+}
+
+Score CheatingSegmentLm::score(History const& h, Token w) const {
+    Core::Ref<const CheatingHistory> hist(descriptor<CheatingSegmentLm>(h));
+    return stateScore(hist->fsa_state, w);
+}
+
+Score CheatingSegmentLm::sentenceEndScore(History const& h) const {
+    Core::Ref<const CheatingHistory> hist(descriptor<CheatingSegmentLm>(h));
+    return stateSentenceEndScore(hist->fsa_state);
+}
+
+HistorySuccessors CheatingSegmentLm::getHistorySuccessors(History const& h) const {
+    Core::Ref<const CheatingHistory> hist(descriptor<CheatingSegmentLm>(h));
+    return getStateSuccessors(hist->fsa_state);
 }
 
 }  // namespace Lm

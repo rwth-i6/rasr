@@ -23,7 +23,13 @@ namespace Lm {
 
 class CheatingSegmentLm : public FsaLm {
 public:
-    using Precursor = FsaLm;
+    struct CheatingHistory : public Core::ReferenceCounted {
+        size_t             seq_idx;
+        Fsa::ConstStateRef fsa_state;
+    };
+
+    using Precursor         = FsaLm;
+    using HistoryDescriptor = CheatingHistory;
 
     static const Core::ParameterFloat paramInfinityScore;
 
@@ -33,17 +39,20 @@ public:
     virtual void load();
     virtual void setSegment(Bliss::SpeechSegment const* s);
 
+    virtual History startHistory() const;
+    virtual History extendedHistory(History const& h, Token w) const;
+    virtual Score   score(History const& h, Token w) const;
+    virtual Score   sentenceEndScore(History const& h) const;
+
+    virtual HistorySuccessors getHistorySuccessors(History const& h) const;
+
 private:
+    class HistoryManager;
+
+    size_t                                     segmentIdx_;
     Core::Ref<const Bliss::Lexicon>            lexicon_;
     Core::Ref<const Bliss::OrthographicParser> orthParser_;
 };
-
-// inline implementation
-
-inline CheatingSegmentLm::CheatingSegmentLm(Core::Configuration const& c, Bliss::LexiconRef l)
-        : Core::Component(c), Precursor(c, l), lexicon_(l), orthParser_(Core::ref(new Bliss::OrthographicParser(config, lexicon_))) {
-    infinityScore_ = paramInfinityScore(config);
-}
 
 }  // namespace Lm
 

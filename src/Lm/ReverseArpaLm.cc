@@ -23,6 +23,7 @@
 #include <vector>
 #include <assert.h>
 #include <string.h>
+#include <unistd.h>
 
 // #define STANDALONE
 
@@ -203,7 +204,7 @@ float sentenceScore(const IndexedString* sentence, int len, const std::vector<NG
     return ret;
 }
 
-void reverseArpaLm(const std::string& inName, const std::string& outName, int testSamples, std::string testFile) {
+std::string reverseArpaLm(const std::string& inName, int testSamples, std::string testFile) {
 #ifdef STANDALONE
     std::ifstream infile(inName.c_str());
 #else
@@ -372,6 +373,11 @@ void reverseArpaLm(const std::string& inName, const std::string& outName, int te
     int order = ngrams.size();
 
     float offset = 0.0;
+
+    char tmpfn[] = "/tmp/reverse_lm_rasr_XXXXXX";
+    int  tmpfd   = mkstemp(tmpfn);
+    close(tmpfd);  // we only need the file name
+    std::string outName(tmpfn);
 
     std::cout << "writing " << outName << std::endl;
 
@@ -563,6 +569,7 @@ void reverseArpaLm(const std::string& inName, const std::string& outName, int te
 
         std::cout << "success" << std::endl;
     }
+    return outName;
 }
 
 }  // namespace Lm

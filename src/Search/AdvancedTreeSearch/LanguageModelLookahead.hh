@@ -24,6 +24,7 @@
 #include <Core/Hash.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
 #include <Search/StateTree.hh>
 
@@ -94,9 +95,11 @@ private:
     Core::ConstantVector<Node>                            nodes_;
 
     // Maps the specific ending-node and a score-offset to each Bliss::Token
-    Core::ConstantVector<std::pair<LookaheadId, Score>> nodeForToken_;
-    Core::ConstantVector<u32>                           firstNodeForToken_;
-    int                                                 invalidFirstNodeForTokenIndex_;
+    typedef Core::ConstantVector<std::pair<LookaheadId, Score>> TokenNodeScore;
+
+    TokenNodeScore            nodeForToken_;
+    Core::ConstantVector<u32> firstNodeForToken_;
+    int                       invalidFirstNodeForTokenIndex_;
 
     LookaheadId nEntries_;
 
@@ -110,23 +113,26 @@ private:
     void buildHash();
     void buildLookaheadStructure(Search::HMMStateNetwork const& tree, Search::StateId rootNode, std::vector<Search::PersistentStateTree::Exit> const& exits);
 
-    const Lm::CompiledBatchRequest* batchRequest_;
-    void                            computeScores(Lm::History const&, std::vector<Score>&) const;
+    Lm::CompiledBatchRequest* batchRequest_;  // can be updated on the fly
+    void                      computeScores(const Lm::History&, std::vector<Score>&) const;
 
 public:
     class ContextLookahead;
 
 private:
-    // Returns whether the scores were actually computed
+    friend class ContextLookahead;
+
+    typedef std::list<ContextLookahead*>                                          List;
+    typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
+
+    u32          cacheSizeHighMark_, cacheSizeLowMark_;
+    mutable List tables_, freeTables_;
+    mutable u32  nTables_, nFreeTables_;
+    mutable Map  map_;
+
+    // Returns whether the sparse scores were successfully computed
     template<bool approx>
     bool computeScoresSparse(ContextLookahead& lookahead) const;
-    friend class ContextLookahead;
-    u32                                                                           cacheSizeHighMark_, cacheSizeLowMark_;
-    typedef std::list<ContextLookahead*>                                          List;
-    mutable List                                                                  tables_, freeTables_;
-    mutable u32                                                                   nTables_, nFreeTables_;
-    typedef std::unordered_map<Lm::History, ContextLookahead*, Lm::History::Hash> Map;
-    mutable Map                                                                   map_;
 
     ContextLookahead* acquireTable(Lm::History const&) const;
     ContextLookahead* getCachedTable(Lm::History const&) const;
@@ -135,7 +141,6 @@ private:
     struct CacheStatistics;
     CacheStatistics*                   cacheStatistics_;
     mutable Core::XmlChannel           statisticsChannel_;
-    bool                               considerBackOffInMaximization_;
     bool                               considerPronunciationScore_;
     bool                               considerExitPenalty_;
     bool                               sparseThresholdExpectationBased_;
@@ -150,7 +155,6 @@ public:
     static const Core::ParameterInt    paramTreeCutoff;
     static const Core::ParameterInt    paramMinimumRepresentation;
     static const Core::ParameterInt    paramCacheSizeLow, paramCacheSizeHigh;
-    static const Core::ParameterBool   paramConsiderBackOffInMaximization;
     static const Core::ParameterBool   paramSparseThresholdExpectationBased;
     static const Core::ParameterBool   paramConsiderPronunciationScore;
     static const Core::ParameterBool   paramConsiderExitPenalty;
@@ -186,7 +190,7 @@ public:
         return hashForState_[s];
     };
 
-    class ContextLookahead : public Core::ReferenceCounted {
+    class ContextLookahead : public Core::ThreadSafeReferenceCounted {
     private:
         const LanguageModelLookahead* la_;
         Lm::History                   history_;
@@ -199,7 +203,7 @@ public:
         ApproxHash                                                                                                      approxSparseScores_;
         Score                                                                                                           backOffScore_;
 
-        friend class Core::Ref<const ContextLookahead>;
+        friend class Core::TsRef<const ContextLookahead>;
         void free() const {
             la_->releaseTable(this);
         }
@@ -243,8 +247,9 @@ public:
             int nScores = scores_.size();
             int nAbnorm = 0;
             for (std::vector<Score>::iterator i = scores_.begin(); i != scores_.end(); i++) {
-                if ((*i > +1.0e+20F) || (*i < -1.0e+20F))
+                if ((*i > +1.0e+20F) || (*i < -1.0e+20F)) {
                     nAbnorm++;
+                }
             }
 
             std::cout << "checkScores: abnormal scores:" << nAbnorm << "/"
@@ -256,7 +261,7 @@ public:
     };
 
 public:
-    typedef Core::Ref<const ContextLookahead> ContextLookaheadReference;
+    typedef Core::TsRef<const ContextLookahead> ContextLookaheadReference;
 
 private:
     class LookAheadNodesForDepth {
@@ -271,8 +276,9 @@ private:
         }
 
         inline void push_back(const std::pair<LookaheadId, Score>& node) {
-            if (size_ == nodes_.size())
+            if (size_ == nodes_.size()) {
                 nodes_.resize(size_ + 100);
+            }
             nodes_[size_] = node;
             ++size_;
         }
@@ -304,8 +310,6 @@ private:
     bool accumulateNodeObservations_;
     f32  scale_;
 
-    Score getLmScale() const;
-
     std::string archiveEntry() const;
 
     u32 nTables() const {
@@ -325,8 +329,13 @@ private:
     bool readPersistentCache();
     void writePersistentCache();
 
+    void recombineLookaheadNodesSingleBest(LookAheadNodesForDepth& nodes, std::vector<u32>& recombination) const;
+    void recombineLookaheadNodesSum(LookAheadNodesForDepth& nodes, std::vector<u32>& recombination, Score scale, Score invertedScale) const;
+
 public:
     int nodeDepth(LookaheadId node) const;
+
+    Score getLookaheadScale() const;
 
     Lm::History getReducedHistory(const Lm::History& history) const;
     /**
@@ -361,6 +370,16 @@ public:
 
     /// returns true if the given look-ahead node leads to exactly one word-end
     inline bool isSingleWordNode(LookaheadId node) const;
+
+    s32 historyLimit() const {
+        return historyLimit_;
+    }
+
+    // cache-scheme for partial sparse lookahead
+    void cacheBatch(const Lm::History& history) const {
+        lm_->unscaled()->cacheBatch(history, batchRequest_, nEntries_);
+    }
+
 };
 
 struct LanguageModelLookahead::Node {

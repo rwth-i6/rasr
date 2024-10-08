@@ -44,6 +44,33 @@ static const Token          InvalidToken = Token(0);
 
 typedef Bliss::TokenInventory TokenInventory;
 
+// moved from BackingOffLm to here: general element for sparse lookahead
+struct WordScore {
+    Bliss::Token::Id token_;
+    Score            score_;
+
+    WordScore(Bliss::Token::Id tok, Score s)
+            : token_(tok),
+              score_(s) {}
+    // these functions are for compatibility
+    Bliss::Token::Id token() const {
+        return token_;
+    }
+    Lm::Score score() const {
+        return score_;
+    }
+
+    struct Ordering {
+        bool operator()(const WordScore& a, const WordScore& b) const {
+            return (a.token() < b.token());
+        }
+    };
+};
+
+struct HistorySuccessors : public std::vector<WordScore> {
+    Score backOffScore;
+};
+
 class History {
 private:
     HistoryManager* mang_;
@@ -62,15 +89,19 @@ private:
 private:
     friend class LanguageModel;
     History(HistoryManager* hm, HistoryHandle hd)
-            : mang_(hm), desc_(hm->acquire(hd)) {}
+            : mang_(hm),
+              desc_(hm->acquire(hd)) {}
 
 public:
     History()
-            : mang_(&sentinel), desc_(0) {}
+            : mang_(&sentinel),
+              desc_(0) {}
     History(const History& hh)
-            : mang_(hh.mang_), desc_(mang_->acquire(hh.desc_)) {}
+            : mang_(hh.mang_),
+              desc_(mang_->acquire(hh.desc_)) {}
     History(History&& other)
-            : mang_(other.mang_), desc_(other.desc_) {
+            : mang_(other.mang_),
+              desc_(other.desc_) {
         other.mang_ = &sentinel;
         other.desc_ = nullptr;
     }
@@ -111,13 +142,15 @@ public:
 
     bool operator==(const History& rhs) const {
 #ifdef LM_ALLOW_CROSS_LM_COMPARISON
-        if (mang_ != rhs.mang_)
+        if (mang_ != rhs.mang_) {
             return false;
+        }
 #else
         require_(mang_ == rhs.mang_);
 #endif
-        if (desc_ == rhs.desc_)
+        if (desc_ == rhs.desc_) {
             return true;
+        }
         return mang_->isEquivalent(desc_, rhs.desc_);
     }
 
@@ -149,6 +182,7 @@ struct Request {
     Bliss::SyntacticTokenSequence tokens;
     u32                           target;
     Score                         offset;
+    Request() {}
     Request(const Bliss::SyntacticTokenSequence& s, u32 t, Score o = 0.0)
             : tokens(s), target(t), offset(o) {}
 };
@@ -168,10 +202,31 @@ public:
     void setScale(Score scale) {
         scale_ = scale;
     }
+
+    BatchRequest request;
+
+    u32 size() const {
+        return request.size();
+    }
+    void resize(u32 size) {
+        request.resize(size);
+    }
+    void addRequest(const Request& r) {
+        request.push_back(r);
+    }
+    BatchRequest::const_iterator begin() const {
+        return request.begin();
+    }
+    BatchRequest::const_iterator end() const {
+        return request.end();
+    }
+    const Request& at(u32 idx) const {
+        return request.at(idx);
+    }
 };
 
 /**
-     */
+ */
 class LanguageModel;
 
 class LanguageModelAutomaton : public Fsa::Automaton {
@@ -268,6 +323,8 @@ private:
 
 protected:
     Core::Dependency dependency_;
+    // lexicon to LM tokenId mapping
+    std::vector<Bliss::Token::Id> lexicon_mapping_;
 
 protected:
     void setTokenInventory(const TokenInventory* _tokenInventory);
@@ -420,6 +477,11 @@ public:
     virtual History reducedHistory(const History&, u32 limit) const;
 
     /**
+     * Shorten the context of the history by the given number of tokens.
+     */
+    virtual History reduceHistoryByN(const History&, u32 n) const;
+
+    /**
      * Create string representation of history (mainly for debugging purposes).
      * By default this function just delegates to
      * History::format(), but language models may specialize
@@ -487,6 +549,26 @@ public:
      */
     virtual void getBatch(const History& h, const CompiledBatchRequest* r, std::vector<f32>& result) const;
 
+    // cache-scheme for partial sparse lookahead
+    virtual void cacheBatch(const History& h, const CompiledBatchRequest* r, u32 size) const {}
+
+    // whether history is fixed for the given limit
+    virtual bool fixedHistory(s32 limit) const {
+        return false;
+    }
+    // whether LM support sparse lookahead
+    virtual bool isSparse(const History& h) const {
+        return false;
+    }
+    // existing history successors for sparse lookahead
+    virtual HistorySuccessors getHistorySuccessors(const History& h) const {
+        return {};
+    }
+    // return only the back-off score for one history
+    virtual Score getBackOffScore(const History& h) const {
+        return Core::Type<Score>::max;
+    };
+
     /**
      * Returns the LanguageModel that shall be used for lookahead (useful for CombinedLM when we do not want to reinstanciate the model)
      * @return the LM that should be used for lookahead, can be nullptr (in that case this LM should be used)
@@ -507,9 +589,9 @@ public:
     virtual void setSegment(Bliss::SpeechSegment const* s);
 
 protected:
+    // why is this even needed ?
     class NonCompiledBatchRequest : public CompiledBatchRequest {
     public:
-        BatchRequest request;
         NonCompiledBatchRequest(Score scale)
                 : CompiledBatchRequest(scale) {}
     };

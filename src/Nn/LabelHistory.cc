@@ -35,11 +35,11 @@ static size_t combineHashes(size_t hash1, size_t hash2) {
  * === LabelHistory ============
  * =============================
  */
-size_t LabelHistoryHash::operator()(const LabelHistory* history) const {
+size_t LabelHistoryHash::operator()(LabelHistoryRef history) const {
     return 0ul;
 }
 
-bool LabelHistoryEq::operator()(const LabelHistory* lhs, const LabelHistory* rhs) const {
+bool LabelHistoryEq::operator()(LabelHistoryRef lhs, LabelHistoryRef rhs) const {
     return true;
 }
 
@@ -48,11 +48,11 @@ bool LabelHistoryEq::operator()(const LabelHistory* lhs, const LabelHistory* rhs
  * === StepLabelHistory ========
  * =============================
  */
-size_t StepLabelHistoryHash::operator()(const StepLabelHistory* history) const {
+size_t StepLabelHistoryHash::operator()(StepLabelHistoryRef history) const {
     return history->currentStep;
 }
 
-bool StepLabelHistoryEq::operator()(const StepLabelHistory* lhs, const StepLabelHistory* rhs) const {
+bool StepLabelHistoryEq::operator()(StepLabelHistoryRef lhs, StepLabelHistoryRef rhs) const {
     return lhs->currentStep == rhs->currentStep;
 }
 
@@ -61,11 +61,11 @@ bool StepLabelHistoryEq::operator()(const StepLabelHistory* lhs, const StepLabel
  * === SeqLabelHistory =========
  * =============================
  */
-size_t SeqLabelHistoryHash::operator()(const SeqLabelHistory* history) const {
+size_t SeqLabelHistoryHash::operator()(SeqLabelHistoryRef history) const {
     return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool SeqLabelHistoryEq::operator()(const SeqLabelHistory* lhs, const SeqLabelHistory* rhs) const {
+bool SeqLabelHistoryEq::operator()(SeqLabelHistoryRef lhs, SeqLabelHistoryRef rhs) const {
     if (lhs == rhs) {
         return true;
     }
@@ -88,11 +88,11 @@ bool SeqLabelHistoryEq::operator()(const SeqLabelHistory* lhs, const SeqLabelHis
  * === SeqLabelHistory ========
  * =============================
  */
-size_t SeqStepLabelHistoryHash::operator()(const SeqStepLabelHistory* history) const {
+size_t SeqStepLabelHistoryHash::operator()(SeqStepLabelHistoryRef history) const {
     return combineHashes(history->currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
-bool SeqStepLabelHistoryEq::operator()(const SeqStepLabelHistory* lhs, const SeqStepLabelHistory* rhs) const {
+bool SeqStepLabelHistoryEq::operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelHistoryRef rhs) const {
     if (lhs == rhs) {
         return true;
     }

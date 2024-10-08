@@ -48,15 +48,15 @@ public:
     virtual ~LimitedCtxOnnxDecoder() = default;
 
     void                                                                                        reset() override;
-    Core::Ref<LabelHistory>                                                                     getStartHistory() override;
-    void                                                                                        extendHistory(LabelScorer::Request request) override;
+    Core::Ref<const LabelHistory>                                                               getStartHistory() override;
+    Core::Ref<const LabelHistory>                                                               extendedHistory(LabelScorer::Request request) override;
     std::optional<std::pair<Score, Speech::TimeframeIndex>>                                     getScoreWithTime(const LabelScorer::Request request) override;
     std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep
-    void forwardBatch(const std::vector<const SeqStepLabelHistory*> historyBatch);
+    void forwardBatch(const std::vector<SeqStepLabelHistoryRef> historyBatch);
 
     size_t startLabelIndex_;
     size_t historyLength_;
@@ -75,7 +75,7 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    std::unordered_map<const SeqStepLabelHistory*, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;
+    std::unordered_map<SeqStepLabelHistoryRef, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;  // TODO: Re-do as ring buffer
 };
 
 }  // namespace Nn

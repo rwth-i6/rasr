@@ -67,7 +67,7 @@ const Core::ParameterInt LimitedCtxOnnxDecoder::paramMaxBatchSize(
 const Core::ParameterInt LimitedCtxOnnxDecoder::paramMaxCachedScores(
         "max-cached-scores",
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
-        100000);
+        1000);
 
 LimitedCtxOnnxDecoder::LimitedCtxOnnxDecoder(const Core::Configuration& config)
         : Core::Component(config),
@@ -116,14 +116,14 @@ void LimitedCtxOnnxDecoder::reset() {
     scoreCache_.clear();
 }
 
-Core::Ref<LabelHistory> LimitedCtxOnnxDecoder::getStartHistory() {
+Core::Ref<const LabelHistory> LimitedCtxOnnxDecoder::getStartHistory() {
     auto hist = Core::ref(new SeqStepLabelHistory());
     hist->labelSeq.resize(historyLength_, startLabelIndex_);
     return hist;
 }
 
-void LimitedCtxOnnxDecoder::extendHistory(LabelScorer::Request request) {
-    auto& history = dynamic_cast<SeqStepLabelHistory&>(*request.history);
+Core::Ref<const LabelHistory> LimitedCtxOnnxDecoder::extendedHistory(LabelScorer::Request request) {
+    SeqStepLabelHistoryRef history(dynamic_cast<const SeqStepLabelHistory*>(request.history.get()));
 
     bool pushToken     = false;
     bool incrementTime = false;
@@ -149,13 +149,20 @@ void LimitedCtxOnnxDecoder::extendHistory(LabelScorer::Request request) {
             error() << "Unknown transition type " << request.transitionType;
     }
 
+    // If history is not going to be modified, return the original one to avoid copying
+    if (not pushToken and not incrementTime) {
+        return request.history;
+    }
+
+    Core::Ref<SeqStepLabelHistory> newHistory(new SeqStepLabelHistory(history->labelSeq, history->currentStep));
     if (pushToken) {
-        history.labelSeq.push_back(request.nextToken);
-        history.labelSeq.erase(history.labelSeq.begin());
+        newHistory->labelSeq.push_back(request.nextToken);
+        newHistory->labelSeq.erase(newHistory->labelSeq.begin());
     }
     if (incrementTime) {
-        ++history.currentStep;
+        ++newHistory->currentStep;
     }
+    return newHistory;
 }
 
 std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> LimitedCtxOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
@@ -170,7 +177,8 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
     timeframeResults.reserve(requests.size());
 
     for (size_t b = 0ul; b < requests.size(); ++b) {
-        auto step = dynamic_cast<SeqStepLabelHistory&>(*requests[b].history).currentStep;
+        SeqStepLabelHistoryRef history(dynamic_cast<const SeqStepLabelHistory*>(requests[b].history.get()));
+        auto                   step = history->currentStep;
         if (step >= encoderOutputBuffer_.size()) {
             // Early exit if at least one of the histories is not scorable yet
             return {};
@@ -189,11 +197,10 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
         /*
          * Identify unique histories that still need session runs
          */
-        std::unordered_set<SeqStepLabelHistory*, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> uniqueUncachedHistories;
+        std::unordered_set<SeqStepLabelHistoryRef, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> uniqueUncachedHistories;
 
         for (auto requestIndex : requestIndices) {
-            auto& request    = requests[requestIndex];
-            auto* historyPtr = dynamic_cast<SeqStepLabelHistory*>(request.history.get());
+            SeqStepLabelHistoryRef historyPtr(dynamic_cast<const SeqStepLabelHistory*>(requests[requestIndex].history.get()));
             if (scoreCache_.find(historyPtr) == scoreCache_.end()) {
                 // Group by unique history
                 uniqueUncachedHistories.emplace(historyPtr);
@@ -204,9 +211,9 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
             continue;
         }
 
-        std::vector<const SeqStepLabelHistory*> historyBatch;
+        std::vector<SeqStepLabelHistoryRef> historyBatch;
         historyBatch.reserve(std::min(uniqueUncachedHistories.size(), maxBatchSize_));
-        for (const auto* history : uniqueUncachedHistories) {
+        for (auto history : uniqueUncachedHistories) {
             historyBatch.push_back(history);
             if (historyBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
                 forwardBatch(historyBatch);
@@ -223,7 +230,7 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
     std::vector<Score> scoreResults;
     scoreResults.reserve(requests.size());
     for (const auto& request : requests) {
-        auto* history = dynamic_cast<SeqStepLabelHistory*>(request.history.get());
+        SeqStepLabelHistoryRef history(dynamic_cast<const SeqStepLabelHistory*>(request.history.get()));
 
         auto cacheResult = scoreCache_.find(history);
         verify(cacheResult != scoreCache_.end());
@@ -247,7 +254,7 @@ std::optional<std::pair<Score, Speech::TimeframeIndex>> LimitedCtxOnnxDecoder::g
     return std::make_pair(result->first.front(), result->second.front());
 }
 
-void LimitedCtxOnnxDecoder::forwardBatch(const std::vector<const SeqStepLabelHistory*> historyBatch) {
+void LimitedCtxOnnxDecoder::forwardBatch(const std::vector<SeqStepLabelHistoryRef> historyBatch) {
     if (historyBatch.empty()) {
         return;
     }
@@ -265,7 +272,7 @@ void LimitedCtxOnnxDecoder::forwardBatch(const std::vector<const SeqStepLabelHis
     // Create batched history input
     Math::FastMatrix<s32> historyMat(historyLength_, historyBatch.size());
     for (size_t b = 0ul; b < historyBatch.size(); ++b) {
-        const auto* history = historyBatch[b];
+        auto history = historyBatch[b];
         std::copy(history->labelSeq.begin(), history->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
     }
 

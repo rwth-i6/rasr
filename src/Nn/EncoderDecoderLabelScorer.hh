@@ -40,10 +40,10 @@ public:
     void signalNoMoreFeatures() override;
 
     // Get start history from decoder
-    Core::Ref<LabelHistory> getStartHistory() override;
+    LabelHistoryRef getStartHistory() override;
 
-    // Extend history for decoder
-    void extendHistory(Request request) override;
+    // Get extended history from decoder
+    LabelHistoryRef extendedHistory(Request request) override;
 
     // Function that returns the mapping of each timeframe index (returned in the getScores functions)
     // to actual flow timestamps with start-/ and end-time in seconds.

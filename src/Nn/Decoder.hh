@@ -39,11 +39,10 @@ public:
     virtual void reset();
 
     // Get initial history to be used at segment begin
-    virtual Core::Ref<LabelHistory> getStartHistory() = 0;
+    virtual LabelHistoryRef getStartHistory() = 0;
 
-    // (Maybe) extend a given history using the next label
-    // `isLoop` may affect whether the history is updated or not, depending on the specific model
-    virtual void extendHistory(LabelScorer::Request request) = 0;
+    // Logic for returning an copy of the history in the request that is extended by the given next token
+    virtual LabelHistoryRef extendedHistory(LabelScorer::Request request) = 0;
 
     // Function that returns the mapping of each timeframe index (returned in the getScores functions)
     // to actual flow timestamps with start-/ and end-time in seconds.
@@ -78,8 +77,8 @@ class NoOpDecoder : public Decoder {
 public:
     NoOpDecoder(const Core::Configuration& config);
 
-    Core::Ref<LabelHistory>                                 getStartHistory() override;
-    void                                                    extendHistory(LabelScorer::Request request) override;
+    LabelHistoryRef                                         getStartHistory() override;
+    virtual LabelHistoryRef                                 extendedHistory(LabelScorer::Request request) override;
     std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) override;
 };
 
@@ -98,8 +97,8 @@ public:
     void                                                    reset() override;
     void                                                    addEncoderOutput(FeatureVectorRef encoderOutput) override;
     void                                                    signalNoMoreEncoderOutputs() override;
-    Core::Ref<LabelHistory>                                 getStartHistory() override;
-    void                                                    extendHistory(LabelScorer::Request request) override;
+    LabelHistoryRef                                         getStartHistory() override;
+    LabelHistoryRef                                         extendedHistory(LabelScorer::Request request) override;
     std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) override;
 
 private:

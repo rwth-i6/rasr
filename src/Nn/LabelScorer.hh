@@ -42,9 +42,9 @@ public:
     };
 
     struct Request {
-        Core::Ref<LabelHistory> history;
-        LabelIndex              nextToken;
-        TransitionType          transitionType;
+        LabelHistoryRef history;
+        LabelIndex      nextToken;
+        TransitionType  transitionType;
     };
 
     LabelScorer(const Core::Configuration& config);
@@ -58,10 +58,10 @@ public:
     virtual void signalNoMoreFeatures() = 0;
 
     // Get start history for decoder
-    virtual Core::Ref<LabelHistory> getStartHistory() = 0;
+    virtual LabelHistoryRef getStartHistory() = 0;
 
-    // Logic for extending the history in the request by the given labelIndex
-    virtual void extendHistory(Request request) = 0;
+    // Logic for returning an copy of the history in the request that is extended by the given next token
+    virtual LabelHistoryRef extendedHistory(Request request) = 0;
 
     // Function that returns the mapping of each timeframe index (returned in the getScores functions)
     // to actual flow timestamps with start-/ and end-time in seconds.
@@ -73,7 +73,7 @@ public:
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
-    virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const Request request) = 0;
+    virtual std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const Request request) = 0;  // TODO: Make structs for return values
 
     // Perform scoring computation for a vector of requests
     // Loops over `getScore` by default but may also implement more efficient batched logic

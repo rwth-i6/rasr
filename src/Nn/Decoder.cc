@@ -78,26 +78,25 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
 NoOpDecoder::NoOpDecoder(const Core::Configuration& config)
         : Core::Component(config), Precursor(config) {}
 
-Core::Ref<LabelHistory> NoOpDecoder::getStartHistory() {
-    Core::Ref<LabelHistory> hist = Core::ref(new StepLabelHistory());
-    return hist;
+LabelHistoryRef NoOpDecoder::getStartHistory() {
+    return Core::ref(new StepLabelHistory());
 }
 
-void NoOpDecoder::extendHistory(LabelScorer::Request request) {
-    auto& stepHistory = dynamic_cast<StepLabelHistory&>(*request.history);
-    ++stepHistory.currentStep;
+LabelHistoryRef NoOpDecoder::extendedHistory(LabelScorer::Request request) {
+    StepLabelHistoryRef stepHistory(dynamic_cast<const StepLabelHistory*>(request.history.get()));
+    return Core::ref(new StepLabelHistory(stepHistory->currentStep + 1));
 }
 
 std::optional<std::pair<Score, Speech::TimeframeIndex>> NoOpDecoder::getScoreWithTime(const LabelScorer::Request request) {
-    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
-    if (encoderOutputBuffer_.size() <= stepHistory.currentStep) {
+    StepLabelHistoryRef stepHistory(dynamic_cast<const StepLabelHistory*>(request.history.get()));
+    if (encoderOutputBuffer_.size() <= stepHistory->currentStep) {
         return {};
     }
-    while (stepHistory.currentStep >= timestamps_.size()) {
+    while (stepHistory->currentStep >= timestamps_.size()) {
         timestamps_.push_back(Flow::Timestamp(*encoderOutputBuffer_.at(timestamps_.size())));
     }
 
-    return std::make_pair(encoderOutputBuffer_.at(stepHistory.currentStep)->at(request.nextToken), stepHistory.currentStep);
+    return std::make_pair(encoderOutputBuffer_.at(stepHistory->currentStep)->at(request.nextToken), stepHistory->currentStep);
 }
 
 /*
@@ -136,23 +135,23 @@ void LegacyFeatureScorerDecoder::signalNoMoreEncoderOutputs() {
     }
 }
 
-Core::Ref<LabelHistory> LegacyFeatureScorerDecoder::getStartHistory() {
+LabelHistoryRef LegacyFeatureScorerDecoder::getStartHistory() {
     return Core::ref(new StepLabelHistory());
 }
 
-void LegacyFeatureScorerDecoder::extendHistory(LabelScorer::Request request) {
-    auto stepHistory = dynamic_cast<StepLabelHistory*>(request.history.get());
-    ++stepHistory->currentStep;
+LabelHistoryRef LegacyFeatureScorerDecoder::extendedHistory(LabelScorer::Request request) {
+    StepLabelHistoryRef stepHistory(dynamic_cast<const StepLabelHistory*>(request.history.get()));
+    return Core::ref(new StepLabelHistory(stepHistory->currentStep + 1));
 }
 
 std::optional<std::pair<Score, Speech::TimeframeIndex>> LegacyFeatureScorerDecoder::getScoreWithTime(const LabelScorer::Request request) {
-    const auto& stepHistory = dynamic_cast<const StepLabelHistory&>(*request.history);
-    if (scoreCache_.size() <= stepHistory.currentStep) {
+    StepLabelHistoryRef stepHistory(dynamic_cast<const StepLabelHistory*>(request.history.get()));
+    if (scoreCache_.size() <= stepHistory->currentStep) {
         return {};
     }
     // Retrieve score from score cache at the right index
-    auto cachedScore = scoreCache_.at(stepHistory.currentStep);
-    return std::make_pair(cachedScore->score(request.nextToken), stepHistory.currentStep);
+    auto cachedScore = scoreCache_.at(stepHistory->currentStep);
+    return std::make_pair(cachedScore->score(request.nextToken), stepHistory->currentStep);
 }
 
 }  // namespace Nn

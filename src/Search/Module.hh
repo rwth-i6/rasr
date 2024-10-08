@@ -33,7 +33,7 @@ enum SearchType {
 };
 
 enum SearchTypeV2 {
-    GreedyTimesyncSearchType
+    GreedySearchType
 };
 
 class Module_ {

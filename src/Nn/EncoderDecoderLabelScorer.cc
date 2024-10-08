@@ -29,12 +29,12 @@ void EncoderDecoderLabelScorer ::reset() {
     decoder_->reset();
 }
 
-Core::Ref<LabelHistory> EncoderDecoderLabelScorer::getStartHistory() {
+LabelHistoryRef EncoderDecoderLabelScorer::getStartHistory() {
     return decoder_->getStartHistory();
 }
 
-void EncoderDecoderLabelScorer::extendHistory(Request request) {
-    decoder_->extendHistory(request);
+LabelHistoryRef EncoderDecoderLabelScorer::extendedHistory(Request request) {
+    return decoder_->extendedHistory(request);
 }
 
 const std::vector<Flow::Timestamp>& EncoderDecoderLabelScorer::getTimestamps() const {

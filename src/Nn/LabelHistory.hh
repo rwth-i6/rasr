@@ -32,12 +32,14 @@ struct LabelHistory : public Core::ReferenceCounted {
     virtual ~LabelHistory() = default;
 };
 
+typedef Core::Ref<const LabelHistory> LabelHistoryRef;
+
 struct LabelHistoryHash {
-    size_t operator()(const LabelHistory* history) const;
+    size_t operator()(LabelHistoryRef history) const;
 };
 
 struct LabelHistoryEq {
-    bool operator()(const LabelHistory* lhs, const LabelHistory* rhs) const;
+    bool operator()(LabelHistoryRef lhs, LabelHistoryRef rhs) const;
 };
 
 /*
@@ -45,15 +47,23 @@ struct LabelHistoryEq {
  */
 
 struct StepLabelHistory : public LabelHistory {
-    Speech::TimeframeIndex currentStep = 0ul;
+    Speech::TimeframeIndex currentStep;
+
+    StepLabelHistory()
+            : currentStep(0ul) {}
+
+    StepLabelHistory(Speech::TimeframeIndex step)
+            : currentStep(step) {}
 };
 
+typedef Core::Ref<const StepLabelHistory> StepLabelHistoryRef;
+
 struct StepLabelHistoryHash {
-    size_t operator()(const StepLabelHistory* history) const;
+    size_t operator()(StepLabelHistoryRef history) const;
 };
 
 struct StepLabelHistoryEq {
-    bool operator()(const StepLabelHistory* lhs, const StepLabelHistory* rhs) const;
+    bool operator()(StepLabelHistoryRef lhs, StepLabelHistoryRef rhs) const;
 };
 
 /*
@@ -61,14 +71,21 @@ struct StepLabelHistoryEq {
  */
 struct SeqLabelHistory : public LabelHistory {
     std::vector<LabelIndex> labelSeq;
+
+    SeqLabelHistory()
+            : labelSeq() {}
+    SeqLabelHistory(const std::vector<LabelIndex>& seq)
+            : labelSeq(seq) {}
 };
 
+typedef Core::Ref<const SeqLabelHistory> SeqLabelHistoryRef;
+
 struct SeqLabelHistoryHash {
-    size_t operator()(const SeqLabelHistory* history) const;
+    size_t operator()(SeqLabelHistoryRef history) const;
 };
 
 struct SeqLabelHistoryEq {
-    bool operator()(const SeqLabelHistory* lhs, const SeqLabelHistory* rhs) const;
+    bool operator()(SeqLabelHistoryRef lhs, SeqLabelHistoryRef rhs) const;
 };
 
 /*
@@ -76,15 +93,22 @@ struct SeqLabelHistoryEq {
  */
 struct SeqStepLabelHistory : public LabelHistory {
     std::vector<LabelIndex> labelSeq;
-    Speech::TimeframeIndex  currentStep = 0ul;
+    Speech::TimeframeIndex  currentStep;
+
+    SeqStepLabelHistory()
+            : labelSeq(), currentStep(0ul) {}
+    SeqStepLabelHistory(const std::vector<LabelIndex>& seq, Speech::TimeframeIndex step)
+            : labelSeq(seq), currentStep(step) {}
 };
 
+typedef Core::Ref<const SeqStepLabelHistory> SeqStepLabelHistoryRef;
+
 struct SeqStepLabelHistoryHash {
-    size_t operator()(const SeqStepLabelHistory* history) const;
+    size_t operator()(SeqStepLabelHistoryRef history) const;
 };
 
 struct SeqStepLabelHistoryEq {
-    bool operator()(const SeqStepLabelHistory* lhs, const SeqStepLabelHistory* rhs) const;
+    bool operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelHistoryRef rhs) const;
 };
 
 }  // namespace Nn

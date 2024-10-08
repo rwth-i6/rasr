@@ -12,11 +12,11 @@
 
 namespace Search {
 
-const Core::ParameterBool GreedyTimeSyncSearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
-const Core::ParameterInt  GreedyTimeSyncSearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
-const Core::ParameterBool GreedyTimeSyncSearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
+const Core::ParameterBool GreedySearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
+const Core::ParameterInt  GreedySearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
+const Core::ParameterBool GreedySearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
 
-GreedyTimeSyncSearch::GreedyTimeSyncSearch(const Core::Configuration& config)
+GreedySearch::GreedySearch(const Core::Configuration& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           useBlank_(paramUseBlank(config)),
@@ -27,18 +27,18 @@ GreedyTimeSyncSearch::GreedyTimeSyncSearch(const Core::Configuration& config)
           hyp_() {
 }
 
-void GreedyTimeSyncSearch::reset() {
+void GreedySearch::reset() {
     verify(labelScorer_);
     labelScorer_->reset();
     hyp_.reset();
     hyp_.history = labelScorer_->getStartHistory();
 }
 
-Speech::ModelCombination::Mode GreedyTimeSyncSearch::modelCombinationNeeded() const {
+Speech::ModelCombination::Mode GreedySearch::modelCombinationNeeded() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
-bool GreedyTimeSyncSearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
+bool GreedySearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
@@ -46,37 +46,37 @@ bool GreedyTimeSyncSearch::setModelCombination(const Speech::ModelCombination& m
     return true;
 }
 
-void GreedyTimeSyncSearch::enterSegment() {
+void GreedySearch::enterSegment() {
     verify(labelScorer_);
     labelScorer_->reset();
 }
 
-void GreedyTimeSyncSearch::enterSegment(Bliss::SpeechSegment const*) {
+void GreedySearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
     labelScorer_->reset();
 }
 
-void GreedyTimeSyncSearch::finishSegment() {
+void GreedySearch::finishSegment() {
     verify(labelScorer_);
     labelScorer_->signalNoMoreFeatures();
     decodeMore();
 }
 
-void GreedyTimeSyncSearch::addFeature(Nn::FeatureVectorRef feature) {
+void GreedySearch::addFeature(Nn::FeatureVectorRef feature) {
     verify(labelScorer_);
     labelScorer_->addInput(feature);
 }
 
-void GreedyTimeSyncSearch::addFeature(Core::Ref<const Speech::Feature> feature) {
+void GreedySearch::addFeature(Core::Ref<const Speech::Feature> feature) {
     verify(labelScorer_);
     labelScorer_->addInput(feature);
 }
 
-Core::Ref<const SearchAlgorithmV2::Traceback> GreedyTimeSyncSearch::getCurrentBestTraceback() const {
+Core::Ref<const SearchAlgorithmV2::Traceback> GreedySearch::getCurrentBestTraceback() const {
     return Core::ref(new Traceback(hyp_.traceback));
 }
 
-Core::Ref<const LatticeAdaptor> GreedyTimeSyncSearch::getCurrentBestWordLattice() const {
+Core::Ref<const LatticeAdaptor> GreedySearch::getCurrentBestWordLattice() const {
     if (hyp_.traceback.empty()) {
         return Core::ref(new Lattice::WordLatticeAdaptor());
     }
@@ -111,11 +111,11 @@ Core::Ref<const LatticeAdaptor> GreedyTimeSyncSearch::getCurrentBestWordLattice(
     return Core::ref(new Lattice::WordLatticeAdaptor(result));
 }
 
-void GreedyTimeSyncSearch::resetStatistics() {}
+void GreedySearch::resetStatistics() {}
 
-void GreedyTimeSyncSearch::logStatistics() const {}
+void GreedySearch::logStatistics() const {}
 
-Nn::LabelScorer::TransitionType GreedyTimeSyncSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::LabelScorer::TransitionType GreedySearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = (prevLabel == blankLabelIndex_);
     bool nextIsBlank = (nextLabel == blankLabelIndex_);
 
@@ -140,33 +140,33 @@ Nn::LabelScorer::TransitionType GreedyTimeSyncSearch::inferTransitionType(Nn::La
     }
 }
 
-void GreedyTimeSyncSearch::LabelHypothesis::reset() {
-    history      = Core::Ref<Nn::LabelHistory>();
+void GreedySearch::LabelHypothesis::reset() {
+    history      = Nn::LabelHistoryRef();
     currentLabel = Core::Type<Nn::LabelIndex>::max;
     score        = 0.0f;
     traceback.clear();
 }
 
-void GreedyTimeSyncSearch::LabelHypothesis::extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer) {
-    labelScorer->extendHistory({history, extension.label, extension.transitionType});
-    score += extension.score;
-    currentLabel = extension.label;
+void GreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
+    this->history = extension.history;
+    this->score += extension.score;
+    this->currentLabel = extension.label;
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestep, ScoreVector(score, {})));
+            this->traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestep, ScoreVector(score, {})));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            if (not traceback.empty()) {
-                traceback.back().scores.acoustic = score;
+            if (not this->traceback.empty()) {
+                this->traceback.back().scores.acoustic = score;
             }
             break;
     }
 }
 
-bool GreedyTimeSyncSearch::decodeStep() {
+bool GreedySearch::decodeStep() {
     verify(labelScorer_);
     verify(hyp_.history);
 
@@ -195,7 +195,8 @@ bool GreedyTimeSyncSearch::decodeStep() {
 
     auto  bestIdx     = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
     auto& bestRequest = requests.at(bestIdx);
-    hyp_.extend({lemmas.first[bestIdx], bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType}, labelScorer_);
+    auto  newHistory  = labelScorer_->extendedHistory({bestRequest.history, bestRequest.nextToken, bestRequest.transitionType});
+    hyp_.extend({lemmas.first[bestIdx], newHistory, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
 
     return true;
 }

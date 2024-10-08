@@ -31,33 +31,34 @@ namespace Search {
 
 // Bare-bones search algorithm without lexicon, LM, transition model, beam or pruning.
 // Given a lexicon only containing labels (without lemmas), pick the label index with
-// maximum probability at each position.
-class GreedyTimeSyncSearch : public SearchAlgorithmV2 {
+// maximum probability at each decoding step.
+class GreedySearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
+        Nn::LabelHistoryRef             history;
         Nn::LabelIndex                  label;
         Score                           score;
         Search::TimeframeIndex          timestep;
         Nn::LabelScorer::TransitionType transitionType;
 
         HypothesisExtension()
-                : lemma(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+                : lemma(), history(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
 
-        HypothesisExtension(const Bliss::Lemma* lemma, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : lemma(lemma), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::LabelHistory> history, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : lemma(lemma), history(history), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
-        Core::Ref<Nn::LabelHistory> history;
-        Nn::LabelIndex              currentLabel;
-        Score                       score;
-        Traceback                   traceback;
+        Nn::LabelHistoryRef history;
+        Nn::LabelIndex      currentLabel;
+        Score               score;
+        Traceback           traceback;
 
         LabelHypothesis()
                 : history(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
 
         void reset();
-        void extend(const HypothesisExtension& extension, Core::Ref<Nn::LabelScorer> labelScorer);
+        void extend(const HypothesisExtension& extension);
     };
 
 public:
@@ -65,7 +66,7 @@ public:
     static const Core::ParameterBool paramAllowLabelLoop;
     static const Core::ParameterInt  paramBlankLabelIndex;
 
-    GreedyTimeSyncSearch(const Core::Configuration&);
+    GreedySearch(const Core::Configuration&);
 
     // Inherited methods
 

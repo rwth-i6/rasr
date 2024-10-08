@@ -39,11 +39,11 @@ Module_::Module_() {
 }
 
 const Core::Choice Module_::searchTypeV2Choice(
-        "greedy-timesync-search", SearchTypeV2::GreedyTimesyncSearchType,
+        "greedy-timesync-search", SearchTypeV2::GreedySearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
-        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::GreedyTimesyncSearchType);
+        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::GreedySearchType);
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
     SearchAlgorithm* recognizer = 0;
@@ -92,8 +92,8 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 SearchAlgorithmV2* Module_::createSearchAlgorithm(const Core::Configuration& config) const {
     SearchAlgorithmV2* recognizer = 0;
     switch (searchTypeV2Param(config)) {
-        case GreedyTimesyncSearchType:
-            recognizer = new Search::GreedyTimeSyncSearch(config);
+        case GreedySearchType:
+            recognizer = new Search::GreedySearch(config);
             break;
         default:
             Core::Application::us()->criticalError("unknown recognizer type: %d", searchTypeV2Param(config));

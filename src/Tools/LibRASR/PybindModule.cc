@@ -428,8 +428,6 @@ PYBIND11_MODULE(librasr, m) {
     .def("letter_inventory", &Bliss::Lexicon::letterInventory, py::return_value_policy::reference_internal)
     .def("letter_alphabet", &Bliss::Lexicon::letterAlphabet, py::return_value_policy::take_ownership);
 
-    /////////////////////////////////////////////////////////
-
     py::class_<Bliss::NamedCorpusEntity>(m, "NamedCorpusEntity")
     .def("parent", &Bliss::NamedCorpusEntity::parent, py::return_value_policy::reference_internal)
     .def("set_parent", &Bliss::NamedCorpusEntity::setParent)
@@ -444,8 +442,6 @@ PYBIND11_MODULE(librasr, m) {
     .def(py::init<Bliss::ParentEntity*>())
     .def("gender", &Bliss::Speaker::gender)
     .def("set_parent", &Bliss::Speaker::setParent);
-
-    // static const char* genderId[nGenders]
 
     py::enum_<Bliss::Speaker::Gender>(speaker, "Gender")
     .value("unknown", Bliss::Speaker::Gender::unknown)
@@ -515,8 +511,6 @@ PYBIND11_MODULE(librasr, m) {
     .def("set_condition", &Bliss::Segment::setCondition)
     .def("accept", &Bliss::Segment::accept);
 
-    // static const char* typeId[nTypes]
-
     py::enum_<Bliss::Segment::Type>(segment, "Type")
     .value("type_speech", Bliss::Segment::Type::typeSpeech)
     .value("type_other", Bliss::Segment::Type::typeOther)
@@ -545,34 +539,40 @@ PYBIND11_MODULE(librasr, m) {
     .def("enter_corpus", &Bliss::CorpusVisitor::enterCorpus)
     .def("leave_corpus", &Bliss::CorpusVisitor::leaveCorpus);
 
+    py::class_<Core::ParameterString>(m, "ParameterString");
+
+    py::class_<Core::ParameterBool>(m, "ParameterBool");
+
+    py::class_<Core::ParameterInt>(m, "ParameterInt");
+
+    py::class_<Core::ParameterStringVector>(m, "ParameterStringVector");
+
     py::class_<Bliss::CorpusDescription>(m, "CorpusDescription")
     .def(py::init<const Core::Configuration&>())
     .def("file", &Bliss::CorpusDescription::file, py::return_value_policy::reference_internal)
     .def("accept", &Bliss::CorpusDescription::accept)
-    .def("total_segment_count", &Bliss::CorpusDescription::totalSegmentCount);
+    .def("total_segment_count", &Bliss::CorpusDescription::totalSegmentCount)
+    .def_readonly_static("param_filename", &Bliss::CorpusDescription::paramFilename)
+    .def_readonly_static("param_allow_empty_whitelist", &Bliss::CorpusDescription::paramAllowEmptyWhitelist)
+    .def_readonly_static("param_encoding", &Bliss::CorpusDescription::paramEncoding)
+    .def_readonly_static("param_partition", &Bliss::CorpusDescription::paramPartition)
+    .def_readonly_static("param_partition_selection", &Bliss::CorpusDescription::paramPartitionSelection)
+    .def_readonly_static("param_skip_first_segments", &Bliss::CorpusDescription::paramSkipFirstSegments)
+    .def_readonly_static("param_segments_to_skip", &Bliss::CorpusDescription::paramSegmentsToSkip)
+    .def_readonly_static("param_recording_based_partition", &Bliss::CorpusDescription::paramRecordingBasedPartition)
+    .def_readonly_static("param_segment_order", &Bliss::CorpusDescription::paramSegmentOrder)
+    .def_readonly_static("param_segment_order_lookup_name", &Bliss::CorpusDescription::paramSegmentOrderLookupName)
+    .def_readonly_static("param_segment_order_shuffle", &Bliss::CorpusDescription::paramSegmentOrderShuffle)
+    .def_readonly_static("param_segment_order_shuffle_seed", &Bliss::CorpusDescription::paramSegmentOrderShuffleSeed)
+    .def_readonly_static("param_segment_order_sort_by_time_length", &Bliss::CorpusDescription::paramSegmentOrderSortByTimeLength)
+    .def_readonly_static("param_segment_order_sort_by_time_length_chunk_size", &Bliss::CorpusDescription::paramSegmentOrderSortByTimeLengthChunkSize)
+    .def_readonly_static("param_theano_segment_order", &Bliss::CorpusDescription::paramTheanoSegmentOrder)
+    .def_readonly_static("param_python_segment_order", &Bliss::CorpusDescription::paramPythonSegmentOrder)
+    .def_readonly_static("param_python_segment_order_mod_path", &Bliss::CorpusDescription::paramPythonSegmentOrderModPath)
+    .def_readonly_static("param_python_segment_order_mod_name", &Bliss::CorpusDescription::paramPythonSegmentOrderModName)
+    .def_readonly_static("param_python_segment_order_config", &Bliss::CorpusDescription::paramPythonSegmentOrderConfig);
 
-     /* static const Core::ParameterString       paramFilename
-      * static const Core::ParameterBool         paramAllowEmptyWhitelist
-      * static const Core::ParameterString       paramEncoding
-      * static const Core::ParameterInt          paramPartition
-      * static const Core::ParameterInt          paramPartitionSelection
-      * static const Core::ParameterInt          paramSkipFirstSegments
-      * static const Core::ParameterStringVector paramSegmentsToSkip
-      * static const Core::ParameterBool         paramRecordingBasedPartition
-      * static const Core::ParameterString       paramSegmentOrder
-      * static const Core::ParameterBool         paramSegmentOrderLookupName
-      * static const Core::ParameterBool         paramSegmentOrderShuffle
-      * static const Core::ParameterInt          paramSegmentOrderShuffleSeed
-      * static const Core::ParameterBool         paramSegmentOrderSortByTimeLength
-      * static const Core::ParameterInt          paramSegmentOrderSortByTimeLengthChunkSize
-      * static const Core::ParameterBool         paramTheanoSegmentOrder
-      * static const Core::ParameterBool         paramPythonSegmentOrder
-      * static const Core::ParameterString       paramPythonSegmentOrderModPath
-      * static const Core::ParameterString       paramPythonSegmentOrderModName
-      * static const Core::ParameterString       paramPythonSegmentOrderConfig
-      */
-
-     py::class_<Bliss::ProgressReportingVisitorAdaptor, Bliss::CorpusVisitor>(m, "ProgressReportingVisitorAdaptor")
+    py::class_<Bliss::ProgressReportingVisitorAdaptor, Bliss::CorpusVisitor>(m, "ProgressReportingVisitorAdaptor")
     .def("set_visitor", &Bliss::ProgressReportingVisitorAdaptor::setVisitor)
     .def("enter_corpus", &Bliss::ProgressReportingVisitorAdaptor::enterCorpus)
     .def("leave_corpus", &Bliss::ProgressReportingVisitorAdaptor::leaveCorpus)
@@ -580,8 +580,6 @@ PYBIND11_MODULE(librasr, m) {
     .def("leave_recording", &Bliss::ProgressReportingVisitorAdaptor::leaveRecording)
     .def("visit_segment", &Bliss::ProgressReportingVisitorAdaptor::visitSegment)
     .def("visit_speech_segment", &Bliss::ProgressReportingVisitorAdaptor::visitSpeechSegment);
-
-     // ProgressReportingVisitorAdaptor(Core::XmlChannel& ch, bool reportOrth = false)
 
     py::class_<Core::StringExpression>(m, "StringExpression")
     .def(py::init<>())
@@ -594,29 +592,24 @@ PYBIND11_MODULE(librasr, m) {
     .def("clear", (bool (Core::StringExpression::*)(const std::string&)) &Core::StringExpression::clear)
     .def("clear", (void (Core::StringExpression::*)()) &Core::StringExpression::clear);
 
-    py::class_<Bliss::CorpusKey, Core::StringExpression/*, Core::Ref<Bliss::CorpusKey>*/>(m, "CorpusKey")
+    py::class_<Bliss::CorpusKey, Core::StringExpression, Core::Ref<Bliss::CorpusKey>>(m, "CorpusKey", py::multiple_inheritance())
     .def(py::init<const Core::Configuration&>())
     .def_readonly_static("open_tag", &Bliss::CorpusKey::openTag)
     .def_readonly_static("close_tag", &Bliss::CorpusKey::closeTag)
-    .def("resolve", &Bliss::CorpusKey::resolve);
-
-     // static const Core::ParameterString paramTemplate
+    .def("resolve", &Bliss::CorpusKey::resolve)
+    .def_readonly_static("param_template", &Bliss::CorpusKey::paramTemplate);
 
      py::class_<Bliss::CorpusDescriptionParser>(m, "CorpusDescriptionParser")
     .def(py::init<const Core::Configuration&>())
-    .def("accept", &Bliss::CorpusDescriptionParser::accept);
+    .def("accept", &Bliss::CorpusDescriptionParser::accept)
+    .def_readonly_static("param_audio_dir", &Bliss::CorpusDescriptionParser::paramAudioDir)
+    .def_readonly_static("param_video_dir", &Bliss::CorpusDescriptionParser::paramVideoDir)
+    .def_readonly_static("param_remove_corpus_name_prefix", &Bliss::CorpusDescriptionParser::paramRemoveCorpusNamePrefix)
+    .def_readonly_static("param_captialize_transcriptions", &Bliss::CorpusDescriptionParser::paramCaptializeTranscriptions)
+    .def_readonly_static("param_gemenize_transcriptions", &Bliss::CorpusDescriptionParser::paramGemenizeTranscriptions)
+    .def_readonly_static("param_progress", &Bliss::CorpusDescriptionParser::paramProgress);
 
-     /*
-      * class CorpusDescriptionParser : public Core::XmlSchemaParser
-      * static const Core::ParameterString paramAudioDir
-      * static const Core::ParameterString paramVideoDir
-      * static const Core::ParameterString paramRemoveCorpusNamePrefix
-      * static const Core::ParameterBool   paramCaptializeTranscriptions
-      * static const Core::ParameterBool   paramGemenizeTranscriptions
-      * static const Core::ParameterBool   paramProgress
-      */
-
-     ///////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////
 
     /*py::class_<Speech::CorpusVisitor, Bliss::CorpusVisitor>(m, "SpeechCorpusVisitor") // Core::Component
     .def(py::init<const Core::Configuration&>())
@@ -702,7 +695,12 @@ PYBIND11_MODULE(librasr, m) {
     .def(py::init<const Flow::Data&>())
     .def_static("eos", &Flow::Data::eos, py::return_value_policy::reference)
     .def("compare_address", [](Flow::Data &self, const Flow::Data* data) {return &self != data;})
-    .def("__eq__", &Flow::Data::operator==, py::is_operator());
+    .def("__eq__", &Flow::Data::operator==, py::is_operator())
+    .def("datatype", &Flow::Data::datatype, py::return_value_policy::reference_internal);
+
+   py::class_<Flow::Datatype>(m, "Datatype")
+	   .def("name", &Flow::Datatype::name, py::return_value_policy::reference_internal);
+
 
 
     /*

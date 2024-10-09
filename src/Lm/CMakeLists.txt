@@ -14,23 +14,23 @@ set(Lm_SOURCES
         WordlistInterface.cc)
 
 if (${MODULE_LM_ARPA})
-    list(APPEND Lm_SOURCES ArpaLm.cc)
+        list(APPEND Lm_SOURCES ArpaLm.cc)
 endif ()
 
 if (${MODULE_LM_FSA})
-    list(APPEND Lm_SOURCES FsaLm.cc CheatingSegmentLm.cc)
+        list(APPEND Lm_SOURCES FsaLm.cc CheatingSegmentLm.cc)
 endif ()
 
 if (${MODULE_LM_ZEROGRAM})
-    list(APPEND Lm_SOURCES Zerogram.cc)
+        list(APPEND Lm_SOURCES Zerogram.cc)
 endif ()
 
 if (${MODULE_LM_FFNN})
-    list(APPEND Lm_SOURCES FFNeuralNetworkLanguageModel.cc)
+        list(APPEND Lm_SOURCES FFNeuralNetworkLanguageModel.cc)
 endif ()
 
 if (${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
-    list(
+        list(
             APPEND
             Lm_SOURCES
             BlasNceSoftmaxAdapter.cc
@@ -59,6 +59,7 @@ target_link_libraries(
         RasrMc
         RasrBliss
         RasrNn
+        RasrLabelScorer
         RasrMm
         RasrSignal
         RasrFlow
@@ -69,17 +70,17 @@ target_link_libraries(
         RasrFsa
         RasrCore)
 if (${MODULE_CART})
-    target_link_libraries(RasrLm INTERFACE RasrCart)
+        target_link_libraries(RasrLm INTERFACE RasrCart)
 endif ()
 if (${MODULE_MATH_NR})
-    target_link_libraries(RasrLm INTERFACE RasrMathNr)
+        target_link_libraries(RasrLm INTERFACE RasrMathNr)
 endif ()
 if (${MODULE_PYTHON})
-    target_link_libraries(RasrLm INTERFACE RasrPython)
+        target_link_libraries(RasrLm INTERFACE RasrPython)
 endif ()
 if (${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
-    target_link_libraries(RasrLm INTERFACE RasrTensorflow)
-    add_tf_dependencies(RasrLm)
+        target_link_libraries(RasrLm INTERFACE RasrTensorflow)
+        add_tf_dependencies(RasrLm)
 endif ()
 
 # check.cc code is broken

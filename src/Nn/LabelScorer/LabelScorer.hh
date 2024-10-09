@@ -21,12 +21,12 @@
 #include <Core/Parameter.hh>
 #include <Core/Types.hh>
 #include <Flow/Timestamp.hh>
+#include <Nn/Types.hh>
 #include <Speech/Feature.hh>
 #include <Speech/Types.hh>
 #include <optional>
 #include <utility>
 #include "LabelHistory.hh"
-#include "Types.hh"
 
 namespace Nn {
 

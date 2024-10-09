@@ -16,17 +16,7 @@
 #ifndef GREEDY_SEARCH_HH
 #define GREEDY_SEARCH_HH
 
-#include <Bliss/CorpusDescription.hh>
-#include <Bliss/Lexicon.hh>
-#include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
-#include <Nn/LabelScorer.hh>
-#include <Nn/Module.hh>
-#include <Nn/Types.hh>
 #include <Search/SearchV2.hh>
-#include <Speech/ModelCombination.hh>
-#include "Search/Types.hh"
-
 namespace Search {
 
 // Bare-bones search algorithm without lexicon, LM, transition model, beam or pruning.

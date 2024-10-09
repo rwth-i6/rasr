@@ -12,15 +12,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include <Core/Configuration.hh>
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-#include "Core/Configuration.hh"
-#include "Encoder.hh"
-#include "EncoderDecoderLabelScorer.hh"
-#include "LabelScorer.hh"
+#include "LabelScorer/Encoder.hh"
+#include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/LabelScorer.hh"
 #ifdef MODULE_ONNX
-#include "OnnxDecoder.hh"
-#include "OnnxEncoder.hh"
+#include "LabelScorer/OnnxDecoder.hh"
+#include "LabelScorer/OnnxEncoder.hh"
 #endif
 
 #ifndef CMAKE_DISABLE_MODULES_HH

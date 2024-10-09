@@ -76,7 +76,6 @@ MODULES += MODULE_SEARCH_MBR
 # MODULES += MODULE_SEARCH_WFST
 MODULES += MODULE_SEARCH_LINEAR
 MODULES += MODULE_ADVANCED_TREE_SEARCH
-MODULES += MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
 
 # ****** Signal ******
 MODULES += MODULE_SIGNAL_GAMMATONE
@@ -156,7 +155,4 @@ LIBS_SEARCH += src/OpenFst/libSprintOpenFst.$(a)
 endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 LIBS_SEARCH += src/Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
-endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-LIBS_SEARCH += src/Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
 endif

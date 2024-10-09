@@ -16,29 +16,30 @@ target_link_libraries(
         RasrSpeech
         ${SEARCH_LIBS}
         RasrNn
+        RasrLabelScorer
         RasrFsa
         RasrCore)
 
 target_compile_options(nn-trainer PRIVATE "-fexceptions")
 
 if (${MODULE_CART})
-    target_link_libraries(nn-trainer PRIVATE RasrCart)
+        target_link_libraries(nn-trainer PRIVATE RasrCart)
 endif ()
 
 if (${MODULE_FLF_CORE})
-    target_link_libraries(nn-trainer PRIVATE RasrFlfCore)
+        target_link_libraries(nn-trainer PRIVATE RasrFlfCore)
 endif ()
 
 if (${MODULE_MATH_NR})
-    target_link_libraries(nn-trainer PRIVATE RasrMathNr)
+        target_link_libraries(nn-trainer PRIVATE RasrMathNr)
 endif ()
 
 if (${MODULE_PYTHON})
-    target_link_libraries(nn-trainer PRIVATE RasrPython)
-    add_python_dependencies(nn-trainer)
+        target_link_libraries(nn-trainer PRIVATE RasrPython)
+        add_python_dependencies(nn-trainer)
 endif ()
 
 if (${MODULE_TENSORFLOW})
-    target_link_libraries(nn-trainer PRIVATE RasrTensorflow)
-    add_tf_dependencies(nn-trainer)
+        target_link_libraries(nn-trainer PRIVATE RasrTensorflow)
+        add_tf_dependencies(nn-trainer)
 endif ()

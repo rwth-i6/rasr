@@ -114,7 +114,6 @@ const std::vector<Onnx::IOSpecification> LimitedCtxOnnxDecoder::ioSpec_ = {
 void LimitedCtxOnnxDecoder::reset() {
     Precursor::reset();
     scoreCache_.clear();
-    log() << "Clear history score cache of Onnx decoder. Number of cached score vectors was " << scoreCache_.size() << " / " << scoreCache_.maxSize();
 }
 
 Core::Ref<const LabelHistory> LimitedCtxOnnxDecoder::getStartHistory() {

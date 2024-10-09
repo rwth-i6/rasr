@@ -19,27 +19,27 @@ target_link_libraries(
         RasrFsa)
 
 if (${MODULE_CART})
-    target_link_libraries(feature-statistics PRIVATE RasrCart)
+        target_link_libraries(feature-statistics PRIVATE RasrCart)
 endif ()
 
 if (${MODULE_FLF_CORE})
-    target_link_libraries(feature-statistics PRIVATE RasrFlfCore)
+        target_link_libraries(feature-statistics PRIVATE RasrFlfCore)
 endif ()
 
 if (${MODULE_MATH_NR})
-    target_link_libraries(feature-statistics PRIVATE RasrMathNr)
+        target_link_libraries(feature-statistics PRIVATE RasrMathNr)
 endif ()
 
 if (${MODULE_PYTHON})
-    target_link_libraries(feature-statistics PRIVATE RasrPython)
-    add_python_dependencies(feature-statistics)
+        target_link_libraries(feature-statistics PRIVATE RasrPython)
+        add_python_dependencies(feature-statistics)
 endif ()
 
 if (${MODULE_NN})
-    target_link_libraries(feature-statistics PRIVATE RasrNn)
+        target_link_libraries(feature-statistics PRIVATE RasrNn RasrLabelScorer)
 endif ()
 
 if (${MODULE_TENSORFLOW})
-    target_link_libraries(feature-statistics PRIVATE RasrTensorflow)
-    add_tf_dependencies(feature-statistics)
+        target_link_libraries(feature-statistics PRIVATE RasrTensorflow)
+        add_tf_dependencies(feature-statistics)
 endif ()

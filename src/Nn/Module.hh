@@ -20,9 +20,9 @@
 
 #include <Core/Parameter.hh>
 #include <Flow/Module.hh>
-#include "Decoder.hh"
-#include "Encoder.hh"
-#include "LabelScorer.hh"
+#include "LabelScorer/Decoder.hh"
+#include "LabelScorer/Encoder.hh"
+#include "LabelScorer/LabelScorer.hh"
 
 namespace Core {
 class FormatSet;

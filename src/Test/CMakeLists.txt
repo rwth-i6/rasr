@@ -19,7 +19,7 @@ set(test_SOURCES
         Test_Lexicon.cc)
 
 if (${MODULE_NN})
-    list(
+        list(
             APPEND
             test_SOURCES
             Nn_NetworkTopology.cc
@@ -37,11 +37,11 @@ if (${MODULE_NN})
 endif ()
 
 if (${MODULE_OPENMP})
-    list(APPEND test_SOURCES Math_MultithreadingHelper.cc)
+        list(APPEND test_SOURCES Math_MultithreadingHelper.cc)
 endif ()
 
 if (${MODULE_TBB})
-    list(APPEND test_SOURCES Core_Tbb.cc)
+        list(APPEND test_SOURCES Core_Tbb.cc)
 endif ()
 
 add_executable(unit-test ${test_SOURCES})
@@ -66,51 +66,47 @@ target_link_libraries(
         RasrMathLapack)
 
 if (${MODULE_FLF})
-    target_link_libraries(unit-test PRIVATE RasrFlf)
+        target_link_libraries(unit-test PRIVATE RasrFlf)
 endif ()
 
 if (${MODULE_FLF_CORE})
-    target_link_libraries(unit-test PRIVATE RasrFlfCore)
+        target_link_libraries(unit-test PRIVATE RasrFlfCore)
 endif ()
 
 if (${MODULE_FLF_EXT})
-    target_link_libraries(unit-test PRIVATE RasrFlfExt)
+        target_link_libraries(unit-test PRIVATE RasrFlfExt)
 endif ()
 
 if (${MODULE_ADVANCED_TREE_SEARCH})
-    target_link_libraries(unit-test PRIVATE RasrAdvancedTreeSearch)
-endif ()
-
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    target_link_libraries(unit-test PRIVATE RasrGenericSeq2SeqTreeSearch)
+        target_link_libraries(unit-test PRIVATE RasrAdvancedTreeSearch)
 endif ()
 
 if (${MODULE_PYTHON})
-    target_link_libraries(unit-test PRIVATE RasrPython)
-    add_python_dependencies(unit-test)
+        target_link_libraries(unit-test PRIVATE RasrPython)
+        add_python_dependencies(unit-test)
 endif ()
 
 if (${MODULE_NN})
-    target_link_libraries(unit-test PRIVATE RasrNn)
+        target_link_libraries(unit-test PRIVATE RasrNn)
 endif ()
 
 if (${MODULE_CART})
-    target_link_libraries(unit-test PRIVATE RasrCart)
+        target_link_libraries(unit-test PRIVATE RasrCart)
 endif ()
 
 if (${MODULE_MATH_NR})
-    target_link_libraries(unit-test PRIVATE RasrMathNr)
+        target_link_libraries(unit-test PRIVATE RasrMathNr)
 endif ()
 
 if (${MODULE_SEARCH_WFST})
-    target_link_libraries(unit-test PRIVATE RasrSearchWfst)
+        target_link_libraries(unit-test PRIVATE RasrSearchWfst)
 endif ()
 
 if (${MODULE_OPENFST})
-    target_link_libraries(unit-test PRIVATE RasrOpenFst)
+        target_link_libraries(unit-test PRIVATE RasrOpenFst)
 endif ()
 
 if (${MODULE_TENSORFLOW})
-    target_link_libraries(unit-test PRIVATE RasrTensorflow)
-    add_tf_dependencies(unit-test)
+        target_link_libraries(unit-test PRIVATE RasrTensorflow)
+        add_tf_dependencies(unit-test)
 endif ()

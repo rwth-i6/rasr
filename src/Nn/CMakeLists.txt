@@ -1,7 +1,9 @@
+add_subdirectory(LabelScorer)
+
 set(RasrNn_SOURCES Module.cc)
 
 if (${MODULE_NN})
-        list(
+    list(
             APPEND
             RasrNn_SOURCES
             ActivationLayer.cc
@@ -15,15 +17,10 @@ if (${MODULE_NN})
             ClassLabelWrapper.cc
             Criterion.cc
             CtcCriterion.cc
-            Decoder.cc
-            Encoder.cc
-            EncoderDecoderLabelScorer.cc
             Estimator.cc
             FeatureScorer.cc
             FeedForwardTrainer.cc
             GradientCheck.cc
-            LabelHistory.cc
-            LabelScorer.cc
             LinearAndActivationLayer.cc
             LinearLayer.cc
             LookupLayer.cc
@@ -43,7 +40,7 @@ if (${MODULE_NN})
             TrainerFeatureScorer.cc)
 endif ()
 if (${MODULE_NN_SEQUENCE_TRAINING})
-        list(
+    list(
             APPEND
             RasrNn_SOURCES
             EmissionLatticeRescorer.cc
@@ -53,18 +50,9 @@ if (${MODULE_NN_SEQUENCE_TRAINING})
             MeSegmentwiseNnTrainer.cc
             SharedNeuralNetwork.cc)
 endif ()
-if (${MODULE_ONNX})
-        list(APPEND RasrNn_SOURCES OnnxDecoder.cc OnnxEncoder.cc)
-endif()
 if (${MODULE_PYTHON})
-        list(APPEND RasrNn_SOURCES PythonFeatureScorer.cc PythonTrainer.cc
+    list(APPEND RasrNn_SOURCES PythonFeatureScorer.cc PythonTrainer.cc
             PythonControl.cc PythonLayer.cc)
-endif ()
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-        list(APPEND RasrNn_SOURCES LabelScorer.cc)
-        if (${MODULE_TENSORFLOW})
-                list(APPEND RasrNn_SOURCES TFLabelScorer.cc)
-        endif ()
 endif ()
 
 add_library(RasrNn STATIC ${RasrNn_SOURCES})
@@ -74,16 +62,8 @@ target_link_libraries(RasrNn PRIVATE RasrCore RasrMath RasrMathLapack
 
 target_compile_options(RasrNn PRIVATE "-fexceptions")
 
-if (${MODULE_ONNX})
-        target_link_libraries(RasrNn INTERFACE RasrOnnx)
-endif()
-
 if (${MODULE_PYTHON})
-        add_python_dependencies(RasrNn)
-endif ()
-
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH} AND ${MODULE_TENSORFLOW})
-        add_tf_dependencies(RasrNn)
+    add_python_dependencies(RasrNn)
 endif ()
 
 add_executable(check-nn check.cc)

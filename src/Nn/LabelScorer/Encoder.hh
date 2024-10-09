@@ -17,10 +17,10 @@
 #define ENCODER_HH
 
 #include <Core/Component.hh>
+#include <Nn/Types.hh>
 #include <Speech/Feature.hh>
 #include <deque>
 #include <optional>
-#include "Types.hh"
 
 namespace Nn {
 

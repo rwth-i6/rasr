@@ -18,6 +18,7 @@
 #include <Am/AcousticModel.hh>
 #include <Bliss/CorpusDescription.hh>
 #include <Bliss/Lexicon.hh>
+#include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/Types.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Types.hh>

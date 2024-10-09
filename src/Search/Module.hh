@@ -29,7 +29,6 @@ enum SearchType {
     AdvancedTreeSearch,
     LinearSearchType,
     ExpandingFsaSearchType,
-    GenericSeq2SeqTreeSearchType
 };
 
 enum SearchTypeV2 {

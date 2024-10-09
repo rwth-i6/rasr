@@ -4,9 +4,6 @@ endif ()
 if (${MODULE_ADVANCED_TREE_SEARCH})
         add_subdirectory(AdvancedTreeSearch)
 endif ()
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-        add_subdirectory(GenericSeq2SeqTreeSearch)
-endif ()
 
 add_subdirectory(GreedySearch)
 

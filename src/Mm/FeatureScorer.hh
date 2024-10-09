@@ -27,7 +27,7 @@ namespace Mm {
 /** Abstract feature scorer interface. */
 class FeatureScorer : public virtual Core::Component,
                       public Core::ReferenceCounted {
-public:
+protected:
     /** Implement emission independent precalculations for feature vector */
     class ContextScorer : public Core::ReferenceCounted {
     protected:
@@ -57,6 +57,7 @@ public:
     };
     friend class ContextScorer;
 
+public:
     FeatureScorer(const Core::Configuration& c)
             : Core::Component(c) {}
     virtual ~FeatureScorer() {}

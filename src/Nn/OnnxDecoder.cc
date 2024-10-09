@@ -78,13 +78,13 @@ LimitedCtxOnnxDecoder::LimitedCtxOnnxDecoder(const Core::Configuration& config)
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           verticalLabelTransition_(paramVerticalLabelTransition(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          maxCachedScores_(paramMaxCachedScores(config)),
           session_(select("session")),
           validator_(select("validator")),
           mapping_(select("io-map"), ioSpec_),
           encoderStateName_(mapping_.getOnnxName("encoder-state")),
           historyName_(mapping_.getOnnxName("history")),
-          scoresName_(mapping_.getOnnxName("scores")) {
+          scoresName_(mapping_.getOnnxName("scores")),
+          scoreCache_(paramMaxCachedScores(config)) {
     validator_.validate(ioSpec_, mapping_, session_);
 }
 
@@ -114,6 +114,7 @@ const std::vector<Onnx::IOSpecification> LimitedCtxOnnxDecoder::ioSpec_ = {
 void LimitedCtxOnnxDecoder::reset() {
     Precursor::reset();
     scoreCache_.clear();
+    log() << "Clear history score cache of Onnx decoder. Number of cached score vectors was " << scoreCache_.size() << " / " << scoreCache_.maxSize();
 }
 
 Core::Ref<const LabelHistory> LimitedCtxOnnxDecoder::getStartHistory() {
@@ -201,7 +202,7 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
 
         for (auto requestIndex : requestIndices) {
             SeqStepLabelHistoryRef historyPtr(dynamic_cast<const SeqStepLabelHistory*>(requests[requestIndex].history.get()));
-            if (scoreCache_.find(historyPtr) == scoreCache_.end()) {
+            if (not scoreCache_.contains(historyPtr)) {
                 // Group by unique history
                 uniqueUncachedHistories.emplace(historyPtr);
             }
@@ -231,16 +232,7 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
     scoreResults.reserve(requests.size());
     for (const auto& request : requests) {
         SeqStepLabelHistoryRef history(dynamic_cast<const SeqStepLabelHistory*>(request.history.get()));
-
-        auto cacheResult = scoreCache_.find(history);
-        verify(cacheResult != scoreCache_.end());
-
-        scoreResults.push_back(cacheResult->second.at(request.nextToken));
-    }
-
-    // Avoid memory overflow due to score cache
-    if (scoreCache_.size() > maxCachedScores_) {
-        scoreCache_.clear();
+        scoreResults.push_back(scoreCache_.get(history).at(request.nextToken));
     }
 
     return std::make_pair(scoreResults, timeframeResults);
@@ -298,7 +290,7 @@ void LimitedCtxOnnxDecoder::forwardBatch(const std::vector<SeqStepLabelHistoryRe
     for (size_t b = 0ul; b < historyBatch.size(); ++b) {
         std::vector<f32> scoreVec;
         sessionOutputs.front().get(b, scoreVec);
-        scoreCache_.emplace(historyBatch[b], std::move(scoreVec));
+        scoreCache_.put(historyBatch[b], std::move(scoreVec));
     }
 }
 }  // namespace Nn

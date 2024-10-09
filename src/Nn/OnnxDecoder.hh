@@ -18,6 +18,7 @@
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
+#include <Core/FIFOCache.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Speech/Feature.hh>
@@ -28,7 +29,6 @@
 
 #include <Onnx/IOSpecification.hh>
 #include <Onnx/Session.hh>
-#include <unordered_map>
 
 namespace Nn {
 
@@ -64,7 +64,6 @@ private:
     bool   loopUpdatesHistory_;
     bool   verticalLabelTransition_;
     size_t maxBatchSize_;
-    size_t maxCachedScores_;
 
     Onnx::Session                                   session_;
     static const std::vector<Onnx::IOSpecification> ioSpec_;  // fixed to "encoder-state", "history", "scores"
@@ -75,7 +74,7 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    std::unordered_map<SeqStepLabelHistoryRef, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;  // TODO: Re-do as ring buffer
+    Core::FIFOCache<SeqStepLabelHistoryRef, std::vector<Score>, SeqStepLabelHistoryHash, SeqStepLabelHistoryEq> scoreCache_;
 };
 
 }  // namespace Nn

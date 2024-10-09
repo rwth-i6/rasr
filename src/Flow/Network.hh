@@ -418,6 +418,17 @@ public:
     const std::string& filename() const {
         return filename_;
     }
+
+    void configureAll() {
+        for (auto n : nodes_) {
+            auto* network = dynamic_cast<Flow::Network*>(n);
+            if (network)
+                network->configureAll();
+            else
+                n->configure();
+        }
+    }
+
 };  // class Network
 
 /*****************************************************************************/

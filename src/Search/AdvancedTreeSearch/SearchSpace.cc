@@ -269,6 +269,11 @@ const Core::ParameterBool paramOverflowLmScoreToAm(
    between AM/LM",
         false);
 
+const Core::ParameterBool paramAllowNegativeLmScores(
+        "allow-negative-lm-scores",
+        "if the models can produce negative scores, then sometimes it can happen that an acoustic word score is negative in the lattice, thereby making the lattice invalid. with this option, such invalid lattices are allowed",
+        false);
+
 const Core::ParameterBool paramSparseLmLookaheadSlowPropagation(
         "sparse-lm-lookahead-slow-propagation",
         "prevent skipping multiple look-ahead n-gram order levels at the same timeframe (very minor effect)",
@@ -811,6 +816,7 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           fullLookaheadAfterId_(Core::Type<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId>::max),
           sparseLookahead_(paramSparseLmLookAhead(config)),
           overflowLmScoreToAm_(paramOverflowLmScoreToAm(config)),
+          allowNegativeLmScores_(paramAllowNegativeLmScores(config)),
           sparseLookaheadSlowPropagation_(paramSparseLmLookaheadSlowPropagation(config)),
           unigramLookaheadBackoffFactor_(paramUnigramLookaheadBackOffFactor(config)),
           earlyBackoff_(paramEarlyBackOff(config)),
@@ -2380,7 +2386,7 @@ void SearchSpace::createTraces(TimeframeIndex time) {
             if (ownLmScore < preLmScore) {
                 weh->score.lm = weh->trace->score.lm = preLmScore;
 
-                if (overflowLmScoreToAm_) {
+                if (overflowLmScoreToAm_ and not allowNegativeLmScores_) {
                     // We don't want negative scores, so only overflow if we can according to the global score offset
                     Score offset = preLmScore - ownLmScore;
                     if (offset < weh->score.acoustic) {

@@ -215,7 +215,7 @@ protected:
     // When this lookahead-id (i.e. depth) is crossed, full LM look-ahead is used
     AdvancedTreeSearch::LanguageModelLookahead::LookaheadId fullLookaheadAfterId_;
 
-    bool sparseLookahead_, overflowLmScoreToAm_, sparseLookaheadSlowPropagation_;
+    bool sparseLookahead_, overflowLmScoreToAm_, allowNegativeLmScores_, sparseLookaheadSlowPropagation_;
     f32  unigramLookaheadBackoffFactor_;
     bool earlyBackoff_, correctBackoff_;
 

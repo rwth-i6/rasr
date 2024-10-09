@@ -147,6 +147,8 @@ PYTHON_PATH = /work/tools/asr/python/3.8.0
 ifneq (${PYTHON_PATH},)
 INCLUDES    += `${PYTHON_PATH}/bin/python3-config --includes 2>/dev/null`
 INCLUDES    += -I${PYTHON_PATH}/lib/python3.8/site-packages/numpy/core/include/
+INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += `python3 -m pybind11 --includes 2>/dev/null`
 LDFLAGS     += `${PYTHON_PATH}/bin/python3-config --ldflags --embed 2>/dev/null`
 LDFLAGS     += -Wl,-rpath -Wl,${PYTHON_PATH}/lib
 else

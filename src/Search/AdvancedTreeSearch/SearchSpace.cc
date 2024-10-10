@@ -3078,7 +3078,7 @@ void SearchSpace::doStateStatistics() {
             int len = 0;
 
             if (h.isValid())
-                len = backOffLm->historyLenght(h);
+                len = backOffLm->historyLength(h);
 
             if (mt.lookahead.get())
                 statesInTreesWithLookAhead += mt.states.size();
@@ -3722,7 +3722,7 @@ Instance* SearchSpace::getBackOffInstance(Instance* instance) {
 
     Lm::History useHistory = instance->lookaheadHistory;
 
-    int length = lm->historyLenght(useHistory);
+    int length = lm->historyLength(useHistory);
 
     if (length == 0)
         return 0;
@@ -3730,7 +3730,7 @@ Instance* SearchSpace::getBackOffInstance(Instance* instance) {
     // Create a back-off network for history-length length-1
     Lm::History reduced = lm->reducedHistory(useHistory, length - 1);
 
-    verify(lm->historyLenght(reduced) == length - 1);
+    verify(lm->historyLength(reduced) == length - 1);
 
     verify(reduced.isValid());
 

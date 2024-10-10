@@ -22,6 +22,7 @@
 #include <Core/Statistics.hh>
 #include <Core/Utility.hh>
 #include <Lm/BackingOff.hh>
+#include <Lm/FsaLm.hh>
 #include <Search/Types.hh>
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"
@@ -63,8 +64,9 @@ static struct EvaluateSparseStats {
         {
             u32 cnt = 0;
             for (std::multimap<u32, u32>::const_reverse_iterator it = averageSkips.rbegin(); it != averageSkips.rend(); ++it) {
-                if (++cnt == nBest)
+                if (++cnt == nBest) {
                     break;
+                }
                 std::cout << "average skips for node " << (*it).second << ": " << (*it).first << " unigram-score: " << unigramScores[(*it).second] << std::endl;
             }
         }
@@ -72,8 +74,9 @@ static struct EvaluateSparseStats {
         {
             u32 cnt = 0;
             for (std::multimap<u32, u32>::const_reverse_iterator it = totalSkips.rbegin(); it != totalSkips.rend(); ++it) {
-                if (++cnt == nBest)
+                if (++cnt == nBest) {
                     break;
+                }
                 std::cout << "total skips for node " << (*it).second << ": " << (*it).first
                           << " average " << (((float)sparseSkipHash[(*it).second].first) / sparseSkipHash[(*it).second].second)
                           << " unigram-score: " << unigramScores[(*it).second] << std::endl;
@@ -84,8 +87,9 @@ static struct EvaluateSparseStats {
         {
             u32 cnt = 0;
             for (std::multimap<u32, std::pair<u32, u32>>::const_reverse_iterator it = totalCollisions.rbegin(); it != totalCollisions.rend(); ++it) {
-                if (++cnt == nBest)
+                if (++cnt == nBest) {
                     break;
+                }
                 std::cout << "total collisions for pair (" << (*it).second.first << " [" << unigramScores[(*it).second.first] << "], "
                           << (*it).second.second << " [" << unigramScores[(*it).second.second] << "]): " << (*it).first << std::endl;
             }
@@ -147,6 +151,7 @@ static struct EvaluateSparseStats {
 ///@todo Properly manage re-usage and caching of tables (considering sparse tables), cleanup
 ///@todo Memory-usage statistics
 
+namespace {
 // Finds the integer square root of a positive number of any type
 template<typename type>
 type isqrt(type remainder) {
@@ -168,6 +173,8 @@ type isqrt(type remainder) {
     }
     return root;
 }
+
+}  // namespace
 
 const LanguageModelLookahead::LookaheadId LanguageModelLookahead::invalidId = Core::Type<LanguageModelLookahead::LookaheadId>::max;
 
@@ -191,9 +198,11 @@ struct SparseStatistics {
 };
 
 struct LanguageModelLookahead::CacheStatistics {
-    enum CacheEvent { shareInCacheHit,
-                      freeCacheHit,
-                      cacheMiss };
+    enum CacheEvent {
+        shareInCacheHit,
+        freeCacheHit,
+        cacheMiss
+    };
     static const Core::Choice cacheEventChoice;
     Core::ChoiceStatistics    cacheEvents;
     Core::Statistics<u32>     nTables, nActiveTables;
@@ -224,10 +233,6 @@ const Core::ParameterInt LanguageModelLookahead::paramCacheSizeHigh(
         "cache-size-high",
         "number of look-ahead tables allowed before starting to delete inactive tables",
         4500, 0);
-const Core::ParameterBool LanguageModelLookahead::paramConsiderBackOffInMaximization(
-        "consider-backoff-in-maximization",
-        "Disabling this makes the look-ahead much faster, without causing problems",
-        false);
 const Core::ParameterBool LanguageModelLookahead::paramConsiderPronunciationScore(
         "consider-pronunciation-score",
         "",
@@ -282,10 +287,6 @@ const Core::ParameterString LanguageModelLookahead::paramCacheArchive(
 
 static const int predictionArraySize = 100;
 
-// If this is enabled, then the maximization can also consider the backing-off. That is more correct,
-// but inefficient, so it's not really useful for practical usage.
-// #define ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
-
 LanguageModelLookahead::LanguageModelLookahead(
         Core::Configuration const&                    c,
         Lm::Score                                     wpScale,
@@ -326,23 +327,19 @@ LanguageModelLookahead::LanguageModelLookahead(
 
     sparseThresholdExpectationBased_ = paramSparseThresholdExpectationBased(config);
 
-    sparseLookAheadThreshold_ = paramSparseLookAheadThreshold(config);
-
-#ifdef ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
-    considerBackOffInMaximization_ = paramConsiderBackOffInMaximization(config);
-#else
-    considerBackOffInMaximization_ = false;
-#endif
+    sparseLookAheadThreshold_   = paramSparseLookAheadThreshold(config);
     considerPronunciationScore_ = paramConsiderPronunciationScore(config);
     considerExitPenalty_        = paramConsiderExitPenalty(config);
 
     sparseHashSizeFactor_           = paramSparseHashSizeFactor(config);
     sparseHashResizeAtFillFraction_ = paramSparseHashResizeAtFill(config) * 256;
-    if (sparseHashResizeAtFillFraction_ < 1)
+    if (sparseHashResizeAtFillFraction_ < 1) {
         sparseHashResizeAtFillFraction_ = 1;
+    }
 
-    if (sparseHashResizeAtFillFraction_ > 254)
+    if (sparseHashResizeAtFillFraction_ > 254) {
         sparseHashResizeAtFillFraction_ = 254;
+    }
 
     logSemiringFactor_ = paramUseLogSemiring(config);
 
@@ -353,11 +350,13 @@ LanguageModelLookahead::LanguageModelLookahead(
 
     cacheStatistics_ = new CacheStatistics;
 
-    if (historyLimit_ == -1)
+    if (historyLimit_ == -1) {
         log("using unlimited look-ahead history");
-    else
+    }
+    else {
         log("look-ahead history limit is %d (usually means %d-gram look-ahead)",
             historyLimit_, historyLimit_ + 1);
+    }
     buildLookaheadStructure(tree, rootNode, exits);
 }
 
@@ -386,23 +385,35 @@ private:
     Ends       ends_;
     Successors successors_;
 
-    enum Consolidation { dirty,
-                         unique,
-                         domineesValid,
-                         hashValid };
+    enum Consolidation {
+        dirty,
+        unique,
+        domineesValid,
+        hashValid
+    };
     mutable Consolidation consolidation_;
     mutable Ends          dominees_;
     mutable u32           hash_;
+
+protected:
+    static bool stableSuccCompare(const ConstructionNode* a, const ConstructionNode* b) {
+        return a->id < b->id;
+    }
+
+    static bool stableEndCompare(const Bliss::LemmaPronunciation* a, const Bliss::LemmaPronunciation* b) {
+        return a->id() < b->id();
+    }
 
 public:
     bool isUnique() const {
         return consolidation_ >= unique;
     }
 
+    // Note: sort by pointer may be non-deterministic
     void makeUnique() {
-        std::sort(ends_.begin(), ends_.end());
+        std::sort(ends_.begin(), ends_.end(), stableEndCompare);
         ends_.erase(std::unique(ends_.begin(), ends_.end()), ends_.end());
-        std::sort(successors_.begin(), successors_.end());
+        std::sort(successors_.begin(), successors_.end(), stableSuccCompare);
         successors_.erase(std::unique(successors_.begin(), successors_.end()), successors_.end());
         consolidation_ = unique;
     }
@@ -491,13 +502,16 @@ protected:
 private:
     struct DominationEquality {
         bool operator()(const ConstructionNode* l, const ConstructionNode* r) const {
-            if (l->consolidation_ >= hashValid && r->consolidation_ >= hashValid)
-                if (l->hash_ != r->hash_)
+            if (l->consolidation_ >= hashValid && r->consolidation_ >= hashValid) {
+                if (l->hash_ != r->hash_) {
                     return false;
+                }
+            }
             const Ends& ld(l->dominees());
             const Ends& rd(r->dominees());
-            if (ld.size() != rd.size())
+            if (ld.size() != rd.size()) {
                 return false;
+            }
             return std::equal(ld.begin(), ld.end(), rd.begin());
         }
     };
@@ -541,8 +555,9 @@ bool LanguageModelLookahead::ConstructionTree::isWellOrdered() const {
     bool result = true;
     for (u32 ci = 0; ci < nodeList_.size(); ++ci) {
         const ConstructionNode& cn(*nodeList_[ci]);
-        if (cn.id == invalidId)
+        if (cn.id == invalidId) {
             continue;
+        }
         verify(cn.id == ci);
         for (ConstructionNode::Successors::const_iterator si = cn.successors().begin(); si != cn.successors().end(); ++si) {
             result = result && ((*si)->id != invalidId);
@@ -564,8 +579,9 @@ void LanguageModelLookahead::ConstructionTree::writeStatistics(std::ostream& os)
 
     for (u32 ci = 0; ci < nodeList_.size(); ++ci) {
         const ConstructionNode& cn(*nodeList_[ci]);
-        if (cn.id == invalidId)
+        if (cn.id == invalidId) {
             continue;
+        }
         LevelStatistics& ls(levels[cn.depth.min]);
         ls.nNodes += 1;
         ls.nSuccessors += cn.successors().size();
@@ -599,9 +615,6 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
 
     static u32 totalSuccessors;
     totalSuccessors = 0;
-
-    static u32 totalDeletedNodes;
-    totalDeletedNodes = 0;
 
     static u32 totalDeletedNodeSuccessors;
     totalDeletedNodeSuccessors = 0;
@@ -644,8 +657,9 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
                 else {
                     verify(exits[target.label()].pronunciation != Bliss::LemmaPronunciation::invalidId);
                     // Ignore skip-wordends
-                    if (tree_.state(exits[target.label()].transitState).stateDesc.transitionModelIndex != Am::TransitionModel::entryM2)
+                    if (tree_.state(exits[target.label()].transitState).stateDesc.transitionModelIndex != Am::TransitionModel::entryM2) {
                         hasWordEnd = true;
+                    }
                 }
             }
 
@@ -718,21 +732,24 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
         s32 collectTopologicalStates(StateId node, int depth,
                                      std::vector<std::vector<StateId>>& topologicalStates,
                                      std::vector<s32>&                  collected) {
-            if (topologicalStates.size() <= depth)
+            if (topologicalStates.size() <= depth) {
                 topologicalStates.resize(depth + 1);
+            }
 
             verify(collected[node] != -2);
 
-            if (collected[node] != -1)
+            if (collected[node] != -1) {
                 return collected[node];
+            }
 
             collected[node] = -2;
 
             for (HMMStateNetwork::SuccessorIterator edges = tree_.successors(node); edges; ++edges) {
                 if (not edges.isLabel()) {
                     int depth2 = collectTopologicalStates(*edges, depth + 1, topologicalStates, collected);
-                    if (depth2 - 1 < depth)
+                    if (depth2 - 1 < depth) {
                         depth = depth2 - 1;
+                    }
                 }
             }
 
@@ -759,8 +776,9 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
 
     // Compress depths
     for (int a = ((int)(topologicalStates.size())) - 1; a >= 0; --a) {
-        if (topologicalStates[a].empty())
+        if (topologicalStates[a].empty()) {
             topologicalStates.erase(topologicalStates.begin() + a);
+        }
     }
 
     // Build
@@ -873,8 +891,9 @@ struct RandomHash {
         bool ready = false;
         while (!ready) {
             hash = rand();
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             ready = true;
         }
 
@@ -896,8 +915,9 @@ struct RandomHashKnuth {
         bool ready = false;
         while (!ready) {
             hash = KnuthHash()(rand());
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             ready = true;
         }
 
@@ -910,7 +930,10 @@ struct RandomHashKnuth {
 
 struct DistributedRandomHash {
     DistributedRandomHash(u32 hashSize, float _maxDeviation)
-            : testHashSize(hashSize), maxDeviation(_maxDeviation), testHash(testHashSize, 0), hashFill(0) {
+            : testHashSize(hashSize),
+              maxDeviation(_maxDeviation),
+              testHash(testHashSize, 0),
+              hashFill(0) {
         srand(0);
     }
 
@@ -926,15 +949,18 @@ struct DistributedRandomHash {
         while (!ready) {
             ++iter;
             hash = rand();
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             u32 cell = hash % testHash.size();
-            if (testHash[cell] < (averageFill * maxDeviation) + 1 || iter > maxIter)
+            if (testHash[cell] < (averageFill * maxDeviation) + 1 || iter > maxIter) {
                 ready = true;
+            }
         }
 
-        if (iter > maxIter)
+        if (iter > maxIter) {
             std::cerr << "maximum number of iterations reached while assigning hash to look-ahead id " << id << std::endl;
+        }
 
         haveKeys.insert(hash);
         testHash[hash % testHash.size()] += 1;
@@ -951,7 +977,11 @@ struct DistributedRandomHash {
 
 struct DepthDistributedRandomHash {
     DepthDistributedRandomHash(LanguageModelLookahead* lookahead, u32 hashSize, float _maxDeviation)
-            : lookahead_(lookahead), testHashSize(hashSize), maxDeviation(_maxDeviation), testHash(testHashSize, 0), hashFill(0) {
+            : lookahead_(lookahead),
+              testHashSize(hashSize),
+              maxDeviation(_maxDeviation),
+              testHash(testHashSize, 0),
+              hashFill(0) {
         srand(0);
     }
 
@@ -968,15 +998,18 @@ struct DepthDistributedRandomHash {
         while (!ready) {
             ++iter;
             hash = rand();
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             u32 cell = hash % testHash.size();
-            if (testHash[cell] < (averageFill * maxDeviation) + 1 || iter > maxIter)
+            if (testHash[cell] < (averageFill * maxDeviation) + 1 || iter > maxIter) {
                 ready = true;
+            }
         }
 
-        if (iter > maxIter)
+        if (iter > maxIter) {
             std::cerr << "maximum number of iterations reached while assigning hash to look-ahead id " << id << std::endl;
+        }
 
         haveKeys.insert(hash);
         testHash[hash % testHash.size()] += weight;
@@ -994,7 +1027,11 @@ struct DepthDistributedRandomHash {
 
 struct WeightedDistributedRandomHash {
     WeightedDistributedRandomHash(const std::vector<u32>& _weights, u32 hashSize, float _maxDeviation)
-            : weights(_weights), testHashSize(hashSize), maxDeviation(_maxDeviation), testHash(testHashSize, 0), hashFill(0) {
+            : weights(_weights),
+              testHashSize(hashSize),
+              maxDeviation(_maxDeviation),
+              testHash(testHashSize, 0),
+              hashFill(0) {
         srand(0);
     }
 
@@ -1011,15 +1048,18 @@ struct WeightedDistributedRandomHash {
         while (!ready) {
             ++iter;
             hash = rand();
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             u32 cell = hash % testHash.size();
-            if (testHash[cell] <= (averageFill * maxDeviation) || iter > maxIter)
+            if (testHash[cell] <= (averageFill * maxDeviation) || iter > maxIter) {
                 ready = true;
+            }
         }
 
-        if (iter > maxIter)
+        if (iter > maxIter) {
             std::cerr << "maximum number of iterations reached while assigning hash to look-ahead id " << id << std::endl;
+        }
 
         haveKeys.insert(hash);
         testHash[hash % testHash.size()] += weight;
@@ -1035,7 +1075,7 @@ struct WeightedDistributedRandomHash {
     float                   hashFill;
 };
 
-/// @todo MixedHash: Einfach die indizes zufällig durchwürfeln
+/// @todo MixedHash: Einfach die Indizes zufaellig durchwuerfeln
 
 template<class Hash>
 struct WeightedDistributedStandardHash {
@@ -1061,18 +1101,21 @@ struct WeightedDistributedStandardHash {
         while (true) {
             hash = Hash()(id + iter);
             ++iter;
-            if (haveKeys.count(hash))
+            if (haveKeys.count(hash)) {
                 continue;
+            }
             s32 cell = hash % testHash.size();
             verify(cell >= 0 && cell < testHash.size());
             s32 previousCell = previous % testHash.size();
             verify(previousCell >= 0 && previousCell < testHash.size());
             float currentLocality = abs(cell - previousCell) / (float)testHash.size();
             verify(currentLocality <= 1.0 && currentLocality >= 0.0);
-            if ((currentLocality == 0 || currentLocality > locality + (1.0 / testHash.size())) && iter < maxIter)
+            if ((currentLocality == 0 || currentLocality > locality + (1.0 / testHash.size())) && iter < maxIter) {
                 continue;
-            if (testHash[cell] <= (averageFill * maxDeviation))
+            }
+            if (testHash[cell] <= (averageFill * maxDeviation)) {
                 break;
+            }
             if (iter >= maxIter) {
                 std::cerr << "max-iterations reached for " << id << std::endl;
                 break;
@@ -1132,6 +1175,8 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
         Node n;
         n.firstEnd       = ends_.size();
         n.firstSuccessor = successors_.size();
+        // sentinel's depth will not be set: make it deterministic
+        n.depth = Core::Type<u32>::max;
         nodes_.push_back(n);
     }
 
@@ -1148,8 +1193,9 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
 
         offset *= scale_;
 
-        if (considerPronunciationScore_)
+        if (considerPronunciationScore_) {
             offset += wpScale_ * (*e)->pronunciationScore();
+        }
 
         if (considerExitPenalty_) {
             // Add the exit penalty to the offset
@@ -1158,8 +1204,9 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
                 Bliss::Phoneme::Id phonemeId = (*e)->pronunciation()->phonemes()[len - 1];
 
                 s16 boundary = Am::Allophone::isFinalPhone;
-                if (len == 1)
+                if (len == 1) {
                     boundary |= Am::Allophone::isInitialPhone;
+                }
 
                 const Am::Allophone* allo = acousticModel_->allophoneAlphabet()->allophone(Am::Allophone(phonemeId, boundary));
                 verify(allo);
@@ -1209,13 +1256,15 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
     for (int n = nodes_.size() - 2; n >= 0; --n) {
         for (u32 e = nodes_[n].firstEnd; e != nodes_[n + 1].firstEnd; ++e) {
             const Bliss::SyntacticTokenSequence& seq = ends_[e]->lemma()->syntacticTokenSequence();
-            if (seq.length() > 1)
+            if (seq.length() > 1) {
                 Core::Application::us()->log() << "Warning: A pronunciation has an unsupported token-length for look-ahead: " << seq.length();
+            }
 
             Bliss::Token::Id token = Bliss::Token::invalidId;
 
-            if (seq.length())
+            if (seq.length()) {
                 token = seq[0]->id();
+            }
 
             std::pair<TokenNodeMap::iterator, TokenNodeMap::iterator> it = nodeForTokenMap.equal_range(token);
 
@@ -1224,19 +1273,25 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
             for (; it.first != it.second; ++it.first) {
                 if ((*it.first).second.first == (LookaheadId)n) {
                     had = true;
-                    if ((*it.first).second.second > endOffsets_[e])
+                    if ((*it.first).second.second > endOffsets_[e]) {
                         (*it.first).second.second = endOffsets_[e];
+                    }
                 }
             }
 
-            if (!had)
+            if (!had) {
                 nodeForTokenMap.insert(std::make_pair(token, std::make_pair((LookaheadId)n, endOffsets_[e])));
+            }
         }
     }
 
     //Turn the multi-map into a more efficent index-based map
+    log() << "lexicon lemmas: " << lm_->lexicon()->nLemmas();
+    log() << "lm tokens: " << lm_->tokenInventory().size();
+    log() << "lexicon syntactic tokens: " << lm_->lexicon()->nSyntacticTokens();
 
-    for (int token = 0; token < lm_->tokenInventory().size(); ++token) {
+    // using lexicon_->nSyntacticTokens() intead of lm_->tokenInventory().size() here for mismatch case
+    for (int token = 0; token < lm_->lexicon()->nSyntacticTokens(); ++token) {
         firstNodeForToken_.push_back(nodeForToken_.size());
         std::pair<TokenNodeMap::iterator, TokenNodeMap::iterator> range = nodeForTokenMap.equal_range(token);
         for (; range.first != range.second; ++range.first)
@@ -1373,8 +1428,6 @@ void LanguageModelLookahead::assignHashes(std::string hashName, Hash& hash, u32 
         float deviation = (testHash[a] - averageFill);
         quadraticDeviation += deviation * deviation;
     }
-
-    float standardDeviation = sqrt(quadraticDeviation / testHash.size());
 }
 
 void LanguageModelLookahead::propagateDepth(int node, int depth) {
@@ -1382,8 +1435,9 @@ void LanguageModelLookahead::propagateDepth(int node, int depth) {
         nodes_.edit(node).depth = depth;
     }
     else {
-        if (depth > nodes_[node].depth)
+        if (depth > nodes_[node].depth) {
             nodes_.edit(node).depth = depth;
+        }
 
         depth = nodes_[node].depth;
     }
@@ -1397,8 +1451,9 @@ void LanguageModelLookahead::buildDepths() {
         nodes_.edit(a).depth = Core::Type<u32>::max;
 
     for (int a = nEntries_ - 1; a >= 0; --a) {
-        if (nodes_[a].depth == Core::Type<u32>::max)
+        if (nodes_[a].depth == Core::Type<u32>::max) {
             propagateDepth(a, 0);
+        }
     }
 
     // Re-distribute the depths from the back
@@ -1406,8 +1461,9 @@ void LanguageModelLookahead::buildDepths() {
         for (u32 p = nodes_[a].firstParent; p < nodes_[a + 1].firstParent; ++p) {
             LookaheadId parentNode  = parents_[p];
             int         parentDepth = ((int)nodes_[a].depth) - 1;
-            if (parentDepth > nodes_[parentNode].depth)
+            if (parentDepth > nodes_[parentNode].depth) {
                 propagateDepth(parentNode, parentDepth);
+            }
         }
     }
 
@@ -1417,8 +1473,9 @@ void LanguageModelLookahead::buildDepths() {
     for (u32 a = 0; a < nEntries_; ++a) {
         for (u32 p = nodes_[a].firstParent; p < nodes_[a + 1].firstParent; ++p)
             verify(nodes_[parents_[p]].depth < nodes_[a].depth);
-        if (nodes_[a].depth > maxDepth_)
+        if (nodes_[a].depth > maxDepth_) {
             maxDepth_ = nodes_[a].depth;
+        }
     }
     verify(maxDepth_ != Core::Type<u32>::max);
 }
@@ -1427,10 +1484,13 @@ std::string LanguageModelLookahead::archiveEntry() const {
     return isBackwardRecognition(config) ? "backward-lm-lookahead" : "lm-lookahead";
 }
 
-LanguageModelLookahead::Score LanguageModelLookahead::getLmScale() const {
+LanguageModelLookahead::Score LanguageModelLookahead::getLookaheadScale() const {
+    if (batchRequest_)
+        return batchRequest_->scale();
+
     Lm::BatchRequest          batch;
     Lm::CompiledBatchRequest* req = lm_->compileBatchRequest(batch);
-    Score                     ret = req->scale();
+    Score                     ret = req->scale() * scale_;
     delete req;
     return ret;
 }
@@ -1462,19 +1522,20 @@ const u32 formatVersion = 0xa8312;
 void LanguageModelLookahead::writePersistentCache() {
     Core::MappedArchiveWriter writer = Core::Application::us()->getCacheArchiveWriter(paramCacheArchive(config), archiveEntry());
 
-    if (!writer.good())
+    if (!writer.good()) {
         return;
+    }
 
     log("writing persistent LM look-ahead cache");
 
     u32 checksum = tree_.getChecksum();
-    f32 lmScale  = getLmScale();
+    f32 laScale  = getLookaheadScale();
 
     std::vector<int> mappedEnds;
     for (Ends::const_iterator it = ends_.begin(); it != ends_.end(); ++it)
         mappedEnds.push_back((*it)->id());
 
-    writer << formatVersion << checksum << lmScale << invalidFirstNodeForTokenIndex_ << nEntries_ << maxDepth_;
+    writer << formatVersion << checksum << laScale << invalidFirstNodeForTokenIndex_ << nEntries_ << maxDepth_;
     writer << firstNodeForToken_ << endOffsets_ << successors_ << parents_ << nodes_;
     writer << nodeForToken_ << nodeId_ << hashForNode_ << hashForState_ << mappedEnds;
 }
@@ -1486,7 +1547,7 @@ bool LanguageModelLookahead::readPersistentCache() {
         return false;
     }
 
-    u32 treeChecksum, version;
+    u32 treeChecksum = 0, version = 0;
     reader >> version >> treeChecksum;
 
     if (treeChecksum != tree_.getChecksum() || version != formatVersion) {
@@ -1494,11 +1555,10 @@ bool LanguageModelLookahead::readPersistentCache() {
         return false;
     }
 
-    f32 lmScale;
-    reader >> lmScale;
-
-    if (lmScale != getLmScale()) {
-        log("failed loading persistent LM-lookahead cache because the lm-scale mismatched: real %f stored %f", getLmScale(), lmScale);
+    f32 laScale = 0;
+    reader >> laScale;
+    if (laScale != getLookaheadScale()) {
+        log("failed loading persistent LM-lookahead cache because the lookahead-scale mismatched: real %f stored %f", getLookaheadScale(), laScale);
         return false;
     }
 
@@ -1516,6 +1576,50 @@ bool LanguageModelLookahead::readPersistentCache() {
     verify(nodes_.isConstant());
 
     return reader.good();
+}
+
+// recombine nodes using only the best path (Viterbi)
+void LanguageModelLookahead::recombineLookaheadNodesSingleBest(LanguageModelLookahead::LookAheadNodesForDepth& nodes, std::vector<u32>& recombination) const {
+    u32 outIdx = 0;
+
+    for (u32 i = 0; i < nodes.size(); ++i) {
+        std::pair<LookaheadId, Score> const& node(nodes[i]);
+
+        u32& recombIdx(recombination[node.first]);
+        if (recombIdx < i && nodes[recombIdx].first == node.first) {
+            if (node.second < nodes[recombIdx].second) {
+                nodes[recombIdx].second = node.second;
+            }
+        }
+        else {
+            recombIdx     = outIdx;
+            nodes[outIdx] = node;
+            ++outIdx;
+        }
+    }
+
+    nodes.shrink(outIdx);
+}
+
+// recombine nodes by summing over paths
+void LanguageModelLookahead::recombineLookaheadNodesSum(LanguageModelLookahead::LookAheadNodesForDepth& nodes, std::vector<u32>& recombination, Score scale, Score invertedScale) const {
+    u32 outIdx = 0;
+
+    for (u32 i = 0; i < nodes.size(); ++i) {
+        std::pair<LookaheadId, Score> const& node(nodes[i]);
+
+        u32& recombIdx(recombination[node.first]);
+        if (recombIdx < i && nodes[recombIdx].first == node.first) {
+            nodes[recombIdx].second = scaledLogAdd(nodes[recombIdx].second, node.second, scale, invertedScale);
+        }
+        else {
+            recombIdx     = outIdx;
+            nodes[outIdx] = node;
+            ++outIdx;
+        }
+    }
+
+    nodes.shrink(outIdx);
 }
 
 void LanguageModelLookahead::buildLookaheadStructure(HMMStateNetwork const& tree, StateId rootNode, std::vector<PersistentStateTree::Exit> const& exits) {
@@ -1555,8 +1659,9 @@ void LanguageModelLookahead::buildLookaheadStructure(HMMStateNetwork const& tree
         sizeof(ContextLookahead) + nEntries_ * sizeof(Score));
 
     Core::Channel dc(config, "dot");
-    if (dc.isOpen())
+    if (dc.isOpen()) {
         draw(dc);
+    }
 }
 
 void LanguageModelLookahead::draw(std::ostream& os) const {
@@ -1570,8 +1675,9 @@ void LanguageModelLookahead::draw(std::ostream& os) const {
         const Node& n(nodes_[ni]);
         os << Core::form("n%d [label=\"%d\\n", ni, ni);
         for (StateTree::StateId si = 0; si < StateTree::StateId(nodeId_.size()); ++si)
-            if (nodeId_[si] == ni)
+            if (nodeId_[si] == ni) {
                 os << Core::form("%d ", si);
+            }
         for (u32 e = n.firstEnd; e < nodes_[ni + 1].firstEnd; ++e)
             os << Core::form("\\n%s", ends_[e]->lemma()->preferredOrthographicForm().str());
         os << Core::form("\"]\n");
@@ -1612,8 +1718,9 @@ void LanguageModelLookahead::computeScores(Lm::History const& history, std::vect
                  s != s_end; ++s) {
                 verify_(*s < LookaheadId(score - scores.begin()));
                 sum = scaledLogAdd(sum, scores[*s], lmScale, invertedLmScale);
-                if (minScore > scores[*s])
+                if (minScore > scores[*s]) {
                     minScore = scores[*s];
+                }
             }
 
             verify(sum != Core::Type<Score>::max);
@@ -1629,8 +1736,9 @@ void LanguageModelLookahead::computeScores(Lm::History const& history, std::vect
                          s_end = successors_.begin() + (n + 1)->firstSuccessor;
                  s != s_end; ++s) {
                 verify_(*s < LookaheadId(score - scores.begin()));
-                if (minScore > scores[*s])
+                if (minScore > scores[*s]) {
                     minScore = scores[*s];
+                }
             }
             *score++ = minScore;
         }
@@ -1640,25 +1748,22 @@ void LanguageModelLookahead::computeScores(Lm::History const& history, std::vect
 
 template<bool approx>
 bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::ContextLookahead& lookahead) const {
-    const Lm::BackingOffLm* lm = dynamic_cast<const Lm::BackingOffLm*>(lm_->unscaled().get());
-    verify(lm);
-    const Lm::History& history(lookahead.history_);
+    // lookahead LM is verified to be sparse already
+    const Lm::History&    history(lookahead.history_);
+    Lm::HistorySuccessors successors = lm_->unscaled()->getHistorySuccessors(history);
 
-    Lm::BackingOffLm::BackOffScores backoff           = lm->getBackOffScores(history, 0);
-    u32                             contextScoreCount = (((size_t)backoff.end) - ((size_t)backoff.start)) / sizeof(Lm::BackingOffLm::WordScore);
-
-    if (not sparseThresholdExpectationBased_ && contextScoreCount > sparseLookAheadThreshold_ * lm_->lexicon()->nLemmas())
+    if (not sparseThresholdExpectationBased_ && successors.size() > sparseLookAheadThreshold_ * lm_->lexicon()->nLemmas()) {
         return false;
+    }
 
-    u32 predictionKey = isqrt(contextScoreCount);
-
+    u32 predictionKey     = isqrt(successors.size());
     u32 expectedNodeCount = sparseNodesPrediction_.predict(predictionKey);
-    if (expectedNodeCount < 10)
+    if (expectedNodeCount < 10) {
         expectedNodeCount = 10;
-
-    if (sparseThresholdExpectationBased_ && expectedNodeCount > nEntries_ * sparseLookAheadThreshold_)
+    }
+    if (sparseThresholdExpectationBased_ && expectedNodeCount > nEntries_ * sparseLookAheadThreshold_) {
         return false;
-
+    }
     cacheStatistics_->sparseStats.expectedLookAheadNodes += expectedNodeCount;
     ++cacheStatistics_->sparseStats.sparseTables;
 
@@ -1670,170 +1775,49 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
         lookahead.sparseScores_.clear(expectedNodeCount * sparseHashSizeFactor_);
         lookahead.approxSparseScores_.clear();
     }
-
     lookahead.scores_.clear();
 
     bool resized = false;
 
-    cacheStatistics_->sparseStats.totalScoreCount += contextScoreCount;
+    cacheStatistics_->sparseStats.totalScoreCount += successors.size();
 
     u32 insertedSparseScoreSkips = 0;
 
     Score scale         = batchRequest_->scale();
-    int   historyLength = lm->historyLenght(history);
+    Score invertedScale = 1 / scale;
     cacheStatistics_->sparseStats.potentialLookaheadNodes += nEntries_;
 
-#ifdef ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
-
-    // A pair of the look-ahead, and the back-off score that needs to be applied to the look-ahead
-    std::pair<ContextLookaheadReference, Score> backOffLookAheads[historyLength];
-
-    if (considerBackOffInMaximization_) {
-        Score backOffScore = backoff.backOffScore * scale;
-
-        for (int a = historyLength - 1; a >= 0; --a) {
-            Lm::History h = lm->reducedHistory(history, a);
-            verify(not(h == history));
-            verify(lm->historyLenght(h) == a);
-            ContextLookaheadReference lah = getLookahead(h, false, a != 0);
-            backOffLookAheads[a]          = std::make_pair(lah, backOffScore);
-            backOffScore += backOffLookAheads[a].first->backOffScore();
-        }
-    }
-
-    std::map<LookaheadId, int> nonBackoffEndsForNode;  //Only filled if considerBackOffInMaximization_ is true
-#endif
-
-    for (u32 d = 0; d < waitingLookaheadNodesByDepth_.size(); ++d)
+    for (u32 d = 0; d < waitingLookaheadNodesByDepth_.size(); ++d) {
         waitingLookaheadNodesByDepth_[d].clear();
-
-    {
-        // Special tokens like 'silence' that have a score of zero in any context
-        Core::ConstantVector<std::pair<LookaheadId, Score>>::const_iterator nodeEnd = nodeForToken_.begin() + firstNodeForToken_[invalidFirstNodeForTokenIndex_ + 1];
-        for (Core::ConstantVector<std::pair<LookaheadId, Score>>::const_iterator node = nodeForToken_.begin() + firstNodeForToken_[invalidFirstNodeForTokenIndex_]; node != nodeEnd; ++node) {
-            LookaheadId nodeIdx = (*node).first;
-            waitingLookaheadNodesByDepth_[nodes_[nodeIdx].depth].push_back(std::make_pair(nodeIdx, (Score)0));
-        }
     }
 
-    for (const Lm::BackingOffLm::WordScore* current = backoff.start; current != backoff.end; ++current) {
-        Score score = current->score_ * scale;
-
-        verify_(current->token() + 1 <= firstNodeForToken_.size());
-
-        Core::ConstantVector<std::pair<LookaheadId, Score>>::const_iterator nodeEnd = nodeForToken_.begin() + firstNodeForToken_[current->token() + 1];
-        for (Core::ConstantVector<std::pair<LookaheadId, Score>>::const_iterator node = nodeForToken_.begin() + firstNodeForToken_[current->token()]; node != nodeEnd; ++node) {
-            Score       endScore = score + (*node).second;
-            LookaheadId nodeId   = (*node).first;
-
-#ifdef ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
-
-            if (considerBackOffInMaximization_) {
-                std::map<LookaheadId, int>::iterator it = nonBackoffEndsForNode.find(nodeId);
-                if (it == nonBackoffEndsForNode.end())
-                    nonBackoffEndsForNode.insert(std::make_pair(nodeId, 1));
-                else
-                    ++it->second;
-            }
-#endif
-
-            waitingLookaheadNodesByDepth_[nodes_[nodeId].depth].push_back(std::make_pair(nodeId, endScore));
-        }
+    // Special tokens like 'silence' that have a score of zero in any context
+    TokenNodeScore::const_iterator node    = nodeForToken_.begin() + firstNodeForToken_[invalidFirstNodeForTokenIndex_],
+                                   nodeEnd = nodeForToken_.begin() + firstNodeForToken_[invalidFirstNodeForTokenIndex_ + 1];
+    for (; node != nodeEnd; ++node) {
+        LookaheadId nodeIdx = (*node).first;
+        waitingLookaheadNodesByDepth_[nodes_[nodeIdx].depth].push_back(std::make_pair(nodeIdx, (Score)0));
     }
 
-    Score invertedScale = 1 / scale;
-
-    if (nodeRecombination_.empty())
+    if (nodeRecombination_.empty()) {
         nodeRecombination_.resize(nEntries_, 0);
+    }
 
     for (s32 depth = waitingLookaheadNodesByDepth_.size() - 1; depth >= 0; --depth) {
         LanguageModelLookahead::LookAheadNodesForDepth& candidatesForDepth(waitingLookaheadNodesByDepth_[depth]);
 
-        u32 outIdx = 0;
-
         // Recombine the waiting look-ahead scores from this level
-
         if (logSemiringFactor_) {
-            for (u32 candidateIdx = 0; candidateIdx < candidatesForDepth.size(); ++candidateIdx) {
-                std::pair<LookaheadId, Score> const& candidate(candidatesForDepth[candidateIdx]);
-
-                u32& recombination(nodeRecombination_[candidate.first]);
-                if (recombination < candidateIdx && candidatesForDepth[recombination].first == candidate.first) {
-                    candidatesForDepth[recombination].second = scaledLogAdd(candidatesForDepth[recombination].second, candidate.second, scale, invertedScale);
-                }
-                else {
-                    recombination              = outIdx;
-                    candidatesForDepth[outIdx] = candidate;
-                    ++outIdx;
-                }
-            }
+            recombineLookaheadNodesSum(candidatesForDepth, nodeRecombination_, scale, invertedScale);
         }
         else {
-            for (u32 candidateIdx = 0; candidateIdx < candidatesForDepth.size(); ++candidateIdx) {
-                std::pair<LookaheadId, Score> const& candidate(candidatesForDepth[candidateIdx]);
-
-                u32& recombination(nodeRecombination_[candidate.first]);
-                if (recombination < candidateIdx && candidatesForDepth[recombination].first == candidate.first) {
-                    if (candidate.second < candidatesForDepth[recombination].second)
-                        candidatesForDepth[recombination].second = candidate.second;
-                }
-                else {
-                    recombination              = outIdx;
-                    candidatesForDepth[outIdx] = candidate;
-                    ++outIdx;
-                }
-            }
+            recombineLookaheadNodesSingleBest(candidatesForDepth, nodeRecombination_);
         }
 
-        candidatesForDepth.shrink(outIdx);
-
         // Construct look-ahead nodes from the recombined look-ahead scores
-
-        for (u32 candidateIdx = 0; candidateIdx < outIdx; ++candidateIdx) {
+        for (u32 candidateIdx = 0; candidateIdx < candidatesForDepth.size(); ++candidateIdx) {
             std::pair<LookaheadId, Score>& node(candidatesForDepth[candidateIdx]);
-
             verify_(nodes_[node.first].depth == depth);
-
-#ifdef ALLOW_CONSIDER_BACK_OFF_IN_MAXIMIZATION
-            if (considerBackOffInMaximization_) {
-                int                                        nonBackOffEnds = 0;
-                std::map<LookaheadId, int>::const_iterator nbi            = nonBackoffEndsForNode.find(node.first);
-                if (nbi != nonBackoffEndsForNode.end())
-                    nonBackOffEnds = nbi->second;
-
-                int ends = states_[node.first + 1].firstEnd - states_[node.first].firstEnd;
-
-                if (nonBackOffEnds != ends) {
-                    for (int e = states_[node.first].firstEnd; e != states_[node.first + 1].firstEnd; ++e) {
-                        Score s = lm_->score(history, ends_[e]->lemma()->syntacticTokenSequence()[0]) + endOffsets_[e];
-                        if (s < node.second)
-                            node.second = s;
-                    }
-                }
-
-                for (u32 succIdx = states_[node.first].firstSuccessor; succIdx < states_[node.first + 1].firstSuccessor; ++succIdx) {
-                    LookaheadId succ = successors_[succIdx];
-                    if (lookahead.sparseScores_.contains(succ))
-                        continue;
-                    //Check the back-off look-ahead scores of nodes that are not part of this sparse look-ahead
-
-                    //Also consider the back-off scores in the maximization
-                    for (int a = historyLength - 1; a >= 0; --a) {
-                        Score score = backOffLookAheads[a].first->scoreForLookAheadId(succ);
-
-                        if (score != Core::Type<Score>::max) {
-                            score += backOffLookAheads[a].second;
-
-                            if (score < node.second)
-                                node.second = score;
-
-                            break;
-                        }
-                    }
-                }
-            }
-#endif
-
             verify_(node.second != Core::Type<Score>::max);
 
             // Insert the final score
@@ -1870,19 +1854,20 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
             }
 
             // Propagate to parents
-            Successors::const_iterator parentEnd = parents_.begin() + nodes_[node.first + 1].firstParent;
-            for (Successors::const_iterator parent = parents_.begin() + nodes_[node.first].firstParent; parent != parentEnd; ++parent) {
+            Successors::const_iterator parent    = parents_.begin() + nodes_[node.first].firstParent,
+                                       parentEnd = parents_.begin() + nodes_[node.first + 1].firstParent;
+            for (; parent != parentEnd; ++parent) {
                 verify(nodes_[*parent].depth < depth);
                 waitingLookaheadNodesByDepth_[nodes_[*parent].depth].push_back(std::make_pair(*parent, node.second));
             }
         }
     }
 
-    if (resized)
+    if (resized) {
         ++cacheStatistics_->sparseStats.uniqueResizedTables;
+    }
 
     u32 nodeCount = 0;
-
     if (approx) {
         nodeCount = lookahead.approxSparseScores_.size();
         cacheStatistics_->sparseStats.totalHashSize += lookahead.approxSparseScores_.hashSize();
@@ -1895,13 +1880,10 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
     sparseNodesPrediction_.add(predictionKey, nodeCount);
 
     cacheStatistics_->sparseStats.lookAheadNodesExpectationDeviation += (expectedNodeCount - nodeCount) * (expectedNodeCount - nodeCount);
-
     cacheStatistics_->sparseStats.backOffLookaheadNodeHashIterations += insertedSparseScoreSkips;
 
-    lookahead.backOffScore_ = backoff.backOffScore * scale;
-
+    lookahead.backOffScore_ = successors.backOffScore * scale;
     verify(lookahead.scores_.empty());
-
     return true;
 }
 
@@ -1984,10 +1966,12 @@ LanguageModelLookahead::ContextLookahead* LanguageModelLookahead::getCachedTable
 }
 
 Lm::History LanguageModelLookahead::getReducedHistory(Lm::History const& history) const {
-    if (historyLimit_ == -1)
+    if (historyLimit_ == -1) {
         return history;
-    else
+    }
+    else {
         return lm_->reducedHistory(history, historyLimit_);
+    }
 }
 
 LanguageModelLookahead::ContextLookaheadReference
@@ -2010,23 +1994,29 @@ LanguageModelLookahead::ContextLookaheadReference
 }
 
 void LanguageModelLookahead::fill(ContextLookaheadReference lookahead, bool sparse, bool approx) {
-    if (lookahead->isFilled_)
-        return;
+    if (lookahead->isFilled_) {
+        return;  ///@todo If another thread is filling this table, wait
+    }
 
     ContextLookahead* t = const_cast<ContextLookahead*>(lookahead.get());
 
-    if (lookahead->isFilled_)
-        return;  ///@todo If another thread is filling this table, wait
-
     if (sparse) {
-        //Only really use sparse look-ahead if the history is not empty
-        Lm::BackingOffLm const* lm = dynamic_cast<Lm::BackingOffLm const*>(lm_->unscaled().get());
-        verify(lm);  // Sparse look-ahead is only supported with a backing-off LM
-        if (lm->historyLenght(lookahead->history_) == 0)
+        // sparseLM may still be not sparse for some special history
+        // e.g. empty history for backing-off LM (including subLM of combinedLM)
+        if (!lm_->isSparse(lookahead->history_)) {
             sparse = false;
+        }
+        else {
+            if (approx) {  // not dynamic update
+                sparse = computeScoresSparse<true>(*t);
+            }
+            else {
+                sparse = computeScoresSparse<false>(*t);
+            }
+        }
     }
 
-    if (not sparse or not((approx && computeScoresSparse<true>(*t)) || (!approx && computeScoresSparse<false>(*t)))) {
+    if (!sparse) {
         t->sparseScores_.clear();
         t->approxSparseScores_.clear();
         computeScores(t->history_, t->scores_);
@@ -2054,10 +2044,12 @@ LanguageModelLookahead::ContextLookaheadReference
     ensure(!t || t->history_ == h);
     ensure(!t || t->isActive());
 
-    if (t && t->isFilled_)
+    if (t && t->isFilled_) {
         return ContextLookaheadReference(t);
-    else
+    }
+    else {
         return ContextLookaheadReference();
+    }
 }
 
 const Core::Choice LanguageModelLookahead::CacheStatistics::cacheEventChoice(
@@ -2070,14 +2062,18 @@ void SparseStatistics::write(Core::XmlWriter& w) const {
     if (sparseTables) {
         w << Core::XmlOpen("language-model-lookahead-sparse-statistics");
         w << " potential lookahead nodes: " << potentialLookaheadNodes << "  back off nodes: " << backOffLookaheadNodes << " number of scores: " << totalScoreCount;
-        if (backOffLookaheadNodes)
+        if (backOffLookaheadNodes) {
             w << " average lookahead hash clash iterations: " << (((double)backOffLookaheadNodeHashIterations) / backOffLookaheadNodes);
-        if (totalHashSize)
+        }
+        if (totalHashSize) {
             w << " average hash fill: " << (((double)backOffLookaheadNodes) / totalHashSize);
-        if (sparseTables)
+        }
+        if (sparseTables) {
             w << " node-count expectation standard deviation: " << sqrt(((double)lookAheadNodesExpectationDeviation) / sparseTables);
-        if (sparseTables)
+        }
+        if (sparseTables) {
             w << " computed sparse tables: " << sparseTables << " resized tables percentage: " << (((double)resizedTables) / sparseTables) << " unique: " << (((double)uniqueResizedTables) / sparseTables);
+        }
         w << Core::XmlClose("language-model-lookahead-sparse-statistics");
     }
 }
@@ -2123,8 +2119,9 @@ void LanguageModelLookahead::collectStatistics() const {
 }
 
 void LanguageModelLookahead::logStatistics() const {
-    if (statisticsChannel_.isOpen())
+    if (statisticsChannel_.isOpen()) {
         cacheStatistics_->write(statisticsChannel_);
+    }
 }
 
 LanguageModelLookahead::LookaheadId LanguageModelLookahead::lastNodeOnDepth(int depth) const {
@@ -2132,12 +2129,14 @@ LanguageModelLookahead::LookaheadId LanguageModelLookahead::lastNodeOnDepth(int 
 
     LanguageModelLookahead::LookaheadId ret = 0;
     for (int a = 0; a < nEntries_; ++a) {
-        if (nodes_[a].depth == depth)
+        if (nodes_[a].depth == depth) {
             ret = a;
+        }
     }
 
-    if (ret == 0)
+    if (ret == 0) {
         return lastNodeOnDepth(depth + 1);
+    }
 
     return ret;
 }

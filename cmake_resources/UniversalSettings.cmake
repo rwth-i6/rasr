@@ -4,6 +4,7 @@ add_compile_definitions(CMAKE_DISABLE_MODULES_HH)
 
 add_compile_definitions(_GNU_SOURCE)
 add_compile_options(
+  -fPIC
   -pipe
   -funsigned-char
   -fno-exceptions

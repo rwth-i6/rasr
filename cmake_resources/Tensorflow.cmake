@@ -23,6 +23,8 @@ endif()
 # Output the found directory for debugging purposes
 message(STATUS "Tensorflow include directory: ${Tensorflow_INCLUDE_DIR}")
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES .so .so.1 .so.2)
+
 find_library(
         Tensorflow_CC
         NAMES tensorflow_cc

@@ -19,12 +19,14 @@ PYBIND11_MODULE(librasr, m) {
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>());
     pyRasrConfig.def("set_from_file",
-                     (bool (Core::Configuration::*)(const std::string&)) &Core::Configuration::setFromFile);
+                     (bool(Core::Configuration::*)(const std::string&)) & Core::Configuration::setFromFile, py::arg("filename"));
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
-    pyFsaBuilder.def(py::init<const Core::Configuration&>());
+    pyFsaBuilder.def(py::init<const Core::Configuration&>(), py::arg("config"));
     pyFsaBuilder.def("build_by_orthography",
-                     &AllophoneStateFsaBuilder::buildByOrthography);
+                     &AllophoneStateFsaBuilder::buildByOrthography,
+                     py::arg("orth"));
     pyFsaBuilder.def("build_by_segment_name",
-                     &AllophoneStateFsaBuilder::buildBySegmentName);
+                     &AllophoneStateFsaBuilder::buildBySegmentName,
+                     py::arg("segment_name"));
 }

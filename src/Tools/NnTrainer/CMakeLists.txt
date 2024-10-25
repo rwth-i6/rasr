@@ -20,8 +20,6 @@ target_link_libraries(
         RasrFsa
         RasrCore)
 
-target_compile_options(nn-trainer PRIVATE "-fexceptions")
-
 if (${MODULE_CART})
         target_link_libraries(nn-trainer PRIVATE RasrCart)
 endif ()

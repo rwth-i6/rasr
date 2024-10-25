@@ -19,8 +19,9 @@
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/LabelScorer.hh"
 #ifdef MODULE_ONNX
-#include "LabelScorer/OnnxDecoder.hh"
+#include "LabelScorer/LimitCtxTimesyncOnnxDecoder.hh"
 #include "LabelScorer/OnnxEncoder.hh"
+#include "LabelScorer/StatefulFullEncOnnxDecoder.hh"
 #endif
 
 #ifndef CMAKE_DISABLE_MODULES_HH
@@ -103,8 +104,10 @@ const Core::Choice Module_::decoderTypeChoice(
         "no-op", DecoderType::NoOpDecoderType,
         // Wrapper around legacy Mm::FeatureScorer
         "legacy-feature-scorer", DecoderType::LegacyFeatureScorerDecoderType,
-        // Forward encoder state and (fixed-size) history through an onnx network
-        "limited-ctx-onnx-decoder", DecoderType::LimitedCtxOnnxDecoderType,
+        // Forward a single encoder state and (fixed-size) history through an onnx network each step
+        "limited-ctx-timesync-onnx-decoder", DecoderType::LimitCtxTimesyncOnnxDecoderType,
+        // Forward all encoder states and a hidden state through an onnx network each step
+        "stateful-full-enc-onnx-decoder", DecoderType::StatefulFullEncOnnxDecoderType,
         Core::Choice::endMark());
 
 const Core::Choice Module_::labelScorerTypeChoice(
@@ -160,8 +163,11 @@ Core::Ref<Decoder> Module_::createDecoder(const Core::Configuration& config) con
         case DecoderType::LegacyFeatureScorerDecoderType:
             result = Core::ref(new Nn::LegacyFeatureScorerDecoder(decoderConfig));
             break;
-        case DecoderType::LimitedCtxOnnxDecoderType:
+        case DecoderType::LimitCtxTimesyncOnnxDecoderType:
             result = Core::ref(new Nn::LimitedCtxOnnxDecoder(decoderConfig));
+            break;
+        case DecoderType::StatefulFullEncOnnxDecoderType:
+            result = Core::ref(new Nn::StatefulFullEncOnnxDecoder(decoderConfig));
             break;
         default:
             Core::Application::us()->criticalError("unknown decoder type: %d", paramDecoderType(config));

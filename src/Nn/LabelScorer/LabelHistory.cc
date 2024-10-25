@@ -114,4 +114,31 @@ bool SeqStepLabelHistoryEq::operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelH
     return true;
 }
 
+/*
+ * =============================
+ * === HiddenStateLabelHistory =
+ * =============================
+ */
+size_t HiddenStateLabelHistoryHash::operator()(HiddenStateLabelHistoryRef history) const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+}
+
+bool HiddenStateLabelHistoryEq::operator()(HiddenStateLabelHistoryRef lhs, HiddenStateLabelHistoryRef rhs) const {
+    if (lhs == rhs) {
+        return true;
+    }
+
+    if (lhs->labelSeq.size() != rhs->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = lhs->labelSeq.begin(), it_r = rhs->labelSeq.begin(); it_l != lhs->labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace Nn

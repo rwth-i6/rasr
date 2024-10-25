@@ -33,6 +33,7 @@ public:
     using Precursor = std::vector<T>;
 
     CollapsedVector();
+    CollapsedVector(size_t size, const T& value);
 
     bool     isCollapsed() const;
     void     push_back(const T& value);
@@ -54,6 +55,10 @@ private:
 template<typename T>
 CollapsedVector<T>::CollapsedVector()
         : Precursor(), logicalSize_(0ul) {}
+
+template<typename T>
+CollapsedVector<T>::CollapsedVector(size_t size, const T& value)
+        : Precursor(1ul, value), logicalSize_(size) {}
 
 template<typename T>
 bool CollapsedVector<T>::isCollapsed() const {

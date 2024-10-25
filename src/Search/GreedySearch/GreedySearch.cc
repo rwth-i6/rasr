@@ -204,6 +204,10 @@ bool GreedySearch::decodeStep() {
     auto  newHistory  = labelScorer_->extendedHistory({bestRequest.history, bestRequest.nextToken, bestRequest.transitionType});
     hyp_.extend({lemmas.first[bestIdx], newHistory, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
 
+    if (bestRequest.nextToken == 0) {  // Hacked-in condition to stop when encountering sequence end symbol
+        return false;
+    }
+
     return true;
 }
 

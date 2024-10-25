@@ -126,7 +126,7 @@ void OnnxEncoder::encode() {
 
     // features-size is an optional input
     if (featuresSizeName_ != "") {
-        std::vector<s32> seqLengths({static_cast<int>(T_in)});
+        std::vector<s32> seqLengths = {static_cast<int>(T_in)};
         sessionInputs.emplace_back(std::make_pair(featuresSizeName_, Onnx::Value::create(seqLengths)));
     }
 

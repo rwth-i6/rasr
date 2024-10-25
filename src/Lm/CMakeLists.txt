@@ -48,8 +48,6 @@ endif ()
 
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
-target_compile_options(RasrLm PRIVATE "-fexceptions")
-
 target_link_libraries(
         RasrLm
         INTERFACE RasrFlf

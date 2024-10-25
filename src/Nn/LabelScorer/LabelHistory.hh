@@ -18,8 +18,10 @@
 
 #include <Am/ClassicStateModel.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Math/FastVector.hh>
 #include <Mm/Types.hh>
 #include <Speech/Types.hh>
+#include "Onnx/Value.hh"
 
 namespace Nn {
 
@@ -109,6 +111,59 @@ struct SeqStepLabelHistoryHash {
 
 struct SeqStepLabelHistoryEq {
     bool operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelHistoryRef rhs) const;
+};
+
+/*
+ * Label history that uses a hidden-state vector
+ */
+struct HiddenState : public Core::ReferenceCounted {
+    // TODO: Use ONNX::Value directly instead of copying to FastVector/FastMatrix
+    // Maybe use list of vectors/matrices instead of contatenating/splitting
+    // Math::FastVector<f32> vector;
+    // Math::FastMatrix<f32> matrix;
+    std::unordered_map<std::string, Onnx::Value> stateValueMap;
+
+    // HiddenState()
+    //         : vector(), matrix() {}
+    HiddenState()
+            : stateValueMap() {}
+
+    // HiddenState(size_t vecSize, size_t matRows, size_t matColumns)
+    //         : vector(vecSize), matrix(matRows, matColumns) {
+    //     vector.setToZero();
+    //     matrix.setToZero();
+    // }
+
+    HiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
+        verify(names.size() == values.size());
+        stateValueMap.reserve(names.size());
+        for (size_t i = 0ul; i < names.size(); ++i) {
+            stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
+        }
+    }
+};
+
+typedef Core::Ref<HiddenState> HiddenStateRef;
+
+struct HiddenStateLabelHistory : public LabelHistory {
+    std::vector<LabelIndex> labelSeq;  // Used for hashing
+    Core::Ref<HiddenState>  hiddenState;
+
+    HiddenStateLabelHistory()
+            : labelSeq(), hiddenState() {}
+
+    HiddenStateLabelHistory(const std::vector<LabelIndex>& labelSeq, HiddenStateRef state)
+            : labelSeq(labelSeq), hiddenState(state) {}
+};
+
+typedef Core::Ref<const HiddenStateLabelHistory> HiddenStateLabelHistoryRef;
+
+struct HiddenStateLabelHistoryHash {
+    size_t operator()(HiddenStateLabelHistoryRef history) const;
+};
+
+struct HiddenStateLabelHistoryEq {
+    bool operator()(HiddenStateLabelHistoryRef lhs, HiddenStateLabelHistoryRef rhs) const;
 };
 
 }  // namespace Nn

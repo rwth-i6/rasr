@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 
-#include "OnnxDecoder.hh"
+#include "LimitCtxTimesyncOnnxDecoder.hh"
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Flow/Timestamp.hh>

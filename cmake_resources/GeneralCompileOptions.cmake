@@ -7,7 +7,6 @@ add_compile_options(
         -fPIC
         -pipe
         -funsigned-char
-        -fno-exceptions
         -Wno-unknown-pragmas
         -Wall
         -Wno-long-long

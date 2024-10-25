@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef ONNX_DECODER_HH
-#define ONNX_DECODER_HH
+#ifndef LIMITED_CTX_TIMESYNC_ONNX_DECODER_HH
+#define LIMITED_CTX_TIMESYNC_ONNX_DECODER_HH
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -79,4 +79,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // ONNX_DECODER_HH
+#endif  // LIMITED_CTX_TIMESYNC_ONNX_DECODER_HH

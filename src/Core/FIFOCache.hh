@@ -94,8 +94,8 @@ private:
 
     // List with iterators to all the elements of the cacheMap.
     // Note: since full size of the cacheMap is reserved in advance, existing iterators will not be invalidated when inserting new elements
-    std::vector<MapIterator> cacheElementIters_;
-    size_t                   oldestElementPos_;  // Position of the oldest element inside `cacheElementIters_`
+    std::vector<MapIterator> cacheElementIters_;  // TODO: Delete by key instead of by iterator so that it's robust against iterator invalidation
+    size_t                   oldestElementPos_;   // Position of the oldest element inside `cacheElementIters_`
 };
 
 }  // namespace Core

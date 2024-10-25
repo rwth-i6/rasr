@@ -79,6 +79,24 @@ Session::Session(Core::Configuration const& config)
     }
 }
 
+std::vector<std::string> Session::getAllInputNames() const {
+    std::vector<std::string> result;
+    result.reserve(inputNameMap_.size());
+    for (auto& kv : inputNameMap_) {
+        result.push_back(kv.first);
+    }
+    return result;
+}
+
+std::vector<std::string> Session::getAllOutputNames() const {
+    std::vector<std::string> result;
+    result.reserve(outputNameMap_.size());
+    for (auto& kv : outputNameMap_) {
+        result.push_back(kv.first);
+    }
+    return result;
+}
+
 bool Session::hasInput(std::string const& name) const {
     return inputNameMap_.find(name) != inputNameMap_.end();
 }
@@ -175,6 +193,7 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
         out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
     }
     catch (Ort::Exception& e) {
+        log() << e.what();
         return false;
     }
 

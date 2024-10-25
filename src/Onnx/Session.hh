@@ -25,14 +25,16 @@ public:
     Session(Core::Configuration const& config);
     virtual ~Session() = default;
 
-    bool                 hasInput(std::string const& name) const;
-    bool                 hasOutput(std::string const& name) const;
-    ValueType            getInputValueType(std::string const& name) const;
-    ValueType            getOutputValueType(std::string const& name) const;
-    ValueDataType        getInputValueDataType(std::string const& name) const;
-    ValueDataType        getOutputValueDataType(std::string const& name) const;
-    std::vector<int64_t> getInputShape(std::string const& name) const;
-    std::vector<int64_t> getOutputShape(std::string const& name) const;
+    std::vector<std::string> getAllInputNames() const;
+    std::vector<std::string> getAllOutputNames() const;
+    bool                     hasInput(std::string const& name) const;
+    bool                     hasOutput(std::string const& name) const;
+    ValueType                getInputValueType(std::string const& name) const;
+    ValueType                getOutputValueType(std::string const& name) const;
+    ValueDataType            getInputValueDataType(std::string const& name) const;
+    ValueDataType            getOutputValueDataType(std::string const& name) const;
+    std::vector<int64_t>     getInputShape(std::string const& name) const;
+    std::vector<int64_t>     getOutputShape(std::string const& name) const;
 
     bool run(std::vector<std::pair<std::string, Value>>&& inputs,
              std::vector<std::string> const&              output_names,

@@ -1,6 +1,6 @@
 add_subdirectory(Lapack)
 if (${MODULE_MATH_NR})
-    add_subdirectory(Nr)
+        add_subdirectory(Nr)
 endif ()
 
 set(RasrMath_SOURCES
@@ -14,16 +14,14 @@ set(RasrMath_SOURCES
         CudaDataStructure.cc)
 
 if (${MODULE_CUDA})
-    list(APPEND RasrMath_SOURCES CudaMatrixKernels.cu)
+        list(APPEND RasrMath_SOURCES CudaMatrixKernels.cu)
 endif ()
 
 if (${MODULE_SIGNAL_PLP})
-    list(APPEND RasrMath_SOURCES LevinsonLse.cc)
+        list(APPEND RasrMath_SOURCES LevinsonLse.cc)
 endif ()
 
 add_library(RasrMath STATIC ${RasrMath_SOURCES})
-
-target_compile_options(RasrMath PRIVATE "-fexceptions")
 
 target_link_libraries(RasrMath INTERFACE RasrMathNr RasrMathLapack RasrCore)
 

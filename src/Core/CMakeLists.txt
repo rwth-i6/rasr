@@ -56,7 +56,5 @@ list(APPEND Core_SOURCES ${BISON_ArithmeticExpressionParser_OUTPUTS})
 add_library(RasrCore STATIC ${Core_SOURCES})
 add_dependencies(RasrCore SourceVersion)
 
-target_compile_options(RasrCore PRIVATE "-fexceptions")
-
 add_executable(check-core check.cc)
 target_link_libraries(check-core PRIVATE RasrCore)

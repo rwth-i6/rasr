@@ -381,7 +381,7 @@ void XmlLexiconParser::loadWhitelist(const Core::Configuration& config, Core::St
 
 XmlLexiconParser::XmlLexiconParser(const Core::Configuration& c, Lexicon* _lexicon)
         : LexiconParser(),
-          Precursor(c) {
+          XmlSchemaParser(c) {
     lexicon_ = _lexicon;
 
     // build schema
@@ -391,8 +391,8 @@ XmlLexiconParser::XmlLexiconParser(const Core::Configuration& c, Lexicon* _lexic
 }
 
 // use base class parse function
-int XmlLexiconParser::parseFile(const std::string& filename) {
-    return parser()->Core::XmlSchemaParser::parseFile(filename.c_str());
+bool XmlLexiconParser::parseFile(const std::string& filename) {
+    return parser()->Core::XmlSchemaParser::parseFile(filename.c_str()) == 0;
 }
 
 
@@ -403,36 +403,25 @@ TextLexiconParser::TextLexiconParser(Lexicon* _lexicon)
 }
 
 // parse txt file line by line to a Bliss::Lexicon
-// two passes over the file are required
-// as we first need to complete and set the phoneme inventory
-// and afterwards the lemmata can be created
-int TextLexiconParser::parseFile(const std::string& filename) {
-    // first pass: collect all labels as phonemes in the phoneme inventory
-    std::ifstream file_first_pass(filename);
-    if (!file_first_pass.is_open()) {
-        return 1;
+// in the first step, the phonemes are created and the phoneme inventory is set
+// and afterwards the lemmata can be created from these phonemes
+bool TextLexiconParser::parseFile(const std::string& filename) {
+    // collect all labels from the file and add them as phonemes to the phoneme inventory
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        return false;
     }
     std::string line;
-    while (std::getline(file_first_pass, line)) {
+    while (std::getline(file, line)) {
         if (line.empty()) continue;
         createPhoneme(line);
     }
-    file_first_pass.close();
 
     // set the phoneme inventory
     lexicon_->setPhonemeInventory(Core::ref(phonemeInventory_));
-
-    // second pass: create the lemmata in the lexicon
-    std::ifstream file_second_pass(filename);
-    if (!file_second_pass.is_open()) {
-        return 1;
-    }
-    while (std::getline(file_second_pass, line)) {
-        if (line.empty()) continue;
-        createLemma(line);
-    }
-    file_second_pass.close();
-    return 0;
+    // iterate over the phonemes in the inventory to create the lemmata in the lexicon
+    createLemmata();
+    return true;
 }
 
 // helper function to handle one label and create a corresponding phoneme
@@ -454,23 +443,26 @@ void TextLexiconParser::createPhoneme(const std::string line) {
     newPhoneme_->setContextDependent(false);
 }
 
-// helper function to handle one label and create a corresponding lemma
-void TextLexiconParser::createLemma(const std::string line) {
-    std::string symbol(line);
-    stripWhitespace(symbol);        // in case there are any unintentional whitespaces
-    suppressTrailingBlank(symbol);
+// helper function to create the lemmata
+void TextLexiconParser::createLemmata() {
+    // iterate over the phonemes which were assigned to the inventory previously
+    auto phonemes = phonemeInventory_->phonemes();
+    for (auto it = phonemes.first; it != phonemes.second; ++it) {
+        const Phoneme* phoneme = *it;
+        std::string symbol = phoneme->symbol();
 
-    // check if lemma was already added (if one label appears more than once)
-    if (lexicon_->lemma(symbol)) {
-        return;
+        // check if lemma was already added (should not happen)
+        if (lexicon_->lemma(symbol)) {
+            return;
+        }
+
+        // create a new lemma
+        Lemma* newLemma_ = lexicon_->newLemma();
+        // set orth
+        lexicon_->setOrthographicForms(newLemma_, {symbol});
+        // set phon
+        Pronunciation* pron = lexicon_->getPronunciation(symbol);
+        lexicon_->addPronunciation(newLemma_, pron);
+        lexicon_->setDefaultLemmaName(newLemma_);
     }
-
-    // create a new lemma
-    Lemma* newLemma_ = lexicon_->newLemma();
-    // set orth
-    lexicon_->setOrthographicForms(newLemma_, {symbol});
-    // set phon
-    Pronunciation* pron = lexicon_->getPronunciation(symbol);
-    lexicon_->addPronunciation(newLemma_, pron);
-    lexicon_->setDefaultLemmaName(newLemma_);
 }

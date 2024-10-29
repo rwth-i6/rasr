@@ -551,6 +551,14 @@ public:
         return dependency_;
     }
 
+    /** Type of the lexicon/the lexicon file format */
+    enum LexiconType {
+        txtLexicon,
+        xmlLexicon,
+    };
+    static const Core::Choice          lexiconTypeChoice;
+    static const Core::ParameterChoice lexiconTypeParam;
+
     /** Create a new lemma. */
     Lemma* newLemma();
 

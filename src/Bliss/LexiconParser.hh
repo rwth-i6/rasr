@@ -105,7 +105,7 @@ public:
 class LexiconParser {
 public:
     virtual ~LexiconParser() {}
-    virtual int parseFile(const std::string& filename) = 0;
+    virtual bool parseFile(const std::string& filename) = 0;
     virtual Lexicon* lexicon() const = 0;
 };
 
@@ -117,7 +117,6 @@ public:
  * through Lexicon.
  */
 class XmlLexiconParser : public virtual LexiconParser, public Core::XmlSchemaParser {
-    typedef Core::XmlSchemaParser Precursor;
     typedef XmlLexiconParser         Self;
 
 private:
@@ -129,7 +128,7 @@ private:
 
 public:
     XmlLexiconParser(const Core::Configuration& c, Lexicon*);
-    int parseFile(const std::string& filename) override;
+    bool parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
         return lexicon_;
      }
@@ -145,11 +144,11 @@ private:
     Lexicon* lexicon_;
     PhonemeInventory* phonemeInventory_;
     void createPhoneme(const std::string line);
-    void createLemma(const std::string line);
+    void createLemmata();
 
 public:
     TextLexiconParser(Lexicon*);
-    int parseFile(const std::string& filename) override;
+    bool parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
         return lexicon_;
     }

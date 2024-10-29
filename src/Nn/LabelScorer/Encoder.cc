@@ -36,17 +36,17 @@ const Core::ParameterInt Encoder::paramChunkSize(
         Core::Type<u32>::max);
 
 Encoder::Encoder(const Core::Configuration& config)
-        : Core::Component(config), chunkSize_(paramChunkSize(config)), chunkStep_(paramChunkStep(config)), numNewFeatures_(0ul) {}
+        : Core::Component(config), chunkSize_(paramChunkSize(config)), chunkStep_(paramChunkStep(config)), numNewFeatures_(0ul), featuresMissing_(true) {}
 
 void Encoder::reset() {
-    segmentEnd_ = false;
+    featuresMissing_ = true;
     inputBuffer_.clear();
     outputBuffer_.clear();
     numNewFeatures_ = 0ul;
 }
 
 void Encoder::signalNoMoreFeatures() {
-    segmentEnd_ = true;
+    featuresMissing_ = false;
 }
 
 void Encoder::addInput(FeatureVectorRef input) {
@@ -58,12 +58,11 @@ void Encoder::addInput(FeatureVectorRef input) {
 }
 
 void Encoder::addInput(Core::Ref<const Speech::Feature> input) {
-    // TODO: Avoid copying data from one vector to another
     addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
 }
 
 bool Encoder::canEncode() const {
-    return not inputBuffer_.empty() and (numNewFeatures_ >= chunkStep_ or segmentEnd_);
+    return not inputBuffer_.empty() and (not featuresMissing_ or numNewFeatures_ >= chunkStep_);
 }
 
 std::optional<FeatureVectorRef> Encoder::getNextOutput() {

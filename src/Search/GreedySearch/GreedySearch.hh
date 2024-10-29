@@ -25,27 +25,27 @@ namespace Search {
 class GreedySearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
-        Nn::LabelHistoryRef             history;
+        Nn::ScoringContextRef           scoringContext;
         Nn::LabelIndex                  label;
         Score                           score;
         Search::TimeframeIndex          timestep;
         Nn::LabelScorer::TransitionType transitionType;
 
         HypothesisExtension()
-                : lemma(), history(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
 
-        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::LabelHistory> history, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : lemma(lemma), history(history), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
-        Nn::LabelHistoryRef history;
-        Nn::LabelIndex      currentLabel;
-        Score               score;
-        Traceback           traceback;
+        Nn::ScoringContextRef scoringContext;
+        Nn::LabelIndex        currentLabel;
+        Score                 score;
+        Traceback             traceback;
 
         LabelHypothesis()
-                : history(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
+                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
 
         void reset();
         void extend(const HypothesisExtension& extension);

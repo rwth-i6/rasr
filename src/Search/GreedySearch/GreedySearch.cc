@@ -37,7 +37,7 @@ void GreedySearch::reset() {
     verify(labelScorer_);
     labelScorer_->reset();
     hyp_.reset();
-    hyp_.history = labelScorer_->getStartHistory();
+    hyp_.scoringContext = labelScorer_->getInitialScoringContext();
 }
 
 Speech::ModelCombination::Mode GreedySearch::modelCombinationNeeded() const {
@@ -147,14 +147,14 @@ Nn::LabelScorer::TransitionType GreedySearch::inferTransitionType(Nn::LabelIndex
 }
 
 void GreedySearch::LabelHypothesis::reset() {
-    history      = Nn::LabelHistoryRef();
-    currentLabel = Core::Type<Nn::LabelIndex>::max;
-    score        = 0.0f;
+    scoringContext = Nn::ScoringContextRef();
+    currentLabel   = Core::Type<Nn::LabelIndex>::max;
+    score          = 0.0f;
     traceback.clear();
 }
 
 void GreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
-    this->history = extension.history;
+    this->scoringContext = extension.scoringContext;
     this->score += extension.score;
     this->currentLabel = extension.label;
     switch (extension.transitionType) {
@@ -174,7 +174,7 @@ void GreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension)
 
 bool GreedySearch::decodeStep() {
     verify(labelScorer_);
-    verify(hyp_.history);
+    verify(hyp_.scoringContext);
 
     HypothesisExtension bestExtension;
 
@@ -190,23 +190,23 @@ bool GreedySearch::decodeStep() {
         Nn::LabelIndex      idx = lemma->id();
 
         auto transitionType = inferTransitionType(prevLabel, idx);
-        requests.push_back({hyp_.history, idx, transitionType});
+        requests.push_back({hyp_.scoringContext, idx, transitionType});
     }
 
-    auto result = labelScorer_->getScoresWithTime(requests);
+    auto result = labelScorer_->getScoresWithTimes(requests);
     if (not result.has_value()) {
         return false;
     }
     const auto& [scores, times] = result.value();
 
-    auto  bestIdx     = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
-    auto& bestRequest = requests.at(bestIdx);
-    auto  newHistory  = labelScorer_->extendedHistory({bestRequest.history, bestRequest.nextToken, bestRequest.transitionType});
-    hyp_.extend({lemmas.first[bestIdx], newHistory, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
+    auto  bestIdx           = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
+    auto& bestRequest       = requests.at(bestIdx);
+    auto  newScoringContext = labelScorer_->extendedScoringContext({bestRequest.context, bestRequest.nextToken, bestRequest.transitionType});
+    hyp_.extend({lemmas.first[bestIdx], newScoringContext, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
 
-    if (bestRequest.nextToken == 0) {  // Hacked-in condition to stop when encountering sequence end symbol
-        return false;
-    }
+    // if (bestRequest.nextToken == 0) {  // Hacked-in condition to stop when encountering sequence end symbol
+    //     return false;
+    // }
 
     return true;
 }

@@ -1,13 +1,12 @@
 set(RasrLabelScorer_SOURCES
-            Decoder.cc
             Encoder.cc
             EncoderDecoderLabelScorer.cc
-            LabelHistory.cc
-            LabelScorer.cc)
+            LabelScorer.cc
+            ScoringContext.cc)
 if (${MODULE_ONNX})
             list(APPEND RasrLabelScorer_SOURCES
-            LimitCtxTimesyncOnnxDecoder.cc
-            StatefulFullEncOnnxDecoder.cc
+            LimitedCtxOnnxLabelScorer.cc
+            StatefulOnnxLabelScorer.cc
             OnnxEncoder.cc)
 endif()
 

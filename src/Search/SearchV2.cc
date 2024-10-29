@@ -6,9 +6,9 @@ SearchAlgorithmV2::SearchAlgorithmV2(const Core::Configuration& config)
 
 bool SearchAlgorithmV2::decodeMore() {
     bool success = false;
-    while (decodeStep()) {
-        success = true;
-    }
+    while ((success = decodeStep()))
+        ;
+
     return success;
 }
 

@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 
-#include "StatefulFullEncOnnxDecoder.hh"
+#include "StatefulOnnxLabelScorer.hh"
 #include <Core/Assertions.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Flow/Timestamp.hh>
@@ -21,70 +21,39 @@
 #include <Mm/Module.hh>
 #include <Speech/Types.hh>
 #include <cstddef>
-#include <string>
 #include <utility>
-#include "LabelHistory.hh"
 #include "LabelScorer.hh"
+#include "ScoringContext.hh"
 
 namespace Nn {
 
 /*
  * =============================
- * == StatefulFullEncOnnxDecoder
+ * == StatefulOnnxLabelScorer
  * =============================
  */
 
-const Core::ParameterBool StatefulFullEncOnnxDecoder::paramBlankUpdatesHistory(
+const Core::ParameterBool StatefulOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
         "Whether previously emitted blank labels should be used to update the history.",
         false);
 
-const Core::ParameterBool StatefulFullEncOnnxDecoder::paramLoopUpdatesHistory(
+const Core::ParameterBool StatefulOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be used to update the history.",
         false);
 
-const Core::ParameterInt StatefulFullEncOnnxDecoder::paramMaxBatchSize(
+const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxBatchSize(
         "max-batch-size",
         "Max number of hidden-states that can be fed into the ONNX model at once.",
         Core::Type<int>::max);
 
-const Core::ParameterInt StatefulFullEncOnnxDecoder::paramMaxCachedScores(
+const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-scores",
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
         1000);
 
-StatefulFullEncOnnxDecoder::StatefulFullEncOnnxDecoder(const Core::Configuration& config)
-        : Core::Component(config),
-          Precursor(config),
-          blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
-          loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
-          maxBatchSize_(paramMaxBatchSize(config)),
-          hiddenStateVecSize_(0ul),
-          hiddenStateMatSize_(0ul),
-          decoderSession_(select("decoder-session")),
-          decoderValidator_(select("decoder-validator")),
-          decoderMapping_(select("decoder-io-map"), decoderIoSpec_),
-          stateInitializerSession_(select("state-initializer-session")),
-          stateInitializerValidator_(select("state-initializer-validator")),
-          stateInitializerMapping_(select("state-initializer-io-map"), stateInitializerIoSpec_),
-          stateUpdaterSession_(select("state-updater-session")),
-          stateUpdaterValidator_(select("state-updater-validator")),
-          stateUpdaterMapping_(select("state-updater-io-map"), stateUpdaterIoSpec_),
-          scoresName_(decoderMapping_.getOnnxName("scores")),
-          initEncoderStatesName_(stateInitializerMapping_.getOnnxName("encoder-states")),
-          initEncoderSizeName_(stateInitializerMapping_.getOnnxName("encoder-states-size")),
-          updaterEncoderStatesName_(stateUpdaterMapping_.getOnnxName("encoder-states")),
-          updaterEncoderSizeName_(stateUpdaterMapping_.getOnnxName("encoder-states-size")),
-          updaterTokenName_(stateUpdaterMapping_.getOnnxName("token")),
-          encoderStatesValue_(),
-          encoderStatesSizeValue_(),
-          scoreCache_(paramMaxCachedScores(config)) {
-    decoderValidator_.validate(decoderIoSpec_, decoderMapping_, decoderSession_);
-    stateUpdaterValidator_.validate(stateUpdaterIoSpec_, stateUpdaterMapping_, stateUpdaterSession_);
-}
-
-const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::decoderIoSpec_ = {
+const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
         Onnx::IOSpecification{
                 "scores",
                 Onnx::IODirection::OUTPUT,
@@ -93,7 +62,7 @@ const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::decoderIoSp
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}}}};
 
-const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::stateInitializerIoSpec_ = {
+const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
         Onnx::IOSpecification{
                 "encoder-states",
                 Onnx::IODirection::INPUT,
@@ -109,7 +78,7 @@ const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::stateInitia
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};
 
-const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::stateUpdaterIoSpec_ = {
+const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
         Onnx::IOSpecification{
                 "encoder-states",
                 Onnx::IODirection::INPUT,
@@ -132,17 +101,37 @@ const std::vector<Onnx::IOSpecification> StatefulFullEncOnnxDecoder::stateUpdate
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};
 
-void StatefulFullEncOnnxDecoder::reset() {
+StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
+          loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
+          maxBatchSize_(paramMaxBatchSize(config)),
+          scorerOnnxModel_(select("scoring-model"), scorerModelIoSpec),
+          stateInitializerOnnxModel_(select("state-initializer-model"), stateInitializerModelIoSpec),
+          stateUpdaterOnnxModel_(select("state-updater-model"), stateUpdaterModelIoSpec),
+          scoresName_(scorerOnnxModel_.mapping.getOnnxName("scores")),
+          initializerEncoderStatesName_(stateInitializerOnnxModel_.mapping.getOnnxName("encoder-states")),
+          initializerEncoderStatesSizeName_(stateInitializerOnnxModel_.mapping.getOnnxName("encoder-states-size")),
+          updaterEncoderStatesName_(stateUpdaterOnnxModel_.mapping.getOnnxName("encoder-states")),
+          updaterEncoderStatesSizeName_(stateUpdaterOnnxModel_.mapping.getOnnxName("encoder-states-size")),
+          updaterTokenName_(stateUpdaterOnnxModel_.mapping.getOnnxName("token")),
+          encoderStatesValue_(),
+          encoderStatesSizeValue_(),
+          scoreCache_(paramMaxCachedScores(config)) {
+}
+
+void StatefulOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
 }
 
-Core::Ref<const LabelHistory> StatefulFullEncOnnxDecoder::getStartHistory() {
-    return Core::ref(new HiddenStateLabelHistory());  // Sentinel empty Ref as initial hidden state
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContext() {
+    return Core::ref(new HiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
-Core::Ref<const LabelHistory> StatefulFullEncOnnxDecoder::extendedHistory(LabelScorer::Request request) {
-    HiddenStateLabelHistoryRef history(dynamic_cast<const HiddenStateLabelHistory*>(request.history.get()));
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+    HiddenStateScoringContextRef history(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
     switch (request.transitionType) {
@@ -165,7 +154,7 @@ Core::Ref<const LabelHistory> StatefulFullEncOnnxDecoder::extendedHistory(LabelS
 
     // If history is not going to be modified, return the original one
     if (not updateState) {
-        return request.history;
+        return request.context;
     }
 
     std::vector<LabelIndex> newLabelSeq(history->labelSeq);
@@ -179,11 +168,11 @@ Core::Ref<const LabelHistory> StatefulFullEncOnnxDecoder::extendedHistory(LabelS
         newHiddenState = updatedHiddenState(history->hiddenState, request.nextToken);
     }
 
-    return Core::ref(new HiddenStateLabelHistory(std::move(newLabelSeq), newHiddenState));
+    return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulFullEncOnnxDecoder::addEncoderOutput(FeatureVectorRef encoderOutput) {
-    Precursor::addEncoderOutput(encoderOutput);
+void StatefulOnnxLabelScorer::addInput(FeatureVectorRef encoderOutput) {
+    Precursor::addInput(encoderOutput);
     initialHiddenState_ = HiddenStateRef();
 
     if (not encoderStatesValue_.empty()) {  // Computed ONNX value is outdated now so reset it
@@ -192,35 +181,28 @@ void StatefulFullEncOnnxDecoder::addEncoderOutput(FeatureVectorRef encoderOutput
     }
 }
 
-std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> StatefulFullEncOnnxDecoder::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
-    if (requests.empty()) {
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
+    if (featuresMissing_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
         return {};
     }
 
-    if (not segmentEnd_) {  // Only allow scoring once all encoder states have been passed
-        return {};
-    }
-
-    if (encoderOutputBuffer_.empty()) {
-        return {};
-    }
-
-    Core::CollapsedVector<Speech::TimeframeIndex> timeframeResults;
+    ScoresWithTimes result;
+    result.scores.reserve(requests.size());
 
     /*
      * Identify unique histories that still need session runs
      */
-    std::unordered_set<HiddenStateLabelHistoryRef, HiddenStateLabelHistoryHash, HiddenStateLabelHistoryEq> uniqueUncachedHistories;
+    std::unordered_set<HiddenStateScoringContextRef, HiddenStateScoringContextHash, HiddenStateScoringContextEq> uniqueUncachedHistories;
 
     for (auto& request : requests) {
-        HiddenStateLabelHistoryRef historyPtr(dynamic_cast<const HiddenStateLabelHistory*>(request.history.get()));
+        HiddenStateScoringContextRef historyPtr(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
         if (not scoreCache_.contains(historyPtr)) {
             // Group by unique history
             uniqueUncachedHistories.emplace(historyPtr);
         }
     }
 
-    std::vector<HiddenStateLabelHistoryRef> historyBatch;
+    std::vector<HiddenStateScoringContextRef> historyBatch;
     historyBatch.reserve(std::min(uniqueUncachedHistories.size(), maxBatchSize_));
     for (auto history : uniqueUncachedHistories) {
         historyBatch.push_back(history);
@@ -235,28 +217,26 @@ std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::Timefr
     /*
      * Assign from cache map to result vector
      */
-    std::vector<Score> scoreResults;
-    scoreResults.reserve(requests.size());
     for (const auto& request : requests) {
-        HiddenStateLabelHistoryRef history(dynamic_cast<const HiddenStateLabelHistory*>(request.history.get()));
-        scoreResults.push_back(scoreCache_.get(history).at(request.nextToken));
+        HiddenStateScoringContextRef history(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
+        result.scores.push_back(scoreCache_.get(history).at(request.nextToken));
 
-        timeframeResults.push_back(history->labelSeq.size());
+        result.timesteps.push_back(history->labelSeq.size());
     }
 
-    return std::make_pair(scoreResults, timeframeResults);
+    return result;
 }
 
-std::optional<std::pair<Score, Speech::TimeframeIndex>> StatefulFullEncOnnxDecoder::getScoreWithTime(LabelScorer::Request request) {
-    auto result = getScoresWithTime({request});
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::getScoreWithTime(LabelScorer::Request request) {
+    auto result = getScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
     }
-    return std::make_pair(result->first.front(), result->second.front());
+    return ScoreWithTime{result->scores.front(), result->timesteps.front()};
 }
 
-HiddenStateRef StatefulFullEncOnnxDecoder::computeInitialHiddenState() {
-    verify(segmentEnd_);
+HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
+    verify(not featuresMissing_);
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
         /*
@@ -265,13 +245,13 @@ HiddenStateRef StatefulFullEncOnnxDecoder::computeInitialHiddenState() {
         std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
 
         if (encoderStatesValue_.empty()) {  // Create encoder onnx value only if it needs to be recomputed
-            u32 T = encoderOutputBuffer_.size();
-            u32 F = encoderOutputBuffer_.front()->size();
+            u32 T = inputBuffer_.size();
+            u32 F = inputBuffer_.front()->size();
 
             std::vector<Math::FastMatrix<f32>> encoderStatesMats = {{F, T}};
 
             for (size_t t = 0ul; t < T; ++t) {
-                std::copy(encoderOutputBuffer_[t]->begin(), encoderOutputBuffer_[t]->end(), &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
+                std::copy(inputBuffer_[t]->begin(), inputBuffer_[t]->end(), &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
             }
             encoderStatesValue_ = Onnx::Value::create(encoderStatesMats, true);
 
@@ -280,18 +260,20 @@ HiddenStateRef StatefulFullEncOnnxDecoder::computeInitialHiddenState() {
             encoderStatesSizeValue_ = Onnx::Value::create(encoderStatesSize);
         }
 
-        sessionInputs.emplace_back(initEncoderStatesName_, encoderStatesValue_);
-        if (initEncoderSizeName_ != "") {
-            sessionInputs.emplace_back(initEncoderSizeName_, encoderStatesSizeValue_);
+        if (initializerEncoderStatesName_ != "") {
+            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+        }
+        if (initializerEncoderStatesSizeName_ != "") {
+            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
         }
 
-        std::vector<std::string> sessionOutputNames = stateInitializerSession_.getAllOutputNames();
+        std::vector<std::string> sessionOutputNames = stateInitializerOnnxModel_.session.getAllOutputNames();
 
         /*
          * Run session
          */
         std::vector<Onnx::Value> sessionOutputs;
-        stateInitializerSession_.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+        stateInitializerOnnxModel_.session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
 
         /*
          * Return resulting hidden state
@@ -303,27 +285,28 @@ HiddenStateRef StatefulFullEncOnnxDecoder::computeInitialHiddenState() {
     return initialHiddenState_;
 }
 
-HiddenStateRef StatefulFullEncOnnxDecoder::updatedHiddenState(HiddenStateRef hiddenState, LabelIndex nextToken) {
+HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef hiddenState, LabelIndex nextToken) {
     /*
      * Create session inputs
      */
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
 
     sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
-    if (updaterEncoderSizeName_ != "") {
-        sessionInputs.emplace_back(updaterEncoderSizeName_, encoderStatesSizeValue_);
+    if (updaterEncoderStatesSizeName_ != "") {
+        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
     }
 
     sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(std::vector<s32>{static_cast<s32>(nextToken)}));
 
-    for (auto& name : stateUpdaterSession_.getAllInputNames()) {
-        if (name == updaterEncoderStatesName_ or name == updaterEncoderSizeName_ or name == updaterTokenName_) {
+    for (auto& name : stateUpdaterOnnxModel_.session.getAllInputNames()) {
+        if (name == updaterEncoderStatesName_ or name == updaterEncoderStatesSizeName_ or name == updaterTokenName_) {
             continue;
         }
 
         // Name duplication between input and output leads to suffix ".1",
         // e.g. input "lstm_state.1" corresponds to output "lstm_state"
         // So if the input name ends in ".1", remove the suffix for lookup of the value
+        // TODO: Port AppTek Onnx Session Metadata and use state mapping mechanism
         std::string stateName;
         if (name.compare(name.size() - 2, 2, ".1") == 0) {
             stateName = name.substr(0, name.size() - 2);
@@ -342,9 +325,9 @@ HiddenStateRef StatefulFullEncOnnxDecoder::updatedHiddenState(HiddenStateRef hid
     /*
      * Run session
      */
-    std::vector<std::string> sessionOutputNames = stateUpdaterSession_.getAllOutputNames();
+    std::vector<std::string> sessionOutputNames = stateUpdaterOnnxModel_.session.getAllOutputNames();
     std::vector<Onnx::Value> sessionOutputs;
-    stateUpdaterSession_.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
+    stateUpdaterOnnxModel_.session.run(std::move(sessionInputs), sessionOutputNames, sessionOutputs);
 
     /*
      * Return resulting hidden state
@@ -355,7 +338,7 @@ HiddenStateRef StatefulFullEncOnnxDecoder::updatedHiddenState(HiddenStateRef hid
     return newHiddenState;
 }
 
-void StatefulFullEncOnnxDecoder::forwardBatch(const std::vector<HiddenStateLabelHistoryRef> historyBatch) {
+void StatefulOnnxLabelScorer::forwardBatch(const std::vector<HiddenStateScoringContextRef> historyBatch) {
     if (historyBatch.empty()) {
         return;
     }
@@ -365,7 +348,7 @@ void StatefulFullEncOnnxDecoder::forwardBatch(const std::vector<HiddenStateLabel
      */
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
 
-    for (auto& name : decoderSession_.getAllInputNames()) {
+    for (auto& name : scorerOnnxModel_.session.getAllInputNames()) {
         // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
         // them to a batched state tensor of shape [B, *]
         std::vector<const Onnx::Value*> stateValues;
@@ -386,7 +369,7 @@ void StatefulFullEncOnnxDecoder::forwardBatch(const std::vector<HiddenStateLabel
      */
 
     std::vector<Onnx::Value> sessionOutputs;
-    decoderSession_.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
+    scorerOnnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
 
     /*
      * Put resulting scores into cache map

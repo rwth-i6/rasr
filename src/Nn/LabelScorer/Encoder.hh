@@ -64,7 +64,7 @@ protected:
     const size_t chunkStep_;
     size_t       numNewFeatures_;
 
-    bool segmentEnd_;
+    bool featuresMissing_;
 
 private:
     // Check if encoder is ready to run

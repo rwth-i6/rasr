@@ -13,27 +13,34 @@
  *  limitations under the License.
  */
 
-#ifndef STATEFUL_FULL_ENC_ONNX_DECODER_HH
-#define STATEFUL_FULL_ENC_ONNX_DECODER_HH
+#ifndef STATEFUL_ONNX_LABEL_SCORER_HH
+#define STATEFUL_ONNX_LABEL_SCORER_HH
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
 #include <Core/FIFOCache.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Mm/FeatureScorer.hh>
+#include <Onnx/Model.hh>
 #include <Speech/Feature.hh>
 #include <optional>
-#include "Decoder.hh"
-#include "LabelHistory.hh"
 #include "LabelScorer.hh"
+#include "ScoringContext.hh"
 
 #include <Onnx/IOSpecification.hh>
 #include <Onnx/Session.hh>
 
 namespace Nn {
 
-class StatefulFullEncOnnxDecoder : public Decoder {
-    using Precursor = Decoder;
+/*
+ * Label Scorer that performs scoring by forwarding a collection of hidden state tensors
+ * through an ONNX model. The hidden state is initialized and updated with separate ONNX
+ * sessions. For state initialization, the session receives all input encoder states
+ * and for state update the session gets the previous states, all input features and the
+ * next token index
+ */
+class StatefulOnnxLabelScorer : public BufferedLabelScorer {
+    using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
@@ -41,27 +48,27 @@ class StatefulFullEncOnnxDecoder : public Decoder {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulFullEncOnnxDecoder(const Core::Configuration& config);
-    virtual ~StatefulFullEncOnnxDecoder() = default;
+    StatefulOnnxLabelScorer(const Core::Configuration& config);
+    virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;
 
     // Hardcoded to use all-zero tensors as first hidden state
     // If startLabelIndex is set, forward that through the state updater to obtain the start history
-    Core::Ref<const LabelHistory> getStartHistory() override;
+    Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
     // Forward hidden-state through state-updater ONNX model
-    Core::Ref<const LabelHistory> extendedHistory(LabelScorer::Request request) override;
+    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request request) override;
 
     // Add a single encoder outputs to buffer
-    void addEncoderOutput(FeatureVectorRef encoderOutput) override;
+    void addInput(FeatureVectorRef encoderOutput) override;
 
-    std::optional<std::pair<Score, Speech::TimeframeIndex>>                                     getScoreWithTime(const LabelScorer::Request request) override;
-    std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
+    std::optional<LabelScorer::ScoreWithTime>   getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    void forwardBatch(const std::vector<HiddenStateLabelHistoryRef> historyBatch);
+    void forwardBatch(const std::vector<HiddenStateScoringContextRef> historyBatch);
 
     HiddenStateRef updatedHiddenState(HiddenStateRef hiddenState, LabelIndex nextToken);
 
@@ -75,40 +82,26 @@ private:
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
 
-    size_t hiddenStateVecSize_;
-    size_t hiddenStateMatSize_;
-
-    Onnx::Session                                   decoderSession_;
-    static const std::vector<Onnx::IOSpecification> decoderIoSpec_;  // fixed to "encoder-states", "hidden-state", "scores"
-    Onnx::IOValidator                               decoderValidator_;
-    const Onnx::IOMapping                           decoderMapping_;
-
-    Onnx::Session                                   stateInitializerSession_;
-    static const std::vector<Onnx::IOSpecification> stateInitializerIoSpec_;  // fixed to "hidden-state-in", "token", "hidden-state-out"
-    Onnx::IOValidator                               stateInitializerValidator_;
-    const Onnx::IOMapping                           stateInitializerMapping_;
-
-    Onnx::Session                                   stateUpdaterSession_;
-    static const std::vector<Onnx::IOSpecification> stateUpdaterIoSpec_;  // fixed to "hidden-state-in", "token", "hidden-state-out"
-    Onnx::IOValidator                               stateUpdaterValidator_;
-    const Onnx::IOMapping                           stateUpdaterMapping_;
+    Onnx::Model scorerOnnxModel_;
+    Onnx::Model stateInitializerOnnxModel_;
+    Onnx::Model stateUpdaterOnnxModel_;
 
     std::string scoresName_;
 
-    std::string initEncoderStatesName_;
-    std::string initEncoderSizeName_;
+    std::string initializerEncoderStatesName_;
+    std::string initializerEncoderStatesSizeName_;
 
     std::string updaterEncoderStatesName_;
-    std::string updaterEncoderSizeName_;
+    std::string updaterEncoderStatesSizeName_;
     std::string updaterTokenName_;
 
     // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    Core::FIFOCache<HiddenStateLabelHistoryRef, std::vector<Score>, HiddenStateLabelHistoryHash, HiddenStateLabelHistoryEq> scoreCache_;
+    Core::FIFOCache<HiddenStateScoringContextRef, std::vector<Score>, HiddenStateScoringContextHash, HiddenStateScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn
 
-#endif  // STATEFUL_FULL_ENC_ONNX_DECODER_HH
+#endif  // STATEFUL_ONNX_LABEL_SCORER_HH

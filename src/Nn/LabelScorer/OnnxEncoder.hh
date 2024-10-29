@@ -19,8 +19,7 @@
 
 #include "Encoder.hh"
 
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Session.hh>
+#include <Onnx/Model.hh>
 
 namespace Nn {
 
@@ -46,10 +45,7 @@ private:
     size_t calcInputsPerOutput(size_t T_in, size_t T_out) const;
     size_t calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput) const;
 
-    Onnx::Session                                   session_;
-    static const std::vector<Onnx::IOSpecification> ioSpec_;  // fixed to "features", "feature-size" and "output"
-    Onnx::IOValidator                               validator_;
-    const Onnx::IOMapping                           mapping_;
+    Onnx::Model onnxModel_;
 
     std::string featuresName_;
     std::string featuresSizeName_;

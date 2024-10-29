@@ -17,54 +17,58 @@
 #define ENCODER_DECODER_LABEL_SCORER_HH
 
 #include <Core/Component.hh>
-#include "Decoder.hh"
 #include "Encoder.hh"
 #include "LabelScorer.hh"
 
 namespace Nn {
 
-// Glue class that couples encoder and decoder
-// Purpose is  automatic information flow between encoder and decoder
+/*
+ * Glue class to represent encoder-decoder model architectures. It consists of an
+ * encoder component that does history-independent feature encoding once in the beginning
+ * and a decoder component which is another internal LabelScorer that receives the encoder
+ * states as its inputs.
+ * This glue class automatically handles the information flow between its encoder and
+ * decoder components.
+ */
 class EncoderDecoderLabelScorer : public LabelScorer {
 public:
-    EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<Decoder> decoder);
+    EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<LabelScorer> decoder);
     virtual ~EncoderDecoderLabelScorer() = default;
 
-    // Clear buffers and reset segment end flag in both encoder and decoder
+    // Resets both encoder and decoder component
     void reset() override;
 
-    // Signal that no more features are expected for the current segment.
-    // When segment end is signaled, encoder can run regardless of whether the buffer has been filled.
-    // Thus, all encoder states are computed and forwarded to the decoder.
-    // Relevant for e.g. Attention models that require all encoder states of a segment before decoding can begin
+    // Signal end of feature stream to encoder, then encode features, pass them to the decoder and
+    // finally signal end of feature stream to decoder.
     void signalNoMoreFeatures() override;
 
-    // Get start history from decoder
-    LabelHistoryRef getStartHistory() override;
+    // Get start context from decoder component
+    ScoringContextRef getInitialScoringContext() override;
 
-    // Get extended history from decoder
-    LabelHistoryRef extendedHistory(Request request) override;
+    // Get extended context from decoder component
+    ScoringContextRef extendedScoringContext(Request request) override;
 
-    // Function that returns the mapping of each timeframe index (returned in the getScores functions)
-    // to actual flow timestamps with start-/ and end-time in seconds.
+    // Get timestamps from decoder component
     const std::vector<Flow::Timestamp>& getTimestamps() const override;
 
-    // Add a single input feature to the encoder
+    // Add an input feature to the encoder component and if possible forward the encoder and add
+    // the encoder states as inputs to the decoder component
     void addInput(FeatureVectorRef input) override;
     void addInput(Core::Ref<const Speech::Feature> input) override;
 
-    // Runs requests through decoder given available encoder states
-    std::optional<std::pair<Score, Speech::TimeframeIndex>> getScoreWithTime(const LabelScorer::Request request) override;
+    // Run request through decoder component
+    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
 
-    // Batched version of `getScoreWithTime`
-    std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> getScoresWithTime(const std::vector<LabelScorer::Request>& requests) override;
+    // Run requests through decoder component
+    std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
 
 protected:
-    Core::Ref<Encoder> encoder_;
-    Core::Ref<Decoder> decoder_;
+    Core::Ref<Encoder>     encoder_;
+    Core::Ref<LabelScorer> decoder_;
 
 private:
-    // Run encoder as long as it can return outputs and add all results to the decoder buffer
+    // Fetch as many outputs as possible from the encoder given its available features and pass
+    // these outputs over to the decoder
     void encode();
 };
 

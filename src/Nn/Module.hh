@@ -20,7 +20,6 @@
 
 #include <Core/Parameter.hh>
 #include <Flow/Module.hh>
-#include "LabelScorer/Decoder.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/LabelScorer.hh"
 
@@ -62,18 +61,13 @@ public:
         OnnxEncoderType
     };
 
-    enum DecoderType {
-        NoOpDecoderType,
-        LegacyFeatureScorerDecoderType,
-        LimitCtxTimesyncOnnxDecoderType,
-        StatefulFullEncOnnxDecoderType
-    };
-
     enum LabelScorerType {
         NoOpLabelScorerType,
+        LegacyFeatureScorerLabelScorerType,
+        LimitedCtxOnnxLabelScorerType,
         EncoderDecoderLabelScorerType,
         EncoderOnlyLabelScorerType,
-        DecoderOnlyLabelScorerType
+        StatefulOnnxLabelScorerType
     };
 
     /** Set of file format class.
@@ -81,7 +75,6 @@ public:
     Core::FormatSet& formats();
 
     Core::Ref<Encoder>     createEncoder(const Core::Configuration& config) const;
-    Core::Ref<Decoder>     createDecoder(const Core::Configuration& config) const;
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 };
 

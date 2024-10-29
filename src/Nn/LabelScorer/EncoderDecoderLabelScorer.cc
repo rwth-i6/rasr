@@ -17,9 +17,9 @@
 
 namespace Nn {
 
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<Decoder> decoder)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<LabelScorer> decoder)
         : Core::Component(config),
-          Nn::LabelScorer(config),
+          LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
 }
@@ -29,12 +29,12 @@ void EncoderDecoderLabelScorer ::reset() {
     decoder_->reset();
 }
 
-LabelHistoryRef EncoderDecoderLabelScorer::getStartHistory() {
-    return decoder_->getStartHistory();
+ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
+    return decoder_->getInitialScoringContext();
 }
 
-LabelHistoryRef EncoderDecoderLabelScorer::extendedHistory(Request request) {
-    return decoder_->extendedHistory(request);
+ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request request) {
+    return decoder_->extendedScoringContext(request);
 }
 
 const std::vector<Flow::Timestamp>& EncoderDecoderLabelScorer::getTimestamps() const {
@@ -56,21 +56,21 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     // Call `encode()` before signaling segment end to the decoder since the decoder
     // is supposed to receive all available encoder outputs before this signal
     encode();
-    decoder_->signalNoMoreEncoderOutputs();
+    decoder_->signalNoMoreFeatures();
 }
 
-std::optional<std::pair<Score, Speech::TimeframeIndex>> EncoderDecoderLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
+std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
     return decoder_->getScoreWithTime(request);
 }
 
-std::optional<std::pair<std::vector<Score>, Core::CollapsedVector<Speech::TimeframeIndex>>> EncoderDecoderLabelScorer::getScoresWithTime(const std::vector<LabelScorer::Request>& requests) {
-    return decoder_->getScoresWithTime(requests);
+std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
+    return decoder_->getScoresWithTimes(requests);
 }
 
 void EncoderDecoderLabelScorer::encode() {
     std::optional<FeatureVectorRef> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addEncoderOutput(*encoderOutput);
+        decoder_->addInput(*encoderOutput);
     }
 }
 

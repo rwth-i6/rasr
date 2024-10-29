@@ -27,20 +27,7 @@ const Core::ParameterChoice OnnxEncoder::paramSubsamplingType(
         "Way that the output time axis is affected if input time is not cleanly divisible by the subsampling factor of the model.",
         FloorDivision);
 
-OnnxEncoder::OnnxEncoder(Core::Configuration config)
-        : Core::Component(config),
-          Precursor(config),
-          session_(select("session")),
-          validator_(select("validator")),
-          mapping_(select("io-map"), ioSpec_),
-          featuresName_(mapping_.getOnnxName("features")),
-          featuresSizeName_(mapping_.getOnnxName("features-size")),
-          outputName_(mapping_.getOnnxName("outputs")),
-          subsamplingType_(static_cast<SubsamplingType>(paramSubsamplingType(config))) {
-    validator_.validate(ioSpec_, mapping_, session_);
-}
-
-const std::vector<Onnx::IOSpecification> OnnxEncoder::ioSpec_ = {
+const std::vector<Onnx::IOSpecification> encoderIoSpec = {
         Onnx::IOSpecification{
                 "features",
                 Onnx::IODirection::INPUT,
@@ -62,6 +49,16 @@ const std::vector<Onnx::IOSpecification> OnnxEncoder::ioSpec_ = {
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -1, -2}, {1, -1, -2}}}};
+
+OnnxEncoder::OnnxEncoder(Core::Configuration config)
+        : Core::Component(config),
+          Precursor(config),
+          onnxModel_(select("onnx-model"), encoderIoSpec),
+          featuresName_(onnxModel_.mapping.getOnnxName("features")),
+          featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
+          outputName_(onnxModel_.mapping.getOnnxName("outputs")),
+          subsamplingType_(static_cast<SubsamplingType>(paramSubsamplingType(config))) {
+}
 
 size_t OnnxEncoder::calcInputsPerOutput(size_t T_in, size_t T_out) const {
     switch (subsamplingType_) {
@@ -138,7 +135,7 @@ void OnnxEncoder::encode() {
 
     // Run Onnx session with given inputs
     std::vector<Onnx::Value> sessionOutputs;
-    session_.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
+    onnxModel_.session.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
 
     auto t_end     = std::chrono::steady_clock::now();
     auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds

@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "LabelHistory.hh"
+#include "ScoringContext.hh"
 #include <Core/MurmurHash.hh>
 
 namespace Nn {
@@ -32,40 +32,40 @@ static size_t combineHashes(size_t hash1, size_t hash2) {
 
 /*
  * =============================
- * === LabelHistory ============
+ * === ScoringContext ============
  * =============================
  */
-size_t LabelHistoryHash::operator()(LabelHistoryRef history) const {
+size_t ScoringContextHash::operator()(ScoringContextRef history) const {
     return 0ul;
 }
 
-bool LabelHistoryEq::operator()(LabelHistoryRef lhs, LabelHistoryRef rhs) const {
+bool ScoringContextEq::operator()(ScoringContextRef lhs, ScoringContextRef rhs) const {
     return true;
 }
 
 /*
  * =============================
- * === StepLabelHistory ========
+ * === StepScoringContext ========
  * =============================
  */
-size_t StepLabelHistoryHash::operator()(StepLabelHistoryRef history) const {
+size_t StepScoringContextHash::operator()(StepScoringContextRef history) const {
     return history->currentStep;
 }
 
-bool StepLabelHistoryEq::operator()(StepLabelHistoryRef lhs, StepLabelHistoryRef rhs) const {
+bool StepScoringContextEq::operator()(StepScoringContextRef lhs, StepScoringContextRef rhs) const {
     return lhs->currentStep == rhs->currentStep;
 }
 
 /*
  * =============================
- * === SeqLabelHistory =========
+ * === LabelSeqScoringContext ==
  * =============================
  */
-size_t SeqLabelHistoryHash::operator()(SeqLabelHistoryRef history) const {
+size_t LabelSeqScoringContextHash::operator()(LabelSeqScoringContextRef history) const {
     return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool SeqLabelHistoryEq::operator()(SeqLabelHistoryRef lhs, SeqLabelHistoryRef rhs) const {
+bool LabelSeqScoringContextEq::operator()(LabelSeqScoringContextRef lhs, LabelSeqScoringContextRef rhs) const {
     if (lhs == rhs) {
         return true;
     }
@@ -85,14 +85,14 @@ bool SeqLabelHistoryEq::operator()(SeqLabelHistoryRef lhs, SeqLabelHistoryRef rh
 
 /*
  * =============================
- * === SeqLabelHistory ========
+ * === SeqStepScoringContext ===
  * =============================
  */
-size_t SeqStepLabelHistoryHash::operator()(SeqStepLabelHistoryRef history) const {
+size_t SeqStepScoringContextHash::operator()(SeqStepScoringContextRef history) const {
     return combineHashes(history->currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
-bool SeqStepLabelHistoryEq::operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelHistoryRef rhs) const {
+bool SeqStepScoringContextEq::operator()(SeqStepScoringContextRef lhs, SeqStepScoringContextRef rhs) const {
     if (lhs == rhs) {
         return true;
     }
@@ -114,16 +114,17 @@ bool SeqStepLabelHistoryEq::operator()(SeqStepLabelHistoryRef lhs, SeqStepLabelH
     return true;
 }
 
+#ifdef MODULE_ONNX
 /*
  * =============================
- * === HiddenStateLabelHistory =
+ * = HiddenStateScoringContext =
  * =============================
  */
-size_t HiddenStateLabelHistoryHash::operator()(HiddenStateLabelHistoryRef history) const {
+size_t HiddenStateScoringContextHash::operator()(HiddenStateScoringContextRef history) const {
     return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool HiddenStateLabelHistoryEq::operator()(HiddenStateLabelHistoryRef lhs, HiddenStateLabelHistoryRef rhs) const {
+bool HiddenStateScoringContextEq::operator()(HiddenStateScoringContextRef lhs, HiddenStateScoringContextRef rhs) const {
     if (lhs == rhs) {
         return true;
     }
@@ -140,5 +141,6 @@ bool HiddenStateLabelHistoryEq::operator()(HiddenStateLabelHistoryRef lhs, Hidde
 
     return true;
 }
+#endif  // MODULE_ONNX
 
 }  // namespace Nn

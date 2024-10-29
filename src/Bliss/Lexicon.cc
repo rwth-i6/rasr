@@ -142,9 +142,15 @@ void Lexicon::load(const std::string& filename) {
         dependency_.setValue(md5);
     else
         warning("could not derive md5 sum from file '%s'", filename.c_str());
-    LexiconParser parser(config, this);
+    std::unique_ptr<LexiconParser> parser;
+    // text-based lexicon
+    if (filename.compare(filename.length()-4, 4, ".txt") == 0)
+        parser = std::make_unique<TextLexiconParser>(this);
+    // xml-based lexicon
+    else
+        parser = std::make_unique<XmlLexiconParser>(config, this);
     log("reading lexicon from file") << " \"" << filename << "\" ...";
-    if (parser.parseFile(filename.c_str()) != 0)
+    if (parser->parseFile(filename) != 0)
         error("Error while reading lexicon file.");
     log("dependency value: ") << dependency_.value();
 }

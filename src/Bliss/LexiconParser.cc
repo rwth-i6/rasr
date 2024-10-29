@@ -442,17 +442,16 @@ void TextLexiconParser::createPhoneme(const std::string line) {
     suppressTrailingBlank(symbol);
 
     // check if phoneme was already added (if one label appears more than once)
-    const Phoneme* test = phonemeInventory_->phoneme(symbol);
-    if (test != 0) {
+    if (phonemeInventory_->phoneme(symbol)) {
         return;
     }
 
     // create a new phoneme
-    Phoneme* currentPhoneme_ = phonemeInventory_->newPhoneme();
+    Phoneme* newPhoneme_ = phonemeInventory_->newPhoneme();
     // set symbol
-    phonemeInventory_->assignSymbol(currentPhoneme_, symbol);
+    phonemeInventory_->assignSymbol(newPhoneme_, symbol);
     // set variation to none
-    currentPhoneme_->setContextDependent(false);
+    newPhoneme_->setContextDependent(false);
 }
 
 // helper function to handle one label and create a corresponding lemma
@@ -462,17 +461,16 @@ void TextLexiconParser::createLemma(const std::string line) {
     suppressTrailingBlank(symbol);
 
     // check if lemma was already added (if one label appears more than once)
-    const Lemma* test = lexicon_->lemma(symbol);
-    if (test != 0) {
+    if (lexicon_->lemma(symbol)) {
         return;
     }
 
     // create a new lemma
-    Lemma* currentLemma_ = lexicon_->newLemma();
+    Lemma* newLemma_ = lexicon_->newLemma();
     // set orth
-    lexicon_->setOrthographicForms(currentLemma_, {symbol});
+    lexicon_->setOrthographicForms(newLemma_, {symbol});
     // set phon
     Pronunciation* pron = lexicon_->getPronunciation(symbol);
-    lexicon_->addPronunciation(currentLemma_, pron);
-    lexicon_->setDefaultLemmaName(currentLemma_);
+    lexicon_->addPronunciation(newLemma_, pron);
+    lexicon_->setDefaultLemmaName(newLemma_);
 }

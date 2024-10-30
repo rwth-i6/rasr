@@ -143,7 +143,7 @@ class TextLexiconParser : public LexiconParser {
 private:
     Lexicon* lexicon_;
     PhonemeInventory* phonemeInventory_;
-    void createPhoneme(const std::string line);
+    void createPhoneme(const std::string& line);
     void createLemmata();
 
 public:

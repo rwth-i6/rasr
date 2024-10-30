@@ -137,8 +137,8 @@ Lexicon::~Lexicon() {
 }
 
 const Core::Choice Lexicon::lexiconTypeChoice(
-        "txt", txtLexicon,
-        "text", txtLexicon,
+        "vocab-txt", vocabTxtLexicon,
+        "vocab-text", vocabTxtLexicon,
         "xml", xmlLexicon,
         Core::Choice::endMark());
 
@@ -147,14 +147,15 @@ const Core::ParameterChoice Lexicon::paramLexiconType(
 
 void Lexicon::load(const std::string& filename) {
     Core::MD5 md5;
-    if (md5.updateFromFile(filename))
+    if (md5.updateFromFile(filename)) {
         dependency_.setValue(md5);
-    else
+    } else {
         warning("could not derive md5 sum from file '%s'", filename.c_str());
+    }
     std::unique_ptr<LexiconParser> parser;
     switch (paramLexiconType(config)) {
     // text-based lexicon
-    case LexiconType::txtLexicon:
+    case LexiconType::vocabTxtLexicon:
         parser = std::make_unique<TextLexiconParser>(this);
         break;
     // xml-based lexicon

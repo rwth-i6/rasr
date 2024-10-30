@@ -553,11 +553,11 @@ public:
 
     /** Type of the lexicon/the lexicon file format */
     enum LexiconType {
-        txtLexicon,
+        vocabTxtLexicon,
         xmlLexicon,
     };
     static const Core::Choice          lexiconTypeChoice;
-    static const Core::ParameterChoice lexiconTypeParam;
+    static const Core::ParameterChoice paramLexiconType;
 
     /** Create a new lemma. */
     Lemma* newLemma();

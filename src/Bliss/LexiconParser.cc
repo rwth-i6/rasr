@@ -425,7 +425,7 @@ bool TextLexiconParser::parseFile(const std::string& filename) {
 }
 
 // helper function to handle one label and create a corresponding phoneme
-void TextLexiconParser::createPhoneme(const std::string line) {
+void TextLexiconParser::createPhoneme(const std::string& line) {
     std::string symbol(line);
     stripWhitespace(symbol);        // in case there are any unintentional whitespaces
     suppressTrailingBlank(symbol);

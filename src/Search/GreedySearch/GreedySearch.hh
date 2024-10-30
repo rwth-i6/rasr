@@ -17,6 +17,8 @@
 #define GREEDY_SEARCH_HH
 
 #include <Search/SearchV2.hh>
+#include <chrono>
+#include <ratio>
 namespace Search {
 
 // Bare-bones search algorithm without lexicon, LM, transition model, beam or pruning.
@@ -51,10 +53,33 @@ class GreedySearch : public SearchAlgorithmV2 {
         void extend(const HypothesisExtension& extension);
     };
 
+    struct TimeStatistic {
+        double total = 0.0;
+
+        void reset() {
+            total = 0.0;
+        }
+
+        void tic() {
+            startTime = std::chrono::steady_clock::now();
+        }
+
+        void toc() {
+            auto endTime = std::chrono::steady_clock::now();
+            // Duration in milliseconds
+            total += std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1, 1000>>>(endTime - startTime).count();
+        }
+
+    private:
+        std::chrono::time_point<std::chrono::steady_clock> startTime;
+    };
+
 public:
     static const Core::ParameterBool paramUseBlank;
-    static const Core::ParameterBool paramAllowLabelLoop;
     static const Core::ParameterInt  paramBlankLabelIndex;
+    static const Core::ParameterBool paramAllowLabelLoop;
+    static const Core::ParameterBool paramUseSentenceEnd;
+    static const Core::ParameterBool paramSentenceEndIndex;
 
     GreedySearch(const Core::Configuration&);
 
@@ -78,14 +103,21 @@ private:
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     bool useBlank_;
+    bool useSentenceEnd_;
     bool allowLabelLoop_;
 
     Nn::LabelIndex blankLabelIndex_;
+    Nn::LabelIndex sentenceEndIndex_;
 
     Core::Ref<Nn::LabelScorer> labelScorer_;
     Nn::LabelIndex             numClasses_;
     Bliss::LexiconRef          lexicon_;
     LabelHypothesis            hyp_;
+
+    TimeStatistic initializationTime_;
+    TimeStatistic featureProcessingTime_;
+    TimeStatistic scoringTime_;
+    TimeStatistic contextExtensionTime_;
 };
 
 }  // namespace Search

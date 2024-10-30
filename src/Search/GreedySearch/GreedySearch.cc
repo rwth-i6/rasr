@@ -21,23 +21,33 @@ namespace Search {
 const Core::ParameterBool GreedySearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
 const Core::ParameterInt  GreedySearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
 const Core::ParameterBool GreedySearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
+const Core::ParameterBool GreedySearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
+const Core::ParameterBool GreedySearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
 
 GreedySearch::GreedySearch(const Core::Configuration& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           useBlank_(paramUseBlank(config)),
+          useSentenceEnd_(paramUseSentenceEnd(config)),
           allowLabelLoop_(paramAllowLabelLoop(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
+          sentenceEndIndex_(paramSentenceEndIndex(config)),
           labelScorer_(),
           numClasses_(0ul),
-          hyp_() {
+          hyp_(),
+          initializationTime_(),
+          featureProcessingTime_(),
+          scoringTime_(),
+          contextExtensionTime_() {
 }
 
 void GreedySearch::reset() {
     verify(labelScorer_);
+    initializationTime_.tic();
     labelScorer_->reset();
     hyp_.reset();
     hyp_.scoringContext = labelScorer_->getInitialScoringContext();
+    initializationTime_.toc();
 }
 
 Speech::ModelCombination::Mode GreedySearch::modelCombinationNeeded() const {
@@ -54,28 +64,38 @@ bool GreedySearch::setModelCombination(const Speech::ModelCombination& modelComb
 
 void GreedySearch::enterSegment() {
     verify(labelScorer_);
+    initializationTime_.tic();
     labelScorer_->reset();
+    initializationTime_.toc();
 }
 
 void GreedySearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
+    initializationTime_.tic();
     labelScorer_->reset();
+    initializationTime_.toc();
 }
 
 void GreedySearch::finishSegment() {
     verify(labelScorer_);
+    featureProcessingTime_.tic();
     labelScorer_->signalNoMoreFeatures();
+    featureProcessingTime_.toc();
     decodeMore();
 }
 
 void GreedySearch::addFeature(Nn::FeatureVectorRef feature) {
     verify(labelScorer_);
+    featureProcessingTime_.tic();
     labelScorer_->addInput(feature);
+    featureProcessingTime_.toc();
 }
 
 void GreedySearch::addFeature(Core::Ref<const Speech::Feature> feature) {
     verify(labelScorer_);
+    featureProcessingTime_.tic();
     labelScorer_->addInput(feature);
+    featureProcessingTime_.toc();
 }
 
 Core::Ref<const SearchAlgorithmV2::Traceback> GreedySearch::getCurrentBestTraceback() const {
@@ -117,9 +137,19 @@ Core::Ref<const LatticeAdaptor> GreedySearch::getCurrentBestWordLattice() const 
     return Core::ref(new Lattice::WordLatticeAdaptor(result));
 }
 
-void GreedySearch::resetStatistics() {}
+void GreedySearch::resetStatistics() {
+    initializationTime_.reset();
+    featureProcessingTime_.reset();
+    scoringTime_.reset();
+    contextExtensionTime_.reset();
+}
 
-void GreedySearch::logStatistics() const {}
+void GreedySearch::logStatistics() const {
+    clog() << Core::XmlOpen("initialization-time") + Core::XmlAttribute("unit", "milliseconds") << initializationTime_.total << Core::XmlClose("initialization-time");
+    clog() << Core::XmlOpen("feature-processing-time") + Core::XmlAttribute("unit", "milliseconds") << featureProcessingTime_.total << Core::XmlClose("feature-processing-time");
+    clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.total << Core::XmlClose("scoring-time");
+    clog() << Core::XmlOpen("context-extension-time") + Core::XmlAttribute("unit", "milliseconds") << contextExtensionTime_.total << Core::XmlClose("context-extension-time");
+}
 
 Nn::LabelScorer::TransitionType GreedySearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = (prevLabel == blankLabelIndex_);
@@ -193,20 +223,25 @@ bool GreedySearch::decodeStep() {
         requests.push_back({hyp_.scoringContext, idx, transitionType});
     }
 
+    scoringTime_.tic();
     auto result = labelScorer_->getScoresWithTimes(requests);
+    scoringTime_.toc();
     if (not result.has_value()) {
         return false;
     }
     const auto& [scores, times] = result.value();
 
-    auto  bestIdx           = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
-    auto& bestRequest       = requests.at(bestIdx);
-    auto  newScoringContext = labelScorer_->extendedScoringContext({bestRequest.context, bestRequest.nextToken, bestRequest.transitionType});
+    auto  bestIdx     = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
+    auto& bestRequest = requests.at(bestIdx);
+    contextExtensionTime_.tic();
+    auto newScoringContext = labelScorer_->extendedScoringContext({bestRequest.context, bestRequest.nextToken, bestRequest.transitionType});
+    contextExtensionTime_.toc();
+
     hyp_.extend({lemmas.first[bestIdx], newScoringContext, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
 
-    // if (bestRequest.nextToken == 0) {  // Hacked-in condition to stop when encountering sequence end symbol
-    //     return false;
-    // }
+    if (useSentenceEnd_ and bestRequest.nextToken == sentenceEndIndex_) {
+        return false;
+    }
 
     return true;
 }

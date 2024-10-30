@@ -117,7 +117,7 @@ void OnnxEncoder::encode() {
         inputTimestamps.push_back({inputVectorRef->getStartTime(), inputVectorRef->getEndTime()});
     }
 
-    log("Encode input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
+    // log("Encode input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
 
     sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(batchMat, true)));  // transpose to 1 x T x F
 
@@ -131,19 +131,19 @@ void OnnxEncoder::encode() {
      * Run session
      */
 
-    auto t_start = std::chrono::steady_clock::now();
+    // auto t_start = std::chrono::steady_clock::now();
 
     // Run Onnx session with given inputs
     std::vector<Onnx::Value> sessionOutputs;
     onnxModel_.session.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
 
-    auto t_end     = std::chrono::steady_clock::now();
-    auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds
+    // auto t_end     = std::chrono::steady_clock::now();
+    // auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds
 
-    auto inputTime = inputTimestamps.back().endTime() - inputTimestamps.front().startTime();
-    log("Processed %.4f seconds of input in %.4f seconds; AM RTF: %.4f", inputTime, t_elapsed, t_elapsed / inputTime);
+    // auto inputTime = inputTimestamps.back().endTime() - inputTimestamps.front().startTime();
+    // log("Processed %.4f seconds of input in %.4f seconds; AM RTF: %.4f", inputTime, t_elapsed, t_elapsed / inputTime);
 
-    log("Computed encoder state of shape (%zu x %zu x %zu)", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), sessionOutputs.front().dimSize(2));
+    // log("Computed encoder state of shape (%zu x %zu x %zu)", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), sessionOutputs.front().dimSize(2));
 
     /*
      * Put outputs into buffer

@@ -157,10 +157,16 @@ Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& con
             result = Core::ref(new LimitedCtxOnnxLabelScorer(config));
             break;
         case LabelScorerType::EncoderDecoderLabelScorerType:
-            result = Core::ref(new EncoderDecoderLabelScorer(config, createEncoder(Core::Configuration(config, "encoder")), createLabelScorer(Core::Configuration(config, "decoder"))));
+            result = Core::ref(new EncoderDecoderLabelScorer(
+                    config,
+                    createEncoder(Core::Configuration(config, "encoder")),
+                    createLabelScorer(Core::Configuration(config, "decoder"))));
             break;
         case LabelScorerType::EncoderOnlyLabelScorerType:
-            result = Core::ref(new EncoderDecoderLabelScorer(config, createEncoder(Core::Configuration(config, "encoder")), Core::ref(new StepwiseNoOpLabelScorer(config))));
+            result = Core::ref(new EncoderDecoderLabelScorer(
+                    config,
+                    createEncoder(Core::Configuration(config, "encoder")),
+                    Core::ref(new StepwiseNoOpLabelScorer(config))));
             break;
         case LabelScorerType::StatefulOnnxLabelScorerType:
             result = Core::ref(new StatefulOnnxLabelScorer(config));

@@ -36,7 +36,7 @@ Module_::Module_() {
 }
 
 const Core::Choice Module_::searchTypeV2Choice(
-        "greedy-timesync-search", SearchTypeV2::GreedySearchType,
+        "greedy-search", SearchTypeV2::GreedySearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(

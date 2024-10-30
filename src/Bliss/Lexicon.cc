@@ -156,7 +156,7 @@ void Lexicon::load(const std::string& filename) {
     switch (paramLexiconType(config)) {
     // text-based lexicon
     case LexiconType::vocabTxtLexicon:
-        parser = std::make_unique<TextLexiconParser>(this);
+        parser = std::make_unique<VocabTextLexiconParser>(this);
         break;
     // xml-based lexicon
     case LexiconType::xmlLexicon:

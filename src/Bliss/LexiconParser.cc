@@ -396,7 +396,7 @@ bool XmlLexiconParser::parseFile(const std::string& filename) {
 }
 
 
-TextLexiconParser::TextLexiconParser(Lexicon* _lexicon)
+VocabTextLexiconParser::VocabTextLexiconParser(Lexicon* _lexicon)
         : LexiconParser() {
     lexicon_ = _lexicon;
     phonemeInventory_ = new PhonemeInventory();
@@ -405,7 +405,7 @@ TextLexiconParser::TextLexiconParser(Lexicon* _lexicon)
 // parse txt file line by line to a Bliss::Lexicon
 // in the first step, the phonemes are created and the phoneme inventory is set
 // and afterwards the lemmata can be created from these phonemes
-bool TextLexiconParser::parseFile(const std::string& filename) {
+bool VocabTextLexiconParser::parseFile(const std::string& filename) {
     // collect all labels from the file and add them as phonemes to the phoneme inventory
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -425,7 +425,7 @@ bool TextLexiconParser::parseFile(const std::string& filename) {
 }
 
 // helper function to handle one label and create a corresponding phoneme
-void TextLexiconParser::createPhoneme(const std::string& line) {
+void VocabTextLexiconParser::createPhoneme(const std::string& line) {
     std::string symbol(line);
     stripWhitespace(symbol);        // in case there are any unintentional whitespaces
     suppressTrailingBlank(symbol);
@@ -444,7 +444,7 @@ void TextLexiconParser::createPhoneme(const std::string& line) {
 }
 
 // helper function to create the lemmata
-void TextLexiconParser::createLemmata() {
+void VocabTextLexiconParser::createLemmata() {
     // iterate over the phonemes which were assigned to the inventory previously
     auto phonemes = phonemeInventory_->phonemes();
     for (auto it = phonemes.first; it != phonemes.second; ++it) {

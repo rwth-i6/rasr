@@ -135,11 +135,11 @@ public:
 };
 
 /**
- * Parser for txt lexicon files.
+ * Parser for text lexicon files containing the vocab, so only the labels
  * This is meant for unconstrained search
  * The .txt-file should contain one label per line
  */
-class TextLexiconParser : public LexiconParser {
+class VocabTextLexiconParser : public LexiconParser {
 private:
     Lexicon* lexicon_;
     PhonemeInventory* phonemeInventory_;
@@ -147,7 +147,7 @@ private:
     void createLemmata();
 
 public:
-    TextLexiconParser(Lexicon*);
+    VocabTextLexiconParser(Lexicon*);
     bool parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
         return lexicon_;

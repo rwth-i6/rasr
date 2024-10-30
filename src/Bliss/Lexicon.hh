@@ -477,7 +477,7 @@ class LemmaToEvaluationTokenTransducer;
  *
  * A lemma may be assigned a symbolic name, which the system can
  * use to identify lemmas which have a special meaning to it.
- * E.g. the silence word is is identified by the symbolic name
+ * E.g. the silence word is identified by the symbolic name
  * "silence".  Such lemmas a called "special lemmas".
  */
 
@@ -551,6 +551,14 @@ public:
         return dependency_;
     }
 
+    /** Type of the lexicon/the lexicon file format */
+    enum LexiconType {
+        vocabTxtLexicon,
+        xmlLexicon,
+    };
+    static const Core::Choice          lexiconTypeChoice;
+    static const Core::ParameterChoice paramLexiconType;
+
     /** Create a new lemma. */
     Lemma* newLemma();
 
@@ -607,7 +615,7 @@ public:
     void defineSpecialLemma(const std::string& name, Lemma* lemma);
 
     /**
-     * Load lexicon from XML file.
+     * Load lexicon from XML or txt file.
      */
     void load(const std::string& filename);
 

@@ -51,12 +51,15 @@ struct WeightedPhonemeString;
 class PronunciationElement;
 class LexiconElement;
 class LexiconParser;
+class TextLexiconParser;
+class XmlLexiconParser;
 
 class LexiconElement : public Core::XmlBuilderElement<
                                Lexicon,
                                Core::XmlRegularElement,
                                Core::CreateByContext> {
     friend class LexiconParser;
+    friend class XmlLexiconParser;
     typedef Core::XmlBuilderElement<
             Lexicon,
             Core::XmlRegularElement,
@@ -96,6 +99,16 @@ public:
     virtual void characters(const char*, int){};
 };
 
+/*
+ * Base lexicon parser class
+ */
+class LexiconParser {
+public:
+    virtual ~LexiconParser() {}
+    virtual bool parseFile(const std::string& filename) = 0;
+    virtual Lexicon* lexicon() const = 0;
+};
+
 /**
  * Parser for Bliss lexicon files.
  * This class implements parsing of the lexicon XML format
@@ -103,10 +116,8 @@ public:
  * Format Reference</a>.  It is normally not used directly but
  * through Lexicon.
  */
-
-class LexiconParser : public Core::XmlSchemaParser {
-    typedef Core::XmlSchemaParser Precursor;
-    typedef LexiconParser         Self;
+class XmlLexiconParser : public virtual LexiconParser, public Core::XmlSchemaParser {
+    typedef XmlLexiconParser         Self;
 
 private:
     Lexicon* lexicon_;
@@ -116,12 +127,33 @@ private:
     void loadWhitelist(const Core::Configuration&, Core::StringHashSet&);
 
 public:
-    LexiconParser(const Core::Configuration& c, Lexicon*);
-    Lexicon* lexicon() const {
+    XmlLexiconParser(const Core::Configuration& c, Lexicon*);
+    bool parseFile(const std::string& filename) override;
+    Lexicon* lexicon() const override {
+        return lexicon_;
+     }
+};
+
+/**
+ * Parser for text lexicon files containing the vocab, so only the labels
+ * This is meant for unconstrained search
+ * The .txt-file should contain one label per line
+ */
+class VocabTextLexiconParser : public LexiconParser {
+private:
+    Lexicon* lexicon_;
+    PhonemeInventory* phonemeInventory_;
+    void createPhoneme(const std::string& line);
+    void createLemmata();
+
+public:
+    VocabTextLexiconParser(Lexicon*);
+    bool parseFile(const std::string& filename) override;
+    Lexicon* lexicon() const override {
         return lexicon_;
     }
 };
 
-}  // namespace Bliss
+} // namespace Bliss
 
 #endif  // _BLISS_LEXICONPARSER_HH

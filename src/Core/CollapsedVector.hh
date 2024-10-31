@@ -42,7 +42,6 @@ public:
     CollapsedVector();
     CollapsedVector(size_t size, const T& value);
 
-    bool     isCollapsed() const;
     void     push_back(const T& value);
     const T& operator[](size_t idx) const;
     const T& at(size_t idx) const;

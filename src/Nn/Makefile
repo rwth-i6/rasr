@@ -88,6 +88,8 @@ ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
   endif
 endif
 
+SUBDIRS += LabelScorer
+
 # -----------------------------------------------------------------------------
 all: $(TARGETS)
 
@@ -98,6 +100,9 @@ interpol:
 
 libSprintNn.$(a): $(SUBDIRS) $(LIBSPRINTNN_O)
 	$(MAKELIB) $@ $(LIBSPRINTNN_O) $(patsubst %,%/$(OBJDIR)/*.o,$(SUBDIRS))
+
+LabelScorer:
+	$(MAKE) -C $@ libSprintLabelScorer.$(a)
 
 check$(exe): $(CHECK_O)
 	$(LD) $(LD_START_GROUP) $(CHECK_O) $(LD_END_GROUP) -o $@ $(LDFLAGS)

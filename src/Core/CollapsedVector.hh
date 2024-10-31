@@ -22,7 +22,7 @@
 namespace Core {
 
 /*
- * Vector that is automatically collapsed down to one element if all entries have the same value
+ * Vector that is automatically collapsed down to one element if all entries have the same value.
  * From the outside it behaves like a normal vector. Whether it is collapsed or not only matters internally.
  *
  * Example:

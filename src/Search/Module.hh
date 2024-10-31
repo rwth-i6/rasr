@@ -32,7 +32,8 @@ enum SearchType {
 };
 
 enum SearchTypeV2 {
-    GreedySearchType
+    UnconstrainedGreedySearchType,
+    UnconstrainedBeamSearchType,
 };
 
 class Module_ {

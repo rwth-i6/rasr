@@ -18,7 +18,8 @@
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include <Search/WordConditionedTreeSearch.hh>
-#include "GreedySearch/GreedySearch.hh"
+#include "UnconstrainedBeamSearch/UnconstrainedBeamSearch.hh"
+#include "UnconstrainedGreedySearch/UnconstrainedGreedySearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -36,11 +37,12 @@ Module_::Module_() {
 }
 
 const Core::Choice Module_::searchTypeV2Choice(
-        "greedy-search", SearchTypeV2::GreedySearchType,
+        "unconstrained-greedy-search", SearchTypeV2::UnconstrainedGreedySearchType,
+        "unconstrained-beam-search", SearchTypeV2::UnconstrainedBeamSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
-        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::GreedySearchType);
+        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::UnconstrainedGreedySearchType);
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
     SearchAlgorithm* recognizer = 0;
@@ -81,8 +83,11 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 SearchAlgorithmV2* Module_::createSearchAlgorithm(const Core::Configuration& config) const {
     SearchAlgorithmV2* recognizer = 0;
     switch (searchTypeV2Param(config)) {
-        case GreedySearchType:
-            recognizer = new Search::GreedySearch(config);
+        case UnconstrainedGreedySearchType:
+            recognizer = new Search::UnconstrainedGreedySearch(config);
+            break;
+        case UnconstrainedBeamSearchType:
+            recognizer = new Search::UnconstrainedBeamSearch(config);
             break;
         default:
             Core::Application::us()->criticalError("unknown recognizer type: %d", searchTypeV2Param(config));

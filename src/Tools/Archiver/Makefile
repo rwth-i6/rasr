@@ -11,8 +11,7 @@ TARGETS		= archiver$(exe)
 
 ARCHIVER_O	= $(OBJDIR)/Archiver.o \
                  ../../Speech/libSprintSpeech.$(a) \
-                 ../../Search/libSprintSearch.$(a) \
-                 ../../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a) \
+                 $(subst src,../..,$(LIBS_SEARCH)) \
                  ../../Lattice/libSprintLattice.$(a) \
                  ../../Lm/libSprintLm.$(a) \
                  ../../Flf/libSprintFlf.$(a) \
@@ -33,8 +32,12 @@ ARCHIVER_O	= $(OBJDIR)/Archiver.o \
 ifdef MODULE_PYTHON
 ARCHIVER_O += ../../Python/libSprintPython.$(a)
 endif
+ifdef MODULE_ONNX
+ARCHIVER_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_NN
 ARCHIVER_O += ../../Nn/libSprintNn.$(a)
+ARCHIVER_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_SEARCH_WFST
 ARCHIVER_O += ../../Search/Wfst/libSprintSearchWfst.$(a)

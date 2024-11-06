@@ -31,6 +31,9 @@ CORPUS_STATISTICS_O += $(subst src,../..,$(LIBS_SEARCH))
 ifdef MODULE_CART
 CORPUS_STATISTICS_O += ../../Cart/libSprintCart.$(a)
 endif
+ifdef MODULE_ONNX
+CORPUS_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_MATH_NR
 CORPUS_STATISTICS_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
@@ -39,6 +42,7 @@ CORPUS_STATISTICS_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 CORPUS_STATISTICS_O += ../../Nn/libSprintNn.$(a)
+CORPUS_STATISTICS_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 CORPUS_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)

@@ -39,6 +39,10 @@ LATTICE_PROCESSOR_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 LATTICE_PROCESSOR_O += ../../Nn/libSprintNn.$(a)
+LATTICE_PROCESSOR_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
+endif
+ifdef MODULE_ONNX
+LATTICE_PROCESSOR_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 LATTICE_PROCESSOR_O += ../../Tensorflow/libSprintTensorflow.$(a)

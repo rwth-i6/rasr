@@ -37,11 +37,15 @@ endif
 ifdef MODULE_MATH_NR
 FEATURE_STATISTICS_O +=	../../Math/Nr/libSprintMathNr.$(a)
 endif
+ifdef MODULE_ONNX
+FEATURE_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_PYTHON
 FEATURE_STATISTICS_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 FEATURE_STATISTICS_O += ../../Nn/libSprintNn.$(a)
+FEATURE_STATISTICS_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 FEATURE_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)

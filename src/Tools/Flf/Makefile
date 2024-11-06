@@ -45,6 +45,7 @@ FLF_TOOL_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 FLF_TOOL_O += ../../Nn/libSprintNn.$(a)
+FLF_TOOL_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_ONNX
 FLF_TOOL_O += ../../Onnx/libSprintOnnx.$(a)

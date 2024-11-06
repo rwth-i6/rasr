@@ -41,6 +41,9 @@ endif
 ifdef MODULE_SEARCH_LINEAR
 LIBSPRINTSEARCH_O += $(OBJDIR)/LinearSearch.o
 endif
+SUBDIRS += UnconstrainedBeamSearch
+SUBDIRS += UnconstrainedGreedySearch
+
 
 # -----------------------------------------------------------------------------
 
@@ -61,6 +64,12 @@ Wfst:
 
 AdvancedTreeSearch:
 	$(MAKE) -C $@ libSprintAdvancedTreeSearch.$(a)
+
+UnconstrainedBeamSearch:
+	$(MAKE) -C $@ libSprintUnconstrainedBeamSearch.$(a)
+
+UnconstrainedGreedySearch:
+	$(MAKE) -C $@ libSprintUnconstrainedGreedySearch.$(a)
 
 include $(TOPDIR)/Rules.make
 

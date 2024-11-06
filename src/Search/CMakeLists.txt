@@ -14,7 +14,6 @@ set(RasrSearch_SOURCES
         LanguageModelLookahead.cc
         Module.cc
         Search.cc
-        SearchV2.cc
         StateTree.cc
         StateTreeIo.cc
         WordConditionedTreeSearch.cc)

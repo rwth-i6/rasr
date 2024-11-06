@@ -52,6 +52,7 @@ COMMON_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 ifdef MODULE_NN
 COMMON_O += ../../Nn/libSprintNn.$(a)
+COMMON_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 COMMON_O += ../../Tensorflow/libSprintTensorflow.$(a)

@@ -66,6 +66,7 @@ CHECK_O		= $(OBJDIR)/check.o			\
 		  ../Mc/libSprintMc.$(a) \
 		  ../Bliss/libSprintBliss.$(a) \
 		  ../Nn/libSprintNn.$(a) \
+		  ../Nn/LabelScorer/libSprintLabelScorer.$(a) \
 		  ../Me/libSprintMe.$(a) \
 		  ../Mm/libSprintMm.$(a) \
 		  ../Signal/libSprintSignal.$(a) \

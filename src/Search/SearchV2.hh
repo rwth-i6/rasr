@@ -82,7 +82,8 @@ public:
     };
 
 public:
-    SearchAlgorithmV2(const Core::Configuration&);
+    SearchAlgorithmV2(const Core::Configuration&)
+            : Core::Component(config) {}
     virtual ~SearchAlgorithmV2() = default;
 
     // ModelCombination to set important Modules in recognition
@@ -125,7 +126,13 @@ public:
     virtual bool decodeStep() = 0;
 
     // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
-    virtual bool decodeMore();
+    virtual bool decodeMore() {
+        bool success = false;
+        while ((success = decodeStep()))
+            ;
+
+        return success;
+    }
 };
 
 }  // namespace Search

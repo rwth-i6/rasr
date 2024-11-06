@@ -135,6 +135,7 @@ CHECK_O		  += ../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_NN_SEQUENCE_TRAINING
 CHECK_O += ../Nn/libSprintNn.$(a)
+CHECK_O += ../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_SEARCH_WFST
 CHECK_O            += ../Search/Wfst/libSprintSearchWfst.$(a)

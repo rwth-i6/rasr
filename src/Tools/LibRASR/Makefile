@@ -49,6 +49,7 @@ LDFLAGS += $(shell python3-config --ldflags) -Wl,-u,PyInit_librasr
 endif
 ifdef MODULE_NN
 RASR_LIB_O += ../../Nn/libSprintNn.$(a)
+RASR_LIB_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_ONNX
 RASR_LIB_O += ../../Onnx/libSprintOnnx.$(a)

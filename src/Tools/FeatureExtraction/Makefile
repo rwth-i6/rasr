@@ -37,6 +37,9 @@ endif
 ifdef MODULE_FLF_CORE
 FEATURE_EXTRACTION_O += ../../Flf/FlfCore/libSprintFlfCore.$(a)
 endif
+ifdef MODULE_ONNX
+FEATURE_EXTRACTION_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_MATH_NR
 FEATURE_EXTRACTION_O +=	../../Math/Nr/libSprintMathNr.$(a)
 endif
@@ -45,6 +48,7 @@ FEATURE_EXTRACTION_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 FEATURE_EXTRACTION_O +=	../../Nn/libSprintNn.$(a)
+FEATURE_EXTRACTION_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 FEATURE_EXTRACTION_O += ../../Tensorflow/libSprintTensorflow.$(a)

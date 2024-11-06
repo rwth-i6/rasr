@@ -59,6 +59,7 @@ LIBSPRINTFLF_O 	= \
 		$(OBJDIR)/Prune.o \
 		$(OBJDIR)/PushForwardRescoring.o \
 		$(OBJDIR)/Recognizer.o \
+		$(OBJDIR)/RecognizerV2.o \
 		$(OBJDIR)/IncrementalRecognizer.o \
 		$(OBJDIR)/Rescore.o \
 		$(OBJDIR)/RescoreLm.o \

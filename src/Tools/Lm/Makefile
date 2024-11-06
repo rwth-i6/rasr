@@ -17,11 +17,13 @@ LM_UTIL_TOOL_O = $(OBJDIR)/LmUtilityTool.o \
 		 ../../Mc/libSprintMc.$(a) \
 		 ../../Bliss/libSprintBliss.$(a) \
 		 ../../Nn/libSprintNn.$(a) \
+		 ../../Nn/LabelScorer/libSprintLabelScorer.$(a) \
 		 ../../Mm/libSprintMm.$(a) \
 		 ../../Signal/libSprintSignal.$(a) \
 		 ../../Flow/libSprintFlow.$(a) \
 		 ../../Math/libSprintMath.$(a) \
 		 ../../Math/Lapack/libSprintMathLapack.$(a) \
+		 ../../Search/libSprintSearch.$(a) \
 		 $(subst src,../..,$(LIBS_SEARCH)) \
 		 ../../Lattice/libSprintLattice.$(a) \
 		 ../../Fsa/libSprintFsa.$(a) \
@@ -43,6 +45,9 @@ LM_UTIL_TOOL_O   += ../../Sparse/libSprintSparse.$(a)
 endif
 ifdef MODULE_PYTHON
 LM_UTIL_TOOL_O   += ../../Python/libSprintPython.$(a)
+endif
+ifdef MODULE_ONNX
+LM_UTIL_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 LM_UTIL_TOOL_O += ../../Tensorflow/libSprintTensorflow.$(a)

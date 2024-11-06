@@ -57,6 +57,7 @@ ACOUSTIC_MODEL_TRAINER_O += ../../Python/libSprintPython.$(a)
 endif
 ifdef MODULE_NN
 ACOUSTIC_MODEL_TRAINER_O += ../../Nn/libSprintNn.$(a)
+ACOUSTIC_MODEL_TRAINER_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 ACOUSTIC_MODEL_TRAINER_O += ../../Tensorflow/libSprintTensorflow.$(a)

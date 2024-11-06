@@ -20,6 +20,7 @@
 #include <Math/FastMatrix.hh>
 #include <Mm/Module.hh>
 #include <Speech/Types.hh>
+#include <algorithm>
 #include <cstddef>
 #include <utility>
 #include "LabelScorer.hh"
@@ -107,7 +108,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& conf
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
-          scorerOnnxModel_(select("scoring-model"), scorerModelIoSpec),
+          scorerOnnxModel_(select("scorer-model"), scorerModelIoSpec),
           stateInitializerOnnxModel_(select("state-initializer-model"), stateInitializerModelIoSpec),
           stateUpdaterOnnxModel_(select("state-updater-model"), stateUpdaterModelIoSpec),
           scoresName_(scorerOnnxModel_.mapping.getOnnxName("scores")),
@@ -119,6 +120,69 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& conf
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)) {
+    std::stringstream ss;
+    auto              stateNames = stateInitializerOnnxModel_.session.getAllOutputNames();
+
+    ss << "Found state names: ";
+    for (const auto& stateName : stateNames) {
+        ss << "\"" << stateName << "\", ";
+    }
+    ss << "\n";
+
+    // Map matching input/output state names of onnx sessions
+    for (const auto& inputName : stateUpdaterOnnxModel_.session.getAllInputNames()) {
+        if (inputName == updaterEncoderStatesName_ or inputName == updaterEncoderStatesSizeName_ or inputName == updaterTokenName_) {
+            continue;
+        }
+
+        bool matchFound = false;
+        for (const auto& stateName : stateNames) {
+            if (inputName.find(stateName) != std::string::npos or stateName.find(inputName) != std::string::npos) {
+                updaterInputToStateNameMap_[inputName] = stateName;
+                ss << "  Input \"" << inputName << "\" of state updater model matches state \"" << stateName << "\"\n";
+                matchFound = true;
+                continue;
+            }
+        }
+        if (not matchFound) {
+            log() << ss.str();
+            error() << "Input \"" << inputName << "\" of state updater model couldn't be matched to any of the state names";
+        }
+    }
+
+    for (const auto& outputName : stateUpdaterOnnxModel_.session.getAllOutputNames()) {
+        bool matchFound = false;
+        for (const auto& stateName : stateNames) {
+            if (outputName.find(stateName) != std::string::npos or stateName.find(outputName) != std::string::npos) {
+                updaterOutputToStateNameMap_[outputName] = stateName;
+                ss << "  Output \"" << outputName << "\" of state updater model matches state \"" << stateName << "\"\n";
+                matchFound = true;
+                continue;
+            }
+        }
+        if (not matchFound) {
+            log() << ss.str();
+            error() << "Output \"" << outputName << "\" of state updater model couldn't be matched to any of the state names";
+        }
+    }
+
+    for (const auto& inputName : scorerOnnxModel_.session.getAllInputNames()) {
+        bool matchFound = false;
+        for (const auto& stateName : stateNames) {
+            if (inputName.find(stateName) != std::string::npos or stateName.find(inputName) != std::string::npos) {
+                scorerInputToStateNameMap_[inputName] = stateName;
+                ss << "  Input \"" << inputName << "\" of scorer model matches state \"" << stateName << "\"\n";
+                matchFound = true;
+                continue;
+            }
+        }
+        if (not matchFound) {
+            log() << ss.str();
+            error() << "Input \"" << inputName << "\" of scorer model couldn't be matched to any of the state names";
+        }
+    }
+
+    log() << ss.str();
 }
 
 void StatefulOnnxLabelScorer::reset() {
@@ -298,28 +362,11 @@ HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef hidden
 
     sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(std::vector<s32>{static_cast<s32>(nextToken)}));
 
-    for (auto& name : stateUpdaterOnnxModel_.session.getAllInputNames()) {
-        if (name == updaterEncoderStatesName_ or name == updaterEncoderStatesSizeName_ or name == updaterTokenName_) {
+    for (const auto& inputName : stateUpdaterOnnxModel_.session.getAllInputNames()) {
+        if (inputName == updaterEncoderStatesName_ or inputName == updaterEncoderStatesSizeName_ or inputName == updaterTokenName_) {
             continue;
         }
-
-        // Name duplication between input and output leads to suffix ".1",
-        // e.g. input "lstm_state.1" corresponds to output "lstm_state"
-        // So if the input name ends in ".1", remove the suffix for lookup of the value
-        // TODO: Port AppTek Onnx Session Metadata and use state mapping mechanism
-        std::string stateName;
-        if (name.compare(name.size() - 2, 2, ".1") == 0) {
-            stateName = name.substr(0, name.size() - 2);
-        }
-        else {
-            stateName = name;
-        }
-        auto findResult = hiddenState->stateValueMap.find(stateName);
-        if (findResult == hiddenState->stateValueMap.end()) {
-            error() << "State updater expects input " << name << " which corresponds to state name " << stateName << " but that is missing from the saved hidden state";
-        }
-        auto& state = findResult->second;
-        sessionInputs.emplace_back(name, state);
+        sessionInputs.emplace_back(inputName, hiddenState->stateValueMap[updaterInputToStateNameMap_[inputName]]);
     }
 
     /*
@@ -333,6 +380,8 @@ HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef hidden
      * Return resulting hidden state
      */
 
+    // Replace session output names with corresponding state names
+    std::transform(sessionOutputNames.begin(), sessionOutputNames.end(), sessionOutputNames.begin(), [this](std::string outputName) { return updaterOutputToStateNameMap_[outputName]; });
     auto newHiddenState = Core::ref(new HiddenState(std::move(sessionOutputNames), std::move(sessionOutputs)));
 
     return newHiddenState;
@@ -348,7 +397,7 @@ void StatefulOnnxLabelScorer::forwardBatch(const std::vector<HiddenStateScoringC
      */
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
 
-    for (auto& name : scorerOnnxModel_.session.getAllInputNames()) {
+    for (auto& inputName : scorerOnnxModel_.session.getAllInputNames()) {
         // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
         // them to a batched state tensor of shape [B, *]
         std::vector<const Onnx::Value*> stateValues;
@@ -359,9 +408,9 @@ void StatefulOnnxLabelScorer::forwardBatch(const std::vector<HiddenStateScoringC
             if (not hiddenState) {  // Sentinel hidden-state
                 hiddenState = computeInitialHiddenState();
             }
-            stateValues.push_back(&hiddenState->stateValueMap.at(name));
+            stateValues.push_back(&hiddenState->stateValueMap[scorerInputToStateNameMap_[inputName]]);
         }
-        sessionInputs.emplace_back(name, Onnx::Value::concat(stateValues, 0));
+        sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
     }
 
     /*

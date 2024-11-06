@@ -78,6 +78,11 @@ private:
     HiddenStateRef computeInitialHiddenState();
     HiddenStateRef initialHiddenState_;
 
+    // Map input/output names of onnx models to hidden state names taken from state initializer model
+    std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
+    std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
+    std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
+
     bool   blankUpdatesHistory_;
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;

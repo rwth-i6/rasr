@@ -43,6 +43,7 @@
 #include "VectorSum.hh"
 #include "VectorTextInput.hh"
 #include "WarpTimeFilter.hh"
+#include "InputNode.hh"
 
 // predefined datatypes
 #include "DataAdaptor.hh"
@@ -159,4 +160,6 @@ Module_::Module_() {
     registry.registerDatatype<TypedAggregate<Vector<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f64>>>();
+
+    registry.registerFilter<Flow::InputNode>();
 }

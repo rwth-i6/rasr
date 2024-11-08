@@ -31,6 +31,18 @@ void LabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
     addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
 }
 
+void LabelScorer::addInputs(const std::vector<FeatureVectorRef>& inputs) {
+    for (const auto& input : inputs) {
+        addInput(input);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs) {
+    for (const auto& input : inputs) {
+        addInput(input);
+    }
+}
+
 std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
     // By default, just loop over the non-batched `getScoreWithTime` and collect the results
     ScoresWithTimes result;

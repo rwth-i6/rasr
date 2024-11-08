@@ -127,6 +127,10 @@ public:
     virtual void addInput(FeatureVectorRef input) = 0;
     virtual void addInput(Core::Ref<const Speech::Feature> input);
 
+    // Add a batch of features
+    virtual void addInputs(const std::vector<FeatureVectorRef>& inputs);
+    virtual void addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs);
+
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet

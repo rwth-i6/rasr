@@ -26,6 +26,7 @@
 #include <Flow/Vector.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Nn/Types.hh>
+#include <Search/SearchV2.hh>
 #include <Search/Types.hh>
 #include <Speech/Feature.hh>
 #include <Speech/Types.hh>
@@ -75,20 +76,11 @@ typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
-    // Transition type as part of scoring or context extension requests
-    enum TransitionType {
-        LABEL_TO_LABEL,
-        LABEL_LOOP,
-        LABEL_TO_BLANK,
-        BLANK_TO_LABEL,
-        BLANK_LOOP,
-    };
-
     // Request for scoring or context extension
     struct Request {
-        ScoringContextRef context;
-        LabelIndex        nextToken;
-        TransitionType    transitionType;
+        ScoringContextRef      context;
+        LabelIndex             nextToken;
+        Search::TransitionType transitionType;
     };
 
     // Return value of scoring function

@@ -43,7 +43,7 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(cons
             return {};
         }
         result.scores.push_back(singleResult->score);
-        result.timesteps.push_back(singleResult->timeframe);
+        result.timesteps.push_back(singleResult->timestep);
     }
 
     return result;

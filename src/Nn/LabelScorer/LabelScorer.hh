@@ -94,7 +94,7 @@ public:
     // Return value of scoring function
     struct ScoreWithTime {
         Score                  score;
-        Speech::TimeframeIndex timeframe;
+        Speech::TimeframeIndex timestep;
     };
 
     // Return value of batched scoring function

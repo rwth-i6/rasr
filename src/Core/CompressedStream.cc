@@ -103,7 +103,7 @@ void CompressedOutputStream::open(const std::string& name) {
 
 void CompressedOutputStream::close() {
     if (buf_) {
-        if (buf_ != std::cin.rdbuf()) {
+        if (buf_ != std::cout.rdbuf()) {
             delete buf_;
         }
         buf_ = nullptr;

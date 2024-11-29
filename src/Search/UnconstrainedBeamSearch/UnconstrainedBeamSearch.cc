@@ -99,17 +99,17 @@ void UnconstrainedBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void UnconstrainedBeamSearch::addFeature(Nn::FeatureVectorRef feature) {
+void UnconstrainedBeamSearch::addFeature(f32 const* data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(feature);
+    labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void UnconstrainedBeamSearch::addFeature(Core::Ref<const Speech::Feature> feature) {
+void UnconstrainedBeamSearch::addFeatures(f32 const* data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(feature);
+    labelScorer_->addInputs(data, T, F);
     featureProcessingTime_.toc();
 }
 
@@ -131,6 +131,7 @@ Core::Ref<const LatticeAdaptor> UnconstrainedBeamSearch::getCurrentBestWordLatti
     for (auto it = beam_.front().traceback.begin(); it != beam_.front().traceback.end(); ++it) {
         // wordBoundaries->set(currentState->id(), Lattice::WordBoundary(static_cast<Speech::TimeframeIndex>(it->time.endTime())));
         wordBoundaries->set(currentState->id(), Lattice::WordBoundary(it->time));
+        log() << "Create word boundary for state " << currentState->id() << " at time " << it->time;
         Fsa::State* nextState;
         if (std::next(it) == beam_.front().traceback.end()) {
             nextState = result->finalState();
@@ -223,11 +224,9 @@ std::string UnconstrainedBeamSearch::LabelHypothesis::toString() const {
 bool UnconstrainedBeamSearch::decodeStep() {
     verify(labelScorer_);
 
-    if (useSentenceEnd_) {
-        // If all hypotheses in the beam have reached sentence-end, no further decode step is performed
-        if (not std::any_of(beam_.begin(), beam_.end(), [this](const auto& hyp) { return hyp.currentLabel != sentenceEndIndex_; })) {
-            return false;
-        }
+    // If all hypotheses in the beam have reached sentence-end, no further decode step is performed
+    if (useSentenceEnd_ and std::all_of(beam_.begin(), beam_.end(), [this](const auto& hyp) { return hyp.currentLabel == sentenceEndIndex_; })) {
+        return false;
     }
 
     /*
@@ -237,31 +236,37 @@ bool UnconstrainedBeamSearch::decodeStep() {
 
     auto nLemmas = lexicon_->nLemmas();
 
-    std::vector<Nn::LabelScorer::Request> requests;
-    requests.reserve(nLemmas * beam_.size());
-
-    std::vector<LabelHypothesis*> baseHyps;  // Track the hypothesis that each request is based on
-    baseHyps.reserve(nLemmas * beam_.size());
-
     // assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
 
-    size_t numUnfinishedHyps = 0ul;
+    std::vector<Nn::LabelScorer::Request> requests;
+    std::vector<LabelHypothesis*>         baseHyps;        // Track the hypothesis that each request is based on
+    std::vector<size_t>                   unfinishedHyps;  // Indices of hypotheses in beam that need to be extended
+    std::vector<size_t>                   finishedHyps;
 
-    for (auto& hyp : beam_) {
-        if (useSentenceEnd_ and hyp.currentLabel == sentenceEndIndex_) {
-            // Hypothesis is finished and no successors are considered
-            continue;
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        if (useSentenceEnd_ and beam_[hypIndex].currentLabel == sentenceEndIndex_) {
+            finishedHyps.push_back(hypIndex);
         }
-        ++numUnfinishedHyps;
+        else {
+            unfinishedHyps.push_back(hypIndex);
+        }
+    }
+    size_t numUnfinishedHyps = unfinishedHyps.size();
+    size_t numFinishedHyps   = finishedHyps.size();
+
+    requests.reserve(nLemmas * numUnfinishedHyps);
+    baseHyps.reserve(nLemmas * numUnfinishedHyps);
+
+    for (auto hypIndex : unfinishedHyps) {
+        auto& hyp = beam_[hypIndex];
 
         // Iterate over possible successors
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
             const Bliss::Lemma* lemma(*lemmaIt);
             Nn::LabelIndex      idx = lemma->id();
 
-            auto transitionType = inferTransitionType(hyp.currentLabel, idx);
-            requests.push_back({hyp.scoringContext, idx, transitionType});
+            requests.push_back({hyp.scoringContext, idx, inferTransitionType(hyp.currentLabel, idx)});
             baseHyps.push_back(&hyp);
         }
     }
@@ -277,26 +282,37 @@ bool UnconstrainedBeamSearch::decodeStep() {
     }
     const auto& scoresWithTimes = result.value();
 
-    std::vector<size_t> indices;  // Index vector to keep track of which requests survive pruning
+    std::vector<float> combinedScores(numUnfinishedHyps * nLemmas);
+    for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
+        combinedScores[requestIndex] = baseHyps[requestIndex]->score + scoresWithTimes.scores[requestIndex];
+    }
+
+    std::vector<size_t> indices(requests.size());  // Index vector to keep track of which requests survive pruning
+    std::iota(indices.begin(), indices.end(), 0ul);
 
     /*
      * Perform top-k pruning for the successor tokens of each unfinished hypothesis
      */
     if (useTokenPruning_) {
-        verify(topKTokens_ < lexicon_->nLemmas());
-        indices.resize(numUnfinishedHyps * topKTokens_);
+#pragma omp parallel for
         for (size_t hypIndex = 0ul; hypIndex < numUnfinishedHyps; ++hypIndex) {
-            std::vector<size_t> hypRequestIndices(nLemmas);  // Indices in requests vector that belong to current hyp
-            std::iota(hypRequestIndices.begin(), hypRequestIndices.end(), hypIndex * nLemmas);
+            // Start and end index of scores coming from current hypothesis
+            size_t start = hypIndex * nLemmas;
+            size_t end   = start + nLemmas;
 
-            // Partially sort indices such that the topKTokens_ first indices belong to the best scoring successors
-            std::nth_element(hypRequestIndices.begin(), hypRequestIndices.begin() + topKTokens_, hypRequestIndices.end(),
+            // Make sure the best topKTokens_ scores are moved to the beginning of the [start, end) interval
+            std::nth_element(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + end,
                              [&scoresWithTimes](size_t a, size_t b) {
                                  return scoresWithTimes.scores[a] < scoresWithTimes.scores[b];
                              });
-            // Copy best indices back into global index vector
-            std::copy(hypRequestIndices.begin(), hypRequestIndices.begin() + topKTokens_, indices.begin() + hypIndex * topKTokens_);
+
+            // Copy the topKTokens_ best indices to the front of indices (note: this location doesn't overlap with [start, end) of the next hyps because topKTokens_ < nLemmas)
+            if (hypIndex > 0ul) {
+                std::copy(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + hypIndex * topKTokens_);
+            }
         }
+
+        indices.resize(numUnfinishedHyps * topKTokens_);  // Throw away all pruned indices
     }
 
     /*
@@ -305,56 +321,61 @@ bool UnconstrainedBeamSearch::decodeStep() {
     if (indices.size() > maxBeamSize_) {
         // Sort index tensor by associated score value such that the first `beamSize_` elements are the best and sorted
         std::partial_sort(indices.begin(), indices.begin() + maxBeamSize_, indices.end(),
-                          [&baseHyps, &scoresWithTimes](size_t a, size_t b) {
-                              return baseHyps[a]->score + scoresWithTimes.scores[a] < baseHyps[b]->score + scoresWithTimes.scores[b];  // Compare combined scores
+                          [&combinedScores](size_t a, size_t b) {
+                              return combinedScores[a] < combinedScores[b];
                           });
         indices.resize(maxBeamSize_);  // Get rid of excessive elements
+    }
+    else {
+        std::sort(indices.begin(), indices.end(), [&combinedScores](size_t a, size_t b) {
+            return combinedScores[a] < combinedScores[b];
+        });
     }
 
     /*
      * Score-based pruning of the unfinished hypotheses
      */
     if (useScorePruning_) {
-        auto pruningThreshold = baseHyps[indices.front()]->score + scoresWithTimes.scores[indices.front()] + scoreThreshold_;
-        indices.erase(
-                std::remove_if(indices.begin(), indices.end(),
-                               [&pruningThreshold, &baseHyps, &scoresWithTimes](size_t index) {
-                                   return baseHyps[index]->score + scoresWithTimes.scores[index] > pruningThreshold;
-                               }),
-                indices.end());
+        auto   pruningThreshold    = combinedScores[indices.front()] + scoreThreshold_;
+        size_t numSurvivingIndices = 0ul;
+        // Use the fact that indices are now sorted by corresponding score and prune all indices after the first one that
+        // violates the score threshold
+        for (auto index : indices) {
+            if (combinedScores[index] > pruningThreshold) {
+                break;
+            }
+            ++numSurvivingIndices;
+        }
+        indices.resize(numSurvivingIndices);
     }
 
     /*
      * Create new beam containing all finished hypotheses from before and new extensions of unfinished hypotheses
      */
     std::vector<LabelHypothesis> newBeam;
-    newBeam.reserve(2 * maxBeamSize_);  // beamSize_ expansions plus up to beamSize_ reviving hypotheses that have reached sentence-end before
+    newBeam.reserve(indices.size() + numFinishedHyps);  // expansions surviving hypotheses that have reached sentence-end before
 
     // Unfinished hyps
     for (auto index : indices) {
-        const auto& request = requests.at(index);
+        const auto& request = requests[index];
 
         contextExtensionTime_.tic();
         auto newScoringContext = labelScorer_->extendedScoringContext({request.context, request.nextToken, request.transitionType});
         contextExtensionTime_.toc();
 
         newBeam.push_back(
-                {*baseHyps.at(index),
+                {*baseHyps[index],
                  {lemmas.first[request.nextToken],
                   newScoringContext,
                   request.nextToken,
-                  scoresWithTimes.scores.at(index),
-                  scoresWithTimes.timesteps.at(index),
+                  scoresWithTimes.scores[index],
+                  scoresWithTimes.timesteps[index],
                   request.transitionType}});
     }
 
     // Finished hyps
-    if (useSentenceEnd_) {
-        for (auto& hyp : beam_) {
-            if (hyp.currentLabel == sentenceEndIndex_) {
-                newBeam.push_back({hyp});
-            }
-        }
+    for (auto hypIndex : finishedHyps) {
+        newBeam.push_back(beam_[hypIndex]);
     }
 
     /*
@@ -367,21 +388,31 @@ bool UnconstrainedBeamSearch::decodeStep() {
                           });
         newBeam.resize(maxBeamSize_);
     }
+    else {
+        std::sort(newBeam.begin(), newBeam.end(),
+                  [](LabelHypothesis& hyp1, LabelHypothesis& hyp2) {
+                      return hyp1.score < hyp2.score;
+                  });
+    }
 
     /*
      * Score-based pruning of the final remaining hypotheses
      */
     if (useScorePruning_) {
         auto pruningThreshold = newBeam.front().score + scoreThreshold_;
-        newBeam.erase(
-                std::remove_if(newBeam.begin(), newBeam.end(),
-                               [&pruningThreshold](const LabelHypothesis& hyp) {
-                                   return hyp.score > pruningThreshold;
-                               }),
-                newBeam.end());
+
+        size_t numSurvivingHyps = 0ul;
+        for (const auto& hyp : newBeam) {
+            if (hyp.score > pruningThreshold) {
+                break;
+            }
+            ++numSurvivingHyps;
+        }
+        newBeam.resize(numSurvivingHyps);
     }
 
     beam_.swap(newBeam);
+    log() << "Best hypothesis: " << beam_.front().toString();
 
     return true;
 }

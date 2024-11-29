@@ -113,13 +113,11 @@ public:
     // Creates a copy of the context in the request that is extended using the given token and transition type
     virtual ScoringContextRef extendedScoringContext(Request request) = 0;
 
-    // Function that returns the mapping of each timeframe index (returned in the scoring functions)
-    // to actual flow timestamps with start-/ and end-time in seconds.
-    virtual const std::vector<Flow::Timestamp>& getTimestamps() const = 0;
-
     // Add a single input feature
-    virtual void addInput(FeatureVectorRef input) = 0;
-    virtual void addInput(Core::Ref<const Speech::Feature> input);
+    virtual void addInput(f32 const* input, size_t F) = 0;
+
+    // Add input features for multiple time steps
+    virtual void addInputs(f32 const* input, size_t T, size_t F);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
@@ -144,22 +142,19 @@ public:
 
     // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer
     // and segment end flag
-    virtual void reset();
+    virtual void reset() override;
 
     // Tells the LabelScorer that there will be no more input features coming in the current segment
-    virtual void signalNoMoreFeatures();
-
-    // Return internal timestamps buffer
-    virtual const std::vector<Flow::Timestamp>& getTimestamps() const;
+    virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(FeatureVectorRef input);
+    virtual void addInput(f32 const* input, size_t F) override;
 
 protected:
-    std::vector<FeatureVectorRef> inputBuffer_;
-    bool                          featuresMissing_;
-
-    std::vector<Flow::Timestamp> timestamps_;
+    size_t                  featureSize_;
+    std::vector<f32 const*> inputBuffer_;
+    bool                    inputsAreContiguous_;
+    bool                    featuresMissing_;
 };
 
 /*
@@ -171,9 +166,6 @@ class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
 
 public:
     StepwiseNoOpLabelScorer(const Core::Configuration& config);
-
-    // Add input and timestamp to buffer since input timestamps are equal to output timestamps
-    void addInput(FeatureVectorRef input) override;
 
     // Initial scoring context just contains step 0.
     ScoringContextRef getInitialScoringContext() override;
@@ -201,11 +193,8 @@ public:
     // Reset internal feature scorer and clear cache of context scorers
     void reset() override;
 
-    // Return internal timestamps buffer
-    const std::vector<Flow::Timestamp>& getTimestamps() const override;
-
     // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(FeatureVectorRef input) override;
+    void addInput(f32 const* input, size_t F) override;
 
     // Flush and cache all remaining context scorers
     void signalNoMoreFeatures() override;
@@ -220,8 +209,6 @@ public:
     std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
 
 private:
-    std::vector<Flow::Timestamp> timestamps_;
-
     Core::Ref<Mm::FeatureScorer>           featureScorer_;
     std::vector<Mm::FeatureScorer::Scorer> scoreCache_;
 };

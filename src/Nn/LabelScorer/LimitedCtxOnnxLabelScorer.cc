@@ -249,9 +249,8 @@ void LimitedCtxOnnxLabelScorer::forwardBatch(const std::vector<SeqStepScoringCon
      */
 
     // All requests in this iteration share the same encoder state which is set up here
-    Math::FastMatrix<f32> encoderMat(inputBuffer_.front()->size(), 1);
-    auto&                 encoderState = inputBuffer_[contextBatch.front()->currentStep];
-    std::copy(encoderState->begin(), encoderState->end(), encoderMat.begin());
+    f32 const*           encoderState = inputBuffer_[contextBatch.front()->currentStep];
+    std::vector<int64_t> encoderShape = {1, static_cast<int64_t>(featureSize_)};
 
     // Create batched context input
     Math::FastMatrix<s32> historyMat(historyLength_, contextBatch.size());
@@ -261,7 +260,7 @@ void LimitedCtxOnnxLabelScorer::forwardBatch(const std::vector<SeqStepScoringCon
     }
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    sessionInputs.emplace_back(encoderStateName_, Onnx::Value::create(encoderMat, true));
+    sessionInputs.emplace_back(encoderStateName_, Onnx::Value::create(encoderState, encoderShape));
     sessionInputs.emplace_back(historyName_, Onnx::Value::create(historyMat, true));
 
     /*

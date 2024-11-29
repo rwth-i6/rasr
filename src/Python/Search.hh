@@ -8,8 +8,6 @@
 #include <Core/Archive.hh>
 #include <Core/Configuration.hh>
 #include <Flf/FlfCore/Lattice.hh>
-#include <Nn/AllophoneStateFsaExporter.hh>
-#include <vector>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
@@ -34,22 +32,26 @@ public:
     // Call after all features of the current segment have been passed
     void finishSegment();
 
+    // Write search statistics in log file
+    void logStatistics();
+
+    // Reset search statistics
+    void resetStatistics();
+
     // Pass a feature tensor of shape [F] or [1, F]
-    void addFeature(py::array_t<double>);
+    void addFeature(py::array_t<f32>);
 
     // Pass a tensor of features of shape [T, F] or [1, T, F]
-    void addFeatures(py::array_t<double>);
+    void addFeatures(py::array_t<f32>);
 
     // Return the current best result. May contain unstable results.
     std::string getCurrentBestTranscription();
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result
-    std::string recognizeSegment(py::array_t<double>);
+    std::string recognizeSegment(py::array_t<f32>);
 
 private:
-    void addFeatureInternal(const std::vector<f32>& feature);
-
     // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
     bool decodeMore();
 

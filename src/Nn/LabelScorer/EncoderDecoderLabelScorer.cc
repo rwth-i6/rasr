@@ -37,17 +37,13 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request requ
     return decoder_->extendedScoringContext(request);
 }
 
-const std::vector<Flow::Timestamp>& EncoderDecoderLabelScorer::getTimestamps() const {
-    return decoder_->getTimestamps();
-}
-
-void EncoderDecoderLabelScorer::addInput(FeatureVectorRef input) {
-    encoder_->addInput(input);
+void EncoderDecoderLabelScorer::addInput(f32 const* data, size_t F) {
+    encoder_->addInput(data, F);
     encode();
 }
 
-void EncoderDecoderLabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
-    encoder_->addInput(input);
+void EncoderDecoderLabelScorer::addInputs(f32 const* data, size_t T, size_t F) {
+    encoder_->addInputs(data, T, F);
     encode();
 }
 
@@ -68,9 +64,9 @@ std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::getScores
 }
 
 void EncoderDecoderLabelScorer::encode() {
-    std::optional<FeatureVectorRef> encoderOutput;
+    std::optional<f32 const*> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(*encoderOutput);
+        decoder_->addInput(*encoderOutput, encoder_->getOutputSize());
     }
 }
 

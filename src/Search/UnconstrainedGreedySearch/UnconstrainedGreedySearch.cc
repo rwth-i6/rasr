@@ -84,17 +84,17 @@ void UnconstrainedGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void UnconstrainedGreedySearch::addFeature(Nn::FeatureVectorRef feature) {
+void UnconstrainedGreedySearch::addFeature(f32 const* data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(feature);
+    labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void UnconstrainedGreedySearch::addFeature(Core::Ref<const Speech::Feature> feature) {
+void UnconstrainedGreedySearch::addFeatures(f32 const* data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(feature);
+    labelScorer_->addInputs(data, T, F);
     featureProcessingTime_.toc();
 }
 

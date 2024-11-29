@@ -48,13 +48,12 @@ public:
     // Get extended context from decoder component
     ScoringContextRef extendedScoringContext(Request request) override;
 
-    // Get timestamps from decoder component
-    const std::vector<Flow::Timestamp>& getTimestamps() const override;
-
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
-    void addInput(FeatureVectorRef input) override;
-    void addInput(Core::Ref<const Speech::Feature> input) override;
+    void addInput(f32 const* data, size_t F) override;
+
+    // Same as `addInput` but adds features for multiple timesteps at once
+    void addInputs(f32 const* data, size_t T, size_t F) override;
 
     // Run request through decoder component
     std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;

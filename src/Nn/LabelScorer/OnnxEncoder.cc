@@ -8,25 +8,6 @@ namespace Nn {
  * =============================
  */
 
-const Core::Choice OnnxEncoder::choiceSubsamplingType(
-        // Expect 1:1 correspondence, throw away all outputs after the end of the input time axis
-        // For example with input length 10 and output length 12, the last 2 outputs are ignored
-        // Used for models with no subsampling or subsampling + upsampling of the same factor
-        "none", SubsamplingType::None,
-        // The last chunk of features is used even when they don't fill the usual size
-        // For example with input length 17 and subsampling factor 4 the output length would be 5
-        "ceil-division", SubsamplingType::CeilDivision,
-        // The last chunk of features is thrown away when they doesn't fill the usual size
-        // For example with input length 17 and subsampling factor 4 the output length would be 4
-        "floor-division", SubsamplingType::FloorDivision,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice OnnxEncoder::paramSubsamplingType(
-        "subsampling-type",
-        &choiceSubsamplingType,
-        "Way that the output time axis is affected if input time is not cleanly divisible by the subsampling factor of the model.",
-        FloorDivision);
-
 const std::vector<Onnx::IOSpecification> encoderIoSpec = {
         Onnx::IOSpecification{
                 "features",
@@ -56,36 +37,7 @@ OnnxEncoder::OnnxEncoder(Core::Configuration config)
           onnxModel_(select("onnx-model"), encoderIoSpec),
           featuresName_(onnxModel_.mapping.getOnnxName("features")),
           featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
-          outputName_(onnxModel_.mapping.getOnnxName("outputs")),
-          subsamplingType_(static_cast<SubsamplingType>(paramSubsamplingType(config))) {
-}
-
-size_t OnnxEncoder::calcInputsPerOutput(size_t T_in, size_t T_out) const {
-    switch (subsamplingType_) {
-        case SubsamplingType::None:
-            return 1ul;
-        case SubsamplingType::FloorDivision:
-            return T_in / T_out;
-        case SubsamplingType::CeilDivision:
-            return (T_in + T_out - 1ul) / T_out;
-        default:
-            error() << "Subsampling type not implemented";
-            return 1ul;
-    }
-}
-
-size_t OnnxEncoder::calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput) const {
-    switch (subsamplingType_) {
-        case SubsamplingType::None:
-            return 1ul;
-        case SubsamplingType::FloorDivision:
-            return T_in / inputsPerOutput;
-        case SubsamplingType::CeilDivision:
-            return (T_in + inputsPerOutput - 1ul) / inputsPerOutput;
-        default:
-            error() << "Subsampling type not implemented";
-            return 1ul;
-    }
+          outputName_(onnxModel_.mapping.getOnnxName("outputs")) {
 }
 
 void OnnxEncoder::encode() {
@@ -98,28 +50,28 @@ void OnnxEncoder::encode() {
      */
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    std::vector<Math::FastMatrix<f32>>               batchMat;  // will only contain a single element but packed in a vector for 1 x T x F Onnx value creation
 
     size_t T_in = inputBuffer_.size();
 
-    // Keep track of timestamps to be able to set them correctly for the outputs
-    std::vector<Flow::Timestamp> inputTimestamps;
-    inputTimestamps.reserve(std::min(T_in, chunkSize_));
-
-    // Initialize empty matrix of shape F x T.
-    // Transposing is done because FastMatrix has col-major storage and this way each column is one feature vector
-    batchMat.emplace_back(inputBuffer_.front()->size(), T_in);
-
-    for (size_t t = 0ul; t < T_in; ++t) {
-        const auto& inputVectorRef = inputBuffer_[t];
-        // Copy featureVector into next column of matrix and increment column index
-        std::copy(inputVectorRef->begin(), inputVectorRef->end(), &(batchMat.front().at(0, t)));
-        inputTimestamps.push_back({inputVectorRef->getStartTime(), inputVectorRef->getEndTime()});
+    if (featuresAreContiguous_) {
+        log() << "Contiguous features for encoder";
+        std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(featureSize_)};
+        sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(inputBuffer_.front(), featuresShape)));
     }
+    else {
+        log() << "No contiguous features for encoder";
+        std::vector<Math::FastMatrix<f32>> batchMat;  // will only contain a single element but packed in a vector for 1 x T x F Onnx value creation
 
-    // log("Encode input features of shape (%zu x %u x %u)", batchMat.size(), batchMat.front().nColumns(), batchMat.front().nRows());
+        // Initialize empty matrix of shape F x T.
+        // Transposing is done because FastMatrix has col-major storage and this way each column is one feature vector
+        batchMat.emplace_back(featureSize_, T_in);
 
-    sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(batchMat, true)));  // transpose to 1 x T x F
+        for (size_t t = 0ul; t < T_in; ++t) {
+            // Copy featureVector into next column of matrix and increment column index
+            std::copy(inputBufferCopy_[t].begin(), inputBufferCopy_[t].end(), &(batchMat.front().at(0, t)));
+        }
+        sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(batchMat, true)));  // transpose to 1 x T x F
+    }
 
     // features-size is an optional input
     if (featuresSizeName_ != "") {
@@ -149,30 +101,12 @@ void OnnxEncoder::encode() {
      * Put outputs into buffer
      */
 
-    // Calculate subsampling factor to set timestamps for output features
     size_t T_out = sessionOutputs.front().dimSize(1);
+    outputSize_  = sessionOutputs.front().dimSize(2);
 
-    size_t inputsPerOutput = calcInputsPerOutput(T_in, T_out);
-    size_t numNewOutputs   = calcNumOutputsForInputs(numNewFeatures_, inputsPerOutput);
-
-    size_t numDiscardedOutputs = 0ul;
-    if (T_out > numNewOutputs) {
-        numDiscardedOutputs = T_out - numNewOutputs;
-    }
-
-    // TODO: How do existing Apptek FeatureScorers handle subsampling?
-    for (size_t t = numDiscardedOutputs; t < T_out; ++t) {
-        std::vector<f32> outputVec;
-        sessionOutputs.front().get(0, t, outputVec);
-        // TODO: Avoid data copying
-        FeatureVectorRef outputVectorRef(new FeatureVector(outputVec));
-
-        // outputs spans feature indices `t * inputsPerOutput` to `(t+1) * inputsPerOutput`
-        // so start time is start of feature `t * inputsPerOutput` and end time is end of feature `(t+1) * inputsPerOutput - 1`
-        // also make sure to cap off at last index to avoid out-of-bounds access
-        outputVectorRef->setStartTime(inputTimestamps.at(std::min(inputTimestamps.size() - 1, t * inputsPerOutput)).startTime());
-        outputVectorRef->setEndTime(inputTimestamps.at(std::min(inputTimestamps.size() - 1, (t + 1) * inputsPerOutput - 1)).endTime());
-        outputBuffer_.push_back(outputVectorRef);
+    for (size_t t = 0ul; t < T_out; ++t) {
+        outputBuffer_.push_back(sessionOutputs.front().data<f32>(0, t));
     }
 }
+
 }  // namespace Nn

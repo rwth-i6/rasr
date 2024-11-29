@@ -3,6 +3,8 @@
  */
 #include "Value.hh"
 #include <numeric>
+#include <onnxruntime_c_api.h>
+#include <onnxruntime_cxx_api.h>
 
 #include "Util.hh"
 
@@ -1038,6 +1040,31 @@ template void Value::set<s16>(std::vector<s16> const&);
 template void Value::set<u16>(std::vector<u16> const&);
 template void Value::set<s8>(std::vector<s8> const&);
 template void Value::set<u8>(std::vector<u8> const&);
+
+template<typename T>
+void Value::set(T const* data, std::vector<int64_t> const& shape) {
+    Ort::AllocatorWithDefaultOptions allocator;
+    value_ = Ort::Value::CreateTensor<T>(allocator, shape.data(), shape.size());
+
+    size_t totalSize = 1ul;
+    for (auto dim : shape) {
+        totalSize *= dim;
+    }
+
+    T* valueData = value_.GetTensorMutableData<T>();
+    std::copy(data, data + totalSize, valueData);
+}
+
+template void Value::set<f32>(f32 const*, std::vector<int64_t> const&);
+template void Value::set<f64>(f64 const*, std::vector<int64_t> const&);
+template void Value::set<s64>(s64 const*, std::vector<int64_t> const&);
+template void Value::set<u64>(u64 const*, std::vector<int64_t> const&);
+template void Value::set<s32>(s32 const*, std::vector<int64_t> const&);
+template void Value::set<u32>(u32 const*, std::vector<int64_t> const&);
+template void Value::set<s16>(s16 const*, std::vector<int64_t> const&);
+template void Value::set<u16>(u16 const*, std::vector<int64_t> const&);
+template void Value::set<s8>(s8 const*, std::vector<int64_t> const&);
+template void Value::set<u8>(u8 const*, std::vector<int64_t> const&);
 
 template<typename T>
 void Value::set(T const& val) {

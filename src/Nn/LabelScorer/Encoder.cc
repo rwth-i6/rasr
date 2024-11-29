@@ -36,11 +36,24 @@ const Core::ParameterInt Encoder::paramChunkSize(
         Core::Type<u32>::max);
 
 Encoder::Encoder(const Core::Configuration& config)
-        : Core::Component(config), chunkSize_(paramChunkSize(config)), chunkStep_(paramChunkStep(config)), numNewFeatures_(0ul), featuresMissing_(true) {}
+        : Core::Component(config),
+          chunkSize_(paramChunkSize(config)),
+          chunkStep_(paramChunkStep(config)),
+          numNewFeatures_(0ul),
+          featureSize_(Core::Type<size_t>::max),
+          outputSize_(Core::Type<size_t>::max),
+          featuresAreContiguous_(true),
+          featuresMissing_(true) {}
 
 void Encoder::reset() {
     featuresMissing_ = true;
     inputBuffer_.clear();
+    inputBufferCopy_.clear();
+
+    featureSize_ = Core::Type<size_t>::max;
+    outputSize_  = Core::Type<size_t>::max;
+
+    featuresAreContiguous_ = true;
     outputBuffer_.clear();
     numNewFeatures_ = 0ul;
 }
@@ -49,26 +62,42 @@ void Encoder::signalNoMoreFeatures() {
     featuresMissing_ = false;
 }
 
-void Encoder::addInput(FeatureVectorRef input) {
+void Encoder::addInput(f32 const* input, size_t F) {
+    if (featureSize_ == Core::Type<size_t>::max) {
+        featureSize_ = F;
+    }
+    else if (featureSize_ != F) {
+        error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
+    }
+
+    if (not inputBuffer_.empty() and input != inputBuffer_.back() + F) {
+        featuresAreContiguous_ = false;
+    }
+
     inputBuffer_.push_back(input);
+    inputBufferCopy_.push_back(std::vector<f32>(F));
+    std::copy(input, input + F, inputBufferCopy_.back().data());
     ++numNewFeatures_;
     while (inputBuffer_.size() > chunkSize_) {
         inputBuffer_.pop_front();
+        inputBufferCopy_.pop_front();
     }
 }
 
-void Encoder::addInput(Core::Ref<const Speech::Feature> input) {
-    addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
+void Encoder::addInputs(f32 const* input, size_t T, size_t F) {
+    for (size_t t = 0ul; t < T; ++t) {
+        addInput(input + t * F, F);
+    }
 }
 
 bool Encoder::canEncode() const {
     return not inputBuffer_.empty() and (not featuresMissing_ or numNewFeatures_ >= chunkStep_);
 }
 
-std::optional<FeatureVectorRef> Encoder::getNextOutput() {
+std::optional<f32 const*> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
-        FeatureVectorRef result(outputBuffer_.front());
+        auto result = outputBuffer_.front();
         outputBuffer_.pop_front();
         return result;
     }
@@ -88,6 +117,10 @@ std::optional<FeatureVectorRef> Encoder::getNextOutput() {
     return getNextOutput();
 }
 
+size_t Encoder::getOutputSize() const {
+    return outputSize_;
+}
+
 /*
  * =============================
  * === NoOpEncoder =============
@@ -100,8 +133,10 @@ NoOpEncoder::NoOpEncoder(const Core::Configuration& config)
 void NoOpEncoder::encode() {
     size_t T_in = 0ul;
     while (not inputBuffer_.empty() and T_in < chunkStep_) {
+        outputSize_ = featureSize_;
         outputBuffer_.push_back(inputBuffer_.front());
         inputBuffer_.pop_front();
+        inputBufferCopy_.pop_front();
         ++T_in;
     }
 }

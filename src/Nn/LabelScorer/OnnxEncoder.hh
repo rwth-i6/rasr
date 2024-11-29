@@ -28,30 +28,17 @@ class OnnxEncoder : public Encoder {
     typedef Encoder Precursor;
 
 public:
-    enum SubsamplingType {
-        None,
-        CeilDivision,
-        FloorDivision
-    };
-
-    static const Core::Choice          choiceSubsamplingType;
-    static const Core::ParameterChoice paramSubsamplingType;
     OnnxEncoder(const Core::Configuration config);
 
 protected:
     void encode() override;
 
 private:
-    size_t calcInputsPerOutput(size_t T_in, size_t T_out) const;
-    size_t calcNumOutputsForInputs(size_t T_in, size_t inputsPerOutput) const;
-
     Onnx::Model onnxModel_;
 
     std::string featuresName_;
     std::string featuresSizeName_;
     std::string outputName_;
-
-    SubsamplingType subsamplingType_;
 };
 
 }  // namespace Nn

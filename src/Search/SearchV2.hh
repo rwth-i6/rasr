@@ -110,8 +110,10 @@ public:
     virtual void finishSegment() = 0;
 
     // Pass a single feature vector
-    virtual void addFeature(Nn::FeatureVectorRef input)       = 0;
-    virtual void addFeature(Core::Ref<const Speech::Feature>) = 0;
+    virtual void addFeature(f32 const* data, size_t F) = 0;
+
+    // Pass feature vectors for multiple time steps
+    virtual void addFeatures(f32 const* data, size_t T, size_t F) = 0;
 
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;

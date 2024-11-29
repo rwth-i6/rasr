@@ -16,6 +16,7 @@
 #include "LabelScorer.hh"
 #include <Flow/Timestamp.hh>
 #include <Mm/Module.hh>
+#include "Mm/Feature.hh"
 
 namespace Nn {
 
@@ -27,10 +28,6 @@ namespace Nn {
 
 LabelScorer::LabelScorer(const Core::Configuration& config)
         : Core::Component(config) {}
-
-void LabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
-    addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
-}
 
 std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
     ScoresWithTimes result;
@@ -49,30 +46,43 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(cons
     return result;
 }
 
+void LabelScorer::addInputs(f32 const* input, size_t T, size_t F) {
+    for (size_t t = 0ul; t < T; ++t) {
+        addInput(input + t * F, F);
+    }
+}
+
 /*
  * =============================
  * === BufferedLabelScorer =====
  * =============================
  */
 BufferedLabelScorer::BufferedLabelScorer(const Core::Configuration& config)
-        : Core::Component(config), LabelScorer(config), inputBuffer_(), featuresMissing_(true), timestamps_() {
+        : Core::Component(config), LabelScorer(config), featureSize_(Core::Type<size_t>::max), inputBuffer_(), inputsAreContiguous_(true), featuresMissing_(true) {
 }
 
 void BufferedLabelScorer::reset() {
     inputBuffer_.clear();
-    featuresMissing_ = true;
-    timestamps_.clear();
+    inputsAreContiguous_ = true;
+    featuresMissing_     = true;
+    featureSize_         = Core::Type<size_t>::max;
 }
 
 void BufferedLabelScorer::signalNoMoreFeatures() {
     featuresMissing_ = false;
 }
 
-const std::vector<Flow::Timestamp>& BufferedLabelScorer::getTimestamps() const {
-    return timestamps_;
-}
+void BufferedLabelScorer::addInput(f32 const* input, size_t F) {
+    if (featureSize_ == Core::Type<size_t>::max) {
+        featureSize_ = F;
+    }
+    else if (featureSize_ != F) {
+        error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
+    }
 
-void BufferedLabelScorer::addInput(FeatureVectorRef input) {
+    if (not inputBuffer_.empty() and input != inputBuffer_.back() + F) {
+        inputsAreContiguous_ = false;
+    }
     inputBuffer_.push_back(input);
 }
 
@@ -84,11 +94,6 @@ void BufferedLabelScorer::addInput(FeatureVectorRef input) {
 
 StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(const Core::Configuration& config)
         : Core::Component(config), Precursor(config) {}
-
-void StepwiseNoOpLabelScorer::addInput(FeatureVectorRef input) {
-    Precursor::addInput(input);
-    timestamps_.push_back(Flow::Timestamp(*input));
-}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
@@ -104,8 +109,11 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::getScoreWithT
     if (inputBuffer_.size() <= stepHistory->currentStep) {
         return {};
     }
+    if (request.nextToken >= featureSize_) {
+        error() << "Tried to get score for token " << request.nextToken << " but only have " << featureSize_ << " scores available.";
+    }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)->at(request.nextToken), stepHistory->currentStep};
+    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
 }
 
 /*
@@ -125,13 +133,11 @@ void LegacyFeatureScorerLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-const std::vector<Flow::Timestamp>& LegacyFeatureScorerLabelScorer::getTimestamps() const {
-    return timestamps_;
-}
+void LegacyFeatureScorerLabelScorer::addInput(f32 const* input, size_t F) {
+    std::vector<f32> featureVector(F);
+    std::copy(input, input + F, featureVector.begin());
+    auto feature = Core::ref(new Mm::Feature(featureVector));
 
-void LegacyFeatureScorerLabelScorer::addInput(FeatureVectorRef encoderOutput) {
-    auto feature = Core::ref(new Mm::Feature(*encoderOutput));
-    timestamps_.push_back(Flow::Timestamp(encoderOutput));
     if (featureScorer_->isBuffered() and not featureScorer_->bufferFilled()) {
         featureScorer_->addFeature(feature);
     }

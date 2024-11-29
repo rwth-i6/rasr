@@ -43,28 +43,36 @@ public:
     // At that point, encoder can run regardless of whether the buffer has been filled
     void signalNoMoreFeatures();
 
-    // Add single input feature to an input buffer
-    void addInput(FeatureVectorRef input);
-    void addInput(Core::Ref<const Speech::Feature> input);
+    // Add a single input feature to an input buffer
+    void addInput(f32 const* input, size_t F);
+
+    // Add input features for multiple time steps to an input buffer
+    void addInputs(f32 const* input, size_t T, size_t F);
 
     // Retrieve a single encoder output
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<FeatureVectorRef> getNextOutput();
+    std::optional<f32 const*> getNextOutput();
+
+    size_t getOutputSize() const;
 
 protected:
     // Consume all features inside input buffer, encode them and put the results into the output buffer
     // By default no-op, i.e. just move from input buffer over to output buffer
     virtual void encode() = 0;
 
-    std::deque<FeatureVectorRef> inputBuffer_;
-    std::deque<FeatureVectorRef> outputBuffer_;
+    std::deque<f32 const*>       inputBuffer_;
+    std::deque<std::vector<f32>> inputBufferCopy_;
+    std::deque<f32 const*>       outputBuffer_;
 
     const size_t chunkSize_;
     const size_t chunkStep_;
     size_t       numNewFeatures_;
 
-    bool featuresMissing_;
+    size_t featureSize_;
+    size_t outputSize_;
+    bool   featuresAreContiguous_;
+    bool   featuresMissing_;
 
 private:
     // Check if encoder is ready to run

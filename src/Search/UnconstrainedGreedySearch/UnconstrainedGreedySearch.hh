@@ -92,8 +92,8 @@ public:
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
-    void                            addFeature(Nn::FeatureVectorRef) override;
-    void                            addFeature(Core::Ref<const Speech::Feature>) override;
+    void                            addFeature(f32 const* data, size_t F) override;
+    void                            addFeatures(f32 const* data, size_t T, size_t F) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;

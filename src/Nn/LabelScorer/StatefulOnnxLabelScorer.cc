@@ -235,8 +235,8 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(FeatureVectorRef encoderOutput) {
-    Precursor::addInput(encoderOutput);
+void StatefulOnnxLabelScorer::addInput(f32 const* input, size_t F) {
+    Precursor::addInput(input, F);
     initialHiddenState_ = HiddenStateRef();
 
     if (not encoderStatesValue_.empty()) {  // Computed ONNX value is outdated now so reset it
@@ -310,17 +310,24 @@ HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 
         if (encoderStatesValue_.empty()) {  // Create encoder onnx value only if it needs to be recomputed
             u32 T = inputBuffer_.size();
-            u32 F = inputBuffer_.front()->size();
+            u32 F = featureSize_;
 
-            std::vector<Math::FastMatrix<f32>> encoderStatesMats = {{F, T}};
+            if (inputsAreContiguous_) {
+                std::vector<int64_t> encoderStatesShape = {1l, T, F};
 
-            for (size_t t = 0ul; t < T; ++t) {
-                std::copy(inputBuffer_[t]->begin(), inputBuffer_[t]->end(), &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
+                encoderStatesValue_ = Onnx::Value::create(inputBuffer_.front(), encoderStatesShape);
             }
-            encoderStatesValue_ = Onnx::Value::create(encoderStatesMats, true);
+            else {
+                std::vector<Math::FastMatrix<f32>> encoderStatesMats = {{F, T}};
+
+                for (size_t t = 0ul; t < T; ++t) {
+                    std::copy(inputBuffer_[t], inputBuffer_[t] + F, &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
+                }
+                encoderStatesValue_ = Onnx::Value::create(encoderStatesMats, true);
+            }
 
             Math::FastVector<s32> encoderStatesSize(1);
-            encoderStatesSize.at(0) = encoderStatesMats.front().nColumns();
+            encoderStatesSize.at(0) = T;
             encoderStatesSizeValue_ = Onnx::Value::create(encoderStatesSize);
         }
 

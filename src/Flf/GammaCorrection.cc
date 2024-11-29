@@ -14,7 +14,7 @@
  */
 #include <Core/Application.hh>
 #include <Core/Parameter.hh>
-#include <GammaCorrection.hh>
+#include "GammaCorrection.hh"
 
 namespace Flf {
 

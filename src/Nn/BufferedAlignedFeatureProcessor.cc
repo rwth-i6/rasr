@@ -18,7 +18,9 @@
 
 #include <Math/CudaVector.hh>
 #include <Math/Module.hh>
+#ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
+#endif
 #include <Speech/ModelCombination.hh>
 
 #include "FeedForwardTrainer.hh"

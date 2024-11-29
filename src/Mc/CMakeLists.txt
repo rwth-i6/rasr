@@ -1,0 +1,1 @@
+add_library(RasrMc STATIC Component.cc)

@@ -74,11 +74,11 @@ inline void CollapsedVector<T>::push_back(const T& value) {
         data_.push_back(value);
     }
     else if (value != data_.front()) {
-        // Data contains only one element and thus may be collapsed.
+        // `data_` contains only one element and thus might currently be collapsed.
         // If the new value is different to the present one, uncollapse it
         // and push the new value
         data_.reserve(logicalSize_ + 1);
-        data_.resize(logicalSize_, data_.front());  // Note: this is a no-op if the logical size is 1
+        data_.resize(logicalSize_, data_.front());  // Note: this is a no-op if the logical size is also 1
         data_.push_back(value);
     }
     // Otherwise the value is the same as the present one so the vector stays collapsed

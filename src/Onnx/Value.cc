@@ -725,7 +725,7 @@ void Value::set(Math::FastMatrix<T> const& mat, bool transpose) {
         // if we transpose we can iterate over both matrices linearly
         for (u32 c = 0u; c < mat.nColumns(); c++) {
             for (u32 r = 0u; r < mat.nRows(); r++) {
-                data[c * mat.nColumns() + r] = mat.at(r, c);
+                data[c * mat.nRows() + r] = mat.at(r, c);
             }
         }
     }

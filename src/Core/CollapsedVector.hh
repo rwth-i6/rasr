@@ -39,16 +39,16 @@ namespace Core {
 template<typename T>
 class CollapsedVector {
 public:
-    CollapsedVector();
-    CollapsedVector(size_t size, const T& value);
+    inline CollapsedVector();
+    inline CollapsedVector(size_t size, const T& value);
 
-    void     push_back(const T& value);
-    const T& operator[](size_t idx) const;
-    const T& at(size_t idx) const;
-    size_t   size() const noexcept;
-    void     clear() noexcept;
-    void     reserve(size_t size);
-    const T& front() const;
+    inline void     push_back(const T& value);
+    inline const T& operator[](size_t idx) const;
+    inline const T& at(size_t idx) const;
+    inline size_t   size() const noexcept;
+    inline void     clear() noexcept;
+    inline void     reserve(size_t size);
+    inline const T& front() const;
 
 private:
     std::vector<T> data_;
@@ -60,25 +60,25 @@ private:
  */
 
 template<typename T>
-CollapsedVector<T>::CollapsedVector()
+inline CollapsedVector<T>::CollapsedVector()
         : data_(), logicalSize_(0ul) {}
 
 template<typename T>
-CollapsedVector<T>::CollapsedVector(size_t size, const T& value)
+inline CollapsedVector<T>::CollapsedVector(size_t size, const T& value)
         : data_(1ul, value), logicalSize_(size) {}
 
 template<typename T>
-void CollapsedVector<T>::push_back(const T& value) {
-    if (data_.empty() or data_.size() > 1ul) {
+inline void CollapsedVector<T>::push_back(const T& value) {
+    if (data_.size() != 1ul) {
         // Vector is not collapsed so the value can be pushed as usual
         data_.push_back(value);
     }
     else if (value != data_.front()) {
-        // Data contains only one element and thus may be collapsed.
+        // `data_` contains only one element and thus might currently be collapsed.
         // If the new value is different to the present one, uncollapse it
         // and push the new value
         data_.reserve(logicalSize_ + 1);
-        data_.resize(logicalSize_, data_.front());  // Note: this is a no-op if the logical size is 1
+        data_.resize(logicalSize_, data_.front());  // Note: this is a no-op if the logical size is also 1
         data_.push_back(value);
     }
     // Otherwise the value is the same as the present one so the vector stays collapsed
@@ -88,39 +88,39 @@ void CollapsedVector<T>::push_back(const T& value) {
 }
 
 template<typename T>
-const T& CollapsedVector<T>::operator[](size_t idx) const {
+inline const T& CollapsedVector<T>::operator[](size_t idx) const {
     if (data_.size() == 1ul) {  // Vector may be collapsed
         return front();
     }
-    return data_.operator[](idx);
+    return data_[idx];
 }
 
 template<typename T>
-const T& CollapsedVector<T>::at(size_t idx) const {
+inline const T& CollapsedVector<T>::at(size_t idx) const {
     if (idx >= logicalSize_) {
         throw std::out_of_range("Trying to access illegal index of CollapsedVector");
     }
-    return operator[](idx);
+    return (*this)[idx];
 }
 
 template<typename T>
-size_t CollapsedVector<T>::size() const noexcept {
+inline size_t CollapsedVector<T>::size() const noexcept {
     return logicalSize_;
 }
 
 template<typename T>
-void CollapsedVector<T>::clear() noexcept {
+inline void CollapsedVector<T>::clear() noexcept {
     data_.clear();
     logicalSize_ = 0ul;
 }
 
 template<typename T>
-void CollapsedVector<T>::reserve(size_t size) {
+inline void CollapsedVector<T>::reserve(size_t size) {
     data_.reserve(size);
 }
 
 template<typename T>
-const T& CollapsedVector<T>::front() const {
+inline const T& CollapsedVector<T>::front() const {
     return data_.front();
 }
 

@@ -53,6 +53,8 @@ public:
             : Timestamp(type()), std::vector<T>(n, t) {}
     Vector(const std::vector<T>& v)
             : Timestamp(type()), std::vector<T>(v) {}
+    Vector(const std::vector<T>& v, Time start, Time end)
+            : Timestamp(start, end), std::vector<T>(v) {}
     template<class InputIterator>
     Vector(InputIterator begin, InputIterator end)
             : Timestamp(type()), std::vector<T>(begin, end) {}

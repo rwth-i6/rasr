@@ -26,18 +26,38 @@ namespace Nn {
 LabelScorer::LabelScorer(const Core::Configuration& config)
         : Core::Component(config) {}
 
-void LabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
-    addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
+void LabelScorer::addInput(const std::vector<f32>& input) {
+    addInput(input.data(), input.size());
 }
 
-void LabelScorer::addInputs(std::vector<FeatureVectorRef> const& inputs) {
+void LabelScorer::addInput(const FeatureVectorRef input) {
+    addInput(*input);
+}
+
+void LabelScorer::addInput(const Core::Ref<const Speech::Feature> input) {
+    addInput(*input->mainStream());
+}
+
+void LabelScorer::addInputs(const f32* input, size_t T, size_t F) {
+    for (size_t t = 0ul; t < T; ++t) {
+        addInput(input + t * F, F);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<std::vector<f32>>& inputs) {
     for (const auto& input : inputs) {
         addInput(input);
     }
 }
 
-void LabelScorer::addInputs(std::vector<Core::Ref<const Speech::Feature>> const& inputs) {
-    for (const auto& input : inputs) {
+void LabelScorer::addInputs(const std::vector<FeatureVectorRef>& inputs) {
+    for (auto input : inputs) {
+        addInput(input);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs) {
+    for (auto input : inputs) {
         addInput(input);
     }
 }

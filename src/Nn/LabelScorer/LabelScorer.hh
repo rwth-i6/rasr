@@ -121,12 +121,17 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(FeatureVectorRef input) = 0;
-    virtual void addInput(Core::Ref<const Speech::Feature> input);
+    virtual void addInput(const f32* input, size_t F) = 0;
+    virtual void addInput(const std::vector<f32>& input);                 // By default falls back to the pointer version
+    virtual void addInput(const FeatureVectorRef input);                  // By default falls back to the std::vector version
+    virtual void addInput(const Core::Ref<const Speech::Feature> input);  // By default falls back to the std::vector version
 
-    // Add a batch of features
-    virtual void addInputs(std::vector<FeatureVectorRef> const& inputs);
-    virtual void addInputs(std::vector<Core::Ref<const Speech::Feature>> const& inputs);
+    // Add input features for multiple time steps
+    // By default loops over the single-input versions
+    virtual void addInputs(const f32* input, size_t T, size_t F);
+    virtual void addInputs(const std::vector<std::vector<f32>>& inputs);
+    virtual void addInputs(const std::vector<FeatureVectorRef>& inputs);
+    virtual void addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
@@ -137,6 +142,7 @@ public:
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
+    // By default loops over the single-request version
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
 };
 

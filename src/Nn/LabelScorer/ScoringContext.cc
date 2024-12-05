@@ -20,7 +20,7 @@ typedef Mm::EmissionIndex LabelIndex;
 
 /*
  * =============================
- * === ScoringContext ============
+ * === ScoringContext ==========
  * =============================
  */
 size_t ScoringContextHash::operator()(ScoringContextRef history) const {

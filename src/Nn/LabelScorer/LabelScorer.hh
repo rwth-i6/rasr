@@ -16,6 +16,8 @@
 #ifndef LABEL_SCORER_HH
 #define LABEL_SCORER_HH
 
+#include <optional>
+
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -26,18 +28,13 @@
 #include <Flow/Vector.hh>
 #include <Mm/FeatureScorer.hh>
 #include <Nn/Types.hh>
-#include <Search/SearchV2.hh>
 #include <Search/Types.hh>
 #include <Speech/Feature.hh>
 #include <Speech/Types.hh>
-#include <optional>
+
 #include "ScoringContext.hh"
 
 namespace Nn {
-
-typedef Search::Score                Score;
-typedef Flow::Vector<f32>            FeatureVector;
-typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
 
 /*
  * Abstract base class for scoring tokens within an ASR search algorithm.
@@ -76,26 +73,38 @@ typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
+    typedef Search::Score                Score;
+    typedef Flow::Vector<f32>            FeatureVector;
+    typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
+
+    enum TransitionType {
+        LABEL_TO_LABEL,
+        LABEL_LOOP,
+        LABEL_TO_BLANK,
+        BLANK_TO_LABEL,
+        BLANK_LOOP,
+    };
+
     // Request for scoring or context extension
     struct Request {
-        ScoringContextRef      context;
-        LabelIndex             nextToken;
-        Search::TransitionType transitionType;
+        ScoringContextRef context;
+        LabelIndex        nextToken;
+        TransitionType    transitionType;
     };
 
     // Return value of scoring function
     struct ScoreWithTime {
         Score                  score;
-        Speech::TimeframeIndex timestep;
+        Speech::TimeframeIndex timeframe;
     };
 
     // Return value of batched scoring function
     struct ScoresWithTimes {
         std::vector<Score>                            scores;
-        Core::CollapsedVector<Speech::TimeframeIndex> timesteps;  // Timesteps vector is internally collapsed  if all timesteps are the same (e.g. time-sync decoding)
+        Core::CollapsedVector<Speech::TimeframeIndex> timeframes;  // Timeframes vector is internally collapsed  if all timeframes are the same (e.g. time-sync decoding)
     };
 
-    LabelScorer(const Core::Configuration& config);
+    LabelScorer(Core::Configuration const& config);
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
@@ -109,30 +118,26 @@ public:
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(Request request) = 0;
-
-    // Function that returns the mapping of each timeframe index (returned in the scoring functions)
-    // to actual flow timestamps with start-/ and end-time in seconds.
-    virtual const std::vector<Flow::Timestamp>& getTimestamps() const = 0;
+    virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
     virtual void addInput(FeatureVectorRef input) = 0;
     virtual void addInput(Core::Ref<const Speech::Feature> input);
 
     // Add a batch of features
-    virtual void addInputs(const std::vector<FeatureVectorRef>& inputs);
-    virtual void addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs);
+    virtual void addInputs(std::vector<FeatureVectorRef> const& inputs);
+    virtual void addInputs(std::vector<Core::Ref<const Speech::Feature>> const& inputs);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet
     // (e.g. not enough features received)
-    virtual std::optional<ScoreWithTime> getScoreWithTime(const Request request) = 0;
+    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) = 0;
 
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
-    virtual std::optional<ScoresWithTimes> getScoresWithTimes(const std::vector<Request>& requests);
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
 };
 
 }  // namespace Nn

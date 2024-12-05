@@ -14,7 +14,6 @@
  */
 
 #include "LabelScorer.hh"
-#include <Flow/Timestamp.hh>
 
 namespace Nn {
 
@@ -31,31 +30,31 @@ void LabelScorer::addInput(Core::Ref<const Speech::Feature> input) {
     addInput(Flow::dataPtr(new FeatureVector(*input->mainStream(), input->timestamp().startTime(), input->timestamp().endTime())));
 }
 
-void LabelScorer::addInputs(const std::vector<FeatureVectorRef>& inputs) {
+void LabelScorer::addInputs(std::vector<FeatureVectorRef> const& inputs) {
     for (const auto& input : inputs) {
         addInput(input);
     }
 }
 
-void LabelScorer::addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs) {
+void LabelScorer::addInputs(std::vector<Core::Ref<const Speech::Feature>> const& inputs) {
     for (const auto& input : inputs) {
         addInput(input);
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
-    // By default, just loop over the non-batched `getScoreWithTime` and collect the results
+std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+    // By default, just loop over the non-batched `computeScoreWithTime` and collect the results
     ScoresWithTimes result;
 
     result.scores.reserve(requests.size());
-    result.timesteps.reserve(requests.size());
+    result.timeframes.reserve(requests.size());
     for (auto& request : requests) {
-        auto singleResult = getScoreWithTime(request);
+        auto singleResult = computeScoreWithTime(request);
         if (not singleResult.has_value()) {
             return {};
         }
         result.scores.push_back(singleResult->score);
-        result.timesteps.push_back(singleResult->timestep);
+        result.timeframes.push_back(singleResult->timeframe);
     }
 
     return result;

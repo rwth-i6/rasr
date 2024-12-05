@@ -17,6 +17,8 @@
 #define FIFO_CACHE_HH
 
 #include <cstddef>
+#include <functional>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -37,16 +39,18 @@ namespace Core {
 template<typename Key, typename Value, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class FIFOCache {
 public:
-    FIFOCache(size_t maxSize);
+    inline FIFOCache(size_t maxSize);
 
     // Insert or update a key-value pair (oldest inserted elements get removed first)
-    void put(const Key& key, const Value& value);
+    inline void put(const Key& key, const Value& value);
 
-    Value& get(const Key& key);
-    bool   contains(const Key& key) const;
-    void   clear();
-    size_t size() const;
-    size_t maxSize() const;
+    inline std::optional<std::reference_wrapper<Value>>       get(const Key& key);
+    inline std::optional<std::reference_wrapper<const Value>> get(const Key& key) const;
+    inline Value&                                             operator[](const Key& key);
+    inline bool                                               contains(const Key& key) const;
+    inline void                                               clear();
+    inline size_t                                             size() const;
+    inline size_t                                             maxSize() const;
 
 private:
     using Map         = typename std::unordered_map<Key, Value, Hash, KeyEqual>;
@@ -65,7 +69,7 @@ private:
  */
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-FIFOCache<Key, Value, Hash, KeyEqual>::FIFOCache(size_t maxSize)
+inline FIFOCache<Key, Value, Hash, KeyEqual>::FIFOCache(size_t maxSize)
         : cacheMap_(), maxSize_(maxSize), cacheElementKeys_(), oldestElementPos_(0ul) {
     cacheMap_.reserve(maxSize_);
     cacheElementKeys_.reserve(maxSize_);
@@ -73,14 +77,13 @@ FIFOCache<Key, Value, Hash, KeyEqual>::FIFOCache(size_t maxSize)
 
 // Insert or update a key-value pair (oldest inserted elements get removed first)
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-void FIFOCache<Key, Value, Hash, KeyEqual>::put(const Key& key, const Value& value) {
+inline void FIFOCache<Key, Value, Hash, KeyEqual>::put(const Key& key, const Value& value) {
     auto it = cacheMap_.find(key);
     if (it != cacheMap_.end()) {
         // Key exists; update the value but don't change the order in the list
         it->second = value;
     }
     else {  // Key doesn't exist yet
-
         // If the cache is not full yet, just insert the new item
         if (cacheElementKeys_.size() < maxSize_) {
             cacheMap_.emplace(key, value);
@@ -100,29 +103,53 @@ void FIFOCache<Key, Value, Hash, KeyEqual>::put(const Key& key, const Value& val
 }
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-Value& FIFOCache<Key, Value, Hash, KeyEqual>::get(const Key& key) {
-    return cacheMap_.at(key);
+inline std::optional<std::reference_wrapper<Value>> FIFOCache<Key, Value, Hash, KeyEqual>::get(const Key& key) {
+    auto it = cacheMap_.find(key);
+    if (it != cacheMap_.end()) {
+        return std::reference_wrapper<Value>(it->second);
+    }
+    return {};
 }
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-bool FIFOCache<Key, Value, Hash, KeyEqual>::contains(const Key& key) const {
+inline std::optional<std::reference_wrapper<const Value>> FIFOCache<Key, Value, Hash, KeyEqual>::get(const Key& key) const {
+    auto it = cacheMap_.find(key);
+    if (it != cacheMap_.end()) {
+        return std::reference_wrapper<Value>(it->second);
+    }
+    return {};
+}
+
+template<typename Key, typename Value, typename Hash, typename KeyEqual>
+inline Value& FIFOCache<Key, Value, Hash, KeyEqual>::operator[](const Key& key) {
+    auto it = cacheMap_.find(key);
+    if (it != cacheMap_.end()) {
+        return it->second;
+    }
+
+    put(key, {});
+    return cacheMap_[key];
+}
+
+template<typename Key, typename Value, typename Hash, typename KeyEqual>
+inline bool FIFOCache<Key, Value, Hash, KeyEqual>::contains(const Key& key) const {
     return cacheMap_.find(key) != cacheMap_.end();
 }
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-void FIFOCache<Key, Value, Hash, KeyEqual>::clear() {
+inline void FIFOCache<Key, Value, Hash, KeyEqual>::clear() {
     cacheMap_.clear();
     cacheElementKeys_.clear();
     oldestElementPos_ = 0ul;
 }
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-size_t FIFOCache<Key, Value, Hash, KeyEqual>::size() const {
+inline size_t FIFOCache<Key, Value, Hash, KeyEqual>::size() const {
     return cacheMap_.size();
 }
 
 template<typename Key, typename Value, typename Hash, typename KeyEqual>
-size_t FIFOCache<Key, Value, Hash, KeyEqual>::maxSize() const {
+inline size_t FIFOCache<Key, Value, Hash, KeyEqual>::maxSize() const {
     return maxSize_;
 }
 

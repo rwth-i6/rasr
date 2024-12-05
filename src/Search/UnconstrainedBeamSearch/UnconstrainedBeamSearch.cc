@@ -131,7 +131,6 @@ Core::Ref<const LatticeAdaptor> UnconstrainedBeamSearch::getCurrentBestWordLatti
     for (auto it = beam_.front().traceback.begin(); it != beam_.front().traceback.end(); ++it) {
         // wordBoundaries->set(currentState->id(), Lattice::WordBoundary(static_cast<Speech::TimeframeIndex>(it->time.endTime())));
         wordBoundaries->set(currentState->id(), Lattice::WordBoundary(it->time));
-        log() << "Create word boundary for state " << currentState->id() << " at time " << it->time;
         Fsa::State* nextState;
         if (std::next(it) == beam_.front().traceback.end()) {
             nextState = result->finalState();
@@ -412,7 +411,6 @@ bool UnconstrainedBeamSearch::decodeStep() {
     }
 
     beam_.swap(newBeam);
-    log() << "Best hypothesis: " << beam_.front().toString();
 
     return true;
 }

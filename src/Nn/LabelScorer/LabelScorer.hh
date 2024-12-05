@@ -114,10 +114,16 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request request) = 0;
 
     // Add a single input feature
-    virtual void addInput(f32 const* input, size_t F) = 0;
+    virtual void addInput(const f32* input, size_t F) = 0;
+    virtual void addInput(const std::vector<f32>& input);
+    virtual void addInput(const FeatureVectorRef input);
+    virtual void addInput(const Core::Ref<const Speech::Feature> input);
 
     // Add input features for multiple time steps
-    virtual void addInputs(f32 const* input, size_t T, size_t F);
+    virtual void addInputs(const f32* input, size_t T, size_t F);
+    virtual void addInputs(const std::vector<std::vector<f32>>& inputs);
+    virtual void addInputs(const std::vector<FeatureVectorRef>& inputs);
+    virtual void addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
@@ -148,13 +154,14 @@ public:
     virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(f32 const* input, size_t F) override;
+    virtual void addInput(const f32* input, size_t F) override;
+    virtual void addInput(const std::vector<f32>& input) override;
 
 protected:
-    size_t                  featureSize_;
-    std::vector<f32 const*> inputBuffer_;
-    bool                    inputsAreContiguous_;
-    bool                    featuresMissing_;
+    size_t                                  featureSize_;
+    std::vector<std::shared_ptr<const f32>> inputBuffer_;
+    bool                                    inputsAreContiguous_;
+    bool                                    featuresMissing_;
 };
 
 /*
@@ -194,7 +201,8 @@ public:
     void reset() override;
 
     // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(f32 const* input, size_t F) override;
+    void addInput(const f32* input, size_t F) override;
+    void addInput(const std::vector<f32>& input) override;
 
     // Flush and cache all remaining context scorers
     void signalNoMoreFeatures() override;

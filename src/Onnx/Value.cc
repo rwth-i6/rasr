@@ -1046,10 +1046,7 @@ void Value::set(T const* data, std::vector<int64_t> const& shape) {
     Ort::AllocatorWithDefaultOptions allocator;
     value_ = Ort::Value::CreateTensor<T>(allocator, shape.data(), shape.size());
 
-    size_t totalSize = 1ul;
-    for (auto dim : shape) {
-        totalSize *= dim;
-    }
+    int64_t totalSize = std::accumulate(shape.begin(), shape.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
 
     T* valueData = value_.GetTensorMutableData<T>();
     std::copy(data, data + totalSize, valueData);

@@ -54,12 +54,10 @@ void OnnxEncoder::encode() {
     size_t T_in = inputBuffer_.size();
 
     if (featuresAreContiguous_) {
-        log() << "Contiguous features for encoder";
         std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(featureSize_)};
         sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(inputBuffer_.front(), featuresShape)));
     }
     else {
-        log() << "No contiguous features for encoder";
         std::vector<Math::FastMatrix<f32>> batchMat;  // will only contain a single element but packed in a vector for 1 x T x F Onnx value creation
 
         // Initialize empty matrix of shape F x T.

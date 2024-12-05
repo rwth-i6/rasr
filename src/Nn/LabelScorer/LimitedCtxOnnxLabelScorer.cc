@@ -249,7 +249,7 @@ void LimitedCtxOnnxLabelScorer::forwardBatch(const std::vector<SeqStepScoringCon
      */
 
     // All requests in this iteration share the same encoder state which is set up here
-    f32 const*           encoderState = inputBuffer_[contextBatch.front()->currentStep];
+    f32 const*           encoderState = inputBuffer_[contextBatch.front()->currentStep].get();
     std::vector<int64_t> encoderShape = {1, static_cast<int64_t>(featureSize_)};
 
     // Create batched context input

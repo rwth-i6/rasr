@@ -46,9 +46,39 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(cons
     return result;
 }
 
-void LabelScorer::addInputs(f32 const* input, size_t T, size_t F) {
+void LabelScorer::addInput(const std::vector<f32>& input) {
+    addInput(input.data(), input.size());
+}
+
+void LabelScorer::addInput(const FeatureVectorRef input) {
+    addInput(*input);
+}
+
+void LabelScorer::addInput(const Core::Ref<const Speech::Feature> input) {
+    addInput(*input->mainStream());
+}
+
+void LabelScorer::addInputs(const f32* input, size_t T, size_t F) {
     for (size_t t = 0ul; t < T; ++t) {
         addInput(input + t * F, F);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<std::vector<f32>>& inputs) {
+    for (const auto& input : inputs) {
+        addInput(input);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<FeatureVectorRef>& inputs) {
+    for (auto input : inputs) {
+        addInput(input);
+    }
+}
+
+void LabelScorer::addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs) {
+    for (auto input : inputs) {
+        addInput(input);
     }
 }
 
@@ -72,7 +102,7 @@ void BufferedLabelScorer::signalNoMoreFeatures() {
     featuresMissing_ = false;
 }
 
-void BufferedLabelScorer::addInput(f32 const* input, size_t F) {
+void BufferedLabelScorer::addInput(const f32* input, size_t F) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = F;
     }
@@ -80,10 +110,31 @@ void BufferedLabelScorer::addInput(f32 const* input, size_t F) {
         error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
     }
 
-    if (not inputBuffer_.empty() and input != inputBuffer_.back() + F) {
+    if (not inputBuffer_.empty() and input != inputBuffer_.back().get() + F) {
         inputsAreContiguous_ = false;
     }
-    inputBuffer_.push_back(input);
+    auto dataPtr = std::shared_ptr<const f32>(input, [](const f32*) {});
+    inputBuffer_.push_back(dataPtr);
+}
+
+void BufferedLabelScorer::addInput(const std::vector<f32>& input) {
+    if (featureSize_ == Core::Type<size_t>::max) {
+        featureSize_ = input.size();
+    }
+    else if (featureSize_ != input.size()) {
+        error() << "Label scorer received incompatible feature size " << input.size() << "; was set to " << featureSize_ << " before.";
+    }
+
+    inputsAreContiguous_ = false;
+
+    // `dataPtr` contains the underlying pointer `input.data()`.
+    // It has a custom deleter that captures a shared pointer to the vector input by value,
+    // thus making sure the vector stays alive as long as dataPtr exists and the
+    // underlying data isn't invalidated prematurely.
+    auto dataPtr = std::shared_ptr<const float>(
+            input.data(),
+            [vecPtr = std::make_shared<std::vector<f32>>(input)](const f32*) mutable {});
+    inputBuffer_.push_back(dataPtr);
 }
 
 /*
@@ -113,7 +164,7 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::getScoreWithT
         error() << "Tried to get score for token " << request.nextToken << " but only have " << featureSize_ << " scores available.";
     }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
+    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep).get()[request.nextToken], stepHistory->currentStep};
 }
 
 /*
@@ -133,10 +184,14 @@ void LegacyFeatureScorerLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-void LegacyFeatureScorerLabelScorer::addInput(f32 const* input, size_t F) {
+void LegacyFeatureScorerLabelScorer::addInput(const f32* input, size_t F) {
     std::vector<f32> featureVector(F);
     std::copy(input, input + F, featureVector.begin());
-    auto feature = Core::ref(new Mm::Feature(featureVector));
+    addInput(featureVector);
+}
+
+void LegacyFeatureScorerLabelScorer::addInput(const std::vector<f32>& input) {
+    auto feature = Core::ref(new Mm::Feature(input));
 
     if (featureScorer_->isBuffered() and not featureScorer_->bufferFilled()) {
         featureScorer_->addFeature(feature);

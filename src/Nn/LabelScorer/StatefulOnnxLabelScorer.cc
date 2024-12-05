@@ -315,13 +315,13 @@ HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
             if (inputsAreContiguous_) {
                 std::vector<int64_t> encoderStatesShape = {1l, T, F};
 
-                encoderStatesValue_ = Onnx::Value::create(inputBuffer_.front(), encoderStatesShape);
+                encoderStatesValue_ = Onnx::Value::create(inputBuffer_.front().get(), encoderStatesShape);
             }
             else {
                 std::vector<Math::FastMatrix<f32>> encoderStatesMats = {{F, T}};
 
                 for (size_t t = 0ul; t < T; ++t) {
-                    std::copy(inputBuffer_[t], inputBuffer_[t] + F, &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
+                    std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + F, &(encoderStatesMats.front().at(0, t)));  // Pointer to first element in column t
                 }
                 encoderStatesValue_ = Onnx::Value::create(encoderStatesMats, true);
             }

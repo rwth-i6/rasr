@@ -31,14 +31,18 @@ struct MyStandardValueHash {
     }
 };
 
+class AbstractTreeBuilder;
+
 namespace Search {
 class HMMStateNetwork;
 class StateTree;
 
 class PersistentStateTree {
 public:
+    using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
+
     ///@param lexicon This must be given if the resulting exits are supposed to be functional
-    PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon);
+    PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory);
 
     ///Builds this state tree.
     void build();
@@ -128,6 +132,7 @@ private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Bliss::LexiconRef                  lexicon_;
     Core::Configuration                config_;
+    TreeBuilderFactory                 treeBuilderFactory_;
 
     //Writes the whole state network into the given stream
     void write(Core::MappedArchiveWriter writer);

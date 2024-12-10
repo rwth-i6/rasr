@@ -166,14 +166,15 @@ private:
     }
 };
 
-PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon)
+PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory)
         : masterTree(0),
           rootState(0),
           ciRootState(0),
           archive_(paramCacheArchive(Core::Configuration(config, "search-network"))),
           acousticModel_(acousticModel),
           lexicon_(lexicon),
-          config_(config) {
+          config_(config),
+          treeBuilderFactory_(treeBuilderFactory) {
     if (acousticModel_.get() && lexicon_.get()) {
         const Am::ClassicAcousticModel* am = required_cast(const Am::ClassicAcousticModel*, acousticModel.get());
         Core::DependencySet             d;
@@ -320,7 +321,7 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     in >> masterTree >> dependenciesChecksum;
 
     if (dependenciesChecksum != dependencies_.getChecksum()) {
-        Core::Application::us()->log() << "dependencies of the network image don't equal the requiered dependencies with checksum " << dependenciesChecksum;
+        Core::Application::us()->log() << "dependencies of the network image don't equal the required dependencies with checksum " << dependenciesChecksum;
         return false;
     }
 
@@ -512,7 +513,7 @@ void PersistentStateTree::dumpDotGraph(std::string file, const std::vector<int>&
         int depth = 0;
         if (!nodeDepths.empty())
             depth = nodeDepths[node];
-        os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d", node, node, depth, structure.state(node).stateDesc.acousticModel);
+        os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d\\nt=%d", node, node, depth, structure.state(node).stateDesc.acousticModel, structure.state(node).stateDesc.transitionModelIndex);
 
         for (HMMStateNetwork::SuccessorIterator target = structure.successors(node); target; ++target)
             if (target.isLabel() && exits[target.label()].pronunciation != Bliss::LemmaPronunciation::invalidId)

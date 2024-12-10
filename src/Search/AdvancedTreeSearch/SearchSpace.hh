@@ -50,6 +50,13 @@ class StaticSearchAutomaton : public Core::Component {
 public:
     using Precursor = Core::Component;
 
+    enum class TreeBuilderType {
+        previousBehavior = 0,
+        classicHmm       = 1,
+        minimizedHmm     = 2,
+        ctc              = 3,
+    };
+
     /// HMM length of a common phoneme
     const u32 hmmLength;
     bool      minimized;
@@ -68,7 +75,7 @@ public:
     std::vector<int> singleLabels;
     // LM- and acoustic look-ahead ids together, for quicker access
     std::vector<std::pair<u32, u32>> lookAheadIds;
-    // Sparse LM lookahead hash and acoustic lookahead id paired togeter
+    // Sparse LM lookahead hash and acoustic lookahead id paired together
     std::vector<std::pair<u32, u32>> lookAheadIdAndHash;
 
     std::vector<int> stateDepths;
@@ -79,7 +86,7 @@ public:
     std::vector<unsigned char> truncatedInvertedStateDepths;
     std::vector<unsigned char> truncatedStateDepths;
 
-    // number of transitions needed untill the next word end (that is not silence)
+    // number of transitions needed until the next word end (that is not silence)
     std::vector<unsigned> labelDistance;
 
     /// Optional filter which allows limiting the search space to a certain word sequence prefix
@@ -114,6 +121,11 @@ public:
 
     // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
     void buildBatches();
+
+protected:
+    TreeBuilderType treeBuilderType_;
+
+    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
 
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
@@ -299,7 +311,7 @@ public:
     // Creates early word end hypotheses from the active state hypotheses
     void findWordEnds();
 
-    // Prunes early word end hypotheses, and expands them to normal word end hypothses
+    // Prunes early word end hypotheses, and expands them to normal word end hypotheses
     void pruneEarlyWordEnds();
 
     // Applies time-, score- and transit-modification to the given trace-id, and returns the corrected trace item (as successor of the original trace item)
@@ -332,7 +344,7 @@ public:
     // deletes all traces that did not survive in stateHypotheses and rootStateHypotheses of activeTrees
     void cleanup();
 
-    // Optimize the lattice, removing redundant silence occurances
+    // Optimize the lattice, removing redundant silence occurrences
     void optimizeSilenceInWordLattice(const Bliss::Lemma* silence);
 
     Core::Ref<Trace> getSentenceEnd(TimeframeIndex time, bool shallCreateLattice);

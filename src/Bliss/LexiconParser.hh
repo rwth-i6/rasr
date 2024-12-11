@@ -31,7 +31,7 @@ class PhonemeInventoryElement : public Core::XmlBuilderElement<
             PhonemeInventory,
             Core::XmlRegularElement,
             Core::CreateUsingNew>
-            Precursor;
+                                    Precursor;
     typedef PhonemeInventoryElement Self;
 
 private:
@@ -64,7 +64,7 @@ class LexiconElement : public Core::XmlBuilderElement<
             Lexicon,
             Core::XmlRegularElement,
             Core::CreateByContext>
-            Precursor;
+                           Precursor;
     typedef LexiconElement Self;
 
 private:
@@ -96,7 +96,7 @@ private:
 
 public:
     LexiconElement(Core::XmlContext*, CreationHandler, const Core::Configuration& c);
-    virtual void characters(const char*, int){};
+    virtual void characters(const char*, int) {};
 };
 
 /*
@@ -105,8 +105,8 @@ public:
 class LexiconParser {
 public:
     virtual ~LexiconParser() {}
-    virtual bool parseFile(const std::string& filename) = 0;
-    virtual Lexicon* lexicon() const = 0;
+    virtual bool     parseFile(const std::string& filename) = 0;
+    virtual Lexicon* lexicon() const                        = 0;
 };
 
 /**
@@ -117,7 +117,7 @@ public:
  * through Lexicon.
  */
 class XmlLexiconParser : public virtual LexiconParser, public Core::XmlSchemaParser {
-    typedef XmlLexiconParser         Self;
+    typedef XmlLexiconParser Self;
 
 private:
     Lexicon* lexicon_;
@@ -128,32 +128,32 @@ private:
 
 public:
     XmlLexiconParser(const Core::Configuration& c, Lexicon*);
-    bool parseFile(const std::string& filename) override;
-    Lexicon* lexicon() const override {
-        return lexicon_;
-     }
-};
-
-/**
- * Parser for text lexicon files containing the vocab, so only the labels
- * This is meant for unconstrained search
- * The .txt-file should contain one label per line
- */
-class VocabTextLexiconParser : public LexiconParser {
-private:
-    Lexicon* lexicon_;
-    PhonemeInventory* phonemeInventory_;
-    void createPhoneme(const std::string& line);
-    void createLemmata();
-
-public:
-    VocabTextLexiconParser(Lexicon*);
-    bool parseFile(const std::string& filename) override;
+    bool     parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
         return lexicon_;
     }
 };
 
-} // namespace Bliss
+/**
+ * Parser for text lexicon files containing the vocab, so only the labels
+ * This is meant for "lexicon-free" search
+ * The .txt-file should contain one label per line
+ */
+class VocabTextLexiconParser : public LexiconParser {
+private:
+    Lexicon*          lexicon_;
+    PhonemeInventory* phonemeInventory_;
+    void              createPhoneme(const std::string& line);
+    void              createLemmata();
+
+public:
+    VocabTextLexiconParser(Lexicon*);
+    bool     parseFile(const std::string& filename) override;
+    Lexicon* lexicon() const override {
+        return lexicon_;
+    }
+};
+
+}  // namespace Bliss
 
 #endif  // _BLISS_LEXICONPARSER_HH

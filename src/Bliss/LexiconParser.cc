@@ -395,10 +395,9 @@ bool XmlLexiconParser::parseFile(const std::string& filename) {
     return parser()->Core::XmlSchemaParser::parseFile(filename.c_str()) == 0;
 }
 
-
 VocabTextLexiconParser::VocabTextLexiconParser(Lexicon* _lexicon)
         : LexiconParser() {
-    lexicon_ = _lexicon;
+    lexicon_          = _lexicon;
     phonemeInventory_ = new PhonemeInventory();
 }
 
@@ -413,7 +412,8 @@ bool VocabTextLexiconParser::parseFile(const std::string& filename) {
     }
     std::string line;
     while (std::getline(file, line)) {
-        if (line.empty()) continue;
+        if (line.empty())
+            continue;
         createPhoneme(line);
     }
 
@@ -427,7 +427,7 @@ bool VocabTextLexiconParser::parseFile(const std::string& filename) {
 // helper function to handle one label and create a corresponding phoneme
 void VocabTextLexiconParser::createPhoneme(const std::string& line) {
     std::string symbol(line);
-    stripWhitespace(symbol);        // in case there are any unintentional whitespaces
+    stripWhitespace(symbol);  // in case there are any unintentional whitespaces
     suppressTrailingBlank(symbol);
 
     // check if phoneme was already added (if one label appears more than once)
@@ -449,7 +449,7 @@ void VocabTextLexiconParser::createLemmata() {
     auto phonemes = phonemeInventory_->phonemes();
     for (auto it = phonemes.first; it != phonemes.second; ++it) {
         const Phoneme* phoneme = *it;
-        std::string symbol = phoneme->symbol();
+        std::string    symbol  = phoneme->symbol();
 
         // check if lemma was already added (should not happen)
         if (lexicon_->lemma(symbol)) {

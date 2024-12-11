@@ -13,24 +13,24 @@
  *  limitations under the License.
  */
 
-#include "UnconstrainedBeamSearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
 #include <algorithm>
 #include <numeric>
 #include <strings.h>
+#include "LexiconfreeBeamSearch.hh"
 
 namespace Search {
 
-const Core::ParameterInt   UnconstrainedBeamSearch::paramMaxBeamSize("max-beam-size", "Maximum number of elements in the search beam.", 1);
-const Core::ParameterInt   UnconstrainedBeamSearch::paramTopKTokens("top-k-tokens", "Only consider the k most likely successor tokens for each hypothesis expansion.", Core::Type<int>::max);
-const Core::ParameterFloat UnconstrainedBeamSearch::paramScoreThreshold("score-threshold", "Prune any hypotheses whose score is at least this much worse than the best hypothesis.", Core::Type<Score>::max);
-const Core::ParameterBool  UnconstrainedBeamSearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
-const Core::ParameterInt   UnconstrainedBeamSearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
-const Core::ParameterBool  UnconstrainedBeamSearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
-const Core::ParameterBool  UnconstrainedBeamSearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
-const Core::ParameterBool  UnconstrainedBeamSearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
+const Core::ParameterInt   LexiconfreeBeamSearch::paramMaxBeamSize("max-beam-size", "Maximum number of elements in the search beam.", 1);
+const Core::ParameterInt   LexiconfreeBeamSearch::paramTopKTokens("top-k-tokens", "Only consider the k most likely successor tokens for each hypothesis expansion.", Core::Type<int>::max);
+const Core::ParameterFloat LexiconfreeBeamSearch::paramScoreThreshold("score-threshold", "Prune any hypotheses whose score is at least this much worse than the best hypothesis.", Core::Type<Score>::max);
+const Core::ParameterBool  LexiconfreeBeamSearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
+const Core::ParameterInt   LexiconfreeBeamSearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
+const Core::ParameterBool  LexiconfreeBeamSearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
+const Core::ParameterBool  LexiconfreeBeamSearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
+const Core::ParameterBool  LexiconfreeBeamSearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
 
-UnconstrainedBeamSearch::UnconstrainedBeamSearch(const Core::Configuration& config)
+LexiconfreeBeamSearch::LexiconfreeBeamSearch(const Core::Configuration& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
@@ -53,7 +53,7 @@ UnconstrainedBeamSearch::UnconstrainedBeamSearch(const Core::Configuration& conf
     useScorePruning_ = scoreThreshold_ != Core::Type<Score>::max;
 }
 
-void UnconstrainedBeamSearch::reset() {
+void LexiconfreeBeamSearch::reset() {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
@@ -63,11 +63,11 @@ void UnconstrainedBeamSearch::reset() {
     initializationTime_.toc();
 }
 
-Speech::ModelCombination::Mode UnconstrainedBeamSearch::modelCombinationNeeded() const {
+Speech::ModelCombination::Mode LexiconfreeBeamSearch::modelCombinationNeeded() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
-bool UnconstrainedBeamSearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
+bool LexiconfreeBeamSearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
@@ -77,21 +77,21 @@ bool UnconstrainedBeamSearch::setModelCombination(const Speech::ModelCombination
     return true;
 }
 
-void UnconstrainedBeamSearch::enterSegment() {
+void LexiconfreeBeamSearch::enterSegment() {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
     initializationTime_.toc();
 }
 
-void UnconstrainedBeamSearch::enterSegment(Bliss::SpeechSegment const*) {
+void LexiconfreeBeamSearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
     initializationTime_.toc();
 }
 
-void UnconstrainedBeamSearch::finishSegment() {
+void LexiconfreeBeamSearch::finishSegment() {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->signalNoMoreFeatures();
@@ -99,25 +99,25 @@ void UnconstrainedBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void UnconstrainedBeamSearch::addFeature(f32 const* data, size_t F) {
+void LexiconfreeBeamSearch::addFeature(f32 const* data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void UnconstrainedBeamSearch::addFeatures(f32 const* data, size_t T, size_t F) {
+void LexiconfreeBeamSearch::addFeatures(f32 const* data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);
     featureProcessingTime_.toc();
 }
 
-Core::Ref<const SearchAlgorithmV2::Traceback> UnconstrainedBeamSearch::getCurrentBestTraceback() const {
+Core::Ref<const SearchAlgorithmV2::Traceback> LexiconfreeBeamSearch::getCurrentBestTraceback() const {
     return Core::ref(new Traceback(beam_.front().traceback));
 }
 
-Core::Ref<const LatticeAdaptor> UnconstrainedBeamSearch::getCurrentBestWordLattice() const {
+Core::Ref<const LatticeAdaptor> LexiconfreeBeamSearch::getCurrentBestWordLattice() const {
     if (beam_.front().traceback.empty()) {
         return Core::ref(new Lattice::WordLatticeAdaptor());
     }
@@ -152,21 +152,21 @@ Core::Ref<const LatticeAdaptor> UnconstrainedBeamSearch::getCurrentBestWordLatti
     return Core::ref(new Lattice::WordLatticeAdaptor(result));
 }
 
-void UnconstrainedBeamSearch::resetStatistics() {
+void LexiconfreeBeamSearch::resetStatistics() {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
     contextExtensionTime_.reset();
 }
 
-void UnconstrainedBeamSearch::logStatistics() const {
+void LexiconfreeBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") + Core::XmlAttribute("unit", "milliseconds") << initializationTime_.total << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") + Core::XmlAttribute("unit", "milliseconds") << featureProcessingTime_.total << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.total << Core::XmlClose("scoring-time");
     clog() << Core::XmlOpen("context-extension-time") + Core::XmlAttribute("unit", "milliseconds") << contextExtensionTime_.total << Core::XmlClose("context-extension-time");
 }
 
-Nn::LabelScorer::TransitionType UnconstrainedBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = (prevLabel == blankLabelIndex_);
     bool nextIsBlank = (nextLabel == blankLabelIndex_);
 
@@ -191,10 +191,10 @@ Nn::LabelScorer::TransitionType UnconstrainedBeamSearch::inferTransitionType(Nn:
     }
 }
 
-UnconstrainedBeamSearch::LabelHypothesis::LabelHypothesis(const UnconstrainedBeamSearch::LabelHypothesis& base)
+LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(const LexiconfreeBeamSearch::LabelHypothesis& base)
         : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), traceback(base.traceback) {}
 
-UnconstrainedBeamSearch::LabelHypothesis::LabelHypothesis(const UnconstrainedBeamSearch::LabelHypothesis& base, const UnconstrainedBeamSearch::HypothesisExtension& extension)
+LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(const LexiconfreeBeamSearch::LabelHypothesis& base, const LexiconfreeBeamSearch::HypothesisExtension& extension)
         : scoringContext(extension.scoringContext), currentLabel(extension.label), score(base.score + extension.score), traceback(base.traceback) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
@@ -211,7 +211,7 @@ UnconstrainedBeamSearch::LabelHypothesis::LabelHypothesis(const UnconstrainedBea
     }
 }
 
-std::string UnconstrainedBeamSearch::LabelHypothesis::toString() const {
+std::string LexiconfreeBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
     ss << "Score: " << score << ", traceback: ";
     for (auto& item : traceback) {
@@ -220,7 +220,7 @@ std::string UnconstrainedBeamSearch::LabelHypothesis::toString() const {
     return ss.str();
 }
 
-bool UnconstrainedBeamSearch::decodeStep() {
+bool LexiconfreeBeamSearch::decodeStep() {
     verify(labelScorer_);
 
     // If all hypotheses in the beam have reached sentence-end, no further decode step is performed

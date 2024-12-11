@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef UNCONSTRAINED_BEAM_SEARCH_HH
-#define UNCONSTRAINED_BEAM_SEARCH_HH
+#ifndef LEXICONFREE_BEAM_SEARCH_HH
+#define LEXICONFREE_BEAM_SEARCH_HH
 
 #include <Search/SearchV2.hh>
 #include <chrono>
@@ -26,7 +26,7 @@ namespace Search {
 // Bare-bones search algorithm without pronunciation lexicon, LM, transition model, beam or pruning.
 // Given a lexicon only containing labels (without lemmas), pick the label index with
 // maximum probability at each decoding step.
-class UnconstrainedBeamSearch : public SearchAlgorithmV2 {
+class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
         Nn::ScoringContextRef           scoringContext;
@@ -88,7 +88,7 @@ public:
     static const Core::ParameterBool  paramUseSentenceEnd;
     static const Core::ParameterBool  paramSentenceEndIndex;
 
-    UnconstrainedBeamSearch(const Core::Configuration&);
+    LexiconfreeBeamSearch(const Core::Configuration&);
 
     // Inherited methods
 
@@ -136,4 +136,4 @@ private:
 };
 
 }  // namespace Search
-#endif  // UNCONSTRAINED_BEAM_SEARCH_HH
+#endif  // LEXICONFREE_BEAM_SEARCH_HH

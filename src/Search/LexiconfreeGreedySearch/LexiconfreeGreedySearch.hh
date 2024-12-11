@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef UNCONSTRAINED_GREEDY_SEARCH_HH
-#define UNCONSTRAINED_GREEDY_SEARCH_HH
+#ifndef LEXICONFREE_GREEDY_SEARCH_HH
+#define LEXICONFREE_GREEDY_SEARCH_HH
 
 #include <Search/SearchV2.hh>
 #include <chrono>
@@ -25,7 +25,7 @@ namespace Search {
 // Bare-bones search algorithm without pronunciation lexicon, LM, transition model, beam or pruning.
 // Given a lexicon only containing labels (without lemmas), pick the label index with
 // maximum probability at each decoding step.
-class UnconstrainedGreedySearch : public SearchAlgorithmV2 {
+class LexiconfreeGreedySearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
         Nn::ScoringContextRef           scoringContext;
@@ -82,7 +82,7 @@ public:
     static const Core::ParameterBool paramUseSentenceEnd;
     static const Core::ParameterBool paramSentenceEndIndex;
 
-    UnconstrainedGreedySearch(const Core::Configuration&);
+    LexiconfreeGreedySearch(const Core::Configuration&);
 
     // Inherited methods
 
@@ -122,4 +122,4 @@ private:
 };
 
 }  // namespace Search
-#endif  // UNCONSTRAINED_GREEDY_SEARCH_HH
+#endif  // LEXICONFREE_GREEDY_SEARCH_HH

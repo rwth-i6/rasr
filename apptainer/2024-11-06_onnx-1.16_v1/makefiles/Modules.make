@@ -157,5 +157,5 @@ endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 LIBS_SEARCH += src/Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
 endif
-LIBS_SEARCH += src/Search/UnconstrainedBeamSearch/libSprintUnconstrainedBeamSearch.$(a)
-LIBS_SEARCH += src/Search/UnconstrainedGreedySearch/libSprintUnconstrainedGreedySearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeBeamSearch/libSprintLexiconfreeBeamSearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeGreedySearch/libSprintLexiconfreeGreedySearch.$(a)

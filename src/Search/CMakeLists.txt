@@ -5,8 +5,8 @@ if (${MODULE_ADVANCED_TREE_SEARCH})
         add_subdirectory(AdvancedTreeSearch)
 endif ()
 
-add_subdirectory(UnconstrainedBeamSearch)
-add_subdirectory(UnconstrainedGreedySearch)
+add_subdirectory(LexiconfreeBeamSearch)
+add_subdirectory(LexiconfreeGreedySearch)
 
 set(RasrSearch_SOURCES
         Aligner.cc

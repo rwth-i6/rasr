@@ -13,18 +13,18 @@
  *  limitations under the License.
  */
 
-#include "UnconstrainedGreedySearch.hh"
+#include "LexiconfreeGreedySearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
 
 namespace Search {
 
-const Core::ParameterBool UnconstrainedGreedySearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
-const Core::ParameterInt  UnconstrainedGreedySearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
-const Core::ParameterBool UnconstrainedGreedySearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
-const Core::ParameterBool UnconstrainedGreedySearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
-const Core::ParameterBool UnconstrainedGreedySearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
+const Core::ParameterBool LexiconfreeGreedySearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
+const Core::ParameterInt  LexiconfreeGreedySearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
+const Core::ParameterBool LexiconfreeGreedySearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
+const Core::ParameterBool LexiconfreeGreedySearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
+const Core::ParameterBool LexiconfreeGreedySearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
 
-UnconstrainedGreedySearch::UnconstrainedGreedySearch(const Core::Configuration& config)
+LexiconfreeGreedySearch::LexiconfreeGreedySearch(const Core::Configuration& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           useBlank_(paramUseBlank(config)),
@@ -41,7 +41,7 @@ UnconstrainedGreedySearch::UnconstrainedGreedySearch(const Core::Configuration& 
           contextExtensionTime_() {
 }
 
-void UnconstrainedGreedySearch::reset() {
+void LexiconfreeGreedySearch::reset() {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
@@ -50,11 +50,11 @@ void UnconstrainedGreedySearch::reset() {
     initializationTime_.toc();
 }
 
-Speech::ModelCombination::Mode UnconstrainedGreedySearch::modelCombinationNeeded() const {
+Speech::ModelCombination::Mode LexiconfreeGreedySearch::modelCombinationNeeded() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
-bool UnconstrainedGreedySearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
+bool LexiconfreeGreedySearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
@@ -62,21 +62,21 @@ bool UnconstrainedGreedySearch::setModelCombination(const Speech::ModelCombinati
     return true;
 }
 
-void UnconstrainedGreedySearch::enterSegment() {
+void LexiconfreeGreedySearch::enterSegment() {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
     initializationTime_.toc();
 }
 
-void UnconstrainedGreedySearch::enterSegment(Bliss::SpeechSegment const*) {
+void LexiconfreeGreedySearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
     initializationTime_.toc();
 }
 
-void UnconstrainedGreedySearch::finishSegment() {
+void LexiconfreeGreedySearch::finishSegment() {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->signalNoMoreFeatures();
@@ -84,25 +84,25 @@ void UnconstrainedGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void UnconstrainedGreedySearch::addFeature(f32 const* data, size_t F) {
+void LexiconfreeGreedySearch::addFeature(f32 const* data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void UnconstrainedGreedySearch::addFeatures(f32 const* data, size_t T, size_t F) {
+void LexiconfreeGreedySearch::addFeatures(f32 const* data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);
     featureProcessingTime_.toc();
 }
 
-Core::Ref<const SearchAlgorithmV2::Traceback> UnconstrainedGreedySearch::getCurrentBestTraceback() const {
+Core::Ref<const SearchAlgorithmV2::Traceback> LexiconfreeGreedySearch::getCurrentBestTraceback() const {
     return Core::ref(new Traceback(hyp_.traceback));
 }
 
-Core::Ref<const LatticeAdaptor> UnconstrainedGreedySearch::getCurrentBestWordLattice() const {
+Core::Ref<const LatticeAdaptor> LexiconfreeGreedySearch::getCurrentBestWordLattice() const {
     if (hyp_.traceback.empty()) {
         return Core::ref(new Lattice::WordLatticeAdaptor());
     }
@@ -137,21 +137,21 @@ Core::Ref<const LatticeAdaptor> UnconstrainedGreedySearch::getCurrentBestWordLat
     return Core::ref(new Lattice::WordLatticeAdaptor(result));
 }
 
-void UnconstrainedGreedySearch::resetStatistics() {
+void LexiconfreeGreedySearch::resetStatistics() {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
     contextExtensionTime_.reset();
 }
 
-void UnconstrainedGreedySearch::logStatistics() const {
+void LexiconfreeGreedySearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") + Core::XmlAttribute("unit", "milliseconds") << initializationTime_.total << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") + Core::XmlAttribute("unit", "milliseconds") << featureProcessingTime_.total << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.total << Core::XmlClose("scoring-time");
     clog() << Core::XmlOpen("context-extension-time") + Core::XmlAttribute("unit", "milliseconds") << contextExtensionTime_.total << Core::XmlClose("context-extension-time");
 }
 
-Nn::LabelScorer::TransitionType UnconstrainedGreedySearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::LabelScorer::TransitionType LexiconfreeGreedySearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = (prevLabel == blankLabelIndex_);
     bool nextIsBlank = (nextLabel == blankLabelIndex_);
 
@@ -176,14 +176,14 @@ Nn::LabelScorer::TransitionType UnconstrainedGreedySearch::inferTransitionType(N
     }
 }
 
-void UnconstrainedGreedySearch::LabelHypothesis::reset() {
+void LexiconfreeGreedySearch::LabelHypothesis::reset() {
     scoringContext = Nn::ScoringContextRef();
     currentLabel   = Core::Type<Nn::LabelIndex>::max;
     score          = 0.0f;
     traceback.clear();
 }
 
-void UnconstrainedGreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
+void LexiconfreeGreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
     this->scoringContext = extension.scoringContext;
     this->score += extension.score;
     this->currentLabel = extension.label;
@@ -202,7 +202,7 @@ void UnconstrainedGreedySearch::LabelHypothesis::extend(const HypothesisExtensio
     }
 }
 
-bool UnconstrainedGreedySearch::decodeStep() {
+bool LexiconfreeGreedySearch::decodeStep() {
     verify(labelScorer_);
     verify(hyp_.scoringContext);
 

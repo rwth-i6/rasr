@@ -62,6 +62,16 @@ public:
         verify_(s->id() < store_.size());
         return store_[s->id()];
     }
+
+    Value& operator[](const Token::Id id) {
+        verify_(id < store_.size());
+        return store_[id];
+    }
+
+    const Value& operator[](const Token::Id id) const {
+        verify_(id < store_.size());
+        return store_[id];
+    }
 };
 
 }  // namespace Bliss

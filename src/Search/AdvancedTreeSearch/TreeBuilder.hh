@@ -61,7 +61,7 @@ public:
     static const Core::ParameterBool paramAllowCrossWordSkips;
     static const Core::ParameterBool paramRepeatSilence;
     static const Core::ParameterInt  paramMinimizeIterations;
-    typedef u32 StateId;
+    typedef u32                      StateId;
 
     MinimizedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~MinimizedTreeBuilder() = default;

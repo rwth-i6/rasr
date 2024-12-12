@@ -132,7 +132,6 @@ private:
     Bliss::LexiconRef                  lexicon_;
 };
 
-
 class SearchSpace : public Core::Component {
 public:
     /// Statistics:
@@ -338,7 +337,9 @@ public:
     void rescale(Score offset, bool ignoreWordEnds = false);
 
     // Returns the info from trace manager about whether it needs cleanup
-    inline bool needCleanup() const { return trace_manager_.needCleanup();}
+    inline bool needCleanup() const {
+        return trace_manager_.needCleanup();
+    }
 
     // Needs to be called once in a while, but not every timeframe,
     // deletes all traces that did not survive in stateHypotheses and rootStateHypotheses of activeTrees
@@ -370,18 +371,18 @@ public:
     void                                        setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>&);
     Search::SearchAlgorithm::RecognitionContext setContext(Search::SearchAlgorithm::RecognitionContext);
 
-    ///Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
+    /// Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
     Score bestProspect() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestProspectStateHypothesis() const;
-    ///Returns the best score (the look-ahead score is not included)
+    /// Returns the best score (the look-ahead score is not included)
     ///@warning: Expensive, but with caching
     Score bestScore() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestScoreStateHypothesis() const;
     Score                               quantileStateScore(Score min, Score max, u32 nHyp) const;
-    ///Returns the lowest word end score (without look-ahead)
-    ///Always valid after findWordEnds was called
+    /// Returns the lowest word end score (without look-ahead)
+    /// Always valid after findWordEnds was called
     Score minimumWordEndScore() const;
     Score quantileWordEndScore(Score min, Score max, u32 nHyp) const;
 

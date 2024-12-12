@@ -201,7 +201,8 @@ void MinimizedTreeBuilder::buildBody() {
                 initialPhonemes_.insert(initial);
                 if (isContextDependent(initial)) {
                     coarticulatedInitial += 1;
-                } else {
+                }
+                else {
                     uncoarticulatedInitial += 1;
                 }
             }
@@ -209,7 +210,8 @@ void MinimizedTreeBuilder::buildBody() {
             if (!finalPhonemes_.count(fin)) {
                 if (isContextDependent(fin)) {
                     coarticulatedFinal += 1;
-                } else {
+                }
+                else {
                     uncoarticulatedFinal += 1;
                 }
                 finalPhonemes_.insert(fin);
@@ -265,7 +267,8 @@ void MinimizedTreeBuilder::buildBody() {
                     u32 exit;
                     if (!isContextDependent(phones[pronLength - 1]) && useRootForCiExits) {
                         exit = addExit(tail.second, Bliss::Phoneme::term, Bliss::Phoneme::term, 0, lemmaPron->id());  // Use the non-coarticulated root node
-                    } else {
+                    }
+                    else {
                         exit = addExit(tail.second, phones[pronLength - 1], *initialIt, 0, lemmaPron->id());
                     }
                     if (pronLength == 1) {
@@ -273,7 +276,8 @@ void MinimizedTreeBuilder::buildBody() {
                     }
                 }
             }
-        } else {
+        }
+        else {
             // Minimize the remaining phoneme, insert corresponding word-ends.
             for (Bliss::Pronunciation::LemmaIterator lemmaPron = lemmaProns.first; lemmaPron != lemmaProns.second; ++lemmaPron) {
                 if (pronLength == 1) {
@@ -285,7 +289,8 @@ void MinimizedTreeBuilder::buildBody() {
                         exit.pronunciation = lemmaPron->id();
                         addSuccessor(createRoot(*finalIt, phones[0], 0), ID_FROM_LABEL(createExit(exit)));
                     }
-                } else {
+                }
+                else {
                     u32 exit = addExit(currentState.second, phones[pronLength - 2], phones[pronLength - 1], -1, lemmaPron->id());
                     if (pronLength == 2) {
                         initialPhoneSuffix_[RootKey(phones[0], phones[1], 1)].insert(ID_FROM_LABEL(exit));
@@ -558,7 +563,8 @@ u32 MinimizedTreeBuilder::createExit(PersistentStateTree::Exit exit) {
     ExitHash::iterator exitHashIt = exitHash_.find(exit);
     if (exitHashIt != exitHash_.end()) {
         return exitHashIt->second;
-    } else {
+    }
+    else {
         // Exit does not exist yet, add it
         network_.exits.push_back(exit);
         u32 exitIndex = network_.exits.size() - 1;
@@ -602,7 +608,8 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
         std::swap(left, right);
         if (boundary == Am::Allophone::isFinalPhone) {
             boundary = Am::Allophone::isInitialPhone;
-        } else if (boundary == Am::Allophone::isInitialPhone) {
+        }
+        else if (boundary == Am::Allophone::isInitialPhone) {
             boundary = Am::Allophone::isFinalPhone;
         }
     }
@@ -664,13 +671,15 @@ std::pair<AbstractTreeBuilder::StateId, AbstractTreeBuilder::StateId> MinimizedT
     u8 boundary = 0;
     if (phoneIndex != 0) {
         left = phones[phoneIndex - 1];
-    } else {
+    }
+    else {
         boundary |= Am::Allophone::isInitialPhone;
     }
 
     if (phoneIndex != phones.size() - 1) {
         right = phones[phoneIndex + 1];
-    } else {
+    }
+    else {
         boundary |= Am::Allophone::isFinalPhone;
     }
 
@@ -806,7 +815,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
         for (StateId node = 1; node < network_.structure.stateCount(); ++node) {
             determinizeMap[node] = node;
         }
-    } else {
+    }
+    else {
         // Determinize states: Join successor states with the same state-desc
         while (!active.empty()) {
             StateId state = active.front();
@@ -911,7 +921,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
         for (StateId state = 1; state < oldNodeCount; ++state) {
             if (minimizeMap[state] == state) {
                 minimizeExits(state, minimizeExitsMap);
-            } else {
+            }
+            else {
                 network_.structure.clearOutputEdges(state);
             }
         }
@@ -936,7 +947,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
                 if (orig == network_.rootState || network_.coarticulatedRootStates.count(orig)) {
                     network_.rootTransitDescriptions.insert(*it);
                 }
-            } else {
+            }
+            else {
                 StateId mapped = minimizeMap[it->first];
                 verify(mapped);
                 verify(network_.coarticulatedRootStates.count(mapped));
@@ -956,7 +968,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
     for (StateId state = 1; state < determinizeMap.size(); ++state) {
         if (determinizeMap[state]) {
             determinizeMap[state] = minimizeMap[determinizeMap[state]];
-        } else {
+        }
+        else {
             determinizeMap[state] = minimizeMap[state];
         }
     }
@@ -970,7 +983,8 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
                 *it = cleanupResult.nodeMap[*it];
                 kept += 1;
                 verify(*it);
-            } else {
+            }
+            else {
                 lost += 1;
                 *it = 0;
             }
@@ -979,7 +993,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
     log() << "transformed states: " << kept << " lost: " << lost;
     //   verify( allowLost || !lost );
 
-    // update necessary hashs w.r.t. minimizeMap
+    // update necessary hashes w.r.t. minimizeMap
     predecessors_.swap(oldPredecessors);
     updateHashFromMap(minimizeMap, minimizeExitsMap);
 
@@ -1008,7 +1022,8 @@ void MinimizedTreeBuilder::minimizeState(StateId state, std::vector<StateId>& mi
         if (minimizeMap[*target] == Core::Type<u32>::max) {
             //       std::cout << "detected recursion while minimization on " << *target << std::endl;
             successors.insert(*target);
-        }else {
+        }
+        else {
             successors.insert(minimizeMap[*target]);
         }
     }
@@ -1019,7 +1034,8 @@ void MinimizedTreeBuilder::minimizeState(StateId state, std::vector<StateId>& mi
     std::unordered_map<StatePredecessor, StateId, StatePredecessor::Hash>::iterator it = predecessors_.find(pred);
     if (it != predecessors_.end()) {
         minimizeMap[state] = it->second;
-    } else {
+    }
+    else {
         minimizeMap[state] = state;
         predecessors_.insert(std::make_pair(pred, state));
         for (std::set<StateId>::iterator succIt = successors.begin(); succIt != successors.end(); ++succIt)
@@ -1057,7 +1073,8 @@ void MinimizedTreeBuilder::minimizeExits(StateId state, const std::vector<u32>& 
         ExitMap::iterator                               i     = range.first;
         if (++i == range.second) {
             network_.structure.addOutputToNode(state, range.first->second);
-        } else {
+        }
+        else {
             // Join
             std::set<StateId>            newRootSuccessors;
             std::set<Bliss::Phoneme::Id> left, right;
@@ -1098,14 +1115,15 @@ void MinimizedTreeBuilder::mapSet(std::set<StateId>& set, const std::vector<Stat
     for (std::set<StateId>::iterator it = oldSet.begin(); it != oldSet.end(); ++it) {
         if (*it >= minimizeMap.size()) {
             set.insert(*it);
-        } else if (!minimizeMap[*it]) {
+        }
+        else if (!minimizeMap[*it]) {
             verify(!force);
-        } else {
+        }
+        else {
             set.insert(minimizeMap[*it]);
         }
     }
 }
-
 
 // update hash structures according to minimizeMap (invalid ones are removed)
 // should be ok for any number of minimize iterations
@@ -1170,10 +1188,12 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
             u32 eIdx = LABEL_FROM_ID(*sIt);
             if (exitMap.empty() || eIdx >= exitMap.size()) {
                 tmpSet.insert(*sIt);
-            } else {
+            }
+            else {
                 tmpSet.insert(ID_FROM_LABEL(exitMap[eIdx]));
             }
-        } else if (*sIt < map.size() && map[*sIt]) {
+        }
+        else if (*sIt < map.size() && map[*sIt]) {
             tmpSet.insert(map[*sIt]);
         }
     }

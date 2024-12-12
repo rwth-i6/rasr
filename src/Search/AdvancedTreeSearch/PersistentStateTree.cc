@@ -41,7 +41,7 @@ struct ConvertTree {
     TreeIndex                                                            masterTreeIndex;
     StateId                                                              rootSubTree;
     StateId                                                              ciRootNode;
-    std::map<StateTree::Exit, u32>                                       exits;  //Maps exits to label-indices @todo Make this a hash_map
+    std::map<StateTree::Exit, u32>                                       exits;  // Maps exits to label-indices @todo Make this a hash_map
     std::vector<PersistentStateTree::Exit>                               exitVector;
     Core::HashMap<StateId, StateTree::StateId>                           statesForNodes;
     Core::HashMap<StateTree::StateId, StateId>                           nodesForStates;
@@ -73,7 +73,7 @@ struct ConvertTree {
             }
         }
 
-        ///Make sure a node is created for every single state, so that also the coarticulated roots are respected
+        /// Make sure a node is created for every single state, so that also the coarticulated roots are respected
 
         for (std::set<StateTree::StateId>::iterator stateIt = coarticulatedRootStates.begin(); stateIt != coarticulatedRootStates.end(); ++stateIt) {
             StateTree::StateId state = *stateIt;
@@ -121,7 +121,7 @@ struct ConvertTree {
                 exitIndices.insert(exitEntry->second);
             }
 
-            //Add connections to the attached outputs/exits
+            // Add connections to the attached outputs/exits
             for (std::set<u32>::iterator it = exitIndices.begin(); it != exitIndices.end(); ++it)
                 subtrees.addOutputToEdge(subtrees.state(node).successors, *it);
         }
@@ -150,10 +150,10 @@ private:
 
         subtrees.state(node).stateDesc = state;
 
-        //Build successor structure
+        // Build successor structure
         std::pair<StateTree::SuccessorIterator, StateTree::SuccessorIterator> successors = tree->successors(stateId);
 
-        StateId current = node;  //Just to verify the order
+        StateId current = node;  // Just to verify the order
 
         for (; successors.first != successors.second; ++successors.first) {
             std::unordered_map<StateTree::StateId, StateId>::iterator nodeIt = nodesForStates.find(*successors.first);
@@ -437,7 +437,7 @@ HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
 
     Core::HashMap<StateId, StateId>::const_iterator targetNodeIt;
     if (rootState) {
-        verify(cleanupResult.nodeMap.find(rootState) != cleanupResult.nodeMap.end());  //Root-node must stay unchanged
+        verify(cleanupResult.nodeMap.find(rootState) != cleanupResult.nodeMap.end());  // Root-node must stay unchanged
         verify(cleanupResult.nodeMap.find(rootState)->second == rootState);
         targetNodeIt = cleanupResult.nodeMap.find(rootState);
         verify(targetNodeIt != cleanupResult.nodeMap.end());

@@ -33,29 +33,57 @@ namespace Core {
 class Configuration;
 }
 
-class TreeBuilder {
+class AbstractTreeBuilder : public Core::Component {
 public:
     typedef u32 StateId;
 
-    TreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true, bool arcBased = false);
-    // Build a new persistent state network.
-    void build();
-    // Returns a mapping of state-indices. Zero means 'invalid'.
-    // If onlyMinimizeBackwards is true, then no forward determinization is performed, but rather only backwards minimization.
-    // If allowLost is true, losing states is allowed. Happens if there are unreachable garbage states.
-    std::vector<StateId> minimize(bool forceDeterminization = true, bool onlyMinimizeBackwards = false, bool allowLost = false);
+    AbstractTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
+    virtual ~AbstractTreeBuilder() = default;
 
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) = 0;
+
+    // Build a new persistent state network.
+    virtual void build() = 0;
+
+protected:
+    const Bliss::Lexicon&        lexicon_;
+    const Am::AcousticModel&     acousticModel_;
+    Search::PersistentStateTree& network_;
+};
+
+class MinimizedTreeBuilder : public AbstractTreeBuilder {
+public:
+    static const Core::ParameterInt  paramMinPhones;
+    static const Core::ParameterBool paramAddCiTransitions;
+    static const Core::ParameterBool paramUseRootForCiExits;
+    static const Core::ParameterBool paramForceExactWordEnds;
+    static const Core::ParameterBool paramKeepRoots;
+    static const Core::ParameterBool paramAllowCrossWordSkips;
+    static const Core::ParameterBool paramRepeatSilence;
+    static const Core::ParameterInt  paramMinimizeIterations;
+    typedef u32                      StateId;
+
+    MinimizedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~MinimizedTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+    virtual void build();
+
+protected:
     struct HMMSequence {
         HMMSequence()
                 : length(0) {}
         enum {
             MaxLength = 12
         };
-        s32                                        length;
+
+        s32                          length;
+        Search::StateTree::StateDesc hmm[MaxLength];
+
         inline const Search::StateTree::StateDesc& operator[](u32 index) const {
             return hmm[index];
         }
-        Search::StateTree::StateDesc hmm[MaxLength];
 
         bool operator==(const HMMSequence& rhs) const {
             verify(length < MaxLength);
@@ -79,18 +107,6 @@ public:
             }
         };
     };
-
-    HMMSequence arcSequence(u32 acousticModelIndex) const;
-    std::string arcDesc(u32 acousticModelIndex) const;
-
-    // If this function returns true, then the hmm states are placeholders for hmm sequences which
-    // can be acquired through arcSequence(...). The transition model index then contains word boundary information.
-    bool arcBased() const {
-        return arcBased_;
-    }
-
-protected:
-    Core::Component::Message log() const;
 
     struct RootKey {
     public:
@@ -127,15 +143,15 @@ protected:
                   isWordEnd(_isWordEnd),
                   hash(StandardValueHash<Bliss::Phoneme::Id>()(SetHash<StateId>()(successors) + Search::StateTree::StateDesc::Hash()(desc) + (isWordEnd ? 1312 : 0))) {}
 
+        bool operator==(const StatePredecessor& rhs) const {
+            return successors == rhs.successors && desc == rhs.desc && isWordEnd == rhs.isWordEnd;
+        }
+
         struct Hash {
             u32 operator()(const StatePredecessor& pred) const {
                 return pred.hash;
             }
         };
-
-        bool operator==(const StatePredecessor& rhs) const {
-            return successors == rhs.successors && desc == rhs.desc && isWordEnd == rhs.isWordEnd;
-        }
 
         const std::set<StateId>            successors;
         const Search::StateTree::StateDesc desc;
@@ -143,12 +159,47 @@ protected:
         const u32                          hash;
     };
 
-    void printStats(std::string occasion);
+    typedef std::set<Bliss::Phoneme::Id>                                                                   PhonemeIdSet;
+    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                                                 RootHash;
+    typedef Core::HashMap<StateId, StateId>                                                                SkipRootsHash;
+    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
+    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                                       CoarticulationJointHash;
+    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash>                       PredecessorsHash;
+
+    s32  minPhones_;
+    bool addCiTransitions_;
+    bool useRootForCiExits_;
+    bool forceExactWordEnds_;
+    bool keepRoots_;
+    bool allowCrossWordSkips_;
+    bool repeatSilence_;
+    u32  minimizeIterations_;
+    bool reverse_;
+
+    PhonemeIdSet initialPhonemes_;
+    PhonemeIdSet finalPhonemes_;
+
+    // Keys according to which specific states are supposed to be unique
+    // Required to omit merging of paths in some critical locations
+    Core::HashMap<StateId, RootKey> stateUniqueKeys_;
+
+    RootHash                roots_;  // Contains roots and joint-states
+    SkipRootsHash           skipRoots_;
+    std::set<StateId>       skipRootSet_;
+    ExitHash                exitHash_;
+    CoarticulationJointHash initialPhoneSuffix_;
+    CoarticulationJointHash initialFinalPhoneSuffix_;
+    PredecessorsHash        predecessors_;
+
+    void        printStats(std::string occasion);
+    std::string describe(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>);
+
+    bool isContextDependent(Bliss::Phoneme::Id phone) const;
+
+    void buildBody();
     void buildFanInOutStructure();
     void addCrossWordSkips();
-    void skipRootTransitions();
-    void propagateExits(StateId state, Search::HMMStateNetwork::ChangePlan change);
-    bool isContextDependent(Bliss::Phoneme::Id phone) const;
+    void skipRootTransitions(StateId start = 1);
 
     Search::StateTree::StateDesc rootDesc() const;
 
@@ -156,18 +207,17 @@ protected:
     StateId createRoot(Bliss::Phoneme::Id left, Bliss::Phoneme::Id right, int depth);
     StateId createState(Search::StateTree::StateDesc desc);
     u32     createExit(Search::PersistentStateTree::Exit exit);
-    u32     addExit(StateId                       prePredecessor,
-                    StateId                       predecessor,
+    u32     addExit(StateId                       predecessor,
                     Bliss::Phoneme::Id            leftPhoneme,
                     Bliss::Phoneme::Id            rightPhoneme,
                     int                           depth,
                     Bliss::LemmaPronunciation::Id pron);
-    void    hmmFromAllophone(HMMSequence&       ret,
-                             Bliss::Phoneme::Id left,
-                             Bliss::Phoneme::Id central,
-                             Bliss::Phoneme::Id right,
-                             u32                boundary         = 0,
-                             bool               allowNonStandard = true);
+
+    void hmmFromAllophone(HMMSequence&       ret,
+                          Bliss::Phoneme::Id left,
+                          Bliss::Phoneme::Id central,
+                          Bliss::Phoneme::Id right,
+                          u32                boundary = 0);
 
     // Adds the successor as successor of the predecessor, if it isn't in the list yet
     bool                        addSuccessor(StateId predecessor, StateId successor);
@@ -180,60 +230,15 @@ protected:
     StateId                     extendBodyState(StateId state, Bliss::Phoneme::Id first, Bliss::Phoneme::Id second, Search::StateTree::StateDesc desc);
     StateId                     extendFanIn(StateId successor, Search::StateTree::StateDesc desc);
     StateId                     extendFanIn(const std::set<StateId>& successors, Search::StateTree::StateDesc desc);
-    void                        minimizeState(StateId state, std::vector<StateId>& minimizeMap);
-    void                        minimizeExits(StateId state, const std::vector<u32>& minimizeExitsMap);
-    static void                 mapSet(std::set<StateId>& set, const std::vector<StateId>& minimizeMap, bool force);
 
-    std::string describe(std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>);
+    // Returns a mapping of state-indices. Zero means 'invalid'.
+    // If onlyMinimizeBackwards is true, then no forward determinization is performed, but rather only backwards minimization.
+    // If allowLost is true, losing states is allowed. Happens if there are unreachable garbage states.
+    std::vector<StateId> minimize(bool forceDeterminization = true, bool onlyMinimizeBackwards = false, bool allowLost = false);
+    void                 minimizeState(StateId state, std::vector<StateId>& minimizeMap);
+    void                 minimizeExits(StateId state, const std::vector<u32>& minimizeExitsMap);
+    static void          mapSet(std::set<StateId>& set, const std::vector<StateId>& minimizeMap, bool force);
 
-    const Bliss::Lexicon&        lexicon_;
-    const Am::AcousticModel&     acousticModel_;
-    Search::PersistentStateTree& network_;
-    Core::Configuration          config_;
-    s32                          minPhones_;
-    bool                         forceExactWordEnds_;
-    bool                         keepRoots_;
-    bool                         allowCrossWordSkips_;
-    bool                         repeatSilence_;
-    bool                         reverse_;
-    bool                         arcBased_;
-    std::set<Bliss::Phoneme::Id> initialPhonemes_, finalPhonemes_;
-
-    // Keys according to which specific states are supposed to be unique
-    // Required to omit merging of paths in some critical locations
-    Core::HashMap<StateId, RootKey> stateUniqueKeys_;
-
-    typedef Core::HashMap<HMMSequence, u32, HMMSequence::Hash> ArcSequenceHash;
-    ArcSequenceHash                                            arcSequencesHash_;
-    std::vector<HMMSequence>                                   arcSequences_;
-    struct ArcDesc {
-        ArcDesc()
-                : left(Bliss::Phoneme::term),
-                  central(Bliss::Phoneme::term),
-                  right(Bliss::Phoneme::term) {
-        }
-        Bliss::Phoneme::Id left;
-        Bliss::Phoneme::Id central;
-        Bliss::Phoneme::Id right;
-    };
-    std::vector<ArcDesc> arcDescs_;
-
-    typedef Core::HashMap<RootKey, StateId, RootKey::Hash> RootHash;
-    RootHash                                               roots_;  // Contains roots and joint-states
-
-    typedef Core::HashMap<StateId, StateId> SkipRootsHash;
-    SkipRootsHash                           skipRoots_;
-    std::set<StateId>                       skipRootSet_;
-
-    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
-    ExitHash                                                                                               exitHash_;
-
-    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash> CoarticulationJointHash;
-    CoarticulationJointHash                                          initialPhoneSuffix_, initialFinalPhoneSuffix_;
-
-    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash> PredecessorsHash;
-    PredecessorsHash                                                                 predecessors_;
-protected:
     void updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap);
     void mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap);
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);

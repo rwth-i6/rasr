@@ -45,7 +45,6 @@ protected:
     static const Core::ParameterStringVector paramAcousticExtractors;
     static const Core::ParameterStringVector paramEmissionExtractors;
     static const Core::ParameterStringVector paramNnEmissionExtractors;
-    static const Core::ParameterStringVector paramTheanoEmissionExtractors;
     static const Core::ParameterStringVector paramTdpExtractors;
     static const Core::ParameterStringVector paramPronunciationExtractors;
     static const Core::ParameterStringVector paramLmExtractors;
@@ -102,7 +101,6 @@ private:
     void appendAcousticRescorers();
     void appendEmissionRescorers();
     void appendNnEmissionRescorers();
-    void appendTheanoEmissionRescorers();
     void appendTdpRescorers();
     void appendPronunciationRescorers();
     void appendLmRescorers();

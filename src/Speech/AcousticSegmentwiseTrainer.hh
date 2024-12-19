@@ -37,8 +37,7 @@ class AbstractAcousticSegmentwiseTrainer : public AbstractSegmentwiseTrainer {
 public:
     enum ModelType { gaussianMixture,
                      maximumEntropy,
-                     neuralNetwork,
-                     neuralNetworkTheano };
+                     neuralNetwork };
     static Core::Choice          choiceModelType;
     static Core::ParameterChoice paramModelType;
 

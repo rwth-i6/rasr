@@ -590,7 +590,6 @@ public:
     static const Core::ParameterBool         paramSegmentOrderSortByTimeLength;
     static const Core::ParameterInt          paramSegmentOrderSortByTimeLengthChunkSize;
     static const Core::ParameterBool         paramProgressReportingSegmentOrth;
-    static const Core::ParameterBool         paramTheanoSegmentOrder;
     static const Core::ParameterBool         paramPythonSegmentOrder;
     static const Core::ParameterString       paramPythonSegmentOrderModPath;
     static const Core::ParameterString       paramPythonSegmentOrderModName;

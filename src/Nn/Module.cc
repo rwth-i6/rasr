@@ -97,6 +97,8 @@ const Core::Choice Module_::encoderTypeChoice(
         "no-op", EncoderType::NoOpEncoderType,
         // Forward encoder inputs through an onnx network
         "onnx", EncoderType::OnnxEncoderType,
+        // Forward  encoder inputs chunkwise through an onnx network
+        "chunked-onnx", EncoderType::ChunkedOnnxEncoderType,
         Core::Choice::endMark());
 
 const Core::Choice Module_::labelScorerTypeChoice(
@@ -135,6 +137,9 @@ Core::Ref<Encoder> Module_::createEncoder(const Core::Configuration& config) con
 #ifdef MODULE_ONNX
         case EncoderType::OnnxEncoderType:
             result = Core::ref(new OnnxEncoder(config));
+            break;
+        case EncoderType::ChunkedOnnxEncoderType:
+            result = Core::ref(new ChunkedOnnxEncoder(config));
             break;
 #endif
         default:

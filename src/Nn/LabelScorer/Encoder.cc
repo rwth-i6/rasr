@@ -16,6 +16,7 @@
 #include "Encoder.hh"
 #include <Flow/Data.hh>
 #include <Mm/Module.hh>
+#include <algorithm>
 
 namespace Nn {
 
@@ -25,44 +26,29 @@ namespace Nn {
  * =============================
  */
 
-const Core::ParameterInt Encoder::paramChunkStep(
-        "chunk-step",
-        "Number of new features to wait for before allowing next encoding step.",
-        Core::Type<u32>::max);
-
-const Core::ParameterInt Encoder::paramChunkSize(
-        "chunk-size",
-        "Maximum number of features that are encoded at once.",
-        Core::Type<u32>::max);
-
 Encoder::Encoder(const Core::Configuration& config)
         : Core::Component(config),
-          chunkSize_(paramChunkSize(config)),
-          chunkStep_(paramChunkStep(config)),
-          numNewFeatures_(0ul),
+          inputBuffer_(),
+          outputBuffer_(),
           featureSize_(Core::Type<size_t>::max),
           outputSize_(Core::Type<size_t>::max),
-          featuresAreContiguous_(true),
-          featuresMissing_(true) {}
+          expectMoreFeatures_(true) {}
 
 void Encoder::reset() {
-    featuresMissing_ = true;
+    expectMoreFeatures_ = true;
     inputBuffer_.clear();
-    inputBufferCopy_.clear();
 
     featureSize_ = Core::Type<size_t>::max;
     outputSize_  = Core::Type<size_t>::max;
 
-    featuresAreContiguous_ = true;
     outputBuffer_.clear();
-    numNewFeatures_ = 0ul;
 }
 
 void Encoder::signalNoMoreFeatures() {
-    featuresMissing_ = false;
+    expectMoreFeatures_ = false;
 }
 
-void Encoder::addInput(f32 const* input, size_t F) {
+void Encoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = F;
     }
@@ -70,31 +56,21 @@ void Encoder::addInput(f32 const* input, size_t F) {
         error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
     }
 
-    if (not inputBuffer_.empty() and input != inputBuffer_.back() + F) {
-        featuresAreContiguous_ = false;
-    }
-
     inputBuffer_.push_back(input);
-    inputBufferCopy_.push_back(std::vector<f32>(F));
-    std::copy(input, input + F, inputBufferCopy_.back().data());
-    ++numNewFeatures_;
-    while (inputBuffer_.size() > chunkSize_) {
-        inputBuffer_.pop_front();
-        inputBufferCopy_.pop_front();
-    }
 }
 
-void Encoder::addInputs(f32 const* input, size_t T, size_t F) {
+void Encoder::addInputs(std::shared_ptr<const f32> const& input, size_t T, size_t F) {
     for (size_t t = 0ul; t < T; ++t) {
-        addInput(input + t * F, F);
+        // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
+        addInput(std::shared_ptr<const f32>(input, input.get() + t * F), F);
     }
 }
 
 bool Encoder::canEncode() const {
-    return not inputBuffer_.empty() and (not featuresMissing_ or numNewFeatures_ >= chunkStep_);
+    return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
-std::optional<f32 const*> Encoder::getNextOutput() {
+std::optional<std::shared_ptr<const f32>> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
         auto result = outputBuffer_.front();
@@ -108,7 +84,7 @@ std::optional<f32 const*> Encoder::getNextOutput() {
 
     // run encoder and try again
     encode();
-    numNewFeatures_ = 0ul;
+    postEncodeCleanup();
 
     if (outputBuffer_.empty()) {
         return {};
@@ -121,6 +97,90 @@ size_t Encoder::getOutputSize() const {
     return outputSize_;
 }
 
+void Encoder::postEncodeCleanup() {
+    inputBuffer_.clear();
+}
+
+/*
+ * =============================
+ * === ChunkedEncoder ==========
+ * =============================
+ */
+
+const Core::ParameterInt ChunkedEncoder::paramChunkCenter(
+        "chunk-center",
+        "",
+        Core::Type<u32>::max);
+
+const Core::ParameterInt ChunkedEncoder::paramChunkHistory(
+        "chunk-history",
+        "",
+        Core::Type<u32>::max);
+
+const Core::ParameterInt ChunkedEncoder::paramChunkFuture(
+        "chunk-future",
+        "",
+        Core::Type<u32>::max);
+
+ChunkedEncoder::ChunkedEncoder(const Core::Configuration& config)
+        : Core::Component(config),
+          Precursor(config),
+          chunkCenter_(paramChunkCenter(config)),
+          chunkHistory_(paramChunkHistory(config)),
+          chunkFuture_(paramChunkFuture(config)),
+          chunkSize_(chunkHistory_ + chunkCenter_ + chunkFuture_),
+          currentHistoryFeatures_(0ul),
+          currentCenterFeatures_(0ul),
+          currentFutureFeatures_(0ul) {}
+
+void ChunkedEncoder::reset() {
+    Precursor::reset();
+    currentHistoryFeatures_ = 0ul;
+    currentCenterFeatures_  = 0ul;
+    currentFutureFeatures_  = 0ul;
+}
+
+void ChunkedEncoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+    Precursor::addInput(input, F);
+    if (currentCenterFeatures_ < chunkCenter_) {
+        ++currentCenterFeatures_;
+    }
+    else if (currentFutureFeatures_ < chunkFuture_) {
+        ++currentFutureFeatures_;
+    }
+    else if (currentHistoryFeatures_ < chunkHistory_) {
+        ++currentHistoryFeatures_;
+    }
+    else {
+        warning() << "New feature is added while chunk is already full, thus moving the chunk forward before it has been encoded.";
+        inputBuffer_.pop_front();
+    }
+}
+
+bool ChunkedEncoder::canEncode() const {
+    return not inputBuffer_.empty() and (not expectMoreFeatures_ or (currentCenterFeatures_ == chunkCenter_ and currentFutureFeatures_ == chunkFuture_));
+}
+
+void ChunkedEncoder::postEncodeCleanup() {
+    // Current center is added to history. If history exceeds maximum size, the oldest features are popped from the buffer.
+    currentHistoryFeatures_ = currentHistoryFeatures_ + currentCenterFeatures_;
+    while (currentHistoryFeatures_ > chunkHistory_) {
+        inputBuffer_.pop_front();
+        --currentHistoryFeatures_;
+    }
+
+    // Previous future features become new center until center chunk size is filled.
+    currentCenterFeatures_ = std::min(currentFutureFeatures_, chunkCenter_);
+
+    // New future becomes whatever is left from the previous future after moving features over to new center
+    if (currentFutureFeatures_ > currentCenterFeatures_) {
+        currentFutureFeatures_ -= currentCenterFeatures_;
+    }
+    else {
+        currentFutureFeatures_ = 0ul;
+    }
+}
+
 /*
  * =============================
  * === NoOpEncoder =============
@@ -130,14 +190,15 @@ size_t Encoder::getOutputSize() const {
 NoOpEncoder::NoOpEncoder(const Core::Configuration& config)
         : Core::Component(config), Precursor(config) {}
 
+void NoOpEncoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+    Precursor::addInput(input, F);
+    outputSize_ = featureSize_;
+}
+
 void NoOpEncoder::encode() {
-    size_t T_in = 0ul;
-    while (not inputBuffer_.empty() and T_in < chunkStep_) {
-        outputSize_ = featureSize_;
+    while (not inputBuffer_.empty()) {
         outputBuffer_.push_back(inputBuffer_.front());
         inputBuffer_.pop_front();
-        inputBufferCopy_.pop_front();
-        ++T_in;
     }
 }
 

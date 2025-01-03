@@ -30,53 +30,78 @@ namespace Nn {
 class Encoder : public virtual Core::Component,
                 public Core::ReferenceCounted {
 public:
-    static const Core::ParameterInt paramChunkSize;
-    static const Core::ParameterInt paramChunkStep;
-
     Encoder(const Core::Configuration& config);
     virtual ~Encoder() = default;
 
     // Clear buffers and reset segment end flag
-    void reset();
+    virtual void reset();
 
     // Signal that no more features are expected for the current segment
     // At that point, encoder can run regardless of whether the buffer has been filled
     void signalNoMoreFeatures();
 
     // Add a single input feature to an input buffer
-    void addInput(f32 const* input, size_t F);
+    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F);
 
     // Add input features for multiple time steps to an input buffer
-    void addInputs(f32 const* input, size_t T, size_t F);
+    virtual void addInputs(std::shared_ptr<const f32> const& inputs, size_t T, size_t F);
 
     // Retrieve a single encoder output
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<f32 const*> getNextOutput();
+    std::optional<std::shared_ptr<const f32>> getNextOutput();
 
     size_t getOutputSize() const;
 
 protected:
+    std::deque<std::shared_ptr<const f32>> inputBuffer_;
+    std::deque<std::shared_ptr<const f32>> outputBuffer_;
+
+    size_t featureSize_;
+    size_t outputSize_;
+    bool   expectMoreFeatures_;
+
     // Consume all features inside input buffer, encode them and put the results into the output buffer
     // By default no-op, i.e. just move from input buffer over to output buffer
     virtual void encode() = 0;
 
-    std::deque<f32 const*>       inputBuffer_;
-    std::deque<std::vector<f32>> inputBufferCopy_;
-    std::deque<f32 const*>       outputBuffer_;
+    // Clean up all features from input buffer that have been processed by `encode` and are not needed anymore
+    virtual void postEncodeCleanup();
 
-    const size_t chunkSize_;
-    const size_t chunkStep_;
-    size_t       numNewFeatures_;
-
-    size_t featureSize_;
-    size_t outputSize_;
-    bool   featuresAreContiguous_;
-    bool   featuresMissing_;
-
-private:
     // Check if encoder is ready to run
-    bool canEncode() const;
+    virtual bool canEncode() const;
+};
+
+class ChunkedEncoder : public virtual Encoder {
+    using Precursor = Encoder;
+
+    static const Core::ParameterInt paramChunkCenter;
+    static const Core::ParameterInt paramChunkHistory;
+    static const Core::ParameterInt paramChunkFuture;
+
+public:
+    ChunkedEncoder(const Core::Configuration& config);
+    virtual ~ChunkedEncoder() = default;
+
+    // Clear buffers and reset segment end flag
+    virtual void reset() override;
+
+    // Add a single input feature to an input buffer
+    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
+
+protected:
+    const size_t chunkCenter_;
+    const size_t chunkHistory_;
+    const size_t chunkFuture_;
+    const size_t chunkSize_;
+
+    size_t currentHistoryFeatures_;
+    size_t currentCenterFeatures_;
+    size_t currentFutureFeatures_;
+
+    // Check if encoder is ready to run
+    virtual bool canEncode() const override;
+    virtual void postEncodeCleanup() override;
 };
 
 // Simple dummy encoder that just moves features over from input buffer to output buffer
@@ -85,8 +110,13 @@ class NoOpEncoder : public Encoder {
 
 public:
     NoOpEncoder(const Core::Configuration& config);
+    void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
 
 protected:
+    bool canEncode() const override {
+        return true;
+    }
+
     void encode() override;
 };
 

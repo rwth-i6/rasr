@@ -51,7 +51,10 @@ void SearchAlgorithm::addFeature(py::array_t<f32> feature) {
         F = feature.shape(0);
     }
 
-    searchAlgorithm_->addFeature(feature.data(), F);
+    // `dataPtr` is a shared_ptr wrapper around `input`.
+    // Since we don't actually own the underlying data, it has a custom deleter that does nothing
+    auto dataPtr = std::shared_ptr<const f32>(feature.data(), [](const f32*) {});
+    searchAlgorithm_->addFeature(dataPtr, F);
 }
 
 void SearchAlgorithm::addFeatures(py::array_t<f32> features) {
@@ -70,7 +73,10 @@ void SearchAlgorithm::addFeatures(py::array_t<f32> features) {
         F = features.shape(1);
     }
 
-    searchAlgorithm_->addFeatures(features.data(), T, F);
+    // `dataPtr` is a shared_ptr wrapper around `input`.
+    // Since we don't actually own the underlying data, it has a custom deleter that does nothing
+    auto dataPtr = std::shared_ptr<const f32>(features.data(), [](const f32*) {});
+    searchAlgorithm_->addFeatures(dataPtr, T, F);
 }
 
 std::string SearchAlgorithm::getCurrentBestTranscription() {
@@ -81,7 +87,9 @@ std::string SearchAlgorithm::getCurrentBestTranscription() {
     std::stringstream ss;
 
     for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        ss << it->lemma->symbol() << " ";
+        if (it->lemma) {
+            ss << it->lemma->symbol() << " ";
+        }
     }
 
     return ss.str();

@@ -43,7 +43,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Loop over features and perform recognition
     do {
-        searchAlgorithm_->addFeature(feature->mainStream()->data(), feature->mainStream()->size());
+        searchAlgorithm_->addFeature(*feature->mainStream());
         if (searchAlgorithm_->decodeMore()) {
             auto             traceback = searchAlgorithm_->getCurrentBestTraceback();
             Core::XmlWriter& os(clog());

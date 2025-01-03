@@ -110,10 +110,11 @@ public:
     virtual void finishSegment() = 0;
 
     // Pass a single feature vector
-    virtual void addFeature(f32 const* data, size_t F) = 0;
+    virtual void addFeature(std::shared_ptr<const f32> const& data, size_t F) = 0;
+    virtual void addFeature(std::vector<f32> const& data)                     = 0;
 
     // Pass feature vectors for multiple time steps
-    virtual void addFeatures(f32 const* data, size_t T, size_t F) = 0;
+    virtual void addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) = 0;
 
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;

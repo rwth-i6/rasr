@@ -15,6 +15,7 @@
 
 #include "LexiconfreeGreedySearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
+#include <cmath>
 
 namespace Search {
 
@@ -84,14 +85,21 @@ void LexiconfreeGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeGreedySearch::addFeature(f32 const* data, size_t F) {
+void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32> const& data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeatures(f32 const* data, size_t T, size_t F) {
+void LexiconfreeGreedySearch::addFeature(std::vector<f32> const& data) {
+    verify(labelScorer_);
+    featureProcessingTime_.tic();
+    labelScorer_->addInput(data);
+    featureProcessingTime_.toc();
+}
+
+void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);
@@ -114,7 +122,6 @@ Core::Ref<const LatticeAdaptor> LexiconfreeGreedySearch::getCurrentBestWordLatti
     // create a linear lattice from the traceback
     Fsa::State* currentState = result->initialState();
     for (auto it = hyp_.traceback.begin(); it != hyp_.traceback.end(); ++it) {
-        // wordBoundaries->set(currentState->id(), Lattice::WordBoundary(static_cast<Speech::TimeframeIndex>(it->time.endTime())));
         wordBoundaries->set(currentState->id(), Lattice::WordBoundary(it->time));
         Fsa::State* nextState;
         if (std::next(it) == hyp_.traceback.end()) {
@@ -181,6 +188,7 @@ void LexiconfreeGreedySearch::LabelHypothesis::reset() {
     currentLabel   = Core::Type<Nn::LabelIndex>::max;
     score          = 0.0f;
     traceback.clear();
+    traceback.push_back(TracebackItem(nullptr, nullptr, 0, ScoreVector({}, {})));
 }
 
 void LexiconfreeGreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
@@ -195,9 +203,10 @@ void LexiconfreeGreedySearch::LabelHypothesis::extend(const HypothesisExtension&
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            if (not this->traceback.empty()) {
-                this->traceback.back().scores.acoustic = score;
-            }
+            /*if (not this->traceback.empty()) {*/
+            this->traceback.back().scores.acoustic = score;
+            this->traceback.back().time            = extension.timestep;
+            /*}*/
             break;
     }
 }

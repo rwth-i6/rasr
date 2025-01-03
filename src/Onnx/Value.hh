@@ -58,6 +58,12 @@ public:
     template<typename T>
     static Value zeros(std::vector<int64_t> const& dim);
 
+    template<typename T>
+    static Value createEmpty(std::initializer_list<int64_t> dim);
+
+    template<typename T>
+    static Value createEmpty(std::vector<int64_t> const& dim);
+
     static Value concat(const std::vector<const Value*>& values, int axis);
 
     Value();

@@ -122,6 +122,48 @@ template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
 
+template<typename T>
+Value Value::createEmpty(std::initializer_list<int64_t> dim) {
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    Value res;
+    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
+
+    return res;
+}
+
+template Value Value::createEmpty<f32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<f64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s16>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u16>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s8>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u8>(std::initializer_list<int64_t> dim);
+
+template<typename T>
+Value Value::createEmpty(std::vector<int64_t> const& dim) {
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    Value res;
+    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
+
+    return res;
+}
+
+template Value Value::createEmpty<f32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<f64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s16>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u16>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s8>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u8>(std::vector<int64_t> const& dim);
+
 Value Value::concat(const std::vector<const Value*>& values, int axis) {
     require(values.size() > 0);
 

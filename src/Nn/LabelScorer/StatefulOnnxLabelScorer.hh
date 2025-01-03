@@ -61,7 +61,7 @@ public:
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request request) override;
 
     // Add a single encoder outputs to buffer
-    void addInput(f32 const* input, size_t F) override;
+    void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
 
     std::optional<LabelScorer::ScoreWithTime>   getScoreWithTime(const LabelScorer::Request request) override;
     std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
@@ -76,9 +76,14 @@ private:
     // So getStartHistory sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedHistory` and `getScoresWithTime`
     // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
     HiddenStateRef computeInitialHiddenState();
+
+    void setupEncoderStatesValue();
+    void setupEncoderStatesSizeValue();
+
     HiddenStateRef initialHiddenState_;
 
     // Map input/output names of onnx models to hidden state names taken from state initializer model
+    std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
     std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;

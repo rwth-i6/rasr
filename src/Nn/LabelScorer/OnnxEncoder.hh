@@ -24,14 +24,17 @@
 namespace Nn {
 
 // Encoder that runs the input features through an ONNX model
-class OnnxEncoder : public Encoder {
+class OnnxEncoder : public virtual Encoder {
     typedef Encoder Precursor;
 
 public:
     OnnxEncoder(const Core::Configuration config);
 
 protected:
-    void encode() override;
+    virtual void encode() override;
+
+    // Determine the [start, end) range of valid output frames
+    virtual std::pair<size_t, size_t> validOutFrameRange(size_t T_in, size_t T_out);
 
 private:
     Onnx::Model onnxModel_;
@@ -39,6 +42,17 @@ private:
     std::string featuresName_;
     std::string featuresSizeName_;
     std::string outputName_;
+};
+
+// Chunked encoder that runs the input features through an ONNX model
+class ChunkedOnnxEncoder : public ChunkedEncoder, public OnnxEncoder {
+public:
+    ChunkedOnnxEncoder(const Core::Configuration config);
+
+protected:
+    // Determine the [start, end) range of valid output frames based on which number of output
+    // frames correspond to the chunk history/center/future
+    std::pair<size_t, size_t> validOutFrameRange(size_t T_in, size_t T_out) override;
 };
 
 }  // namespace Nn

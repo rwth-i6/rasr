@@ -1,4 +1,6 @@
 #include "OnnxEncoder.hh"
+#include <iterator>
+#include <memory>
 
 namespace Nn {
 
@@ -40,8 +42,12 @@ OnnxEncoder::OnnxEncoder(Core::Configuration config)
           outputName_(onnxModel_.mapping.getOnnxName("outputs")) {
 }
 
+std::pair<size_t, size_t> OnnxEncoder::validOutFrameRange(size_t T_in, size_t T_out) {
+    return std::make_pair(0ul, T_out);
+}
+
 void OnnxEncoder::encode() {
-    if (numNewFeatures_ == 0ul) {
+    if (inputBuffer_.empty()) {
         return;
     }
 
@@ -52,59 +58,73 @@ void OnnxEncoder::encode() {
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
 
     size_t T_in = inputBuffer_.size();
+    size_t F    = featureSize_;
 
-    if (featuresAreContiguous_) {
-        std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(featureSize_)};
-        sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(inputBuffer_.front(), featuresShape)));
+    std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(F)};
+
+    Onnx::Value value = Onnx::Value::createEmpty<f32>(featuresShape);
+
+    for (size_t t = 0ul; t < T_in; ++t) {
+        std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + F, value.data<f32>(0, t));
     }
-    else {
-        std::vector<Math::FastMatrix<f32>> batchMat;  // will only contain a single element but packed in a vector for 1 x T x F Onnx value creation
-
-        // Initialize empty matrix of shape F x T.
-        // Transposing is done because FastMatrix has col-major storage and this way each column is one feature vector
-        batchMat.emplace_back(featureSize_, T_in);
-
-        for (size_t t = 0ul; t < T_in; ++t) {
-            // Copy featureVector into next column of matrix and increment column index
-            std::copy(inputBufferCopy_[t].begin(), inputBufferCopy_[t].end(), &(batchMat.front().at(0, t)));
-        }
-        sessionInputs.emplace_back(std::make_pair(featuresName_, Onnx::Value::create(batchMat, true)));  // transpose to 1 x T x F
-    }
+    sessionInputs.emplace_back(std::make_pair(featuresName_, value));
 
     // features-size is an optional input
     if (featuresSizeName_ != "") {
-        std::vector<s32> seqLengths = {static_cast<int>(T_in)};
-        sessionInputs.emplace_back(std::make_pair(featuresSizeName_, Onnx::Value::create(seqLengths)));
+        sessionInputs.emplace_back(std::make_pair(featuresSizeName_, Onnx::Value::create(std::vector<s32>{static_cast<int>(T_in)})));
     }
 
     /*
      * Run session
      */
-
-    // auto t_start = std::chrono::steady_clock::now();
-
-    // Run Onnx session with given inputs
     std::vector<Onnx::Value> sessionOutputs;
     onnxModel_.session.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
-
-    // auto t_end     = std::chrono::steady_clock::now();
-    // auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();  // in seconds
-
-    // auto inputTime = inputTimestamps.back().endTime() - inputTimestamps.front().startTime();
-    // log("Processed %.4f seconds of input in %.4f seconds; AM RTF: %.4f", inputTime, t_elapsed, t_elapsed / inputTime);
-
-    // log("Computed encoder state of shape (%zu x %zu x %zu)", sessionOutputs.front().dimSize(0), sessionOutputs.front().dimSize(1), sessionOutputs.front().dimSize(2));
 
     /*
      * Put outputs into buffer
      */
 
-    size_t T_out = sessionOutputs.front().dimSize(1);
-    outputSize_  = sessionOutputs.front().dimSize(2);
+    auto onnxOutputValue        = sessionOutputs.front();
+    auto onnxOutputValueWrapper = std::make_shared<Onnx::Value>(onnxOutputValue);
 
-    for (size_t t = 0ul; t < T_out; ++t) {
-        outputBuffer_.push_back(sessionOutputs.front().data<f32>(0, t));
+    size_t T_out;
+    if (onnxOutputValue.numDims() == 3) {
+        T_out       = onnxOutputValue.dimSize(1);
+        outputSize_ = onnxOutputValue.dimSize(2);
     }
+    else {
+        T_out       = onnxOutputValue.dimSize(0);
+        outputSize_ = onnxOutputValue.dimSize(1);
+    }
+
+    const auto& [rangeStart, rangeEnd] = validOutFrameRange(T_in, T_out);
+
+    for (size_t t = rangeStart; t < rangeEnd; ++t) {
+        // The custom deleter ties the lifetime of `scoreValue` to the lifetime
+        // of `scorePtr` by capturing the `scoreValueWrapper` by value.
+        auto scorePtr = std::shared_ptr<const f32>(
+                onnxOutputValueWrapper->data<f32>() + t * outputSize_,
+                [onnxOutputValueWrapper](const f32*) mutable {});
+        outputBuffer_.push_back(scorePtr);
+    }
+}
+
+/*
+ * =============================
+ * === ChunkedOnnxEncoder ======
+ * =============================
+ */
+ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration config)
+        : Core::Component(config),
+          Encoder(config),
+          ChunkedEncoder(config),
+          OnnxEncoder(config) {}
+
+std::pair<size_t, size_t> ChunkedOnnxEncoder::validOutFrameRange(size_t T_in, size_t T_out) {
+    // Only outputs that correspond to chunk center are valid
+    size_t historyOut = (T_out * currentHistoryFeatures_) / T_in;
+    size_t centerOut  = (T_out * currentCenterFeatures_) / T_in;
+    return std::make_pair(historyOut, historyOut + centerOut);
 }
 
 }  // namespace Nn

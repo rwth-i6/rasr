@@ -22,6 +22,7 @@
 #include <Flow/Module.hh>
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/LabelScorer.hh"
+#include "Nn/LabelScorer/OnnxEncoder.hh"
 
 namespace Core {
 class FormatSet;
@@ -58,7 +59,8 @@ public:
 
     enum EncoderType {
         NoOpEncoderType,
-        OnnxEncoderType
+        OnnxEncoderType,
+        ChunkedOnnxEncoderType
     };
 
     enum LabelScorerType {

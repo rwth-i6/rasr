@@ -13,11 +13,12 @@
  *  limitations under the License.
  */
 
+#include "LexiconfreeBeamSearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
 #include <algorithm>
 #include <numeric>
 #include <strings.h>
-#include "LexiconfreeBeamSearch.hh"
+#include "Nn/LabelScorer/LabelScorer.hh"
 
 namespace Search {
 
@@ -99,14 +100,21 @@ void LexiconfreeBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeBeamSearch::addFeature(f32 const* data, size_t F) {
+void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32> const& data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeatures(f32 const* data, size_t T, size_t F) {
+void LexiconfreeBeamSearch::addFeature(std::vector<f32> const& data) {
+    verify(labelScorer_);
+    featureProcessingTime_.tic();
+    labelScorer_->addInput(data);
+    featureProcessingTime_.toc();
+}
+
+void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);

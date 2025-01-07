@@ -42,9 +42,6 @@ enum {
     LabelMask                = 1 << 27
 };
 
-///Global index of a tree or subtree
-typedef u32 TreeIndex;
-
 ///Index of a state or label (see IS_LABEL, ID_FROM_LABEL, and LABEL_FROM_ID)
 typedef u32 StateId;
 
@@ -148,12 +145,6 @@ struct Tree {
 class HMMStateNetwork {
 public:
     enum {
-        //Index of the empty network
-        //The empty network has no node, and exactly one label that is to be activated directly
-        EmptyTreeIndex = 0
-    };
-
-    enum {
         DiskFormatVersionV1 = 1,
         DiskFormatVersionV2 = 2,
     };
@@ -237,12 +228,6 @@ public:
 
     ///****** STATE MANAGEMENT ******************************************************************************************
 
-    ///Do not keep pointers/references to the returned tree, the address may change
-    inline Tree& tree(TreeIndex index) {
-        verify_(index > 0 && index < trees_.size());
-        return trees_[index];
-    }
-
     ///Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline_ HMMState& state(StateId state) {
         verify_(state > 0 && state < (int)states_.size());
@@ -255,43 +240,35 @@ public:
         return states_[state];
     }
 
-    ///Allocates a new tree
-    TreeIndex allocateTree();
-
-    ///Allocates a new subtree, and adds it into the subtree list of the given parent.
-    ///As many subtrees for the same parent should be allocated in a row as possible, so batch-merging can happen
-    ///Returns a fully valid subtree(With initialized edge-list)
-    StateId allocateTreeNode(TreeIndex parent);
+    ///Allocates a new subtree, and adds it into the subtree list.
+    ///Returns a fully valid subtree (with initialized edge-list)
+    StateId allocateTreeNode();
 
     ///Returns the count of nodes contained by the tree
-    inline u32 getNodeCount(TreeIndex parent);
+    inline u32 getNodeCount();
 
-    ///Returns the @p number th node contained in the given parent tree
-    inline StateId getTreeNode(TreeIndex parent, u32 number);
+    ///Returns the @p number th node contained in the tree
+    inline StateId getTreeNode(u32 number);
 
-    ///Returns the number of nodes contained by the given parent tree
-    inline u32 getNodeNumber(TreeIndex parent, StateId node);
+    ///Returns the number of the @p node in the tree
+    inline u32 getNodeNumber(StateId node);
 
     ///Much faster version of getNodeNumber, that only works when the structure has been cleaned
-    inline u32 getNodeNumberCleanStructure(TreeIndex parent, StateId node) {
-        return node - subTreeListBatches_[tree(parent).nodes];
+    inline u32 getNodeNumberCleanStructure(StateId node) {
+        return node - subTreeListBatches_[tree_.nodes];
     }
-
-    ///Returns the total number of trees, which is the maximum upper bound for a valid TreeIndex
-    u32 treeCount() const;
 
     ///Returns the total number of nodes, which is the maximum upper bound for a valid TreeNodeIndex
     u32 stateCount() const;
 
     struct CleanupResult {
         Core::HashMap<StateId, StateId>     nodeMap;
-        Core::HashMap<TreeIndex, TreeIndex> treeMap;
 
         std::set<StateId> mapNodes(const std::set<StateId>& nodes) const;
     };
 
-    ///Completely removes all trees and nodes that are not reachable from the given start-nodes, compressing the structure
-    CleanupResult cleanup(std::list<Search::StateId> startNodes, Search::TreeIndex masterTree, bool clearDeadEnds = true, bool onlyBatches = false);
+    ///Completely removes all nodes that are not reachable from the given start-nodes, compressing the structure
+    CleanupResult cleanup(std::list<Search::StateId> startNodes, bool clearDeadEnds = true, bool onlyBatches = false);
 
     ///****** EDGE MANAGEMENT *******************************************************************************************
 
@@ -317,7 +294,7 @@ public:
     void clearOutputEdges(StateId node);
 
     u32 getChecksum() const {
-        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + trees_.size() + subTreeListBatches_.size();
+        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;    // + 2 is needed for backwards compatibility
     }
 
     ///The change is applied when apply() is called
@@ -455,7 +432,7 @@ private:
     std::vector<StateId>                                                                                      edgeTargetBatches_;
     Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, InvalidBatchId, SingleSuccessorBatchMask> edgeTargetManager_;
 
-    std::vector<Tree> trees_;
+    Tree tree_;
 };
 
 inline HMMStateNetwork::SuccessorIterator HMMStateNetwork::batchSuccessors(Search::SuccessorBatchId list) const {
@@ -504,18 +481,18 @@ std::pair<int, int> HMMStateNetwork::batchNodeRange(SuccessorBatchId batch) cons
     return std::make_pair<int, int>((int)edgeTargetBatches_[batch], (int)edgeTargetBatches_[batch + 2]);
 }
 
-u32 HMMStateNetwork::getNodeCount(Search::TreeIndex parent) {
-    return subTreeManager_.getIterator(tree(parent).nodes).countToEnd();
+u32 HMMStateNetwork::getNodeCount() {
+    return subTreeManager_.getIterator(tree_.nodes).countToEnd();
 }
 
-StateId HMMStateNetwork::getTreeNode(Search::TreeIndex parent, u32 number) {
-    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree(parent).nodes);
+StateId HMMStateNetwork::getTreeNode(u32 number) {
+    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
     it += number;
     return *it;
 }
 
-u32 HMMStateNetwork::getNodeNumber(TreeIndex parent, StateId node) {
-    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree(parent).nodes);
+u32 HMMStateNetwork::getNodeNumber(StateId node) {
+    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
     return it.countUntil(node);
 }
 }  // namespace Search

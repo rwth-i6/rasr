@@ -38,7 +38,6 @@ namespace Search {
 struct ConvertTree {
     const Search::StateTree*                                             tree;
     HMMStateNetwork&                                                     subtrees;
-    TreeIndex                                                            masterTreeIndex;
     StateId                                                              rootSubTree;
     StateId                                                              ciRootNode;
     std::map<StateTree::Exit, u32>                                       exits;  // Maps exits to label-indices @todo Make this a hash_map
@@ -50,12 +49,12 @@ struct ConvertTree {
     std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>> rootTransitDescriptions;
 
     ConvertTree(const Search::StateTree* _tree, HMMStateNetwork& _subtrees)
-            : tree(_tree), subtrees(_subtrees), masterTreeIndex(subtrees.allocateTree()), lostNodeIndices(0) {
+            : tree(_tree), subtrees(_subtrees), lostNodeIndices(0) {
     }
 
     void convert() {
         for (u32 a = 0; a < tree->states_.size(); ++a) {
-            StateId created = subtrees.allocateTreeNode(masterTreeIndex);
+            StateId created = subtrees.allocateTreeNode();
             verify(a + 1 == created);
         }
 
@@ -167,8 +166,7 @@ private:
 };
 
 PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory)
-        : masterTree(0),
-          rootState(0),
+        : rootState(0),
           ciRootState(0),
           archive_(paramCacheArchive(Core::Configuration(config, "search-network"))),
           acousticModel_(acousticModel),
@@ -229,7 +227,6 @@ void PersistentStateTree::build() {
     convert.convert();
     exits = convert.exitVector;
 
-    masterTree                      = convert.masterTreeIndex;
     rootState                       = convert.rootSubTree;
     ciRootState                     = convert.ciRootNode;
     coarticulatedRootStates         = convert.coarticulatedRootNodes;
@@ -293,7 +290,8 @@ MappedArchiveWriter& operator<<(MappedArchiveWriter& writer, const std::map<T, T
 }
 
 void PersistentStateTree::write(Core::MappedArchiveWriter out) {
-    out << formatVersion << masterTree << (u32)dependencies_.getChecksum();
+    u32 dummyIndex = 1;		// only needed for backwards compatibility, has no further effect
+    out << formatVersion << dummyIndex << (u32)dependencies_.getChecksum();
 
     structure.write(out);
     out << exits;
@@ -317,8 +315,8 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     Core::Application::us()->log() << "Loading persistent network format version " << formatVersion;
 
     u32 dependenciesChecksum = 0;
-
-    in >> masterTree >> dependenciesChecksum;
+    u32 dummyIndex;    // only needed for backwards compatibility, has no further effect
+	in >> dummyIndex >> dependenciesChecksum;
 
     if (dependenciesChecksum != dependencies_.getChecksum()) {
         Core::Application::us()->log() << "dependencies of the network image don't equal the required dependencies with checksum " << dependenciesChecksum;
@@ -370,15 +368,13 @@ void PersistentStateTree::removeOutputs() {
             rootsList.push_back(*it);
     }
 
-    HMMStateNetwork::CleanupResult cleanupResult = structure.cleanup(rootsList, masterTree, false, true);
+    HMMStateNetwork::CleanupResult cleanupResult = structure.cleanup(rootsList, false, true);
 
     for (std::unordered_map<StateId, StateId>::const_iterator it = cleanupResult.nodeMap.begin(); it != cleanupResult.nodeMap.end(); ++it) {
         if (it->first != it->second)
             std::cout << "mapped " << it->first << " to " << it->second << std::endl;
         verify(it->first == it->second);
     }
-    for (std::unordered_map<TreeIndex, TreeIndex>::const_iterator it = cleanupResult.treeMap.begin(); it != cleanupResult.treeMap.end(); ++it)
-        verify(it->first == it->second);
 }
 
 HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
@@ -433,7 +429,7 @@ HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
 
     ///@todo Go through the search tree, and collect the required coarticulated root nodes
 
-    HMMStateNetwork::CleanupResult cleanupResult = structure.cleanup(rootsList, masterTree);
+    HMMStateNetwork::CleanupResult cleanupResult = structure.cleanup(rootsList);
 
     Core::HashMap<StateId, StateId>::const_iterator targetNodeIt;
     if (rootState) {
@@ -481,13 +477,6 @@ HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
         verify(targetNodeIt != cleanupResult.nodeMap.end());
         exitIt->transitState = (*targetNodeIt).second;
     }
-
-    Core::HashMap<TreeIndex, TreeIndex>::const_iterator targetTreeIt;
-
-    targetTreeIt = cleanupResult.treeMap.find(masterTree);
-    verify(targetTreeIt != cleanupResult.treeMap.end());
-
-    masterTree = (*targetTreeIt).second;
 
     //   pushedWordEndNodes = cleanupResult.mapNodes( pushedWordEndNodes );
     uncoarticulatedWordEndStates = cleanupResult.mapNodes(uncoarticulatedWordEndStates);

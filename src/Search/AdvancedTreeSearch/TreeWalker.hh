@@ -84,7 +84,6 @@ struct CountSizeTreeWalkerBackend {
     }
 
     std::unordered_set<StateId>   visited;
-    std::unordered_set<TreeIndex> visitedTrees;
     u32                           totalVisited;
     bool                          stopAtVisited;
     u32                           visitedFinalOutputs;

@@ -19,7 +19,7 @@ namespace Search {
 HMMStateNetwork::HMMStateNetwork()
         : subTreeManager_(subTreeListBatches_, states_), edgeTargetManager_(edgeTargetBatches_, states_) {
     //The zero index is reserved as "invalid", so push one dummy item into all arrays
-    trees_.push_back(Tree());
+    tree_ = Tree();
     states_.push_back(HMMState());
     subTreeListBatches_.push_back(0);
     edgeTargetBatches_.push_back(0);
@@ -27,14 +27,8 @@ HMMStateNetwork::HMMStateNetwork()
     verify(sizeof(HMMState) % sizeof(u32) == 0);
 }
 
-TreeIndex HMMStateNetwork::allocateTree() {
-    trees_.push_back(Tree());
-    return TreeIndex(trees_.size() - 1);
-}
-
-StateId HMMStateNetwork::allocateTreeNode(TreeIndex parent) {
-    verify(parent != EmptyTreeIndex);
-    StateId ret = subTreeManager_.appendOne(tree(parent).nodes, HMMState());
+StateId HMMStateNetwork::allocateTreeNode() {
+    StateId ret = subTreeManager_.appendOne(tree_.nodes, HMMState());
     return ret;
 }
 
@@ -113,17 +107,14 @@ void HMMStateNetwork::addOutputToEdge(SuccessorBatchId& list, u32 outputIndex) {
     addTargetToEdge(list, ID_FROM_LABEL(outputIndex));
 }
 
-u32 HMMStateNetwork::treeCount() const {
-    return trees_.size();
-}
-
 u32 HMMStateNetwork::stateCount() const {
     return states_.size();
 }
 
 bool HMMStateNetwork::write(Core::MappedArchiveWriter writer) {
     u32 version = DiskFormatVersionV2;
-    writer << version << subTreeListBatches_ << states_ << edgeTargetLists_ << edgeTargetBatches_ << trees_;
+    std::vector<Tree> trees = {Tree(), tree_};		// need to write a vector of trees because HMMStateNetwork::read() expectes one
+    writer << version << subTreeListBatches_ << states_ << edgeTargetLists_ << edgeTargetBatches_ << trees;
     return writer.good();
 }
 
@@ -133,7 +124,9 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
 
     if (version == DiskFormatVersionV1) {
         std::vector<HMMStateV1> states;
-        reader >> subTreeListBatches_ >> states >> edgeTargetLists_ >> edgeTargetBatches_ >> trees_;
+        std::vector<Tree> trees;		// need to read into a vector for backward compatibility
+        reader >> subTreeListBatches_ >> states >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
+        tree_ = trees[1];
 
         if (!reader.good()) {
             return false;
@@ -149,7 +142,9 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
                 [](HMMStateV1 s){ return s.toHMMState(); });
     }
     else if (version == DiskFormatVersionV2) {
-        reader >> subTreeListBatches_ >> states_ >> edgeTargetLists_ >> edgeTargetBatches_ >> trees_;
+        std::vector<Tree> trees;		// need to read into a vector for backward compatibility
+        reader >> subTreeListBatches_ >> states_ >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
+        tree_ = trees[1];
     }
     else {
         return false;
@@ -173,7 +168,7 @@ u32 HMMStateNetwork::countReachableEnds(std::vector<u32>& counts, StateId node) 
     return counts[node];
 }
 
-HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateId> startNodes, Search::TreeIndex masterTree, bool clearDeadEnds, bool onlyBatches) {
+HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateId> startNodes, bool clearDeadEnds, bool onlyBatches) {
     if (clearDeadEnds && !onlyBatches) {
         u32              deadEndNodes = 0;
         std::vector<u32> reachableEnds(states_.size(), Core::Type<u32>::max);
@@ -212,23 +207,20 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
     CleanupResult       ret;
     CountSizeTreeWalker counter(*this);
     if (onlyBatches) {
-        for (TreeIndex tree = 1; tree < trees_.size(); ++tree)
-            counter.visitedTrees.insert(tree);
         for (StateId node = 1; node < states_.size(); ++node)
             counter.visited.insert(node);
     }
     else {
-        counter.visitedTrees.insert(masterTree);
         counter.stopAtVisited = true;
 
-        ///Mark all reachable trees and nodes
-        Core::Application::us()->log() << "calculating reachable nodes and trees";
+        ///Mark all reachable nodes
+        Core::Application::us()->log() << "calculating reachable nodes";
         for (std::list<StateId>::const_iterator it = startNodes.begin(); it != startNodes.end(); ++it)
             counter.visit(*it, 1);
     }
 
     {
-        std::vector<Tree>             newTrees;
+        Tree                          newTree;
         std::vector<StateId>          newSubTreeListBatches;
         std::vector<HMMState>         newNodes;
         std::vector<SuccessorBatchId> newEdgeTargetLists;
@@ -236,7 +228,6 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         //Must be created before adding the initial items, since it clears the lists
         Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId> newSubTreeManager(newSubTreeListBatches, newNodes);
 
-        newTrees.push_back(Tree());
         newEdgeTargetLists.push_back(0);
         newSubTreeListBatches.push_back(0);
         newNodes.push_back(HMMState());
@@ -244,106 +235,91 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         std::vector<u32> orderBehind(states_.size(), 0);
         std::vector<u32> follow(states_.size(), 0);
 
-        std::vector<std::vector<StateId>> orderedPerTree;
-        orderedPerTree.push_back(std::vector<StateId>());
+        /// @todo Build a topology and order the nodes in a stable way based on that
+        //Build the order so that the second-order batches are continuous
+        Tools::BatchManager<SubTreeListId, StateId, HMMState, true, Search::InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
+        for (; it; ++it) {
+            StateId node = *it;
+            if (counter.visited.count(node) == 0)
+                continue;
+            // 2nd order
+            u32 previousSkipTarget = 0;
 
-        for (u32 tree = 1; tree < trees_.size(); ++tree) {
-            /// @todo Build a topology and order the nodes in a stable way based on that
-            //Build the order so that the second-order batches are continuous
-            Tools::BatchManager<SubTreeListId, StateId, HMMState, true, Search::InvalidBatchId>::Iterator it = subTreeManager_.getIterator(trees_[tree].nodes);
-            for (; it; ++it) {
-                StateId node = *it;
-                if (counter.visited.count(node) == 0)
-                    continue;
-                // 2nd order
-                u32 previousSkipTarget = 0;
+            // first order
+            u32 previousTarget = 0;
 
-                // first order
-                u32 previousTarget = 0;
+            for (HMMStateNetwork::SuccessorIterator targetIt = successors(node); targetIt; ++targetIt) {
+                if (targetIt.isLabel())
+                    break;
 
-                for (HMMStateNetwork::SuccessorIterator targetIt = successors(node); targetIt; ++targetIt) {
-                    if (targetIt.isLabel())
+                StateId target = *targetIt;
+
+                if (!orderBehind[target])
+                    orderBehind[target] = previousTarget;
+                if (!follow[previousTarget])
+                    follow[previousTarget] = target;
+                previousTarget = target;
+                verify(target < states_.size());
+
+                for (HMMStateNetwork::SuccessorIterator skipTargetIt = successors(target); skipTargetIt; ++skipTargetIt) {
+                    if (skipTargetIt.isLabel())
                         break;
+                    StateId skipTarget         = *skipTargetIt;
+                    orderBehind[skipTarget]    = previousSkipTarget;
+                    follow[previousSkipTarget] = skipTarget;
+                    previousSkipTarget         = skipTarget;
+                }
+            }
+        }
+        std::vector<StateId>        ordered;
+        std::unordered_set<StateId> had;
 
-                    StateId target = *targetIt;
+        {
+            Tools::BatchManager<SubTreeListId, StateId, HMMState, true, Search::InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
+            for (; it; ++it) {
+                StateId current = *it;
 
-                    if (!orderBehind[target])
-                        orderBehind[target] = previousTarget;
-                    if (!follow[previousTarget])
-                        follow[previousTarget] = target;
-                    previousTarget = target;
-                    verify(target < states_.size());
+                if (counter.visited.count(current) == 0)
+                    continue;
 
-                    for (HMMStateNetwork::SuccessorIterator skipTargetIt = successors(target); skipTargetIt; ++skipTargetIt) {
-                        if (skipTargetIt.isLabel())
+                if (onlyBatches) {
+                    ordered.push_back(current);
+                }
+                else {
+                    while (current) {
+                        if (had.count(current))
                             break;
-                        StateId skipTarget         = *skipTargetIt;
-                        orderBehind[skipTarget]    = previousSkipTarget;
-                        follow[previousSkipTarget] = skipTarget;
-                        previousSkipTarget         = skipTarget;
-                    }
-                }
-            }
-            std::vector<StateId>        ordered;
-            std::unordered_set<StateId> had;
 
-            {
-                Tools::BatchManager<SubTreeListId, StateId, HMMState, true, Search::InvalidBatchId>::Iterator it = subTreeManager_.getIterator(trees_[tree].nodes);
-                for (; it; ++it) {
-                    StateId current = *it;
-
-                    if (counter.visited.count(current) == 0)
-                        continue;
-
-                    if (onlyBatches) {
                         ordered.push_back(current);
-                    }
-                    else {
-                        while (current) {
-                            if (had.count(current))
-                                break;
-
-                            ordered.push_back(current);
-                            had.insert(current);
-                            current = follow[current];
-                        }
+                        had.insert(current);
+                        current = follow[current];
                     }
                 }
             }
-
-            orderedPerTree.push_back(ordered);
         }
 
-        for (u32 tree = 1; tree < trees_.size(); ++tree) {
-            if (counter.visitedTrees.find(tree) != counter.visitedTrees.end()) {
-                //Build the order so that the second-order batches are continuous
-                const std::vector<StateId>& ordered(orderedPerTree[tree]);
+        //Build the order so that the second-order batches are continuous
+		{
+            //Transfer network into new list
+            newTree = tree_;
+            newTree.nodes = InvalidBatchId;
 
-                //Transfer network into new list
-                ret.treeMap.insert(std::make_pair(tree, newTrees.size()));
-                newTrees.push_back(trees_[tree]);
-                newTrees.back().nodes = InvalidBatchId;
-
-                //Transfer nodes into new batches
-
-                for (u32 idx = 0; idx < ordered.size(); ++idx) {
-                    StateId node = ordered[idx];
-                    if (counter.visited.find(node) != counter.visited.end()) {
-                        verify(newNodes.size() > 0);
-                        StateId newNode = newSubTreeManager.appendOne(newTrees.back().nodes, states_[node]);
-                        ret.nodeMap.insert(std::make_pair(node, newNode));
-                    }
+            //Transfer nodes into new batches
+            for (u32 idx = 0; idx < ordered.size(); ++idx) {
+                StateId node = ordered[idx];
+                if (counter.visited.find(node) != counter.visited.end()) {
+                    verify(newNodes.size() > 0);
+                    StateId newNode = newSubTreeManager.appendOne(newTree.nodes, states_[node]);
+                    ret.nodeMap.insert(std::make_pair(node, newNode));
                 }
-                //No empty trees
-                verify(newTrees.back().nodes != InvalidBatchId);
             }
-            else {
-                //This network is removed
-            }
+            //No empty trees
+            verify(newTree.nodes != InvalidBatchId);
         }
+
         Core::Application::us()->log() << "count of new nodes: " << newNodes.size();
         verify(newNodes.size());
-        trees_.swap(newTrees);
+        tree_ = newTree;
         states_.swap(newNodes);
         subTreeListBatches_.swap(newSubTreeListBatches);
         edgeTargetLists_.swap(newEdgeTargetLists);
@@ -358,7 +334,6 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
 
     //Map the direct node members
     for (u32 node = 1; node < states_.size(); ++node) {
-        std::unordered_map<TreeIndex, TreeIndex>::iterator it;
 
         //Map the edge-targets of single batches
         SuccessorBatchId newBatch = InvalidBatchId;
@@ -410,7 +385,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         counter2.stopAtVisited = true;
 
         ///Check again and make sure the same count of nodes is reachable
-        Core::Application::us()->log() << "re-calculating reachable nodes and trees";
+        Core::Application::us()->log() << "re-calculating reachable nodes";
         for (std::list<StateId>::const_iterator it = startNodes.begin(); it != startNodes.end(); ++it) {
             std::unordered_map<StateId, StateId>::const_iterator mapIt = ret.nodeMap.find(*it);
             verify(mapIt != ret.nodeMap.end());
@@ -418,13 +393,10 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
             StateId node = (*mapIt).second;
 
             counter2.visit(node, 1);
-            counter2.visitedTrees.insert(masterTree);
         }
         Core::Application::us()->log() << "previous reachable nodes: " << counter.visited.size() << " new reachable nodes: " << counter2.visited.size() << " new total nodes: " << states_.size();
-        Core::Application::us()->log() << "previous trees: " << counter.visitedTrees.size() << " new trees: " << counter2.visitedTrees.size();
         Core::Application::us()->log() << "previous exits: " << counter.visitedFinalOutputs << " new exits: " << counter2.visitedFinalOutputs;
         verify(counter2.visited.size() == counter.visited.size());
-        verify(counter2.visitedTrees.size() == counter.visitedTrees.size());
     }
 
     return ret;

@@ -23,11 +23,11 @@ typedef Mm::EmissionIndex LabelIndex;
  * === ScoringContext ==========
  * =============================
  */
-size_t ScoringContextHash::operator()(ScoringContextRef history) const {
+size_t ScoringContext::hash() const {
     return 0ul;
 }
 
-bool ScoringContextEq::operator()(ScoringContextRef lhs, ScoringContextRef rhs) const {
+bool ScoringContext::isEqual(ScoringContextRef const& other) const {
     return true;
 }
 

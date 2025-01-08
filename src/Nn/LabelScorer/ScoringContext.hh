@@ -28,16 +28,23 @@ typedef Mm::EmissionIndex LabelIndex;
  */
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
+
+    virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
+    virtual size_t hash() const;
 };
 
 typedef Core::Ref<const ScoringContext> ScoringContextRef;
 
 struct ScoringContextHash {
-    size_t operator()(ScoringContextRef history) const;
+    size_t operator()(ScoringContextRef const& scoringContext) const {
+        return scoringContext->hash();
+    }
 };
 
 struct ScoringContextEq {
-    bool operator()(ScoringContextRef lhs, ScoringContextRef rhs) const;
+    bool operator()(ScoringContextRef const& lhs, ScoringContextRef const& rhs) const {
+        return lhs->isEqual(rhs);
+    }
 };
 
 }  // namespace Nn

@@ -26,39 +26,21 @@ namespace Nn {
 LabelScorer::LabelScorer(const Core::Configuration& config)
         : Core::Component(config) {}
 
-void LabelScorer::addInput(const std::vector<f32>& input) {
-    addInput(input.data(), input.size());
+void LabelScorer::addInput(std::vector<f32> const& input) {
+    // The custom deleter ties the lifetime of vector `input` to the lifetime
+    // of `dataPtr` by capturing the `inputWrapper` by value.
+    // This makes sure that the underlying data isn't invalidated prematurely.
+    auto inputWrapper = std::make_shared<std::vector<f32>>(input);
+    auto dataPtr      = std::shared_ptr<const f32>(
+            inputWrapper->data(),
+            [inputWrapper](const f32*) mutable {});
+    addInput(dataPtr, input.size());
 }
 
-void LabelScorer::addInput(const FeatureVectorRef input) {
-    addInput(*input);
-}
-
-void LabelScorer::addInput(const Core::Ref<const Speech::Feature> input) {
-    addInput(*input->mainStream());
-}
-
-void LabelScorer::addInputs(const f32* input, size_t T, size_t F) {
+void LabelScorer::addInputs(std::shared_ptr<const f32> const& input, size_t T, size_t F) {
     for (size_t t = 0ul; t < T; ++t) {
-        addInput(input + t * F, F);
-    }
-}
-
-void LabelScorer::addInputs(const std::vector<std::vector<f32>>& inputs) {
-    for (const auto& input : inputs) {
-        addInput(input);
-    }
-}
-
-void LabelScorer::addInputs(const std::vector<FeatureVectorRef>& inputs) {
-    for (auto input : inputs) {
-        addInput(input);
-    }
-}
-
-void LabelScorer::addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs) {
-    for (auto input : inputs) {
-        addInput(input);
+        // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
+        addInput(std::shared_ptr<const f32>(input, input.get() + t * F), F);
     }
 }
 

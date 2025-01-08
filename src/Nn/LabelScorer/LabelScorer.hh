@@ -121,17 +121,11 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(const f32* input, size_t F) = 0;
-    virtual void addInput(const std::vector<f32>& input);                 // By default falls back to the pointer version
-    virtual void addInput(const FeatureVectorRef input);                  // By default falls back to the std::vector version
-    virtual void addInput(const Core::Ref<const Speech::Feature> input);  // By default falls back to the std::vector version
+    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F) = 0;
+    virtual void addInput(std::vector<f32> const& input);
 
-    // Add input features for multiple time steps
-    // By default loops over the single-input versions
-    virtual void addInputs(const f32* input, size_t T, size_t F);
-    virtual void addInputs(const std::vector<std::vector<f32>>& inputs);
-    virtual void addInputs(const std::vector<FeatureVectorRef>& inputs);
-    virtual void addInputs(const std::vector<Core::Ref<const Speech::Feature>>& inputs);
+    // Add input features for multiple time steps at once
+    virtual void addInputs(std::shared_ptr<const f32> const& input, size_t T, size_t F);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output

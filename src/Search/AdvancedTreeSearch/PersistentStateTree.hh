@@ -31,34 +31,38 @@ struct MyStandardValueHash {
     }
 };
 
+class AbstractTreeBuilder;
+
 namespace Search {
 class HMMStateNetwork;
 class StateTree;
 
 class PersistentStateTree {
 public:
-    ///@param lexicon This must be given if the resulting exits are supposed to be functional
-    PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon);
+    using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
 
-    ///Builds this state tree.
+    ///@param lexicon This must be given if the resulting exits are supposed to be functional
+    PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory);
+
+    /// Builds this state tree.
     void build();
 
-    ///Writes the current state of the state tree into the file,
-    ///Returns whether writing was successful
+    /// Writes the current state of the state tree into the file,
+    /// Returns whether writing was successful
     bool write(int transformation = 0);
 
-    ///Reads the state tree from the file.
+    /// Reads the state tree from the file.
     ///@return Whether the reading was successful.
     bool read(int transformation = 0);
 
-    ///Cleans up the structure, saving memory and allowing a more efficient iteration.
-    ///Node and tree IDs may be changed.
+    /// Cleans up the structure, saving memory and allowing a more efficient iteration.
+    /// Node and tree IDs may be changed.
     ///@return An object that contains a mapping representing the index changes.
     HMMStateNetwork::CleanupResult cleanup(bool cleanupExits = true);
 
-    ///Removes all outputs from the network
-    ///Also performs a cleanup, so the search network must already be clean
-    ///for indices to stay equal
+    /// Removes all outputs from the network
+    /// Also performs a cleanup, so the search network must already be clean
+    /// for indices to stay equal
     void removeOutputs();
 
     u32 getChecksum() const;
@@ -128,11 +132,12 @@ private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Bliss::LexiconRef                  lexicon_;
     Core::Configuration                config_;
+    TreeBuilderFactory                 treeBuilderFactory_;
 
-    //Writes the whole state network into the given stream
+    // Writes the whole state network into the given stream
     void write(Core::MappedArchiveWriter writer);
 
-    //Reads the state network from the given stream.
+    // Reads the state network from the given stream.
     //@return Whether the reading was successful.
     bool read(Core::MappedArchiveReader reader);
 };

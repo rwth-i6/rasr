@@ -121,11 +121,11 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F) = 0;
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) = 0;
     virtual void addInput(std::vector<f32> const& input);
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(std::shared_ptr<const f32> const& input, size_t T, size_t F);
+    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output

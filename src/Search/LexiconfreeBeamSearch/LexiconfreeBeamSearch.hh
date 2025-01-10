@@ -98,9 +98,9 @@ public:
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
-    void                            addFeature(std::shared_ptr<const f32> const& data, size_t F) override;
+    void                            addFeature(std::shared_ptr<const f32[]> const& data, size_t F) override;
     void                            addFeature(std::vector<f32> const& data) override;
-    void                            addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) override;
+    void                            addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;

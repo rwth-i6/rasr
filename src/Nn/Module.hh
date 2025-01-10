@@ -22,7 +22,6 @@
 #include <Flow/Module.hh>
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/LabelScorer.hh"
-#include "Nn/LabelScorer/OnnxEncoder.hh"
 
 namespace Core {
 class FormatSet;
@@ -69,15 +68,17 @@ public:
         LimitedCtxOnnxLabelScorerType,
         EncoderDecoderLabelScorerType,
         EncoderOnlyLabelScorerType,
-        StatefulOnnxLabelScorerType
+        StatefulOnnxLabelScorerType,
+        CombineLabelScorerType
     };
 
     /** Set of file format class.
      */
     Core::FormatSet& formats();
 
-    Core::Ref<Encoder>     createEncoder(const Core::Configuration& config) const;
-    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
+    Core::Ref<Encoder>           createEncoder(const Core::Configuration& config) const;
+    Core::Ref<LabelScorer>       createLabelScorer(const Core::Configuration& config) const;
+    Core::Ref<ScaledLabelScorer> createScaledLabelScorer(const Core::Configuration& config) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

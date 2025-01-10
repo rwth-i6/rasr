@@ -114,6 +114,8 @@ const Core::Choice Module_::labelScorerTypeChoice(
         "encoder-only", LabelScorerType::EncoderOnlyLabelScorerType,
         // Scoring based on hidden states that are initialized and updated based on features and history tokens
         "stateful-onnx", LabelScorerType::StatefulOnnxLabelScorerType,
+        // Adds the scores of multiple scaled sub-label-scorers
+        "combine", LabelScorerType::CombineLabelScorerType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::paramEncoderType(
@@ -176,8 +178,15 @@ Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& con
         case LabelScorerType::StatefulOnnxLabelScorerType:
             result = Core::ref(new StatefulOnnxLabelScorer(config));
             break;
+        case LabelScorerType::CombineLabelScorerType:
+            result = Core::ref(new CombineLabelScorer(config));
+            break;
         default:
             Core::Application::us()->criticalError("unknown label scorer type: %d", paramLabelScorerType(config));
     }
     return result;
+}
+
+Core::Ref<ScaledLabelScorer> Module_::createScaledLabelScorer(const Core::Configuration& config) const {
+    return Core::ref(new ScaledLabelScorer(config, createLabelScorer(config)));
 }

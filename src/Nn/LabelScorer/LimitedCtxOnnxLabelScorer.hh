@@ -55,12 +55,12 @@ public:
     void reset() override;
 
     // Initial scoring context contains step 0 and a history vector filled with the start label index
-    Core::Ref<const ScoringContext> getInitialScoringContext() override;
+    ScoringContextRef getInitialScoringContext() override;
 
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
     // history label sequence depending on the transition type and whether loops/blanks update the history
     // or not
-    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request request) override;
+    ScoringContextRef extendedScoringContext(LabelScorer::Request request) override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
@@ -88,7 +88,7 @@ private:
     std::string historyName_;
     std::string scoresName_;
 
-    Core::FIFOCache<SeqStepScoringContextRef, std::vector<Score>, SeqStepScoringContextHash, SeqStepScoringContextEq> scoreCache_;
+    Core::FIFOCache<SeqStepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

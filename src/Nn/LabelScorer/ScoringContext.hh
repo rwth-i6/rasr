@@ -34,16 +34,23 @@ typedef Mm::EmissionIndex LabelIndex;
  */
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
+
+    virtual bool   isEqual(const Core::Ref<const ScoringContext>& other) const;
+    virtual size_t hash() const;
 };
 
 typedef Core::Ref<const ScoringContext> ScoringContextRef;
 
 struct ScoringContextHash {
-    size_t operator()(ScoringContextRef history) const;
+    size_t operator()(const ScoringContextRef& history) const {
+        return history->hash();
+    }
 };
 
 struct ScoringContextEq {
-    bool operator()(ScoringContextRef lhs, ScoringContextRef rhs) const;
+    bool operator()(const ScoringContextRef& lhs, const ScoringContextRef& rhs) const {
+        return lhs->isEqual(rhs);
+    }
 };
 
 /*
@@ -58,17 +65,12 @@ struct StepScoringContext : public ScoringContext {
 
     StepScoringContext(Speech::TimeframeIndex step)
             : currentStep(step) {}
+
+    bool   isEqual(const ScoringContextRef& other) const;
+    size_t hash() const;
 };
 
 typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
-
-struct StepScoringContextHash {
-    size_t operator()(StepScoringContextRef history) const;
-};
-
-struct StepScoringContextEq {
-    bool operator()(StepScoringContextRef lhs, StepScoringContextRef rhs) const;
-};
 
 /*
  * Scoring context that describes a sequence of previously observed labels
@@ -80,17 +82,12 @@ struct LabelSeqScoringContext : public ScoringContext {
             : labelSeq() {}
     LabelSeqScoringContext(const std::vector<LabelIndex>& seq)
             : labelSeq(seq) {}
+
+    bool   isEqual(const ScoringContextRef& other) const;
+    size_t hash() const;
 };
 
 typedef Core::Ref<const LabelSeqScoringContext> LabelSeqScoringContextRef;
-
-struct LabelSeqScoringContextHash {
-    size_t operator()(LabelSeqScoringContextRef history) const;
-};
-
-struct LabelSeqScoringContextEq {
-    bool operator()(LabelSeqScoringContextRef lhs, LabelSeqScoringContextRef rhs) const;
-};
 
 /*
  * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
@@ -103,19 +100,15 @@ struct SeqStepScoringContext : public ScoringContext {
             : labelSeq(), currentStep(0ul) {}
     SeqStepScoringContext(const std::vector<LabelIndex>& seq, Speech::TimeframeIndex step)
             : labelSeq(seq), currentStep(step) {}
+
+    bool   isEqual(const ScoringContextRef& other) const;
+    size_t hash() const;
 };
 
 typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
 
-struct SeqStepScoringContextHash {
-    size_t operator()(SeqStepScoringContextRef history) const;
-};
-
-struct SeqStepScoringContextEq {
-    bool operator()(SeqStepScoringContextRef lhs, SeqStepScoringContextRef rhs) const;
-};
-
 #ifdef MODULE_ONNX
+
 /*
  * Hidden state containing a dictionary of named ONNX values
  */
@@ -149,18 +142,32 @@ struct HiddenStateScoringContext : public ScoringContext {
 
     HiddenStateScoringContext(const std::vector<LabelIndex>& labelSeq, HiddenStateRef state)
             : labelSeq(labelSeq), hiddenState(state) {}
+
+    bool   isEqual(const ScoringContextRef& other) const;
+    size_t hash() const;
 };
 
 typedef Core::Ref<const HiddenStateScoringContext> HiddenStateScoringContextRef;
 
-struct HiddenStateScoringContextHash {
-    size_t operator()(HiddenStateScoringContextRef history) const;
+#endif  // MODULE_ONNX
+
+/*
+ * Combines multiple scoring contexts at once
+ */
+struct CombineScoringContext : public ScoringContext {
+    std::vector<ScoringContextRef> scoringContexts;
+
+    CombineScoringContext()
+            : scoringContexts() {}
+
+    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
+            : scoringContexts(scoringContexts) {}
+
+    bool   isEqual(const ScoringContextRef& other) const;
+    size_t hash() const;
 };
 
-struct HiddenStateScoringContextEq {
-    bool operator()(HiddenStateScoringContextRef lhs, HiddenStateScoringContextRef rhs) const;
-};
-#endif  // MODULE_ONNX
+typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
 
 }  // namespace Nn
 

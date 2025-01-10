@@ -61,7 +61,7 @@ public:
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request request) override;
 
     // Add a single encoder outputs to buffer
-    void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
 
     std::optional<LabelScorer::ScoreWithTime>   getScoreWithTime(const LabelScorer::Request request) override;
     std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
@@ -109,7 +109,7 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    Core::FIFOCache<HiddenStateScoringContextRef, std::vector<Score>, HiddenStateScoringContextHash, HiddenStateScoringContextEq> scoreCache_;
+    Core::FIFOCache<HiddenStateScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

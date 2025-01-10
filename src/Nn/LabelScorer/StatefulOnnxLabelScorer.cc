@@ -216,7 +216,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
     Precursor::addInput(input, F);
 
     initialHiddenState_ = HiddenStateRef();
@@ -238,7 +238,7 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::getScoresWi
     /*
      * Identify unique histories that still need session runs
      */
-    std::unordered_set<HiddenStateScoringContextRef, HiddenStateScoringContextHash, HiddenStateScoringContextEq> uniqueUncachedHistories;
+    std::unordered_set<HiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedHistories;
 
     for (auto& request : requests) {
         HiddenStateScoringContextRef historyPtr(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
@@ -265,7 +265,13 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::getScoresWi
      */
     for (const auto& request : requests) {
         HiddenStateScoringContextRef history(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
-        result.scores.push_back(scoreCache_.get(history).at(request.nextToken));
+        auto                         scores = scoreCache_.get(history);
+        if (request.nextToken < scores.size()) {
+            result.scores.push_back(scores[request.nextToken]);
+        }
+        else {
+            result.scores.push_back(0);
+        }
 
         result.timesteps.push_back(history->labelSeq.size());
     }

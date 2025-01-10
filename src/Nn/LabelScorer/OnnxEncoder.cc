@@ -102,7 +102,7 @@ void OnnxEncoder::encode() {
     for (size_t t = rangeStart; t < rangeEnd; ++t) {
         // The custom deleter ties the lifetime of `scoreValue` to the lifetime
         // of `scorePtr` by capturing the `scoreValueWrapper` by value.
-        auto scorePtr = std::shared_ptr<const f32>(
+        auto scorePtr = std::shared_ptr<const f32[]>(
                 onnxOutputValueWrapper->data<f32>() + t * outputSize_,
                 [onnxOutputValueWrapper](const f32*) mutable {});
         outputBuffer_.push_back(scorePtr);

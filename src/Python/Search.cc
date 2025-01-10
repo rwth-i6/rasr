@@ -53,7 +53,7 @@ void SearchAlgorithm::addFeature(py::array_t<f32> feature) {
 
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
-    auto dataPtr = std::shared_ptr<const f32>(feature.data(), [](const f32*) {});
+    auto dataPtr = std::shared_ptr<const f32[]>(feature.data(), [](const f32*) {});
     searchAlgorithm_->addFeature(dataPtr, F);
 }
 
@@ -75,7 +75,7 @@ void SearchAlgorithm::addFeatures(py::array_t<f32> features) {
 
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
-    auto dataPtr = std::shared_ptr<const f32>(features.data(), [](const f32*) {});
+    auto dataPtr = std::shared_ptr<const f32[]>(features.data(), [](const f32*) {});
     searchAlgorithm_->addFeatures(dataPtr, T, F);
 }
 

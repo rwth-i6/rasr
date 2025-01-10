@@ -113,13 +113,13 @@ void LimitedCtxOnnxLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-Core::Ref<const ScoringContext> LimitedCtxOnnxLabelScorer::getInitialScoringContext() {
+ScoringContextRef LimitedCtxOnnxLabelScorer::getInitialScoringContext() {
     auto hist = Core::ref(new SeqStepScoringContext());
     hist->labelSeq.resize(historyLength_, startLabelIndex_);
     return hist;
 }
 
-Core::Ref<const ScoringContext> LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request request) {
     SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
     bool pushToken     = false;
@@ -193,7 +193,7 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScores
         /*
          * Identify unique histories that still need session runs
          */
-        std::unordered_set<SeqStepScoringContextRef, SeqStepScoringContextHash, SeqStepScoringContextEq> uniqueUncachedContexts;
+        std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
 
         for (auto requestIndex : requestIndices) {
             SeqStepScoringContextRef contextPtr(dynamic_cast<const SeqStepScoringContext*>(requests[requestIndex].context.get()));
@@ -225,7 +225,14 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScores
      */
     for (const auto& request : requests) {
         SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
-        result.scores.push_back(scoreCache_.get(context).at(request.nextToken));
+
+        auto scores = scoreCache_.get(context);
+        if (request.nextToken < scores.size()) {
+            result.scores.push_back(scores[request.nextToken]);
+        }
+        else {
+            result.scores.push_back(0);
+        }
     }
 
     return result;

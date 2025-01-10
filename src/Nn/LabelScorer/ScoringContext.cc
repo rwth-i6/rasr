@@ -20,7 +20,7 @@ namespace Nn {
 typedef Mm::EmissionIndex LabelIndex;
 
 // Auxiliary function to merge multiple hashes into one via the boost way
-static size_t combineHashes(size_t hash1, size_t hash2) {
+size_t combineHashes(size_t hash1, size_t hash2) {
     if (hash1 == 0ul) {
         return hash2;
     }
@@ -32,28 +32,28 @@ static size_t combineHashes(size_t hash1, size_t hash2) {
 
 /*
  * =============================
- * === ScoringContext ============
+ * === ScoringContext ==========
  * =============================
  */
-size_t ScoringContextHash::operator()(ScoringContextRef history) const {
-    return 0ul;
+bool ScoringContext::isEqual(const ScoringContextRef& other) const {
+    return true;
 }
 
-bool ScoringContextEq::operator()(ScoringContextRef lhs, ScoringContextRef rhs) const {
-    return true;
+size_t ScoringContext::hash() const {
+    return 0ul;
 }
 
 /*
  * =============================
- * === StepScoringContext ========
+ * === StepScoringContext ======
  * =============================
  */
-size_t StepScoringContextHash::operator()(StepScoringContextRef history) const {
-    return history->currentStep;
+size_t StepScoringContext::hash() const {
+    return currentStep;
 }
 
-bool StepScoringContextEq::operator()(StepScoringContextRef lhs, StepScoringContextRef rhs) const {
-    return lhs->currentStep == rhs->currentStep;
+bool StepScoringContext::isEqual(const ScoringContextRef& other) const {
+    return currentStep == dynamic_cast<const StepScoringContext*>(other.get())->currentStep;
 }
 
 /*
@@ -61,20 +61,17 @@ bool StepScoringContextEq::operator()(StepScoringContextRef lhs, StepScoringCont
  * === LabelSeqScoringContext ==
  * =============================
  */
-size_t LabelSeqScoringContextHash::operator()(LabelSeqScoringContextRef history) const {
-    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+size_t LabelSeqScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool LabelSeqScoringContextEq::operator()(LabelSeqScoringContextRef lhs, LabelSeqScoringContextRef rhs) const {
-    if (lhs == rhs) {
-        return true;
-    }
-
-    if (lhs->labelSeq.size() != rhs->labelSeq.size()) {
+bool LabelSeqScoringContext::isEqual(const ScoringContextRef& other) const {
+    auto* otherPtr = dynamic_cast<const LabelSeqScoringContext*>(other.get());
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
     }
 
-    for (auto it_l = lhs->labelSeq.begin(), it_r = rhs->labelSeq.begin(); it_l != lhs->labelSeq.end(); ++it_l, ++it_r) {
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
         if (*it_l != *it_r) {
             return false;
         }
@@ -88,24 +85,21 @@ bool LabelSeqScoringContextEq::operator()(LabelSeqScoringContextRef lhs, LabelSe
  * === SeqStepScoringContext ===
  * =============================
  */
-size_t SeqStepScoringContextHash::operator()(SeqStepScoringContextRef history) const {
-    return combineHashes(history->currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+size_t SeqStepScoringContext::hash() const {
+    return combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
-bool SeqStepScoringContextEq::operator()(SeqStepScoringContextRef lhs, SeqStepScoringContextRef rhs) const {
-    if (lhs == rhs) {
-        return true;
-    }
-
-    if (lhs->currentStep != rhs->currentStep) {
+bool SeqStepScoringContext::isEqual(const ScoringContextRef& other) const {
+    auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
+    if (currentStep != otherPtr->currentStep) {
         return false;
     }
 
-    if (lhs->labelSeq.size() != rhs->labelSeq.size()) {
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
     }
 
-    for (auto it_l = lhs->labelSeq.begin(), it_r = rhs->labelSeq.begin(); it_l != lhs->labelSeq.end(); ++it_l, ++it_r) {
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
         if (*it_l != *it_r) {
             return false;
         }
@@ -120,20 +114,17 @@ bool SeqStepScoringContextEq::operator()(SeqStepScoringContextRef lhs, SeqStepSc
  * = HiddenStateScoringContext =
  * =============================
  */
-size_t HiddenStateScoringContextHash::operator()(HiddenStateScoringContextRef history) const {
-    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(history->labelSeq.data()), history->labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+size_t HiddenStateScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool HiddenStateScoringContextEq::operator()(HiddenStateScoringContextRef lhs, HiddenStateScoringContextRef rhs) const {
-    if (lhs == rhs) {
-        return true;
-    }
-
-    if (lhs->labelSeq.size() != rhs->labelSeq.size()) {
+bool HiddenStateScoringContext::isEqual(const ScoringContextRef& other) const {
+    auto* otherPtr = dynamic_cast<const HiddenStateScoringContext*>(other.get());
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
     }
 
-    for (auto it_l = lhs->labelSeq.begin(), it_r = rhs->labelSeq.begin(); it_l != lhs->labelSeq.end(); ++it_l, ++it_r) {
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
         if (*it_l != *it_r) {
             return false;
         }
@@ -142,5 +133,34 @@ bool HiddenStateScoringContextEq::operator()(HiddenStateScoringContextRef lhs, H
     return true;
 }
 #endif  // MODULE_ONNX
+
+/*
+ * =============================
+ * === CombineScoringContext ===
+ * =============================
+ */
+size_t CombineScoringContext::hash() const {
+    size_t value = 0ul;
+    for (const auto& scoringContext : scoringContexts) {
+        value = combineHashes(value, scoringContext->hash());
+    }
+    return value;
+}
+
+bool CombineScoringContext::isEqual(const ScoringContextRef& other) const {
+    auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
+
+    if (scoringContexts.size() != otherPtr->scoringContexts.size()) {
+        return false;
+    }
+
+    for (auto it_l = scoringContexts.begin(), it_r = otherPtr->scoringContexts.begin(); it_l != scoringContexts.end(); ++it_l, ++it_r) {
+        if (!(*it_l)->isEqual(*it_r)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 }  // namespace Nn

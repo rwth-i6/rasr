@@ -85,7 +85,7 @@ void LexiconfreeGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32> const& data, size_t F) {
+void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
@@ -99,7 +99,7 @@ void LexiconfreeGreedySearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) {
+void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);
@@ -203,10 +203,8 @@ void LexiconfreeGreedySearch::LabelHypothesis::extend(const HypothesisExtension&
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            /*if (not this->traceback.empty()) {*/
             this->traceback.back().scores.acoustic = score;
             this->traceback.back().time            = extension.timestep;
-            /*}*/
             break;
     }
 }

@@ -41,21 +41,21 @@ public:
     void signalNoMoreFeatures();
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F);
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F);
 
     // Add input features for multiple time steps to an input buffer
-    virtual void addInputs(std::shared_ptr<const f32> const& inputs, size_t T, size_t F);
+    virtual void addInputs(std::shared_ptr<const f32[]> const& inputs, size_t T, size_t F);
 
     // Retrieve a single encoder output
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<std::shared_ptr<const f32>> getNextOutput();
+    std::optional<std::shared_ptr<const f32[]>> getNextOutput();
 
     size_t getOutputSize() const;
 
 protected:
-    std::deque<std::shared_ptr<const f32>> inputBuffer_;
-    std::deque<std::shared_ptr<const f32>> outputBuffer_;
+    std::deque<std::shared_ptr<const f32[]>> inputBuffer_;
+    std::deque<std::shared_ptr<const f32[]>> outputBuffer_;
 
     size_t featureSize_;
     size_t outputSize_;
@@ -87,7 +87,7 @@ public:
     virtual void reset() override;
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
 
 protected:
     const size_t chunkCenter_;
@@ -110,7 +110,7 @@ class NoOpEncoder : public Encoder {
 
 public:
     NoOpEncoder(const Core::Configuration& config);
-    void addInput(std::shared_ptr<const f32> const& input, size_t F) override;
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
 
 protected:
     bool canEncode() const override {

@@ -100,7 +100,7 @@ void LexiconfreeBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32> const& data, size_t F) {
+void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, F);
@@ -114,7 +114,7 @@ void LexiconfreeBeamSearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32> const& data, size_t T, size_t F) {
+void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, T, F);

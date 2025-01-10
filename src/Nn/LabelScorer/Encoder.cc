@@ -48,7 +48,7 @@ void Encoder::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void Encoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+void Encoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = F;
     }
@@ -59,10 +59,10 @@ void Encoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
     inputBuffer_.push_back(input);
 }
 
-void Encoder::addInputs(std::shared_ptr<const f32> const& input, size_t T, size_t F) {
+void Encoder::addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F) {
     for (size_t t = 0ul; t < T; ++t) {
         // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32>(input, input.get() + t * F), F);
+        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * F), F);
     }
 }
 
@@ -70,7 +70,7 @@ bool Encoder::canEncode() const {
     return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
-std::optional<std::shared_ptr<const f32>> Encoder::getNextOutput() {
+std::optional<std::shared_ptr<const f32[]>> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
         auto result = outputBuffer_.front();
@@ -109,17 +109,17 @@ void Encoder::postEncodeCleanup() {
 
 const Core::ParameterInt ChunkedEncoder::paramChunkCenter(
         "chunk-center",
-        "",
+        "Max number of features in chunk-center. Only encoder-states corresponding to these are transmitted as outputs. This is also used as step-size.",
         Core::Type<u32>::max);
 
 const Core::ParameterInt ChunkedEncoder::paramChunkHistory(
         "chunk-history",
-        "",
+        "Max number of features used as left-context for the encoder. Encoder states corresponding to these are not transmitted as outputs.",
         Core::Type<u32>::max);
 
 const Core::ParameterInt ChunkedEncoder::paramChunkFuture(
         "chunk-future",
-        "",
+        "Max number of features used as right-context for the encoder. Encoder states corresponding to these are not transmitted as outputs.",
         Core::Type<u32>::max);
 
 ChunkedEncoder::ChunkedEncoder(const Core::Configuration& config)
@@ -140,7 +140,7 @@ void ChunkedEncoder::reset() {
     currentFutureFeatures_  = 0ul;
 }
 
-void ChunkedEncoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+void ChunkedEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
     Precursor::addInput(input, F);
     if (currentCenterFeatures_ < chunkCenter_) {
         ++currentCenterFeatures_;
@@ -190,7 +190,7 @@ void ChunkedEncoder::postEncodeCleanup() {
 NoOpEncoder::NoOpEncoder(const Core::Configuration& config)
         : Core::Component(config), Precursor(config) {}
 
-void NoOpEncoder::addInput(std::shared_ptr<const f32> const& input, size_t F) {
+void NoOpEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
     Precursor::addInput(input, F);
     outputSize_ = featureSize_;
 }

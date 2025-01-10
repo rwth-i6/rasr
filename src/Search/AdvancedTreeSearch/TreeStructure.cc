@@ -18,7 +18,7 @@
 namespace Search {
 HMMStateNetwork::HMMStateNetwork()
         : subTreeManager_(subTreeListBatches_, states_), edgeTargetManager_(edgeTargetBatches_, states_) {
-    //The zero index is reserved as "invalid", so push one dummy item into all arrays
+    // The zero index is reserved as "invalid", so push one dummy item into all arrays
     tree_ = Tree();
     states_.push_back(HMMState());
     subTreeListBatches_.push_back(0);
@@ -97,7 +97,7 @@ void HMMStateNetwork::addNodeToEdge(SuccessorBatchId& list, StateId target) {
 void HMMStateNetwork::addTargetToEdge(SuccessorBatchId& batch, u32 target) {
     verify(target >= 0);
 
-    //Special case for only one item
+    // Special case for only one item
     edgeTargetManager_.appendToBatch(batch, target, target + 1);
 
     verify(batch != InvalidBatchId);
@@ -112,8 +112,8 @@ u32 HMMStateNetwork::stateCount() const {
 }
 
 bool HMMStateNetwork::write(Core::MappedArchiveWriter writer) {
-    u32 version = DiskFormatVersionV2;
-    std::vector<Tree> trees = {Tree(), tree_};		// need to write a vector of trees because HMMStateNetwork::read() expectes one
+    u32               version = DiskFormatVersionV2;
+    std::vector<Tree> trees   = {Tree(), tree_};  // need to write a vector of trees because HMMStateNetwork::read() expectes one
     writer << version << subTreeListBatches_ << states_ << edgeTargetLists_ << edgeTargetBatches_ << trees;
     return writer.good();
 }
@@ -124,7 +124,7 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
 
     if (version == DiskFormatVersionV1) {
         std::vector<HMMStateV1> states;
-        std::vector<Tree> trees;		// need to read into a vector for backward compatibility
+        std::vector<Tree>       trees;  // need to read into a vector for backward compatibility
         reader >> subTreeListBatches_ >> states >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
         tree_ = trees[1];
 
@@ -139,10 +139,10 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
                 states.begin(),
                 states.end(),
                 std::back_inserter(states_),
-                [](HMMStateV1 s){ return s.toHMMState(); });
+                [](HMMStateV1 s) { return s.toHMMState(); });
     }
     else if (version == DiskFormatVersionV2) {
-        std::vector<Tree> trees;		// need to read into a vector for backward compatibility
+        std::vector<Tree> trees;  // need to read into a vector for backward compatibility
         reader >> subTreeListBatches_ >> states_ >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
         tree_ = trees[1];
     }
@@ -196,7 +196,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
                 }
             }
             if (removed)
-                --node;  //Process the same node again, as more targets may get removed
+                --node;  // Process the same node again, as more targets may get removed
         }
 
         Core::Application::us()->log() << "cleared " << cleared << " dead-end nodes";
@@ -213,7 +213,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
     else {
         counter.stopAtVisited = true;
 
-        ///Mark all reachable nodes
+        /// Mark all reachable nodes
         Core::Application::us()->log() << "calculating reachable nodes";
         for (std::list<StateId>::const_iterator it = startNodes.begin(); it != startNodes.end(); ++it)
             counter.visit(*it, 1);
@@ -225,7 +225,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         std::vector<HMMState>         newNodes;
         std::vector<SuccessorBatchId> newEdgeTargetLists;
 
-        //Must be created before adding the initial items, since it clears the lists
+        // Must be created before adding the initial items, since it clears the lists
         Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId> newSubTreeManager(newSubTreeListBatches, newNodes);
 
         newEdgeTargetLists.push_back(0);
@@ -236,7 +236,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         std::vector<u32> follow(states_.size(), 0);
 
         /// @todo Build a topology and order the nodes in a stable way based on that
-        //Build the order so that the second-order batches are continuous
+        // Build the order so that the second-order batches are continuous
         Tools::BatchManager<SubTreeListId, StateId, HMMState, true, Search::InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
         for (; it; ++it) {
             StateId node = *it;
@@ -298,13 +298,13 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
             }
         }
 
-        //Build the order so that the second-order batches are continuous
-		{
-            //Transfer network into new list
-            newTree = tree_;
+        // Build the order so that the second-order batches are continuous
+        {
+            // Transfer network into new list
+            newTree       = tree_;
             newTree.nodes = InvalidBatchId;
 
-            //Transfer nodes into new batches
+            // Transfer nodes into new batches
             for (u32 idx = 0; idx < ordered.size(); ++idx) {
                 StateId node = ordered[idx];
                 if (counter.visited.find(node) != counter.visited.end()) {
@@ -313,7 +313,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
                     ret.nodeMap.insert(std::make_pair(node, newNode));
                 }
             }
-            //No empty trees
+            // No empty trees
             verify(newTree.nodes != InvalidBatchId);
         }
 
@@ -329,23 +329,22 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
     std::vector<StateId> newEdgeTargetBatches;
 
     Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, InvalidBatchId, SingleSuccessorBatchMask> newEdgeTargetManager(newEdgeTargetBatches, states_);
-    //Must be created before adding the initial items, since it clears the lists
+    // Must be created before adding the initial items, since it clears the lists
     newEdgeTargetBatches.push_back(0);
 
-    //Map the direct node members
+    // Map the direct node members
     for (u32 node = 1; node < states_.size(); ++node) {
-
-        //Map the edge-targets of single batches
+        // Map the edge-targets of single batches
         SuccessorBatchId newBatch = InvalidBatchId;
         SuccessorBatchId oldBatch = states_[node].successors;
 
         for (Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, Search::InvalidBatchId, SingleSuccessorBatchMask>::Iterator it = edgeTargetManager_.getIterator(oldBatch); it; ++it) {
             if (IS_LABEL(*it)) {
-                //It's an label encoded as negative number
+                // It's an label encoded as negative number
                 newEdgeTargetManager.appendToBatch(newBatch, *it, *it + 1);
             }
             else {
-                //It's a node
+                // It's a node
                 verify(counter.visited.find(*it) != counter.visited.end());
                 std::unordered_map<StateId, StateId>::const_iterator nodeMapIt = ret.nodeMap.find(*it);
                 verify(nodeMapIt != ret.nodeMap.end());
@@ -363,11 +362,11 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
 
             for (Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, Search::InvalidBatchId, SingleSuccessorBatchMask>::Iterator it = edgeTargetManager_.getIterator(oldBatch); it; ++it) {
                 if (IS_LABEL(*it)) {
-                    //It's an label encoded as negative number
+                    // It's an label encoded as negative number
                     newEdgeTargetManager.appendToBatch(edgeTargetLists_[batchNum], *it, *it + 1);
                 }
                 else {
-                    //It's a node
+                    // It's a node
                     verify(counter.visited.find(*it) != counter.visited.end());
                     std::unordered_map<StateId, StateId>::const_iterator nodeMapIt = ret.nodeMap.find(*it);
                     verify(nodeMapIt != ret.nodeMap.end());
@@ -384,7 +383,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
         CountSizeTreeWalker counter2(*this);
         counter2.stopAtVisited = true;
 
-        ///Check again and make sure the same count of nodes is reachable
+        /// Check again and make sure the same count of nodes is reachable
         Core::Application::us()->log() << "re-calculating reachable nodes";
         for (std::list<StateId>::const_iterator it = startNodes.begin(); it != startNodes.end(); ++it) {
             std::unordered_map<StateId, StateId>::const_iterator mapIt = ret.nodeMap.find(*it);

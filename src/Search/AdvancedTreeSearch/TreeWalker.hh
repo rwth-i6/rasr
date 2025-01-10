@@ -31,7 +31,7 @@ public:
             : tree(_tree) {
     }
 
-    ///Visits the nodes and all its followers, in the correct order
+    /// Visits the nodes and all its followers, in the correct order
     void visit(StateId node, Token token) {
         bool hadToken = token;
 
@@ -83,10 +83,10 @@ struct CountSizeTreeWalkerBackend {
         ++visitedFinalOutputs;
     }
 
-    std::unordered_set<StateId>   visited;
-    u32                           totalVisited;
-    bool                          stopAtVisited;
-    u32                           visitedFinalOutputs;
+    std::unordered_set<StateId> visited;
+    u32                         totalVisited;
+    bool                        stopAtVisited;
+    u32                         visitedFinalOutputs;
 };
 
 typedef Search::SubTreeWalker<int, CountSizeTreeWalkerBackend> CountSizeTreeWalker;

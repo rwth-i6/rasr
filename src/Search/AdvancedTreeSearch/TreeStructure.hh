@@ -42,7 +42,7 @@ enum {
     LabelMask                = 1 << 27
 };
 
-///Index of a state or label (see IS_LABEL, ID_FROM_LABEL, and LABEL_FROM_ID)
+/// Index of a state or label (see IS_LABEL, ID_FROM_LABEL, and LABEL_FROM_ID)
 typedef u32 StateId;
 
 ///@todo Maybe this should be zero!
@@ -82,10 +82,10 @@ struct HMMState {
         return *this;
     }
 
-    ///This must be initialized explicitly after creating the state
+    /// This must be initialized explicitly after creating the state
     StateTree::StateDesc stateDesc;
 
-    ///Batch of successor states, managed through a batch-manager in TreeStructure
+    /// Batch of successor states, managed through a batch-manager in TreeStructure
     SuccessorBatchId successors;
 
     /// Returns true if the label-edges batch represents only one single successor, which can be handled more efficiently
@@ -122,9 +122,9 @@ struct HMMStateV1 {
         StateTree::StateDesc desc;
 
         HMMState result;
-        result.stateDesc.acousticModel = this->stateDesc.acousticModel;
+        result.stateDesc.acousticModel        = this->stateDesc.acousticModel;
         result.stateDesc.transitionModelIndex = this->stateDesc.transitionModelIndex;
-        result.successors = this->successors;
+        result.successors                     = this->successors;
 
         if (result.stateDesc.acousticModel == StateDescV1::invalidAcousticModel) {
             result.stateDesc.acousticModel = StateTree::invalidAcousticModel;
@@ -138,7 +138,7 @@ struct Tree {
     Tree()
             : nodes(InvalidBatchId) {
     }
-    ///All nodes contained by this tree. Managed as a batch by TreeStructure
+    /// All nodes contained by this tree. Managed as a batch by TreeStructure
     SubTreeListId nodes;
 };
 
@@ -228,54 +228,54 @@ public:
 
     ///****** STATE MANAGEMENT ******************************************************************************************
 
-    ///Do not keep pointers to the returned state, the address may change when the network is manipulated
+    /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline_ HMMState& state(StateId state) {
         verify_(state > 0 && state < (int)states_.size());
         return states_[state];
     }
 
-    ///Do not keep pointers to the returned state, the address may change when the network is manipulated
+    /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline const HMMState& state(StateId state) const {
         verify_(state > 0 && state < (int)states_.size());
         return states_[state];
     }
 
-    ///Allocates a new subtree, and adds it into the subtree list.
-    ///Returns a fully valid subtree (with initialized edge-list)
+    /// Allocates a new subtree, and adds it into the subtree list.
+    /// Returns a fully valid subtree (with initialized edge-list)
     StateId allocateTreeNode();
 
-    ///Returns the count of nodes contained by the tree
+    /// Returns the count of nodes contained by the tree
     inline u32 getNodeCount();
 
-    ///Returns the @p number th node contained in the tree
+    /// Returns the @p number th node contained in the tree
     inline StateId getTreeNode(u32 number);
 
-    ///Returns the number of the @p node in the tree
+    /// Returns the number of the @p node in the tree
     inline u32 getNodeNumber(StateId node);
 
-    ///Much faster version of getNodeNumber, that only works when the structure has been cleaned
+    /// Much faster version of getNodeNumber, that only works when the structure has been cleaned
     inline u32 getNodeNumberCleanStructure(StateId node) {
         return node - subTreeListBatches_[tree_.nodes];
     }
 
-    ///Returns the total number of nodes, which is the maximum upper bound for a valid TreeNodeIndex
+    /// Returns the total number of nodes, which is the maximum upper bound for a valid TreeNodeIndex
     u32 stateCount() const;
 
     struct CleanupResult {
-        Core::HashMap<StateId, StateId>     nodeMap;
+        Core::HashMap<StateId, StateId> nodeMap;
 
         std::set<StateId> mapNodes(const std::set<StateId>& nodes) const;
     };
 
-    ///Completely removes all nodes that are not reachable from the given start-nodes, compressing the structure
+    /// Completely removes all nodes that are not reachable from the given start-nodes, compressing the structure
     CleanupResult cleanup(std::list<Search::StateId> startNodes, bool clearDeadEnds = true, bool onlyBatches = false);
 
     ///****** EDGE MANAGEMENT *******************************************************************************************
 
-    ///Adds the given target to the list of targets for the given edge. The referenced id will be changed.
+    /// Adds the given target to the list of targets for the given edge. The referenced id will be changed.
     void addNodeToEdge(SuccessorBatchId& list, StateId target);
 
-    ///Adds the given target to the list of targets for the given edge. The referenced id will be changed.
+    /// Adds the given target to the list of targets for the given edge. The referenced id will be changed.
     void addOutputToEdge(SuccessorBatchId& list, u32 outputIndex);
 
     void addTargetToNode(StateId node, StateId target) {
@@ -290,14 +290,14 @@ public:
 
     void removeOutputFromNode(StateId node, u32 outputIndex);
 
-    ///Clears all connections behind the given node. The memory will be lost unless a cleanup is done afterwards.
+    /// Clears all connections behind the given node. The memory will be lost unless a cleanup is done afterwards.
     void clearOutputEdges(StateId node);
 
     u32 getChecksum() const {
-        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;    // + 2 is needed for backwards compatibility
+        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;  // + 2 is needed for backwards compatibility
     }
 
-    ///The change is applied when apply() is called
+    /// The change is applied when apply() is called
     class ChangePlan {
     public:
         void addSuccessor(StateId state) {
@@ -396,15 +396,15 @@ public:
         return ret;
     }
 
-    ///Returns -1, -1 if this simple version does not work. Then "edgeTargets" has to be used.
+    /// Returns -1, -1 if this simple version does not work. Then "edgeTargets" has to be used.
     template<bool considerOutputs>
     inline std::pair<int, int> batchSuccessorsSimple(SuccessorBatchId list) const;
 
-    ///Does not work with single-batches! Those must be checked before.
+    /// Does not work with single-batches! Those must be checked before.
     inline std::pair<int, int> batchSuccessorsSimpleIgnoreLabels(SuccessorBatchId list) const;
 
-    ///Reads out the node-range associated to the given batch. Does not verify whether
-    ///the batch is a single-batch or has successor-batches, this has to be checked beforehand.
+    /// Reads out the node-range associated to the given batch. Does not verify whether
+    /// the batch is a single-batch or has successor-batches, this has to be checked beforehand.
     inline std::pair<int, int> batchNodeRange(SuccessorBatchId batch) const;
 
     ///*********************************************************************************************************************
@@ -420,15 +420,15 @@ public:
 private:
     void addTargetToEdge(SuccessorBatchId& batch, u32 target);
     u32  countReachableEnds(std::vector<u32>& counts, StateId node) const;
-    //This manager manages lists of sub-trees, one subtree-list for each network
+    // This manager manages lists of sub-trees, one subtree-list for each network
     std::vector<StateId>                                                        subTreeListBatches_;
     std::vector<HMMState>                                                       states_;
     Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId> subTreeManager_;
 
-    //Contains one SuccessorBatchId for each label of a subtree, as a linear list
+    // Contains one SuccessorBatchId for each label of a subtree, as a linear list
     std::vector<SuccessorBatchId> edgeTargetLists_;
 
-    //This manager groups together edge successors, for edges coming from a common source(usually an label of a subtree)
+    // This manager groups together edge successors, for edges coming from a common source(usually an label of a subtree)
     std::vector<StateId>                                                                                      edgeTargetBatches_;
     Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, InvalidBatchId, SingleSuccessorBatchMask> edgeTargetManager_;
 
@@ -470,7 +470,7 @@ inline std::pair<int, int> HMMStateNetwork::batchSuccessorsSimple(SuccessorBatch
         const Search::StateId start = edgeTargetBatches_[batch];
         if (not considerOutputs && IS_LABEL(start))
             return std::pair<int, int>(0, 0);
-        //Everything ok, this is a simple continous batch without a follower-batch
+        // Everything ok, this is a simple continous batch without a follower-batch
         return std::pair<int, int>(start, edgeTargetBatches_[batch + 2]);
     }
 

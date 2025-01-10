@@ -106,7 +106,7 @@ template<typename Key, typename Value, typename Hash, typename KeyEqual>
 inline std::optional<std::reference_wrapper<Value>> FIFOCache<Key, Value, Hash, KeyEqual>::get(const Key& key) {
     auto it = cacheMap_.find(key);
     if (it != cacheMap_.end()) {
-        return std::reference_wrapper<Value>(it->second);
+        return std::ref(it->second);
     }
     return {};
 }

@@ -50,6 +50,13 @@ class StaticSearchAutomaton : public Core::Component {
 public:
     using Precursor = Core::Component;
 
+    enum class TreeBuilderType {
+        previousBehavior = 0,
+        classicHmm       = 1,
+        minimizedHmm     = 2,
+        ctc              = 3,
+    };
+
     /// HMM length of a common phoneme
     const u32 hmmLength;
     bool      minimized;
@@ -68,7 +75,7 @@ public:
     std::vector<int> singleLabels;
     // LM- and acoustic look-ahead ids together, for quicker access
     std::vector<std::pair<u32, u32>> lookAheadIds;
-    // Sparse LM lookahead hash and acoustic lookahead id paired togeter
+    // Sparse LM lookahead hash and acoustic lookahead id paired together
     std::vector<std::pair<u32, u32>> lookAheadIdAndHash;
 
     std::vector<int> stateDepths;
@@ -79,7 +86,7 @@ public:
     std::vector<unsigned char> truncatedInvertedStateDepths;
     std::vector<unsigned char> truncatedStateDepths;
 
-    // number of transitions needed untill the next word end (that is not silence)
+    // number of transitions needed until the next word end (that is not silence)
     std::vector<unsigned> labelDistance;
 
     /// Optional filter which allows limiting the search space to a certain word sequence prefix
@@ -115,11 +122,15 @@ public:
     // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
     void buildBatches();
 
+protected:
+    TreeBuilderType treeBuilderType_;
+
+    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Bliss::LexiconRef                  lexicon_;
 };
-
 
 class SearchSpace : public Core::Component {
 public:
@@ -299,7 +310,7 @@ public:
     // Creates early word end hypotheses from the active state hypotheses
     void findWordEnds();
 
-    // Prunes early word end hypotheses, and expands them to normal word end hypothses
+    // Prunes early word end hypotheses, and expands them to normal word end hypotheses
     void pruneEarlyWordEnds();
 
     // Applies time-, score- and transit-modification to the given trace-id, and returns the corrected trace item (as successor of the original trace item)
@@ -326,13 +337,15 @@ public:
     void rescale(Score offset, bool ignoreWordEnds = false);
 
     // Returns the info from trace manager about whether it needs cleanup
-    inline bool needCleanup() const { return trace_manager_.needCleanup();}
+    inline bool needCleanup() const {
+        return trace_manager_.needCleanup();
+    }
 
     // Needs to be called once in a while, but not every timeframe,
     // deletes all traces that did not survive in stateHypotheses and rootStateHypotheses of activeTrees
     void cleanup();
 
-    // Optimize the lattice, removing redundant silence occurances
+    // Optimize the lattice, removing redundant silence occurrences
     void optimizeSilenceInWordLattice(const Bliss::Lemma* silence);
 
     Core::Ref<Trace> getSentenceEnd(TimeframeIndex time, bool shallCreateLattice);
@@ -358,18 +371,18 @@ public:
     void                                        setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>&);
     Search::SearchAlgorithm::RecognitionContext setContext(Search::SearchAlgorithm::RecognitionContext);
 
-    ///Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
+    /// Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
     Score bestProspect() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestProspectStateHypothesis() const;
-    ///Returns the best score (the look-ahead score is not included)
+    /// Returns the best score (the look-ahead score is not included)
     ///@warning: Expensive, but with caching
     Score bestScore() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestScoreStateHypothesis() const;
     Score                               quantileStateScore(Score min, Score max, u32 nHyp) const;
-    ///Returns the lowest word end score (without look-ahead)
-    ///Always valid after findWordEnds was called
+    /// Returns the lowest word end score (without look-ahead)
+    /// Always valid after findWordEnds was called
     Score minimumWordEndScore() const;
     Score quantileWordEndScore(Score min, Score max, u32 nHyp) const;
 

@@ -41,7 +41,7 @@ struct ConvertTree {
     TreeIndex                                                            masterTreeIndex;
     StateId                                                              rootSubTree;
     StateId                                                              ciRootNode;
-    std::map<StateTree::Exit, u32>                                       exits;  //Maps exits to label-indices @todo Make this a hash_map
+    std::map<StateTree::Exit, u32>                                       exits;  // Maps exits to label-indices @todo Make this a hash_map
     std::vector<PersistentStateTree::Exit>                               exitVector;
     Core::HashMap<StateId, StateTree::StateId>                           statesForNodes;
     Core::HashMap<StateTree::StateId, StateId>                           nodesForStates;
@@ -73,7 +73,7 @@ struct ConvertTree {
             }
         }
 
-        ///Make sure a node is created for every single state, so that also the coarticulated roots are respected
+        /// Make sure a node is created for every single state, so that also the coarticulated roots are respected
 
         for (std::set<StateTree::StateId>::iterator stateIt = coarticulatedRootStates.begin(); stateIt != coarticulatedRootStates.end(); ++stateIt) {
             StateTree::StateId state = *stateIt;
@@ -121,7 +121,7 @@ struct ConvertTree {
                 exitIndices.insert(exitEntry->second);
             }
 
-            //Add connections to the attached outputs/exits
+            // Add connections to the attached outputs/exits
             for (std::set<u32>::iterator it = exitIndices.begin(); it != exitIndices.end(); ++it)
                 subtrees.addOutputToEdge(subtrees.state(node).successors, *it);
         }
@@ -150,10 +150,10 @@ private:
 
         subtrees.state(node).stateDesc = state;
 
-        //Build successor structure
+        // Build successor structure
         std::pair<StateTree::SuccessorIterator, StateTree::SuccessorIterator> successors = tree->successors(stateId);
 
-        StateId current = node;  //Just to verify the order
+        StateId current = node;  // Just to verify the order
 
         for (; successors.first != successors.second; ++successors.first) {
             std::unordered_map<StateTree::StateId, StateId>::iterator nodeIt = nodesForStates.find(*successors.first);
@@ -166,14 +166,15 @@ private:
     }
 };
 
-PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon)
+PersistentStateTree::PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory)
         : masterTree(0),
           rootState(0),
           ciRootState(0),
           archive_(paramCacheArchive(Core::Configuration(config, "search-network"))),
           acousticModel_(acousticModel),
           lexicon_(lexicon),
-          config_(config) {
+          config_(config),
+          treeBuilderFactory_(treeBuilderFactory) {
     if (acousticModel_.get() && lexicon_.get()) {
         const Am::ClassicAcousticModel* am = required_cast(const Am::ClassicAcousticModel*, acousticModel.get());
         Core::DependencySet             d;
@@ -320,7 +321,7 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     in >> masterTree >> dependenciesChecksum;
 
     if (dependenciesChecksum != dependencies_.getChecksum()) {
-        Core::Application::us()->log() << "dependencies of the network image don't equal the requiered dependencies with checksum " << dependenciesChecksum;
+        Core::Application::us()->log() << "dependencies of the network image don't equal the required dependencies with checksum " << dependenciesChecksum;
         return false;
     }
 
@@ -436,7 +437,7 @@ HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
 
     Core::HashMap<StateId, StateId>::const_iterator targetNodeIt;
     if (rootState) {
-        verify(cleanupResult.nodeMap.find(rootState) != cleanupResult.nodeMap.end());  //Root-node must stay unchanged
+        verify(cleanupResult.nodeMap.find(rootState) != cleanupResult.nodeMap.end());  // Root-node must stay unchanged
         verify(cleanupResult.nodeMap.find(rootState)->second == rootState);
         targetNodeIt = cleanupResult.nodeMap.find(rootState);
         verify(targetNodeIt != cleanupResult.nodeMap.end());
@@ -512,7 +513,7 @@ void PersistentStateTree::dumpDotGraph(std::string file, const std::vector<int>&
         int depth = 0;
         if (!nodeDepths.empty())
             depth = nodeDepths[node];
-        os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d", node, node, depth, structure.state(node).stateDesc.acousticModel);
+        os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d\\nt=%d", node, node, depth, structure.state(node).stateDesc.acousticModel, structure.state(node).stateDesc.transitionModelIndex);
 
         for (HMMStateNetwork::SuccessorIterator target = structure.successors(node); target; ++target)
             if (target.isLabel() && exits[target.label()].pronunciation != Bliss::LemmaPronunciation::invalidId)

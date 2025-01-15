@@ -31,7 +31,7 @@ const Core::ParameterBool  LexiconfreeBeamSearch::paramAllowLabelLoop("allow-lab
 const Core::ParameterBool  LexiconfreeBeamSearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
 const Core::ParameterBool  LexiconfreeBeamSearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
 
-LexiconfreeBeamSearch::LexiconfreeBeamSearch(const Core::Configuration& config)
+LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
@@ -68,7 +68,7 @@ Speech::ModelCombination::Mode LexiconfreeBeamSearch::modelCombinationNeeded() c
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
-bool LexiconfreeBeamSearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
+bool LexiconfreeBeamSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
@@ -100,10 +100,10 @@ void LexiconfreeBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t F) {
+void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(data, F);
+    labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
@@ -114,10 +114,10 @@ void LexiconfreeBeamSearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) {
+void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInputs(data, T, F);
+    labelScorer_->addInputs(data, timeSize, featureSize);
     featureProcessingTime_.toc();
 }
 
@@ -199,10 +199,10 @@ Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::L
     }
 }
 
-LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(const LexiconfreeBeamSearch::LabelHypothesis& base)
+LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base)
         : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), traceback(base.traceback) {}
 
-LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(const LexiconfreeBeamSearch::LabelHypothesis& base, const LexiconfreeBeamSearch::HypothesisExtension& extension)
+LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base, LexiconfreeBeamSearch::HypothesisExtension const& extension)
         : scoringContext(extension.scoringContext), currentLabel(extension.label), score(base.score + extension.score), traceback(base.traceback) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
@@ -232,7 +232,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
     verify(labelScorer_);
 
     // If all hypotheses in the beam have reached sentence-end, no further decode step is performed
-    if (useSentenceEnd_ and std::all_of(beam_.begin(), beam_.end(), [this](const auto& hyp) { return hyp.currentLabel == sentenceEndIndex_; })) {
+    if (useSentenceEnd_ and std::all_of(beam_.begin(), beam_.end(), [this](auto const& hyp) { return hyp.currentLabel == sentenceEndIndex_; })) {
         return false;
     }
 
@@ -282,12 +282,12 @@ bool LexiconfreeBeamSearch::decodeStep() {
      * Perform scoring of the requests with the label scorer
      */
     scoringTime_.tic();
-    auto result = labelScorer_->getScoresWithTimes(requests);
+    auto result = labelScorer_->computeScoresWithTimes(requests);
     scoringTime_.toc();
     if (not result) {
         return false;
     }
-    const auto& scoresWithTimes = result.value();
+    auto const& scoresWithTimes = result.value();
 
     std::vector<float> combinedScores(numUnfinishedHyps * nLemmas);
     for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
@@ -364,7 +364,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
 
     // Unfinished hyps
     for (auto index : indices) {
-        const auto& request = requests[index];
+        auto const& request = requests[index];
 
         contextExtensionTime_.tic();
         auto newScoringContext = labelScorer_->extendedScoringContext({request.context, request.nextToken, request.transitionType});
@@ -376,7 +376,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
                   newScoringContext,
                   request.nextToken,
                   scoresWithTimes.scores[index],
-                  scoresWithTimes.timesteps[index],
+                  scoresWithTimes.timeframes[index],
                   request.transitionType}});
     }
 
@@ -409,7 +409,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
         auto pruningThreshold = newBeam.front().score + scoreThreshold_;
 
         size_t numSurvivingHyps = 0ul;
-        for (const auto& hyp : newBeam) {
+        for (auto const& hyp : newBeam) {
             if (hyp.score > pruningThreshold) {
                 break;
             }

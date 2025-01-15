@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2024 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -35,20 +35,20 @@ typedef Mm::EmissionIndex LabelIndex;
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
 
-    virtual bool   isEqual(const Core::Ref<const ScoringContext>& other) const;
+    virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
     virtual size_t hash() const;
 };
 
 typedef Core::Ref<const ScoringContext> ScoringContextRef;
 
 struct ScoringContextHash {
-    size_t operator()(const ScoringContextRef& history) const {
-        return history->hash();
+    size_t operator()(ScoringContextRef const& scoringContext) const {
+        return scoringContext->hash();
     }
 };
 
 struct ScoringContextEq {
-    bool operator()(const ScoringContextRef& lhs, const ScoringContextRef& rhs) const {
+    bool operator()(ScoringContextRef const& lhs, ScoringContextRef const& rhs) const {
         return lhs->isEqual(rhs);
     }
 };
@@ -66,7 +66,7 @@ struct StepScoringContext : public ScoringContext {
     StepScoringContext(Speech::TimeframeIndex step)
             : currentStep(step) {}
 
-    bool   isEqual(const ScoringContextRef& other) const;
+    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
@@ -80,10 +80,10 @@ struct LabelSeqScoringContext : public ScoringContext {
 
     LabelSeqScoringContext()
             : labelSeq() {}
-    LabelSeqScoringContext(const std::vector<LabelIndex>& seq)
+    LabelSeqScoringContext(std::vector<LabelIndex> const& seq)
             : labelSeq(seq) {}
 
-    bool   isEqual(const ScoringContextRef& other) const;
+    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
@@ -98,10 +98,10 @@ struct SeqStepScoringContext : public ScoringContext {
 
     SeqStepScoringContext()
             : labelSeq(), currentStep(0ul) {}
-    SeqStepScoringContext(const std::vector<LabelIndex>& seq, Speech::TimeframeIndex step)
+    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
             : labelSeq(seq), currentStep(step) {}
 
-    bool   isEqual(const ScoringContextRef& other) const;
+    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
@@ -140,10 +140,10 @@ struct HiddenStateScoringContext : public ScoringContext {
     HiddenStateScoringContext()
             : labelSeq(), hiddenState() {}
 
-    HiddenStateScoringContext(const std::vector<LabelIndex>& labelSeq, HiddenStateRef state)
+    HiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, HiddenStateRef state)
             : labelSeq(labelSeq), hiddenState(state) {}
 
-    bool   isEqual(const ScoringContextRef& other) const;
+    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
@@ -163,7 +163,7 @@ struct CombineScoringContext : public ScoringContext {
     CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
             : scoringContexts(scoringContexts) {}
 
-    bool   isEqual(const ScoringContextRef& other) const;
+    bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 

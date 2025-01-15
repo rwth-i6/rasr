@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2024 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ size_t combineHashes(size_t hash1, size_t hash2) {
  * === ScoringContext ==========
  * =============================
  */
-bool ScoringContext::isEqual(const ScoringContextRef& other) const {
+bool ScoringContext::isEqual(ScoringContextRef const& other) const {
     return true;
 }
 
@@ -52,7 +52,7 @@ size_t StepScoringContext::hash() const {
     return currentStep;
 }
 
-bool StepScoringContext::isEqual(const ScoringContextRef& other) const {
+bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
     return currentStep == dynamic_cast<const StepScoringContext*>(other.get())->currentStep;
 }
 
@@ -65,7 +65,7 @@ size_t LabelSeqScoringContext::hash() const {
     return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool LabelSeqScoringContext::isEqual(const ScoringContextRef& other) const {
+bool LabelSeqScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const LabelSeqScoringContext*>(other.get());
     if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
@@ -89,7 +89,7 @@ size_t SeqStepScoringContext::hash() const {
     return combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
-bool SeqStepScoringContext::isEqual(const ScoringContextRef& other) const {
+bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
     if (currentStep != otherPtr->currentStep) {
         return false;
@@ -118,7 +118,7 @@ size_t HiddenStateScoringContext::hash() const {
     return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
-bool HiddenStateScoringContext::isEqual(const ScoringContextRef& other) const {
+bool HiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const HiddenStateScoringContext*>(other.get());
     if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
@@ -141,13 +141,13 @@ bool HiddenStateScoringContext::isEqual(const ScoringContextRef& other) const {
  */
 size_t CombineScoringContext::hash() const {
     size_t value = 0ul;
-    for (const auto& scoringContext : scoringContexts) {
+    for (auto const& scoringContext : scoringContexts) {
         value = combineHashes(value, scoringContext->hash());
     }
     return value;
 }
 
-bool CombineScoringContext::isEqual(const ScoringContextRef& other) const {
+bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
 
     if (scoringContexts.size() != otherPtr->scoringContexts.size()) {

@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2024 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 #ifndef LABEL_SCORER_HH
 #define LABEL_SCORER_HH
 
+#include <optional>
+
 #include <Core/CollapsedVector.hh>
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -26,9 +28,7 @@
 #include <Mm/FeatureScorer.hh>
 #include <Nn/Types.hh>
 #include <Speech/Feature.hh>
-#include <Speech/Types.hh>
-#include <optional>
-#include <vector>
+
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -70,7 +70,8 @@ namespace Nn {
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
-    // Transition type as part of scoring or context extension requests
+    typedef Search::Score Score;
+
     enum TransitionType {
         LABEL_TO_LABEL,
         LABEL_LOOP,
@@ -95,10 +96,10 @@ public:
     // Return value of batched scoring function
     struct ScoresWithTimes {
         std::vector<Score>                            scores;
-        Core::CollapsedVector<Speech::TimeframeIndex> timesteps;
+        Core::CollapsedVector<Speech::TimeframeIndex> timeframes;  // Timeframes vector is internally collapsed  if all timeframes are the same (e.g. time-sync decoding)
     };
 
-    LabelScorer(const Core::Configuration& config);
+    LabelScorer(Core::Configuration const& config);
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
@@ -112,26 +113,26 @@ public:
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(Request request) = 0;
+    virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F) = 0;
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) = 0;
     virtual void addInput(std::vector<f32> const& input);
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F);
+    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet
     // (e.g. not enough features received)
-    virtual std::optional<ScoreWithTime> getScoreWithTime(const Request request) = 0;
+    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) = 0;
 
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
     // Note: the times vector is internally collapsed to one value if all timesteps are the same
-    virtual std::optional<ScoresWithTimes> getScoresWithTimes(const std::vector<Request>& requests);
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
 };
 
 /*
@@ -152,7 +153,7 @@ public:
     virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
 
 protected:
     size_t                                    featureSize_;
@@ -171,15 +172,15 @@ public:
 
     ScaledLabelScorer(const Core::Configuration& config, const Core::Ref<LabelScorer>& scorer);
 
-    void                           reset();
-    void                           signalNoMoreFeatures();
-    ScoringContextRef              getInitialScoringContext();
-    ScoringContextRef              extendedScoringContext(Request request);
-    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t F);
-    void                           addInput(std::vector<f32> const& input);
-    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F);
-    std::optional<ScoreWithTime>   getScoreWithTime(const Request request);
-    std::optional<ScoresWithTimes> getScoresWithTimes(const std::vector<Request>& requests);
+    void                           reset() override;
+    void                           signalNoMoreFeatures() override;
+    ScoringContextRef              getInitialScoringContext() override;
+    ScoringContextRef              extendedScoringContext(Request const& request) override;
+    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    void                           addInput(std::vector<f32> const& input) override;
+    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) override;
+    std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request) override;
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 protected:
     Core::Ref<LabelScorer> scorer_;
@@ -200,10 +201,10 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Scoring context with step incremented by 1.
-    virtual ScoringContextRef extendedScoringContext(LabelScorer::Request request) override;
+    virtual ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Basically returns inputBuffer[currentStep][nextToken]
-    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 };
 
 /*
@@ -223,7 +224,7 @@ public:
     void reset() override;
 
     // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
     void addInput(std::vector<f32> const& input) override;
 
     // Flush and cache all remaining context scorers
@@ -233,10 +234,10 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Scoring context with step incremented by 1.
-    ScoringContextRef extendedScoringContext(LabelScorer::Request request) override;
+    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Use cached context scorer at given step to score the next token.
-    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;
@@ -259,12 +260,12 @@ public:
     void                           reset();
     void                           signalNoMoreFeatures();
     ScoringContextRef              getInitialScoringContext();
-    ScoringContextRef              extendedScoringContext(Request request);
-    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t F);
+    ScoringContextRef              extendedScoringContext(Request const& request);
+    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
     void                           addInput(std::vector<f32> const& input);
-    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F);
-    std::optional<ScoreWithTime>   getScoreWithTime(const Request request);
-    std::optional<ScoresWithTimes> getScoresWithTimes(const std::vector<Request>& requests);
+    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
 
 protected:
     std::vector<Core::Ref<LabelScorer>> scorers_;

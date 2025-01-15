@@ -92,7 +92,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}}}};
 
-LimitedCtxOnnxLabelScorer::LimitedCtxOnnxLabelScorer(const Core::Configuration& config)
+LimitedCtxOnnxLabelScorer::LimitedCtxOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           startLabelIndex_(paramStartLabelIndex(config)),
@@ -119,7 +119,7 @@ ScoringContextRef LimitedCtxOnnxLabelScorer::getInitialScoringContext() {
     return hist;
 }
 
-ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
     bool pushToken     = false;
@@ -162,7 +162,7 @@ ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer:
     return newContext;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
+std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     ScoresWithTimes result;
     result.scores.reserve(requests.size());
 
@@ -179,7 +179,7 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScores
             // Early exit if at least one of the histories is not scorable yet
             return {};
         }
-        result.timesteps.push_back(step);
+        result.timeframes.push_back(step);
 
         // Create new vector if step value isn't present in map yet
         auto [it, inserted] = requestsWithTimestep.emplace(step, std::vector<size_t>());
@@ -227,8 +227,8 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScores
         SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
         auto scores = scoreCache_.get(context);
-        if (request.nextToken < scores.size()) {
-            result.scores.push_back(scores[request.nextToken]);
+        if (request.nextToken < scores->get().size()) {
+            result.scores.push_back(scores->get()[request.nextToken]);
         }
         else {
             result.scores.push_back(0);
@@ -238,15 +238,15 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::getScores
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> LimitedCtxOnnxLabelScorer::getScoreWithTime(LabelScorer::Request request) {
-    auto result = getScoresWithTimes({request});
+std::optional<LabelScorer::ScoreWithTime> LimitedCtxOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+    auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
     }
-    return ScoreWithTime{result->scores.front(), result->timesteps.front()};
+    return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-void LimitedCtxOnnxLabelScorer::forwardBatch(const std::vector<SeqStepScoringContextRef> contextBatch) {
+void LimitedCtxOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {
     if (contextBatch.empty()) {
         return;
     }

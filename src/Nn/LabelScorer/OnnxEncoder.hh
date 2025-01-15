@@ -28,7 +28,7 @@ class OnnxEncoder : public virtual Encoder {
     typedef Encoder Precursor;
 
 public:
-    OnnxEncoder(const Core::Configuration config);
+    OnnxEncoder(Core::Configuration const& config);
 
 protected:
     virtual void encode() override;
@@ -47,7 +47,7 @@ private:
 // Chunked encoder that runs the input features through an ONNX model
 class ChunkedOnnxEncoder : public ChunkedEncoder, public OnnxEncoder {
 public:
-    ChunkedOnnxEncoder(const Core::Configuration config);
+    ChunkedOnnxEncoder(Core::Configuration const& config);
 
 protected:
     // Determine the [start, end) range of valid output frames based on which number of output

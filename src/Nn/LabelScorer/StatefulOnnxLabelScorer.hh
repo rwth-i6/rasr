@@ -58,19 +58,19 @@ public:
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
     // Forward hidden-state through state-updater ONNX model
-    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request request) override;
+    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Add a single encoder outputs to buffer
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
 
-    std::optional<LabelScorer::ScoreWithTime>   getScoreWithTime(const LabelScorer::Request request) override;
-    std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
+    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTime(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    void forwardBatch(const std::vector<HiddenStateScoringContextRef> historyBatch);
+    void forwardBatch(std::vector<HiddenStateScoringContextRef> const& historyBatch);
 
-    HiddenStateRef updatedHiddenState(HiddenStateRef hiddenState, LabelIndex nextToken);
+    HiddenStateRef updatedHiddenState(HiddenStateRef const& hiddenState, LabelIndex nextToken);
 
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
     // So getStartHistory sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedHistory` and `getScoresWithTime`

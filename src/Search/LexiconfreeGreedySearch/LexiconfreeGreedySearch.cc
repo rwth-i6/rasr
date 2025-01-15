@@ -25,7 +25,7 @@ const Core::ParameterBool LexiconfreeGreedySearch::paramAllowLabelLoop("allow-la
 const Core::ParameterBool LexiconfreeGreedySearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
 const Core::ParameterBool LexiconfreeGreedySearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
 
-LexiconfreeGreedySearch::LexiconfreeGreedySearch(const Core::Configuration& config)
+LexiconfreeGreedySearch::LexiconfreeGreedySearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
           useBlank_(paramUseBlank(config)),
@@ -55,7 +55,7 @@ Speech::ModelCombination::Mode LexiconfreeGreedySearch::modelCombinationNeeded()
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
-bool LexiconfreeGreedySearch::setModelCombination(const Speech::ModelCombination& modelCombination) {
+bool LexiconfreeGreedySearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
@@ -85,10 +85,10 @@ void LexiconfreeGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t F) {
+void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInput(data, F);
+    labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
@@ -99,10 +99,10 @@ void LexiconfreeGreedySearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) {
+void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
-    labelScorer_->addInputs(data, T, F);
+    labelScorer_->addInputs(data, timeSize, featureSize);
     featureProcessingTime_.toc();
 }
 
@@ -191,7 +191,7 @@ void LexiconfreeGreedySearch::LabelHypothesis::reset() {
     traceback.push_back(TracebackItem(nullptr, nullptr, 0, ScoreVector({}, {})));
 }
 
-void LexiconfreeGreedySearch::LabelHypothesis::extend(const HypothesisExtension& extension) {
+void LexiconfreeGreedySearch::LabelHypothesis::extend(HypothesisExtension const& extension) {
     this->scoringContext = extension.scoringContext;
     this->score += extension.score;
     this->currentLabel = extension.label;
@@ -231,12 +231,12 @@ bool LexiconfreeGreedySearch::decodeStep() {
     }
 
     scoringTime_.tic();
-    auto result = labelScorer_->getScoresWithTimes(requests);
+    auto result = labelScorer_->computeScoresWithTimes(requests);
     scoringTime_.toc();
     if (not result.has_value()) {
         return false;
     }
-    const auto& [scores, times] = result.value();
+    auto const& [scores, times] = result.value();
 
     auto  bestIdx     = std::distance(scores.begin(), std::min_element(scores.begin(), scores.end()));
     auto& bestRequest = requests.at(bestIdx);

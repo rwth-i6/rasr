@@ -102,7 +102,7 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};
 
-StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& config)
+StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           initialHiddenState_(),
@@ -130,7 +130,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& conf
     auto scorerMetadataKeys      = scorerOnnxModel_.session.getCustomMetadataKeys();
 
     std::stringstream s1;
-    for (const auto& key : initializerMetadataKeys) {
+    for (auto const& key : initializerMetadataKeys) {
         if (stateInitializerOnnxModel_.session.hasOutput(key)) {
             auto stateName = stateInitializerOnnxModel_.session.getCustomMetadata(key);
             initializerOutputToStateNameMap_.emplace(key, stateName);
@@ -141,7 +141,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& conf
 
     std::stringstream s21;
     std::stringstream s22;
-    for (const auto& key : updaterMetadataKeys) {
+    for (auto const& key : updaterMetadataKeys) {
         if (stateUpdaterOnnxModel_.session.hasInput(key)) {
             auto stateName = stateUpdaterOnnxModel_.session.getCustomMetadata(key);
             updaterInputToStateNameMap_.emplace(key, stateName);
@@ -156,7 +156,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(const Core::Configuration& conf
     log() << s21.str() << s22.str();
 
     std::stringstream s3;
-    for (const auto& key : scorerMetadataKeys) {
+    for (auto const& key : scorerMetadataKeys) {
         if (scorerOnnxModel_.session.hasInput(key)) {
             auto stateName = scorerOnnxModel_.session.getCustomMetadata(key);
             scorerInputToStateNameMap_.emplace(key, stateName);
@@ -175,7 +175,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContex
     return Core::ref(new HiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
-Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     HiddenStateScoringContextRef history(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
@@ -216,8 +216,8 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    Precursor::addInput(input, F);
+void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    Precursor::addInput(input, featureSize);
 
     initialHiddenState_ = HiddenStateRef();
 
@@ -227,7 +227,7 @@ void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32[]> const& input
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     if (featuresMissing_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
         return {};
     }
@@ -266,25 +266,25 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::getScoresWi
     for (const auto& request : requests) {
         HiddenStateScoringContextRef history(dynamic_cast<const HiddenStateScoringContext*>(request.context.get()));
         auto                         scores = scoreCache_.get(history);
-        if (request.nextToken < scores.size()) {
-            result.scores.push_back(scores[request.nextToken]);
+        if (request.nextToken < scores->get().size()) {
+            result.scores.push_back(scores->get()[request.nextToken]);
         }
         else {
             result.scores.push_back(0);
         }
 
-        result.timesteps.push_back(history->labelSeq.size());
+        result.timeframes.push_back(history->labelSeq.size());
     }
 
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::getScoreWithTime(LabelScorer::Request request) {
-    auto result = getScoresWithTimes({request});
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+    auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
     }
-    return ScoreWithTime{result->scores.front(), result->timesteps.front()};
+    return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
@@ -293,12 +293,11 @@ void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
     }
 
     u32 T = inputBuffer_.size();
-    u32 F = featureSize_;
 
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(F)});
+    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(featureSize_)});
 
     for (size_t t = 0ul; t < T; ++t) {
-        std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + F, encoderStatesValue_.data<f32>(0, t));
+        std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + featureSize_, encoderStatesValue_.data<f32>(0, t));
     }
 }
 
@@ -353,7 +352,7 @@ HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     return initialHiddenState_;
 }
 
-HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef hiddenState, LabelIndex nextToken) {
+HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef const& hiddenState, LabelIndex nextToken) {
     /*
      * Create session inputs
      */
@@ -398,7 +397,7 @@ HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef hidden
     return newHiddenState;
 }
 
-void StatefulOnnxLabelScorer::forwardBatch(const std::vector<HiddenStateScoringContextRef> historyBatch) {
+void StatefulOnnxLabelScorer::forwardBatch(std::vector<HiddenStateScoringContextRef> const& historyBatch) {
     if (historyBatch.empty()) {
         return;
     }

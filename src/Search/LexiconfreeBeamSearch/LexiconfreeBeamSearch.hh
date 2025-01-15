@@ -51,8 +51,8 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         LabelHypothesis()
                 : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
 
-        LabelHypothesis(const LabelHypothesis& base);
-        LabelHypothesis(const LabelHypothesis& base, const HypothesisExtension& extension);
+        LabelHypothesis(LabelHypothesis const& base);
+        LabelHypothesis(LabelHypothesis const& base, HypothesisExtension const& extension);
 
         std::string toString() const;
     };
@@ -88,19 +88,19 @@ public:
     static const Core::ParameterBool  paramUseSentenceEnd;
     static const Core::ParameterBool  paramSentenceEndIndex;
 
-    LexiconfreeBeamSearch(const Core::Configuration&);
+    LexiconfreeBeamSearch(Core::Configuration const&);
 
     // Inherited methods
 
     Speech::ModelCombination::Mode  modelCombinationNeeded() const override;
-    bool                            setModelCombination(const Speech::ModelCombination& modelCombination) override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
     void                            reset() override;
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
-    void                            addFeature(std::shared_ptr<const f32[]> const& data, size_t F) override;
+    void                            addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) override;
     void                            addFeature(std::vector<f32> const& data) override;
-    void                            addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) override;
+    void                            addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;

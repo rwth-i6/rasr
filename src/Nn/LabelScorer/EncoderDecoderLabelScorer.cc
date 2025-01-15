@@ -17,7 +17,7 @@
 
 namespace Nn {
 
-EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<LabelScorer> decoder)
+EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder)
         : Core::Component(config),
           LabelScorer(config),
           encoder_(encoder),
@@ -33,17 +33,17 @@ ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
     return decoder_->getInitialScoringContext();
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request request) {
+ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request const& request) {
     return decoder_->extendedScoringContext(request);
 }
 
-void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    encoder_->addInput(input, F);
+void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    encoder_->addInput(input, featureSize);
     encode();
 }
 
-void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& inputs, size_t T, size_t F) {
-    encoder_->addInputs(inputs, T, F);
+void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& inputs, size_t timeSize, size_t featureSize) {
+    encoder_->addInputs(inputs, timeSize, featureSize);
     encode();
 }
 
@@ -55,12 +55,12 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
-    return decoder_->getScoreWithTime(request);
+std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+    return decoder_->computeScoreWithTime(request);
 }
 
-std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
-    return decoder_->getScoresWithTimes(requests);
+std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+    return decoder_->computeScoresWithTimes(requests);
 }
 
 void EncoderDecoderLabelScorer::encode() {

@@ -82,7 +82,7 @@ public:
     };
 
 public:
-    SearchAlgorithmV2(const Core::Configuration&)
+    SearchAlgorithmV2(Core::Configuration const&)
             : Core::Component(config) {}
     virtual ~SearchAlgorithmV2() = default;
 
@@ -94,7 +94,7 @@ public:
         return Am::AcousticModel::noEmissions | Am::AcousticModel::noStateTying | Am::AcousticModel::noStateTransition;
     }
 
-    virtual bool setModelCombination(const Speech::ModelCombination& modelCombination) = 0;
+    virtual bool setModelCombination(Speech::ModelCombination const& modelCombination) = 0;
 
     // Call before starting a new recognition. Clean up existing data structures
     // from the previous run.
@@ -110,11 +110,11 @@ public:
     virtual void finishSegment() = 0;
 
     // Pass a single feature vector
-    virtual void addFeature(std::shared_ptr<const f32[]> const& data, size_t F) = 0;
-    virtual void addFeature(std::vector<f32> const& data)                       = 0;
+    virtual void addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) = 0;
+    virtual void addFeature(std::vector<f32> const& data)                                 = 0;
 
     // Pass feature vectors for multiple time steps
-    virtual void addFeatures(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) = 0;
+    virtual void addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) = 0;
 
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;

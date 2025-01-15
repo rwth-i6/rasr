@@ -66,7 +66,6 @@ add_module_option(MODULE_MM_DT ON)
 # ****** Neural Network ******
 add_module_option(MODULE_NN ON)
 add_module_option(MODULE_NN_SEQUENCE_TRAINING ON)
-add_module_option(MODULE_THEANO_INTERFACE ON)
 add_module_option(MODULE_PYTHON ON)
 
 # ****** OpenFst ******

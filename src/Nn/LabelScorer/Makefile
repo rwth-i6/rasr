@@ -12,14 +12,14 @@ TARGETS		= libSprintLabelScorer.$(a)
 LIBSPRINTLABELSCORER_O =  \
 		$(OBJDIR)/Encoder.o \
 		$(OBJDIR)/EncoderDecoderLabelScorer.o \
-    $(OBJDIR)/LabelScorer.o \
-    $(OBJDIR)/OnnxEncoder.o \
-    $(OBJDIR)/ScoringContext.o \
+		$(OBJDIR)/LabelScorer.o \
+		$(OBJDIR)/ScoringContext.o \
 
 CCFLAGS += -fexceptions
 
 ifdef MODULE_ONNX
     LIBSPRINTLABELSCORER_O += $(OBJDIR)/LimitedCtxOnnxLabelScorer.o \
+							  $(OBJDIR)/OnnxEncoder.o \
         $(OBJDIR)/StatefulOnnxLabelScorer.o
 
 	  CHECK_O += ../Onnx/libSprintOnnx.$(a)

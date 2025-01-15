@@ -32,7 +32,7 @@ namespace Nn {
  */
 class EncoderDecoderLabelScorer : public LabelScorer {
 public:
-    EncoderDecoderLabelScorer(const Core::Configuration& config, const Core::Ref<Encoder> encoder, const Core::Ref<LabelScorer> decoder);
+    EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder);
     virtual ~EncoderDecoderLabelScorer() = default;
 
     // Resets both encoder and decoder component
@@ -46,20 +46,20 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Get extended context from decoder component
-    ScoringContextRef extendedScoringContext(Request request) override;
+    ScoringContextRef extendedScoringContext(Request const& request) override;
 
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
-    void addInput(std::shared_ptr<const f32[]> const& data, size_t F) override;
+    void addInput(std::shared_ptr<const f32[]> const& data, size_t featureSize) override;
 
     // Same as `addInput` but adds features for multiple timesteps at once
-    void addInputs(std::shared_ptr<const f32[]> const& data, size_t T, size_t F) override;
+    void addInputs(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) override;
 
     // Run request through decoder component
-    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
     // Run requests through decoder component
-    std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
 
 protected:
     Core::Ref<Encoder>     encoder_;

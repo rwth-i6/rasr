@@ -1,5 +1,4 @@
 #include "OnnxEncoder.hh"
-#include <iterator>
 #include <memory>
 
 namespace Nn {
@@ -33,7 +32,7 @@ const std::vector<Onnx::IOSpecification> encoderIoSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -1, -2}, {1, -1, -2}}}};
 
-OnnxEncoder::OnnxEncoder(Core::Configuration config)
+OnnxEncoder::OnnxEncoder(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           onnxModel_(select("onnx-model"), encoderIoSpec),
@@ -114,7 +113,7 @@ void OnnxEncoder::encode() {
  * === ChunkedOnnxEncoder ======
  * =============================
  */
-ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration config)
+ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config)
         : Core::Component(config),
           Encoder(config),
           ChunkedEncoder(config),

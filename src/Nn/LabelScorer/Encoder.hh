@@ -30,7 +30,7 @@ namespace Nn {
 class Encoder : public virtual Core::Component,
                 public Core::ReferenceCounted {
 public:
-    Encoder(const Core::Configuration& config);
+    Encoder(Core::Configuration const& config);
     virtual ~Encoder() = default;
 
     // Clear buffers and reset segment end flag
@@ -41,10 +41,10 @@ public:
     void signalNoMoreFeatures();
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F);
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
 
     // Add input features for multiple time steps to an input buffer
-    virtual void addInputs(std::shared_ptr<const f32[]> const& inputs, size_t T, size_t F);
+    virtual void addInputs(std::shared_ptr<const f32[]> const& inputs, size_t timeSize, size_t featureSize);
 
     // Retrieve a single encoder output
     // Performs encoder forwarding internally if necessary
@@ -80,14 +80,14 @@ class ChunkedEncoder : public virtual Encoder {
     static const Core::ParameterInt paramChunkFuture;
 
 public:
-    ChunkedEncoder(const Core::Configuration& config);
+    ChunkedEncoder(Core::Configuration const& config);
     virtual ~ChunkedEncoder() = default;
 
     // Clear buffers and reset segment end flag
     virtual void reset() override;
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
+    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
 
 protected:
     const size_t chunkCenter_;
@@ -109,8 +109,8 @@ class NoOpEncoder : public Encoder {
     using Precursor = Encoder;
 
 public:
-    NoOpEncoder(const Core::Configuration& config);
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t F) override;
+    NoOpEncoder(Core::Configuration const& config);
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
 
 protected:
     bool canEncode() const override {

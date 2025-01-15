@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2024 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,25 +25,8 @@ namespace Nn {
  * =============================
  */
 
-LabelScorer::LabelScorer(const Core::Configuration& config)
+LabelScorer::LabelScorer(Core::Configuration const& config)
         : Core::Component(config) {}
-
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) {
-    ScoresWithTimes result;
-
-    result.scores.reserve(requests.size());
-    result.timesteps.reserve(requests.size());
-    for (auto& request : requests) {
-        auto singleResult = getScoreWithTime(request);
-        if (not singleResult.has_value()) {
-            return {};
-        }
-        result.scores.push_back(singleResult->score);
-        result.timesteps.push_back(singleResult->timeframe);
-    }
-
-    return result;
-}
 
 void LabelScorer::addInput(std::vector<f32> const& input) {
     // The custom deleter ties the lifetime of vector `input` to the lifetime
@@ -56,19 +39,36 @@ void LabelScorer::addInput(std::vector<f32> const& input) {
     addInput(dataPtr, input.size());
 }
 
-void LabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F) {
-    for (size_t t = 0ul; t < T; ++t) {
+void LabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+    for (size_t t = 0ul; t < timeSize; ++t) {
         // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * F), F);
+        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * featureSize), featureSize);
     }
 }
 
+std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+    // By default, just loop over the non-batched `computeScoreWithTime` and collect the results
+    ScoresWithTimes result;
+
+    result.scores.reserve(requests.size());
+    result.timeframes.reserve(requests.size());
+    for (auto& request : requests) {
+        auto singleResult = computeScoreWithTime(request);
+        if (not singleResult.has_value()) {
+            return {};
+        }
+        result.scores.push_back(singleResult->score);
+        result.timeframes.push_back(singleResult->timeframe);
+    }
+
+    return result;
+}
 /*
  * =============================
  * === BufferedLabelScorer =====
  * =============================
  */
-BufferedLabelScorer::BufferedLabelScorer(const Core::Configuration& config)
+BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           featureSize_(Core::Type<size_t>::max),
@@ -86,12 +86,12 @@ void BufferedLabelScorer::signalNoMoreFeatures() {
     featuresMissing_ = false;
 }
 
-void BufferedLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
+void BufferedLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
     if (featureSize_ == Core::Type<size_t>::max) {
-        featureSize_ = F;
+        featureSize_ = featureSize;
     }
-    else if (featureSize_ != F) {
-        error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
+    else if (featureSize_ != featureSize) {
+        error() << "Label scorer received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
     }
 
     inputBuffer_.push_back(input);
@@ -108,7 +108,7 @@ Core::ParameterFloat ScaledLabelScorer::paramScale(
         "Scores of the label scorer are scaled by this factor",
         1.0f);
 
-ScaledLabelScorer::ScaledLabelScorer(const Core::Configuration& config, const Core::Ref<LabelScorer>& scorer)
+ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)
         : Core::Component(config),
           Precursor(config),
           scorer_(scorer),
@@ -126,24 +126,24 @@ ScoringContextRef ScaledLabelScorer::getInitialScoringContext() {
     return scorer_->getInitialScoringContext();
 }
 
-ScoringContextRef ScaledLabelScorer::extendedScoringContext(Request request) {
+ScoringContextRef ScaledLabelScorer::extendedScoringContext(Request const& request) {
     return scorer_->extendedScoringContext(request);
 }
 
-void ScaledLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    scorer_->addInput(input, F);
+void ScaledLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    scorer_->addInput(input, featureSize);
 }
 
 void ScaledLabelScorer::addInput(std::vector<f32> const& input) {
     scorer_->addInput(input);
 }
 
-void ScaledLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F) {
-    scorer_->addInputs(input, T, F);
+void ScaledLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+    scorer_->addInputs(input, timeSize, featureSize);
 }
 
-std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::getScoreWithTime(const Request request) {
-    auto result = scorer_->getScoreWithTime(request);
+std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTime(Request const& request) {
+    auto result = scorer_->computeScoreWithTime(request);
     if (scale_ == 1.0f) {
         return result;
     }
@@ -155,8 +155,8 @@ std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::getScoreWithTime(co
     return result;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::getScoresWithTimes(const std::vector<Request>& requests) {
-    auto result = scorer_->getScoresWithTimes(requests);
+std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::computeScoresWithTimes(std::vector<Request> const& requests) {
+    auto result = scorer_->computeScoresWithTimes(requests);
     if (scale_ == 1.0f) {
         return result;
     }
@@ -176,19 +176,19 @@ std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::getScoresWithTime
  * =============================
  */
 
-StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(const Core::Configuration& config)
+StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& config)
         : Core::Component(config), Precursor(config) {}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
+std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     if (inputBuffer_.size() <= stepHistory->currentStep) {
         return {};
@@ -206,7 +206,7 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::getScoreWithT
  * ==================================
  */
 
-LegacyFeatureScorerLabelScorer::LegacyFeatureScorerLabelScorer(const Core::Configuration& config)
+LegacyFeatureScorerLabelScorer::LegacyFeatureScorerLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           featureScorer_(Mm::Module::instance().createFeatureScorer(config)),
@@ -217,13 +217,13 @@ void LegacyFeatureScorerLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-void LegacyFeatureScorerLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    std::vector<f32> featureVector(F);
-    std::copy(input.get(), input.get() + F, featureVector.begin());
+void LegacyFeatureScorerLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    std::vector<f32> featureVector(featureSize);
+    std::copy(input.get(), input.get() + featureSize, featureVector.begin());
     addInput(featureVector);
 }
 
-void LegacyFeatureScorerLabelScorer::addInput(const std::vector<f32>& input) {
+void LegacyFeatureScorerLabelScorer::addInput(std::vector<f32> const& input) {
     auto feature = Core::ref(new Mm::Feature(input));
 
     if (featureScorer_->isBuffered() and not featureScorer_->bufferFilled()) {
@@ -244,12 +244,12 @@ ScoringContextRef LegacyFeatureScorerLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContext(LabelScorer::Request request) {
+ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::getScoreWithTime(const LabelScorer::Request request) {
+std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     if (scoreCache_.size() <= stepHistory->currentStep) {
         return {};
@@ -268,7 +268,7 @@ std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::getSco
 Core::ParameterInt CombineLabelScorer::paramNumLabelScorers(
         "num-scorers", "Number of label scorers to combine", 1, 1);
 
-CombineLabelScorer::CombineLabelScorer(const Core::Configuration& config)
+CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
         : Core::Component(config), Precursor(config), scorers_() {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; i++) {
@@ -299,7 +299,7 @@ ScoringContextRef CombineLabelScorer::getInitialScoringContext() {
     return Core::ref(new CombineScoringContext(std::move(scoringContexts)));
 }
 
-ScoringContextRef CombineLabelScorer::extendedScoringContext(Request request) {
+ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& request) {
     auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
 
     std::vector<ScoringContextRef> extScoringContexts;
@@ -315,9 +315,9 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request request) {
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
-void CombineLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
+void CombineLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
     for (auto& scorer : scorers_) {
-        scorer->addInput(input, F);
+        scorer->addInput(input, featureSize);
     }
 }
 
@@ -327,13 +327,13 @@ void CombineLabelScorer::addInput(std::vector<f32> const& input) {
     }
 }
 
-void CombineLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F) {
+void CombineLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
     for (auto& scorer : scorers_) {
-        scorer->addInputs(input, T, F);
+        scorer->addInputs(input, timeSize, featureSize);
     }
 }
 
-std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::getScoreWithTime(const Request request) {
+std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTime(Request const& request) {
     ScoreWithTime accumResult{0.0, 0};
 
     auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
@@ -343,7 +343,7 @@ std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::getScoreWithTime(c
 
     for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
         Request subRequest{*contextIt, request.nextToken, request.transitionType};
-        auto    result = (*scorerIt)->getScoreWithTime(subRequest);
+        auto    result = (*scorerIt)->computeScoreWithTime(subRequest);
         if (!result) {
             return {};
         }
@@ -354,7 +354,7 @@ std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::getScoreWithTime(c
     return accumResult;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::getScoresWithTimes(const std::vector<Request>& requests) {
+std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWithTimes(std::vector<Request> const& requests) {
     ScoresWithTimes accumResult{std::vector<Score>(requests.size(), 0.0f), {requests.size(), 0}};
 
     std::vector<const CombineScoringContext*> combineContexts;
@@ -372,7 +372,7 @@ std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::getScoresWithTim
             subRequests.push_back(Request{(*contextIt)->scoringContexts[scorerIdx], requestIt->nextToken, requestIt->transitionType});
         }
 
-        auto subResults = scorers_[scorerIdx]->getScoresWithTimes(subRequests);
+        auto subResults = scorers_[scorerIdx]->computeScoresWithTimes(subRequests);
         if (!subResults) {
             return {};
         }
@@ -380,9 +380,9 @@ std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::getScoresWithTim
         Core::CollapsedVector<Speech::TimeframeIndex> newTimesteps;
         for (size_t requestIdx = 0ul; requestIdx < requests.size(); ++requestIdx) {
             accumResult.scores[requestIdx] += subResults->scores[requestIdx];
-            newTimesteps.push_back(std::max(accumResult.timesteps[requestIdx], subResults->timesteps[requestIdx]));
+            newTimesteps.push_back(std::max(accumResult.timeframes[requestIdx], subResults->timeframes[requestIdx]));
         }
-        accumResult.timesteps = newTimesteps;
+        accumResult.timeframes = newTimesteps;
     }
 
     return accumResult;

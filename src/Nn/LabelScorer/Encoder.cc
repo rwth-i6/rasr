@@ -26,7 +26,7 @@ namespace Nn {
  * =============================
  */
 
-Encoder::Encoder(const Core::Configuration& config)
+Encoder::Encoder(Core::Configuration const& config)
         : Core::Component(config),
           inputBuffer_(),
           outputBuffer_(),
@@ -48,21 +48,21 @@ void Encoder::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void Encoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
+void Encoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
     if (featureSize_ == Core::Type<size_t>::max) {
-        featureSize_ = F;
+        featureSize_ = featureSize;
     }
-    else if (featureSize_ != F) {
-        error() << "Label scorer received incompatible feature size " << F << "; was set to " << featureSize_ << " before.";
+    else if (featureSize_ != featureSize) {
+        error() << "Label scorer received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
     }
 
     inputBuffer_.push_back(input);
 }
 
-void Encoder::addInputs(std::shared_ptr<const f32[]> const& input, size_t T, size_t F) {
-    for (size_t t = 0ul; t < T; ++t) {
+void Encoder::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+    for (size_t t = 0ul; t < timeSize; ++t) {
         // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * F), F);
+        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * featureSize), featureSize);
     }
 }
 
@@ -122,7 +122,7 @@ const Core::ParameterInt ChunkedEncoder::paramChunkFuture(
         "Max number of features used as right-context for the encoder. Encoder states corresponding to these are not transmitted as outputs.",
         Core::Type<u32>::max);
 
-ChunkedEncoder::ChunkedEncoder(const Core::Configuration& config)
+ChunkedEncoder::ChunkedEncoder(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           chunkCenter_(paramChunkCenter(config)),
@@ -140,8 +140,8 @@ void ChunkedEncoder::reset() {
     currentFutureFeatures_  = 0ul;
 }
 
-void ChunkedEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    Precursor::addInput(input, F);
+void ChunkedEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    Precursor::addInput(input, featureSize);
     if (currentCenterFeatures_ < chunkCenter_) {
         ++currentCenterFeatures_;
     }
@@ -187,11 +187,11 @@ void ChunkedEncoder::postEncodeCleanup() {
  * =============================
  */
 
-NoOpEncoder::NoOpEncoder(const Core::Configuration& config)
+NoOpEncoder::NoOpEncoder(Core::Configuration const& config)
         : Core::Component(config), Precursor(config) {}
 
-void NoOpEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t F) {
-    Precursor::addInput(input, F);
+void NoOpEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+    Precursor::addInput(input, featureSize);
     outputSize_ = featureSize_;
 }
 

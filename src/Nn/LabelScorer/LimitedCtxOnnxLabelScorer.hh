@@ -48,7 +48,7 @@ class LimitedCtxOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    LimitedCtxOnnxLabelScorer(const Core::Configuration& config);
+    LimitedCtxOnnxLabelScorer(Core::Configuration const& config);
     virtual ~LimitedCtxOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
@@ -60,20 +60,20 @@ public:
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
     // history label sequence depending on the transition type and whether loops/blanks update the history
     // or not
-    ScoringContextRef extendedScoringContext(LabelScorer::Request request) override;
+    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
     // Then, retreive scores from cache
-    std::optional<LabelScorer::ScoresWithTimes> getScoresWithTimes(const std::vector<LabelScorer::Request>& requests) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
 
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
-    std::optional<LabelScorer::ScoreWithTime> getScoreWithTime(const LabelScorer::Request request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep
-    void forwardBatch(const std::vector<SeqStepScoringContextRef> contextBatch);
+    void forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch);
 
     size_t startLabelIndex_;
     size_t historyLength_;

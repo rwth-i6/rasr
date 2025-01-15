@@ -38,7 +38,7 @@ void SearchAlgorithm::resetStatistics() {
     searchAlgorithm_->resetStatistics();
 }
 
-void SearchAlgorithm::addFeature(py::array_t<f32> feature) {
+void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
     size_t F = 0ul;
     if (feature.ndim() == 2) {
         if (feature.shape(0) != 1) {
@@ -57,7 +57,7 @@ void SearchAlgorithm::addFeature(py::array_t<f32> feature) {
     searchAlgorithm_->addFeature(dataPtr, F);
 }
 
-void SearchAlgorithm::addFeatures(py::array_t<f32> features) {
+void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
     size_t T = 0ul;
     size_t F = 0ul;
     if (features.ndim() == 3) {
@@ -99,7 +99,7 @@ bool SearchAlgorithm::decodeMore() {
     return searchAlgorithm_->decodeMore();
 }
 
-std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> features) {
+std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
     enterSegment();
     addFeatures(features);
     finishSegment();

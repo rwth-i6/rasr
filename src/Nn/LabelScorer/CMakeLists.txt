@@ -6,6 +6,7 @@ set(RasrLabelScorer_SOURCES
 if (${MODULE_ONNX})
             list(APPEND RasrLabelScorer_SOURCES
             LimitedCtxOnnxLabelScorer.cc
+            NoCtxOnnxLabelScorer.cc
             StatefulOnnxLabelScorer.cc
             OnnxEncoder.cc)
 endif()

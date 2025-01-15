@@ -20,6 +20,7 @@
 #include "LabelScorer/LabelScorer.hh"
 #ifdef MODULE_ONNX
 #include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
+#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
 #include "LabelScorer/OnnxEncoder.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #endif
@@ -106,6 +107,8 @@ const Core::Choice Module_::labelScorerTypeChoice(
         "no-op", LabelScorerType::NoOpLabelScorerType,
         // Wrapper around legacy Mm::FeatureScorer
         "legacy-feature-scorer", LabelScorerType::LegacyFeatureScorerLabelScorerType,
+        // Forward the feature at the current step through an onnx network
+        "no-ctx-onnx", LabelScorerType::NoCtxOnnxLabelScorerType,
         // Forward the feature at the current step together with a (fixed-size) history through an onnx network
         "limited-ctx-onnx", LabelScorerType::LimitedCtxOnnxLabelScorerType,
         // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
@@ -159,6 +162,9 @@ Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& con
             break;
         case LabelScorerType::LegacyFeatureScorerLabelScorerType:
             result = Core::ref(new LegacyFeatureScorerLabelScorer(config));
+            break;
+        case LabelScorerType::NoCtxOnnxLabelScorerType:
+            result = Core::ref(new NoCtxOnnxLabelScorer(config));
             break;
         case LabelScorerType::LimitedCtxOnnxLabelScorerType:
             result = Core::ref(new LimitedCtxOnnxLabelScorer(config));

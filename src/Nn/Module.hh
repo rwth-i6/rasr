@@ -65,6 +65,7 @@ public:
     enum LabelScorerType {
         NoOpLabelScorerType,
         LegacyFeatureScorerLabelScorerType,
+        NoCtxOnnxLabelScorerType,
         LimitedCtxOnnxLabelScorerType,
         EncoderDecoderLabelScorerType,
         EncoderOnlyLabelScorerType,

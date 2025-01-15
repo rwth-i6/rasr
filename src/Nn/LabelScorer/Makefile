@@ -19,8 +19,9 @@ CCFLAGS += -fexceptions
 
 ifdef MODULE_ONNX
     LIBSPRINTLABELSCORER_O += $(OBJDIR)/LimitedCtxOnnxLabelScorer.o \
+							  $(OBJDIR)/NoCtxOnnxLabelScorer.o \
 							  $(OBJDIR)/OnnxEncoder.o \
-        $(OBJDIR)/StatefulOnnxLabelScorer.o
+							  $(OBJDIR)/StatefulOnnxLabelScorer.o
 
 	  CHECK_O += ../Onnx/libSprintOnnx.$(a)
 endif

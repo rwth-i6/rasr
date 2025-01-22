@@ -26,9 +26,9 @@ namespace Nn {
  * This serves as a base class for other LabelScorers.
  */
 class BufferedLabelScorer : public LabelScorer {
+public:
     using Precursor = LabelScorer;
 
-public:
     BufferedLabelScorer(Core::Configuration const& config);
 
     // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer

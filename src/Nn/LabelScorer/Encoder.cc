@@ -14,9 +14,9 @@
  */
 
 #include "Encoder.hh"
+
 #include <Flow/Data.hh>
 #include <Mm/Module.hh>
-#include <algorithm>
 
 namespace Nn {
 
@@ -80,6 +80,12 @@ std::optional<std::shared_ptr<const f32[]>> Encoder::getNextOutput() {
     // Encoder is ready to run, so run it and try fetching an output again.
     encode();
     postEncodeCleanup();
+
+    // If there are still no outputs after encoding, return None to avoid recursive call
+    // resulting in infinite loop
+    if (outputBuffer_.empty()) {
+        return {};
+    }
 
     return getNextOutput();
 }

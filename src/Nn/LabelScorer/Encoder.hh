@@ -16,11 +16,12 @@
 #ifndef ENCODER_HH
 #define ENCODER_HH
 
+#include <deque>
+#include <optional>
+
 #include <Core/Component.hh>
 #include <Nn/Types.hh>
 #include <Speech/Feature.hh>
-#include <deque>
-#include <optional>
 
 namespace Nn {
 
@@ -46,7 +47,7 @@ public:
     // Add input features for multiple time steps at once
     virtual void addInputs(std::shared_ptr<const f32[]> const& inputs, size_t timeSize, size_t featureSize);
 
-    // Retrieve a single encoder output
+    // Retrieve the next encoder output frame
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
     std::optional<std::shared_ptr<const f32[]>> getNextOutput();

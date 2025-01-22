@@ -40,10 +40,10 @@ namespace Search {
  *  3. Signal segment start via `enterSegment`.
  *  4. Pass audio features via `passFeature` or `passFeatures`.
  *  (5. Call `decodeStep` or `decodeMore` to run the next search step(s) given the currently available features.)
- *  (6. Optionally retreive intermediate results via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.)
+ *  (6. Optionally retrieve intermediate results via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.)
  *  7. Call `finishSegment` to signal that all features have been passed and the search doesn't need to wait for more.
  *  8. Call `decodeMore` to finalize the search with all the segment features.
- *  9. Retreive the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
+ *  9. Retrieve the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
  *  (10. Optionally log search statistics via `logStatistics`).
  *  11. Call `reset` to clean up any buffered features, hypotheses, flags etc. from the previous segment and prepare the algorithm for the next one.
  *  (12. Optionally also reset search statistics via `resetStatistics`).

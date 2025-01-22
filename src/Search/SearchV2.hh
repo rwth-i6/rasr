@@ -81,13 +81,12 @@ public:
     // Struct to store data for a single traceback entry
     struct TracebackItem {
     public:
-        const Bliss::LemmaPronunciation* pronunciation;  // pronunciation for lattice creation
-        const Bliss::Lemma*              lemma;          // possible no pronunciation
-        Speech::TimeframeIndex           time;           // TODO: Proper word boundaries with Flow::Timestamp instead of indices
+        const Bliss::Lemma*              lemma;          // Corresponding lexicon lemma
+        const Bliss::LemmaPronunciation* pronunciation;  // Pronunciation of lexicon lemma for lattice creation
+        Speech::TimeframeIndex           time;           // Ending timeframe
         ScoreVector                      scores;         // Absolute score
-        // TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Flow::Timestamp t, ScoreVector s)
-        TracebackItem(const Bliss::LemmaPronunciation* p, const Bliss::Lemma* l, Speech::TimeframeIndex t, ScoreVector s)
-                : pronunciation(p), lemma(l), time(t), scores(s) {}
+        TracebackItem(const Bliss::Lemma* l, const Bliss::LemmaPronunciation* p, Speech::TimeframeIndex t, ScoreVector s)
+                : lemma(l), pronunciation(p), time(t), scores(s) {}
     };
 
     // List of TracebackItems representing a full traceback path

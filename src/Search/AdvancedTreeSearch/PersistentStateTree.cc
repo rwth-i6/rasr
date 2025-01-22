@@ -290,7 +290,10 @@ MappedArchiveWriter& operator<<(MappedArchiveWriter& writer, const std::map<T, T
 }
 
 void PersistentStateTree::write(Core::MappedArchiveWriter out) {
-    u32 dummyIndex = 1;  // only needed for backwards compatibility, has no further effect
+    // In the previous version, a master tree was used and the index was saved in the cache.
+    // For backward compatibility, a dummy index is now written instead.
+    // This index is not used further and has no effect on functionality.
+    u32 dummyIndex = 1;
     out << formatVersion << dummyIndex << (u32)dependencies_.getChecksum();
 
     structure.write(out);
@@ -315,7 +318,11 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     Core::Application::us()->log() << "Loading persistent network format version " << formatVersion;
 
     u32 dependenciesChecksum = 0;
-    u32 dummyIndex;  // only needed for backwards compatibility, has no further effect
+
+    // In the previous version, a master tree was used and the index was saved in the cache.
+    // For backward compatibility, read this into a dummy index.
+    // This index is not used further and has no effect on functionality.
+    u32 dummyIndex;
     in >> dummyIndex >> dependenciesChecksum;
 
     if (dependenciesChecksum != dependencies_.getChecksum()) {

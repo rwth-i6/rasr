@@ -17,9 +17,8 @@
 
 namespace Search {
 HMMStateNetwork::HMMStateNetwork()
-        : subTreeManager_(subTreeListBatches_, states_), edgeTargetManager_(edgeTargetBatches_, states_) {
+        : subTreeManager_(subTreeListBatches_, states_), edgeTargetManager_(edgeTargetBatches_, states_), tree_() {
     // The zero index is reserved as "invalid", so push one dummy item into all arrays
-    tree_ = Tree();
     states_.push_back(HMMState());
     subTreeListBatches_.push_back(0);
     edgeTargetBatches_.push_back(0);
@@ -113,7 +112,9 @@ u32 HMMStateNetwork::stateCount() const {
 
 bool HMMStateNetwork::write(Core::MappedArchiveWriter writer) {
     u32               version = DiskFormatVersionV2;
-    std::vector<Tree> trees   = {Tree(), tree_};  // need to write a vector of trees because HMMStateNetwork::read() expectes one
+    // The previous version used a vector of trees, where index 0 represented an invalid tree and index 1 contained the actual master tree.
+    // Therefore, to mainain backward compatibility, the tree needs to be written into a similar vector structure, which is then saved to the cache.
+    std::vector<Tree> trees   = {Tree(), tree_};
     writer << version << subTreeListBatches_ << states_ << edgeTargetLists_ << edgeTargetBatches_ << trees;
     return writer.good();
 }
@@ -123,8 +124,10 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
     reader >> version;
 
     if (version == DiskFormatVersionV1) {
+        // The previous version used a vector of trees, where index 0 represented an invalid tree and index 1 contained the actual master tree.
+        // Therefore, to maintain backward compatibility, the cache needs to be read into a vector again and the tree can then be retrieved from index 1.
+        std::vector<Tree>       trees;
         std::vector<HMMStateV1> states;
-        std::vector<Tree>       trees;  // need to read into a vector for backward compatibility
         reader >> subTreeListBatches_ >> states >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
         tree_ = trees[1];
 
@@ -142,7 +145,9 @@ bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
                 [](HMMStateV1 s) { return s.toHMMState(); });
     }
     else if (version == DiskFormatVersionV2) {
-        std::vector<Tree> trees;  // need to read into a vector for backward compatibility
+        // The previous version used a vector of trees, where index 0 represented an invalid tree and index 1 contained the actual master tree.
+        // Therefore, to maintain backward compatibility, the cache needs to be read into a vector again and the tree can then be retrieved from index 1.
+        std::vector<Tree> trees;
         reader >> subTreeListBatches_ >> states_ >> edgeTargetLists_ >> edgeTargetBatches_ >> trees;
         tree_ = trees[1];
     }

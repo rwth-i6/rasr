@@ -240,8 +240,10 @@ public:
         return states_[state];
     }
 
-    /// Allocates a new subtree, and adds it into the subtree list.
-    /// Returns a fully valid subtree (with initialized edge-list)
+    /// Creates a new node (HMMState) and appends it to the tree's list of nodes.
+    /// Specifically, new subtree is allocated and added to the subtree list by the subTreeManager_.
+    /// Returns the StateId of the newly created node (a fully valid subtree with initialized edge-list).
+    /// Note that the stateDesc must be set separately after this operation.
     StateId allocateTreeNode();
 
     /// Returns the count of nodes contained by the tree
@@ -294,7 +296,9 @@ public:
     void clearOutputEdges(StateId node);
 
     u32 getChecksum() const {
-        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;  // + 2 is needed for backwards compatibility
+        // In the previous version, a vector of trees was always used with a fixed length of two (index 0 = invalid tree, index 1 = the actual master tree).
+        // This fixed length was included in the checksum calculation, therefore a hardcoded +2 is applied here to ensure backward compatibility
+        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;
     }
 
     /// The change is applied when apply() is called

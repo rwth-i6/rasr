@@ -100,11 +100,13 @@ bool SearchAlgorithm::decodeMore() {
 }
 
 std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
+    reset();
+    resetStatistics();
     enterSegment();
     addFeatures(features);
     finishSegment();
     decodeMore();
     auto result = getCurrentBestTranscription();
-    reset();
+    logStatistics();
     return result;
 }

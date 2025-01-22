@@ -63,6 +63,7 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
 
     return result;
 }
+
 /*
  * =============================
  * === BufferedLabelScorer =====

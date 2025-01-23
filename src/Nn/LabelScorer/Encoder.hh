@@ -52,6 +52,7 @@ public:
     // Can return None if not enough input features are available yet
     std::optional<std::shared_ptr<const f32[]>> getNextOutput();
 
+    // Get dimension of outputs that are fetched via `getNextOutput`.
     size_t getOutputSize() const;
 
 protected:
@@ -62,8 +63,7 @@ protected:
     size_t outputSize_;
     bool   expectMoreFeatures_;
 
-    // Consume all features inside input buffer, encode them and put the results into the output buffer
-    // By default no-op, i.e. just move from input buffer over to output buffer
+    // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;
 
     // Clean up all features from input buffer that have been processed by `encode` and are not needed anymore.

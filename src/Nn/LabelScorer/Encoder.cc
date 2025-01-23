@@ -15,9 +15,6 @@
 
 #include "Encoder.hh"
 
-#include <Flow/Data.hh>
-#include <Mm/Module.hh>
-
 namespace Nn {
 
 Encoder::Encoder(Core::Configuration const& config)

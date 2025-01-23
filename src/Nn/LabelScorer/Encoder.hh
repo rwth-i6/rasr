@@ -20,8 +20,6 @@
 #include <optional>
 
 #include <Core/Component.hh>
-#include <Nn/Types.hh>
-#include <Speech/Feature.hh>
 
 namespace Nn {
 

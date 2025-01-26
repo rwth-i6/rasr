@@ -32,24 +32,26 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         Nn::ScoringContextRef           scoringContext;
         Nn::LabelIndex                  label;
         Score                           score;
+        int                             length;
         Search::TimeframeIndex          timestep;
         Nn::LabelScorer::TransitionType transitionType;
 
         HypothesisExtension()
-                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), length(), timestep(), transitionType() {}
 
-        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, int length, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), length(length), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
         Nn::ScoringContextRef scoringContext;
         Nn::LabelIndex        currentLabel;
         Score                 score;
+        int                   length;
         Traceback             traceback;
 
         LabelHypothesis()
-                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), traceback() {}
+                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback() {}
 
         LabelHypothesis(LabelHypothesis const& base);
         LabelHypothesis(LabelHypothesis const& base, HypothesisExtension const& extension);
@@ -82,6 +84,7 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterInt   paramTopKTokens;
     static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterFloat paramLengthNormScale;
     static const Core::ParameterBool  paramUseBlank;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramAllowLabelLoop;
@@ -117,6 +120,9 @@ private:
 
     bool  useScorePruning_;
     Score scoreThreshold_;
+
+    bool useLengthNormalization_;
+    float lengthNormScale_;
 
     bool useBlank_;
     bool useSentenceEnd_;

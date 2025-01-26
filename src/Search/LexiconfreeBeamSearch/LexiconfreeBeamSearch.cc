@@ -25,6 +25,7 @@ namespace Search {
 const Core::ParameterInt   LexiconfreeBeamSearch::paramMaxBeamSize("max-beam-size", "Maximum number of elements in the search beam.", 1);
 const Core::ParameterInt   LexiconfreeBeamSearch::paramTopKTokens("top-k-tokens", "Only consider the k most likely successor tokens for each hypothesis expansion.", Core::Type<int>::max);
 const Core::ParameterFloat LexiconfreeBeamSearch::paramScoreThreshold("score-threshold", "Prune any hypotheses whose score is at least this much worse than the best hypothesis.", Core::Type<Score>::max);
+const Core::ParameterFloat LexiconfreeBeamSearch::paramLengthNormScale("length-norm-scale", "Scaling factor for the hypothesis length normalization.", 0.0);
 const Core::ParameterBool  LexiconfreeBeamSearch::paramUseBlank("use-blank", "Allow any amount of blank transitions between every label output", false);
 const Core::ParameterInt   LexiconfreeBeamSearch::paramBlankLabelIndex("blank-label-index", "Index of the blank label in the lexicon. Only necessary if `use-blank` is true.", 0);
 const Core::ParameterBool  LexiconfreeBeamSearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
@@ -37,6 +38,7 @@ LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
           maxBeamSize_(paramMaxBeamSize(config)),
           topKTokens_(paramTopKTokens(config)),
           scoreThreshold_(paramScoreThreshold(config)),
+          lengthNormScale_(paramLengthNormScale(config)),
           useBlank_(paramUseBlank(config)),
           useSentenceEnd_(paramUseSentenceEnd(config)),
           allowLabelLoop_(paramAllowLabelLoop(config)),
@@ -52,6 +54,7 @@ LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
     beam_.reserve(maxBeamSize_);
     useTokenPruning_ = topKTokens_ != Core::Type<int>::max;
     useScorePruning_ = scoreThreshold_ != Core::Type<Score>::max;
+    useLengthNormalization_ = lengthNormScale_ != 0;
 }
 
 void LexiconfreeBeamSearch::reset() {
@@ -200,10 +203,10 @@ Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::L
 }
 
 LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base)
-        : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), traceback(base.traceback) {}
+        : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), length(base.length), traceback(base.traceback) {}
 
 LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base, LexiconfreeBeamSearch::HypothesisExtension const& extension)
-        : scoringContext(extension.scoringContext), currentLabel(extension.label), score(base.score + extension.score), traceback(base.traceback) {
+        : scoringContext(extension.scoringContext), currentLabel(extension.label), score(extension.score), length(extension.length), traceback(base.traceback) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
@@ -291,7 +294,14 @@ bool LexiconfreeBeamSearch::decodeStep() {
 
     std::vector<float> combinedScores(numUnfinishedHyps * nLemmas);
     for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
-        combinedScores[requestIndex] = baseHyps[requestIndex]->score + scoresWithTimes.scores[requestIndex];
+        if (useLengthNormalization_) {
+            // With length normalization: combined score = (current score * (current length * lengthNormScale_) + score of this extension) / ((current length + 1) * lengthNormScale_ )
+            combinedScores[requestIndex] = (baseHyps[requestIndex]->score * (baseHyps[requestIndex]->length * lengthNormScale_) + scoresWithTimes.scores[requestIndex]) / ((baseHyps[requestIndex]->length + 1) * lengthNormScale_);
+        }
+        else {
+            // No length normalization: combined score = current total score + score of this extension
+            combinedScores[requestIndex] = baseHyps[requestIndex]->score + scoresWithTimes.scores[requestIndex];
+        }
     }
 
     std::vector<size_t> indices(requests.size());  // Index vector to keep track of which requests survive pruning
@@ -375,7 +385,8 @@ bool LexiconfreeBeamSearch::decodeStep() {
                  {lemmas.first[request.nextToken],
                   newScoringContext,
                   request.nextToken,
-                  scoresWithTimes.scores[index],
+                  combinedScores[index],
+                  baseHyps[index]->length + 1,
                   scoresWithTimes.timeframes[index],
                   request.transitionType}});
     }

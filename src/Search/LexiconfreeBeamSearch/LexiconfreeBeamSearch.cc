@@ -366,23 +366,23 @@ bool LexiconfreeBeamSearch::decodeStep() {
     /*
      * Perform pre-pruning to maxBeamSize_ of all unfinished hypothesis extensions
      */
-	beamPruning(
-    	indices,
-    	std::function<bool(size_t const&, size_t const&)>(
-        	[&combinedScores](size_t a, size_t b) { return combinedScores[a] < combinedScores[b]; }
-    	)
-	);
+    beamPruning(
+        indices,
+        std::function<bool(size_t const&, size_t const&)>(
+            [&combinedScores](size_t a, size_t b) { return combinedScores[a] < combinedScores[b]; }
+        )
+    );
 
     /*
      * Score-based pruning of the unfinished hypotheses
      */
     if (useScorePruning_) {
-		scorePruning(
-    		indices,
-    		std::function<Score(const size_t&)>(
-        		[&combinedScores](size_t index) { return combinedScores[index]; }
-    		)
-		);
+        scorePruning(
+            indices,
+            std::function<Score(const size_t&)>(
+                [&combinedScores](size_t index) { return combinedScores[index]; }
+            )
+        );
     }
 
     /*
@@ -417,25 +417,25 @@ bool LexiconfreeBeamSearch::decodeStep() {
     /*
      * Final pruning down to maxBeamSize_ elements
      */
-	beamPruning(
-    	newBeam,
-    	std::function<bool(const LabelHypothesis&, const LabelHypothesis&)>(
-        	[](const LabelHypothesis& hyp1, const LabelHypothesis& hyp2) {
-            	return hyp1.score < hyp2.score;
-        	}
-    	)
-	);
+    beamPruning(
+        newBeam,
+        std::function<bool(const LabelHypothesis&, const LabelHypothesis&)>(
+            [](const LabelHypothesis& hyp1, const LabelHypothesis& hyp2) {
+                return hyp1.score < hyp2.score;
+            }
+        )
+    );
 
     /*
      * Score-based pruning of the final remaining hypotheses
      */
     if (useScorePruning_) {
         scorePruning(
-    		newBeam,
-    		std::function<Score(const LabelHypothesis&)>(
-        		[](const LabelHypothesis& hyp) { return hyp.score; }
-    		)
-		);
+            newBeam,
+            std::function<Score(const LabelHypothesis&)>(
+                [](const LabelHypothesis& hyp) { return hyp.score; }
+            )
+        );
     }
 
     beam_.swap(newBeam);

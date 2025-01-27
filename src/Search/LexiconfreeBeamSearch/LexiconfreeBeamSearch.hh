@@ -33,22 +33,21 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         Nn::ScoringContextRef           scoringContext;
         Nn::LabelIndex                  label;
         Score                           score;
-        int                             length;
         Search::TimeframeIndex          timestep;
         Nn::LabelScorer::TransitionType transitionType;
 
         HypothesisExtension()
-                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), length(), timestep(), transitionType() {}
+                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
 
-        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, int length, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), length(length), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
         Nn::ScoringContextRef scoringContext;
         Nn::LabelIndex        currentLabel;
         Score                 score;
-        int                   length;
+        unsigned int          length;
         Traceback             traceback;
 
         LabelHypothesis()
@@ -115,21 +114,21 @@ private:
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     // Helper function for top-k pruning of the successor tokens
-    void tokenPruning(std::vector<size_t>& indices, std::vector<Score> extensionScores, size_t numUnfinishedHyps);
+    void topKTokenPruning(std::vector<size_t>& indices, std::vector<Score> const& extensionScores, size_t numUnfinishedHyps);
 
     /* Helper function for pruning to maxBeamSize_
-     * @tparam Hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their inidces) to be sorted and pruned
-     * @tparam CompareFunc A callable (e.g. lambda or function pointer) that takes two elements of the hypotheses and returns true if the first element should precede the second element
+     * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their inidces) to be sorted and pruned
+     * @tparam compare A callable (e.g. lambda or function pointer) that takes two elements of the hypotheses and returns true if the first element should precede the second element
      */
-    template <typename Hypotheses, typename CompareFunc>
-    void beamPruning(Hypotheses& hypotheses, CompareFunc compare);
+    template <typename T>
+    void beamPruning(std::vector<T>& hypotheses, std::function<bool(T const&, T const&)>&& compare);
 
     /* Helper function for score-based pruning
-     * @tparam Hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their indices) to be pruned sorted by their score
-     * @tparam GetScoreFunc A callable (e.g. lambda or function pointer) that takes a single element from the hypotheses and returns its score
+     * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their indices) to be pruned sorted by their score
+     * @tparam getScore A callable (e.g. lambda or function pointer) that takes a single element from the hypotheses and returns its score
      */
-    template <typename Hypotheses, typename GetScoreFunc>
-    void scorePruning(Hypotheses& hypotheses, GetScoreFunc getScore);
+    template <typename T>
+    void scorePruning(std::vector<T>& hypotheses, std::function<Score(T const&)>&& getScore);
 
     size_t maxBeamSize_;
 
@@ -139,8 +138,7 @@ private:
     bool  useScorePruning_;
     Score scoreThreshold_;
 
-    bool useLengthNormalization_;
-    float lengthNormScale_;
+    f32  lengthNormScale_;
 
     bool useBlank_;
     bool useSentenceEnd_;

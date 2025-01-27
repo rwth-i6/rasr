@@ -23,9 +23,10 @@
 
 namespace Search {
 
-// Bare-bones search algorithm without pronunciation lexicon, LM, transition model, beam or pruning.
+// Bare-bones beam search algorithm without pronunciation lexicon, LM, transition model.
 // Given a lexicon only containing labels (without lemmas), pick the label index with
 // maximum probability at each decoding step.
+// Supports pruning of the top-k successor of each hypothesis, max-beam-size-pruning and score-based pruning.
 class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::Lemma*             lemma;
@@ -112,6 +113,23 @@ public:
 
 private:
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+
+    // Helper function for top-k pruning of the successor tokens
+    void tokenPruning(std::vector<size_t>& indices, std::vector<Score> extensionScores, size_t numUnfinishedHyps);
+
+    /* Helper function for pruning to maxBeamSize_
+     * @tparam Hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their inidces) to be sorted and pruned
+     * @tparam CompareFunc A callable (e.g. lambda or function pointer) that takes two elements of the hypotheses and returns true if the first element should precede the second element
+     */
+    template <typename Hypotheses, typename CompareFunc>
+    void beamPruning(Hypotheses& hypotheses, CompareFunc compare);
+
+    /* Helper function for score-based pruning
+     * @tparam Hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their indices) to be pruned sorted by their score
+     * @tparam GetScoreFunc A callable (e.g. lambda or function pointer) that takes a single element from the hypotheses and returns its score
+     */
+    template <typename Hypotheses, typename GetScoreFunc>
+    void scorePruning(Hypotheses& hypotheses, GetScoreFunc getScore);
 
     size_t maxBeamSize_;
 

@@ -137,32 +137,6 @@ public:
 };
 
 /*
- * Extension of `LabelScorer` that implements some commonly used buffering logic for input features
- * and timeframes as well as a flag that indicates that all features have been passed.
- */
-class BufferedLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
-public:
-    BufferedLabelScorer(const Core::Configuration& config);
-
-    // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer
-    // and segment end flag
-    virtual void reset() override;
-
-    // Tells the LabelScorer that there will be no more input features coming in the current segment
-    virtual void signalNoMoreFeatures() override;
-
-    // Add a single input feature to the buffer
-    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
-
-protected:
-    size_t                                    featureSize_;
-    std::vector<std::shared_ptr<const f32[]>> inputBuffer_;
-    bool                                      featuresMissing_;
-};
-
-/*
  * Wrapper around a LabelScorer that scales all the scores by some factor.
  */
 class ScaledLabelScorer : public LabelScorer {

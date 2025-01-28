@@ -60,40 +60,6 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
 
 /*
  * =============================
- * === BufferedLabelScorer =====
- * =============================
- */
-BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config)
-        : Core::Component(config),
-          Precursor(config),
-          featureSize_(Core::Type<size_t>::max),
-          inputBuffer_(),
-          featuresMissing_(true) {
-}
-
-void BufferedLabelScorer::reset() {
-    inputBuffer_.clear();
-    featuresMissing_ = true;
-    featureSize_     = Core::Type<size_t>::max;
-}
-
-void BufferedLabelScorer::signalNoMoreFeatures() {
-    featuresMissing_ = false;
-}
-
-void BufferedLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
-    if (featureSize_ == Core::Type<size_t>::max) {
-        featureSize_ = featureSize;
-    }
-    else if (featureSize_ != featureSize) {
-        error() << "Label scorer received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
-    }
-
-    inputBuffer_.push_back(input);
-}
-
-/*
- * =============================
  * === ScaledLabelScorer =======
  * =============================
  */

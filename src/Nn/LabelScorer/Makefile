@@ -10,6 +10,7 @@ SUBDIRS		=
 TARGETS		= libSprintLabelScorer.$(a)
 
 LIBSPRINTLABELSCORER_O =  \
+		$(OBJDIR)/BufferedLabelScorer.o \
 		$(OBJDIR)/Encoder.o \
 		$(OBJDIR)/EncoderDecoderLabelScorer.o \
 		$(OBJDIR)/LabelScorer.o \

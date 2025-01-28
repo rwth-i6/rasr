@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  */
 
 #include "Encoder.hh"
-#include <Flow/Data.hh>
-#include <Mm/Module.hh>
 #include <algorithm>
 
 namespace Nn {
@@ -53,7 +51,7 @@ void Encoder::addInput(SharedDataHolder const& input, size_t featureSize) {
         featureSize_ = featureSize;
     }
     else if (featureSize_ != featureSize) {
-        error() << "Label scorer received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
+        error() << "Encoder received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
     }
 
     inputBuffer_.push_back(input);
@@ -78,14 +76,17 @@ std::optional<SharedDataHolder> Encoder::getNextOutput() {
         return result;
     }
 
+    // Output buffer is empty but encoder is not ready? -> Return none
     if (not canEncode()) {
         return {};
     }
 
-    // run encoder and try again
+    // Encoder is ready to run, so run it and try fetching an output again.
     encode();
     postEncodeCleanup();
 
+    // If there are still no outputs after encoding, return None to avoid recursive call
+    // resulting in infinite loop
     if (outputBuffer_.empty()) {
         return {};
     }

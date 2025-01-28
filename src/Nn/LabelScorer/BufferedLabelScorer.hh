@@ -39,7 +39,7 @@ public:
     virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
 protected:
     std::vector<std::shared_ptr<const f32[]>> inputBuffer_;         // Buffer that contains all the feature data for the current segment

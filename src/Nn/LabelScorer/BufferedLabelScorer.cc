@@ -35,7 +35,7 @@ void BufferedLabelScorer::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void BufferedLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void BufferedLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = featureSize;
     }

@@ -83,8 +83,6 @@ endif
 
 SUBDIRS += LabelScorer
 
-SUBDIRS += LabelScorer
-
 # -----------------------------------------------------------------------------
 all: $(TARGETS)
 

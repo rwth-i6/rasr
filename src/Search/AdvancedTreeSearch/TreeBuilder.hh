@@ -46,9 +46,16 @@ public:
     virtual void build() = 0;
 
 protected:
+    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
+
     const Bliss::Lexicon&        lexicon_;
     const Am::AcousticModel&     acousticModel_;
     Search::PersistentStateTree& network_;
+
+    ExitHash exitHash_;
+
+    StateId createState(Search::StateTree::StateDesc desc);
+    u32     createExit(Search::PersistentStateTree::Exit exit);
 };
 
 class MinimizedTreeBuilder : public AbstractTreeBuilder {
@@ -162,7 +169,6 @@ protected:
     typedef std::set<Bliss::Phoneme::Id>                                                                   PhonemeIdSet;
     typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                                                 RootHash;
     typedef Core::HashMap<StateId, StateId>                                                                SkipRootsHash;
-    typedef Core::HashMap<Search::PersistentStateTree::Exit, u32, Search::PersistentStateTree::Exit::Hash> ExitHash;
     typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                                       CoarticulationJointHash;
     typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash>                       PredecessorsHash;
 
@@ -186,7 +192,6 @@ protected:
     RootHash                roots_;  // Contains roots and joint-states
     SkipRootsHash           skipRoots_;
     std::set<StateId>       skipRootSet_;
-    ExitHash                exitHash_;
     CoarticulationJointHash initialPhoneSuffix_;
     CoarticulationJointHash initialFinalPhoneSuffix_;
     PredecessorsHash        predecessors_;
@@ -205,8 +210,6 @@ protected:
 
     StateId createSkipRoot(StateId baseRoot);
     StateId createRoot(Bliss::Phoneme::Id left, Bliss::Phoneme::Id right, int depth);
-    StateId createState(Search::StateTree::StateDesc desc);
-    u32     createExit(Search::PersistentStateTree::Exit exit);
     u32     addExit(StateId                       predecessor,
                     Bliss::Phoneme::Id            leftPhoneme,
                     Bliss::Phoneme::Id            rightPhoneme,
@@ -242,6 +245,37 @@ protected:
     void updateHashFromMap(const std::vector<StateId>& map, const std::vector<u32>& exitMap);
     void mapCoarticulationJointHash(CoarticulationJointHash& hash, const std::vector<StateId>& map, const std::vector<u32>& exitMap);
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
+};
+
+class CtcTreeBuilder : public AbstractTreeBuilder {
+public:
+    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~CtcTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+    // Build a new persistent state network.
+    virtual void build();
+
+protected:
+    StateId                      wordBoundaryRoot_;
+    Search::StateTree::StateDesc blankDesc_;
+    Am::AllophoneStateIndex      blankAllophoneStateIndex_;
+
+    // Create a node with invalid AM and TM indices which serves as a root
+    StateId createRoot();
+    // @param state is the last state of the word with pronunciation ID @param pron, add an exit leading to the root node @param transitState
+    // The exit is appended to the state's successors
+    u32     addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
+
+    // Check if the node with @param desc is already a successor of the @param predecessor and add it if not
+    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
+    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
+    StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
+    // Add a transition between two already existing states, used to insert loops and skip-transitions
+    void    addTransition(StateId predecessor, StateId successor);
+    // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
+    void    addWordBoundaryStates();
 };
 
 #endif

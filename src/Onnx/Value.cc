@@ -12,9 +12,11 @@ struct ToDataType {
     static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 };
 
-#define DEFINE_ONNX_TENSOR_TYPE_MAPING(TYPE, ENUM) \
-    template<>                                     \
-    struct ToDataType<TYPE> { static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ENUM; };
+#define DEFINE_ONNX_TENSOR_TYPE_MAPING(TYPE, ENUM)                                  \
+    template<>                                                                      \
+    struct ToDataType<TYPE> {                                                       \
+        static constexpr ONNXTensorElementDataType onnx_tensor_element_type = ENUM; \
+    };
 
 DEFINE_ONNX_TENSOR_TYPE_MAPING(float, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
 DEFINE_ONNX_TENSOR_TYPE_MAPING(uint8_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8)
@@ -90,6 +92,48 @@ template Value Value::zeros<s16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
+
+template<typename T>
+Value Value::createEmpty(std::initializer_list<int64_t> dim) {
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    Value res;
+    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
+
+    return res;
+}
+
+template Value Value::createEmpty<f32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<f64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u64>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u32>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s16>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u16>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<s8>(std::initializer_list<int64_t> dim);
+template Value Value::createEmpty<u8>(std::initializer_list<int64_t> dim);
+
+template<typename T>
+Value Value::createEmpty(std::vector<int64_t> const& dim) {
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    Value res;
+    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
+
+    return res;
+}
+
+template Value Value::createEmpty<f32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<f64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u64>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u32>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s16>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u16>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<s8>(std::vector<int64_t> const& dim);
+template Value Value::createEmpty<u8>(std::vector<int64_t> const& dim);
 
 /* ------------------------- Getters ------------------------- */
 

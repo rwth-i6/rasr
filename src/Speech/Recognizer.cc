@@ -45,7 +45,6 @@ const Core::Choice Recognizer::searchTypeChoice_(
         "advanced-tree-search", Search::AdvancedTreeSearch,
         "expanding-fsa-search", Search::ExpandingFsaSearchType,
         "linear-search", Search::LinearSearchType,
-        "generic-seq2seq-tree-search", Search::GenericSeq2SeqTreeSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Recognizer::paramSearch(

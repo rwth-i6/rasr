@@ -23,7 +23,7 @@
 #include <Mm/FeatureScorer.hh>
 #include <Speech/Feature.hh>
 #include <optional>
-#include "LabelScorer.hh"
+#include "BufferedLabelScorer.hh"
 #include "Onnx/Model.hh"
 #include "ScoringContext.hh"
 

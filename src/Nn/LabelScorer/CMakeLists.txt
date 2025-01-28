@@ -1,5 +1,13 @@
 set(RasrLabelScorer_SOURCES
-    Encoder.cc EncoderDecoderLabelScorer.cc LabelScorer.cc ScoringContext.cc
+    BufferedLabelScorer.cc
+    CombineLabelScorer.cc
+    ScaledLabelScorer.cc
+    NoOpLabelScorer.cc
+    LegacyFeatureScorerLabelScorer.cc
+    Encoder.cc
+    EncoderDecoderLabelScorer.cc
+    LabelScorer.cc
+    ScoringContext.cc
     SharedDataHolder.cc)
 if(${MODULE_ONNX})
   list(APPEND RasrLabelScorer_SOURCES LimitedCtxOnnxLabelScorer.cc

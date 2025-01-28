@@ -24,10 +24,7 @@
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/Types.hh>
-#include <Flow/Timestamp.hh>
-#include <Mm/FeatureScorer.hh>
 #include <Nn/Types.hh>
-#include <Speech/Feature.hh>
 
 #include "ScoringContext.hh"
 #include "SharedDataHolder.hh"
@@ -134,116 +131,6 @@ public:
     // Return two vectors: one vector with scores and one vector with times
     // Note: the times vector is internally collapsed to one value if all timesteps are the same
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
-};
-
-/*
- * Wrapper around a LabelScorer that scales all the scores by some factor.
- */
-class ScaledLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
-public:
-    static Core::ParameterFloat paramScale;
-
-    ScaledLabelScorer(const Core::Configuration& config, const Core::Ref<LabelScorer>& scorer);
-
-    void                           reset() override;
-    void                           signalNoMoreFeatures() override;
-    ScoringContextRef              getInitialScoringContext() override;
-    ScoringContextRef              extendedScoringContext(Request const& request) override;
-    void                           addInput(SharedDataHolder const& input, size_t featureSize) override;
-    void                           addInput(std::vector<f32> const& input) override;
-    void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
-    std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request) override;
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
-
-protected:
-    Core::Ref<LabelScorer> scorer_;
-    Score                  scale_;
-};
-
-/*
- * Label Scorer that performs no computation internally. It assumes that the input features are already
- * finished score vectors and just returns the score at the current time step.
- */
-class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
-    using Precursor = BufferedLabelScorer;
-
-public:
-    StepwiseNoOpLabelScorer(const Core::Configuration& config);
-
-    // Initial scoring context just contains step 0.
-    ScoringContextRef getInitialScoringContext() override;
-
-    // Scoring context with step incremented by 1.
-    virtual ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
-
-    // Basically returns inputBuffer[currentStep][nextToken]
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
-};
-
-/*
- * Wrapper around legacy Mm::FeatureScorer.
- * Inputs are treated as features for the FeatureScorer.
- * After adding features, whenever possible (depending on FeatureScorer buffering)
- * directly prepare ContextScorers based on them and cache these.
- * Upon receiving the feature stream end signal, all available ContextScorers are flushed.
- */
-class LegacyFeatureScorerLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
-public:
-    LegacyFeatureScorerLabelScorer(const Core::Configuration& config);
-
-    // Reset internal feature scorer and clear cache of context scorers
-    void reset() override;
-
-    // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
-    void addInput(std::vector<f32> const& input) override;
-
-    // Flush and cache all remaining context scorers
-    void signalNoMoreFeatures() override;
-
-    // Initial context just contains step 0.
-    ScoringContextRef getInitialScoringContext() override;
-
-    // Scoring context with step incremented by 1.
-    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
-
-    // Use cached context scorer at given step to score the next token.
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
-
-private:
-    Core::Ref<Mm::FeatureScorer>           featureScorer_;
-    std::vector<Mm::FeatureScorer::Scorer> scoreCache_;
-};
-
-/*
- * Adds the scores of multiple sub-label-scorers for each request.
- * This assumes that the sub-scorers work on the same token level.
- */
-class CombineLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
-public:
-    static Core::ParameterInt paramNumLabelScorers;
-
-    CombineLabelScorer(const Core::Configuration& config);
-    virtual ~CombineLabelScorer() = default;
-
-    void                           reset();
-    void                           signalNoMoreFeatures();
-    ScoringContextRef              getInitialScoringContext();
-    ScoringContextRef              extendedScoringContext(Request const& request);
-    void                           addInput(SharedDataHolder const& input, size_t featureSize);
-    void                           addInput(std::vector<f32> const& input);
-    void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
-    std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request);
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
-
-protected:
-    std::vector<Core::Ref<LabelScorer>> scorers_;
 };
 
 }  // namespace Nn

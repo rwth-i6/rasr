@@ -22,6 +22,7 @@
 #include <Flow/Module.hh>
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/LabelScorer.hh"
+#include "LabelScorer/ScaledLabelScorer.hh"
 
 namespace Core {
 class FormatSet;

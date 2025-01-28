@@ -24,7 +24,7 @@
 #include <Onnx/Model.hh>
 #include <Speech/Feature.hh>
 #include <optional>
-#include "LabelScorer.hh"
+#include "BufferedLabelScorer.hh"
 #include "ScoringContext.hh"
 
 #include <Onnx/IOSpecification.hh>

@@ -228,7 +228,7 @@ void StatefulOnnxLabelScorer::addInput(SharedDataHolder const& input, size_t fea
 }
 
 std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    if (featuresMissing_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
+    if (expectMoreFeatures_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
         return {};
     }
 
@@ -312,7 +312,7 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
 }
 
 HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
-    verify(not featuresMissing_);
+    verify(not expectMoreFeatures_);
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
         /*

@@ -15,9 +15,12 @@
 #include <Core/Configuration.hh>
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
+#include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/LabelScorer.hh"
+#include "LabelScorer/LegacyFeatureScorerLabelScorer.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
 #ifdef MODULE_ONNX
 #include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoCtxOnnxLabelScorer.hh"

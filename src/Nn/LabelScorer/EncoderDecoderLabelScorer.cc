@@ -37,12 +37,12 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
     return decoder_->extendedScoringContext(request);
 }
 
-void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void EncoderDecoderLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     encoder_->addInput(input, featureSize);
     encode();
 }
 
-void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& inputs, size_t timeSize, size_t featureSize) {
+void EncoderDecoderLabelScorer::addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize) {
     encoder_->addInputs(inputs, timeSize, featureSize);
     encode();
 }

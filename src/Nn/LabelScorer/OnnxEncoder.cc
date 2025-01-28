@@ -1,5 +1,4 @@
 #include "OnnxEncoder.hh"
-#include <memory>
 
 namespace Nn {
 
@@ -83,8 +82,7 @@ void OnnxEncoder::encode() {
      * Put outputs into buffer
      */
 
-    auto onnxOutputValue        = sessionOutputs.front();
-    auto onnxOutputValueWrapper = std::make_shared<Onnx::Value>(onnxOutputValue);
+    auto onnxOutputValue = sessionOutputs.front();
 
     size_t T_out;
     if (onnxOutputValue.numDims() == 3) {
@@ -99,12 +97,7 @@ void OnnxEncoder::encode() {
     const auto& [rangeStart, rangeEnd] = validOutFrameRange(T_in, T_out);
 
     for (size_t t = rangeStart; t < rangeEnd; ++t) {
-        // The custom deleter ties the lifetime of `scoreValue` to the lifetime
-        // of `scorePtr` by capturing the `scoreValueWrapper` by value.
-        auto scorePtr = std::shared_ptr<const f32[]>(
-                onnxOutputValueWrapper->data<f32>() + t * outputSize_,
-                [onnxOutputValueWrapper](const f32*) mutable {});
-        outputBuffer_.push_back(scorePtr);
+        outputBuffer_.push_back({onnxOutputValue, t * outputSize_});
     }
 }
 

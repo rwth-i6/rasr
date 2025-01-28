@@ -16,6 +16,7 @@
 #include "LabelScorer.hh"
 #include <Mm/Module.hh>
 #include <Nn/Module.hh>
+#include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Nn {
 
@@ -29,20 +30,13 @@ LabelScorer::LabelScorer(Core::Configuration const& config)
         : Core::Component(config) {}
 
 void LabelScorer::addInput(std::vector<f32> const& input) {
-    // The custom deleter ties the lifetime of vector `input` to the lifetime
-    // of `dataPtr` by capturing the `inputWrapper` by value.
-    // This makes sure that the underlying data isn't invalidated prematurely.
-    auto inputWrapper = std::make_shared<std::vector<f32>>(input);
-    auto dataPtr      = std::shared_ptr<const f32[]>(
-            inputWrapper->data(),
-            [inputWrapper](const f32*) mutable {});
-    addInput(dataPtr, input.size());
+    addInput(input, input.size());
 }
 
-void LabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+void LabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     for (size_t t = 0ul; t < timeSize; ++t) {
         // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * featureSize), featureSize);
+        addInput({input, t * featureSize}, featureSize);
     }
 }
 
@@ -87,7 +81,7 @@ void BufferedLabelScorer::signalNoMoreFeatures() {
     featuresMissing_ = false;
 }
 
-void BufferedLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void BufferedLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = featureSize;
     }
@@ -131,7 +125,7 @@ ScoringContextRef ScaledLabelScorer::extendedScoringContext(Request const& reque
     return scorer_->extendedScoringContext(request);
 }
 
-void ScaledLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void ScaledLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     scorer_->addInput(input, featureSize);
 }
 
@@ -139,7 +133,7 @@ void ScaledLabelScorer::addInput(std::vector<f32> const& input) {
     scorer_->addInput(input);
 }
 
-void ScaledLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+void ScaledLabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     scorer_->addInputs(input, timeSize, featureSize);
 }
 
@@ -218,7 +212,7 @@ void LegacyFeatureScorerLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-void LegacyFeatureScorerLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void LegacyFeatureScorerLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     std::vector<f32> featureVector(featureSize);
     std::copy(input.get(), input.get() + featureSize, featureVector.begin());
     addInput(featureVector);
@@ -316,7 +310,7 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
-void CombineLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void CombineLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     for (auto& scorer : scorers_) {
         scorer->addInput(input, featureSize);
     }
@@ -328,7 +322,7 @@ void CombineLabelScorer::addInput(std::vector<f32> const& input) {
     }
 }
 
-void CombineLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+void CombineLabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     for (auto& scorer : scorers_) {
         scorer->addInputs(input, timeSize, featureSize);
     }

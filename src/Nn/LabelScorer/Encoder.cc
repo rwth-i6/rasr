@@ -48,7 +48,7 @@ void Encoder::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void Encoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void Encoder::addInput(SharedDataHolder const& input, size_t featureSize) {
     if (featureSize_ == Core::Type<size_t>::max) {
         featureSize_ = featureSize;
     }
@@ -59,10 +59,10 @@ void Encoder::addInput(std::shared_ptr<const f32[]> const& input, size_t feature
     inputBuffer_.push_back(input);
 }
 
-void Encoder::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+void Encoder::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     for (size_t t = 0ul; t < timeSize; ++t) {
         // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * featureSize), featureSize);
+        addInput({input, t * featureSize}, featureSize);
     }
 }
 
@@ -70,7 +70,7 @@ bool Encoder::canEncode() const {
     return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
-std::optional<std::shared_ptr<const f32[]>> Encoder::getNextOutput() {
+std::optional<SharedDataHolder> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
         auto result = outputBuffer_.front();
@@ -140,7 +140,7 @@ void ChunkedEncoder::reset() {
     currentFutureFeatures_  = 0ul;
 }
 
-void ChunkedEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void ChunkedEncoder::addInput(SharedDataHolder const& input, size_t featureSize) {
     Precursor::addInput(input, featureSize);
     if (currentCenterFeatures_ < chunkCenter_) {
         ++currentCenterFeatures_;
@@ -190,7 +190,7 @@ void ChunkedEncoder::postEncodeCleanup() {
 NoOpEncoder::NoOpEncoder(Core::Configuration const& config)
         : Core::Component(config), Precursor(config) {}
 
-void NoOpEncoder::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void NoOpEncoder::addInput(SharedDataHolder const& input, size_t featureSize) {
     Precursor::addInput(input, featureSize);
     outputSize_ = featureSize_;
 }

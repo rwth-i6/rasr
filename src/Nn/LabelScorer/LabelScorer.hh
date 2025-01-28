@@ -30,6 +30,7 @@
 #include <Speech/Feature.hh>
 
 #include "ScoringContext.hh"
+#include "SharedDataHolder.hh"
 
 namespace Nn {
 
@@ -116,11 +117,11 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) = 0;
+    virtual void addInput(SharedDataHolder const& input, size_t featureSize) = 0;
     virtual void addInput(std::vector<f32> const& input);
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    virtual void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output
@@ -153,7 +154,7 @@ public:
     virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
 protected:
     size_t                                    featureSize_;
@@ -176,9 +177,9 @@ public:
     void                           signalNoMoreFeatures() override;
     ScoringContextRef              getInitialScoringContext() override;
     ScoringContextRef              extendedScoringContext(Request const& request) override;
-    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    void                           addInput(SharedDataHolder const& input, size_t featureSize) override;
     void                           addInput(std::vector<f32> const& input) override;
-    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) override;
+    void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
     std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request) override;
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
@@ -224,7 +225,7 @@ public:
     void reset() override;
 
     // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    void addInput(SharedDataHolder const& input, size_t featureSize) override;
     void addInput(std::vector<f32> const& input) override;
 
     // Flush and cache all remaining context scorers
@@ -261,9 +262,9 @@ public:
     void                           signalNoMoreFeatures();
     ScoringContextRef              getInitialScoringContext();
     ScoringContextRef              extendedScoringContext(Request const& request);
-    void                           addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
+    void                           addInput(SharedDataHolder const& input, size_t featureSize);
     void                           addInput(std::vector<f32> const& input);
-    void                           addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
     std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request);
     std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
 

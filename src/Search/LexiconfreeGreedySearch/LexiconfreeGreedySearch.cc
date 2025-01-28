@@ -16,6 +16,7 @@
 #include "LexiconfreeGreedySearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
 #include <cmath>
+#include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Search {
 
@@ -85,7 +86,7 @@ void LexiconfreeGreedySearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeGreedySearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
+void LexiconfreeGreedySearch::addFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, featureSize);
@@ -99,7 +100,7 @@ void LexiconfreeGreedySearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
+void LexiconfreeGreedySearch::addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, timeSize, featureSize);

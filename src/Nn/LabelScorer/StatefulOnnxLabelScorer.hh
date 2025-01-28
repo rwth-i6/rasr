@@ -61,7 +61,7 @@ public:
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Add a single encoder outputs to buffer
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
     std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTime(LabelScorer::Request const& request) override;
     std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;

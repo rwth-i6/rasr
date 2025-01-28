@@ -216,7 +216,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void StatefulOnnxLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     Precursor::addInput(input, featureSize);
 
     initialHiddenState_ = HiddenStateRef();

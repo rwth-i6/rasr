@@ -19,6 +19,8 @@
 #include <numeric>
 #include <strings.h>
 #include "Nn/LabelScorer/LabelScorer.hh"
+#include "Nn/LabelScorer/ScoringContext.hh"
+#include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Search {
 
@@ -100,7 +102,7 @@ void LexiconfreeBeamSearch::finishSegment() {
     decodeMore();
 }
 
-void LexiconfreeBeamSearch::addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
+void LexiconfreeBeamSearch::addFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, featureSize);
@@ -114,7 +116,7 @@ void LexiconfreeBeamSearch::addFeature(std::vector<f32> const& data) {
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
+void LexiconfreeBeamSearch::addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, timeSize, featureSize);
@@ -417,6 +419,21 @@ bool LexiconfreeBeamSearch::decodeStep() {
         }
         newBeam.resize(numSurvivingHyps);
     }
+
+    // /*
+    //  * For all hypotheses with the same scoring context keep only the best since they will
+    //  * all develop in the same way.
+    //  * Directly write into `beam_` since this is the last pruning step
+    //  */
+    // beam_.clear();
+    // std::unordered_set<Nn::ScoringContextRef, Nn::ScoringContextHash, Nn::ScoringContextEq>
+    //         seenScoringContexts;
+    // for (const auto& hyp : newBeam) {
+    //     if (seenScoringContexts.find(hyp.scoringContext) == seenScoringContexts.end()) {
+    //         beam_.push_back(hyp);
+    //         seenScoringContexts.insert(hyp.scoringContext);
+    //     }
+    // }
 
     beam_.swap(newBeam);
 

@@ -19,6 +19,7 @@
 #include <Search/SearchV2.hh>
 #include <chrono>
 #include <ratio>
+#include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Search {
 
@@ -92,9 +93,9 @@ public:
     void                            enterSegment() override;
     void                            enterSegment(Bliss::SpeechSegment const*) override;
     void                            finishSegment() override;
-    void                            addFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) override;
+    void                            addFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
     void                            addFeature(std::vector<f32> const& data) override;
-    void                            addFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) override;
+    void                            addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     void                            resetStatistics() override;

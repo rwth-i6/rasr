@@ -21,6 +21,7 @@
 #include <Speech/Feature.hh>
 #include <deque>
 #include <optional>
+#include "SharedDataHolder.hh"
 
 namespace Nn {
 
@@ -41,21 +42,21 @@ public:
     void signalNoMoreFeatures();
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
+    virtual void addInput(SharedDataHolder const& input, size_t featureSize);
 
     // Add input features for multiple time steps to an input buffer
-    virtual void addInputs(std::shared_ptr<const f32[]> const& inputs, size_t timeSize, size_t featureSize);
+    virtual void addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize);
 
     // Retrieve a single encoder output
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<std::shared_ptr<const f32[]>> getNextOutput();
+    std::optional<SharedDataHolder> getNextOutput();
 
     size_t getOutputSize() const;
 
 protected:
-    std::deque<std::shared_ptr<const f32[]>> inputBuffer_;
-    std::deque<std::shared_ptr<const f32[]>> outputBuffer_;
+    std::deque<SharedDataHolder> inputBuffer_;
+    std::deque<SharedDataHolder> outputBuffer_;
 
     size_t featureSize_;
     size_t outputSize_;
@@ -87,7 +88,7 @@ public:
     virtual void reset() override;
 
     // Add a single input feature to an input buffer
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
 protected:
     const size_t chunkCenter_;
@@ -110,7 +111,7 @@ class NoOpEncoder : public Encoder {
 
 public:
     NoOpEncoder(Core::Configuration const& config);
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
+    void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
 protected:
     bool canEncode() const override {

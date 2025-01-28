@@ -19,6 +19,7 @@
 #include <Search/SearchV2.hh>
 #include <chrono>
 #include <ratio>
+#include "Bliss/Lexicon.hh"
 #include "Core/Parameter.hh"
 #include "Nn/LabelScorer/SharedDataHolder.hh"
 
@@ -29,18 +30,18 @@ namespace Search {
 // maximum probability at each decoding step.
 class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
-        const Bliss::Lemma*             lemma;
-        Nn::ScoringContextRef           scoringContext;
-        Nn::LabelIndex                  label;
-        Score                           score;
-        Search::TimeframeIndex          timestep;
-        Nn::LabelScorer::TransitionType transitionType;
+        const Bliss::LemmaPronunciation* pron;
+        Nn::ScoringContextRef            scoringContext;
+        Nn::LabelIndex                   label;
+        Score                            score;
+        Search::TimeframeIndex           timestep;
+        Nn::LabelScorer::TransitionType  transitionType;
 
         HypothesisExtension()
-                : lemma(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+                : pron(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
 
-        HypothesisExtension(const Bliss::Lemma* lemma, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : lemma(lemma), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::LemmaPronunciation* pron, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
+                : pron(pron), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
     };
 
     struct LabelHypothesis {
@@ -93,22 +94,22 @@ public:
 
     // Inherited methods
 
-    Speech::ModelCombination::Mode  modelCombinationNeeded() const override;
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
     bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
     void                            reset() override;
-    void                            enterSegment() override;
-    void                            enterSegment(Bliss::SpeechSegment const*) override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;
-    void                            addFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
-    void                            addFeature(std::vector<f32> const& data) override;
-    void                            addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
+    void                            passFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
+    void                            passFeature(std::vector<f32> const& data) override;
+    void                            passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    void                            resetStatistics() override;
-    void                            logStatistics() const override;
     bool                            decodeStep() override;
 
 private:
+    void resetStatistics();
+    void logStatistics() const;
+
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     size_t maxBeamSize_;

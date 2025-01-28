@@ -52,7 +52,7 @@ void LexiconfreeGreedySearch::reset() {
     initializationTime_.toc();
 }
 
-Speech::ModelCombination::Mode LexiconfreeGreedySearch::modelCombinationNeeded() const {
+Speech::ModelCombination::Mode LexiconfreeGreedySearch::requiredModelCombination() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
@@ -64,17 +64,11 @@ bool LexiconfreeGreedySearch::setModelCombination(Speech::ModelCombination const
     return true;
 }
 
-void LexiconfreeGreedySearch::enterSegment() {
-    verify(labelScorer_);
-    initializationTime_.tic();
-    labelScorer_->reset();
-    initializationTime_.toc();
-}
-
 void LexiconfreeGreedySearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
+    resetStatistics();
     initializationTime_.toc();
 }
 
@@ -84,30 +78,31 @@ void LexiconfreeGreedySearch::finishSegment() {
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.toc();
     decodeMore();
+    logStatistics();
 }
 
-void LexiconfreeGreedySearch::addFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
+void LexiconfreeGreedySearch::passFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeature(std::vector<f32> const& data) {
+void LexiconfreeGreedySearch::passFeature(std::vector<f32> const& data) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
+void LexiconfreeGreedySearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, timeSize, featureSize);
     featureProcessingTime_.toc();
 }
 
-Core::Ref<const SearchAlgorithmV2::Traceback> LexiconfreeGreedySearch::getCurrentBestTraceback() const {
+Core::Ref<const Traceback> LexiconfreeGreedySearch::getCurrentBestTraceback() const {
     return Core::ref(new Traceback(hyp_.traceback));
 }
 
@@ -131,11 +126,11 @@ Core::Ref<const LatticeAdaptor> LexiconfreeGreedySearch::getCurrentBestWordLatti
         else {
             nextState = result->newState();
         }
-        ScoreVector scores = it->scores;
+        ScoreVector scores = it->score;
         if (it != hyp_.traceback.begin()) {
-            scores -= std::prev(it)->scores;
+            scores -= std::prev(it)->score;
         }
-        result->newArc(currentState, nextState, it->lemma, scores.acoustic, scores.lm);
+        result->newArc(currentState, nextState, it->pronunciation->lemma(), scores.acoustic, scores.lm);
         currentState = nextState;
     }
 
@@ -189,7 +184,7 @@ void LexiconfreeGreedySearch::LabelHypothesis::reset() {
     currentLabel   = Core::Type<Nn::LabelIndex>::max;
     score          = 0.0f;
     traceback.clear();
-    traceback.push_back(TracebackItem(nullptr, nullptr, 0, ScoreVector({}, {})));
+    traceback.push_back(TracebackItem(nullptr, 0, ScoreVector({}, {}), {}));
 }
 
 void LexiconfreeGreedySearch::LabelHypothesis::extend(HypothesisExtension const& extension) {
@@ -200,12 +195,12 @@ void LexiconfreeGreedySearch::LabelHypothesis::extend(HypothesisExtension const&
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            this->traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestep, ScoreVector(score, {})));
+            this->traceback.push_back(TracebackItem(extension.pron, extension.timestep, ScoreVector(score, {}), {}));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            this->traceback.back().scores.acoustic = score;
-            this->traceback.back().time            = extension.timestep;
+            this->traceback.back().score.acoustic = score;
+            this->traceback.back().time           = extension.timestep;
             break;
     }
 }
@@ -245,7 +240,7 @@ bool LexiconfreeGreedySearch::decodeStep() {
     auto newScoringContext = labelScorer_->extendedScoringContext({bestRequest.context, bestRequest.nextToken, bestRequest.transitionType});
     contextExtensionTime_.toc();
 
-    hyp_.extend({lemmas.first[bestIdx], newScoringContext, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
+    hyp_.extend({lemmas.first[bestIdx]->pronunciations().first, newScoringContext, bestRequest.nextToken, scores[bestIdx], times.at(bestIdx), bestRequest.transitionType});
 
     if (useSentenceEnd_ and bestRequest.nextToken == sentenceEndIndex_) {
         return false;

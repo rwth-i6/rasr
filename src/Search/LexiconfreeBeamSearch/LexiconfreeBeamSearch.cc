@@ -66,7 +66,7 @@ void LexiconfreeBeamSearch::reset() {
     initializationTime_.toc();
 }
 
-Speech::ModelCombination::Mode LexiconfreeBeamSearch::modelCombinationNeeded() const {
+Speech::ModelCombination::Mode LexiconfreeBeamSearch::requiredModelCombination() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
@@ -80,17 +80,11 @@ bool LexiconfreeBeamSearch::setModelCombination(Speech::ModelCombination const& 
     return true;
 }
 
-void LexiconfreeBeamSearch::enterSegment() {
-    verify(labelScorer_);
-    initializationTime_.tic();
-    labelScorer_->reset();
-    initializationTime_.toc();
-}
-
 void LexiconfreeBeamSearch::enterSegment(Bliss::SpeechSegment const*) {
     verify(labelScorer_);
     initializationTime_.tic();
     labelScorer_->reset();
+    resetStatistics();
     initializationTime_.toc();
 }
 
@@ -100,30 +94,31 @@ void LexiconfreeBeamSearch::finishSegment() {
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.toc();
     decodeMore();
+    logStatistics();
 }
 
-void LexiconfreeBeamSearch::addFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
+void LexiconfreeBeamSearch::passFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeature(std::vector<f32> const& data) {
+void LexiconfreeBeamSearch::passFeature(std::vector<f32> const& data) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::addFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
+void LexiconfreeBeamSearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, timeSize, featureSize);
     featureProcessingTime_.toc();
 }
 
-Core::Ref<const SearchAlgorithmV2::Traceback> LexiconfreeBeamSearch::getCurrentBestTraceback() const {
+Core::Ref<const Traceback> LexiconfreeBeamSearch::getCurrentBestTraceback() const {
     return Core::ref(new Traceback(beam_.front().traceback));
 }
 
@@ -148,11 +143,11 @@ Core::Ref<const LatticeAdaptor> LexiconfreeBeamSearch::getCurrentBestWordLattice
         else {
             nextState = result->newState();
         }
-        ScoreVector scores = it->scores;
+        ScoreVector scores = it->score;
         if (it != beam_.front().traceback.begin()) {
-            scores -= std::prev(it)->scores;
+            scores -= std::prev(it)->score;
         }
-        result->newArc(currentState, nextState, it->lemma, scores.acoustic, scores.lm);
+        result->newArc(currentState, nextState, it->pronunciation->lemma(), scores.acoustic, scores.lm);
         currentState = nextState;
     }
 
@@ -210,12 +205,12 @@ LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::L
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            this->traceback.push_back(TracebackItem(nullptr, extension.lemma, extension.timestep, ScoreVector(score, {})));
+            this->traceback.push_back(TracebackItem(extension.pron, extension.timestep, ScoreVector(score, {}), {}));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
             if (not this->traceback.empty()) {
-                this->traceback.back().scores.acoustic = score;
+                this->traceback.back().score.acoustic = score;
             }
             break;
     }
@@ -225,7 +220,7 @@ std::string LexiconfreeBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
     ss << "Score: " << score << ", traceback: ";
     for (auto& item : traceback) {
-        ss << item.lemma->symbol() << " ";
+        ss << item.pronunciation->lemma()->symbol() << " ";
     }
     return ss.str();
 }
@@ -374,7 +369,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
 
         newBeam.push_back(
                 {*baseHyps[index],
-                 {lemmas.first[request.nextToken],
+                 {lemmas.first[request.nextToken]->pronunciations().first,
                   newScoringContext,
                   request.nextToken,
                   scoresWithTimes.scores[index],

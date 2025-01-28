@@ -93,8 +93,8 @@ protected:
         if (l && (l->initialStateId() != Fsa::InvalidStateId)) {
             Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpAlphabet =
                     Lexicon::us()->lemmaPronunciationAlphabet();
-            Search::SearchAlgorithm::Traceback traceback;
-            Lexicon::AlphabetId                alphabetId = Lexicon::us()->alphabetId(l->getInputAlphabet());
+            Search::Traceback   traceback;
+            Lexicon::AlphabetId alphabetId = Lexicon::us()->alphabetId(l->getInputAlphabet());
             if (alphabetId != Lexicon::LemmaPronunciationAlphabetId)
                 warning("DumpTracebackNode: Input alphabet of \"%s\" "
                         "is not lemma pronunciation; map alphabet",
@@ -120,11 +120,11 @@ protected:
                 }
                 traceback.clear();
                 traceback.push_back(
-                        Search::SearchAlgorithm::TracebackItem(
+                        Search::TracebackItem(
                                 0,
                                 0,
-                                Search::SearchAlgorithm::ScoreVector(0.0, 0),
-                                Search::SearchAlgorithm::TracebackItem::Transit()));
+                                Search::ScoreVector(0.0, 0),
+                                Search::TracebackItem::Transit()));
                 Score score = Semiring::One;
                 for (; sr->hasArcs(); sr = p->getState(sr->begin()->target())) {
                     verify(sr->nArcs() == 1);
@@ -141,22 +141,22 @@ protected:
                     if (lemmaPron) {
                         const Boundary& b = boundaries.get(a.target());
                         traceback.push_back(
-                                Search::SearchAlgorithm::TracebackItem(
+                                Search::TracebackItem(
                                         lemmaPron,
                                         b.time(),
-                                        Search::SearchAlgorithm::ScoreVector(score, 0),
-                                        Search::SearchAlgorithm::TracebackItem::Transit()));
+                                        Search::ScoreVector(score, 0),
+                                        Search::TracebackItem::Transit()));
                     }
                 }
                 verify(sr->isFinal());
                 score += sr->weight()->project(scales);
                 const Boundary& b = boundaries.get(sr->id());
                 traceback.push_back(
-                        Search::SearchAlgorithm::TracebackItem(
+                        Search::TracebackItem(
                                 0,
                                 b.time(),
-                                Search::SearchAlgorithm::ScoreVector(score, 0),
-                                Search::SearchAlgorithm::TracebackItem::Transit()));
+                                Search::ScoreVector(score, 0),
+                                Search::TracebackItem::Transit()));
                 Core::XmlOpen tracebackOpen("traceback");
                 tracebackOpen + Core::XmlAttribute("source", "recognized");
                 tracebackOpen + Core::XmlAttribute("n", i);

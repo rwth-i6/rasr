@@ -27,7 +27,6 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     }
 
     // Initialize recognizer and feature extractor
-    searchAlgorithm_->resetStatistics();
     searchAlgorithm_->reset();
     searchAlgorithm_->enterSegment();
 
@@ -43,14 +42,14 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Loop over features and perform recognition
     do {
-        searchAlgorithm_->addFeature(*feature->mainStream());
+        searchAlgorithm_->passFeature(*feature->mainStream());
         if (searchAlgorithm_->decodeMore()) {
             auto             traceback = searchAlgorithm_->getCurrentBestTraceback();
             Core::XmlWriter& os(clog());
             os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "intermediate-result");
             for (auto& tracebackItem : *traceback) {
-                if (tracebackItem.lemma) {
-                    os << tracebackItem.lemma->preferredOrthographicForm()
+                if (tracebackItem.pronunciation->lemma()) {
+                    os << tracebackItem.pronunciation->lemma()->preferredOrthographicForm()
                        << Core::XmlBlank();
                 }
             }
@@ -64,8 +63,6 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     dataSource->finalize();
     featureExtractor_->leaveSegment(segment);
 
-    searchAlgorithm_->logStatistics();
-
     // Result processing and logging
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
 
@@ -78,8 +75,8 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
     for (auto& tracebackItem : *traceback) {
-        if (tracebackItem.lemma) {
-            os << tracebackItem.lemma->preferredOrthographicForm()
+        if (tracebackItem.pronunciation->lemma()) {
+            os << tracebackItem.pronunciation->lemma()->preferredOrthographicForm()
                << Core::XmlBlank();
         }
     }
@@ -198,7 +195,7 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
 }
 
 void RecognizerNodeV2::init(const std::vector<std::string>& arguments) {
-    modelCombination_.build(searchAlgorithm_->modelCombinationNeeded(), searchAlgorithm_->acousticModelNeeded(), Lexicon::us());
+    modelCombination_.build(searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), Lexicon::us());
     searchAlgorithm_->setModelCombination(modelCombination_);
     if (connected(0)) {
         criticalError("Grammar lattice not supported");

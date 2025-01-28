@@ -14,7 +14,7 @@ SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
         : Core::Component(c),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithm(select("search-algorithm"))),
           modelCombination_(config) {
-    modelCombination_.build(searchAlgorithm_->modelCombinationNeeded(), searchAlgorithm_->acousticModelNeeded());
+    modelCombination_.build(searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel());
     searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
@@ -28,14 +28,6 @@ void SearchAlgorithm::enterSegment() {
 
 void SearchAlgorithm::finishSegment() {
     searchAlgorithm_->finishSegment();
-}
-
-void SearchAlgorithm::logStatistics() {
-    searchAlgorithm_->logStatistics();
-}
-
-void SearchAlgorithm::resetStatistics() {
-    searchAlgorithm_->resetStatistics();
 }
 
 void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
@@ -54,7 +46,7 @@ void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
     auto dataPtr = std::shared_ptr<const f32[]>(feature.data(), [](const f32*) {});
-    searchAlgorithm_->addFeature(dataPtr, F);
+    searchAlgorithm_->passFeature(dataPtr, F);
 }
 
 void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
@@ -76,7 +68,7 @@ void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
     auto dataPtr = std::shared_ptr<const f32[]>(features.data(), [](const f32*) {});
-    searchAlgorithm_->addFeatures(dataPtr, T, F);
+    searchAlgorithm_->passFeatures(dataPtr, T, F);
 }
 
 std::string SearchAlgorithm::getCurrentBestTranscription() {
@@ -87,8 +79,8 @@ std::string SearchAlgorithm::getCurrentBestTranscription() {
     std::stringstream ss;
 
     for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        if (it->lemma) {
-            ss << it->lemma->symbol() << " ";
+        if (it->pronunciation) {
+            ss << it->pronunciation->lemma()->symbol() << " ";
         }
     }
 
@@ -101,12 +93,10 @@ bool SearchAlgorithm::decodeMore() {
 
 std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
     reset();
-    resetStatistics();
     enterSegment();
     addFeatures(features);
     finishSegment();
     decodeMore();
     auto result = getCurrentBestTranscription();
-    logStatistics();
     return result;
 }

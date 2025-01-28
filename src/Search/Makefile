@@ -17,6 +17,7 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Search.o \
 		$(OBJDIR)/StateTree.o \
 		$(OBJDIR)/StateTreeIo.o \
+		$(OBJDIR)/Traceback.o \
 		$(OBJDIR)/WordConditionedTreeSearch.o
 
 CHECK_O		= $(OBJDIR)/check.o \

@@ -32,12 +32,6 @@ public:
     // Call after all features of the current segment have been passed
     void finishSegment();
 
-    // Write search statistics in log file
-    void logStatistics();
-
-    // Reset search statistics
-    void resetStatistics();
-
     // Pass a feature tensor of shape [F] or [1, F]
     void addFeature(py::array_t<f32> const&);
 

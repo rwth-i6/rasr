@@ -26,6 +26,8 @@
 #include <Speech/ModelCombination.hh>
 #include <Speech/Types.hh>
 
+#include "Traceback.hh"
+
 namespace Search {
 
 /*
@@ -51,53 +53,6 @@ namespace Search {
  */
 class SearchAlgorithmV2 : public virtual Core::Component {
 public:
-    // Struct to keep track of a collection of scores
-    struct ScoreVector {
-        Score acoustic, lm;
-
-        ScoreVector(Score am, Score lm)
-                : acoustic(am), lm(lm) {}
-        operator Score() const {
-            return acoustic + lm;
-        };
-        ScoreVector operator+(ScoreVector const& other) const {
-            return ScoreVector(acoustic + other.acoustic, lm + other.lm);
-        }
-        ScoreVector operator-(ScoreVector const& other) const {
-            return ScoreVector(acoustic - other.acoustic, lm - other.lm);
-        }
-        ScoreVector& operator+=(ScoreVector const& other) {
-            acoustic += other.acoustic;
-            lm += other.lm;
-            return *this;
-        }
-        ScoreVector& operator-=(ScoreVector const& other) {
-            acoustic -= other.acoustic;
-            lm -= other.lm;
-            return *this;
-        }
-    };
-
-    // Struct to store data for a single traceback entry
-    struct TracebackItem {
-    public:
-        const Bliss::Lemma*              lemma;          // Corresponding lexicon lemma
-        const Bliss::LemmaPronunciation* pronunciation;  // Pronunciation of lexicon lemma for lattice creation
-        Speech::TimeframeIndex           time;           // Ending timeframe
-        ScoreVector                      scores;         // Absolute score
-        TracebackItem(const Bliss::Lemma* l, const Bliss::LemmaPronunciation* p, Speech::TimeframeIndex t, ScoreVector s)
-                : lemma(l), pronunciation(p), time(t), scores(s) {}
-    };
-
-    // List of TracebackItems representing a full traceback path
-    class Traceback : public std::vector<TracebackItem>, public Core::ReferenceCounted {
-    public:
-        void                    write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
-        Fsa::ConstAutomatonRef  lemmaAcceptor(Core::Ref<const Bliss::Lexicon>) const;
-        Fsa::ConstAutomatonRef  lemmaPronunciationAcceptor(Core::Ref<const Bliss::Lexicon>) const;
-        Lattice::WordLatticeRef wordLattice(Core::Ref<const Bliss::Lexicon>) const;
-    };
-
     SearchAlgorithmV2(Core::Configuration const&)
             : Core::Component(config) {}
     virtual ~SearchAlgorithmV2() = default;
@@ -117,8 +72,7 @@ public:
     virtual void reset() = 0;
 
     // Signal the beginning of a new audio segment.
-    virtual void enterSegment()                            = 0;
-    virtual void enterSegment(Bliss::SpeechSegment const*) = 0;
+    virtual void enterSegment(Bliss::SpeechSegment const* = nullptr) = 0;
 
     // Signal that all features of the current segment have been passed.
     virtual void finishSegment() = 0;
@@ -135,12 +89,6 @@ public:
 
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;
-
-    // Log all statistics tracked by the search algorithm (e.g. score-timing, average hypothesis counts etc.).
-    virtual void logStatistics() const = 0;
-
-    // Reset all statistics tracked by the search algorithm.
-    virtual void resetStatistics() = 0;
 
     // Try to decode one more step. Return bool indicates whether a step could be made.
     virtual bool decodeStep() = 0;

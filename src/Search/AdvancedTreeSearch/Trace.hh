@@ -18,15 +18,16 @@
 #include <Core/ReferenceCounting.hh>
 #include <Search/Search.hh>
 #include <Search/StateTree.hh>
+#include <Search/Traceback.hh>
 #include <Search/Types.hh>
 #include "PathTrace.hh"
 
 namespace Search {
 
 struct AlternativeHistory {
-    Lm::History                  hist;
-    SearchAlgorithm::ScoreVector offset;
-    Core::Ref<class Trace>       trace;
+    Lm::History            hist;
+    ScoreVector            offset;
+    Core::Ref<class Trace> trace;
 };
 
 struct AlternativeHistoryCompare {
@@ -49,7 +50,7 @@ public:
 using AlternativeHistoryQueue = AccessiblePriorityQueue<AlternativeHistory, std::vector<AlternativeHistory>, AlternativeHistoryCompare>;
 
 class Trace : public Core::ReferenceCounted,
-              public SearchAlgorithm::TracebackItem {
+              public TracebackItem {
 public:
     Core::Ref<Trace> predecessor;
     Core::Ref<Trace> sibling;
@@ -62,10 +63,10 @@ public:
     Trace(Core::Ref<Trace> const&          pre,
           Bliss::LemmaPronunciation const* p,
           TimeframeIndex                   t,
-          SearchAlgorithm::ScoreVector     s,
+          ScoreVector                      s,
           Transit const&                   transit);
 
-    Trace(TimeframeIndex t, SearchAlgorithm::ScoreVector s, const Transit& transit);
+    Trace(TimeframeIndex t, ScoreVector s, const Transit& transit);
 
     void write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
 

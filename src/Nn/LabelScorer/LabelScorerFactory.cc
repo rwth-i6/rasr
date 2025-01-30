@@ -13,21 +13,20 @@
  *  limitations under the License.
  */
 
-#include "EncoderFactory.hh"
-#include "Core/Choice.hh"
+#include "LabelScorerFactory.hh"
 
 namespace Nn {
 
-EncoderFactory::EncoderFactory()
-        : choices_(), paramEncoderType("type", &choices_, "Choice from a set of encoder types."), registry_() {}
+LabelScorerFactory::LabelScorerFactory()
+        : choices_(), paramLabelScorerType("type", &choices_, "Choice from a set of label scorer types."), registry_() {}
 
-void EncoderFactory::registerEncoder(const char* name, CreationFunction creationFunction) {
+void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction creationFunction) {
     choices_.addChoice(name, registry_.size());
     registry_.push_back(std::move(creationFunction));
 }
 
-Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config) const {
-    return registry_.at(paramEncoderType(config))(config);
+Core::Ref<LabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {
+    return registry_.at(paramLabelScorerType(config))(config);
 }
 
 }  // namespace Nn

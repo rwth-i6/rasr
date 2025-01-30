@@ -23,7 +23,7 @@
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/LabelScorer.hh"
-#include "LabelScorer/ScaledLabelScorer.hh"
+#include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {
 class FormatSet;
@@ -35,15 +35,8 @@ class Module_ {
 private:
     Core::FormatSet* formats_;
 
-    EncoderFactory encoderFactory_;
-
-    Core::ParameterChoice paramEncoderType;
-
-    static const Core::Choice          decoderTypeChoice;
-    static const Core::ParameterChoice paramDecoderType;
-
-    static const Core::Choice          labelScorerTypeChoice;
-    static const Core::ParameterChoice paramLabelScorerType;
+    EncoderFactory     encoderFactory_;
+    LabelScorerFactory labelScorerFactory_;
 
 public:
     Module_();
@@ -59,26 +52,15 @@ public:
         pythonFeatureScorer    = FeatureScorerTypeOffset + 6,
     };
 
-    enum LabelScorerType {
-        NoOpLabelScorerType,
-        LegacyFeatureScorerLabelScorerType,
-        NoCtxOnnxLabelScorerType,
-        LimitedCtxOnnxLabelScorerType,
-        EncoderDecoderLabelScorerType,
-        EncoderOnlyLabelScorerType,
-        StatefulOnnxLabelScorerType,
-        CombineLabelScorerType
-    };
-
     /** Set of file format class.
      */
     Core::FormatSet& formats();
 
-    EncoderFactory& encoderFactory();
+    EncoderFactory&     encoderFactory();
+    LabelScorerFactory& labelScorerFactory();
 
-    Core::Ref<Encoder>           createEncoder(const Core::Configuration& config) const;
-    Core::Ref<LabelScorer>       createLabelScorer(const Core::Configuration& config) const;
-    Core::Ref<ScaledLabelScorer> createScaledLabelScorer(const Core::Configuration& config) const;
+    Core::Ref<Encoder>     createEncoder(Core::Configuration const& config) const;
+    Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

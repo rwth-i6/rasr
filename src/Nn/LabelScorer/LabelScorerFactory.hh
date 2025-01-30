@@ -12,31 +12,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef ENCODER_FACTORY_HH
-#define ENCODER_FACTORY_HH
+#ifndef LABEL_SCORER_FACTORY_HH
+#define LABEL_SCORER_FACTORY_HH
 
 #include <Core/Choice.hh>
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <functional>
-#include "Encoder.hh"
+#include "LabelScorer.hh"
 
 namespace Nn {
 
-class EncoderFactory : public Core::ReferenceCounted {
+class LabelScorerFactory : public Core::ReferenceCounted {
 private:
     Core::Choice choices_;
 
 public:
-    Core::ParameterChoice paramEncoderType;
+    Core::ParameterChoice paramLabelScorerType;
 
-    EncoderFactory();
+    LabelScorerFactory();
 
-    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
+    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
 
-    void               registerEncoder(const char* name, CreationFunction creationFunction);
-    Core::Ref<Encoder> createEncoder(Core::Configuration const& config) const;
+    void                   registerLabelScorer(const char* name, CreationFunction creationFunction);
+    Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;
@@ -46,4 +46,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // ENCODER_FACTORY_HH
+#endif  // LABEL_SCORER_FACTORY_HH

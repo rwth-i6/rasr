@@ -55,10 +55,7 @@ using namespace Nn;
 Module_::Module_()
         : formats_(0),
           encoderFactory_(),
-          paramEncoderType(
-                  "type",
-                  &encoderFactory_.encoderChoices(),
-                  "Choice from a set of encoder types.") {
+          labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -87,13 +84,87 @@ Module_::Module_()
 #endif
 
     // Doesn't apply any transformation to the inputs; just pass them on
-    encoderFactory_.registerEncoder("no-op", [](Core::Configuration const& config) { return Core::ref(new NoOpEncoder(config)); });
+    encoderFactory_.registerEncoder(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoOpEncoder(config));
+            });
 
     // Forward encoder inputs through an onnx network
-    encoderFactory_.registerEncoder("onnx", [](Core::Configuration const& config) { return Core::ref(new OnnxEncoder(config)); });
+    encoderFactory_.registerEncoder(
+            "onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new OnnxEncoder(config));
+            });
 
     // Forward  encoder inputs chunkwise through an onnx network
-    encoderFactory_.registerEncoder("chunked-onnx", [](Core::Configuration const& config) { return Core::ref(new ChunkedOnnxEncoder(config)); });
+    encoderFactory_.registerEncoder(
+            "chunked-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new ChunkedOnnxEncoder(config));
+            });
+
+    // Assume inputs are already finished scores and just passes on the score at the current step
+    labelScorerFactory_.registerLabelScorer(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
+
+    // Wrapper around legacy Mm::FeatureScorer
+    labelScorerFactory_.registerLabelScorer(
+            "legacy-feature-scorer",
+            [](Core::Configuration const& config) {
+                return Core::ref(new LegacyFeatureScorerLabelScorer(config));
+            });
+
+    // Forward the feature at the current step through an onnx network
+    labelScorerFactory_.registerLabelScorer(
+            "no-ctx-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoCtxOnnxLabelScorer(config));
+            });
+
+    // Forward the feature at the current step together with a (fixed-size) history through an onnx network
+    labelScorerFactory_.registerLabelScorer(
+            "limited-ctx-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new LimitedCtxOnnxLabelScorer(config));
+            });
+
+    // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-decoder",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        createEncoder(Core::Configuration(config, "encoder")),
+                        createLabelScorer(Core::Configuration(config, "decoder"))));
+            });
+
+    // A label scorer consisting of an encoder that produces scores based on the features
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-only",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        createEncoder(Core::Configuration(config, "encoder")),
+                        Core::ref(new StepwiseNoOpLabelScorer(config))));
+            });
+
+    // Scoring based on hidden states that are initialized and updated based on features and history tokens
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Adds the scores of multiple scaled sub-label-scorers
+    labelScorerFactory_.registerLabelScorer(
+            "combine",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CombineLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {
@@ -111,74 +182,10 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
-const Core::Choice Module_::labelScorerTypeChoice(
-        // Assume inputs are already finished scores and just passes on the score at the current step
-        "no-op", LabelScorerType::NoOpLabelScorerType,
-        // Wrapper around legacy Mm::FeatureScorer
-        "legacy-feature-scorer", LabelScorerType::LegacyFeatureScorerLabelScorerType,
-        // Forward the feature at the current step through an onnx network
-        "no-ctx-onnx", LabelScorerType::NoCtxOnnxLabelScorerType,
-        // Forward the feature at the current step together with a (fixed-size) history through an onnx network
-        "limited-ctx-onnx", LabelScorerType::LimitedCtxOnnxLabelScorerType,
-        // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
-        "encoder-decoder", LabelScorerType::EncoderDecoderLabelScorerType,
-        // A label scorer consisting of an encoder that produces scores based on the features
-        "encoder-only", LabelScorerType::EncoderOnlyLabelScorerType,
-        // Scoring based on hidden states that are initialized and updated based on features and history tokens
-        "stateful-onnx", LabelScorerType::StatefulOnnxLabelScorerType,
-        // Adds the scores of multiple scaled sub-label-scorers
-        "combine", LabelScorerType::CombineLabelScorerType,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice Module_::paramLabelScorerType(
-        "type",
-        &Module_::labelScorerTypeChoice,
-        "Choice from a set of label scorer types.",
-        LabelScorerType::NoOpLabelScorerType);
-
-Core::Ref<Encoder> Module_::createEncoder(const Core::Configuration& config) const {
-    return encoderFactory_.createEncoder(paramEncoderType(config), config);
+Core::Ref<Encoder> Module_::createEncoder(Core::Configuration const& config) const {
+    return encoderFactory_.createEncoder(config);
 }
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-    Core::Ref<LabelScorer> result;
-    switch (paramLabelScorerType(config)) {
-        case LabelScorerType::NoOpLabelScorerType:
-            result = Core::ref(new StepwiseNoOpLabelScorer(config));
-            break;
-        case LabelScorerType::LegacyFeatureScorerLabelScorerType:
-            result = Core::ref(new LegacyFeatureScorerLabelScorer(config));
-            break;
-        case LabelScorerType::NoCtxOnnxLabelScorerType:
-            result = Core::ref(new NoCtxOnnxLabelScorer(config));
-            break;
-        case LabelScorerType::LimitedCtxOnnxLabelScorerType:
-            result = Core::ref(new LimitedCtxOnnxLabelScorer(config));
-            break;
-        case LabelScorerType::EncoderDecoderLabelScorerType:
-            result = Core::ref(new EncoderDecoderLabelScorer(
-                    config,
-                    createEncoder(Core::Configuration(config, "encoder")),
-                    createLabelScorer(Core::Configuration(config, "decoder"))));
-            break;
-        case LabelScorerType::EncoderOnlyLabelScorerType:
-            result = Core::ref(new EncoderDecoderLabelScorer(
-                    config,
-                    createEncoder(Core::Configuration(config, "encoder")),
-                    Core::ref(new StepwiseNoOpLabelScorer(config))));
-            break;
-        case LabelScorerType::StatefulOnnxLabelScorerType:
-            result = Core::ref(new StatefulOnnxLabelScorer(config));
-            break;
-        case LabelScorerType::CombineLabelScorerType:
-            result = Core::ref(new CombineLabelScorer(config));
-            break;
-        default:
-            Core::Application::us()->criticalError("unknown label scorer type: %d", paramLabelScorerType(config));
-    }
-    return result;
-}
-
-Core::Ref<ScaledLabelScorer> Module_::createScaledLabelScorer(const Core::Configuration& config) const {
-    return Core::ref(new ScaledLabelScorer(config, createLabelScorer(config)));
+Core::Ref<LabelScorer> Module_::createLabelScorer(Core::Configuration const& config) const {
+    return labelScorerFactory_.createLabelScorer(config);
 }

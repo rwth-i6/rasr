@@ -15,6 +15,7 @@
 
 #include "CombineLabelScorer.hh"
 #include <Nn/Module.hh>
+#include "Nn/LabelScorer/ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -26,7 +27,7 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; i++) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
-        scorers_.push_back(Nn::Module::instance().createScaledLabelScorer(subConfig));
+        scorers_.push_back(Core::ref(new ScaledLabelScorer(subConfig, Nn::Module::instance().createLabelScorer(subConfig))));
     }
 }
 

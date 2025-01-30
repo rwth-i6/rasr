@@ -8,6 +8,7 @@ set(RasrLabelScorer_SOURCES
     Encoder.cc
     EncoderDecoderLabelScorer.cc
     LabelScorer.cc
+    LabelScorerFactory.cc
     ScoringContext.cc
     SharedDataHolder.cc)
 if(${MODULE_ONNX})

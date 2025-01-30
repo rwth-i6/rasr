@@ -1,4 +1,5 @@
 #include "OnnxEncoder.hh"
+#include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Nn {
 
@@ -65,7 +66,7 @@ void OnnxEncoder::encode() {
     for (size_t t = 0ul; t < T_in; ++t) {
         std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + F, value.data<f32>(0, t));
     }
-    sessionInputs.emplace_back(std::make_pair(featuresName_, value));
+    sessionInputs.emplace_back(std::make_pair(featuresName_, std::move(value)));
 
     // features-size is an optional input
     if (featuresSizeName_ != "") {
@@ -82,7 +83,7 @@ void OnnxEncoder::encode() {
      * Put outputs into buffer
      */
 
-    auto onnxOutputValue = sessionOutputs.front();
+    auto& onnxOutputValue = sessionOutputs.front();
 
     size_t T_out;
     if (onnxOutputValue.numDims() == 3) {
@@ -96,8 +97,10 @@ void OnnxEncoder::encode() {
 
     const auto& [rangeStart, rangeEnd] = validOutFrameRange(T_in, T_out);
 
+    SharedDataHolder outputValueWrapper(std::move(onnxOutputValue));
+
     for (size_t t = rangeStart; t < rangeEnd; ++t) {
-        outputBuffer_.push_back({onnxOutputValue, t * outputSize_});
+        outputBuffer_.push_back({outputValueWrapper, t * outputSize_});
     }
 }
 

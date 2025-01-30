@@ -1,6 +1,7 @@
 set(RasrLabelScorer_SOURCES
     BufferedLabelScorer.cc
     CombineLabelScorer.cc
+    EncoderFactory.cc
     ScaledLabelScorer.cc
     NoOpLabelScorer.cc
     LegacyFeatureScorerLabelScorer.cc

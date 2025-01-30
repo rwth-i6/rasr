@@ -38,7 +38,6 @@ public:
     ScoringContextRef              getInitialScoringContext();
     ScoringContextRef              extendedScoringContext(Request const& request);
     void                           addInput(SharedDataHolder const& input, size_t featureSize);
-    void                           addInput(std::vector<f32> const& input);
     void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
     std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request);
     std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);

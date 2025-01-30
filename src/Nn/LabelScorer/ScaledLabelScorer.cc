@@ -48,10 +48,6 @@ void ScaledLabelScorer::addInput(SharedDataHolder const& input, size_t featureSi
     scorer_->addInput(input, featureSize);
 }
 
-void ScaledLabelScorer::addInput(std::vector<f32> const& input) {
-    scorer_->addInput(input);
-}
-
 void ScaledLabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     scorer_->addInputs(input, timeSize, featureSize);
 }

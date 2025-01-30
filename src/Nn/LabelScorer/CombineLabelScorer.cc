@@ -74,12 +74,6 @@ void CombineLabelScorer::addInput(SharedDataHolder const& input, size_t featureS
     }
 }
 
-void CombineLabelScorer::addInput(std::vector<f32> const& input) {
-    for (auto& scorer : scorers_) {
-        scorer->addInput(input);
-    }
-}
-
 void CombineLabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     for (auto& scorer : scorers_) {
         scorer->addInputs(input, timeSize, featureSize);

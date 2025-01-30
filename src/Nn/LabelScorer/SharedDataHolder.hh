@@ -16,7 +16,8 @@
 #ifndef SHARED_DATA_HOLDER_HH
 #define SHARED_DATA_HOLDER_HH
 
-#include <vector>
+#include <Mm/Feature.hh>
+
 #ifdef MODULE_ONNX
 #include <Onnx/Value.hh>
 #endif
@@ -31,11 +32,12 @@ namespace Nn {
  */
 class SharedDataHolder {
 public:
+    SharedDataHolder(SharedDataHolder const& data, size_t offset = 0ul);
+    SharedDataHolder(Core::Ref<const Mm::Feature::Vector> vec, size_t offset = 0ul);
     SharedDataHolder(std::shared_ptr<const f32[]> const& ptr, size_t offset = 0ul);
-    SharedDataHolder(std::vector<f32> const& vec, size_t offset = 0ul);
 
 #ifdef MODULE_ONNX
-    SharedDataHolder(Onnx::Value const& value, size_t offset = 0ul);
+    SharedDataHolder(Onnx::Value&& value, size_t offset = 0ul);
 #endif
 
     operator std::shared_ptr<const f32[]>() const {

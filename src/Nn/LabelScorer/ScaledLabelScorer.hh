@@ -36,7 +36,6 @@ public:
     ScoringContextRef              getInitialScoringContext() override;
     ScoringContextRef              extendedScoringContext(Request const& request) override;
     void                           addInput(SharedDataHolder const& input, size_t featureSize) override;
-    void                           addInput(std::vector<f32> const& input) override;
     void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
     std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request) override;
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;

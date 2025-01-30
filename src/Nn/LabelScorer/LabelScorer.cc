@@ -20,13 +20,8 @@ namespace Nn {
 LabelScorer::LabelScorer(Core::Configuration const& config)
         : Core::Component(config) {}
 
-void LabelScorer::addInput(std::vector<f32> const& input) {
-    addInput(input, input.size());
-}
-
 void LabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
     for (size_t t = 0ul; t < timeSize; ++t) {
-        // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
         addInput({input, t * featureSize}, featureSize);
     }
 }

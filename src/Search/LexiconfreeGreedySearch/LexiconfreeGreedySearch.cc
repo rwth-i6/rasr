@@ -88,13 +88,6 @@ void LexiconfreeGreedySearch::passFeature(Nn::SharedDataHolder const& data, size
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::passFeature(std::vector<f32> const& data) {
-    verify(labelScorer_);
-    featureProcessingTime_.tic();
-    labelScorer_->addInput(data);
-    featureProcessingTime_.toc();
-}
-
 void LexiconfreeGreedySearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();

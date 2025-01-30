@@ -21,6 +21,7 @@
 #include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LegacyFeatureScorerLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "Nn/LabelScorer/EncoderFactory.hh"
 #ifdef MODULE_ONNX
 #include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoCtxOnnxLabelScorer.hh"
@@ -52,7 +53,12 @@
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0) {
+        : formats_(0),
+          encoderFactory_(),
+          paramEncoderType(
+                  "type",
+                  &encoderFactory_.encoderChoices(),
+                  "Choice from a set of encoder types.") {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -79,6 +85,15 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // Doesn't apply any transformation to the inputs; just pass them on
+    encoderFactory_.registerEncoder("no-op", [](Core::Configuration const& config) { return Core::ref(new NoOpEncoder(config)); });
+
+    // Forward encoder inputs through an onnx network
+    encoderFactory_.registerEncoder("onnx", [](Core::Configuration const& config) { return Core::ref(new OnnxEncoder(config)); });
+
+    // Forward  encoder inputs chunkwise through an onnx network
+    encoderFactory_.registerEncoder("chunked-onnx", [](Core::Configuration const& config) { return Core::ref(new ChunkedOnnxEncoder(config)); });
 };
 
 Module_::~Module_() {
@@ -95,15 +110,6 @@ Core::FormatSet& Module_::formats() {
     }
     return *formats_;
 }
-
-const Core::Choice Module_::encoderTypeChoice(
-        // Doesn't apply any transformation to the inputs; just pass them on
-        "no-op", EncoderType::NoOpEncoderType,
-        // Forward encoder inputs through an onnx network
-        "onnx", EncoderType::OnnxEncoderType,
-        // Forward  encoder inputs chunkwise through an onnx network
-        "chunked-onnx", EncoderType::ChunkedOnnxEncoderType,
-        Core::Choice::endMark());
 
 const Core::Choice Module_::labelScorerTypeChoice(
         // Assume inputs are already finished scores and just passes on the score at the current step
@@ -124,12 +130,6 @@ const Core::Choice Module_::labelScorerTypeChoice(
         "combine", LabelScorerType::CombineLabelScorerType,
         Core::Choice::endMark());
 
-const Core::ParameterChoice Module_::paramEncoderType(
-        "type",
-        &Module_::encoderTypeChoice,
-        "Choice from a set of encoder types.",
-        EncoderType::NoOpEncoderType);
-
 const Core::ParameterChoice Module_::paramLabelScorerType(
         "type",
         &Module_::labelScorerTypeChoice,
@@ -137,24 +137,7 @@ const Core::ParameterChoice Module_::paramLabelScorerType(
         LabelScorerType::NoOpLabelScorerType);
 
 Core::Ref<Encoder> Module_::createEncoder(const Core::Configuration& config) const {
-    Core::Ref<Encoder> result;
-    switch (paramEncoderType(config)) {
-        case EncoderType::NoOpEncoderType:
-            result = Core::ref(new NoOpEncoder(config));
-            break;
-#ifdef MODULE_ONNX
-        case EncoderType::OnnxEncoderType:
-            result = Core::ref(new OnnxEncoder(config));
-            break;
-        case EncoderType::ChunkedOnnxEncoderType:
-            result = Core::ref(new ChunkedOnnxEncoder(config));
-            break;
-#endif
-        default:
-            Core::Application::us()->criticalError("unknown encoder type: %d", paramEncoderType(config));
-    }
-
-    return result;
+    return encoderFactory_.createEncoder(paramEncoderType(config), config);
 }
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {

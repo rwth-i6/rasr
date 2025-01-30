@@ -79,7 +79,6 @@ public:
 
     // Pass a single feature vector
     virtual void passFeature(Nn::SharedDataHolder const& data, size_t featureSize) = 0;
-    virtual void passFeature(std::vector<f32> const& data)                         = 0;
 
     // Pass feature vectors for multiple time steps
     virtual void passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) = 0;

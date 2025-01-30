@@ -57,7 +57,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}}}};
+                {{-1, -2}, {1, -2}}}};
 
 NoCtxOnnxLabelScorer::NoCtxOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),

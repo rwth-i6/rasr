@@ -21,6 +21,7 @@
 #include <Core/Parameter.hh>
 #include <Flow/Module.hh>
 #include "LabelScorer/Encoder.hh"
+#include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/ScaledLabelScorer.hh"
 
@@ -34,8 +35,9 @@ class Module_ {
 private:
     Core::FormatSet* formats_;
 
-    static const Core::Choice          encoderTypeChoice;
-    static const Core::ParameterChoice paramEncoderType;
+    EncoderFactory encoderFactory_;
+
+    Core::ParameterChoice paramEncoderType;
 
     static const Core::Choice          decoderTypeChoice;
     static const Core::ParameterChoice paramDecoderType;
@@ -57,12 +59,6 @@ public:
         pythonFeatureScorer    = FeatureScorerTypeOffset + 6,
     };
 
-    enum EncoderType {
-        NoOpEncoderType,
-        OnnxEncoderType,
-        ChunkedOnnxEncoderType
-    };
-
     enum LabelScorerType {
         NoOpLabelScorerType,
         LegacyFeatureScorerLabelScorerType,
@@ -77,6 +73,8 @@ public:
     /** Set of file format class.
      */
     Core::FormatSet& formats();
+
+    EncoderFactory& encoderFactory();
 
     Core::Ref<Encoder>           createEncoder(const Core::Configuration& config) const;
     Core::Ref<LabelScorer>       createLabelScorer(const Core::Configuration& config) const;

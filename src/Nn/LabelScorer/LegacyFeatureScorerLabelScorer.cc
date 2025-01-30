@@ -32,11 +32,8 @@ void LegacyFeatureScorerLabelScorer::reset() {
 void LegacyFeatureScorerLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
     std::vector<f32> featureVector(featureSize);
     std::copy(input.get(), input.get() + featureSize, featureVector.begin());
-    addInput(featureVector);
-}
 
-void LegacyFeatureScorerLabelScorer::addInput(std::vector<f32> const& input) {
-    auto feature = Core::ref(new Mm::Feature(input));
+    auto feature = Core::ref(new Mm::Feature(featureVector));
 
     if (featureScorer_->isBuffered() and not featureScorer_->bufferFilled()) {
         featureScorer_->addFeature(feature);

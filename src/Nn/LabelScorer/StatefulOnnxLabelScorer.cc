@@ -322,11 +322,11 @@ HiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 
         if (initializerEncoderStatesName_ != "") {
             setupEncoderStatesValue();
-            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
+            sessionInputs.emplace_back(initializerEncoderStatesName_, std::move(encoderStatesValue_));
         }
         if (initializerEncoderStatesSizeName_ != "") {
             setupEncoderStatesSizeValue();
-            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
+            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, std::move(encoderStatesSizeValue_));
         }
 
         std::vector<std::string> sessionOutputNames;
@@ -360,11 +360,11 @@ HiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(HiddenStateRef const&
 
     if (updaterEncoderStatesName_ != "") {
         setupEncoderStatesValue();
-        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
+        sessionInputs.emplace_back(updaterEncoderStatesName_, std::move(encoderStatesValue_));
     }
     if (updaterEncoderStatesSizeName_ != "") {
         setupEncoderStatesSizeValue();
-        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
+        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, std::move(encoderStatesSizeValue_));
     }
     if (updaterTokenName_ != "") {
         sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(std::vector<s32>{static_cast<s32>(nextToken)}));

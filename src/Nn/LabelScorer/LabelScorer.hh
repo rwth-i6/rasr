@@ -115,7 +115,6 @@ public:
 
     // Add a single input feature
     virtual void addInput(SharedDataHolder const& input, size_t featureSize) = 0;
-    virtual void addInput(std::vector<f32> const& input);
 
     // Add input features for multiple time steps at once
     virtual void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);

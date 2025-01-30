@@ -33,7 +33,8 @@ LIBSPRINTFLOW_O	= $(OBJDIR)/AbstractNode.o \
 		  $(OBJDIR)/Synchronization.o \
 		  $(OBJDIR)/Timestamp.o \
 		  $(OBJDIR)/Vector.o \
-		  $(OBJDIR)/VectorTextInput.o
+		  $(OBJDIR)/VectorTextInput.o \
+		  $(OBJDIR)/InputNode.o
 
 CHECK_O		= $(OBJDIR)/check.o \
                   libSprintFlow.$(a) \

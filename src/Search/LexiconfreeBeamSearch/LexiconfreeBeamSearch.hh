@@ -103,7 +103,6 @@ public:
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;
     void                            passFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
-    void                            passFeature(std::vector<f32> const& data) override;
     void                            passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
@@ -122,14 +121,14 @@ private:
      * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their inidces) to be sorted and pruned
      * @tparam compare A callable (e.g. lambda or function pointer) that takes two elements of the hypotheses and returns true if the first element should precede the second element
      */
-    template <typename T>
+    template<typename T>
     void beamPruning(std::vector<T>& hypotheses, std::function<bool(T const&, T const&)>&& compare);
 
     /* Helper function for score-based pruning
      * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their indices) to be pruned sorted by their score
      * @tparam getScore A callable (e.g. lambda or function pointer) that takes a single element from the hypotheses and returns its score
      */
-    template <typename T>
+    template<typename T>
     void scorePruning(std::vector<T>& hypotheses, std::function<Score(T const&)>&& getScore);
 
     size_t maxBeamSize_;
@@ -140,7 +139,7 @@ private:
     bool  useScorePruning_;
     Score scoreThreshold_;
 
-    f32  lengthNormScale_;
+    f32 lengthNormScale_;
 
     bool useBlank_;
     bool useSentenceEnd_;

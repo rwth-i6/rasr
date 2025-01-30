@@ -106,13 +106,6 @@ void LexiconfreeBeamSearch::passFeature(Nn::SharedDataHolder const& data, size_t
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::passFeature(std::vector<f32> const& data) {
-    verify(labelScorer_);
-    featureProcessingTime_.tic();
-    labelScorer_->addInput(data);
-    featureProcessingTime_.toc();
-}
-
 void LexiconfreeBeamSearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
@@ -227,29 +220,29 @@ std::string LexiconfreeBeamSearch::LabelHypothesis::toString() const {
     return ss.str();
 }
 
-void LexiconfreeBeamSearch::topKTokenPruning(std::vector<size_t>& indices, std::vector<Score> const& extensionScores, size_t numUnfinishedHyps) {
-    #pragma omp parallel for
-        for (size_t hypIndex = 0ul; hypIndex < numUnfinishedHyps; ++hypIndex) {
-            // Start and end index of scores coming from current hypothesis
-            size_t start = hypIndex * lexicon_->nLemmas();
-            size_t end   = start + lexicon_->nLemmas();
+void        LexiconfreeBeamSearch::topKTokenPruning(std::vector<size_t>& indices, std::vector<Score> const& extensionScores, size_t numUnfinishedHyps) {
+#pragma omp parallel for
+    for (size_t hypIndex = 0ul; hypIndex < numUnfinishedHyps; ++hypIndex) {
+        // Start and end index of scores coming from current hypothesis
+        size_t start = hypIndex * lexicon_->nLemmas();
+        size_t end   = start + lexicon_->nLemmas();
 
-            // Make sure the best topKTokens_ scores are moved to the beginning of the [start, end) interval
-            std::nth_element(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + end,
-                             [&extensionScores](size_t a, size_t b) {
-                                 return extensionScores[a] < extensionScores[b];
-                             });
+        // Make sure the best topKTokens_ scores are moved to the beginning of the [start, end) interval
+        std::nth_element(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + end,
+                         [&extensionScores](size_t a, size_t b) {
+                             return extensionScores[a] < extensionScores[b];
+                         });
 
-            // Copy the topKTokens_ best indices to the front of indices (note: this location doesn't overlap with [start, end) of the next hyps because topKTokens_ < nLemmas)
-            if (hypIndex > 0ul) {
-                std::copy(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + hypIndex * topKTokens_);
-            }
+        // Copy the topKTokens_ best indices to the front of indices (note: this location doesn't overlap with [start, end) of the next hyps because topKTokens_ < nLemmas)
+        if (hypIndex > 0ul) {
+            std::copy(indices.begin() + start, indices.begin() + start + topKTokens_, indices.begin() + hypIndex * topKTokens_);
         }
+    }
 
     indices.resize(numUnfinishedHyps * topKTokens_);  // Throw away all pruned indices
 }
 
-template <typename T>
+template<typename T>
 void LexiconfreeBeamSearch::beamPruning(std::vector<T>& hypotheses, std::function<bool(T const&, T const&)>&& compare) {
     if (hypotheses.size() > maxBeamSize_) {
         // Sort the hypotheses by associated score value such that the first `beamSize_` elements are the best and sorted
@@ -262,10 +255,10 @@ void LexiconfreeBeamSearch::beamPruning(std::vector<T>& hypotheses, std::functio
     }
 }
 
-template <typename T>
+template<typename T>
 void LexiconfreeBeamSearch::scorePruning(std::vector<T>& hypotheses, std::function<float(T const&)>&& getScore) {
     // Compute the pruning threshold
-    auto   pruningThreshold    = getScore(hypotheses.front()) + scoreThreshold_;
+    auto   pruningThreshold = getScore(hypotheses.front()) + scoreThreshold_;
     size_t numSurvivingHyps = 0ul;
     // Use the fact that hypotheses are sorted by corresponding score and prune all indices after the first one that
     // violates the score threshold
@@ -337,7 +330,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
     if (not result) {
         return false;
     }
-    auto const& scoresWithTimes        = result.value();
+    auto const&        scoresWithTimes = result.value();
     std::vector<Score> extensionScores = scoresWithTimes.scores;
 
     std::vector<Score> combinedScores(numUnfinishedHyps * nLemmas);
@@ -346,8 +339,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
         // normalized-score = total-score / ((current-length + 1) ^ lengthNormScale_)
         // with total-score = current-score * (current-length ^ lengthNormScale_) + extension-score
         // when lengthNormScale_ = 0 (per default), no normalization will be performed
-        combinedScores[requestIndex] = (baseHyps[requestIndex]->score * std::pow(baseHyps[requestIndex]->length, lengthNormScale_) + extensionScores[requestIndex])
-                                       / std::pow(baseHyps[requestIndex]->length + 1, lengthNormScale_);
+        combinedScores[requestIndex] = (baseHyps[requestIndex]->score * std::pow(baseHyps[requestIndex]->length, lengthNormScale_) + extensionScores[requestIndex]) / std::pow(baseHyps[requestIndex]->length + 1, lengthNormScale_);
     }
 
     std::vector<size_t> indices(requests.size());  // Index vector to keep track of which requests survive pruning
@@ -364,22 +356,18 @@ bool LexiconfreeBeamSearch::decodeStep() {
      * Perform pre-pruning to maxBeamSize_ of all unfinished hypothesis extensions
      */
     beamPruning(
-        indices,
-        std::function<bool(size_t const&, size_t const&)>(
-            [&combinedScores](size_t a, size_t b) { return combinedScores[a] < combinedScores[b]; }
-        )
-    );
+            indices,
+            std::function<bool(size_t const&, size_t const&)>(
+                    [&combinedScores](size_t a, size_t b) { return combinedScores[a] < combinedScores[b]; }));
 
     /*
      * Score-based pruning of the unfinished hypotheses
      */
     if (useScorePruning_) {
         scorePruning(
-            indices,
-            std::function<Score(const size_t&)>(
-                [&combinedScores](size_t index) { return combinedScores[index]; }
-            )
-        );
+                indices,
+                std::function<Score(const size_t&)>(
+                        [&combinedScores](size_t index) { return combinedScores[index]; }));
     }
 
     /*
@@ -415,24 +403,20 @@ bool LexiconfreeBeamSearch::decodeStep() {
      * Final pruning down to maxBeamSize_ elements
      */
     beamPruning(
-        newBeam,
-        std::function<bool(const LabelHypothesis&, const LabelHypothesis&)>(
-            [](const LabelHypothesis& hyp1, const LabelHypothesis& hyp2) {
-                return hyp1.score < hyp2.score;
-            }
-        )
-    );
+            newBeam,
+            std::function<bool(const LabelHypothesis&, const LabelHypothesis&)>(
+                    [](const LabelHypothesis& hyp1, const LabelHypothesis& hyp2) {
+                        return hyp1.score < hyp2.score;
+                    }));
 
     /*
      * Score-based pruning of the final remaining hypotheses
      */
     if (useScorePruning_) {
         scorePruning(
-            newBeam,
-            std::function<Score(const LabelHypothesis&)>(
-                [](const LabelHypothesis& hyp) { return hyp.score; }
-            )
-        );
+                newBeam,
+                std::function<Score(const LabelHypothesis&)>(
+                        [](const LabelHypothesis& hyp) { return hyp.score; }));
     }
 
     // /*

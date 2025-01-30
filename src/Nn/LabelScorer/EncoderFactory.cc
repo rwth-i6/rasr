@@ -17,17 +17,16 @@
 
 namespace Nn {
 
-const Core::Choice& EncoderFactory::encoderChoices() const {
-    return choices_;
-}
+EncoderFactory::EncoderFactory()
+        : choices_(), paramEncoderType("type", &choices_, "Choice from a set of encoder types."), registry_() {}
 
 void EncoderFactory::registerEncoder(const char* name, CreationFunction creationFunction) {
     choices_.addChoice(name, registry_.size());
     registry_.push_back(std::move(creationFunction));
 }
 
-Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Choice::Value id, Core::Configuration const& config) const {
-    return registry_.at(id)(config);
+Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& config) const {
+    return registry_.at(paramEncoderType(config))(config);
 }
 
 }  // namespace Nn

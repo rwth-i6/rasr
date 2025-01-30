@@ -27,19 +27,23 @@
 namespace Nn {
 
 class EncoderFactory {
+private:
+    // Needs to be declared before `paramEncoderType` because `paramEncoderType` depends on `choices_`.
+    Core::Choice choices_;
+
 public:
+    Core::ParameterChoice paramEncoderType;
+
+    EncoderFactory();
+
     typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
 
     void               registerEncoder(const char* name, CreationFunction creationFunction);
-    Core::Ref<Encoder> createEncoder(Core::Choice::Value id, Core::Configuration const& config) const;
-
-    const Core::Choice& encoderChoices() const;
+    Core::Ref<Encoder> createEncoder(Core::Configuration const& config) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;
-
-    Registry     registry_;
-    Core::Choice choices_;
+    Registry                              registry_;
 };
 
 }  // namespace Nn

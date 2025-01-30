@@ -46,11 +46,7 @@ using namespace Nn;
 
 Module_::Module_()
         : formats_(0),
-          encoderFactory_(),
-          paramEncoderType(
-                  "type",
-                  &encoderFactory_.encoderChoices(),
-                  "Choice from a set of encoder types.") {
+          encoderFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -99,7 +95,7 @@ EncoderFactory& Module_::encoderFactory() {
 }
 
 Core::Ref<Encoder> Module_::createEncoder(Core::Configuration const& config) const {
-    return encoderFactory_.createEncoder(paramEncoderType(config), config);
+    return encoderFactory_.createEncoder(config);
 }
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {

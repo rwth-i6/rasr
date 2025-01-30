@@ -34,8 +34,6 @@ class LabelScorer;
 
 class Module_ {
 public:
-    Core::ParameterChoice paramEncoderType;
-
     Module_();
     ~Module_();
     enum { FeatureScorerTypeOffset = 0x300 };

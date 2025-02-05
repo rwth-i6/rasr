@@ -271,6 +271,20 @@ void LexiconfreeBeamSearch::scorePruning(std::vector<T>& hypotheses, std::functi
     hypotheses.resize(numSurvivingHyps);  // Resize the hypotheses to keep only the surviving items
 }
 
+template<typename T>
+void LexiconfreeBeamSearch::recombination(std::vector<T>& hypotheses) {
+    std::vector<T> newHypotheses;
+
+    std::unordered_set<Nn::ScoringContextRef, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
+    for (const auto& hyp : hypotheses) {
+        if (seenScoringContexts.find(hyp.scoringContext) == seenScoringContexts.end()) {
+            newHypotheses.push_back(hyp);
+            seenScoringContexts.insert(hyp.scoringContext);
+        }
+    }
+    hypotheses.swap(newHypotheses);
+}
+
 bool LexiconfreeBeamSearch::decodeStep() {
     verify(labelScorer_);
 
@@ -419,20 +433,11 @@ bool LexiconfreeBeamSearch::decodeStep() {
                         [](const LabelHypothesis& hyp) { return hyp.score; }));
     }
 
-    // /*
-    //  * For all hypotheses with the same scoring context keep only the best since they will
-    //  * all develop in the same way.
-    //  * Directly write into `beam_` since this is the last pruning step
-    //  */
-    // beam_.clear();
-    // std::unordered_set<Nn::ScoringContextRef, Nn::ScoringContextHash, Nn::ScoringContextEq>
-    //         seenScoringContexts;
-    // for (const auto& hyp : newBeam) {
-    //     if (seenScoringContexts.find(hyp.scoringContext) == seenScoringContexts.end()) {
-    //         beam_.push_back(hyp);
-    //         seenScoringContexts.insert(hyp.scoringContext);
-    //     }
-    // }
+    /*
+     * For all hypotheses with the same scoring context keep only the best since they will
+     * all develop in the same way.
+     */
+    recombination(newBeam);
 
     beam_.swap(newBeam);
 

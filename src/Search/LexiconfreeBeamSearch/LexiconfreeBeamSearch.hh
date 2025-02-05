@@ -131,6 +131,12 @@ private:
     template<typename T>
     void scorePruning(std::vector<T>& hypotheses, std::function<Score(T const&)>&& getScore);
 
+    /*
+     * Helper function for recombination of hypotheses with the same scoring context
+     */
+    template<typename T>
+    void recombination(std::vector<T>& hypotheses);
+
     size_t maxBeamSize_;
 
     bool   useTokenPruning_;

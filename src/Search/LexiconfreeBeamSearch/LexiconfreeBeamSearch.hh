@@ -92,6 +92,7 @@ public:
     static const Core::ParameterBool  paramAllowLabelLoop;
     static const Core::ParameterBool  paramUseSentenceEnd;
     static const Core::ParameterBool  paramSentenceEndIndex;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeBeamSearch(Core::Configuration const&);
 
@@ -153,6 +154,8 @@ private:
 
     Nn::LabelIndex blankLabelIndex_;
     Nn::LabelIndex sentenceEndIndex_;
+
+    bool logStepwiseStatistics_;
 
     Core::Ref<Nn::LabelScorer>   labelScorer_;
     Nn::LabelIndex               numClasses_;

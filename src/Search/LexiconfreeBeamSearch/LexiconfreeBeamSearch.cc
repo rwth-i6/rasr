@@ -17,7 +17,9 @@
 #include <Lattice/LatticeAdaptor.hh>
 #include <algorithm>
 #include <numeric>
+#include <unordered_set>
 #include <strings.h>
+#include "Core/XmlStream.hh"
 #include "Nn/LabelScorer/LabelScorer.hh"
 #include "Nn/LabelScorer/ScoringContext.hh"
 #include "Nn/LabelScorer/SharedDataHolder.hh"
@@ -33,6 +35,7 @@ const Core::ParameterInt   LexiconfreeBeamSearch::paramBlankLabelIndex("blank-la
 const Core::ParameterBool  LexiconfreeBeamSearch::paramAllowLabelLoop("allow-label-loop", "Allow repetition of a label", false);
 const Core::ParameterBool  LexiconfreeBeamSearch::paramUseSentenceEnd("use-sentence-end", "Declare one sentence-end label such that search stops once this label is hypothesized.", false);
 const Core::ParameterBool  LexiconfreeBeamSearch::paramSentenceEndIndex("sentence-end-index", "Index of the sentence-end label in the lexicon. Only necessarry if use-sentence-end is true.", 0);
+const Core::ParameterBool  LexiconfreeBeamSearch::paramLogStepwiseStatistics("log-stepwise-statistics", "Log statistics about the search space at every step.", false);
 
 LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
@@ -46,6 +49,7 @@ LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
           allowLabelLoop_(paramAllowLabelLoop(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
           sentenceEndIndex_(paramSentenceEndIndex(config)),
+          logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorer_(),
           numClasses_(0ul),
           beam_(),
@@ -160,10 +164,12 @@ void LexiconfreeBeamSearch::resetStatistics() {
 }
 
 void LexiconfreeBeamSearch::logStatistics() const {
-    clog() << Core::XmlOpen("initialization-time") + Core::XmlAttribute("unit", "milliseconds") << initializationTime_.total << Core::XmlClose("initialization-time");
-    clog() << Core::XmlOpen("feature-processing-time") + Core::XmlAttribute("unit", "milliseconds") << featureProcessingTime_.total << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") + Core::XmlAttribute("unit", "milliseconds") << scoringTime_.total << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") + Core::XmlAttribute("unit", "milliseconds") << contextExtensionTime_.total << Core::XmlClose("context-extension-time");
+    clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
+    clog() << Core::XmlOpen("initialization-time") << initializationTime_.total << Core::XmlClose("initialization-time");
+    clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.total << Core::XmlClose("feature-processing-time");
+    clog() << Core::XmlOpen("scoring-time") << scoringTime_.total << Core::XmlClose("scoring-time");
+    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.total << Core::XmlClose("context-extension-time");
+    clog() << Core::XmlClose("timing-statistics");
 }
 
 Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
@@ -440,6 +446,14 @@ bool LexiconfreeBeamSearch::decodeStep() {
     recombination(newBeam);
 
     beam_.swap(newBeam);
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlOpen("active-hyps") << beam_.size() << Core::XmlClose("active-hyps");
+        clog() << Core::XmlOpen("best-hyp-score") << beam_.front().score << Core::XmlClose("active-hyps");
+        clog() << Core::XmlOpen("best-hyp-score") << beam_.back().score << Core::XmlClose("active-hyps");
+        clog() << Core::XmlClose("search-step-stats");
+    }
 
     return true;
 }

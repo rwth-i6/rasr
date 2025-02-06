@@ -17,6 +17,7 @@
 
 #include <Modules.hh>
 #include "LabelScorer/LabelScorerFactory.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
 #include "Module.hh"
 #include "Statistics.hh"
 
@@ -73,6 +74,13 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // Assume inputs are already finished scores and just passes on the score at the current step
+    labelScorerFactory_.registerLabelScorer(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {

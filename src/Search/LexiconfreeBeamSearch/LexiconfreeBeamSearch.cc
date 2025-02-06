@@ -450,8 +450,8 @@ bool LexiconfreeBeamSearch::decodeStep() {
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
         clog() << Core::XmlOpen("active-hyps") << beam_.size() << Core::XmlClose("active-hyps");
-        clog() << Core::XmlOpen("best-hyp-score") << beam_.front().score << Core::XmlClose("active-hyps");
-        clog() << Core::XmlOpen("best-hyp-score") << beam_.back().score << Core::XmlClose("active-hyps");
+        clog() << Core::XmlOpen("best-hyp-score") << beam_.front().score << Core::XmlClose("best-hyp-score");
+        clog() << Core::XmlOpen("worst-hyp-score") << beam_.back().score << Core::XmlClose("worst-hyp-score");
         clog() << Core::XmlClose("search-step-stats");
     }
 

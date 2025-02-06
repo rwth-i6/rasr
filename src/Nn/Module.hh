@@ -20,6 +20,9 @@
 
 #include <Flow/Module.hh>
 
+#include "LabelScorer/LabelScorer.hh"
+#include "LabelScorer/LabelScorerFactory.hh"
+
 namespace Core {
 class FormatSet;
 }
@@ -31,6 +34,8 @@ class LabelScorer;
 class Module_ {
 private:
     Core::FormatSet* formats_;
+
+    LabelScorerFactory labelScorerFactory_;
 
 public:
     Module_();
@@ -50,7 +55,7 @@ public:
      */
     Core::FormatSet& formats();
 
-    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
+    Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

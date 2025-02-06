@@ -16,6 +16,7 @@
 #include <Flow/Registry.hh>
 
 #include <Modules.hh>
+#include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 #include "Module.hh"
 #include "Statistics.hh"
@@ -73,6 +74,13 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // Performs log-linear combination of multiple sub-label-scorers
+    labelScorerFactory_.registerLabelScorer(
+            "combine",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CombineLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {

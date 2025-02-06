@@ -20,7 +20,6 @@
 
 #include <Flow/Module.hh>
 
-#include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {

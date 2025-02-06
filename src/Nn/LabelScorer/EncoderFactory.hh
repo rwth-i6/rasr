@@ -46,7 +46,7 @@ public:
     /*
      * Register a new Encoder type by name and a factory function that can create an instance given a config object
      */
-    void               registerEncoder(const char* name, CreationFunction creationFunction);
+    void registerEncoder(const char* name, CreationFunction creationFunction);
 
     /*
      * Create an Encoder instance of type given by `paramEncoderType` using the config object

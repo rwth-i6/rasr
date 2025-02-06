@@ -23,6 +23,9 @@ namespace Nn {
 /*
  * Label Scorer that performs no computation internally. It assumes that the input features are already
  * finished score vectors and just returns the score at the current time step.
+ *
+ * This is useful for example when the scores are computed externally and transmitted via a pybind interface
+ * or when they are computed inside a flow node.
  */
 class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;

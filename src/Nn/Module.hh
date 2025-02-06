@@ -55,7 +55,10 @@ public:
      */
     Core::FormatSet& formats();
 
-    Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
+    /*
+     * Access instance of LabelScorerFactory for registering and creating LabelScorers.
+     */
+    LabelScorerFactory& labelScorerFactory();
 };
 
 typedef Core::SingletonHolder<Module_> Module;

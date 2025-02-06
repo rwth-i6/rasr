@@ -16,6 +16,7 @@
 #include <Flow/Registry.hh>
 
 #include <Modules.hh>
+#include "LabelScorer/LabelScorerFactory.hh"
 #include "Module.hh"
 #include "Statistics.hh"
 
@@ -89,6 +90,6 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(Core::Configuration const& config) const {
-    return labelScorerFactory_.createLabelScorer(config);
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
 }

@@ -94,10 +94,6 @@ EncoderFactory& Module_::encoderFactory() {
     return encoderFactory_;
 }
 
-Core::Ref<Encoder> Module_::createEncoder(Core::Configuration const& config) const {
-    return encoderFactory_.createEncoder(config);
-}
-
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
 #ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
     LabelScorer* labelScorer = nullptr;

@@ -53,8 +53,6 @@ public:
 
     EncoderFactory& encoderFactory();
 
-    Core::Ref<Encoder> createEncoder(Core::Configuration const& config) const;
-
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 
 private:

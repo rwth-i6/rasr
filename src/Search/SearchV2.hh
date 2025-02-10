@@ -78,8 +78,8 @@ public:
     virtual void finishSegment() = 0;
 
     // Pass a single feature vector.
-    virtual void passFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) = 0;
-    virtual void passFeature(std::vector<f32> const& data)                                 = 0;
+    virtual void putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) = 0;
+    virtual void putFeature(std::vector<f32> const& data)                                 = 0;
 
     // Pass feature vectors for multiple time steps.
     virtual void passFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) = 0;
@@ -94,7 +94,7 @@ public:
     virtual bool decodeStep() = 0;
 
     // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
-    virtual bool decodeMore() {
+    virtual bool decodeManySteps() {
         bool success = false;
         while (decodeStep()) {
             // Set to true if at least one iteration is successful

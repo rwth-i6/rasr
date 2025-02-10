@@ -143,9 +143,6 @@ endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 CHECK_O            += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
 endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-CHECK_O += ../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
-endif
 ifdef MODULE_PYTHON
 CHECK_O += ../Python/libSprintPython.$(a)
 endif

@@ -93,15 +93,14 @@ public:
     // Try to decode one more step. Return bool indicates whether a step could be made.
     virtual bool decodeStep() = 0;
 
-    // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
-    virtual bool decodeManySteps() {
-        bool success = false;
+    // Decode as much as possible given the currently available features. Return number of successfull steps.
+    virtual unsigned decodeManySteps() {
+        unsigned count = 0u;
         while (decodeStep()) {
-            // Set to true if at least one iteration is successful
-            success = true;
+            count++;
         }
 
-        return success;
+        return count;
     }
 };
 

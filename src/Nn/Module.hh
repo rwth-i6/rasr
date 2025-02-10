@@ -17,7 +17,6 @@
 
 #include <Core/Factory.hh>
 #include <Core/Singleton.hh>
-
 #include <Flow/Module.hh>
 
 #include "LabelScorer/LabelScorerFactory.hh"
@@ -27,8 +26,6 @@ class FormatSet;
 }
 
 namespace Nn {
-
-class LabelScorer;
 
 class Module_ {
 private:

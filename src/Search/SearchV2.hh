@@ -40,8 +40,8 @@ namespace Search {
  *     `requiredModelCombination` (and `requiredAcousticModel`).
  *  2. Create appropriate `Speech::ModelCombination` and provide it to the search algorithm via `setModelCombination`.
  *  3. Signal segment start via `enterSegment`.
- *  4. Pass audio features via `passFeature` or `passFeatures`.
- *  (5. Call `decodeStep` or `decodeMore` to run the next search step(s) given the currently available features.)
+ *  4. Pass audio features via `putFeature` or `putFeatures`.
+ *  (5. Call `decodeStep` or `decodeManySteps` to run the next search step(s) given the currently available features.)
  *  (6. Optionally retrieve intermediate results via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.)
  *  7. Call `finishSegment` to signal that all features have been passed and the search doesn't need to wait for more.
  *  8. Call `decodeMore` to finalize the search with all the segment features.
@@ -82,7 +82,7 @@ public:
     virtual void putFeature(std::vector<f32> const& data)                                 = 0;
 
     // Pass feature vectors for multiple time steps.
-    virtual void passFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) = 0;
+    virtual void putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) = 0;
 
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;

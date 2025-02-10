@@ -14,8 +14,8 @@
  */
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
+
 #include "LabelScorer/LabelScorerFactory.hh"
 #include "Module.hh"
 #include "Statistics.hh"

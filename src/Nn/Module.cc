@@ -35,13 +35,6 @@
 #include "PythonFeatureScorer.hh"
 #endif
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
-#endif
-
 using namespace Nn;
 
 Module_::Module_()
@@ -95,10 +88,5 @@ EncoderFactory& Module_::encoderFactory() {
 }
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-    LabelScorer* labelScorer = nullptr;
-    return Core::ref(labelScorer);
-#else
-    Core::Application::us()->criticalError("Module MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH not available!");
-#endif
+    Core::Application::us()->criticalError("Label Scorer creation not implemented yet.");
 }

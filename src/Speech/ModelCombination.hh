@@ -21,7 +21,7 @@
 #include <Core/ReferenceCounting.hh>
 #include <Lm/ScaledLanguageModel.hh>
 #include <Mc/Component.hh>
-#include <Nn/LabelScorer.hh>
+#include <Nn/LabelScorer/LabelScorer.hh>
 
 
 namespace Speech {

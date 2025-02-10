@@ -65,10 +65,6 @@ Module_::Module_() {
     registry.registerFilter<FeatureScorerNode>();
     registry.registerDatatype<Flow::DataAdaptor<Alignment>>();
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-    registry.registerFilter<Seq2SeqAlignmentNode>();
-#endif
-
 #ifdef MODULE_SPEECH_ALIGNMENT_FLOW_NODES
     registry.registerFilter<AlignmentAddWeightNode>();
     registry.registerFilter<AlignmentCombineItemsNode>();

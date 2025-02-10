@@ -24,13 +24,13 @@
 #include <Flow/Module.hh>
 #include "LabelScorer/EncoderFactory.hh"
 
+#include "LabelScorer/LabelScorer.hh"
+
 namespace Core {
 class FormatSet;
 }
 
 namespace Nn {
-
-class LabelScorer;
 
 class Module_ {
 public:

@@ -21,29 +21,53 @@
 namespace Nn {
 
 /*
- * Adds the scores of multiple sub-label-scorers for each request.
- * This assumes that the sub-scorers work on the same token level.
+ * Performs log-linear combination of multiple sub-label-scorers, assuming
+ * that the sub-scorers have the same label alphabet, i.e.
+ * combined_score(request) = sum_i { score_i(request) * scale_i }
+ * The assigned timeframe is the maximum over the sub-timeframes, i.e.
+ * combined_timeframe(request) = max_i { timeframe_i(request) }
  */
 class CombineLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
 public:
-    static Core::ParameterInt paramNumLabelScorers;
+    static Core::ParameterInt   paramNumLabelScorers;
+    static Core::ParameterFloat paramScale;
 
     CombineLabelScorer(const Core::Configuration& config);
     virtual ~CombineLabelScorer() = default;
 
-    void                           reset();
-    void                           signalNoMoreFeatures();
-    ScoringContextRef              getInitialScoringContext();
-    ScoringContextRef              extendedScoringContext(Request const& request);
-    void                           addInput(SharedDataHolder const& input, size_t featureSize);
-    void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
-    std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request);
+    // Reset all sub-scorers
+    void reset();
+
+    // Forward signal to all sub-scorers
+    void signalNoMoreFeatures();
+
+    // Combine initial ScoringContexts from all sub-scorers
+    ScoringContextRef getInitialScoringContext();
+
+    // Combine extended ScoringContexts from all sub-scorers
+    ScoringContextRef extendedScoringContext(Request const& request);
+
+    // Add input to all sub-scorers
+    void addInput(SharedDataHolder const& input, size_t featureSize);
+
+    // Add inputs to all sub-scorers
+    void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
+
+    // Compute weighted score of request with all sub-scorers
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
+
+    // Compute weighted scores of requests with all sub-scorers
     std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
 
 protected:
-    std::vector<Core::Ref<LabelScorer>> scorers_;
+    struct ScaledLabelScorer {
+        Core::Ref<LabelScorer> scorer;
+        Score                  scale;
+    };
+
+    std::vector<ScaledLabelScorer> scaledScorers_;
 };
 
 }  // namespace Nn

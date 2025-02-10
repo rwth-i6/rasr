@@ -136,6 +136,36 @@ bool HiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
 
 /*
  * =============================
+ * == CTCPrefixScoringContext ==
+ * =============================
+ */
+
+size_t CTCPrefixScoringContext::hash() const {
+    return combineHashes(Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(prefixScores.data()), prefixScores.size() * sizeof(PrefixScore), 0x78b174eb), lastLabel);
+}
+
+bool CTCPrefixScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const CTCPrefixScoringContext*>(other.get());
+
+    if (lastLabel != otherPtr->lastLabel) {
+        return false;
+    }
+
+    if (prefixScores.size() != otherPtr->prefixScores.size()) {
+        return false;
+    }
+
+    for (auto it_l = prefixScores.begin(), it_r = otherPtr->prefixScores.begin(); it_l != prefixScores.end(); ++it_l, ++it_r) {
+        if (it_l->blankEndingScore != it_r->blankEndingScore or it_l->nonBlankEndingScore != it_r->nonBlankEndingScore) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
+ * =============================
  * === CombineScoringContext ===
  * =============================
  */

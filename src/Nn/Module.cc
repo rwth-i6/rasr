@@ -21,6 +21,7 @@
 #include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LegacyFeatureScorerLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"
 #ifdef MODULE_ONNX
 #include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
@@ -164,6 +165,13 @@ Module_::Module_()
             "combine",
             [](Core::Configuration const& config) {
                 return Core::ref(new CombineLabelScorer(config));
+            });
+
+    // Performs label-synchronous prefix scoring using an underlying CTC model
+    labelScorerFactory_.registerLabelScorer(
+            "ctc-prefix",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CTCPrefixLabelScorer(config));
             });
 };
 

@@ -20,7 +20,9 @@
 #include <Core/ReferenceCounting.hh>
 #include <Math/FastVector.hh>
 #include <Mm/Types.hh>
+#include <Search/Types.hh>
 #include <Speech/Types.hh>
+#include "Core/Types.hh"
 #ifdef MODULE_ONNX
 #include "Onnx/Value.hh"
 #endif
@@ -56,7 +58,6 @@ struct ScoringContextEq {
 /*
  * Scoring context that only describes the current decoding step
  */
-
 struct StepScoringContext : public ScoringContext {
     Speech::TimeframeIndex currentStep;
 
@@ -150,6 +151,27 @@ struct HiddenStateScoringContext : public ScoringContext {
 typedef Core::Ref<const HiddenStateScoringContext> HiddenStateScoringContextRef;
 
 #endif  // MODULE_ONNX
+
+struct CTCPrefixScoringContext : public ScoringContext {
+    struct PrefixScore {
+        Search::Score blankEndingScore;
+        Search::Score nonBlankEndingScore;
+    };
+
+    std::vector<PrefixScore> prefixScores;
+    LabelIndex               lastLabel;
+
+    CTCPrefixScoringContext()
+            : prefixScores(), lastLabel(Core::Type<LabelIndex>::max) {}
+
+    CTCPrefixScoringContext(std::vector<PrefixScore>&& prefixScores, LabelIndex lastLabel)
+            : prefixScores(std::move(prefixScores)), lastLabel(lastLabel) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const CTCPrefixScoringContext> PrefixScoringContextRef;
 
 /*
  * Combines multiple scoring contexts at once

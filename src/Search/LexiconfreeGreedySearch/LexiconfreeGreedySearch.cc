@@ -200,7 +200,6 @@ void LexiconfreeGreedySearch::LabelHypothesis::extend(HypothesisExtension const&
 
 bool LexiconfreeGreedySearch::decodeStep() {
     verify(labelScorer_);
-    verify(hyp_.scoringContext);
 
     HypothesisExtension bestExtension;
 

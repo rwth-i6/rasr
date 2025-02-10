@@ -387,7 +387,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
         scorePruning(
                 indices,
                 std::function<Score(const size_t&)>(
-                        [&combinedScores](size_t index) { return combinedScores[index]; }));
+                        [&combinedScores, baseHyps, this](size_t index) { return combinedScores[index] * std::pow(baseHyps[index]->length + 1, lengthNormScale_); }));
     }
 
     /*
@@ -436,7 +436,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
         scorePruning(
                 newBeam,
                 std::function<Score(const LabelHypothesis&)>(
-                        [](const LabelHypothesis& hyp) { return hyp.score; }));
+                        [this](const LabelHypothesis& hyp) { return hyp.score * std::pow(hyp.length, lengthNormScale_); }));
     }
 
     /*

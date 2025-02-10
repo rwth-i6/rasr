@@ -47,6 +47,23 @@ struct ScoringContextEq {
     }
 };
 
+/*
+ * Scoring context that only describes the current decoding step
+ */
+struct StepScoringContext : public ScoringContext {
+    size_t currentStep;
+
+    StepScoringContext()
+            : currentStep(0ul) {}
+
+    StepScoringContext(size_t step)
+            : currentStep(step) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

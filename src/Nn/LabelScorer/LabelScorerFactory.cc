@@ -14,6 +14,8 @@
  */
 
 #include "LabelScorerFactory.hh"
+#include <Core/Configuration.hh>
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -23,6 +25,12 @@ LabelScorerFactory::LabelScorerFactory()
 void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction creationFunction) {
     choices_.addChoice(name, registry_.size());
     registry_.push_back(std::move(creationFunction));
+
+    choices_.addChoice(("scaled-" + std::string(name)).c_str(), registry_.size());
+    registry_.push_back(
+            [creationFunction](Core::Configuration const& config) {
+                return Core::ref(new ScaledLabelScorer(config, creationFunction(config)));
+            });
 }
 
 Core::Ref<LabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {

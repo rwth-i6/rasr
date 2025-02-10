@@ -22,6 +22,7 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
+#include <Search/Traceback.hh>
 
 #include "AcousticLookAhead.hh"
 #include "PersistentStateTree.hh"
@@ -2160,13 +2161,13 @@ inline Core::Ref<Trace> SearchSpace::getModifiedTrace(TraceId traceId, const Bli
         bool encodeState = this->encodeState();
 
         verify(trace.get());
-        SearchAlgorithm::TracebackItem::Transit transit;
-        TraceManager::Modification              offsets = trace_manager_.getModification(traceId);
+        TracebackItem::Transit     transit;
+        TraceManager::Modification offsets = trace_manager_.getModification(traceId);
         if (offsets.first || offsets.second || offsets.third) {
             // Add an epsilon traceback entry which corrects the time, score and transit-entry
             TimeframeIndex time = trace->time + offsets.first;
             verify(time <= timeFrame_);
-            SearchAlgorithm::ScoreVector score = trace->score;
+            ScoreVector score = trace->score;
             if (offsets.second)
                 score.acoustic += reinterpret_cast<Search::Score&>(offsets.second);
 
@@ -2542,8 +2543,8 @@ void SearchSpace::addStartupWordEndHypothesis(TimeframeIndex time) {
     verify(rch.isValid());
     verify(lah.isValid());
     verify(sch.isValid());
-    SearchAlgorithm::ScoreVector score(0.0, 0.0);
-    Core::Ref<Trace>             t(new Trace(time, score, describeRootState(rootState)));
+    ScoreVector      score(0.0, 0.0);
+    Core::Ref<Trace> t(new Trace(time, score, describeRootState(rootState)));
     t->score.acoustic += globalScoreOffset_;
     wordEndHypotheses.push_back(WordEndHypothesis(rch, lah, sch, rootState, 0, score, t, Core::Type<u32>::max, PathTrace()));
 }
@@ -2679,8 +2680,8 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                     else
                         ++activeUncoartic;
                 }
-                Score                        score = (*it).score + globalScoreOffset_;
-                SearchAlgorithm::ScoreVector scores(trace_manager_.traceItem((*it).trace).trace->score);
+                Score       score = (*it).score + globalScoreOffset_;
+                ScoreVector scores(trace_manager_.traceItem((*it).trace).trace->score);
                 scores.acoustic = score - scores.lm - at.totalBackOffOffset;
 
                 // Append score- and time correcting epsilon item
@@ -2688,7 +2689,7 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                                              epsilonLemmaPronunciation(),
                                              time - 1,
                                              scores,
-                                             encodeState ? describeRootState(it->state) : SearchAlgorithm::TracebackItem::Transit()));
+                                             encodeState ? describeRootState(it->state) : TracebackItem::Transit()));
                 // Append sentence-end epsilon arc
                 t = Core::Ref<Trace>(new Trace(t, 0, time, t->score, describeRootState(net.rootState)));
 
@@ -2936,9 +2937,9 @@ public:
     u32 kept, killed;
 
 private:
-    std::map<Trace*, bool>       keepTraces_;
-    Core::Ref<Trace>             initialTrace_;
-    SearchAlgorithm::ScoreVector baseScore_;
+    std::map<Trace*, bool> keepTraces_;
+    Core::Ref<Trace>       initialTrace_;
+    ScoreVector            baseScore_;
 };
 
 void SearchSpace::changeInitialTrace(Core::Ref<Trace> trace) {
@@ -3621,7 +3622,7 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
     verify_(item.scoreHistory.isValid());
 
     EarlyWordEndHypothesis weh(hyp.trace,
-                               SearchAlgorithm::ScoreVector(hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm),
+                               ScoreVector(hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm),
                                exit,
                                hyp.pathTrace);
     weh.score.acoustic += exitPenalty;
@@ -3642,7 +3643,7 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
     if (onTheFlyRescoring) {
         Core::Ref<Trace> trace = item.trace;
         for (AlternativeHistory const& h : trace->alternativeHistories.container()) {
-            SearchAlgorithm::ScoreVector newScore = oldScore + h.offset;
+            ScoreVector newScore = oldScore + h.offset;
             if (we->pronunciation != Bliss::LemmaPronunciation::invalidId) {
                 Lm::addLemmaPronunciationScoreOmitExtension(lm_, lexicon_->lemmaPronunciation(we->pronunciation), wpScale_, lm_->scale(), h.hist, newScore.lm);
             }

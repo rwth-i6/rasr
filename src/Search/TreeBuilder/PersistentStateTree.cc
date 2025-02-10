@@ -19,10 +19,12 @@
 
 #include <Am/ClassicAcousticModel.hh>
 #include <Core/MappedArchive.hh>
-#include <Search/StateTree.hh>
-#include "BatchManager.hh"
-#include "Helpers.hh"
+#include <Search/AdvancedTreeSearch/BatchManager.hh>
+#include <Search/AdvancedTreeSearch/Helpers.hh>
+
+#include "StateTree.hh"
 #include "TreeStructure.hh"
+
 
 using namespace Search;
 using namespace Core;

@@ -17,8 +17,8 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Search/Search.hh>
-#include <Search/StateTree.hh>
 #include <Search/Types.hh>
+#include <Search/TreeBuilder/StateTree.hh>
 #include "PathTrace.hh"
 
 namespace Search {

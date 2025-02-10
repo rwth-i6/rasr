@@ -32,14 +32,15 @@ struct MyStandardValueHash {
 };
 
 class AbstractTreeBuilder;
+enum class TreeBuilderType;
 
 namespace Search {
 class HMMStateNetwork;
 class StateTree;
 
-class PersistentStateTree : public Core::ReferenceCounted {
+class PersistentStateTree {
 public:
-    using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
+    using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(TreeBuilderType, Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
 
     ///@param lexicon This must be given if the resulting exits are supposed to be functional
     PersistentStateTree(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon, TreeBuilderFactory treeBuilderFactory);

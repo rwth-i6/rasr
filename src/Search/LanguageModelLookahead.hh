@@ -25,7 +25,7 @@
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Lm/ScaledLanguageModel.hh>
-#include "StateTree.hh"
+#include <TreeBuilder/StateTree.hh>
 
 namespace Search {
 

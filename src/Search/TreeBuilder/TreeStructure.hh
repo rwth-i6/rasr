@@ -15,10 +15,11 @@
 #ifndef SEARCH_TREESTRUCTURE_HH
 #define SEARCH_TREESTRUCTURE_HH
 
-#include <Core/MappedArchive.hh>
-#include <Search/StateTree.hh>
 #include <vector>
-#include "BatchManager.hh"
+
+#include <Core/MappedArchive.hh>
+#include <Search/AdvancedTreeSearch/BatchManager.hh>
+#include "StateTree.hh"
 
 #define inline_ __attribute__((always_inline)) inline
 

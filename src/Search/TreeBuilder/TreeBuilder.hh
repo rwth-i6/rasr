@@ -16,9 +16,9 @@
 #define TREEBUILDER_HH
 
 #include <Bliss/Phoneme.hh>
-#include <Search/StateTree.hh>
-#include "Helpers.hh"
-#include "LmCache.hh"
+#include <Search/AdvancedTreeSearch/Helpers.hh>
+#include <Search/AdvancedTreeSearch/LmCache.hh>
+#include "StateTree.hh"
 #include "PersistentStateTree.hh"
 
 namespace Bliss {
@@ -32,6 +32,13 @@ class AcousticModel;
 namespace Core {
 class Configuration;
 }
+
+enum class TreeBuilderType {
+    previousBehavior = 0,
+    classicHmm       = 1,
+    minimizedHmm     = 2,
+    ctc              = 3,
+};
 
 class AbstractTreeBuilder : public Core::Component {
 public:
@@ -277,5 +284,20 @@ protected:
     // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
     void    addWordBoundaryStates();
 };
+
+std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) {
+    switch (treeBuilderType) {
+        case TreeBuilderType::classicHmm: {  // Use StateTree.hh
+            return std::unique_ptr<AbstractTreeBuilder>(nullptr);
+        } break;
+        case TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
+            return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case TreeBuilderType::ctc: {
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        default: defect();
+    }
+}
 
 #endif

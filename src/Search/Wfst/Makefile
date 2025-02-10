@@ -61,6 +61,7 @@ CHECK_CTRANS_O = $(OBJDIR)/check_ctrans.o \
 CHECK_O = $(OBJDIR)/check.o \
 			  libSprintSearchWfst.$(a) \
 			  ../libSprintSearch.$(a) \
+			  ../TreeBuilder/libSprintTreeBuilder.$(a) \
 			  ../../Speech/libSprintSpeech.$(a) \
 			  ../../Am/libSprintAm.$(a) \
 			  ../../Mm/libSprintMm.$(a) \

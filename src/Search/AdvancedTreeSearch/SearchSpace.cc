@@ -22,6 +22,7 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
+#include <Search/Traceback.hh>
 
 #include "AcousticLookAhead.hh"
 #include "PersistentStateTree.hh"

@@ -22,7 +22,6 @@
 #include <Search/Histogram.hh>
 #include <Search/Search.hh>
 #include <Search/StateTree.hh>
-#include <Search/Traceback.hh>
 
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"

@@ -14,8 +14,9 @@
  */
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
+
+#include "LabelScorer/LabelScorerFactory.hh"
 #include "Module.hh"
 #include "Statistics.hh"
 
@@ -37,7 +38,8 @@
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0) {
+        : formats_(0),
+          labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -81,6 +83,6 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-    Core::Application::us()->criticalError("Label Scorer creation not implemented yet.");
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
 }

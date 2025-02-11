@@ -144,6 +144,7 @@ endif
 
 # ****** Libraries ******
 LIBS_SEARCH = src/Search/libSprintSearch.$(a)
+LIBS_SEARCH += src/Search/TreeBuilder/libSprintTreeBuilder.$(a)
 ifdef MODULE_SEARCH_WFST
 LIBS_SEARCH += src/Search/Wfst/libSprintSearchWfst.$(a)
 LIBS_SEARCH += src/OpenFst/libSprintOpenFst.$(a)

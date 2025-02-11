@@ -12,6 +12,7 @@ TARGETS		= archiver$(exe)
 ARCHIVER_O	= $(OBJDIR)/Archiver.o \
                  ../../Speech/libSprintSpeech.$(a) \
                  ../../Search/libSprintSearch.$(a) \
+                 ../../Search/TreeBuilder/libSprintTreeBuilder.$(a) \
                  ../../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a) \
                  ../../Lattice/libSprintLattice.$(a) \
                  ../../Lm/libSprintLm.$(a) \

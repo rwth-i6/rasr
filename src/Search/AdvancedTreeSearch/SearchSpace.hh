@@ -21,16 +21,17 @@
 #include <Lm/SearchSpaceAwareLanguageModel.hh>
 #include <Search/Histogram.hh>
 #include <Search/Search.hh>
-#include <Search/StateTree.hh>
+#include <Search/TreeBuilder/StateTree.hh>
+#include <Search/TreeBuilder/PersistentStateTree.hh>
+#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/TreeBuilder/TreeBuilder.hh>
 
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"
-#include "PersistentStateTree.hh"
 #include "ScoreDependentStatistics.hh"
 #include "SearchSpaceHelpers.hh"
 #include "SimpleThreadPool.hh"
 #include "Trace.hh"
-#include "TreeStructure.hh"
 
 struct EmissionSetCounter;
 namespace AdvancedTreeSearch {
@@ -49,13 +50,6 @@ class SearchSpaceStatistics;
 class StaticSearchAutomaton : public Core::Component {
 public:
     using Precursor = Core::Component;
-
-    enum class TreeBuilderType {
-        previousBehavior = 0,
-        classicHmm       = 1,
-        minimizedHmm     = 2,
-        ctc              = 3,
-    };
 
     /// HMM length of a common phoneme
     const u32 hmmLength;
@@ -124,8 +118,6 @@ public:
 
 protected:
     TreeBuilderType treeBuilderType_;
-
-    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
 
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;

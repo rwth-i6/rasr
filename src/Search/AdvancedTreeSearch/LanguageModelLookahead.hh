@@ -26,11 +26,11 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
-#include <Search/StateTree.hh>
+#include <Search/TreeBuilder/StateTree.hh>
+#include <Search/TreeBuilder/PersistentStateTree.hh>
+#include <Search/TreeBuilder/TreeStructure.hh>
 
 #include "LinearPrediction.hh"
-#include "PersistentStateTree.hh"
-#include "TreeStructure.hh"
 
 // #define EXTENSIVE_SPARSE_COLLISION_STATS
 

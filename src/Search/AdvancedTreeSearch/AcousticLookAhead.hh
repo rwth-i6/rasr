@@ -17,9 +17,10 @@
 
 #include <Mm/SimdFeatureScorer.hh>
 #include <Search/Types.hh>
+#include <Search/TreeBuilder/TreeStructure.hh>
+
 #include "Helpers.hh"
 #include "SearchSpace.hh"
-#include "TreeStructure.hh"
 // #include "LinearMiniHash.hh"
 
 namespace Search {

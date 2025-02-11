@@ -106,7 +106,7 @@ public:
     StateId ciRootState;
 
     // Other root nodes (currently used for the wordBoundaryRoot in CtcTreeBuilder)
-    std::vector<StateId> otherRootStates;
+    std::set<StateId> otherRootStates;
 
     // The word-end exits
     std::vector<Exit> exits;

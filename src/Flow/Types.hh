@@ -33,6 +33,17 @@ typedef f64 Time;
 
 const Time timeTolerance    = (Time)1e7;
 const s32  timeToleranceUlp = 100000;
+
+// possible output types of the node
+// the lower 8 bit store the size of one sample
+enum class SampleType : unsigned {
+    	SampleTypeS8  = 0x0101,
+    	SampleTypeU8  = 0x0201,
+    	SampleTypeS16 = 0x0302,
+    	SampleTypeU16 = 0x0402,
+    	SampleTypeF32 = 0x0504
+};
+
 }  // namespace Flow
 
 #endif  // _FLOW_TYPES_HH

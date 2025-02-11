@@ -422,6 +422,9 @@ HMMStateNetwork::CleanupResult PersistentStateTree::cleanup(bool cleanupExits) {
         std::set<StateId> roots = coarticulatedRootStates;
         roots.insert(rootState);
         roots.insert(ciRootState);
+        for (StateId s : otherRootStates) {
+            roots.insert(s);
+        }
 
         // Also collect all transition-successors as coarticulated roots
         for (StateId node = 1; node < structure.stateCount(); ++node) {
@@ -506,10 +509,13 @@ void PersistentStateTree::dumpDotGraph(std::string file, const std::vector<int>&
        << "edge [fontname=\"Helvetica\"]" << std::endl;
 
     for (StateId node = 1; node < structure.stateCount(); ++node) {
-        int depth = 0;
-        if (!nodeDepths.empty())
-            depth = nodeDepths[node];
-        os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d\\nt=%d", node, node, depth, structure.state(node).stateDesc.acousticModel, structure.state(node).stateDesc.transitionModelIndex);
+        if (!nodeDepths.empty()) {
+            int depth = nodeDepths[node];
+            os << Core::form("n%d [label=\"%d\\nd=%d\\nm=%d\\nt=%d", node, node, depth, structure.state(node).stateDesc.acousticModel, structure.state(node).stateDesc.transitionModelIndex);
+        }
+        else {
+            os << Core::form("n%d [label=\"%d\\nm=%d\\nt=%d", node, node, structure.state(node).stateDesc.acousticModel, structure.state(node).stateDesc.transitionModelIndex);
+        }
 
         for (HMMStateNetwork::SuccessorIterator target = structure.successors(node); target; ++target)
             if (target.isLabel() && exits[target.label()].pronunciation != Bliss::LemmaPronunciation::invalidId)
@@ -518,7 +524,8 @@ void PersistentStateTree::dumpDotGraph(std::string file, const std::vector<int>&
                    << Core::form(" tr=%d", exits[target.label()].transitState);
 
         os << "\"";
-        if (node == rootState || node == ciRootState || uncoarticulatedWordEndStates.count(node))
+        bool is_other_root = std::find(otherRootStates.begin(), otherRootStates.end(), node) != otherRootStates.end();
+        if (node == rootState || node == ciRootState || uncoarticulatedWordEndStates.count(node) || is_other_root)
             os << ",shape=box";
         os << "]" << std::endl;
 

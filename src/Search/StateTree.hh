@@ -137,6 +137,10 @@ public:
                 : acousticModel(0), transitionModelIndex(0) {
         }
 
+        StateDesc(ModelIndex ami, TransitionModelIndex tmi)
+                : acousticModel(ami), transitionModelIndex(tmi) {
+        }
+
         std::string toString() const {
             std::ostringstream target;
             target << (u32)acousticModel << "_" << (u32)transitionModelIndex;

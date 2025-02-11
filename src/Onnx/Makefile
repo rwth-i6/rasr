@@ -13,7 +13,9 @@ TARGETS		= libSprintOnnx.$(a) check$(exe)
 
 LIBSPRINTONNX_O = $(OBJDIR)/Session.o \
 				  $(OBJDIR)/IOSpecification.o \
+				  $(OBJDIR)/Model.o \
 				  $(OBJDIR)/Module.o \
+				  $(OBJDIR)/OnnxEncoder.o \
 				  $(OBJDIR)/OnnxFeatureScorer.o \
 				  $(OBJDIR)/OnnxForwardNode.o \
                   $(OBJDIR)/Value.o

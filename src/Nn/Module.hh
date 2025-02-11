@@ -15,10 +15,14 @@
 #ifndef _NN_MODULE_HH
 #define _NN_MODULE_HH
 
+#include <Core/Configuration.hh>
 #include <Core/Factory.hh>
+#include <Core/Parameter.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Core/Singleton.hh>
 
 #include <Flow/Module.hh>
+#include "LabelScorer/EncoderFactory.hh"
 
 #include "LabelScorer/LabelScorer.hh"
 
@@ -29,9 +33,6 @@ class FormatSet;
 namespace Nn {
 
 class Module_ {
-private:
-    Core::FormatSet* formats_;
-
 public:
     Module_();
     ~Module_();
@@ -50,7 +51,13 @@ public:
      */
     Core::FormatSet& formats();
 
+    EncoderFactory& encoderFactory();
+
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
+
+private:
+    Core::FormatSet* formats_;
+    EncoderFactory   encoderFactory_;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

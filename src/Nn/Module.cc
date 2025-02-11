@@ -16,6 +16,7 @@
 #include <Flow/Registry.hh>
 
 #include <Modules.hh>
+#include "LabelScorer/EncoderFactory.hh"
 #include "Module.hh"
 #include "Statistics.hh"
 
@@ -37,7 +38,8 @@
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0) {
+        : formats_(0),
+          encoderFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -79,6 +81,10 @@ Core::FormatSet& Module_::formats() {
         formats_->registerFormat("bin", new Core::CompressedBinaryFormat<Statistics<f64>>(), true);
     }
     return *formats_;
+}
+
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
 }
 
 Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {

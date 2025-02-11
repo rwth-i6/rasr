@@ -1395,4 +1395,64 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     addTransition(blankBefore, blankBefore);
 }
 
+// -------------------- TransducerTreeBuilder --------------------
+
+TransducerTreeBuilder::TransducerTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+        : CtcTreeBuilder(config, lexicon, acousticModel, network) {}
+
+std::unique_ptr<AbstractTreeBuilder> TransducerTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new TransducerTreeBuilder(config, lexicon, acousticModel, network));
+}
+
+StateId TransducerTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
+    StateId currentState = startState;
+    StateId prevNonBlankState = invalidTreeNodeIndex;
+
+    for (u32 i = 0u; i < pron->length(); i++) {
+        Bliss::Phoneme::Id phoneme = (*pron)[i];
+
+        u32 boundary = 0u;
+        if (i == 0) {
+            boundary |= Am::Allophone::isInitialPhone;
+        }
+        if ((i + 1) == pron->length()) {
+            boundary |= Am::Allophone::isFinalPhone;
+        }
+
+        Bliss::ContextPhonology::SemiContext history, future;
+        const Am::Allophone*                 allophone          = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        const Am::ClassicHmmTopology*        hmmTopology        = acousticModel_.hmmTopology(phoneme);
+        const bool                           allophone_is_blank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
+
+        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+            Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
+            StateTree::StateDesc desc;
+            desc.acousticModel = acousticModel_.emissionIndex(alloState);  // Decision tree look-up for CART id.
+
+            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+                desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
+                verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
+
+                // Add new (non-blank) state
+                currentState = extendState(currentState, desc);
+                // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
+                if (prevNonBlankState != invalidTreeNodeIndex) {
+                    addTransition(prevNonBlankState, currentState);
+                }
+                prevNonBlankState = currentState;
+
+                bool is_last_state_in_lemma = ((phoneState + 1) == hmmTopology->nPhoneStates()) and ((subState + 1) == hmmTopology->nSubStates()) and (boundary & Am::Allophone::isFinalPhone);
+                if (not allophone_is_blank and not is_last_state_in_lemma) {
+                    // Add blank state after the newly created state
+                    currentState = extendState(currentState, blankDesc_);
+                    // Add loop for this blank state
+                    addTransition(currentState, currentState);
+                }
+            }
+        }
+    }
+
+    return currentState;
+}
+
 

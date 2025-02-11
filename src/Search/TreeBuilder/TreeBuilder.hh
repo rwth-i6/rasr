@@ -38,6 +38,7 @@ enum class TreeBuilderType {
     classicHmm       = 1,
     minimizedHmm     = 2,
     ctc              = 3,
+    transducer       = 4,
 };
 
 class AbstractTreeBuilder : public Core::Component {
@@ -262,7 +263,7 @@ public:
     virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
 
     // Build a new persistent state network.
-    virtual void build();
+    void build();
 
 protected:
     StateId                      wordBoundaryRoot_;
@@ -275,14 +276,27 @@ protected:
     // The exit is appended to the state's successors
     u32     addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
 
+    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
+    virtual StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
+
     // Check if the node with @param desc is already a successor of the @param predecessor and add it if not
     StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
-    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
-    StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
     // Add a transition between two already existing states, used to insert loops and skip-transitions
     void    addTransition(StateId predecessor, StateId successor);
     // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
     void    addWordBoundaryStates();
+};
+
+class TransducerTreeBuilder : public CtcTreeBuilder {
+public:
+    TransducerTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~TransducerTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+protected:
+    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
+    StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
 };
 
 std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) {
@@ -295,6 +309,9 @@ std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuild
         } break;
         case TreeBuilderType::ctc: {
             return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case TreeBuilderType::transducer: {
+            return std::unique_ptr<AbstractTreeBuilder>(new TransducerTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();
     }

@@ -21,6 +21,8 @@
 #include <ratio>
 #include "Bliss/Lexicon.hh"
 #include "Core/Parameter.hh"
+#include "Nn/LabelScorer/LabelScorer.hh"
+#include "Nn/LabelScorer/ScoringContext.hh"
 #include "Nn/LabelScorer/SharedDataHolder.hh"
 
 namespace Search {
@@ -32,31 +34,35 @@ namespace Search {
 class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
     struct HypothesisExtension {
         const Bliss::LemmaPronunciation* pron;
-        Nn::ScoringContextRef            scoringContext;
+        Nn::CombineScoringContextRef     scoringContext;
         Nn::LabelIndex                   label;
         Score                            score;
         Search::TimeframeIndex           timestep;
         Nn::LabelScorer::TransitionType  transitionType;
+        size_t                           baseHypIndex;
 
         HypothesisExtension()
-                : pron(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType() {}
+                : pron(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType(), baseHypIndex(0) {}
 
-        HypothesisExtension(const Bliss::LemmaPronunciation* pron, Core::Ref<const Nn::ScoringContext> scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType)
-                : pron(pron), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType) {}
+        HypothesisExtension(const Bliss::LemmaPronunciation* pron, Nn::CombineScoringContextRef scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType, size_t baseHypIndex)
+                : pron(pron), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType), baseHypIndex(baseHypIndex) {}
     };
 
     struct LabelHypothesis {
-        Nn::ScoringContextRef scoringContext;
-        Nn::LabelIndex        currentLabel;
-        Score                 score;
-        unsigned int          length;
-        Traceback             traceback;
+        Nn::CombineScoringContextRef    scoringContext;
+        Nn::LabelIndex                  currentLabel;
+        Score                           score;
+        unsigned int                    length;
+        Traceback                       traceback;
+        Nn::LabelScorer::TransitionType lastTransitionType;
 
         LabelHypothesis()
-                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback() {}
+                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback(), lastTransitionType(Nn::LabelScorer::TransitionType::BLANK_LOOP) {}
 
         LabelHypothesis(LabelHypothesis const& base);
         LabelHypothesis(LabelHypothesis const& base, HypothesisExtension const& extension);
+
+        Score lengthNormalizedScore(Score scale = 0) const;
 
         std::string toString() const;
     };
@@ -84,9 +90,9 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
 
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterInt   paramTopKTokens;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramLengthNormScale;
+    static const Core::ParameterInt   paramMaxBeamSizePerScorer;
     static const Core::ParameterBool  paramUseBlank;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramAllowLabelLoop;
@@ -115,15 +121,12 @@ private:
 
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
-    // Helper function for top-k pruning of the successor tokens
-    void topKTokenPruning(std::vector<size_t>& indices, std::vector<Score> const& extensionScores, size_t numUnfinishedHyps);
-
     /* Helper function for pruning to maxBeamSize_
      * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their inidces) to be sorted and pruned
      * @tparam compare A callable (e.g. lambda or function pointer) that takes two elements of the hypotheses and returns true if the first element should precede the second element
      */
     template<typename T>
-    void beamPruning(std::vector<T>& hypotheses, std::function<bool(T const&, T const&)>&& compare);
+    void beamPruning(std::vector<T>& hypotheses, std::function<bool(T const&, T const&)>&& compare, size_t maxSize);
 
     /* Helper function for score-based pruning
      * @tparam hypotheses A container type (e.g. std::vector) that holds the hypotheses (or their indices) to be pruned sorted by their score
@@ -139,9 +142,7 @@ private:
     void recombination(std::vector<T>& hypotheses);
 
     size_t maxBeamSize_;
-
-    bool   useTokenPruning_;
-    size_t topKTokens_;
+    size_t maxBeamSizePerScorer_;
 
     bool  useScorePruning_;
     Score scoreThreshold_;
@@ -157,10 +158,10 @@ private:
 
     bool logStepwiseStatistics_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Nn::LabelIndex               numClasses_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Nn::LabelIndex                          numClasses_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     TimeStatistic initializationTime_;
     TimeStatistic featureProcessingTime_;

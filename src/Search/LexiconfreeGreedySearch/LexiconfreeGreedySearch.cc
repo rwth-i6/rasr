@@ -53,11 +53,12 @@ void LexiconfreeGreedySearch::reset() {
 }
 
 Speech::ModelCombination::Mode LexiconfreeGreedySearch::requiredModelCombination() const {
-    return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
+    return Speech::ModelCombination::useLabelScorers | Speech::ModelCombination::useLexicon;
 }
 
 bool LexiconfreeGreedySearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
-    lexicon_     = modelCombination.lexicon();
+    lexicon_ = modelCombination.lexicon();
+    verify(modelCombination.labelScorers().size() == 1);
     labelScorer_ = modelCombination.labelScorer();
 
     reset();

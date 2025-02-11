@@ -16,6 +16,7 @@
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
 #include <Nn/Module.hh>
+#include <string>
 
 using namespace Speech;
 
@@ -23,16 +24,20 @@ const ModelCombination::Mode ModelCombination::complete         = 0x3;
 const ModelCombination::Mode ModelCombination::useLexicon       = 0x0;
 const ModelCombination::Mode ModelCombination::useAcousticModel = 0x1;
 const ModelCombination::Mode ModelCombination::useLanguageModel = 0x2;
-const ModelCombination::Mode ModelCombination::useLabelScorer   = 0x4;
+const ModelCombination::Mode ModelCombination::useLabelScorers  = 0x4;
 
 //======================================================================================
 
 const Core::ParameterFloat ModelCombination::paramPronunciationScale(
         "pronunciation-scale", "scaling exponent for lemma pronunciation probabilities", 0.0);
 
+const Core::ParameterInt ModelCombination::paramNumLabelScorers(
+        "num-label-scorers", "Number of label scorers in model combination", 1, 1);
+
 ModelCombination::ModelCombination(const Core::Configuration& c)
         : Core::Component(c),
-          Mc::Component(c) {
+          Mc::Component(c),
+          labelScorers_(paramNumLabelScorers(c)) {
     setPronunciationScale(paramPronunciationScale(c));
 }
 
@@ -41,7 +46,8 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
                                    Am::AcousticModel::Mode    acousticModelMode,
                                    Bliss::LexiconRef          lexicon)
         : Core::Component(c),
-          Mc::Component(c) {
+          Mc::Component(c),
+          labelScorers_(paramNumLabelScorers(c)) {
     setPronunciationScale(paramPronunciationScale(c));
     build(mode, acousticModelMode, lexicon);
 }
@@ -50,7 +56,7 @@ ModelCombination::ModelCombination(const Core::Configuration&         c,
                                    Bliss::LexiconRef                  lexicon,
                                    Core::Ref<Am::AcousticModel>       acousticModel,
                                    Core::Ref<Lm::ScaledLanguageModel> languageModel)
-        : Core::Component(c), Mc::Component(c), pronunciationScale_(0) {
+        : Core::Component(c), Mc::Component(c), pronunciationScale_(0), labelScorers_(paramNumLabelScorers(c)) {
     setPronunciationScale(paramPronunciationScale(c));
     setLexicon(lexicon);
     setAcousticModel(acousticModel);
@@ -91,11 +97,15 @@ void ModelCombination::build(Mode                    mode,
         }
     }
 
-    if (mode & useLabelScorer) {
-        log() << "Create label scorer in ModelCombination";
-        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
-        if (!labelScorer_) {
-            criticalError("failed to initialize label scorer");
+    if (mode & useLabelScorers) {
+        log() << "Create label scorers in ModelCombination";
+        if (labelScorers_.size() == 1) {
+            setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
+        }
+        else {
+            for (size_t idx = 0ul; idx < labelScorers_.size(); ++idx) {
+                setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer-" + std::to_string(idx + 1))), idx);
+            }
         }
     }
 }

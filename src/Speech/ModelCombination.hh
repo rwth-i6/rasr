@@ -42,16 +42,17 @@ public:
     static const Mode useLexicon;
     static const Mode useAcousticModel;
     static const Mode useLanguageModel;
-    static const Mode useLabelScorer;
+    static const Mode useLabelScorers;
 
     static const Core::ParameterFloat paramPronunciationScale;
+    static const Core::ParameterInt   paramNumLabelScorers;
 
 protected:
-    Bliss::LexiconRef                  lexicon_;
-    Mm::Score                          pronunciationScale_;
-    Core::Ref<Am::AcousticModel>       acousticModel_;
-    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
-    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Bliss::LexiconRef                       lexicon_;
+    Mm::Score                               pronunciationScale_;
+    Core::Ref<Am::AcousticModel>            acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel>      languageModel_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
 
 private:
     void setPronunciationScale(Mm::Score scale) {
@@ -88,11 +89,16 @@ public:
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) {
-        labelScorer_ = ls;
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls, size_t idx = 0ul) {
+        labelScorers_.at(idx) = ls;
     }
-    Core::Ref<Nn::LabelScorer> labelScorer() const {
-        return labelScorer_;
+
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers() const {
+        return labelScorers_;
+    }
+
+    Core::Ref<Nn::LabelScorer> labelScorer(size_t idx = 0ul) const {
+        return labelScorers_[idx];
     }
 };
 

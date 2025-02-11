@@ -1220,7 +1220,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         // Create a special root for the word-boundary token if it exists in the lexicon
         if (lexicon.specialLemma("word-boundary") != nullptr) {
             wordBoundaryRoot_ = createRoot();
-            network_.otherRootStates.push_back(wordBoundaryRoot_);
+            network_.otherRootStates.insert(wordBoundaryRoot_);
         }
     }
 }

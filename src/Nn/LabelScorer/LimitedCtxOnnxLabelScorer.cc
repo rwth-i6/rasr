@@ -106,6 +106,7 @@ LimitedCtxOnnxLabelScorer::LimitedCtxOnnxLabelScorer(Core::Configuration const& 
           historyName_(onnxModel_.mapping.getOnnxName("history")),
           scoresName_(onnxModel_.mapping.getOnnxName("scores")),
           scoreCache_(paramMaxCachedScores(config)) {
+    log() << "Create LimitedCtxOnnxLabelScorer with context size " << historyLength_;
 }
 
 void LimitedCtxOnnxLabelScorer::reset() {

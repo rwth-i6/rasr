@@ -67,6 +67,7 @@ NoCtxOnnxLabelScorer::NoCtxOnnxLabelScorer(Core::Configuration const& config)
           encoderStateName_(onnxModel_.mapping.getOnnxName("encoder-state")),
           scoresName_(onnxModel_.mapping.getOnnxName("scores")),
           scoreCache_(paramMaxCachedScores(config)) {
+    log() << "Create NoCtxOnnxLabelScorer";
 }
 
 void NoCtxOnnxLabelScorer::reset() {

@@ -47,6 +47,7 @@ CTCPrefixLabelScorer::CTCPrefixLabelScorer(Core::Configuration const& config)
           blankIndex_(paramBlankIndex(config)),
           ctcScorer_(Module::instance().createLabelScorer(select("ctc-scorer"))),
           expectMoreFeatures_(true) {
+    log() << "Create CTCPrefixLabelScorer";
 }
 
 void CTCPrefixLabelScorer::reset() {

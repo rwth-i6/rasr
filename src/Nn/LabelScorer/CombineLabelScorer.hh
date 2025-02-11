@@ -31,8 +31,7 @@ class CombineLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
 public:
-    static Core::ParameterInt   paramNumLabelScorers;
-    static Core::ParameterFloat paramScale;
+    static Core::ParameterInt paramNumLabelScorers;
 
     CombineLabelScorer(const Core::Configuration& config);
     virtual ~CombineLabelScorer() = default;
@@ -62,12 +61,7 @@ public:
     std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
 
 protected:
-    struct ScaledLabelScorer {
-        Core::Ref<LabelScorer> scorer;
-        Score                  scale;
-    };
-
-    std::vector<ScaledLabelScorer> scaledScorers_;
+    std::vector<Core::Ref<LabelScorer>> scorers_;
 };
 
 }  // namespace Nn

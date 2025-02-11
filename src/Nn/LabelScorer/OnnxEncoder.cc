@@ -39,6 +39,7 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config)
           featuresName_(onnxModel_.mapping.getOnnxName("features")),
           featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
           outputName_(onnxModel_.mapping.getOnnxName("outputs")) {
+    log() << "Create OnnxEncoder";
 }
 
 std::pair<size_t, size_t> OnnxEncoder::validOutFrameRange(size_t T_in, size_t T_out) {

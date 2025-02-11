@@ -22,6 +22,7 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
+    log() << "Create EncoderDecoderLabelScorer";
 }
 
 void EncoderDecoderLabelScorer ::reset() {

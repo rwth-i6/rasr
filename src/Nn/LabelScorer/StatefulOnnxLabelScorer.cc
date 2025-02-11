@@ -125,6 +125,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)) {
+    log() << "Create StatefulOnnxLabelScorer";
     auto initializerMetadataKeys = stateInitializerOnnxModel_.session.getCustomMetadataKeys();
     auto updaterMetadataKeys     = stateUpdaterOnnxModel_.session.getCustomMetadataKeys();
     auto scorerMetadataKeys      = scorerOnnxModel_.session.getCustomMetadataKeys();

@@ -26,7 +26,9 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
         : Core::Component(config),
           Precursor(config),
           scorer_(scorer),
-          scale_(paramScale(config)) {}
+          scale_(paramScale(config)) {
+    log() << "Create scaled label scorer with scale " << scale_;
+}
 
 void ScaledLabelScorer::reset() {
     scorer_->reset();

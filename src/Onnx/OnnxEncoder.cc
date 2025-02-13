@@ -57,7 +57,6 @@ void OnnxEncoder::encode() {
     /*
      * Create session inputs
      */
-
     std::vector<std::pair<std::string, Value>> sessionInputs;
 
     size_t T_in = inputBuffer_.size();
@@ -80,14 +79,12 @@ void OnnxEncoder::encode() {
     /*
      * Run session
      */
-
     std::vector<Value> sessionOutputs;
     onnxModel_.session.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
 
     /*
      * Put outputs into buffer
      */
-
     auto onnxOutputValueWrapper = std::make_shared<Value>(std::move(sessionOutputs.front()));
 
     size_t T_out;

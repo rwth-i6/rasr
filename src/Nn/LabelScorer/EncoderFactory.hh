@@ -37,11 +37,11 @@ private:
     Core::Choice choices_;
 
 public:
+    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
+
     Core::ParameterChoice paramEncoderType;
 
     EncoderFactory();
-
-    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
 
     /*
      * Register a new Encoder type by name and a factory function that can create an instance given a config object

@@ -20,8 +20,8 @@
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/Singleton.hh>
-
 #include <Flow/Module.hh>
+
 #include "LabelScorer/EncoderFactory.hh"
 
 #include "LabelScorer/LabelScorer.hh"

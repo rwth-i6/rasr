@@ -75,7 +75,7 @@ Module_::Module_()
             pythonFeatureScorer, "python-feature-scorer");
 #endif
 
-    // Assume inputs are already finished scores and just passes on the score at the current step
+    // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",
             [](Core::Configuration const& config) {

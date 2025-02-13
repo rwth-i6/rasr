@@ -87,15 +87,8 @@ void OnnxEncoder::encode() {
      */
     auto onnxOutputValueWrapper = std::make_shared<Value>(std::move(sessionOutputs.front()));
 
-    size_t T_out;
-    if (onnxOutputValueWrapper->numDims() == 3) {
-        T_out       = onnxOutputValueWrapper->dimSize(1);
-        outputSize_ = onnxOutputValueWrapper->dimSize(2);
-    }
-    else {
-        T_out       = onnxOutputValueWrapper->dimSize(0);
-        outputSize_ = onnxOutputValueWrapper->dimSize(1);
-    }
+    size_t T_out = onnxOutputValueWrapper->dimSize(1);
+    outputSize_  = onnxOutputValueWrapper->dimSize(2);
 
     for (size_t t = 0ul; t < T_out; ++t) {
         auto frameOutputPtr = std::shared_ptr<const f32[]>(

@@ -40,60 +40,6 @@ DEFINE_ONNX_TENSOR_TYPE_MAPING(Ort::BFloat16_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_BF
 namespace Onnx {
 
 template<typename T>
-Value Value::zeros(std::initializer_list<int64_t> dim) {
-    Ort::AllocatorWithDefaultOptions allocator;
-
-    int64_t total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
-
-    Value res;
-    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
-    T* data    = res.value_.GetTensorMutableData<T>();
-    for (int64_t i = 0ul; i < total_size; i++) {
-        data[i] = T(0);
-    }
-
-    return res;
-}
-
-template Value Value::zeros<f32>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<f64>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<s64>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<u64>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<s32>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<u32>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<s16>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<u16>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<s8>(std::initializer_list<int64_t> dim);
-template Value Value::zeros<u8>(std::initializer_list<int64_t> dim);
-
-template<typename T>
-Value Value::zeros(std::vector<int64_t> const& dim) {
-    Ort::AllocatorWithDefaultOptions allocator;
-
-    int64_t total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
-
-    Value res;
-    res.value_ = Ort::Value::CreateTensor<T>(allocator, &(*dim.begin()), dim.size());
-    T* data    = res.value_.GetTensorMutableData<T>();
-    for (int64_t i = 0ul; i < total_size; i++) {
-        data[i] = T(0);
-    }
-
-    return res;
-}
-
-template Value Value::zeros<f32>(std::vector<int64_t> const& dim);
-template Value Value::zeros<f64>(std::vector<int64_t> const& dim);
-template Value Value::zeros<s64>(std::vector<int64_t> const& dim);
-template Value Value::zeros<u64>(std::vector<int64_t> const& dim);
-template Value Value::zeros<s32>(std::vector<int64_t> const& dim);
-template Value Value::zeros<u32>(std::vector<int64_t> const& dim);
-template Value Value::zeros<s16>(std::vector<int64_t> const& dim);
-template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
-template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
-template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
-
-template<typename T>
 Value Value::createEmpty(std::initializer_list<int64_t> dim) {
     Ort::AllocatorWithDefaultOptions allocator;
 
@@ -134,6 +80,56 @@ template Value Value::createEmpty<s16>(std::vector<int64_t> const& dim);
 template Value Value::createEmpty<u16>(std::vector<int64_t> const& dim);
 template Value Value::createEmpty<s8>(std::vector<int64_t> const& dim);
 template Value Value::createEmpty<u8>(std::vector<int64_t> const& dim);
+
+template<typename T>
+Value Value::zeros(std::initializer_list<int64_t> dim) {
+    Value res = createEmpty<T>(dim);
+
+    int64_t total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    T* data = res.value_.GetTensorMutableData<T>();
+    for (int64_t i = 0ul; i < total_size; i++) {
+        data[i] = T(0);
+    }
+
+    return res;
+}
+
+template Value Value::zeros<f32>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<f64>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<s64>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<u64>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<s32>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<u32>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<s16>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<u16>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<s8>(std::initializer_list<int64_t> dim);
+template Value Value::zeros<u8>(std::initializer_list<int64_t> dim);
+
+template<typename T>
+Value Value::zeros(std::vector<int64_t> const& dim) {
+    Value res = createEmpty<T>(dim);
+
+    int64_t total_size = std::accumulate(dim.begin(), dim.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    T* data = res.value_.GetTensorMutableData<T>();
+    for (int64_t i = 0ul; i < total_size; i++) {
+        data[i] = T(0);
+    }
+
+    return res;
+}
+
+template Value Value::zeros<f32>(std::vector<int64_t> const& dim);
+template Value Value::zeros<f64>(std::vector<int64_t> const& dim);
+template Value Value::zeros<s64>(std::vector<int64_t> const& dim);
+template Value Value::zeros<u64>(std::vector<int64_t> const& dim);
+template Value Value::zeros<s32>(std::vector<int64_t> const& dim);
+template Value Value::zeros<u32>(std::vector<int64_t> const& dim);
+template Value Value::zeros<s16>(std::vector<int64_t> const& dim);
+template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
+template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
+template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
 
 /* ------------------------- Getters ------------------------- */
 

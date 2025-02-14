@@ -67,6 +67,7 @@ public:
 private:
     Core::FormatSet*   formats_;
     EncoderFactory     encoderFactory_;
+    LabelScorerFactory labelScorerFactory_;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

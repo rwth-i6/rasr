@@ -18,6 +18,7 @@
 #include <Flow/Registry.hh>
 #include <Modules.hh>
 
+#include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN

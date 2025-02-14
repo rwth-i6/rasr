@@ -18,6 +18,7 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
+#include <Speech/Types.hh>
 
 namespace Nn {
 
@@ -51,12 +52,12 @@ struct ScoringContextEq {
  * Scoring context that only describes the current decoding step
  */
 struct StepScoringContext : public ScoringContext {
-    size_t currentStep;
+    Speech::TimeframeIndex currentStep;
 
     StepScoringContext()
-            : currentStep(0ul) {}
+            : currentStep(0u) {}
 
-    StepScoringContext(size_t step)
+    StepScoringContext(Speech::TimeframeIndex step)
             : currentStep(step) {}
 
     bool   isEqual(ScoringContextRef const& other) const;

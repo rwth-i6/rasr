@@ -28,9 +28,9 @@ namespace Nn {
  * or when they are computed inside a flow node.
  */
 class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
+public:
     using Precursor = BufferedLabelScorer;
 
-public:
     StepwiseNoOpLabelScorer(const Core::Configuration& config);
 
     // Initial scoring context just contains step 0.

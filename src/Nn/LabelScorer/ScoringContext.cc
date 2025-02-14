@@ -41,7 +41,8 @@ size_t StepScoringContext::hash() const {
 }
 
 bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
-    return currentStep == dynamic_cast<const StepScoringContext*>(other.get())->currentStep;
+    StepScoringContext const* o = dynamic_cast<StepScoringContext const*>(other.get());
+    return o != nullptr and currentStep == o->currentStep;
 }
 
 }  // namespace Nn

@@ -199,10 +199,10 @@ Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::L
 }
 
 LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base)
-        : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), length(base.length), traceback(base.traceback), lastTransitionType(base.lastTransitionType) {}
+        : scoringContext(base.scoringContext), currentLabel(base.currentLabel), score(base.score), length(base.length), traceback(base.traceback), lastTransitionType(base.lastTransitionType), finished(base.finished) {}
 
 LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base, LexiconfreeBeamSearch::HypothesisExtension const& extension)
-        : scoringContext(extension.scoringContext), currentLabel(extension.label), score(extension.score), length(base.length + 1), traceback(base.traceback), lastTransitionType(extension.transitionType) {
+        : scoringContext(extension.scoringContext), currentLabel(extension.label), score(extension.score), length(base.length + 1), traceback(base.traceback), lastTransitionType(extension.transitionType), finished(base.finished) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
@@ -298,7 +298,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
     std::vector<size_t> finishedHyps;
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        if (useSentenceEnd_ and beam_[hypIndex].currentLabel == sentenceEndIndex_) {
+        if (beam_[hypIndex].finished) {
             finishedHyps.push_back(hypIndex);
         }
         else {
@@ -376,7 +376,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
     }
 
     for (auto& hyp : newBeam) {
-        if (useSentenceEnd_ and hyp.currentLabel == sentenceEndIndex_) {
+        if (hyp.finished) {
             continue;
         }
 
@@ -392,6 +392,9 @@ bool LexiconfreeBeamSearch::decodeStep() {
             contextExtensionTime_.toc();
         }
         hyp.scoringContext = Core::ref(new Nn::CombineScoringContext(std::move(newScoringContexts)));
+        if (useSentenceEnd_ and hyp.currentLabel == sentenceEndIndex_) {
+            hyp.finished = true;
+        }
     }
 
     /*

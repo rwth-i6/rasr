@@ -55,9 +55,10 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         unsigned int                    length;
         Traceback                       traceback;
         Nn::LabelScorer::TransitionType lastTransitionType;
+        bool                            finished;
 
         LabelHypothesis()
-                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback(), lastTransitionType(Nn::LabelScorer::TransitionType::BLANK_LOOP) {}
+                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback(), lastTransitionType(Nn::LabelScorer::TransitionType::BLANK_LOOP), finished(false) {}
 
         LabelHypothesis(LabelHypothesis const& base);
         LabelHypothesis(LabelHypothesis const& base, HypothesisExtension const& extension);

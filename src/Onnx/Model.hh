@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,20 +13,26 @@
  *  limitations under the License.
  */
 
-#ifndef LABEL_SCORER_HH
-#define LABEL_SCORER_HH
+#ifndef ONNX_MODEL_HH
+#define ONNX_MODEL_HH
 
-#include <Core/Component.hh>
-#include <Core/ReferenceCounting.hh>
+#include "IOSpecification.hh"
+#include "Session.hh"
 
-namespace Nn {
+namespace Onnx {
 
+/*
+ * Wrapper class that ties together Session, IOMapping and IOValidator components
+ * which are commonly used together when dealing with ONNX models
+ */
+class Model : public Core::Component {
+public:
+    Session   session;
+    IOMapping mapping;
 
-// base class of models for label scoring (basic supports except scoring)
-class LabelScorer : public virtual Core::Component,
-                    public Core::ReferenceCounted {
+    Model(const Core::Configuration& config, const std::vector<IOSpecification>& ioSpec);
 };
 
-}  // namespace Nn
+}  // namespace Onnx
 
-#endif
+#endif  // ONNX_MODEL_HH

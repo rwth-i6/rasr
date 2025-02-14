@@ -27,8 +27,7 @@ enum SearchType {
     WordConditionedTreeSearchType,
     AdvancedTreeSearch,
     LinearSearchType,
-    ExpandingFsaSearchType,
-    GenericSeq2SeqTreeSearchType
+    ExpandingFsaSearchType
 };
 
 class Module_ {

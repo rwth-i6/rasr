@@ -12,13 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
-#include "LabelScorer/LabelScorerFactory.hh"
-#include "LabelScorer/NoOpLabelScorer.hh"
-#include "Module.hh"
+
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -36,17 +35,11 @@
 #include "PythonFeatureScorer.hh"
 #endif
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
-#endif
-
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0),
+        : formats_(nullptr),
+          encoderFactory_(),
           labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
@@ -96,6 +89,10 @@ Core::FormatSet& Module_::formats() {
         formats_->registerFormat("bin", new Core::CompressedBinaryFormat<Statistics<f64>>(), true);
     }
     return *formats_;
+}
+
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
 }
 
 LabelScorerFactory& Module_::labelScorerFactory() {

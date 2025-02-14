@@ -45,10 +45,10 @@ public:
     static const Core::ParameterChoice paramSearch;
 
 protected:
-    typedef Search::SearchAlgorithm::Traceback Traceback;
-    Core::Ref<const Bliss::Lexicon>            lexicon_;
-    Core::Ref<Am::AcousticModel>               acousticModel_;
-    Search::SearchAlgorithm*                   recognizer_;
+    typedef Search::Traceback       Traceback;
+    Core::Ref<const Bliss::Lexicon> lexicon_;
+    Core::Ref<Am::AcousticModel>    acousticModel_;
+    Search::SearchAlgorithm*        recognizer_;
 
 protected:
     void         initializeRecognizer(Am::AcousticModel::Mode acousticModelMode);

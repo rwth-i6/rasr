@@ -82,7 +82,7 @@ struct StepScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const StepScoringContext>    StepScoringContextRef;
+typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
 
 }  // namespace Nn
 

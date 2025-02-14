@@ -18,6 +18,7 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
+#include <Speech/Types.hh>
 
 namespace Nn {
 
@@ -47,6 +48,23 @@ struct ScoringContextEq {
     }
 };
 
+/*
+ * Scoring context that only describes the current decoding step
+ */
+struct StepScoringContext : public ScoringContext {
+    Speech::TimeframeIndex currentStep;
+
+    StepScoringContext()
+            : currentStep(0u) {}
+
+    StepScoringContext(Speech::TimeframeIndex step)
+            : currentStep(step) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

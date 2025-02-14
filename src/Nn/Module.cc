@@ -12,12 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
-#include "LabelScorer/EncoderFactory.hh"
-#include "Module.hh"
+
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -38,8 +38,9 @@
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0),
-          encoderFactory_() {
+        : formats_(nullptr),
+          encoderFactory_(),
+          labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -87,6 +88,6 @@ EncoderFactory& Module_::encoderFactory() {
     return encoderFactory_;
 }
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-    Core::Application::us()->criticalError("Label Scorer creation not implemented yet.");
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
 }

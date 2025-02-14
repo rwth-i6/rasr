@@ -17,7 +17,6 @@
 #include <Lm/Module.hh>
 #include <Nn/Module.hh>
 
-
 using namespace Speech;
 
 const ModelCombination::Mode ModelCombination::complete         = 0x3;
@@ -58,7 +57,7 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
     }
 
     if (mode & useLabelScorer) {
-        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
+        setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("label-scorer")));
         if (!labelScorer_)
             criticalError("failed to initialize label scorer");
     }

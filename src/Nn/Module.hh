@@ -23,8 +23,9 @@
 #include <Flow/Module.hh>
 
 #include "LabelScorer/EncoderFactory.hh"
-
 #include "LabelScorer/LabelScorer.hh"
+#include "LabelScorer/LabelScorerFactory.hh"
+
 
 namespace Core {
 class FormatSet;
@@ -51,13 +52,22 @@ public:
      */
     Core::FormatSet& formats();
 
+    /*
+     * Access instance of EncoderFactory for registering and creating Encoders.
+     */
     EncoderFactory& encoderFactory();
 
+    /*
+     * Access instance of LabelScorerFactory for registering and creating LabelScorers.
+     */
+    LabelScorerFactory& labelScorerFactory();
+  
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 
 private:
-    Core::FormatSet* formats_;
-    EncoderFactory   encoderFactory_;
+    Core::FormatSet*   formats_;
+    EncoderFactory     encoderFactory_;
+    LabelScorerFactory labelScorerFactory_;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

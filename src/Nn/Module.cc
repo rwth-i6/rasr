@@ -18,6 +18,7 @@
 #include <Flow/Registry.hh>
 #include <Modules.hh>
 
+#include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
@@ -69,6 +70,12 @@ Module_::Module_()
             pythonFeatureScorer, "python-feature-scorer");
 #endif
 
+    // Performs log-linear combination of multiple sub-label-scorers
+    labelScorerFactory_.registerLabelScorer(
+            "combine",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CombineLabelScorer(config));
+            });
     // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",

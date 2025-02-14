@@ -131,6 +131,10 @@ ScoringContextRef CTCPrefixLabelScorer::extendedScoringContext(LabelScorer::Requ
         context = getProperInitialScoringContext();
     }
 
+    if (request.transitionType == BLANK_LOOP or request.transitionType == LABEL_TO_BLANK) {
+        return context;
+    }
+
     const auto&                                       prefixScores = context->prefixScores;
     std::vector<CTCPrefixScoringContext::PrefixScore> extPrefixScores;
     extPrefixScores.reserve(prefixScores.size());
@@ -160,6 +164,10 @@ ScoringContextRef CTCPrefixLabelScorer::extendedScoringContext(LabelScorer::Requ
 std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     if (expectMoreFeatures_) {
         return {};
+    }
+
+    if (request.transitionType == BLANK_LOOP or request.transitionType == LABEL_TO_BLANK) {
+        return ScoreWithTime{0.0, 0};
     }
 
     PrefixScoringContextRef context;

@@ -49,6 +49,24 @@ struct ScoringContextEq {
 };
 
 /*
+ * Combines multiple scoring contexts at once
+ */
+struct CombineScoringContext : public ScoringContext {
+    std::vector<ScoringContextRef> scoringContexts;
+
+    CombineScoringContext()
+            : scoringContexts() {}
+
+    CombineScoringContext(std::vector<ScoringContextRef>&& scoringContexts)
+            : scoringContexts(scoringContexts) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
+
+/*
  * Scoring context that only describes the current decoding step
  */
 struct StepScoringContext : public ScoringContext {
@@ -65,6 +83,7 @@ struct StepScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
+
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

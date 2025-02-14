@@ -77,17 +77,6 @@ ifdef MODULE_PYTHON
   LIBSPRINTNN_O += $(OBJDIR)/PythonLayer.o
 endif
 
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-  LIBSPRINTNN_O += $(OBJDIR)/LabelScorer.o
-  ifdef MODULE_TENSORFLOW
-    LIBSPRINTNN_O += $(OBJDIR)/TFLabelScorer.o
-
-    CXXFLAGS += $(TF_CXXFLAGS)
-    LDFLAGS  += $(TF_LDFLAGS)
-    CHECK_O  += ../Tensorflow/libSprintTensorflow.$(a)
-  endif
-endif
-
 SUBDIRS += LabelScorer
 
 # -----------------------------------------------------------------------------

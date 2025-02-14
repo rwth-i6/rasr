@@ -12,13 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
+
 #include "LabelScorer/CombineLabelScorer.hh"
-#include "LabelScorer/LabelScorerFactory.hh"
-#include "Module.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -36,17 +37,11 @@
 #include "PythonFeatureScorer.hh"
 #endif
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
-#endif
-
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0),
+        : formats_(nullptr),
+          encoderFactory_(),
           labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
@@ -81,6 +76,12 @@ Module_::Module_()
             [](Core::Configuration const& config) {
                 return Core::ref(new CombineLabelScorer(config));
             });
+    // Assumes inputs are already finished scores and just passes on the score at the current step
+    labelScorerFactory_.registerLabelScorer(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {
@@ -96,6 +97,10 @@ Core::FormatSet& Module_::formats() {
         formats_->registerFormat("bin", new Core::CompressedBinaryFormat<Statistics<f64>>(), true);
     }
     return *formats_;
+}
+
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
 }
 
 LabelScorerFactory& Module_::labelScorerFactory() {

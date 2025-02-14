@@ -17,6 +17,7 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Search.o \
 		$(OBJDIR)/StateTree.o \
 		$(OBJDIR)/StateTreeIo.o \
+		$(OBJDIR)/Traceback.o \
 		$(OBJDIR)/WordConditionedTreeSearch.o
 
 CHECK_O		= $(OBJDIR)/check.o \
@@ -41,9 +42,6 @@ endif
 ifdef MODULE_SEARCH_LINEAR
 LIBSPRINTSEARCH_O += $(OBJDIR)/LinearSearch.o
 endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-SUBDIRS += GenericSeq2SeqTreeSearch
-endif
 
 # -----------------------------------------------------------------------------
 
@@ -65,9 +63,6 @@ Wfst:
 AdvancedTreeSearch:
 	$(MAKE) -C $@ libSprintAdvancedTreeSearch.$(a)
 
-GenericSeq2SeqTreeSearch:
-	$(MAKE) -C $@  libSprintGenericSeq2SeqTreeSearch.$(a)
-	
 include $(TOPDIR)/Rules.make
 
 sinclude $(LIBSPRINTSEARCH_O:.o=.d)

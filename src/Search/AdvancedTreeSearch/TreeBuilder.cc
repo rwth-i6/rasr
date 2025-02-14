@@ -115,7 +115,6 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
 
     if (initialize) {
         verify(!network_.rootState);
-        network_.masterTree = network_.structure.allocateTree();
 
         // Non-coarticulated root state
         network_.ciRootState = network_.rootState = createRoot(Bliss::Phoneme::term, Bliss::Phoneme::term, 0);
@@ -554,7 +553,7 @@ AbstractTreeBuilder::StateId MinimizedTreeBuilder::createRoot(Bliss::Phoneme::Id
 }
 
 AbstractTreeBuilder::StateId MinimizedTreeBuilder::createState(StateTree::StateDesc desc) {
-    StateId ret                             = network_.structure.allocateTreeNode(network_.masterTree);
+    StateId ret                             = network_.structure.allocateTreeNode();
     network_.structure.state(ret).stateDesc = desc;
     return ret;
 }
@@ -835,7 +834,7 @@ std::vector<AbstractTreeBuilder::StateId> MinimizedTreeBuilder::minimize(bool fo
 
                 SuccessorHash::iterator it = items.first;
                 if (++it != items.second) {
-                    StateId newNode = network_.structure.allocateTreeNode(network_.masterTree);
+                    StateId newNode = network_.structure.allocateTreeNode();
                     if (newNode >= determinizeMap.size()) {
                         determinizeMap.resize(newNode + 1, 0);
                     }

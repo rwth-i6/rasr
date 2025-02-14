@@ -32,7 +32,7 @@ size_t combineHashes(size_t hash1, size_t hash2) {
 
 /*
  * =============================
- * === ScoringContext ==========
+ * ====== ScoringContext =======
  * =============================
  */
 size_t ScoringContext::hash() const {
@@ -59,7 +59,7 @@ size_t CombineScoringContext::hash() const {
 bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
 
-    if (scoringContexts.size() != otherPtr->scoringContexts.size()) {
+    if (otherPtr == nullptr or scoringContexts.size() != otherPtr->scoringContexts.size()) {
         return false;
     }
 
@@ -70,6 +70,20 @@ bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
     }
 
     return true;
+}
+
+/*
+ * =============================
+ * ==== StepScoringContext =====
+ * =============================
+ */
+size_t StepScoringContext::hash() const {
+    return currentStep;
+}
+
+bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
+    StepScoringContext const* o = dynamic_cast<StepScoringContext const*>(other.get());
+    return o != nullptr and currentStep == o->currentStep;
 }
 
 }  // namespace Nn

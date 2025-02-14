@@ -15,11 +15,13 @@
 #ifndef LABEL_SCORER_FACTORY_HH
 #define LABEL_SCORER_FACTORY_HH
 
+#include <functional>
+
 #include <Core/Choice.hh>
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
-#include <functional>
+
 #include "LabelScorer.hh"
 
 namespace Nn {
@@ -35,11 +37,11 @@ private:
     Core::Choice choices_;
 
 public:
+    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
+
     Core::ParameterChoice paramLabelScorerType;
 
     LabelScorerFactory();
-
-    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
 
     /*
      * Register a new LabelScorer type by name and a factory function that can create an instance given a config object

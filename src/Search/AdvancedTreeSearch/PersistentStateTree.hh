@@ -94,9 +94,6 @@ public:
 
     /**  ----- state tree data: ------  */
 
-    // Identity of the main search network
-    TreeIndex masterTree;
-
     // Root node
     StateId rootState;
 

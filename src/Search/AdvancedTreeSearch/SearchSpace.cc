@@ -499,9 +499,6 @@ void StaticSearchAutomaton::clearDepths() {
 
 int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     if (stateDepths[state] != Core::Type<int>::min) {
-        //if (stateDepths[state] != depth) {  /// @todo Find out why this happens on some languages
-        //    std::cout << "conflicting state depths: " << stateDepths[state] << " vs " << depth << std::endl;
-        //}
         if (depth > stateDepths[state]) {
             stateDepths[state] = Core::Type<int>::min;  // Re-fill successor depths
         }

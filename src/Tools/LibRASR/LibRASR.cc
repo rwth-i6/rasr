@@ -10,6 +10,7 @@
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
+#include <Python/Module.hh>
 #include <Signal/Module.hh>
 #include <Speech/Module.hh>
 #ifdef MODULE_NN
@@ -39,6 +40,7 @@ DummyApplication::DummyApplication()
     INIT_MODULE(Speech);
 #ifdef MODULE_NN
     INIT_MODULE(Nn);
+    INIT_MODULE(Python);
 #endif
 #ifdef MODULE_ONNX
     INIT_MODULE(Onnx);

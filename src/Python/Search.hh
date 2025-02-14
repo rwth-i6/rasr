@@ -13,6 +13,17 @@
 
 namespace py = pybind11;
 
+struct TracebackItem {
+    std::string lemma;
+    f32         amScore;
+    f32         lmScore;
+    u32         startTime;
+    u32         endTime;
+};
+
+typedef std::vector<TracebackItem> Traceback;
+typedef std::vector<Traceback>     NBestList;
+
 class SearchAlgorithm : public Core::Component {
 public:
     SearchAlgorithm(const Core::Configuration& c);
@@ -40,6 +51,9 @@ public:
 
     // Return the current best result. May contain unstable results.
     std::string getCurrentBestTranscription();
+
+    Traceback getCurrentBestTraceback();
+    NBestList getCurrentNBestList();
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result

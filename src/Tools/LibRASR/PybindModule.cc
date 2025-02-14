@@ -4,6 +4,7 @@
 #include <pybind11/stl.h>
 
 #include <Python/AllophoneStateFsaBuilder.hh>
+#include <Python/CallbackRegistry.hh>
 #include <Python/Configuration.hh>
 #include <Python/Search.hh>
 
@@ -29,6 +30,8 @@ PYBIND11_MODULE(librasr, m) {
                      &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name",
                      &AllophoneStateFsaBuilder::buildBySegmentName);
+
+    m.def("register_callback", [](std::string const& name, py::function callback) { CallbackRegistry::instance().registerCallback(name, callback); }, "Register a Python callback function under a given name.");
 
     py::class_<TracebackItem> pyTracebackItem(m, "TracebackItem");
     pyTracebackItem.def_readwrite("lemma", &TracebackItem::lemma);

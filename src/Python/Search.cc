@@ -87,6 +87,34 @@ std::string SearchAlgorithm::getCurrentBestTranscription() {
     return ss.str();
 }
 
+Traceback SearchAlgorithm::getCurrentBestTraceback() {
+    decodeMore();
+
+    auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
+    std::vector<TracebackItem> result;
+    result.reserve(traceback->size());
+
+    u32 prevTime = 0;
+
+    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
+        result.push_back({
+                it->pronunciation->lemma()->symbol(),
+                it->score.acoustic,
+                it->score.lm,
+                prevTime,
+                it->time,
+        });
+        prevTime = it->time;
+    }
+    return result;
+}
+
+NBestList SearchAlgorithm::getCurrentNBestList() {
+    decodeMore();
+
+    auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
+}
+
 bool SearchAlgorithm::decodeMore() {
     return searchAlgorithm_->decodeMore();
 }

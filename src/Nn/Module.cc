@@ -190,6 +190,14 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
+}
+
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
+}
+
 Core::Ref<Encoder> Module_::createEncoder(Core::Configuration const& config) const {
     return encoderFactory_.createEncoder(config);
 }

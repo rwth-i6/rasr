@@ -207,12 +207,13 @@ LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::L
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            this->traceback.push_back(TracebackItem(extension.pron, extension.timestep, ScoreVector(score, {}), {}));
+            this->traceback.push_back(TracebackItem(extension.pron, extension.timestep + 1, ScoreVector(extension.score - base.score, {}), {}));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
             if (not this->traceback.empty()) {
-                this->traceback.back().score.acoustic = score;
+                this->traceback.back().score.acoustic += extension.score - base.score;
+                this->traceback.back().time = extension.timestep + 1;
             }
             break;
     }

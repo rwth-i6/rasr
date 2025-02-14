@@ -15,6 +15,7 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/EncoderFactory.o \
     $(OBJDIR)/LabelScorer.o \
     $(OBJDIR)/LabelScorerFactory.o \
+    $(OBJDIR)/NoOpLabelScorer.o \
     $(OBJDIR)/ScoringContext.o
 
 # -----------------------------------------------------------------------------

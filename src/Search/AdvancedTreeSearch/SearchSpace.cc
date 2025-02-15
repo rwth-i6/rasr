@@ -136,6 +136,7 @@ const Core::Choice choiceTreeBuilderType(
         "classic-hmm", static_cast<int>(TreeBuilderType::classicHmm),
         "minimized-hmm", static_cast<int>(TreeBuilderType::minimizedHmm),
         "ctc", static_cast<int>(TreeBuilderType::ctc),
+        "transducer", static_cast<int>(TreeBuilderType::transducer),
         Core::Choice::endMark());
 
 const Core::ParameterChoice paramTreeBuilderType(

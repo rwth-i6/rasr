@@ -44,9 +44,6 @@ endif
 ifdef MODULE_SEARCH_WFST
 NN_TRAINER_O += ../../Search/Wfst/libSprintSearchWfst.$(a) ../../OpenFst/libSprintOpenFst.$(a)
 endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-NN_TRAINER_O += ../../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
-endif
 ifdef MODULE_PYTHON
 NN_TRAINER_O += ../../Python/libSprintPython.$(a)
 endif

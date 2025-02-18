@@ -38,7 +38,7 @@ namespace Search {
 class HMMStateNetwork;
 class StateTree;
 
-class PersistentStateTree {
+class PersistentStateTree : public Core::ReferenceCounted {
 public:
     using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(TreeBuilderType, Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
 
@@ -75,7 +75,8 @@ public:
         Bliss::LemmaPronunciation::Id pronunciation;
         StateId                       transitState;
 
-        Exit() : pronunciation(Bliss::LemmaPronunciation::invalidId), transitState(invalidTreeNodeIndex) {}
+        Exit()
+                : pronunciation(Bliss::LemmaPronunciation::invalidId), transitState(invalidTreeNodeIndex) {}
 
         struct Hash {
             u32 operator()(const Exit& exit) const {

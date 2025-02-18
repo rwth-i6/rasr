@@ -18,8 +18,8 @@
 #include <Bliss/Phoneme.hh>
 #include <Search/AdvancedTreeSearch/Helpers.hh>
 #include <Search/AdvancedTreeSearch/LmCache.hh>
-#include "StateTree.hh"
 #include "PersistentStateTree.hh"
+#include "StateTree.hh"
 
 namespace Bliss {
 class Lexicon;
@@ -173,11 +173,11 @@ protected:
         const u32                          hash;
     };
 
-    typedef std::set<Bliss::Phoneme::Id>                                                                   PhonemeIdSet;
-    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                                                 RootHash;
-    typedef Core::HashMap<StateId, StateId>                                                                SkipRootsHash;
-    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                                       CoarticulationJointHash;
-    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash>                       PredecessorsHash;
+    typedef std::set<Bliss::Phoneme::Id>                                             PhonemeIdSet;
+    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                           RootHash;
+    typedef Core::HashMap<StateId, StateId>                                          SkipRootsHash;
+    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                 CoarticulationJointHash;
+    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash> PredecessorsHash;
 
     s32  minPhones_;
     bool addCiTransitions_;
@@ -271,18 +271,25 @@ protected:
 
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
-    // @param state is the last state of the word with pronunciation ID @param pron, add an exit leading to the root node @param transitState
-    // The exit is appended to the state's successors
-    u32     addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
 
-    // Check if the node with @param desc is already a successor of the @param predecessor and add it if not
+    // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.
+    // The exit is appended to `state`'s successors.
+    // Returns the ID of the exit.
+    u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
+
+    // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
+    // Returns the ID of the successor state.
     StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
-    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
+
+    // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
+    // Returns the last state corresponding to `pron`.
     StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
-    // Add a transition between two already existing states, used to insert loops and skip-transitions
-    void    addTransition(StateId predecessor, StateId successor);
-    // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
-    void    addWordBoundaryStates();
+
+    // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
+    void addTransition(StateId predecessor, StateId successor);
+
+    // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
+    void addWordBoundaryStates();
 };
 
 std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) {
@@ -299,5 +306,4 @@ std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuild
         default: defect();
     }
 }
-
 #endif

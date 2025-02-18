@@ -374,25 +374,6 @@ void AlignmentNode::logTraceback(Lattice::ConstWordLatticeRef wordLattice) const
     tracebackChannel_ << Core::XmlClose("traceback");
 }
 
-
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-/** Seq2SeqAlignmentNode
-*/
-
-Seq2SeqAlignmentNode::Seq2SeqAlignmentNode(const Core::Configuration& c) :
-        Core::Component(c),
-        Precursor(c) {
-}
-
-
-void Seq2SeqAlignmentNode::createModel() {
-}
-
-bool Seq2SeqAlignmentNode::work(Flow::PortId p) {
-}
-#endif
-
-
 /** AlignmentDumpNode
  */
 const Core::ParameterString AlignmentDumpNode::paramFilename(
@@ -646,7 +627,7 @@ bool AlignmentDumpNode::work(Flow::PortId p) {
         }
         return putData(0, in.get());
 
-        //converts plain Text alignments to standard alignments
+        // converts plain Text alignments to standard alignments
     }
     else if (alignmentType_ == plainText) {
         if (!reader_)

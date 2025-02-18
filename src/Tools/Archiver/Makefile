@@ -30,9 +30,6 @@ ARCHIVER_O	= $(OBJDIR)/Archiver.o \
                  ../../Flow/libSprintFlow.$(a) \
                  ../../Fsa/libSprintFsa.$(a)
 
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-ARCHIVER_O += ../../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
-endif
 ifdef MODULE_PYTHON
 ARCHIVER_O += ../../Python/libSprintPython.$(a)
 endif

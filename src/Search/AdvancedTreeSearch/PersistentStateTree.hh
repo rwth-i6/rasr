@@ -37,7 +37,7 @@ namespace Search {
 class HMMStateNetwork;
 class StateTree;
 
-class PersistentStateTree {
+class PersistentStateTree : public Core::ReferenceCounted {
 public:
     using TreeBuilderFactory = std::function<std::unique_ptr<AbstractTreeBuilder>(Core::Configuration, const Bliss::Lexicon&, const Am::AcousticModel&, PersistentStateTree&, bool)>;
 
@@ -68,19 +68,24 @@ public:
     u32 getChecksum() const;
 
     /// Dump the search network as a dot graph into the given file
-    void dumpDotGraph(std::string file, const std::vector<int>& nodeDepths);
+    void dumpDotGraph(std::string file, const std::vector<int>& nodeDepths = {});
 
     struct Exit {
         Bliss::LemmaPronunciation::Id pronunciation;
         StateId                       transitState;
-        bool                          operator==(const Exit& rhs) const {
-            return pronunciation == rhs.pronunciation && transitState == rhs.transitState;
-        }
+
+        Exit()
+                : pronunciation(Bliss::LemmaPronunciation::invalidId), transitState(invalidTreeNodeIndex) {}
+
         struct Hash {
             u32 operator()(const Exit& exit) const {
                 return MyStandardValueHash<u32>()(exit.pronunciation + MyStandardValueHash<u32>()(exit.transitState));
             }
         };
+
+        bool operator==(const Exit& rhs) const {
+            return pronunciation == rhs.pronunciation && transitState == rhs.transitState;
+        }
         bool operator<(const Exit& rhs) const {
             return pronunciation < rhs.pronunciation || (pronunciation == rhs.pronunciation && transitState < rhs.transitState);
         }
@@ -99,6 +104,9 @@ public:
 
     // Context-independent root node
     StateId ciRootState;
+
+    // Other root nodes (currently used for the wordBoundaryRoot in CtcTreeBuilder)
+    std::set<StateId> otherRootStates;
 
     // The word-end exits
     std::vector<Exit> exits;

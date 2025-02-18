@@ -256,12 +256,12 @@ protected:
 };
 
 // Tree builder for constructing search trees with either CTC or RNA topology.
-// The topology depends on the 'labelLoops' parameter:
-// CTC topology is used when 'labelLoops' is true, adding label self-loops.
-// RNA (Transducer) topology is used when 'labelLoops' is false.
+// The topology depends on the 'enableLabelLoop' parameter:
+// CTC topology is used when 'enableLabelLoop' is true, adding label self-loops.
+// RNA (Transducer) topology is used when 'enableLabelLoop' is false.
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
-    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true, bool labelLoops = true);
+    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true, bool enableLabelLoop = true);
     virtual ~CtcTreeBuilder() = default;
 
     virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);

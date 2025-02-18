@@ -1200,9 +1200,9 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 
 // -------------------- CtcTreeBuilder --------------------
 
-CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize, bool labelLoops)
+CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize, bool enableLabelLoop)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
-          labelLoops_(labelLoops) {
+          labelLoops_(enableLabelLoop) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported

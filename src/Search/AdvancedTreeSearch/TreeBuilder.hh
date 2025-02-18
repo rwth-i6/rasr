@@ -264,17 +264,24 @@ protected:
 
     // Create a node with invalid AM and TM indices which serves as a root
     StateId createRoot();
-    // @param state is the last state of the word with pronunciation ID @param pron, add an exit leading to the root node @param transitState
-    // The exit is appended to the state's successors
+
+    // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.
+    // The exit is appended to `state`'s successors.
+    // Returns the ID of the exit.
     u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
 
-    // Check if the node with @param desc is already a successor of the @param predecessor and add it if not
+    // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
+    // Returns the ID of the successor state.
     StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
-    // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
+
+    // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
+    // Returns the last state corresponding to `pron`.
     StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
-    // Add a transition between two already existing states, used to insert loops and skip-transitions
+
+    // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
     void addTransition(StateId predecessor, StateId successor);
-    // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
+
+    // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
 };
 

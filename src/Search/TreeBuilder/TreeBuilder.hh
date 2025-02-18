@@ -38,6 +38,7 @@ enum class TreeBuilderType {
     classicHmm       = 1,
     minimizedHmm     = 2,
     ctc              = 3,
+    rna              = 4,
 };
 
 class AbstractTreeBuilder : public Core::Component {
@@ -254,9 +255,13 @@ protected:
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
 };
 
+// Tree builder for constructing search trees with either CTC or RNA topology.
+// The topology depends on the 'labelLoops' parameter:
+// CTC topology is used when 'labelLoops' is true, adding label self-loops.
+// RNA (Transducer) topology is used when 'labelLoops' is false.
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
-    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true, bool labelLoops = true);
     virtual ~CtcTreeBuilder() = default;
 
     virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
@@ -265,6 +270,8 @@ public:
     virtual void build();
 
 protected:
+    bool labelLoops_;
+
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
@@ -294,7 +301,10 @@ std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuild
             return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         case TreeBuilderType::ctc: {
-            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize, true));
+        } break;
+        case TreeBuilderType::rna: {
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize, false));
         } break;
         default: defect();
     }

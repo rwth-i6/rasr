@@ -12,11 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
-#include "Module.hh"
+
+#include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -34,17 +37,12 @@
 #include "PythonFeatureScorer.hh"
 #endif
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
-#endif
-
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0) {
+        : formats_(nullptr),
+          encoderFactory_(),
+          labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -71,6 +69,19 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // Performs log-linear combination of multiple sub-label-scorers
+    labelScorerFactory_.registerLabelScorer(
+            "combine",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CombineLabelScorer(config));
+            });
+    // Assumes inputs are already finished scores and just passes on the score at the current step
+    labelScorerFactory_.registerLabelScorer(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {
@@ -88,12 +99,10 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
+}
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-  LabelScorer* labelScorer = nullptr;
-  return Core::ref(labelScorer);
-#else
-  Core::Application::us()->criticalError("Module MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH not available!");
-#endif
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
 }

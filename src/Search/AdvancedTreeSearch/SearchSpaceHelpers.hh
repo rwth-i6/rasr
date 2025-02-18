@@ -160,7 +160,7 @@ struct Instance {
     std::vector<StateHypothesis> rootStateHypotheses;
 
     /// Enter this tree with the given trace, entry-node and score
-    void enter(TraceManager &trace_manager, Core::Ref<Trace> trace, StateId entryNode, Score score);
+    void enter(TraceManager& trace_manager, Core::Ref<Trace> trace, StateId entryNode, Score score);
 
     /// Enter this tree with the given StateHypothesis whose trace can have longer histories than tree's
     void enterWithState(const StateHypothesis& st);
@@ -195,7 +195,7 @@ struct Instance {
     /// The tree this one is a back-off tree of
     Instance* backOffParent;
 
-    ///Total back-off offset of the scores within this tree, relative to all backoff parents combined.
+    /// Total back-off offset of the scores within this tree, relative to all backoff parents combined.
     Score totalBackOffOffset;
 
     /// LM-Cache caching the LM scores in the context of this tree for more efficient access
@@ -204,12 +204,12 @@ struct Instance {
 };
 
 struct EarlyWordEndHypothesis {
-    TraceId                      trace;
-    SearchAlgorithm::ScoreVector score;
-    u32                          exit;
-    PathTrace                    pathTrace;
+    TraceId     trace;
+    ScoreVector score;
+    u32         exit;
+    PathTrace   pathTrace;
 
-    EarlyWordEndHypothesis(TraceId _trace, const SearchAlgorithm::ScoreVector& _score, u32 _exit, PathTrace _pathTrace)
+    EarlyWordEndHypothesis(TraceId _trace, const ScoreVector& _score, u32 _exit, PathTrace _pathTrace)
             : trace(_trace), score(_score), exit(_exit), pathTrace(_pathTrace) {
     }
     EarlyWordEndHypothesis()
@@ -223,13 +223,13 @@ struct WordEndHypothesis {
     Lm::History                      scoreHistory;
     StateId                          transitState;
     const Bliss::LemmaPronunciation* pronunciation;
-    SearchAlgorithm::ScoreVector     score;
+    ScoreVector                      score;
     Core::Ref<Trace>                 trace;
-    u32                              endExit;  //Exit from which this word end hypothesis was constructed
+    u32                              endExit;  // Exit from which this word end hypothesis was constructed
     PathTrace                        pathTrace;
 
     WordEndHypothesis(const Lm::History& rch, const Lm::History& lah, const Lm::History& sch, StateId e,
-                      const Bliss::LemmaPronunciation* p, SearchAlgorithm::ScoreVector s,
+                      const Bliss::LemmaPronunciation* p, ScoreVector s,
                       const Core::Ref<Trace>& t, u32 _endExit, PathTrace _pathTrace)
             : recombinationHistory(rch),
               lookaheadHistory(lah),

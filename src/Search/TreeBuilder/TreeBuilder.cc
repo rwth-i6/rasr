@@ -1231,10 +1231,9 @@ std::unique_ptr<AbstractTreeBuilder> CtcTreeBuilder::newInstance(Core::Configura
 }
 
 void CtcTreeBuilder::build() {
-    const Bliss::Lemma* wordBoundaryLemma = nullptr;
-    if (lexicon_.specialLemma("word-boundary") != nullptr) {
+    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    if (wordBoundaryLemma != nullptr) {
         addWordBoundaryStates();
-        wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
     }
 
     auto blankLemma   = lexicon_.specialLemma("blank");
@@ -1244,6 +1243,8 @@ void CtcTreeBuilder::build() {
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
         if ((*it)->lemma() == wordBoundaryLemma) {
+            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_
+            // This is handled separately in addWordBoundaryStates()
             continue;
         }
 
@@ -1298,20 +1299,22 @@ StateId CtcTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc de
 }
 
 void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    bool found = false;
+    auto const& successorStateDesc = network_.structure.state(successor).stateDesc;
+
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == network_.structure.state(successor).stateDesc) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
             // The node is already a successor of the predecessor, so the transition already exists
-            found = true;
+            return;
         }
     }
-    if (!found) {
-        // The transition does not exists yet, add it
-        network_.structure.addTargetToNode(predecessor, successor);
-    }
+
+    // The transition does not exists yet, add it
+    network_.structure.addTargetToNode(predecessor, successor);
 }
 
 StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
+    require(pron != nullptr);
+
     StateId currentState      = startState;
     StateId prevNonBlankState = invalidTreeNodeIndex;
 
@@ -1327,14 +1330,14 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         }
 
         Bliss::ContextPhonology::SemiContext history, future;
-        const Am::Allophone*                 allophone          = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
-        const Am::ClassicHmmTopology*        hmmTopology        = acousticModel_.hmmTopology(phoneme);
-        const bool                           allophone_is_blank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
+        const Am::Allophone*                 allophone        = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        const Am::ClassicHmmTopology*        hmmTopology      = acousticModel_.hmmTopology(phoneme);
+        const bool                           allophoneIsBlank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
 
         for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
             StateTree::StateDesc desc;
-            desc.acousticModel = acousticModel_.emissionIndex(alloState);  // Decision tree look-up for CART id.
+            desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
 
             for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
                 desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
@@ -1354,8 +1357,8 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 }
                 prevNonBlankState = currentState;
 
-                bool is_last_state_in_lemma = ((phoneState + 1) == hmmTopology->nPhoneStates()) and ((subState + 1) == hmmTopology->nSubStates()) and (boundary & Am::Allophone::isFinalPhone);
-                if (not allophone_is_blank and not is_last_state_in_lemma) {
+                bool isLastStateInLemma = ((phoneState + 1) == hmmTopology->nPhoneStates()) and ((subState + 1) == hmmTopology->nSubStates()) and (boundary & Am::Allophone::isFinalPhone);
+                if (not allophoneIsBlank and not isLastStateInLemma) {
                     // Add blank state after the newly created state
                     currentState = extendState(currentState, blankDesc_);
                     // Add loop for this blank state
@@ -1369,17 +1372,19 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
 }
 
 void CtcTreeBuilder::addWordBoundaryStates() {
-    Bliss::Lemma const*              wordBoundaryLemma     = lexicon_.specialLemma("word-boundary");
-    Bliss::LemmaPronunciation const* wordBoundaryPronLemma = nullptr;
-    StateId                          wordBoundaryEnd       = 0;
+    Bliss::Lemma const* wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    if (wordBoundaryLemma == nullptr) {
+        return;
+    }
 
     // Add the word-boundary to the tree, starting from the wordBoundaryRoot_
     // If the word-boundary has several pronunciation, only the first one is considered
-    auto prons            = wordBoundaryLemma->pronunciations();
-    wordBoundaryEnd       = extendPronunciation(wordBoundaryRoot_, (prons.first)->pronunciation());
-    wordBoundaryPronLemma = prons.first;
+    auto prons = wordBoundaryLemma->pronunciations();
 
+    StateId wordBoundaryEnd = extendPronunciation(wordBoundaryRoot_, (prons.first)->pronunciation());
     require(wordBoundaryEnd != 0);
+
+    Bliss::LemmaPronunciation const* wordBoundaryPronLemma = prons.first;
     require(wordBoundaryPronLemma != nullptr);
 
     // The "normal" root is the transition state from the word-boundary token, such that a new word can be started afterwards

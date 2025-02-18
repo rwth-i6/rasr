@@ -14,6 +14,7 @@
  */
 #include <OpenFst/LabelMap.hh>
 #include <OpenFst/SymbolTable.hh>
+#include <Search/Traceback.hh>
 #include <Search/Wfst/Traceback.hh>
 
 using namespace Search::Wfst;
@@ -21,9 +22,6 @@ using OpenFst::Epsilon;
 
 void BestPath::getTraceback(Bliss::LexiconRef lexicon, OutputType outputType,
                             const OpenFst::LabelMap* olabelMap, Traceback* result) const {
-    typedef SearchAlgorithm::TracebackItem TracebackItem;
-    typedef SearchAlgorithm::ScoreVector   ScoreVector;
-
     result->clear();
     result->push_back(TracebackItem(0, 0, ScoreVector(0, 0), TracebackItem::Transit()));
     Core::Ref<const Bliss::LemmaPronunciationAlphabet> alphabet = lexicon->lemmaPronunciationAlphabet();

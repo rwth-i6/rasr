@@ -26,9 +26,6 @@
 #ifdef MODULE_ADVANCED_TREE_SEARCH
 #include "AdvancedTreeSearch/AdvancedTreeSearch.hh"
 #endif
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "GenericSeq2SeqTreeSearch/Seq2SeqTreeSearch.hh"
-#endif
 
 using namespace Search;
 
@@ -61,14 +58,6 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
             recognizer = new Search::LinearSearch(config);
 #else
             Core::Application::us()->criticalError("Module MODULE_SEARCH_LINEAR not available!");
-#endif
-            break;
-
-        case GenericSeq2SeqTreeSearchType:
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-            recognizer = new Search::Seq2SeqTreeSearchManager(config);
-#else
-            Core::Application::us()->criticalError("Module MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH not available!");
 #endif
             break;
 

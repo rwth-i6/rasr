@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,6 +13,16 @@
  *  limitations under the License.
  */
 
-#include "Seq2SeqAligner.hh"
+#include "Model.hh"
 
-using namespace Search;
+namespace Onnx {
+
+Model::Model(const Core::Configuration& config, const std::vector<IOSpecification>& ioSpec)
+        : Core::Component(config),
+          session(select("session")),
+          mapping(select("io-map"), ioSpec) {
+    IOValidator validator(select("validator"));
+    validator.validate(ioSpec, mapping, session);
+}
+
+}  // namespace Onnx

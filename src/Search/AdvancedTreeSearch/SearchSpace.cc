@@ -501,9 +501,6 @@ void StaticSearchAutomaton::clearDepths() {
 
 int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     if (stateDepths[state] != Core::Type<int>::min) {
-        if (stateDepths[state] != depth) {  /// @todo Find out why this happens on some languages
-            std::cout << "conflicting state depths: " << stateDepths[state] << " vs " << depth << std::endl;
-        }
         if (depth > stateDepths[state]) {
             stateDepths[state] = Core::Type<int>::min;  // Re-fill successor depths
         }
@@ -779,7 +776,7 @@ std::unique_ptr<AbstractTreeBuilder> StaticSearchAutomaton::createTreeBuilder(Co
             return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, *lexicon_, *acousticModel_, network, initialize));
         } break;
         case TreeBuilderType::ctc: {
-            defect();  // TODO: add CTC implementation
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, *lexicon_, *acousticModel_, network, initialize));
         } break;
         default: defect();
     }

@@ -16,10 +16,10 @@
 #define SEARCH_SPACE_HELPERS
 
 #include <Core/Types.hh>
+#include <Search/TreeBuilder/TreeStructure.hh>
 
 #include "LanguageModelLookahead.hh"
 #include "TraceManager.hh"
-#include "TreeStructure.hh"
 
 namespace Search {
 typedef s32 StateHypothesisIndex;

@@ -74,7 +74,8 @@ public:
         Bliss::LemmaPronunciation::Id pronunciation;
         StateId                       transitState;
 
-        Exit() : pronunciation(Bliss::LemmaPronunciation::invalidId), transitState(invalidTreeNodeIndex) {}
+        Exit()
+                : pronunciation(Bliss::LemmaPronunciation::invalidId), transitState(invalidTreeNodeIndex) {}
 
         struct Hash {
             u32 operator()(const Exit& exit) const {

@@ -1236,9 +1236,9 @@ void CtcTreeBuilder::build() {
         wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
     }
 
-    auto blankLemma        = lexicon_.specialLemma("blank");
-    auto silenceLemma      = lexicon_.specialLemma("silence");
-    auto iters             = lexicon_.lemmaPronunciations();
+    auto blankLemma   = lexicon_.specialLemma("blank");
+    auto silenceLemma = lexicon_.specialLemma("silence");
+    auto iters        = lexicon_.lemmaPronunciations();
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
@@ -1299,7 +1299,7 @@ StateId CtcTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc de
 void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
     bool found = false;
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if(!target.isLabel() && network_.structure.state(*target).stateDesc == network_.structure.state(successor).stateDesc) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == network_.structure.state(successor).stateDesc) {
             // The node is already a successor of the predecessor, so the transition already exists
             found = true;
         }
@@ -1311,7 +1311,7 @@ void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
 }
 
 StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
-    StateId currentState = startState;
+    StateId currentState      = startState;
     StateId prevNonBlankState = invalidTreeNodeIndex;
 
     for (u32 i = 0u; i < pron->length(); i++) {
@@ -1370,7 +1370,7 @@ void CtcTreeBuilder::addWordBoundaryStates() {
 
     // Add the word-boundary to the tree, starting from the wordBoundaryRoot_
     // If the word-boundary has several pronunciation, only the first one is considered
-    auto prons = wordBoundaryLemma->pronunciations();
+    auto prons            = wordBoundaryLemma->pronunciations();
     wordBoundaryEnd       = extendPronunciation(wordBoundaryRoot_, (prons.first)->pronunciation());
     wordBoundaryPronLemma = prons.first;
 
@@ -1394,5 +1394,3 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     // Add loop for this blank state
     addTransition(blankBefore, blankBefore);
 }
-
-

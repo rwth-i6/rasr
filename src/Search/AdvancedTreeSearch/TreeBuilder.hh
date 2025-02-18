@@ -166,11 +166,11 @@ protected:
         const u32                          hash;
     };
 
-    typedef std::set<Bliss::Phoneme::Id>                                                                   PhonemeIdSet;
-    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                                                 RootHash;
-    typedef Core::HashMap<StateId, StateId>                                                                SkipRootsHash;
-    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                                       CoarticulationJointHash;
-    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash>                       PredecessorsHash;
+    typedef std::set<Bliss::Phoneme::Id>                                             PhonemeIdSet;
+    typedef Core::HashMap<RootKey, StateId, RootKey::Hash>                           RootHash;
+    typedef Core::HashMap<StateId, StateId>                                          SkipRootsHash;
+    typedef Core::HashMap<RootKey, std::set<StateId>, RootKey::Hash>                 CoarticulationJointHash;
+    typedef Core::HashMap<StatePredecessor, Search::StateId, StatePredecessor::Hash> PredecessorsHash;
 
     s32  minPhones_;
     bool addCiTransitions_;
@@ -266,16 +266,16 @@ protected:
     StateId createRoot();
     // @param state is the last state of the word with pronunciation ID @param pron, add an exit leading to the root node @param transitState
     // The exit is appended to the state's successors
-    u32     addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
+    u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
 
     // Check if the node with @param desc is already a successor of the @param predecessor and add it if not
     StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
     // Starting in @param startState (usually the root), include the lemma with pronunciation @param pron in the tree
     StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
     // Add a transition between two already existing states, used to insert loops and skip-transitions
-    void    addTransition(StateId predecessor, StateId successor);
+    void addTransition(StateId predecessor, StateId successor);
     // If the lexicon contains a word-boundary token, it is added starting from the wordBoundaryRoot_
-    void    addWordBoundaryStates();
+    void addWordBoundaryStates();
 };
 
 #endif

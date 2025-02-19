@@ -16,6 +16,7 @@
 #define TRACEBACK_HH
 
 #include <Bliss/Lexicon.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Lattice/Lattice.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/Types.hh>
@@ -60,7 +61,7 @@ public:
             : pronunciation(p), time(t), score(s), transit(te) {}
 };
 
-class Traceback : public std::vector<TracebackItem> {
+class Traceback : public std::vector<TracebackItem>, public Core::ReferenceCounted {
 public:
     void                    write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
     Fsa::ConstAutomatonRef  lemmaAcceptor(Core::Ref<const Bliss::Lexicon>) const;

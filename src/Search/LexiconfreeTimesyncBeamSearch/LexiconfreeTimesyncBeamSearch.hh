@@ -125,6 +125,10 @@ private:
     void resetStatistics();
     void logStatistics() const;
 
+    /*
+     * Infer type of transition between two tokens based on whether each of them is blank
+     * and/or whether they are the same
+     */
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*

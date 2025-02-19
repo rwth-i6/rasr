@@ -142,6 +142,7 @@ Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTracebac
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
+    // TODO: Currently this is just a linear lattice representing the best traceback. Create a proper lattice instead.
     if (beam_.front().traceback.empty()) {
         return Core::ref(new Lattice::WordLatticeAdaptor());
     }
@@ -439,4 +440,5 @@ void LexiconfreeTimesyncBeamSearch::TimeStatistic::toc() {
 double LexiconfreeTimesyncBeamSearch::TimeStatistic::getTotalMilliseconds() const {
     return total;
 }
+
 }  // namespace Search

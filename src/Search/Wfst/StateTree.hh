@@ -18,7 +18,7 @@
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <OpenFst/Types.hh>
-#include <Search/TreeBuilder/StateTree.hh>
+#include <Search/StateTree.hh>
 
 namespace Search {
 namespace Wfst {

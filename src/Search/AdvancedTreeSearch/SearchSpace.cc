@@ -22,10 +22,9 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
+#include <Search/PersistentStateTree.hh>
 #include <Search/Traceback.hh>
-
-#include <Search/TreeBuilder/PersistentStateTree.hh>
-#include <Search/TreeBuilder/TreeBuilder.hh>
+#include <Search/TreeBuilder.hh>
 
 #include "AcousticLookAhead.hh"
 #include "PrefixFilter.hh"
@@ -388,7 +387,7 @@ StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::R
         : Precursor(config),
           hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
           minimized(paramBuildMinimizedTreeFromScratch(config)),
-          network(config, acousticModel, lexicon, std::bind(&createTreeBuilder, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)),
+          network(config, acousticModel, lexicon, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)),
           prefixFilter(nullptr),
           treeBuilderType_(static_cast<TreeBuilderType>(paramTreeBuilderType(config))),
           acousticModel_(acousticModel),
@@ -410,7 +409,7 @@ void StaticSearchAutomaton::buildNetwork() {
     if (!network.read(transformation)) {
         log() << "persistent network image could not be loaded, building it";
 
-        std::unique_ptr<AbstractTreeBuilder> builder = createTreeBuilder(treeBuilderType_, config, *lexicon_, *acousticModel_, network);
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(treeBuilderType_, config, *lexicon_, *acousticModel_, network);
         if (not builder) {
             network.build();
             network.cleanup();

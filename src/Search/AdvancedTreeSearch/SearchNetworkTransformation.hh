@@ -18,8 +18,8 @@
 /**
  * This file contains a collection of helper classes useful for transformations of the search network
  * */
-#include <Search/TreeBuilder/StateTree.hh>
-#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/StateTree.hh>
+#include <Search/TreeStructure.hh>
 
 namespace AdvancedTreeSearch {
 struct StateWithSuccessors {

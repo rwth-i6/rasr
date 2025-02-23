@@ -32,11 +32,11 @@ struct MyStandardValueHash {
 };
 
 class AbstractTreeBuilder;
-enum class TreeBuilderType;
 
 namespace Search {
 class HMMStateNetwork;
 class StateTree;
+enum class TreeBuilderType;
 
 class PersistentStateTree : public Core::ReferenceCounted {
 public:
@@ -148,4 +148,4 @@ private:
     bool read(Core::MappedArchiveReader reader);
 };
 }  // namespace Search
-#endif  // STATETREECOMPRESSION_H
+#endif  // PERSISTENT_STATE_TREE_H

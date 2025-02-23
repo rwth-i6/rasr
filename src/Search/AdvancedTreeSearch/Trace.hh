@@ -17,8 +17,8 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Search/Search.hh>
+#include <Search/StateTree.hh>
 #include <Search/Traceback.hh>
-#include <Search/TreeBuilder/StateTree.hh>
 #include <Search/Types.hh>
 #include "PathTrace.hh"
 

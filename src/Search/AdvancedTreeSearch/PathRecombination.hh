@@ -16,8 +16,8 @@
 #define PATHRECOMBINATION_HH
 
 #include <Core/MappedArchive.hh>
-#include <Search/TreeBuilder/PersistentStateTree.hh>
-#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/TreeStructure.hh>
 
 #include "Helpers.hh"
 

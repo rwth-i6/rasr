@@ -26,9 +26,9 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
-#include <Search/TreeBuilder/StateTree.hh>
-#include <Search/TreeBuilder/PersistentStateTree.hh>
-#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/StateTree.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/TreeStructure.hh>
 
 #include "LinearPrediction.hh"
 

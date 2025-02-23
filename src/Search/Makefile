@@ -14,8 +14,13 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/Module.o \
+		$(OBJDIR)/PersistentStateTree.o \
 		$(OBJDIR)/Search.o \
+		$(OBJDIR)/StateTree.o \
+		$(OBJDIR)/StateTreeIo.o \
 		$(OBJDIR)/Traceback.o \
+		$(OBJDIR)/TreeBuilder.o \
+		$(OBJDIR)/TreeStructure.o \
 		$(OBJDIR)/WordConditionedTreeSearch.o
 
 CHECK_O		= $(OBJDIR)/check.o \
@@ -24,13 +29,13 @@ CHECK_O		= $(OBJDIR)/check.o \
 			  ../Fsa/libSprintFsa.$(a) \
 			  ../Core/libSprintCore.$(a)
 
+
 ifdef MODULE_SEARCH_MBR
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskAStarSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskNBestListSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearchUtil.o
 endif
-SUBDIRS += TreeBuilder
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -54,9 +59,6 @@ libSprintSearch.$(a): $(LIBSPRINTSEARCH_O)
 
 check$(exe): $(CHECK_O)
 	$(LD) $(CHECK_O) -o check$(exe) $(LDFLAGS)
-
-TreeBuilder:
-	$(MAKE) -C $@ libSprintTreeBuilder.$(a)
 
 Wfst: 
 	$(MAKE) -C $@ libSprintSearchWfst.$(a)

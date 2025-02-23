@@ -17,7 +17,7 @@
 
 #include <Mm/SimdFeatureScorer.hh>
 #include <Search/Types.hh>
-#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/TreeStructure.hh>
 
 #include "Helpers.hh"
 #include "SearchSpace.hh"

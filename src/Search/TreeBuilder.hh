@@ -16,10 +16,10 @@
 #define TREEBUILDER_HH
 
 #include <Bliss/Phoneme.hh>
+#include <Search/StateTree.hh>
 #include <Search/AdvancedTreeSearch/Helpers.hh>
 #include <Search/AdvancedTreeSearch/LmCache.hh>
 #include "PersistentStateTree.hh"
-#include "StateTree.hh"
 
 namespace Bliss {
 class Lexicon;
@@ -32,14 +32,6 @@ class AcousticModel;
 namespace Core {
 class Configuration;
 }
-
-enum class TreeBuilderType {
-    previousBehavior = 0,
-    classicHmm       = 1,
-    minimizedHmm     = 2,
-    ctc              = 3,
-    rna              = 4,
-};
 
 class AbstractTreeBuilder : public Core::Component {
 public:
@@ -255,13 +247,9 @@ protected:
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
 };
 
-// Tree builder for constructing search trees with either CTC or RNA topology.
-// The topology depends on the 'enableLabelLoop' parameter:
-// CTC topology is used when 'enableLabelLoop' is true, adding label self-loops.
-// RNA (Transducer) topology is used when 'enableLabelLoop' is false.
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
-    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true, bool enableLabelLoop = true);
+    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
 
     virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
@@ -270,8 +258,6 @@ public:
     virtual void build();
 
 protected:
-    bool labelLoops_;
-
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
@@ -299,21 +285,4 @@ protected:
     void addWordBoundaryStates();
 };
 
-std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) {
-    switch (treeBuilderType) {
-        case TreeBuilderType::classicHmm: {  // Use StateTree.hh
-            return std::unique_ptr<AbstractTreeBuilder>(nullptr);
-        } break;
-        case TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
-            return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
-        } break;
-        case TreeBuilderType::ctc: {
-            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize, true));
-        } break;
-        case TreeBuilderType::rna: {
-            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize, false));
-        } break;
-        default: defect();
-    }
-}
 #endif

@@ -16,6 +16,7 @@
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include <Search/WordConditionedTreeSearch.hh>
+#include "TreeBuilder.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -30,6 +31,21 @@
 using namespace Search;
 
 Module_::Module_() {
+}
+
+std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) const {
+    switch (treeBuilderType) {
+        case Search::TreeBuilderType::classicHmm: {  // Use StateTree.hh
+            return std::unique_ptr<AbstractTreeBuilder>(nullptr);
+        } break;
+        case Search::TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
+            return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case Search::TreeBuilderType::ctc: {
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        default: defect();
+    }
 }
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {

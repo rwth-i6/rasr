@@ -20,11 +20,12 @@
 
 #include <Lm/SearchSpaceAwareLanguageModel.hh>
 #include <Search/Histogram.hh>
+#include <Search/Module.hh>
 #include <Search/Search.hh>
-#include <Search/TreeBuilder/StateTree.hh>
-#include <Search/TreeBuilder/PersistentStateTree.hh>
-#include <Search/TreeBuilder/TreeStructure.hh>
-#include <Search/TreeBuilder/TreeBuilder.hh>
+#include <Search/StateTree.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/TreeStructure.hh>
+#include <Search/TreeBuilder.hh>
 
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"

@@ -16,6 +16,7 @@
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
+#include <Search/StateTree.hh>
 #include <algorithm>
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"

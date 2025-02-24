@@ -14,7 +14,7 @@
  */
 #include <Core/Application.hh>
 #include <Modules.hh>
-#include <TreeBuilder/StateTree.hh>
+#include "StateTree.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <OpenFst/FsaMapper.hh>
 #include <OpenFst/FstMapper.hh>

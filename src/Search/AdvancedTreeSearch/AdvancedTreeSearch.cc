@@ -21,10 +21,9 @@
 #include <Core/Utility.hh>
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
+#include <Search/StateTree.hh>
 #include <Search/Traceback.hh>
-#include <Search/TreeBuilder/StateTree.hh>
 #include <vector>
-
 #include "SearchSpace.hh"
 #include "SearchSpaceStatistics.hh"
 

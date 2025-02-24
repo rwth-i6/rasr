@@ -15,7 +15,7 @@
 #ifndef SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH
 #define SEARCH_PATHRECOMBINATIONAPPROXIMATION_HH
 
-#include <Search/TreeBuilder/PersistentStateTree.hh>
+#include <Search/PersistentStateTree.hh>
 #include "PathRecombination.hh"
 
 namespace Search {

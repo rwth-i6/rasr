@@ -18,7 +18,7 @@
 #include <Core/Types.hh>
 #include <iostream>
 #include <vector>
-#include <Search/TreeBuilder/TreeStructure.hh>
+#include <Search/TreeStructure.hh>
 
 namespace Search {
 class LinearPrediction {

@@ -29,10 +29,10 @@
 #include <Fsa/Output.hh>
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
-#include <Search/TreeBuilder/StateTree.hh>
 #include <Modules.hh>
 #include "Histogram.hh"
 #include "LanguageModelLookahead.hh"
+#include "StateTree.hh"
 
 #ifdef MODULE_LM_FSA
 #include <Lm/FsaLm.hh>

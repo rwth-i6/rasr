@@ -62,7 +62,6 @@ UNIT_TEST_O = $(OBJDIR)/UnitTester.o $(TEST_O) \
 		  ../Core/libSprintCore.$(a)\
 		  ../Speech/libSprintSpeech.$(a) \
 		  ../Search/libSprintSearch.$(a) \
-		  ../Search/TreeBuilder/libSprintTreeBuilder.$(a) \
 		  ../Lattice/libSprintLattice.$(a) \
 		  ../Am/libSprintAm.$(a) \
 		  ../Mm/libSprintMm.$(a) \

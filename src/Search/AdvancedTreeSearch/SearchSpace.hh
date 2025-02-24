@@ -119,6 +119,7 @@ public:
 
 protected:
     TreeBuilderType treeBuilderType_;
+    bool            labelLoop_;
 
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;

@@ -249,7 +249,7 @@ protected:
 
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
-    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop = true, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
 
     virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
@@ -258,6 +258,8 @@ public:
     virtual void build();
 
 protected:
+    bool labelLoop_;
+
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
@@ -283,6 +285,12 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+};
+
+class RnaTreeBuilder : public CtcTreeBuilder {
+public:
+    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop = false, bool initialize = true);
+    virtual ~RnaTreeBuilder() = default;
 };
 
 #endif

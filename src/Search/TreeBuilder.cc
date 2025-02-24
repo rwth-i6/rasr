@@ -1201,9 +1201,9 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 
 // -------------------- CtcTreeBuilder --------------------
 
-CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize, bool enableLabelLoop)
+CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop, bool initialize)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
-          labelLoops_(enableLabelLoop) {
+          labelLoop_(allowLabelLoop) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1228,7 +1228,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 }
 
 std::unique_ptr<AbstractTreeBuilder> CtcTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize, labelLoops_));
+    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, labelLoop_, initialize));
 }
 
 void CtcTreeBuilder::build() {
@@ -1347,7 +1347,7 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 // Add new (non-blank) state
                 currentState = extendState(currentState, desc);
 
-                if (labelLoops_) {
+                if (labelLoop_) {
                     // Add loop for this state
                     addTransition(currentState, currentState);
                 }
@@ -1405,3 +1405,10 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     // Add loop for this blank state
     addTransition(blankBefore, blankBefore);
 }
+
+// -------------------- RnaTreeBuilder --------------------
+
+RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop, bool initialize)
+    : CtcTreeBuilder(config, lexicon, acousticModel, network, allowLabelLoop, initialize) {}
+
+

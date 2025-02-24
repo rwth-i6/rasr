@@ -33,7 +33,7 @@ using namespace Search;
 Module_::Module_() {
 }
 
-std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) const {
+std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop, bool initialize) const {
     switch (treeBuilderType) {
         case Search::TreeBuilderType::classicHmm: {  // Use StateTree.hh
             return std::unique_ptr<AbstractTreeBuilder>(nullptr);
@@ -42,7 +42,10 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(TreeBuilderType 
             return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         case Search::TreeBuilderType::ctc: {
-            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
+            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, allowLabelLoop, initialize));
+        } break;
+        case Search::TreeBuilderType::rna: {
+            return std::unique_ptr<AbstractTreeBuilder>(new RnaTreeBuilder(config, lexicon, acousticModel, network, allowLabelLoop, initialize));
         } break;
         default: defect();
     }

@@ -145,6 +145,11 @@ const Core::ParameterChoice paramTreeBuilderType(
         "which tree builder to use",
         static_cast<int>(TreeBuilderType::previousBehavior));
 
+const Core::ParameterBool paramLabelLoop(
+        "allow-label-loop",
+        "allow label loops in the search tree",
+        true);
+
 const Core::ParameterBool paramConditionPredecessorWord(
         "condition-on-predecessor-word",
         "",
@@ -388,13 +393,18 @@ StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::R
         : Precursor(config),
           hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
           minimized(paramBuildMinimizedTreeFromScratch(config)),
-          network(config, acousticModel, lexicon, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)),
+          network(config, acousticModel, lexicon, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7)),
           prefixFilter(nullptr),
           treeBuilderType_(static_cast<TreeBuilderType>(paramTreeBuilderType(config))),
           acousticModel_(acousticModel),
           lexicon_(lexicon) {
     if (treeBuilderType_ == TreeBuilderType::previousBehavior) {
         treeBuilderType_ = minimized ? TreeBuilderType::minimizedHmm : TreeBuilderType::classicHmm;
+    }
+    bool defaultUsed;
+    labelLoop_ = paramLabelLoop(config, true, &defaultUsed);
+    if (treeBuilderType_ == TreeBuilderType::rna) {
+        labelLoop_ = defaultUsed ? false : labelLoop_;    // If allow-label-loop is not set in config, set it to false for RNA topology
     }
 }
 
@@ -410,7 +420,7 @@ void StaticSearchAutomaton::buildNetwork() {
     if (!network.read(transformation)) {
         log() << "persistent network image could not be loaded, building it";
 
-        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(treeBuilderType_, config, *lexicon_, *acousticModel_, network);
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(treeBuilderType_, config, *lexicon_, *acousticModel_, network, labelLoop_);
         if (not builder) {
             network.build();
             network.cleanup();

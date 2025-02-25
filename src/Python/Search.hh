@@ -59,6 +59,8 @@ public:
     // Returns the recognition result
     std::string recognizeSegment(py::array_t<f32> const&);
 
+    Nn::LabelScorer& getLabelScorer() const;
+
 private:
     // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
     bool decodeMore();

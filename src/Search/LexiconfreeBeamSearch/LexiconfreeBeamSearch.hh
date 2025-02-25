@@ -115,6 +115,7 @@ public:
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
+    Core::Ref<Nn::LabelScorer>      getLabelScorer() const override;
 
 private:
     void resetStatistics();

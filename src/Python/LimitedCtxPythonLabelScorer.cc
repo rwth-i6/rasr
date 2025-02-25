@@ -27,8 +27,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
-#include "CallbackRegistry.hh"
-
 namespace py = pybind11;
 
 namespace Python {
@@ -83,6 +81,7 @@ LimitedCtxPythonLabelScorer::LimitedCtxPythonLabelScorer(Core::Configuration con
         : Core::Component(config),
           Precursor(config),
           callbackName_(paramCallbackName(config)),
+          callback_(),
           startLabelIndex_(paramStartLabelIndex(config)),
           historyLength_(paramHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
@@ -231,6 +230,13 @@ std::optional<Nn::LabelScorer::ScoreWithTime> LimitedCtxPythonLabelScorer::compu
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
+void LimitedCtxPythonLabelScorer::registerPythonCallback(std::string const& name, py::function const& callback) {
+    if (name == callbackName_) {
+        callback_ = callback;
+        log() << "Registered new python callback named \"" << name << "\" for LimitedCtxPythonLabelScorer";
+    }
+}
+
 void LimitedCtxPythonLabelScorer::forwardBatch(std::vector<Nn::SeqStepScoringContextRef> const& contextBatch) {
     if (contextBatch.empty()) {
         return;
@@ -259,10 +265,13 @@ void LimitedCtxPythonLabelScorer::forwardBatch(std::vector<Nn::SeqStepScoringCon
     /*
      * Run session
      */
-    auto callback = CallbackRegistry::instance().get_callback(callbackName_);
+    if (not callback_) {
+        warning() << "LabelScorer expects callback named \"" << callbackName_ << "\" to be registered before running";
+        return;
+    }
 
     py::gil_scoped_acquire gil;
-    py::array_t<f32>       result = callback(encoderState, historyBatch).cast<py::array_t<f32>>();
+    py::array_t<f32>       result = callback_(encoderState, historyBatch).cast<py::array_t<f32>>();
 
     /*
      * Put resulting scores into cache map

@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef LIMITED_CTX_PYTHON_LABEL_SCORER_HH
-#define LIMITED_CTX_PYTHON_LABEL_SCORER_HH
+#ifndef GENERIC_PYTHON_LABEL_SCORER_HH
+#define GENERIC_PYTHON_LABEL_SCORER_HH
 
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
@@ -24,6 +24,8 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Speech/Feature.hh>
 #include <optional>
+#undef ensure  // macro duplication in pybind11/numpy.h
+#include <pybind11/numpy.h>
 #include <pybind11/pytypes.h>
 
 namespace py = pybind11;
@@ -34,21 +36,20 @@ namespace Python {
  * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
  * with a fixed-size sequence of history tokens through an ONNX model
  */
-class LimitedCtxPythonLabelScorer : public Nn::BufferedLabelScorer {
+class GenericPythonLabelScorer : public Nn::BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
-    static const Core::ParameterString paramCallbackName;
-    static const Core::ParameterInt    paramStartLabelIndex;
-    static const Core::ParameterInt    paramHistoryLength;
+    static const Core::ParameterString paramInitScoringContextCallbackName;
+    static const Core::ParameterString paramExtendScoringContextCallbackName;
+    static const Core::ParameterString paramScoreCallbackName;
+    static const Core::ParameterString paramFinishCheckCallbackName;
     static const Core::ParameterBool   paramBlankUpdatesHistory;
     static const Core::ParameterBool   paramLoopUpdatesHistory;
-    static const Core::ParameterBool   paramVerticalLabelTransition;
-    static const Core::ParameterInt    paramMaxBatchSize;
     static const Core::ParameterInt    paramMaxCachedScores;
 
 public:
-    LimitedCtxPythonLabelScorer(Core::Configuration const& config);
-    virtual ~LimitedCtxPythonLabelScorer() = default;
+    GenericPythonLabelScorer(Core::Configuration const& config);
+    virtual ~GenericPythonLabelScorer() = default;
 
     // Clear feature buffer and cached scores
     void reset() override;
@@ -74,21 +75,32 @@ public:
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep
-    void forwardBatch(std::vector<Nn::SeqStepScoringContextRef> const& contextBatch);
+    void forwardBatch(std::vector<Nn::PythonScoringContextRef> const& contextBatch);
 
-    std::string  callbackName_;
-    py::function callback_;
+    py::object computeInitialState();
 
-    size_t startLabelIndex_;
-    size_t historyLength_;
+    void setupEncoderStatesValue();
+
+    std::string initScoringContextCallbackName_;
+    std::string extendScoringContextCallbackName_;
+    std::string scoreCallbackName_;
+    std::string finishCheckCallbackName_;
+
+    py::function initScoringContextCallback_;
+    py::function extendScoringContextCallback_;
+    py::function scoreCallback_;
+    py::function finishCheckCallback_;
+
     bool   blankUpdatesHistory_;
     bool   loopUpdatesHistory_;
-    bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
-    Core::FIFOCache<Nn::SeqStepScoringContextRef, std::vector<Score>, Nn::ScoringContextHash, Nn::ScoringContextEq> scoreCache_;
+    py::array_t<f32> encoderStates_;
+    py::object       initialState_;
+
+    Core::FIFOCache<Nn::PythonScoringContextRef, std::vector<Score>, Nn::ScoringContextHash, Nn::ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Python
 
-#endif  // LIMITED_CTX_ONNX_LABEL_SCORER_HH
+#endif  // GENERIC_ONNX_LABEL_SCORER_HH

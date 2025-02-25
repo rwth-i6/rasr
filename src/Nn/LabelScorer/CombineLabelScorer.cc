@@ -152,4 +152,12 @@ std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWit
     return accumResult;
 }
 
+#ifdef MODULE_PYTHON
+void CombineLabelScorer::registerPythonCallback(std::string const& name, pybind11::function const& callback) {
+    for (auto& scorer : scorers_) {
+        scorer->registerPythonCallback(name, callback);
+    }
+}
+#endif
+
 }  // namespace Nn

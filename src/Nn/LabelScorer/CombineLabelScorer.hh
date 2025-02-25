@@ -37,28 +37,32 @@ public:
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers
-    void reset();
+    void reset() override;
 
     // Forward signal to all sub-scorers
-    void signalNoMoreFeatures();
+    void signalNoMoreFeatures() override;
 
     // Combine initial ScoringContexts from all sub-scorers
-    ScoringContextRef getInitialScoringContext();
+    ScoringContextRef getInitialScoringContext() override;
 
     // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request);
+    ScoringContextRef extendedScoringContext(Request const& request) override;
 
     // Add input to all sub-scorers
-    void addInput(SharedDataHolder const& input, size_t featureSize);
+    void addInput(SharedDataHolder const& input, size_t featureSize) override;
 
     // Add inputs to all sub-scorers
-    void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
+    void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
 
     // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests) override;
+
+#ifdef MODULE_PYTHON
+    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;
+#endif
 
 protected:
     std::vector<Core::Ref<LabelScorer>> scorers_;

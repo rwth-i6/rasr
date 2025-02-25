@@ -33,5 +33,9 @@ add_library(RasrSearch STATIC ${RasrSearch_SOURCES})
 target_link_libraries(RasrSearch INTERFACE RasrBliss RasrFsa RasrCore
                                            RasrLattice)
 
+if(${MODULE_PYTHON})
+  add_python_dependencies(RasrSearch)
+endif()
+
 add_executable(check-search check.cc)
 target_link_libraries(check-search PRIVATE RasrSearch)

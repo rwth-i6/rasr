@@ -242,4 +242,8 @@ bool LexiconfreeGreedySearch::decodeStep() {
     return true;
 }
 
+Core::Ref<Nn::LabelScorer> LexiconfreeGreedySearch::getLabelScorer() const {
+    return labelScorer_;
+}
+
 }  // namespace Search

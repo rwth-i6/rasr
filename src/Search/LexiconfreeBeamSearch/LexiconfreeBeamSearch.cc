@@ -416,4 +416,8 @@ bool LexiconfreeBeamSearch::decodeStep() {
     return true;
 }
 
+Core::Ref<Nn::LabelScorer> LexiconfreeBeamSearch::getLabelScorer() const {
+    return labelScorers_.front();
+}
+
 }  // namespace Search

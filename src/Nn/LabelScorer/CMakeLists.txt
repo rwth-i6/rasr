@@ -12,6 +12,7 @@ set(RasrLabelScorer_SOURCES
     ScaledLabelScorer.cc
     ScoringContext.cc
     SharedDataHolder.cc)
+
 if(${MODULE_ONNX})
   list(APPEND RasrLabelScorer_SOURCES LimitedCtxOnnxLabelScorer.cc
        NoCtxOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc OnnxEncoder.cc)
@@ -31,4 +32,8 @@ target_link_libraries(
 
 if(${MODULE_ONNX})
   target_link_libraries(RasrLabelScorer INTERFACE RasrOnnx)
+endif()
+
+if(${MODULE_PYTHON})
+  add_python_dependencies(RasrLabelScorer)
 endif()

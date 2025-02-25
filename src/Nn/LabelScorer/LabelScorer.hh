@@ -29,6 +29,10 @@
 #include "ScoringContext.hh"
 #include "SharedDataHolder.hh"
 
+#ifdef MODULE_PYTHON
+#include <pybind11/pytypes.h>
+#endif
+
 namespace Nn {
 
 /*
@@ -130,6 +134,13 @@ public:
     // Return two vectors: one vector with scores and one vector with times
     // Note: the times vector is internally collapsed to one value if all timesteps are the same
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+
+#ifdef MODULE_PYTHON
+    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback);
+#endif
+
+    // TODO: Separate scoringContexts out of requests (context + request), also collapsedvector
+    // TODO: Cleanup function to clean up input buffer
 };
 
 }  // namespace Nn

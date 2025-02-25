@@ -1,10 +1,11 @@
 #include <string>
 
+#include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <Nn/LabelScorer/LabelScorer.hh>
 #include <Python/AllophoneStateFsaBuilder.hh>
-#include <Python/CallbackRegistry.hh>
 #include <Python/Configuration.hh>
 #include <Python/Search.hh>
 
@@ -31,7 +32,8 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_segment_name",
                      &AllophoneStateFsaBuilder::buildBySegmentName);
 
-    m.def("register_callback", [](std::string const& name, py::function callback) { CallbackRegistry::instance().registerCallback(name, callback); }, "Register a Python callback function under a given name.");
+    py::class_<Nn::LabelScorer> pyLabelScorer(m, "LabelScorer");
+    pyLabelScorer.def("register_callback", &Nn::LabelScorer::registerPythonCallback, "Register a Python callback function under a given name.");
 
     py::class_<TracebackItem> pyTracebackItem(m, "TracebackItem");
     pyTracebackItem.def_readwrite("lemma", &TracebackItem::lemma);
@@ -53,4 +55,5 @@ PYBIND11_MODULE(librasr, m) {
     pySearchAlgorithm.def("get_current_best_transcription", &SearchAlgorithm::getCurrentBestTranscription, "Get the best transcription given all features that have been passed thus far.");
     pySearchAlgorithm.def("recognize_segment", &SearchAlgorithm::recognizeSegment, py::arg("features"), "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F], finish the segment, and return the recognition result.");
     pySearchAlgorithm.def("get_current_best_traceback", &SearchAlgorithm::getCurrentBestTraceback);
+    pySearchAlgorithm.def("get_label_scorer", &SearchAlgorithm::getLabelScorer, pybind11::return_value_policy::reference);
 }

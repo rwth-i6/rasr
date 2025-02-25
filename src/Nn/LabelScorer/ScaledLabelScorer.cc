@@ -83,4 +83,10 @@ std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::computeScoresWith
     return result;
 }
 
+#ifdef MODULE_PYTHON
+void ScaledLabelScorer::registerPythonCallback(std::string const& name, pybind11::function const& callback) {
+    scorer_->registerPythonCallback(name, callback);
+}
+#endif
+
 }  // namespace Nn

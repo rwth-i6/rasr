@@ -17,6 +17,7 @@
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
+#include "GenericPythonLabelScorer.hh"
 #include "LimitedCtxPythonLabelScorer.hh"
 
 namespace Python {
@@ -28,6 +29,11 @@ Module_::Module_() {
             "limited-ctx-python",
             [](Core::Configuration const& config) {
                 return Core::ref(new LimitedCtxPythonLabelScorer(config));
+            });
+    Nn::Module::instance().labelScorerFactory().registerLabelScorer(
+            "generic-python",
+            [](Core::Configuration const& config) {
+                return Core::ref(new GenericPythonLabelScorer(config));
             });
 #endif
 };

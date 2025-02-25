@@ -44,4 +44,8 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     return result;
 }
 
+#ifdef MODULE_PYTHON
+void LabelScorer::registerPythonCallback(std::string const& name, pybind11::function const& callback) {}
+#endif
+
 }  // namespace Nn

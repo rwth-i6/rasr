@@ -128,3 +128,7 @@ std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) 
     auto result = getCurrentBestTranscription();
     return result;
 }
+
+Nn::LabelScorer& SearchAlgorithm::getLabelScorer() const {
+    return *searchAlgorithm_->getLabelScorer();
+}

@@ -1,8 +1,8 @@
 set(RasrPython_SOURCES
     AllophoneStateFsaBuilder.cc
-    CallbackRegistry.cc
     Configuration.cc
     Init.cc
+    GenericPythonLabelScorer.cc
     LimitedCtxPythonLabelScorer.cc
     Module.cc
     Numpy.cc

@@ -26,6 +26,9 @@
 #ifdef MODULE_ONNX
 #include "Onnx/Value.hh"
 #endif
+#include <pybind11/pytypes.h>
+
+namespace py = pybind11;
 
 namespace Nn {
 
@@ -190,6 +193,25 @@ struct CombineScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
+
+/*
+ * Scoring context containing some arbitrary python object
+ */
+struct PythonScoringContext : public ScoringContext {
+    py::object object;
+    size_t     step;
+
+    PythonScoringContext()
+            : object(py::none()), step(0ul) {}
+
+    PythonScoringContext(py::object&& object, size_t step)
+            : object(object), step(step) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const PythonScoringContext> PythonScoringContextRef;
 
 }  // namespace Nn
 

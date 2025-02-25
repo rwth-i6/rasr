@@ -102,6 +102,8 @@ public:
 
         return success;
     }
+
+    virtual Core::Ref<Nn::LabelScorer> getLabelScorer() const = 0;
 };
 
 }  // namespace Search

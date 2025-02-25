@@ -39,6 +39,9 @@ public:
     void                           addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
     std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request) override;
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
+#ifdef MODULE_PYTHON
+    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;
+#endif
 
 protected:
     Core::Ref<LabelScorer> scorer_;

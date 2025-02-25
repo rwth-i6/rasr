@@ -14,6 +14,8 @@
  */
 #include "ScoringContext.hh"
 #include <Core/MurmurHash.hh>
+#include <pybind11/cast.h>
+#include <pybind11/pytypes.h>
 
 namespace Nn {
 
@@ -191,6 +193,24 @@ bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
     }
 
     return true;
+}
+
+/*
+ * =============================
+ * === PythonScoringContext ====
+ * =============================
+ */
+size_t PythonScoringContext::hash() const {
+    return py::hash(py::cast<py::handle>(object));
+}
+
+bool PythonScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const PythonScoringContext*>(other.get());
+    if (step != otherPtr->step) {
+        return false;
+    }
+
+    return object.equal(py::cast<py::handle>(otherPtr->object));
 }
 
 }  // namespace Nn

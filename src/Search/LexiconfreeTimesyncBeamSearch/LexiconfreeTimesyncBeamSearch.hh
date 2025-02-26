@@ -63,7 +63,6 @@ protected:
         Traceback             traceback;       // Associated traceback to return
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base);
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
 
         /*

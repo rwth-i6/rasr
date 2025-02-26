@@ -46,6 +46,7 @@ CHECK_O		= $(OBJDIR)/check.o \
 		  ../Mm/libSprintMm.$(a) \
 		  ../Mc/libSprintMc.$(a) \
 		  ../Search/libSprintSearch.$(a) \
+		  ../Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a) \
 		  ../Bliss/libSprintBliss.$(a) \
 		  ../Flow/libSprintFlow.$(a) \
 		  ../Fsa/libSprintFsa.$(a) \

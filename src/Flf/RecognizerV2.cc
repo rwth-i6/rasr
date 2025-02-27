@@ -1,6 +1,7 @@
 #include "RecognizerV2.hh"
 #include <Speech/ModelCombination.hh>
 #include <chrono>
+#include "Core/XmlStream.hh"
 #include "LatticeHandler.hh"
 #include "Module.hh"
 
@@ -43,18 +44,8 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     // Loop over features and perform recognition
     do {
         searchAlgorithm_->passFeature(feature->mainStream(), feature->mainStream()->size());
-        if (searchAlgorithm_->decodeMore()) {
-            auto             traceback = searchAlgorithm_->getCurrentBestTraceback();
-            Core::XmlWriter& os(clog());
-            os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "intermediate-result");
-            for (auto& tracebackItem : *traceback) {
-                if (tracebackItem.pronunciation->lemma()) {
-                    os << tracebackItem.pronunciation->lemma()->preferredOrthographicForm()
-                       << Core::XmlBlank();
-                }
-            }
-            os << Core::XmlClose("orth");
-        }
+        searchAlgorithm_->decodeMore();
+        // TODO: Optional logging of intermediate results?
         endTime = feature->timestamp().endTime();
     } while (dataSource->getData(feature));
 
@@ -70,14 +61,14 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     resultBuffer_ = std::make_pair(lattice, SegmentRef(new Flf::Segment(segment)));
 
     Core::XmlWriter& os(clog());
-    // os << Core::XmlOpen("traceback");
-    // os << Core::XmlClose("traceback");
+    os << Core::XmlOpen("traceback");
+    traceback->write(os, modelCombination_.lexicon()->phonemeInventory());
+    os << Core::XmlClose("traceback");
 
     os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
-    for (auto& tracebackItem : *traceback) {
-        if (tracebackItem.pronunciation->lemma()) {
-            os << tracebackItem.pronunciation->lemma()->preferredOrthographicForm()
-               << Core::XmlBlank();
+    for (auto const& tracebackItem : *traceback) {
+        if (tracebackItem.pronunciation and tracebackItem.pronunciation->lemma()) {
+            os << tracebackItem.pronunciation->lemma()->preferredOrthographicForm() << Core::XmlBlank();
         }
     }
     os << Core::XmlClose("orth");

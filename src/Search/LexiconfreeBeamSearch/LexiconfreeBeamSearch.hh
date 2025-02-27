@@ -16,14 +16,13 @@
 #ifndef LEXICONFREE_BEAM_SEARCH_HH
 #define LEXICONFREE_BEAM_SEARCH_HH
 
+#include <Core/Parameter.hh>
+#include <Core/ReferenceCounting.hh>
+#include <Nn/LabelScorer/LabelScorer.hh>
+#include <Nn/LabelScorer/ScoringContext.hh>
+#include <Nn/LabelScorer/SharedDataHolder.hh>
 #include <Search/SearchV2.hh>
-#include <chrono>
-#include <ratio>
-#include "Bliss/Lexicon.hh"
-#include "Core/Parameter.hh"
-#include "Nn/LabelScorer/LabelScorer.hh"
-#include "Nn/LabelScorer/ScoringContext.hh"
-#include "Nn/LabelScorer/SharedDataHolder.hh"
+#include <Search/Traceback.hh>
 
 namespace Search {
 
@@ -32,6 +31,19 @@ namespace Search {
 // maximum probability at each decoding step.
 // Supports pruning of the top-k successor of each hypothesis, max-beam-size-pruning and score-based pruning.
 class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
+    class Trace : public Core::ReferenceCounted,
+                  public TracebackItem {
+    public:
+        Core::Ref<Trace> predecessor;
+        Core::Ref<Trace> sibling;
+
+        Trace(Core::Ref<Trace> const&          pre,
+              Bliss::LemmaPronunciation const* p,
+              TimeframeIndex                   t,
+              ScoreVector                      s,
+              Transit const&                   transit);
+    };
+
     struct HypothesisExtension {
         const Bliss::LemmaPronunciation* pron;
         Nn::CombineScoringContextRef     scoringContext;
@@ -53,17 +65,23 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         Nn::LabelIndex                  currentLabel;
         Score                           score;
         unsigned int                    length;
-        Traceback                       traceback;
+        Core::Ref<Trace>                trace;
         Nn::LabelScorer::TransitionType lastTransitionType;
         bool                            finished;
 
         LabelHypothesis()
-                : scoringContext(), currentLabel(Core::Type<Nn::LabelIndex>::max), score(0.0), length(0), traceback(), lastTransitionType(Nn::LabelScorer::TransitionType::BLANK_LOOP), finished(false) {}
+                : scoringContext(),
+                  currentLabel(Core::Type<Nn::LabelIndex>::max),
+                  score(0.0),
+                  length(0),
+                  trace(),
+                  lastTransitionType(Nn::LabelScorer::TransitionType::BLANK_LOOP),
+                  finished(false) {}
 
-        LabelHypothesis(LabelHypothesis const& base);
         LabelHypothesis(LabelHypothesis const& base, HypothesisExtension const& extension);
 
-        Score lengthNormalizedScore(Score scale = 0) const;
+        Core::Ref<Traceback const> getTraceback() const;
+        Score                      lengthNormalizedScore(Score scale = 0) const;
 
         std::string toString() const;
     };
@@ -140,8 +158,7 @@ private:
     /*
      * Helper function for recombination of hypotheses with the same scoring context
      */
-    template<typename T>
-    void recombination(std::vector<T>& hypotheses);
+    void recombination(std::vector<LabelHypothesis>& hypotheses);
 
     size_t maxBeamSize_;
     size_t maxBeamSizePerScorer_;

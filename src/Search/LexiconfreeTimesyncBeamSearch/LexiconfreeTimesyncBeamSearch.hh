@@ -21,6 +21,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/SearchV2.hh>
+#include <Search/Traceback.hh>
 #include <chrono>
 
 namespace Search {
@@ -57,16 +58,16 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex        currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        Score                 score;           // Full score of hypothesis
-        Traceback             traceback;       // Associated traceback to return
+        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
+        Score                   score;           // Full score of hypothesis
+        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
 
         /*
-         * Get string representation for debugging
+         * Get string representation for debugging.
          */
         std::string toString() const;
     };

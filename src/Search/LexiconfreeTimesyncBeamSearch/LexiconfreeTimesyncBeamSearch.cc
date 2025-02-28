@@ -20,6 +20,7 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <algorithm>
 #include <strings.h>
+#include "Search/Traceback.hh"
 
 namespace Search {
 
@@ -138,42 +139,15 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> con
 }
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
-    return Core::ref(new Traceback(beam_.front().traceback));
+    return beam_.front().trace->getTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
-    // TODO: Currently this is just a linear lattice representing the best traceback. Create a proper lattice instead.
-    if (beam_.front().traceback.empty()) {
-        return Core::ref(new Lattice::WordLatticeAdaptor());
+    std::vector<Core::Ref<LatticeTrace>> traces;
+    for (auto const& hyp : beam_) {
+        traces.push_back(hyp.trace);
     }
-
-    // use default LemmaAlphabet mode of StandardWordLattice
-    Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon_));
-    Core::Ref<Lattice::WordBoundaries>      wordBoundaries(new Lattice::WordBoundaries);
-
-    // create a linear lattice from the traceback
-    Fsa::State* currentState = result->initialState();
-    for (auto it = beam_.front().traceback.begin(); it != beam_.front().traceback.end(); ++it) {
-        wordBoundaries->set(currentState->id(), Lattice::WordBoundary(it->time));
-        Fsa::State* nextState;
-        if (std::next(it) == beam_.front().traceback.end()) {
-            nextState = result->finalState();
-        }
-        else {
-            nextState = result->newState();
-        }
-        ScoreVector scores = it->score;
-        if (it != beam_.front().traceback.begin()) {
-            scores -= std::prev(it)->score;
-        }
-        result->newArc(currentState, nextState, it->pronunciation->lemma(), scores.acoustic, scores.lm);
-        currentState = nextState;
-    }
-
-    result->setWordBoundaries(wordBoundaries);
-    result->addAcyclicProperty();
-
-    return Core::ref(new Lattice::WordLatticeAdaptor(result));
+    return buildWordLatticeFromTraces(traces, lexicon_);
 }
 
 void LexiconfreeTimesyncBeamSearch::resetStatistics() {
@@ -196,6 +170,15 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     // These checks will result in false if `blankLabelIndex_` is still `Core::Type<int>::max`, i.e. no blank is used
     bool prevIsBlank = (prevLabel == blankLabelIndex_);
     bool nextIsBlank = (nextLabel == blankLabelIndex_);
+
+    if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
+        if (nextIsBlank) {
+            return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+        }
+        else {
+            return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+        }
+    }
 
     if (prevIsBlank) {
         if (nextIsBlank) {
@@ -244,16 +227,26 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesync
 }
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
-    std::vector<LabelHypothesis> recombinedHypotheses;
+    std::vector<LabelHypothesis> newHypotheses;
 
-    std::unordered_set<Nn::ScoringContextRef, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
+    // Map each unique ScoringContext in newHypotheses to its hypothesis
+    std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
     for (auto const& hyp : hypotheses) {
         if (seenScoringContexts.find(hyp.scoringContext) == seenScoringContexts.end()) {
-            recombinedHypotheses.push_back(hyp);
-            seenScoringContexts.insert(hyp.scoringContext);
+            // Hyp ScoringContext is new so it just gets pushed in
+            newHypotheses.push_back(hyp);
+            seenScoringContexts.insert({hyp.scoringContext, &newHypotheses.back()});
+        }
+        else {
+            // Hyp ScoringContext already exists on a better existing hypothesis, so
+            // it gets merged into the existing one by adding it as a Trace sibling
+            verify(not hyp.trace->sibling);
+            auto* existingHyp           = seenScoringContexts[hyp.scoringContext];
+            hyp.trace->sibling          = existingHyp->trace->sibling;
+            existingHyp->trace->sibling = hyp.trace;
         }
     }
-    hypotheses.swap(recombinedHypotheses);
+    hypotheses.swap(newHypotheses);
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
@@ -380,7 +373,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
           currentToken(Core::Type<Nn::LabelIndex>::max),
           score(0.0),
-          traceback() {}
+          trace() {}
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LexiconfreeTimesyncBeamSearch::LabelHypothesis const&    base,
@@ -389,28 +382,42 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         : scoringContext(newScoringContext),
           currentToken(extension.nextToken),
           score(extension.score),
-          traceback(base.traceback) {
+          trace() {
     switch (extension.transitionType) {
+        case Nn::LabelScorer::INITIAL_BLANK:
+        case Nn::LabelScorer::INITIAL_LABEL:
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
-            this->traceback.push_back(TracebackItem(extension.pron, extension.timeframe + 1u, ScoreVector(extension.score, 0.0), {}));
+            trace = Core::ref(new LatticeTrace(
+                    base.trace,
+                    extension.pron,
+                    extension.timeframe + 1,
+                    {extension.score, 0},
+                    {}));
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            if (not this->traceback.empty()) {
-                this->traceback.back().score.acoustic = extension.score;
-                this->traceback.back().time           = extension.timeframe + 1u;
-            }
+            // `base.trace` is empty in the first step but at that point only `INITIAL_BLANK` and `INITIAL_LABEL` transitions can happen.
+            // Afterwards, `base.trace` should always be non-empty.
+            verify(base.trace);
+
+            // Copy base trace and update it
+            trace                 = Core::ref(new LatticeTrace(*base.trace));
+            trace->score.acoustic = extension.score;
+            trace->time           = extension.timeframe + 1;
             break;
     }
 }
 
 std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
-    ss << "Score: " << score << ", label sequence: ";
-    for (auto& item : traceback) {
-        if (item.pronunciation != nullptr) {
+    ss << "Score: " << score << ", traceback: ";
+
+    auto traceback = trace->getTraceback();
+
+    for (auto& item : *traceback) {
+        if (item.pronunciation and item.pronunciation->lemma()) {
             ss << item.pronunciation->lemma()->symbol() << " ";
         }
     }

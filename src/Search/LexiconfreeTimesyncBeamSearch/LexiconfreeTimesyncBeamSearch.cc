@@ -404,6 +404,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
             // Copy base trace and update it
             trace                 = Core::ref(new LatticeTrace(*base.trace));
+            trace->sibling        = {};
             trace->score.acoustic = extension.score;
             trace->time           = extension.timeframe + 1;
             break;

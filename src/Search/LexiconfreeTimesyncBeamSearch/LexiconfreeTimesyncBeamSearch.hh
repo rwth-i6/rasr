@@ -115,11 +115,13 @@ private:
 
     /*
      * Helper function for pruning to scoreThreshold_
+     * Requires that the input extensions are already sorted by score
      */
     void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context
+     * Requires that the input hypotheses are already sorted by score
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
 

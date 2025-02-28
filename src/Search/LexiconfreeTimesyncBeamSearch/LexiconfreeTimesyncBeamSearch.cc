@@ -220,7 +220,7 @@ void LexiconfreeTimesyncBeamSearch::beamPruning(std::vector<LexiconfreeTimesyncB
         return;
     }
 
-    // Sort the hypotheses by associated score value such that the first `beamSize_` elements are the best and sorted
+    // Sort the hypotheses by associated score value such that the first `beamSize_` elements are the best
     std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize_, extensions.end());
     extensions.resize(maxBeamSize_);  // Get rid of excessive elements
 }
@@ -344,8 +344,13 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     newBeam.reserve(extensions.size());
 
     for (auto const& extension : extensions) {
-        auto const& baseHyp           = beam_[extension.baseHypIndex];
-        auto        newScoringContext = labelScorer_->extendedScoringContext({baseHyp.scoringContext, extension.nextToken, extension.transitionType});
+        auto const& baseHyp = beam_[extension.baseHypIndex];
+
+        auto newScoringContext = labelScorer_->extendedScoringContext(
+                {baseHyp.scoringContext,
+                 extension.nextToken,
+                 extension.transitionType});
+
         newBeam.push_back({baseHyp, extension, newScoringContext});
     }
 

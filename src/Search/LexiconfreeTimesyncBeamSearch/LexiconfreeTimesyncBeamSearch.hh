@@ -18,11 +18,11 @@
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Parameter.hh>
+#include <Core/StopWatch.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
-#include <chrono>
 
 namespace Search {
 
@@ -70,29 +70,6 @@ protected:
          * Get string representation for debugging.
          */
         std::string toString() const;
-    };
-
-    /*
-     * Timer to add up computation times for sub-tasks performed repeatedly
-     * across the search.
-     */
-    struct TimeStatistic {
-    public:
-        // Reset accumulated total to zero.
-        void reset();
-
-        // Start timer
-        void tic();
-
-        // End running timer and add duration to total
-        void toc();
-
-        // Get total accumulated time in milliseconds
-        double getTotalMilliseconds() const;
-
-    private:
-        std::chrono::time_point<std::chrono::steady_clock> startTime;
-        double                                             total;
     };
 
 public:
@@ -163,10 +140,10 @@ private:
     Bliss::LexiconRef            lexicon_;
     std::vector<LabelHypothesis> beam_;
 
-    TimeStatistic initializationTime_;
-    TimeStatistic featureProcessingTime_;
-    TimeStatistic scoringTime_;
-    TimeStatistic contextExtensionTime_;
+    Core::StopWatch initializationTime_;
+    Core::StopWatch featureProcessingTime_;
+    Core::StopWatch scoringTime_;
+    Core::StopWatch contextExtensionTime_;
 };
 
 }  // namespace Search

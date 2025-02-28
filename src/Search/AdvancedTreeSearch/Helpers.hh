@@ -16,6 +16,7 @@
 #define HELPERS_HH
 
 #include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Types.hh>
 #include <Core/Utility.hh>
 #include <string>
@@ -36,12 +37,10 @@ class Configuration;
 
 bool isBackwardRecognition(const Core::Configuration& config);
 
-class PerformanceCounter {
+class PerformanceCounter : public Core::StopWatch {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : running_(false),
-              totalTime_(0),
-              timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+            : Core::StopWatch(), timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
         if (start)
             this->start();
     }
@@ -50,32 +49,13 @@ public:
         stopAndYield();
     }
 
-    void start() {
-        stop();
-
-        running_ = true;
-        TIMER_START(starttime_);
-    }
-
-    void stop() {
-        if (running_) {
-            running_ = false;
-
-            double  diff = 0;  // in secs
-            timeval end;
-
-            TIMER_STOP(starttime_, end, diff);
-            totalTime_ += diff * 100;  // centi secs
-        }
-    }
-
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += totalTime_;
+        timeStats += elapsedCentiseconds();
         if (print)
-            std::cout << " time: " << totalTime_ << std::endl;
-        totalTime_ = 0;
+            std::cout << " time: " << elapsedCentiseconds() << std::endl;
+        reset();
     }
 
     static inline u64 instructions() {
@@ -90,9 +70,6 @@ public:
     }
 
 private:
-    bool                   running_;
-    timeval                starttime_;
-    f32                    totalTime_;
     Core::Statistics<f32>& timeStats;
 };
 

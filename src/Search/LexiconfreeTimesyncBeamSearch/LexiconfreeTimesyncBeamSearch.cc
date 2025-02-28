@@ -81,7 +81,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
 }
 
 void LexiconfreeTimesyncBeamSearch::reset() {
-    initializationTime_.tic();
+    initializationTime_.start();
 
     labelScorer_->reset();
 
@@ -90,7 +90,7 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    initializationTime_.toc();
+    initializationTime_.stop();
 }
 
 Speech::ModelCombination::Mode LexiconfreeTimesyncBeamSearch::requiredModelCombination() const {
@@ -106,36 +106,36 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
 }
 
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
-    initializationTime_.tic();
+    initializationTime_.start();
     labelScorer_->reset();
     resetStatistics();
-    initializationTime_.toc();
+    initializationTime_.stop();
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
-    featureProcessingTime_.tic();
+    featureProcessingTime_.start();
     labelScorer_->signalNoMoreFeatures();
-    featureProcessingTime_.toc();
+    featureProcessingTime_.stop();
     decodeManySteps();
     logStatistics();
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
-    featureProcessingTime_.tic();
+    featureProcessingTime_.start();
     labelScorer_->addInput(data, featureSize);
-    featureProcessingTime_.toc();
+    featureProcessingTime_.stop();
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeature(std::vector<f32> const& data) {
-    featureProcessingTime_.tic();
+    featureProcessingTime_.start();
     labelScorer_->addInput(data);
-    featureProcessingTime_.toc();
+    featureProcessingTime_.stop();
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
-    featureProcessingTime_.tic();
+    featureProcessingTime_.start();
     labelScorer_->addInputs(data, timeSize, featureSize);
-    featureProcessingTime_.toc();
+    featureProcessingTime_.stop();
 }
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
@@ -159,10 +159,10 @@ void LexiconfreeTimesyncBeamSearch::resetStatistics() {
 
 void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("timing-statistics") + Core::XmlAttribute("unit", "milliseconds");
-    clog() << Core::XmlOpen("initialization-time") << initializationTime_.getTotalMilliseconds() << Core::XmlClose("initialization-time");
-    clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.getTotalMilliseconds() << Core::XmlClose("feature-processing-time");
-    clog() << Core::XmlOpen("scoring-time") << scoringTime_.getTotalMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.getTotalMilliseconds() << Core::XmlClose("context-extension-time");
+    clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
+    clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
+    clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
+    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
 }
 
@@ -290,9 +290,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     /*
      * Perform scoring of all the requests with the label scorer.
      */
-    scoringTime_.tic();
+    scoringTime_.start();
     auto result = labelScorer_->computeScoresWithTimes(requests);
-    scoringTime_.toc();
+    scoringTime_.stop();
 
     if (not result) {
         // LabelScorer could not compute scores -> no search step can be made.
@@ -422,30 +422,6 @@ std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
         }
     }
     return ss.str();
-}
-
-/*
- * =======================
- * === TimeStatistic =====
- * =======================
- */
-
-void LexiconfreeTimesyncBeamSearch::TimeStatistic::reset() {
-    total = 0.0;
-}
-
-void LexiconfreeTimesyncBeamSearch::TimeStatistic::tic() {
-    startTime = std::chrono::steady_clock::now();
-}
-
-void LexiconfreeTimesyncBeamSearch::TimeStatistic::toc() {
-    auto endTime = std::chrono::steady_clock::now();
-    // Duration in milliseconds
-    total += std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1, 1000>>>(endTime - startTime).count();
-}
-
-double LexiconfreeTimesyncBeamSearch::TimeStatistic::getTotalMilliseconds() const {
-    return total;
 }
 
 }  // namespace Search

@@ -42,7 +42,7 @@ const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
 
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
-        "Index of the blank label in the lexicon. If not set, the search will not use blank.",
+        "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Core::Type<int>::max);
 
 const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramAllowLabelLoop(
@@ -76,7 +76,10 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           scoringTime_(),
           contextExtensionTime_() {
     beam_.reserve(maxBeamSize_);
-    useBlank_        = blankLabelIndex_ != Core::Type<int>::max;
+    useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
+    if (useBlank_) {
+        log() << "Use blank label with index " << blankLabelIndex_;
+    }
     useScorePruning_ = scoreThreshold_ != Core::Type<Score>::max;
 }
 
@@ -100,6 +103,18 @@ Speech::ModelCombination::Mode LexiconfreeTimesyncBeamSearch::requiredModelCombi
 bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
+
+    auto blankLemma = lexicon_->specialLemma("blank");
+    if (blankLemma) {
+        if (blankLabelIndex_ == Core::Type<int>::max) {
+            blankLabelIndex_ = blankLemma->id();
+            useBlank_        = true;
+            log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
+        }
+        else if (blankLabelIndex_ != blankLemma->id()) {
+            warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
+        }
+    }
 
     reset();
     return true;
@@ -167,9 +182,8 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
 }
 
 Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    // These checks will result in false if `blankLabelIndex_` is still `Core::Type<int>::max`, i.e. no blank is used
-    bool prevIsBlank = (prevLabel == blankLabelIndex_);
-    bool nextIsBlank = (nextLabel == blankLabelIndex_);
+    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
     if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
         if (nextIsBlank) {

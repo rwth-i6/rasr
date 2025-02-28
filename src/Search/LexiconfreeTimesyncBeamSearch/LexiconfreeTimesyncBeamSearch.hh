@@ -148,4 +148,4 @@ private:
 
 }  // namespace Search
 
-#endif  // LEXICONFREE_BEAM_SEARCH_HH
+#endif  // LEXICONFREE_TIMESYNC_BEAM_SEARCH_HH

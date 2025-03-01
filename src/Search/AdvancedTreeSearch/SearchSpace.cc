@@ -478,7 +478,7 @@ void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
     for (u32 a = 1; a < stateDepths.size(); ++a) {
         if (stateDepths[a] != Core::Type<int>::min && stateDepths[a] != Core::Type<int>::max) {
             for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(a); it; ++it) {
-                if (!it.isLabel()) {
+                if (!it.isLabel() and *it != a) {
                     verify(stateDepths[*it] > stateDepths[a]);
                 }
             }
@@ -515,7 +515,7 @@ int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     localDepth = 0;
 
     for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(state); it; ++it) {
-        if (not it.isLabel()) {
+        if (not it.isLabel() and *it != state) {
             int d = fillStateDepths(*it, depth + 1);
 
             if (d > localDepth) {
@@ -740,7 +740,9 @@ void StaticSearchAutomaton::buildBatches() {
         network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
 
     // Print some useful statistics about pushed and unpushed labels
-    verify(!network.unpushedCoarticulatedRootStates.empty());
+    if (treeBuilderType_ != TreeBuilderType::ctc) {
+        verify(!network.unpushedCoarticulatedRootStates.empty());
+    }
 
     u32 unpushedLabels = 0;
     u32 pushedLabels   = 0;
@@ -751,8 +753,10 @@ void StaticSearchAutomaton::buildBatches() {
                 bool    isUnpushed = network.unpushedCoarticulatedRootStates.count(transit) || transit == network.ciRootState || transit == network.rootState;
                 if (isUnpushed) {
                     ++unpushedLabels;
-                    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
-                    verify(it != network.rootTransitDescriptions.end());
+                    if (treeBuilderType_ != TreeBuilderType::ctc) {
+                        std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
+                        verify(it != network.rootTransitDescriptions.end());
+                    }
                 }
                 else {
                     ++pushedLabels;

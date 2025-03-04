@@ -86,14 +86,6 @@ LatticeTrace::LatticeTrace(
         Search::TracebackItem::Transit const& transit)
         : TracebackItem(p, t, s, transit), predecessor(pre), sibling() {}
 
-Core::Ref<LatticeTrace> LatticeTrace::getPredecessor() const {
-    return predecessor_.get();
-}
-
-Core::Ref<LatticeTrace> LatticeTrace::getSibling() const {
-    return sibling_.get();
-}
-
 void LatticeTrace::appendSiblingToChain(Core::Ref<LatticeTrace> sibling) {
     if (sibling_) {
         sibling_.appendSiblingToChain(sibling);
@@ -140,22 +132,22 @@ Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const B
     wordBoundaries->set(finalState->id(), Lattice::WordBoundary(this->time));
 
     // Perform depth-first search
+    Fsa::State *preState, currentState;
     while (not traceStack.empty()) {
         auto* trace = traceStack.top();
         traceStack.pop();
 
         // A trace on the stack already has an associated state
-        Fsa::State* currentState = stateMap[trace];
+        currentState = stateMap[trace];
         wordBoundaries->set(currentState->id(), Lattice::WordBoundary(trace->time));
 
         // Iterate through siblings of current trace
         // All siblings share the same lattice state
-        for (auto arcTrace = trace; arcTrace != nullptr; arcTrace = arcTrace->getSibling().get()) {
+        for (auto arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
             // For current sibling, get its predecessor, create a state for that predecessor
             // and connect it to the current state.
-            auto*       preTrace = arcTrace->getPredecessor().get();
-            Fsa::State* preState;
-            ScoreVector scores = trace->score;
+            auto*       preTrace = arcTrace->predecessor.get();
+            ScoreVector scores   = trace->score;
             if (preTrace == nullptr) {
                 // If trace has no predecessor, it gets connected to the initial state
                 preState = initialState;
@@ -184,7 +176,5 @@ Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const B
 
     return Core::ref(new Lattice::WordLatticeAdaptor(result));
 }
-
-LatticeTrace::
 
 }  // namespace Search

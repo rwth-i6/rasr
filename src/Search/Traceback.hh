@@ -102,17 +102,14 @@ public:
 class LatticeTrace : public Core::ReferenceCounted,
                      public TracebackItem {
 public:
+    Core::Ref<LatticeTrace> predecessor;
+    Core::Ref<LatticeTrace> sibling;
+
     LatticeTrace(Core::Ref<LatticeTrace> const&   pre,
                  Bliss::LemmaPronunciation const* p,
                  Speech::TimeframeIndex           t,
                  ScoreVector                      s,
                  Transit const&                   transit);
-
-    /*
-     * Getter functions
-     */
-    LatticeTrace* getPredecessor() const;
-    LatticeTrace* getSibling() const;
 
     /*
      * Append sibling chain to the end of the own sibling chain
@@ -138,10 +135,6 @@ public:
      * is represented as the initial lattice state.
      */
     Core::Ref<const LatticeAdaptor> buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const;
-
-private:
-    Core::Ref<LatticeTrace> predecessor_;
-    Core::Ref<LatticeTrace> sibling_;
 };
 
 }  // namespace Search

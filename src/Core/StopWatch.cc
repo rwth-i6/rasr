@@ -14,57 +14,63 @@
  */
 
 #include "StopWatch.hh"
+#include "Utility.hh"
 
 namespace Core {
 
 StopWatch::StopWatch()
-        : running_(false), startTime_(), elapsedTime_(0.0) {}
+        : running_(false), startTime_(), elapsedSeconds_(0.0) {}
 
 void StopWatch::start() {
     if (running_) {
         return;
     }
 
-    startTime_ = std::chrono::steady_clock::now();
-    running_   = true;
+    TIMER_START(startTime_);
+    running_ = true;
 }
 
 void StopWatch::stop() {
     if (not running_) {
         return;
     }
-    auto endTime = std::chrono::steady_clock::now();
-    elapsedTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime_).count();
+
+    timeval endTime;
+    double  diff = 0;  // in seconds
+    TIMER_STOP(startTime_, endTime, diff);
+
+    elapsedSeconds_ += diff;
     running_ = false;
 }
 
 void StopWatch::reset() {
-    elapsedTime_ = 0;
-    running_     = false;
+    elapsedSeconds_ = 0;
+    running_        = false;
 }
 
-double StopWatch::elapsedSeconds() const {
-    return elapsedNanoseconds() / 1e9;
-}
-
-double StopWatch::elapsedCentiseconds() const {
-    return elapsedNanoseconds() / 1e7;
-}
-
-double StopWatch::elapsedMilliseconds() const {
-    return elapsedNanoseconds() / 1e6;
-}
-
-double StopWatch::elapsedMicroseconds() const {
-    return elapsedNanoseconds() / 1e3;
-}
-
-double StopWatch::elapsedNanoseconds() const {
+double StopWatch::elapsedSeconds() {
     if (running_) {
-        auto currentTime = std::chrono::steady_clock::now();
-        return elapsedTime_ + std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - startTime_).count();
+        timeval endTime;
+        double  diff = 0;  // in seconds
+        TIMER_STOP(startTime_, endTime, diff);
     }
-    return elapsedTime_;
+    return elapsedSeconds_;
+}
+
+double StopWatch::elapsedCentiseconds() {
+    return elapsedSeconds() * 1e2;
+}
+
+double StopWatch::elapsedMilliseconds() {
+    return elapsedSeconds() * 1e3;
+}
+
+double StopWatch::elapsedMicroseconds() {
+    return elapsedSeconds() * 1e6;
+}
+
+double StopWatch::elapsedNanoseconds() {
+    return elapsedSeconds() * 1e9;
 }
 
 }  // namespace Core

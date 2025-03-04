@@ -15,7 +15,7 @@
 #ifndef STOPWATCH_HH
 #define STOPWATCH_HH
 
-#include <chrono>
+#include <sys/time.h>
 
 namespace Core {
 
@@ -46,16 +46,16 @@ public:
      * Getter functions to get the total elapsed time in different units. Includes the current interval
      * if the timer is running.
      */
-    double elapsedSeconds() const;
-    double elapsedCentiseconds() const;
-    double elapsedMilliseconds() const;
-    double elapsedMicroseconds() const;
-    double elapsedNanoseconds() const;
+    double elapsedSeconds();
+    double elapsedCentiseconds();
+    double elapsedMilliseconds();
+    double elapsedMicroseconds();
+    double elapsedNanoseconds();
 
 private:
-    bool                                  running_;
-    std::chrono::steady_clock::time_point startTime_;
-    double                                elapsedTime_;
+    bool    running_;
+    timeval startTime_;
+    double  elapsedSeconds_;
 };
 
 }  // namespace Core

@@ -16,10 +16,9 @@
 #define HELPERS_HH
 
 #include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Types.hh>
-#include <Core/Utility.hh>
 #include <string>
-#include <time.h>
 #include "SearchSpaceStatistics.hh"
 
 namespace Search {
@@ -36,63 +35,30 @@ class Configuration;
 
 bool isBackwardRecognition(const Core::Configuration& config);
 
-class PerformanceCounter {
+class PerformanceCounter : public Core::StopWatch {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : running_(false),
-              totalTime_(0),
-              timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
-        if (start)
+            : Core::StopWatch(), timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+        if (start) {
             this->start();
+        }
     }
 
     ~PerformanceCounter() {
         stopAndYield();
     }
 
-    void start() {
-        stop();
-
-        running_ = true;
-        TIMER_START(starttime_);
-    }
-
-    void stop() {
-        if (running_) {
-            running_ = false;
-
-            double  diff = 0;  // in secs
-            timeval end;
-
-            TIMER_STOP(starttime_, end, diff);
-            totalTime_ += diff * 100;  // centi secs
-        }
-    }
-
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += totalTime_;
-        if (print)
-            std::cout << " time: " << totalTime_ << std::endl;
-        totalTime_ = 0;
-    }
-
-    static inline u64 instructions() {
-        unsigned int a, d;
-        asm __volatile__(""
-                         :
-                         :
-                         : "memory");
-        asm volatile("rdtsc"
-                     : "=a"(a), "=d"(d));
-        return ((u64)a) | (((u64)d) << 32);
+        timeStats += elapsedCentiseconds();
+        if (print) {
+            std::cout << " time: " << elapsedCentiseconds() << std::endl;
+        }
+        reset();
     }
 
 private:
-    bool                   running_;
-    timeval                starttime_;
-    f32                    totalTime_;
     Core::Statistics<f32>& timeStats;
 };
 

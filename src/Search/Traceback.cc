@@ -14,6 +14,9 @@
  */
 
 #include "Traceback.hh"
+#include <Lattice/LatticeAdaptor.hh>
+#include <Speech/Types.hh>
+#include <stack>
 
 namespace Search {
 
@@ -74,4 +77,114 @@ Lattice::WordLatticeRef Traceback::wordLattice(Core::Ref<const Bliss::Lexicon> l
     result->setWordBoundaries(Core::ref(new Lattice::WordBoundaries));
     return result;
 }
+
+LatticeTrace::LatticeTrace(
+        Core::Ref<LatticeTrace> const&        pre,
+        const Bliss::LemmaPronunciation*      p,
+        Speech::TimeframeIndex                t,
+        ScoreVector                           s,
+        Search::TracebackItem::Transit const& transit)
+        : TracebackItem(p, t, s, transit), predecessor(pre), sibling() {}
+
+Core::Ref<LatticeTrace> LatticeTrace::getPredecessor() const {
+    return predecessor_.get();
+}
+
+Core::Ref<LatticeTrace> LatticeTrace::getSibling() const {
+    return sibling_.get();
+}
+
+void LatticeTrace::appendSiblingToChain(Core::Ref<LatticeTrace> sibling) {
+    if (sibling_) {
+        sibling_.appendSiblingToChain(sibling);
+    }
+    else {
+        sibling_ = sibling;
+    }
+}
+
+Core::Ref<Traceback> LatticeTrace::getTraceback() const {
+    Core::Ref<Traceback> traceback;
+
+    if (predecessor) {
+        traceback = predecessor->getTraceback();
+    }
+    else {
+        traceback = Core::ref(new Traceback());
+        traceback->push_back(TracebackItem(0, 0, {0, 0}, {}));
+    }
+    traceback->push_back(*this);
+
+    return traceback;
+}
+
+Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) {
+    // use default LemmaAlphabet mode of StandardWordLattice
+    Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon));
+    Core::Ref<Lattice::WordBoundaries>      wordBoundaries(new Lattice::WordBoundaries);
+
+    // Map traces to lattice states
+    std::unordered_map<const LatticeTrace*, Fsa::State*> stateMap;
+
+    // Create an initial State at time 0 which represents empty predecessors
+    Fsa::State* initialState = result->initialState();
+    wordBoundaries->set(initialState->id(), Lattice::WordBoundary(0));
+
+    // Stack for depth-first search through traces of all hypotheses in the beam
+    std::stack<const LatticeTrace*> traceStack;
+
+    // Create a final state which represents this trace itself
+    Fsa::State* finalState = result->finalState();
+    stateMap[this]         = finalState;
+    traceStack.push(this);
+    wordBoundaries->set(finalState->id(), Lattice::WordBoundary(this->time));
+
+    // Perform depth-first search
+    while (not traceStack.empty()) {
+        auto* trace = traceStack.top();
+        traceStack.pop();
+
+        // A trace on the stack already has an associated state
+        Fsa::State* currentState = stateMap[trace];
+        wordBoundaries->set(currentState->id(), Lattice::WordBoundary(trace->time));
+
+        // Iterate through siblings of current trace
+        // All siblings share the same lattice state
+        for (auto arcTrace = trace; arcTrace != nullptr; arcTrace = arcTrace->getSibling().get()) {
+            // For current sibling, get its predecessor, create a state for that predecessor
+            // and connect it to the current state.
+            auto*       preTrace = arcTrace->getPredecessor().get();
+            Fsa::State* preState;
+            ScoreVector scores = trace->score;
+            if (preTrace == nullptr) {
+                // If trace has no predecessor, it gets connected to the initial state
+                preState = initialState;
+            }
+            else {
+                // If trace has a predecessor, get or create a state for it. Arc score
+                // is difference between trace scores from predecessor to current.
+                scores -= preTrace->score;
+                if (stateMap.find(preTrace) == stateMap.end()) {
+                    preState           = result->newState();
+                    stateMap[preTrace] = preState;
+                    traceStack.push(preTrace);
+                }
+                else {
+                    preState = stateMap[preTrace.get()];
+                }
+            }
+
+            // Create arc from predecessor state to current state
+            result->newArc(preState, currentState, arcTrace->pronunciation, scores.acoustic, scores.lm);
+        }
+    }
+
+    result->setWordBoundaries(wordBoundaries);
+    result->addAcyclicProperty();
+
+    return Core::ref(new Lattice::WordLatticeAdaptor(result));
+}
+
+LatticeTrace::
+
 }  // namespace Search

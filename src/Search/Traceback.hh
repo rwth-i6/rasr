@@ -16,12 +16,16 @@
 #define TRACEBACK_HH
 
 #include <Bliss/Lexicon.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Lattice/Lattice.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/Types.hh>
 
 namespace Search {
 
+/*
+ * Struct to join AM and LM score and allow element-wise operations.
+ */
 struct ScoreVector {
     Speech::Score acoustic, lm;
     ScoreVector(Speech::Score a, Speech::Score l)
@@ -47,6 +51,9 @@ struct ScoreVector {
     }
 };
 
+/*
+ * Data associated with a single traceback node
+ */
 struct TracebackItem {
 public:
     typedef Lattice::WordBoundary::Transit Transit;
@@ -60,12 +67,81 @@ public:
             : pronunciation(p), time(t), score(s), transit(te) {}
 };
 
-class Traceback : public std::vector<TracebackItem> {
+/*
+ * Vector of TracebackItems together with some functions for conversions and IO
+ */
+class Traceback : public std::vector<TracebackItem>,
+                  public Core::ReferenceCounted {
 public:
     void                    write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
     Fsa::ConstAutomatonRef  lemmaAcceptor(Core::Ref<const Bliss::Lexicon>) const;
     Fsa::ConstAutomatonRef  lemmaPronunciationAcceptor(Core::Ref<const Bliss::Lexicon>) const;
     Lattice::WordLatticeRef wordLattice(Core::Ref<const Bliss::Lexicon>) const;
+};
+
+/*
+ * TracebackItem together with predecessor and sibling pointers.
+ * Used to build the lattice after recognition.
+ * Siblings are traces which will share the same lattice state (i.e. hypotheses with the same ScoringContext) but
+ * have different predecessors.
+ * So a trace structure like this (where "<-" indicates a predecessor and "v" indicates a sibling)
+ * A  <- B
+ *       v
+ * A' <- B'
+ * will lead to a lattice like this:
+ * O - O
+ *   /
+ * O
+ *
+ * Siblings form a chain so that the last sibling in the chain only has an empty Ref as its sibling.
+ * An empty Ref predecessor means that this trace will be connected to the initial lattice state.
+ *
+ * Note: Don't connect traces as siblings or predecessor of each other in a circular way as this may result
+ * in infinite loops during traversal.
+ */
+class LatticeTrace : public Core::ReferenceCounted,
+                     public TracebackItem {
+public:
+    LatticeTrace(Core::Ref<LatticeTrace> const&   pre,
+                 Bliss::LemmaPronunciation const* p,
+                 Speech::TimeframeIndex           t,
+                 ScoreVector                      s,
+                 Transit const&                   transit);
+
+    /*
+     * Getter functions
+     */
+    LatticeTrace* getPredecessor() const;
+    LatticeTrace* getSibling() const;
+
+    /*
+     * Append sibling chain to the end of the own sibling chain
+     * Example: If we have sibling chains
+     *
+     * A -> B -> C and D -> E
+     *
+     * then after A.appendSibling(D) it will be
+     *
+     * A -> B -> C -> D -> E
+     */
+    void appendSiblingToChain(Core::Ref<LatticeTrace> sibling);
+
+    /*
+     * Perform best-predecessor traceback.
+     * Ordered by increasing timestep.
+     */
+    Core::Ref<Traceback> performTraceback() const;
+
+    /*
+     * Build a word lattice from a traces. The given trace will be represent the final lattice
+     * state and it is traced back along predecessors and siblings until ending up at the empty predecessor which
+     * is represented as the initial lattice state.
+     */
+    Core::Ref<const LatticeAdaptor> buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const;
+
+private:
+    Core::Ref<LatticeTrace> predecessor_;
+    Core::Ref<LatticeTrace> sibling_;
 };
 
 }  // namespace Search

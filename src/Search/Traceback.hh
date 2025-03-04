@@ -105,11 +105,13 @@ public:
     Core::Ref<LatticeTrace> predecessor;
     Core::Ref<LatticeTrace> sibling;
 
-    LatticeTrace(Core::Ref<LatticeTrace> const&   pre,
-                 Bliss::LemmaPronunciation const* p,
-                 Speech::TimeframeIndex           t,
-                 ScoreVector                      s,
+    LatticeTrace(Core::Ref<LatticeTrace> const&   predecessor,
+                 Bliss::LemmaPronunciation const* pronunciation,
+                 Speech::TimeframeIndex           timeframe,
+                 ScoreVector                      scores,
                  Transit const&                   transit);
+
+    LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit);
 
     /*
      * Append sibling chain to the end of the own sibling chain
@@ -121,7 +123,7 @@ public:
      *
      * A -> B -> C -> D -> E
      */
-    void appendSiblingToChain(Core::Ref<LatticeTrace> sibling);
+    void appendSiblingToChain(Core::Ref<LatticeTrace> newSibling);
 
     /*
      * Perform best-predecessor traceback.
@@ -131,10 +133,29 @@ public:
 
     /*
      * Build a word lattice from a traces. The given trace will be represent the final lattice
-     * state and it is traced back along predecessors and siblings until ending up at the empty predecessor which
-     * is represented as the initial lattice state.
+     * state and it is traced back along predecessors and siblings until ending up at a trace with empty predecessor
+     * which represents the initial state.
+     *
+     * This assumes that all paths lead back to a single initial trace with empty predecessor.
+     * It's also assumed that this trace itself does have a predecessor, i.e. initial and final
+     * state in the lattice are different.
      */
     Core::Ref<const LatticeAdaptor> buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const;
+
+    /*
+     * Write valid pronunciations of associated traceback to output stream.
+     */
+    void write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
+
+    /*
+     * Collect lemmas of valid pronunciations of associated traceback into `lemmaSequence`.
+     */
+    void getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const;
+
+    /*
+     * Count number of items with valid pronunciations along associated traceback.
+     */
+    u32 wordCount() const;
 };
 
 }  // namespace Search

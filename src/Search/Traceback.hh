@@ -18,7 +18,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Lattice/Lattice.hh>
-#include <Search/LatticeAdaptor.hh>
+#include <Lattice/LatticeAdaptor.hh>
 #include <Speech/Types.hh>
 
 namespace Search {

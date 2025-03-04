@@ -36,10 +36,8 @@ void StopWatch::stop() {
     }
 
     timeval endTime;
-    double  diff = 0;  // in seconds
-    TIMER_STOP(startTime_, endTime, diff);
+    TIMER_STOP(startTime_, endTime, elapsedSeconds_);
 
-    elapsedSeconds_ += diff;
     running_ = false;
 }
 
@@ -51,8 +49,12 @@ void StopWatch::reset() {
 double StopWatch::elapsedSeconds() {
     if (running_) {
         timeval endTime;
-        double  diff = 0;  // in seconds
-        TIMER_STOP(startTime_, endTime, diff);
+        double  currentTime = 0;  // in seconds
+
+        // Note: This macro doesn't actually "stop" anything, it just writes into `endTime` and `currentTime`
+        TIMER_STOP(startTime_, endTime, currentTime);
+
+        return elapsedSeconds_ + currentTime;
     }
     return elapsedSeconds_;
 }

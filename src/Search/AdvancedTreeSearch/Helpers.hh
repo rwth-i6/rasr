@@ -35,12 +35,12 @@ class Configuration;
 
 bool isBackwardRecognition(const Core::Configuration& config);
 
-class PerformanceCounter : public Core::StopWatch {
+class PerformanceCounter {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : Core::StopWatch(), timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+            : stopWatch_(), timeStats_(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
         if (start) {
-            this->start();
+            stopWatch_.start();
         }
     }
 
@@ -48,18 +48,28 @@ public:
         stopAndYield();
     }
 
+    void start() {
+        stopWatch_.stop();
+        stopWatch_.start();
+    }
+
+    void stop() {
+        stopWatch_.stop();
+    }
+
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += elapsedCentiseconds();
+        timeStats_ += stopWatch_.elapsedCentiseconds();
         if (print) {
-            std::cout << " time: " << elapsedCentiseconds() << std::endl;
+            std::cout << " time: " << stopWatch_.elapsedCentiseconds() << std::endl;
         }
-        reset();
+        stopWatch_.reset();
     }
 
 private:
-    Core::Statistics<f32>& timeStats;
+    Core::StopWatch        stopWatch_;
+    Core::Statistics<f32>& timeStats_;
 };
 
 inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {

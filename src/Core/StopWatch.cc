@@ -46,32 +46,32 @@ void StopWatch::reset() {
     running_        = false;
 }
 
-double StopWatch::elapsedSeconds() {
+double StopWatch::elapsedSeconds() const {
     if (running_) {
         timeval endTime;
         double  currentTime = 0;  // in seconds
 
         // Note: This macro doesn't actually "stop" anything, it just writes into `endTime` and `currentTime`
-        TIMER_STOP(startTime_, endTime, currentTime);
+        TIMER_STOP(const_cast<timeval&>(startTime_), endTime, currentTime);
 
         return elapsedSeconds_ + currentTime;
     }
     return elapsedSeconds_;
 }
 
-double StopWatch::elapsedCentiseconds() {
+double StopWatch::elapsedCentiseconds() const {
     return elapsedSeconds() * 1e2;
 }
 
-double StopWatch::elapsedMilliseconds() {
+double StopWatch::elapsedMilliseconds() const {
     return elapsedSeconds() * 1e3;
 }
 
-double StopWatch::elapsedMicroseconds() {
+double StopWatch::elapsedMicroseconds() const {
     return elapsedSeconds() * 1e6;
 }
 
-double StopWatch::elapsedNanoseconds() {
+double StopWatch::elapsedNanoseconds() const {
     return elapsedSeconds() * 1e9;
 }
 

@@ -15,38 +15,47 @@
 #ifndef STOPWATCH_HH
 #define STOPWATCH_HH
 
-#include <chrono>
+#include <sys/time.h>
 
 namespace Core {
 
 /*
- * Timer to add up computation times for sub-tasks performed repeatedly
- * across the search.
+ * Simple timer class with start/stop functions that accumulates all the timed intervals
+ * to a total.
  */
 struct StopWatch {
 public:
     StopWatch();
 
-    // Reset accumulated total to zero.
+    /*
+     * Stops timer if it is running and resets accumulated time to zero.
+     */
     void reset();
 
-    // Start timer
+    /*
+     * Start timer. Does nothing if timer is already running.
+     */
     void start();
 
-    // End running timer and add duration to total
+    /*
+     * End running timer and add duration to total. Does nothing if timer is not running.
+     */
     void stop();
 
-    // Getter functions to get the total elapsed time in different units
-    double elapsedSeconds() const;
-    double elapsedCentiseconds() const;
-    double elapsedMilliseconds() const;
-    double elapsedMicroseconds() const;
-    double elapsedNanoseconds() const;
+    /*
+     * Getter functions to get the total elapsed time in different units. Includes the current interval
+     * if the timer is running.
+     */
+    double elapsedSeconds();
+    double elapsedCentiseconds();
+    double elapsedMilliseconds();
+    double elapsedMicroseconds();
+    double elapsedNanoseconds();
 
 private:
-    bool                                  running_;
-    std::chrono::steady_clock::time_point startTime_;
-    double                                elapsedTime_;
+    bool    running_;
+    timeval startTime_;
+    double  elapsedSeconds_;
 };
 
 }  // namespace Core

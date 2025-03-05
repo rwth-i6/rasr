@@ -18,9 +18,7 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/StopWatch.hh>
 #include <Core/Types.hh>
-#include <Core/Utility.hh>
 #include <string>
-#include <time.h>
 #include "SearchSpaceStatistics.hh"
 
 namespace Search {
@@ -40,37 +38,38 @@ bool isBackwardRecognition(const Core::Configuration& config);
 class PerformanceCounter : public Core::StopWatch {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : Core::StopWatch(), timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
-        if (start)
-            this->start();
+            : stopWatch_(), timeStats_(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+        if (start) {
+            stopWatch_.start();
+        }
     }
 
     ~PerformanceCounter() {
         stopAndYield();
     }
 
+    void start() {
+        stopWatch_.stop();
+        stopWatch_.start();
+    }
+
+    void stop() {
+        stopWatch_.stop();
+    }
+
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += elapsedCentiseconds();
-        if (print)
-            std::cout << " time: " << elapsedCentiseconds() << std::endl;
-        reset();
-    }
-
-    static inline u64 instructions() {
-        unsigned int a, d;
-        asm __volatile__(""
-                         :
-                         :
-                         : "memory");
-        asm volatile("rdtsc"
-                     : "=a"(a), "=d"(d));
-        return ((u64)a) | (((u64)d) << 32);
+        timeStats_ += stopWatch_.elapsedCentiseconds();
+        if (print) {
+            std::cout << " time: " << stopWatch_.elapsedCentiseconds() << std::endl;
+        }
+        stopWatch_.reset();
     }
 
 private:
-    Core::Statistics<f32>& timeStats;
+    Core::StopWatch        stopWatch_;
+    Core::Statistics<f32>& timeStats_;
 };
 
 inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {

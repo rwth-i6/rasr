@@ -169,7 +169,6 @@ Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const B
             else {
                 // If trace has no predecessor, it gets connected to the initial state
                 // Make sure that the initial trace is unique
-                require(not initialTrace);
                 preState     = initialState;
                 initialTrace = preTrace;
             }

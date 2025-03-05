@@ -16,6 +16,7 @@
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
 #include <Nn/Module.hh>
+#include "Am/AcousticModel.hh"
 
 using namespace Speech;
 
@@ -32,16 +33,43 @@ const Core::ParameterFloat ModelCombination::paramPronunciationScale(
 
 ModelCombination::ModelCombination(const Core::Configuration& c,
                                    Mode                       mode,
-                                   Am::AcousticModel::Mode    acousticModelMode)
+                                   Am::AcousticModel::Mode    acousticModelMode,
+                                   Bliss::LexiconRef          lexicon)
         : Core::Component(c),
           Mc::Component(c),
           pronunciationScale_(0) {
-    setLexicon(Bliss::Lexicon::create(select("lexicon")));
-    if (!lexicon_)
-        criticalError("failed to initialize the lexicon");
-
-    /*! \todo Scalable lexicon not implemented yet */
     setPronunciationScale(paramPronunciationScale(c));
+    build(mode, acousticModelMode, lexicon);
+}
+
+ModelCombination::ModelCombination(const Core::Configuration&         c,
+                                   Bliss::LexiconRef                  lexicon,
+                                   Core::Ref<Am::AcousticModel>       acousticModel,
+                                   Core::Ref<Lm::ScaledLanguageModel> languageModel)
+        : Core::Component(c), Mc::Component(c), pronunciationScale_(0) {
+    setPronunciationScale(paramPronunciationScale(c));
+    setLexicon(lexicon);
+    setAcousticModel(acousticModel);
+    setLanguageModel(languageModel);
+}
+
+ModelCombination::~ModelCombination() {}
+
+void ModelCombination::build(Mode                    mode,
+                             Am::AcousticModel::Mode acousticModelMode,
+                             Bliss::LexiconRef       lexicon) {
+    if (lexicon) {
+        setLexicon(lexicon);
+        log() << "Set lexicon in ModelCombination";
+    }
+    else {
+        log() << "Create lexicon in ModelCombination";
+        setLexicon(Bliss::Lexicon::create(select("lexicon")));
+    }
+
+    if (!lexicon_) {
+        criticalError("failed to initialize the lexicon");
+    }
 
     if (mode & useAcousticModel) {
         setAcousticModel(Am::Module::instance().createAcousticModel(
@@ -58,23 +86,11 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
 
     if (mode & useLabelScorer) {
         setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("label-scorer")));
-        if (!labelScorer_)
+        if (!labelScorer_) {
             criticalError("failed to initialize label scorer");
+        }
     }
 }
-
-ModelCombination::ModelCombination(const Core::Configuration&         c,
-                                   Bliss::LexiconRef                  lexicon,
-                                   Core::Ref<Am::AcousticModel>       acousticModel,
-                                   Core::Ref<Lm::ScaledLanguageModel> languageModel)
-        : Core::Component(c), Mc::Component(c), pronunciationScale_(0) {
-    setPronunciationScale(paramPronunciationScale(c));
-    setLexicon(lexicon);
-    setAcousticModel(acousticModel);
-    setLanguageModel(languageModel);
-}
-
-ModelCombination::~ModelCombination() {}
 
 void ModelCombination::setLexicon(Bliss::LexiconRef lexicon) {
     lexicon_ = lexicon;

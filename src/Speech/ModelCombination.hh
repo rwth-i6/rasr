@@ -23,7 +23,6 @@
 #include <Mc/Component.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 
-
 namespace Speech {
 
 /** Combination of a lexicon, an acoustic model or label scorer, and a language model.
@@ -65,10 +64,13 @@ protected:
 public:
     ModelCombination(const Core::Configuration&,
                      Mode                    = complete,
-                     Am::AcousticModel::Mode = Am::AcousticModel::complete);
+                     Am::AcousticModel::Mode = Am::AcousticModel::complete,
+                     Bliss::LexiconRef       = Bliss::LexiconRef());
     ModelCombination(const Core::Configuration&,
                      Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
     virtual ~ModelCombination();
+
+    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
 
     void getDependencies(Core::DependencySet&) const;
 
@@ -88,8 +90,12 @@ public:
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) { labelScorer_ = ls; }
-    Core::Ref<Nn::LabelScorer> labelScorer() const { return labelScorer_; }
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) {
+        labelScorer_ = ls;
+    }
+    Core::Ref<Nn::LabelScorer> labelScorer() const {
+        return labelScorer_;
+    }
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

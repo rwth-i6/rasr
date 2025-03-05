@@ -46,11 +46,11 @@ public:
      * Getter functions to get the total elapsed time in different units. Includes the current interval
      * if the timer is running.
      */
-    double elapsedSeconds();
-    double elapsedCentiseconds();
-    double elapsedMilliseconds();
-    double elapsedMicroseconds();
-    double elapsedNanoseconds();
+    double elapsedSeconds() const;
+    double elapsedCentiseconds() const;
+    double elapsedMilliseconds() const;
+    double elapsedMicroseconds() const;
+    double elapsedNanoseconds() const;
 
 private:
     bool    running_;

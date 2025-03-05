@@ -176,7 +176,7 @@ Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const B
             }
 
             // Create arc from predecessor state to current state
-            ScoreVector scores = trace->score - preTrace->score;
+            ScoreVector scores = arcTrace->score - preTrace->score;
             result->newArc(preState, currentState, arcTrace->pronunciation, scores.acoustic, scores.lm);
         }
     }

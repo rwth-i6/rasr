@@ -108,7 +108,6 @@ Core::Ref<Traceback> LatticeTrace::performTraceback() const {
     }
     else {
         traceback = Core::ref(new Traceback());
-        traceback->push_back(TracebackItem(0, 0, {0, 0}, {}));
     }
     traceback->push_back(*this);
 

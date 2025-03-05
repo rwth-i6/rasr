@@ -136,16 +136,37 @@ Lexicon::~Lexicon() {
     delete internal_;
 }
 
+const Core::Choice Lexicon::lexiconTypeChoice(
+        "vocab-txt", vocabTxtLexicon,
+        "vocab-text", vocabTxtLexicon,
+        "xml", xmlLexicon,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Lexicon::paramLexiconType(
+        "type", &Lexicon::lexiconTypeChoice, "type of the lexicon file", xmlLexicon);
+
 void Lexicon::load(const std::string& filename) {
     Core::MD5 md5;
-    if (md5.updateFromFile(filename))
+    if (md5.updateFromFile(filename)) {
         dependency_.setValue(md5);
-    else
+    } else {
         warning("could not derive md5 sum from file '%s'", filename.c_str());
-    LexiconParser parser(config, this);
+    }
+    std::unique_ptr<LexiconParser> parser;
+    switch (paramLexiconType(config)) {
+    // text-based lexicon
+    case LexiconType::vocabTxtLexicon:
+        parser = std::make_unique<VocabTextLexiconParser>(this);
+        break;
+    // xml-based lexicon
+    case LexiconType::xmlLexicon:
+        parser = std::make_unique<XmlLexiconParser>(config, this);
+        break;
+    }
     log("reading lexicon from file") << " \"" << filename << "\" ...";
-    if (parser.parseFile(filename.c_str()) != 0)
+    if (!parser->parseFile(filename)) {
         error("Error while reading lexicon file.");
+    }
     log("dependency value: ") << dependency_.value();
 }
 

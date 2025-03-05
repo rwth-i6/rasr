@@ -14,6 +14,7 @@
  */
 
 #include "Traceback.hh"
+
 #include <stack>
 
 namespace Search {
@@ -112,6 +113,9 @@ Core::Ref<Traceback> LatticeTrace::performTraceback() const {
 }
 
 Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const {
+    // If predecessor Ref is empty the lattice would only have one state
+    require(predecessor);
+
     // use default LemmaAlphabet mode of StandardWordLattice
     Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon));
     Core::Ref<Lattice::WordBoundaries>      wordBoundaries(new Lattice::WordBoundaries);
@@ -164,6 +168,8 @@ Core::Ref<const LatticeAdaptor> LatticeTrace::buildWordLattice(Core::Ref<const B
             }
             else {
                 // If trace has no predecessor, it gets connected to the initial state
+                // Make sure that the initial trace is unique
+                require(not initialTrace);
                 preState     = initialState;
                 initialTrace = preTrace;
             }

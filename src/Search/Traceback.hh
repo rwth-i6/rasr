@@ -136,8 +136,8 @@ public:
      * state and it is traced back along predecessors and siblings until ending up at a trace with empty predecessor
      * which represents the initial state.
      *
-     * This assumes that all paths lead back to a single initial trace with empty predecessor.
-     * It's also assumed that this trace itself does have a predecessor, i.e. initial and final
+     * This requires that all paths lead back to a single initial trace with empty predecessor.
+     * It's also required that this trace itself does have a predecessor, i.e. initial and final
      * state in the lattice are different.
      */
     Core::Ref<const LatticeAdaptor> buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const;

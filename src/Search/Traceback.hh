@@ -18,7 +18,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Lattice/Lattice.hh>
-#include <Search/LatticeAdaptor.hh>
+#include <Lattice/LatticeAdaptor.hh>
 #include <Speech/Types.hh>
 
 namespace Search {
@@ -95,6 +95,9 @@ public:
  *
  * Siblings form a chain so that the last sibling in the chain only has an empty Ref as its sibling.
  * An empty Ref predecessor means that this trace will be connected to the initial lattice state.
+ *
+ * Note: Don't connect traces as siblings or predecessor of each other in a circular way as this may result
+ * in infinite loops during traversal.
  */
 class LatticeTrace : public Core::ReferenceCounted,
                      public TracebackItem {
@@ -102,25 +105,58 @@ public:
     Core::Ref<LatticeTrace> predecessor;
     Core::Ref<LatticeTrace> sibling;
 
-    LatticeTrace(Core::Ref<LatticeTrace> const&   pre,
-                 Bliss::LemmaPronunciation const* p,
-                 Speech::TimeframeIndex           t,
-                 ScoreVector                      s,
+    LatticeTrace(Core::Ref<LatticeTrace> const&   predecessor,
+                 Bliss::LemmaPronunciation const* pronunciation,
+                 Speech::TimeframeIndex           timeframe,
+                 ScoreVector                      scores,
                  Transit const&                   transit);
+
+    LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit);
+
+    /*
+     * Append sibling chain to the end of the own sibling chain
+     * Example: If we have sibling chains
+     *
+     * A -> B -> C and D -> E
+     *
+     * then after A.appendSibling(D) it will be
+     *
+     * A -> B -> C -> D -> E
+     */
+    void appendSiblingToChain(Core::Ref<LatticeTrace> newSibling);
 
     /*
      * Perform best-predecessor traceback.
      * Ordered by increasing timestep.
      */
-    Core::Ref<Traceback> getTraceback() const;
-};
+    Core::Ref<Traceback> performTraceback() const;
 
-/*
- * Build a word lattice from a set of traces. The given traces will be conencted to the final lattice
- * state and they are traced back until an empty predecessor at which point they get connected to the
- * initial lattice state.
- */
-Core::Ref<const LatticeAdaptor> buildWordLatticeFromTraces(std::vector<Core::Ref<LatticeTrace>> const& traces, Core::Ref<const Bliss::Lexicon> lexicon);
+    /*
+     * Build a word lattice from a traces. The given trace will be represent the final lattice
+     * state and it is traced back along predecessors and siblings until ending up at a trace with empty predecessor
+     * which represents the initial state.
+     *
+     * This requires that all paths lead back to a single initial trace with empty predecessor.
+     * It's also required that this trace itself does have a predecessor, i.e. initial and final
+     * state in the lattice are different.
+     */
+    Core::Ref<const LatticeAdaptor> buildWordLattice(Core::Ref<const Bliss::Lexicon> lexicon) const;
+
+    /*
+     * Write valid pronunciations of associated traceback to output stream.
+     */
+    void write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi) const;
+
+    /*
+     * Collect lemmas of valid pronunciations of associated traceback into `lemmaSequence`.
+     */
+    void getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const;
+
+    /*
+     * Count number of items with valid pronunciations along associated traceback.
+     */
+    u32 wordCount() const;
+};
 
 }  // namespace Search
 

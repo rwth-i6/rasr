@@ -154,15 +154,19 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> con
 }
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
-    return beam_.front().trace->getTraceback();
+    return beam_.front().trace->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
-    std::vector<Core::Ref<LatticeTrace>> traces;
-    for (auto const& hyp : beam_) {
-        traces.push_back(hyp.trace);
+    LatticeTrace endTrace(beam_.front().trace, 0, beam_.front().trace->time + 1, beam_.front().trace->score, {});
+
+    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
+        auto& hyp          = beam_[hypIdx];
+        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+        endTrace.appendSiblingToChain(siblingTrace);
     }
-    return buildWordLatticeFromTraces(traces, lexicon_);
+
+    return endTrace.buildWordLattice(lexicon_);
 }
 
 void LexiconfreeTimesyncBeamSearch::resetStatistics() {
@@ -392,7 +396,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
           currentToken(Core::Type<Nn::LabelIndex>::max),
           score(0.0),
-          trace() {}
+          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LexiconfreeTimesyncBeamSearch::LabelHypothesis const&    base,
@@ -417,10 +421,6 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
-            // `base.trace` is empty in the first step but at that point only `INITIAL_BLANK` and `INITIAL_LABEL` transitions can happen.
-            // Afterwards, `base.trace` should always be non-empty.
-            verify(base.trace);
-
             // Copy base trace and update it
             trace                 = Core::ref(new LatticeTrace(*base.trace));
             trace->sibling        = {};
@@ -434,7 +434,7 @@ std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
     ss << "Score: " << score << ", traceback: ";
 
-    auto traceback = trace->getTraceback();
+    auto traceback = trace->performTraceback();
 
     for (auto& item : *traceback) {
         if (item.pronunciation and item.pronunciation->lemma()) {

@@ -64,9 +64,9 @@ private:
 
     std::pair<ConstLatticeRef, ConstSegmentRef> resultBuffer_;
 
-    Search::SearchAlgorithmV2*     searchAlgorithm_;
-    Speech::ModelCombination       modelCombination_;
-    SegmentwiseFeatureExtractorRef featureExtractor_;
+    Search::SearchAlgorithmV2*          searchAlgorithm_;
+    Core::Ref<Speech::ModelCombination> modelCombination_;
+    SegmentwiseFeatureExtractorRef      featureExtractor_;
 };
 
 }  // namespace Flf

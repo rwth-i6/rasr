@@ -28,7 +28,7 @@ NodeRef createRecognizerNodeV2(const std::string& name, const Core::Configuratio
 RecognizerNodeV2::RecognizerNodeV2(const std::string& name, const Core::Configuration& config)
         : Node(name, config),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithm(select("search-algorithm"))),
-          modelCombination_(config) {
+          modelCombination_() {
     Core::Configuration featureExtractionConfig(config, "feature-extraction");
     DataSourceRef       dataSource = DataSourceRef(Speech::Module::instance().createDataSource(featureExtractionConfig));
     featureExtractor_              = SegmentwiseFeatureExtractorRef(new SegmentwiseFeatureExtractor(featureExtractionConfig, dataSource));
@@ -74,7 +74,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     Core::XmlWriter& os(clog());
     os << Core::XmlOpen("traceback");
-    traceback->write(os, modelCombination_.lexicon()->phonemeInventory());
+    traceback->write(os, modelCombination_->lexicon()->phonemeInventory());
     os << Core::XmlClose("traceback");
 
     os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
@@ -104,10 +104,10 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
     semiring->setKey(0, "am");
     semiring->setScale(0, 1.0);
     semiring->setKey(1, "lm");
-    semiring->setScale(1, modelCombination_.languageModel()->scale());
+    semiring->setScale(1, modelCombination_->languageModel()->scale());
 
     auto                sentenceEndLabel        = Fsa::Epsilon;
-    const Bliss::Lemma* specialSentenceEndLemma = modelCombination_.lexicon()->specialLemma("sentence-end");
+    const Bliss::Lemma* specialSentenceEndLemma = modelCombination_->lexicon()->specialLemma("sentence-end");
     if (specialSentenceEndLemma and specialSentenceEndLemma->nPronunciations() > 0) {
         sentenceEndLabel = specialSentenceEndLemma->pronunciations().first->id();
     }
@@ -127,7 +127,7 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
     StaticLatticeRef    s = StaticLatticeRef(new StaticLattice);
     s->setType(Fsa::TypeAcceptor);
     s->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
-    s->setInputAlphabet(modelCombination_.lexicon()->lemmaPronunciationAlphabet());
+    s->setInputAlphabet(modelCombination_->lexicon()->lemmaPronunciationAlphabet());
     s->setSemiring(semiring);
     s->setDescription(Core::form("recog(%s)", segmentName.c_str()));
     s->setBoundaries(ConstBoundariesRef(b));
@@ -198,8 +198,12 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
 }
 
 void RecognizerNodeV2::init(std::vector<std::string> const& arguments) {
-    modelCombination_.build(searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), Lexicon::us());
-    searchAlgorithm_->setModelCombination(modelCombination_);
+    modelCombination_ = Core::ref(new Speech::ModelCombination(
+            config,
+            searchAlgorithm_->requiredModelCombination(),
+            searchAlgorithm_->requiredAcousticModel(),
+            Lexicon::us()));
+    searchAlgorithm_->setModelCombination(*modelCombination_);
     if (not connected(0)) {
         criticalError("Speech segment at port 1 required");
     }

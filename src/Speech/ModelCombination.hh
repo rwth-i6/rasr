@@ -77,25 +77,30 @@ public:
     Bliss::LexiconRef lexicon() const {
         return lexicon_;
     }
-    void      setLexicon(Bliss::LexiconRef);
+
+    void setLexicon(Bliss::LexiconRef);
+
     Mm::Score pronunciationScale() const {
         return pronunciationScale_ * scale();
     }
+
     Core::Ref<Am::AcousticModel> acousticModel() const {
         return acousticModel_;
     }
-    void                               setAcousticModel(Core::Ref<Am::AcousticModel>);
+
+    void setAcousticModel(Core::Ref<Am::AcousticModel>);
+
     Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
         return languageModel_;
     }
+
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) {
-        labelScorer_ = ls;
-    }
     Core::Ref<Nn::LabelScorer> labelScorer() const {
         return labelScorer_;
     }
+
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

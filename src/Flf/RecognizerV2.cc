@@ -13,9 +13,10 @@
  *  limitations under the License.
  */
 #include "RecognizerV2.hh"
+#include <Core/XmlStream.hh>
+#include <Fsa/Types.hh>
 #include <Speech/ModelCombination.hh>
 #include <chrono>
-#include "Core/XmlStream.hh"
 #include "LatticeHandler.hh"
 #include "Module.hh"
 
@@ -100,11 +101,13 @@ void RecognizerNodeV2::work() {
 }
 
 ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string segmentName) {
+    auto lmScale = modelCombination_->languageModel()->scale();
+
     auto semiring = Semiring::create(Fsa::SemiringTypeTropical, 2);
     semiring->setKey(0, "am");
     semiring->setScale(0, 1.0);
     semiring->setKey(1, "lm");
-    semiring->setScale(1, modelCombination_->languageModel()->scale());
+    semiring->setScale(1, lmScale);
 
     auto                sentenceEndLabel        = Fsa::Epsilon;
     const Bliss::Lemma* specialSentenceEndLemma = modelCombination_->lexicon()->specialLemma("sentence-end");
@@ -123,78 +126,82 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
     Fsa::ConstAutomatonRef                     lmFsa      = lattice->part(::Lattice::WordLattice::lmFsa);
     require_(Fsa::isAcyclic(amFsa) && Fsa::isAcyclic(lmFsa));
 
-    StaticBoundariesRef b = StaticBoundariesRef(new StaticBoundaries);
-    StaticLatticeRef    s = StaticLatticeRef(new StaticLattice);
-    s->setType(Fsa::TypeAcceptor);
-    s->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
-    s->setInputAlphabet(modelCombination_->lexicon()->lemmaPronunciationAlphabet());
-    s->setSemiring(semiring);
-    s->setDescription(Core::form("recog(%s)", segmentName.c_str()));
-    s->setBoundaries(ConstBoundariesRef(b));
-    s->setInitialStateId(0);
+    StaticBoundariesRef flfBoundaries = StaticBoundariesRef(new StaticBoundaries);
+    StaticLatticeRef    flfLattice    = StaticLatticeRef(new StaticLattice);
+    flfLattice->setType(Fsa::TypeAcceptor);
+    flfLattice->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
+    flfLattice->setInputAlphabet(modelCombination_->lexicon()->lemmaPronunciationAlphabet());
+    flfLattice->setSemiring(semiring);
+    flfLattice->setDescription(Core::form("recog(%s)", segmentName.c_str()));
+    flfLattice->setBoundaries(ConstBoundariesRef(flfBoundaries));
+    flfLattice->setInitialStateId(0);
 
     Time timeOffset = (*boundaries)[amFsa->initialStateId()].time();
 
     Fsa::Stack<Fsa::StateId>   stateStack;
-    Core::Vector<Fsa::StateId> sidMap(amFsa->initialStateId() + 1, Fsa::InvalidStateId);
-    sidMap[amFsa->initialStateId()] = 0;
+    Core::Vector<Fsa::StateId> stateIdMap(amFsa->initialStateId() + 1, Fsa::InvalidStateId);
+    stateIdMap[amFsa->initialStateId()] = 0;
     stateStack.push_back(amFsa->initialStateId());
-    Fsa::StateId nextSid   = 2;
-    Time         finalTime = 0;
+    Fsa::StateId nextStateId = 2;
+    Time         finalTime   = 0;
     while (not stateStack.isEmpty()) {
-        Fsa::StateId sid = stateStack.pop();
-        verify(sid < sidMap.size());
-        const ::Lattice::WordBoundary& boundary((*boundaries)[sid]);
-        Fsa::ConstStateRef             amSr = amFsa->getState(sid);
-        Fsa::ConstStateRef             lmSr = lmFsa->getState(sid);
-        State*                         sp   = new State(sidMap[sid]);
-        s->setState(sp);
-        b->set(sp->id(), Boundary(boundary.time() - timeOffset,
-                                  Boundary::Transit(boundary.transit().final, boundary.transit().initial)));
-        if (amSr->isFinal()) {
+        Fsa::StateId stateId = stateStack.pop();
+        verify(stateId < stateIdMap.size());
+        const ::Lattice::WordBoundary& boundary((*boundaries)[stateId]);
+        Fsa::ConstStateRef             amFsaState = amFsa->getState(stateId);
+        Fsa::ConstStateRef             lmFsaState = lmFsa->getState(stateId);
+        State*                         flfState   = new State(stateIdMap[stateId]);
+        flfLattice->setState(flfState);
+        flfBoundaries->set(flfState->id(), Boundary(boundary.time() - timeOffset,
+                                                    Boundary::Transit(boundary.transit().final, boundary.transit().initial)));
+        if (amFsaState->isFinal()) {
             auto scores = semiring->create();
-            scores->set(0, amSr->weight());
-            scores->set(1, static_cast<Score>(lmSr->weight()) / semiring->scale(1));
-            sp->newArc(1, scores, sentenceEndLabel);
-            finalTime = std::max(finalTime, boundary.time() - timeOffset);
-        }
-        for (Fsa::State::const_iterator am_a = amSr->begin(), lm_a = lmSr->begin(); (am_a != amSr->end()) && (lm_a != lmSr->end()); ++am_a, ++lm_a) {
-            sidMap.grow(am_a->target(), Fsa::InvalidStateId);
-            if (sidMap[am_a->target()] == Fsa::InvalidStateId) {
-                sidMap[am_a->target()] = nextSid++;
-                stateStack.push(am_a->target());
-            }
-            Fsa::ConstStateRef targetAmSr = amFsa->getState(am_a->target());
-            Fsa::ConstStateRef targetLmSr = amFsa->getState(lm_a->target());
-            if (targetAmSr->isFinal() && targetLmSr->isFinal()) {
-                if (am_a->input() == Fsa::Epsilon) {
-                    auto scores = semiring->create();
-                    scores->set(0, am_a->weight());
-                    scores->set(1, static_cast<Score>(lm_a->weight()) / semiring->scale(1));
-                    scores->add(0, Score(targetAmSr->weight()));
-                    scores->add(1, Score(targetLmSr->weight()) / semiring->scale(1));
-                    sp->newArc(1, scores, sentenceEndLabel);
-                }
-                else {
-                    auto scores = semiring->create();
-                    scores->set(0, am_a->weight());
-                    scores->set(1, static_cast<Score>(lm_a->weight()) / semiring->scale(1));
-                    sp->newArc(sidMap[am_a->target()], scores, am_a->input());
-                }
+            scores->set(0, amFsaState->weight());
+            if (lmScale) {
+                scores->set(1, static_cast<Score>(lmFsaState->weight()) / lmScale);
             }
             else {
-                auto scores = semiring->create();
-                scores->set(0, am_a->weight());
-                scores->set(1, static_cast<Score>(lm_a->weight()) / semiring->scale(1));
-                sp->newArc(sidMap[am_a->target()], scores, am_a->input());
+                scores->set(1, 0.0);
+            }
+            flfState->newArc(1, scores, sentenceEndLabel);
+            finalTime = std::max(finalTime, boundary.time() - timeOffset);
+        }
+        for (Fsa::State::const_iterator amArc = amFsaState->begin(), lmArc = lmFsaState->begin(); (amArc != amFsaState->end()) && (lmArc != lmFsaState->end()); ++amArc, ++lmArc) {
+            stateIdMap.grow(amArc->target(), Fsa::InvalidStateId);
+            if (stateIdMap[amArc->target()] == Fsa::InvalidStateId) {
+                stateIdMap[amArc->target()] = nextStateId++;
+                stateStack.push(amArc->target());
+            }
+            Fsa::ConstStateRef targetAmState = amFsa->getState(amArc->target());
+            Fsa::ConstStateRef targetLmState = amFsa->getState(lmArc->target());
+
+            auto scores = semiring->create();
+            scores->set(0, amArc->weight());
+
+            if (lmScale) {
+                scores->set(1, static_cast<Score>(lmArc->weight()) / lmScale);
+            }
+            else {
+                scores->set(1, 0);
+            }
+
+            if (targetAmState->isFinal() and targetLmState->isFinal() and amArc->input() == Fsa::Epsilon) {
+                scores->add(0, Score(targetAmState->weight()));
+                if (lmScale) {
+                    scores->add(1, Score(targetLmState->weight()) / lmScale);
+                }
+                flfState->newArc(1, scores, sentenceEndLabel);
+            }
+            else {
+                flfState->newArc(stateIdMap[amArc->target()], scores, amArc->input());
             }
         }
     }
-    State* sp = new State(1);
-    sp->setFinal(semiring->clone(semiring->one()));
-    s->setState(sp);
-    b->set(sp->id(), Boundary(finalTime));
-    return s;
+    State* finalState = new State(1);
+    finalState->setFinal(semiring->clone(semiring->one()));
+    flfLattice->setState(finalState);
+    flfBoundaries->set(finalState->id(), Boundary(finalTime));
+    return flfLattice;
 }
 
 void RecognizerNodeV2::init(std::vector<std::string> const& arguments) {

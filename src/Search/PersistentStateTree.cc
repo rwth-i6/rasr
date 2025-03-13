@@ -20,7 +20,7 @@
 #include <Am/ClassicAcousticModel.hh>
 #include <Core/MappedArchive.hh>
 #include <Search/StateTree.hh>
-#include <Search/AdvancedTreeSearch/BatchManager.hh>
+#include <Search/BatchManager.hh>
 #include <Search/AdvancedTreeSearch/Helpers.hh>
 
 #include "TreeStructure.hh"

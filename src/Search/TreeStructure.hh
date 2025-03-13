@@ -19,7 +19,7 @@
 
 #include <Core/MappedArchive.hh>
 #include <Search/StateTree.hh>
-#include <Search/AdvancedTreeSearch/BatchManager.hh>
+#include <Search/BatchManager.hh>
 
 #define inline_ __attribute__((always_inline)) inline
 

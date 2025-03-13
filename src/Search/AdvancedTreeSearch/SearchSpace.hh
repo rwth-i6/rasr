@@ -117,9 +117,6 @@ public:
     // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
     void buildBatches();
 
-protected:
-    TreeBuilderType treeBuilderType_;
-
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Bliss::LexiconRef                  lexicon_;

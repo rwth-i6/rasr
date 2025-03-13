@@ -33,15 +33,28 @@ using namespace Search;
 Module_::Module_() {
 }
 
-std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) const {
-    switch (treeBuilderType) {
-        case Search::TreeBuilderType::classicHmm: {  // Use StateTree.hh
+const Core::Choice choiceTreeBuilderType(
+        "classic-hmm", static_cast<int>(TreeBuilderType::classicHmm),
+        "minimized-hmm", static_cast<int>(TreeBuilderType::minimizedHmm),
+        "ctc", static_cast<int>(TreeBuilderType::ctc),
+        Core::Choice::endMark());
+
+const Core::ParameterChoice paramTreeBuilderType(
+        "tree-builder-type",
+        &choiceTreeBuilderType,
+        "which tree builder to use",
+        static_cast<int>(TreeBuilderType::previousBehavior));
+
+std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) const {
+    switch (paramTreeBuilderType(config)) {
+        case TreeBuilderType::classicHmm: {  // Use StateTree.hh
             return std::unique_ptr<AbstractTreeBuilder>(nullptr);
         } break;
-        case Search::TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
+        case TreeBuilderType::previousBehavior:
+        case TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
             return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
-        case Search::TreeBuilderType::ctc: {
+        case TreeBuilderType::ctc: {
             return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();

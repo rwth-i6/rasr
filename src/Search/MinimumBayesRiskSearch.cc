@@ -75,4 +75,4 @@ void MinimumBayesRiskMapSearch::performSearch(Fsa::ConstAutomatonRef fsa) {
     bestAutomaton_ = Fsa::best(fsa);
 }
 
-}  //end namespace Search
+}  // end namespace Search

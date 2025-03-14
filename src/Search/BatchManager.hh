@@ -12,12 +12,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef FASTBATCHES_HH
-#define FASTBATCHES_HH
+#ifndef SEARCH_BATCHMANAGER_HH
+#define SEARCH_BATCHMANAGER_HH
 
-#include <Core/Hash.hh>
 #include <vector>
 #include <assert.h>
+
+#include <Core/Hash.hh>
 
 namespace Tools {
 /**
@@ -44,7 +45,7 @@ class BatchPointerIterator {
 private:
     std::vector<NodeIdType>& batches_;
     std::vector<NodeType>&   nodes_;
-    BatchIdType              batchId_;  //The ID of the current Batch
+    BatchIdType              batchId_;  // The ID of the current Batch
     NodeType*                currentBorder_;
     NodeType*                current_;
 
@@ -156,7 +157,7 @@ template<class BatchIdType, class NodeIdType, const BatchIdType invalidBatch_, c
 class BatchIndexIterator {
 private:
     const std::vector<NodeIdType>* batches_;
-    BatchIdType                    batchId_;  //The ID of the current Batch
+    BatchIdType                    batchId_;  // The ID of the current Batch
     NodeIdType                     currentBorder_;
     NodeIdType                     current_;
     bool                           valid_;
@@ -278,12 +279,12 @@ public:
         return count;
     }
 
-    ///Returns the count of steps needed until the given node is reached. The node must be part of this batch.
+    /// Returns the count of steps needed until the given node is reached. The node must be part of this batch.
     u32 countUntil(NodeIdType until) {
         verify(until >= current_);
 
         if (until < currentBorder_)
-            return until - current_;  //Standard case
+            return until - current_;  // Standard case
 
         BatchIdType cid = batchId_;
 
@@ -291,11 +292,11 @@ public:
 
         while ((cid = (BatchIdType)(*batches_)[cid + 1]) != invalidBatch_) {
             if (until >= (*batches_)[cid] && until < (*batches_)[cid + 2])
-                return count + until - (*batches_)[cid];  //the node is contained by the current batch
+                return count + until - (*batches_)[cid];  // the node is contained by the current batch
 
             count += (*batches_)[cid + 2] - (*batches_)[cid];
         }
-        verify(0);  //Should not happen, as it must be in the batch
+        verify(0);  // Should not happen, as it must be in the batch
 
         return count;
     }
@@ -312,7 +313,7 @@ public:
 
     static const int batchSize = 3;
 
-    std::vector<NodeIdType>& batches_;  ///the batches
+    std::vector<NodeIdType>& batches_;  /// the batches
     std::vector<NodeType>&   nodes_;
 
     inline void setBatchFollower(const BatchIdType batch, const BatchIdType follower) {
@@ -524,7 +525,7 @@ private:
     inline BatchIdType createNewBatch(NodeIdType from, NodeIdType to, BatchIdType append = invalidBatch_, BatchIdType appendTo = invalidBatch_, bool forceNormalBatch = false) {
         if (singleBatchMask_ && !forceNormalBatch) {
             if (appendTo == invalidBatch_ && append == invalidBatch_) {
-                //Eventually Create a single-batch
+                // Eventually Create a single-batch
                 if (to == from + 1)
                     return ((BatchIdType)from) | singleBatchMask_;
             }
@@ -537,9 +538,9 @@ private:
         BatchIdType ret = (BatchIdType)SelfBuilder::batches_.size();
 
         if (appendTo != invalidBatch_ && this->SelfBuilder::batches_[appendToLast + 2] == from) {
-            //The last value of the previous batch is the one before the first value of this batch(checked above),
-            //and the last batch is the one that this one should be appendet to.
-            //We can simply expand the previous batch.
+            // The last value of the previous batch is the one before the first value of this batch(checked above),
+            // and the last batch is the one that this one should be appendet to.
+            // We can simply expand the previous batch.
             SelfBuilder::batches_[appendToLast + 2] = to;
             return appendTo;
         }
@@ -548,7 +549,7 @@ private:
             SelfBuilder::batches_.push_back(from);
         }
         else {
-            --ret;  //The Node of "from" can be found at SelfBuilder::batches_[--ret]
+            --ret;  // The Node of "from" can be found at SelfBuilder::batches_[--ret]
         }
 
         SelfBuilder::batches_.push_back(append);
@@ -635,7 +636,7 @@ public:
     /// Changes @p id so contain the new data
     NodeType* prepend(BatchIdType& id, NodeIdType count = 1) {
         verify(manageNodes);
-        verify(count == 1);  //currently only 1 is supported
+        verify(count == 1);  // currently only 1 is supported
 
         NodeIdType ret = SelfBuilder::nodes_.size();
         SelfBuilder::nodes_.resize(ret + count);
@@ -648,7 +649,7 @@ public:
     /// Changes @p id so contain the new data
     NodeType* append(BatchIdType& id, NodeIdType count = 1) {
         verify(manageNodes);
-        verify(count == 1);  //currently only 1 is supported
+        verify(count == 1);  // currently only 1 is supported
         NodeIdType ret = SelfBuilder::nodes_.size();
         SelfBuilder::nodes_.resize(ret + count);
         appendToBatchPrivate(id, ret, ret + count);
@@ -716,7 +717,7 @@ public:
 private:
     inline void prependToBatchPrivate(BatchIdType& id, NodeIdType from, NodeIdType to) {
         if (id & singleBatchMask_) {
-            //First create a normal batch out of the appended single batch, and then do stuff on it.
+            // First create a normal batch out of the appended single batch, and then do stuff on it.
             NodeIdType node = id & (~singleBatchMask_);
             id              = createNewBatch(node, node + 1, invalidBatch_, invalidBatch_, true);
         }
@@ -731,7 +732,7 @@ private:
         }
 
         if (id & singleBatchMask_) {
-            //First create a normal batch out of the single batch, and then do stuff on it.
+            // First create a normal batch out of the single batch, and then do stuff on it.
             NodeIdType node = id & (~singleBatchMask_);
             id              = createNewBatch(node, node + 1, invalidBatch_, invalidBatch_, true);
         }
@@ -741,4 +742,4 @@ private:
 };
 }  // namespace Tools
 
-#endif
+#endif  // SEARCH_BATCHMANAGER_HH

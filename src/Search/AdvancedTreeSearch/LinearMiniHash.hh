@@ -12,11 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SEARCH_LINEARMINIHASH_HH
-#define SEARCH_LINEARMINIHASH_HH
+#ifndef ADVANCEDTREESEARCH_LINEARMINIHASH_HH
+#define ADVANCEDTREESEARCH_LINEARMINIHASH_HH
+
+#include <vector>
 
 #include <Core/Types.hh>
-#include <vector>
 
 namespace Search {
 template<class Key>
@@ -298,4 +299,4 @@ private:
 };
 }  // namespace Search
 
-#endif  // SEARCH_LINEARMINIHASH_HH
+#endif  // ADVANCEDTREESEARCH_LINEARMINIHASH_HH

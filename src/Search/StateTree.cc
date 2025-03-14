@@ -823,7 +823,7 @@ private:
             BatchRequest*,
             BuildRequest::Hash,
             BuildRequest::Equality>
-            Map;
+                       Map;
     QueueSet           queues_;
     QueueSet::iterator queue_;
     Map                map_;

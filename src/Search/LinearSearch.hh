@@ -27,7 +27,7 @@
 #include "Search.hh"
 
 namespace Search {
-class WordPronunciationState;  ///The pronunciation including its current state.
+class WordPronunciationState;  /// The pronunciation including its current state.
 typedef Core::Ref<WordPronunciationState> WordPronunciationStatePointer;
 
 struct LinearSearchHistoryData {
@@ -101,7 +101,7 @@ private:
     struct Book {
         Book();
         ~Book();
-        Score                         score;  ///This does not include lmScore
+        Score                         score;  /// This does not include lmScore
         Score                         lmScore;
         bool                          hadRegularWord;
         WordPronunciationStatePointer word;
@@ -125,14 +125,14 @@ private:
     template<class IteratorType>
     LinearSearchHistoryData addPronunciations(std::pair<IteratorType, IteratorType> pronunciations);
     bool                    removePronunciations(const LinearSearchHistoryData& data);
-    ///For now this always returns true, because only unigrams are completely supported
+    /// For now this always returns true, because only unigrams are completely supported
     bool isUnigram() const;
 
     typedef std::deque<Book>     BookVector;
     WordPronunciationStateVector state_;
     TimeframeIndex               time_;
     BookVector                   book_;
-    BookVector                   irregularBook_;  //For single-word recognition it is necessary to track the probability of the whole input being non-regular words(silence)
+    BookVector                   irregularBook_;  // For single-word recognition it is necessary to track the probability of the whole input being non-regular words(silence)
 };
 }  // namespace Search
 

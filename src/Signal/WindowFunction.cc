@@ -25,12 +25,12 @@ using namespace Signal;
 /////////////////
 
 Choice          WindowFunction::typeChoice("rectangular", Rectangular,
-                                  "hamming", Hamming,
-                                  "hanning", Hanning,
-                                  "bartlett", Bartlett,
-                                  "blackman", Blackman,
-                                  "kaiser", Kaiser,
-                                  Choice::endMark());
+                                           "hamming", Hamming,
+                                           "hanning", Hanning,
+                                           "bartlett", Bartlett,
+                                           "blackman", Blackman,
+                                           "kaiser", Kaiser,
+                                           Choice::endMark());
 ParameterChoice WindowFunction::paramType("type", &typeChoice, "type of window", Hamming);
 
 WindowFunction* WindowFunction::create(Type type) {

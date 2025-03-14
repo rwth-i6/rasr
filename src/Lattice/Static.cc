@@ -41,4 +41,4 @@ ConstWordLatticeRef staticCopy(ConstWordLatticeRef l) {
     return staticCopy(l, names);
 }
 
-}  //namespace Lattice
+}  // namespace Lattice

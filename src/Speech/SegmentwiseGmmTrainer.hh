@@ -81,6 +81,6 @@ public:
     virtual void processWordLattice(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
 };
 
-}  //namespace Speech
+}  // namespace Speech
 
 #endif  // u_SPEECH_SEGMENTWISE_GMM_TRAINER_HH

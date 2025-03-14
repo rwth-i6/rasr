@@ -169,6 +169,6 @@ Fsa::Weight posteriorRiskNBestList(
         const std::vector<StringHypothesis>& hypotheses,
         const Fsa::Weight&                   pruningThreshold = Fsa::LogSemiring->max());
 
-}  //end namespace Search
+}  // end namespace Search
 
 #endif  //_SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH

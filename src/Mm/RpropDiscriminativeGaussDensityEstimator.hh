@@ -182,6 +182,6 @@ public:
     virtual void reset();
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_RPROP_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

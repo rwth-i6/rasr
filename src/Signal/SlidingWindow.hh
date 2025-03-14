@@ -463,8 +463,8 @@ bool SlidingWindow<T>::get(int relativeIndex, T& out) const {
 template<class T>
 void SlidingWindow<T>::getClosest(int relativeIndex, T& out) const {
     require_(!empty());
-    int   index = std::min(std::max(absoluteIndex(relativeIndex), 0), (int)size() - 1);
-    out         = operator[](index);
+    int index = std::min(std::max(absoluteIndex(relativeIndex), 0), (int)size() - 1);
+    out       = operator[](index);
 }
 
 }  // namespace Signal

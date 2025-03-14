@@ -29,7 +29,6 @@
 #include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
 
-
 namespace Speech {
 class StateTying;
 }

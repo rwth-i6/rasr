@@ -43,7 +43,7 @@ private:
     typedef Am::AcousticModel::StateTransitionIndex StateTransitionIndex;
     typedef std::unordered_map<const Am::StateTransitionModel*, StateTransitionIndex,
                                Core::PointerHash<Am::StateTransitionModel>>
-            TransitionModelToIndexMap;
+                              TransitionModelToIndexMap;
     TransitionModelToIndexMap stateTransitionModelIndexes_;
 
 protected:

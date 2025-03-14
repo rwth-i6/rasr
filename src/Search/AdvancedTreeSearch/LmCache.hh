@@ -75,9 +75,9 @@ struct LmCacheItem {
 class LmCache {
     ///@todo Make sure that the handles of the cached histories are kept alive
 public:
-    ///Should be called regularly to clean up the cache
-    ///All items that were not requested since the last call to clean()
-    ///will be removed.
+    /// Should be called regularly to clean up the cache
+    /// All items that were not requested since the last call to clean()
+    /// will be removed.
     ///@return the count of items remaining in the cache
     u32 clean() {
         oldCache_.swap(newCache_);

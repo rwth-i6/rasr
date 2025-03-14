@@ -136,7 +136,7 @@ public:
             return scores_[la_->lookaheadId(s)];
         }
 
-        //DEBUG_AREA
+        // DEBUG_AREA
         bool checkScores() {
             int nScores = scores_.size();
             int nAbnorm = 0;
@@ -150,7 +150,7 @@ public:
 
             return (nAbnorm == 0);
         }
-        //END_DEBUG
+        // END_DEBUG
     };
 
 public:

@@ -1145,7 +1145,7 @@ void FlfArchiveReader::setDescriptor(const Core::Configuration& config, FlfConte
     else
         context->setInputAlphabet(Fsa::ConstAlphabetRef(), inputAlphabetName);
 
-    //output alphabet, optional -> transducer
+    // output alphabet, optional -> transducer
     const Core::Configuration outputAlphabetConfig(config, "output-alphabet");
     std::string               outputAlphabetName = paramName(outputAlphabetConfig);
     FsaDescriptor             outputAlphabetQf(outputAlphabetConfig);

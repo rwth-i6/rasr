@@ -30,7 +30,7 @@ bool WordBoundary::Transit::readBinary(Core::BinaryInputStream& bi) {
 }
 
 bool WordBoundary::Transit::writeBinary(Core::BinaryOutputStream& bo) const {
-    bo << (u16)final << (u16)initial;
+    bo << (u16) final << (u16)initial;
     return bo;
 }
 
@@ -193,8 +193,8 @@ Speech::TimeframeIndex WordLattice::maximumTime() const {
     return d.getMaximumTime();
 }
 
-StandardWordLattice::StandardWordLattice(Core::Ref<const Bliss::Lexicon>   lexicon,
-                                         AlphabetType alphabetType)
+StandardWordLattice::StandardWordLattice(Core::Ref<const Bliss::Lexicon> lexicon,
+                                         AlphabetType                    alphabetType)
         : alphabetType_(alphabetType) {
     parts_.addChoice("acoustic", 0);
     parts_.addChoice("lm", 1);
@@ -241,11 +241,11 @@ Fsa::State* StandardWordLattice::newState() {
 }
 
 void StandardWordLattice::newArc(
-        Fsa::State* source,
-        Fsa::State* target,
-        Fsa::LabelId id,
+        Fsa::State*   source,
+        Fsa::State*   target,
+        Fsa::LabelId  id,
         Speech::Score acoustic, Speech::Score lm) {
-    source -> newArc(target->id(), Fsa::Weight(acoustic), id);
+    source->newArc(target->id(), Fsa::Weight(acoustic), id);
     lm_->state(source->id())->newArc(target->id(), Fsa::Weight(lm), id);
 }
 
@@ -259,8 +259,8 @@ void StandardWordLattice::newArc(
 }
 
 void StandardWordLattice::newArc(
-        Fsa::State* source,
-        Fsa::State* target,
+        Fsa::State*         source,
+        Fsa::State*         target,
         const Bliss::Lemma* lemma,
         Speech::Score acoustic, Speech::Score lm) {
     Fsa::LabelId id = lemma ? lemma->id() : Fsa::Epsilon;
@@ -317,12 +317,12 @@ private:
     typedef Core::Vector<Speech::TimeframeIndex>                                                 StateMap;
     mutable StateMap                                                                             stateMap_;
     /**
-         * Word boundaries of input word lattice.
-         */
+     * Word boundaries of input word lattice.
+     */
     Core::Ref<const WordBoundaries> wordBoundaries_;
     /**
-         * Word boundaries of time conditioned word lattice.
-         */
+     * Word boundaries of time conditioned word lattice.
+     */
     mutable Core::Ref<WordBoundaries> timeConditionedWordBoundaries_;
 
     struct ByInputAndTarget : public std::binary_function<Fsa::Arc, Fsa::Arc, bool> {

@@ -663,7 +663,7 @@ bool BackingOffLm::Internal::mountImage(
             }
             while (*++str) {
             }
-        }                     // ignore oov tokens of the image building lexicon
+        }  // ignore oov tokens of the image building lexicon
         tokens_[ti] = token;  // reverse mapping
         ++str;
     }

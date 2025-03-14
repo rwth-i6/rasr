@@ -169,6 +169,6 @@ public:
     FeatureDescription(const Core::Configurable& parent, const Feature&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  // _MM_FEATURE_HH

@@ -8,4 +8,4 @@ public:
     PyConfiguration();
 };
 
-#endif // _PYTHON_CONFIGURATION_HH
+#endif  // _PYTHON_CONFIGURATION_HH

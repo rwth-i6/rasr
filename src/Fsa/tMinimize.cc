@@ -195,7 +195,7 @@ private:
         // assume that allocated memory of classMap doesn't change
         bool                       didSplit = true;
         HashTargetMappedAndLabels  hashTargetMappedAndLabels(f, classMap,
-                                                            statePotentials);
+                                                             statePotentials);
         EqualTargetMappedAndLabels equalTargetMappedAndLabels(f, classMap,
                                                               statePotentials);
         while (didSplit) {
@@ -206,7 +206,7 @@ private:
             for (typename EquivalenceSet::const_iterator s = es.begin(); s != es.end();) {
                 ClassId c = s->class_;
                 if (classSize[c] == 1) {  // singleton classes can't be split anymore
-                    //classMap[(s++)->id_] = -(nextSingletonId++);
+                    // classMap[(s++)->id_] = -(nextSingletonId++);
                     nes.push_back(ClassEntry((s++)->id_, nClasses++));
                     if (p)
                         p->notify();  // report progress

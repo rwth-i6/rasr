@@ -110,6 +110,6 @@ public:
     virtual ~RpropDiscriminativeMixtureSetEstimatorWithISmoothing();
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_RPROP_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

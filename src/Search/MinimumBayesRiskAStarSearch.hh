@@ -389,4 +389,4 @@ public:
     void performSearch(Fsa::ConstAutomatonRef fsa);
 };
 
-}  //end namespace Search
+}  // end namespace Search

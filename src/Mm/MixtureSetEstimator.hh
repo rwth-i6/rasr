@@ -57,6 +57,6 @@ public:
     virtual void write(Core::XmlWriter& os);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_MIXTURE_SET_ESTIMATOR_HH

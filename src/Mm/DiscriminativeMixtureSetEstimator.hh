@@ -67,6 +67,6 @@ public:
     bool distributePreviousMixtureSet(const MixtureSet&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

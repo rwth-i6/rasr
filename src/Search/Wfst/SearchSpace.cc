@@ -441,7 +441,7 @@ void SearchSpace<N, S>::getTraceback(BestPath* path) {
 template<class N, bool S>
 void SearchSpace<N, S>::addInitialStateHypothesis() {
     TraceRef   t               = book_->addTrace(TraceRecorder::InvalidTraceRef, TraceRecorder::InvalidTraceRef,
-                                 Epsilon, 0, time_, 0.0, 0.0, true);
+                                                 Epsilon, 0, time_, 0.0, 0.0, true);
     StateIndex root            = network_->initialStateIndex();
     StateHyp*  rootHyp         = getStateHyp(root);
     rootHyp->incoming[0].trace = t;
@@ -1112,7 +1112,7 @@ void SearchSpace<N, S>::expandEpsilonArcs(Score threshold, bool anticipatedPruni
                 findEpsilonPaths(arc, visitedStates, currentTreshold, MergePaths, &statesToExplore);
             }
         }  // while !statesToExplore.empty()
-    }      // for stateHypIndex
+    }  // for stateHypIndex
     if (MergePaths)
         delete visitedStates;
 }

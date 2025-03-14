@@ -20,7 +20,7 @@ using namespace Signal;
 ///////////////
 
 void ArxEstimator::convolution() {
-    //C_tilde and F_tilde does not contain the first (1) element !
+    // C_tilde and F_tilde does not contain the first (1) element !
 
     CF_tilde_.resize(F_tilde_.size() + C_tilde_.size());
 
@@ -78,7 +78,7 @@ bool ArxEstimator::prepare(const std::vector<_float>* u,
             for (u32 t = 0; t < nr_sample; t++) {
                 (*y0_)[t] = 0.0;
 
-                //input for (D/AC)*y0
+                // input for (D/AC)*y0
                 for (i = t + 1; i <= F_tilde_.size(); i++)
                     (*y0_)[t] -= F_tilde_[i - 1] * (*y0)[F_tilde_.size() - (i - t)];
 

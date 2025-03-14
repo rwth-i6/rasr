@@ -195,7 +195,7 @@ public:
         const LanguageModelLookahead* la_;
         Lm::History                   history_;
         List::iterator                pos_, freePos_;
-        std::vector<Score>            scores_;  //If this is empty, the look-ahead is sparse
+        std::vector<Score>            scores_;  // If this is empty, the look-ahead is sparse
         bool                          isFilled_;
 
         Search::LinearMiniHash<LookaheadId, (LanguageModelLookahead::LookaheadId)-1, Score>                             sparseScores_;
@@ -257,7 +257,7 @@ public:
 
             return (nAbnorm == 0);
         }
-        //END_DEBUG
+        // END_DEBUG
     };
 
 public:
@@ -379,7 +379,6 @@ public:
     void cacheBatch(const Lm::History& history) const {
         lm_->unscaled()->cacheBatch(history, batchRequest_, nEntries_);
     }
-
 };
 
 struct LanguageModelLookahead::Node {

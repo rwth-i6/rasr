@@ -500,9 +500,9 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
     // find non-blank loop label for later consecutive identical label handling
     Fsa::LabelId loopLabel = Fsa::InvalidLabelId;
     for (u32 idx = 0; idx < nArcs; ++idx) {
-        const Fsa::Arc* arcLoop = state->getArc(idx);
-        if ((arcLoop->target_ == s) && (arcLoop->input_ != blankId_)) {
-            loopLabel = arcLoop->input_;
+        const Fsa::Arc* arc = state->getArc(idx);
+        if (arc->target_ == s && arc->input_ != blankId_) {
+            loopLabel = arc->input_;
             break;
         }
     }
@@ -524,10 +524,10 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
         // we should overwrite the original arc target to make the blank unskippable
         if (loopLabel != Fsa::InvalidLabelId &&
             acousticModel_->emissionIndex(input) == acousticModel_->emissionIndex(loopLabel)) {
-            Fsa::Arc* aa = const_cast<Fsa::Arc*>(state->getArc(idx));
-            aa->target_ = blankStateId;
-            aa->input_ = blankId_;
-            aa->weight_ = zeroWeight;
+            Fsa::Arc* arc = const_cast<Fsa::Arc*>(a);
+            arc->target_ = blankStateId;
+            arc->input_ = blankId_;
+            arc->weight_ = zeroWeight;
         } else {
             state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);  // optional blank
         }
@@ -540,8 +540,8 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
                 ns->newArc(target, zeroWeight, input, Fsa::Epsilon);
                 target = automaton->maxStateId();
             }
-            Fsa::Arc* aa = const_cast<Fsa::Arc*>(state->getArc(idx));
-            aa->target_ = target;
+            Fsa::Arc* arc = const_cast<Fsa::Arc*>(a);
+            arc->target_ = target;
             blankState->rbegin()->target_ = target;
         }
     }

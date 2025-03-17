@@ -16,8 +16,8 @@ jobs:
     - name: Install clang-format
       run: |
         sudo apt-get update -qy
-        sudo apt-get install -y clang-format-14
+        sudo apt-get install -y clang-format-18
     - name: Setup Sisyphus environment
       run: |
         cd rasr
-        find . -name "*.cc" -o -name "*.cu" -o -name "*.hh" | xargs clang-format-14 --dry-run --Werror
+        find . -name "*.cc" -o -name "*.cu" -o -name "*.hh" | xargs clang-format-18 --dry-run --Werror

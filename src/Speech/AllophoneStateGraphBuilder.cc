@@ -522,7 +522,7 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
         blankState->newArc(target, a->weight_, input, a->output_);
         // handle consecutive identical label: if label loop and forward represent the same label,
         // we should overwrite the original arc target to make the blank unskippable
-        if (loopLabel != Fsa::InvalidLabelId && 
+        if (loopLabel != Fsa::InvalidLabelId &&
             acousticModel_->emissionIndex(input) == acousticModel_->emissionIndex(loopLabel)) {
             Fsa::Arc* aa = const_cast<Fsa::Arc*>(state->getArc(idx));
             aa->target_ = blankStateId;
@@ -531,7 +531,6 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
         } else {
             state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);  // optional blank
         }
-
 
         // apply minimum duration here to avoid traversing the automaton again
         if (minDuration_ > 1 && input != silenceId_) {

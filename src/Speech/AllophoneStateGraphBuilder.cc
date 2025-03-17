@@ -466,6 +466,8 @@ Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::addLoopTransition(Fsa::ConstAuto
 Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::buildTransducer(Fsa::ConstAutomatonRef lemmaAcceptor) {
     Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
     model = addLoopTransition(model);
+    // remove epsilon so that repeated identical label detection could work
+    model = Fsa::removeEpsilons(Fsa::removeDisambiguationSymbols(Fsa::projectInput(model)));
     Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(model);
 
     finalStateId_ = Core::Type<Fsa::StateId>::max;
@@ -495,6 +497,15 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
     Fsa::Weight zeroWeight(0);
     Fsa::State* state = automaton->fastState(s);
     u32 nArcs = state->nArcs();
+    // find non-blank loop label for later consecutive identical label handling
+    Fsa::LabelId loopLabel = Fsa::InvalidLabelId;
+    for (u32 idx = 0; idx < nArcs; ++idx) {
+        const Fsa::Arc* arcLoop = state->getArc(idx);
+        if ((arcLoop->target_ == s) && (arcLoop->input_ != blankId_)) {
+            loopLabel = arcLoop->input_;
+            break;
+        }
+    }
     for (u32 idx = 0; idx < nArcs; ++idx) {
         const Fsa::Arc* a = state->getArc(idx);
         Fsa::StateId target = a->target_;
@@ -509,7 +520,18 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
         Fsa::StateId blankStateId = automaton->maxStateId();
         blankState->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);
         blankState->newArc(target, a->weight_, input, a->output_);
-        state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon); // invalidate a
+        // handle consecutive identical label: if label loop and forward represent the same label,
+        // we should overwrite the original arc target to make the blank unskippable
+        if (loopLabel != Fsa::InvalidLabelId && 
+            acousticModel_->emissionIndex(input) == acousticModel_->emissionIndex(loopLabel)) {
+            Fsa::Arc* aa = const_cast<Fsa::Arc*>(state->getArc(idx));
+            aa->target_ = blankStateId;
+            aa->input_ = blankId_;
+            aa->weight_ = zeroWeight;
+        } else {
+            state->newArc(blankStateId, zeroWeight, blankId_, Fsa::Epsilon);  // optional blank
+        }
+
 
         // apply minimum duration here to avoid traversing the automaton again
         if (minDuration_ > 1 && input != silenceId_) {

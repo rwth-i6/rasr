@@ -502,8 +502,8 @@ void CTCTopologyGraphBuilder::addBlank(Core::Ref<Fsa::StaticAutomaton>& automato
     for (u32 idx = 0; idx < nArcs; ++idx) {
         const Fsa::Arc* arc = state->getArc(idx);
         if (arc->target_ == s && arc->input_ != blankId_) {
+            require(loopLabel == Fsa::InvalidLabelId);  // we expect only one loop label
             loopLabel = arc->input_;
-            break;
         }
     }
     for (u32 idx = 0; idx < nArcs; ++idx) {

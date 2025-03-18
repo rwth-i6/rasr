@@ -12,10 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id: ConditionedTreeSearch.hh 7047 2009-03-02 12:38:56Z nolden $
-
-#ifndef _SEARCH_CONDITIONED_TREE_SEARCH_HH
-#define _SEARCH_CONDITIONED_TREE_SEARCH_HH
+#ifndef ADVANCEDTREESEARCH_ADVANCEDTREESEARCH_HH
+#define ADVANCEDTREESEARCH_ADVANCEDTREESEARCH_HH
 
 #include <chrono>
 
@@ -26,9 +24,9 @@
 #include <Search/LatticeAdaptor.hh>
 #include <Search/Search.hh>
 #include <Speech/ModelCombination.hh>
+
 #include "DynamicBeamPruningStrategy.hh"
 #include "Trace.hh"
-
 
 namespace Speech {
 class StateTying;
@@ -126,4 +124,4 @@ public:
 };
 }  // namespace Search
 
-#endif
+#endif  // ADVANCEDTREESEARCH_ADVANCEDTREESEARCH_HH

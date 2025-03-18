@@ -13,7 +13,10 @@
  *  limitations under the License.
  */
 #include "AcousticLookAhead.hh"
+
 #include <Mm/Module.hh>
+#include <Search/Helpers.hh>
+
 #include "SearchNetworkTransformation.hh"
 #include "SearchSpace.hh"
 
@@ -665,7 +668,6 @@ void AcousticLookAhead::getSuccessorMixtures(const PersistentStateTree&         
 }
 
 void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Speech::Feature>> const& lookahead) {
-    
     if (!acousticLookAheadScorer_)
         return;
 

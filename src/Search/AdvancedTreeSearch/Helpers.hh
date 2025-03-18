@@ -12,14 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef HELPERS_HH
-#define HELPERS_HH
+#ifndef ADVANCEDTREESEARCH_HELPERS_HH
+#define ADVANCEDTREESEARCH_HELPERS_HH
+
+#include <string>
+#include <time.h>
 
 #include <Core/ReferenceCounting.hh>
 #include <Core/Types.hh>
 #include <Core/Utility.hh>
-#include <string>
-#include <time.h>
+
 #include "SearchSpaceStatistics.hh"
 
 namespace Search {
@@ -33,8 +35,6 @@ class LemmaPronunciation;
 namespace Core {
 class Configuration;
 };
-
-bool isBackwardRecognition(const Core::Configuration& config);
 
 class PerformanceCounter {
 public:
@@ -162,18 +162,6 @@ inline std::string dumpPythonArray(std::vector<T> array) {
 
     return txt.str();
 }
-
-template<class T>
-struct SetHash {
-    size_t operator()(const std::set<T>& set) const {
-        size_t a = set.size();
-        a        = (a ^ 0xc761c23c) ^ (a >> 19);
-        a        = (a + 0xfd7046c5) + (a << 3);
-        for (typename std::set<T>::const_iterator it = set.begin(); it != set.end(); ++it)
-            a += (*it << a) + a * *it + (*it ^ 0xb711a53c);
-        return a;
-    }
-};
 
 bool pronunciationHasEvaluationTokens(const Bliss::LemmaPronunciation* pron);
 
@@ -373,4 +361,4 @@ private:
     bool                                 ready_;
 };
 
-#endif
+#endif  // ADVANCEDTREESEARCH_HELPERS_HH

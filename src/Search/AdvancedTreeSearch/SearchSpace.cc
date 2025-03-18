@@ -23,15 +23,15 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
+#include <Search/PersistentStateTree.hh>
 #include <Search/Traceback.hh>
+#include <Search/TreeBuilder.hh>
 
 #include "AcousticLookAhead.hh"
-#include "PersistentStateTree.hh"
 #include "PrefixFilter.hh"
 #include "Pruning.hh"
 #include "SearchNetworkTransformation.hh"
 #include "SearchSpaceStatistics.hh"
-#include "TreeBuilder.hh"
 
 using namespace AdvancedTreeSearch;
 
@@ -132,18 +132,6 @@ const Core::ParameterBool paramBuildMinimizedTreeFromScratch(
         "build-minimized-network-from-scratch",
         "",
         true);
-
-const Core::Choice choiceTreeBuilderType(
-        "classic-hmm", static_cast<int>(StaticSearchAutomaton::TreeBuilderType::classicHmm),
-        "minimized-hmm", static_cast<int>(StaticSearchAutomaton::TreeBuilderType::minimizedHmm),
-        "ctc", static_cast<int>(StaticSearchAutomaton::TreeBuilderType::ctc),
-        Core::Choice::endMark());
-
-const Core::ParameterChoice paramTreeBuilderType(
-        "tree-builder-type",
-        &choiceTreeBuilderType,
-        "which tree builder to use",
-        static_cast<int>(StaticSearchAutomaton::TreeBuilderType::previousBehavior));
 
 const Core::ParameterBool paramConditionPredecessorWord(
         "condition-on-predecessor-word",
@@ -388,15 +376,10 @@ StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::R
         : Precursor(config),
           hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
           minimized(paramBuildMinimizedTreeFromScratch(config)),
-          network(config, acousticModel, lexicon, std::bind(&StaticSearchAutomaton::createTreeBuilder, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)),
+          network(config, acousticModel, lexicon, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)),
           prefixFilter(nullptr),
-          treeBuilderType_(static_cast<TreeBuilderType>(paramTreeBuilderType(config))),
           acousticModel_(acousticModel),
-          lexicon_(lexicon) {
-    if (treeBuilderType_ == TreeBuilderType::previousBehavior) {
-        treeBuilderType_ = minimized ? TreeBuilderType::minimizedHmm : TreeBuilderType::classicHmm;
-    }
-}
+          lexicon_(lexicon) {}
 
 StaticSearchAutomaton::~StaticSearchAutomaton() {
     if (prefixFilter) {
@@ -410,8 +393,8 @@ void StaticSearchAutomaton::buildNetwork() {
     if (!network.read(transformation)) {
         log() << "persistent network image could not be loaded, building it";
 
-        std::unique_ptr<AbstractTreeBuilder> builder = createTreeBuilder(config, *lexicon_, *acousticModel_, network);
-        if (not builder) {
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, network);
+        if (not builder or not minimized) {
             network.build();
             network.cleanup();
             network.cleanup();  // Additional cleanup, to make sure that the exits are ordered correctly
@@ -765,21 +748,6 @@ void StaticSearchAutomaton::buildBatches() {
     log() << "number of pushed labels: " << pushedLabels << " unpushed: " << unpushedLabels;
 
     network.removeOutputs();
-}
-
-std::unique_ptr<AbstractTreeBuilder> StaticSearchAutomaton::createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    switch (treeBuilderType_) {
-        case TreeBuilderType::classicHmm: {  // Use StateTree.hh
-            return std::unique_ptr<AbstractTreeBuilder>(nullptr);
-        } break;
-        case TreeBuilderType::minimizedHmm: {  // Use TreeStructure.hh
-            return std::unique_ptr<AbstractTreeBuilder>(new MinimizedTreeBuilder(config, *lexicon_, *acousticModel_, network, initialize));
-        } break;
-        case TreeBuilderType::ctc: {
-            return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, *lexicon_, *acousticModel_, network, initialize));
-        } break;
-        default: defect();
-    }
 }
 
 // ------------------------------- Search Space --------------------------------

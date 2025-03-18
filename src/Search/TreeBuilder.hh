@@ -16,9 +16,9 @@
 #define TREEBUILDER_HH
 
 #include <Bliss/Phoneme.hh>
+#include <Core/Hash.hh>
 #include <Search/StateTree.hh>
-#include "Helpers.hh"
-#include "LmCache.hh"
+
 #include "PersistentStateTree.hh"
 
 namespace Bliss {
@@ -109,7 +109,7 @@ protected:
             size_t operator()(const HMMSequence& seq) const {
                 size_t ret = seq.length;
                 for (s32 p = 0; p < seq.length; ++p)
-                    ret = StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
+                    ret = Core::StandardValueHash<size_t>()(ret + Search::StateTree::StateDesc::Hash()(seq[p]));
                 return ret;
             }
         };
@@ -121,7 +121,7 @@ protected:
                 : left(_left),
                   right(_right),
                   depth(_depth),
-                  hash(StandardValueHash<Bliss::Phoneme::Id>()(left + StandardValueHash<Bliss::Phoneme::Id>()(right)) + StandardValueHash<Bliss::Phoneme::Id>()(depth)) {
+                  hash(Core::StandardValueHash<Bliss::Phoneme::Id>()(left + Core::StandardValueHash<Bliss::Phoneme::Id>()(right)) + Core::StandardValueHash<Bliss::Phoneme::Id>()(depth)) {
         }
 
         bool isValid() const {
@@ -148,7 +148,7 @@ protected:
                 : successors(_successors),
                   desc(_desc),
                   isWordEnd(_isWordEnd),
-                  hash(StandardValueHash<Bliss::Phoneme::Id>()(SetHash<StateId>()(successors) + Search::StateTree::StateDesc::Hash()(desc) + (isWordEnd ? 1312 : 0))) {}
+                  hash(Core::StandardValueHash<Bliss::Phoneme::Id>()(Core::SetHash<StateId>()(successors) + Search::StateTree::StateDesc::Hash()(desc) + (isWordEnd ? 1312 : 0))) {}
 
         bool operator==(const StatePredecessor& rhs) const {
             return successors == rhs.successors && desc == rhs.desc && isWordEnd == rhs.isWordEnd;

@@ -16,11 +16,11 @@
 #define ADVANCEDTREESEARCH_ACOUSTICLOOKAHEAD_HH
 
 #include <Mm/SimdFeatureScorer.hh>
+#include <Search/TreeStructure.hh>
 #include <Search/Types.hh>
+
 #include "Helpers.hh"
 #include "SearchSpace.hh"
-#include "TreeStructure.hh"
-// #include "LinearMiniHash.hh"
 
 namespace Search {
 class SearchSpace;
@@ -31,7 +31,7 @@ struct EmissionSetCounter {
     u32 get(const std::set<u32>& emissions, u32 index, bool record = true) {
         u32 model;
 
-        std::unordered_map<std::set<u32>, u32, SetHash<u32>>::iterator it = assignment.find(emissions);
+        std::unordered_map<std::set<u32>, u32, Core::SetHash<u32>>::iterator it = assignment.find(emissions);
         if (it == assignment.end()) {
             model = list.size();
             list.push_back(std::make_pair(emissions, 0u));
@@ -65,7 +65,7 @@ struct EmissionSetCounter {
         return setForIndex.size() > index && setForIndex[index] != Core::Type<u32>::max;
     }
 
-    std::unordered_map<std::set<u32>, u32, SetHash<u32>> assignment;
+    std::unordered_map<std::set<u32>, u32, Core::SetHash<u32>> assignment;
     // Pair of the emissions and the count
     std::vector<std::pair<std::set<u32>, u32>> list;
     // The set which was assigned to each index

@@ -222,4 +222,4 @@ Fsa::Weight posteriorRiskNBestList(const std::vector<Fsa::LabelId>&     trueSent
     return result;
 }
 
-}  //end namespace Search
+}  // end namespace Search

@@ -25,12 +25,11 @@ namespace Search {
 class SearchAlgorithm;
 class LatticeHandler;
 
-enum class TreeBuilderType {
-    previousBehavior = 0,
-    classicHmm       = 1,
-    minimizedHmm     = 2,
-    ctc              = 3,
-    rna              = 4
+enum TreeBuilderType {
+    previousBehavior,
+    classicHmm,
+    minimizedHmm,
+    ctc,
 };
 
 enum SearchType {
@@ -44,7 +43,7 @@ class Module_ {
 public:
     Module_();
 
-    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(TreeBuilderType treeBuilderType, Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop = true, bool initialize = true) const;
+    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) const;
     SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
     LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 };

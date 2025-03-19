@@ -730,4 +730,4 @@ std::string MinimumBayesRiskAStarSearch::describe() const {
     return "stack";
 }
 
-}  //end namespace Search
+}  // end namespace Search

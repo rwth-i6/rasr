@@ -18,8 +18,8 @@
 #include <vector>
 
 #include <Core/MappedArchive.hh>
+#include <Search/BatchManager.hh>
 #include <Search/StateTree.hh>
-#include <Search/AdvancedTreeSearch/BatchManager.hh>
 
 #define inline_ __attribute__((always_inline)) inline
 

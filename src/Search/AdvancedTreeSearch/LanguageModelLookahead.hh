@@ -12,10 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
-
-#ifndef _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
-#define _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#ifndef ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#define ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
 
 #include <iostream>
 #include <list>
@@ -26,8 +24,8 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
-#include <Search/StateTree.hh>
 #include <Search/PersistentStateTree.hh>
+#include <Search/StateTree.hh>
 #include <Search/TreeStructure.hh>
 
 #include "LinearPrediction.hh"
@@ -195,7 +193,7 @@ public:
         const LanguageModelLookahead* la_;
         Lm::History                   history_;
         List::iterator                pos_, freePos_;
-        std::vector<Score>            scores_;  //If this is empty, the look-ahead is sparse
+        std::vector<Score>            scores_;  // If this is empty, the look-ahead is sparse
         bool                          isFilled_;
 
         Search::LinearMiniHash<LookaheadId, (LanguageModelLookahead::LookaheadId)-1, Score>                             sparseScores_;
@@ -257,7 +255,7 @@ public:
 
             return (nAbnorm == 0);
         }
-        //END_DEBUG
+        // END_DEBUG
     };
 
 public:
@@ -379,7 +377,6 @@ public:
     void cacheBatch(const Lm::History& history) const {
         lm_->unscaled()->cacheBatch(history, batchRequest_, nEntries_);
     }
-
 };
 
 struct LanguageModelLookahead::Node {
@@ -393,4 +390,4 @@ bool LanguageModelLookahead::isSingleWordNode(LanguageModelLookahead::LookaheadI
 }
 }  // namespace AdvancedTreeSearch
 
-#endif  //_SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#endif  // ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH

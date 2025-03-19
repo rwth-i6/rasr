@@ -13,13 +13,17 @@
  *  limitations under the License.
  */
 #include "TreeBuilder.hh"
+
+#include <algorithm>
+
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
-#include <Search/StateTree.hh>
-#include <algorithm>
+
+#include "Helpers.hh"
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"
+#include "Types.hh"
 
 using namespace Search;
 
@@ -1201,9 +1205,8 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 
 // -------------------- CtcTreeBuilder --------------------
 
-CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop, bool initialize)
-        : AbstractTreeBuilder(config, lexicon, acousticModel, network),
-          labelLoop_(allowLabelLoop) {
+CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+        : AbstractTreeBuilder(config, lexicon, acousticModel, network) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1228,7 +1231,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 }
 
 std::unique_ptr<AbstractTreeBuilder> CtcTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
-    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network, labelLoop_, initialize));
+    return std::unique_ptr<AbstractTreeBuilder>(new CtcTreeBuilder(config, lexicon, acousticModel, network));
 }
 
 void CtcTreeBuilder::build() {
@@ -1346,12 +1349,8 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
 
                 // Add new (non-blank) state
                 currentState = extendState(currentState, desc);
-
-                if (labelLoop_) {
-                    // Add loop for this state
-                    addTransition(currentState, currentState);
-                }
-
+                // Add loop for this state
+                addTransition(currentState, currentState);
                 // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
                 if (prevNonBlankState != invalidTreeNodeIndex) {
                     addTransition(prevNonBlankState, currentState);
@@ -1405,10 +1404,3 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     // Add loop for this blank state
     addTransition(blankBefore, blankBefore);
 }
-
-// -------------------- RnaTreeBuilder --------------------
-
-RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool allowLabelLoop, bool initialize)
-    : CtcTreeBuilder(config, lexicon, acousticModel, network, allowLabelLoop, initialize) {}
-
-

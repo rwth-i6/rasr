@@ -87,7 +87,7 @@ public:
 
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input){};
+    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input) {};
 };
 
 /**

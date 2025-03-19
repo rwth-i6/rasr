@@ -90,6 +90,6 @@ public:
     virtual ~EbwDiscriminativeMixtureSetEstimatorWithISmoothing();
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

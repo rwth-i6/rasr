@@ -236,7 +236,7 @@ void CovarianceEstimator::applyMinimumVariance(VarianceType minimumVariance, Dia
 
 /*
  * Covariance2MeanMap
-*/
+ */
 
 CovarianceToMeanSetMap::CovarianceToMeanSetMap(const std::vector<Core::Ref<GaussDensityEstimator>>& densityEstimators) {
     std::vector<Core::Ref<GaussDensityEstimator>>::const_iterator i = densityEstimators.begin();

@@ -1447,4 +1447,4 @@ void HtkSlfArchiveWriter::store(const std::string& id, ConstLatticeRef l) {
         error("Failed to store lattice \"%s\"", id.c_str());
 }
 
-}  //namespace Flf
+}  // namespace Flf

@@ -748,8 +748,8 @@ bool SegmentwiseNnTrainer<T>::getAlignmentVector(Lattice::ConstWordLatticeRef nu
 }
 
 /**
-* factory
-*/
+ * factory
+ */
 template<typename T>
 SegmentwiseNnTrainer<T>* SegmentwiseNnTrainer<T>::createSegmentwiseNnTrainer(const Core::Configuration& config) {
     switch (paramCriterion(config)) {
@@ -767,6 +767,6 @@ SegmentwiseNnTrainer<T>* SegmentwiseNnTrainer<T>::createSegmentwiseNnTrainer(con
 }
 
 template class SegmentwiseNnTrainer<f32>;
-//template class SegmentwiseNnTrainer<f64>;
+// template class SegmentwiseNnTrainer<f64>;
 
 }  // namespace Nn

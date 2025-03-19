@@ -466,7 +466,7 @@ u32 LinearLayer<T>::getNumberOfFreeParameters() const {
 }
 
 /*===========================================================================*/
-//BiasLayer
+// BiasLayer
 
 template<typename T>
 BiasLayer<T>::BiasLayer(const Core::Configuration& config)

@@ -200,7 +200,7 @@ Fsa::ConstAutomatonRef correct(
     return Fsa::minimizeSimple(correct);
 }
 
-}  //namespace Internal
+}  // namespace Internal
 
 /**
  * merge

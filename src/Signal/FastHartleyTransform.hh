@@ -16,9 +16,9 @@
 #define _SIGNAL_HARTLEY_TRANSFORM_HH
 
 #include <vector>
-//#include <function.h>
+// #include <function.h>
 #include <functional>
-//#include <algo.h>
+// #include <algo.h>
 #include <algorithm>
 
 #include <Core/Types.hh>

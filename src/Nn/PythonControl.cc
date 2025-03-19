@@ -853,7 +853,7 @@ struct PythonControl::Internal : public Core::Component {
         }
 
         PyObject* cmd = PyTuple_GetItem(args, 0);  // borrowed
-        if (PyUnicode_KIND(cmd) != PyUnicode_1BYTE_KIND){
+        if (PyUnicode_KIND(cmd) != PyUnicode_1BYTE_KIND) {
             PyErr_SetString(PyExc_TypeError, "PythonControl callback(): first arg is not a 1BYTE unicode string");
             return NULL;
         }

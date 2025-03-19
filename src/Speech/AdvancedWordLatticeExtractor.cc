@@ -100,4 +100,3 @@ void NumeratorLatticeGenerator::initialize(Bliss::LexiconRef lexicon) {
     verify(!orthToLemma_);
     orthToLemma_ = new Bliss::OrthographicParser(select("orthographic-parser"), lexicon);
 }
-

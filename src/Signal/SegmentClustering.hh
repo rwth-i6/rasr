@@ -551,7 +551,7 @@ public:
 
     void initTracker(u32 dim) {
         classid_.resize(dim);
-        std::iota(classid_.begin(), classid_.end(), 0);  //Iota assigns sequentially increasing values to a range
+        std::iota(classid_.begin(), classid_.end(), 0);  // Iota assigns sequentially increasing values to a range
         matrixTracker_.resize(dim);
         initMatrixTracker();
     }
@@ -699,7 +699,7 @@ public:
     }
 
     void updateDistMat(std::vector<Model>& models) {
-        if (amalgamation_ == 1) {  //maximum linkage
+        if (amalgamation_ == 1) {  // maximum linkage
             maxLinkage();
         }
         else {  // concatenation
@@ -801,7 +801,7 @@ public:
                 j = classid_[j];
             classid_[i] = j;
         }
-        //nrcluster_ = nextclusterid;
+        // nrcluster_ = nextclusterid;
         printClustering();
     }
 

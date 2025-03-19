@@ -31,16 +31,16 @@ bool SSE2L2NormCodeGenerator::appendProlog() {
     */
     static const u8 code[] = {
 #if !defined(PROC_x86_64)
-        0x56,
-        0x53,
-        0x8b,
-        0x74,
-        0x24,
-        0x0c,
-        0x8b,
-        0x5c,
-        0x24,
-        0x10
+            0x56,
+            0x53,
+            0x8b,
+            0x74,
+            0x24,
+            0x0c,
+            0x8b,
+            0x5c,
+            0x24,
+            0x10
 #endif
     };
     return append(code, sizeof(code));
@@ -285,39 +285,38 @@ bool SSE2L2NormCodeGenerator::appendEpilog() {
     */
 
     static const u8 code[] = {
-        0x66,
-        0x0f,
-        0x70,
-        0xcf,
-        0xee,
-        0x66,
-        0x0f,
-        0x70,
-        0xd7,
-        0x44,
-        0x66,
-        0x0f,
-        0xfe,
-        0xca,
-        0x66,
-        0x0f,
-        0x70,
-        0xd1,
-        0xb1,
-        0x66,
-        0x0f,
-        0xfe,
-        0xca,
-        0x66,
-        0x0f,
-        0x7e,
-        0xc8,
+            0x66,
+            0x0f,
+            0x70,
+            0xcf,
+            0xee,
+            0x66,
+            0x0f,
+            0x70,
+            0xd7,
+            0x44,
+            0x66,
+            0x0f,
+            0xfe,
+            0xca,
+            0x66,
+            0x0f,
+            0x70,
+            0xd1,
+            0xb1,
+            0x66,
+            0x0f,
+            0xfe,
+            0xca,
+            0x66,
+            0x0f,
+            0x7e,
+            0xc8,
 #if !defined(PROC_x86_64)
-        0x5b,
-        0x5e,
+            0x5b,
+            0x5e,
 #endif
-        0xc3
-    };
+            0xc3};
     return append(code, sizeof(code));
 }
 

@@ -153,7 +153,7 @@ private:
         }
 
         /** @return is the PortId of the node connected to the port
-                        */
+         */
         PortId nodePort() const {
             return nodePort_;
         }
@@ -187,7 +187,7 @@ private:
 
 private:
     /** Name given in network description (e.g.: <network name="network">)
-                */
+     */
     std::string typeName_;
 
     std::list<Parameter> params_;
@@ -376,7 +376,7 @@ public:
         if (!started_) {
             if ((!l->areAttributesAvailable()) && (!configureOutputPort(port)))
                 return NULL;
-            //startThread();
+            // startThread();
         }
         return l;
     }

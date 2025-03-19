@@ -23,7 +23,6 @@
 #include <Mc/Component.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 
-
 namespace Speech {
 
 /** Combination of a lexicon, an acoustic model or label scorer, and a language model.
@@ -88,8 +87,12 @@ public:
     }
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) { labelScorer_ = ls; }
-    Core::Ref<Nn::LabelScorer> labelScorer() const { return labelScorer_; }
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) {
+        labelScorer_ = ls;
+    }
+    Core::Ref<Nn::LabelScorer> labelScorer() const {
+        return labelScorer_;
+    }
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

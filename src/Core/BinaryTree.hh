@@ -103,7 +103,7 @@ public:
     Id id(const LeafList::const_iterator p) const {
         return (*p)->id_;
     };
-    //id is assumed to be sequential
+    // id is assumed to be sequential
     Id leafNumber(Id id) const;
     Id root() const {
         return root_->id_;

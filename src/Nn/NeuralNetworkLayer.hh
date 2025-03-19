@@ -281,8 +281,8 @@ public:
     // calculate weight gradients from layer input and error and store result in gradient{Weights,Bias};
     // this may vary among different layer types, this is why the trainer needs to ask
     // the layer to calculate its own gradients
-    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights){};
-    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias){};
+    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {};
+    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {};
 
     // return pointer to weight matrix and bias vector (if any)
     virtual NnMatrix* getWeights(u32 stream) {
@@ -314,11 +314,11 @@ public:
     }
 
     // Initialize the parameters
-    virtual void initializeNetworkParameters(){};
+    virtual void initializeNetworkParameters() {};
     // Save the parameters to disk
     virtual void saveNetworkParameters(const std::string& filename) const {};
     // Load the parameters from disk
-    virtual void loadNetworkParameters(const std::string& filename){};
+    virtual void loadNetworkParameters(const std::string& filename) {};
 
     virtual void initComputation(bool sync = true) const {}
     virtual void finishComputation(bool sync = true) const {}

@@ -182,7 +182,7 @@ void AlignmentNode::createModel() {
             transducer                           = allophoneStateGraphBuilder_->buildTransducer(
                     Fsa::projectInput(
                             Fsa::composeMatching(Fsa::invert(lemmaPronunciationToLemma_),
-                                                 lattice->part(Lattice::WordLattice::acousticFsa))));
+                                                                           lattice->part(Lattice::WordLattice::acousticFsa))));
         }
         if (transducer) {
             model = modelCache_->get(allophoneStateGraphBuilder_->createFinalizationFunctor(segmentId_, transducer));

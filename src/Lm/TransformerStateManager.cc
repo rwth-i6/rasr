@@ -324,7 +324,6 @@ template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMaxCommonPrefixLength;
 template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMaxCommonPrefixLength;
 
-
 template<typename T>
 void TransformerStateManagerWithCommonPrefix<T>::mergeStates(typename Precursor::StateVariables const&                   vars,
                                                              std::vector<size_t>&                                        prefix_lengths,

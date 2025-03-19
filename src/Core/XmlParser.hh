@@ -346,7 +346,7 @@ public:
  *
  * XmlEmptyElement must not have any content.  characters() and
  * element() will raise a validity error
-*/
+ */
 class XmlEmptyElement : public XmlElement {
     bool allowWhitespace_;
 

@@ -216,16 +216,16 @@ public:
             : Precursor(resources.getConfiguration()), resources_(resources), fsa_(fsa) {
         fsa_->setType(Fsa::TypeTransducer);
         Core::XmlMixedElement* arcElement   = new Core::XmlMixedElementRelay("arc", this, startHandler(&Self::startArc), 0, 0,
-                                                                           XML_CHILD(new Core::XmlMixedElementRelay("in", this, startHandler(&Self::startIn),
-                                                                                                                    endHandler(&Self::endIn), charactersHandler(&Self::charactersFsa),
-                                                                                                                    XML_NO_MORE_CHILDREN)),
-                                                                           XML_CHILD(new Core::XmlMixedElementRelay("out", this, startHandler(&Self::startOut),
-                                                                                                                    endHandler(&Self::endOut), charactersHandler(&Self::charactersFsa),
-                                                                                                                    XML_NO_MORE_CHILDREN)),
-                                                                           XML_CHILD(new Core::XmlMixedElementRelay("weight", this, startHandler(&Self::startArcWeight),
-                                                                                                                    endHandler(&Self::endArcWeight), charactersHandler(&Self::charactersFsa),
-                                                                                                                    XML_NO_MORE_CHILDREN)),
-                                                                           XML_NO_MORE_CHILDREN);
+                                                                             XML_CHILD(new Core::XmlMixedElementRelay("in", this, startHandler(&Self::startIn),
+                                                                                                                      endHandler(&Self::endIn), charactersHandler(&Self::charactersFsa),
+                                                                                                                      XML_NO_MORE_CHILDREN)),
+                                                                             XML_CHILD(new Core::XmlMixedElementRelay("out", this, startHandler(&Self::startOut),
+                                                                                                                      endHandler(&Self::endOut), charactersHandler(&Self::charactersFsa),
+                                                                                                                      XML_NO_MORE_CHILDREN)),
+                                                                             XML_CHILD(new Core::XmlMixedElementRelay("weight", this, startHandler(&Self::startArcWeight),
+                                                                                                                      endHandler(&Self::endArcWeight), charactersHandler(&Self::charactersFsa),
+                                                                                                                      XML_NO_MORE_CHILDREN)),
+                                                                             XML_NO_MORE_CHILDREN);
         Core::XmlMixedElement* stateElement = new Core::XmlMixedElementRelay("state", this, startHandler(&Self::startState), endHandler(&Self::endState), 0,
                                                                              XML_CHILD(new Core::XmlEmptyElementRelay("user", this, startHandler(&Self::startUser))),
                                                                              XML_CHILD(new Core::XmlEmptyElementRelay("final", this, startHandler(&Self::startFinal))),

@@ -38,7 +38,7 @@ public:
     typedef XmlBuilderElement<Math::Matrix<T>,
                               XmlElement,
                               CreateByContext>
-            Predecessor;
+                                Predecessor;
     typedef XmlMatrixElement<T> Self;
     typedef Math::Matrix<T>* (XmlContext::*CreationHandler)(const XmlAttributes atts);
 

@@ -117,8 +117,8 @@ bool Archive::readFile(const std::string& name, std::string& b) {
                     break;
                 case Z_DATA_ERROR:
                     /* CAUTION! Zlib thinks that data was corrupted because we replaced
-                 * the adler32 checksum by a gzip compatible crc32. So we ignore the error.
-                 */
+                     * the adler32 checksum by a gzip compatible crc32. So we ignore the error.
+                     */
                     // fall through
                 case Z_OK:
                 default:

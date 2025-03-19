@@ -131,6 +131,6 @@ XmlMapDocument<Map>::~XmlMapDocument() {
     delete mapElement_;
 }
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _CORE_MAP_PARSER_HH

@@ -25,7 +25,7 @@
 namespace Am {
 
 /** ClassicAcousticModel
-     */
+ */
 class ClassicAcousticModel : public AcousticModel {
 public:
     enum StateTyingType {

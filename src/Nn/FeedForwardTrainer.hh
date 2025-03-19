@@ -192,8 +192,8 @@ inline void FeedForwardTrainer<f64>::initializeDoublePrecisionStatistics() {
 //=============================================================================
 
 /*
-* Autoencoder.
-*/
+ * Autoencoder.
+ */
 
 template<class T>
 class FeedForwardAutoTrainer : public FeedForwardTrainer<T> {
@@ -217,7 +217,7 @@ protected:
     static const Core::ParameterInt    paramReferenceInputLayerPort;
 
     virtual void processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment);
-    //virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
+    // virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment);
     virtual void processBatch_finish();
     virtual bool needsToProcessAllFeatures() const {

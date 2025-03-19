@@ -29,8 +29,8 @@
 #include <Tensorflow/Module.hh>
 #endif
 
-#include "FeatureStatistics.hh"
 #include <Speech/CovarianceEstimator.hh>
+#include "FeatureStatistics.hh"
 #ifdef MODULE_SIGNAL_ADVANCED
 #include <Speech/HistogramEstimator.hh>
 #include <Speech/MeanEstimator.hh>

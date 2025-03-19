@@ -19,25 +19,32 @@
 
 namespace Mc {
 
-    /** x + y*factor */
-    template<class T>
-    struct plusWeight : public std::binary_function<T, T, T> {
-        const T weight;
-        plusWeight<T>(const T &_weight) : weight(_weight) {}
-        T operator()(T x, T y) const { return x + y * weight; }
-    };
+/** x + y*factor */
+template<class T>
+struct plusWeight : public std::binary_function<T, T, T> {
+    const T weight;
+    plusWeight<T>(const T& _weight)
+            : weight(_weight) {}
+    T operator()(T x, T y) const {
+        return x + y * weight;
+    }
+};
 
-    /** min(x,y) */
-    template<class T>
-    struct minimum : public std::binary_function<T, T, T> {
-        T operator()(T x, T y) const { return std::min(x, y); }
-    };
+/** min(x,y) */
+template<class T>
+struct minimum : public std::binary_function<T, T, T> {
+    T operator()(T x, T y) const {
+        return std::min(x, y);
+    }
+};
 
-    /** max(x,y) */
-    template<class T>
-    struct maximum : public std::binary_function<T, T, T> {
-        T operator()(T x, T y) const { return std::max(x, y); }
-    };
-}
+/** max(x,y) */
+template<class T>
+struct maximum : public std::binary_function<T, T, T> {
+    T operator()(T x, T y) const {
+        return std::max(x, y);
+    }
+};
+}  // namespace Mc
 
-#endif // _MC_UTILITIES_HH
+#endif  // _MC_UTILITIES_HH

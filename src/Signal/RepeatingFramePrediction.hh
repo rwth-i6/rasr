@@ -40,9 +40,9 @@ private:
     bool predictOnlyMissing_;
 
     /** If false (default), the output stream has the same number of frames as the target streams,
-    *   but only start times are synchronized.
-    *   If true, start- and end-times are synchronized, so the frames of target and output-stream have the same length
-    */
+     *   but only start times are synchronized.
+     *   If true, start- and end-times are synchronized, so the frames of target and output-stream have the same length
+     */
     bool syncEndTimes_;
 
 private:

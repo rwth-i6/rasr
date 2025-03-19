@@ -118,7 +118,7 @@ private:
     std::vector<OpenFst::StateId>         rootIds_;
     typedef std::unordered_map<CompactReplaceStateTuple, OpenFst::StateId,
                                CompactReplaceStateTupleHash>
-            TupleMap;
+             TupleMap;
     TupleMap tupleMap_;
 };
 
@@ -139,7 +139,7 @@ public:
     using FstLib::internal::FstImpl<A>::InputSymbols;
     using FstLib::internal::FstImpl<A>::OutputSymbols;
 
-    //using FstLib::internal::CacheImpl<A>::AddArc;
+    // using FstLib::internal::CacheImpl<A>::AddArc;
     using FstLib::internal::CacheImpl<A>::HasArcs;
     using FstLib::internal::CacheImpl<A>::HasFinal;
     using FstLib::internal::CacheImpl<A>::HasStart;

@@ -175,6 +175,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

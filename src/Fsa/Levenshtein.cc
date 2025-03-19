@@ -83,7 +83,7 @@ public:
 
 ConstAutomatonRef levenshtein(ConstAutomatonRef ref, ConstAutomatonRef test, f32 delCost, f32 insCost, f32 subCost, f32 corCost) {
     LevenshteinAutomaton* tmp = new LevenshteinAutomaton(ref->getOutputAlphabet(), test->getInputAlphabet(), delCost, insCost, subCost, corCost);
-    //return ConstAutomatonRef(tmp);
+    // return ConstAutomatonRef(tmp);
     return composeMatching(composeMatching(ref, ConstAutomatonRef(tmp)), test);
 }
 

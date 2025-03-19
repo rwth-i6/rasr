@@ -179,7 +179,7 @@ void Channel::Target::open(const std::string& filename) {
             errno = 0;
         }
         std::cerr << std::endl;
-        //adopt(new std::ostream(std::cerr.rdbuf()));
+        // adopt(new std::ostream(std::cerr.rdbuf()));
         if (defaultStreamBuf_) {
             adopt(new std::ostream(defaultStreamBuf_));
         }

@@ -570,7 +570,7 @@ void CudaVector<T>::columnwiseInnerProduct(const Math::CudaMatrix<T>& A, const M
         for (u32 column = 0; column < A.nColumns(); column++) {
             T   dotProduct = 0;
             int result     = Cuda::dot(cublasHandle, matrixRows, A.d_elem_ + column * matrixRows, 1,
-                                   B.d_elem_ + column * matrixRows, 1, dotProduct);
+                                       B.d_elem_ + column * matrixRows, 1, dotProduct);
             require_eq(result, 0);
             Cuda::copyToGpu(d_elem_ + column, &dotProduct, 1);
         }

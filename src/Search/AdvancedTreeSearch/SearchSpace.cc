@@ -723,9 +723,7 @@ void StaticSearchAutomaton::buildBatches() {
         network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
 
     // Print some useful statistics about pushed and unpushed labels
-    if (treeBuilderType_ != TreeBuilderType::ctc) {
-        verify(!network.unpushedCoarticulatedRootStates.empty());
-    }
+    verify(network.coarticulatedRootStates.empty() || !network.unpushedCoarticulatedRootStates.empty());
 
     u32 unpushedLabels = 0;
     u32 pushedLabels   = 0;
@@ -736,7 +734,7 @@ void StaticSearchAutomaton::buildBatches() {
                 bool    isUnpushed = network.unpushedCoarticulatedRootStates.count(transit) || transit == network.ciRootState || transit == network.rootState;
                 if (isUnpushed) {
                     ++unpushedLabels;
-                    if (treeBuilderType_ != TreeBuilderType::ctc) {
+                    if (!network.rootTransitDescriptions.empty()) {
                         std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
                         verify(it != network.rootTransitDescriptions.end());
                     }

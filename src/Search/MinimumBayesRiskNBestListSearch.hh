@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH
-#define _SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH
+#ifndef SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH
+#define SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH
 
 #include "MinimumBayesRiskSearch.hh"
 #include "MinimumBayesRiskSearchUtil.hh"
@@ -171,4 +171,4 @@ Fsa::Weight posteriorRiskNBestList(
 
 }  // end namespace Search
 
-#endif  //_SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH
+#endif  // SEARCH_MINIMUM_BAYES_RISK_NBESTLISTSEARCH_HH

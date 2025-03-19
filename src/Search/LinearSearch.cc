@@ -139,7 +139,6 @@ public:
 
     void restart() {
         for (HypoVector::iterator it = hyp_.begin(); it != hyp_.end(); ++it) {
-            // it->
             it->score   = Core::Type<Score>::max;
             it->lmScore = 0;
             it->bkp     = 0;

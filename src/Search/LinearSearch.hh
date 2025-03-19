@@ -12,10 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id: LinearSearch.hh 2006-10-09 18:14:21Z nolden $
-
-#ifndef _SPEECH_LINEAR_SEARCH_HH
-#define _SPEECH_LINEAR_SEARCH_HH
+#ifndef SEARCH_LINEAR_SEARCH_HH
+#define SEARCH_LINEAR_SEARCH_HH
 
 #include <Core/Component.hh>
 #include <Core/Parameter.hh>
@@ -136,4 +134,4 @@ private:
 };
 }  // namespace Search
 
-#endif
+#endif  // SEARCH_LINEAR_SEARCH_HH

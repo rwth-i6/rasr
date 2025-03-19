@@ -13,7 +13,10 @@
  *  limitations under the License.
  */
 #include "AcousticLookAhead.hh"
+
 #include <Mm/Module.hh>
+#include <Search/Helpers.hh>
+
 #include "SearchNetworkTransformation.hh"
 #include "SearchSpace.hh"
 

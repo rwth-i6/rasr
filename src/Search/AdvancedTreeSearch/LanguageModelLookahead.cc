@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #include <unordered_map>
 #include <unordered_set>
@@ -23,7 +22,9 @@
 #include <Core/Utility.hh>
 #include <Lm/BackingOff.hh>
 #include <Lm/FsaLm.hh>
+#include <Search/Helpers.hh>
 #include <Search/Types.hh>
+
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"
 

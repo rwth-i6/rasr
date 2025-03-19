@@ -12,10 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
-
-#ifndef _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
-#define _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#ifndef ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#define ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
 
 #include <iostream>
 #include <list>
@@ -26,11 +24,11 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
+#include <Search/PersistentStateTree.hh>
 #include <Search/StateTree.hh>
+#include <Search/TreeStructure.hh>
 
 #include "LinearPrediction.hh"
-#include "PersistentStateTree.hh"
-#include "TreeStructure.hh"
 
 // #define EXTENSIVE_SPARSE_COLLISION_STATS
 
@@ -392,4 +390,4 @@ bool LanguageModelLookahead::isSingleWordNode(LanguageModelLookahead::LookaheadI
 }
 }  // namespace AdvancedTreeSearch
 
-#endif  //_SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#endif  // ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH

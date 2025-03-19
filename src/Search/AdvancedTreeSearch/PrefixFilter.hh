@@ -18,7 +18,7 @@
 #include <set>
 #include <vector>
 
-#include "PersistentStateTree.hh"
+#include <Search/PersistentStateTree.hh>
 #include "SearchSpaceHelpers.hh"
 
 namespace Core {

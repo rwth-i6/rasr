@@ -12,12 +12,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef FASTBATCHES_HH
-#define FASTBATCHES_HH
+#ifndef SEARCH_BATCHMANAGER_HH
+#define SEARCH_BATCHMANAGER_HH
 
-#include <Core/Hash.hh>
 #include <vector>
 #include <assert.h>
+
+#include <Core/Hash.hh>
 
 namespace Tools {
 /**
@@ -741,4 +742,4 @@ private:
 };
 }  // namespace Tools
 
-#endif
+#endif  // SEARCH_BATCHMANAGER_HH

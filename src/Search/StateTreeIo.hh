@@ -37,13 +37,14 @@ protected:
     typedef u32                      ContainerSize;
 
 private:
-    Bliss::LexiconRef    lexicon_;
-    Am::AcousticModelRef acousticModel_;
-
     typedef Am::AcousticModel::StateTransitionIndex StateTransitionIndex;
     typedef std::unordered_map<const Am::StateTransitionModel*, StateTransitionIndex,
                                Core::PointerHash<Am::StateTransitionModel>>
-                              TransitionModelToIndexMap;
+            TransitionModelToIndexMap;
+
+    Bliss::LexiconRef    lexicon_;
+    Am::AcousticModelRef acousticModel_;
+
     TransitionModelToIndexMap stateTransitionModelIndexes_;
 
 protected:
@@ -52,12 +53,13 @@ protected:
         fileFormatVersionV6 = 6,
     } FileFormatVersion;
 
-    void                      getDependencies();
-    void                      getTreeDependencies(const StateTree& tree);
     static const std::string  magic;
     static const std::string  sectionDependencies, sectionStateTree;
     Core::DependencySet       dependencies_;
     mutable FileFormatVersion fileFormatVersionParsed;
+
+    void getDependencies();
+    void getTreeDependencies(const StateTree& tree);
 
 protected:
     template<class T>

@@ -257,7 +257,11 @@ public:
     // Build a new persistent state network.
     virtual void build();
 
+    static const Core::ParameterBool paramLabelLoop;
+
 protected:
+    bool labelLoop_;
+
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
@@ -283,6 +287,14 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+};
+
+class RnaTreeBuilder : public CtcTreeBuilder {
+public:
+    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~RnaTreeBuilder() = default;
+
+    static const Core::ParameterBool paramLabelLoop;
 };
 
 #endif

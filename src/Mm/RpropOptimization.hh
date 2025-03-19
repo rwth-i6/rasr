@@ -152,6 +152,6 @@ public:
 
 #include "RpropOptimization.tcc"
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_RPROP_OPTIMIZATION_HH

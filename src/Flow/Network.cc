@@ -21,7 +21,7 @@
 
 using namespace Flow;
 
-//initialization of static members:
+// initialization of static members:
 
 /******************************************************************************/
 
@@ -80,7 +80,7 @@ Network::~Network() {
         if (!dump(true, dumpChannel_))
             warning("dump of '%s' failed!", typeName_.c_str());
     }
-    //if (started_) stopThread();
+    // if (started_) stopThread();
     for (std::list<Link*>::const_iterator it = links_.begin(); it != links_.end();
          it++)
         delete *it;
@@ -560,7 +560,7 @@ bool Network::setUserDefinedParameter(const std::string& name, const std::string
             if (!used->by->setNetworkParameter(used->as, name, value))
                 return false;
         }
-        //stopThread();
+        // stopThread();
         return true;
     }
     /*

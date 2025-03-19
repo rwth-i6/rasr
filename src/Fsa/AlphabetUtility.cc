@@ -49,9 +49,9 @@ void AlphabetMapping::clear() {
 
 AlphabetMapping& AlphabetMapping::operator=(const AlphabetMapping& am) {
     Core::Vector<LabelId>::operator=(am);
-    from_                          = am.from_;
-    to_                            = am.to_;
-    type_                          = am.type_;
+    from_ = am.from_;
+    to_   = am.to_;
+    type_ = am.type_;
     return *this;
 }
 

@@ -256,4 +256,3 @@ void TiedTextDependentMixtureSetTrainer::processAlignedFeature(Core::Ref<const F
     for (u32 i = 0; i < tiedEmissions_[emission].size(); ++i)
         accumulate(f->mainStream(), tiedEmissions_[emission][i].first, tiedEmissions_[emission][i].second * w);
 }
-

@@ -414,7 +414,7 @@ Fsa::ConstAutomatonRef Aligner::SearchSpace::getAlignmentFsaViterbi() const {
     result->setInputAlphabet(model_->getInputAlphabet());
     result->addProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic | Fsa::PropertySausages);
     if (bestScore == Core::Type<Score>::max) {
-        //return empty automaton if alignment does not reach final state
+        // return empty automaton if alignment does not reach final state
         return Core::ref(result);
     }
 

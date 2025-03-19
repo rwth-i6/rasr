@@ -29,20 +29,20 @@
 class TestApplication : public virtual Core::Application {
 public:
     /**
-   * Standard constructor for setting title.
-   */
+     * Standard constructor for setting title.
+     */
     TestApplication()
             : Core::Application() {
         setTitle("check");
-    }  //end TestApplication
+    }  // end TestApplication
 
     std::string getUsage() const {
         return "short program to test speech mbr toolkit\n";
-    }  //end getUsage
+    }  // end getUsage
 
     int main(const std::vector<std::string>& arguments) {
         return EXIT_SUCCESS;
-    }  //end main
+    }  // end main
 };
 
 APPLICATION(TestApplication)

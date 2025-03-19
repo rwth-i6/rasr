@@ -13,12 +13,17 @@
  *  limitations under the License.
  */
 #include "TreeBuilder.hh"
+
+#include <algorithm>
+
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
-#include <Search/StateTree.hh>
-#include <algorithm>
+
+#include "Helpers.hh"
 #include "PersistentStateTree.hh"
+#include "StateTree.hh"
+#include "Types.hh"
 
 using namespace Search;
 

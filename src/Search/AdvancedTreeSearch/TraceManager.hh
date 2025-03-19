@@ -42,7 +42,7 @@ public:
     }
 
     TraceItem& operator=(TraceItem const& ti) = default;
-    TraceItem& operator                       =(TraceItem&& ti) {
+    TraceItem& operator=(TraceItem&& ti) {
         trace                = ti.trace;
         recombinationHistory = std::move(ti.recombinationHistory);
         lookaheadHistory     = std::move(ti.lookaheadHistory);
@@ -262,19 +262,18 @@ public:
     inline TraceItem const& traceItem(TraceId trace) const {
         return items_[getUnmodified(trace)];
     }
-    inline TraceItem & traceItem(TraceId trace) {
+    inline TraceItem& traceItem(TraceId trace) {
         return items_[getUnmodified(trace)];
     }
 
     // Helper structure to cleanup the Tracemanager
     struct Cleaner {
-        SparseVector<TraceItem>                    &items_;
-        SparseVector<std::pair<u32, Modification>> &modifications_;
-        std::vector<bool> item_filter;
-        std::vector<bool> mod_filter;
+        SparseVector<TraceItem>&                    items_;
+        SparseVector<std::pair<u32, Modification>>& modifications_;
+        std::vector<bool>                           item_filter;
+        std::vector<bool>                           mod_filter;
 
-
-        Cleaner(SparseVector<TraceItem> &items, SparseVector<std::pair<u32, Modification>> &modifications)
+        Cleaner(SparseVector<TraceItem>& items, SparseVector<std::pair<u32, Modification>>& modifications)
                 : items_(items),
                   modifications_(modifications),
                   item_filter(items.storageSize(), false),
@@ -299,14 +298,13 @@ public:
         }
     };
     Cleaner getCleaner() {
-      return Cleaner(items_, modifications_);
+        return Cleaner(items_, modifications_);
     }
 
 private:
     SparseVector<TraceItem>                    items_;
     SparseVector<std::pair<u32, Modification>> modifications_;
 };
-
 
 }  // namespace Search
 

@@ -89,7 +89,7 @@ private:
     typedef HistogramNormalization::Value Value;
     typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string, HistogramVector<Value>, Core::StringHash, Core::StringEquality>>
-            HistogramCache;
+                   HistogramCache;
     HistogramCache testHistograms_;
 
     bool needInit_;

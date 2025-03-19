@@ -1090,8 +1090,7 @@ u32 FastMatrix<T>::nClassificationErrors(const FastVector<S>& alignment) {
         Core::Application::us()->warning("FastMatrix<T>::nClassificationErrors expects alignment vector of type u32");
     }
     u32 classificationErrors = 0;
-#pragma omp parallel for reduction(+ \
-                                   : classificationErrors)
+#pragma omp parallel for reduction(+ : classificationErrors)
     for (u32 column = 0; column < nColumns_; column++) {
         if (argMax(column) != (u32)alignment[column])
             classificationErrors++;
@@ -1624,11 +1623,11 @@ void FastMatrix<T>::convExtractPatches(const FastMatrix<T>&   input,
 
                 val = 0;
                 i   = t * input_dim + patchIdx.at(s, si);
-                //while (i < 0)               i += input_dim;
-                //while (i > num_input_elems) i -= input_dim;
+                // while (i < 0)               i += input_dim;
+                // while (i > num_input_elems) i -= input_dim;
                 if (i >= 0 && i < num_input_elems) {
                     val = input.elem_[i];
-                    //inverse_patches.at(i, si) = pos_patches; // TODO only needed for training -> GPU code
+                    // inverse_patches.at(i, si) = pos_patches; // TODO only needed for training -> GPU code
                 }
                 at(si, t * shifts_num + s) = val;
             }

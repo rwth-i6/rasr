@@ -189,7 +189,7 @@ private:
             return &predecessors_[p][predecessors_[p].size() - 1];
         }
         Cursor addPredecessor(Cursor p1, Cursor p2) {
-            //if (p2 == None) return p1; // does not occur
+            // if (p2 == None) return p1; // does not occur
             if (p1 == NoPredecessor)
                 return p2;
             if (!(p1 & Overflow)) {

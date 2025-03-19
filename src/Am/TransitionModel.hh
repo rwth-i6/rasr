@@ -92,10 +92,9 @@ public:
     static Core::ParameterChoice paramApplicatorType;
     static Core::ParameterString paramTdpValuesFile;
 
-
 protected:
     std::vector<StateTransitionModel*> transitionModels_;
-    void dump(Core::XmlWriter&) const;
+    void                               dump(Core::XmlWriter&) const;
 
 public:
     TransitionModel(const Core::Configuration&);

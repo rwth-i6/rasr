@@ -116,6 +116,6 @@ public:
     virtual ~MixtureEstimator() {}
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_MIXTURE_ESTIMATOR_HH

@@ -12,13 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SEARCH_LINEARPREDICTION_HH
-#define SEARCH_LINEARPREDICTION_HH
+#ifndef ADVANCEDTREESEARCH_LINEARPREDICTION_HH
+#define ADVANCEDTREESEARCH_LINEARPREDICTION_HH
 
-#include <Core/Types.hh>
 #include <iostream>
 #include <vector>
-#include "TreeStructure.hh"
+
+#include <Core/Types.hh>
+#include <Search/TreeStructure.hh>
 
 namespace Search {
 class LinearPrediction {
@@ -101,4 +102,4 @@ private:
 };
 }  // namespace Search
 
-#endif
+#endif  // ADVANCEDTREESEARCH_LINEARPREDICTION_HH

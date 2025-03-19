@@ -251,16 +251,18 @@ void ClassicTransducerBuilder::setupWordStart(Fsa::State* s, const PhoneBoundary
 }
 
 void ClassicTransducerBuilder::setupWordEnd(Fsa::State* s, const PhoneBoundaryStateDescriptor& pbsd) {
-    if ( linkWordEndStart_ ) {
+    if (linkWordEndStart_) {
         Fsa::StateId initialId = product_->initialStateId();
-        if ( initialId != Fsa::InvalidStateId ) {
+        if (initialId != Fsa::InvalidStateId) {
             Fsa::State* initial = product_->fastState(initialId);
             buildWordBoundaryLinks(s, initial);
         }
-    } else if (acceptCoarticulatedSinglePronunciation_) {
+    }
+    else if (acceptCoarticulatedSinglePronunciation_) {
         s->addTags(Fsa::StateTagFinal);
         s->weight_ = product_->semiring()->one();
-    } else {
+    }
+    else {
         PhoneBoundaryStateDescriptor pbsd2(pbsd);
         pbsd2.flag &= ~wordEnd;
         pbsd2.flag |= wordStart;
@@ -1005,8 +1007,8 @@ Fsa::ConstAutomatonRef ClassicTransducerBuilder::createMinimizedContextDependenc
     PhoneContext                              pc(maxHistory + maxFuture, true);
     Fsa::State*                               initial = new Fsa::State(stateMap.insert(pc),
                                          model_->isAcrossWordModelEnabled() ? Fsa::StateTagFinal
-                                                                            : Fsa::StateTagNone,
-                                         semiring->one());
+                                                                                                          : Fsa::StateTagNone,
+                                                                       semiring->one());
     _c->setState(initial);
     _c->setInitialStateId(initial->id());
     if (model_->isAcrossWordModelEnabled()) {

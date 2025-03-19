@@ -18,7 +18,7 @@
 /**
  * Some debugging stuff
  **/
-//define MEM_DBG
+// define MEM_DBG
 #define dbg(message) std::cerr << __FILE__ << ":" << __LINE__ << "\t" << message << std::endl
 
 #include <Core/Types.hh>

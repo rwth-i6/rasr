@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #include <deque>
 #include <unordered_map>
@@ -21,6 +20,7 @@
 #include <Core/Hash.hh>
 #include <Core/ProgressIndicator.hh>
 #include <Core/Utility.hh>
+
 #include "StateTree.hh"
 #include "StateTreeIo.hh"
 
@@ -824,6 +824,7 @@ private:
             BuildRequest::Hash,
             BuildRequest::Equality>
             Map;
+
     QueueSet           queues_;
     QueueSet::iterator queue_;
     Map                map_;

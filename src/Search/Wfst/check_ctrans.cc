@@ -310,7 +310,7 @@ public:
         log() << nChecked << " words checked";
         delete f;
         return EXIT_SUCCESS;
-    }  //end main
+    }  // end main
 
 protected:
     static const Core::ParameterInt    paramInitialPhoneOffset;

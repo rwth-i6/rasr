@@ -45,7 +45,7 @@ struct SearchSpace::AcousticPruning {
     inline bool prune(const StateHypothesis& hyp) const {
         return hyp.prospect > absoluteThreshold_;
     }
-    inline bool prune(const TraceManager &, const StateHypothesis& hyp) const {
+    inline bool prune(const TraceManager&, const StateHypothesis& hyp) const {
         return prune(hyp);
     }
 
@@ -109,7 +109,7 @@ struct SearchSpace::PerInstanceAcousticPruning {
     inline bool prune(const StateHypothesis& hyp) const {
         return hyp.prospect > absoluteThreshold_ or hyp.prospect > instanceThreshold_;
     }
-    inline bool prune(const TraceManager &, const StateHypothesis& hyp) const {
+    inline bool prune(const TraceManager&, const StateHypothesis& hyp) const {
         return prune(hyp);
     }
 
@@ -234,7 +234,7 @@ struct SearchSpace::BestTracePruning {
 
     inline void startInstance(InstanceKey const& key) {}
 
-    inline bool prune(TraceManager &trace_manager, StateHypothesis const& hyp) {
+    inline bool prune(TraceManager& trace_manager, StateHypothesis const& hyp) {
         const uintptr_t invalidPruningMark = root_ptr ^ -1;
         if (live_traces.count(hyp.trace)) {
             return false;
@@ -243,8 +243,8 @@ struct SearchSpace::BestTracePruning {
             return true;
         }
 
-        TraceItem           &currentItem = trace_manager.traceItem(hyp.trace);
-        Trace*              current = currentItem.trace.get();
+        TraceItem&          currentItem = trace_manager.traceItem(hyp.trace);
+        Trace*              current     = currentItem.trace.get();
         std::vector<Trace*> chain;
         bool                should_prune = true;
         while (current) {

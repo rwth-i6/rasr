@@ -82,7 +82,7 @@ LatticeTrace::LatticeTrace(
         const Bliss::LemmaPronunciation*      pronunciation,
         Speech::TimeframeIndex                timeframe,
         ScoreVector                           scores,
-        Search::TracebackItem::Transit const& transit)
+        Transit const& transit)
         : TracebackItem(pronunciation, timeframe, scores, transit), predecessor(predecessor), sibling() {}
 
 LatticeTrace::LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit)

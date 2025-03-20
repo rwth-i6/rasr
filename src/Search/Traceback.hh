@@ -132,7 +132,7 @@ public:
     Core::Ref<Traceback> performTraceback() const;
 
     /*
-     * Build a word lattice from a traces. The given trace will be represent the final lattice
+     * Build a word lattice from the traces. The given trace will represent the final lattice
      * state and it is traced back along predecessors and siblings until ending up at a trace with empty predecessor
      * which represents the initial state.
      *

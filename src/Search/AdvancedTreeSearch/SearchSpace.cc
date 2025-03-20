@@ -1273,6 +1273,8 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
     if (loopScore < Core::Type<Score>::max)
         activateOrUpdateStateHypothesisLoop(hyp, loopScore);
 
+    // TODO: When using the CtcTreeBuilder or RnaTreeBuilder without label-loops, the tree includes skip-transitions
+    //  over blank between two identical labels. These transitions should be explicitly ignored/disallowed here.
     // forward transition
     if ((state.successors & SingleSuccessorBatchMask) == SingleSuccessorBatchMask) {
         // The common case: Usually one hyp is connected to exactly one follower hyp

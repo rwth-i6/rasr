@@ -258,9 +258,11 @@ public:
     virtual void build();
 
     static const Core::ParameterBool paramLabelLoop;
+    static const Core::ParameterBool paramBlankLoop;
 
 protected:
     bool labelLoop_;
+    bool blankLoop_;
 
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;

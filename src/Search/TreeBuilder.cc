@@ -1210,9 +1210,15 @@ const Core::ParameterBool CtcTreeBuilder::paramLabelLoop(
         "allow label loops in the search tree",
         true);
 
+const Core::ParameterBool CtcTreeBuilder::paramBlankLoop(
+        "allow-blank-loop",
+        "allow loops on the blank nodes in the search tree",
+        true);
+
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
-          labelLoop_(paramLabelLoop(config)) {
+          labelLoop_(paramLabelLoop(config)),
+          blankLoop_(paramBlankLoop(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1371,8 +1377,11 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 if (not allophoneIsBlank and not isLastStateInLemma) {
                     // Add blank state after the newly created state
                     currentState = extendState(currentState, blankDesc_);
-                    // Add loop for this blank state
-                    addTransition(currentState, currentState);
+
+                    if (blankLoop_) {
+                        // Add loop for this blank state
+                        addTransition(currentState, currentState);
+                    }
                 }
             }
         }

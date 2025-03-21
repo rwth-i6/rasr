@@ -25,6 +25,7 @@ NN_TRAINER_O = $(OBJDIR)/NnTrainer.o \
 		../../Mm/libSprintMm.$(a) \
 		../../Nn/libSprintNn.$(a) \
 		../../Search/libSprintSearch.$(a) \
+		../../Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a) \
 		../../Signal/libSprintSignal.$(a) \
 		../../Speech/libSprintSpeech.$(a)
 

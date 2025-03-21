@@ -19,8 +19,8 @@
 #include <time.h>
 
 #include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Types.hh>
-#include <Core/Utility.hh>
 
 #include "SearchSpaceStatistics.hh"
 
@@ -39,11 +39,10 @@ class Configuration;
 class PerformanceCounter {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : running_(false),
-              totalTime_(0),
-              timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
-        if (start)
-            this->start();
+            : stopWatch_(), timeStats_(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+        if (start) {
+            stopWatch_.start();
+        }
     }
 
     ~PerformanceCounter() {
@@ -51,49 +50,27 @@ public:
     }
 
     void start() {
-        stop();
-
-        running_ = true;
-        TIMER_START(starttime_);
+        stopWatch_.stop();
+        stopWatch_.start();
     }
 
     void stop() {
-        if (running_) {
-            running_ = false;
-
-            double  diff = 0;  // in secs
-            timeval end;
-
-            TIMER_STOP(starttime_, end, diff);
-            totalTime_ += diff * 100;  // centi secs
-        }
+        stopWatch_.stop();
     }
 
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += totalTime_;
-        if (print)
-            std::cout << " time: " << totalTime_ << std::endl;
-        totalTime_ = 0;
-    }
-
-    static inline u64 instructions() {
-        unsigned int a, d;
-        asm __volatile__(""
-                         :
-                         :
-                         : "memory");
-        asm volatile("rdtsc"
-                     : "=a"(a), "=d"(d));
-        return ((u64)a) | (((u64)d) << 32);
+        timeStats_ += stopWatch_.elapsedCentiseconds();
+        if (print) {
+            std::cout << " time: " << stopWatch_.elapsedCentiseconds() << std::endl;
+        }
+        stopWatch_.reset();
     }
 
 private:
-    bool                   running_;
-    timeval                starttime_;
-    f32                    totalTime_;
-    Core::Statistics<f32>& timeStats;
+    Core::StopWatch        stopWatch_;
+    Core::Statistics<f32>& timeStats_;
 };
 
 inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {

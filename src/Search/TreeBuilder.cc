@@ -1434,8 +1434,11 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     for (StateId wbs : wordBoundaryLemmaStartStates) {
         network_.structure.addTargetToNode(blankBefore, wbs);
     }
-    // Add loop for this blank state
-    addTransition(blankBefore, blankBefore);
+
+    if (blankLoop_) {
+        // Add loop for this blank state
+        addTransition(blankBefore, blankBefore);
+    }
 }
 
 // -------------------- RnaTreeBuilder --------------------

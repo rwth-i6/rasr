@@ -18,7 +18,7 @@
 namespace Core {
 
 StopWatch::StopWatch()
-        : running_(false), startTime_(), elapsedNanoseconds_(0.0) {}
+        : running_(false), startTime_(), elapsedNanoseconds_(0ul) {}
 
 void StopWatch::start() {
     if (running_) {

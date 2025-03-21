@@ -466,7 +466,7 @@ Fsa::ConstAutomatonRef CTCTopologyGraphBuilder::buildTransducer(Fsa::ConstAutoma
     Fsa::ConstAutomatonRef model = buildFlatTransducer(lemmaAcceptor);
     model                        = addLoopTransition(model);
     // remove epsilon so that repeated identical label detection could work
-    model                                     = Fsa::removeEpsilons(Fsa::removeDisambiguationSymbols(model));
+    model                                     = Fsa::removeEpsilons(Fsa::removeDisambiguationSymbols(Fsa::projectInput(model)));
     Core::Ref<Fsa::StaticAutomaton> automaton = Fsa::staticCopy(model);
 
     finalStateId_ = Core::Type<Fsa::StateId>::max;

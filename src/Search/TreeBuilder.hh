@@ -249,6 +249,10 @@ protected:
 
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
+    static const Core::ParameterBool paramLabelLoop;
+    static const Core::ParameterBool paramBlankLoop;
+    static const Core::ParameterBool paramForceBlank;
+
     CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
 
@@ -256,10 +260,6 @@ public:
 
     // Build a new persistent state network.
     virtual void build();
-
-    static const Core::ParameterBool paramLabelLoop;
-    static const Core::ParameterBool paramBlankLoop;
-    static const Core::ParameterBool paramForceBlank;
 
 protected:
     bool labelLoop_;
@@ -295,11 +295,11 @@ protected:
 
 class RnaTreeBuilder : public CtcTreeBuilder {
 public:
-    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
-    virtual ~RnaTreeBuilder() = default;
-
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramForceBlank;
+
+    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~RnaTreeBuilder() = default;
 };
 
 #endif

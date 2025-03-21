@@ -43,6 +43,7 @@ LIBSPRINTCORE_O	= $(OBJDIR)/Application.o \
 		  $(OBJDIR)/ReferenceCounting.o \
 		  $(OBJDIR)/ResourceUsageInfo.o \
 		  $(OBJDIR)/Statistics.o \
+		  $(OBJDIR)/StopWatch.o \
 		  $(OBJDIR)/StringExpression.o \
 		  $(OBJDIR)/StringUtilities.o \
 		  $(OBJDIR)/TextStream.o \

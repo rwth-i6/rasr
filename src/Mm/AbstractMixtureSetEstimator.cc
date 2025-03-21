@@ -768,9 +768,9 @@ bool MixtureToMixtureMap::load(const std::string& filename) {
         MixtureSet& set = mixtureSet(front);
         for (u32 i = 1; i < tokens.size(); ++i) {
             Core::str2unsigned(tokens[i], m);
-            set.insert(m);                                  //forward mapping
-            (mappedMixtures_.mixtureSet(m)).insert(front);  //reverse mapping
-                                                            //Core::Application::us()->log("mixture-to-mixture mapping:") << front << " to "  << m;
+            set.insert(m);                                  // forward mapping
+            (mappedMixtures_.mixtureSet(m)).insert(front);  // reverse mapping
+                                                            // Core::Application::us()->log("mixture-to-mixture mapping:") << front << " to "  << m;
         }
     }
     nOfMappedMixtures_ = mappedMixtures_.nMixtures();

@@ -717,7 +717,7 @@ bool GenSymmetricDefiniteEigenProblem::dsygvd(Matrix<double>& a,
     int            ldb   = n;                      // LDB >= max(1,N)
     int            lwork = 1 + 6 * n + 3 * n * n;  // If JOBZ = 'V' and N > 1, LWORK >= 1 + 6*N + 2*N**2.
     Vector<double> work(lwork);
-    int            liwork = 3 + 5 * n;  //If JOBZ  = 'V' and N > 1, LIWORK >= 3 + 5*N
+    int            liwork = 3 + 5 * n;  // If JOBZ  = 'V' and N > 1, LIWORK >= 3 + 5*N
     Vector<int>    iwork(liwork);
     int            info;
     eigenvalues.resize(n);

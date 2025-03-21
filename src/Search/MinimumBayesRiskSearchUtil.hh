@@ -37,11 +37,11 @@ public:
     std::vector<Fsa::LabelId> sentence_;
     Fsa::Weight               probability_;
 
-    StringHypothesis() {}  //end StringHypothesis
+    StringHypothesis() {}  // end StringHypothesis
 
     StringHypothesis(std::vector<Fsa::LabelId> sentence, Fsa::Weight probability)
-            : sentence_(sentence), probability_(probability) {}  //end StringHypothesis
-};                                                               //end StringHypothesis
+            : sentence_(sentence), probability_(probability) {}  // end StringHypothesis
+};  // end StringHypothesis
 
 typedef std::vector<StringHypothesis> HypothesisVector;
 
@@ -81,6 +81,6 @@ Fsa::Weight posteriorExpectedRisk(Fsa::ConstAutomatonRef center, Fsa::ConstAutom
 
 Fsa::Weight collectWeights(Fsa::ConstSemiringRef sr, const Core::Vector<Fsa::Weight>& weights);
 
-}  //end namespace Search
+}  // end namespace Search
 
 #endif  // _SEARCH_MINIMUM_BAYES_RISK_UTIL_HH

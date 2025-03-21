@@ -257,7 +257,7 @@ Fsa::Weight TdpLatticeRescorerAutomaton::_score(
                                                                                                       coarticulatedPronunciation.leftContext(),
                                                                                                       coarticulatedPronunciation.rightContext()))));
         if (fsa_->semiring()->compare(score, fsa_->semiring()->invalid()) == 0) {
-            score = Fsa::Weight(1e9);  //fsa_->semiring()->zero();
+            score = Fsa::Weight(1e9);  // fsa_->semiring()->zero();
         }
         return score;
     }
@@ -300,8 +300,8 @@ TdpLatticeRescorer::~TdpLatticeRescorer() {
 Lattice::ConstWordLatticeRef TdpLatticeRescorer::work(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment) {
     alignmentGenerator_->setSpeechSegment(segment);
     TdpLatticeRescorerAutomaton* f      = new TdpLatticeRescorerAutomaton(lattice, alignmentGenerator_,
-                                                                     allophoneStateGraphBuilder_,
-                                                                     acousticModel_);
+                                                                          allophoneStateGraphBuilder_,
+                                                                          acousticModel_);
     Lattice::WordLattice*        result = new Lattice::WordLattice;
     result->setWordBoundaries(lattice->wordBoundaries());
     result->setFsa(Fsa::ConstAutomatonRef(f), Lattice::WordLattice::acousticFsa);
@@ -433,7 +433,7 @@ CombinedAcousticLatticeRescorer::CombinedAcousticLatticeRescorer(const Core::Con
                                       Am::AcousticModel::complete);
     modelCombination.load();
     allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
-        config, modelCombination.lexicon(), modelCombination.acousticModel());
+            config, modelCombination.lexicon(), modelCombination.acousticModel());
 
     std::vector<std::string> silencesAndNoises = paramSilencesAndNoises(config);
     allophoneStateGraphBuilder_->setSilencesAndNoises(silencesAndNoises);
@@ -702,8 +702,8 @@ Lattice::ConstWordLatticeRef RestoreScoresLatticeRescorer::work(Lattice::ConstWo
     Lattice::ConstWordLatticeRef latticeWithScores = archiveReader_->get(segment->fullName(), fsaPrefix_);
     if (latticeWithScores && latticeWithScores->nParts() == 1) {
         RestoreScoresLatticeRescorerAutomaton* f      = new RestoreScoresLatticeRescorerAutomaton(lattice,
-                                                                                             latticeWithScores,
-                                                                                             languageModel_);
+                                                                                                  latticeWithScores,
+                                                                                                  languageModel_);
         Lattice::WordLattice*                  result = new Lattice::WordLattice;
         result->setWordBoundaries(lattice->wordBoundaries());
         result->setFsa(Fsa::ConstAutomatonRef(f), Lattice::WordLattice::acousticFsa);

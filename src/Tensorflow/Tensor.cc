@@ -266,7 +266,7 @@ Tensor Tensor::concat(const std::vector<const Tensor*>& inputs, int axis) {
 
     int nDim = inputs[0]->numDims();
     require_ge(nDim, 1);
-    require_le(nDim, 3); // higher rank not supported here
+    require_le(nDim, 3);  // higher rank not supported here
     require_lt(axis, nDim);
     require_lt(-axis, nDim);
     if (axis < 0) {
@@ -293,22 +293,23 @@ Tensor Tensor::concat(const std::vector<const Tensor*>& inputs, int axis) {
     res.tensor_.reset(new tf::Tensor(type, tf::TensorShape(shape)));
 
     if (nDim == 1) {
-        u32 offset = 0;
+        u32  offset         = 0;
         auto res_tensor_map = res.tensor_->flat<typename ToDataType<T>::cpp_type>();
         for (const Tensor* input : inputs) {
             auto tensor_map = input->tensor_->flat<typename ToDataType<T>::cpp_type>();
-            u32 size0 = input->dimSize(0);
+            u32  size0      = input->dimSize(0);
             for (u32 idx0 = 0; idx0 < size0; ++idx0) {
                 res_tensor_map(offset + idx0) = tensor_map(idx0);
             }
             offset += size0;
         }
-    } else if (nDim == 2) {
+    }
+    else if (nDim == 2) {
         std::vector<u32> offsets(2, 0);
-        auto res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
+        auto             res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
         for (const Tensor* input : inputs) {
             auto tensor_map = input->tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 2>();
-            shape[axis] = input->dimSize(axis);
+            shape[axis]     = input->dimSize(axis);
             for (u32 idx0 = 0, res_idx0 = offsets[0]; idx0 < shape[0]; ++idx0, ++res_idx0) {
                 for (u32 idx1 = 0, res_idx1 = offsets[1]; idx1 < shape[1]; ++idx1, ++res_idx1) {
                     res_tensor_map(res_idx0, res_idx1) = tensor_map(idx0, idx1);
@@ -316,12 +317,13 @@ Tensor Tensor::concat(const std::vector<const Tensor*>& inputs, int axis) {
             }
             offsets[axis] += shape[axis];
         }
-    } else if (nDim == 3) {
+    }
+    else if (nDim == 3) {
         std::vector<u32> offsets(3, 0);
-        auto res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+        auto             res_tensor_map = res.tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
         for (const Tensor* input : inputs) {
             auto tensor_map = input->tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
-            shape[axis] = input->dimSize(axis);
+            shape[axis]     = input->dimSize(axis);
             for (u32 idx0 = 0, res_idx0 = offsets[0]; idx0 < shape[0]; ++idx0, ++res_idx0) {
                 for (u32 idx1 = 0, res_idx1 = offsets[1]; idx1 < shape[1]; ++idx1, ++res_idx1) {
                     for (u32 idx2 = 0, res_idx2 = offsets[2]; idx2 < shape[2]; ++idx2, ++res_idx2) {
@@ -693,16 +695,16 @@ T* Tensor::data() {
     return reinterpret_cast<T*>(&tensor_map(0));
 }
 
-template f32*         Tensor::data<f32>();
-template f64*         Tensor::data<f64>();
-template s64*         Tensor::data<s64>();
-template u64*         Tensor::data<u64>();
-template s32*         Tensor::data<s32>();
-template u32*         Tensor::data<u32>();
-template s16*         Tensor::data<s16>();
-template u16*         Tensor::data<u16>();
-template s8*          Tensor::data<s8>();
-template u8*          Tensor::data<u8>();
+template f32*     Tensor::data<f32>();
+template f64*     Tensor::data<f64>();
+template s64*     Tensor::data<s64>();
+template u64*     Tensor::data<u64>();
+template s32*     Tensor::data<s32>();
+template u32*     Tensor::data<u32>();
+template s16*     Tensor::data<s16>();
+template u16*     Tensor::data<u16>();
+template s8*      Tensor::data<s8>();
+template u8*      Tensor::data<u8>();
 template tstring* Tensor::data<tstring>();
 
 template<typename T>
@@ -716,16 +718,16 @@ T const* Tensor::data() const {
     return reinterpret_cast<T*>(&tensor_map(0));
 }
 
-template f32 const*         Tensor::data<f32>() const;
-template f64 const*         Tensor::data<f64>() const;
-template s64 const*         Tensor::data<s64>() const;
-template u64 const*         Tensor::data<u64>() const;
-template s32 const*         Tensor::data<s32>() const;
-template u32 const*         Tensor::data<u32>() const;
-template s16 const*         Tensor::data<s16>() const;
-template u16 const*         Tensor::data<u16>() const;
-template s8 const*          Tensor::data<s8>() const;
-template u8 const*          Tensor::data<u8>() const;
+template f32 const*     Tensor::data<f32>() const;
+template f64 const*     Tensor::data<f64>() const;
+template s64 const*     Tensor::data<s64>() const;
+template u64 const*     Tensor::data<u64>() const;
+template s32 const*     Tensor::data<s32>() const;
+template u32 const*     Tensor::data<u32>() const;
+template s16 const*     Tensor::data<s16>() const;
+template u16 const*     Tensor::data<u16>() const;
+template s8 const*      Tensor::data<s8>() const;
+template u8 const*      Tensor::data<u8>() const;
 template tstring const* Tensor::data<tstring>() const;
 
 template<typename T>
@@ -740,16 +742,16 @@ T* Tensor::data(size_t dim0_idx) {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx)));
 }
 
-template f32*         Tensor::data<f32>(size_t);
-template f64*         Tensor::data<f64>(size_t);
-template s64*         Tensor::data<s64>(size_t);
-template u64*         Tensor::data<u64>(size_t);
-template s32*         Tensor::data<s32>(size_t);
-template u32*         Tensor::data<u32>(size_t);
-template s16*         Tensor::data<s16>(size_t);
-template u16*         Tensor::data<u16>(size_t);
-template s8*          Tensor::data<s8>(size_t);
-template u8*          Tensor::data<u8>(size_t);
+template f32*     Tensor::data<f32>(size_t);
+template f64*     Tensor::data<f64>(size_t);
+template s64*     Tensor::data<s64>(size_t);
+template u64*     Tensor::data<u64>(size_t);
+template s32*     Tensor::data<s32>(size_t);
+template u32*     Tensor::data<u32>(size_t);
+template s16*     Tensor::data<s16>(size_t);
+template u16*     Tensor::data<u16>(size_t);
+template s8*      Tensor::data<s8>(size_t);
+template u8*      Tensor::data<u8>(size_t);
 template tstring* Tensor::data<tstring>(size_t);
 
 template<typename T>
@@ -764,14 +766,14 @@ T const* Tensor::data(size_t dim0_idx) const {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx)));
 }
 
-template f32 const*         Tensor::data<f32>(size_t) const;
-template f64 const*         Tensor::data<f64>(size_t) const;
-template s64 const*         Tensor::data<s64>(size_t) const;
-template u64 const*         Tensor::data<u64>(size_t) const;
-template s16 const*         Tensor::data<s16>(size_t) const;
-template u16 const*         Tensor::data<u16>(size_t) const;
-template s8 const*          Tensor::data<s8>(size_t) const;
-template u8 const*          Tensor::data<u8>(size_t) const;
+template f32 const*     Tensor::data<f32>(size_t) const;
+template f64 const*     Tensor::data<f64>(size_t) const;
+template s64 const*     Tensor::data<s64>(size_t) const;
+template u64 const*     Tensor::data<u64>(size_t) const;
+template s16 const*     Tensor::data<s16>(size_t) const;
+template u16 const*     Tensor::data<u16>(size_t) const;
+template s8 const*      Tensor::data<s8>(size_t) const;
+template u8 const*      Tensor::data<u8>(size_t) const;
 template tstring const* Tensor::data<tstring>(size_t) const;
 
 template<typename T>
@@ -787,16 +789,16 @@ T* Tensor::data(size_t dim0_idx, size_t dim1_idx) {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx)));
 }
 
-template f32*         Tensor::data<f32>(size_t, size_t);
-template f64*         Tensor::data<f64>(size_t, size_t);
-template s64*         Tensor::data<s64>(size_t, size_t);
-template u64*         Tensor::data<u64>(size_t, size_t);
-template s32*         Tensor::data<s32>(size_t, size_t);
-template u32*         Tensor::data<u32>(size_t, size_t);
-template s16*         Tensor::data<s16>(size_t, size_t);
-template u16*         Tensor::data<u16>(size_t, size_t);
-template s8*          Tensor::data<s8>(size_t, size_t);
-template u8*          Tensor::data<u8>(size_t, size_t);
+template f32*     Tensor::data<f32>(size_t, size_t);
+template f64*     Tensor::data<f64>(size_t, size_t);
+template s64*     Tensor::data<s64>(size_t, size_t);
+template u64*     Tensor::data<u64>(size_t, size_t);
+template s32*     Tensor::data<s32>(size_t, size_t);
+template u32*     Tensor::data<u32>(size_t, size_t);
+template s16*     Tensor::data<s16>(size_t, size_t);
+template u16*     Tensor::data<u16>(size_t, size_t);
+template s8*      Tensor::data<s8>(size_t, size_t);
+template u8*      Tensor::data<u8>(size_t, size_t);
 template tstring* Tensor::data<tstring>(size_t, size_t);
 
 template<typename T>
@@ -812,16 +814,16 @@ T const* Tensor::data(size_t dim0_idx, size_t dim1_idx) const {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx)));
 }
 
-template f32 const*         Tensor::data<f32>(size_t, size_t) const;
-template f64 const*         Tensor::data<f64>(size_t, size_t) const;
-template s64 const*         Tensor::data<s64>(size_t, size_t) const;
-template u64 const*         Tensor::data<u64>(size_t, size_t) const;
-template s32 const*         Tensor::data<s32>(size_t, size_t) const;
-template u32 const*         Tensor::data<u32>(size_t, size_t) const;
-template s16 const*         Tensor::data<s16>(size_t, size_t) const;
-template u16 const*         Tensor::data<u16>(size_t, size_t) const;
-template s8 const*          Tensor::data<s8>(size_t, size_t) const;
-template u8 const*          Tensor::data<u8>(size_t, size_t) const;
+template f32 const*     Tensor::data<f32>(size_t, size_t) const;
+template f64 const*     Tensor::data<f64>(size_t, size_t) const;
+template s64 const*     Tensor::data<s64>(size_t, size_t) const;
+template u64 const*     Tensor::data<u64>(size_t, size_t) const;
+template s32 const*     Tensor::data<s32>(size_t, size_t) const;
+template u32 const*     Tensor::data<u32>(size_t, size_t) const;
+template s16 const*     Tensor::data<s16>(size_t, size_t) const;
+template u16 const*     Tensor::data<u16>(size_t, size_t) const;
+template s8 const*      Tensor::data<s8>(size_t, size_t) const;
+template u8 const*      Tensor::data<u8>(size_t, size_t) const;
 template tstring const* Tensor::data<tstring>(size_t, size_t) const;
 
 template<typename T>
@@ -838,16 +840,16 @@ T* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx)));
 }
 
-template f32* Tensor::data<f32>(size_t, size_t, size_t);
-template f64* Tensor::data<f64>(size_t, size_t, size_t);
-template s64* Tensor::data<s64>(size_t, size_t, size_t);
-template u64* Tensor::data<u64>(size_t, size_t, size_t);
-template s32* Tensor::data<s32>(size_t, size_t, size_t);
-template u32* Tensor::data<u32>(size_t, size_t, size_t);
-template s16* Tensor::data<s16>(size_t, size_t, size_t);
-template u16* Tensor::data<u16>(size_t, size_t, size_t);
-template s8* Tensor::data<s8>(size_t, size_t, size_t);
-template u8* Tensor::data<u8>(size_t, size_t, size_t);
+template f32*     Tensor::data<f32>(size_t, size_t, size_t);
+template f64*     Tensor::data<f64>(size_t, size_t, size_t);
+template s64*     Tensor::data<s64>(size_t, size_t, size_t);
+template u64*     Tensor::data<u64>(size_t, size_t, size_t);
+template s32*     Tensor::data<s32>(size_t, size_t, size_t);
+template u32*     Tensor::data<u32>(size_t, size_t, size_t);
+template s16*     Tensor::data<s16>(size_t, size_t, size_t);
+template u16*     Tensor::data<u16>(size_t, size_t, size_t);
+template s8*      Tensor::data<s8>(size_t, size_t, size_t);
+template u8*      Tensor::data<u8>(size_t, size_t, size_t);
 template tstring* Tensor::data<tstring>(size_t, size_t, size_t);
 
 template<typename T>
@@ -864,23 +866,23 @@ T const* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const {
     return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx)));
 }
 
-template f32 const* Tensor::data<f32>(size_t, size_t, size_t) const;
-template f64 const* Tensor::data<f64>(size_t, size_t, size_t) const;
-template s64 const* Tensor::data<s64>(size_t, size_t, size_t) const;
-template u64 const* Tensor::data<u64>(size_t, size_t, size_t) const;
-template s32 const* Tensor::data<s32>(size_t, size_t, size_t) const;
-template u32 const* Tensor::data<u32>(size_t, size_t, size_t) const;
-template s16 const* Tensor::data<s16>(size_t, size_t, size_t) const;
-template u16 const* Tensor::data<u16>(size_t, size_t, size_t) const;
-template s8 const* Tensor::data<s8>(size_t, size_t, size_t) const;
-template u8 const* Tensor::data<u8>(size_t, size_t, size_t) const;
+template f32 const*     Tensor::data<f32>(size_t, size_t, size_t) const;
+template f64 const*     Tensor::data<f64>(size_t, size_t, size_t) const;
+template s64 const*     Tensor::data<s64>(size_t, size_t, size_t) const;
+template u64 const*     Tensor::data<u64>(size_t, size_t, size_t) const;
+template s32 const*     Tensor::data<s32>(size_t, size_t, size_t) const;
+template u32 const*     Tensor::data<u32>(size_t, size_t, size_t) const;
+template s16 const*     Tensor::data<s16>(size_t, size_t, size_t) const;
+template u16 const*     Tensor::data<u16>(size_t, size_t, size_t) const;
+template s8 const*      Tensor::data<s8>(size_t, size_t, size_t) const;
+template u8 const*      Tensor::data<u8>(size_t, size_t, size_t) const;
 template tstring const* Tensor::data<tstring>(size_t, size_t, size_t) const;
 
 Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end) {
     require_le(static_cast<int>(start.size()), numDims());
     require_eq(start.size(), end.size());
 
-    u32 nDim = numDims();
+    u32                nDim = numDims();
     std::vector<int64> start_vec(nDim);
     std::vector<int64> size_vec(nDim);
     for (size_t i = 0ul; i < nDim; ++i) {
@@ -888,7 +890,8 @@ Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end)
         if (i < start.size()) {
             dim_start = start[i] >= 0 ? start[i] : (dimSize(i) + start[i]);
             dim_end   = end[i] >= 0 ? end[i] : (dimSize(i) + 1 + end[i]);
-        } else {
+        }
+        else {
             dim_end = dimSize(i);
         }
         start_vec[i] = dim_start;
@@ -1083,8 +1086,8 @@ void Tensor::save(std::string const& path) const {
     out << '\n';
 
     auto tensor_map = tensor_->flat_inner_dims<typename ToDataType<T>::cpp_type, 2>();
-    int rows = 1;
-    int cols = dimSize(numDims() - 1);
+    int  rows       = 1;
+    int  cols       = dimSize(numDims() - 1);
     for (int i = 0; i < numDims() - 1; i++) {
         rows *= dimSize(i);
     }

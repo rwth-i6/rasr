@@ -111,7 +111,7 @@ bool InputNode::work(Flow::PortId out) {
             queue_.resize(full_samples * sample_size);
         }
     }
-    unsigned num_samples = std::min<unsigned>(blockSize_, full_samples);
+    unsigned          num_samples = std::min<unsigned>(blockSize_, full_samples);
     std::vector<char> buffer(num_samples * sample_size);
     std::copy(queue_.begin(), queue_.begin() + num_samples * sample_size, buffer.begin());
     for (size_t i = 0ul; i < num_samples * sample_size; i++) {

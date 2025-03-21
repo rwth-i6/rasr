@@ -115,7 +115,7 @@ inline void MrastaFiltering::normalizeFilterResponse(Math::Matrix<Value>& G, int
 }
 
 void MrastaFiltering::getBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
-    //Copy each frame of a band.
+    // Copy each frame of a band.
     for (Flow::Vector<Value>::iterator it = out.begin(), itv = (in.begin() + band);
          it != out.end();
          it++, itv += nFeatures_)
@@ -123,7 +123,7 @@ void MrastaFiltering::getBand(size_t band, std::vector<Value>& in, std::vector<V
 }
 
 void MrastaFiltering::setBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
-    //Copy value to the end of the output vector.
+    // Copy value to the end of the output vector.
     for (Flow::Vector<Value>::iterator it = in.begin(), itv = (out.begin() + band);
          it != in.end();
          it++, itv += nFeatures_)

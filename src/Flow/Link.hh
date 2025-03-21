@@ -15,7 +15,7 @@
 #ifndef _FLOW_LINK_HH
 #define _FLOW_LINK_HH
 
-//#include <ostream.h>
+// #include <ostream.h>
 #include <ostream>
 
 #include <Core/Assertions.hh>

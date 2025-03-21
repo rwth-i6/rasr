@@ -447,13 +447,13 @@ public:
     virtual void finish() {
         if (!final_states_.empty()) {
             if (new_end()) {
-                //introduce new final state
+                // introduce new final state
                 ++max_id_;
                 end_id_ = max_id_;
                 for (std::set<Fsa::StateId>::iterator s = final_states_.begin(); s != final_states_.end(); ++s)
                     o_ << " <node> " << *s << " </node>" << std::endl;
                 o_ << " <node> " << end_id_ << " </node>" << std::endl;
-                //edges have to the new end states have to be written manually
+                // edges have to the new end states have to be written manually
             }
             else {
                 end_id_ = *final_states_.begin();

@@ -152,10 +152,10 @@ public:
     }
 
     //! write lexicon to stream
-    virtual void write(std::ostream&){};
+    virtual void write(std::ostream&) {};
 
     //! normalize
-    virtual void normalize(int order){};
+    virtual void normalize(int order) {};
 
 private:
     VocabIndex mapToTupleIndexString_(Fsa::LabelId s, Fsa::LabelId t) const {
@@ -213,7 +213,7 @@ private:
 
 public:
     //! read a lexicon from a file stream
-    virtual void read(std::istream&){};
+    virtual void read(std::istream&) {};
 
     //! read a lexicon from a file given as component parameter
     virtual void read();

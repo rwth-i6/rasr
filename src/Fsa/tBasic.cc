@@ -329,4 +329,4 @@ Core::Ref<const _AutomatonTo>
     return Core::Ref<const _AutomatonTo>(new ConverterAutomaton<_AutomatonFrom, _AutomatonTo, _Mapping>(f, semiring, map));
 }
 
-}  //namespace Ftl
+}  // namespace Ftl

@@ -157,7 +157,7 @@ public:
     /** Erases attributes of all output links recursively over all successor nodes.
      *  Signals that node needs the get reconfigured.
      */
-    virtual void eraseOutputAttributes(){};
+    virtual void eraseOutputAttributes() {};
     /** Performs static (independent of input data) configuration of node.
      *  Configure is called if one of the output attributes is not available.
      *  Override this function to evaluate all input attributes and pass them on

@@ -20,8 +20,8 @@
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
 #include <Signal/Module.hh>
-#include <Speech/Module.hh>
 #include <Speech/AverageFeatureScorerActivation.hh>
+#include <Speech/Module.hh>
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
@@ -33,8 +33,8 @@
 #include <Speech/AligningFeatureExtractor.hh>
 #include <Speech/FeatureScorer.hh>
 #include <Speech/LabelingFeatureExtractor.hh>
-#include <Speech/LatticeSetProcessor.hh>
 #include <Speech/LatticeSetExtractor.hh>
+#include <Speech/LatticeSetProcessor.hh>
 #include <Speech/MixtureSetTrainer.hh>
 #include <Speech/ScatterMatricesEstimator.hh>
 #include <Speech/TextIndependentMixtureSetTrainer.hh>
@@ -580,4 +580,3 @@ void AcousticModelTrainer::visitCorpus(Speech::LabeledFeatureProcessor& labeledF
     Speech::LabelingFeatureExtractor labelingFeatureExtractor(select("labeling"), labeledFeatureProcessor);
     visitCorpus(labelingFeatureExtractor);
 }
-

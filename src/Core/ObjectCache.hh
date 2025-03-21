@@ -432,7 +432,7 @@ public:
     }
 
     /** getDirectory
-         */
+     */
     std::string getDirectory() const {
         return directoryName_;
     }

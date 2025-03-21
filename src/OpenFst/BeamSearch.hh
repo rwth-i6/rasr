@@ -99,7 +99,7 @@ void shortestPaths(const FstLib::Fst<A>& fst, typename A::Weight beam, FstLib::V
                 if (best != FstLib::Plus(best, newHyp.weight))
                     best = FstLib::Plus(best, newHyp.weight);
             }  // for aiter
-        }      // for hyp
+        }  // for hyp
         // prune hypotheses
         active.clear();
         Weight threshold = FstLib::Times(best, beam);

@@ -115,7 +115,7 @@ public:
 
     // T determinant() const ;
     // T logDeterminant() const ;
-    //Matrix<T, P> invert() const ;
+    // Matrix<T, P> invert() const ;
     Matrix<T, P> transpose() const;
     T            trace() const;
     T            productTrace(const Matrix<T, P>& rs) const;

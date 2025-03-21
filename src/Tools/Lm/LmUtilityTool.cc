@@ -124,8 +124,8 @@ int LmUtilityTool::main(std::vector<std::string> const& arguments) {
 }
 
 void LmUtilityTool::loadLm() {
-    Bliss::LexiconRef      lexicon(Bliss::Lexicon::create(select("lexicon")));
-    LanguageModelRef       lm(Lm::Module::instance().createLanguageModel(select("lm"), lexicon));
+    Bliss::LexiconRef lexicon(Bliss::Lexicon::create(select("lexicon")));
+    LanguageModelRef  lm(Lm::Module::instance().createLanguageModel(select("lm"), lexicon));
 }
 
 void LmUtilityTool::computePerplexityFromTextFile() {

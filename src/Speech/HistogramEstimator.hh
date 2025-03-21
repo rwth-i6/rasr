@@ -40,7 +40,7 @@ private:
     Value  bucketSize_;
     typedef Core::ObjectCache<Core::MruObjectCacheList<
             std::string, HistogramVector, Core::StringHash, Core::StringEquality>>
-            HistogramVectorCache;
+                         HistogramVectorCache;
     HistogramVectorCache histogramVectorCache_;
 
 private:

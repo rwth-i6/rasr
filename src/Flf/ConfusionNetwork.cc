@@ -730,11 +730,11 @@ public:
         // non-eps slot id
         if (cnConfig_.nonEpsSlotId != Semiring::InvalidId) {
             if (arc.input() == Fsa::Epsilon) {
-                //verify_(((*cn_)[slotId].begin() + arcId)->label == Fsa::Epsilon);
+                // verify_(((*cn_)[slotId].begin() + arcId)->label == Fsa::Epsilon);
                 arc.weight()->set(cnConfig_.nonEpsSlotId, Semiring::Invalid);
             }
             else {
-                //verify_(((*cn_)[slotId].begin() + arcId)->label != Fsa::Epsilon);
+                // verify_(((*cn_)[slotId].begin() + arcId)->label != Fsa::Epsilon);
                 ScoreId nonEpsSlotId = slotIdToNonEpsilonSlotIdMap_[slotId];
                 if (nonEpsSlotId == Semiring::InvalidId) {
                     arc.weight()->set(cnConfig_.nonEpsSlotId, Semiring::Invalid);
@@ -950,7 +950,7 @@ public:
         cnPosteriorKey_ = paramPosteriorKey(select("cn"));
         if (cnPosteriorKey_.empty())
             msg << "CN posterior key: " << cnPosteriorKey_ << "\n";
-        //else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
+        // else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
         msg << "Store the following CN features:\n";
         confidenceKey_ = paramKey(select("confidence"));
         if (!confidenceKey_.empty())

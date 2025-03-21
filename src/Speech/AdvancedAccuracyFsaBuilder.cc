@@ -227,7 +227,7 @@ Fsa::ConstAutomatonRef OrthographyFrameStateAccuracyLatticeBuilder::build(Lattic
 
 /**
  * OrthographySmoothedFrameStateAccuracyLatticeBuilder
-*/
+ */
 OrthographySmoothedFrameStateAccuracyLatticeBuilder::OrthographySmoothedFrameStateAccuracyLatticeBuilder(
         const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
         : Precursor(c, lexicon),

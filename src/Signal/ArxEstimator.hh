@@ -77,7 +77,7 @@ public:
         least_squares_builder_.setOrder_A(order_A_ = order_A);
     };
 
-    void setNumberOfSamples(u32 nr_sample);  //call is F or C or D is given!
+    void setNumberOfSamples(u32 nr_sample);  // call is F or C or D is given!
 
     void setC(const std::vector<_float>& C_tilde) {
         C_tilde_   = C_tilde;

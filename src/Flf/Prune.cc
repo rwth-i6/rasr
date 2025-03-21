@@ -426,7 +426,8 @@ public:
     virtual ~Internal() {}
 
     Score threshold(ConstFwdBwdRef fb) {
-        Score threshold = (t == Core::Type<Score>::max) ? Core::Type<Score>::max : (isRelative) ? fb->min() + t : t;
+        Score threshold = (t == Core::Type<Score>::max) ? Core::Type<Score>::max : (isRelative) ? fb->min() + t
+                                                                                                : t;
         if (statisticsChannel) {
             statisticsChannel << Core::XmlOpen("statistics") + Core::XmlAttribute("component", this->name());
             statisticsChannel << Core::XmlFull("threshold", threshold);
@@ -518,7 +519,7 @@ struct CnProbabilityWeakOrder {
         return a1.scores->get(posteriorId) > a2.scores->get(posteriorId);
     }
 };
-}  //namespace
+}  // namespace
 void prune(ConstConfusionNetworkRef cnRef, Score threshold, u32 maxSlotSize, bool normalize) {
     if (!cnRef)
         return;
@@ -556,7 +557,7 @@ struct PosteriorCnProbabilityWeakOrder {
         return a1.score > a2.score;
     }
 };
-}  //namespace
+}  // namespace
 void prune(ConstPosteriorCnRef cnRef, Score threshold, u32 maxSlotSize, bool normalize) {
     if (!cnRef)
         return;

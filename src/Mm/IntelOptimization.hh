@@ -50,7 +50,7 @@ private:
 #endif  // __SSE2__
 #else
     enum { BlockSize = 8 };
-#endif  //__SSE__ 
+#endif  //__SSE__
 
 private:
     /** @return is @param vectorSize rounded up to the next integer divisible by BlockSize. */

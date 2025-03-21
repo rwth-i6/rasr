@@ -17,30 +17,28 @@
 
 using namespace Mc;
 
-
 const Core::ParameterFloat Component::paramScale(
-    "scale", "log-linear scale", 1.0);
+        "scale", "log-linear scale", 1.0);
 
 const Core::ParameterString ScaleUpdate::paramMapFilename(
-    "scales-file", "XML file with model-name scale pairs");
+        "scales-file", "XML file with model-name scale pairs");
 
 //========================================================================================================
-ScaleUpdate::ScaleUpdate() : parentScale_(1)
-{}
+ScaleUpdate::ScaleUpdate()
+        : parentScale_(1) {}
 
-bool ScaleUpdate::setMap(const Core::Configuration &c)
-{
+bool ScaleUpdate::setMap(const Core::Configuration& c) {
     std::string filename = paramMapFilename(c);
     if (filename.empty())
         return false;
 
-    ScaleMap scaleMap;
+    ScaleMap                       scaleMap;
     Core::XmlMapDocument<ScaleMap> parser(
-        c, scaleMap, "model-combination", "model", "name", "scale");
+            c, scaleMap, "model-combination", "model", "name", "scale");
     parser.parseFile(filename.c_str());
 
-    ScaleMap *extendedMap = new ScaleMap;
-    for(ScaleMap::const_iterator scale = scaleMap.begin(); scale != scaleMap.end(); ++ scale) {
+    ScaleMap* extendedMap = new ScaleMap;
+    for (ScaleMap::const_iterator scale = scaleMap.begin(); scale != scaleMap.end(); ++scale) {
         std::string extendedKey = c.getSelection();
         if (!scale->first.empty())
             extendedKey = c.prepareResourceName(extendedKey, scale->first);
@@ -50,8 +48,7 @@ bool ScaleUpdate::setMap(const Core::Configuration &c)
     return true;
 }
 
-bool ScaleUpdate::findScale(const std::string name, Scale &scale) const
-{
+bool ScaleUpdate::findScale(const std::string name, Scale& scale) const {
     if (map_) {
         ScaleMap::const_iterator s = map_->find(name);
         if (s != map_->end()) {
@@ -63,25 +60,21 @@ bool ScaleUpdate::findScale(const std::string name, Scale &scale) const
 }
 
 //========================================================================================================
-Component::Component(const Core::Configuration &c) :
-    Core::Component(c)
-{
+Component::Component(const Core::Configuration& c)
+        : Core::Component(c) {
     scale_ = ownScale_ = paramScale(c);
 }
 
-Component::~Component()
-{}
+Component::~Component() {}
 
-void Component::updateScales(ScaleUpdate update)
-{
+void Component::updateScales(ScaleUpdate update) {
     Scale newScale = ownScale();
     if (update.findScale(fullName(), newScale))
         log("Scale set to %f.", newScale);
     setScale(newScale, update.parentScale(), update);
 }
 
-void Component::load()
-{
+void Component::load() {
     ScaleUpdate update;
     if (update.setMap(config)) {
         update.setParentScale(parentScale());
@@ -89,28 +82,24 @@ void Component::load()
     }
 }
 
-void Component::setOwnScale(Scale scale)
-{
+void Component::setOwnScale(Scale scale) {
     if (ownScale() != scale)
         setScale(scale, parentScale(), ScaleUpdate());
 }
 
-void Component::setParentScale(Scale scale)
-{
+void Component::setParentScale(Scale scale) {
     if (parentScale() != scale)
         setScale(ownScale(), scale, ScaleUpdate());
 }
 
-void Component::setScale(Scale ownScale, Scale parentScale, ScaleUpdate update)
-{
+void Component::setScale(Scale ownScale, Scale parentScale, ScaleUpdate update) {
     ownScale_ = ownScale;
-    scale_ = ownScale_ * parentScale;
+    scale_    = ownScale_ * parentScale;
 
     update.setParentScale(scale());
     distributeScaleUpdate(update);
 }
 
-void Component::getDependencies(Core::DependencySet &dependency) const
-{
+void Component::getDependencies(Core::DependencySet& dependency) const {
     dependency.add(name() + " scale", ownScale());
 }

@@ -154,7 +154,7 @@ public:
 
 protected:
     static const u32 numBoundaryClasses_;
-    static const u32 numWordEndClasses_; //word end classes for all dense state tyings
+    static const u32 numWordEndClasses_;  // word end classes for all dense state tyings
     u32              numPhoneClasses_;
     u32              numStates_;
     u32              contextLength_;

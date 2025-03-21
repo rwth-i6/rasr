@@ -21,10 +21,10 @@
 namespace Audio {
 
 /**
-     * Abstract node for audio sources without header information.
-     * RawSourceNode provides parameters for setting sample rate and
-     * format.
-     */
+ * Abstract node for audio sources without header information.
+ * RawSourceNode provides parameters for setting sample rate and
+ * format.
+ */
 class RawSourceNode : public SourceNode {
     typedef SourceNode Predecessor;
 

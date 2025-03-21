@@ -783,7 +783,7 @@ void AdaGrad<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) 
                     //
                     // w = w + (-lr * g/(sqrt(v)+eps))
 
-                    //printf("layer %d, stream %d\n", layer, stream);
+                    // printf("layer %d, stream %d\n", layer, stream);
                     NnMatrix* w   = network.getLayer(layer).getWeights(stream);
                     NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
                     u32       idx = layer * (max_stream_ + 1) + stream;
@@ -1051,7 +1051,7 @@ void AdaDelta<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics)
                     //
                     // w = w + dx
 
-                    //printf("layer %d, stream %d\n", layer, stream);
+                    // printf("layer %d, stream %d\n", layer, stream);
                     NnMatrix* w   = network.getLayer(layer).getWeights(stream);
                     NnMatrix* g   = &statistics.gradientWeights(layer)[stream];
                     u32       idx = layer * (max_stream_ + 1) + stream;

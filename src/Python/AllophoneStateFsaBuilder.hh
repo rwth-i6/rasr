@@ -22,7 +22,6 @@ public:
 private:
     std::shared_ptr<Nn::AllophoneStateFsaExporter>    allophoneStateFsaExporter_;
     std::shared_ptr<Core::StringHashMap<std::string>> segmentToOrthMap_;
-
 };
 
-#endif // _PYTHON_ALLOPHONESTATEFSABUILDER_HH
+#endif  // _PYTHON_ALLOPHONESTATEFSABUILDER_HH

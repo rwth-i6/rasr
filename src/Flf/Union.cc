@@ -311,7 +311,7 @@ ConstLatticeRef expandTransits(ConstLatticeRef lat, Bliss::Phoneme::Id leftConte
             }
             if (final != Bliss::Phoneme::term && lexicon->phonemeInventory()->phoneme(final)->isContextDependent()) {
                 finalPhones.insert(final);
-                finalPhoneHyps.insert(std::make_pair((int)final, inHypIt->second));
+                finalPhoneHyps.insert(std::make_pair((int) final, inHypIt->second));
             }
             else {
                 finalPhoneHyps.insert(std::make_pair((int)Bliss::Phoneme::term, inHypIt->second));

@@ -380,7 +380,7 @@ class VectorSigmoidFunction : public SimpleFunction<Vector<T>, T> {
 public:
     void apply(Vector<T>& v, T) {
         // apply sigmoid
-        //for (u32 i = 0; i < v.size(); i++) {v[i] = (1 / (1 + exp(- (v[i])) ) );};
+        // for (u32 i = 0; i < v.size(); i++) {v[i] = (1 / (1 + exp(- (v[i])) ) );};
         for (typename Vector<T>::iterator it = v.begin(); it != v.end(); it++)
             *it = (1 / (1 + exp(-(*it))));
     }

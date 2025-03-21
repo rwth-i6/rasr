@@ -58,8 +58,8 @@ public:
             Fsa::ConstAutomatonRef f =
                     archiveReader->get(it.name())->part(Lattice::WordLattice::acousticFsa);
 
-            //DEBUG
-            // Fsa::drawDot(Fsa::projectOutput(f), log());
+            // DEBUG
+            //  Fsa::drawDot(Fsa::projectOutput(f), log());
 
             Fsa::ConstAutomatonRef best = Fsa::projectOutput(Fsa::best(f));
             Fsa::writeLinear(best, (XmlWriter&)log("score: %f\n", f32(Fsa::bestscore(best))));

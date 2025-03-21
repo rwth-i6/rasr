@@ -16,9 +16,10 @@
 #define PATHRECOMBINATION_HH
 
 #include <Core/MappedArchive.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/TreeStructure.hh>
+
 #include "Helpers.hh"
-#include "PersistentStateTree.hh"
-#include "TreeStructure.hh"
 
 namespace Search {
 class PathRecombination {

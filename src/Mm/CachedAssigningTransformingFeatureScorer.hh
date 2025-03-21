@@ -55,7 +55,7 @@ public:
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).score;
             }
-            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  // copy from cache
             return ContextPrecursor::cache_[e].score;
         }
         virtual DensityInMixture bestDensity(EmissionIndex e, FeatureVector* transformedFeature = 0) const {
@@ -65,7 +65,7 @@ public:
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).bestDensity;
             }
-            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  // copy from cache
             return ContextPrecursor::cache_[e].bestDensity;
         }
     };

@@ -306,7 +306,7 @@ public:
     /**
      * Test whether non-ignored errors have occured.
      * @see error()
-         */
+     */
     bool hasFatalErrors() const;
 
     /**

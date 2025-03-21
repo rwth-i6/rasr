@@ -17,11 +17,33 @@
 
 #include <cstring>
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace Core {
+
+template<class Key>
+struct StandardValueHash {
+    inline uint32_t operator()(Key a) const {
+        a = (a ^ 0xc761c23c) ^ (a >> 19);
+        a = (a + 0xfd7046c5) + (a << 3);
+        return a;
+    }
+};
+
+template<class T>
+struct SetHash {
+    size_t operator()(const std::set<T>& set) const {
+        size_t a = set.size();
+        a        = (a ^ 0xc761c23c) ^ (a >> 19);
+        a        = (a + 0xfd7046c5) + (a << 3);
+        for (typename std::set<T>::const_iterator it = set.begin(); it != set.end(); ++it)
+            a += (*it << a) + a * *it + (*it ^ 0xb711a53c);
+        return a;
+    }
+};
 
 template<class T>
 struct PointerHash {

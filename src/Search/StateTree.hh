@@ -12,14 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #ifndef _SEARCH_STATE_TREE_HH
 #define _SEARCH_STATE_TREE_HH
 
+#include <list>
+
 #include <Am/AcousticModel.hh>
 #include <Am/ClassicStateModel.hh>
-#include <list>
 
 namespace Search {
 

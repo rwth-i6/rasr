@@ -115,7 +115,7 @@ CovarianceToDensitySetMap::CovarianceToDensitySetMap(const AbstractMixtureSetEst
         for (DensityIndex dnsInMix = 0; dnsInMix < mixtureEstimator->nDensities(); ++dnsInMix) {
             AugmentedDensityEstimator augmented;
             augmented.densityEstimator      = Core::Ref<EbwDiscriminativeGaussDensityEstimator>(required_cast(EbwDiscriminativeGaussDensityEstimator*,
-                                                                                                         mixtureEstimator->densityEstimators()[dnsInMix].get()));
+                                                                                                              mixtureEstimator->densityEstimators()[dnsInMix].get()));
             augmented.mixtureEstimator      = mixtureEstimator;
             augmented.previousMixtureWeight = mixtureEstimator->previousMixtureWeight(dnsInMix);
             DensitySet& set                 = map_[augmented.densityEstimator->covariance()];
@@ -438,7 +438,7 @@ LocalIcb::LocalIcb(const Core::Configuration&       c,
     }
 }
 
-}  //namespace InternalIc
+}  // namespace InternalIc
 
 /**
  * IterationConstants: global RWTH variant

@@ -22,23 +22,23 @@
 
 /**
  * Python interface:
- * 
+ *
  * def getSegmentList(corpusName, segmentList, segmentsInfo, config)
- * 
+ *
  * corpusName is the name of the root corpus.
  * segmentList is a list of strings with the segment-names of the corpus.
  * segmentsInfo is a dict segmentName -> info, where info is a dict with info such as
  *   nframes (only if use-data-source = true, but that's the default).
  * getSegmentList() can be any generator. It should yield segment-name strings.
- * 
+ *
  * Dummy example:
- * 
+ *
  * def getSegmentList(corpusName, segmentList, segmentsInfo, config): return segmentList
- * 
+ *
  * Usually, there is only one root corpus.
  * However, the function still might get called multiple times for the same root corpus
  * because e.g. for ProgressIndicationVisitorAdaptor, we count the total amount of segments.
- * 
+ *
  * Note that there are usually other CorpusVisitors behind the SegmentOrderingVisitor
  * which might further filter out the segments, such as the SegmentPartitionVisitorAdaptor.
  **/

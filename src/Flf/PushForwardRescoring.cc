@@ -176,9 +176,9 @@ std::string ReplaceSingleDimensionLattice::describe() const {
 // ----------------------------------------------------------------------
 
 const Core::Choice          PushForwardRescorer::rescorerTypeChoice("single-best", singleBestRescoringType,
-                                                           "replacement-approximation", replacementApproximationRescoringType,
-                                                           "traceback-approximation", tracebackApproximationRescoringType,
-                                                           Core::Choice::endMark());
+                                                                    "replacement-approximation", replacementApproximationRescoringType,
+                                                                    "traceback-approximation", tracebackApproximationRescoringType,
+                                                                    Core::Choice::endMark());
 const Core::ParameterChoice PushForwardRescorer::paramRescorerType("rescorer-type", &PushForwardRescorer::rescorerTypeChoice, "what sort of rescoring should be performed", singleBestRescoringType);
 const Core::ParameterInt    PushForwardRescorer::paramMaxHypothesis("max-hypotheses", "maximum number of hypotheses per node", 5);
 const Core::ParameterFloat  PushForwardRescorer::paramPruningThreshold("pruning-threshold", "pruning threshold for rescoring (relative to lm-scale)", 14.0);
@@ -253,7 +253,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         ProspectScorePriorityQueue tmp;
         while (not all_hyps[current_state].empty()) {
             Hypothesis hyp = all_hyps[current_state].top();
-            hyp.index = traceback.size();
+            hyp.index      = traceback.size();
             traceback.push_back(hyp);
             tmp.push(hyp);
             all_hyps[current_state].pop();

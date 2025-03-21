@@ -69,8 +69,8 @@ public:
 
     T* release(size_t index) {
         require(index < size());
-        T* result                             = Parent::operator[](index);
-        Parent::            operator[](index) = 0;
+        T* result                 = Parent::operator[](index);
+        Parent::operator[](index) = 0;
         return result;
     }
 

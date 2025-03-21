@@ -24,7 +24,7 @@
 
 namespace Signal {
 
-//forward declarations for gcc4
+// forward declarations for gcc4
 template<class Value, class Index>
 class LookupTable;
 template<class Value, class Index>
@@ -153,13 +153,13 @@ public:
     void  getInverse(LookupTable<Index, Value>& inverse) const;
     Value proposeBucketSizeForInverse() const;
 
-    LookupTable<Value, Index>&       operator+=(const LookupTable<Value, Index>& toAdd);
-    LookupTable<Value, Index>&       operator*=(const Value scalar);
-    friend LookupTable<Value, Index> operator*<>(const Value scalar, const LookupTable<Value, Index>& lt);
+    LookupTable<Value, Index>& operator+=(const LookupTable<Value, Index>& toAdd);
+    LookupTable<Value, Index>& operator*=(const Value scalar);
+    friend LookupTable<Value, Index> operator* <>(const Value scalar, const LookupTable<Value, Index>& lt);
 
-    bool                    read(Core::BinaryInputStream& i);
-    bool                    write(Core::BinaryOutputStream& o) const;
-    friend Core::XmlWriter& operator<<<>(Core::XmlWriter& o, const LookupTable<Value, Index>& lt);
+    bool read(Core::BinaryInputStream& i);
+    bool write(Core::BinaryOutputStream& o) const;
+    friend Core::XmlWriter& operator<< <>(Core::XmlWriter& o, const LookupTable<Value, Index>& lt);
 };
 
 template<class Value, class Index>

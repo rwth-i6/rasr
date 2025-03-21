@@ -14,20 +14,19 @@
  */
 
 #include "StopWatch.hh"
-#include "Utility.hh"
 
 namespace Core {
 
 StopWatch::StopWatch()
-        : running_(false), startTime_(), elapsedSeconds_(0.0) {}
+        : running_(false), startTime_(), elapsedNanoseconds_(0.0) {}
 
 void StopWatch::start() {
     if (running_) {
         return;
     }
 
-    TIMER_START(startTime_);
-    running_ = true;
+    startTime_ = std::chrono::steady_clock::now();
+    running_   = true;
 }
 
 void StopWatch::stop() {
@@ -35,44 +34,39 @@ void StopWatch::stop() {
         return;
     }
 
-    timeval endTime;
-    TIMER_STOP(startTime_, endTime, elapsedSeconds_);
+    auto endTime = std::chrono::steady_clock::now();
+    elapsedNanoseconds_ += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime_).count();
 
     running_ = false;
 }
 
 void StopWatch::reset() {
-    elapsedSeconds_ = 0;
-    running_        = false;
+    elapsedNanoseconds_ = 0ul;
+    running_            = false;
 }
 
 double StopWatch::elapsedSeconds() const {
-    if (running_) {
-        timeval endTime;
-        double  currentTime = 0;  // in seconds
-
-        // Note: This macro doesn't actually "stop" anything, it just writes into `endTime` and `currentTime`
-        TIMER_STOP(const_cast<timeval&>(startTime_), endTime, currentTime);
-
-        return elapsedSeconds_ + currentTime;
-    }
-    return elapsedSeconds_;
+    return elapsedNanoseconds() / 1e9;
 }
 
 double StopWatch::elapsedCentiseconds() const {
-    return elapsedSeconds() * 1e2;
+    return elapsedNanoseconds() / 1e7;
 }
 
 double StopWatch::elapsedMilliseconds() const {
-    return elapsedSeconds() * 1e3;
+    return elapsedNanoseconds() / 1e6;
 }
 
 double StopWatch::elapsedMicroseconds() const {
-    return elapsedSeconds() * 1e6;
+    return elapsedNanoseconds() / 1e3;
 }
 
 double StopWatch::elapsedNanoseconds() const {
-    return elapsedSeconds() * 1e9;
+    if (running_) {
+        auto currentTime = std::chrono::steady_clock::now();
+        return elapsedNanoseconds_ + std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - startTime_).count();
+    }
+    return elapsedNanoseconds_;
 }
 
 }  // namespace Core

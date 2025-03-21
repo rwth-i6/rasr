@@ -64,9 +64,9 @@ public:
     virtual ~BatchFeatureScorerBase();
 
     /**
-    * Initialize the internal data structures.
-    * mixtureSet is not required afterwards and may be deleted.
-    */
+     * Initialize the internal data structures.
+     * mixtureSet is not required afterwards and may be deleted.
+     */
     virtual void init(const MixtureSet& mixtureSet) = 0;
 
     virtual EmissionIndex nMixtures() const {
@@ -79,64 +79,64 @@ public:
     typedef Core::Ref<const ContextScorer> Scorer;
 
     /**
-    * Return a scorer for the current feature and append the
-    * given feature to the buffer.
-    * The current feature may not be the same as f
-    * because of the feature buffering.
-    * Requires bufferFilled() == true.
-    */
+     * Return a scorer for the current feature and append the
+     * given feature to the buffer.
+     * The current feature may not be the same as f
+     * because of the feature buffering.
+     * Requires bufferFilled() == true.
+     */
     virtual FeatureScorer::Scorer getScorer(Core::Ref<const Feature> f) const {
         return getScorer(*f->mainStream());
     }
     virtual FeatureScorer::Scorer getScorer(const FeatureVector& f) const;
 
     /**
-    * Clear the feature buffer and the score cache.
-    * Must be called before a new feature segment is entered.
-    */
+     * Clear the feature buffer and the score cache.
+     * Must be called before a new feature segment is entered.
+     */
     virtual void reset() const;
 
     /**
-    * Add a feature to the feature buffer.
-    * Requires bufferFilled() == false.
-    */
+     * Add a feature to the feature buffer.
+     * Requires bufferFilled() == false.
+     */
     virtual void addFeature(const FeatureVector& f) const;
     virtual void addFeature(Core::Ref<const Feature> f) const {
         addFeature(*f->mainStream());
     }
 
     /**
-    * Return a scorer for the current feature without adding a
-    * new feature to the buffer.
-    * Should be called until bufferEmpty() == true.
-    * Requires bufferEmpty() == false.
-    */
+     * Return a scorer for the current feature without adding a
+     * new feature to the buffer.
+     * Should be called until bufferEmpty() == true.
+     * Requires bufferEmpty() == false.
+     */
     virtual FeatureScorer::Scorer flush() const;
 
     /**
-    * This feature scorer is buffered.
-    */
+     * This feature scorer is buffered.
+     */
     virtual bool isBuffered() const {
         return true;
     }
 
     /**
-    * Return true if the feature buffer is full.
-    */
+     * Return true if the feature buffer is full.
+     */
     virtual bool bufferFilled() const {
         return buffered_ >= bufferSize_ - 1;
     }
 
     /**
-    * Return true if the feature buffer is empty.
-    */
+     * Return true if the feature buffer is empty.
+     */
     virtual bool bufferEmpty() const {
         return buffered_ <= 0;
     }
 
     /**
-    * Return the number of required buffered features
-    */
+     * Return the number of required buffered features
+     */
     virtual u32 bufferSize() const {
         return bufferSize_;
     }
@@ -145,16 +145,16 @@ protected:
     static const Core::ParameterInt paramBufferSize;
     void                            invalidateCache(size_t pos) const;
     /**
-    * Fill offsets_, cached_
-    * allocate scores_,
-    * set nMixtures_, nDensities_
-    */
+     * Fill offsets_, cached_
+     * allocate scores_,
+     * set nMixtures_, nDensities_
+     */
     void  initialize(const MixtureSet& mixtureSet);
     Score getScore(EmissionIndex e, u32 featureIndex, u32 length) const;
     /**
-    * Preprocess the feature vector and store it in the feature buffer
-    * at the given position.
-    */
+     * Preprocess the feature vector and store it in the feature buffer
+     * at the given position.
+     */
     virtual void setFeature(size_t pos, const FeatureVector& f) const                = 0;
     virtual void fillScoreCache(EmissionIndex e, u32 featureIndex, u32 length) const = 0;
 
@@ -165,36 +165,36 @@ protected:
     // interface has only const member functions (reason?).
 
     /**
-    * mapping from mixture to densities:
-    * densities for mixture m: [offsets_[m] .. offsets_[m+1])
-    */
+     * mapping from mixture to densities:
+     * densities for mixture m: [offsets_[m] .. offsets_[m+1])
+     */
     std::vector<size_t> offsets_;
     /**
-    * is score cached?
-    * layout: (mixture 0, pos 0), ..., (mixture_0, pos bufferSize_),
-    *         (mixture 1, pos 0), ..., (mixture_1, pos bufferSize_),
-    *         ....
-    */
+     * is score cached?
+     * layout: (mixture 0, pos 0), ..., (mixture_0, pos bufferSize_),
+     *         (mixture 1, pos 0), ..., (mixture_1, pos bufferSize_),
+     *         ....
+     */
     mutable std::vector<bool> cached_;
     /**
-    * cached scores for each mixture and buffer position.
-    * same layout as cached_
-    */
+     * cached scores for each mixture and buffer position.
+     * same layout as cached_
+     */
     mutable f32* scores_;
     u32          paddedDimension_, dimension_;
     u32          nMixtures_, nDensities_;
 
     /**
-    * position of the current feature
-    */
+     * position of the current feature
+     */
     mutable s32 currentFeature_;
     /**
-    * number of buffered features
-    */
+     * number of buffered features
+     */
     mutable s32 buffered_;
     /**
-    * total buffer size.
-    */
+     * total buffer size.
+     */
     s32 bufferSize_;
 };
 

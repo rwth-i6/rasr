@@ -374,7 +374,7 @@ public:
         if (!freedStorage_) {
             for (size_t i = 0; i < isCalculated_.size(); ++i) {
                 if (objects_[i]) {
-                    delete[](objects_[i]);
+                    delete[] (objects_[i]);
                 }
             }
             delete[] objects_;

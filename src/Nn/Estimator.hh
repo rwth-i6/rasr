@@ -94,7 +94,7 @@ public:
         initialLearningRate_ = rate;
     }
     // estimate new model based on previous model and statistics
-    virtual void estimate(NeuralNetwork<T>& network, Statistics<T>& statistics){};
+    virtual void estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {};
     // name of estimator
     virtual std::string type() const {
         return "dummy";

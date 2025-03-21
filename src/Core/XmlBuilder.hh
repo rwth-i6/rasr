@@ -63,8 +63,8 @@ struct CreateUsingNew {};
 struct CreateByContext {};
 
 /**
-     * \warning An XmlBuilderElement cannot be an (indirect) child of itself.
-     */
+ * \warning An XmlBuilderElement cannot be an (indirect) child of itself.
+ */
 template<typename P, class CM, class CP>
 class XmlBuilderElement;
 

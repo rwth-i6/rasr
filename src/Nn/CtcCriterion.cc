@@ -185,7 +185,7 @@ static ConstAutomatonRef _removeInvalidArcs(ConstAutomatonRef fsa) {
     return ConstAutomatonRef(rf);
 }
 
-}  //namespace Fsa
+}  // namespace Fsa
 
 template<int N>
 struct TimeStats {
@@ -1159,8 +1159,8 @@ void CtcCriterion<FloatT>::inputSpeechSegment(Bliss::SpeechSegment& segment, NnM
     // For the given segment transcription, it builds the class probabilities per frame.
     timeStats.checkpoint("calcStateProbErrors");
     discardCurrentInput_                     = !calcStateProbErrors(Precursor::objectiveFunction_,
-                                                Precursor::errorSignal_  // we keep here the reference prob, \hat{y}
-    );
+                                                                    Precursor::errorSignal_  // we keep here the reference prob, \hat{y}
+                        );
     Precursor::needRecalc_objectiveFunction_ = false;
     Precursor::needRecalc_errorSignal_       = false;
 }

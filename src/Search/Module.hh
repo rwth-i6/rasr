@@ -18,10 +18,20 @@
 #include <Core/Configuration.hh>
 #include <Core/Singleton.hh>
 
+#include "TreeBuilder.hh"
+
 namespace Search {
 
 class SearchAlgorithm;
 class LatticeHandler;
+
+enum TreeBuilderType {
+    previousBehavior,
+    classicHmm,
+    minimizedHmm,
+    ctc,
+    rna,
+};
 
 enum SearchType {
     WordConditionedTreeSearchType,
@@ -34,8 +44,9 @@ class Module_ {
 public:
     Module_();
 
-    SearchAlgorithm* createRecognizer(SearchType type, const Core::Configuration& config) const;
-    LatticeHandler*  createLatticeHandler(const Core::Configuration& c) const;
+    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) const;
+    SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
+    LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

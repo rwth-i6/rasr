@@ -39,7 +39,7 @@ public:
              itKey != target->keys().end(); ++itKey, ++itSymbolicMapping) {
             if (itKey->empty())
                 Core::Application::us()->warning("Dimension with no symbolic identifier in \"%s\"",
-                                                 target->name().c_str());
+                                                                   target->name().c_str());
             else
                 *itSymbolicMapping = paramRow(Core::Configuration(config, *itKey));
         }

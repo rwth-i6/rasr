@@ -131,7 +131,7 @@ public:
          */
 
         if (lexica_.size() < index + 1) {
-            //initialize new lexica
+            // initialize new lexica
             size_t oldSize = lexica_.size();
             lexica_.resize(index + 1);
             for (size_t i = oldSize; i <= index; ++i) {
@@ -173,7 +173,7 @@ public:
     }
 
     //! set value of the given entry (overwrite if it exists, create if it doesnt)
-    virtual void setValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value){};
+    virtual void setValue(const size_t index, const std::vector<std::string>& key, Translation::Cost value) {};
 
     //! write lexicon to stream
     virtual void write(std::ostream& out) {

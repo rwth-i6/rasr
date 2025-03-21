@@ -12,11 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SEARCH_APPROX_LINEARINTHASH_HH
-#define SEARCH_APPROX_LINEARINTHASH_HH
+#ifndef ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH
+#define ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH
+
+#include <vector>
 
 #include <Core/Types.hh>
-#include <vector>
 
 #define U16_MAX 65535
 
@@ -166,4 +167,4 @@ private:
 };
 }  // namespace Search
 
-#endif  // SEARCH_LINEARMINIHASH_HH
+#endif  // ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH

@@ -26,7 +26,6 @@
 #include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
-
 namespace Core {
 class FormatSet;
 }
@@ -61,7 +60,7 @@ public:
      * Access instance of LabelScorerFactory for registering and creating LabelScorers.
      */
     LabelScorerFactory& labelScorerFactory();
-  
+
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 
 private:

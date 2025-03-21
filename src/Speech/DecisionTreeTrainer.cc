@@ -149,8 +149,7 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
             std::vector<f64> mu_private(d, 0.0);           // to store temporary results
             std::vector<f64> sigmaSquare_private(d, 0.0);  // to store temporary results
 
-#pragma omp for nowait reduction(+ \
-                                 : count)
+#pragma omp for nowait reduction(+ : count)
             for (Cart::ExamplePtrList::const_iterator it = begin; it < end; ++it) {  // supported by omp 3.0
                 const Cart::Example& example = **it;
                 require(example.values->rows() == 2);
@@ -184,8 +183,7 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
             }
 
 #pragma omp barrier  // each thread should have access to count, mu, sigmsq
-#pragma omp for reduction(+ \
-                          : ll)
+#pragma omp for reduction(+ : ll)
             for (size_t dimCounter = 0; dimCounter < d; ++dimCounter) {
                 mu_[dimCounter] /= count;
                 sigmaSquare_[dimCounter] /= count;

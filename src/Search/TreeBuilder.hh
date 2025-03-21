@@ -249,6 +249,8 @@ protected:
 
 class CtcTreeBuilder : public AbstractTreeBuilder {
 public:
+    static const Core::ParameterBool paramLabelLoop;
+
     CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
 
@@ -258,6 +260,8 @@ public:
     virtual void build();
 
 protected:
+    bool labelLoop_;
+
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
@@ -283,6 +287,14 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+};
+
+class RnaTreeBuilder : public CtcTreeBuilder {
+public:
+    static const Core::ParameterBool paramLabelLoop;
+
+    RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~RnaTreeBuilder() = default;
 };
 
 #endif

@@ -77,8 +77,6 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramAllowLabelLoop;
-    static const Core::ParameterBool  paramUseSentenceEnd;
-    static const Core::ParameterBool  paramSentenceEndIndex;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramDebugLogging;
 

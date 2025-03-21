@@ -1215,10 +1215,16 @@ const Core::ParameterBool CtcTreeBuilder::paramBlankLoop(
         "allow loops on the blank nodes in the search tree",
         true);
 
+const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
+        "force-blank-between-identical-labels",
+        "require a blank label between two identical labels (only works if label-loops are disabled)",
+        true);
+
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
-          blankLoop_(paramBlankLoop(config)) {
+          blankLoop_(paramBlankLoop(config)),
+          forceBlank_(paramForceBlank(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1315,7 +1321,15 @@ StateId CtcTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc de
 }
 
 void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    auto const& successorStateDesc = network_.structure.state(successor).stateDesc;
+    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
+    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
+
+    if (forceBlank_) {
+        // Don't add a transition between two distinct states of equal description
+        if (predecessorStateDesc == successorStateDesc and predecessor != successor) {
+            return;
+        }
+    }
 
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
@@ -1431,7 +1445,13 @@ const Core::ParameterBool RnaTreeBuilder::paramLabelLoop(
         "allow label loops in the search tree",
         false);
 
+const Core::ParameterBool RnaTreeBuilder::paramForceBlank(
+        "force-blank-between-identical-labels",
+        "require a blank label between two identical labels (only works if label-loops are disabled)",
+        false);
+
 RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : CtcTreeBuilder(config, lexicon, acousticModel, network, initialize) {
-    this->labelLoop_ = paramLabelLoop(config);
+    this->labelLoop_  = paramLabelLoop(config);
+    this->forceBlank_ = paramForceBlank(config);
 }

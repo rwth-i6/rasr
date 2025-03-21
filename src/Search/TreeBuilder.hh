@@ -259,10 +259,12 @@ public:
 
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramBlankLoop;
+    static const Core::ParameterBool paramForceBlank;
 
 protected:
     bool labelLoop_;
     bool blankLoop_;
+    bool forceBlank_;
 
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
@@ -297,6 +299,7 @@ public:
     virtual ~RnaTreeBuilder() = default;
 
     static const Core::ParameterBool paramLabelLoop;
+    static const Core::ParameterBool paramForceBlank;
 };
 
 #endif

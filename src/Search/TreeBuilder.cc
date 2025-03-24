@@ -1216,7 +1216,7 @@ const Core::ParameterBool CtcTreeBuilder::paramBlankLoop(
         true);
 
 const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
-        "force-blank-between-identical-labels",
+        "force-blank-between-repeated-labels",
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         true);
 
@@ -1324,13 +1324,6 @@ void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
     auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
     auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
 
-    if (forceBlank_) {
-        // Don't add a transition between two distinct states of equal description
-        if (predecessorStateDesc == successorStateDesc and predecessor != successor) {
-            return;
-        }
-    }
-
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
             // The node is already a successor of the predecessor, so the transition already exists
@@ -1381,8 +1374,9 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                     addTransition(currentState, currentState);
                 }
 
-                // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
-                if (prevNonBlankState != invalidTreeNodeIndex) {
+                if (prevNonBlankState != invalidTreeNodeIndex and not(forceBlank_ and network_.structure.state(prevNonBlankState).stateDesc == network_.structure.state(currentState).stateDesc and prevNonBlankState != currentState)) {
+                    // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
+                    // If we want to enforce blank between repeated labels, don't add a transition between two distinct states of equal description
                     addTransition(prevNonBlankState, currentState);
                 }
                 prevNonBlankState = currentState;
@@ -1449,7 +1443,7 @@ const Core::ParameterBool RnaTreeBuilder::paramLabelLoop(
         false);
 
 const Core::ParameterBool RnaTreeBuilder::paramForceBlank(
-        "force-blank-between-identical-labels",
+        "force-blank-between-repeated-labels",
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         false);
 

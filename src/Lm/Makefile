@@ -35,9 +35,6 @@ endif
 ifdef MODULE_LM_ZEROGRAM
 LIBSPRINTLM_O += $(OBJDIR)/Zerogram.o
 endif
-ifdef MODULE_LM_FFNN
-LIBSPRINTLM_O += $(OBJDIR)/FFNeuralNetworkLanguageModel.o
-endif
 ifdef MODULE_LM_TFRNN
 LIBSPRINTLM_O += $(OBJDIR)/BlasNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/CompressedVector.o

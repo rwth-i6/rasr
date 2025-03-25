@@ -14,7 +14,6 @@
  */
 #include "Criterion.hh"
 #include <Core/Application.hh>
-#include "CtcCriterion.hh"
 
 namespace Nn {
 
@@ -24,7 +23,6 @@ const Core::Choice Criterion<FloatT>::choiceCriterion(
         "cross-entropy", crossEntropy,
         "squared-error", squaredError,
         "binary-divergence", binaryDivergence,
-        "ctc", ctc,
         Core::Choice::endMark());
 
 template<typename FloatT>
@@ -45,9 +43,6 @@ Criterion<FloatT>* Criterion<FloatT>::create(const Core::Configuration& config) 
         case binaryDivergence:
             Core::Application::us()->log("Create binary-divergence training criterion");
             return new BinaryDivergenceCriterion<FloatT>(config);
-        case ctc:
-            Core::Application::us()->log("Create CTC training criterion");
-            return new CtcCriterion<FloatT>(config);
         case none:
             Core::Application::us()->log("Create 'none' training criterion");
             return new Criterion<FloatT>(config);

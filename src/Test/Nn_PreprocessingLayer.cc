@@ -117,4 +117,3 @@ TEST_F(Test, TestPreprocessingLayer, meanAndVariance) {
 
     delete layer;
 }
-

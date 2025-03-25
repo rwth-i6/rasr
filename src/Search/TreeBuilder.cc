@@ -1374,7 +1374,8 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                     addTransition(currentState, currentState);
                 }
 
-                if (prevNonBlankState != invalidTreeNodeIndex and not(forceBlank_ and network_.structure.state(prevNonBlankState).stateDesc == network_.structure.state(currentState).stateDesc and prevNonBlankState != currentState)) {
+                bool label_repetition = prevNonBlankState != currentState and network_.structure.state(prevNonBlankState).stateDesc == network_.structure.state(currentState).stateDesc;
+                if (prevNonBlankState != invalidTreeNodeIndex and not(label_repetition and forceBlank_)) {
                     // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
                     // If we want to enforce blank between repeated labels, don't add a transition between two distinct states of equal description
                     addTransition(prevNonBlankState, currentState);

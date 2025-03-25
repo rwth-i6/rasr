@@ -35,15 +35,6 @@ public:
     enum EstimatorType {
         dummy,
         dryRun,
-        steepestDescentEstimator,
-        steepestDescentL1Clipping,
-        meanNormalizedSgd,
-        meanNormalizedSgdL1Clipping,
-        priorEstimator,
-        adam,
-        adagrad,
-        adadelta,
-        rmsprop
     };
 
 protected:

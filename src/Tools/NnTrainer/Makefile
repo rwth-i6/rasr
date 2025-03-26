@@ -24,8 +24,7 @@ NN_TRAINER_O = $(OBJDIR)/NnTrainer.o \
 		../../Mc/libSprintMc.$(a) \
 		../../Mm/libSprintMm.$(a) \
 		../../Nn/libSprintNn.$(a) \
-		../../Search/libSprintSearch.$(a) \
-		../../Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a) \
+        $(subst src,../..,$(LIBS_SEARCH)) \
 		../../Signal/libSprintSignal.$(a) \
 		../../Speech/libSprintSpeech.$(a)
 
@@ -37,12 +36,6 @@ NN_TRAINER_O += ../../Flf/FlfCore/libSprintFlfCore.$(a)
 endif
 ifdef MODULE_MATH_NR
 NN_TRAINER_O += ../../Math/Nr/libSprintMathNr.$(a)
-endif
-ifdef MODULE_ADVANCED_TREE_SEARCH
-NN_TRAINER_O += ../../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
-endif
-ifdef MODULE_SEARCH_WFST
-NN_TRAINER_O += ../../Search/Wfst/libSprintSearchWfst.$(a) ../../OpenFst/libSprintOpenFst.$(a)
 endif
 ifdef MODULE_PYTHON
 NN_TRAINER_O += ../../Python/libSprintPython.$(a)

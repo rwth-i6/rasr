@@ -14,13 +14,15 @@
  */
 
 #include "LexiconfreeTimesyncBeamSearch.hh"
+
+#include <algorithm>
+#include <strings.h>
+
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
-#include <algorithm>
-#include <strings.h>
-#include "Search/Traceback.hh"
+#include <Search/Traceback.hh>
 
 namespace Search {
 

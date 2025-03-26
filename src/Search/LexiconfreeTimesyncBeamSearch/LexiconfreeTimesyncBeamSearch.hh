@@ -49,7 +49,7 @@ protected:
         Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
-        bool operator<(ExtensionCandidate const& other) {
+        bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;
         }
     };
@@ -65,6 +65,10 @@ protected:
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
+
+        bool operator<(LabelHypothesis const& other) const {
+            return score < other.score;
+        }
 
         /*
          * Get string representation for debugging.
@@ -97,6 +101,9 @@ public:
     bool                            decodeStep() override;
 
 private:
+    LabelHypothesis const& getBestHypothesis() const;
+    LabelHypothesis const& getWorstHypothesis() const;
+
     void resetStatistics();
     void logStatistics() const;
 
@@ -113,13 +120,11 @@ private:
 
     /*
      * Helper function for pruning to scoreThreshold_
-     * Requires that the input extensions are already sorted by score
      */
     void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context
-     * Requires that the input hypotheses are already sorted by score
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
 

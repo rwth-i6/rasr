@@ -111,7 +111,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
             useBlank_        = true;
             log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
         }
-        else if (blankLabelIndex_ != blankLemma->id()) {
+        else if (blankLabelIndex_ != static_cast<Nn::LabelIndex>(blankLemma->id())) {
             warning() << "Blank lemma exists in lexicon with id " << blankLemma->id() << " but is overwritten by config parameter with value " << blankLabelIndex_;
         }
     }
@@ -154,11 +154,12 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> con
 }
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
-    return beam_.front().trace->performTraceback();
+    return getBestHypothesis().trace->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
-    LatticeTrace endTrace(beam_.front().trace, 0, beam_.front().trace->time + 1, beam_.front().trace->score, {});
+    auto&        bestHypothesis = getBestHypothesis();
+    LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
     for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
         auto& hyp          = beam_[hypIdx];
@@ -224,47 +225,62 @@ void LexiconfreeTimesyncBeamSearch::beamPruning(std::vector<LexiconfreeTimesyncB
         return;
     }
 
-    // Sort the hypotheses by associated score value such that the first `beamSize_` elements are the best
+    // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
     std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize_, extensions.end());
     extensions.resize(maxBeamSize_);  // Get rid of excessive elements
 }
 
 void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
-    // Compute the pruning threshold
-    auto   pruningThreshold = extensions.front().score + scoreThreshold_;
-    size_t numSurvivingHyps = 0ul;
-    // Use the fact that hypotheses are sorted by corresponding score and prune all indices after the first one that
-    // violates the score threshold
-    for (auto const& ext : extensions) {
-        if (ext.score > pruningThreshold) {
-            break;
-        }
-        ++numSurvivingHyps;
+    if (extensions.empty()) {
+        return;
     }
-    extensions.resize(numSurvivingHyps);  // Resize the hypotheses to keep only the surviving items
+
+    // Compute the pruning threshold
+    auto bestScore        = std::min_element(extensions.begin(), extensions.end())->score;
+    auto pruningThreshold = bestScore + scoreThreshold_;
+
+    // Remove elements with score > pruningThreshold
+    extensions.erase(
+            std::remove_if(
+                    extensions.begin(),
+                    extensions.end(),
+                    [=](auto const& ext) { return ext.score > pruningThreshold; }),
+            extensions.end());
 }
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
     std::vector<LabelHypothesis> newHypotheses;
+    newHypotheses.reserve(hypotheses.size());
 
     // Map each unique ScoringContext in newHypotheses to its hypothesis
     std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
     for (auto const& hyp : hypotheses) {
-        if (seenScoringContexts.find(hyp.scoringContext) == seenScoringContexts.end()) {
-            // Hyp ScoringContext is new so it just gets pushed in
-            newHypotheses.push_back(hyp);
-            seenScoringContexts.insert({hyp.scoringContext, &newHypotheses.back()});
+        // Use try_emplace to check if the scoring context already exists and create a new entry if not at the same time
+        auto [it, inserted] = seenScoringContexts.try_emplace(hyp.scoringContext, nullptr);
+
+        if (inserted) {
+            // First time seeing this scoring context so move it over to `newHypotheses`
+            newHypotheses.push_back(std::move(hyp));
+            it->second = &newHypotheses.back();
         }
         else {
-            // Hyp ScoringContext already exists on a better existing hypothesis, so
-            // it gets merged into the existing one by adding it as a Trace sibling
             verify(not hyp.trace->sibling);
-            auto* existingHyp           = seenScoringContexts[hyp.scoringContext];
-            hyp.trace->sibling          = existingHyp->trace->sibling;
-            existingHyp->trace->sibling = hyp.trace;
+
+            auto* existingHyp = it->second;
+            if (hyp.score < existingHyp->score) {
+                // New hyp is better -> replace in `newHypotheses` and add existing one as sibling
+                hyp.trace->sibling = existingHyp->trace;
+                *existingHyp       = std::move(hyp);  // Overwrite in-place
+            }
+            else {
+                // New hyp is worse -> add to existing one as sibling
+                hyp.trace->sibling          = existingHyp->trace->sibling;
+                existingHyp->trace->sibling = hyp.trace;
+            }
         }
     }
-    hypotheses.swap(newHypotheses);
+
+    hypotheses = std::move(newHypotheses);
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
@@ -330,10 +346,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         log() << extensions.size() << " candidates survived beam pruning";
     }
 
-    std::sort(extensions.begin(), extensions.end());
-
     if (useScorePruning_) {
-        // Extensions are sorted by score after `beamPruning`.
         scorePruning(extensions);
 
         if (debugLogging_) {
@@ -373,17 +386,29 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         log() << ss.str();
     }
 
-    beam_.swap(newBeam);
+    beam_ = std::move(newBeam);
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
         clog() << Core::XmlOpen("active-hyps") << beam_.size() << Core::XmlClose("active-hyps");
-        clog() << Core::XmlOpen("best-hyp-score") << beam_.front().score << Core::XmlClose("best-hyp-score");
-        clog() << Core::XmlOpen("worst-hyp-score") << beam_.back().score << Core::XmlClose("worst-hyp-score");
+        clog() << Core::XmlOpen("best-hyp-score") << getBestHypothesis().score << Core::XmlClose("best-hyp-score");
+        clog() << Core::XmlOpen("worst-hyp-score") << getWorstHypothesis().score << Core::XmlClose("worst-hyp-score");
         clog() << Core::XmlClose("search-step-stats");
     }
 
     return true;
+}
+
+LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSearch::getBestHypothesis() const {
+    verify(not beam_.empty());
+
+    return *std::min_element(beam_.begin(), beam_.end());
+}
+
+LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSearch::getWorstHypothesis() const {
+    verify(not beam_.empty());
+
+    return *std::max_element(beam_.begin(), beam_.end());
 }
 
 /*

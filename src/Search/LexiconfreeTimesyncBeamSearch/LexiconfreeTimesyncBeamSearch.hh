@@ -17,6 +17,7 @@
 #define LEXICONFREE_TIMESYNC_BEAM_SEARCH_HH
 
 #include <Bliss/Lexicon.hh>
+#include <Core/Channel.hh>
 #include <Core/Parameter.hh>
 #include <Core/StopWatch.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -82,7 +83,6 @@ public:
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramAllowLabelLoop;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
-    static const Core::ParameterBool  paramDebugLogging;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -139,7 +139,8 @@ private:
     bool allowLabelLoop_;
 
     bool logStepwiseStatistics_;
-    bool debugLogging_;
+
+    Core::Channel debugChannel_;
 
     Core::Ref<Nn::LabelScorer>   labelScorer_;
     Bliss::LexiconRef            lexicon_;

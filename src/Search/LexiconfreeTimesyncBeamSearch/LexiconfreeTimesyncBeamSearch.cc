@@ -55,11 +55,6 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramDebugLogging(
-        "debug-logging",
-        "Enable detailed logging for debugging purposes.",
-        false);
-
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -68,7 +63,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           blankLabelIndex_(paramBlankLabelIndex(config)),
           allowLabelLoop_(paramAllowLabelLoop(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
-          debugLogging_(paramDebugLogging(config)),
+          debugChannel_(config, "debug", Core::Channel::standard),
           labelScorer_(),
           beam_(),
           extensions_(),
@@ -365,14 +360,14 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         numHypsAfterScorePruning_ += extensions_.size();
 
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlOpen("num-hyps-after-score-pruning") << extensions_.size() << Core::XmlClose("num-hyps-after-score-pruning");
+            clog() << Core::XmlFull("num-hyps-after-score-pruning", extensions_.size());
         }
     }
 
     beamPruning(extensions_);
     numHypsAfterBeamPruning_ += extensions_.size();
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("num-hyps-after-beam-pruning") << extensions_.size() << Core::XmlClose("num-hyps-after-beam-pruning");
+        clog() << Core::XmlFull("num-hyps-after-beam-pruning", extensions_.size());
     }
 
     /*
@@ -399,22 +394,23 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     numActiveHyps_ += newBeam_.size();
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("active-hyps") << newBeam_.size() << Core::XmlClose("active-hyps");
+        clog() << Core::XmlFull("active-hyps", newBeam_.size());
     }
 
-    if (debugLogging_) {
+    if (debugChannel_.isOpen()) {
         std::stringstream ss;
         for (size_t hypIdx = 0ul; hypIdx < newBeam_.size(); ++hypIdx) {
             ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam_[hypIdx].toString() << "\n";
         }
-        log() << ss.str();
+        ss << "\n";
+        debugChannel_ << ss.str();
     }
 
     beam_.swap(newBeam_);
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("best-hyp-score") << getBestHypothesis().score << Core::XmlClose("best-hyp-score");
-        clog() << Core::XmlOpen("worst-hyp-score") << getWorstHypothesis().score << Core::XmlClose("worst-hyp-score");
+        clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");
     }
 

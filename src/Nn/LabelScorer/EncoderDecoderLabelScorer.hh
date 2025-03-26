@@ -24,8 +24,8 @@ namespace Nn {
 
 /*
  * Glue class to represent encoder-decoder model architectures. It consists of an
- * encoder component that does history-independent feature encoding once in the beginning
- * and a decoder component which is another internal Sub-LabelScorer that receives the encoded
+ * encoder component that computes feature encodings without requiring a ScoringContext
+ * and a decoder component which is an arbitrary sub-LabelScorer that receives the encoded
  * features as its inputs.
  * This glue class automatically handles the information flow between its encoder and
  * decoder components.

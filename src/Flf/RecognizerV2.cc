@@ -212,7 +212,7 @@ void RecognizerNodeV2::init(std::vector<std::string> const& arguments) {
             Lexicon::us()));
     searchAlgorithm_->setModelCombination(*modelCombination_);
     if (not connected(0)) {
-        criticalError("Speech segment at port 1 required");
+        criticalError("Speech segment at port 0 required");
     }
 }
 

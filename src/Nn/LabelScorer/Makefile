@@ -13,6 +13,7 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/BufferedLabelScorer.o \
     $(OBJDIR)/CombineLabelScorer.o \
     $(OBJDIR)/Encoder.o \
+    $(OBJDIR)/EncoderDecoderLabelScorer.o \
     $(OBJDIR)/EncoderFactory.o \
     $(OBJDIR)/LabelScorer.o \
     $(OBJDIR)/LabelScorerFactory.o \

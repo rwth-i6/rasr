@@ -149,6 +149,10 @@ private:
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
+
+    Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterBeamPruning_;
+    Core::Statistics<u32> numActiveHyps_;
 };
 
 }  // namespace Search

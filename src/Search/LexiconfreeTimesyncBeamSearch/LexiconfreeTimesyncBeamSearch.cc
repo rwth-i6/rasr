@@ -74,7 +74,10 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
-          contextExtensionTime_() {
+          contextExtensionTime_(),
+          numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
+          numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
+          numActiveHyps_("num-active-hyps") {
     beam_.reserve(maxBeamSize_);
     useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
     if (useBlank_) {
@@ -175,6 +178,9 @@ void LexiconfreeTimesyncBeamSearch::resetStatistics() {
     featureProcessingTime_.reset();
     scoringTime_.reset();
     contextExtensionTime_.reset();
+    numHypsAfterScorePruning_.clear();
+    numHypsAfterBeamPruning_.clear();
+    numActiveHyps_.clear();
 }
 
 void LexiconfreeTimesyncBeamSearch::logStatistics() const {
@@ -184,6 +190,9 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
     clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
+    numHypsAfterScorePruning_.write(clog());
+    numHypsAfterBeamPruning_.write(clog());
+    numActiveHyps_.write(clog());
 }
 
 Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
@@ -284,6 +293,10 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("search-step-stats");
+    }
+
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
 
@@ -341,17 +354,21 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     /*
      * Prune set of possible extensions by max beam size and possibly also by score.
      */
-    beamPruning(extensions);
-    if (debugLogging_) {
-        log() << extensions.size() << " candidates survived beam pruning";
-    }
 
     if (useScorePruning_) {
         scorePruning(extensions);
 
-        if (debugLogging_) {
-            log() << extensions.size() << " candidates survived score pruning";
+        numHypsAfterScorePruning_ += extensions.size();
+
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlOpen("num-hyps-after-score-pruning") << extensions.size() << Core::XmlClose("num-hyps-after-score-pruning");
         }
+    }
+
+    beamPruning(extensions);
+    numHypsAfterBeamPruning_ += extensions.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("num-hyps-after-beam-pruning") << extensions.size() << Core::XmlClose("num-hyps-after-beam-pruning");
     }
 
     /*
@@ -376,9 +393,13 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * all develop in the same way.
      */
     recombination(newBeam);
-    if (debugLogging_) {
-        log() << newBeam.size() << " hypotheses after recombination";
+    numActiveHyps_ += newBeam.size();
 
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("active-hyps") << newBeam.size() << Core::XmlClose("active-hyps");
+    }
+
+    if (debugLogging_) {
         std::stringstream ss;
         for (size_t hypIdx = 0ul; hypIdx < newBeam.size(); ++hypIdx) {
             ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam[hypIdx].toString() << "\n";
@@ -389,8 +410,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     beam_ = std::move(newBeam);
 
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
-        clog() << Core::XmlOpen("active-hyps") << beam_.size() << Core::XmlClose("active-hyps");
         clog() << Core::XmlOpen("best-hyp-score") << getBestHypothesis().score << Core::XmlClose("best-hyp-score");
         clog() << Core::XmlOpen("worst-hyp-score") << getWorstHypothesis().score << Core::XmlClose("worst-hyp-score");
         clog() << Core::XmlClose("search-step-stats");

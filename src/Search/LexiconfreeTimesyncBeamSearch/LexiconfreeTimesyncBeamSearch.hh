@@ -145,6 +145,12 @@ private:
     Bliss::LexiconRef            lexicon_;
     std::vector<LabelHypothesis> beam_;
 
+    // Pre-allocated intermediate vectors
+    std::vector<ExtensionCandidate>       extensions_;
+    std::vector<LabelHypothesis>          newBeam_;
+    std::vector<Nn::LabelScorer::Request> requests_;
+    std::vector<LabelHypothesis>          recombinedHypotheses_;
+
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;

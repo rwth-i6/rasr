@@ -55,7 +55,7 @@ public:
 
     std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) const;
     SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
-    SearchAlgorithmV2*                   createSearchAlgorithm(const Core::Configuration& config) const;
+    SearchAlgorithmV2*                   createSearchAlgorithmV2(const Core::Configuration& config) const;
     LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 };
 

@@ -109,7 +109,7 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
     return recognizer;
 }
 
-SearchAlgorithmV2* Module_::createSearchAlgorithm(const Core::Configuration& config) const {
+SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& config) const {
     SearchAlgorithmV2* searchAlgorithm = 0;
     switch (searchTypeV2Param(config)) {
         case LexiconfreeTimesyncBeamSearchType:

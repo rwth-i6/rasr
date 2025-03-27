@@ -33,14 +33,18 @@
 namespace Nn {
 
 /*
- * Wraps the data of various data structures in a `std::shared_ptr`
- * without copying while making sure that the data is not invalidated.
- * This is achieved via custom deleters in the shared_ptr's which tie
- * the lifetime of the original datastructure to the shared_ptr.
+ * This class encapsulates a std::shared_ptr and a size. The internal shared_ptr is tied
+ * to the lifetime of the original data container in order to make sure
+ * it stays valid as long as the view is alive.
+ *
+ * It can be initialized using various data containers such as a
+ * Core::Ref<Mm::Feature::Vector>, another shared_ptr, an Onnx::Value
+ * or a pybind11::array_t.
  */
 class DataView {
 public:
     DataView(DataView const& dataView);
+    DataView(DataView const& dataView, size_t size, size_t offset = 0ul);
     DataView(Core::Ref<Mm::Feature::Vector const> const& featureVectorRef);
     DataView(std::shared_ptr<f32 const[]> const& ptr, size_t size, size_t offset = 0ul);
 
@@ -52,12 +56,13 @@ public:
     DataView(pybind11::array_t<f32> const& array, size_t size, size_t offset = 0ul);
 #endif
 
-    operator std::shared_ptr<f32 const[]>() const {
-        return dataPtr_;
-    }
-
     f32 const* data() const {
         return dataPtr_.get();
+    }
+
+    f32 operator[](size_t idx) const {
+        verify(idx < size_);
+        return dataPtr_[idx];
     }
 
     size_t size() const {

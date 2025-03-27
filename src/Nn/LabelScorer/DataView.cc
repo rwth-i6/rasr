@@ -3,7 +3,11 @@
 namespace Nn {
 
 DataView::DataView(DataView const& dataView)
-        : dataPtr_(dataView) {
+        : dataPtr_(dataView.dataPtr_), size_(dataView.size_) {
+}
+
+DataView::DataView(DataView const& dataView, size_t size, size_t offset)
+        : dataPtr_(dataView.dataPtr_, dataView.data() + offset), size_(size) {
 }
 
 DataView::DataView(std::shared_ptr<f32 const[]> const& ptr, size_t size, size_t offset)

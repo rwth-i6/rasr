@@ -35,12 +35,8 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreW
     if (inputBuffer_.size() <= stepHistory->currentStep) {
         return {};
     }
-    auto& currentInput = inputBuffer_.at(stepHistory->currentStep);
-    if (request.nextToken >= currentInput.size()) {
-        error() << "Tried to get score for token index " << request.nextToken << " but only have " << currentInput.size() << " scores available.";
-    }
 
-    return ScoreWithTime{currentInput.data()[request.nextToken], stepHistory->currentStep};
+    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
 }
 
 }  // namespace Nn

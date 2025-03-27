@@ -43,6 +43,9 @@ endif
 ifdef MODULE_OPENFST
 ARCHIVER_O += ../../OpenFst/libSprintOpenFst.$(a)
 endif
+ifdef MODULE_ONNX
+ARCHIVER_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_LM_TFRNN
 ARCHIVER_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

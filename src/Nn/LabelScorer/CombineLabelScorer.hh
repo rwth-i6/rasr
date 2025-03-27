@@ -50,10 +50,10 @@ public:
     ScoringContextRef extendedScoringContext(Request const& request);
 
     // Add input to all sub-scorers
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
+    void addInput(DataView const& input);
 
     // Add inputs to all sub-scorers
-    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    virtual void addInputs(DataView const& input, size_t nTimesteps);
 
     // Compute weighted score of request with all sub-scorers
     std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);

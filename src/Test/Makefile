@@ -104,6 +104,9 @@ endif
 ifdef MODULE_OPENFST
 UNIT_TEST_O += ../OpenFst/libSprintOpenFst.$(a)
 endif
+ifdef MODULE_ONNX
+UNIT_TEST_O += ../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 UNIT_TEST_O += ../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

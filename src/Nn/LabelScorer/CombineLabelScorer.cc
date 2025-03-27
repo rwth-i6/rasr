@@ -71,15 +71,15 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
-void CombineLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
+void CombineLabelScorer::addInput(DataView const& input) {
     for (auto& scaledScorer : scaledScorers_) {
-        scaledScorer.scorer->addInput(input, featureSize);
+        scaledScorer.scorer->addInput(input);
     }
 }
 
-void CombineLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     for (auto& scaledScorer : scaledScorers_) {
-        scaledScorer.scorer->addInputs(input, timeSize, featureSize);
+        scaledScorer.scorer->addInputs(input, nTimesteps);
     }
 }
 

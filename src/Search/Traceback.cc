@@ -17,6 +17,9 @@
 
 #include <stack>
 
+#include <Lattice/LatticeAdaptor.hh>
+#include <Speech/Types.hh>
+
 namespace Search {
 
 void Traceback::write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi) const {

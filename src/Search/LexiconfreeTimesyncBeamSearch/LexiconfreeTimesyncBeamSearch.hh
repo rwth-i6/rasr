@@ -81,7 +81,7 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
-    static const Core::ParameterBool  paramAllowLabelLoop;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -136,7 +136,7 @@ private:
     bool           useBlank_;
     Nn::LabelIndex blankLabelIndex_;
 
-    bool allowLabelLoop_;
+    bool collapseRepeatedLabels_;
 
     bool logStepwiseStatistics_;
 

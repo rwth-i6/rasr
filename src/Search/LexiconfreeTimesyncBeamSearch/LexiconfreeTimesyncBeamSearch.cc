@@ -105,8 +105,8 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
         Core::Type<int>::max);
 
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramAllowLabelLoop(
-        "allow-label-loop",
+const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
+        "collapse-repeated-labels",
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
@@ -121,7 +121,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           maxBeamSize_(paramMaxBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
-          allowLabelLoop_(paramAllowLabelLoop(config)),
+          collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug", Core::Channel::standard),
           labelScorer_(),
@@ -416,7 +416,7 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
         }
-        else if (allowLabelLoop_ and prevLabel == nextLabel) {
+        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::LabelScorer::TransitionType::LABEL_LOOP;
         }
         else {

@@ -246,8 +246,11 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
 
     /*
      * Collect all possible extensions for all hypotheses in the beam.
+     * Also Create scoring requests for the label scorer.
+     * Each extension candidate makes up a request.
      */
     extensions_.clear();
+    requests_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -257,23 +260,17 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             const Bliss::Lemma* lemma(*lemmaIt);
             Nn::LabelIndex      tokenIdx = lemma->id();
 
+            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
                      hyp.score,
                      0,
-                     inferTransitionType(hyp.currentToken, tokenIdx),
+                     transitionType,
                      hypIndex});
+            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
-    }
-
-    /*
-     * Create scoring requests for the label scorer.
-     * Each extension candidate makes up a request.
-     */
-    requests_.clear();
-    for (const auto& extension : extensions_) {
-        requests_.push_back({beam_[extension.baseHypIndex].scoringContext, extension.nextToken, extension.transitionType});
     }
 
     /*
@@ -288,9 +285,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         return false;
     }
 
-    for (size_t requestIdx = 0ul; requestIdx < extensions_.size(); ++requestIdx) {
-        extensions_[requestIdx].score += result->scores[requestIdx];
-        extensions_[requestIdx].timeframe = result->timeframes[requestIdx];
+    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+        extensions_[extensionIdx].score += result->scores[extensionIdx];
+        extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
     }
 
     /*
@@ -307,7 +304,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
-    beamPruning(extensions_);
+    beamSizePruning(extensions_);
     numHypsAfterBeamPruning_ += extensions_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", extensions_.size());
@@ -428,7 +425,7 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::beamPruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
+void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
     if (extensions.size() <= maxBeamSize_) {
         return;
     }

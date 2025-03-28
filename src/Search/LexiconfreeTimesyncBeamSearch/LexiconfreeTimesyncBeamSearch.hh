@@ -116,7 +116,7 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamPruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
 
     /*
      * Helper function for pruning to scoreThreshold_

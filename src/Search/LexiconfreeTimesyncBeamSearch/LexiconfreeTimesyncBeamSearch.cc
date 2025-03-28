@@ -139,7 +139,6 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numActiveHyps_("num-active-hyps") {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
-    requests_.reserve(extensions_.size());
     recombinedHypotheses_.reserve(maxBeamSize_);
     useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
     if (useBlank_) {
@@ -153,9 +152,11 @@ Speech::ModelCombination::Mode LexiconfreeTimesyncBeamSearch::requiredModelCombi
 }
 
 bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
-    lexicon_ = modelCombination.lexicon();
-    extensions_.reserve(maxBeamSize_ * lexicon_->nLemmas());
+    lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
+
+    extensions_.reserve(maxBeamSize_ * lexicon_->nLemmas());
+    requests_.reserve(extensions_.size());
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {

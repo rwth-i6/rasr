@@ -160,6 +160,8 @@ private:
     Core::Statistics<u32> numHypsAfterScorePruning_;
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
+
+    bool finishedSegment_;
 };
 
 }  // namespace Search

@@ -136,7 +136,8 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           contextExtensionTime_(),
           numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
-          numActiveHyps_("num-active-hyps") {
+          numActiveHyps_("num-active-hyps"),
+          finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
@@ -184,6 +185,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
+    finishedSegment_ = false;
+
     initializationTime_.stop();
 }
 
@@ -192,6 +195,7 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     labelScorer_->reset();
     resetStatistics();
     initializationTime_.stop();
+    finishedSegment_ = false;
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
@@ -200,6 +204,7 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
     logStatistics();
+    finishedSegment_ = true;
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
@@ -238,6 +243,10 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
+    if (finishedSegment_) {
+        return false;
+    }
+
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
 

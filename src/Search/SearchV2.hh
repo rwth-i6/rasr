@@ -43,13 +43,11 @@ namespace Search {
  *  4. Pass audio features via `putFeature` or `putFeatures`.
  *  (5. Call `decodeStep` or `decodeManySteps` to run the next search step(s) given the currently available features.)
  *  (6. Optionally retrieve intermediate results via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.)
- *  7. Call `finishSegment` to signal that all features have been passed and the search doesn't need to wait for more.
- *  8. Call `decodeMore` to finalize the search with all the segment features.
- *  9. Retrieve the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
- *  (10. Optionally log search statistics via `logStatistics`).
- *  11. Call `reset` to clean up any buffered features, hypotheses, flags etc. from the previous segment and prepare the algorithm for the next one.
- *  (12. Optionally also reset search statistics via `resetStatistics`).
- *  13. Continue again at step 3.
+ *  7. Call `finishSegment` to signal that all features have been passed and finalize the search with all the segment features.
+ *  8. Retrieve the final result via `getCurrentBestTraceback` or `getCurrentBestWordLattice`.
+ *  9. Call `reset` to clean up any buffered features, hypotheses, flags etc. from the previous segment and prepare the algorithm for the next one.
+ *  (10. Optionally also reset search statistics via `resetStatistics`).
+ *  11. Continue again at step 3.
  */
 class SearchAlgorithmV2 : public virtual Core::Component {
 public:

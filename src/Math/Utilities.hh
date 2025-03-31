@@ -72,8 +72,8 @@ struct absoluteDifferenceSquare : public std::binary_function<T, T, T> {
 };
 
 /*
-     * returns true, if the quadratic equation has a real solution
-     */
+ * returns true, if the quadratic equation has a real solution
+ */
 template<typename T>
 bool solveQuadraticEquation(T p, T q, T& xplus, T& xminus) {
     T discriminant = 0.25 * p * p - q;

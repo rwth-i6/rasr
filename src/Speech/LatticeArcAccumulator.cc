@@ -139,11 +139,11 @@ LatticeArcAccumulatorNode::LatticeArcAccumulatorNode(const Core::Configuration& 
 }
 
 LatticeArcAccumulatorNode::~LatticeArcAccumulatorNode() {
-    //write statistics write-filename given
+    // write statistics write-filename given
     if (pronunciationStatsFilenameWrite_ != "")
         arcAccumulator_->write(pronunciationStatsFilenameWrite_);
 
-    //exit if lexicon-filename not given
+    // exit if lexicon-filename not given
     if (lexiconFilename_ == "")
         return;
 

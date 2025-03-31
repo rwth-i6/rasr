@@ -273,7 +273,7 @@ void Lexicon::updateLemma(Lemma* _lemma) {
 
 Fsa::LabelId Lexicon::lemmaId(const std::string& id) {
     Fsa::LabelId label = lemmaAlphabet()->specialIndex(id);
-    //Fsa::LabelId label = lemmaAlphabet()->index(id);
+    // Fsa::LabelId label = lemmaAlphabet()->index(id);
     if (label != Fsa::InvalidLabelId)
         return label;
     std::pair<Lemma*, bool> lb = getLemma(id);
@@ -329,7 +329,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
         criticalError("Invalid lemma pronunciation symbol \"%s\".",
                       id.c_str());
 
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -339,7 +339,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
     // Get lemma and pronunciation
     Lemma* _lemma = getLemma(orth).first;
     if (!_lemma) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -350,7 +350,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
             return lpRange.first->id();
     }
     if (isReadOnly_) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -388,14 +388,14 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& orth, s32 variant)
     const Lemma* _lemma = getLemma(orth).first;
     if (!_lemma) {
         criticalError("orthography not found in lexicon: ") << orth;
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
     }
     const LemmaPronunciation* _lemmaPron = lemmaPronunciation(_lemma, variant);
     if (!_lemmaPron) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;

@@ -23,10 +23,10 @@
 namespace Audio {
 
 /**
-     * Access to Open Sound System audio device.
-     * OSS is the traditional Linux sound driver, and is also
-     * available for on many other Unices,
-     */
+ * Access to Open Sound System audio device.
+ * OSS is the traditional Linux sound driver, and is also
+ * available for on many other Unices,
+ */
 class OpenSoundSystemDevice : public virtual Node {
 protected:
     int  fd_;

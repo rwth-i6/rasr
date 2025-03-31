@@ -65,6 +65,6 @@ public:
     static DensityIndex accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

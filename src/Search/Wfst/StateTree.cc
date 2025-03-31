@@ -384,7 +384,7 @@ OpenFst::VectorFst* StateTreeConverter::createStateSequenceToEmissionTransducer(
             const bool       isInitial = (state == 0 && seq.isInitial());
             const bool       isFinal   = (isLastState && seq.isFinal());
             OpenFst::Label   output    = encodeHmmState(seq.state(state).emission_, seq.state(state).transition_,
-                                                   isInitial, isFinal);
+                                                        isInitial, isFinal);
             if (isLastState) {
                 ns    = initial;
                 input = OpenFst::convertLabelFromFsa(seqId);

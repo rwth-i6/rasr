@@ -111,10 +111,10 @@ u32 HMMStateNetwork::stateCount() const {
 }
 
 bool HMMStateNetwork::write(Core::MappedArchiveWriter writer) {
-    u32               version = DiskFormatVersionV2;
+    u32 version = DiskFormatVersionV2;
     // The previous version used a vector of trees, where index 0 represented an invalid tree and index 1 contained the actual master tree.
     // Therefore, to mainain backward compatibility, the tree needs to be written into a similar vector structure, which is then saved to the cache.
-    std::vector<Tree> trees   = {Tree(), tree_};
+    std::vector<Tree> trees = {Tree(), tree_};
     writer << version << subTreeListBatches_ << states_ << edgeTargetLists_ << edgeTargetBatches_ << trees;
     return writer.good();
 }

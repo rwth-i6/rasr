@@ -31,7 +31,7 @@ class PhonemeInventoryElement : public Core::XmlBuilderElement<
             PhonemeInventory,
             Core::XmlRegularElement,
             Core::CreateUsingNew>
-            Precursor;
+                                    Precursor;
     typedef PhonemeInventoryElement Self;
 
 private:
@@ -61,7 +61,7 @@ class LexiconElement : public Core::XmlBuilderElement<
             Lexicon,
             Core::XmlRegularElement,
             Core::CreateByContext>
-            Precursor;
+                           Precursor;
     typedef LexiconElement Self;
 
 private:
@@ -93,7 +93,7 @@ private:
 
 public:
     LexiconElement(Core::XmlContext*, CreationHandler, const Core::Configuration& c);
-    virtual void characters(const char*, int){};
+    virtual void characters(const char*, int) {};
 };
 
 /**

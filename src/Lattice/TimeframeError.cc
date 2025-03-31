@@ -393,4 +393,4 @@ ConstWordLatticeRef getWordTimeframeAccuracy(ConstWordLatticeRef lattice,
     return result;
 }
 
-}  //namespace Lattice
+}  // namespace Lattice

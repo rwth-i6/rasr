@@ -14,11 +14,11 @@
  */
 
 #include "Traceback.hh"
-#include <Lattice/LatticeAdaptor.hh>
-#include <Speech/Types.hh>
-#include <stack>
 
 #include <stack>
+
+#include <Lattice/LatticeAdaptor.hh>
+#include <Speech/Types.hh>
 
 namespace Search {
 
@@ -81,11 +81,11 @@ Lattice::WordLatticeRef Traceback::wordLattice(Core::Ref<const Bliss::Lexicon> l
 }
 
 LatticeTrace::LatticeTrace(
-        Core::Ref<LatticeTrace> const&        predecessor,
-        const Bliss::LemmaPronunciation*      pronunciation,
-        Speech::TimeframeIndex                timeframe,
-        ScoreVector                           scores,
-        Search::TracebackItem::Transit const& transit)
+        Core::Ref<LatticeTrace> const&   predecessor,
+        const Bliss::LemmaPronunciation* pronunciation,
+        Speech::TimeframeIndex           timeframe,
+        ScoreVector                      scores,
+        Transit const&                   transit)
         : TracebackItem(pronunciation, timeframe, scores, transit), predecessor(predecessor), sibling() {}
 
 LatticeTrace::LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit)

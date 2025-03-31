@@ -58,7 +58,7 @@ private:
             Score diffScore = score - Score(fastState(trace)->weight_);
             // mark states that already have an arc with output label
             State* sp = newState(StateTagHasOutput);
-            //std::cout << "add " << trace << " (" << sp->id() << ")" << std::endl;
+            // std::cout << "add " << trace << " (" << sp->id() << ")" << std::endl;
             sp->weight_ = Weight(score);  // temporary potential
             sp->newArc(trace, Weight(diffScore), output);
             return sp->id();

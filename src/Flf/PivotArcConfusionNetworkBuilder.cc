@@ -525,8 +525,8 @@ private:
 
 private:
     /**
-         * Start: For Debugging
-         **/
+     * Start: For Debugging
+     **/
     void dump(PivotArcCn::SlotPtrList& slots) const {
         Fsa::ConstAlphabetRef alphabet = pcn_->l_->getInputAlphabet();
         u32                   slotId   = 0;

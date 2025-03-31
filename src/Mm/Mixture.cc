@@ -49,7 +49,7 @@ Mixture::Mixture(const MixtureSet& mixtureSet) {
 
 Mixture& Mixture::operator=(const Mixture& mixture) {
     Precursor::operator=(mixture);
-    logWeights_        = mixture.logWeights_;
+    logWeights_ = mixture.logWeights_;
     return *this;
 }
 

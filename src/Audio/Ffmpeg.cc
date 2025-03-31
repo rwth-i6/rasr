@@ -227,7 +227,7 @@ bool FfmpegInputNode::openFile_() {
     setSampleSize(8 * av_get_bytes_per_sample(packed_fmt));
     setTrackCount(internal_->cdc_ctx->channels);
 
-    //set seeking cursor
+    // set seeking cursor
     lastSeekTime_ = 0;
 
 cleanup:
@@ -305,7 +305,7 @@ bool FfmpegInputNode::seek(SampleCount newSamplePos) {
     // flush output buffer
     flush_buffer(buffer_);
 
-    //set seek cursor
+    // set seek cursor
     lastSeekTime_ = stream_time;
 
     return true;

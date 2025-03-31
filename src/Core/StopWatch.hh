@@ -15,6 +15,7 @@
 #ifndef STOPWATCH_HH
 #define STOPWATCH_HH
 
+#include <chrono>
 #include <sys/time.h>
 
 namespace Core {
@@ -28,11 +29,6 @@ public:
     StopWatch();
 
     /*
-     * Stops timer if it is running and resets accumulated time to zero.
-     */
-    void reset();
-
-    /*
      * Start timer. Does nothing if timer is already running.
      */
     void start();
@@ -41,6 +37,11 @@ public:
      * End running timer and add duration to total. Does nothing if timer is not running.
      */
     void stop();
+
+    /*
+     * Stops timer if it is running and resets accumulated time to zero.
+     */
+    void reset();
 
     /*
      * Getter functions to get the total elapsed time in different units. Includes the current interval
@@ -53,9 +54,9 @@ public:
     double elapsedNanoseconds() const;
 
 private:
-    bool    running_;
-    timeval startTime_;
-    double  elapsedSeconds_;
+    bool                                  running_;
+    std::chrono::steady_clock::time_point startTime_;
+    size_t                                elapsedNanoseconds_;
 };
 
 }  // namespace Core

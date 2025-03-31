@@ -238,10 +238,6 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlOpen("search-step-stats");
-    }
-
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
 
@@ -289,6 +285,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
         extensions_[extensionIdx].score += result->scores[extensionIdx];
         extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
+    }
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlOpen("search-step-stats");
     }
 
     /*

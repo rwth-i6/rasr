@@ -123,7 +123,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           blankLabelIndex_(paramBlankLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
-          debugChannel_(config, "debug", Core::Channel::standard),
+          debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
           extensions_(),

@@ -101,33 +101,6 @@ public:
     bool                            decodeStep() override;
 
 private:
-    LabelHypothesis const& getBestHypothesis() const;
-    LabelHypothesis const& getWorstHypothesis() const;
-
-    void resetStatistics();
-    void logStatistics() const;
-
-    /*
-     * Infer type of transition between two tokens based on whether each of them is blank
-     * and/or whether they are the same
-     */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
-
-    /*
-     * Helper function for pruning to maxBeamSize_
-     */
-    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
-
-    /*
-     * Helper function for pruning to scoreThreshold_
-     */
-    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
-
-    /*
-     * Helper function for recombination of hypotheses with the same scoring context
-     */
-    void recombination(std::vector<LabelHypothesis>& hypotheses);
-
     size_t maxBeamSize_;
 
     bool  useScorePruning_;
@@ -162,6 +135,34 @@ private:
     Core::Statistics<u32> numActiveHyps_;
 
     bool finishedSegment_;
+  
+
+    LabelHypothesis const& getBestHypothesis() const;
+    LabelHypothesis const& getWorstHypothesis() const;
+
+    void resetStatistics();
+    void logStatistics() const;
+
+    /*
+     * Infer type of transition between two tokens based on whether each of them is blank
+     * and/or whether they are the same
+     */
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+
+    /*
+     * Helper function for pruning to maxBeamSize_
+     */
+    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+
+    /*
+     * Helper function for pruning to scoreThreshold_
+     */
+    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+
+    /*
+     * Helper function for recombination of hypotheses with the same scoring context
+     */
+    void recombination(std::vector<LabelHypothesis>& hypotheses);
 };
 
 }  // namespace Search

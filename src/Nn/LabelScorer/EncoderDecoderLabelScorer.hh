@@ -17,6 +17,7 @@
 #define ENCODER_DECODER_LABEL_SCORER_HH
 
 #include <Core/Component.hh>
+
 #include "Encoder.hh"
 #include "LabelScorer.hh"
 
@@ -68,7 +69,7 @@ private:
 
     // Fetch as many outputs as possible from the encoder given its available features and pass
     // these outputs over to the decoder
-    void passEncoderToDecoder();
+    void passEncoderOutputsToDecoder();
 };
 
 }  // namespace Nn

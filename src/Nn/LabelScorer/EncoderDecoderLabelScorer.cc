@@ -39,7 +39,7 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
 
 void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
     encoder_->addInput(input, featureSize);
-    passEncoderToDecoder();
+    passEncoderOutputsToDecoder();
 }
 
 void EncoderDecoderLabelScorer::addInput(std::vector<f32> const& input) {
@@ -51,19 +51,19 @@ void EncoderDecoderLabelScorer::addInput(std::vector<f32> const& input) {
             inputWrapper->data(),
             [inputWrapper](const f32*) mutable {});
     encoder_->addInput(dataPtr, input.size());
-    passEncoderToDecoder();
+    passEncoderOutputsToDecoder();
 }
 
 void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
     encoder_->addInputs(input, timeSize, featureSize);
-    passEncoderToDecoder();
+    passEncoderOutputsToDecoder();
 }
 
 void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     encoder_->signalNoMoreFeatures();
-    // Call `passEncoderToDecoder()` before signaling segment end to the decoder since the decoder
+    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
     // is supposed to receive all available encoder outputs before this signal
-    passEncoderToDecoder();
+    passEncoderOutputsToDecoder();
     decoder_->signalNoMoreFeatures();
 }
 
@@ -75,7 +75,7 @@ std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeSc
     return decoder_->computeScoresWithTimes(requests);
 }
 
-void EncoderDecoderLabelScorer::passEncoderToDecoder() {
+void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
     std::optional<std::shared_ptr<const f32[]>> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
         decoder_->addInput(*encoderOutput, encoder_->getOutputSize());

@@ -50,19 +50,19 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     featureExtractor_->enterSegment(segment);
     DataSourceRef dataSource = featureExtractor_->extractor();
+    dataSource->initialize(const_cast<Bliss::SpeechSegment*>(segment));
 
     auto timerStart = std::chrono::steady_clock::now();
 
-    dataSource->initialize(const_cast<Bliss::SpeechSegment*>(segment));
     FeatureRef feature;
     dataSource->getData(feature);
-    Time startTime = feature->timestamp().startTime();
-    Time endTime;
+    Time startTimestamp = feature->timestamp().startTime();
+    Time endTimestamp;
 
     // Loop over features and perform recognition
     do {
         searchAlgorithm_->putFeature(*feature->mainStream());
-        endTime = feature->timestamp().endTime();
+        endTimestamp = feature->timestamp().endTime();
     } while (dataSource->getData(feature));
 
     searchAlgorithm_->finishSegment();
@@ -91,7 +91,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     auto   timerEnd       = std::chrono::steady_clock::now();
     double duration       = std::chrono::duration<double, std::milli>(timerEnd - timerStart).count();
-    double signalDuration = (endTime - startTime) * 1000.;  // convert duration to ms
+    double signalDuration = (endTimestamp - startTimestamp) * 1000.;  // convert duration to ms
 
     clog() << Core::XmlOpen("flf-recognizer-time") + Core::XmlAttribute("unit", "milliseconds") << duration << Core::XmlClose("flf-recognizer-time");
     clog() << Core::XmlOpen("flf-recognizer-rtf") << (duration / signalDuration) << Core::XmlClose("flf-recognizer-rtf");

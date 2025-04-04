@@ -135,7 +135,6 @@ private:
     Core::Statistics<u32> numActiveHyps_;
 
     bool finishedSegment_;
-  
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

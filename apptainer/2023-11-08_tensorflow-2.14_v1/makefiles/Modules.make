@@ -148,6 +148,7 @@ endif
 
 # ****** Libraries ******
 LIBS_SEARCH = src/Search/libSprintSearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a)
 ifdef MODULE_SEARCH_WFST
 LIBS_SEARCH += src/Search/Wfst/libSprintSearchWfst.$(a)
 LIBS_SEARCH += src/OpenFst/libSprintOpenFst.$(a)

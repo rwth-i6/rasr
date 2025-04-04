@@ -74,7 +74,7 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
 }
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
-    SearchAlgorithm* recognizer = 0;
+    SearchAlgorithm* recognizer = nullptr;
     switch (type) {
         case WordConditionedTreeSearchType:
             recognizer = new Search::WordConditionedTreeSearch(config);
@@ -110,7 +110,7 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 }
 
 SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& config) const {
-    SearchAlgorithmV2* searchAlgorithm = 0;
+    SearchAlgorithmV2* searchAlgorithm = nullptr;
     switch (searchTypeV2Param(config)) {
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);

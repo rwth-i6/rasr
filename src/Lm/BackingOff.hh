@@ -125,7 +125,7 @@ public:
         const WordScore* start;
         const WordScore* end;
 
-        //Back-off score offset that is applied to the lower-order back-off scores (not to these ones)
+        // Back-off score offset that is applied to the lower-order back-off scores (not to these ones)
         Score backOffScore;
     };
 
@@ -147,7 +147,6 @@ protected:
 
     void             initTokenMapping(bool build = false);
     Bliss::Token::Id reverseMapToken(Bliss::Token::Id tIdx) const;
-
 };
 
 }  // namespace Lm

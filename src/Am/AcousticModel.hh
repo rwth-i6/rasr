@@ -109,7 +109,7 @@ public:
     bool isWeakCompatible(const Mm::FeatureDescription& description) const;
 
     /** Override this function to add triggers to the corpus visitor */
-    virtual void signOn(Speech::CorpusVisitor& corpusVisitor){};
+    virtual void signOn(Speech::CorpusVisitor& corpusVisitor) {};
 
     /** Override this function to trigger manually (needed in 'Flow') */
     virtual bool setKey(const std::string& key);

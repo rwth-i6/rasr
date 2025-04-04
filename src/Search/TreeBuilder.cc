@@ -13,12 +13,17 @@
  *  limitations under the License.
  */
 #include "TreeBuilder.hh"
+
+#include <algorithm>
+
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
-#include <Search/StateTree.hh>
-#include <algorithm>
+
+#include "Helpers.hh"
 #include "PersistentStateTree.hh"
+#include "StateTree.hh"
+#include "Types.hh"
 
 using namespace Search;
 
@@ -1200,8 +1205,26 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 
 // -------------------- CtcTreeBuilder --------------------
 
+const Core::ParameterBool CtcTreeBuilder::paramLabelLoop(
+        "allow-label-loop",
+        "allow label loops in the search tree",
+        true);
+
+const Core::ParameterBool CtcTreeBuilder::paramBlankLoop(
+        "allow-blank-loop",
+        "allow loops on the blank nodes in the search tree",
+        true);
+
+const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
+        "force-blank-between-repeated-labels",
+        "require a blank label between two identical labels (only works if label-loops are disabled)",
+        true);
+
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
-        : AbstractTreeBuilder(config, lexicon, acousticModel, network) {
+        : AbstractTreeBuilder(config, lexicon, acousticModel, network),
+          labelLoop_(paramLabelLoop(config)),
+          blankLoop_(paramBlankLoop(config)),
+          forceBlank_(paramForceBlank(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1298,7 +1321,8 @@ StateId CtcTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc de
 }
 
 void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    auto const& successorStateDesc = network_.structure.state(successor).stateDesc;
+    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
+    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
 
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
@@ -1344,10 +1368,16 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
 
                 // Add new (non-blank) state
                 currentState = extendState(currentState, desc);
-                // Add loop for this state
-                addTransition(currentState, currentState);
-                // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
-                if (prevNonBlankState != invalidTreeNodeIndex) {
+
+                if (labelLoop_) {
+                    // Add loop for this state
+                    addTransition(currentState, currentState);
+                }
+
+                bool label_repetition = prevNonBlankState != currentState and prevNonBlankState != invalidTreeNodeIndex and network_.structure.state(prevNonBlankState).stateDesc == network_.structure.state(currentState).stateDesc;
+                if (prevNonBlankState != invalidTreeNodeIndex and not(label_repetition and forceBlank_)) {
+                    // Add transition from previous non-blank state to this state, allowing to skip the blank state in-between these two
+                    // If we want to enforce blank between repeated labels, don't add a transition between two distinct states of equal description
                     addTransition(prevNonBlankState, currentState);
                 }
                 prevNonBlankState = currentState;
@@ -1356,8 +1386,11 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 if (not allophoneIsBlank and not isLastStateInLemma) {
                     // Add blank state after the newly created state
                     currentState = extendState(currentState, blankDesc_);
-                    // Add loop for this blank state
-                    addTransition(currentState, currentState);
+
+                    if (blankLoop_) {
+                        // Add loop for this blank state
+                        addTransition(currentState, currentState);
+                    }
                 }
             }
         }
@@ -1396,6 +1429,27 @@ void CtcTreeBuilder::addWordBoundaryStates() {
     for (StateId wbs : wordBoundaryLemmaStartStates) {
         network_.structure.addTargetToNode(blankBefore, wbs);
     }
-    // Add loop for this blank state
-    addTransition(blankBefore, blankBefore);
+
+    if (blankLoop_) {
+        // Add loop for this blank state
+        addTransition(blankBefore, blankBefore);
+    }
+}
+
+// -------------------- RnaTreeBuilder --------------------
+
+const Core::ParameterBool RnaTreeBuilder::paramLabelLoop(
+        "allow-label-loop",
+        "allow label loops in the search tree",
+        false);
+
+const Core::ParameterBool RnaTreeBuilder::paramForceBlank(
+        "force-blank-between-repeated-labels",
+        "require a blank label between two identical labels (only works if label-loops are disabled)",
+        false);
+
+RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+        : CtcTreeBuilder(config, lexicon, acousticModel, network, initialize) {
+    this->labelLoop_  = paramLabelLoop(config);
+    this->forceBlank_ = paramForceBlank(config);
 }

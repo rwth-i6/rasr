@@ -67,7 +67,7 @@ protected:
     std::map<std::string, PortId> outputNameToPort_;
 
 public:
-    //typedef according to sprint naming rule for access to super class
+    // typedef according to sprint naming rule for access to super class
     typedef SleeveNode Precursor;
 
     // constructor and destructor
@@ -96,5 +96,5 @@ public:
     // void dumpConfig(const Core::Configuration &c );
 };
 
-};      // namespace Flow
+};  // namespace Flow
 #endif  // _FLOW_DEMO_HH

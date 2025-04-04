@@ -12,14 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include <Fsa/Semiring.hh>
-#include <Fsa/Sssp.hh>
-#include <Search/MinimumBayesRiskSearchUtil.hh>
+#ifndef SEARCH_BAYES_RISK_ASTAR_SEARCH_HH
+#define SEARCH_BAYES_RISK_ASTAR_SEARCH_HH
+
 #include <list>
 #include <map>
 #include <queue>
 #include <set>
 #include <vector>
+
+#include <Fsa/Semiring.hh>
+#include <Fsa/Sssp.hh>
+#include <Search/MinimumBayesRiskSearchUtil.hh>
+
 #include "MinimumBayesRiskSearch.hh"
 
 namespace Search {
@@ -389,4 +394,6 @@ public:
     void performSearch(Fsa::ConstAutomatonRef fsa);
 };
 
-}  //end namespace Search
+}  // end namespace Search
+
+#endif  // SEARCH_BAYES_RISK_ASTAR_SEARCH_HH

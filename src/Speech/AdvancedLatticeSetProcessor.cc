@@ -309,4 +309,3 @@ void EpsilonRemoval::processWordLattice(Lattice::ConstWordLatticeRef lattice, Bl
         error("skip segment because lattice is empty");
     }
 }
-

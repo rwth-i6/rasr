@@ -306,7 +306,7 @@ public:
         cnPosteriorKey_ = paramPosteriorKey(select("cn"));
         if (cnPosteriorKey_.empty())
             msg << "CN posterior key: " << cnPosteriorKey_ << "\n";
-        //else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
+        // else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
         msg << "Store the following CN features:\n";
         confidenceKey_ = paramKey(select("confidence"));
         if (!confidenceKey_.empty())

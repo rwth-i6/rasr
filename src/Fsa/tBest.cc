@@ -409,7 +409,7 @@ private:
     TraceId search(TracePool& traces) {
         typename Hyp::Priority precedes(this->semiring());
         Core::TracedPriorityQueue<Hyp, Fsa::StateId, typename Hyp::Key, typename Hyp::Priority>
-                stack(precedes);
+                                                  stack(precedes);
         std::unordered_map<Fsa::StateId, _Weight> closed;
 
         Hyp newHyp;

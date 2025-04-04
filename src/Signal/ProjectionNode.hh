@@ -98,7 +98,7 @@ bool ProjectionNode<T>::work(Flow::PortId p) {
 
     Flow::Vector<T>* out = new Flow::Vector<T>;
 
-    //loop over components
+    // loop over components
     u32 cmp = 0;
     for (u32 i = 0; i < nComponents_; i++) {
         cmp = components_[i];

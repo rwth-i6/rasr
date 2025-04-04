@@ -56,6 +56,6 @@ public:
     virtual bool read(Core::BinaryInputStream& i);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  // _MM_BANDMLLRADAPTATION_HH

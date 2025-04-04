@@ -19,6 +19,7 @@
 #include <Modules.hh>
 
 #include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
@@ -81,6 +82,26 @@ Module_::Module_()
             "no-op",
             [](Core::Configuration const& config) {
                 return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
+
+    // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-decoder",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
+                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"))));
+            });
+
+    // A label scorer consisting of an encoder that produces scores based on the features
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-only",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
+                        Core::ref(new StepwiseNoOpLabelScorer(config))));
             });
 };
 

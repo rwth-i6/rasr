@@ -17,8 +17,10 @@
 #define LEXICONFREE_TIMESYNC_BEAM_SEARCH_HH
 
 #include <Bliss/Lexicon.hh>
+#include <Core/Channel.hh>
 #include <Core/Parameter.hh>
 #include <Core/StopWatch.hh>
+#include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/SearchV2.hh>
@@ -49,7 +51,7 @@ protected:
         Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
-        bool operator<(ExtensionCandidate const& other) {
+        bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;
         }
     };
@@ -66,6 +68,10 @@ protected:
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
 
+        bool operator<(LabelHypothesis const& other) const {
+            return score < other.score;
+        }
+
         /*
          * Get string representation for debugging.
          */
@@ -76,11 +82,8 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
-    static const Core::ParameterBool  paramAllowLabelLoop;
-    static const Core::ParameterBool  paramUseSentenceEnd;
-    static const Core::ParameterBool  paramSentenceEndIndex;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
-    static const Core::ParameterBool  paramDebugLogging;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -98,6 +101,44 @@ public:
     bool                            decodeStep() override;
 
 private:
+    size_t maxBeamSize_;
+
+    bool  useScorePruning_;
+    Score scoreThreshold_;
+
+    bool           useBlank_;
+    Nn::LabelIndex blankLabelIndex_;
+
+    bool collapseRepeatedLabels_;
+
+    bool logStepwiseStatistics_;
+
+    Core::Channel debugChannel_;
+
+    Core::Ref<Nn::LabelScorer>   labelScorer_;
+    Bliss::LexiconRef            lexicon_;
+    std::vector<LabelHypothesis> beam_;
+
+    // Pre-allocated intermediate vectors
+    std::vector<ExtensionCandidate>       extensions_;
+    std::vector<LabelHypothesis>          newBeam_;
+    std::vector<Nn::LabelScorer::Request> requests_;
+    std::vector<LabelHypothesis>          recombinedHypotheses_;
+
+    Core::StopWatch initializationTime_;
+    Core::StopWatch featureProcessingTime_;
+    Core::StopWatch scoringTime_;
+    Core::StopWatch contextExtensionTime_;
+
+    Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterBeamPruning_;
+    Core::Statistics<u32> numActiveHyps_;
+
+    bool finishedSegment_;
+
+    LabelHypothesis const& getBestHypothesis() const;
+    LabelHypothesis const& getWorstHypothesis() const;
+
     void resetStatistics();
     void logStatistics() const;
 
@@ -110,41 +151,17 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamPruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
 
     /*
      * Helper function for pruning to scoreThreshold_
-     * Requires that the input extensions are already sorted by score
      */
     void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context
-     * Requires that the input hypotheses are already sorted by score
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
-
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
-    bool           useBlank_;
-    Nn::LabelIndex blankLabelIndex_;
-
-    bool allowLabelLoop_;
-
-    bool logStepwiseStatistics_;
-    bool debugLogging_;
-
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
-
-    Core::StopWatch initializationTime_;
-    Core::StopWatch featureProcessingTime_;
-    Core::StopWatch scoringTime_;
-    Core::StopWatch contextExtensionTime_;
 };
 
 }  // namespace Search

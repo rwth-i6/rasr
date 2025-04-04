@@ -74,10 +74,9 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
         }
         else if (node.op() == "Variable" or node.op() == "VariableV2" or node.op() == "VarHandleOp") {
             DataType    dt       = node.attr().find("dtype")->second.type();
-            std::string var_name = node.name() + ":0"; // same name as used in collections + ":0"
+            std::string var_name = node.name() + ":0";  // same name as used in collections + ":0"
             // different attr for shapes for VarHandleOp
-            const auto& shape = (node.op() == "VarHandleOp") ? node.attr().find("shape")->second.shape() :
-                                                               node.attr().find("_output_shapes")->second.list().shape(0);
+            const auto&      shape = (node.op() == "VarHandleOp") ? node.attr().find("shape")->second.shape() : node.attr().find("_output_shapes")->second.list().shape(0);
             std::vector<s64> dims(static_cast<size_t>(shape.dim_size()));
             for (int i = 0; i < shape.dim_size(); i++) {
                 dims[i] = shape.dim(i).size();

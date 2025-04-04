@@ -230,7 +230,7 @@ bool LutStateTying::loadLut(const std::string& filename) {
 // ============================================================================
 
 const u32 NoStateTyingDense::numBoundaryClasses_ = 4;  // 0: none, 1: start (@i), 2: end (@f), 3: start+end (@i@f)
-const u32 NoStateTyingDense::numWordEndClasses_ = 2; // 0: {none, start (@i)}, 1: {end (@f), 3: start+end (@i@f)}
+const u32 NoStateTyingDense::numWordEndClasses_  = 2;  // 0: {none, start (@i)}, 1: {end (@f), 3: start+end (@i@f)}
 
 const Core::ParameterBool NoStateTyingDense::paramUseBoundaryClasses("use-boundary-classes",
                                                                      "whether boundary classes should be considered during state-tying",
@@ -414,5 +414,4 @@ Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
 
     return result;
 }
-}  // namespace
-
+}  // namespace Am

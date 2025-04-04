@@ -12,10 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
-
-#ifndef _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
-#define _SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#ifndef SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#define SEARCH_LANGUAGEMODELLOOKAHEAD_HH
 
 #include <iostream>
 #include <list>
@@ -25,6 +23,7 @@
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Lm/ScaledLanguageModel.hh>
+
 #include "StateTree.hh"
 
 namespace Search {
@@ -136,7 +135,7 @@ public:
             return scores_[la_->lookaheadId(s)];
         }
 
-        //DEBUG_AREA
+        // DEBUG_AREA
         bool checkScores() {
             int nScores = scores_.size();
             int nAbnorm = 0;
@@ -150,7 +149,7 @@ public:
 
             return (nAbnorm == 0);
         }
-        //END_DEBUG
+        // END_DEBUG
     };
 
 public:
@@ -177,4 +176,4 @@ public:
 
 }  // namespace Search
 
-#endif  //_SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#endif  // SEARCH_LANGUAGEMODELLOOKAHEAD_HH

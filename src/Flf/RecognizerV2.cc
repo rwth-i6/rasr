@@ -28,7 +28,9 @@ NodeRef createRecognizerNodeV2(const std::string& name, const Core::Configuratio
 
 RecognizerNodeV2::RecognizerNodeV2(const std::string& name, const Core::Configuration& config)
         : Node(name, config),
-          searchAlgorithm_(Search::Module::instance().createSearchAlgorithm(select("search-algorithm"))),
+          latticeResultBuffer_(),
+          segmentResultBuffer_(),
+          searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
           modelCombination_() {
     Core::Configuration featureExtractionConfig(config, "feature-extraction");
     DataSourceRef       dataSource = DataSourceRef(Speech::Module::instance().createDataSource(featureExtractionConfig));
@@ -49,29 +51,30 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     featureExtractor_->enterSegment(segment);
     DataSourceRef dataSource = featureExtractor_->extractor();
     dataSource->initialize(const_cast<Bliss::SpeechSegment*>(segment));
-    FeatureRef feature;
-    dataSource->getData(feature);
-    Time startTime = feature->timestamp().startTime();
-    Time endTime;
 
     auto timerStart = std::chrono::steady_clock::now();
+
+    FeatureRef feature;
+    dataSource->getData(feature);
+    Time startTimestamp = feature->timestamp().startTime();
+    Time endTimestamp;
 
     // Loop over features and perform recognition
     do {
         searchAlgorithm_->putFeature(feature->mainStream());
-        endTime = feature->timestamp().endTime();
+        endTimestamp = feature->timestamp().endTime();
     } while (dataSource->getData(feature));
 
     searchAlgorithm_->finishSegment();
-    searchAlgorithm_->decodeManySteps();
     dataSource->finalize();
     featureExtractor_->leaveSegment(segment);
 
     // Result processing and logging
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
 
-    auto lattice  = buildLattice(searchAlgorithm_->getCurrentBestWordLattice(), segment->name());
-    resultBuffer_ = std::make_pair(lattice, SegmentRef(new Flf::Segment(segment)));
+    auto lattice         = buildLattice(searchAlgorithm_->getCurrentBestWordLattice(), segment->name());
+    latticeResultBuffer_ = lattice;
+    segmentResultBuffer_ = SegmentRef(new Flf::Segment(segment));
 
     Core::XmlWriter& os(clog());
     os << Core::XmlOpen("traceback");
@@ -88,7 +91,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     auto   timerEnd       = std::chrono::steady_clock::now();
     double duration       = std::chrono::duration<double, std::milli>(timerEnd - timerStart).count();
-    double signalDuration = (endTime - startTime) * 1000.;  // convert duration to ms
+    double signalDuration = (endTimestamp - startTimestamp) * 1000.;  // convert duration to ms
 
     clog() << Core::XmlOpen("flf-recognizer-time") + Core::XmlAttribute("unit", "milliseconds") << duration << Core::XmlClose("flf-recognizer-time");
     clog() << Core::XmlOpen("flf-recognizer-rtf") << (duration / signalDuration) << Core::XmlClose("flf-recognizer-rtf");
@@ -217,8 +220,8 @@ void RecognizerNodeV2::init(std::vector<std::string> const& arguments) {
 }
 
 void RecognizerNodeV2::sync() {
-    resultBuffer_.first.reset();
-    resultBuffer_.second.reset();
+    latticeResultBuffer_.reset();
+    segmentResultBuffer_.reset();
 }
 
 void RecognizerNodeV2::finalize() {
@@ -226,17 +229,17 @@ void RecognizerNodeV2::finalize() {
 }
 
 ConstSegmentRef RecognizerNodeV2::sendSegment(RecognizerNodeV2::Port to) {
-    if (!resultBuffer_.second) {
+    if (not segmentResultBuffer_) {
         work();
     }
-    return resultBuffer_.second;
+    return segmentResultBuffer_;
 }
 
 ConstLatticeRef RecognizerNodeV2::sendLattice(RecognizerNodeV2::Port to) {
-    if (!resultBuffer_.first) {
+    if (not latticeResultBuffer_) {
         work();
     }
-    return resultBuffer_.first;
+    return latticeResultBuffer_;
 }
 
 }  // namespace Flf

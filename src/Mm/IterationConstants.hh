@@ -73,6 +73,6 @@ public:
     static IterationConstants* createIterationConstants(const Core::Configuration&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ITERATION_CONSTANTS_HH

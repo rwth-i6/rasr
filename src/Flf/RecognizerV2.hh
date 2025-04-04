@@ -34,10 +34,6 @@ class RecognizerNodeV2 : public Node {
 public:
     RecognizerNodeV2(std::string const& name, Core::Configuration const& config);
 
-    virtual ~RecognizerNodeV2() {
-        delete searchAlgorithm_;
-    }
-
     // Inherited methods
     virtual void init(std::vector<std::string> const& arguments) override;
     virtual void sync() override;
@@ -62,11 +58,12 @@ private:
      */
     ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string segmentName);
 
-    std::pair<ConstLatticeRef, ConstSegmentRef> resultBuffer_;
+    ConstLatticeRef latticeResultBuffer_;
+    ConstSegmentRef segmentResultBuffer_;
 
-    Search::SearchAlgorithmV2*          searchAlgorithm_;
-    Core::Ref<Speech::ModelCombination> modelCombination_;
-    SegmentwiseFeatureExtractorRef      featureExtractor_;
+    std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
+    Core::Ref<Speech::ModelCombination>        modelCombination_;
+    SegmentwiseFeatureExtractorRef             featureExtractor_;
 };
 
 }  // namespace Flf

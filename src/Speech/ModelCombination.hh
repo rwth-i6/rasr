@@ -64,32 +64,40 @@ protected:
 public:
     ModelCombination(const Core::Configuration&,
                      Mode                    = complete,
-                     Am::AcousticModel::Mode = Am::AcousticModel::complete);
+                     Am::AcousticModel::Mode = Am::AcousticModel::complete,
+                     Bliss::LexiconRef       = Bliss::LexiconRef());
     ModelCombination(const Core::Configuration&,
                      Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
     virtual ~ModelCombination();
+
+    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
 
     void getDependencies(Core::DependencySet&) const;
 
     Bliss::LexiconRef lexicon() const {
         return lexicon_;
     }
-    void      setLexicon(Bliss::LexiconRef);
+
+    void setLexicon(Bliss::LexiconRef);
+
     Mm::Score pronunciationScale() const {
         return pronunciationScale_ * scale();
     }
+
     Core::Ref<Am::AcousticModel> acousticModel() const {
         return acousticModel_;
     }
-    void                               setAcousticModel(Core::Ref<Am::AcousticModel>);
+
+    void setAcousticModel(Core::Ref<Am::AcousticModel>);
+
     Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
         return languageModel_;
     }
+
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls) {
-        labelScorer_ = ls;
-    }
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
+
     Core::Ref<Nn::LabelScorer> labelScorer() const {
         return labelScorer_;
     }

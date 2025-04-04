@@ -16,7 +16,8 @@ DataView::DataView(std::shared_ptr<f32 const[]> const& ptr, size_t size, size_t 
     dataPtr_ = std::shared_ptr<f32 const[]>(ptr, ptr.get() + offset);
 }
 
-DataView::DataView(Core::Ref<Mm::Feature::Vector const> const& featureVectorRef) : size_(featureVectorRef->size()) {
+DataView::DataView(Core::Ref<Mm::Feature::Vector const> const& featureVectorRef)
+        : size_(featureVectorRef->size()) {
     // Copy Ref in custom deleter to keep it alive
     dataPtr_ = std::shared_ptr<f32 const[]>(
             featureVectorRef->data(),
@@ -41,7 +42,8 @@ DataView::DataView(Onnx::Value&& value) {
 #endif
 
 #ifdef MODULE_PYTHON
-DataView::DataView(pybind11::array_t<f32> const& array, size_t size, size_t offset) : size_(size) {
+DataView::DataView(pybind11::array_t<f32> const& array, size_t size, size_t offset)
+        : size_(size) {
     // Copy array (increasing its ref counter) in custom deleter to keep it alive
     dataPtr_ = std::shared_ptr<f32 const[]>(
             array.data() + offset,

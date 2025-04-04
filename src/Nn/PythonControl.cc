@@ -51,7 +51,6 @@ See the code below for reference about supported commands.
 #include <Nn/AllophoneStateFsaExporter.hh>
 #include <Nn/ClassLabelWrapper.hh>
 #include <Nn/Criterion.hh>
-#include <Nn/CtcCriterion.hh>
 #include <Python/Numpy.hh>
 #include <Python/Utilities.hh>
 #include <Speech/Alignment.hh>
@@ -473,62 +472,6 @@ struct PythonControl::Internal : public Core::Component {
         return res;
     }
 
-    PyObject* getCtcAlignment(PyObject* args, PyObject* kws) {
-        static const char* kwlist[] = {
-                "command",
-                "log_posteriors",
-                "orthography",
-                "soft",
-                "min_prob_gt",
-                "gamma",
-                NULL};
-        const char* _cmd            = NULL;
-        PyObject*   logPosteriorsPy = NULL;  // borrowed
-        const char* orthography     = NULL;
-        int         soft            = 1;
-        float       min_prob_gt     = 0.0;
-        float       gamma           = 1.0;
-
-        if (!PyArg_ParseTupleAndKeywords(
-                    args, kws, "sOs|iff:callback", (char**)kwlist,
-                    &_cmd, &logPosteriorsPy, &orthography, &soft, &min_prob_gt, &gamma))
-            return NULL;
-
-        _initCriterion();
-        CtcCriterion<f32>* ctc = dynamic_cast<CtcCriterion<f32>*>(criterion_.get());
-        if (!ctc) {
-            PyErr_Format(PyExc_ValueError, "PythonControl get_ctc_alignment(): we expect the CTC criterion but got type '%i'",
-                         criterion_->getType());
-            return NULL;
-        }
-
-        Math::CudaMatrix<f32> logPosteriors;
-        if (!Python::numpy2nnMatrix(getPythonCriticalErrorFunc(), logPosteriorsPy, logPosteriors))
-            return NULL;
-        logPosteriors.initComputation(true);
-
-        Speech::Alignment alignment;
-        if (!ctc->getAlignment(alignment, logPosteriors, orthography, min_prob_gt, gamma)) {
-            Py_INCREF(Py_None);
-            return Py_None;
-        }
-
-        AlignmentToPython alignmentToPython;
-        alignmentToPython.parent_            = this;
-        alignmentToPython.criticalErrorFunc_ = getPythonCriticalErrorFunc();
-        alignmentToPython.acousticModel_     = ctc->getAcousticModel();
-        Python::ObjRef alignmentPy;
-        if (soft)
-            alignmentToPython.extractSoftAlignment(alignment, alignmentPy);
-        else
-            alignmentToPython.extractViterbiAlignment(alignment, alignmentPy);
-        if (!alignmentPy) {
-            PyErr_Format(PyExc_ValueError, "PythonControl get_ctc_alignment(): error while converting. maybe it's a soft alignment?");
-            return NULL;
-        }
-        return alignmentPy.release();
-    }
-
     PyObject* exportAllophoneStateFsaByOrthography(PyObject* args, PyObject* kws) {
         static const char* kwlist[] = {
                 "command",
@@ -874,8 +817,6 @@ struct PythonControl::Internal : public Core::Component {
             return initCriterion();
         if (cmd_s == "calculate_criterion")
             return calculateCriterion(args, kws);
-        if (cmd_s == "get_ctc_alignment")
-            return getCtcAlignment(args, kws);
         if (cmd_s == "export_allophone_state_fsa_by_orthography")
             return exportAllophoneStateFsaByOrthography(args, kws);
         if (cmd_s == "export_allophone_state_fsa_by_segment_name")

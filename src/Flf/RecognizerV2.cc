@@ -61,7 +61,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Loop over features and perform recognition
     do {
-        searchAlgorithm_->putFeature(*feature->mainStream());
+        searchAlgorithm_->putFeature(feature->mainStream());
         endTimestamp = feature->timestamp().endTime();
     } while (dataSource->getData(feature));
 

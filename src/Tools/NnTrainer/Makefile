@@ -40,6 +40,9 @@ endif
 ifdef MODULE_PYTHON
 NN_TRAINER_O += ../../Python/libSprintPython.$(a)
 endif
+ifdef MODULE_ONNX
+NN_TRAINER_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 NN_TRAINER_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

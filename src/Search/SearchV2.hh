@@ -76,11 +76,10 @@ public:
     virtual void finishSegment() = 0;
 
     // Pass a single feature vector.
-    virtual void putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) = 0;
-    virtual void putFeature(std::vector<f32> const& data)                                 = 0;
+    virtual void putFeature(Nn::DataView const& feature) = 0;
 
     // Pass feature vectors for multiple time steps.
-    virtual void putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) = 0;
+    virtual void putFeatures(Nn::DataView const& features, size_t nTimesteps) = 0;
 
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;

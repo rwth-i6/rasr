@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef DATA_VIEW
-#define DATA_VIEW
+#ifndef DATA_VIEW_HH
+#define DATA_VIEW_HH
 
 #include <Mm/Feature.hh>
 
@@ -76,4 +76,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // DATA_VIEW
+#endif  // DATA_VIEW_HH

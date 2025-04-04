@@ -64,10 +64,10 @@ bool NumeratorFromDenominatorNode::work(Flow::PortId p) {
     Flf::ConstLatticeRef                     l           = in->data();
     Lattice::ConstWordLatticeRef             denominator = toWordLattice(l);
     Lattice::ConstWordLatticeRef             numerator   = Lattice::extractNumerator(segmentOrth_,
-                                                                       denominator,
-                                                                       orthToLemma_,
-                                                                       lemmaPronToLemma_,
-                                                                       lemmaToLemmaConfusion_);
+                                                                                     denominator,
+                                                                                     orthToLemma_,
+                                                                                     lemmaPronToLemma_,
+                                                                                     lemmaToLemmaConfusion_);
     Flow::DataAdaptor<Flf::ConstLatticeRef>* out         = new Flow::DataAdaptor<Flf::ConstLatticeRef>();
     out->data()                                          = fromWordLattice(numerator);
     require(!getData(1, in));

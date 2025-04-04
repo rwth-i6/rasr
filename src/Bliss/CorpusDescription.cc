@@ -51,7 +51,7 @@ std::string NamedCorpusEntity::fullName() const {
         new_name = name();
     if (!removePrefix_.empty()) {
         auto res = std::mismatch(removePrefix_.begin(), removePrefix_.end(), new_name.begin());
-        if (res.first == removePrefix_.end()){
+        if (res.first == removePrefix_.end()) {
             new_name = std::string(res.second, new_name.end());
         }
     }

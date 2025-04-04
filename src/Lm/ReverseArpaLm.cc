@@ -208,7 +208,7 @@ std::string reverseArpaLm(const std::string& inName, int testSamples, std::strin
 #ifdef STANDALONE
     std::ifstream infile(inName.c_str());
 #else
-    Core::CompressedInputStream  infile(inName.c_str());
+    Core::CompressedInputStream infile(inName.c_str());
 #endif
 
     StringIndex stringIndex;

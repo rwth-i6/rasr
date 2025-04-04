@@ -112,4 +112,3 @@ int FeatureScorerIntelOptimization::distance(const PreparedFeatureVector& mean, 
 }
 
 #endif  // !(__SSE__)
-

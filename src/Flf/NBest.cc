@@ -649,7 +649,7 @@ void NBestBuilder::find(u32 n) {
     if ((initialSid == Fsa::InvalidStateId) || (!nodes_[initialSid].hasArcs()))
         return;
 
-    //u32 maxPaths = std::max(u32(n * 100), u32(10000));
+    // u32 maxPaths = std::max(u32(n * 100), u32(10000));
     u32 maxPaths = 1000000;
 
     StateIdList      S;

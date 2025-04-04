@@ -155,6 +155,6 @@ Core::BinaryInputStream& operator>>(Core::BinaryInputStream&        i,
     return i;
 }
 
-}  //namespace Flow
+}  // namespace Flow
 
 #endif  // _FLOW_DATA_ADAPTOR_HH

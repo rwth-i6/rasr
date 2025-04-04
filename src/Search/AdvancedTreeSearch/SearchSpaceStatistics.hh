@@ -23,7 +23,7 @@
 namespace Search {
 // ===========================================================================
 struct SearchSpaceStatistics {
-    ///Can be used to easily do statistics, when performance does not matter
+    /// Can be used to easily do statistics, when performance does not matter
     Core::Statistics<f32>&     customStatistics(const std::string& name);
     Core::HistogramStatistics& customHistogramStatistics(const std::string& name, u32 buckets = 10);
     ~SearchSpaceStatistics();

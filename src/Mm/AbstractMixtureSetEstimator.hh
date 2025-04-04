@@ -232,6 +232,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ABSTRACT_MIXTURE_SET_ESTIMATOR_HH

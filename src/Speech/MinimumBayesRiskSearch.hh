@@ -106,6 +106,6 @@ public:
     virtual void processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment);
 };
 
-}  //namespace Speech
+}  // namespace Speech
 
 #endif  // _SPEECH_MINIMUM_BAYES_RISK_SEARCH_HH

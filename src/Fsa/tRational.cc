@@ -522,7 +522,7 @@ public:
                 ka->input_  = input[ka->input_];
                 ka->output_ = output[ka->output_];
             }
-            hope(!sp->isFinal());  //Patrick Lehnen: "Why do we hope this? In UnionAutomaton this hope is not set."
+            hope(!sp->isFinal());  // Patrick Lehnen: "Why do we hope this? In UnionAutomaton this hope is not set."
         }
         else {
             sp = new State(s);

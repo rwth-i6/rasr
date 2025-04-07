@@ -37,6 +37,7 @@ LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskNBestListSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearchUtil.o
 endif
 SUBDIRS += LexiconfreeTimesyncBeamSearch
+SUBDIRS += TreeTimesyncBeamSearch
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -69,6 +70,9 @@ AdvancedTreeSearch:
 
 LexiconfreeTimesyncBeamSearch:
 	$(MAKE) -C $@ libSprintLexiconfreeTimesyncBeamSearch.$(a)
+
+TreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintTreeTimesyncBeamSearch.$(a)
 
 include $(TOPDIR)/Rules.make
 

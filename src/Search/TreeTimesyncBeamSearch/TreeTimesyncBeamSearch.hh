@@ -22,9 +22,9 @@
 #include <Core/StopWatch.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
-#include <Search/PersistentStateTree.hh>
 
 namespace Search {
 
@@ -176,7 +176,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot=false) const;
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot = false) const;
 
     /*
      * Helper function for pruning to maxBeamSize

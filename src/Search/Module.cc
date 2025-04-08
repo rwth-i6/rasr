@@ -16,6 +16,7 @@
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include <Search/WordConditionedTreeSearch.hh>
+#include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
@@ -32,6 +33,13 @@ using namespace Search;
 
 Module_::Module_() {
 }
+
+const Core::Choice Module_::searchTypeV2Choice(
+        "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::searchTypeV2Param(
+        "type", &Module_::searchTypeV2Choice, "type of search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType);
 
 const Core::Choice choiceTreeBuilderType(
         "classic-hmm", static_cast<int>(TreeBuilderType::classicHmm),
@@ -66,7 +74,7 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
 }
 
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
-    SearchAlgorithm* recognizer = 0;
+    SearchAlgorithm* recognizer = nullptr;
     switch (type) {
         case WordConditionedTreeSearchType:
             recognizer = new Search::WordConditionedTreeSearch(config);
@@ -99,6 +107,19 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
             break;
     }
     return recognizer;
+}
+
+SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& config) const {
+    SearchAlgorithmV2* searchAlgorithm = nullptr;
+    switch (searchTypeV2Param(config)) {
+        case LexiconfreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
+            break;
+        default:
+            Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));
+            break;
+    }
+    return searchAlgorithm;
 }
 
 LatticeHandler* Module_::createLatticeHandler(const Core::Configuration& c) const {

@@ -50,13 +50,9 @@ namespace Nn {
  *	- combined: parameter + activation
  *	  - linear+sigmoid
  *	  - linear+softmax
- *	  - linear+rlu
- *	  - linear+tanh
  *	- pre-/post-processing steps
  *	  - logarithm
  *	  - PCA (mean + variance)
- *	  - polynomial
- *	  - GaussianNoise
  *
  *	The layer can have multiple inputs from other layers.
  *	Inputs are connected at "ports", which are just indices of the connections specified in the configuration.
@@ -88,9 +84,6 @@ public:
         biasLayer,
         linearAndSigmoidLayer,
         linearAndSoftmaxLayer,
-        linearAndTanhLayer,
-        linearAndRectifiedLayer,
-        linearAndEluLayer,
         lookupLayer,
         convolutionalLayer,
         convolutionalAndSigmoidLayer,
@@ -98,8 +91,6 @@ public:
         recurrentLinearLayer,
         logarithmPreprocessingLayer,
         meanAndVarianceNormalizationPreprocessingLayer,
-        polynomialPreprocessingLayer,
-        gaussianNoisePreprocessingLayer,
         operationLayer,
         pythonLayer,
     };
@@ -127,8 +118,6 @@ protected:
     static const Core::ParameterString paramNewActivationStandardDeviationFile;
     static const Core::ParameterFloat  paramExponentialTraceInterpolationFactor;
     static const Core::ParameterFloat  paramActivationVarianceInterpolation;
-    static const Core::ParameterFloat  paramDropoutProbability;
-    static const Core::ParameterFloat  paramGaussianNoiseRatio;
     static const Core::ParameterFloat  paramLearningRate;
     static const Core::ParameterFloat  paramRegularizationConstant;
 
@@ -150,10 +139,6 @@ protected:
     const T learningRate_;  // TODO change to vector corresponding to the connections
     // regularization constant
     const T regularizationConstant_;  // TODO change to vector corresponding to the connections
-    // dropout probability
-    const T dropoutProbability_;
-    // ratio for adding gaussian noise to activations
-    const T gaussianNoiseRatio_;
 
 protected:
     // indices of inputs & outputs
@@ -356,10 +341,6 @@ public:
     void setMeasureTime(bool val) {
         measureTime_ = val;
     }
-
-protected:
-    virtual void applyDropout(NnMatrix& output);
-    virtual void addGaussianNoise(NnMatrix& output);
 
 private:
     void nonSmoothedStatisticsUpdate(const NnMatrix& output);

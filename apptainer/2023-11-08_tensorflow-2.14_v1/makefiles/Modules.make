@@ -52,7 +52,6 @@ MODULES   += MODULE_LATTICE_DT
 MODULES += MODULE_LM_ARPA
 MODULES += MODULE_LM_FSA
 MODULES += MODULE_LM_ZEROGRAM
-MODULES += MODULE_LM_FFNN
 MODULES += MODULE_LM_TFRNN
 
 # ****** Math ******
@@ -148,6 +147,7 @@ endif
 
 # ****** Libraries ******
 LIBS_SEARCH = src/Search/libSprintSearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a)
 ifdef MODULE_SEARCH_WFST
 LIBS_SEARCH += src/Search/Wfst/libSprintSearchWfst.$(a)
 LIBS_SEARCH += src/OpenFst/libSprintOpenFst.$(a)

@@ -25,10 +25,12 @@
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
 #include <Core/Extensions.hh>
+#include <Core/FormatSet.hh>
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/StringUtilities.hh>
+#include <Core/Types.hh>
 #include "Phoneme.hh"
 #include "Symbol.hh"
 
@@ -551,14 +553,6 @@ public:
         return dependency_;
     }
 
-    /** Type of the lexicon/the lexicon file format */
-    enum LexiconType {
-        vocabTxtLexicon,
-        xmlLexicon,
-    };
-    static const Core::Choice          lexiconTypeChoice;
-    static const Core::ParameterChoice paramLexiconType;
-
     /** Create a new lemma. */
     Lemma* newLemma();
 
@@ -891,6 +885,11 @@ public:
      * evaluation token sequences, the first is used.
      */
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
+
+private:
+    Core::FormatSet* formats_;
+
+    Core::FormatSet& formats();
 };
 
 }  // namespace Bliss

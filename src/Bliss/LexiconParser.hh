@@ -134,6 +134,17 @@ public:
     }
 };
 
+struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon*> {
+    bool read(const std::string& filename, Lexicon*& lexicon) const override {
+        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Bliss::Lexicon* const& lexicon) const override {
+        return false;
+    }
+};
+
 /**
  * Parser for text lexicon files containing the vocab, so only the labels
  * This is meant for "lexicon-free" search
@@ -151,6 +162,17 @@ public:
     bool     parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
         return lexicon_;
+    }
+};
+
+struct VocabTextLexiconFormat : public Core::FormatSet::Format<Lexicon*> {
+    bool read(const std::string& filename, Lexicon*& lexicon) const override {
+        VocabTextLexiconParser parser(lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Bliss::Lexicon* const& lexicon) const override {
+        return false;
     }
 };
 

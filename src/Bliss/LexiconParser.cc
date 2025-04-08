@@ -396,9 +396,9 @@ bool XmlLexiconParser::parseFile(const std::string& filename) {
 }
 
 VocabTextLexiconParser::VocabTextLexiconParser(Lexicon* _lexicon)
-        : LexiconParser() {
-    lexicon_          = _lexicon;
-    phonemeInventory_ = new PhonemeInventory();
+        : LexiconParser(),
+          lexicon_(_lexicon) {
+    phonemeInventory_ = Core::Ref(new PhonemeInventory());
 }
 
 // parse txt file line by line to a Bliss::Lexicon
@@ -418,7 +418,7 @@ bool VocabTextLexiconParser::parseFile(const std::string& filename) {
     }
 
     // set the phoneme inventory
-    lexicon_->setPhonemeInventory(Core::ref(phonemeInventory_));
+    lexicon_->setPhonemeInventory(phonemeInventory_);
     // iterate over the phonemes in the inventory to create the lemmata in the lexicon
     createLemmata();
     return true;

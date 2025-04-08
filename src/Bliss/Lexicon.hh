@@ -887,7 +887,7 @@ public:
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
 
 private:
-    Core::FormatSet* formats_;
+    std::unique_ptr<Core::FormatSet> formats_;
 
     Core::FormatSet& formats();
 };

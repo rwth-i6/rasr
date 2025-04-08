@@ -126,8 +126,7 @@ struct Lexicon::Internal {
 Lexicon::Lexicon(const Configuration& c)
         : Component(c),
           symbolSequences_(symbols_),
-          internal_(0),
-          formats_(nullptr) {
+          internal_(0) {
     internal_ = new Internal;
 }
 
@@ -135,7 +134,6 @@ Lexicon::~Lexicon() {
     for (PronunciationList::const_iterator p = pronunciations_.begin(); p != pronunciations_.end(); ++p)
         delete *p;
     delete internal_;
-    delete formats_;
 }
 
 void Lexicon::load(const std::string& filename) {
@@ -147,23 +145,21 @@ void Lexicon::load(const std::string& filename) {
         warning("could not derive md5 sum from file '%s'", filename.c_str());
     }
 
-    Lexicon* self = this;
     log("reading lexicon from file") << " \"" << filename << "\" ...";
-    if (!formats().read(filename, self)) {
+    if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
     }
     log("dependency value: ") << dependency_.value();
 }
 
 LexiconRef Lexicon::create(const Configuration& c) {
-    Lexicon* result = new Lexicon(c);
+    auto result = Core::ref(new Lexicon(c));
     result->load(paramFilename(c));
     if (result->hasFatalErrors()) {
-        delete result;
         return LexiconRef();
     }
     result->logStatistics();
-    return LexiconRef(result);
+    return result;
 }
 
 Lemma* Lexicon::newLemma() {
@@ -855,7 +851,7 @@ Core::Ref<LemmaToEvaluationTokenTransducer> Lexicon::createLemmaToPreferredEvalu
 }
 
 template<>
-class Core::NameHelper<Lexicon*> {
+class Core::NameHelper<Lexicon> {
 public:
     operator std::string() const {
         return "Lexicon";
@@ -865,9 +861,20 @@ public:
     }
 };
 
+template<>
+class Core::NameHelper<Lexicon*> {
+public:
+    operator std::string() const {
+        return "Lexicon*";
+    }
+    const char* c_str() const {
+        return "Lexicon*";
+    }
+};
+
 Core::FormatSet& Lexicon::formats() {
     if (!formats_) {
-        formats_ = new Core::FormatSet(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon-file-format-set"));
+        formats_ = std::make_unique<Core::FormatSet>(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon-file-format-set"));
         formats_->registerFormat("xml", new XmlLexiconFormat(), true);
         formats_->registerFormat("vocab-text", new VocabTextLexiconFormat());
         formats_->registerFormat("vocab-txt", new VocabTextLexiconFormat());

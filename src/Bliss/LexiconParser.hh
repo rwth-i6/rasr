@@ -134,13 +134,13 @@ public:
     }
 };
 
-struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon*> {
-    bool read(const std::string& filename, Lexicon*& lexicon) const override {
-        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), lexicon);
+struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), &lexicon);
         return parser.parseFile(filename);
     }
 
-    bool write(const std::string& filename, Bliss::Lexicon* const& lexicon) const override {
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
         return false;
     }
 };
@@ -152,26 +152,26 @@ struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon*> {
  */
 class VocabTextLexiconParser : public LexiconParser {
 private:
-    Lexicon*          lexicon_;
-    PhonemeInventory* phonemeInventory_;
-    void              createPhoneme(const std::string& line);
-    void              createLemmata();
+    Core::Ref<Lexicon>          lexicon_;
+    Core::Ref<PhonemeInventory> phonemeInventory_;
+    void                        createPhoneme(const std::string& line);
+    void                        createLemmata();
 
 public:
     VocabTextLexiconParser(Lexicon*);
     bool     parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
-        return lexicon_;
+        return lexicon_.get();
     }
 };
 
-struct VocabTextLexiconFormat : public Core::FormatSet::Format<Lexicon*> {
-    bool read(const std::string& filename, Lexicon*& lexicon) const override {
-        VocabTextLexiconParser parser(lexicon);
+struct VocabTextLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        VocabTextLexiconParser parser(&lexicon);
         return parser.parseFile(filename);
     }
 
-    bool write(const std::string& filename, Bliss::Lexicon* const& lexicon) const override {
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
         return false;
     }
 };

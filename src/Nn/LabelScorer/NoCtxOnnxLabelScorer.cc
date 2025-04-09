@@ -21,7 +21,7 @@ namespace Nn {
 
 static const std::vector<Onnx::IOSpecification> ioSpec = {
         Onnx::IOSpecification{
-                "input",
+                "input-feature",
                 Onnx::IODirection::INPUT,
                 false,
                 {Onnx::ValueType::TENSOR},
@@ -39,7 +39,7 @@ NoCtxOnnxLabelScorer::NoCtxOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           onnxModel_(select("onnx-model"), ioSpec),
-          inputName_(onnxModel_.mapping.getOnnxName("input")),
+          inputFeatureName_(onnxModel_.mapping.getOnnxName("input-feature")),
           scoresName_(onnxModel_.mapping.getOnnxName("scores")),
           scoreCache_() {
 }
@@ -141,7 +141,7 @@ void NoCtxOnnxLabelScorer::forwardContext(StepScoringContextRef const& context) 
     std::vector<int64_t> inputShape    = {1ul, static_cast<int64_t>(inputDataView.size())};
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    sessionInputs.emplace_back(inputName_, Onnx::Value::create(inputData, inputShape));
+    sessionInputs.emplace_back(inputFeatureName_, Onnx::Value::create(inputData, inputShape));
 
     /*
      * Run session

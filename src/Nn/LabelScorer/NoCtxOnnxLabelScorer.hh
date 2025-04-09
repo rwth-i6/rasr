@@ -66,7 +66,7 @@ private:
 
     Onnx::Model onnxModel_;
 
-    std::string inputName_;
+    std::string inputFeatureName_;
     std::string scoresName_;
 
     std::unordered_map<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;

@@ -16,8 +16,10 @@
 #ifndef BUFFERED_LABEL_SCORER_HH
 #define BUFFERED_LABEL_SCORER_HH
 
+#include <deque>
 #include "DataView.hh"
 #include "LabelScorer.hh"
+#include "Speech/Types.hh"
 
 namespace Nn {
 
@@ -42,9 +44,15 @@ public:
     // Add a single input feature to the buffer
     virtual void addInput(DataView const& input) override;
 
+    // Clean up input buffer
+    virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
 protected:
-    std::vector<DataView> inputBuffer_;         // Buffer that contains all the feature data for the current segment
-    bool                  expectMoreFeatures_;  // Flag to record segment end signal
+    std::deque<DataView> inputBuffer_;         // Buffer that contains all the feature data for the current segment
+    size_t               numDeletedInputs_;    // Count delted inputs in order to adress the correct index in inputBuffer_
+    bool                 expectMoreFeatures_;  // Flag to record segment end signal
+
+    virtual Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const = 0;
 };
 
 }  // namespace Nn

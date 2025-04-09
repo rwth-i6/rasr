@@ -15,6 +15,7 @@
 
 #include "NoOpLabelScorer.hh"
 #include "ScoringContext.hh"
+#include "Speech/Types.hh"
 
 namespace Nn {
 
@@ -37,6 +38,16 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreW
     }
 
     return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
+}
+
+Speech::TimeframeIndex StepwiseNoOpLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
 }
 
 }  // namespace Nn

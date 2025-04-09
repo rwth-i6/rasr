@@ -17,6 +17,7 @@
 #define NO_OP_LABEL_SCORER_HH
 
 #include "BufferedLabelScorer.hh"
+#include "Speech/Types.hh"
 
 namespace Nn {
 
@@ -37,10 +38,13 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Scoring context with step incremented by 1.
-    virtual ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
+    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Gets the buffered score for the requested token at the requested step
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+
+protected:
+    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 };
 
 }  // namespace Nn

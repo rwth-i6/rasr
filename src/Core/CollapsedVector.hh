@@ -50,6 +50,12 @@ public:
     inline void     reserve(size_t size);
     inline const T& front() const;
 
+    inline typename std::vector<T>::iterator begin();
+    inline typename std::vector<T>::iterator end();
+
+    inline typename std::vector<T>::const_iterator begin() const;
+    inline typename std::vector<T>::const_iterator end() const;
+
 private:
     std::vector<T> data_;
     size_t         logicalSize_;
@@ -122,6 +128,26 @@ inline void CollapsedVector<T>::reserve(size_t size) {
 template<typename T>
 inline const T& CollapsedVector<T>::front() const {
     return data_.front();
+}
+
+template<typename T>
+inline typename std::vector<T>::iterator CollapsedVector<T>::begin() {
+    return data_.begin();
+}
+
+template<typename T>
+inline typename std::vector<T>::iterator CollapsedVector<T>::end() {
+    return data_.end();
+}
+
+template<typename T>
+inline typename std::vector<T>::const_iterator CollapsedVector<T>::begin() const {
+    return data_.begin();
+}
+
+template<typename T>
+inline typename std::vector<T>::const_iterator CollapsedVector<T>::end() const {
+    return data_.end();
 }
 
 }  // namespace Core

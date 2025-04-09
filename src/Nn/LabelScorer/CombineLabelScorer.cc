@@ -71,6 +71,12 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
+void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+    for (auto& scaledScorer : scaledScorers_) {
+        scaledScorer.scorer->cleanupCaches(activeContexts);
+    }
+}
+
 void CombineLabelScorer::addInput(DataView const& input) {
     for (auto& scaledScorer : scaledScorers_) {
         scaledScorer.scorer->addInput(input);

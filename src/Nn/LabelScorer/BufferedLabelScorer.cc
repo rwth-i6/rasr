@@ -20,9 +20,9 @@ namespace Nn {
 BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
+          expectMoreFeatures_(true),
           inputBuffer_(),
-          numDeletedInputs_(0ul),
-          expectMoreFeatures_(true) {
+          numDeletedInputs_(0ul) {
 }
 
 void BufferedLabelScorer::reset() {
@@ -51,6 +51,18 @@ void BufferedLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef>
         inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + deleteInputs);
         numDeletedInputs_ += deleteInputs;
     }
+}
+std::optional<DataView> BufferedLabelScorer ::getInput(Speech::TimeframeIndex timeIndex) const {
+    if (timeIndex < numDeletedInputs_) {
+        error("Tried to get input feature that was already cleaned up.");
+    }
+
+    size_t bufferPosition = timeIndex - numDeletedInputs_;
+    if (bufferPosition >= inputBuffer_.size()) {
+        return {};
+    }
+
+    return inputBuffer_[bufferPosition];
 }
 
 }  // namespace Nn

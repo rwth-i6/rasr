@@ -20,6 +20,7 @@
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 
@@ -77,6 +78,7 @@ Module_::Module_()
             [](Core::Configuration const& config) {
                 return Core::ref(new CombineLabelScorer(config));
             });
+
     // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",
@@ -102,6 +104,13 @@ Module_::Module_()
                         config,
                         encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
                         Core::ref(new StepwiseNoOpLabelScorer(config))));
+            });
+
+    // Compute scores by forwarding a single input feature vector without history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "no-ctx-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoCtxOnnxLabelScorer(config));
             });
 };
 

@@ -86,7 +86,9 @@ std::optional<LabelScorer::ScoresWithTimes> NoCtxOnnxLabelScorer::computeScoresW
     for (size_t b = 0ul; b < requests.size(); ++b) {
         StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(requests[b].context.get()));
         auto                  step = context->currentStep;
-        if (step >= inputBuffer_.size()) {
+
+        auto input = getInput(step);
+        if (not input) {
             // Early exit if at least one of the histories is not scorable yet
             return {};
         }
@@ -136,9 +138,9 @@ void NoCtxOnnxLabelScorer::forwardContext(StepScoringContextRef const& context) 
      * Create session inputs
      */
     // All requests in this iteration share the same input which is set up here
-    auto const&          inputDataView = inputBuffer_[context->currentStep];
-    f32 const*           inputData     = inputDataView.data();
-    std::vector<int64_t> inputShape    = {1ul, static_cast<int64_t>(inputDataView.size())};
+    auto                 inputDataView = getInput(context->currentStep);
+    f32 const*           inputData     = inputDataView->data();
+    std::vector<int64_t> inputShape    = {1ul, static_cast<int64_t>(inputDataView->size())};
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
     sessionInputs.emplace_back(inputFeatureName_, Onnx::Value::create(inputData, inputShape));

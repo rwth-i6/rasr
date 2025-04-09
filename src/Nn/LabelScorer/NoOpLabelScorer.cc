@@ -33,11 +33,12 @@ ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::R
 
 std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    if (inputBuffer_.size() <= stepHistory->currentStep) {
+    auto                  input = getInput(stepHistory->currentStep);
+    if (not input) {
         return {};
     }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
+    return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
 }
 
 Speech::TimeframeIndex StepwiseNoOpLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {

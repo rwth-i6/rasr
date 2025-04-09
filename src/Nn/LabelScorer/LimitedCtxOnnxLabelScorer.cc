@@ -170,7 +170,9 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::computeSc
     for (size_t b = 0ul; b < requests.size(); ++b) {
         SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(requests[b].context.get()));
         auto                     step = context->currentStep;
-        if (step >= inputBuffer_.size()) {
+
+        auto input = getInput(step);
+        if (not input) {
             // Early exit if at least one of the histories is not scorable yet
             return {};
         }
@@ -256,9 +258,9 @@ void LimitedCtxOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRe
      */
 
     // All requests in this iteration share the same input feature which is set up here
-    auto const&          inputFeatureDataView = inputBuffer_[contextBatch.front()->currentStep];
-    f32 const*           inputFeatureData     = inputFeatureDataView.data();
-    std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView.size())};
+    auto                 inputFeatureDataView = getInput(contextBatch.front()->currentStep);
+    f32 const*           inputFeatureData     = inputFeatureDataView->data();
+    std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
 
     // Create batched context input
     Math::FastMatrix<s32> historyMat(historyLength_, contextBatch.size());

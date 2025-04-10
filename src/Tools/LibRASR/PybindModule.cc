@@ -1,11 +1,12 @@
-#include <string>
+#include "LibRASR.hh"
 
+#include <string>
 #include <pybind11/pybind11.h>
 
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
-#include "LibRASR.hh"
+#include "Search.hh"
 
 namespace py = pybind11;
 
@@ -19,7 +20,7 @@ PYBIND11_MODULE(librasr, m) {
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>());
     pyRasrConfig.def("set_from_file",
-                     (bool(Core::Configuration::*)(const std::string&)) & Core::Configuration::setFromFile);
+                     (bool (Core::Configuration::*)(const std::string&))&Core::Configuration::setFromFile);
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
@@ -27,4 +28,6 @@ PYBIND11_MODULE(librasr, m) {
                      &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name",
                      &AllophoneStateFsaBuilder::buildBySegmentName);
+
+    bind_search_algorithm(m);
 }

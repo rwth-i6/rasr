@@ -24,11 +24,6 @@
 #include <pybind11/pybind11.h>
 #pragma pop_macro("ensure")
 
-#include <Core/Application.hh>
-#include <Core/Archive.hh>
-#include <Core/Configuration.hh>
-#include <Flf/FlfCore/Lattice.hh>
-
 namespace py = pybind11;
 
 struct TracebackItem {
@@ -56,10 +51,10 @@ public:
     void finishSegment();
 
     // Pass a feature array of shape [F] or [1, F]
-    void putFeature(py::array_t<f32> const&);
+    void putFeature(py::array_t<f32> const& feature);
 
     // Pass an array of features of shape [T, F] or [1, T, F]
-    void putFeatures(py::array_t<f32> const&);
+    void putFeatures(py::array_t<f32> const& features);
 
     // Return the current best result. May contain unstable results.
     Traceback getCurrentBestTraceback();

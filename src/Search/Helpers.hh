@@ -15,10 +15,27 @@
 #ifndef SEARCH_HELPERS_HH
 #define SEARCH_HELPERS_HH
 
+#include <Core/Types.hh>
+
 namespace Search {
 
 inline bool isBackwardRecognition(const Core::Configuration& config) {
     return config.getSelection().find(".backward") != std::string::npos;
+}
+
+inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {
+    if (b == Core::Type<f32>::max)
+        return a;
+    if (a == Core::Type<f32>::max)
+        return b;
+    a *= invertedScale;
+    b *= invertedScale;
+    return scale * (std::min(a, b) - ::log1p(::exp(std::min(a, b) - std::max(a, b))));
+}
+
+inline bool approximatelyEqual(double a, double b, const double threshold = 0.001) {
+    double diff = a - b;
+    return diff > -threshold && diff < threshold;
 }
 
 }  // namespace Search

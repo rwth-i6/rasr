@@ -28,16 +28,11 @@ Encoder::Encoder(Core::Configuration const& config)
         : Core::Component(config),
           inputBuffer_(),
           outputBuffer_(),
-          featureSize_(Core::Type<size_t>::max),
-          outputSize_(Core::Type<size_t>::max),
           expectMoreFeatures_(true) {}
 
 void Encoder::reset() {
     expectMoreFeatures_ = true;
     inputBuffer_.clear();
-
-    featureSize_ = Core::Type<size_t>::max;
-    outputSize_  = Core::Type<size_t>::max;
 
     outputBuffer_.clear();
 }
@@ -46,21 +41,14 @@ void Encoder::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void Encoder::addInput(SharedDataHolder const& input, size_t featureSize) {
-    if (featureSize_ == Core::Type<size_t>::max) {
-        featureSize_ = featureSize;
-    }
-    else if (featureSize_ != featureSize) {
-        error() << "Encoder received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
-    }
-
+void Encoder::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
 }
 
-void Encoder::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
-    for (size_t t = 0ul; t < timeSize; ++t) {
-        // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput({input, t * featureSize}, featureSize);
+void Encoder::addInputs(DataView const& input, size_t nTimesteps) {
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addInput({input, featureSize, t * featureSize});
     }
 }
 
@@ -68,7 +56,7 @@ bool Encoder::canEncode() const {
     return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
-std::optional<SharedDataHolder> Encoder::getNextOutput() {
+std::optional<DataView> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
         auto result = outputBuffer_.front();
@@ -92,10 +80,6 @@ std::optional<SharedDataHolder> Encoder::getNextOutput() {
     }
 
     return getNextOutput();
-}
-
-size_t Encoder::getOutputSize() const {
-    return outputSize_;
 }
 
 void Encoder::postEncodeCleanup() {

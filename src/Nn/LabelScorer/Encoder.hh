@@ -21,7 +21,9 @@
 #include <Speech/Feature.hh>
 #include <deque>
 #include <optional>
-#include "SharedDataHolder.hh"
+
+#include <Core/Component.hh>
+#include "DataView.hh"
 
 namespace Nn {
 
@@ -42,26 +44,21 @@ public:
     void signalNoMoreFeatures();
 
     // Add a single input feature
-    virtual void addInput(SharedDataHolder const& input, size_t featureSize);
+    virtual void addInput(DataView const& input);
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize);
+    virtual void addInputs(DataView const& inputs, size_t nTimesteps);
 
     // Retrieve the next encoder output frame
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<SharedDataHolder> getNextOutput();
-
-    // Get dimension of outputs that are fetched via `getNextOutput`.
-    size_t getOutputSize() const;
+    std::optional<DataView> getNextOutput();
 
 protected:
-    std::deque<SharedDataHolder> inputBuffer_;
-    std::deque<SharedDataHolder> outputBuffer_;
+    std::deque<DataView> inputBuffer_;
+    std::deque<DataView> outputBuffer_;
 
-    size_t featureSize_;
-    size_t outputSize_;
-    bool   expectMoreFeatures_;
+    bool expectMoreFeatures_;
 
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() = 0;

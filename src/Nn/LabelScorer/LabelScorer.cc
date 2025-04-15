@@ -20,9 +20,10 @@ namespace Nn {
 LabelScorer::LabelScorer(Core::Configuration const& config)
         : Core::Component(config) {}
 
-void LabelScorer::addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) {
-    for (size_t t = 0ul; t < timeSize; ++t) {
-        addInput({input, t * featureSize}, featureSize);
+void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addInput({input, featureSize, t * featureSize});
     }
 }
 

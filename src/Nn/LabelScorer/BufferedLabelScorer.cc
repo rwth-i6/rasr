@@ -21,13 +21,11 @@ BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           inputBuffer_(),
-          featureSize_(Core::Type<size_t>::max),
           expectMoreFeatures_(true) {
 }
 
 void BufferedLabelScorer::reset() {
     inputBuffer_.clear();
-    featureSize_        = Core::Type<size_t>::max;
     expectMoreFeatures_ = true;
 }
 
@@ -35,14 +33,7 @@ void BufferedLabelScorer::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void BufferedLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
-    if (featureSize_ == Core::Type<size_t>::max) {
-        featureSize_ = featureSize;
-    }
-    else if (featureSize_ != featureSize) {
-        error() << "Label scorer received incompatible feature size " << featureSize << "; was set to " << featureSize_ << " before.";
-    }
-
+void BufferedLabelScorer::addInput(DataView const& input) {
     inputBuffer_.push_back(input);
 }
 

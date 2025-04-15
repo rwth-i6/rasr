@@ -44,6 +44,9 @@ endif
 ifdef MODULE_ONNX
 LATTICE_PROCESSOR_O += ../../Onnx/libSprintOnnx.$(a)
 endif
+ifdef MODULE_ONNX
+LATTICE_PROCESSOR_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 LATTICE_PROCESSOR_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

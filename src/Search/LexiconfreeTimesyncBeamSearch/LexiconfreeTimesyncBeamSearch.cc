@@ -207,21 +207,15 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     finishedSegment_ = true;
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
+void LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
     featureProcessingTime_.start();
-    labelScorer_->addInput(data, featureSize);
+    labelScorer_->addInput(feature);
     featureProcessingTime_.stop();
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeature(std::vector<f32> const& data) {
+void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
     featureProcessingTime_.start();
-    labelScorer_->addInput(data);
-    featureProcessingTime_.stop();
-}
-
-void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
-    featureProcessingTime_.start();
-    labelScorer_->addInputs(data, timeSize, featureSize);
+    labelScorer_->addInputs(features, nTimesteps);
     featureProcessingTime_.stop();
 }
 

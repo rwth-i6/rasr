@@ -16,6 +16,7 @@
 #ifndef BUFFERED_LABEL_SCORER_HH
 #define BUFFERED_LABEL_SCORER_HH
 
+#include "DataView.hh"
 #include "LabelScorer.hh"
 
 namespace Nn {
@@ -39,12 +40,11 @@ public:
     virtual void signalNoMoreFeatures() override;
 
     // Add a single input feature to the buffer
-    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    virtual void addInput(DataView const& input) override;
 
 protected:
-    std::vector<std::shared_ptr<const f32[]>> inputBuffer_;         // Buffer that contains all the feature data for the current segment
-    size_t                                    featureSize_;         // Feature dimension size of features in the buffer (same for all features)
-    bool                                      expectMoreFeatures_;  // Flag to record segment end signal
+    std::vector<DataView> inputBuffer_;         // Buffer that contains all the feature data for the current segment
+    bool                  expectMoreFeatures_;  // Flag to record segment end signal
 };
 
 }  // namespace Nn

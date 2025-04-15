@@ -26,6 +26,7 @@
 #include <Core/Types.hh>
 #include <Nn/Types.hh>
 
+#include "DataView.hh"
 #include "ScoringContext.hh"
 #include "SharedDataHolder.hh"
 
@@ -120,10 +121,10 @@ public:
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Add a single input feature
-    virtual void addInput(SharedDataHolder const& input, size_t featureSize) = 0;
+    virtual void addInput(DataView const& input) = 0;
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize);
+    virtual void addInputs(DataView const& input, size_t nTimesteps);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output

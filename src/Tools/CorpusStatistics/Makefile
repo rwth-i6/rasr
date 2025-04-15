@@ -44,6 +44,9 @@ ifdef MODULE_NN
 CORPUS_STATISTICS_O += ../../Nn/libSprintNn.$(a)
 CORPUS_STATISTICS_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
+ifdef MODULE_ONNX
+CORPUS_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 CORPUS_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

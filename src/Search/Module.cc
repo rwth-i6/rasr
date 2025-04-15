@@ -20,6 +20,7 @@
 #include <Search/WordConditionedTreeSearch.hh>
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
+#include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -38,6 +39,7 @@ Module_::Module_() {
 
 const Core::Choice Module_::searchTypeV2Choice(
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
+        "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
@@ -116,6 +118,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
     switch (searchTypeV2Param(config)) {
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
+            break;
+        case TreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));

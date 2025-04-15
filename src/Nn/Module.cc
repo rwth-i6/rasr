@@ -18,6 +18,7 @@
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
@@ -164,6 +165,13 @@ Module_::Module_()
             "ctc-prefix",
             [](Core::Configuration const& config) {
                 return Core::ref(new CTCPrefixLabelScorer(config));
+            });
+
+    // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "limited-ctx-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new LimitedCtxOnnxLabelScorer(config));
             });
 };
 

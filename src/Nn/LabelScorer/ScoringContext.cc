@@ -17,6 +17,8 @@
 #include <pybind11/cast.h>
 #include <pybind11/pytypes.h>
 
+#include <Core/MurmurHash.hh>
+
 namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;
@@ -212,6 +214,35 @@ bool PythonScoringContext::isEqual(ScoringContextRef const& other) const {
     }
 
     return object.equal(py::cast<py::handle>(otherPtr->object));
+}
+
+/*
+ * =============================
+ * === SeqStepScoringContext ===
+ * =============================
+ */
+size_t SeqStepScoringContext::hash() const {
+    return combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+}
+
+bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
+
+    if (currentStep != otherPtr->currentStep) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace Nn

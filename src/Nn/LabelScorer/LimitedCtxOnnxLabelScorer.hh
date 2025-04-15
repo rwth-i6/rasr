@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,25 +16,16 @@
 #ifndef LIMITED_CTX_ONNX_LABEL_SCORER_HH
 #define LIMITED_CTX_ONNX_LABEL_SCORER_HH
 
-#include <Core/Component.hh>
-#include <Core/Configuration.hh>
-#include <Core/FIFOCache.hh>
-#include <Core/ReferenceCounting.hh>
-#include <Mm/FeatureScorer.hh>
-#include <Speech/Feature.hh>
-#include <optional>
-#include "BufferedLabelScorer.hh"
-#include "Onnx/Model.hh"
-#include "ScoringContext.hh"
+#include <Onnx/Model.hh>
 
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Session.hh>
+#include "BufferedLabelScorer.hh"
 
 namespace Nn {
 
 /*
  * Label Scorer that performs scoring by forwarding the input feature at the current timestep together
- * with a fixed-size sequence of history tokens through an ONNX model
+ * with a fixed-size sequence of history tokens through an ONNX model.
+ * A common use case would be a neural transducer model with a fixed-size history.
  */
 class LimitedCtxOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
@@ -45,7 +36,6 @@ class LimitedCtxOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterBool paramLoopUpdatesHistory;
     static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
-    static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
     LimitedCtxOnnxLabelScorer(Core::Configuration const& config);
@@ -62,6 +52,9 @@ public:
     // or not
     ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
+    // Clean up input buffer as well as cached score vectors that are no longer needed
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
     // Then, retreive scores from cache
@@ -69,6 +62,9 @@ public:
 
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+
+protected:
+    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
@@ -84,11 +80,11 @@ private:
 
     Onnx::Model onnxModel_;
 
-    std::string encoderStateName_;
+    std::string inputFeatureName_;
     std::string historyName_;
     std::string scoresName_;
 
-    Core::FIFOCache<SeqStepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    std::unordered_map<SeqStepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

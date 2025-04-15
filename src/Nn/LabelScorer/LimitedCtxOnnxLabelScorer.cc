@@ -108,6 +108,7 @@ ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer:
             timeIncrement = 1ul;
             break;
         case TransitionType::LABEL_TO_BLANK:
+        case TransitionType::INITIAL_BLANK:
             pushToken     = blankUpdatesHistory_;
             timeIncrement = 1ul;
             break;
@@ -117,6 +118,7 @@ ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer:
             break;
         case TransitionType::BLANK_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
+        case TransitionType::INITIAL_LABEL:
             pushToken     = true;
             timeIncrement = not verticalLabelTransition_;
             break;

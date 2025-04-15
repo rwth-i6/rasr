@@ -11,6 +11,7 @@ TARGETS		= libSprintSearch.$(a) check$(exe)
 
 LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Aligner.o \
+		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/Module.o \
 		$(OBJDIR)/PersistentStateTree.o \

@@ -18,7 +18,7 @@
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
-#include "LabelScorer/LegacyFeatureScorerLabelScorer.hh"
+#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"

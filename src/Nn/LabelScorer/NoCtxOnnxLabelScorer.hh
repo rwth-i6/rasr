@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,31 +16,23 @@
 #ifndef NO_CTX_ONNX_LABEL_SCORER_HH
 #define NO_CTX_ONNX_LABEL_SCORER_HH
 
-#include <Core/Component.hh>
-#include <Core/Configuration.hh>
-#include <Core/FIFOCache.hh>
-#include <Core/ReferenceCounting.hh>
-#include <Mm/FeatureScorer.hh>
-#include <Speech/Feature.hh>
-#include <optional>
-#include "BufferedLabelScorer.hh"
-#include "Onnx/Model.hh"
-#include "ScoringContext.hh"
+#include <Onnx/Model.hh>
 
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Session.hh>
+#include "BufferedLabelScorer.hh"
 
 namespace Nn {
 
 /*
- * Label Scorer that performs scoring by forwarding the input feature at the current timestep together through an ONNX model
+ * A LabelScorer that computes scores by forwarding only the input feature at the current timestep through an ONNX model,
+ * without any label history.
+ * This is suitable for example for CTC outputs consisting of a linear layer + -log_softmax activation.
+ *
+ * If the CTC output is the only output, the encoder and output layer can be put together into an "encoder-only" label scorer.
+ * However, when the CTC output is one of several outputs based on a shared encoder, the CTC output head must be separated
+ * from the encoder. The NoCtxOnnxLabelScorer can be used for this purpose.
  */
 class NoCtxOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
-
-    static const Core::ParameterBool paramVerticalLabelTransition;
-    static const Core::ParameterInt  paramMaxBatchSize;
-    static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
     NoCtxOnnxLabelScorer(Core::Configuration const& config);
@@ -52,8 +44,11 @@ public:
     // Initial scoring context contains step 0
     ScoringContextRef getInitialScoringContext() override;
 
-    // May increment the step by 1 (except for vertical transitions)
+    // Increment the step by 1
     ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
+
+    // Clean up input buffer as well as cached score vectors that are no longer needed
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
@@ -63,17 +58,18 @@ public:
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
+protected:
+    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+
 private:
     void forwardContext(StepScoringContextRef const& context);
 
-    bool verticalLabelTransition_;
-
     Onnx::Model onnxModel_;
 
-    std::string encoderStateName_;
+    std::string inputFeatureName_;
     std::string scoresName_;
 
-    Core::FIFOCache<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    std::unordered_map<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

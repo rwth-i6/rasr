@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,38 +14,14 @@
  */
 
 #include "NoCtxOnnxLabelScorer.hh"
-#include <Core/Assertions.hh>
-#include <Core/ReferenceCounting.hh>
-#include <Flow/Timestamp.hh>
-#include <Math/FastMatrix.hh>
-#include <Mm/Module.hh>
-#include <Speech/Types.hh>
-#include <cstddef>
-#include <utility>
-#include "LabelScorer.hh"
-#include "ScoringContext.hh"
+
+#include <unordered_set>
 
 namespace Nn {
 
-/*
- * =============================
- * === NoCtxOnnxDecoder ========
- * =============================
- */
-
-const Core::ParameterBool NoCtxOnnxLabelScorer::paramVerticalLabelTransition(
-        "vertical-label-transition",
-        "Whether (non-blank) label transitions should be vertical, i.e. not increase the time step.",
-        false);
-
-const Core::ParameterInt NoCtxOnnxLabelScorer::paramMaxCachedScores(
-        "max-cached-scores",
-        "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
-        1000);
-
 static const std::vector<Onnx::IOSpecification> ioSpec = {
         Onnx::IOSpecification{
-                "encoder-state",
+                "input-feature",
                 Onnx::IODirection::INPUT,
                 false,
                 {Onnx::ValueType::TENSOR},
@@ -62,12 +38,10 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
 NoCtxOnnxLabelScorer::NoCtxOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          verticalLabelTransition_(paramVerticalLabelTransition(config)),
           onnxModel_(select("onnx-model"), ioSpec),
-          encoderStateName_(onnxModel_.mapping.getOnnxName("encoder-state")),
+          inputFeatureName_(onnxModel_.mapping.getOnnxName("input-feature")),
           scoresName_(onnxModel_.mapping.getOnnxName("scores")),
-          scoreCache_(paramMaxCachedScores(config)) {
-    log() << "Create NoCtxOnnxLabelScorer";
+          scoreCache_() {
 }
 
 void NoCtxOnnxLabelScorer::reset() {
@@ -81,29 +55,22 @@ ScoringContextRef NoCtxOnnxLabelScorer::getInitialScoringContext() {
 
 ScoringContextRef NoCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(request.context.get()));
+    return Core::ref(new StepScoringContext(context->currentStep + 1));
+}
 
-    bool incrementTime = false;
-    switch (request.transitionType) {
-        case TransitionType::BLANK_LOOP:
-        case TransitionType::LABEL_TO_BLANK:
-            incrementTime = true;
-            break;
-        case TransitionType::LABEL_LOOP:
-        case TransitionType::BLANK_TO_LABEL:
-        case TransitionType::LABEL_TO_LABEL:
-            incrementTime = not verticalLabelTransition_;
-            break;
-        default:
-            error() << "Unknown transition type " << request.transitionType;
+void NoCtxOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+    Precursor::cleanupCaches(activeContexts);
+
+    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.begin(), activeContexts.end());
+
+    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
+        if (activeContextSet.find(it->first) == activeContextSet.end()) {
+            it = scoreCache_.erase(it);
+        }
+        else {
+            ++it;
+        }
     }
-
-    // If context is not going to be modified, return the original one to avoid copying
-    if (not incrementTime) {
-        return request.context;
-    }
-
-    Core::Ref<StepScoringContext> newContext(new StepScoringContext(context->currentStep + 1));
-    return newContext;
 }
 
 std::optional<LabelScorer::ScoresWithTimes> NoCtxOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
@@ -111,7 +78,7 @@ std::optional<LabelScorer::ScoresWithTimes> NoCtxOnnxLabelScorer::computeScoresW
     result.scores.reserve(requests.size());
 
     /*
-     * Collect all requests that are based on the same timestep (-> same encoder state) and
+     * Collect all requests that are based on the same timestep (-> same input) and
      * group them together
      */
     std::unordered_set<StepScoringContextRef, ScoringContextHash, ScoringContextEq> requestedContexts;
@@ -119,7 +86,9 @@ std::optional<LabelScorer::ScoresWithTimes> NoCtxOnnxLabelScorer::computeScoresW
     for (size_t b = 0ul; b < requests.size(); ++b) {
         StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(requests[b].context.get()));
         auto                  step = context->currentStep;
-        if (step >= inputBuffer_.size()) {
+
+        auto input = getInput(step);
+        if (not input) {
             // Early exit if at least one of the histories is not scorable yet
             return {};
         }
@@ -140,14 +109,7 @@ std::optional<LabelScorer::ScoresWithTimes> NoCtxOnnxLabelScorer::computeScoresW
      */
     for (const auto& request : requests) {
         StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(request.context.get()));
-
-        auto scores = scoreCache_.get(context);
-        if (request.nextToken < scores->get().size()) {
-            result.scores.push_back(scores->get()[request.nextToken]);
-        }
-        else {
-            result.scores.push_back(0);
-        }
+        result.scores.push_back(scoreCache_.at(context)[request.nextToken]);
     }
 
     return result;
@@ -161,22 +123,31 @@ std::optional<LabelScorer::ScoreWithTime> NoCtxOnnxLabelScorer::computeScoreWith
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
+Speech::TimeframeIndex NoCtxOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
+}
+
 void NoCtxOnnxLabelScorer::forwardContext(StepScoringContextRef const& context) {
     /*
      * Create session inputs
      */
-
-    // All requests in this iteration share the same encoder state which is set up here
-    f32 const*           encoderState = inputBuffer_[context->currentStep].get();
-    std::vector<int64_t> encoderShape = {1, static_cast<int64_t>(featureSize_)};
+    // All requests in this iteration share the same input which is set up here
+    auto                 inputDataView = getInput(context->currentStep);
+    f32 const*           inputData     = inputDataView->data();
+    std::vector<int64_t> inputShape    = {1ul, static_cast<int64_t>(inputDataView->size())};
 
     std::vector<std::pair<std::string, Onnx::Value>> sessionInputs;
-    sessionInputs.emplace_back(encoderStateName_, Onnx::Value::create(encoderState, encoderShape));
+    sessionInputs.emplace_back(inputFeatureName_, Onnx::Value::create(inputData, inputShape));
 
     /*
      * Run session
      */
-
     std::vector<Onnx::Value> sessionOutputs;
     onnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
 
@@ -185,6 +156,6 @@ void NoCtxOnnxLabelScorer::forwardContext(StepScoringContextRef const& context) 
      */
     std::vector<f32> scoreVec;
     sessionOutputs.front().get(0, scoreVec);
-    scoreCache_.put(context, std::move(scoreVec));
+    scoreCache_.emplace(context, std::move(scoreVec));
 }
 }  // namespace Nn

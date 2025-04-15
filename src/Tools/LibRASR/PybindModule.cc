@@ -23,7 +23,7 @@ PYBIND11_MODULE(librasr, m) {
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>());
     pyRasrConfig.def("set_from_file",
-                     (bool(Core::Configuration::*)(const std::string&)) & Core::Configuration::setFromFile);
+                     (bool (Core::Configuration::*)(const std::string&))&Core::Configuration::setFromFile);
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());

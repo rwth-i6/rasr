@@ -65,8 +65,6 @@ public:
      */
     LabelScorerFactory& labelScorerFactory();
 
-    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
-
 private:
     Core::FormatSet*   formats_;
     EncoderFactory     encoderFactory_;

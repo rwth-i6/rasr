@@ -42,17 +42,16 @@ public:
     static const Mode useLexicon;
     static const Mode useAcousticModel;
     static const Mode useLanguageModel;
-    static const Mode useLabelScorers;
+    static const Mode useLabelScorer;
 
     static const Core::ParameterFloat paramPronunciationScale;
-    static const Core::ParameterInt   paramNumLabelScorers;
 
 protected:
-    Bliss::LexiconRef                       lexicon_;
-    Mm::Score                               pronunciationScale_;
-    Core::Ref<Am::AcousticModel>            acousticModel_;
-    Core::Ref<Lm::ScaledLanguageModel>      languageModel_;
-    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                  lexicon_;
+    Mm::Score                          pronunciationScale_;
+    Core::Ref<Am::AcousticModel>       acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
+    Core::Ref<Nn::LabelScorer>         labelScorer_;
 
 private:
     void setPronunciationScale(Mm::Score scale) {
@@ -70,8 +69,6 @@ public:
     ModelCombination(const Core::Configuration&,
                      Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
     virtual ~ModelCombination();
-
-    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
 
     void getDependencies(Core::DependencySet&) const;
 

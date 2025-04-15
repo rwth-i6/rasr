@@ -13,9 +13,8 @@ namespace py = pybind11;
 SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
         : Core::Component(c),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithm(select("search-algorithm"))),
-          modelCombination_(config) {
-    modelCombination_.build(searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel());
-    searchAlgorithm_->setModelCombination(modelCombination_);
+          modelCombination_(new Speech::ModelCombination(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel())) {
+    searchAlgorithm_->setModelCombination(*modelCombination_);
 }
 
 void SearchAlgorithm::reset() {
@@ -46,7 +45,7 @@ void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
     auto dataPtr = std::shared_ptr<const f32[]>(feature.data(), [](const f32*) {});
-    searchAlgorithm_->passFeature(dataPtr, F);
+    searchAlgorithm_->putFeature(dataPtr, F);
 }
 
 void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
@@ -68,11 +67,11 @@ void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
     // `dataPtr` is a shared_ptr wrapper around `input`.
     // Since we don't actually own the underlying data, it has a custom deleter that does nothing
     auto dataPtr = std::shared_ptr<const f32[]>(features.data(), [](const f32*) {});
-    searchAlgorithm_->passFeatures(dataPtr, T, F);
+    searchAlgorithm_->putFeatures(dataPtr, T, F);
 }
 
 std::string SearchAlgorithm::getCurrentBestTranscription() {
-    decodeMore();
+    decodeManySteps();
 
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
 
@@ -88,7 +87,7 @@ std::string SearchAlgorithm::getCurrentBestTranscription() {
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    decodeMore();
+    decodeManySteps();
 
     auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
     std::vector<TracebackItem> result;
@@ -109,14 +108,8 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
     return result;
 }
 
-NBestList SearchAlgorithm::getCurrentNBestList() {
-    decodeMore();
-
-    auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
-}
-
-bool SearchAlgorithm::decodeMore() {
-    return searchAlgorithm_->decodeMore();
+bool SearchAlgorithm::decodeManySteps() {
+    return searchAlgorithm_->decodeManySteps();
 }
 
 std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
@@ -124,7 +117,7 @@ std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) 
     enterSegment();
     addFeatures(features);
     finishSegment();
-    decodeMore();
+    decodeManySteps();
     auto result = getCurrentBestTranscription();
     return result;
 }

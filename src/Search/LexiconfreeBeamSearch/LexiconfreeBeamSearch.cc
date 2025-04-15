@@ -15,7 +15,6 @@
 
 #include "LexiconfreeBeamSearch.hh"
 #include <Lattice/LatticeAdaptor.hh>
-#include <stack>
 #include <unordered_map>
 
 namespace Search {
@@ -44,7 +43,7 @@ LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
           blankLabelIndex_(paramBlankLabelIndex(config)),
           sentenceEndIndex_(paramSentenceEndIndex(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
-          labelScorers_(),
+          labelScorer_(),
           numClasses_(0ul),
           beam_(),
           initializationTime_(),
@@ -57,25 +56,24 @@ LexiconfreeBeamSearch::LexiconfreeBeamSearch(Core::Configuration const& config)
 
 void LexiconfreeBeamSearch::reset() {
     initializationTime_.tic();
-    std::vector<Nn::ScoringContextRef> scoringContexts;
-    scoringContexts.reserve(labelScorers_.size());
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->reset();
-        scoringContexts.push_back(labelScorer->getInitialScoringContext());
-    }
+    labelScorer_->reset();
     beam_.clear();
     beam_.push_back({});
-    beam_.front().scoringContext = Core::ref(new Nn::CombineScoringContext(std::move(scoringContexts)));
+    beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
     initializationTime_.toc();
 }
 
 Speech::ModelCombination::Mode LexiconfreeBeamSearch::requiredModelCombination() const {
-    return Speech::ModelCombination::useLabelScorers | Speech::ModelCombination::useLexicon;
+    return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
 bool LexiconfreeBeamSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
-    lexicon_      = modelCombination.lexicon();
-    labelScorers_ = modelCombination.labelScorers();
+    lexicon_  = modelCombination.lexicon();
+    auto* ptr = dynamic_cast<Nn::CombineLabelScorer*>(modelCombination.labelScorer().get());
+    if (ptr == nullptr) {
+        error() << "The search algorithm expects a combine label scorer as label scorer.";
+    }
+    labelScorer_ = Core::ref(ptr);
 
     reset();
     return true;
@@ -83,96 +81,44 @@ bool LexiconfreeBeamSearch::setModelCombination(Speech::ModelCombination const& 
 
 void LexiconfreeBeamSearch::enterSegment(Bliss::SpeechSegment const*) {
     initializationTime_.tic();
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->reset();
-    }
+    labelScorer_->reset();
     resetStatistics();
     initializationTime_.toc();
 }
 
 void LexiconfreeBeamSearch::finishSegment() {
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->signalNoMoreFeatures();
-    }
+    labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.toc();
-    decodeMore();
+    decodeManySteps();
     logStatistics();
 }
 
-void LexiconfreeBeamSearch::passFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
+void LexiconfreeBeamSearch::putFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     featureProcessingTime_.tic();
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInput(data, featureSize);
-    }
+    labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeBeamSearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
-    for (auto& labelScorer : labelScorers_) {
-        labelScorer->addInputs(data, timeSize, featureSize);
-    }
+void LexiconfreeBeamSearch::putFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
+    labelScorer_->addInputs(data, timeSize, featureSize);
     featureProcessingTime_.toc();
 }
 
 Core::Ref<const Traceback> LexiconfreeBeamSearch::getCurrentBestTraceback() const {
-    return beam_.front().getTraceback();
+    return beam_.front().trace->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeBeamSearch::getCurrentBestWordLattice() const {
-    // use default LemmaAlphabet mode of StandardWordLattice
-    Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon_));
-    Core::Ref<Lattice::WordBoundaries>      wordBoundaries(new Lattice::WordBoundaries);
+    auto&        bestHypothesis = beam_.front();
+    LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
 
-    std::unordered_map<const Trace*, Fsa::State*> stateMap;
-
-    Fsa::State* initialState = result->initialState();
-    wordBoundaries->set(initialState->id(), Lattice::WordBoundary(0));
-
-    Fsa::State* finalState = result->finalState();
-
-    std::stack<Core::Ref<Trace>> traceStack;
-    for (auto const& hyp : beam_) {
-        auto* state               = result->newState();
-        stateMap[hyp.trace.get()] = state;
-        result->newArc(state, finalState, hyp.trace->pronunciation, 0, 0);
-        traceStack.push(hyp.trace);
-        wordBoundaries->set(finalState->id(), Lattice::WordBoundary(hyp.trace->time + 1));
+    for (size_t hypIdx = 1ul; hypIdx < beam_.size(); ++hypIdx) {
+        auto& hyp          = beam_[hypIdx];
+        auto  siblingTrace = Core::ref(new LatticeTrace(hyp.trace, 0, hyp.trace->time, hyp.trace->score, {}));
+        endTrace.appendSiblingToChain(siblingTrace);
     }
 
-    while (not traceStack.empty()) {
-        auto const& trace = traceStack.top();
-        traceStack.pop();
-
-        Fsa::State* currentState = stateMap[trace.get()];
-        wordBoundaries->set(currentState->id(), Lattice::WordBoundary(trace->time));
-
-        for (auto arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
-            auto&       preTrace = arcTrace->predecessor;
-            Fsa::State* previousState;
-            ScoreVector scores = trace->score;
-            if (not preTrace) {
-                previousState = initialState;
-            }
-            else {
-                scores -= preTrace->score;
-                if (stateMap.find(preTrace.get()) == stateMap.end()) {
-                    previousState            = result->newState();
-                    stateMap[preTrace.get()] = previousState;
-                    traceStack.push(preTrace);
-                }
-                else {
-                    previousState = stateMap[preTrace.get()];
-                }
-            }
-
-            result->newArc(previousState, currentState, arcTrace->pronunciation, scores.acoustic, scores.lm);
-        }
-    }
-
-    result->setWordBoundaries(wordBoundaries);
-    result->addAcyclicProperty();
-
-    return Core::ref(new Lattice::WordLatticeAdaptor(result));
+    return endTrace.buildWordLattice(lexicon_);
 }
 
 void LexiconfreeBeamSearch::resetStatistics() {
@@ -216,20 +162,13 @@ Nn::LabelScorer::TransitionType LexiconfreeBeamSearch::inferTransitionType(Nn::L
     }
 }
 
-LexiconfreeBeamSearch::Trace::Trace(Core::Ref<Trace> const&               pre,
-                                    const Bliss::LemmaPronunciation*      p,
-                                    TimeframeIndex                        t,
-                                    ScoreVector                           s,
-                                    Search::TracebackItem::Transit const& transit)
-        : TracebackItem(p, t, s, transit), predecessor(pre), sibling() {}
-
 LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::LabelHypothesis const& base, LexiconfreeBeamSearch::HypothesisExtension const& extension)
         : scoringContext(extension.scoringContext), currentLabel(extension.label), score(extension.score), length(base.length + 1), trace(), lastTransitionType(extension.transitionType), finished(base.finished) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::LABEL_TO_LABEL:
         case Nn::LabelScorer::BLANK_TO_LABEL:
         case Nn::LabelScorer::LABEL_TO_BLANK:
-            trace = Core::ref(new Trace(
+            trace = Core::ref(new LatticeTrace(
                     base.trace,
                     extension.pron,
                     extension.timestep + 1,
@@ -239,7 +178,8 @@ LexiconfreeBeamSearch::LabelHypothesis::LabelHypothesis(LexiconfreeBeamSearch::L
         case Nn::LabelScorer::BLANK_LOOP:
         case Nn::LabelScorer::LABEL_LOOP:
             verify(base.trace);
-            trace                 = Core::ref(new Trace(*base.trace));
+            trace                 = Core::ref(new LatticeTrace(*base.trace));
+            trace->sibling        = {};
             trace->score.acoustic = extension.score;
             trace->time           = extension.timestep + 1;
             break;
@@ -251,18 +191,6 @@ Score LexiconfreeBeamSearch::LabelHypothesis::lengthNormalizedScore(Score scale)
         return score;
     }
     return score / std::pow(length, scale);
-}
-
-Core::Ref<Traceback const> LexiconfreeBeamSearch::LabelHypothesis::getTraceback() const {
-    auto             traceback    = Core::ref(new Traceback());
-    Core::Ref<Trace> currentTrace = trace;
-    for (auto currentTrace = trace; currentTrace; currentTrace = currentTrace->predecessor) {
-        traceback->push_back({*currentTrace});
-    }
-    traceback->push_back(TracebackItem(0, 0, {0, 0}, {}));
-    std::reverse(traceback->begin(), traceback->end());
-
-    return traceback;
 }
 
 std::string LexiconfreeBeamSearch::LabelHypothesis::toString() const {
@@ -381,19 +309,18 @@ bool LexiconfreeBeamSearch::decodeStep() {
         }
     }
 
-    for (size_t labelScorerIdx = 0ul; labelScorerIdx < labelScorers_.size(); ++labelScorerIdx) {
-        auto& labelScorer = labelScorers_[labelScorerIdx];
+    std::vector<Nn::LabelScorer::Request> requests;
+    requests.reserve(extensions.size());
+    for (const auto& extension : extensions) {
+        requests.push_back({extension.scoringContext, extension.label, extension.transitionType});
+    }
 
-        std::vector<Nn::LabelScorer::Request> requests;
-        requests.reserve(extensions.size());
-        for (const auto& extension : extensions) {
-            requests.push_back({extension.scoringContext->scoringContexts[labelScorerIdx], extension.label, extension.transitionType});
-        }
+    for (size_t subScorerIdx = 0ul; subScorerIdx < labelScorer_->numSubScorers(); ++subScorerIdx) {
         /*
          * Perform scoring of the requests with the label scorer
          */
         scoringTime_.tic();
-        auto result = labelScorer->computeScoresWithTimes(requests);
+        auto result = labelScorer_->computeSubScoresWithTimes(requests, subScorerIdx);
         scoringTime_.toc();
         if (not result) {
             return false;
@@ -404,7 +331,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
             extensions[idx].timestep = std::max(extensions[idx].timestep, result->timeframes[idx]);
         }
 
-        if (labelScorers_.size() > 1) {
+        if (labelScorer_->numSubScorers() > 1ul) {
             beamPruning(extensions, {[](HypothesisExtension const& ext1, HypothesisExtension const& ext2) { return ext1.score < ext2.score; }}, maxBeamSizePerScorer_);
             if (useScorePruning_) {
                 scorePruning(extensions, {[](HypothesisExtension const& ext) { return ext.score; }});
@@ -433,18 +360,8 @@ bool LexiconfreeBeamSearch::decodeStep() {
             continue;
         }
 
-        std::vector<Nn::ScoringContextRef> newScoringContexts;
-        newScoringContexts.reserve(labelScorers_.size());
-        for (size_t labelScorerIdx = 0ul; labelScorerIdx < labelScorers_.size(); ++labelScorerIdx) {
-            contextExtensionTime_.tic();
-            newScoringContexts.push_back(labelScorers_[labelScorerIdx]->extendedScoringContext({
-                    hyp.scoringContext->scoringContexts[labelScorerIdx],
-                    hyp.currentLabel,
-                    hyp.lastTransitionType,
-            }));
-            contextExtensionTime_.toc();
-        }
-        hyp.scoringContext = Core::ref(new Nn::CombineScoringContext(std::move(newScoringContexts)));
+        contextExtensionTime_.tic();
+        hyp.scoringContext = labelScorer_->extendedScoringContext({hyp.scoringContext, hyp.currentLabel, hyp.lastTransitionType});
         if (useSentenceEnd_ and hyp.currentLabel == sentenceEndIndex_) {
             hyp.finished = true;
         }
@@ -470,7 +387,7 @@ bool LexiconfreeBeamSearch::decodeStep() {
 }
 
 Core::Ref<Nn::LabelScorer> LexiconfreeBeamSearch::getLabelScorer() const {
-    return labelScorers_.front();
+    return labelScorer_;
 }
 
 }  // namespace Search

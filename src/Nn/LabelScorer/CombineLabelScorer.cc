@@ -154,4 +154,78 @@ std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWit
     return accumResult;
 }
 
+size_t CombineLabelScorer::numSubScorers() const {
+    return scaledScorers_.size();
+}
+
+std::optional<CombineLabelScorer::ScoreWithTime> CombineLabelScorer::computeSubScoreWithTime(Request const& request, size_t scorerIdx) {
+    verify(scorerIdx < scaledScorers_.size());
+
+    auto        combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
+    auto const& subContext     = combineContext->scoringContexts.at(scorerIdx);
+
+    // Iterate over all the scorers and accumulate their results into `accumResult`
+    auto const& scaledScorer = scaledScorers_.at(scorerIdx);
+
+    // Prepare sub-request for the current scorer by extracting the appropriate
+    // ScoringContext from the combined ScoringContext
+    Request subRequest{subContext, request.nextToken, request.transitionType};
+
+    // Run current scorer
+    auto result = scaledScorer.scorer->computeScoreWithTime(subRequest);
+    if (!result) {
+        return {};
+    }
+
+    // Merge results of current scorer into `accumResult`
+    // Scores are weighted sum, timeframes are maximum
+    return ScoreWithTime{result->score * scaledScorer.scale, result->timeframe};
+}
+
+std::optional<CombineLabelScorer::ScoresWithTimes> CombineLabelScorer::computeSubScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx) {
+    // Collect CombineScoringContexts from requests
+    std::vector<const CombineScoringContext*> combineContexts;
+    combineContexts.reserve(requests.size());
+    for (const auto& request : requests) {
+        combineContexts.push_back(dynamic_cast<const CombineScoringContext*>(request.context.get()));
+    }
+
+    // Prepare sub-requests for the current scorer by extracting the appropriate
+    // ScoringContext from all the CombineScoringContexts
+    std::vector<Request> subRequests;
+    subRequests.reserve(requests.size());
+    auto requestIt = requests.begin();
+    auto contextIt = combineContexts.begin();
+    for (; requestIt != requests.end(); ++requestIt, ++contextIt) {
+        subRequests.push_back(Request{(*contextIt)->scoringContexts[scorerIdx], requestIt->nextToken, requestIt->transitionType});
+    }
+
+    // Run scorer
+    auto subResults = scaledScorers_[scorerIdx].scorer->computeScoresWithTimes(subRequests);
+    if (!subResults) {
+        return {};
+    }
+    //
+    // Initialize accumulated results with zero-valued scores and timesteps
+    ScoresWithTimes result{std::vector<Score>(requests.size(), 0.0), {requests.size(), 0}};
+
+    // Merge results of current scorer into `accumResult`
+    // Scores are weighted sum, timeframes are maximum
+    Core::CollapsedVector<Speech::TimeframeIndex> timeframes;
+    for (size_t requestIdx = 0ul; requestIdx < requests.size(); ++requestIdx) {
+        result.scores[requestIdx] = subResults->scores[requestIdx] * scaledScorers_[scorerIdx].scale;
+        result.timeframes.push_back(subResults->timeframes[requestIdx]);
+    }
+
+    return result;
+}
+
+#ifdef MODULE_PYTHON
+void CombineLabelScorer::registerPythonCallback(std::string const& name, pybind11::function const& callback) {
+    for (auto& scaledScorer : scaledScorers_) {
+        scaledScorer.scorer->registerPythonCallback(name, callback);
+    }
+}
+#endif
+
 }  // namespace Nn

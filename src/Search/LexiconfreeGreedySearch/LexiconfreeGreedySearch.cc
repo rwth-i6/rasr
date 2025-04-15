@@ -53,12 +53,11 @@ void LexiconfreeGreedySearch::reset() {
 }
 
 Speech::ModelCombination::Mode LexiconfreeGreedySearch::requiredModelCombination() const {
-    return Speech::ModelCombination::useLabelScorers | Speech::ModelCombination::useLexicon;
+    return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon;
 }
 
 bool LexiconfreeGreedySearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
-    lexicon_ = modelCombination.lexicon();
-    verify(modelCombination.labelScorers().size() == 1);
+    lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
 
     reset();
@@ -78,18 +77,18 @@ void LexiconfreeGreedySearch::finishSegment() {
     featureProcessingTime_.tic();
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.toc();
-    decodeMore();
+    decodeManySteps();
     logStatistics();
 }
 
-void LexiconfreeGreedySearch::passFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
+void LexiconfreeGreedySearch::putFeature(Nn::SharedDataHolder const& data, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInput(data, featureSize);
     featureProcessingTime_.toc();
 }
 
-void LexiconfreeGreedySearch::passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
+void LexiconfreeGreedySearch::putFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) {
     verify(labelScorer_);
     featureProcessingTime_.tic();
     labelScorer_->addInputs(data, timeSize, featureSize);

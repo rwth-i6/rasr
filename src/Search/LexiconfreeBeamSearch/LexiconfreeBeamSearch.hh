@@ -18,6 +18,7 @@
 
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Nn/LabelScorer/CombineLabelScorer.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Nn/LabelScorer/SharedDataHolder.hh>
@@ -31,22 +32,9 @@ namespace Search {
 // maximum probability at each decoding step.
 // Supports pruning of the top-k successor of each hypothesis, max-beam-size-pruning and score-based pruning.
 class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
-    class Trace : public Core::ReferenceCounted,
-                  public TracebackItem {
-    public:
-        Core::Ref<Trace> predecessor;
-        Core::Ref<Trace> sibling;
-
-        Trace(Core::Ref<Trace> const&          pre,
-              Bliss::LemmaPronunciation const* p,
-              TimeframeIndex                   t,
-              ScoreVector                      s,
-              Transit const&                   transit);
-    };
-
     struct HypothesisExtension {
         const Bliss::LemmaPronunciation* pron;
-        Nn::CombineScoringContextRef     scoringContext;
+        Nn::ScoringContextRef            scoringContext;
         Nn::LabelIndex                   label;
         Score                            score;
         Search::TimeframeIndex           timestep;
@@ -56,16 +44,16 @@ class LexiconfreeBeamSearch : public SearchAlgorithmV2 {
         HypothesisExtension()
                 : pron(), scoringContext(), label(), score(Core::Type<Score>::max), timestep(), transitionType(), baseHypIndex(0) {}
 
-        HypothesisExtension(const Bliss::LemmaPronunciation* pron, Nn::CombineScoringContextRef scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType, size_t baseHypIndex)
+        HypothesisExtension(const Bliss::LemmaPronunciation* pron, Nn::ScoringContextRef scoringContext, Nn::LabelIndex label, Score score, Search::TimeframeIndex timestep, Nn::LabelScorer::TransitionType transitionType, size_t baseHypIndex)
                 : pron(pron), scoringContext(scoringContext), label(label), score(score), timestep(timestep), transitionType(transitionType), baseHypIndex(baseHypIndex) {}
     };
 
     struct LabelHypothesis {
-        Nn::CombineScoringContextRef    scoringContext;
+        Nn::ScoringContextRef           scoringContext;
         Nn::LabelIndex                  currentLabel;
         Score                           score;
         unsigned int                    length;
-        Core::Ref<Trace>                trace;
+        Core::Ref<LatticeTrace>         trace;
         Nn::LabelScorer::TransitionType lastTransitionType;
         bool                            finished;
 
@@ -128,8 +116,8 @@ public:
     void                            reset() override;
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;
-    void                            passFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
-    void                            passFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
+    void                            putFeature(Nn::SharedDataHolder const& data, size_t featureSize) override;
+    void                            putFeatures(Nn::SharedDataHolder const& data, size_t timeSize, size_t featureSize) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
@@ -177,10 +165,10 @@ private:
 
     bool logStepwiseStatistics_;
 
-    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
-    Nn::LabelIndex                          numClasses_;
-    Bliss::LexiconRef                       lexicon_;
-    std::vector<LabelHypothesis>            beam_;
+    Core::Ref<Nn::CombineLabelScorer> labelScorer_;
+    Nn::LabelIndex                    numClasses_;
+    Bliss::LexiconRef                 lexicon_;
+    std::vector<LabelHypothesis>      beam_;
 
     TimeStatistic initializationTime_;
     TimeStatistic featureProcessingTime_;

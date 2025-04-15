@@ -14,6 +14,13 @@
  */
 
 #include "Traceback.hh"
+#include <Lattice/LatticeAdaptor.hh>
+#include <Speech/Types.hh>
+#include <stack>
+
+#include <stack>
+
+#include <stack>
 
 #include <stack>
 

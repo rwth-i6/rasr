@@ -59,7 +59,20 @@ public:
     std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests) override;
+
+    // Get number of scorers inside combined scorer
+    size_t numSubScorers() const;
+
+    // Compute weighted score of request with a specific sub-scorer
+    std::optional<ScoreWithTime> computeSubScoreWithTime(Request const& request, size_t scorerIdx);
+
+    // Compute weighted scores of requests with a specific sub-scorer
+    std::optional<ScoresWithTimes> computeSubScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx);
+
+#ifdef MODULE_PYTHON
+    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;
+#endif
 
 protected:
     struct ScaledLabelScorer {

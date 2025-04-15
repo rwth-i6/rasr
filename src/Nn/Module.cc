@@ -18,7 +18,6 @@
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
-#include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LegacyFeatureScorerLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
@@ -91,13 +90,6 @@ Module_::Module_()
                 return Core::ref(new NoOpEncoder(config));
             });
 
-    // Forward encoder inputs through an onnx network
-    encoderFactory_.registerEncoder(
-            "onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new OnnxEncoder(config));
-            });
-
     // Forward  encoder inputs chunkwise through an onnx network
     encoderFactory_.registerEncoder(
             "chunked-onnx",
@@ -105,7 +97,7 @@ Module_::Module_()
                 return Core::ref(new ChunkedOnnxEncoder(config));
             });
 
-    // Assume inputs are already finished scores and just passes on the score at the current step
+    // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",
             [](Core::Configuration const& config) {
@@ -149,7 +141,7 @@ Module_::Module_()
             [this](Core::Configuration const& config) {
                 return Core::ref(new EncoderDecoderLabelScorer(
                         config,
-                        createEncoder(Core::Configuration(config, "encoder")),
+                        encoderFactory().createEncoder(Core::Configuration(config, "encoder")),
                         Core::ref(new StepwiseNoOpLabelScorer(config))));
             });
 
@@ -160,7 +152,7 @@ Module_::Module_()
                 return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 
-    // Adds the scores of multiple scaled sub-label-scorers
+    // Performs log-linear combination of multiple sub-label-scorers
     labelScorerFactory_.registerLabelScorer(
             "combine",
             [](Core::Configuration const& config) {

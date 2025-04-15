@@ -44,6 +44,7 @@
 #include "VectorSum.hh"
 #include "VectorTextInput.hh"
 #include "WarpTimeFilter.hh"
+#include "InputNode.hh"
 
 // predefined datatypes
 #include "DataAdaptor.hh"

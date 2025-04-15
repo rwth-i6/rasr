@@ -18,17 +18,18 @@
 
 #include <Am/ClassicStateModel.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Types.hh>
 #include <Math/FastVector.hh>
 #include <Mm/Types.hh>
 #include <Search/Types.hh>
 #include <Speech/Types.hh>
-#include "Core/Types.hh"
 #ifdef MODULE_ONNX
-#include "Onnx/Value.hh"
+#include <Onnx/Value.hh>
 #endif
+#ifdef MODULE_PYTHON
 #include <pybind11/pytypes.h>
-
 namespace py = pybind11;
+#endif
 
 namespace Nn {
 
@@ -194,6 +195,8 @@ struct CombineScoringContext : public ScoringContext {
 
 typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
 
+#ifdef MODULE_PYTHON
+
 /*
  * Scoring context containing some arbitrary python object
  */
@@ -212,6 +215,8 @@ struct PythonScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const PythonScoringContext> PythonScoringContextRef;
+
+#endif
 
 }  // namespace Nn
 

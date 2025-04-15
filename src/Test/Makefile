@@ -82,6 +82,9 @@ endif
 ifdef MODULE_FLF_EXT
 UNIT_TEST_O += ../Flf/FlfExt/libSprintFlfExt.$(a)
 endif
+ifdef MODULE_ADVANCED_TREE_SEARCH
+UNIT_TEST_O += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
+endif
 ifdef MODULE_PYTHON
 UNIT_TEST_O += ../Python/libSprintPython.$(a)
 endif

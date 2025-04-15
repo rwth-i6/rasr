@@ -1,14 +1,16 @@
 set(RasrOnnx_SOURCES
-        Session.cc
-        IOSpecification.cc
-        Model.cc
-        Module.cc
-        OnnxFeatureScorer.cc
-        OnnxForwardNode.cc
-        Value.cc)
+    Session.cc
+    IOSpecification.cc
+    Model.cc
+    Module.cc
+    OnnxEncoder.cc
+    OnnxFeatureScorer.cc
+    OnnxForwardNode.cc
+    Value.cc)
 
 add_library(RasrOnnx STATIC ${RasrOnnx_SOURCES})
 
+add_python_dependencies(RasrOnnx)
 add_onnx_dependencies(RasrOnnx)
 target_link_libraries(RasrOnnx INTERFACE RasrCore)
 

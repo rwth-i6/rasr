@@ -53,7 +53,6 @@ public:
     std::string getCurrentBestTranscription();
 
     Traceback getCurrentBestTraceback();
-    NBestList getCurrentNBestList();
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result
@@ -63,12 +62,12 @@ public:
 
 private:
     // Decode as much as possible given the currently available features. Return bool indicates whether any steps could be made.
-    bool decodeMore();
+    bool decodeManySteps();
 
     Flf::ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor>);
 
-    Search::SearchAlgorithmV2* searchAlgorithm_;
-    Speech::ModelCombination   modelCombination_;
+    Search::SearchAlgorithmV2*          searchAlgorithm_;
+    Core::Ref<Speech::ModelCombination> modelCombination_;
 
     size_t currentFeatureIdx_;
 };

@@ -61,10 +61,13 @@ public:
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Add a single encoder outputs to buffer
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    void addInput(DataView const& input) override;
 
     std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTime(LabelScorer::Request const& request) override;
     std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
+
+protected:
+    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache

@@ -1,4 +1,3 @@
-
 /** Copyright 2020 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");

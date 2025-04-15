@@ -25,10 +25,6 @@ if(${MODULE_LM_ZEROGRAM})
   list(APPEND Lm_SOURCES Zerogram.cc)
 endif()
 
-if(${MODULE_LM_FFNN})
-  list(APPEND Lm_SOURCES FFNeuralNetworkLanguageModel.cc)
-endif()
-
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
   list(
     APPEND

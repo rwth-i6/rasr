@@ -3,7 +3,6 @@ set(RasrPython_SOURCES
     Configuration.cc
     Init.cc
     GenericPythonLabelScorer.cc
-    LimitedCtxPythonLabelScorer.cc
     Numpy.cc
     Search.cc
     Utilities.cc)

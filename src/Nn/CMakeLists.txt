@@ -16,14 +16,11 @@ if (${MODULE_NN})
             BufferedSegmentFeatureProcessor.cc
             ClassLabelWrapper.cc
             Criterion.cc
-            CtcCriterion.cc
             Estimator.cc
             FeatureScorer.cc
             FeedForwardTrainer.cc
-            GradientCheck.cc
             LinearAndActivationLayer.cc
             LinearLayer.cc
-            LookupLayer.cc
             MeanNormalizedSgdEstimator.cc
             NetworkTopology.cc
             NeuralNetwork.cc
@@ -35,7 +32,6 @@ if (${MODULE_NN})
             PreprocessingLayer.cc
             Prior.cc
             Regularizer.cc
-            RpropEstimator.cc
             Statistics.cc
             TrainerFeatureScorer.cc)
 endif ()

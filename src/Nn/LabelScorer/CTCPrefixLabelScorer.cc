@@ -60,12 +60,12 @@ void CTCPrefixLabelScorer::signalNoMoreFeatures() {
     expectMoreFeatures_ = false;
 }
 
-void CTCPrefixLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
-    ctcScorer_->addInput(input, featureSize);
+void CTCPrefixLabelScorer::addInput(DataView const& input) {
+    ctcScorer_->addInput(input);
 }
 
-void CTCPrefixLabelScorer::addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize) {
-    ctcScorer_->addInputs(inputs, timeSize, featureSize);
+void CTCPrefixLabelScorer::addInputs(DataView const& inputs, size_t nTimesteps) {
+    ctcScorer_->addInputs(inputs, nTimesteps);
 }
 
 ScoringContextRef CTCPrefixLabelScorer::getInitialScoringContext() {

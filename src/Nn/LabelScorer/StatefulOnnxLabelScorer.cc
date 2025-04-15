@@ -217,8 +217,8 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new HiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
-    Precursor::addInput(input, featureSize);
+void StatefulOnnxLabelScorer::addInput(DataView const& input) {
+    Precursor::addInput(input);
 
     initialHiddenState_ = HiddenStateRef();
 
@@ -229,7 +229,7 @@ void StatefulOnnxLabelScorer::addInput(SharedDataHolder const& input, size_t fea
 }
 
 std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    if (expectMoreFeatures_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
+    if (expectMoreFeatures_ or bufferSize() == 0ul) {  // Only allow scoring once all encoder states have been passed
         return {};
     }
 
@@ -288,17 +288,23 @@ std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreW
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
+Speech::TimeframeIndex StatefulOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    return 0u;
+}
+
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
     if (not encoderStatesValue_.empty()) {
         return;
     }
 
-    u32 T = inputBuffer_.size();
+    u32  T                    = bufferSize();
+    auto inputFeatureDataView = getInput(0);
 
-    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(featureSize_)});
+    encoderStatesValue_ = Onnx::Value::createEmpty<f32>({1l, static_cast<int64_t>(T), static_cast<int64_t>(inputFeatureDataView->size())});
 
     for (size_t t = 0ul; t < T; ++t) {
-        std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + featureSize_, encoderStatesValue_.data<f32>(0, t));
+        inputFeatureDataView = getInput(t);
+        std::copy(inputFeatureDataView->data(), inputFeatureDataView->data() + inputFeatureDataView->size(), encoderStatesValue_.data<f32>(0, t));
     }
 }
 
@@ -307,7 +313,7 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
         return;
     }
 
-    u32 T = inputBuffer_.size();
+    u32 T = bufferSize();
 
     encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(T)});
 }

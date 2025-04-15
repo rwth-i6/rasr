@@ -38,7 +38,7 @@ public:
     void reset() override;
 
     // Add feature to internal feature scorer. Afterwards prepare and cache context scorer if possible.
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    void addInput(DataView const& input) override;
 
     // Flush and cache all remaining context scorers
     void signalNoMoreFeatures() override;

@@ -87,7 +87,7 @@ public:
     virtual void reset() override;
 
     // Add a single input feature to an input buffer
-    virtual void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    virtual void addInput(DataView const& input) override;
 
 protected:
     const size_t chunkCenter_;
@@ -110,7 +110,7 @@ class NoOpEncoder : public Encoder {
 
 public:
     NoOpEncoder(Core::Configuration const& config);
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    void addInput(DataView const& input) override;
 
 protected:
     bool canEncode() const override {

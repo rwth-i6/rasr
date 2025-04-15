@@ -65,4 +65,8 @@ std::optional<DataView> BufferedLabelScorer ::getInput(Speech::TimeframeIndex ti
     return inputBuffer_[bufferPosition];
 }
 
+size_t BufferedLabelScorer::bufferSize() const {
+    return inputBuffer_.size();
+}
+
 }  // namespace Nn

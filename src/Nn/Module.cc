@@ -91,12 +91,12 @@ Module_::Module_()
                 return Core::ref(new NoOpEncoder(config));
             });
 
-    // Forward  encoder inputs chunkwise through an onnx network
-    encoderFactory_.registerEncoder(
-            "chunked-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new ChunkedOnnxEncoder(config));
-            });
+    // // Forward  encoder inputs chunkwise through an onnx network
+    // encoderFactory_.registerEncoder(
+    //         "chunked-onnx",
+    //         [](Core::Configuration const& config) {
+    //             return Core::ref(new ChunkedOnnxEncoder(config));
+    //         });
 
     // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
@@ -106,11 +106,11 @@ Module_::Module_()
             });
 
     // Wrapper around legacy Mm::FeatureScorer
-    labelScorerFactory_.registerLabelScorer(
-            "legacy-feature-scorer",
-            [](Core::Configuration const& config) {
-                return Core::ref(new LegacyFeatureScorerLabelScorer(config));
-            });
+    // labelScorerFactory_.registerLabelScorer(
+    //         "legacy-feature-scorer",
+    //         [](Core::Configuration const& config) {
+    //             return Core::ref(new LegacyFeatureScorerLabelScorer(config));
+    //         });
 
     // Forward the feature at the current step through an onnx network
     labelScorerFactory_.registerLabelScorer(

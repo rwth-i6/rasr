@@ -5,19 +5,22 @@ if(${MODULE_ADVANCED_TREE_SEARCH})
   add_subdirectory(AdvancedTreeSearch)
 endif()
 
-add_subdirectory(LexiconfreeBeamSearch)
-add_subdirectory(LexiconfreeGreedySearch)
+# add_subdirectory(LexiconfreeBeamSearch)
+add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(TreeTimesyncBeamSearch)
 
 set(RasrSearch_SOURCES
     Aligner.cc
     LatticeHandler.cc
     LanguageModelLookahead.cc
     Module.cc
+    PersistentStateTree.cc
     Search.cc
     StateTree.cc
     StateTreeIo.cc
     Traceback.cc
-    WordConditionedTreeSearch.cc)
+    TreeBuilder.cc
+    TreeStructure.cc)
 
 if(${MODULE_SEARCH_MBR})
   list(APPEND RasrSearch_SOURCES MinimumBayesRiskSearch.cc

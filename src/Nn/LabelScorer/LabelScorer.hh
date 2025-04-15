@@ -28,7 +28,6 @@
 
 #include "DataView.hh"
 #include "ScoringContext.hh"
-#include "SharedDataHolder.hh"
 
 #ifdef MODULE_PYTHON
 #include <pybind11/pytypes.h>

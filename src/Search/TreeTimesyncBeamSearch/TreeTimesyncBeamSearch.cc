@@ -276,21 +276,15 @@ void TreeTimesyncBeamSearch::finishSegment() {
     finalizeLmScoring();
 }
 
-void TreeTimesyncBeamSearch::putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
-    featureProcessingTime_.start();
-    labelScorer_->addInput(data, featureSize);
-    featureProcessingTime_.stop();
-}
-
-void TreeTimesyncBeamSearch::putFeature(std::vector<f32> const& data) {
+void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& data) {
     featureProcessingTime_.start();
     labelScorer_->addInput(data);
     featureProcessingTime_.stop();
 }
 
-void TreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
+void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& data, size_t nTimesteps) {
     featureProcessingTime_.start();
-    labelScorer_->addInputs(data, timeSize, featureSize);
+    labelScorer_->addInputs(data, nTimesteps);
     featureProcessingTime_.stop();
 }
 

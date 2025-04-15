@@ -72,6 +72,9 @@ public:
 
     virtual void registerPythonCallback(std::string const& name, py::function const& callback) override;
 
+protected:
+    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<Nn::ScoringContextRef> const& activeContexts) const override;
+
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep

@@ -41,8 +41,8 @@ public:
 
     void reset() override;
     void signalNoMoreFeatures() override;
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
-    void addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize) override;
+    void addInput(DataView const& input) override;
+    void addInputs(DataView const& inputs, size_t nTimesteps) override;
 
     ScoringContextRef getInitialScoringContext() override;
 

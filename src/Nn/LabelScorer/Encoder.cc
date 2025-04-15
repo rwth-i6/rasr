@@ -125,8 +125,8 @@ void ChunkedEncoder::reset() {
     currentFutureFeatures_  = 0ul;
 }
 
-void ChunkedEncoder::addInput(SharedDataHolder const& input, size_t featureSize) {
-    Precursor::addInput(input, featureSize);
+void ChunkedEncoder::addInput(DataView const& input) {
+    Precursor::addInput(input);
     if (currentCenterFeatures_ < chunkCenter_) {
         ++currentCenterFeatures_;
     }
@@ -175,9 +175,8 @@ void ChunkedEncoder::postEncodeCleanup() {
 NoOpEncoder::NoOpEncoder(Core::Configuration const& config)
         : Core::Component(config), Precursor(config) {}
 
-void NoOpEncoder::addInput(SharedDataHolder const& input, size_t featureSize) {
-    Precursor::addInput(input, featureSize);
-    outputSize_ = featureSize_;
+void NoOpEncoder::addInput(DataView const& input) {
+    Precursor::addInput(input);
 }
 
 void NoOpEncoder::encode() {

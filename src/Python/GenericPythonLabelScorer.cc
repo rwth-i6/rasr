@@ -140,7 +140,7 @@ Nn::ScoringContextRef GenericPythonLabelScorer::extendedScoringContext(LabelScor
 }
 
 std::optional<Nn::LabelScorer::ScoresWithTimes> GenericPythonLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    if (expectMoreFeatures_ or inputBuffer_.empty()) {  // Only allow scoring once all encoder states have been passed
+    if (expectMoreFeatures_ or bufferSize() == 0ul) {  // Only allow scoring once all encoder states have been passed
         return {};
     }
 
@@ -226,6 +226,10 @@ void GenericPythonLabelScorer::registerPythonCallback(std::string const& name, p
     }
 }
 
+Speech::TimeframeIndex GenericPythonLabelScorer::minActiveTimeIndex(Core::CollapsedVector<Nn::ScoringContextRef> const& activeContexts) const {
+    return 0u;
+}
+
 void GenericPythonLabelScorer::forwardBatch(std::vector<Nn::PythonScoringContextRef> const& contextBatch) {
     if (contextBatch.empty()) {
         return;
@@ -289,12 +293,14 @@ void GenericPythonLabelScorer::setupEncoderStatesValue() {
         return;
     }
 
-    int64_t T             = inputBuffer_.size();
-    encoderStates_        = py::array_t<f32>({1l, T, static_cast<int64_t>(featureSize_)});
-    auto encoderStatesBuf = encoderStates_.mutable_unchecked<3>();
+    int64_t T                    = bufferSize();
+    auto    inputFeatureDataView = getInput(0);
+    encoderStates_               = py::array_t<f32>({1l, T, static_cast<int64_t>(inputFeatureDataView->size())});
+    auto encoderStatesBuf        = encoderStates_.mutable_unchecked<3>();
     for (size_t t = 0ul; t < T; ++t) {
-        for (size_t f = 0ul; f < featureSize_; ++f) {
-            encoderStatesBuf(0, t, f) = inputBuffer_[t][f];
+        inputFeatureDataView = getInput(t);
+        for (size_t f = 0ul; f < inputFeatureDataView->size(); ++f) {
+            encoderStatesBuf(0, t, f) = (*getInput(t))[f];
         }
     }
 }

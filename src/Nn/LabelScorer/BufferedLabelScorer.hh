@@ -52,6 +52,7 @@ protected:
 
     virtual Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const = 0;
     std::optional<DataView>        getInput(Speech::TimeframeIndex timeIndex) const;
+    size_t                         bufferSize() const;
 
 private:
     std::deque<DataView> inputBuffer_;       // Buffer that contains all the feature data for the current segment

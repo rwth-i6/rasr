@@ -1,9 +1,19 @@
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 #include "Search.hh"
-#include <Flf/LatticeHandler.hh>
-#include <Flf/Module.hh>
-#include <Flow/Data.hh>
-#include <Fsa/tBest.hh>
-#include <Nn/Types.hh>
 
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
@@ -12,9 +22,8 @@ namespace py = pybind11;
 
 SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
         : Core::Component(c),
-          searchAlgorithm_(Search::Module::instance().createSearchAlgorithm(select("search-algorithm"))),
-          modelCombination_(new Speech::ModelCombination(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel())) {
-    searchAlgorithm_->setModelCombination(*modelCombination_);
+          searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))) {
+    searchAlgorithm_->setModelCombination({config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel()});
 }
 
 void SearchAlgorithm::reset() {
@@ -29,7 +38,7 @@ void SearchAlgorithm::finishSegment() {
     searchAlgorithm_->finishSegment();
 }
 
-void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
+void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
     size_t F = 0ul;
     if (feature.ndim() == 2) {
         if (feature.shape(0) != 1) {
@@ -42,13 +51,10 @@ void SearchAlgorithm::addFeature(py::array_t<f32> const& feature) {
         F = feature.shape(0);
     }
 
-    // `dataPtr` is a shared_ptr wrapper around `input`.
-    // Since we don't actually own the underlying data, it has a custom deleter that does nothing
-    auto dataPtr = std::shared_ptr<const f32[]>(feature.data(), [](const f32*) {});
-    searchAlgorithm_->putFeature(dataPtr, F);
+    searchAlgorithm_->putFeature({feature, F});
 }
 
-void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
+void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     size_t T = 0ul;
     size_t F = 0ul;
     if (features.ndim() == 3) {
@@ -64,30 +70,13 @@ void SearchAlgorithm::addFeatures(py::array_t<f32> const& features) {
         F = features.shape(1);
     }
 
-    // `dataPtr` is a shared_ptr wrapper around `input`.
-    // Since we don't actually own the underlying data, it has a custom deleter that does nothing
-    auto dataPtr = std::shared_ptr<const f32[]>(features.data(), [](const f32*) {});
-    searchAlgorithm_->putFeatures(dataPtr, T, F);
-}
-
-std::string SearchAlgorithm::getCurrentBestTranscription() {
-    decodeManySteps();
-
-    auto traceback = searchAlgorithm_->getCurrentBestTraceback();
-
-    std::stringstream ss;
-
-    for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        if (it->pronunciation) {
-            ss << it->pronunciation->lemma()->symbol() << " ";
-        }
+    for (size_t t = 0ul; t < T; ++t) {
+        searchAlgorithm_->putFeatures({features, T * F}, T);
     }
-
-    return ss.str();
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    decodeManySteps();
+    searchAlgorithm_->decodeManySteps();
 
     auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
     std::vector<TracebackItem> result;
@@ -108,20 +97,10 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
     return result;
 }
 
-bool SearchAlgorithm::decodeManySteps() {
-    return searchAlgorithm_->decodeManySteps();
-}
-
-std::string SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
+Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
     reset();
     enterSegment();
-    addFeatures(features);
+    putFeatures(features);
     finishSegment();
-    decodeManySteps();
-    auto result = getCurrentBestTranscription();
-    return result;
-}
-
-Nn::LabelScorer& SearchAlgorithm::getLabelScorer() const {
-    return *searchAlgorithm_->getLabelScorer();
+    return getCurrentBestTraceback();
 }

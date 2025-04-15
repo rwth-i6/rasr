@@ -14,13 +14,12 @@
  */
 
 #include "NoOpLabelScorer.hh"
+#include "ScoringContext.hh"
 
 namespace Nn {
 
 StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config) {
-    log() << "Create StepwiseNoOpLabelScorer";
-}
+        : Core::Component(config), Precursor(config) {}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
@@ -37,10 +36,10 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreW
         return {};
     }
     if (request.nextToken >= featureSize_) {
-        error() << "Tried to get score for token " << request.nextToken << " but only have " << featureSize_ << " scores available.";
+        error() << "Tried to get score for token index " << request.nextToken << " but only have " << featureSize_ << " scores available.";
     }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep).get()[request.nextToken], stepHistory->currentStep};
+    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
 }
 
 }  // namespace Nn

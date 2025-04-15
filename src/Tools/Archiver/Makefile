@@ -39,9 +39,6 @@ ifdef MODULE_NN
 ARCHIVER_O += ../../Nn/libSprintNn.$(a)
 ARCHIVER_O += ../../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
-ifdef MODULE_SEARCH_WFST
-ARCHIVER_O += ../../Search/Wfst/libSprintSearchWfst.$(a)
-endif
 ifdef MODULE_OPENFST
 ARCHIVER_O += ../../OpenFst/libSprintOpenFst.$(a)
 endif

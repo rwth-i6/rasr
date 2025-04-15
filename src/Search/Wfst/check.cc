@@ -51,7 +51,7 @@ public:
         return 0;
 
         return EXIT_SUCCESS;
-    }  //end main
+    }  // end main
 
 protected:
 };

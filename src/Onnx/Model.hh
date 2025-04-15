@@ -1,5 +1,4 @@
-
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,7 +12,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#ifndef PYTHON_MODULE_HH
+#define PYTHON_MODULE_HH
 
+<<<<<<<< HEAD:src/Python/Module.hh
+#include <Core/Singleton.hh>
+
+namespace Python {
+
+class Module_ {
+public:
+    Module_();
+    ~Module_() = default;
+};
+
+typedef Core::SingletonHolder<Module_> Module;
+
+}  // namespace Python
+
+#endif  // PYTHON_MODULE_HH
+========
 #ifndef ONNX_MODEL_HH
 #define ONNX_MODEL_HH
 
@@ -23,7 +41,7 @@
 namespace Onnx {
 
 /*
- * Wrapper class that glues together session, IOMapping and IOValidator components
+ * Wrapper class that ties together Session, IOMapping and IOValidator components
  * which are commonly used together when dealing with ONNX models
  */
 class Model : public Core::Component {
@@ -37,3 +55,4 @@ public:
 }  // namespace Onnx
 
 #endif  // ONNX_MODEL_HH
+>>>>>>>> master:src/Onnx/Model.hh

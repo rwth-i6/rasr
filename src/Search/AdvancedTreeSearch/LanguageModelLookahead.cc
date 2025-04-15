@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #include <unordered_map>
 #include <unordered_set>
@@ -23,7 +22,9 @@
 #include <Core/Utility.hh>
 #include <Lm/BackingOff.hh>
 #include <Lm/FsaLm.hh>
+#include <Search/Helpers.hh>
 #include <Search/Types.hh>
+
 #include "Helpers.hh"
 #include "LanguageModelLookahead.hh"
 
@@ -644,7 +645,7 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
             bool hasWordEnd = false;
 
             if (nodeId[node] != invalidId) {
-                return;  //Happens while collecting coarticulated nodes
+                return;  // Happens while collecting coarticulated nodes
             }
 
             std::vector<u32> successors;
@@ -666,17 +667,17 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
             ConstructionNode* cn = 0;
 
             if (successors.size() == 1 && !hasWordEnd) {
-                ///Forward the node. No branching, so no new node needs to be created
+                /// Forward the node. No branching, so no new node needs to be created
                 verify(successors.front() < nodeId.size());
                 verify(nodeId[successors.front()] != invalidId);
                 verify(nodeId[successors.front()] < nodeList_.size());
                 cn = nodeList_[nodeId[successors.front()]];
             }
             else {
-                ///Branching happens in this place, need a new node that has the others as followers
+                /// Branching happens in this place, need a new node that has the others as followers
                 cn = new ConstructionNode;
 
-                //Care about word ends
+                // Care about word ends
                 for (HMMStateNetwork::SuccessorIterator target = tree_.successors(node); target; ++target) {
                     if (target.isLabel()) {
                         ++totalEncounteredWordEnds;
@@ -791,7 +792,7 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
 
     verify(nodeId[rootNode] != invalidId);
 
-    //Collect coarticulated nodes
+    // Collect coarticulated nodes
     for (StateId node = 1; node < tree.stateCount(); ++node) {
         verify(nodeId[node] != invalidId);
     }
@@ -1229,7 +1230,7 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
 
     // Build 'parentNodes' structure
 
-    //Maps a parent-node to each node. -1 if the node has no parent
+    // Maps a parent-node to each node. -1 if the node has no parent
     typedef std::unordered_multimap<LookaheadId, LookaheadId, StandardValueHash<u32>> ParentMap;
     ParentMap                                                                         parentNodes;
 
@@ -1285,7 +1286,7 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
         }
     }
 
-    //Turn the multi-map into a more efficent index-based map
+    // Turn the multi-map into a more efficent index-based map
     log() << "lexicon lemmas: " << lm_->lexicon()->nLemmas();
     log() << "lm tokens: " << lm_->tokenInventory().size();
     log() << "lexicon syntactic tokens: " << lm_->lexicon()->nSyntacticTokens();
@@ -1302,7 +1303,7 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
     invalidFirstNodeForTokenIndex_ = firstNodeForToken_.size();
 
     {
-        //Add the look-ahead nodes for the invalid id
+        // Add the look-ahead nodes for the invalid id
         int token = Bliss::Token::invalidId;
 
         firstNodeForToken_.push_back(nodeForToken_.size());

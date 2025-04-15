@@ -31,41 +31,43 @@ class CombineLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
 public:
-    static Core::ParameterInt paramNumLabelScorers;
+    static Core::ParameterInt   paramNumLabelScorers;
+    static Core::ParameterFloat paramScale;
 
     CombineLabelScorer(const Core::Configuration& config);
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers
-    void reset() override;
+    void reset();
 
     // Forward signal to all sub-scorers
-    void signalNoMoreFeatures() override;
+    void signalNoMoreFeatures();
 
     // Combine initial ScoringContexts from all sub-scorers
-    ScoringContextRef getInitialScoringContext() override;
+    ScoringContextRef getInitialScoringContext();
 
     // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request) override;
+    ScoringContextRef extendedScoringContext(Request const& request);
 
     // Add input to all sub-scorers
-    void addInput(SharedDataHolder const& input, size_t featureSize) override;
+    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
 
     // Add inputs to all sub-scorers
-    void addInputs(SharedDataHolder const& input, size_t timeSize, size_t featureSize) override;
+    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
 
     // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests) override;
-
-#ifdef MODULE_PYTHON
-    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;
-#endif
+    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
 
 protected:
-    std::vector<Core::Ref<LabelScorer>> scorers_;
+    struct ScaledLabelScorer {
+        Core::Ref<LabelScorer> scorer;
+        Score                  scale;
+    };
+
+    std::vector<ScaledLabelScorer> scaledScorers_;
 };
 
 }  // namespace Nn

@@ -557,8 +557,7 @@ inline T mt_dot(int N, const T* X, const T* Y, int nThreads) {
 template<typename T>
 inline T mt_dot(int N, T alpha, const T* X, const T* Y, int nThreads) {
     T result = 0.0;
-#pragma omp parallel for reduction(+ \
-                                   : result)
+#pragma omp parallel for reduction(+ : result)
     for (int i = 0; i < N; i++) {
         result += X[i] * Y[i];
     }
@@ -600,8 +599,7 @@ inline T mt_nrm2(int N, const T* X, int nThreads) {
 template<typename T>
 inline T mt_nrm2(int N, T alpha, const T* X, int nThreads) {
     T result = 0.0;
-#pragma omp parallel for reduction(+ \
-                                   : result)
+#pragma omp parallel for reduction(+ : result)
     for (int i = 0; i < N; i++) {
         result += X[i] * X[i];
     }
@@ -645,8 +643,7 @@ inline T mt_asum(int N, const T* X, int nThreads) {
 template<typename T>
 inline T mt_asum(int N, T alpha, const T* X, int nThreads) {
     T result = 0.0;
-#pragma omp parallel for reduction(+ \
-                                   : result)
+#pragma omp parallel for reduction(+ : result)
     for (int i = 0; i < N; i++) {
         result += X[i] * X[i];
     }
@@ -675,6 +672,6 @@ inline double mt_asum(int N, const double* X, int nThreads) {
 
 #endif
 
-}  //namespace Math
+}  // namespace Math
 
 #endif

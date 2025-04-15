@@ -286,12 +286,12 @@ void Core::HistogramStatistics::write(XmlWriter& os) const {
 
         for (u32 currentBin = 0; currentBin < bins_; ++currentBin) {
             u32 arrayStart = previousArrayEnd;
-            //Skip all zero array items
+            // Skip all zero array items
             while (arrayStart < counts_.size() && counts_[arrayStart] == 0)
                 ++arrayStart;
 
             if (arrayStart == counts_.size()) {
-                break;  //End reached
+                break;  // End reached
             }
 
             u32 targetArrayWeight = remainingArrayWeight / (bins_ - currentBin) + 1;
@@ -309,7 +309,7 @@ void Core::HistogramStatistics::write(XmlWriter& os) const {
             for (u32 a = arrayStart; a < oldArrayEnd; ++a) {
                 count += counts_[a];
                 if (counts_[a])
-                    arrayEnd = a + 1;  //update arrayEnd so arrayStart and arrayEnd enclose the real range as exactly as possible
+                    arrayEnd = a + 1;  // update arrayEnd so arrayStart and arrayEnd enclose the real range as exactly as possible
             }
 
             if (count == 0)

@@ -54,7 +54,7 @@
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0),
+        : formats_(nullptr),
           encoderFactory_(),
           labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
@@ -139,8 +139,8 @@ Module_::Module_()
             [this](Core::Configuration const& config) {
                 return Core::ref(new EncoderDecoderLabelScorer(
                         config,
-                        createEncoder(Core::Configuration(config, "encoder")),
-                        createLabelScorer(Core::Configuration(config, "decoder"))));
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
+                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"))));
             });
 
     // A label scorer consisting of an encoder that produces scores based on the features
@@ -196,12 +196,4 @@ EncoderFactory& Module_::encoderFactory() {
 
 LabelScorerFactory& Module_::labelScorerFactory() {
     return labelScorerFactory_;
-}
-
-Core::Ref<Encoder> Module_::createEncoder(Core::Configuration const& config) const {
-    return encoderFactory_.createEncoder(config);
-}
-
-Core::Ref<LabelScorer> Module_::createLabelScorer(Core::Configuration const& config) const {
-    return labelScorerFactory_.createLabelScorer(config);
 }

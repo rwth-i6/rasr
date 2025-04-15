@@ -2150,7 +2150,18 @@ void registerNodeCreators(NodeFactory* factory) {
     factory->add(
             NodeCreator(
                     "recognizer-v2",
-                    "",
+                    "Second version of RASR recognizer.\n"
+                    "Output are lattices in Flf format.\n"
+                    "Much more minimalistic than the first recognizer node\n"
+                    "and works with a `SearchAlgorithmV2` instead of\n"
+                    "`SearchAlgorithm`. Performs recognition of the input segments\n"
+                    "and sends the result lattices as outputs.\n"
+                    "[*.network.recognizer-v2]\n"
+                    "type = recognizer-v2\n"
+                    "input:\n"
+                    "  0:bliss-speech-segment\n"
+                    "output:\n"
+                    "  0:lattice",
                     &createRecognizerNodeV2));
 
     factory->add(

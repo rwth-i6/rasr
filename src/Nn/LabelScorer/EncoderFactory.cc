@@ -1,4 +1,9 @@
+<<<<<<<< HEAD:src/Onnx/Model.hh
+
+/** Copyright 2020 RWTH Aachen University. All rights reserved.
+========
 /** Copyright 2025 RWTH Aachen University. All rights reserved.
+>>>>>>>> master:src/Nn/LabelScorer/EncoderFactory.cc
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,11 +18,35 @@
  *  limitations under the License.
  */
 
+<<<<<<<< HEAD:src/Onnx/Model.hh
+#ifndef ONNX_MODEL_HH
+#define ONNX_MODEL_HH
+
+#include "IOSpecification.hh"
+#include "Session.hh"
+========
 #include "EncoderFactory.hh"
-#include "Core/Choice.hh"
+>>>>>>>> master:src/Nn/LabelScorer/EncoderFactory.cc
 
-namespace Nn {
+namespace Onnx {
 
+<<<<<<<< HEAD:src/Onnx/Model.hh
+/*
+ * Wrapper class that glues together session, IOMapping and IOValidator components
+ * which are commonly used together when dealing with ONNX models
+ */
+class Model : public Core::Component {
+public:
+    Session   session;
+    IOMapping mapping;
+
+    Model(const Core::Configuration& config, const std::vector<IOSpecification>& ioSpec);
+};
+
+}  // namespace Onnx
+
+#endif  // ONNX_MODEL_HH
+========
 EncoderFactory::EncoderFactory()
         : choices_(), paramEncoderType("type", &choices_, "Choice from a set of encoder types."), registry_() {}
 
@@ -31,3 +60,4 @@ Core::Ref<Encoder> EncoderFactory::createEncoder(Core::Configuration const& conf
 }
 
 }  // namespace Nn
+>>>>>>>> master:src/Nn/LabelScorer/EncoderFactory.cc

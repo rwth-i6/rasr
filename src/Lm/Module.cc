@@ -28,9 +28,6 @@
 #ifdef MODULE_LM_ZEROGRAM
 #include "Zerogram.hh"
 #endif
-#ifdef MODULE_LM_FFNN
-#include "FFNeuralNetworkLanguageModel.hh"
-#endif
 #ifdef MODULE_LM_TFRNN
 #include "TFRecurrentLanguageModel.hh"
 #endif
@@ -53,7 +50,6 @@ enum LanguageModelType {
     lmTypeArpaWithClasses,
     lmTypeFsa,
     lmTypeZerogram,
-    lmTypeFFNN,
     lmTypeCombine,
     lmTypeTFRNN,
     lmTypeCheatingSegment,
@@ -66,7 +62,6 @@ const Core::Choice Module_::lmTypeChoice(
         "ARPA+classes", lmTypeArpaWithClasses,
         "fsa", lmTypeFsa,
         "zerogram", lmTypeZerogram,
-        "ffnn", lmTypeFFNN,
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
         "cheating-segment", lmTypeCheatingSegment,
@@ -92,9 +87,6 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #endif
 #ifdef MODULE_LM_ZEROGRAM
         case lmTypeZerogram: result = Core::ref(new Zerogram(c, l)); break;
-#endif
-#ifdef MODULE_LM_FFNN
-        case lmTypeFFNN: result = Core::ref(new FFNeuralNetworkLanguageModel(c, l)); break;
 #endif
         case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN

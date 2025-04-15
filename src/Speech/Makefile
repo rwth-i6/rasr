@@ -45,7 +45,7 @@ CHECK_O		= $(OBJDIR)/check.o \
 		  ../Am/libSprintAm.$(a) \
 		  ../Mm/libSprintMm.$(a) \
 		  ../Mc/libSprintMc.$(a) \
-		  ../Search/libSprintSearch.$(a) \
+		  $(subst src,..,$(LIBS_SEARCH)) \
 		  ../Bliss/libSprintBliss.$(a) \
 		  ../Flow/libSprintFlow.$(a) \
 		  ../Fsa/libSprintFsa.$(a) \
@@ -138,11 +138,7 @@ CHECK_O += ../Nn/libSprintNn.$(a)
 CHECK_O += ../Nn/LabelScorer/libSprintLabelScorer.$(a)
 endif
 ifdef MODULE_SEARCH_WFST
-CHECK_O            += ../Search/Wfst/libSprintSearchWfst.$(a)
 CHECK_O            += ../OpenFst/libSprintOpenFst.$(a)
-endif
-ifdef MODULE_ADVANCED_TREE_SEARCH
-CHECK_O            += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
 endif
 ifdef MODULE_PYTHON
 CHECK_O += ../Python/libSprintPython.$(a)

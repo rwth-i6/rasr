@@ -209,8 +209,8 @@ Core::Ref<LemmaAcceptor> OrthographicParser::createLemmaAcceptor(const std::stri
         // if a word in the training corpus is a OOV and no unknown lemma is defined the resulting automaton will have
         // an espilon arc and one unproductive state (for each OOV). We need to remove those to ensure the following
         // operations work.
-        //Fsa::ConstAutomatonRef temp = Fsa::normalize(Fsa::removeEpsilons(Fsa::trim(result)));
-        //std::cerr << Fsa::staticCopy(temp)->size() << " " << result->size() << " " << std::endl;
+        // Fsa::ConstAutomatonRef temp = Fsa::normalize(Fsa::removeEpsilons(Fsa::trim(result)));
+        // std::cerr << Fsa::staticCopy(temp)->size() << " " << result->size() << " " << std::endl;
         Fsa::ConstAutomatonRef temp = Fsa::staticCompactCopy(Fsa::removeEpsilons(Fsa::trim(result)));
         result->clear();
         Fsa::copy(result._get(), temp);

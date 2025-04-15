@@ -15,27 +15,42 @@
 #ifndef LABEL_SCORER_FACTORY_HH
 #define LABEL_SCORER_FACTORY_HH
 
+#include <functional>
+
 #include <Core/Choice.hh>
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
-#include <functional>
+
 #include "LabelScorer.hh"
 
 namespace Nn {
 
+/*
+ * Factory class to register types of LabelScorers and create them.
+ * Introduced so that LabelScorers can be registered from different places in the codebase
+ * (e.g. inside src/Nn/LabelScorer and src/Onnx).
+ */
 class LabelScorerFactory : public Core::ReferenceCounted {
 private:
+    // Needs to be declared before `paramLabelScorerType` because `paramLabelScorerType` depends on `choices_`
     Core::Choice choices_;
 
 public:
+    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
+
     Core::ParameterChoice paramLabelScorerType;
 
     LabelScorerFactory();
 
-    typedef std::function<Core::Ref<LabelScorer>(Core::Configuration const&)> CreationFunction;
+    /*
+     * Register a new LabelScorer type by name and a factory function that can create an instance given a config object
+     */
+    void registerLabelScorer(const char* name, CreationFunction creationFunction);
 
-    void                   registerLabelScorer(const char* name, CreationFunction creationFunction);
+    /*
+     * Create a LabelScorer instance of the type given by `paramLabelScorerType` using the config object
+     */
     Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
 
 private:

@@ -99,16 +99,6 @@ public:
     virtual void characters(const char*, int) {};
 };
 
-/*
- * Base lexicon parser class
- */
-class LexiconParser {
-public:
-    virtual ~LexiconParser() {}
-    virtual bool     parseFile(const std::string& filename) = 0;
-    virtual Lexicon* lexicon() const                        = 0;
-};
-
 /**
  * Parser for Bliss lexicon files.
  * This class implements parsing of the lexicon XML format

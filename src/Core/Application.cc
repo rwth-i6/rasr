@@ -317,7 +317,7 @@ void Application::openLogging() {
 void Application::closeLogging(bool configAvailable) {
     if (lowLevelErrorMessages_.size()) {
         Message                  m(error("There were %d low level error messages:",
-                        static_cast<int>(lowLevelErrorMessages_.size())));
+                                         static_cast<int>(lowLevelErrorMessages_.size())));
         std::vector<std::string> messages = std::vector<std::string>(lowLevelErrorMessages_);
         for (std::vector<std::string>::const_iterator message = messages.begin(); message != messages.end(); ++message)
             m << "\n"

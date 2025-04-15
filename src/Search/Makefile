@@ -14,10 +14,13 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/Module.o \
+		$(OBJDIR)/PersistentStateTree.o \
 		$(OBJDIR)/Search.o \
 		$(OBJDIR)/StateTree.o \
 		$(OBJDIR)/StateTreeIo.o \
 		$(OBJDIR)/Traceback.o \
+		$(OBJDIR)/TreeBuilder.o \
+		$(OBJDIR)/TreeStructure.o \
 		$(OBJDIR)/WordConditionedTreeSearch.o
 
 CHECK_O		= $(OBJDIR)/check.o \
@@ -25,7 +28,7 @@ CHECK_O		= $(OBJDIR)/check.o \
 			  ../Bliss/libSprintBliss.$(a) \
 			  ../Fsa/libSprintFsa.$(a) \
 			  ../Core/libSprintCore.$(a)
-			  
+
 
 ifdef MODULE_SEARCH_MBR
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearch.o
@@ -33,6 +36,7 @@ LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskAStarSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskNBestListSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearchUtil.o
 endif
+SUBDIRS += LexiconfreeTimesyncBeamSearch
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -42,9 +46,6 @@ endif
 ifdef MODULE_SEARCH_LINEAR
 LIBSPRINTSEARCH_O += $(OBJDIR)/LinearSearch.o
 endif
-SUBDIRS += LexiconfreeBeamSearch
-SUBDIRS += LexiconfreeGreedySearch
-
 
 # -----------------------------------------------------------------------------
 
@@ -66,11 +67,8 @@ Wfst:
 AdvancedTreeSearch:
 	$(MAKE) -C $@ libSprintAdvancedTreeSearch.$(a)
 
-LexiconfreeBeamSearch:
-	$(MAKE) -C $@ libSprintLexiconfreeBeamSearch.$(a)
-
-LexiconfreeGreedySearch:
-	$(MAKE) -C $@ libSprintLexiconfreeGreedySearch.$(a)
+LexiconfreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintLexiconfreeTimesyncBeamSearch.$(a)
 
 include $(TOPDIR)/Rules.make
 

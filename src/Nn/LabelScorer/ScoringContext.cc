@@ -22,6 +22,7 @@ namespace Nn {
 typedef Mm::EmissionIndex LabelIndex;
 
 // Auxiliary function to merge multiple hashes into one via the boost way
+// See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
 size_t combineHashes(size_t hash1, size_t hash2) {
     if (hash1 == 0ul) {
         return hash2;
@@ -34,7 +35,7 @@ size_t combineHashes(size_t hash1, size_t hash2) {
 
 /*
  * =============================
- * === ScoringContext ==========
+ * ====== ScoringContext =======
  * =============================
  */
 bool ScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -182,7 +183,7 @@ size_t CombineScoringContext::hash() const {
 bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
 
-    if (scoringContexts.size() != otherPtr->scoringContexts.size()) {
+    if (otherPtr == nullptr or scoringContexts.size() != otherPtr->scoringContexts.size()) {
         return false;
     }
 

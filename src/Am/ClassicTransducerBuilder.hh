@@ -100,7 +100,7 @@ private:  // internal
             PhoneBoundaryStateDescriptor,
             Fsa::State*,
             PhoneBoundaryStateDescriptor::Hash>
-            PhoneBoundaryStates;
+                        PhoneBoundaryStates;
     PhoneBoundaryStates phoneBoundaryStates_;
 
     struct AllophoneSuffix {
@@ -141,7 +141,7 @@ private:  // internal
             AllophoneSuffix,
             Fsa::StateId,
             AllophoneSuffix::Hash, AllophoneSuffix::Equality>
-            AllophoneSuffixMap;
+                       AllophoneSuffixMap;
     AllophoneSuffixMap allophoneSuffixes_;
 
     class Statistics;

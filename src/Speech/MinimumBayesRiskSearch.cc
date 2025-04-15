@@ -81,7 +81,7 @@ void MinimumBayesRiskSearchNode::initialize(Bliss::LexiconRef lexicon) {
     lexicon_          = lexicon;
     lemmaPronToLemma_ = lexicon_->createLemmaPronunciationToLemmaTransducer();
     lemmaToEval_      = Fsa::multiply(lexicon_->createLemmaToEvaluationTokenTransducer(),
-                                 Fsa::Weight(0.0));
+                                      Fsa::Weight(0.0));
 
     if (nBestListExtractor_) {
         nBestListExtractor_->initialize(lexicon);
@@ -117,4 +117,4 @@ void MinimumBayesRiskSearchNode::processWordLattice(Lattice::ConstWordLatticeRef
     Precursor::processWordLattice(result, s);
 }
 
-}  //namespace Speech
+}  // namespace Speech

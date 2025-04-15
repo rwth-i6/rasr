@@ -18,7 +18,7 @@
 #include <Search/Wfst/ComposedNetwork.hh>
 #include <Search/Wfst/GrammarFst.hh>
 #include <Search/Wfst/LexiconFst.hh>
-//#include <OpenFst/Scale.hh>
+// #include <OpenFst/Scale.hh>
 
 namespace Search {
 namespace Wfst {

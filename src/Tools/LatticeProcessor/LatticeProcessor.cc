@@ -361,13 +361,13 @@ std::string LatticeProcessor::getApplicationDescription() const {
 }
 
 std::string LatticeProcessor::getParameterDescription() const {
-    std::string tmp = "\n"
-                      "supported actions:\n"
-                      "\n"
-                      "\t\"not-given\": do nothing\n"
-                      "\t[*.selection]\n"
-                      "\t# nothing to configurate\n"
-                      "\t\n";
+    std::string         tmp     = "\n"
+                                  "supported actions:\n"
+                                  "\n"
+                                  "\t\"not-given\": do nothing\n"
+                                  "\t[*.selection]\n"
+                                  "\t# nothing to configurate\n"
+                                  "\t\n";
     std::vector<Action> actions = processorFactory_.identifiers();
     for (std::vector<Action>::const_iterator a = actions.begin(); a != actions.end(); ++a) {
         std::string name = choiceAction[*a];

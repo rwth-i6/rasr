@@ -15,10 +15,11 @@
 #ifndef SEARCH_TREESTRUCTURE_HH
 #define SEARCH_TREESTRUCTURE_HH
 
-#include <Core/MappedArchive.hh>
-#include <Search/StateTree.hh>
 #include <vector>
-#include "BatchManager.hh"
+
+#include <Core/MappedArchive.hh>
+#include <Search/BatchManager.hh>
+#include <Search/StateTree.hh>
 
 #define inline_ __attribute__((always_inline)) inline
 
@@ -42,10 +43,7 @@ enum {
     LabelMask                = 1 << 27
 };
 
-///Global index of a tree or subtree
-typedef u32 TreeIndex;
-
-///Index of a state or label (see IS_LABEL, ID_FROM_LABEL, and LABEL_FROM_ID)
+/// Index of a state or label (see IS_LABEL, ID_FROM_LABEL, and LABEL_FROM_ID)
 typedef u32 StateId;
 
 ///@todo Maybe this should be zero!
@@ -85,10 +83,10 @@ struct HMMState {
         return *this;
     }
 
-    ///This must be initialized explicitly after creating the state
+    /// This must be initialized explicitly after creating the state
     StateTree::StateDesc stateDesc;
 
-    ///Batch of successor states, managed through a batch-manager in TreeStructure
+    /// Batch of successor states, managed through a batch-manager in TreeStructure
     SuccessorBatchId successors;
 
     /// Returns true if the label-edges batch represents only one single successor, which can be handled more efficiently
@@ -125,9 +123,9 @@ struct HMMStateV1 {
         StateTree::StateDesc desc;
 
         HMMState result;
-        result.stateDesc.acousticModel = this->stateDesc.acousticModel;
+        result.stateDesc.acousticModel        = this->stateDesc.acousticModel;
         result.stateDesc.transitionModelIndex = this->stateDesc.transitionModelIndex;
-        result.successors = this->successors;
+        result.successors                     = this->successors;
 
         if (result.stateDesc.acousticModel == StateDescV1::invalidAcousticModel) {
             result.stateDesc.acousticModel = StateTree::invalidAcousticModel;
@@ -141,18 +139,12 @@ struct Tree {
     Tree()
             : nodes(InvalidBatchId) {
     }
-    ///All nodes contained by this tree. Managed as a batch by TreeStructure
+    /// All nodes contained by this tree. Managed as a batch by TreeStructure
     SubTreeListId nodes;
 };
 
 class HMMStateNetwork {
 public:
-    enum {
-        //Index of the empty network
-        //The empty network has no node, and exactly one label that is to be activated directly
-        EmptyTreeIndex = 0
-    };
-
     enum {
         DiskFormatVersionV1 = 1,
         DiskFormatVersionV2 = 2,
@@ -237,68 +229,56 @@ public:
 
     ///****** STATE MANAGEMENT ******************************************************************************************
 
-    ///Do not keep pointers/references to the returned tree, the address may change
-    inline Tree& tree(TreeIndex index) {
-        verify_(index > 0 && index < trees_.size());
-        return trees_[index];
-    }
-
-    ///Do not keep pointers to the returned state, the address may change when the network is manipulated
+    /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline_ HMMState& state(StateId state) {
         verify_(state > 0 && state < (int)states_.size());
         return states_[state];
     }
 
-    ///Do not keep pointers to the returned state, the address may change when the network is manipulated
+    /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline const HMMState& state(StateId state) const {
         verify_(state > 0 && state < (int)states_.size());
         return states_[state];
     }
 
-    ///Allocates a new tree
-    TreeIndex allocateTree();
+    /// Creates a new node (HMMState) and appends it to the tree's list of nodes.
+    /// Specifically, new subtree is allocated and added to the subtree list by the subTreeManager_.
+    /// Returns the StateId of the newly created node (a fully valid subtree with initialized edge-list).
+    /// Note that the stateDesc must be set separately after this operation.
+    StateId allocateTreeNode();
 
-    ///Allocates a new subtree, and adds it into the subtree list of the given parent.
-    ///As many subtrees for the same parent should be allocated in a row as possible, so batch-merging can happen
-    ///Returns a fully valid subtree(With initialized edge-list)
-    StateId allocateTreeNode(TreeIndex parent);
+    /// Returns the count of nodes contained by the tree
+    inline u32 getNodeCount();
 
-    ///Returns the count of nodes contained by the tree
-    inline u32 getNodeCount(TreeIndex parent);
+    /// Returns the @p number th node contained in the tree
+    inline StateId getTreeNode(u32 number);
 
-    ///Returns the @p number th node contained in the given parent tree
-    inline StateId getTreeNode(TreeIndex parent, u32 number);
+    /// Returns the number of the @p node in the tree
+    inline u32 getNodeNumber(StateId node);
 
-    ///Returns the number of nodes contained by the given parent tree
-    inline u32 getNodeNumber(TreeIndex parent, StateId node);
-
-    ///Much faster version of getNodeNumber, that only works when the structure has been cleaned
-    inline u32 getNodeNumberCleanStructure(TreeIndex parent, StateId node) {
-        return node - subTreeListBatches_[tree(parent).nodes];
+    /// Much faster version of getNodeNumber, that only works when the structure has been cleaned
+    inline u32 getNodeNumberCleanStructure(StateId node) {
+        return node - subTreeListBatches_[tree_.nodes];
     }
 
-    ///Returns the total number of trees, which is the maximum upper bound for a valid TreeIndex
-    u32 treeCount() const;
-
-    ///Returns the total number of nodes, which is the maximum upper bound for a valid TreeNodeIndex
+    /// Returns the total number of nodes, which is the maximum upper bound for a valid TreeNodeIndex
     u32 stateCount() const;
 
     struct CleanupResult {
-        Core::HashMap<StateId, StateId>     nodeMap;
-        Core::HashMap<TreeIndex, TreeIndex> treeMap;
+        Core::HashMap<StateId, StateId> nodeMap;
 
         std::set<StateId> mapNodes(const std::set<StateId>& nodes) const;
     };
 
-    ///Completely removes all trees and nodes that are not reachable from the given start-nodes, compressing the structure
-    CleanupResult cleanup(std::list<Search::StateId> startNodes, Search::TreeIndex masterTree, bool clearDeadEnds = true, bool onlyBatches = false);
+    /// Completely removes all nodes that are not reachable from the given start-nodes, compressing the structure
+    CleanupResult cleanup(std::list<Search::StateId> startNodes, bool clearDeadEnds = true, bool onlyBatches = false);
 
     ///****** EDGE MANAGEMENT *******************************************************************************************
 
-    ///Adds the given target to the list of targets for the given edge. The referenced id will be changed.
+    /// Adds the given target to the list of targets for the given edge. The referenced id will be changed.
     void addNodeToEdge(SuccessorBatchId& list, StateId target);
 
-    ///Adds the given target to the list of targets for the given edge. The referenced id will be changed.
+    /// Adds the given target to the list of targets for the given edge. The referenced id will be changed.
     void addOutputToEdge(SuccessorBatchId& list, u32 outputIndex);
 
     void addTargetToNode(StateId node, StateId target) {
@@ -313,14 +293,16 @@ public:
 
     void removeOutputFromNode(StateId node, u32 outputIndex);
 
-    ///Clears all connections behind the given node. The memory will be lost unless a cleanup is done afterwards.
+    /// Clears all connections behind the given node. The memory will be lost unless a cleanup is done afterwards.
     void clearOutputEdges(StateId node);
 
     u32 getChecksum() const {
-        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + trees_.size() + subTreeListBatches_.size();
+        // In the previous version, a vector of trees was always used with a fixed length of two (index 0 = invalid tree, index 1 = the actual master tree).
+        // This fixed length was included in the checksum calculation, therefore a hardcoded +2 is applied here to ensure backward compatibility
+        return states_.size() + edgeTargetBatches_.size() + edgeTargetLists_.size() + subTreeListBatches_.size() + 2;
     }
 
-    ///The change is applied when apply() is called
+    /// The change is applied when apply() is called
     class ChangePlan {
     public:
         void addSuccessor(StateId state) {
@@ -419,15 +401,15 @@ public:
         return ret;
     }
 
-    ///Returns -1, -1 if this simple version does not work. Then "edgeTargets" has to be used.
+    /// Returns -1, -1 if this simple version does not work. Then "edgeTargets" has to be used.
     template<bool considerOutputs>
     inline std::pair<int, int> batchSuccessorsSimple(SuccessorBatchId list) const;
 
-    ///Does not work with single-batches! Those must be checked before.
+    /// Does not work with single-batches! Those must be checked before.
     inline std::pair<int, int> batchSuccessorsSimpleIgnoreLabels(SuccessorBatchId list) const;
 
-    ///Reads out the node-range associated to the given batch. Does not verify whether
-    ///the batch is a single-batch or has successor-batches, this has to be checked beforehand.
+    /// Reads out the node-range associated to the given batch. Does not verify whether
+    /// the batch is a single-batch or has successor-batches, this has to be checked beforehand.
     inline std::pair<int, int> batchNodeRange(SuccessorBatchId batch) const;
 
     ///*********************************************************************************************************************
@@ -443,19 +425,19 @@ public:
 private:
     void addTargetToEdge(SuccessorBatchId& batch, u32 target);
     u32  countReachableEnds(std::vector<u32>& counts, StateId node) const;
-    //This manager manages lists of sub-trees, one subtree-list for each network
+    // This manager manages lists of sub-trees, one subtree-list for each network
     std::vector<StateId>                                                        subTreeListBatches_;
     std::vector<HMMState>                                                       states_;
     Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId> subTreeManager_;
 
-    //Contains one SuccessorBatchId for each label of a subtree, as a linear list
+    // Contains one SuccessorBatchId for each label of a subtree, as a linear list
     std::vector<SuccessorBatchId> edgeTargetLists_;
 
-    //This manager groups together edge successors, for edges coming from a common source(usually an label of a subtree)
+    // This manager groups together edge successors, for edges coming from a common source(usually an label of a subtree)
     std::vector<StateId>                                                                                      edgeTargetBatches_;
     Tools::BatchManager<SuccessorBatchId, StateId, HMMState, false, InvalidBatchId, SingleSuccessorBatchMask> edgeTargetManager_;
 
-    std::vector<Tree> trees_;
+    Tree tree_;
 };
 
 inline HMMStateNetwork::SuccessorIterator HMMStateNetwork::batchSuccessors(Search::SuccessorBatchId list) const {
@@ -493,7 +475,7 @@ inline std::pair<int, int> HMMStateNetwork::batchSuccessorsSimple(SuccessorBatch
         const Search::StateId start = edgeTargetBatches_[batch];
         if (not considerOutputs && IS_LABEL(start))
             return std::pair<int, int>(0, 0);
-        //Everything ok, this is a simple continous batch without a follower-batch
+        // Everything ok, this is a simple continous batch without a follower-batch
         return std::pair<int, int>(start, edgeTargetBatches_[batch + 2]);
     }
 
@@ -504,18 +486,18 @@ std::pair<int, int> HMMStateNetwork::batchNodeRange(SuccessorBatchId batch) cons
     return std::make_pair<int, int>((int)edgeTargetBatches_[batch], (int)edgeTargetBatches_[batch + 2]);
 }
 
-u32 HMMStateNetwork::getNodeCount(Search::TreeIndex parent) {
-    return subTreeManager_.getIterator(tree(parent).nodes).countToEnd();
+u32 HMMStateNetwork::getNodeCount() {
+    return subTreeManager_.getIterator(tree_.nodes).countToEnd();
 }
 
-StateId HMMStateNetwork::getTreeNode(Search::TreeIndex parent, u32 number) {
-    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree(parent).nodes);
+StateId HMMStateNetwork::getTreeNode(u32 number) {
+    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
     it += number;
     return *it;
 }
 
-u32 HMMStateNetwork::getNodeNumber(TreeIndex parent, StateId node) {
-    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree(parent).nodes);
+u32 HMMStateNetwork::getNodeNumber(StateId node) {
+    Tools::BatchManager<SubTreeListId, StateId, HMMState, true, InvalidBatchId>::Iterator it = subTreeManager_.getIterator(tree_.nodes);
     return it.countUntil(node);
 }
 }  // namespace Search

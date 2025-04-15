@@ -23,11 +23,14 @@ namespace Nn {
 /*
  * Label Scorer that performs no computation internally. It assumes that the input features are already
  * finished score vectors and just returns the score at the current time step.
+ *
+ * This is useful for example when the scores are computed externally and transmitted via a pybind interface
+ * or when they are computed inside a flow node.
  */
 class StepwiseNoOpLabelScorer : public BufferedLabelScorer {
+public:
     using Precursor = BufferedLabelScorer;
 
-public:
     StepwiseNoOpLabelScorer(const Core::Configuration& config);
 
     // Initial scoring context just contains step 0.
@@ -36,7 +39,7 @@ public:
     // Scoring context with step incremented by 1.
     virtual ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
-    // Basically returns inputBuffer[currentStep][nextToken]
+    // Gets the buffered score for the requested token at the requested step
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 };
 

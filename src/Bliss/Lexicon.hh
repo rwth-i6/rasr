@@ -53,8 +53,8 @@ typedef SymbolSequence<const EvaluationToken*> EvaluationTokenSequence;
 typedef std::vector<EvaluationTokenSequence>   EvaluationTokenSequenceList;
 
 /**
-     * @todo pronunciation probabilities are quite slow due to repeated calculation of logarithm
-     */
+ * @todo pronunciation probabilities are quite slow due to repeated calculation of logarithm
+ */
 class LemmaPronunciation {
 public:
     typedef s32 Id;
@@ -109,9 +109,9 @@ public:
 };
 
 /**
-     * An entry in the Bliss lexion.
-     * @see <a href="../../doc/Bliss.pdf">Bliss documentation</a>
-     */
+ * An entry in the Bliss lexion.
+ * @see <a href="../../doc/Bliss.pdf">Bliss documentation</a>
+ */
 class Lemma : public Token {
 private:
     OrthographicFormList        orth_;
@@ -142,20 +142,20 @@ protected:
 
 public:
     /**
-         * Test for presence of a name.
-         * Under all normal circumstances the answer is "yes".
-         * You don't have to test for this.
-         */
+     * Test for presence of a name.
+     * Under all normal circumstances the answer is "yes".
+     * You don't have to test for this.
+     */
     bool hasName() const {
         return symbol();
     }
 
     /**
-         * A unique string identifier for the lemma.
-         * The sole purpose of the name is to be used as a reference
-         * to the lemma lemma from an external data file
-         * (e.g. a word lattice).
-         */
+     * A unique string identifier for the lemma.
+     * The sole purpose of the name is to be used as a reference
+     * to the lemma lemma from an external data file
+     * (e.g. a word lattice).
+     */
     Symbol name() const {
         return symbol();
     }
@@ -522,7 +522,7 @@ protected:
     PronunciationList                         pronunciations_;
     typedef std::unordered_set<Pronunciation*, Pronunciation::Hash,
                                Pronunciation::Equality>
-            PronunciationMap;
+                     PronunciationMap;
     PronunciationMap pronunciationMap_;
     Pronunciation*   getOrCreatePronunciation(const std::vector<Phoneme::Id>& phonemes);
 

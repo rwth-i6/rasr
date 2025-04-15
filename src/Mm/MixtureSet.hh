@@ -229,6 +229,6 @@ public:
             : std::string("abstractmixtureset") {}
 };
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _MM_MIXTURE_SET_HH

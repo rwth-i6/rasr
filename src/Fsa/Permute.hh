@@ -459,8 +459,8 @@ private:
         bool reduce_() {
             if (Parent::size() < 2)
                 return false;
-            Span& a             = Parent::operator[](Parent::size() - 2);
-            Span&             b = Parent::back();
+            Span& a = Parent::operator[](Parent::size() - 2);
+            Span& b = Parent::back();
             if (a.first == b.second) {
                 a.first = b.first;
                 Parent::pop_back();

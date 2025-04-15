@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SPEECH_RECOGNIZER_V2_HH
-#define SPEECH_RECOGNIZER_V2_HH
+#ifndef RECOGNIZER_V2_HH
+#define RECOGNIZER_V2_HH
 
 #include <Flf/FlfCore/Lattice.hh>
 #include <Search/Module.hh>
@@ -25,21 +25,17 @@
 
 namespace Flf {
 
-NodeRef createRecognizerNodeV2(const std::string& name, const Core::Configuration& config);
+NodeRef createRecognizerNodeV2(std::string const& name, Core::Configuration const& config);
 
+/*
+ * Node to run recognition on speech segments using a `SearchAlgorithmV2` internally.
+ */
 class RecognizerNodeV2 : public Node {
 public:
-    RecognizerNodeV2(const std::string& name, const Core::Configuration& config);
+    RecognizerNodeV2(std::string const& name, Core::Configuration const& config);
 
-    virtual ~RecognizerNodeV2() {
-        delete searchAlgorithm_;
-    }
-
-    void recognizeSegment(const Bliss::SpeechSegment* segment);
-
-    void work();
-
-    virtual void init(const std::vector<std::string>& arguments) override;
+    // Inherited methods
+    virtual void init(std::vector<std::string> const& arguments) override;
     virtual void sync() override;
     virtual void finalize() override;
 
@@ -47,15 +43,29 @@ public:
     virtual ConstLatticeRef sendLattice(Port to) override;
 
 private:
-    ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor> la, std::string segmentName);
+    /*
+     * Perform recognition of `segment` using `searchAlgorithm_` and store the result in `resultBuffer_`
+     */
+    void recognizeSegment(const Bliss::SpeechSegment* segment);
 
-    std::pair<ConstLatticeRef, ConstSegmentRef> resultBuffer_;
+    /*
+     * Requests input segment and runs recognition on it
+     */
+    void work();
 
-    Search::SearchAlgorithmV2*     searchAlgorithm_;
-    Speech::ModelCombination       modelCombination_;
-    SegmentwiseFeatureExtractorRef featureExtractor_;
+    /*
+     * Convert an output lattice from `searchAlgorithm_` to an Flf lattice
+     */
+    ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string segmentName);
+
+    ConstLatticeRef latticeResultBuffer_;
+    ConstSegmentRef segmentResultBuffer_;
+
+    std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
+    Core::Ref<Speech::ModelCombination>        modelCombination_;
+    SegmentwiseFeatureExtractorRef             featureExtractor_;
 };
 
 }  // namespace Flf
 
-#endif  // SPEECH_RECOGNIZER_V2_HH
+#endif  // RECOGNIZER_V2_HH

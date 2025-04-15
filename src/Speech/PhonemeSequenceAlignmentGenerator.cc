@@ -437,9 +437,9 @@ std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> LatticeToAlignmentFsa::convert(
     return std::make_pair(Fsa::ConstAutomatonRef(f_), totalInv);
 }
 
-//Iteration over states (DfsState):
-//do coarticulated pronunciation alignment
-//for all outgoing arcs from a state (getAlignment(coarticulatedPronunciation, begtime, endtime))
+// Iteration over states (DfsState):
+// do coarticulated pronunciation alignment
+// for all outgoing arcs from a state (getAlignment(coarticulatedPronunciation, begtime, endtime))
 class LatticeToAlignment : public Flf::DfsState {
 private:
     PhonemeSequenceAlignmentGenerator* alignmentGenerator_;

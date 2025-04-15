@@ -24,8 +24,7 @@ NN_TRAINER_O = $(OBJDIR)/NnTrainer.o \
 		../../Mc/libSprintMc.$(a) \
 		../../Mm/libSprintMm.$(a) \
 		../../Nn/libSprintNn.$(a) \
-    ../../Nn/LabelScorer/libSprintLabelScorer.$(a) \
-    $(subst src,../..,$(LIBS_SEARCH)) \
+        $(subst src,../..,$(LIBS_SEARCH)) \
 		../../Signal/libSprintSignal.$(a) \
 		../../Speech/libSprintSpeech.$(a)
 

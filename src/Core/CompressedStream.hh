@@ -61,6 +61,6 @@ public:
 
 std::string extendCompressedFilename(const std::string& filename, const std::string& extension);
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _CORE_COMPRESSED_STREAM_HH

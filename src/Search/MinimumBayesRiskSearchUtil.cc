@@ -50,10 +50,10 @@ u32 levenshteinDistance(const std::vector<LabelId>& A, const std::vector<LabelId
     for (m = 0; m < M; ++m) {
         D[m]    = new u32[N];
         D[m][0] = m;
-    }  //end for m
+    }  // end for m
     for (n = 0; n < N; ++n) {
         D[0][n] = n;
-    }  //end for n
+    }  // end for n
 
     for (n = 1; n < N; ++n) {
         for (m = 1; m < M; ++m) {
@@ -61,8 +61,8 @@ u32 levenshteinDistance(const std::vector<LabelId>& A, const std::vector<LabelId
             b       = (D[m][n - 1] + 1);
             c       = (D[m - 1][n - 1] + (A.at(m - 1) == B.at(n - 1) ? 0 : 1));
             D[m][n] = (a <= b ? (a <= c ? a : (b <= c ? b : c)) : (b <= c ? b : c));
-        }  //end for m
-    }      //end for n
+        }  // end for m
+    }  // end for n
 
     u32 result = D[M - 1][N - 1];
 
@@ -72,7 +72,7 @@ u32 levenshteinDistance(const std::vector<LabelId>& A, const std::vector<LabelId
     delete[] D;
 
     return result;
-}  //end levensthein
+}  // end levensthein
 
 std::set<StateId> getContour(std::set<StateId> oldContour, ConstAutomatonRef fsa) {
     std::set<StateId> contour;
@@ -82,11 +82,11 @@ std::set<StateId> getContour(std::set<StateId> oldContour, ConstAutomatonRef fsa
         for (arc = state->begin(); arc != state->end(); ++arc) {
             if (arc->target() != *stateId) {
                 contour.insert(arc->target());
-            }  //end if
-        }      //end for arc
+            }  // end if
+        }  // end for arc
     }
     return contour;
-}  //end getContour
+}  // end getContour
 
 std::vector<Fsa::StateId> getDistances(ConstAutomatonRef fsa) {
     std::vector<StateId> distances;
@@ -100,14 +100,14 @@ std::vector<Fsa::StateId> getDistances(ConstAutomatonRef fsa) {
         for (state = contour.begin(); state != contour.end(); ++state) {
             if (distances.size() <= *state) {
                 distances.resize(*state + 1);
-            }  //end if
+            }  // end if
             distances.at(*state) = dist;
-        }  //end for state
+        }  // end for state
         contour = getContour(contour, fsa);
         ++dist;
-    }  //end while
+    }  // end while
     return distances;
-}  //end getDistances
+}  // end getDistances
 
 ConstAutomatonRef createLinearAutomatonFromVector(const std::vector<LabelId>& sequence,
                                                   const Weight&               score,
@@ -118,7 +118,7 @@ ConstAutomatonRef createLinearAutomatonFromVector(const std::vector<LabelId>& se
     automaton->addProperties(Fsa::PropertySorted);
     automaton->addProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic);
     automaton->setInputAlphabet(inputAlphabet);
-    //automaton->setOutputAlphabet ( outputAlphabet );
+    // automaton->setOutputAlphabet ( outputAlphabet );
     automaton->setSemiring(semiring);
 
     State* state    = automaton->newState();
@@ -128,10 +128,10 @@ ConstAutomatonRef createLinearAutomatonFromVector(const std::vector<LabelId>& se
         newState = automaton->newState();
         state->newArc(newState->id(), Weight(0.0), *label);
         state = newState;
-    }  //end for label
+    }  // end for label
     automaton->setStateFinal(state, score);
     return ConstAutomatonRef(automaton);
-}  //end getMbrAutomaton
+}  // end getMbrAutomaton
 
 Weight getNbestNormalizationConstant(ConstAutomatonRef nbestlist) {
     Weight             normalizationConstant = Fsa::LogSemiring->zero();
@@ -184,7 +184,7 @@ private:
 public:
     PartialNbestlist(ConstAutomatonRef fsa, u32 size)
             : Fsa::ModifyAutomaton(fsa),
-              size_(size) {}  //end PartialNbestlist
+              size_(size) {}  // end PartialNbestlist
 
     virtual std::string describe() const {
         return "partialNbest(" + fsa_->describe() + ")";
@@ -199,10 +199,10 @@ public:
 
 ConstAutomatonRef partialNbestlist(ConstAutomatonRef nbestlist, u32 size) {
     return ConstAutomatonRef(new PartialNbestlist(nbestlist, size));
-}  //end partialNbestlist
+}  // end partialNbestlist
 
 Weight posteriorExpectedRisk(ConstAutomatonRef center, ConstAutomatonRef hypotheses) {
-    //require ( center->hasProperty ( PropertyLinear ) );
+    // require ( center->hasProperty ( PropertyLinear ) );
     hypotheses                             = changeSemiring(hypotheses, Fsa::TropicalSemiring);
     ConstAutomatonRef levenshteinAutomaton = Fsa::levenshtein(center, hypotheses);
 
@@ -221,11 +221,11 @@ public:
             : Fsa::SlaveAutomaton(fsa) {
         ConstAutomatonRef trans = transpose(fsa_);
         return;
-    }  //end SlaveAutomaton
+    }  // end SlaveAutomaton
 
     virtual std::string describe() const {
         return "partialNbest(" + fsa_->describe() + ")";
-    }  //end describe
+    }  // end describe
 };
 
 Weight collectWeights(ConstSemiringRef sr, const Core::Vector<Weight>& weights) {
@@ -233,10 +233,10 @@ Weight collectWeights(ConstSemiringRef sr, const Core::Vector<Weight>& weights) 
     Fsa::Accumulator* collector = sr->getCollector();
     for (Core::Vector<Weight>::const_iterator w = weights.begin(); w != weights.end(); ++w) {
         collector->feed(*w);
-    }  //end for arc
+    }  // end for arc
     result = collector->get();
     delete collector;
     return result;
-}  //end collectWeights
+}  // end collectWeights
 
-}  //end namespace Search
+}  // end namespace Search

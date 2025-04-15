@@ -14,8 +14,6 @@
  */
 
 #include "LabelScorerFactory.hh"
-#include <Core/Configuration.hh>
-#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -28,7 +26,7 @@ void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction 
 }
 
 Core::Ref<LabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {
-    return Core::ref(new ScaledLabelScorer(config, registry_.at(paramLabelScorerType(config))(config)));
+    return registry_.at(paramLabelScorerType(config))(config);
 }
 
 }  // namespace Nn

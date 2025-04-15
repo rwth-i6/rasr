@@ -15,33 +15,47 @@
 #ifndef ENCODER_FACTORY_HH
 #define ENCODER_FACTORY_HH
 
+#include "Encoder.hh"
+
+#include <functional>
+
 #include <Core/Choice.hh>
 #include <Core/Configuration.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
-#include <functional>
-#include "Encoder.hh"
 
 namespace Nn {
 
-class EncoderFactory : public Core::ReferenceCounted {
+/*
+ * Factory class to register types of Encoders and create them.
+ * Introduced so that Encoders can be registered from different places in the codebase
+ * (e.g. inside src/Nn/LabelScorer and src/Onnx)
+ */
+class EncoderFactory {
 private:
+    // Needs to be declared before `paramEncoderType` because `paramEncoderType` depends on `choices_`.
     Core::Choice choices_;
 
 public:
+    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
+
     Core::ParameterChoice paramEncoderType;
 
     EncoderFactory();
 
-    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
+    /*
+     * Register a new Encoder type by name and a factory function that can create an instance given a config object
+     */
+    void registerEncoder(const char* name, CreationFunction creationFunction);
 
-    void               registerEncoder(const char* name, CreationFunction creationFunction);
+    /*
+     * Create an Encoder instance of type given by `paramEncoderType` using the config object
+     */
     Core::Ref<Encoder> createEncoder(Core::Configuration const& config) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;
-
-    Registry registry_;
+    Registry                              registry_;
 };
 
 }  // namespace Nn

@@ -385,7 +385,7 @@ struct CnProbabilityWeakOrder {
         return a1.scores->get(posteriorId) > a2.scores->get(posteriorId);
     }
 };
-}  //namespace
+}  // namespace
 void ConditionalPosteriorBuilder::buildSlots(ConstLatticeRef l, ConstFwdBwdRef fb, ConstConfusionNetworkRef cn, ConditionalPosterior::Internal& condPosteriors) {
     verify(cn && cn->hasMap());
     const ConfusionNetwork::MapProperties& mapProperties = *cn->mapProperties;
@@ -1609,7 +1609,7 @@ void WindowedLevenshteinDistanceDecoder::align(
             }
         }
 #else
-        itTrgCost->score    = std::min(
+        itTrgCost->score = std::min(
                 (itSrcCost - 1)->score + costFcn_.sub(wHyp, *itVLabel),
                 itSrcCost->score + costFcn_.ins(wHyp));
         for (++itSrcCost, ++itVLabel, ++itTrgCost; itSrcCost != endSrcCost; ++itSrcCost, ++itVLabel, ++itTrgCost)

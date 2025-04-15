@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
-    log() << "Create EncoderDecoderLabelScorer";
 }
 
 void EncoderDecoderLabelScorer ::reset() {
@@ -38,21 +37,33 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
     return decoder_->extendedScoringContext(request);
 }
 
-void EncoderDecoderLabelScorer::addInput(SharedDataHolder const& input, size_t featureSize) {
+void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
     encoder_->addInput(input, featureSize);
-    encode();
+    passEncoderOutputsToDecoder();
 }
 
-void EncoderDecoderLabelScorer::addInputs(SharedDataHolder const& inputs, size_t timeSize, size_t featureSize) {
-    encoder_->addInputs(inputs, timeSize, featureSize);
-    encode();
+void EncoderDecoderLabelScorer::addInput(std::vector<f32> const& input) {
+    // The custom deleter ties the lifetime of the vector to the lifetime
+    // of `dataPtr` by capturing the `inputWrapper` by value.
+    // This makes sure that the underlying data isn't invalidated prematurely.
+    auto inputWrapper = std::make_shared<std::vector<f32>>(input);
+    auto dataPtr      = std::shared_ptr<const f32[]>(
+            inputWrapper->data(),
+            [inputWrapper](const f32*) mutable {});
+    encoder_->addInput(dataPtr, input.size());
+    passEncoderOutputsToDecoder();
+}
+
+void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
+    encoder_->addInputs(input, timeSize, featureSize);
+    passEncoderOutputsToDecoder();
 }
 
 void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     encoder_->signalNoMoreFeatures();
-    // Call `encode()` before signaling segment end to the decoder since the decoder
+    // Call `passEncoderOutputsToDecoder()` before signaling segment end to the decoder since the decoder
     // is supposed to receive all available encoder outputs before this signal
-    encode();
+    passEncoderOutputsToDecoder();
     decoder_->signalNoMoreFeatures();
 }
 
@@ -64,10 +75,10 @@ std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeSc
     return decoder_->computeScoresWithTimes(requests);
 }
 
-void EncoderDecoderLabelScorer::encode() {
+void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
     std::optional<std::shared_ptr<const f32[]>> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(encoderOutput.value(), encoder_->getOutputSize());
+        decoder_->addInput(*encoderOutput, encoder_->getOutputSize());
     }
 }
 

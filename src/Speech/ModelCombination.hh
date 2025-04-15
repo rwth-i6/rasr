@@ -63,8 +63,10 @@ protected:
     virtual void distributeScaleUpdate(const Mc::ScaleUpdate& scaleUpdate);
 
 public:
-    ModelCombination(const Core::Configuration&);
-    ModelCombination(const Core::Configuration&, Mode, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
+    ModelCombination(const Core::Configuration&,
+                     Mode                    = complete,
+                     Am::AcousticModel::Mode = Am::AcousticModel::complete,
+                     Bliss::LexiconRef       = Bliss::LexiconRef());
     ModelCombination(const Core::Configuration&,
                      Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
     virtual ~ModelCombination();
@@ -76,29 +78,29 @@ public:
     Bliss::LexiconRef lexicon() const {
         return lexicon_;
     }
-    void      setLexicon(Bliss::LexiconRef);
+
+    void setLexicon(Bliss::LexiconRef);
+
     Mm::Score pronunciationScale() const {
         return pronunciationScale_ * scale();
     }
+
     Core::Ref<Am::AcousticModel> acousticModel() const {
         return acousticModel_;
     }
-    void                               setAcousticModel(Core::Ref<Am::AcousticModel>);
+
+    void setAcousticModel(Core::Ref<Am::AcousticModel>);
+
     Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
         return languageModel_;
     }
+
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls, size_t idx = 0ul) {
-        labelScorers_.at(idx) = ls;
-    }
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
 
-    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers() const {
-        return labelScorers_;
-    }
-
-    Core::Ref<Nn::LabelScorer> labelScorer(size_t idx = 0ul) const {
-        return labelScorers_[idx];
+    Core::Ref<Nn::LabelScorer> labelScorer() const {
+        return labelScorer_;
     }
 };
 

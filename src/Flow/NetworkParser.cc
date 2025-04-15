@@ -159,7 +159,7 @@ void NetworkParser::start_output(const XmlAttributes atts) {
 void NetworkParser::start_node(const XmlAttributes atts) {
     const char* name   = atts["name"];
     const char* filter = atts["filter"];
-    //const char *threaded = atts["threaded"];
+    // const char *threaded = atts["threaded"];
 
     if (!name) {
         error("network node has no name");
@@ -370,7 +370,7 @@ void NodeBuilder::registerNodeInNetwork(AbstractNode* node, Network& network) {
 
                     if (!res) {
                         error("Network parameter does not exist in \"%s\"=\"%s\"",
-                        parameterName.c_str(), parameterValue.c_str());
+                              parameterName.c_str(), parameterValue.c_str());
                     }
                 }
 #ifdef MODULE_CORE_CACHE_MANAGER

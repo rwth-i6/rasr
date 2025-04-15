@@ -36,8 +36,8 @@
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
+#include <Search/AdvancedTreeSearch/AdvancedTreeSearch.hh>
 #include <Search/Module.hh>
-#include <Search/WordConditionedTreeSearch.hh>
 #include "AdvancedAccuracyFsaBuilder.hh"
 #include "Alignment.hh"
 #include "AllophoneStateGraphBuilder.hh"
@@ -1128,7 +1128,7 @@ RecognizerWithConstrainedLanguageModel::RecognizerWithConstrainedLanguageModel(c
     ModelCombination modelCombination(select("model-combination"), lexicon, acousticModel, languageModel);
     modelCombination.load();
 
-    recognizer_ = new Search::WordConditionedTreeSearch(select("recognizer"));
+    recognizer_ = new Search::AdvancedTreeSearchManager(select("recognizer"));
     recognizer_->setModelCombination(modelCombination);
     recognizer_->init();
     lemmaPronunciationToLemmaTransducer_ = lexicon->createLemmaPronunciationToLemmaTransducer();

@@ -12,7 +12,6 @@ TARGETS		= libSprintSearch.$(a) check$(exe)
 LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Aligner.o \
 		$(OBJDIR)/LatticeHandler.o \
-		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/Module.o \
 		$(OBJDIR)/PersistentStateTree.o \
 		$(OBJDIR)/Search.o \
@@ -20,8 +19,7 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/StateTreeIo.o \
 		$(OBJDIR)/Traceback.o \
 		$(OBJDIR)/TreeBuilder.o \
-		$(OBJDIR)/TreeStructure.o \
-		$(OBJDIR)/WordConditionedTreeSearch.o
+		$(OBJDIR)/TreeStructure.o
 
 CHECK_O		= $(OBJDIR)/check.o \
 			  libSprintSearch.$(a) \
@@ -78,10 +76,3 @@ include $(TOPDIR)/Rules.make
 
 sinclude $(LIBSPRINTSEARCH_O:.o=.d)
 sinclude $(patsubst %.o,%.d,$(filter %.o,$(CHECK_O)))
-
-# LanguageModelLookahead.cc causes an internal compiler error
-# when using icpc -> compile it using g++
-ifeq ($(COMPILER),icc)
-$(OBJDIR)/LanguageModelLookahead.o : 
-	make COMPILER=gcc $@
-endif

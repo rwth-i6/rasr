@@ -243,7 +243,7 @@ std::optional<LabelScorer::ScoreWithTime> LimitedCtxOnnxLabelScorer::computeScor
 Speech::TimeframeIndex LimitedCtxOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
     for (auto const& context : activeContexts) {
-        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
         minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
     }
 

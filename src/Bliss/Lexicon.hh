@@ -25,10 +25,12 @@
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
 #include <Core/Extensions.hh>
+#include <Core/FormatSet.hh>
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/StringUtilities.hh>
+#include <Core/Types.hh>
 #include "Phoneme.hh"
 #include "Symbol.hh"
 
@@ -891,6 +893,11 @@ public:
      * evaluation token sequences, the first is used.
      */
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
+
+private:
+    std::unique_ptr<Core::FormatSet> formats_;
+
+    Core::FormatSet& formats();
 };
 
 }  // namespace Bliss

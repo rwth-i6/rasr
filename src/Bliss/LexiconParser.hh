@@ -99,6 +99,16 @@ public:
     virtual void characters(const char*, int) {};
 };
 
+/*
+ * Base lexicon parser class
+ */
+class LexiconParser {
+public:
+    virtual ~LexiconParser() {}
+    virtual bool     parseFile(const std::string& filename) = 0;
+    virtual Lexicon* lexicon() const                        = 0;
+};
+
 /**
  * Parser for Bliss lexicon files.
  * This class implements parsing of the lexicon XML format
@@ -124,6 +134,17 @@ public:
     }
 };
 
+struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), &lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
+        return false;
+    }
+};
+
 /**
  * Parser for text lexicon files containing the vocab, so only the labels
  * This is meant for "lexicon-free" search
@@ -131,16 +152,27 @@ public:
  */
 class VocabTextLexiconParser : public LexiconParser {
 private:
-    Lexicon*          lexicon_;
-    PhonemeInventory* phonemeInventory_;
-    void              createPhoneme(const std::string& line);
-    void              createLemmata();
+    Core::Ref<Lexicon>          lexicon_;
+    Core::Ref<PhonemeInventory> phonemeInventory_;
+    void                        createPhoneme(const std::string& line);
+    void                        createLemmata();
 
 public:
     VocabTextLexiconParser(Lexicon*);
     bool     parseFile(const std::string& filename) override;
     Lexicon* lexicon() const override {
-        return lexicon_;
+        return lexicon_.get();
+    }
+};
+
+struct VocabTextLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        VocabTextLexiconParser parser(&lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
+        return false;
     }
 };
 

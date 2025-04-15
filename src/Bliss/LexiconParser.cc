@@ -396,9 +396,9 @@ bool XmlLexiconParser::parseFile(const std::string& filename) {
 }
 
 VocabTextLexiconParser::VocabTextLexiconParser(Lexicon* _lexicon)
-        : LexiconParser() {
-    lexicon_          = _lexicon;
-    phonemeInventory_ = new PhonemeInventory();
+        : LexiconParser(),
+          lexicon_(_lexicon) {
+    phonemeInventory_ = Core::Ref(new PhonemeInventory());
 }
 
 // parse txt file line by line to a Bliss::Lexicon
@@ -418,7 +418,7 @@ bool VocabTextLexiconParser::parseFile(const std::string& filename) {
     }
 
     // set the phoneme inventory
-    lexicon_->setPhonemeInventory(Core::ref(phonemeInventory_));
+    lexicon_->setPhonemeInventory(phonemeInventory_);
     // iterate over the phonemes in the inventory to create the lemmata in the lexicon
     createLemmata();
     return true;
@@ -432,7 +432,7 @@ void VocabTextLexiconParser::createPhoneme(const std::string& line) {
 
     // check if phoneme was already added (if one label appears more than once)
     if (phonemeInventory_->phoneme(symbol)) {
-        return;
+        Core::Application::us()->error("Phoneme \"%s\" was already added to the inventory. It may be duplicated in the lexicon.", symbol.c_str());
     }
 
     // create a new phoneme
@@ -451,10 +451,8 @@ void VocabTextLexiconParser::createLemmata() {
         const Phoneme* phoneme = *it;
         std::string    symbol  = phoneme->symbol();
 
-        // check if lemma was already added (should not happen)
-        if (lexicon_->lemma(symbol)) {
-            return;
-        }
+        // make sure that lemma has not been added yet
+        verify(!lexicon_->lemma(symbol));
 
         // create a new lemma
         Lemma* newLemma_ = lexicon_->newLemma();

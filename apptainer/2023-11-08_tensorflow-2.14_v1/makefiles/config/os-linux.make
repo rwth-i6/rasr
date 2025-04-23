@@ -151,7 +151,7 @@ LDFLAGS     += `python3.11-config --ldflags --embed 2>/dev/null`
 # INCLUDES    += `pkg-config --cflags python`
 # LDFLAGS     += `pkg-config --libs python`
 endif
-INCLUDES    += -I$(shell python3 -c 'import numpy as np; print(np.get_include())')
+INCLUDES    += -I$(shell python3.11 -c 'import numpy as np; print(np.get_include())')
 endif
 
 # X11 and QT

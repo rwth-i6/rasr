@@ -51,11 +51,10 @@ public:
 
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) override;
-    void addInput(std::vector<f32> const& input) override;
+    void addInput(DataView const& input) override;
 
     // Same as `addInput` but adds features for multiple timesteps at once
-    void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) override;
+    void addInputs(DataView const& input, size_t nTimesteps) override;
 
     // Run request through decoder component
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;

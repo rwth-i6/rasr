@@ -37,25 +37,13 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
     return decoder_->extendedScoringContext(request);
 }
 
-void EncoderDecoderLabelScorer::addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) {
-    encoder_->addInput(input, featureSize);
+void EncoderDecoderLabelScorer::addInput(DataView const& input) {
+    encoder_->addInput(input);
     passEncoderOutputsToDecoder();
 }
 
-void EncoderDecoderLabelScorer::addInput(std::vector<f32> const& input) {
-    // The custom deleter ties the lifetime of the vector to the lifetime
-    // of `dataPtr` by capturing the `inputWrapper` by value.
-    // This makes sure that the underlying data isn't invalidated prematurely.
-    auto inputWrapper = std::make_shared<std::vector<f32>>(input);
-    auto dataPtr      = std::shared_ptr<const f32[]>(
-            inputWrapper->data(),
-            [inputWrapper](const f32*) mutable {});
-    encoder_->addInput(dataPtr, input.size());
-    passEncoderOutputsToDecoder();
-}
-
-void EncoderDecoderLabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
-    encoder_->addInputs(input, timeSize, featureSize);
+void EncoderDecoderLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+    encoder_->addInputs(input, nTimesteps);
     passEncoderOutputsToDecoder();
 }
 
@@ -76,9 +64,9 @@ std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeSc
 }
 
 void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
-    std::optional<std::shared_ptr<const f32[]>> encoderOutput;
+    std::optional<DataView> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(*encoderOutput, encoder_->getOutputSize());
+        decoder_->addInput(*encoderOutput);
     }
 }
 

@@ -4,8 +4,6 @@ TOPDIR		= ../..
 
 include $(TOPDIR)/Makefile.cfg
 
-CXXFLAGS += -fexceptions -g
-
 # -----------------------------------------------------------------------------
 
 SUBDIRS		=

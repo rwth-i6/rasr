@@ -26,21 +26,10 @@ namespace Nn {
 LabelScorer::LabelScorer(const Core::Configuration& config)
         : Core::Component(config) {}
 
-void LabelScorer::addInput(std::vector<f32> const& input) {
-    // The custom deleter ties the lifetime of vector `input` to the lifetime
-    // of `dataPtr` by capturing the `inputWrapper` by value.
-    // This makes sure that the underlying data isn't invalidated prematurely.
-    auto inputWrapper = std::make_shared<std::vector<f32>>(input);
-    auto dataPtr      = std::shared_ptr<const f32[]>(
-            inputWrapper->data(),
-            [inputWrapper](const f32*) mutable {});
-    addInput(dataPtr, input.size());
-}
-
-void LabelScorer::addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize) {
-    for (size_t t = 0ul; t < timeSize; ++t) {
-        // Use aliasing constructor to create sub-`shared_ptr`s that share ownership with the original one but point to different memory locations
-        addInput(std::shared_ptr<const f32[]>(input, input.get() + t * featureSize), featureSize);
+void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
+    auto featureSize = input.size() / nTimesteps;
+    for (size_t t = 0ul; t < nTimesteps; ++t) {
+        addInput({input, featureSize, t * featureSize});
     }
 }
 

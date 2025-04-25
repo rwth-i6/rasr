@@ -35,7 +35,6 @@ enum TreeBuilderType {
 };
 
 enum SearchType {
-    WordConditionedTreeSearchType,
     AdvancedTreeSearch,
     LinearSearchType,
     ExpandingFsaSearchType

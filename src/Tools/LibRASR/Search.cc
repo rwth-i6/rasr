@@ -15,8 +15,9 @@
 
 #include "Search.hh"
 
-#include <Python/Search.hh>
 #include <sstream>
+
+#include <Python/Search.hh>
 
 void bind_search_algorithm(py::module_& module) {
     /*

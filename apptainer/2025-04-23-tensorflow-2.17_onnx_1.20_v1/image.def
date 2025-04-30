@@ -5,7 +5,7 @@ Stage: build
 %post
     apt update -y
 
-    # all the fundamental basics, zsh is need because calling the cache manager might launch the user shell
+    # all the fundamental basics, zsh is needed because calling the cache manager might launch the user shell
     DEBIAN_FRONTEND=noninteractive apt install -y wget git unzip gzip libssl-dev lsb-release zsh \
         bison libxml2-dev libopenblas-dev libsndfile1-dev libcrypto++-dev libcppunit-dev \
         libavformat-dev libavcodec-dev libavutil-dev \

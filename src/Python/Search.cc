@@ -87,15 +87,11 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
     u32 prevTime = 0;
 
     for (auto it = traceback->begin(); it != traceback->end(); ++it) {
-        std::string symbol("");
-        if (it->pronunciation and it->pronunciation->lemma()) {
-            symbol = static_cast<std::string>(it->pronunciation->lemma()->symbol());
-        }
-        else {
-            warning() << "No pronunciation for traceback item";
+        if (not it->pronunciation or not it->pronunciation->lemma()) {
+            continue;
         }
         result.push_back({
-                symbol,
+                it->pronunciation->lemma()->symbol(),
                 it->score.acoustic,
                 it->score.lm,
                 prevTime,

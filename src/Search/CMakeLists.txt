@@ -7,6 +7,7 @@ endif()
 
 # add_subdirectory(LexiconfreeBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(LexiconfreeLabelsyncBeamSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 
 set(RasrSearch_SOURCES

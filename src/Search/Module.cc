@@ -17,6 +17,7 @@
 #endif
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
+#include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
 #include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
@@ -38,6 +39,7 @@ Module_::Module_() {
 
 const Core::Choice Module_::searchTypeV2Choice(
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
+        "lexiconfree-labelsync-beam-search", SearchTypeV2::LexiconfreeLabelsyncBeamSearchType,
         "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
         Core::Choice::endMark());
 
@@ -113,6 +115,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
     switch (searchTypeV2Param(config)) {
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
+            break;
+        case LexiconfreeLabelsyncBeamSearchType:
+            searchAlgorithm = new Search::LexiconfreeLabelsyncBeamSearch(config);
             break;
         case TreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);

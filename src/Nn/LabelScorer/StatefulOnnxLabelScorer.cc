@@ -185,6 +185,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
             updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
             break;
         case LabelScorer::TransitionType::LABEL_TO_BLANK:
+        case LabelScorer::TransitionType::INITIAL_BLANK:
             updateState = blankUpdatesHistory_;
             break;
         case LabelScorer::TransitionType::LABEL_LOOP:
@@ -192,6 +193,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
             break;
         case LabelScorer::TransitionType::BLANK_TO_LABEL:
         case LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case LabelScorer::TransitionType::INITIAL_LABEL:
             updateState = true;
             break;
         default:

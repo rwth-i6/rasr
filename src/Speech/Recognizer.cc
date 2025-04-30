@@ -41,7 +41,6 @@ using namespace Speech;
 // class Recognizer
 
 const Core::Choice Recognizer::searchTypeChoice_(
-        "word-conditioned-tree-search", Search::WordConditionedTreeSearchType,
         "advanced-tree-search", Search::AdvancedTreeSearch,
         "expanding-fsa-search", Search::ExpandingFsaSearchType,
         "linear-search", Search::LinearSearchType,
@@ -50,7 +49,7 @@ const Core::Choice Recognizer::searchTypeChoice_(
 const Core::ParameterChoice Recognizer::paramSearch(
         "search-type", &searchTypeChoice_,
         "select search algorithm",
-        Search::WordConditionedTreeSearchType);
+        Search::AdvancedTreeSearch);
 
 Recognizer::Recognizer(const Core::Configuration& c)
         : Core::Component(c), recognizer_(0) {}

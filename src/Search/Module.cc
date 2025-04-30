@@ -15,7 +15,6 @@
 #include <Modules.hh>
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
-#include <Search/WordConditionedTreeSearch.hh>
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
 #ifdef MODULE_SEARCH_WFST
@@ -76,10 +75,6 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
     SearchAlgorithm* recognizer = nullptr;
     switch (type) {
-        case WordConditionedTreeSearchType:
-            recognizer = new Search::WordConditionedTreeSearch(config);
-            break;
-
         case AdvancedTreeSearch:
 #ifdef MODULE_ADVANCED_TREE_SEARCH
             recognizer = new Search::AdvancedTreeSearchManager(config);

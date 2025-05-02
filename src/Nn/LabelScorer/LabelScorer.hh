@@ -141,6 +141,11 @@ public:
     // Note: the times vector is internally collapsed to one value if all timesteps are the same
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
 
+    // Returns total number of sub-scorers for nested label scorer constructions (e.g. with CombineLabelScorer)
+    virtual size_t                         numSubScorers() const;
+    virtual std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request, size_t scorerIndex);
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests, size_t scorerIndex);
+
 #ifdef MODULE_PYTHON
     virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback);
 #endif

@@ -96,9 +96,19 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaxBeamSize(
         "Maximum number of elements in the search beam.",
         1, 1);
 
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramIntermediateMaxBeamSize(
+        "intermediate-max-beam-size",
+        "Maximum number of elements kept for intermediate steps after each sub-scorer.",
+        1, 1);
+
 const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
         "score-threshold",
         "Prune any hypotheses with a score that is at least this much worse than the best hypothesis. If not set, no score pruning will be done.",
+        Core::Type<Score>::max, 0);
+
+const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramIntermediateScoreThreshold(
+        "intermediate-score-threshold",
+        "Prune any intermediate hypotheses of sub-scorers with a score that is at least this much worse than the best hypothesis. If not set, no intermediate score pruning will be done.",
         Core::Type<Score>::max, 0);
 
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
@@ -120,7 +130,9 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
+          intermediateMaxBeamSize_(paramIntermediateMaxBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
+          intermediateScoreThreshold_(paramIntermediateScoreThreshold(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
@@ -251,7 +263,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     extensions_.clear();
-    requests_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -270,37 +281,61 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                      0,
                      transitionType,
                      hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
-    }
-
-    /*
-     * Perform scoring of all the requests with the label scorer.
-     */
-    scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
-    scoringTime_.stop();
-
-    if (not result) {
-        // LabelScorer could not compute scores -> no search step can be made.
-        return false;
-    }
-
-    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-        extensions_[extensionIdx].score += result->scores[extensionIdx];
-        extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
     }
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
     }
 
-    /*
-     * Prune set of possible extensions by max beam size and possibly also by score.
-     */
+    for (size_t subScorerIdx = 0ul; subScorerIdx < labelScorer_->numSubScorers(); ++subScorerIdx) {
+        requests_.clear();
+        for (auto const& extension : extensions_) {
+            requests_.push_back({beam_[extension.baseHypIndex].scoringContext, extension.nextToken, extension.transitionType});
+        }
+
+        /*
+         * Perform scoring of all the requests with the label scorer.
+         */
+        scoringTime_.start();
+        auto result = labelScorer_->computeScoresWithTimes(requests_, subScorerIdx);
+        scoringTime_.stop();
+
+        if (not result) {
+            // LabelScorer could not compute scores -> no search step can be made.
+            return false;
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+        }
+
+        for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+            extensions_[extensionIdx].score += result->scores[extensionIdx];
+            extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
+        }
+
+        /*
+         * Prune set of possible extensions by max beam size and possibly also by score.
+         */
+
+        if (subScorerIdx + 1 < labelScorer_->numSubScorers()) {
+            if (useScorePruning_) {
+                scorePruning(extensions_, intermediateScoreThreshold_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-score-pruning-" + std::to_string(subScorerIdx), extensions_.size());
+                }
+            }
+
+            beamSizePruning(extensions_, intermediateMaxBeamSize_);
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlFull("num-hyps-after-intermediate-beam-pruning-" + std::to_string(subScorerIdx), extensions_.size());
+            }
+        }
+    }
 
     if (useScorePruning_) {
-        scorePruning(extensions_);
+        scorePruning(extensions_, scoreThreshold_);
 
         numHypsAfterScorePruning_ += extensions_.size();
 
@@ -309,7 +344,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
-    beamSizePruning(extensions_);
+    beamSizePruning(extensions_, maxBeamSize_);
     numHypsAfterBeamPruning_ += extensions_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", extensions_.size());
@@ -439,24 +474,24 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
-    if (extensions.size() <= maxBeamSize_) {
+void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, size_t maxBeamSize) const {
+    if (extensions.size() <= maxBeamSize) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
-    std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize_, extensions.end());
-    extensions.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize, extensions.end());
+    extensions.resize(maxBeamSize);  // Get rid of excessive elements
 }
 
-void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
+void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score scoreThreshold) const {
     if (extensions.empty()) {
         return;
     }
 
     // Compute the pruning threshold
     auto bestScore        = std::min_element(extensions.begin(), extensions.end())->score;
-    auto pruningThreshold = bestScore + scoreThreshold_;
+    auto pruningThreshold = bestScore + scoreThreshold;
 
     // Remove elements with score > pruningThreshold
     extensions.erase(

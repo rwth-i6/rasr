@@ -81,6 +81,8 @@ protected:
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
+    static const Core::ParameterFloat paramIntermediateScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
@@ -102,9 +104,11 @@ public:
 
 private:
     size_t maxBeamSize_;
+    size_t intermediateMaxBeamSize_;
 
     bool  useScorePruning_;
     Score scoreThreshold_;
+    Score intermediateScoreThreshold_;
 
     bool           useBlank_;
     Nn::LabelIndex blankLabelIndex_;
@@ -151,12 +155,12 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold_
      */
-    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score scoreThreshold) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

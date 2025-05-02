@@ -45,6 +45,20 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     return result;
 }
 
+size_t LabelScorer::numSubScorers() const {
+    return 1ul;
+}
+
+std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTime(Request const& request, size_t scorerIndex) {
+    verify(scorerIndex < numSubScorers());
+    return computeScoreWithTime(request);
+}
+
+std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<Request> const& requests, size_t scorerIndex) {
+    verify(scorerIndex < numSubScorers());
+    return computeScoresWithTimes(requests);
+}
+
 #ifdef MODULE_PYTHON
 void LabelScorer::registerPythonCallback(std::string const& name, pybind11::function const& callback) {}
 #endif

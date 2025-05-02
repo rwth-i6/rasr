@@ -46,6 +46,9 @@ endif
 ifdef MODULE_NN
 FEATURE_EXTRACTION_O +=	../../Nn/libSprintNn.$(a)
 endif
+ifdef MODULE_ONNX
+FEATURE_EXTRACTION_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 FEATURE_EXTRACTION_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)

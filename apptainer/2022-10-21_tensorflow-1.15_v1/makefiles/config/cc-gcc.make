@@ -27,7 +27,7 @@ CCFLAGS		+= -funsigned-char
 CCFLAGS		+= -fno-exceptions
 CFLAGS		+= -std=c99
 CXXFLAGS	+= -std=gnu++0x
-CXXFLAGS	+= -Wno-unknown-pragmas
+CXXFLAGS	+= -Wno-unknown-pragmas -Werror=return-type
 #CCFLAGS	+= -pedantic
 CCFLAGS		+= -Wall
 CCFLAGS		+= -Wno-long-long

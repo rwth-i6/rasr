@@ -23,20 +23,14 @@ using namespace Signal;
 /////////
 
 Window::Window()
-        : lengthInS_(0),
+        : lengthInS_(0.0),
           shiftInS_(0.0),
-          windowFunction_(0) {}
+          inputLengthInS_(0.0),
+          windowOffsetInS_(0.0),
+          windowFunction_(nullptr) {}
 
-Window::~Window() {
-    if (windowFunction_)
-        delete windowFunction_;
-}
-
-void Window::setWindowFunction(WindowFunction* windowFunction) {
-    if (windowFunction_)
-        delete windowFunction_;
-
-    windowFunction_ = windowFunction;
+void Window::setWindowFunction(std::unique_ptr<WindowFunction>&& windowFunction) {
+    windowFunction_ = std::move(windowFunction);
 }
 
 void Window::setLengthInS(Time length) {
@@ -53,6 +47,17 @@ void Window::setShiftInS(Time shift) {
     }
 }
 
+void Window::setInputLengthInS(Time inputLength) {
+    if (inputLengthInS_ != inputLength) {
+        inputLengthInS_ = inputLength;
+        setNeedInit();
+    }
+}
+
+void Window::setWindowOffsetInS(Time window_offset) {
+    windowOffsetInS_ = window_offset;
+}
+
 void Window::setSampleRate(f64 sampleRate) {
     require(sampleRate > 0.0);
     if (WindowBuffer::sampleRate() != sampleRate) {
@@ -62,30 +67,47 @@ void Window::setSampleRate(f64 sampleRate) {
 }
 
 void Window::init() {
-    verify(windowFunction_);
+    verify(windowFunction_.get());
     verify(sampleRate() > 0);
 
-    setLength((u32)rint(lengthInS_ * sampleRate()));
+    if (inputLengthInS_ > 0) {
+        setLength((u32)rint(inputLengthInS_ * sampleRate()));
+    }
+    else {
+        setLength((u32)rint(lengthInS_ * sampleRate()));
+    }
     setShift((u32)rint(shiftInS_ * sampleRate()));
 
     Predecessor::init();
 }
 
 void Window::transform(Vector<Sample>& out) {
-    windowFunction_->setLength(out.size());
+    u32 offset = (u32)rint(windowOffsetInS_ * sampleRate());
+    offset = std::min<u32>(out.size(), offset);
 
-    if (!windowFunction_->work(out.begin(), out.end()))
+    u32 windowLength = (u32)rint(lengthInS_ * sampleRate());
+    windowFunction_->setLength(windowLength);
+
+    std::fill(out.begin(), out.begin() + offset, 0.0);
+    if (!windowFunction_->work(out.begin() + offset, out.end())) {
         hope(false);
+    }
 }
 
 // WindowNode
 /////////////
 
 const Core::ParameterFloat WindowNode::paramShift(
-        "shift", "shift of window");
+        "shift", "shift of window", 0.0, 0.0);
 
 const Core::ParameterFloat WindowNode::paramLength(
-        "length", "length of window");
+        "length", "length of window", 0.0, 0.0);
+
+const Core::ParameterFloat WindowNode::paramInputLength(
+        "input-length", "length of the input processed by the window (if not set same as length)", 0.0, 0.0);
+
+const Core::ParameterFloat WindowNode::paramWindowOffset(
+        "window-offset", "Window is applied starting at an offset to the signal", 0, 0);
 
 const Core::ParameterBool WindowNode::paramFlushAll(
         "flush-all", "if false, segments stops after the last sample was delivered", false);
@@ -95,36 +117,52 @@ const Core::ParameterBool WindowNode::paramFlushBeforeGap(
 
 WindowNode::WindowNode(const Core::Configuration& c)
         : Component(c), Predecessor(c) {
-    setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c)));
+    setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c))));
     setShiftInS(paramShift(c));
     setLengthInS(paramLength(c));
+    setInputLengthInS(paramInputLength(c));
+    setWindowOffsetInS(paramWindowOffset(c));
     setFlushAll(paramFlushAll(c));
     setFlushBeforeGap(paramFlushBeforeGap(c));
 }
 
 bool WindowNode::setParameter(const std::string& name, const std::string& value) {
-    if (WindowFunction::paramType.match(name))
-        setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(value)));
-    else if (paramShift.match(name))
+    if (WindowFunction::paramType.match(name)) {
+        setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(value))));
+    }
+    else if (paramShift.match(name)) {
         setShiftInS(paramShift(value));
-    else if (paramLength.match(name))
+    }
+    else if (paramLength.match(name)) {
         setLengthInS(paramLength(value));
-    else if (paramFlushAll.match(name))
+    }
+    else if (paramInputLength.match(name)) {
+        setInputLengthInS(paramInputLength(value));
+    }
+    else if (paramWindowOffset.match(name)) {
+        setWindowOffsetInS(paramWindowOffset(value));
+    }
+    else if (paramFlushAll.match(name)) {
         setFlushAll(paramFlushAll(value));
-    else if (paramFlushBeforeGap.match(name))
+    }
+    else if (paramFlushBeforeGap.match(name)) {
         setFlushBeforeGap(paramFlushBeforeGap(value));
-    else
+    }
+    else {
         return false;
+    }
 
     return true;
+
 }
 
 bool WindowNode::configure() {
     Core::Ref<Flow::Attributes> a(new Flow::Attributes());
     getInputAttributes(0, *a);
 
-    if (!configureDatatype(a, Flow::Vector<f32>::type()))
+    if (!configureDatatype(a, Flow::Vector<f32>::type())) {
         return false;
+    }
 
     a->set("frame-shift", shiftInS());
     f64 sampleRate = atof(a->get("sample-rate").c_str());

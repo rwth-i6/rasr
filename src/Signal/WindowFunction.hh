@@ -33,6 +33,7 @@ public:
     enum Type { Rectangular,
                 Hamming,
                 Hanning,
+                PeriodicHanning,
                 Bartlett,
                 Blackman,
                 Kaiser };
@@ -76,14 +77,16 @@ public:
 
 template<class Iterator>
 bool WindowFunction::work(const Iterator& begin, const Iterator& end) {
-    ensure(std::distance(begin, end) >= (s32)length());
-
-    if (needInit_ && !init())
+    if (needInit_ && !init()) {
         return false;
+    }
 
-    std::transform(window_.begin(), window_.end(), begin, begin, std::multiplies<Float>());
+    size_t effective_window = std::min<size_t>(std::distance(begin, end), length());
 
-    std::fill(begin + length(), end, 0);
+    std::transform(window_.begin(), window_.begin() + effective_window, begin, begin, std::multiplies<Float>());
+
+    // disregard samples that do not fit in window
+    std::fill(begin + effective_window, end, 0.0);
 
     return true;
 }
@@ -112,8 +115,14 @@ protected:
 /** HanningWindowFunction */
 
 class HanningWindowFunction : public WindowFunction {
+public:
+    HanningWindowFunction(bool periodic) : periodic_(periodic) {}
+
 protected:
     virtual bool init();
+
+private:
+    bool periodic_;
 };
 
 /** BlackmanWindowFunction */

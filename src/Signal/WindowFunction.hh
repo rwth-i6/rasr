@@ -116,7 +116,8 @@ protected:
 
 class HanningWindowFunction : public WindowFunction {
 public:
-    HanningWindowFunction(bool periodic) : periodic_(periodic) {}
+    HanningWindowFunction(bool periodic)
+            : periodic_(periodic) {}
 
 protected:
     virtual bool init();

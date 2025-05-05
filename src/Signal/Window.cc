@@ -83,7 +83,7 @@ void Window::init() {
 
 void Window::transform(Vector<Sample>& out) {
     u32 offset = (u32)rint(windowOffsetInS_ * sampleRate());
-    offset = std::min<u32>(out.size(), offset);
+    offset     = std::min<u32>(out.size(), offset);
 
     u32 windowLength = (u32)rint(lengthInS_ * sampleRate());
     windowFunction_->setLength(windowLength);
@@ -153,7 +153,6 @@ bool WindowNode::setParameter(const std::string& name, const std::string& value)
     }
 
     return true;
-
 }
 
 bool WindowNode::configure() {

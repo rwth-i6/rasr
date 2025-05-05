@@ -1,0 +1,11 @@
+Image based on official tensorflow image tensorflow/tensorflow:2.14.0-gpu.
+
+Contains:
+ - Ubuntu 22.04
+ - CUDA 11.8
+ - Tensorflow 2.17
+ - ONNX 1.20.1
+ - Python 3.11
+ - i6 Cache Manager
+ - Basics required to compile RASR
+ - Additional i6 packages commonly used

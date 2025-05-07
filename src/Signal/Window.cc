@@ -54,8 +54,8 @@ void Window::setInputLengthInS(Time inputLength) {
     }
 }
 
-void Window::setWindowOffsetInS(Time window_offset) {
-    windowOffsetInS_ = window_offset;
+void Window::setWindowOffsetInS(Time windowOffset) {
+    windowOffsetInS_ = windowOffset;
 }
 
 void Window::setSampleRate(f64 sampleRate) {
@@ -71,21 +71,21 @@ void Window::init() {
     verify(sampleRate() > 0);
 
     if (inputLengthInS_ > 0) {
-        setLength((u32)rint(inputLengthInS_ * sampleRate()));
+        setLength(rint(inputLengthInS_ * sampleRate()));
     }
     else {
-        setLength((u32)rint(lengthInS_ * sampleRate()));
+        setLength(rint(lengthInS_ * sampleRate()));
     }
-    setShift((u32)rint(shiftInS_ * sampleRate()));
+    setShift(rint(shiftInS_ * sampleRate()));
 
     Predecessor::init();
 }
 
 void Window::transform(Vector<Sample>& out) {
-    u32 offset = (u32)rint(windowOffsetInS_ * sampleRate());
+    u32 offset = rint(windowOffsetInS_ * sampleRate());
     offset     = std::min<u32>(out.size(), offset);
 
-    u32 windowLength = (u32)rint(lengthInS_ * sampleRate());
+    u32 windowLength = rint(lengthInS_ * sampleRate());
     windowFunction_->setLength(windowLength);
 
     std::fill(out.begin(), out.begin() + offset, 0.0);
@@ -117,7 +117,7 @@ const Core::ParameterBool WindowNode::paramFlushBeforeGap(
 
 WindowNode::WindowNode(const Core::Configuration& c)
         : Component(c), Predecessor(c) {
-    setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c))));
+    setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create(static_cast<WindowFunction::Type>(WindowFunction::paramType(c)))));
     setShiftInS(paramShift(c));
     setLengthInS(paramLength(c));
     setInputLengthInS(paramInputLength(c));
@@ -128,7 +128,7 @@ WindowNode::WindowNode(const Core::Configuration& c)
 
 bool WindowNode::setParameter(const std::string& name, const std::string& value) {
     if (WindowFunction::paramType.match(name)) {
-        setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(value))));
+        setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create(static_cast<WindowFunction::Type>WindowFunction::paramType(value)))));
     }
     else if (paramShift.match(name)) {
         setShiftInS(paramShift(value));

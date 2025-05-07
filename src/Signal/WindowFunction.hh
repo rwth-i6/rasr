@@ -81,12 +81,12 @@ bool WindowFunction::work(const Iterator& begin, const Iterator& end) {
         return false;
     }
 
-    size_t effective_window = std::min<size_t>(std::distance(begin, end), length());
+    size_t effectiveWindow = std::min<size_t>(std::distance(begin, end), length());
 
-    std::transform(window_.begin(), window_.begin() + effective_window, begin, begin, std::multiplies<Float>());
+    std::transform(window_.begin(), window_.begin() + effectiveWindow, begin, begin, std::multiplies<Float>());
 
     // disregard samples that do not fit in window
-    std::fill(begin + effective_window, end, 0.0);
+    std::fill(begin + effectiveWindow, end, 0.0);
 
     return true;
 }

@@ -128,7 +128,7 @@ WindowNode::WindowNode(const Core::Configuration& c)
 
 bool WindowNode::setParameter(const std::string& name, const std::string& value) {
     if (WindowFunction::paramType.match(name)) {
-        setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create(static_cast<WindowFunction::Type>WindowFunction::paramType(value)))));
+        setWindowFunction(std::unique_ptr<WindowFunction>(WindowFunction::create(static_cast<WindowFunction::Type>(WindowFunction::paramType(value)))));
     }
     else if (paramShift.match(name)) {
         setShiftInS(paramShift(value));

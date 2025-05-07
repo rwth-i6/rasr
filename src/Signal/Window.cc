@@ -101,10 +101,10 @@ const Core::ParameterFloat WindowNode::paramShift(
         "shift", "shift of window", 0.0, 0.0);
 
 const Core::ParameterFloat WindowNode::paramLength(
-        "length", "length of window", 0.0, 0.0);
+        "length", "length of window function (in seconds) that is applied to the input", 0.0, 0.0);
 
 const Core::ParameterFloat WindowNode::paramInputLength(
-        "input-length", "length of the input processed by the window (if not set same as length)", 0.0, 0.0);
+        "input-length", "length of the input processed by the window (if not set same as length), samples not covered by the window function are set to 0", 0.0, 0.0);
 
 const Core::ParameterFloat WindowNode::paramWindowOffset(
         "window-offset", "Window is applied starting at an offset to the signal", 0, 0);

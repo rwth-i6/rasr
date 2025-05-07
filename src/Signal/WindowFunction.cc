@@ -109,16 +109,11 @@ bool HanningWindowFunction::init() {
         return false;
     }
 
-    if (periodic_) {
-        u32 M = window_.size();
-        for (u32 n = 0; n < window_.size(); n++) {
-            window_[n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
-        }
-    }
-    else {
-        u32 M = window_.size() - 1;
-        for (u32 n = 0; n <= M / 2; n++) {
-            window_[n] = window_[M - n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
+    u32 M = window_.size() - (periodic_ ? 0 : 1);
+    for (u32 n = 0; n <= M / 2; n++) {
+        window_[n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
+        if (M - n < window_.size()) {
+            window_[M - n] = window_[n];
         }
     }
 

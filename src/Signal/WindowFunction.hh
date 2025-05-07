@@ -123,6 +123,11 @@ protected:
     virtual bool init();
 
 private:
+    /**
+     * Indicates if this is a periodic window or not, i.e. if the last value in the window equals the first.
+     * Equivalent to Pytorch's periodic parameter for hann_window:
+     * https://docs.pytorch.org/docs/stable/generated/torch.hann_window.html
+     */
     bool periodic_;
 };
 

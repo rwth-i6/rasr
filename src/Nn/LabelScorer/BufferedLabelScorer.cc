@@ -52,7 +52,7 @@ void BufferedLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef>
         numDeletedInputs_ += deleteInputs;
     }
 }
-std::optional<DataView> BufferedLabelScorer ::getInput(Speech::TimeframeIndex timeIndex) const {
+std::optional<DataView> BufferedLabelScorer::getInput(Speech::TimeframeIndex timeIndex) const {
     if (timeIndex < numDeletedInputs_) {
         error("Tried to get input feature that was already cleaned up.");
     }

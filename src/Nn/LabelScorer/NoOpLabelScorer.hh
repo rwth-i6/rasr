@@ -17,7 +17,6 @@
 #define NO_OP_LABEL_SCORER_HH
 
 #include "BufferedLabelScorer.hh"
-#include "Speech/Types.hh"
 
 namespace Nn {
 

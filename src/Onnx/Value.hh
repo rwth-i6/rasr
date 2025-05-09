@@ -163,6 +163,9 @@ public:
     void set(std::vector<T> const& vec);
 
     template<typename T>
+    void set(T const* data, std::vector<int64_t> const& shape);
+
+    template<typename T>
     void set(T const& val);
 
     template<typename T>

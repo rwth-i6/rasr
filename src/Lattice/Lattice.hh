@@ -262,9 +262,9 @@ public:
 /**
  * A "normal" word lattice with acoustic and language model scores
  * and word boundary information as it is produced by
- * WordConditionedTreeSearch.  This (badly named) class
+ * AdvancedTreeSearch.  This (badly named) class
  * facilitates the creation of word graph in
- * WordConditionedTreeSearch.  It will probably disappear in the
+ * AdvancedTreeSearch.  It will probably disappear in the
  * near future, when the WordLattice interface is refactored.
  */
 class StandardWordLattice : public WordLattice {

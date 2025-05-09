@@ -16,6 +16,7 @@ PYBIND11_MODULE(librasr, m) {
 
     m.doc() = "RASR python module";
 
+    // TODO: Overhaul Configuration pybinds to make Configurations better to interact with from python-side.
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
     baseConfigClass.def(
             "__getitem__",

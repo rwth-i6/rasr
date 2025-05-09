@@ -13,6 +13,7 @@ CXXFLAGS += -fPIC
 LDFLAGS += -shared
 
 RASR_LIB_O = $(OBJDIR)/LibRASR.o \
+			 $(OBJDIR)/LabelScorer.o \
 			 $(OBJDIR)/Search.o \
              ../../Flf/libSprintFlf.$(a) \
              ../../Flf/FlfCore/libSprintFlfCore.$(a) \

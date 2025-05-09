@@ -21,6 +21,8 @@ LIBPYTHON_O    = \
 		$(OBJDIR)/Configuration.o            \
 		$(OBJDIR)/Init.o                     \
 		$(OBJDIR)/Numpy.o                    \
+		$(OBJDIR)/LabelScorer.o              \
+		$(OBJDIR)/ScoringContext.o           \
 		$(OBJDIR)/Search.o                   \
 		$(OBJDIR)/Utilities.o
 

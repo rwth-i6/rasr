@@ -22,14 +22,14 @@ CXX_MINOR = $(shell $(CXX) --version | head -n 1 | sed -e 's/.*[ \t]\([0-9]\)\.\
 # -----------------------------------------------------------------------------
 # compiler options
 DEFINES		+= -D_GNU_SOURCE
+CCFLAGS		+= -fPIC
 CCFLAGS		+= -pipe
 CCFLAGS		+= -funsigned-char
 CCFLAGS		+= -fno-exceptions
 CFLAGS		+= -std=c99
 CXXFLAGS	+= -std=c++17
-CXXFLAGS	+= -Wno-unknown-pragmas -Werror=return-type
+CXXFLAGS	+= -Wno-unknown-pragmas
 #CCFLAGS	+= -pedantic
-CCFLAGS		+= -fPIC
 CCFLAGS		+= -Wall
 CCFLAGS		+= -Wno-long-long
 #CXXFLAGS	+= -Woverloaded-virtual

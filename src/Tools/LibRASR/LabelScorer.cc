@@ -101,11 +101,10 @@ void bind_label_scorer(py::module_& module) {
 
     pyLabelScorer.def(
             "extended_scoring_context",
-            [](
-                    Python::PythonLabelScorer&      self,
-                    py::object const&               context,
-                    Nn::LabelIndex                  nextToken,
-                    Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContext(context, nextToken, transitionType); },
+            [](Python::PythonLabelScorer&      self,
+               py::object const&               context,
+               Nn::LabelIndex                  nextToken,
+               Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContext(context, nextToken, transitionType); },
             py::arg("context"),
             py::arg("next_token"),
             py::arg("transition_type"),
@@ -115,7 +114,7 @@ void bind_label_scorer(py::module_& module) {
             "    next_token: The most recent token that has been hypothesized and can now be integrated into the scoring context.\n"
             "    transition_type: The kind of transition that has just been performed.\n\n"
             "Returns:\n"
-            "   An extended scoring context. The type of this object should be the same as the type of the input `context`.");
+            "    An extended scoring context. The type of this object should be the same as the type of the input `context`.");
 
     pyLabelScorer.def(
             "add_inputs",
@@ -129,11 +128,10 @@ void bind_label_scorer(py::module_& module) {
 
     pyLabelScorer.def(
             "compute_scores_with_times",
-            [](
-                    Python::PythonLabelScorer&                   self,
-                    std::vector<py::object> const&               contexts,
-                    std::vector<Nn::LabelIndex>                  nextTokens,
-                    std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimes(contexts, nextTokens, transitionTypes); },
+            [](Python::PythonLabelScorer&                   self,
+               std::vector<py::object> const&               contexts,
+               std::vector<Nn::LabelIndex>                  nextTokens,
+               std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimes(contexts, nextTokens, transitionTypes); },
             py::arg("contexts"),
             py::arg("next_tokens"),
             py::arg("transition_types"),

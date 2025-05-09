@@ -52,7 +52,7 @@ public:
     DataView(Onnx::Value&& value);
 #endif
 
-#ifdef MODULE_ONNX
+#ifdef MODULE_PYTHON
     DataView(pybind11::array_t<f32> const& array, size_t size, size_t offset = 0ul);
 #endif
 

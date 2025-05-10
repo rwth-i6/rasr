@@ -15,6 +15,7 @@
 #ifndef _CORE_HASH_HH
 #define _CORE_HASH_HH
 
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <set>

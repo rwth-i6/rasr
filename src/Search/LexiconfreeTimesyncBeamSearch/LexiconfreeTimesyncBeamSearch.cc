@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -337,22 +338,31 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     recombination(newBeam_);
     numActiveHyps_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", newBeam_.size());
+    /*
+     * Clean up label scorer caches.
+     */
+    Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+    for (auto const& hyp : newBeam_) {
+        activeContexts.push_back(hyp.scoringContext);
     }
+    labelScorer_->cleanupCaches(activeContexts);
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    beam_.swap(newBeam_);
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < newBeam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam_[hypIdx].toString() << "\n";
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
         }
         ss << "\n";
         debugChannel_ << ss.str();
     }
 
-    beam_.swap(newBeam_);
-
     if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");

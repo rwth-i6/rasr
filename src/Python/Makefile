@@ -21,6 +21,7 @@ LIBPYTHON_O    = \
 		$(OBJDIR)/Configuration.o            \
 		$(OBJDIR)/Init.o                     \
 		$(OBJDIR)/Numpy.o                    \
+		$(OBJDIR)/Search.o                   \
 		$(OBJDIR)/Utilities.o
 
 CHECK_O		= $(OBJDIR)/check.o 			\

@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef ADVANCEDTREESEARCH_APPROX_LINEARMINIHASH_HH
-#define ADVANCEDTREESEARCH_APPROX_LINEARMINIHASH_HH
+#ifndef APPROX_LINEARMINIHASH_HH
+#define APPROX_LINEARMINIHASH_HH
 
 #include <vector>
 
@@ -270,4 +270,4 @@ private:
 };
 }  // namespace Search
 
-#endif  // ADVANCEDTREESEARCH_APPROX_LINEARMINIHASH_HH
+#endif  // APPROX_LINEARMINIHASH_HH

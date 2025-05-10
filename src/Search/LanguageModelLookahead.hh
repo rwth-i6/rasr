@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
-#define ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#ifndef SEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#define SEARCH_LANGUAGEMODELLOOKAHEAD_HH
 
 #include <iostream>
 #include <list>
@@ -24,11 +24,11 @@
 #include <Core/ReferenceCounting.hh>
 #include <Core/ThreadSafeReference.hh>
 #include <Lm/ScaledLanguageModel.hh>
-#include <Search/PersistentStateTree.hh>
-#include <Search/StateTree.hh>
-#include <Search/TreeStructure.hh>
 
 #include "LinearPrediction.hh"
+#include "PersistentStateTree.hh"
+#include "StateTree.hh"
+#include "TreeStructure.hh"
 
 // #define EXTENSIVE_SPARSE_COLLISION_STATS
 
@@ -58,7 +58,7 @@ extern std::unordered_map<u32, std::pair<u32, u32>> sparseSkipHash;
 // so that the compiler can glue the value right into the code without help from the linker
 #define F32_MAX +3.40282347e+38F
 
-namespace AdvancedTreeSearch {
+namespace Search {
 /** Language model look-ahead */
 
 class LanguageModelLookahead : public Core::Component {
@@ -388,6 +388,6 @@ bool LanguageModelLookahead::isSingleWordNode(LanguageModelLookahead::LookaheadI
     const LanguageModelLookahead::Node& next(nodes_[node + 1]);
     return (next.firstEnd - n.firstEnd == 1) && (next.firstSuccessor == n.firstSuccessor);
 }
-}  // namespace AdvancedTreeSearch
+}  // namespace Search
 
-#endif  // ADVANCEDTREESEARCH_LANGUAGEMODELLOOKAHEAD_HH
+#endif  // SEARCH_LANGUAGEMODELLOOKAHEAD_HH

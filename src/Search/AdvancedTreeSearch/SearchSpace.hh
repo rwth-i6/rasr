@@ -20,6 +20,7 @@
 
 #include <Lm/SearchSpaceAwareLanguageModel.hh>
 #include <Search/Histogram.hh>
+#include <Search/LanguageModelLookahead.hh>
 #include <Search/Module.hh>
 #include <Search/PersistentStateTree.hh>
 #include <Search/Search.hh>
@@ -28,7 +29,6 @@
 #include <Search/TreeStructure.hh>
 
 #include "Helpers.hh"
-#include "LanguageModelLookahead.hh"
 #include "ScoreDependentStatistics.hh"
 #include "SearchSpaceHelpers.hh"
 #include "SimpleThreadPool.hh"
@@ -146,7 +146,7 @@ protected:
     Core::Ref<const Lm::ScaledLanguageModel>     lookaheadLm_;
     Core::Ref<const Lm::LanguageModel>           recombinationLm_;
     Lm::SearchSpaceAwareLanguageModel const*     ssaLm_;
-    AdvancedTreeSearch::LanguageModelLookahead*  lmLookahead_;
+    LanguageModelLookahead*                      lmLookahead_;
     std::vector<const Am::StateTransitionModel*> transitionModels_;
 
     TraceManager trace_manager_;
@@ -157,8 +157,8 @@ protected:
 
     StaticSearchAutomaton const* automaton_;
 
-    Lm::History                                                           unigramHistory_;
-    AdvancedTreeSearch::LanguageModelLookahead::ContextLookaheadReference unigramLookAhead_;
+    Lm::History                                       unigramHistory_;
+    LanguageModelLookahead::ContextLookaheadReference unigramLookAhead_;
 
     AdvancedTreeSearch::AcousticLookAhead* acousticLookAhead_;
 
@@ -214,7 +214,7 @@ protected:
     // This takes the network-dominance into account, and is calculated at the end of every timeframe.
     u32 currentLookaheadInstanceStateThreshold_;
     // When this lookahead-id (i.e. depth) is crossed, full LM look-ahead is used
-    AdvancedTreeSearch::LanguageModelLookahead::LookaheadId fullLookaheadAfterId_;
+    LanguageModelLookahead::LookaheadId fullLookaheadAfterId_;
 
     bool sparseLookahead_, overflowLmScoreToAm_, sparseLookaheadSlowPropagation_;
     f32  unigramLookaheadBackoffFactor_;

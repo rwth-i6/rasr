@@ -16,9 +16,9 @@
 #define SEARCH_SPACE_HELPERS
 
 #include <Core/Types.hh>
+#include <Search/LanguageModelLookahead.hh>
 #include <Search/TreeStructure.hh>
 
-#include "LanguageModelLookahead.hh"
 #include "TraceManager.hh"
 
 namespace Search {
@@ -124,8 +124,8 @@ struct Instance {
 
     virtual ~Instance();
 
-    const InstanceKey                                                     key;
-    AdvancedTreeSearch::LanguageModelLookahead::ContextLookaheadReference lookahead;
+    const InstanceKey                                 key;
+    LanguageModelLookahead::ContextLookaheadReference lookahead;
 
     // List of state hypotheses that should be transferred into this network
     std::vector<StateHypothesisIndex> transfer;

@@ -25,12 +25,9 @@
 #include <Search/Helpers.hh>
 #include <Search/Types.hh>
 
-#include "Helpers.hh"
 #include "LanguageModelLookahead.hh"
 
-using namespace AdvancedTreeSearch;
 using namespace Search;
-using Core::tie;
 
 #ifdef EXTENSIVE_SPARSE_COLLISION_STATS
 std::unordered_map<std::pair<u32, u32>, u32, PairHash<u32>> sparseCollisionHash;

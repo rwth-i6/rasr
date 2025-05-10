@@ -262,7 +262,11 @@ void LexiconElement::addPhon(const WeightedPhonemeString& phon) {
     }
 
     Pronunciation* pron = product_->getPronunciation(phon.phon);
-    if (lemma_->hasPronunciation(pron)) {
+    if (pron == nullptr) {
+        parser()->error("Could not create pronunciation for %s", phon.phon);
+        return;
+    }
+    else if (lemma_->hasPronunciation(pron)) {
         parser()->error("duplicate pronunciation");
         return;
     }

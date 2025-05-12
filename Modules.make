@@ -33,7 +33,7 @@ MODULES += MODULE_AUDIO_RAW
 MODULES += MODULE_AUDIO_WAV_SYSTEM
 
 # ****** Cache Manager integration ******
-# MODULES += MODULE_CORE_CACHE_MANAGER
+MODULES += MODULE_CORE_CACHE_MANAGER
 
 # ****** Cart ******
 MODULES += MODULE_CART
@@ -67,11 +67,11 @@ MODULES += MODULE_NN_SEQUENCE_TRAINING
 MODULES += MODULE_PYTHON
 
 # ****** OpenFst ******
-MODULES += MODULE_OPENFST
+# MODULES += MODULE_OPENFST
 
 # ****** Search ******
 MODULES += MODULE_SEARCH_MBR
-MODULES += MODULE_SEARCH_WFST
+# MODULES += MODULE_SEARCH_WFST
 MODULES += MODULE_SEARCH_LINEAR
 MODULES += MODULE_ADVANCED_TREE_SEARCH
 
@@ -108,7 +108,7 @@ MODULES += MODULE_TEST
 MODULES += MODULE_TENSORFLOW
 
 # ONNX integration
-# MODULES += MODULE_ONNX
+MODULES += MODULE_ONNX
 
 # define variables for the makefiles
 $(foreach module, $(MODULES), $(eval $(module) = 1))
@@ -147,6 +147,7 @@ endif
 
 # ****** Libraries ******
 LIBS_SEARCH = src/Search/libSprintSearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeLabelsyncBeamSearch/libSprintLexiconfreeLabelsyncBeamSearch.$(a)
 LIBS_SEARCH += src/Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a)
 ifdef MODULE_SEARCH_WFST
 LIBS_SEARCH += src/Search/Wfst/libSprintSearchWfst.$(a)

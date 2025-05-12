@@ -87,17 +87,19 @@ const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramMaxBeamSize(
 
 const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramScoreThreshold(
         "score-threshold",
-        "Prune any hypotheses with a score that is at least this much worse than the best hypothesis. If not set, no score pruning will be done.",
+        "Prune any hypotheses with a score that is at least this much worse than the best hypothesis."
+        "If length normalization is enabled, the score threshold is added to the raw score before normalization."
+        "If not set, no score pruning will be done.",
         Core::Type<Score>::max, 0);
 
 const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramSentenceEndLabelIndex(
         "sentence-end-index",
-        "Index of the sentence-end label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
-        Core::Type<int>::max);
+        "Index of the sentence-end label in the lexicon."
+        "Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`");
 
 const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramLengthNormScale(
         "length-norm-scale",
-        "Scaling factor for the hypothesis length normalization.",
+        "Exponent of length for the hypothesis length normalization. Scaled scores are computed as score / length^length_norm_scale.",
         0.0);
 
 const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTimestep(

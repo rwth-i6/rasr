@@ -899,6 +899,29 @@ template void Value::set<s8>(std::vector<s8> const&);
 template void Value::set<u8>(std::vector<u8> const&);
 
 template<typename T>
+void Value::set(T const* data, std::vector<int64_t> const& shape) {
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    int64_t totalSize = std::accumulate(shape.begin(), shape.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    value_ = Ort::Value::CreateTensor<T>(allocator, shape.data(), shape.size());
+
+    T* valueData = value_.GetTensorMutableData<T>();
+    std::copy(data, data + totalSize, valueData);
+}
+
+template void Value::set<f32>(f32 const*, std::vector<int64_t> const&);
+template void Value::set<f64>(f64 const*, std::vector<int64_t> const&);
+template void Value::set<s64>(s64 const*, std::vector<int64_t> const&);
+template void Value::set<u64>(u64 const*, std::vector<int64_t> const&);
+template void Value::set<s32>(s32 const*, std::vector<int64_t> const&);
+template void Value::set<u32>(u32 const*, std::vector<int64_t> const&);
+template void Value::set<s16>(s16 const*, std::vector<int64_t> const&);
+template void Value::set<u16>(u16 const*, std::vector<int64_t> const&);
+template void Value::set<s8>(s8 const*, std::vector<int64_t> const&);
+template void Value::set<u8>(u8 const*, std::vector<int64_t> const&);
+
+template<typename T>
 void Value::set(T const& val) {
     Ort::AllocatorWithDefaultOptions allocator;
     std::vector<int64_t>             shape;

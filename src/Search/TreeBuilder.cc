@@ -39,10 +39,43 @@ AbstractTreeBuilder::AbstractTreeBuilder(Core::Configuration          config,
           network_(network) {
 }
 
+StateId AbstractTreeBuilder::createRoot() {
+    return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
+}
+
 StateId AbstractTreeBuilder::createState(StateTree::StateDesc desc) {
     StateId ret                             = network_.structure.allocateTreeNode();
     network_.structure.state(ret).stateDesc = desc;
     return ret;
+}
+
+StateId AbstractTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
+    // Check if the successor already exists
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
+            return *target;
+        }
+    }
+
+    // No matching successor found, extend
+    StateId ret = createState(desc);
+    network_.structure.addTargetToNode(predecessor, ret);
+    return ret;
+}
+
+void AbstractTreeBuilder::addTransition(StateId predecessor, StateId successor) {
+    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
+    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
+
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
+            // The node is already a successor of the predecessor, so the transition already exists
+            return;
+        }
+    }
+
+    // The transition does not exists yet, add it
+    network_.structure.addTargetToNode(predecessor, successor);
 }
 
 u32 AbstractTreeBuilder::createExit(PersistentStateTree::Exit exit) {
@@ -57,6 +90,26 @@ u32 AbstractTreeBuilder::createExit(PersistentStateTree::Exit exit) {
         exitHash_.insert(std::make_pair(exit, exitIndex));
         return exitIndex;
     }
+}
+
+u32 AbstractTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
+    PersistentStateTree::Exit exit;
+    exit.transitState  = transitState;
+    exit.pronunciation = pron;
+
+    u32 exitIndex = createExit(exit);
+
+    // Check if the exit is already a successor
+    // This should only happen if the same lemma is contained multiple times in the lexicon
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+        if (target.isLabel() && target.label() == exitIndex) {
+            return exitIndex;
+        }
+    }
+
+    // The exit is not part of the successors yet, add it
+    network_.structure.addOutputToNode(state, ID_FROM_LABEL(exitIndex));
+    return exitIndex;
 }
 
 // -------------------- MinimizedTreeBuilder --------------------
@@ -1282,59 +1335,6 @@ void CtcTreeBuilder::build() {
     }
 }
 
-StateId CtcTreeBuilder::createRoot() {
-    return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
-}
-
-u32 CtcTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
-    PersistentStateTree::Exit exit;
-    exit.transitState  = transitState;
-    exit.pronunciation = pron;
-
-    u32 exitIndex = createExit(exit);
-
-    // Check if the exit is already a successor
-    // This should only happen if the same lemma is contained multiple times in the lexicon
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
-        if (target.isLabel() && target.label() == exitIndex) {
-            return exitIndex;
-        }
-    }
-
-    // The exit is not part of the successors yet, add it
-    network_.structure.addOutputToNode(state, ID_FROM_LABEL(exitIndex));
-    return exitIndex;
-}
-
-StateId CtcTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
-    // Check if the successor already exists
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
-            return *target;
-        }
-    }
-
-    // No matching successor found, extend
-    StateId ret = createState(desc);
-    network_.structure.addTargetToNode(predecessor, ret);
-    return ret;
-}
-
-void CtcTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
-    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
-
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
-            // The node is already a successor of the predecessor, so the transition already exists
-            return;
-        }
-    }
-
-    // The transition does not exists yet, add it
-    network_.structure.addTargetToNode(predecessor, successor);
-}
-
 StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
     require(pron != nullptr);
 
@@ -1452,4 +1452,119 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         : CtcTreeBuilder(config, lexicon, acousticModel, network, initialize) {
     this->labelLoop_  = paramLabelLoop(config);
     this->forceBlank_ = paramForceBlank(config);
+}
+
+// -------------------- AedTreeBuilder --------------------
+
+AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
+        : AbstractTreeBuilder(config, lexicon, acousticModel, network) {
+    auto iters = lexicon.phonemeInventory()->phonemes();
+    for (auto it = iters.first; it != iters.second; ++it) {
+        require(not(*it)->isContextDependent());  // Context dependent labels are not supported
+    }
+
+    if (initialize) {
+        verify(!network_.rootState);
+        network_.ciRootState = network_.rootState = createRoot();
+
+        // Create a special root for the word-boundary token if it exists in the lexicon
+        if (lexicon.specialLemma("word-boundary") != nullptr) {
+            wordBoundaryRoot_ = createRoot();
+            network_.otherRootStates.insert(wordBoundaryRoot_);
+        }
+    }
+}
+
+std::unique_ptr<AbstractTreeBuilder> AedTreeBuilder::newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize) {
+    return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network));
+}
+
+void AedTreeBuilder::build() {
+    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    if (wordBoundaryLemma != nullptr) {
+        addWordBoundaryStates();
+    }
+
+    auto sentenceEndLemma = lexicon_.specialLemma("sentence-end");
+    if (!sentenceEndLemma) {
+        sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
+    }
+    auto silenceLemma = lexicon_.specialLemma("silence");
+    auto iters        = lexicon_.lemmaPronunciations();
+
+    // Iterate over the lemmata and add them to the tree
+    for (auto it = iters.first; it != iters.second; ++it) {
+        if ((*it)->lemma() == wordBoundaryLemma) {
+            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_
+            // This is handled separately in addWordBoundaryStates()
+            continue;
+        }
+
+        StateId lastState = extendPronunciation(network_.rootState, (*it)->pronunciation());
+
+        if (wordBoundaryLemma != nullptr && (*it)->lemma() != sentenceEndLemma && (*it)->lemma() != silenceLemma) {
+            // If existing, the wordBoundaryRoot_ should be the transit state for all word ends except sentence-end and silence
+            addExit(lastState, wordBoundaryRoot_, (*it)->id());
+        }
+        else {
+            addExit(lastState, network_.rootState, (*it)->id());
+        }
+    }
+}
+
+StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronunciation const* pron) {
+    require(pron != nullptr);
+    StateId currentState = startState;
+
+    for (u32 i = 0u; i < pron->length(); i++) {
+        Bliss::Phoneme::Id phoneme = (*pron)[i];
+
+        u32 boundary = 0u;
+        if (i == 0) {
+            boundary |= Am::Allophone::isInitialPhone;
+        }
+        if ((i + 1) == pron->length()) {
+            boundary |= Am::Allophone::isFinalPhone;
+        }
+
+        Bliss::ContextPhonology::SemiContext history, future;
+        const Am::Allophone*                 allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
+        const Am::ClassicHmmTopology*        hmmTopology = acousticModel_.hmmTopology(phoneme);
+
+        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+            Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
+            StateTree::StateDesc desc;
+            desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
+
+            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+                desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
+                verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
+
+                // Add new state
+                currentState = extendState(currentState, desc);
+            }
+        }
+    }
+
+    return currentState;
+}
+
+void AedTreeBuilder::addWordBoundaryStates() {
+    Bliss::Lemma const* wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    if (wordBoundaryLemma == nullptr) {
+        return;
+    }
+
+    // Add the word-boundary to the tree, starting from the wordBoundaryRoot_
+    // If the word-boundary has several pronunciation, only the first one is considered
+    auto prons = wordBoundaryLemma->pronunciations();
+
+    StateId wordBoundaryEnd = extendPronunciation(wordBoundaryRoot_, (prons.first)->pronunciation());
+    require(wordBoundaryEnd != 0);
+
+    Bliss::LemmaPronunciation const* wordBoundaryPronLemma = prons.first;
+    require(wordBoundaryPronLemma != nullptr);
+
+    // The "normal" root is the transition state from the word-boundary token, such that a new word can be started afterwards
+    addExit(wordBoundaryEnd, network_.rootState, wordBoundaryPronLemma->id());
 }

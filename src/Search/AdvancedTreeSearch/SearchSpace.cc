@@ -417,6 +417,9 @@ void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
     invertedStateDepths.resize(network.structure.stateCount(), Core::Type<int>::min);
     fillStateDepths(network.rootState, 0);
     fillStateDepths(network.ciRootState, 0);
+    for (StateId root : network.otherRootStates) {
+        fillStateDepths(root, 0);
+    }
 
     bool offsetted = false;
 

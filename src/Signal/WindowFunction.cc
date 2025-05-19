@@ -29,6 +29,7 @@ using namespace Signal;
 Choice          WindowFunction::typeChoice("rectangular", Rectangular,
                                            "hamming", Hamming,
                                            "hanning", Hanning,
+                                           "periodic-hanning", PeriodicHanning,
                                            "bartlett", Bartlett,
                                            "blackman", Blackman,
                                            "kaiser", Kaiser,
@@ -42,7 +43,9 @@ WindowFunction* WindowFunction::create(Type type) {
         case WindowFunction::Hamming:
             return new HammingWindowFunction;
         case WindowFunction::Hanning:
-            return new HanningWindowFunction;
+            return new HanningWindowFunction(false);
+        case WindowFunction::PeriodicHanning:
+            return new HanningWindowFunction(true);
         case WindowFunction::Bartlett:
             return new BartlettWindowFunction;
         case WindowFunction::Blackman:
@@ -104,12 +107,17 @@ bool HammingWindowFunction::init() {
 ///////////////////////
 
 bool HanningWindowFunction::init() {
-    if (window_.size() <= 1)
+    if (window_.size() <= 1) {
         return false;
+    }
 
-    u32 M = window_.size() - 1;
-    for (u32 n = 0; n <= M / 2; n++)
-        window_[n] = window_[M - n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
+    u32 M = window_.size() - (periodic_ ? 0 : 1);
+    for (u32 n = 0; n <= M / 2; n++) {
+        window_[n] = 0.5 - 0.5 * cos(2.0 * M_PI * n / M);
+        if (M - n < window_.size()) {
+            window_[M - n] = window_[n];
+        }
+    }
 
     return WindowFunction::init();
 }

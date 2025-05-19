@@ -15,7 +15,6 @@
 
 #include "NoOpLabelScorer.hh"
 #include "ScoringContext.hh"
-#include "Speech/Types.hh"
 
 namespace Nn {
 

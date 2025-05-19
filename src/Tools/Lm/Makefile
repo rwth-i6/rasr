@@ -43,6 +43,9 @@ endif
 ifdef MODULE_SPARSE
 LM_UTIL_TOOL_O   += ../../Sparse/libSprintSparse.$(a)
 endif
+ifdef MODULE_ONNX
+LM_UTIL_TOOL_O   += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_PYTHON
 LM_UTIL_TOOL_O   += ../../Python/libSprintPython.$(a)
 endif

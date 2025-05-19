@@ -57,6 +57,11 @@ TF_LDFLAGS  += -l:libtensorflow_cc.so.2 -l:libtensorflow_framework.so.2
 # USE_TENSORFLOW_MKL=1
 endif
 
+ifdef MODULE_ONNX
+LDFLAGS += -lonnxruntime
+CXXFLAGS += -fexceptions
+endif
+
 # -----------------------------------------------------------------------------
 # system Libraries
 

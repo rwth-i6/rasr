@@ -360,7 +360,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     recombination();
 
     /*
-     * Prune terminated hypotheses among each other
+     * Jointly prune terminated and active hypotheses
      */
     if (useScorePruning_) {
         scorePruning();

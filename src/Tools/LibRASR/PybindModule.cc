@@ -26,5 +26,5 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
-    bind_search_algorithm(m);
+    bindSearchAlgorithm(m);
 }

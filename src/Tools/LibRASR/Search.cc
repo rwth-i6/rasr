@@ -19,7 +19,7 @@
 
 #include <Python/Search.hh>
 
-void bind_search_algorithm(py::module_& module) {
+void bindSearchAlgorithm(py::module_& module) {
     /*
      * ========================
      * === Traceback ==========

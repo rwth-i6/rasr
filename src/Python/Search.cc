@@ -46,9 +46,11 @@ void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
         }
         F = feature.shape(1);
     }
-    else if (feature.ndim() != 1) {
-        error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1";
+    else if (feature.ndim() == 1) {
         F = feature.shape(0);
+    }
+    else {
+        error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1";
     }
 
     searchAlgorithm_->putFeature({feature, F});
@@ -64,11 +66,14 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
         T = features.shape(1);
         F = features.shape(2);
     }
-    else if (features.ndim() != 2) {
-        error() << "Received feature tensor of invalid dim " << features.ndim() << "; should be 2 or 3";
+    else if (features.ndim() == 2) {
         T = features.shape(0);
         F = features.shape(1);
     }
+    else {
+        error() << "Received feature tensor of invalid dim " << features.ndim() << "; should be 2 or 3";
+    }
+
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
@@ -82,6 +87,9 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
     u32 prevTime = 0;
 
     for (auto it = traceback->begin(); it != traceback->end(); ++it) {
+        if (not it->pronunciation or not it->pronunciation->lemma()) {
+            continue;
+        }
         result.push_back({
                 it->pronunciation->lemma()->symbol(),
                 it->score.acoustic,

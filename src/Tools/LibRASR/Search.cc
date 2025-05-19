@@ -15,10 +15,11 @@
 
 #include "Search.hh"
 
-#include <Python/Search.hh>
 #include <sstream>
 
-void bind_search_algorithm(py::module_& module) {
+#include <Python/Search.hh>
+
+void bindSearchAlgorithm(py::module_& module) {
     /*
      * ========================
      * === Traceback ==========

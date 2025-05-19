@@ -14,10 +14,11 @@
  */
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 
 /*
  * Create bindings for search functionalities and tracebacks
  */
-void bind_search_algorithm(py::module_& module);
+void bindSearchAlgorithm(py::module_& module);

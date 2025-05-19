@@ -61,7 +61,7 @@ public:
 
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result
-    Traceback recognizeSegment(py::array_t<f32> const&);
+    Traceback recognizeSegment(py::array_t<f32> const& features);
 
 private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;

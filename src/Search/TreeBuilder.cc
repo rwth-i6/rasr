@@ -1489,6 +1489,7 @@ void AedTreeBuilder::build() {
     if (!sentenceEndLemma) {
         sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
     }
+    require(sentenceEndLemma);
     auto silenceLemma = lexicon_.specialLemma("silence");
     auto iters        = lexicon_.lemmaPronunciations();
 

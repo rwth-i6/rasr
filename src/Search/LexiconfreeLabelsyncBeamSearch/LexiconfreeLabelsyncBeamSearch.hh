@@ -47,7 +47,6 @@ protected:
         Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
         const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
         Score                            score;           // Would-be score of full hypothesis after extension
-        Score                            scaledScore;     // Would-be length-normalized score of full hypothesis after extension
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
@@ -67,12 +66,17 @@ protected:
         Score                   score;           // Full score of hypothesis
         Score                   scaledScore;     // Length-normalized score of hypothesis
         Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
+        bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
 
         bool operator<(LabelHypothesis const& other) const {
             return scaledScore < other.scaledScore;
+        }
+
+        bool operator>(LabelHypothesis const& other) const {
+            return scaledScore > other.scaledScore;
         }
 
         /*
@@ -123,13 +127,11 @@ private:
 
     Core::Ref<Nn::LabelScorer>   labelScorer_;
     Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beamActive_;
-    std::vector<LabelHypothesis> beamTerminated_;
+    std::vector<LabelHypothesis> beam_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
-    std::vector<LabelHypothesis>          newBeamActive_;
-    std::vector<LabelHypothesis>          newBeamTerminated_;
+    std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
     std::vector<LabelHypothesis>          recombinedHypotheses_;
 
@@ -138,12 +140,8 @@ private:
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHyps_;
-    Core::Statistics<u32> numTerminatedHyps_;
+    Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterBeamPruning_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;
@@ -158,27 +156,27 @@ private:
     /*
      * Helper function for pruning of active hyps to maxBeamSizeActive_
      */
-    void beamSizePruning(std::vector<ExtensionCandidate>& extensions) const;
+    void beamSizePruningExtensions();
 
     /*
      * Helper function for pruning of terminated hyps to maxBeamSizeTerminated_
      */
-    void beamSizePruningTerminated();
+    void beamSizePruning();
 
     /*
      * Helper function for pruning of active hyps to scoreThresholdActive__
      */
-    void scorePruning(std::vector<ExtensionCandidate>& extensions) const;
+    void scorePruningExtensions();
 
     /*
      * Helper function for pruning of terminated hyps to scoreThresholdTerminated_
      */
-    void scorePruningTerminated();
+    void scorePruning();
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context
      */
-    void recombination(std::vector<LabelHypothesis>& hypotheses);
+    void recombination();
 };
 
 }  // namespace Search

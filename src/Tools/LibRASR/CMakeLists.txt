@@ -6,7 +6,7 @@ if(${MODULE_PYTHON})
   list(APPEND librasr_SOURCES PybindModule.cc)
 endif()
 
-pybind11_add_module(librasr PybindModule.cc LibRASR.cc)
+pybind11_add_module(librasr PybindModule.cc LibRASR.cc Search.cc)
 
 target_link_libraries(
   librasr

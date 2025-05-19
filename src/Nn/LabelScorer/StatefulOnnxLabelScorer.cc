@@ -196,6 +196,9 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
         case LabelScorer::TransitionType::INITIAL_LABEL:
             updateState = true;
             break;
+        case LabelScorer::TransitionType::SENTENCE_END:
+            updateState = false;
+            break;
         default:
             error() << "Unknown transition type " << request.transitionType;
     }

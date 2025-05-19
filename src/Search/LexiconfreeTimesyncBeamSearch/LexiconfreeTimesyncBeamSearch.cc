@@ -99,7 +99,7 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaxBeamSize(
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramIntermediateMaxBeamSize(
         "intermediate-max-beam-size",
         "Maximum number of elements kept for intermediate steps after each sub-scorer.",
-        1, 1);
+        Core::Type<int>::max, 1);
 
 const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
         "score-threshold",

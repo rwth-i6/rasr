@@ -69,10 +69,7 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
         T = features.shape(0);
         F = features.shape(1);
     }
-
-    for (size_t t = 0ul; t < T; ++t) {
-        searchAlgorithm_->putFeatures({features, T * F}, T);
-    }
+    searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
 Traceback SearchAlgorithm::getCurrentBestTraceback() {

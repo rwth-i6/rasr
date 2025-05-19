@@ -109,8 +109,8 @@ public:
     void                            reset() override;
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
     void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& data) override;
-    void                            putFeatures(Nn::DataView const& data, size_t nTimesteps) override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;

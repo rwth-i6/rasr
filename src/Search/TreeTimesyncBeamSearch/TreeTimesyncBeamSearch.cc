@@ -175,6 +175,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           newBeam_(),
           requests_(),
           recombinedHypotheses_(),
+          maxNumberOfExits_(0),
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
@@ -276,15 +277,15 @@ void TreeTimesyncBeamSearch::finishSegment() {
     finalizeLmScoring();
 }
 
-void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& data) {
+void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
     featureProcessingTime_.start();
-    labelScorer_->addInput(data);
+    labelScorer_->addInput(feature);
     featureProcessingTime_.stop();
 }
 
-void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& data, size_t nTimesteps) {
+void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
     featureProcessingTime_.start();
-    labelScorer_->addInputs(data, nTimesteps);
+    labelScorer_->addInputs(features, nTimesteps);
     featureProcessingTime_.stop();
 }
 
@@ -636,8 +637,8 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
 }
 
 void TreeTimesyncBeamSearch::createSuccessorLookups() {
-    stateSuccessorLookup_.reserve(network_->structure.stateCount());
-    exitLookup_.reserve(network_->structure.stateCount());
+    stateSuccessorLookup_.resize(network_->structure.stateCount());
+    exitLookup_.resize(network_->structure.stateCount());
 
     for (u32 state = 1; state < network_->structure.stateCount(); ++state) {
         std::vector<StateId>                   stateList;  // Collect the state successors of all nodes

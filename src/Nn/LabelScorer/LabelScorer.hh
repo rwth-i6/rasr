@@ -84,6 +84,7 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
+        SENTENCE_END
     };
 
     // Request for scoring or context extension

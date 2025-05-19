@@ -365,17 +365,17 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     if (useScorePruning_) {
         scorePruning();
 
-        numHypsAfterScorePruning_ += beam_.size();
+        numHypsAfterScorePruning_ += newBeam_.size();
 
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-score-pruning", beam_.size());
+            clog() << Core::XmlFull("num-hyps-after-score-pruning", newBeam_.size());
         }
     }
 
     beamSizePruning();
-    numHypsAfterBeamPruning_ += beam_.size();
+    numHypsAfterBeamPruning_ += newBeam_.size();
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-beam-pruning", beam_.size());
+        clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
     }
 
     /*
@@ -511,13 +511,13 @@ void LexiconfreeLabelsyncBeamSearch::beamSizePruningExtensions() {
 }
 
 void LexiconfreeLabelsyncBeamSearch::beamSizePruning() {
-    if (beam_.size() <= maxBeamSize_) {
+    if (newBeam_.size() <= maxBeamSize_) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `beamSizeTerminated_` elements are the best
-    std::nth_element(beam_.begin(), beam_.begin() + maxBeamSize_, beam_.end());
-    beam_.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(newBeam_.begin(), newBeam_.begin() + maxBeamSize_, newBeam_.end());
+    newBeam_.resize(maxBeamSize_);  // Get rid of excessive elements
 }
 
 void LexiconfreeLabelsyncBeamSearch::scorePruningExtensions() {
@@ -539,23 +539,23 @@ void LexiconfreeLabelsyncBeamSearch::scorePruningExtensions() {
 }
 
 void LexiconfreeLabelsyncBeamSearch::scorePruning() {
-    if (beam_.empty()) {
+    if (newBeam_.empty()) {
         return;
     }
 
     // Compute the pruning threshold
     auto bestHyp = *std::min_element(
-            beam_.begin(),
-            beam_.end());
+            newBeam_.begin(),
+            newBeam_.end());
 
     // Remove elements with score > pruningThreshold
     auto pruningThreshold = (bestHyp.score + scoreThreshold_) / std::pow(bestHyp.length, lengthNormScale_);
-    beam_.erase(
+    newBeam_.erase(
             std::remove_if(
-                    beam_.begin(),
-                    beam_.end(),
+                    newBeam_.begin(),
+                    newBeam_.end(),
                     [&](auto const& hyp) { return hyp.scaledScore > pruningThreshold; }),
-            beam_.end());
+            newBeam_.end());
 }
 
 void LexiconfreeLabelsyncBeamSearch::recombination() {

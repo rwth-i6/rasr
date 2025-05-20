@@ -223,7 +223,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     // Pre-allocate vectors
 
     // If maxWordEndBeamSize_ is not set, we need the maximum number of exits a node can have for estimating the max. size of the vectors
-    int maxWordEnds = maxWordEndBeamSize_ == std::numeric_limits<int>::max() ? maxNumberOfExits_ : maxWordEndBeamSize_;
+    int maxWordEnds = maxWordEndBeamSize_ == std::numeric_limits<int>::max() ? (maxNumberOfExits_ * maxBeamSize_) : maxWordEndBeamSize_;
 
     // The beam contains all within-word and word-end hypotheses which survived pruning
     beam_.reserve(maxBeamSize_ + maxWordEnds);

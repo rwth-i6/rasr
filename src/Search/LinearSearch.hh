@@ -21,7 +21,6 @@
 #include <Lm/LanguageModel.hh>
 #include <Signal/SlidingWindow.hh>
 #include <Speech/ModelCombination.hh>
-#include "LanguageModelLookahead.hh"
 #include "Search.hh"
 
 namespace Search {
@@ -115,7 +114,6 @@ private:
     const Bliss::Lemma*                      silence_;
     Core::Ref<const Am::AcousticModel>       acousticModel_;
     Core::Ref<const Lm::ScaledLanguageModel> lm_;
-    const LanguageModelLookahead*            lmLookahead_;
     Score                                    pronunciationScale_;  // CHANGED from f32
     bool                                     singleWordRecognition_;
     static const Core::ParameterBool         paramSingleWordRecognition_;

@@ -33,7 +33,7 @@ static const Core::ParameterString paramCacheArchive(
         "cache archive in which the persistent state-network should be cached",
         "global-cache");
 
-static u32 formatVersion = 12;
+static u32 formatVersion = 13;
 
 namespace Search {
 struct ConvertTree {
@@ -291,18 +291,14 @@ MappedArchiveWriter& operator<<(MappedArchiveWriter& writer, const std::map<T, T
 }
 
 void PersistentStateTree::write(Core::MappedArchiveWriter out) {
-    // In the previous version, a master tree was used and the index was saved in the cache.
-    // For backward compatibility, a dummy index is now written instead.
-    // This index is not used further and has no effect on functionality.
-    u32 dummyIndex = 1;
-    out << formatVersion << dummyIndex << (u32)dependencies_.getChecksum();
+    out << formatVersion << (u32)dependencies_.getChecksum();
 
     structure.write(out);
     out << exits;
 
     out << coarticulatedRootStates << unpushedCoarticulatedRootStates;
     out << rootTransitDescriptions << pushedWordEndNodes << uncoarticulatedWordEndStates;
-    out << rootState << ciRootState;
+    out << rootState << ciRootState << otherRootStates;
 }
 
 bool PersistentStateTree::read(Core::MappedArchiveReader in) {
@@ -320,26 +316,23 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
 
     u32 dependenciesChecksum = 0;
 
-    // In the previous version, a master tree was used and the index was saved in the cache.
-    // For backward compatibility, read this into a dummy index.
-    // This index is not used further and has no effect on functionality.
-    u32 dummyIndex;
-    in >> dummyIndex >> dependenciesChecksum;
+    in >> dependenciesChecksum;
 
     if (dependenciesChecksum != dependencies_.getChecksum()) {
         Core::Application::us()->log() << "dependencies of the network image don't equal the required dependencies with checksum " << dependenciesChecksum;
         return false;
     }
 
-    if (!structure.read(in))
+    if (!structure.read(in)) {
         return false;
+    }
 
     in >> exits;
 
     in >> coarticulatedRootStates >> unpushedCoarticulatedRootStates >> rootTransitDescriptions;
     in >> pushedWordEndNodes >> uncoarticulatedWordEndStates;
 
-    in >> rootState >> ciRootState;
+    in >> rootState >> ciRootState >> otherRootStates;
 
     return in.good();
 }
@@ -364,6 +357,9 @@ void PersistentStateTree::removeOutputs() {
         std::set<StateId> roots = coarticulatedRootStates;
         roots.insert(rootState);
         roots.insert(ciRootState);
+        for (StateId root : otherRootStates) {
+            roots.insert(root);
+        }
 
         // Also collect all transition-successors as coarticulated roots
         for (StateId node = 1; node < structure.stateCount(); ++node) {

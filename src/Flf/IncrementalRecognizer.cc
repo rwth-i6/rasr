@@ -1848,12 +1848,16 @@ public:
                         dynamic_cast<const Mm::CachedFeatureScorer::CachedContextScorerOverlay*>(scorer.get())->precache();
                     }
                     virtual void                                    getCurrentBestSentence(Traceback& result) const {}
-                    virtual Core::Ref<const Search::LatticeAdaptor> getCurrentWordLattice() const {}
-                    virtual void                                    logStatistics() const {}
-                    virtual void                                    resetStatistics() {}
-                    virtual void                                    restart() {}
-                    virtual void                                    setGrammar(Fsa::ConstAutomatonRef) {}
-                    virtual bool                                    setModelCombination(const Speech::ModelCombination& modelCombination) {}
+                    virtual Core::Ref<const Search::LatticeAdaptor> getCurrentWordLattice() const {
+                        return {};
+                    }
+                    virtual void logStatistics() const {}
+                    virtual void resetStatistics() {}
+                    virtual void restart() {}
+                    virtual void setGrammar(Fsa::ConstAutomatonRef) {}
+                    virtual bool setModelCombination(const Speech::ModelCombination& modelCombination) {
+                        return false;
+                    }
                 } precacher;
                 Core::Timer                    timer;
                 Speech::RecognizerDelayHandler handler(&precacher, acousticModel_, contextScorerCache_);

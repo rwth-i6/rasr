@@ -42,19 +42,15 @@ public:
     inline CollapsedVector();
     inline CollapsedVector(size_t size, const T& value);
 
-    inline void     push_back(const T& value);
-    inline const T& operator[](size_t idx) const;
-    inline const T& at(size_t idx) const;
-    inline size_t   size() const noexcept;
-    inline void     clear() noexcept;
-    inline void     reserve(size_t size);
-    inline const T& front() const;
-
-    inline typename std::vector<T>::iterator begin();
-    inline typename std::vector<T>::iterator end();
-
-    inline typename std::vector<T>::const_iterator begin() const;
-    inline typename std::vector<T>::const_iterator end() const;
+    inline void                  push_back(const T& value);
+    inline const T&              operator[](size_t idx) const;
+    inline const T&              at(size_t idx) const;
+    inline size_t                size() const noexcept;
+    inline void                  clear() noexcept;
+    inline void                  reserve(size_t size);
+    inline const T&              front() const;
+    inline size_t                internalSize() const;
+    inline std::vector<T> const& internalData() const;
 
 private:
     std::vector<T> data_;
@@ -129,25 +125,14 @@ template<typename T>
 inline const T& CollapsedVector<T>::front() const {
     return data_.front();
 }
-
 template<typename T>
-inline typename std::vector<T>::iterator CollapsedVector<T>::begin() {
-    return data_.begin();
+inline size_t CollapsedVector<T>::internalSize() const {
+    return data_.size();
 }
 
 template<typename T>
-inline typename std::vector<T>::iterator CollapsedVector<T>::end() {
-    return data_.end();
-}
-
-template<typename T>
-inline typename std::vector<T>::const_iterator CollapsedVector<T>::begin() const {
-    return data_.begin();
-}
-
-template<typename T>
-inline typename std::vector<T>::const_iterator CollapsedVector<T>::end() const {
-    return data_.end();
+inline std::vector<T> const& CollapsedVector<T>::internalData() const {
+    return data_;
 }
 
 }  // namespace Core

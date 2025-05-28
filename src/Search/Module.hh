@@ -17,6 +17,7 @@
 
 #include <Core/Configuration.hh>
 #include <Core/Singleton.hh>
+#include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
 #include "SearchV2.hh"
 
 #include "TreeBuilder.hh"
@@ -41,7 +42,8 @@ enum SearchType {
 };
 
 enum SearchTypeV2 {
-    LexiconfreeTimesyncBeamSearchType
+    LexiconfreeTimesyncBeamSearchType,
+    LexiconfreeLabelsyncBeamSearchType
 };
 
 class Module_ {

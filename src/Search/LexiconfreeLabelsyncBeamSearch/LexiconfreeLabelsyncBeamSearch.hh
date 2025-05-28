@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -140,12 +140,20 @@ private:
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numHypsAfterScorePruning_;
-    Core::Statistics<u32> numHypsAfterBeamPruning_;
+    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
+    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
+    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
+    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;
     bool   finishedSegment_;
+
+    LabelHypothesis const* getBestTerminatedHypothesis() const;
+    LabelHypothesis const* getWorstTerminatedHypothesis() const;
+
+    LabelHypothesis const* getBestActiveHypothesis() const;
+    LabelHypothesis const* getWorstActiveHypothesis() const;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

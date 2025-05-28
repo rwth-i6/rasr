@@ -16,6 +16,7 @@
 #include "LexiconfreeLabelsyncBeamSearch.hh"
 
 #include <algorithm>
+#include <numeric>
 #include <strings.h>
 
 #include <Core/CollapsedVector.hh>

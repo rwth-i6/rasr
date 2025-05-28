@@ -39,43 +39,10 @@ AbstractTreeBuilder::AbstractTreeBuilder(Core::Configuration          config,
           network_(network) {
 }
 
-StateId AbstractTreeBuilder::createRoot() {
-    return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
-}
-
 StateId AbstractTreeBuilder::createState(StateTree::StateDesc desc) {
     StateId ret                             = network_.structure.allocateTreeNode();
     network_.structure.state(ret).stateDesc = desc;
     return ret;
-}
-
-StateId AbstractTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
-    // Check if the successor already exists
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
-            return *target;
-        }
-    }
-
-    // No matching successor found, extend
-    StateId ret = createState(desc);
-    network_.structure.addTargetToNode(predecessor, ret);
-    return ret;
-}
-
-void AbstractTreeBuilder::addTransition(StateId predecessor, StateId successor) {
-    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
-    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
-
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
-        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
-            // The node is already a successor of the predecessor, so the transition already exists
-            return;
-        }
-    }
-
-    // The transition does not exists yet, add it
-    network_.structure.addTargetToNode(predecessor, successor);
 }
 
 u32 AbstractTreeBuilder::createExit(PersistentStateTree::Exit exit) {
@@ -90,26 +57,6 @@ u32 AbstractTreeBuilder::createExit(PersistentStateTree::Exit exit) {
         exitHash_.insert(std::make_pair(exit, exitIndex));
         return exitIndex;
     }
-}
-
-u32 AbstractTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
-    PersistentStateTree::Exit exit;
-    exit.transitState  = transitState;
-    exit.pronunciation = pron;
-
-    u32 exitIndex = createExit(exit);
-
-    // Check if the exit is already a successor
-    // This should only happen if the same lemma is contained multiple times in the lexicon
-    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
-        if (target.isLabel() && target.label() == exitIndex) {
-            return exitIndex;
-        }
-    }
-
-    // The exit is not part of the successors yet, add it
-    network_.structure.addOutputToNode(state, ID_FROM_LABEL(exitIndex));
-    return exitIndex;
 }
 
 // -------------------- MinimizedTreeBuilder --------------------
@@ -1256,6 +1203,67 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
     }
 }
 
+// -------------------- CtcAedSharedBaseClassTreeBuilder --------------------
+
+CtcAedSharedBaseClassTreeBuilder::CtcAedSharedBaseClassTreeBuilder(Core::Configuration          config,
+                                                                   const Bliss::Lexicon&        lexicon,
+                                                                   const Am::AcousticModel&     acousticModel,
+                                                                   Search::PersistentStateTree& network)
+        : AbstractTreeBuilder(config, lexicon, acousticModel, network) {}
+
+StateId CtcAedSharedBaseClassTreeBuilder::createRoot() {
+    return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
+}
+
+StateId CtcAedSharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
+    // Check if the successor already exists
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
+            return *target;
+        }
+    }
+
+    // No matching successor found, extend
+    StateId ret = createState(desc);
+    network_.structure.addTargetToNode(predecessor, ret);
+    return ret;
+}
+
+void CtcAedSharedBaseClassTreeBuilder::addTransition(StateId predecessor, StateId successor) {
+    auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
+    auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
+
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
+        if (!target.isLabel() && network_.structure.state(*target).stateDesc == successorStateDesc) {
+            // The node is already a successor of the predecessor, so the transition already exists
+            return;
+        }
+    }
+
+    // The transition does not exists yet, add it
+    network_.structure.addTargetToNode(predecessor, successor);
+}
+
+u32 CtcAedSharedBaseClassTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
+    PersistentStateTree::Exit exit;
+    exit.transitState  = transitState;
+    exit.pronunciation = pron;
+
+    u32 exitIndex = createExit(exit);
+
+    // Check if the exit is already a successor
+    // This should only happen if the same lemma is contained multiple times in the lexicon
+    for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(state); target; ++target) {
+        if (target.isLabel() && target.label() == exitIndex) {
+            return exitIndex;
+        }
+    }
+
+    // The exit is not part of the successors yet, add it
+    network_.structure.addOutputToNode(state, ID_FROM_LABEL(exitIndex));
+    return exitIndex;
+}
+
 // -------------------- CtcTreeBuilder --------------------
 
 const Core::ParameterBool CtcTreeBuilder::paramLabelLoop(
@@ -1274,7 +1282,7 @@ const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
         true);
 
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
-        : AbstractTreeBuilder(config, lexicon, acousticModel, network),
+        : CtcAedSharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
           blankLoop_(paramBlankLoop(config)),
           forceBlank_(paramForceBlank(config)) {
@@ -1457,7 +1465,7 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 // -------------------- AedTreeBuilder --------------------
 
 AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
-        : AbstractTreeBuilder(config, lexicon, acousticModel, network) {
+        : CtcAedSharedBaseClassTreeBuilder(config, lexicon, acousticModel, network) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported

@@ -102,6 +102,18 @@ CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::
     historyManager_ = new CombineHistoryManager(num_lms);
 }
 
+CombineLanguageModel::CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::vector<Core::Ref<ScaledLanguageModel>> const& subLms)
+        : Core::Component(c), CombineLanguageModel::Precursor(c, l), lms_(), unscaled_lms_(), linear_combination_(paramLinearCombination(c)), lookahead_lm_(paramLookaheadLM(config)), recombination_lm_(paramRecombinationLM(config)) {
+    size_t num_lms = subLms.size();
+    for (auto const& subLm : subLms) {
+        lms_.push_back(subLm);
+        unscaled_lms_.push_back(lms_.back()->unscaled());
+        ssa_lms_.push_back(dynamic_cast<SearchSpaceAwareLanguageModel const*>(unscaled_lms_.back().get()));
+        skip_thresholds_.push_back(paramSkipThreshold(subLm->getConfiguration()));
+    }
+    historyManager_ = new CombineHistoryManager(num_lms);
+}
+
 CombineLanguageModel::~CombineLanguageModel() {
 }
 
@@ -242,10 +254,12 @@ Core::Ref<const LanguageModel> CombineLanguageModel::recombinationLanguageModel(
     return Core::Ref<LanguageModel>();
 }
 
-void CombineLanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+bool CombineLanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+    bool changed = false;
     for (size_t i = 0ul; i < lms_.size(); i++) {
-        lms_[i]->setSegment(s);
+        changed |= lms_[i]->setSegment(s);
     }
+    return changed;
 }
 
 void CombineLanguageModel::startFrame(Search::TimeframeIndex time) const {

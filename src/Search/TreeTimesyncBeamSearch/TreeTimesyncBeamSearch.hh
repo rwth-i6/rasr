@@ -133,12 +133,12 @@ private:
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>               labelScorer_;
-    Bliss::LexiconRef                        lexicon_;
-    Core::Ref<PersistentStateTree>           network_;
-    Core::Ref<const Am::AcousticModel>       acousticModel_;
-    Core::Ref<const Lm::ScaledLanguageModel> languageModel_;
-    std::vector<LabelHypothesis>             beam_;
+    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Bliss::LexiconRef                  lexicon_;
+    Core::Ref<PersistentStateTree>     network_;
+    Core::Ref<const Am::AcousticModel> acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
+    std::vector<LabelHypothesis>       beam_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;

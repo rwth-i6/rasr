@@ -36,6 +36,8 @@ public:
     static Core::ParameterFloat paramSkipThreshold;
 
     CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l);
+    CombineLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::vector<Core::Ref<ScaledLanguageModel>> const& subLms);
+
     virtual ~CombineLanguageModel();
 
     virtual Lm::Score sentenceBeginScore() const;
@@ -48,7 +50,7 @@ public:
     virtual Score                          sentenceEndScore(const History& history) const;
     virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const;
     virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const;
-    virtual void                           setSegment(Bliss::SpeechSegment const* s);
+    virtual bool                           setSegment(Bliss::SpeechSegment const* s);
 
     virtual void startFrame(Search::TimeframeIndex time) const;
     virtual void setInfo(History const& hist, SearchSpaceInformation const& info) const;

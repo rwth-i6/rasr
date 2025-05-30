@@ -37,7 +37,7 @@ public:
     virtual ~CheatingSegmentLm() = default;
 
     virtual void load();
-    virtual void setSegment(Bliss::SpeechSegment const* s);
+    virtual bool setSegment(Bliss::SpeechSegment const* s);
 
     virtual History startHistory() const;
     virtual History extendedHistory(History const& h, Token w) const;

@@ -1,4 +1,5 @@
 set(RasrPython_SOURCES
+    Align.cc
     AllophoneStateFsaBuilder.cc
     Configuration.cc
     Init.cc

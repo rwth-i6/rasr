@@ -9,6 +9,7 @@
 #include <Python/Configuration.hh>
 #include <Python/Search.hh>
 
+#include "Align.hh"
 #include "Search.hh"
 
 namespace py = pybind11;
@@ -30,4 +31,5 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
     bindSearchAlgorithm(m);
+    bindAligner(m);
 }

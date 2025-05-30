@@ -71,7 +71,7 @@ void CheatingSegmentLm::load() {
     segmentIdx_ += 1ul;
 }
 
-void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
+bool CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
     std::string orth = s->orth();
     Core::normalizeWhitespace(orth);
     Core::enforceTrailingBlank(orth);
@@ -126,6 +126,8 @@ void CheatingSegmentLm::setSegment(Bliss::SpeechSegment const* s) {
     auto synt_ref = Fsa::ConstAutomatonRef(synt_automaton);
     this->setFsa(synt_ref);
     segmentIdx_ += 1ul;
+
+    return true;
 }
 
 History CheatingSegmentLm::startHistory() const {

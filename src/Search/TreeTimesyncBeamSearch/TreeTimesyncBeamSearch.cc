@@ -262,6 +262,11 @@ void TreeTimesyncBeamSearch::reset() {
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.start();
     labelScorer_->reset();
+    if (segment != nullptr and languageModel_->setSegment(segment)) {
+        for (auto& hyp : beam_) {
+            hyp.lmHistory = languageModel_->startHistory();
+        }
+    }
     resetStatistics();
     initializationTime_.stop();
     finishedSegment_ = false;
@@ -368,6 +373,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     /*
      * Prune set of possible within-word extensions by max beam size and possibly also by score.
      */
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-before-score-pruning", extensions_.size());
+    }
     scorePruning(extensions_, scoreThreshold_);
     numHypsAfterScorePruning_ += extensions_.size();
     if (logStepwiseStatistics_) {
@@ -402,7 +410,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 wordEndExtension.state = exit.transitState;
                 wordEndExtension.pron  = lemmaPron;
 
-                if (lemma != lexicon_->specialLemma("blank")) {
+                if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
                     const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
                     const Bliss::SyntacticToken*        st  = sts.front();
 

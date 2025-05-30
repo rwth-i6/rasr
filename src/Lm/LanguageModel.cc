@@ -213,5 +213,6 @@ Core::Ref<const LanguageModel> LanguageModel::recombinationLanguageModel() const
     return Core::Ref<LanguageModel>();
 }
 
-void LanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+bool LanguageModel::setSegment(Bliss::SpeechSegment const* s) {
+    return false;
 }

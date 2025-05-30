@@ -585,8 +585,9 @@ public:
      * For some *cheating* language models we need to know the correct transcription. Language models that are used
      * for real recognition MUST NOT implement this.
      * @param s the current segment
+     * @return true if setting the segment has an effect on the language model
      */
-    virtual void setSegment(Bliss::SpeechSegment const* s);
+    virtual bool setSegment(Bliss::SpeechSegment const* s);
 
 protected:
     // why is this even needed ?

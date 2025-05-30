@@ -43,7 +43,8 @@ enum SearchType {
 
 enum SearchTypeV2 {
     LexiconfreeTimesyncBeamSearchType,
-    LexiconfreeLabelsyncBeamSearchType
+    LexiconfreeLabelsyncBeamSearchType,
+    TreeLabelsyncBeamSearchType,
 };
 
 class Module_ {

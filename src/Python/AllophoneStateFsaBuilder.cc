@@ -42,12 +42,16 @@ AllophoneStateFsaBuilder::AllophoneStateFsaBuilder(const Core::Configuration& c)
     segmentToOrthMap_          = build_segment_to_orth_map(select("corpus"));
 }
 
-py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+std::string AllophoneStateFsaBuilder::getOrthography(const std::string& segmentName) {
     auto iter = segmentToOrthMap_->find(segmentName);
     if (iter == segmentToOrthMap_->end()) {
         throw std::invalid_argument("Could not find segment with name " + segmentName);
     }
-    return buildByOrthography(iter->second);
+    return iter->second;
+}
+
+py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+    return buildByOrthography(getOrthography(segmentName));
 }
 
 py::tuple AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {

@@ -42,7 +42,7 @@ AllophoneStateFsaBuilder::AllophoneStateFsaBuilder(const Core::Configuration& c)
     segmentToOrthMap_          = build_segment_to_orth_map(select("corpus"));
 }
 
-std::string AllophoneStateFsaBuilder::getOrthography(const std::string& segmentName) {
+std::string AllophoneStateFsaBuilder::getOrthographyBySegmentName(const std::string& segmentName) {
     auto iter = segmentToOrthMap_->find(segmentName);
     if (iter == segmentToOrthMap_->end()) {
         throw std::invalid_argument("Could not find segment with name " + segmentName);

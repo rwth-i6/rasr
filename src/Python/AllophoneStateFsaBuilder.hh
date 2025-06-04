@@ -15,7 +15,7 @@ public:
     AllophoneStateFsaBuilder(const Core::Configuration& c);
     ~AllophoneStateFsaBuilder() = default;
 
-    std::string getOrthography(const std::string& segmentName);
+    std::string getOrthographyBySegmentName(const std::string& segmentName);
 
     py::tuple buildBySegmentName(const std::string& segmentName);
 

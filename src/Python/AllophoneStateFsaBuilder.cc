@@ -51,7 +51,7 @@ std::string AllophoneStateFsaBuilder::getOrthographyBySegmentName(const std::str
 }
 
 py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
-    return buildByOrthography(getOrthography(segmentName));
+    return buildByOrthography(getOrthographyBySegmentName(segmentName));
 }
 
 py::tuple AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {

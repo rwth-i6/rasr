@@ -40,6 +40,10 @@
 #include "ReducedPrecisionCompressedVectorFactory.hh"
 #endif
 
+#ifdef MODULE_ONNX
+#include "OnnxStatelessLanguageModel.hh"
+#endif
+
 #include "SimpleHistoryLm.hh"
 
 using namespace Lm;
@@ -53,7 +57,8 @@ enum LanguageModelType {
     lmTypeCombine,
     lmTypeTFRNN,
     lmTypeCheatingSegment,
-    lmTypeSimpleHistory
+    lmTypeSimpleHistory,
+    lmTypeOnnxStateless
 };
 }
 
@@ -66,6 +71,7 @@ const Core::Choice Module_::lmTypeChoice(
         "tfrnn", lmTypeTFRNN,
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
+        "onnx-stateless", lmTypeOnnxStateless,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -93,6 +99,9 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
+#ifdef MODULE_ONNX
+        case lmTypeOnnxStateless: result = Core::ref(new OnnxStatelessLm(c, l)); break;
+#endif
         default:
             Core::Application::us()->criticalError("unknwon language model type: %d", lmTypeParam(c));
     }

@@ -42,13 +42,15 @@ public:
     inline CollapsedVector();
     inline CollapsedVector(size_t size, const T& value);
 
-    inline void     push_back(const T& value);
-    inline const T& operator[](size_t idx) const;
-    inline const T& at(size_t idx) const;
-    inline size_t   size() const noexcept;
-    inline void     clear() noexcept;
-    inline void     reserve(size_t size);
-    inline const T& front() const;
+    inline void                  push_back(const T& value);
+    inline const T&              operator[](size_t idx) const;
+    inline const T&              at(size_t idx) const;
+    inline size_t                size() const noexcept;
+    inline void                  clear() noexcept;
+    inline void                  reserve(size_t size);
+    inline const T&              front() const;
+    inline size_t                internalSize() const;
+    inline std::vector<T> const& internalData() const;
 
     inline typename std::vector<T>::iterator begin();
     inline typename std::vector<T>::iterator end();
@@ -128,6 +130,15 @@ inline void CollapsedVector<T>::reserve(size_t size) {
 template<typename T>
 inline const T& CollapsedVector<T>::front() const {
     return data_.front();
+}
+template<typename T>
+inline size_t CollapsedVector<T>::internalSize() const {
+    return data_.size();
+}
+
+template<typename T>
+inline std::vector<T> const& CollapsedVector<T>::internalData() const {
+    return data_;
 }
 
 template<typename T>

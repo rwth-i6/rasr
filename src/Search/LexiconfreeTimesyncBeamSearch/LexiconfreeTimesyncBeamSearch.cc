@@ -116,6 +116,11 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
+const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
+        "cache-cleanup-interval",
+        "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
+        10);
+
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -124,6 +129,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           blankLabelIndex_(paramBlankLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
@@ -138,6 +144,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
+          currentSearchStep_(0ul),
           finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
@@ -186,7 +193,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 
     initializationTime_.stop();
 }
@@ -196,7 +204,8 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     labelScorer_->reset();
     resetStatistics();
     initializationTime_.stop();
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
@@ -341,11 +350,19 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     /*
      * Clean up label scorer caches.
      */
-    Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
-    for (auto const& hyp : newBeam_) {
-        activeContexts.push_back(hyp.scoringContext);
+    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+        Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+        for (auto const& hyp : newBeam_) {
+            activeContexts.push_back(hyp.scoringContext);
+        }
+        labelScorer_->cleanupCaches(activeContexts);
     }
     labelScorer_->cleanupCaches(activeContexts);
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    beam_.swap(newBeam_);
 
     /*
      * Log statistics about the new beam after this step.

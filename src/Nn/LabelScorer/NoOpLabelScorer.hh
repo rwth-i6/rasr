@@ -37,10 +37,13 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Scoring context with step incremented by 1.
-    virtual ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
+    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
 
     // Gets the buffered score for the requested token at the requested step
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+
+protected:
+    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 };
 
 }  // namespace Nn

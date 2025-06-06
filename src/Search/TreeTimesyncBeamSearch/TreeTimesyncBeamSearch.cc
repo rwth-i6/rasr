@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -93,6 +94,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             trace->score.acoustic = base.trace->score.acoustic + (extension.score - base.score - extension.lmScore);
             trace->score.lm       = base.trace->score.lm + extension.lmScore;
             break;
+        default:
+            defect();  // Unexpected transition type which can not be produced by `inferTransitionType`
     }
 }
 
@@ -157,6 +160,11 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramLogStepwiseStatistics(
         "Log statistics about the beam at every search step.",
         false);
 
+const Core::ParameterBool TreeTimesyncBeamSearch::paramCacheCleanupInterval(
+        "cache-cleanup-interval",
+        "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
+        10);
+
 TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -168,6 +176,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           forceBlankAcrossWords_(paramForceBlankAcrossWords(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
@@ -185,6 +194,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
+          currentSearchStep_(0ul),
           finishedSegment_(false) {
     if (wordEndScoreThreshold_ <= 1.0) {
         if (scoreThreshold_ == Core::Type<Score>::max) {
@@ -254,7 +264,8 @@ void TreeTimesyncBeamSearch::reset() {
     beam_.front().currentState   = network_->rootState;
     beam_.front().lmHistory      = languageModel_->startHistory();
 
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 
     initializationTime_.stop();
 }
@@ -457,22 +468,33 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     recombination(newBeam_);
     numActiveHyps_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", newBeam_.size());
+    /*
+     * Clean up label scorer caches.
+     */
+    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+        Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+        for (auto const& hyp : newBeam_) {
+            activeContexts.push_back(hyp.scoringContext);
+        }
+        labelScorer_->cleanupCaches(activeContexts);
     }
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    beam_.swap(newBeam_);
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < newBeam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam_[hypIdx].toString() << "\n";
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
         }
         ss << "\n";
         debugChannel_ << ss.str();
     }
 
-    beam_.swap(newBeam_);
-
     if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");

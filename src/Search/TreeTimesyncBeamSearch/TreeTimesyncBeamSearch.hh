@@ -98,6 +98,7 @@ public:
     static const Core::ParameterBool  paramForceBlankAcrossWords;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -130,6 +131,8 @@ private:
     bool sentenceEndFallback_;
 
     bool logStepwiseStatistics_;
+
+    size_t cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
@@ -164,7 +167,8 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
 
-    bool finishedSegment_;
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

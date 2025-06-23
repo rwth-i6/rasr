@@ -114,9 +114,9 @@ std::string TreeTimesyncBeamSearch::LabelHypothesis::toString() const {
 }
 
 /*
- * =====================================
+ * ==============================
  * === TreeTimesyncBeamSearch ===
- * =====================================
+ * ==============================
  */
 
 const Core::ParameterInt TreeTimesyncBeamSearch::paramMaxBeamSize(
@@ -208,7 +208,7 @@ Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination(
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
 }
 
-Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredAcousticModel() const {
+Am::AcousticModel::Mode TreeTimesyncBeamSearch::requiredAcousticModel() const {
     return Am::AcousticModel::noEmissions;
 }
 

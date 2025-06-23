@@ -105,7 +105,7 @@ public:
     // Inherited methods from `SearchAlgorithmV2`
 
     Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Speech::ModelCombination::Mode  requiredAcousticModel() const override;
+    Am::AcousticModel::Mode         requiredAcousticModel() const override;
     bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
     void                            reset() override;
     void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
@@ -119,42 +119,39 @@ public:
 private:
     size_t maxBeamSize_;
     size_t maxWordEndBeamSize_;
-
-    Score scoreThreshold_;
-    Score wordEndScoreThreshold_;
-
-    Nn::LabelIndex blankLabelIndex_;
+    Score  scoreThreshold_;
+    Score  wordEndScoreThreshold_;
 
     bool collapseRepeatedLabels_;
     bool forceBlankAcrossWords_;
-
     bool sentenceEndFallback_;
-
     bool logStepwiseStatistics_;
 
-    size_t cacheCleanupInterval_;
-
-    Core::Channel debugChannel_;
+    Nn::LabelIndex blankLabelIndex_;
+    size_t         maxNumberOfExits_;
+    size_t         cacheCleanupInterval_;
 
     Core::Ref<Nn::LabelScorer>               labelScorer_;
     Bliss::LexiconRef                        lexicon_;
     Core::Ref<PersistentStateTree>           network_;
     Core::Ref<const Am::AcousticModel>       acousticModel_;
     Core::Ref<const Lm::ScaledLanguageModel> languageModel_;
-    std::vector<LabelHypothesis>             beam_;
+    Core::Channel                            debugChannel_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<ExtensionCandidate>       withinWordExtensions_;
     std::vector<ExtensionCandidate>       wordEndExtensions_;
+    std::vector<LabelHypothesis>          beam_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
     std::vector<LabelHypothesis>          recombinedHypotheses_;
 
-    int maxNumberOfExits_;
-
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
+
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -166,9 +163,6 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
-
-    size_t currentSearchStep_;
-    bool   finishedSegment_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

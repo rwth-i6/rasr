@@ -166,7 +166,7 @@ void OnnxStatelessLm::scoreBatch() const {
 
     b = 0ul;
     for (auto* descriptor : descriptors) {
-        sessionOutputs.front().get(b, descriptor->scores);
+        scoreOutput.get(b, descriptor->scores);
         ++b;
     }
 }

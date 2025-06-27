@@ -123,9 +123,9 @@ std::optional<LabelScorer::ScoreWithTime> NoCtxOnnxLabelScorer::computeScoreWith
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-Speech::TimeframeIndex NoCtxOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+size_t NoCtxOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts) {
+    for (auto const& context : activeContexts.internalData()) {
         StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
         minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
     }

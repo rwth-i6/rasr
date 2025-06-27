@@ -19,7 +19,6 @@
 #include <deque>
 #include "DataView.hh"
 #include "LabelScorer.hh"
-#include "Speech/Types.hh"
 
 namespace Nn {
 

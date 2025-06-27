@@ -357,12 +357,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
         labelScorer_->cleanupCaches(activeContexts);
     }
-    labelScorer_->cleanupCaches(activeContexts);
-
-    /*
-     * Log statistics about the new beam after this step.
-     */
-    beam_.swap(newBeam_);
 
     /*
      * Log statistics about the new beam after this step.

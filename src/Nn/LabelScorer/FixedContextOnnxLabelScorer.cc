@@ -147,7 +147,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScore
 void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
-    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.begin(), activeContexts.end());
+    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
 
     for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
         if (activeContextSet.find(it->first) == activeContextSet.end()) {
@@ -240,9 +240,9 @@ std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeSc
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-Speech::TimeframeIndex FixedContextOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts) {
+    for (auto const& context : activeContexts.internalData()) {
         SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
         minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
     }

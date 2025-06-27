@@ -20,6 +20,7 @@
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
@@ -111,6 +112,13 @@ Module_::Module_()
             "no-context-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new NoContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "fixed-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new FixedContextOnnxLabelScorer(config));
             });
 };
 

@@ -138,26 +138,28 @@ Lexicon::~Lexicon() {
 
 void Lexicon::load(const std::string& filename) {
     Core::MD5 md5;
-    if (md5.updateFromFile(filename))
+    if (md5.updateFromFile(filename)) {
         dependency_.setValue(md5);
-    else
+    }
+    else {
         warning("could not derive md5 sum from file '%s'", filename.c_str());
-    LexiconParser parser(config, this);
+    }
+
     log("reading lexicon from file") << " \"" << filename << "\" ...";
-    if (parser.parseFile(filename.c_str()) != 0)
+    if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
+    }
     log("dependency value: ") << dependency_.value();
 }
 
 LexiconRef Lexicon::create(const Configuration& c) {
-    Lexicon* result = new Lexicon(c);
+    auto result = Core::ref(new Lexicon(c));
     result->load(paramFilename(c));
     if (result->hasFatalErrors()) {
-        delete result;
         return LexiconRef();
     }
     result->logStatistics();
-    return LexiconRef(result);
+    return result;
 }
 
 Lemma* Lexicon::newLemma() {
@@ -846,4 +848,36 @@ Core::Ref<LemmaToEvaluationTokenTransducer> Lexicon::createLemmaToEvaluationToke
 
 Core::Ref<LemmaToEvaluationTokenTransducer> Lexicon::createLemmaToPreferredEvaluationTokenSequenceTransducer() const {
     return createLemmaToEvaluationTokenTransducer(false);
+}
+
+template<>
+class Core::NameHelper<Lexicon> {
+public:
+    operator std::string() const {
+        return "Lexicon";
+    }
+    const char* c_str() const {
+        return "Lexicon";
+    }
+};
+
+template<>
+class Core::NameHelper<Lexicon*> {
+public:
+    operator std::string() const {
+        return "Lexicon*";
+    }
+    const char* c_str() const {
+        return "Lexicon*";
+    }
+};
+
+Core::FormatSet& Lexicon::formats() {
+    if (!formats_) {
+        formats_ = std::make_unique<Core::FormatSet>(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon-file-format-set"));
+        formats_->registerFormat("xml", new XmlLexiconFormat(), true);
+        formats_->registerFormat("vocab-text", new VocabTextLexiconFormat());
+        formats_->registerFormat("vocab-txt", new VocabTextLexiconFormat());
+    }
+    return *formats_;
 }

@@ -417,6 +417,9 @@ void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
     invertedStateDepths.resize(network.structure.stateCount(), Core::Type<int>::min);
     fillStateDepths(network.rootState, 0);
     fillStateDepths(network.ciRootState, 0);
+    for (StateId root : network.otherRootStates) {
+        fillStateDepths(root, 0);
+    }
 
     bool offsetted = false;
 
@@ -806,7 +809,7 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           fullLookAheadStateMinimum_(paramReduceLookAheadStateMinimum(config)),
           fullLookAheadDominanceMinimum_(paramReduceLookAheadDominanceMinimum(config)),
           currentLookaheadInstanceStateThreshold_(fullLookAheadStateMinimum_),
-          fullLookaheadAfterId_(Core::Type<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId>::max),
+          fullLookaheadAfterId_(Core::Type<LanguageModelLookahead::LookaheadId>::max),
           sparseLookahead_(paramSparseLmLookAhead(config)),
           overflowLmScoreToAm_(paramOverflowLmScoreToAm(config)),
           sparseLookaheadSlowPropagation_(paramSparseLmLookaheadSlowPropagation(config)),
@@ -1015,15 +1018,15 @@ void SearchSpace::initializeLanguageModel() {
     StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
 
     if (paramEnableLmLookahead(config)) {
-        lmLookahead_ = new AdvancedTreeSearch::LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
-                                                                      wpScale_,
-                                                                      lookaheadLm_,
-                                                                      net.structure,
-                                                                      net.rootState,
-                                                                      net.exits,
-                                                                      acousticModel_);
+        lmLookahead_ = new LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
+                                                  wpScale_,
+                                                  lookaheadLm_,
+                                                  net.structure,
+                                                  net.rootState,
+                                                  net.exits,
+                                                  acousticModel_);
 
-        std::set<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId> rootStates;
+        std::set<LanguageModelLookahead::LookaheadId> rootStates;
 
         rootStates.insert(lmLookahead_->lookaheadId(net.rootState));
 
@@ -1467,7 +1470,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
 
         if (shouldIncreaseLookAheadOrder) {
             // The state-count based conditions to increase the lookahead order are satisfied
-            if (fullLookaheadAfterId_ != Core::Type<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId>::max) {
+            if (fullLookaheadAfterId_ != Core::Type<LanguageModelLookahead::LookaheadId>::max) {
                 // Reduced unigram LM lookahead, with check to eventually activate the lookahead based on depth
 
                 applyLookaheadPerf_->start();
@@ -1503,7 +1506,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
         }
     }
 
-    const AdvancedTreeSearch::LanguageModelLookahead::ContextLookahead* la(instance.lookahead.get());
+    const LanguageModelLookahead::ContextLookahead* la(instance.lookahead.get());
     if (!la)
         la = unigramLookAhead_.get();
     else

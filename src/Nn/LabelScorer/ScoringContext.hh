@@ -95,6 +95,8 @@ struct SeqStepScoringContext : public ScoringContext {
             : labelSeq(), currentStep(0ul) {}
     SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
             : labelSeq(seq), currentStep(step) {}
+    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step)
+            : labelSeq(std::move(seq)), currentStep(step) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;

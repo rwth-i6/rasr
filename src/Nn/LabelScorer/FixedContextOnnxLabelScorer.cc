@@ -13,36 +13,36 @@
  *  limitations under the License.
  */
 
-#include "LimitedCtxOnnxLabelScorer.hh"
+#include "FixedContextOnnxLabelScorer.hh"
 
 namespace Nn {
 
-const Core::ParameterInt LimitedCtxOnnxLabelScorer::paramStartLabelIndex(
+const Core::ParameterInt FixedContextOnnxLabelScorer::paramStartLabelIndex(
         "start-label-index",
         "Initial history in the first step is filled with this label index.",
         0);
 
-const Core::ParameterInt LimitedCtxOnnxLabelScorer::paramHistoryLength(
+const Core::ParameterInt FixedContextOnnxLabelScorer::paramHistoryLength(
         "history-length",
         "Number of previous labels that are passed as history.",
         1);
 
-const Core::ParameterBool LimitedCtxOnnxLabelScorer::paramBlankUpdatesHistory(
+const Core::ParameterBool FixedContextOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
         "Whether previously emitted blank labels should be included in the history.",
         false);
 
-const Core::ParameterBool LimitedCtxOnnxLabelScorer::paramLoopUpdatesHistory(
+const Core::ParameterBool FixedContextOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be separately included in the history.",
         false);
 
-const Core::ParameterInt LimitedCtxOnnxLabelScorer::paramMaxBatchSize(
+const Core::ParameterInt FixedContextOnnxLabelScorer::paramMaxBatchSize(
         "max-batch-size",
         "Max number of histories that can be fed into the ONNX model at once.",
         Core::Type<int>::max);
 
-const Core::ParameterBool LimitedCtxOnnxLabelScorer::paramVerticalLabelTransition(
+const Core::ParameterBool FixedContextOnnxLabelScorer::paramVerticalLabelTransition(
         "vertical-label-transition",
         "Whether (non-blank) label transitions should be vertical, i.e. not increase the time step.",
         false);
@@ -70,7 +70,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
                 {Onnx::ValueDataType::FLOAT},
                 {{-1, -2}}}};
 
-LimitedCtxOnnxLabelScorer::LimitedCtxOnnxLabelScorer(Core::Configuration const& config)
+FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
           startLabelIndex_(paramStartLabelIndex(config)),
@@ -86,18 +86,18 @@ LimitedCtxOnnxLabelScorer::LimitedCtxOnnxLabelScorer(Core::Configuration const& 
           scoreCache_() {
 }
 
-void LimitedCtxOnnxLabelScorer::reset() {
+void FixedContextOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
 }
 
-ScoringContextRef LimitedCtxOnnxLabelScorer::getInitialScoringContext() {
+ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
     auto hist = Core::ref(new SeqStepScoringContext());
     hist->labelSeq.resize(historyLength_, startLabelIndex_);
     return hist;
 }
 
-ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
     bool   pushToken     = false;
@@ -138,13 +138,13 @@ ScoringContextRef LimitedCtxOnnxLabelScorer::extendedScoringContext(LabelScorer:
         newLabelSeq.push_back(request.nextToken);
     }
     else {
-        newLabelSeq.insert(newLabelSeq.end(), context->labelSeq.begin(), context->labelSeq.end());
+        newLabelSeq = context->labelSeq;
     }
 
-    return Core::ref(new SeqStepScoringContext(newLabelSeq, context->currentStep + timeIncrement));
+    return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), context->currentStep + timeIncrement));
 }
 
-void LimitedCtxOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
     std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.begin(), activeContexts.end());
@@ -159,7 +159,7 @@ void LimitedCtxOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringConte
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     ScoresWithTimes result;
     result.scores.reserve(requests.size());
 
@@ -232,7 +232,7 @@ std::optional<LabelScorer::ScoresWithTimes> LimitedCtxOnnxLabelScorer::computeSc
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> LimitedCtxOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
@@ -240,7 +240,7 @@ std::optional<LabelScorer::ScoreWithTime> LimitedCtxOnnxLabelScorer::computeScor
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-Speech::TimeframeIndex LimitedCtxOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+Speech::TimeframeIndex FixedContextOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
     for (auto const& context : activeContexts) {
         SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
@@ -250,7 +250,7 @@ Speech::TimeframeIndex LimitedCtxOnnxLabelScorer::minActiveTimeIndex(Core::Colla
     return minTimeIndex;
 }
 
-void LimitedCtxOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {
+void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {
     if (contextBatch.empty()) {
         return;
     }
@@ -278,7 +278,6 @@ void LimitedCtxOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRe
     /*
      * Run session
      */
-
     std::vector<Onnx::Value> sessionOutputs;
     onnxModel_.session.run(std::move(sessionInputs), {scoresName_}, sessionOutputs);
 

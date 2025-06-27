@@ -99,6 +99,9 @@ size_t SeqStepScoringContext::hash() const {
 
 bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
 
     if (currentStep != otherPtr->currentStep) {
         return false;

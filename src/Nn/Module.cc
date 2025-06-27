@@ -108,9 +108,9 @@ Module_::Module_()
 
     // Compute scores by forwarding a single input feature vector without history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
-            "no-ctx-onnx",
+            "no-context-onnx",
             [](Core::Configuration const& config) {
-                return Core::ref(new NoCtxOnnxLabelScorer(config));
+                return Core::ref(new NoContextOnnxLabelScorer(config));
             });
 };
 

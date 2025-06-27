@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef NO_CTX_ONNX_LABEL_SCORER_HH
-#define NO_CTX_ONNX_LABEL_SCORER_HH
+#ifndef NO_CONTEXT_ONNX_LABEL_SCORER_HH
+#define NO_CONTEXT_ONNX_LABEL_SCORER_HH
 
 #include <Onnx/Model.hh>
 
@@ -29,14 +29,14 @@ namespace Nn {
  *
  * If the CTC output is the only output, the encoder and output layer can be put together into an "encoder-only" label scorer.
  * However, when the CTC output is one of several outputs based on a shared encoder, the CTC output head must be separated
- * from the encoder. The NoCtxOnnxLabelScorer can be used for this purpose.
+ * from the encoder. The NoContextOnnxLabelScorer can be used for this purpose.
  */
-class NoCtxOnnxLabelScorer : public BufferedLabelScorer {
+class NoContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
 public:
-    NoCtxOnnxLabelScorer(Core::Configuration const& config);
-    virtual ~NoCtxOnnxLabelScorer() = default;
+    NoContextOnnxLabelScorer(Core::Configuration const& config);
+    virtual ~NoContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
     void reset() override;
@@ -74,4 +74,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // NO_CTX_ONNX_LABEL_SCORER_HH
+#endif  // NO_CONTEXT_ONNX_LABEL_SCORER_HH

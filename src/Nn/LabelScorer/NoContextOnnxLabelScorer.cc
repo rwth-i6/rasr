@@ -61,7 +61,7 @@ ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(LabelScorer::
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
-    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.begin(), activeContexts.end());
+    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
 
     for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
         if (activeContextSet.find(it->first) == activeContextSet.end()) {

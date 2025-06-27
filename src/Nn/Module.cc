@@ -20,7 +20,7 @@
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
-#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
 

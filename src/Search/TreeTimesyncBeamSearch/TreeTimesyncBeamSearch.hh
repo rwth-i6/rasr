@@ -122,6 +122,7 @@ private:
     Score  scoreThreshold_;
     Score  wordEndScoreThreshold_;
 
+    bool useBlank_;
     bool collapseRepeatedLabels_;
     bool forceBlankAcrossWords_;
     bool sentenceEndFallback_;

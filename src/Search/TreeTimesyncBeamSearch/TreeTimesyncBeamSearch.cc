@@ -36,7 +36,7 @@ namespace Search {
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
-          currentToken(Core::Type<Nn::LabelIndex>::max),
+          currentToken(Nn::invalidLabelIndex),
           currentState(invalidTreeNodeIndex),
           lmHistory(),
           score(0.0),
@@ -178,6 +178,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
+          useBlank_(),
           labelScorer_(),
           beam_(),
           extensions_(),
@@ -218,7 +219,16 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
 
-    blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
+    auto blankAllophoneIndex = acousticModel_->blankAllophoneStateIndex();
+    if (blankAllophoneIndex != Fsa::InvalidLabelId) {
+		blankLabelIndex_ = acousticModel_->emissionIndex(blankAllophoneIndex);
+        useBlank_ = true;
+        log() << "Use blank label with index " << blankLabelIndex_;
+    }
+    else {
+        blankLabelIndex_ = Nn::invalidLabelIndex;
+        useBlank_ = false;
+    }
 
     // Build the search tree
     log() << "Start building search tree";
@@ -338,7 +348,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
             // If we want to force blank between repeated labels across words, a new word should not start with the same token as the previous word ended (except for blank itself)
             // If we don't force blank and we have a repeated label across words, we need to make sure to have label-to-Label as transition type
-            if (not(forceBlankAcrossWords_ and (hyp.currentState == network_->rootState) and (tokenIdx == hyp.currentToken) and (tokenIdx != blankLabelIndex_))) {
+            if ( !(
+        			forceBlankAcrossWords_ &&
+        			hyp.currentState == network_->rootState &&
+        			tokenIdx        == hyp.currentToken &&
+        			(!useBlank_ || tokenIdx != blankLabelIndex_)
+     			) ) {
                 auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == network_->rootState);
                 extensions_.push_back(
                         {tokenIdx,
@@ -447,10 +462,17 @@ bool TreeTimesyncBeamSearch::decodeStep() {
      * Create new beam from surviving extensions.
      */
     newBeam_.clear();
-    extensions_.swap(withinWordExtensions_);
-    extensions_.insert(extensions_.end(), wordEndExtensions_.begin(), wordEndExtensions_.end());
+    for (auto const& extension : withinWordExtensions_) {
+        auto const& baseHyp = beam_[extension.baseHypIndex];
 
-    for (auto const& extension : extensions_) {
+        auto newScoringContext = labelScorer_->extendedScoringContext(
+                {baseHyp.scoringContext,
+                 extension.nextToken,
+                 extension.transitionType});
+
+        newBeam_.push_back({baseHyp, extension, newScoringContext});
+    }
+    for (auto const& extension : wordEndExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         auto newScoringContext = labelScorer_->extendedScoringContext(
@@ -542,10 +564,10 @@ void TreeTimesyncBeamSearch::logStatistics() const {
 }
 
 Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot) const {
-    bool prevIsBlank = prevLabel == blankLabelIndex_;
-    bool nextIsBlank = nextLabel == blankLabelIndex_;
+    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
-    if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
+    if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
         }
@@ -622,7 +644,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             size_t h1 = context.state;
             size_t h2 = Nn::ScoringContextHash{}(context.scoringContext);
             size_t h3 = Lm::History::Hash{}(context.lmHistory);
-            return h1 ^ (h2 << 1) ^ (h3 << 2);
+            return Core::combineHashes(Core::combineHashes(h1, h2), h3);
         }
     };
 

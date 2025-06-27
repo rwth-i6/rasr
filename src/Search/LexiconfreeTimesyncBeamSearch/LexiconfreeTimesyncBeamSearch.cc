@@ -35,7 +35,7 @@ namespace Search {
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
-          currentToken(Core::Type<Nn::LabelIndex>::max),
+          currentToken(Nn::invalidLabelIndex),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
@@ -104,7 +104,7 @@ const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
-        Core::Type<int>::max);
+        Nn::invalidLabelIndex);
 
 const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
@@ -149,7 +149,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
-    useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
+    useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
     }
@@ -169,7 +169,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {
-        if (blankLabelIndex_ == Core::Type<int>::max) {
+        if (blankLabelIndex_ == Nn::invalidLabelIndex) {
             blankLabelIndex_ = blankLemma->id();
             useBlank_        = true;
             log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
@@ -420,7 +420,7 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
-    if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
+    if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
         }

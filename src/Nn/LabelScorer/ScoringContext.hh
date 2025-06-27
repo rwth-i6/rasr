@@ -84,6 +84,26 @@ struct StepScoringContext : public ScoringContext {
 
 typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
 
+/*
+ * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
+ */
+struct SeqStepScoringContext : public ScoringContext {
+    std::vector<LabelIndex> labelSeq;
+    Speech::TimeframeIndex  currentStep;
+
+    SeqStepScoringContext()
+            : labelSeq(), currentStep(0ul) {}
+    SeqStepScoringContext(std::vector<LabelIndex> const& seq, Speech::TimeframeIndex step)
+            : labelSeq(seq), currentStep(step) {}
+    SeqStepScoringContext(std::vector<LabelIndex>&& seq, Speech::TimeframeIndex step)
+            : labelSeq(std::move(seq)), currentStep(step) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
+
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

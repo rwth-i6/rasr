@@ -185,7 +185,6 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           newBeam_(),
           requests_(),
           recombinedHypotheses_(),
-          maxNumberOfExits_(0),
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
@@ -239,24 +238,6 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
-
-    // Pre-allocate vectors
-
-    // If maxWordEndBeamSize_ is not set, we need the maximum number of exits a node can have for estimating the max. size of the vectors
-    int maxWordEnds = maxWordEndBeamSize_ == std::numeric_limits<int>::max() ? (maxNumberOfExits_ * maxBeamSize_) : maxWordEndBeamSize_;
-
-    // The beam contains all within-word and word-end hypotheses which survived pruning
-    beam_.reserve(maxBeamSize_ + maxWordEnds);
-    newBeam_.reserve(maxBeamSize_ + maxWordEnds);
-    recombinedHypotheses_.reserve(maxBeamSize_ + maxWordEnds);
-
-    // Each hypothesis in the beam can yield max. one extension per phoneme in the lexicon
-    extensions_.reserve((maxBeamSize_ + maxWordEnds) * lexicon_->phonemeInventory()->nPhonemes());
-    requests_.reserve((maxBeamSize_ + maxWordEnds) * lexicon_->phonemeInventory()->nPhonemes());
-
-    // After pruning there are maxBeamSize_ state extensions, each can yield max. maxNumberOfExits_ word-end extensions
-    withinWordExtensions_.reserve(maxBeamSize_);
-    wordEndExtensions_.reserve(maxBeamSize_ * maxNumberOfExits_);
 
     reset();
     return true;
@@ -697,11 +678,6 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
         }
         stateSuccessorLookup_[state] = stateList;
         exitLookup_[state]           = exitList;
-
-        // Retrieve the maximal number of exits a node in the tree can have to estimate the size of pre-allocated vectors
-        if (exitList.size() > maxNumberOfExits_) {
-            maxNumberOfExits_ = exitList.size();
-        }
     }
 }
 

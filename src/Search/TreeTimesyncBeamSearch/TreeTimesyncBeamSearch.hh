@@ -45,6 +45,33 @@ namespace Search {
  * so "force-blank-between-repeated-labels-across-words" has to be set to true in this case.
  */
 class TreeTimesyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterInt   paramMaxBeamSize;
+    static const Core::ParameterInt   paramMaxWordEndBeamSize;
+    static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterFloat paramWordEndScoreThreshold;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterBool  paramForceBlankAcrossWords;
+    static const Core::ParameterBool  paramSentenceEndFallBack;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
+
+    TreeTimesyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
+    Am::AcousticModel::Mode         requiredAcousticModel() const override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                            reset() override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                            finishSegment() override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    bool                            decodeStep() override;
+
 protected:
     /*
      * Possible extension for some label hypothesis in the beam
@@ -89,48 +116,19 @@ protected:
         std::string toString() const;
     };
 
-public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterInt   paramMaxWordEndBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterFloat paramWordEndScoreThreshold;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramForceBlankAcrossWords;
-    static const Core::ParameterBool  paramSentenceEndFallBack;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
-    static const Core::ParameterBool  paramCacheCleanupInterval;
-
-    TreeTimesyncBeamSearch(Core::Configuration const&);
-
-    // Inherited methods from `SearchAlgorithmV2`
-
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Am::AcousticModel::Mode         requiredAcousticModel() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
-
 private:
     size_t maxBeamSize_;
     size_t maxWordEndBeamSize_;
     Score  scoreThreshold_;
     Score  wordEndScoreThreshold_;
+    Nn::LabelIndex blankLabelIndex_;
+    size_t         cacheCleanupInterval_;
 
     bool useBlank_;
     bool collapseRepeatedLabels_;
     bool forceBlankAcrossWords_;
     bool sentenceEndFallback_;
     bool logStepwiseStatistics_;
-
-    Nn::LabelIndex blankLabelIndex_;
-    size_t         maxNumberOfExits_;
-    size_t         cacheCleanupInterval_;
 
     Core::Ref<Nn::LabelScorer>               labelScorer_;
     Bliss::LexiconRef                        lexicon_;

@@ -35,7 +35,7 @@ namespace Speech {
  *      acoustic model and language model.
  *    - Alternatively, it is possible to set a Mode indicating which components are required
  *      by setting useLexicon, useAcousticModel, useLanguageModel and/or useLabelScorer.
- *      In this case, the ModelCombination will set the relevant parts from the config.
+ *      In this case, the ModelCombination will create the relevant parts from the config.
  *      (A Mode for the acoustic model and a lexicon reference can optionally be passed as well.)
  *    - Store the references to those parts which you will use later.
  *    - When the local ModelCombination object is destructed, the unreferenced parts get freed as well.

@@ -26,7 +26,7 @@ namespace Core {
 
 // Auxiliary function to merge multiple hashes into one via the boost way
 // See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
-size_t combineHashes(size_t hash1, size_t hash2) {
+inline size_t combineHashes(size_t hash1, size_t hash2) {
     if (hash1 == 0ul) {
         return hash2;
     }

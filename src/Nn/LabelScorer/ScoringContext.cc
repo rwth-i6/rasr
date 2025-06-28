@@ -39,7 +39,7 @@ bool ScoringContext::isEqual(ScoringContextRef const& other) const {
 size_t CombineScoringContext::hash() const {
     size_t value = 0ul;
     for (auto const& scoringContext : scoringContexts) {
-        value = combineHashes(value, scoringContext->hash());
+        value = Core::combineHashes(value, scoringContext->hash());
     }
     return value;
 }

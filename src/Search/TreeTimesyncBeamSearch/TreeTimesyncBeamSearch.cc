@@ -52,50 +52,27 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(extension.lmHistory),
           score(extension.score),
           trace() {
-    switch (extension.transitionType) {
-        case Nn::LabelScorer::INITIAL_BLANK:
-        case Nn::LabelScorer::INITIAL_LABEL:
-            trace = Core::ref(new LatticeTrace(
-                    base.trace,
-                    extension.pron,
-                    extension.timeframe + 1,
-                    {extension.score - extension.lmScore, extension.lmScore},
-                    {}));
-            break;
 
-        case Nn::LabelScorer::LABEL_TO_LABEL:
-        case Nn::LabelScorer::BLANK_TO_LABEL:
-        case Nn::LabelScorer::LABEL_TO_BLANK:
-            if (base.trace->pronunciation != nullptr) {  // A word has ended before and the first token of a new word was predicted -> start a new trace
-                trace = Core::ref(new LatticeTrace(
-                        base.trace,
-                        extension.pron,
-                        extension.timeframe + 1,
-                        {base.trace->score.acoustic + (extension.score - base.score - extension.lmScore), base.trace->score.lm + extension.lmScore},
-                        {}));
-            }
-            else {  // Word-end or within-word hypothesis and no word has ended before -> update the old trace
-                trace                 = Core::ref(new LatticeTrace(*base.trace));
-                trace->sibling        = {};
-                trace->pronunciation  = extension.pron;
-                trace->time           = extension.timeframe + 1;
-                trace->score.acoustic = base.trace->score.acoustic + (extension.score - base.score - extension.lmScore);
-                trace->score.lm       = base.trace->score.lm + extension.lmScore;
-            }
-            break;
+    if (extension.pron == nullptr) {	// Witin-word hypothesis -> copy base trace
+    	trace                 = Core::ref(new LatticeTrace(*base.trace));
+    	trace->sibling        = {};
+    }
+    else {  // Word-end hypothesis -> update base trace and start a new trace for the next word
 
-        case Nn::LabelScorer::LABEL_LOOP:
-        case Nn::LabelScorer::BLANK_LOOP:
-            // Word-end or within-word hypothesis (cannot happen across words) -> update the old trace
-            trace                 = Core::ref(new LatticeTrace(*base.trace));
-            trace->sibling        = {};
-            trace->pronunciation  = extension.pron;
-            trace->time           = extension.timeframe + 1;
-            trace->score.acoustic = base.trace->score.acoustic + (extension.score - base.score - extension.lmScore);
-            trace->score.lm       = base.trace->score.lm + extension.lmScore;
-            break;
-        default:
-            defect();  // Unexpected transition type which can not be produced by `inferTransitionType`
+        auto completedTrace            = Core::ref(new LatticeTrace(*base.trace));
+    	completedTrace->sibling        = {};
+        completedTrace->pronunciation  = extension.pron;
+    	completedTrace->time           = extension.timeframe + 1;
+        completedTrace->score.lm       = base.trace->score.lm + extension.lmScore;
+        completedTrace->score.acoustic = extension.score - completedTrace->score.lm;
+
+        trace = Core::ref(new LatticeTrace(
+                completedTrace,
+                nullptr,
+                extension.timeframe + 2,
+                completedTrace->score,
+                {}));
+
     }
 }
 
@@ -181,8 +158,10 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           useBlank_(),
           labelScorer_(),
           beam_(),
-          extensions_(),
           newBeam_(),
+          extensions_(),
+          withinWordExtensions_(),
+          wordEndExtensions_(),
           requests_(),
           recombinedHypotheses_(),
           initializationTime_(),
@@ -630,6 +609,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
     };
 
     recombinedHypotheses_.clear();
+    recombinedHypotheses_.reserve(hypotheses.size());
     // Map each unique combination of StateId, ScoringContext and LmHistory in newHypotheses to its hypothesis
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenCombinations;
     for (auto const& hyp : hypotheses) {

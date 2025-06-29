@@ -30,14 +30,14 @@
 namespace Search {
 
 /*
- * Simple time synchronous beam search algorithm on a search tree built by the CtcTreeBuilder oder RnaTreeBuilder.
+ * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
  * Supports global or separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
  * Uses a LabelScorer to context initialization/extension and scoring.
  *
- * The blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
+ * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
  * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
  * the label loops are also considered when inferring the transtion type as scoring context.
  * Similarly, if the search tree forces blank between two repeated labels (and if repeated labels are collapsed),

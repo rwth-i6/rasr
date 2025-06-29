@@ -52,17 +52,16 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(extension.lmHistory),
           score(extension.score),
           trace() {
-
-    if (extension.pron == nullptr) {	// Witin-word hypothesis -> copy base trace
-    	trace                 = Core::ref(new LatticeTrace(*base.trace));
-    	trace->sibling        = {};
+    if (extension.pron == nullptr) {  // Witin-word hypothesis -> copy base trace
+        trace          = Core::ref(new LatticeTrace(*base.trace));
+        trace->sibling = {};
     }
     else {  // Word-end hypothesis -> update base trace and start a new trace for the next word
 
         auto completedTrace            = Core::ref(new LatticeTrace(*base.trace));
-    	completedTrace->sibling        = {};
+        completedTrace->sibling        = {};
         completedTrace->pronunciation  = extension.pron;
-    	completedTrace->time           = extension.timeframe + 1;
+        completedTrace->time           = extension.timeframe + 1;
         completedTrace->score.lm       = base.trace->score.lm + extension.lmScore;
         completedTrace->score.acoustic = extension.score - completedTrace->score.lm;
 
@@ -72,7 +71,6 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
                 extension.timeframe + 2,
                 completedTrace->score,
                 {}));
-
     }
 }
 
@@ -197,15 +195,14 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
 
-    auto blankAllophoneIndex = acousticModel_->blankAllophoneStateIndex();
-    if (blankAllophoneIndex != Fsa::InvalidLabelId) {
-		blankLabelIndex_ = acousticModel_->emissionIndex(blankAllophoneIndex);
-        useBlank_ = true;
+    if (lexicon_->specialLemma("blank")) {
+        blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
+        useBlank_        = true;
         log() << "Use blank label with index " << blankLabelIndex_;
     }
     else {
         blankLabelIndex_ = Nn::invalidLabelIndex;
-        useBlank_ = false;
+        useBlank_        = false;
     }
 
     // Build the search tree
@@ -308,12 +305,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
             // If we want to force blank between repeated labels across words, a new word should not start with the same token as the previous word ended (except for blank itself)
             // If we don't force blank and we have a repeated label across words, we need to make sure to have label-to-Label as transition type
-            if ( !(
-        			forceBlankAcrossWords_ &&
-        			hyp.currentState == network_->rootState &&
-        			tokenIdx        == hyp.currentToken &&
-        			(!useBlank_ || tokenIdx != blankLabelIndex_)
-     			) ) {
+            if (!(
+                        forceBlankAcrossWords_ &&
+                        hyp.currentState == network_->rootState &&
+                        tokenIdx == hyp.currentToken &&
+                        (!useBlank_ || tokenIdx != blankLabelIndex_))) {
                 auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == network_->rootState);
                 extensions_.push_back(
                         {tokenIdx,
@@ -388,7 +384,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 wordEndExtension.state = exit.transitState;
                 wordEndExtension.pron  = lemmaPron;
 
-                if (lemma != lexicon_->specialLemma("blank")) {
+                if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
                     const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
                     const Bliss::SyntacticToken*        st  = sts.front();
 

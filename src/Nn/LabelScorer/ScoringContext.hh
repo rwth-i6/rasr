@@ -23,7 +23,7 @@
 namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;
-static const LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
+static const LabelIndex   invalidLabelIndex = Core::Type<LabelIndex>::max;
 
 /*
  * Empty scoring context base class

@@ -117,10 +117,10 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-    size_t maxWordEndBeamSize_;
-    Score  scoreThreshold_;
-    Score  wordEndScoreThreshold_;
+    size_t         maxBeamSize_;
+    size_t         maxWordEndBeamSize_;
+    Score          scoreThreshold_;
+    Score          wordEndScoreThreshold_;
     Nn::LabelIndex blankLabelIndex_;
     size_t         cacheCleanupInterval_;
 

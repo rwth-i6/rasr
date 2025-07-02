@@ -57,7 +57,6 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         trace->sibling = {};
     }
     else {  // Word-end hypothesis -> update base trace and start a new trace for the next word
-
         auto completedTrace            = Core::ref(new LatticeTrace(*base.trace));
         completedTrace->sibling        = {};
         completedTrace->pronunciation  = extension.pron;

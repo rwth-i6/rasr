@@ -40,9 +40,6 @@ namespace Search {
  * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
  * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
  * the label loops are also considered when inferring the transtion type as scoring context.
- * Similarly, if the search tree forces blank between two repeated labels (and if repeated labels are collapsed),
- * blank should also be forced across words if the new word starts with the same label as the previous word ended,
- * so "force-blank-between-repeated-labels-across-words" has to be set to true in this case.
  */
 class TreeTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
@@ -51,7 +48,6 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramWordEndScoreThreshold;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramForceBlankAcrossWords;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -126,16 +122,15 @@ private:
 
     bool useBlank_;
     bool collapseRepeatedLabels_;
-    bool forceBlankAcrossWords_;
     bool sentenceEndFallback_;
     bool logStepwiseStatistics_;
 
-    Core::Ref<Nn::LabelScorer>               labelScorer_;
-    Bliss::LexiconRef                        lexicon_;
-    Core::Ref<PersistentStateTree>           network_;
-    Core::Ref<const Am::AcousticModel>       acousticModel_;
-    Core::Ref<const Lm::ScaledLanguageModel> languageModel_;
-    Core::Channel                            debugChannel_;
+    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Bliss::LexiconRef                  lexicon_;
+    Core::Ref<PersistentStateTree>     network_;
+    Core::Ref<const Am::AcousticModel> acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
+    Core::Channel                      debugChannel_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
@@ -173,7 +168,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot = false) const;
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper function for pruning to maxBeamSize

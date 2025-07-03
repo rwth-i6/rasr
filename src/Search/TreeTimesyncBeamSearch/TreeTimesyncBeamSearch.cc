@@ -110,18 +110,12 @@ const Core::ParameterFloat TreeTimesyncBeamSearch::paramScoreThreshold(
 
 const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordEndScoreThreshold(
         "word-end-score-threshold",
-        "Prune any word-end hypothesis with a score that is at least this much worse than the best word-end hypothesis. If not set, global score pruning will be done \
-        and word-end hypotheses will not be pruned separately. If the value is below 1.0, e.g. 0.7, then it is relative to within-word score-pruning.",
+        "Prune any word-end hypothesis with a score that is at least this much worse than the best word-end hypothesis. If not set, global score pruning will be done.",
         Core::Type<Score>::max, 0);
 
 const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
-        false);
-
-const Core::ParameterBool TreeTimesyncBeamSearch::paramForceBlankAcrossWords(
-        "force-blank-between-repeated-labels-across-words",
-        "Require a blank label between identical labels at word end and word begin.",
         false);
 
 const Core::ParameterBool TreeTimesyncBeamSearch::paramSentenceEndFallBack(
@@ -146,21 +140,22 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
+          useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
-          forceBlankAcrossWords_(paramForceBlankAcrossWords(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
-          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
-          debugChannel_(config, "debug"),
-          useBlank_(),
           labelScorer_(),
-          beam_(),
-          newBeam_(),
+          debugChannel_(config, "debug"),
           extensions_(),
           withinWordExtensions_(),
           wordEndExtensions_(),
+          beam_(),
+          newBeam_(),
           requests_(),
           recombinedHypotheses_(),
+          currentSearchStep_(0ul),
+          finishedSegment_(false),
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
@@ -169,16 +164,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
-          numActiveHyps_("num-active-hyps"),
-          currentSearchStep_(0ul),
-          finishedSegment_(false) {
-    if (wordEndScoreThreshold_ <= 1.0) {
-        if (scoreThreshold_ == Core::Type<Score>::max) {
-            error() << "Word-end score-threshold relative to score-threshold, but score-threshold is not set";
-        }
-        wordEndScoreThreshold_ *= scoreThreshold_;
-    }
-}
+          numActiveHyps_("num-active-hyps") {}
 
 Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
@@ -206,10 +192,21 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     // Build the search tree
     log() << "Start building search tree";
-    network_                                     = Core::ref(new PersistentStateTree(config, acousticModel_, lexicon_, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)));
+    network_ = Core::ref(new PersistentStateTree(
+            config,
+            acousticModel_,
+            lexicon_,
+            std::bind(
+                    &Module_::createTreeBuilder,
+                    &Search::Module::instance(),
+                    std::placeholders::_1,
+                    std::placeholders::_2,
+                    std::placeholders::_3,
+                    std::placeholders::_4,
+                    std::placeholders::_5)));
+
     std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
     builder->build();
-    log() << "Building finished";
 
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
@@ -239,6 +236,12 @@ void TreeTimesyncBeamSearch::reset() {
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.start();
     labelScorer_->reset();
+    if (segment != nullptr) {
+        languageModel_->setSegment(segment);
+        for (auto& hyp : beam_) {
+            hyp.lmHistory = languageModel_->startHistory();
+        }
+    }
     resetStatistics();
     initializationTime_.stop();
     finishedSegment_ = false;
@@ -302,26 +305,25 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         // Iterate over the successors of this hypothesis' current state in the tree
         for (const auto& successorState : stateSuccessorLookup_[hyp.currentState]) {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
-            // If we want to force blank between repeated labels across words, a new word should not start with the same token as the previous word ended (except for blank itself)
-            // If we don't force blank and we have a repeated label across words, we need to make sure to have label-to-Label as transition type
-            if (!(
-                        forceBlankAcrossWords_ &&
-                        hyp.currentState == network_->rootState &&
-                        tokenIdx == hyp.currentToken &&
-                        (!useBlank_ || tokenIdx != blankLabelIndex_))) {
-                auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx, hyp.currentState == network_->rootState);
-                extensions_.push_back(
-                        {tokenIdx,
-                         nullptr,
-                         successorState,
-                         hyp.lmHistory,
-                         hyp.score,
-                         0.0,
-                         0,
-                         transitionType,
-                         hypIndex});
-                requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
+            // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
+            if (collapseRepeatedLabels_ and
+                hyp.currentState == network_->rootState and
+                tokenIdx == hyp.currentToken and
+                (not useBlank_ or tokenIdx != blankLabelIndex_)) {
+                continue;
             }
+            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+            extensions_.push_back(
+                    {tokenIdx,
+                     nullptr,
+                     successorState,
+                     hyp.lmHistory,
+                     hyp.score,
+                     0.0,
+                     0,
+                     transitionType,
+                     hypIndex});
+            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
     }
 
@@ -518,7 +520,7 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numActiveHyps_.write(clog());
 }
 
-Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot) const {
+Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
@@ -543,7 +545,7 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
         }
-        else if (collapseRepeatedLabels_ and prevLabel == nextLabel and not inRoot) {
+        else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::LabelScorer::TransitionType::LABEL_LOOP;
         }
         else {

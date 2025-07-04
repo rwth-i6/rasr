@@ -51,12 +51,8 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentState(extension.state),
           lmHistory(extension.lmHistory),
           score(extension.score),
-          trace() {
-    if (extension.pron == nullptr) {  // Witin-word hypothesis -> copy base trace
-        trace          = Core::ref(new LatticeTrace(*base.trace));
-        trace->sibling = {};
-    }
-    else {  // Word-end hypothesis -> update base trace and start a new trace for the next word
+          trace(base.trace) {
+    if (extension.pron != nullptr) {  // Word-end hypothesis -> update base trace and start a new trace for the next word
         auto completedTrace            = Core::ref(new LatticeTrace(*base.trace));
         completedTrace->sibling        = {};
         completedTrace->pronunciation  = extension.pron;
@@ -110,7 +106,8 @@ const Core::ParameterFloat TreeTimesyncBeamSearch::paramScoreThreshold(
 
 const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordEndScoreThreshold(
         "word-end-score-threshold",
-        "Prune any word-end hypothesis with a score that is at least this much worse than the best word-end hypothesis. If not set, global score pruning will be done.",
+        "Prune any word-end hypothesis with a score that is at least this much worse than the best word-end hypothesis. This threshold is relative to the score-threshold. \
+        If not set, global score pruning will be done and word-end hypotheses will not be pruned separately.",
         Core::Type<Score>::max, 0);
 
 const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
@@ -164,7 +161,12 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
-          numActiveHyps_("num-active-hyps") {}
+          numActiveHyps_("num-active-hyps") {
+    if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
+        error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
+    }
+    wordEndScoreThreshold_ *= scoreThreshold_;
+}
 
 Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination() const {
     return Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
@@ -606,6 +608,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
     };
 
     recombinedHypotheses_.clear();
+    // Reserve capacity because future reallocations would break the raw pointer we are storing later
     recombinedHypotheses_.reserve(hypotheses.size());
     // Map each unique combination of StateId, ScoringContext and LmHistory in newHypotheses to its hypothesis
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenCombinations;
@@ -619,18 +622,27 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
             it->second = &recombinedHypotheses_.back();
         }
         else {
-            verify(not hyp.trace->sibling);
+            if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
+                verify(not hyp.trace->sibling);
+            }
 
             auto* existingHyp = it->second;
             if (hyp.score < existingHyp->score) {
-                // New hyp is better -> replace in `newHypotheses` and add existing one as sibling
-                hyp.trace->sibling = existingHyp->trace;
+                // New hyp is better
+                if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
+                    // Add existing one as sibling if we are at a word end
+                    hyp.trace->sibling = existingHyp->trace;
+                }
+                // Replace in `newHypotheses`
                 *existingHyp       = std::move(hyp);  // Overwrite in-place
             }
             else {
-                // New hyp is worse -> add to existing one as sibling
-                hyp.trace->sibling          = existingHyp->trace->sibling;
-                existingHyp->trace->sibling = hyp.trace;
+                // New hyp is worse
+                if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
+                    // Add to existing one as sibling if we are at a word end
+                    hyp.trace->sibling          = existingHyp->trace->sibling;
+                    existingHyp->trace->sibling = hyp.trace;
+                }
             }
         }
     }

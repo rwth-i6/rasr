@@ -634,7 +634,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
                     hyp.trace->sibling = existingHyp->trace;
                 }
                 // Replace in `newHypotheses`
-                *existingHyp       = std::move(hyp);  // Overwrite in-place
+                *existingHyp = std::move(hyp);  // Overwrite in-place
             }
             else {
                 // New hyp is worse

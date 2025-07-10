@@ -128,6 +128,9 @@ void OnnxStatelessLm::makeBatch(History const& hist) const {
 }
 
 void OnnxStatelessLm::scoreBatch() const {
+    if (batch_.empty()) {
+        return;
+    }
     std::vector<HistoryDescriptor*> descriptors;
     descriptors.reserve(batch_.size());
     for (auto const& hist : batch_) {

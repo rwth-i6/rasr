@@ -82,7 +82,7 @@ bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
  * =============================
  */
 size_t SeqStepScoringContext::hash() const {
-    return combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+    return Core::combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
 bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {

@@ -10,22 +10,23 @@ SUBDIRS		=
 TARGETS		= libSprintLabelScorer.$(a)
 
 LIBSPRINTLABELSCORER_O =  \
-		$(OBJDIR)/BufferedLabelScorer.o \
-		$(OBJDIR)/Encoder.o \
-		$(OBJDIR)/EncoderDecoderLabelScorer.o \
-		$(OBJDIR)/LabelScorer.o \
-		$(OBJDIR)/ScoringContext.o \
+    $(OBJDIR)/BufferedLabelScorer.o \
+    $(OBJDIR)/CombineLabelScorer.o \
+    $(OBJDIR)/DataView.o \
+    $(OBJDIR)/Encoder.o \
+    $(OBJDIR)/EncoderDecoderLabelScorer.o \
+    $(OBJDIR)/EncoderFactory.o \
+    $(OBJDIR)/LabelScorer.o \
+    $(OBJDIR)/LabelScorerFactory.o \
+    $(OBJDIR)/FixedContextOnnxLabelScorer.o \
+    $(OBJDIR)/NoContextOnnxLabelScorer.o \
+    $(OBJDIR)/NoOpLabelScorer.o \
+    $(OBJDIR)/OnnxEncoder.o \
+    $(OBJDIR)/ScoringContext.o \
+    $(OBJDIR)/StatefulOnnxLabelScorer.o
 
 CCFLAGS += -fexceptions
 
-ifdef MODULE_ONNX
-    LIBSPRINTLABELSCORER_O += $(OBJDIR)/LimitedCtxOnnxLabelScorer.o \
-							  $(OBJDIR)/NoCtxOnnxLabelScorer.o \
-							  $(OBJDIR)/OnnxEncoder.o \
-							  $(OBJDIR)/StatefulOnnxLabelScorer.o
-
-	  CHECK_O += ../Onnx/libSprintOnnx.$(a)
-endif
 
 # -----------------------------------------------------------------------------
 

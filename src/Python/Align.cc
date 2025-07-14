@@ -24,6 +24,9 @@
 #include <Lm/Module.hh>
 #include <Lm/ScaledLanguageModel.hh>
 #include <Speech/ModelCombination.hh>
+#include <stdexcept>
+#include <utility>
+#include "Nn/LabelScorer/DataView.hh"
 
 namespace py = pybind11;
 
@@ -113,4 +116,89 @@ Traceback Aligner::alignSegment(py::array_t<f32> const& features, std::string co
     putFeatures(features);
     searchAlgorithm_->finishSegment();
     return getBestTraceback();
+}
+
+std::vector<s32> ctcAlignment(py::array_t<f32> const& scores, py::array_t<s32> const& targets, s32 blankId) {
+    size_t T = 0ul;
+    size_t V = 0ul;
+    size_t S = 0ul;
+    if (scores.ndim() == 3) {
+        if (scores.shape(0) != 1) {
+            throw std::invalid_argument("Received scores tensor with non-trivial batch dimension");
+        }
+        T = scores.shape(1);
+        V = scores.shape(2);
+    }
+    else if (scores.ndim() == 2) {
+        T = scores.shape(0);
+        V = scores.shape(1);
+    }
+    else {
+        throw std::invalid_argument("Received scores tensor with invalid number of dimensions");
+    }
+
+    if (targets.ndim() == 2) {
+        if (targets.shape(0) != 1) {
+            throw std::invalid_argument("Received target tensor with non-trivial batch dimension");
+        }
+        S = targets.shape(1);
+    }
+    else if (targets.ndim() == 1) {
+        S = targets.shape(0);
+    }
+    else {
+        throw std::invalid_argument("Received target tensor with invalid number of dimensions");
+    }
+
+    Nn::DataView scoresView(scores, T * V);
+    Nn::DataView targetsView(targets, S);
+
+    size_t const     L = 2 * S + 1;
+    std::vector<s32> fsa(L, blankId);
+    for (size_t s = 0ul; s < S; ++s) {
+        fsa[2 * s + 1] = targetsView[s];
+    }
+    f32 const           inf = std::numeric_limits<f32>::infinity();
+    std::vector<f32>    alphaPrev(L, inf);
+    std::vector<f32>    alphaCur(L, inf);
+    std::vector<size_t> backPtr(T * L, 0);
+
+    alphaPrev[0] = 0.0f;
+
+    for (size_t t = 0ul; t < T; ++t) {
+        for (size_t s = 0; s < L; ++s) {
+            f32 best = alphaPrev[s];  // loop
+            u32 prev = s;
+
+            if (s > 0) {
+                f32 v = alphaPrev[s - 1];  // forward
+                if (v < best) {
+                    best = v;
+                    prev = s - 1;
+                }
+            }
+
+            if (s > 1 and fsa[s] != fsa[s - 2]) {
+                f32 v = alphaPrev[s - 2];  // skip
+                if (v < best) {
+                    best = v;
+                    prev = s - 2;
+                }
+            }
+            alphaCur[s]        = best + scoresView[t * V + fsa[s]];
+            backPtr[t * L + s] = prev;
+        }
+        std::swap(alphaPrev, alphaCur);
+    }
+
+    std::vector<s32> result(T);
+    size_t           s = alphaPrev[L - 2] < alphaPrev[L - 1] ? L - 2 : L - 1;
+    result[T - 1]      = fsa[s];
+
+    for (size_t t = T - 1; t > 0; --t) {
+        s             = backPtr[t * L + s];
+        result[t - 1] = fsa[s];
+    }
+
+    return result;
 }

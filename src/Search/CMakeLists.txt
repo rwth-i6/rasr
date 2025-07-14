@@ -5,9 +5,9 @@ if(${MODULE_ADVANCED_TREE_SEARCH})
   add_subdirectory(AdvancedTreeSearch)
 endif()
 
-# add_subdirectory(LexiconfreeBeamSearch)
 add_subdirectory(LexiconfreeTimesyncBeamSearch)
 add_subdirectory(LexiconfreeLabelsyncBeamSearch)
+add_subdirectory(NonAutoregressiveSearch)
 add_subdirectory(TreeTimesyncBeamSearch)
 
 set(RasrSearch_SOURCES

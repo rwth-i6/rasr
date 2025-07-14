@@ -44,20 +44,20 @@ void BufferedLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef>
         return;
     }
 
-    auto minActiveTime = minActiveTimeIndex(activeContexts);
-    if (minActiveTime > numDeletedInputs_) {
-        size_t deleteInputs = minActiveTime - numDeletedInputs_;
-        deleteInputs        = std::min(deleteInputs, inputBuffer_.size());
-        inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + deleteInputs);
-        numDeletedInputs_ += deleteInputs;
+    auto minActiveInput = getMinActiveInputIndex(activeContexts);
+    if (minActiveInput > numDeletedInputs_) {
+        size_t numInputsToDelete = minActiveInput - numDeletedInputs_;
+        numInputsToDelete        = std::min(numInputsToDelete, inputBuffer_.size());
+        inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + numInputsToDelete);
+        numDeletedInputs_ += numInputsToDelete;
     }
 }
-std::optional<DataView> BufferedLabelScorer::getInput(Speech::TimeframeIndex timeIndex) const {
-    if (timeIndex < numDeletedInputs_) {
+std::optional<DataView> BufferedLabelScorer::getInput(size_t inputIndex) const {
+    if (inputIndex < numDeletedInputs_) {
         error("Tried to get input feature that was already cleaned up.");
     }
 
-    size_t bufferPosition = timeIndex - numDeletedInputs_;
+    size_t bufferPosition = inputIndex - numDeletedInputs_;
     if (bufferPosition >= inputBuffer_.size()) {
         return {};
     }

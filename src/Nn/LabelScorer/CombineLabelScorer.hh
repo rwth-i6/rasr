@@ -62,7 +62,7 @@ public:
     std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests) override;
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
     // Get number of scorers inside combined scorer
     size_t numSubScorers() const override;

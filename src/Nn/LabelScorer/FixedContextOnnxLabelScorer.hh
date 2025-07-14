@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef LIMITED_CTX_ONNX_LABEL_SCORER_HH
-#define LIMITED_CTX_ONNX_LABEL_SCORER_HH
+#ifndef FIXED_CONTEXT_ONNX_LABEL_SCORER_HH
+#define FIXED_CONTEXT_ONNX_LABEL_SCORER_HH
 
 #include <Onnx/Model.hh>
 
@@ -27,7 +27,7 @@ namespace Nn {
  * with a fixed-size sequence of history tokens through an ONNX model.
  * A common use case would be a neural transducer model with a fixed-size history.
  */
-class LimitedCtxOnnxLabelScorer : public BufferedLabelScorer {
+class FixedContextOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterInt  paramStartLabelIndex;
@@ -38,8 +38,8 @@ class LimitedCtxOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxBatchSize;
 
 public:
-    LimitedCtxOnnxLabelScorer(Core::Configuration const& config);
-    virtual ~LimitedCtxOnnxLabelScorer() = default;
+    FixedContextOnnxLabelScorer(Core::Configuration const& config);
+    virtual ~FixedContextOnnxLabelScorer() = default;
 
     // Clear feature buffer and cached scores
     void reset() override;
@@ -64,7 +64,7 @@ public:
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
 protected:
-    Speech::TimeframeIndex minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
@@ -89,4 +89,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // LIMITED_CTX_ONNX_LABEL_SCORER_HH
+#endif  // FIXED_CONTEXT_ONNX_LABEL_SCORER_HH

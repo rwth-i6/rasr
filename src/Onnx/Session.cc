@@ -193,7 +193,7 @@ bool Session::run(std::vector<std::pair<std::string, Value>>&& inputs,
         out_vals = session_.Run(run_options, input_names.data(), input_vals.data(), inputs.size(), output_cnames.data(), output_cnames.size());
     }
     catch (Ort::Exception& e) {
-        log() << e.what();
+        std::cerr << e.what() << std::endl;
         return false;
     }
 

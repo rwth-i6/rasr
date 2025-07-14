@@ -64,12 +64,16 @@ void OnnxStatelessLm::load() {
 }
 
 History OnnxStatelessLm::startHistory() const {
+    // Assume that whenever a startHistory is requested, everything in the batchQueue is no longer needed
+    batchQueue_.clear();
+
     if (startHistory_.isValid()) {
         return startHistory_;
     }
 
     auto            sentBeginId = lexicon_mapping_.at(sentenceBeginToken()->id());
     TokenIdSequence tokenSequence(1ul, sentBeginId);
+    log() << "Initialize LM history with sentence begin token " << sentBeginId;
 
     auto historyManager = dynamic_cast<NNHistoryManager*>(historyManager_);
     auto handle         = historyManager->get<HistoryDescriptor>(tokenSequence);
@@ -128,6 +132,9 @@ void OnnxStatelessLm::makeBatch(History const& hist) const {
 }
 
 void OnnxStatelessLm::scoreBatch() const {
+    if (batch_.empty()) {
+        return;
+    }
     std::vector<HistoryDescriptor*> descriptors;
     descriptors.reserve(batch_.size());
     for (auto const& hist : batch_) {
@@ -166,7 +173,7 @@ void OnnxStatelessLm::scoreBatch() const {
 
     b = 0ul;
     for (auto* descriptor : descriptors) {
-        sessionOutputs.front().get(b, descriptor->scores);
+        scoreOutput.get(b, descriptor->scores);
         ++b;
     }
 }

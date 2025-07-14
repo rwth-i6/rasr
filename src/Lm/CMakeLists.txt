@@ -42,6 +42,10 @@ if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     TFRecurrentLanguageModel.cc)
 endif()
 
+if(${MODULE_ONNX})
+  list(APPEND Lm_SOURCES OnnxStatelessLanguageModel.cc)
+endif()
+
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
 target_link_libraries(
@@ -75,6 +79,10 @@ endif()
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
   target_link_libraries(RasrLm INTERFACE RasrTensorflow)
   add_tf_dependencies(RasrLm)
+endif()
+if(${MODULE_ONNX})
+  target_link_libraries(RasrLm INTERFACE RasrOnnx)
+  add_onnx_dependencies(RasrLm)
 endif()
 
 # check.cc code is broken add_executable(check-lm check.cc)

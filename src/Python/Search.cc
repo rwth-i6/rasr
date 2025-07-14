@@ -17,6 +17,7 @@
 
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
+#include <cstring>
 
 namespace py = pybind11;
 

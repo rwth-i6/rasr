@@ -85,6 +85,7 @@ public:
     static const Core::ParameterFloat paramIntermediateScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -117,6 +118,8 @@ private:
 
     bool logStepwiseStatistics_;
 
+    size_t cacheCleanupInterval_;
+
     Core::Channel debugChannel_;
 
     Core::Ref<Nn::LabelScorer>   labelScorer_;
@@ -138,7 +141,8 @@ private:
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
 
-    bool finishedSegment_;
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

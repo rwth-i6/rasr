@@ -66,7 +66,7 @@ install:
 	$(INSTALL) $(TARGETS) $(INSTALL_TARGET)
 
 lm-util$(exe): $(LM_UTIL_TOOL_O)
-	$(LD) $^ -o $@ $(LDFLAGS)
+	$(LD) $(LD_START_GROUP) $^ $(LD_END_GROUP) -o $@ $(LDFLAGS)
 
 include $(TOPDIR)/Rules.make
 

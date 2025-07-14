@@ -40,14 +40,14 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreW
     return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
 }
 
-Speech::TimeframeIndex StepwiseNoOpLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts) {
+size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minInputIndex = Core::Type<size_t>::max;
+    for (auto const& context : activeContexts.internalData()) {
         StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
-        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+        minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
     }
 
-    return minTimeIndex;
+    return minInputIndex;
 }
 
 }  // namespace Nn

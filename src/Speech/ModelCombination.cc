@@ -80,7 +80,9 @@ ModelCombination::ModelCombination(const Core::Configuration&         c,
                                    Bliss::LexiconRef                  lexicon,
                                    Core::Ref<Am::AcousticModel>       acousticModel,
                                    Core::Ref<Lm::ScaledLanguageModel> languageModel)
-        : Core::Component(c), Mc::Component(c), pronunciationScale_(0) {
+        : Core::Component(c),
+          Mc::Component(c),
+          pronunciationScale_(0) {
     setPronunciationScale(paramPronunciationScale(c));
     setLexicon(lexicon);
     setAcousticModel(acousticModel);

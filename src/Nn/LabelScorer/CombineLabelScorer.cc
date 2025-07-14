@@ -72,9 +72,9 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
 }
 
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
-    Core::CollapsedVector<const CombineScoringContext*> combineContexts;
-    combineContexts.reserve(activeContexts.size());
-    for (auto const& activeContext : activeContexts) {
+    std::vector<const CombineScoringContext*> combineContexts;
+    combineContexts.reserve(activeContexts.internalSize());
+    for (auto const& activeContext : activeContexts.internalData()) {
         combineContexts.push_back(dynamic_cast<const CombineScoringContext*>(activeContext.get()));
     }
 

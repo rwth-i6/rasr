@@ -44,4 +44,6 @@ private:
     Traceback getBestTraceback();
 };
 
+std::vector<s32> ctcAlignment(py::array_t<f32> const& scores, py::array_t<s32> const& targets, s32 blankId);
+
 #endif  // _PYTHON_ALIGN_HH

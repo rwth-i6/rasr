@@ -226,7 +226,7 @@ void GenericPythonLabelScorer::registerPythonCallback(std::string const& name, p
     }
 }
 
-Speech::TimeframeIndex GenericPythonLabelScorer::minActiveTimeIndex(Core::CollapsedVector<Nn::ScoringContextRef> const& activeContexts) const {
+size_t GenericPythonLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<Nn::ScoringContextRef> const& activeContexts) const {
     return 0u;
 }
 

@@ -293,7 +293,7 @@ std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreW
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-Speech::TimeframeIndex StatefulOnnxLabelScorer::minActiveTimeIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     return 0u;
 }
 

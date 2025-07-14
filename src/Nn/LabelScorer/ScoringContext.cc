@@ -19,6 +19,8 @@
 
 #include <Core/MurmurHash.hh>
 
+#include <Core/MurmurHash.hh>
+
 namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;

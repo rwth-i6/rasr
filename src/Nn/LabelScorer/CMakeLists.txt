@@ -4,19 +4,16 @@ set(RasrLabelScorer_SOURCES
     CTCPrefixLabelScorer.cc
     DataView.cc
     EncoderFactory.cc
+    FixedContextOnnxLabelScorer.cc
     NoOpLabelScorer.cc
-    NoCtxOnnxLabelScorer.cc
+    NoContextOnnxLabelScorer.cc
     LegacyFeatureScorerLabelScorer.cc
     Encoder.cc
     EncoderDecoderLabelScorer.cc
     LabelScorer.cc
     LabelScorerFactory.cc
-    ScoringContext.cc)
-
-if(${MODULE_ONNX})
-  list(APPEND RasrLabelScorer_SOURCES LimitedCtxOnnxLabelScorer.cc
-       NoCtxOnnxLabelScorer.cc StatefulOnnxLabelScorer.cc)
-endif()
+    ScoringContext.cc
+    StatefulOnnxLabelScorer.cc)
 
 add_library(RasrLabelScorer STATIC ${RasrLabelScorer_SOURCES})
 

@@ -45,4 +45,12 @@ void bindAligner(py::module_& module) {
             py::arg("features"),
             py::arg("orth"),
             "Compute forced-alignment of a segment described by a feature numpy array of shape [T, F] and a transcription string.");
+
+    module.def(
+            "ctc_alignment",
+            &ctcAlignment,
+            py::arg("scores"),
+            py::arg("targets"),
+            py::arg("blankId"),
+            "Compute forced-alignment of targets using CTC topology with the given scores.");
 }

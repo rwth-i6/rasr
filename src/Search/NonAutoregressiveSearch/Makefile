@@ -7,19 +7,18 @@ include $(TOPDIR)/Makefile.cfg
 # -----------------------------------------------------------------------------
 
 SUBDIRS		=
-TARGETS		= libSprintLexiconfreeBeamSearch.$(a)
+TARGETS		= libSprintLexiconfreeTimesyncBeamSearch.$(a)
 
-LIBSPRINTLEXICONFREEBEAMSEARCH_O = $(OBJDIR)/LexiconfreeBeamSearch.o
+LIBSPRINTLEXICONFREETIMESYNCBEAMSEARCH_O = $(OBJDIR)/LexiconfreeTimesyncBeamSearch.o
 
 
 # -----------------------------------------------------------------------------
 
 all: $(TARGETS)
 
-libSprintLexiconfreeBeamSearch.$(a): $(LIBSPRINTLEXICONFREEBEAMSEARCH_O)
+libSprintLexiconfreeTimesyncBeamSearch.$(a): $(LIBSPRINTLEXICONFREETIMESYNCBEAMSEARCH_O)
 	$(MAKELIB) $@ $^
-	
+
 include $(TOPDIR)/Rules.make
 
-sinclude $(LIBSPRINTLEXICONFREEBEAMSEARCH_O:.o=.d)
-include $(patsubst %.o,%.d,$(filter %.o,$(CHECK_O)))
+sinclude $(LIBSPRINTLEXICONFREETIMESYNCBEAMSEARCH_O:.o=.d)

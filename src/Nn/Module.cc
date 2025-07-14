@@ -18,17 +18,12 @@
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
-#include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
-#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"
-#ifdef MODULE_ONNX
-#include "LabelScorer/LimitedCtxOnnxLabelScorer.hh"
-#include "LabelScorer/NoCtxOnnxLabelScorer.hh"
-#include "LabelScorer/OnnxEncoder.hh"
-#include "LabelScorer/StatefulOnnxLabelScorer.hh"
-#endif
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
@@ -112,20 +107,6 @@ Module_::Module_()
     //             return Core::ref(new LegacyFeatureScorerLabelScorer(config));
     //         });
 
-    // Forward the feature at the current step through an onnx network
-    labelScorerFactory_.registerLabelScorer(
-            "no-ctx-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new NoCtxOnnxLabelScorer(config));
-            });
-
-    // Forward the feature at the current step together with a (fixed-size) history through an onnx network
-    labelScorerFactory_.registerLabelScorer(
-            "limited-ctx-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new LimitedCtxOnnxLabelScorer(config));
-            });
-
     // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
     labelScorerFactory_.registerLabelScorer(
             "encoder-decoder",
@@ -167,11 +148,18 @@ Module_::Module_()
                 return Core::ref(new CTCPrefixLabelScorer(config));
             });
 
+    // Compute scores by forwarding a single input feature vector without history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "no-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoContextOnnxLabelScorer(config));
+            });
+
     // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
     labelScorerFactory_.registerLabelScorer(
-            "limited-ctx-onnx",
+            "fixed-context-onnx",
             [](Core::Configuration const& config) {
-                return Core::ref(new LimitedCtxOnnxLabelScorer(config));
+                return Core::ref(new FixedContextOnnxLabelScorer(config));
             });
 };
 

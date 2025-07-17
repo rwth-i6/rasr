@@ -30,6 +30,11 @@ namespace Search {
 
 class NonAutoregressiveSearch : public SearchAlgorithmV2 {
 public:
+    static const Core::ParameterInt  paramBlankLabelIndex;
+    static const Core::ParameterBool paramCollapseRepeatedLabels;
+    static const Core::ParameterBool paramCacheCleanupInterval;
+    static const Core::ParameterBool paramLogStepwiseStatistics;
+
     NonAutoregressiveSearch(Core::Configuration const&);
 
     // Inherited methods from `SearchAlgorithmV2`
@@ -44,6 +49,26 @@ public:
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
+
+protected:
+    /*
+     * Struct containing all information about a single hypothesis in the beam
+     */
+    struct LabelHypothesis {
+        Nn::ScoringContextRef scoringContext;  // Context to compute scores based on this hypothesis
+        Score                 score;           // Full score of hypothesis Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
+
+        LabelHypothesis();
+
+        bool operator<(LabelHypothesis const& other) const {
+            return score < other.score;
+        }
+
+        /*
+         * Get string representation for debugging.
+         */
+        std::string toString() const;
+    };
 
 private:
     bool           useBlank_;

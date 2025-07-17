@@ -32,9 +32,38 @@ namespace Search {
  * === NonAutoregressiveSearch ===
  * =====================================
  */
+
+const Core::ParameterInt NonAutoregressiveSearch::paramBlankLabelIndex(
+        "blank-label-index",
+        "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
+        Core::Type<int>::max);
+
+const Core::ParameterBool NonAutoregressiveSearch::paramCollapseRepeatedLabels(
+        "collapse-repeated-labels",
+        "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
+        false);
+
+const Core::ParameterBool NonAutoregressiveSearch::paramLogStepwiseStatistics(
+        "log-stepwise-statistics",
+        "Log statistics about the beam at every search step.",
+        false);
+
+const Core::ParameterBool NonAutoregressiveSearch::paramCacheCleanupInterval(
+        "cache-cleanup-interval",
+        "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
+        10);
+
 NonAutoregressiveSearch::NonAutoregressiveSearch(Core::Configuration const& config)
         : Core::Component(config),
-          SearchAlgorithmV2(config) {
+          SearchAlgorithmV2(config),
+          blankLabelIndex_(paramBlankLabelIndex(config)),
+          collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
+          logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
+          debugChannel_(config, "debug"),
+          labelScorer_(),
+          lexicon_() {
+    useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
 }
 
 Speech::ModelCombination::Mode NonAutoregressiveSearch::requiredModelCombination() const {
@@ -44,9 +73,6 @@ Speech::ModelCombination::Mode NonAutoregressiveSearch::requiredModelCombination
 bool NonAutoregressiveSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     lexicon_     = modelCombination.lexicon();
     labelScorer_ = modelCombination.labelScorer();
-
-    extensions_.reserve(maxBeamSize_ * lexicon_->nLemmas());
-    requests_.reserve(extensions_.size());
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {
@@ -65,8 +91,6 @@ bool NonAutoregressiveSearch::setModelCombination(Speech::ModelCombination const
 }
 
 void NonAutoregressiveSearch::reset() {
-    initializationTime_.start();
-
     labelScorer_->reset();
 
     // Reset beam to a single empty hypothesis

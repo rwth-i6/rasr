@@ -6,11 +6,21 @@ set(RasrPython_SOURCES
     GenericPythonLabelScorer.cc
     Numpy.cc
     Search.cc
-    Utilities.cc)
+    Utilities.cc
+)
 
 add_library(RasrPython STATIC ${RasrPython_SOURCES})
 add_python_dependencies(RasrPython)
 
-if(${MODULE_NN})
-  target_link_libraries(RasrPython PUBLIC RasrNn)
-endif()
+target_link_libraries(
+    RasrPython
+    PUBLIC RasrBliss
+           RasrCore
+           RasrFlow
+           RasrLm
+           RasrMath
+           RasrMm
+           RasrNn
+           RasrSearch
+           RasrSpeech
+)

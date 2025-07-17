@@ -1,25 +1,26 @@
 function(add_module_option MODULE_NAME DEFAULT_VALUE)
-  option(${MODULE_NAME} "Enable module ${MODULE_NAME}" ${DEFAULT_VALUE})
-  if(${MODULE_NAME})
-    add_compile_definitions(${MODULE_NAME})
-    message(STATUS "Module ${MODULE_NAME} is enabled")
-  else()
-    message(STATUS "Module ${MODULE_NAME} disabled")
-  endif()
+    option(${MODULE_NAME} "Enable module ${MODULE_NAME}" ${DEFAULT_VALUE})
+    if(${MODULE_NAME})
+        add_compile_definitions(${MODULE_NAME})
+        message(STATUS "Module ${MODULE_NAME} is enabled")
+    else()
+        message(STATUS "Module ${MODULE_NAME} disabled")
+    endif()
 endfunction()
 
 set(TOOLS "")
 
 function(add_tool_option TOOL_NAME DEFAULT_VALUE)
-  option(${TOOL_NAME} "Enable tool ${TOOL_NAME}" ${DEFAULT_VALUE})
-  if(${TOOL_NAME})
-    set(TOOLS
-        ${TOOLS} ${TOOL_NAME}
-        PARENT_SCOPE)
-    message(STATUS "Tool ${TOOL_NAME} is enabled")
-  else()
-    message(STATUS "Tool ${TOOL_NAME} is disabled")
-  endif()
+    option(${TOOL_NAME} "Enable tool ${TOOL_NAME}" ${DEFAULT_VALUE})
+    if(${TOOL_NAME})
+        set(TOOLS
+            ${TOOLS} ${TOOL_NAME}
+            PARENT_SCOPE
+        )
+        message(STATUS "Tool ${TOOL_NAME} is enabled")
+    else()
+        message(STATUS "Tool ${TOOL_NAME} is disabled")
+    endif()
 endfunction()
 
 # ****** Adaptation ******
@@ -106,7 +107,7 @@ add_module_option(MODULE_OPENMP OFF)
 # **** choose optimized blas library if available ******
 add_module_option(MODULE_INTEL_MKL OFF)
 add_module_option(MODULE_ACML OFF)
-add_module_option(MODULE_CUDA OFF)
+add_module_option(MODULE_CUDA ON)
 
 # ****** Tensorflow integration ******
 add_module_option(MODULE_TENSORFLOW ON)
@@ -121,37 +122,37 @@ add_tool_option(CorpusStatistics ON)
 add_tool_option(FeatureExtraction ON)
 add_tool_option(FeatureStatistics ON)
 add_tool_option(Fsa ON)
-add_tool_option(LibRASR ON)
 add_tool_option(Lm ON)
 add_tool_option(SpeechRecognizer ON)
 add_tool_option(Xml ON)
 
+if(${MODULE_PYTHON})
+    add_tool_option(LibRASR ON)
+endif()
+
 if(${MODULE_CART})
-  add_tool_option(Cart ON)
+    add_tool_option(Cart ON)
 endif()
 
 if(${MODULE_MM_DT}
    AND ${MODULE_LATTICE_DT}
-   AND ${MODULE_SPEECH_DT})
-  add_tool_option(LatticeProcessor ON)
+   AND ${MODULE_SPEECH_DT}
+)
+    add_tool_option(LatticeProcessor ON)
 endif()
 
 if(${MODULE_FLF})
-  add_tool_option(Flf ON)
+    add_tool_option(Flf ON)
 endif()
 
 if(${MODULE_NN})
-  add_tool_option(NnTrainer ON)
+    add_tool_option(NnTrainer ON)
 endif()
 
-set(SEARCH_LIBS RasrSearch)
+set(SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch RasrLexiconfreeLabelsyncBeamSearch RasrTreeTimesyncBeamSearch)
 if(${MODULE_SEARCH_WFST})
-  list(APPEND SEARCH_LIBS RasrSearchWfst RasrOpenFst)
+    list(APPEND SEARCH_LIBS RasrSearchWfst)
 endif()
 if(${MODULE_ADVANCED_TREE_SEARCH})
-  list(APPEND SEARCH_LIBS RasrAdvancedTreeSearch)
+    list(APPEND SEARCH_LIBS RasrAdvancedTreeSearch)
 endif()
-list(APPEND SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch)
-list(APPEND SEARCH_LIBS RasrLexiconfreeLabelsyncBeamSearch)
-list(APPEND SEARCH_LIBS RasrNonAutoregressiveSearch)
-list(APPEND SEARCH_LIBS RasrTreeTimesyncBeamSearch)

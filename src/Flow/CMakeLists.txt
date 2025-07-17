@@ -24,11 +24,12 @@ set(Flow_SOURCES
     Synchronization.cc
     Timestamp.cc
     Vector.cc
-    VectorTextInput.cc)
+    VectorTextInput.cc
+)
 
 add_library(RasrFlow STATIC ${Flow_SOURCES})
 
-target_link_libraries(RasrFlow INTERFACE RasrCore)
+target_link_libraries(RasrFlow PUBLIC RasrCore RasrMath)
 
 add_executable(check-flow check.cc)
 target_link_libraries(check-flow PRIVATE RasrFlow)

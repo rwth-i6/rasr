@@ -10,18 +10,24 @@ set(RasrAdvancedTreeSearch_SOURCES
     SearchSpaceHelpers.cc
     SearchSpaceStatistics.cc
     SimpleThreadPool.cc
-    Trace.cc)
+    Trace.cc
+)
 
 add_library(RasrAdvancedTreeSearch STATIC ${RasrAdvancedTreeSearch_SOURCES})
-target_link_libraries(RasrAdvancedTreeSearch INTERFACE RasrSearch RasrBliss
-                                                       RasrFsa RasrCore)
-
-if(${MODULE_PYTHON})
-  add_python_dependencies(RasrAdvancedTreeSearch)
-endif()
+target_link_libraries(
+    RasrAdvancedTreeSearch
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrLattice
+           RasrLm
+           RasrMm
+           RasrSearch
+           RasrSpeech
+)
 
 target_compile_options(
-  RasrAdvancedTreeSearch
-  PRIVATE
-    "-Wno-sign-compare -Winline --param max-inline-insns-auto=10000 --param max-inline-insns-single=10000 --param large-function-growth=25000 --param inline-unit-growth=400"
+    RasrAdvancedTreeSearch
+    PRIVATE
+        "-Wno-sign-compare -Winline --param max-inline-insns-auto=10000 --param max-inline-insns-single=10000 --param large-function-growth=25000 --param inline-unit-growth=400"
 )

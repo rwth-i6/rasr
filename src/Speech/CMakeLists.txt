@@ -146,5 +146,9 @@ if(${MODULE_TENSORFLOW})
   add_tf_dependencies(RasrSpeech)
 endif()
 
+if(${MODULE_ONNX})
+  target_link_libraries(RasrSpeech PUBLIC RasrOnnx)
+endif()
+
 add_executable(check-speech check.cc)
 target_link_libraries(check-speech PRIVATE RasrSpeech)

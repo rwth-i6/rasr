@@ -106,7 +106,7 @@ add_module_option(MODULE_OPENMP OFF)
 # **** choose optimized blas library if available ******
 add_module_option(MODULE_INTEL_MKL OFF)
 add_module_option(MODULE_ACML OFF)
-add_module_option(MODULE_CUDA OFF)
+add_module_option(MODULE_CUDA ON)
 
 # ****** Tensorflow integration ******
 add_module_option(MODULE_TENSORFLOW ON)

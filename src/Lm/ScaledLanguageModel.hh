@@ -128,8 +128,8 @@ public:
     virtual Core::Ref<const LanguageModel> recombinationLanguageModel() const {
         return languageModel_->recombinationLanguageModel();
     }
-    virtual void setSegment(Bliss::SpeechSegment const* s) {
-        languageModel_->setSegment(s);
+    virtual bool setSegment(Bliss::SpeechSegment const* s) {
+        return languageModel_->setSegment(s);
     }
     virtual Token sentenceBeginToken() const {
         return languageModel_->sentenceBeginToken();

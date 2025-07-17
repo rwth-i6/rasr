@@ -17,3 +17,8 @@ target_link_libraries(RasrOnnx INTERFACE RasrCore)
 add_executable(check-onnx check.cc)
 target_link_libraries(check-onnx PRIVATE RasrOnnx)
 add_onnx_dependencies(check-onnx)
+
+if(${MODULE_CUDA})
+  add_cuda_dependencies(RasrOnnx)
+  add_cuda_dependencies(check-onnx)
+endif()

@@ -42,6 +42,10 @@ if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     TFRecurrentLanguageModel.cc)
 endif()
 
+if(${MODULE_ONNX})
+  list(APPEND Lm_SOURCES OnnxStatelessLanguageModel.cc)
+endif()
+
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
 target_link_libraries(

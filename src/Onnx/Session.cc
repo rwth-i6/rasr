@@ -44,6 +44,7 @@ Session::Session(Core::Configuration const& config)
     std::string device = "cpu";
 
 #ifdef MODULE_CUDA
+    // Check if a GPU is actually available
     int deviceCount = 0;
     if (cudaGetDeviceCount(&deviceCount) == cudaSuccess and deviceCount > 0) {
         auto providers = Ort::GetAvailableProviders();
@@ -55,6 +56,8 @@ Session::Session(Core::Configuration const& config)
             device = "cuda";
         }
     }
+#else
+    warning() << "RASR was not compiled with MODULE_CUDA enabled so ONNX can only run on CPU.";
 #endif
 
     session_ = Ort::Session(env_, file_.c_str(), session_opts);

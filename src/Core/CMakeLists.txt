@@ -42,19 +42,21 @@ set(Core_SOURCES
     XmlBuilder.cc
     XmlBuilder2.cc
     XmlParser.cc
-    XmlStream.cc)
+    XmlStream.cc
+)
 
 find_package(BISON REQUIRED)
 
 bison_target(
-  ArithmeticExpressionParser
-  ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.yy
-  ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.cc
-  DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.hh
-  COMPILE_FLAGS "-d")
+    ArithmeticExpressionParser ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.yy
+    ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.cc
+    DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ArithmeticExpressionParser.hh
+    COMPILE_FLAGS "-d"
+)
 list(APPEND Core_SOURCES ${BISON_ArithmeticExpressionParser_OUTPUTS})
 
 add_library(RasrCore STATIC ${Core_SOURCES})
+target_link_libraries(RasrCore PUBLIC RasrMath)
 add_dependencies(RasrCore SourceVersion)
 
 add_executable(check-core check.cc)

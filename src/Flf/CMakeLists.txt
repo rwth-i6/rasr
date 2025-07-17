@@ -1,7 +1,7 @@
 add_subdirectory(FlfCore)
 
 if(${MODULE_FLF_EXT})
-  add_subdirectory(FlfExt)
+    add_subdirectory(FlfExt)
 endif()
 
 set(Flf_SOURCES
@@ -63,32 +63,29 @@ set(Flf_SOURCES
     TimeframeConfusionNetworkIo.cc
     TimeframeError.cc
     Traceback.cc
-    Union.cc)
+    Union.cc
+)
 
 add_library(RasrFlf STATIC ${Flf_SOURCES})
 
-target_link_libraries(RasrFlf INTERFACE RasrFlfCore)
+target_link_libraries(
+    RasrFlf
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFlfCore
+           RasrFlow
+           RasrFsa
+           RasrLattice
+           RasrLm
+           RasrMath
+           RasrMm
+           RasrSearch
+           RasrSpeech
+)
 
 if(${MODULE_FLF_EXT})
-  target_link_libraries(RasrFlf INTERFACE RasrFlfExt)
-endif()
-
-target_link_libraries(
-  RasrFlf
-  INTERFACE RasrSpeech
-            RasrLattice
-            RasrLm
-            RasrAm
-            RasrMm
-            RasrMc
-            RasrCart
-            RasrBliss
-            RasrFlow
-            RasrFsa
-            RasrCore)
-
-if(${MODULE_PYTHON})
-  add_python_dependencies(RasrFlf)
+    target_link_libraries(RasrFlf PUBLIC RasrFlfExt)
 endif()
 
 add_executable(check-flf check.cc)

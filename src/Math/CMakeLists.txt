@@ -1,6 +1,7 @@
 add_subdirectory(Lapack)
+
 if(${MODULE_MATH_NR})
-  add_subdirectory(Nr)
+    add_subdirectory(Nr)
 endif()
 
 set(RasrMath_SOURCES
@@ -11,23 +12,29 @@ set(RasrMath_SOURCES
     Module.cc
     PiecewiseLinearFunction.cc
     Random.cc
-    CudaDataStructure.cc)
+    CudaDataStructure.cc
+)
 
 if(${MODULE_CUDA})
-  list(APPEND RasrMath_SOURCES CudaMatrixKernels.cu)
+    list(APPEND RasrMath_SOURCES CudaMatrixKernels.cu)
 endif()
 
 if(${MODULE_SIGNAL_PLP})
-  list(APPEND RasrMath_SOURCES LevinsonLse.cc)
+    list(APPEND RasrMath_SOURCES LevinsonLse.cc)
 endif()
 
 add_library(RasrMath STATIC ${RasrMath_SOURCES})
 
 if(${MODULE_CUDA})
-  add_cuda_dependencies(RasrMath)
+    add_cuda_dependencies(RasrMath)
 endif()
 
-target_link_libraries(RasrMath INTERFACE RasrMathNr RasrMathLapack RasrCore)
+target_link_libraries(RasrMath PUBLIC RasrCore RasrMathLapack RasrMm)
 
-# check.cc code is broken add_executable(check-math check.cc)
-# target_link_libraries(check-math PRIVATE RasrMath)
+if(${MODULE_MATH_NR})
+    target_link_libraries(RasrMath PUBLIC RasrMathNr)
+endif()
+
+# check.cc code is broken
+
+# add_executable(check-math check.cc) target_link_libraries(check-math PRIVATE RasrMath)

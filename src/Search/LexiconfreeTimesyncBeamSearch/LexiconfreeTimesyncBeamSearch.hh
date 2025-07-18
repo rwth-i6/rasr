@@ -134,6 +134,7 @@ private:
     Core::StopWatch contextExtensionTime_;
 
     Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterRecombination_;
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
 
@@ -155,7 +156,7 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
 
     /*
      * Helper function for pruning to scoreThreshold_

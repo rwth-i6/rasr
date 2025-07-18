@@ -134,10 +134,9 @@ private:
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
-    std::vector<ExtensionCandidate>       withinWordExtensions_;
-    std::vector<ExtensionCandidate>       wordEndExtensions_;
     std::vector<LabelHypothesis>          beam_;
     std::vector<LabelHypothesis>          newBeam_;
+    std::vector<LabelHypothesis>          wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request> requests_;
     std::vector<LabelHypothesis>          recombinedHypotheses_;
 
@@ -153,10 +152,13 @@ private:
     Core::StopWatch contextExtensionTime_;
 
     Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterRecombination_;
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
+    Core::Statistics<u32> numWordEndHypsAfterRecombination_;
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
+    Core::Statistics<u32> numActiveTrees_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -173,7 +175,7 @@ private:
     /*
      * Helper function for pruning to maxBeamSize
      */
-    void beamSizePruning(std::vector<TreeTimesyncBeamSearch::ExtensionCandidate>& extensions, size_t maxBeamSize) const;
+    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold

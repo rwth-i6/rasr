@@ -5,6 +5,10 @@
 
 #include <chrono>
 
+#ifdef MODULE_CUDA
+#include <cuda_runtime.h>
+#endif
+
 #include "Util.hh"
 
 namespace Onnx {
@@ -34,11 +38,31 @@ Session::Session(Core::Configuration const& config)
     Ort::SessionOptions session_opts;
     session_opts.SetIntraOpNumThreads(intraOpNumThreads_);
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
+
+    std::string device = "cpu";
+
+#ifdef MODULE_CUDA
+    // If a GPU is available, add CUDA execution provider to session so that it can run on it
+    int deviceCount = 0;
+    if (cudaGetDeviceCount(&deviceCount) == cudaSuccess and deviceCount > 0) {
+        auto providers = Ort::GetAvailableProviders();
+        if (std::find(providers.begin(), providers.end(), "CUDAExecutionProvider") != providers.end()) {
+            OrtCUDAProviderOptionsV2* cuda_opts = nullptr;
+            Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
+            session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
+            Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
+            device = "cuda";
+        }
+    }
+#else
+    warning() << "RASR was not compiled with MODULE_CUDA enabled so ONNX can only run on CPU.";
+#endif
+
     session_ = Ort::Session(env_, file_.c_str(), session_opts);
 
     size_t num_inputs  = session_.GetInputCount();
     size_t num_outputs = session_.GetOutputCount();
-    log("Created ONNX session for ") << file_ << " with " << num_inputs << " inputs and " << num_outputs << " outputs";
+    log("Created ONNX session for ") << file_ << " with " << num_inputs << " inputs and " << num_outputs << " outputs on " << device << " device.";
 
     std::stringstream ss;
     for (size_t i = 0ul; i < num_inputs; i++) {

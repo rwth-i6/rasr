@@ -49,6 +49,10 @@ public:
     // Get extended context from decoder component
     ScoringContextRef extendedScoringContext(Request const& request) override;
 
+    // Cleanup decoder component. Encoder is "self-cleaning" already in that it only stores outputs until they are
+    // retrieved.
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
     void addInput(DataView const& input) override;

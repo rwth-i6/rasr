@@ -16,6 +16,7 @@
 #ifndef BUFFERED_LABEL_SCORER_HH
 #define BUFFERED_LABEL_SCORER_HH
 
+#include <deque>
 #include "DataView.hh"
 #include "LabelScorer.hh"
 
@@ -42,9 +43,29 @@ public:
     // Add a single input feature to the buffer
     virtual void addInput(DataView const& input) override;
 
+    // Clean up input buffer
+    virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
 protected:
-    std::vector<DataView> inputBuffer_;         // Buffer that contains all the feature data for the current segment
-    bool                  expectMoreFeatures_;  // Flag to record segment end signal
+    bool expectMoreFeatures_;  // Flag to record segment end signal
+
+    // Get the minimum index of previously buffered inputs that is still needed to process the given active contexts.
+    // Does not take previously deleted inputs into account, i.e. if 5 inputs were added and the active contexts
+    // require at least the input of index 3, this will return 3 regardless of how many inputs have been deleted from the buffer so far.
+    virtual size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const = 0;
+
+    // Get the input that has been buffered at the specific input index.
+    // The input index corresponds to when that input has been added to the buffer, disregarding previously deleted inputs.
+    // For example if 3 inputs were added and 1 was deleted, then
+    //  - getInput(0) will raise an error since it was deleted
+    //  - getInput(1) will return the second added input
+    //  - getInput(2) will return the third added input
+    //  - getInput(3) will return None since no fourth input was added yet
+    std::optional<DataView> getInput(size_t inputIndex) const;
+
+private:
+    std::deque<DataView> inputBuffer_;       // Buffer that contains all the feature data for the current segment
+    size_t               numDeletedInputs_;  // Count deleted inputs in order to address the correct index in inputBuffer_
 };
 
 }  // namespace Nn

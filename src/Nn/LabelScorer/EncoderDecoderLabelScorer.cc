@@ -37,6 +37,10 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
     return decoder_->extendedScoringContext(request);
 }
 
+void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+    decoder_->cleanupCaches(activeContexts);
+}
+
 void EncoderDecoderLabelScorer::addInput(DataView const& input) {
     encoder_->addInput(input);
     passEncoderOutputsToDecoder();

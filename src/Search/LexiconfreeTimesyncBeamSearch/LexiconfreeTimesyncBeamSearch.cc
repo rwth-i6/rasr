@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -34,7 +35,7 @@ namespace Search {
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
-          currentToken(Core::Type<Nn::LabelIndex>::max),
+          currentToken(Nn::invalidLabelIndex),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
@@ -103,7 +104,7 @@ const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
-        Core::Type<int>::max);
+        Nn::invalidLabelIndex);
 
 const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
@@ -115,6 +116,11 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
+const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
+        "cache-cleanup-interval",
+        "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
+        10);
+
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -123,6 +129,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           blankLabelIndex_(paramBlankLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
@@ -137,11 +144,12 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
+          currentSearchStep_(0ul),
           finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
-    useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
+    useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
     }
@@ -161,7 +169,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {
-        if (blankLabelIndex_ == Core::Type<int>::max) {
+        if (blankLabelIndex_ == Nn::invalidLabelIndex) {
             blankLabelIndex_ = blankLemma->id();
             useBlank_        = true;
             log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
@@ -185,7 +193,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 
     initializationTime_.stop();
 }
@@ -195,7 +204,8 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     labelScorer_->reset();
     resetStatistics();
     initializationTime_.stop();
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
@@ -337,22 +347,33 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     recombination(newBeam_);
     numActiveHyps_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", newBeam_.size());
+    /*
+     * Clean up label scorer caches.
+     */
+    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+        Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+        for (auto const& hyp : newBeam_) {
+            activeContexts.push_back(hyp.scoringContext);
+        }
+        labelScorer_->cleanupCaches(activeContexts);
     }
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    beam_.swap(newBeam_);
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < newBeam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam_[hypIdx].toString() << "\n";
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
         }
         ss << "\n";
         debugChannel_ << ss.str();
     }
 
-    beam_.swap(newBeam_);
-
     if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");
@@ -399,7 +420,7 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
-    if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
+    if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
         }

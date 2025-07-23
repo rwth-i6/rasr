@@ -1,11 +1,10 @@
-#include "LibRASR.hh"
-
 #include <string>
 #include <pybind11/pybind11.h>
 
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "LibRASR.hh"
 #include "Search.hh"
 
 namespace py = pybind11;

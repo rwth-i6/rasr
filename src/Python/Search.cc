@@ -50,7 +50,7 @@ void SearchAlgorithm::putFeature(py::array_t<f32> const& feature) {
         F = feature.shape(0);
     }
     else {
-        error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1";
+        error() << "Received feature vector of invalid dim " << feature.ndim() << "; should be 1 or 2";
     }
 
     searchAlgorithm_->putFeature({feature, F});

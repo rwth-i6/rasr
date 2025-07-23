@@ -150,7 +150,7 @@ void Lexicon::load(const std::string& filename) {
     if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
     }
-    log("Dependency value: ") << dependency_.value();
+    log("dependency value: ") << dependency_.value();
 }
 
 LexiconRef Lexicon::create(const Configuration& c) {

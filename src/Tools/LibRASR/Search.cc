@@ -68,6 +68,7 @@ void bind_search_algorithm(py::module_& module) {
             "It works by calling `enter_segment()`, passing segment features\n"
             "via `put_feature` or `put_features` and finally calling `finish_segment()`.\n"
             "Intermediate and final results can be retrieved via `get_current_best_traceback()`.\n"
+            "Before recognizing the next segment, `reset` should be called.\n"
             "There is also a convenience function `recognize_segment` that performs all\n"
             "these steps in one go given an array of segment features.");
 
@@ -95,13 +96,13 @@ void bind_search_algorithm(py::module_& module) {
             "put_feature",
             &SearchAlgorithm::putFeature,
             py::arg("feature_vector"),
-            "Pass a single feature as a numpy array of shape [F].");
+            "Pass a single feature as a numpy array of shape [F] or [1, F].");
 
     pySearchAlgorithm.def(
             "put_features",
             &SearchAlgorithm::putFeatures,
             py::arg("feature_array"),
-            "Pass multiple features as a numpy array of shape [T, F].");
+            "Pass multiple features as a numpy array of shape [T, F] or [1, T, F].");
 
     pySearchAlgorithm.def(
             "get_current_best_traceback",
@@ -112,5 +113,5 @@ void bind_search_algorithm(py::module_& module) {
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
-            "Convenience function to start a segment, pass all the features as a numpy array of shape [T, F], finish the segment, and return the recognition result.");
+            "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
 }

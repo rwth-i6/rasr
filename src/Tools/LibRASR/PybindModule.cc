@@ -1,5 +1,3 @@
-#include "LibRASR.hh"
-
 #include <string>
 #include <pybind11/pybind11.h>
 
@@ -7,6 +5,7 @@
 #include <Python/Configuration.hh>
 
 #include "LabelScorer.hh"
+#include "LibRASR.hh"
 #include "Search.hh"
 
 namespace py = pybind11;

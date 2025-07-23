@@ -142,6 +142,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           scoringTime_(),
           contextExtensionTime_(),
           numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
+          numHypsAfterRecombination_("num-hyps-after-recombination"),
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
@@ -318,17 +319,8 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
-    beamSizePruning(extensions_);
-    numHypsAfterBeamPruning_ += extensions_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-beam-pruning", extensions_.size());
-    }
-
-    /*
-     * Create new beam from surviving extensions.
-     */
+    // Create new beam from surviving extensions.
     newBeam_.clear();
-
     for (auto const& extension : extensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
@@ -340,11 +332,19 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
 
-    /*
-     * For all hypotheses with the same scoring context keep only the best since they will
-     * all develop in the same way.
-     */
+    // For all hypotheses with the same scoring context keep only the best since they will all develop in the same way.
     recombination(newBeam_);
+    numHypsAfterRecombination_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
+    }
+
+    beamSizePruning(newBeam_);
+    numHypsAfterBeamPruning_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
+    }
+
     numActiveHyps_ += newBeam_.size();
 
     /*
@@ -400,6 +400,7 @@ void LexiconfreeTimesyncBeamSearch::resetStatistics() {
     scoringTime_.reset();
     contextExtensionTime_.reset();
     numHypsAfterScorePruning_.clear();
+    numHypsAfterRecombination_.clear();
     numHypsAfterBeamPruning_.clear();
     numActiveHyps_.clear();
 }
@@ -412,6 +413,7 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     numHypsAfterScorePruning_.write(clog());
+    numHypsAfterRecombination_.write(clog());
     numHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
 }
@@ -450,14 +452,14 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
-    if (extensions.size() <= maxBeamSize_) {
+void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const {
+    if (hypotheses.size() <= maxBeamSize_) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
-    std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize_, extensions.end());
-    extensions.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize_, hypotheses.end());
+    hypotheses.resize(maxBeamSize_);  // Get rid of excessive elements
 }
 
 void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {

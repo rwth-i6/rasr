@@ -12,12 +12,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 #include "TransitionLabelScorer.hh"
 
 #include <Nn/Module.hh>
-
-#include "LabelScorer.hh"
-#include "ScoringContext.hh"
 
 namespace Nn {
 

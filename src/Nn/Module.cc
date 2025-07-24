@@ -23,6 +23,7 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -119,6 +120,13 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Returns predefined scores based on the transition type of each score request
+    labelScorerFactory_.registerLabelScorer(
+            "transition",
+            [](Core::Configuration const& config) {
+                return Core::ref(new TransitionLabelScorer(config));
             });
 };
 

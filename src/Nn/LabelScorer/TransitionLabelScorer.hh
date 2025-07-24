@@ -21,9 +21,9 @@
 namespace Nn {
 
 /*
- * Label Scorer that adds predefined transition scores to the scores of an underlying base
- * label scorer based on the transition type of each request.
- * The score for each transition type is set via config parameters.
+ * This PR adds a new label scorer `TransitionLabelScorer` which wraps a base LabelScorer
+ * and adds predefined transition scores to the base scores depending on the transition type of each request.
+ * The transition scores are all individually specified as config parameters.
  */
 class TransitionLabelScorer : public LabelScorer {
     static const Core::ParameterFloat paramLabelToLabelScore;

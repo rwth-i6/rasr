@@ -106,6 +106,11 @@ public:
     const LemmaPronunciation* nextForThisPronunciation() const {
         return nextForThisPronunciation_;
     }
+
+    static const LemmaPronunciation& invalidPronunciation() {
+        static LemmaPronunciation invalidInstance(LemmaPronunciation::invalidId);
+        return invalidInstance;
+    }
 };
 
 /**

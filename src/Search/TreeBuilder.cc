@@ -1231,7 +1231,8 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     }
 
     // Set the StateDesc for blank
-    blankAllophoneStateIndex_       = acousticModel_.blankAllophoneStateIndex();
+    blankAllophoneStateIndex_ = acousticModel_.blankAllophoneStateIndex();
+    verify(blankAllophoneStateIndex_ != Fsa::InvalidLabelId);
     blankDesc_.acousticModel        = acousticModel_.emissionIndex(blankAllophoneStateIndex_);
     blankDesc_.transitionModelIndex = acousticModel_.stateTransitionIndex(blankAllophoneStateIndex_);
     require_lt(blankDesc_.transitionModelIndex, Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);

@@ -574,7 +574,7 @@ public:
      * @param phon a string containing a white-space separate list
      * of phoneme symbols.
      */
-    Pronunciation* getPronunciation(const std::string& phon);
+    Core::Status getPronunciation(const std::string& phon, Pronunciation*& out);
 
     /**
      * Add a pronunciation to a lemma.

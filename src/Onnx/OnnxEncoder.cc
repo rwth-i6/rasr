@@ -60,14 +60,14 @@ void OnnxEncoder::encode() {
     std::vector<std::pair<std::string, Value>> sessionInputs;
 
     size_t T_in = inputBuffer_.size();
-    size_t F    = featureSize_;
+    size_t F    = inputBuffer_.front().size();
 
     std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(F)};
 
     Value value = Value::createEmpty<f32>(featuresShape);
 
     for (size_t t = 0ul; t < T_in; ++t) {
-        std::copy(inputBuffer_[t].get(), inputBuffer_[t].get() + F, value.data<f32>(0, t));
+        std::copy(inputBuffer_[t].data(), inputBuffer_[t].data() + F, value.data<f32>(0, t));
     }
     sessionInputs.emplace_back(std::make_pair(featuresName_, std::move(value)));
 
@@ -85,16 +85,14 @@ void OnnxEncoder::encode() {
     /*
      * Put outputs into buffer
      */
-    auto onnxOutputValueWrapper = std::make_shared<Value>(std::move(sessionOutputs.front()));
+    size_t T_out      = sessionOutputs.front().dimSize(1);
+    size_t outputSize = sessionOutputs.front().dimSize(2);
 
-    size_t T_out = onnxOutputValueWrapper->dimSize(1);
-    outputSize_  = onnxOutputValueWrapper->dimSize(2);
+    // Make "global" DataView from output value so that feature slice DataViews can be created from it that ref-count the original value
+    Nn::DataView onnxOutputView(std::move(sessionOutputs.front()));
 
     for (size_t t = 0ul; t < T_out; ++t) {
-        auto frameOutputPtr = std::shared_ptr<const f32[]>(
-                onnxOutputValueWrapper->data<f32>() + t * outputSize_,
-                [onnxOutputValueWrapper](const f32*) mutable {});
-        outputBuffer_.push_back(frameOutputPtr);
+        outputBuffer_.push_back({onnxOutputView, outputSize, t * outputSize});
     }
 }
 

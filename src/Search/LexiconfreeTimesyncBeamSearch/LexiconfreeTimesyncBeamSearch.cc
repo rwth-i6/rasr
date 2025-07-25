@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -34,7 +35,7 @@ namespace Search {
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
-          currentToken(Core::Type<Nn::LabelIndex>::max),
+          currentToken(Nn::invalidLabelIndex),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
@@ -103,7 +104,7 @@ const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramScoreThreshold(
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
-        Core::Type<int>::max);
+        Nn::invalidLabelIndex);
 
 const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
@@ -115,6 +116,11 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramLogStepwiseStatist
         "Log statistics about the beam at every search step.",
         false);
 
+const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterval(
+        "cache-cleanup-interval",
+        "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
+        10);
+
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -123,6 +129,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           blankLabelIndex_(paramBlankLabelIndex(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
+          cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           debugChannel_(config, "debug"),
           labelScorer_(),
           beam_(),
@@ -135,13 +142,15 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           scoringTime_(),
           contextExtensionTime_(),
           numHypsAfterScorePruning_("num-hyps-after-score-pruning"),
+          numHypsAfterRecombination_("num-hyps-after-recombination"),
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
+          currentSearchStep_(0ul),
           finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
-    useBlank_ = blankLabelIndex_ != Core::Type<int>::max;
+    useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
     }
@@ -161,7 +170,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {
-        if (blankLabelIndex_ == Core::Type<int>::max) {
+        if (blankLabelIndex_ == Nn::invalidLabelIndex) {
             blankLabelIndex_ = blankLemma->id();
             useBlank_        = true;
             log() << "Use blank index " << blankLabelIndex_ << " inferred from lexicon";
@@ -185,7 +194,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 
     initializationTime_.stop();
 }
@@ -195,7 +205,8 @@ void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* seg
     labelScorer_->reset();
     resetStatistics();
     initializationTime_.stop();
-    finishedSegment_ = false;
+    currentSearchStep_ = 0ul;
+    finishedSegment_   = false;
 }
 
 void LexiconfreeTimesyncBeamSearch::finishSegment() {
@@ -207,21 +218,15 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     finishedSegment_ = true;
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) {
+void LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
     featureProcessingTime_.start();
-    labelScorer_->addInput(data, featureSize);
+    labelScorer_->addInput(feature);
     featureProcessingTime_.stop();
 }
 
-void LexiconfreeTimesyncBeamSearch::putFeature(std::vector<f32> const& data) {
+void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nTimesteps) {
     featureProcessingTime_.start();
-    labelScorer_->addInput(data);
-    featureProcessingTime_.stop();
-}
-
-void LexiconfreeTimesyncBeamSearch::putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) {
-    featureProcessingTime_.start();
-    labelScorer_->addInputs(data, timeSize, featureSize);
+    labelScorer_->addInputs(features, nTimesteps);
     featureProcessingTime_.stop();
 }
 
@@ -314,17 +319,8 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
     }
 
-    beamSizePruning(extensions_);
-    numHypsAfterBeamPruning_ += extensions_.size();
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-hyps-after-beam-pruning", extensions_.size());
-    }
-
-    /*
-     * Create new beam from surviving extensions.
-     */
+    // Create new beam from surviving extensions.
     newBeam_.clear();
-
     for (auto const& extension : extensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
@@ -336,29 +332,48 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
 
-    /*
-     * For all hypotheses with the same scoring context keep only the best since they will
-     * all develop in the same way.
-     */
+    // For all hypotheses with the same scoring context keep only the best since they will all develop in the same way.
     recombination(newBeam_);
+    numHypsAfterRecombination_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
+    }
+
+    beamSizePruning(newBeam_);
+    numHypsAfterBeamPruning_ += newBeam_.size();
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
+    }
+
     numActiveHyps_ += newBeam_.size();
 
-    if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("active-hyps", newBeam_.size());
+    /*
+     * Clean up label scorer caches.
+     */
+    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+        Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
+        for (auto const& hyp : newBeam_) {
+            activeContexts.push_back(hyp.scoringContext);
+        }
+        labelScorer_->cleanupCaches(activeContexts);
     }
+
+    /*
+     * Log statistics about the new beam after this step.
+     */
+    beam_.swap(newBeam_);
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
-        for (size_t hypIdx = 0ul; hypIdx < newBeam_.size(); ++hypIdx) {
-            ss << "Hypothesis " << hypIdx + 1ul << ":  " << newBeam_[hypIdx].toString() << "\n";
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
         }
         ss << "\n";
         debugChannel_ << ss.str();
     }
 
-    beam_.swap(newBeam_);
-
     if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
         clog() << Core::XmlClose("search-step-stats");
@@ -385,6 +400,7 @@ void LexiconfreeTimesyncBeamSearch::resetStatistics() {
     scoringTime_.reset();
     contextExtensionTime_.reset();
     numHypsAfterScorePruning_.clear();
+    numHypsAfterRecombination_.clear();
     numHypsAfterBeamPruning_.clear();
     numActiveHyps_.clear();
 }
@@ -397,6 +413,7 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     numHypsAfterScorePruning_.write(clog());
+    numHypsAfterRecombination_.write(clog());
     numHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
 }
@@ -405,7 +422,7 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
-    if (prevLabel == Core::Type<Nn::LabelIndex>::max) {
+    if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
         }
@@ -435,14 +452,14 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {
-    if (extensions.size() <= maxBeamSize_) {
+void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const {
+    if (hypotheses.size() <= maxBeamSize_) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
-    std::nth_element(extensions.begin(), extensions.begin() + maxBeamSize_, extensions.end());
-    extensions.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize_, hypotheses.end());
+    hypotheses.resize(maxBeamSize_);  // Get rid of excessive elements
 }
 
 void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const {

@@ -35,14 +35,14 @@ enum TreeBuilderType {
 };
 
 enum SearchType {
-    WordConditionedTreeSearchType,
     AdvancedTreeSearch,
     LinearSearchType,
     ExpandingFsaSearchType
 };
 
 enum SearchTypeV2 {
-    LexiconfreeTimesyncBeamSearchType
+    LexiconfreeTimesyncBeamSearchType,
+    TreeTimesyncBeamSearchType
 };
 
 class Module_ {

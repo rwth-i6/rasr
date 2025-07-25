@@ -15,9 +15,9 @@
 #include <Modules.hh>
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
-#include <Search/WordConditionedTreeSearch.hh>
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
+#include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -36,6 +36,7 @@ Module_::Module_() {
 
 const Core::Choice Module_::searchTypeV2Choice(
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
+        "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
@@ -76,10 +77,6 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
 SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configuration& config) const {
     SearchAlgorithm* recognizer = nullptr;
     switch (type) {
-        case WordConditionedTreeSearchType:
-            recognizer = new Search::WordConditionedTreeSearch(config);
-            break;
-
         case AdvancedTreeSearch:
 #ifdef MODULE_ADVANCED_TREE_SEARCH
             recognizer = new Search::AdvancedTreeSearchManager(config);
@@ -114,6 +111,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
     switch (searchTypeV2Param(config)) {
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
+            break;
+        case TreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));

@@ -32,6 +32,7 @@
 #include <Speech/Feature.hh>
 #include <Speech/Types.hh>
 
+#include "DataView.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -73,9 +74,7 @@ namespace Nn {
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
-    typedef Search::Score                Score;
-    typedef Flow::Vector<f32>            FeatureVector;
-    typedef Flow::DataPtr<FeatureVector> FeatureVectorRef;
+    typedef Search::Score Score;
 
     enum TransitionType {
         LABEL_TO_LABEL,
@@ -122,12 +121,15 @@ public:
     // Creates a copy of the context in the request that is extended using the given token and transition type
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
+    // Given a collection of currently active contexts, this function can clean up values in any internal caches
+    // or buffers that are saved for scoring contexts which no longer are active.
+    virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {};
+
     // Add a single input feature
-    virtual void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize) = 0;
-    virtual void addInput(std::vector<f32> const& input);
+    virtual void addInput(DataView const& input) = 0;
 
     // Add input features for multiple time steps at once
-    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    virtual void addInputs(DataView const& input, size_t nTimesteps);
 
     // Perform scoring computation for a single request
     // Return score and timeframe index of the corresponding output

@@ -20,6 +20,7 @@
 #include <Core/Channel.hh>
 #include <Core/Parameter.hh>
 #include <Core/StopWatch.hh>
+#include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/SearchV2.hh>
@@ -38,6 +39,29 @@ namespace Search {
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeTimesyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterInt   paramMaxBeamSize;
+    static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterInt   paramBlankLabelIndex;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
+
+    LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                            reset() override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                            finishSegment() override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    bool                            decodeStep() override;
+
 protected:
     /*
      * Possible extension for some label hypothesis in the beam
@@ -77,29 +101,6 @@ protected:
         std::string toString() const;
     };
 
-public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterInt   paramBlankLabelIndex;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
-
-    LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
-
-    // Inherited methods from `SearchAlgorithmV2`
-
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(std::shared_ptr<const f32[]> const& data, size_t featureSize) override;
-    void                            putFeature(std::vector<f32> const& data) override;
-    void                            putFeatures(std::shared_ptr<const f32[]> const& data, size_t timeSize, size_t featureSize) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
-
 private:
     size_t maxBeamSize_;
 
@@ -112,6 +113,8 @@ private:
     bool collapseRepeatedLabels_;
 
     bool logStepwiseStatistics_;
+
+    size_t cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
@@ -131,10 +134,12 @@ private:
     Core::StopWatch contextExtensionTime_;
 
     Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterRecombination_;
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
 
-    bool finishedSegment_;
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -151,7 +156,7 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamSizePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
 
     /*
      * Helper function for pruning to scoreThreshold_

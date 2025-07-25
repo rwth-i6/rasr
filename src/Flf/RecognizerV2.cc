@@ -14,6 +14,7 @@
  */
 #include "RecognizerV2.hh"
 #include <Core/XmlStream.hh>
+#include <Fsa/Sort.hh>
 #include <Fsa/Types.hh>
 #include <Speech/ModelCombination.hh>
 #include <chrono>
@@ -61,7 +62,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
 
     // Loop over features and perform recognition
     do {
-        searchAlgorithm_->putFeature(*feature->mainStream());
+        searchAlgorithm_->putFeature(feature->mainStream());
         endTimestamp = feature->timestamp().endTime();
     } while (dataSource->getData(feature));
 

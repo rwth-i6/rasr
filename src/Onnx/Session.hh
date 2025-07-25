@@ -14,6 +14,11 @@
 
 namespace Onnx {
 
+enum ExecutionProviderType {
+    cpu,
+    cuda
+};
+
 class Session : public Core::Component {
 public:
     using Precursor = Core::Component;
@@ -21,6 +26,9 @@ public:
     static const Core::ParameterString paramFile;
     static const Core::ParameterInt    paramIntraOpNumThreads;
     static const Core::ParameterInt    paramInterOpNumThreads;
+
+    static const Core::Choice          executionProviderChoice;
+    static const Core::ParameterChoice paramExecutionProviderType;
 
     Session(Core::Configuration const& config);
     virtual ~Session() = default;

@@ -21,6 +21,7 @@
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/FullInputStatefulOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "Statistics.hh"
@@ -119,6 +120,13 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on hidden state tensors. The full input feature sequence is required for state computation.
+    labelScorerFactory_.registerLabelScorer(
+            "full-input-stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new FullInputStatefulOnnxLabelScorer(config));
             });
 };
 

@@ -26,7 +26,9 @@ public:
     virtual ~Session() = default;
 
     bool                 hasInput(std::string const& name) const;
+    size_t               numInputs() const;
     bool                 hasOutput(std::string const& name) const;
+    size_t               numOutputs() const;
     ValueType            getInputValueType(std::string const& name) const;
     ValueType            getOutputValueType(std::string const& name) const;
     ValueDataType        getInputValueDataType(std::string const& name) const;

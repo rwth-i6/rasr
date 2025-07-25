@@ -83,8 +83,16 @@ bool Session::hasInput(std::string const& name) const {
     return inputNameMap_.find(name) != inputNameMap_.end();
 }
 
+size_t Session::numInputs() const {
+    return inputNameMap_.size();
+}
+
 bool Session::hasOutput(std::string const& name) const {
     return outputNameMap_.find(name) != outputNameMap_.end();
+}
+
+size_t Session::numOutputs() const {
+    return outputNameMap_.size();
 }
 
 ValueType Session::getInputValueType(std::string const& name) const {

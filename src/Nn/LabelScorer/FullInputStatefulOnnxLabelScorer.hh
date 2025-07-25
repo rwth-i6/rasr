@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef STATEFUL_ONNX_LABEL_SCORER_HH
-#define STATEFUL_ONNX_LABEL_SCORER_HH
+#ifndef FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH
+#define FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH
 
 #include <optional>
 
@@ -133,4 +133,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // STATEFUL_ONNX_LABEL_SCORER_HH
+#endif  // FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH

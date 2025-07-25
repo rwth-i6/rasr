@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 #include "FullInputStatefulOnnxLabelScorer.hh"
 
 #include <algorithm>

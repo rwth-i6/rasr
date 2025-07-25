@@ -38,9 +38,10 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
+    pyFsaBuilder.def("get_orthography_by_segment_name", &AllophoneStateFsaBuilder::getOrthographyBySegmentName);
     pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
-    bind_label_scorer(m);
-    bind_search_algorithm(m);
+    bindLabelScorer(m);
+    bindSearchAlgorithm(m);
 }

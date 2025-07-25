@@ -38,7 +38,7 @@ void registerPythonLabelScorer(std::string const& name, py::object const& pyLabe
             });
 }
 
-void bind_label_scorer(py::module_& module) {
+void bindLabelScorer(py::module_& module) {
     module.def(
             "register_label_scorer_type",
             &registerPythonLabelScorer,

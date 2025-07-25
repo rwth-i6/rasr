@@ -14,6 +14,7 @@
  */
 #include "RecognizerV2.hh"
 #include <Core/XmlStream.hh>
+#include <Fsa/Sort.hh>
 #include <Fsa/Types.hh>
 #include <Speech/ModelCombination.hh>
 #include <chrono>

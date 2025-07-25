@@ -20,4 +20,4 @@ namespace py = pybind11;
 /*
  * Create bindings for label scorer classes
  */
-void bind_label_scorer(py::module_& module);
+void bindLabelScorer(py::module_& module);

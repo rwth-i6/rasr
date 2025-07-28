@@ -39,6 +39,31 @@ namespace Search {
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterInt   paramMaxBeamSize;
+    static const Core::ParameterFloat paramScoreThreshold;
+
+    static const Core::ParameterInt   paramSentenceEndLabelIndex;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterFloat paramLengthNormScale;
+    static const Core::ParameterFloat paramMaxLabelsPerTimestep;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
+
+    LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                            reset() override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                            finishSegment() override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    bool                            decodeStep() override;
+
 protected:
     /*
      * Possible extension for some label hypothesis in the beam
@@ -85,30 +110,6 @@ protected:
         std::string toString() const;
     };
 
-public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-
-    static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterFloat paramLengthNormScale;
-    static const Core::ParameterFloat paramMaxLabelsPerTimestep;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
-
-    LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
-
-    // Inherited methods from `SearchAlgorithmV2`
-
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
-
 private:
     size_t maxBeamSize_;
 
@@ -122,6 +123,8 @@ private:
     Nn::LabelIndex sentenceEndLabelIndex_;
 
     bool logStepwiseStatistics_;
+
+    size_t cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
@@ -141,8 +144,10 @@ private:
     Core::StopWatch contextExtensionTime_;
 
     Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
+    Core::Statistics<u32> numTerminatedHypsAfterRecombination_;
     Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHypsAfterScorePruning_;
+    Core::Statistics<u32> numActiveHypsAfterRecombination_;
     Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
 
     size_t currentSearchStep_;
@@ -162,22 +167,17 @@ private:
     void logStatistics() const;
 
     /*
-     * Helper function for pruning of extensions to maxBeamSize_
-     */
-    void beamSizePruningExtensions();
-
-    /*
-     * Helper function for pruning of hyps to maxBeamSize_
+     * Helper function for pruning of hyps to `maxBeamSize_`
      */
     void beamSizePruning();
 
     /*
-     * Helper function for pruning of extensions to scoreThreshold__
+     * Helper function for pruning of extensions to `scoreThreshold_`
      */
     void scorePruningExtensions();
 
     /*
-     * Helper function for pruning of hyps to scoreThreshold_
+     * Helper function for pruning of hyps to `scoreThreshold_`
      */
     void scorePruning();
 
@@ -185,6 +185,11 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination();
+
+    /*
+     * Count hyps with `isActive` flag in `newBeam_`
+     */
+    size_t numActiveHyps() const;
 };
 
 }  // namespace Search

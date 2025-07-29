@@ -12,8 +12,9 @@ TARGETS         = librasr.so
 CXXFLAGS += -fPIC
 LDFLAGS += -shared
 
-RASR_LIB_O = $(OBJDIR)/LibRASR.o \
-			 $(OBJDIR)/Search.o \
+RASR_LIB_O = $(OBJDIR)/LabelScorer.o \
+             $(OBJDIR)/LibRASR.o \
+             $(OBJDIR)/Search.o \
              ../../Flf/libSprintFlf.$(a) \
              ../../Flf/FlfCore/libSprintFlfCore.$(a) \
              ../../Speech/libSprintSpeech.$(a) \

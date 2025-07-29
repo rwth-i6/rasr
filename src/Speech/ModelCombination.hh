@@ -25,15 +25,20 @@
 
 namespace Speech {
 
-/** Combination of a lexicon, an acoustic model or label scorer, and a language model.
- *  It supports creation and initialization of these three mutually dependent objects.
+/** Combination of a lexicon, an acoustic model, a label scorer and a language model.
+ *  It supports the creation and initialization of these four mutually dependent objects.
  *
  *  Usage:
- *    1) create ModelCombination object locally to create the three parts:
- *       lexicon, acoustic model, and language model.Store references of those parts which you
- *    2) call function load, to load the scaling values
- *    3) Store the references to those parts you will use later.
- *    4) When the local ModelCombination object get destructed, the unreferenced parts gets freed as well.
+ *    - Create a ModelCombination object locally to create the four parts:
+ *       lexicon, acoustic model, label scorer and/or language model.
+ *    - The ModelCombination can be directly created by passing references to the lexicon,
+ *      acoustic model and language model.
+ *    - Alternatively, it is possible to set a Mode indicating which components are required
+ *      by setting useLexicon, useAcousticModel, useLanguageModel and/or useLabelScorer.
+ *      In this case, the ModelCombination will create the relevant parts from the config.
+ *      (A Mode for the acoustic model and a lexicon reference can optionally be passed as well.)
+ *    - Store the references to those parts which you will use later.
+ *    - When the local ModelCombination object is destructed, the unreferenced parts get freed as well.
  */
 class ModelCombination : public Mc::Component, public Core::ReferenceCounted {
 public:
@@ -66,41 +71,43 @@ public:
                      Mode                    = complete,
                      Am::AcousticModel::Mode = Am::AcousticModel::complete,
                      Bliss::LexiconRef       = Bliss::LexiconRef());
+
     ModelCombination(const Core::Configuration&,
-                     Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
+                     Bliss::LexiconRef,
+                     Core::Ref<Am::AcousticModel>,
+                     Core::Ref<Lm::ScaledLanguageModel>);
+
     virtual ~ModelCombination();
-
-    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
-
-    void getDependencies(Core::DependencySet&) const;
-
-    Bliss::LexiconRef lexicon() const {
-        return lexicon_;
-    }
-
-    void setLexicon(Bliss::LexiconRef);
 
     Mm::Score pronunciationScale() const {
         return pronunciationScale_ * scale();
     }
 
-    Core::Ref<Am::AcousticModel> acousticModel() const {
-        return acousticModel_;
+    void setLexicon(Bliss::LexiconRef);
+
+    Bliss::LexiconRef lexicon() const {
+        return lexicon_;
     }
 
     void setAcousticModel(Core::Ref<Am::AcousticModel>);
 
-    Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
-        return languageModel_;
+    Core::Ref<Am::AcousticModel> acousticModel() const {
+        return acousticModel_;
     }
 
     void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
+
+    Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
+        return languageModel_;
+    }
 
     void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
 
     Core::Ref<Nn::LabelScorer> labelScorer() const {
         return labelScorer_;
     }
+
+    void getDependencies(Core::DependencySet&) const;
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

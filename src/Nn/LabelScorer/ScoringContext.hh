@@ -21,9 +21,7 @@
 #include <Core/Types.hh>
 #include <Math/FastVector.hh>
 #include <Mm/Types.hh>
-#ifdef MODULE_ONNX
 #include <Onnx/Value.hh>
-#endif
 #include <Speech/Types.hh>
 #ifdef MODULE_ONNX
 #include <Onnx/Value.hh>
@@ -221,8 +219,6 @@ typedef Core::Ref<const PythonScoringContext> PythonScoringContextRef;
 
 #endif
 
-#ifdef MODULE_ONNX
-
 /*
  * Hidden state represented by a dictionary of named ONNX values
  */
@@ -263,8 +259,6 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
-
-#endif  // MODULE_ONNX
 
 }  // namespace Nn
 

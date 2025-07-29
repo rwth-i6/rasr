@@ -297,6 +297,49 @@ Value Value::concat(std::vector<Value const*> const& values, int axis) {
     }
 }
 
+Value::Value(Value const& other)
+        : value_(nullptr) {
+    switch (other.dataType()) {
+        case ValueDataType::FLOAT: {
+            copyFrom<float>(other.value_);
+            break;
+        }
+        case ValueDataType::DOUBLE: {
+            copyFrom<double>(other.value_);
+            break;
+        }
+        case ValueDataType::INT64: {
+            copyFrom<int64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT64: {
+            copyFrom<uint64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT32: {
+            copyFrom<int32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT32: {
+            copyFrom<uint32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT16: {
+            copyFrom<int16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT16: {
+            copyFrom<uint16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT8: {
+            copyFrom<int8_t>(other.value_);
+            break;
+        }
+        default: defect();
+    }
+}
+
 /* ------------------------- Getters ------------------------- */
 
 std::string Value::dimInfo() const {

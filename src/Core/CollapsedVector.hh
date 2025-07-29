@@ -52,12 +52,6 @@ public:
     inline size_t                internalSize() const;
     inline std::vector<T> const& internalData() const;
 
-    inline typename std::vector<T>::iterator begin();
-    inline typename std::vector<T>::iterator end();
-
-    inline typename std::vector<T>::const_iterator begin() const;
-    inline typename std::vector<T>::const_iterator end() const;
-
 private:
     std::vector<T> data_;
     size_t         logicalSize_;
@@ -139,26 +133,6 @@ inline size_t CollapsedVector<T>::internalSize() const {
 template<typename T>
 inline std::vector<T> const& CollapsedVector<T>::internalData() const {
     return data_;
-}
-
-template<typename T>
-inline typename std::vector<T>::iterator CollapsedVector<T>::begin() {
-    return data_.begin();
-}
-
-template<typename T>
-inline typename std::vector<T>::iterator CollapsedVector<T>::end() {
-    return data_.end();
-}
-
-template<typename T>
-inline typename std::vector<T>::const_iterator CollapsedVector<T>::begin() const {
-    return data_.begin();
-}
-
-template<typename T>
-inline typename std::vector<T>::const_iterator CollapsedVector<T>::end() const {
-    return data_.end();
 }
 
 }  // namespace Core

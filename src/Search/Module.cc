@@ -39,6 +39,7 @@ Module_::Module_() {
 }
 
 const Core::Choice Module_::searchTypeV2Choice(
+        "lexiconfree-labelsync-beam-search", SearchTypeV2::LexiconfreeLabelsyncBeamSearchType,
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
         "lexiconfree-labelsync-beam-search", SearchTypeV2::LexiconfreeLabelsyncBeamSearchType,
         "non-autoregressive-search", SearchTypeV2::NonAutoregressiveSearchType,
@@ -115,6 +116,9 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& config) const {
     SearchAlgorithmV2* searchAlgorithm = nullptr;
     switch (searchTypeV2Param(config)) {
+        case LexiconfreeLabelsyncBeamSearchType:
+            searchAlgorithm = new Search::LexiconfreeLabelsyncBeamSearch(config);
+            break;
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
             break;

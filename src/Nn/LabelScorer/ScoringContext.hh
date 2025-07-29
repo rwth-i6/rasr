@@ -21,7 +21,9 @@
 #include <Core/Types.hh>
 #include <Math/FastVector.hh>
 #include <Mm/Types.hh>
-#include <Search/Types.hh>
+#ifdef MODULE_ONNX
+#include <Onnx/Value.hh>
+#endif
 #include <Speech/Types.hh>
 #ifdef MODULE_ONNX
 #include <Onnx/Value.hh>
@@ -218,6 +220,51 @@ struct PythonScoringContext : public ScoringContext {
 typedef Core::Ref<const PythonScoringContext> PythonScoringContextRef;
 
 #endif
+
+#ifdef MODULE_ONNX
+
+/*
+ * Hidden state represented by a dictionary of named ONNX values
+ */
+struct OnnxHiddenState : public Core::ReferenceCounted {
+    std::unordered_map<std::string, Onnx::Value> stateValueMap;
+
+    OnnxHiddenState()
+            : stateValueMap() {}
+
+    OnnxHiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
+        verify(names.size() == values.size());
+        stateValueMap.reserve(names.size());
+        for (size_t i = 0ul; i < names.size(); ++i) {
+            stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
+        }
+    }
+};
+
+typedef Core::Ref<OnnxHiddenState> OnnxHiddenStateRef;
+
+/*
+ * Scoring context consisting of a hidden state.
+ * Assumes that two hidden states are equal if and only if they were created
+ * from the same label history.
+ */
+struct OnnxHiddenStateScoringContext : public ScoringContext {
+    std::vector<LabelIndex> labelSeq;  // Used for hashing
+    OnnxHiddenStateRef      hiddenState;
+
+    OnnxHiddenStateScoringContext()
+            : labelSeq(), hiddenState() {}
+
+    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
+            : labelSeq(labelSeq), hiddenState(state) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
+
+#endif  // MODULE_ONNX
 
 }  // namespace Nn
 

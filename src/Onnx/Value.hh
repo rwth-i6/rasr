@@ -64,7 +64,7 @@ public:
     template<typename T>
     static Value zeros(std::vector<int64_t> const& dim);
 
-    static Value concat(const std::vector<const Value*>& values, int axis);
+    static Value concat(std::vector<Value const*> const& values, int axis);
 
     Value();
     Value(Value const& other);

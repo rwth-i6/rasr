@@ -63,7 +63,7 @@ protected:
     //  - getInput(3) will return None since no fourth input was added yet
     std::optional<DataView> getInput(size_t inputIndex) const;
 
-    // Get number of elements currently in buffer
+    // Get number of currently buffered elements
     size_t bufferSize() const;
 
 private:

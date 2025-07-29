@@ -11,6 +11,10 @@
 #include <cuda_runtime.h>
 #endif
 
+#ifdef MODULE_CUDA
+#include <cuda_runtime.h>
+#endif
+
 #include "Util.hh"
 
 namespace Onnx {
@@ -27,6 +31,14 @@ const Core::ParameterInt Session::paramInterOpNumThreads("inter-op-num-threads",
                                                          "number of threads to use between ops",
                                                          1);
 
+const Core::Choice Session::executionProviderChoice(
+        "cpu", ExecutionProviderType::cpu,
+        "cuda", ExecutionProviderType::cuda,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Session::paramExecutionProviderType(
+        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
@@ -41,24 +53,34 @@ Session::Session(Core::Configuration const& config)
     session_opts.SetIntraOpNumThreads(intraOpNumThreads_);
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
 
-    std::string device = "cpu";
-
-#ifdef MODULE_CUDA
-    // Check if a GPU is actually available
-    int deviceCount = 0;
-    if (cudaGetDeviceCount(&deviceCount) == cudaSuccess and deviceCount > 0) {
-        auto providers = Ort::GetAvailableProviders();
-        if (std::find(providers.begin(), providers.end(), "CUDAExecutionProvider") != providers.end()) {
+    auto providers = Ort::GetAvailableProviders();
+    switch (paramExecutionProviderType(config)) {
+        case ExecutionProviderType::cpu: {
+            if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
+                error() << "Requested CPU execution provider for ONNX session but it is not available.";
+            }
+            break;
+        }
+        case ExecutionProviderType::cuda: {
+            if (std::find(providers.begin(), providers.end(), "CUDAExecutionProvider") == providers.end()) {
+                error() << "Requested CUDA execution provider for ONNX session but it is not available.";
+            }
+#ifndef MODULE_CUDA
+            error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
+#endif
+            int deviceCount = 0;
+            if (cudaGetDeviceCount(&deviceCount) != cudaSuccess or deviceCount == 0) {
+                error() << "Requested CUDA execution provider but no CUDA device was found.";
+            }
             OrtCUDAProviderOptionsV2* cuda_opts = nullptr;
             Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
             session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
             Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
-            device = "cuda";
+            break;
         }
+        default:
+            error() << "Execution provider for ONNX session not known.";
     }
-#else
-    warning() << "RASR was not compiled with MODULE_CUDA enabled so ONNX can only run on CPU.";
-#endif
 
     session_ = Ort::Session(env_, file_.c_str(), session_opts);
 

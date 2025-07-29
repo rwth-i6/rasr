@@ -12,6 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/Configuration.hh>
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
@@ -23,13 +25,13 @@
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
-#include "Module.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -168,6 +170,13 @@ Module_::Module_()
             "full-input-stateful-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new FullInputStatefulOnnxLabelScorer(config));
+            });
+
+    // Returns predefined scores based on the transition type of each score request
+    labelScorerFactory_.registerLabelScorer(
+            "transition",
+            [](Core::Configuration const& config) {
+                return Core::ref(new TransitionLabelScorer(config));
             });
 };
 

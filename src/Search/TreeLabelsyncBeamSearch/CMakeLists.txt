@@ -1,0 +1,4 @@
+set(RasrTreeLabelsyncBeamSearch_SOURCES TreeLabelsyncBeamSearch.cc)
+
+add_library(RasrTreeLabelsyncBeamSearch STATIC ${RasrTreeLabelsyncBeamSearch_SOURCES})
+target_link_libraries(RasrTreeLabelsyncBeamSearch PUBLIC RasrBliss RasrCore RasrLattice RasrNn RasrSearch)

@@ -149,7 +149,7 @@ if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
 endif()
 
-set(SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch RasrLexiconfreeLabelsyncBeamSearch RasrTreeTimesyncBeamSearch)
+set(SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch RasrLexiconfreeLabelsyncBeamSearch RasrTreeLabelsyncBeamSearch RasrTreeTimesyncBeamSearch)
 if(${MODULE_SEARCH_WFST})
     list(APPEND SEARCH_LIBS RasrSearchWfst)
 endif()

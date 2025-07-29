@@ -45,6 +45,7 @@ enum SearchTypeV2 {
     LexiconfreeLabelsyncBeamSearchType,
     LexiconfreeTimesyncBeamSearchType,
     NonAutoregressiveSearchType,
+    TreeLabelsyncBeamSearchType,
     TreeTimesyncBeamSearchType
 };
 

@@ -11,6 +11,7 @@ TARGETS		= libSprintSearch.$(a) check$(exe)
 
 LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Aligner.o \
+		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/Module.o \
 		$(OBJDIR)/PersistentStateTree.o \
@@ -37,6 +38,7 @@ endif
 SUBDIRS += LexiconfreeLabelsyncBeamSearch
 SUBDIRS += LexiconfreeTimesyncBeamSearch
 SUBDIRS += TreeLabelsyncBeamSearch
+SUBDIRS += TreeTimesyncBeamSearch
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -75,6 +77,9 @@ LexiconfreeTimesyncBeamSearch:
 
 TreeLabelsyncBeamSearch:
 	$(MAKE) -C $@ libSprintTreeLabelsyncBeamSearch.$(a)
+
+TreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintTreeTimesyncBeamSearch.$(a)
 
 include $(TOPDIR)/Rules.make
 

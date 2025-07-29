@@ -14,21 +14,11 @@
  */
 #include "ScoringContext.hh"
 
+#include <Core/MurmurHash.hh>
+
 namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;
-
-// Auxiliary function to merge multiple hashes into one via the boost way
-// See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
-size_t combineHashes(size_t hash1, size_t hash2) {
-    if (hash1 == 0ul) {
-        return hash2;
-    }
-    if (hash2 == 0ul) {
-        return hash1;
-    }
-    return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2));
-}
 
 /*
  * =============================
@@ -51,7 +41,7 @@ bool ScoringContext::isEqual(ScoringContextRef const& other) const {
 size_t CombineScoringContext::hash() const {
     size_t value = 0ul;
     for (auto const& scoringContext : scoringContexts) {
-        value = combineHashes(value, scoringContext->hash());
+        value = Core::combineHashes(value, scoringContext->hash());
     }
     return value;
 }
@@ -84,6 +74,38 @@ size_t StepScoringContext::hash() const {
 bool StepScoringContext::isEqual(ScoringContextRef const& other) const {
     StepScoringContext const* o = dynamic_cast<StepScoringContext const*>(other.get());
     return o != nullptr and currentStep == o->currentStep;
+}
+
+/*
+ * =============================
+ * === SeqStepScoringContext ===
+ * =============================
+ */
+size_t SeqStepScoringContext::hash() const {
+    return Core::combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+}
+
+bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const SeqStepScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (currentStep != otherPtr->currentStep) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace Nn

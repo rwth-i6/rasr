@@ -13,13 +13,11 @@
  *  limitations under the License.
  */
 #include "ScoringContext.hh"
+
+#include <Core/Hash.hh>
 #include <Core/MurmurHash.hh>
 #include <pybind11/cast.h>
 #include <pybind11/pytypes.h>
-
-#include <Core/MurmurHash.hh>
-
-#include <Core/MurmurHash.hh>
 
 namespace Nn {
 
@@ -81,7 +79,7 @@ bool LabelSeqScoringContext::isEqual(ScoringContextRef const& other) const {
  * =============================
  */
 size_t SeqStepScoringContext::hash() const {
-    return combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+    return Core::combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
 }
 
 bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
@@ -103,32 +101,6 @@ bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
     return true;
 }
 
-#ifdef MODULE_ONNX
-/*
- * =============================
- * = HiddenStateScoringContext =
- * =============================
- */
-size_t HiddenStateScoringContext::hash() const {
-    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
-}
-
-bool HiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const HiddenStateScoringContext*>(other.get());
-    if (labelSeq.size() != otherPtr->labelSeq.size()) {
-        return false;
-    }
-
-    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
-        if (*it_l != *it_r) {
-            return false;
-        }
-    }
-
-    return true;
-}
-#endif  // MODULE_ONNX
-
 /*
  * =============================
  * == CTCPrefixScoringContext ==
@@ -136,7 +108,7 @@ bool HiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
  */
 
 size_t CTCPrefixScoringContext::hash() const {
-    return combineHashes(Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(prefixScores.data()), prefixScores.size() * sizeof(PrefixScore), 0x78b174eb), lastLabel);
+    return Core::combineHashes(Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(prefixScores.data()), prefixScores.size() * sizeof(PrefixScore), 0x78b174eb), lastLabel);
 }
 
 bool CTCPrefixScoringContext::isEqual(ScoringContextRef const& other) const {

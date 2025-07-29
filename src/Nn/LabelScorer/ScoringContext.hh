@@ -23,13 +23,11 @@
 #include <Mm/Types.hh>
 #include <Onnx/Value.hh>
 #include <Speech/Types.hh>
-#ifdef MODULE_ONNX
-#include <Onnx/Value.hh>
-#endif
 #ifdef MODULE_PYTHON
 #include <pybind11/pytypes.h>
 namespace py = pybind11;
 #endif
+#include <Search/Types.hh>
 
 namespace Nn {
 
@@ -112,50 +110,6 @@ struct SeqStepScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
-
-#ifdef MODULE_ONNX
-
-/*
- * Hidden state containing a dictionary of named ONNX values
- */
-struct HiddenState : public Core::ReferenceCounted {
-    std::unordered_map<std::string, Onnx::Value> stateValueMap;
-
-    HiddenState()
-            : stateValueMap() {}
-
-    HiddenState(std::vector<std::string>&& names, std::vector<Onnx::Value>&& values) {
-        verify(names.size() == values.size());
-        stateValueMap.reserve(names.size());
-        for (size_t i = 0ul; i < names.size(); ++i) {
-            stateValueMap.emplace(std::move(names[i]), std::move(values[i]));
-        }
-    }
-};
-
-typedef Core::Ref<HiddenState> HiddenStateRef;
-
-/*
- * Scoring context that uses hidden state values
- * Assumes that the hidden state is uniquely determined by the label history
- */
-struct HiddenStateScoringContext : public ScoringContext {
-    std::vector<LabelIndex> labelSeq;  // Used for hashing
-    Core::Ref<HiddenState>  hiddenState;
-
-    HiddenStateScoringContext()
-            : labelSeq(), hiddenState() {}
-
-    HiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, HiddenStateRef state)
-            : labelSeq(labelSeq), hiddenState(state) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<const HiddenStateScoringContext> HiddenStateScoringContextRef;
-
-#endif  // MODULE_ONNX
 
 struct CTCPrefixScoringContext : public ScoringContext {
     struct PrefixScore {

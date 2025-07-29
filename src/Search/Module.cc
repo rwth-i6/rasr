@@ -122,9 +122,6 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
             break;
-        case LexiconfreeLabelsyncBeamSearchType:
-            searchAlgorithm = new Search::LexiconfreeLabelsyncBeamSearch(config);
-            break;
         // case NonAutoregressiveSearchType:
         //     searchAlgorithm = new Search::NonAutoregressiveSearch(config);
         //     break;

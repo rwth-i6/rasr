@@ -86,7 +86,7 @@ Session::Session(Core::Configuration const& config)
 
     size_t num_inputs  = session_.GetInputCount();
     size_t num_outputs = session_.GetOutputCount();
-    log("Created ONNX session for ") << file_ << " with " << num_inputs << " inputs and " << num_outputs << " outputs on " << device << " device.";
+    log("Created ONNX session for ") << file_ << " with " << num_inputs << " inputs and " << num_outputs << " outputs";
 
     std::stringstream ss;
     for (size_t i = 0ul; i < num_inputs; i++) {

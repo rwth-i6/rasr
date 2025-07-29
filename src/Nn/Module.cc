@@ -24,7 +24,6 @@
 #include "LabelScorer/FullInputStatefulOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
-#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"
@@ -128,13 +127,6 @@ Module_::Module_()
                         config,
                         encoderFactory().createEncoder(Core::Configuration(config, "encoder")),
                         Core::ref(new StepwiseNoOpLabelScorer(config))));
-            });
-
-    // Scoring based on hidden states that are initialized and updated based on features and history tokens
-    labelScorerFactory_.registerLabelScorer(
-            "stateful-onnx",
-            [](Core::Configuration const& config) {
-                return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 
     // Performs log-linear combination of multiple sub-label-scorers

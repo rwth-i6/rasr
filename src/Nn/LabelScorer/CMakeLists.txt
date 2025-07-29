@@ -11,11 +11,12 @@ set(RasrLabelScorer_SOURCES
     LabelScorer.cc
     LabelScorerFactory.cc
     ScoringContext.cc
+    TransitionLabelScorer.cc
 )
 
 if(${MODULE_ONNX})
     list(APPEND RasrLabelScorer_SOURCES FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
-         StatefulOnnxLabelScorer.cc
+         FullInputStatefulOnnxLabelScorer.cc
     )
 endif()
 

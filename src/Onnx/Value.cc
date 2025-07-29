@@ -42,34 +42,6 @@ DEFINE_ONNX_TENSOR_TYPE_MAPING(std::complex<float>, ONNX_TENSOR_ELEMENT_DATA_TYP
  */
 
 template<typename T>
-void dynamic_rank_concat(Ort::Value& out, const std::vector<const Ort::Value*>& values, int64_t num_blocks, const std::vector<int64_t> block_sizes) {
-    require_eq(values.size(), block_sizes.size());
-    T* data_out = out.GetTensorMutableData<T>();
-
-    int64_t               out_block_size = 0l;
-    std::vector<T const*> data;
-    data.reserve(values.size());
-
-    for (size_t value_idx = 0ul; value_idx < values.size(); ++value_idx) {
-        out_block_size += block_sizes[value_idx];
-        data.push_back(values[value_idx]->GetTensorData<T>());
-    }
-
-    for (size_t block_idx = 0ul; block_idx < num_blocks; block_idx++) {
-        int64_t partial_sum = 0l;
-        for (size_t value_idx = 0ul; value_idx < data.size(); ++value_idx) {
-            std::copy(data[value_idx] + block_sizes[value_idx] * block_idx, data[value_idx] + block_sizes[value_idx] * (block_idx + 1), data_out + (out_block_size)*block_idx + partial_sum);
-            partial_sum += block_sizes[value_idx];
-        }
-    }
-}
-
-/*
- * num_blocks: number of incontinious blocks to each take from the arrays
- * block_sizes: number of continuous elements from each array to take per block
- */
-
-template<typename T>
 void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& values, int64_t num_blocks, std::vector<int64_t> const& block_sizes) {
     require_eq(values.size(), block_sizes.size());
     T* data_out = out.GetTensorMutableData<T>();

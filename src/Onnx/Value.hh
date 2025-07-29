@@ -67,7 +67,6 @@ public:
     static Value concat(std::vector<Value const*> const& values, int axis);
 
     Value();
-    Value(Value const& other);
     Value(Value&& other);
     Value(Value const& other);
     ~Value() = default;
@@ -179,9 +178,6 @@ protected:
     Value(Ort::Value&& value);
 
     Ort::Value value_;
-
-    template<typename T>
-    void copyFrom(Ort::Value const& v);
 
     Ort::Value const* rawValue() const;
 

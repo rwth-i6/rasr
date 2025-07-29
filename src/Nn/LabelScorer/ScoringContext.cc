@@ -25,18 +25,6 @@ namespace Nn {
 
 typedef Mm::EmissionIndex LabelIndex;
 
-// Auxiliary function to merge multiple hashes into one via the boost way
-// See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
-size_t combineHashes(size_t hash1, size_t hash2) {
-    if (hash1 == 0ul) {
-        return hash2;
-    }
-    if (hash2 == 0ul) {
-        return hash1;
-    }
-    return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2));
-}
-
 /*
  * =============================
  * ====== ScoringContext =======
@@ -179,7 +167,7 @@ bool CTCPrefixScoringContext::isEqual(ScoringContextRef const& other) const {
 size_t CombineScoringContext::hash() const {
     size_t value = 0ul;
     for (auto const& scoringContext : scoringContexts) {
-        value = combineHashes(value, scoringContext->hash());
+        value = Core::combineHashes(value, scoringContext->hash());
     }
     return value;
 }

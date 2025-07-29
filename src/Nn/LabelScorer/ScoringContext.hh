@@ -33,7 +33,8 @@ namespace py = pybind11;
 
 namespace Nn {
 
-typedef Mm::EmissionIndex LabelIndex;
+typedef Mm::EmissionIndex   LabelIndex;
+static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 
 /*
  * Empty scoring context base class

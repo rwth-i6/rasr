@@ -30,21 +30,44 @@
 namespace Search {
 
 /*
- * Simple time synchronous beam search algorithm on a search tree built by the CtcTreeBuilder oder RnaTreeBuilder.
+ * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
  * Supports global or separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
  * Uses a LabelScorer to context initialization/extension and scoring.
  *
- * The blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
+ * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
  * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
  * the label loops are also considered when inferring the transtion type as scoring context.
- * Similarly, if the search tree forces blank between two repeated labels (and if repeated labels are collapsed),
- * blank should also be forced across words if the new word starts with the same label as the previous word ended,
- * so "force-blank-between-repeated-labels-across-words" has to be set to true in this case.
  */
 class TreeTimesyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterInt   paramMaxBeamSize;
+    static const Core::ParameterInt   paramMaxWordEndBeamSize;
+    static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterFloat paramWordEndScoreThreshold;
+    static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterBool  paramSentenceEndFallBack;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
+
+    TreeTimesyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode  requiredModelCombination() const override;
+    Am::AcousticModel::Mode         requiredAcousticModel() const override;
+    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                            reset() override;
+    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                            finishSegment() override;
+    void                            putFeature(Nn::DataView const& feature) override;
+    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    bool                            decodeStep() override;
+
 protected:
     /*
      * Possible extension for some label hypothesis in the beam
@@ -89,69 +112,39 @@ protected:
         std::string toString() const;
     };
 
-public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterInt   paramMaxWordEndBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterFloat paramWordEndScoreThreshold;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramForceBlankAcrossWords;
-    static const Core::ParameterBool  paramSentenceEndFallBack;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
-
-    TreeTimesyncBeamSearch(Core::Configuration const&);
-
-    // Inherited methods from `SearchAlgorithmV2`
-
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Speech::ModelCombination::Mode  requiredAcousticModel() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
-
 private:
-    size_t maxBeamSize_;
-    size_t maxWordEndBeamSize_;
-
-    Score scoreThreshold_;
-    Score wordEndScoreThreshold_;
-
+    size_t         maxBeamSize_;
+    size_t         maxWordEndBeamSize_;
+    Score          scoreThreshold_;
+    Score          wordEndScoreThreshold_;
     Nn::LabelIndex blankLabelIndex_;
+    size_t         cacheCleanupInterval_;
 
+    bool useBlank_;
     bool collapseRepeatedLabels_;
-    bool forceBlankAcrossWords_;
-
     bool sentenceEndFallback_;
-
     bool logStepwiseStatistics_;
-
-    Core::Channel debugChannel_;
 
     Core::Ref<Nn::LabelScorer>         labelScorer_;
     Bliss::LexiconRef                  lexicon_;
     Core::Ref<PersistentStateTree>     network_;
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Core::Ref<Lm::ScaledLanguageModel> languageModel_;
-    std::vector<LabelHypothesis>       beam_;
+    Core::Channel                      debugChannel_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
-    std::vector<ExtensionCandidate>       withinWordExtensions_;
-    std::vector<ExtensionCandidate>       wordEndExtensions_;
+    std::vector<LabelHypothesis>          beam_;
     std::vector<LabelHypothesis>          newBeam_;
+    std::vector<LabelHypothesis>          wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request> requests_;
     std::vector<LabelHypothesis>          recombinedHypotheses_;
 
-    int maxNumberOfExits_;
-
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
+
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -159,12 +152,13 @@ private:
     Core::StopWatch contextExtensionTime_;
 
     Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterRecombination_;
     Core::Statistics<u32> numHypsAfterBeamPruning_;
     Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
+    Core::Statistics<u32> numWordEndHypsAfterRecombination_;
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
-
-    bool finishedSegment_;
+    Core::Statistics<u32> numActiveTrees_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -176,12 +170,12 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel, bool inRoot = false) const;
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper function for pruning to maxBeamSize
      */
-    void beamSizePruning(std::vector<TreeTimesyncBeamSearch::ExtensionCandidate>& extensions, size_t maxBeamSize) const;
+    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold

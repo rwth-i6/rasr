@@ -146,15 +146,16 @@ const Core::ParameterChoice Lexicon::paramLexiconType(
         "type", &Lexicon::lexiconTypeChoice, "type of the lexicon file", xmlLexicon);
 
 void Lexicon::load(const std::string& filename) {
-    Core::MD5 md5;
-    if (md5.updateFromFile(filename)) {
+    Core::MD5   md5;
+    std::string strippedFilename = Core::FormatSet::stripQualifier(filename);
+    if (md5.updateFromFile(strippedFilename)) {
         dependency_.setValue(md5);
     }
     else {
-        warning("could not derive md5 sum from file '%s'", filename.c_str());
+        warning("Could not derive md5 sum from file '%s'", strippedFilename.c_str());
     }
 
-    log("reading lexicon from file") << " \"" << filename << "\" ...";
+    log("Reading lexicon from file") << " \"" << strippedFilename << "\" ...";
     if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
     }

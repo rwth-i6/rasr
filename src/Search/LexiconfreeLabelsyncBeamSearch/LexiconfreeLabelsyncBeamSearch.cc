@@ -34,7 +34,7 @@ namespace Search {
 
 LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
-          currentToken(Core::Type<Nn::LabelIndex>::max),
+          currentToken(Nn::invalidLabelIndex),
           length(0),
           score(0.0),
           scaledScore(0.0),

@@ -388,11 +388,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      */
     beam_.swap(newBeam_);
 
-    /*
-     * Log statistics about the new beam after this step.
-     */
-    beam_.swap(newBeam_);
-
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
         for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {

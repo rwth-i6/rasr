@@ -42,7 +42,6 @@ class LexiconfreeTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
     static const Core::ParameterFloat paramIntermediateScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;

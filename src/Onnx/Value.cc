@@ -268,6 +268,49 @@ Value Value::concat(std::vector<Value const*> const& values, int axis) {
     }
 }
 
+Value::Value(Value const& other)
+        : value_(nullptr) {
+    switch (other.dataType()) {
+        case ValueDataType::FLOAT: {
+            copyFrom<float>(other.value_);
+            break;
+        }
+        case ValueDataType::DOUBLE: {
+            copyFrom<double>(other.value_);
+            break;
+        }
+        case ValueDataType::INT64: {
+            copyFrom<int64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT64: {
+            copyFrom<uint64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT32: {
+            copyFrom<int32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT32: {
+            copyFrom<uint32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT16: {
+            copyFrom<int16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT16: {
+            copyFrom<uint16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT8: {
+            copyFrom<int8_t>(other.value_);
+            break;
+        }
+        default: defect();
+    }
+}
+
 /* ------------------------- Getters ------------------------- */
 
 std::string Value::dimInfo() const {
@@ -1120,5 +1163,21 @@ template void Value::save<u16>(std::string const&) const;
 template void Value::save<s8>(std::string const&) const;
 template void Value::save<u8>(std::string const&) const;
 template void Value::save<bool>(std::string const&) const;
+
+template<typename T>
+void Value::copyFrom(Ort::Value const& v) {
+    require(v.IsTensor());
+
+    Ort::TensorTypeAndShapeInfo info       = v.GetTensorTypeAndShapeInfo();
+    std::vector<int64_t>        dims       = info.GetShape();
+    int64_t                     total_size = std::accumulate(dims.begin(), dims.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    Ort::AllocatorWithDefaultOptions allocator;
+    value_       = Ort::Value::CreateTensor<T>(allocator, &(*dims.begin()), dims.size());
+    T const* src = v.GetTensorData<T>();
+    T*       tgt = value_.GetTensorMutableData<T>();
+
+    std::copy(src, src + total_size, tgt);
+}
 
 }  // namespace Onnx

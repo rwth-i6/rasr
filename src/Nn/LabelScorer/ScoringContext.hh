@@ -18,9 +18,7 @@
 
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
-#ifdef MODULE_ONNX
 #include <Onnx/Value.hh>
-#endif
 #include <Speech/Types.hh>
 
 namespace Nn {
@@ -108,8 +106,6 @@ struct SeqStepScoringContext : public ScoringContext {
 
 typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
 
-#ifdef MODULE_ONNX
-
 /*
  * Hidden state represented by a dictionary of named ONNX values
  */
@@ -150,8 +146,6 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 };
 
 typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
-
-#endif  // MODULE_ONNX
 
 }  // namespace Nn
 

@@ -108,7 +108,6 @@ bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
     return true;
 }
 
-#ifdef MODULE_ONNX
 /*
  * =================================
  * = OnnxHiddenStateScoringContext =
@@ -136,6 +135,5 @@ bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) cons
 
     return true;
 }
-#endif  // MODULE_ONNX
 
 }  // namespace Nn

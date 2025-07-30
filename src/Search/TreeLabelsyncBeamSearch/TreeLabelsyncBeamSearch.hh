@@ -26,6 +26,9 @@
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
+#include "Core/Hash.hh"
+#include "Lm/LanguageModel.hh"
+#include "Speech/Types.hh"
 
 namespace Search {
 
@@ -45,15 +48,12 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct ExtensionCandidate {
-        Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
-        const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
-        StateId                          state;           // State in the search tree of this extension
-        Lm::History                      lmHistory;       // LM history of the hypothesis, possibly extended at a word end
-        Score                            score;           // Would-be score of full hypothesis after extension
-        Score                            lmScore;         // Would-be LM score of a word-end hypothesis after extension
-        Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
-        size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
+        StateId                         nextState;       // State in the search tree of this extension
+        Score                           score;           // Would-be score of full hypothesis after extension
+        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
+        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
+        size_t                          baseHypIndex;    // Index of base hypothesis in global beam
 
         bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;
@@ -69,20 +69,22 @@ protected:
         StateId                 currentState;    // Current state in the search tree
         Lm::History             lmHistory;       // Language model history
         size_t                  length;          // Number of tokens in hypothesis for length normalization
+        Speech::TimeframeIndex  time;            // Timeframe of current token
         Score                   score;           // Full score of hypothesis
         Score                   scaledScore;     // Length-normalized score of hypothesis
         Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
         bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
+
+        // Within-word constructor from base and extension
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+
+        // Word-end constructor from base and lemma pronunciation
+        LabelHypothesis(LabelHypothesis const& base, StateId rootState, Bliss::LemmaPronunciation const& pron, Core::Ref<Lm::ScaledLanguageModel const> const& lm, float lengthNormScale);
 
         bool operator<(LabelHypothesis const& other) const {
             return scaledScore < other.scaledScore;
-        }
-
-        bool operator>(LabelHypothesis const& other) const {
-            return scaledScore > other.scaledScore;
         }
 
         /*
@@ -91,16 +93,48 @@ protected:
         std::string toString() const;
     };
 
+    // Label hypotheses that share this recombination context are recombined
+    struct RecombinationContext {
+        StateId               state;
+        Nn::ScoringContextRef scoringContext;
+        Lm::History           lmHistory;
+
+        RecombinationContext(LabelHypothesis const& hyp) : state(hyp.currentState), scoringContext(hyp.scoringContext), lmHistory(hyp.lmHistory) {}
+
+        bool operator==(const RecombinationContext& other) const {
+            return state == other.state and Nn::ScoringContextEq{}(scoringContext, other.scoringContext) and lmHistory == other.lmHistory;
+        }
+    };
+
+    struct RecombinationContextHash {
+        size_t operator()(RecombinationContext const& context) const {
+            size_t h1 = context.state;
+            size_t h2 = Nn::ScoringContextHash{}(context.scoringContext);
+            size_t h3 = Lm::History::Hash{}(context.lmHistory);
+            return Core::combineHashes(Core::combineHashes(h1, h2), h3);
+        }
+    };
+
+    struct RecombinationContextEq {
+        bool operator()(RecombinationContext const& lhs, RecombinationContext const& rhs) const {
+            return lhs.state == rhs.state and Nn::ScoringContextEq{}(lhs.scoringContext, rhs.scoringContext) and lhs.lmHistory == rhs.lmHistory;
+        }
+    };
+
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterInt   paramMaxWordEndBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramWordEndScoreThreshold;
+    static const Core::ParameterInt   paramGlobalMaxBeamSize;
+    static const Core::ParameterFloat paramGlobalScoreThreshold;
+    static const Core::ParameterBool  paramPruneActiveAgainstTerminated;
 
     static const Core::ParameterFloat paramLengthNormScale;
     static const Core::ParameterFloat paramMaxLabelsPerTimestep;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterInt   paramCacheCleanupInterval;
 
     TreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -114,8 +148,8 @@ public:
     void                            finishSegment() override;
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<Traceback const>      getCurrentBestTraceback() const override;
+    Core::Ref<LatticeAdaptor const> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 
 private:
@@ -126,31 +160,38 @@ private:
     Score scoreThreshold_;
     Score wordEndScoreThreshold_;
 
+    size_t globalMaxBeamSize_;
+    Score  globalScoreThreshold_;
+    bool   pruneActiveAgainstTerminated_;
+
     float lengthNormScale_;
 
     float maxLabelsPerTimestep_;
 
-    Nn::LabelIndex sentenceEndLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
 
     bool sentenceEndFallback_;
 
     bool logStepwiseStatistics_;
+
+    size_t cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 
     Core::Ref<Nn::LabelScorer>               labelScorer_;
     Bliss::LexiconRef                        lexicon_;
     Core::Ref<PersistentStateTree>           network_;
-    Core::Ref<const Am::AcousticModel>       acousticModel_;
-    Core::Ref<const Lm::ScaledLanguageModel> languageModel_;
-    std::vector<LabelHypothesis>             beam_;
+    Core::Ref<Am::AcousticModel const>       acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel const> languageModel_;
+    std::vector<LabelHypothesis>             beamActive_;
+    std::vector<LabelHypothesis>             beamTerminated_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
-    std::vector<ExtensionCandidate>       withinWordExtensions_;
-    std::vector<ExtensionCandidate>       wordEndExtensions_;
-    std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
+    std::vector<LabelHypothesis>          withinWordHypotheses_;
+    std::vector<LabelHypothesis>          wordEndHypotheses_;
     std::vector<LabelHypothesis>          recombinedHypotheses_;
 
     int maxNumberOfExits_;
@@ -163,12 +204,15 @@ private:
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveWordEndHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveWordEndHypsAfterBeamPruning_;
+    Core::Statistics<u32> numHypsAfterScorePruning_;
+    Core::Statistics<u32> numHypsAfterRecombination_;
+    Core::Statistics<u32> numHypsAfterBeamPruning_;
+    Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
+    Core::Statistics<u32> numWordEndHypsAfterRecombination_;
+    Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
+    Core::Statistics<u32> numActiveTrees_;
+    Core::Statistics<u32> numActiveHyps_;
+    Core::Statistics<u32> numTerminatedHyps_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;
@@ -187,29 +231,53 @@ private:
     void logStatistics() const;
 
     /*
-     * Helper function for pruning of extensions to maxBeamSize
+     * Collect all possible within-word extensions for all active hypotheses in the beam.
+     * Also create scoring requests for the label scorer.
+     * Each extension candidate makes up a request.
      */
-    void beamSizePruningExtensions(std::vector<TreeLabelsyncBeamSearch::ExtensionCandidate>& extensions, size_t maxBeamSize);
+    void createExtensions();
 
     /*
-     * Helper function for pruning of hyps to maxBeamSize_
+     * Perform scoring of all the requests with the label scorer.
+     * Return true if scoring was possible
      */
-    void beamSizePruning();
+    bool scoreExtensions();
 
     /*
-     * Helper function for pruning of extensions to scoreThreshold
+     * Expand `extensions_` to fully fledged `withinWordHypotheses_` with updated scoring context
      */
-    void scorePruningExtensions(std::vector<TreeLabelsyncBeamSearch::ExtensionCandidate>& extensions, Score scoreThreshold);
+    void createWithinWordHypothesesFromExtensions();
 
     /*
-     * Helper function for pruning of hyps to scoreThreshold_
+     * Create set of word-end hypotheses from `withinWordHypotheses_` and `terminatedHypotheses_` and also add the LM score for each
      */
-    void scorePruning();
+    void createWordEndHypotheses();
 
     /*
-     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history
+     * Perform recombination on hypotheses in `hyps`. If `createTraceSiblings` is true, the traces of the hypotheses that are pruned
+     * are added as siblings to the hypotheses that are kept.
      */
-    void recombination();
+    void recombination(std::vector<LabelHypothesis>& hyps, bool createTraceSiblings);
+
+    /*
+     * Helper function for pruning of hyps to maxBeamSize
+     */
+    void beamSizePruning(std::vector<LabelHypothesis>& hyps, size_t maxBeamSize);
+
+    /*
+     * Helper function for pruning of `extensions_` to `scoreThreshold_`
+     */
+    void scorePruningExtensions();
+
+    /*
+     * Helper function for pruning of `wordEndHypotheses_` to `wordEndScoreThreshold_`
+     */
+    void scorePruningWordEnds();
+
+    /*
+     * Fill `beamActive_` and `beamTerminated_` from `withinWordHypotheses_` and `wordEndHypotheses_`
+     */
+    void createNewBeam();
 
     /*
      * Precompute information about the successor structure of each state in the search tree
@@ -221,11 +289,27 @@ private:
     void createSuccessorLookups();
 
     /*
-     * After reaching the segment end, go through the hypotheses, only keep those
-     * which are terminated or at a word end (in the root state) and add the sentence end LM score.
-     * If no terminated or word-end hypotheses exist, use sentence-end fallback or construct an empty hypothesis
+     * All active hypotheses that worse than the best terminated one plus a threshold are pruned.
      */
-    void finalizeLmScoring();
+    void pruneActiveAgainstTerminatedByScore();
+
+    /*
+     * All active hypotheses that are not within the overall top-k across both active and terminated
+     * hypotheses are pruned.
+     */
+    void pruneActiveAgainstTerminatedByLimit();
+
+    /*
+     * Return true if no active hypothesis is within a score-limit of the best terminated one plus a threshold
+     * or no active hypothesis is within the overall top-k across both active and terminated hypotheses.
+     */
+    bool stopCriterion();
+
+    /*
+     * After reaching the segment end, if no terminated hypotheses exist, use sentence-end fallback
+     * or construct an empty terminated hypothesis.
+     */
+    void finalize();
 };
 
 }  // namespace Search

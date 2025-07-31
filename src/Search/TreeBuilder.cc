@@ -1466,10 +1466,10 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 
 AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : CtcAedSharedBaseClassTreeBuilder(config, lexicon, acousticModel, network) {
-    auto iters = lexicon.phonemeInventory()->phonemes();
-    for (auto it = iters.first; it != iters.second; ++it) {
-        require(not(*it)->isContextDependent());  // Context dependent labels are not supported
-    }
+    // auto iters = lexicon.phonemeInventory()->phonemes();
+    // for (auto it = iters.first; it != iters.second; ++it) {
+    //     require(not(*it)->isContextDependent());  // Context dependent labels are not supported
+    // }
 
     if (initialize) {
         verify(!network_.rootState);

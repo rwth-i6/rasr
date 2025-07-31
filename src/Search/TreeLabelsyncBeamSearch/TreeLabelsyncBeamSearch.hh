@@ -18,17 +18,17 @@
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Channel.hh>
+#include <Core/Hash.hh>
 #include <Core/Parameter.hh>
 #include <Core/StopWatch.hh>
+#include <Lm/LanguageModel.hh>
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
-#include "Core/Hash.hh"
-#include "Lm/LanguageModel.hh"
-#include "Speech/Types.hh"
+#include <Speech/Types.hh>
 
 namespace Search {
 

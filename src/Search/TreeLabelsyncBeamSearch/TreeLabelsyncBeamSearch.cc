@@ -262,7 +262,17 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
     if (!sentenceEndLemma_) {
         sentenceEndLemma_ = lexicon_->specialLemma("sentence-boundary");
     }
-    sentenceEndLabelIndex_ = sentenceEndLemma_->id();
+    if (sentenceEndLemma_ == nullptr) {
+        error() << "Could not find sentence-end lemma in the lexicon";
+    }
+    if (sentenceEndLemma_->nPronunciations() == 0) {
+        error() << "Sentence-end lemma has no pronunciation so the sentence-end label cannot be determined";
+    }
+    auto const* sentenceEndPronunciation = sentenceEndLemma_->pronunciations().first->pronunciation();
+    if (sentenceEndPronunciation->length() != 1) {
+        error() << "Sentence-end lemma pronunciation must contain exactly one label, otherwise the sentence-end label cannot be determined";
+    }
+    sentenceEndLabelIndex_ = (*sentenceEndPronunciation)[0];
     log() << "Use sentence-end index " << sentenceEndLabelIndex_ << " inferred from lexicon";
 
     // Create look-ups for state successors and exits of each state
@@ -428,9 +438,11 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     /*
      * Logging and statistics
      */
-    std::unordered_set<Lm::History, Lm::History::Hash> seenHistories;
+    std::vector<Lm::History> seenHistories;
     for (auto const& hyp : beamActive_) {
-        seenHistories.insert(hyp.lmHistory);
+        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
+            seenHistories.push_back(hyp.lmHistory);
+        }
     }
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-active-trees", seenHistories.size());
@@ -868,6 +880,9 @@ void TreeLabelsyncBeamSearch::pruneActiveAgainstTerminatedByLimit() {
         beamActive_.clear();
         return;
     }
+    if (beamTerminated_.size() + beamActive_.size() <= globalMaxBeamSize_) {
+        return;
+    }
 
     size_t limit = globalMaxBeamSize_ - beamTerminated_.size();
     std::nth_element(beamActive_.begin(), beamActive_.begin() + limit, beamActive_.end());
@@ -875,17 +890,17 @@ void TreeLabelsyncBeamSearch::pruneActiveAgainstTerminatedByLimit() {
 }
 
 bool TreeLabelsyncBeamSearch::stopCriterion() {
-    auto const* bestTerminatedHyp = getBestTerminatedHypothesis();
-    if (bestTerminatedHyp == nullptr) {
-        return false;
-    }
-
     if (beamActive_.empty()) {
         return true;
     }
 
     if (beamTerminated_.size() >= globalMaxBeamSize_) {
         return true;
+    }
+
+    auto const* bestTerminatedHyp = getBestTerminatedHypothesis();
+    if (bestTerminatedHyp == nullptr) {
+        return false;
     }
 
     if (globalScoreThreshold_ != Core::Type<Score>::max) {

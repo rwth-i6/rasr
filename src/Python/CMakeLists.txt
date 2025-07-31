@@ -3,8 +3,9 @@ set(RasrPython_SOURCES
     AllophoneStateFsaBuilder.cc
     Configuration.cc
     Init.cc
-    GenericPythonLabelScorer.cc
+    LabelScorer.cc
     Numpy.cc
+    ScoringContext.cc
     Search.cc
     Utilities.cc
 )

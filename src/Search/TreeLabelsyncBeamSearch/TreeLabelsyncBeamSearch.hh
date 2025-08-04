@@ -50,8 +50,10 @@ protected:
     struct ExtensionCandidate {
         Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
         StateId                         nextState;       // State in the search tree of this extension
+        size_t                          length;          // Would-be number of tokens in hypothesis after extension
+        Search::TimeframeIndex          time;            // Timestamp of `nextToken` for traceback
         Score                           score;           // Would-be score of full hypothesis after extension
-        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
+        Score                           scaledScore;     // Would-be length-normalized score of full hypothesis after extension
         Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
         size_t                          baseHypIndex;    // Index of base hypothesis in global beam
 
@@ -78,7 +80,7 @@ protected:
         LabelHypothesis();
 
         // Within-word constructor from base and extension
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
 
         // Word-end constructor from base and lemma pronunciation
         LabelHypothesis(LabelHypothesis const& base, StateId rootState, Bliss::LemmaPronunciation const& pron, Core::Ref<Lm::ScaledLanguageModel const> const& lm, float lengthNormScale);
@@ -121,6 +123,12 @@ protected:
         }
     };
 
+    enum GlobalPruningStrategyType {
+        NONE,
+        ACTIVE_AGAINST_TERMINATED,
+        ALL
+    };
+
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterInt   paramMaxWordEndBeamSize;
@@ -128,13 +136,16 @@ public:
     static const Core::ParameterFloat paramWordEndScoreThreshold;
     static const Core::ParameterInt   paramGlobalMaxBeamSize;
     static const Core::ParameterFloat paramGlobalScoreThreshold;
-    static const Core::ParameterBool  paramPruneActiveAgainstTerminated;
+    static const Core::ParameterFloat paramDominationScoreThreshold;
 
     static const Core::ParameterFloat paramLengthNormScale;
     static const Core::ParameterFloat paramMaxLabelsPerTimestep;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterInt   paramCacheCleanupInterval;
+
+    static const Core::Choice          globalPruningStrategyChoice;
+    static const Core::ParameterChoice paramGlobalPruningStrategyType;
 
     TreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -160,9 +171,11 @@ private:
     Score scoreThreshold_;
     Score wordEndScoreThreshold_;
 
-    size_t globalMaxBeamSize_;
-    Score  globalScoreThreshold_;
-    bool   pruneActiveAgainstTerminated_;
+    GlobalPruningStrategyType globalPruningStrategy_;
+    size_t                    globalMaxBeamSize_;
+    Score                     globalScoreThreshold_;
+
+    Score dominationScoreThreshold_;
 
     float lengthNormScale_;
 
@@ -184,6 +197,7 @@ private:
     Core::Ref<PersistentStateTree>           network_;
     Core::Ref<Am::AcousticModel const>       acousticModel_;
     Core::Ref<Lm::ScaledLanguageModel const> languageModel_;
+    std::vector<LabelHypothesis>             newBeam_;
     std::vector<LabelHypothesis>             beamActive_;
     std::vector<LabelHypothesis>             beamTerminated_;
 
@@ -210,6 +224,8 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32> numWordEndHypsAfterRecombination_;
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
+    Core::Statistics<u32> numHypsAfterGlobalScorePruning_;
+    Core::Statistics<u32> numHypsAfterGlobalBeamPruning_;
     Core::Statistics<u32> numActiveTrees_;
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numTerminatedHyps_;
@@ -217,6 +233,10 @@ private:
     size_t currentSearchStep_;
     size_t totalTimesteps_;
     bool   finishedSegment_;
+
+    static bool isSet(Score threshold) {
+        return threshold != Core::Type<Score>::max;
+    }
 
     LabelHypothesis const* getBestTerminatedHypothesis() const;
     LabelHypothesis const* getWorstTerminatedHypothesis() const;
@@ -229,6 +249,15 @@ private:
 
     void resetStatistics();
     void logStatistics() const;
+
+    /*
+     * Precompute information about the successor structure of each state in the search tree
+     * to avoid repeated computation during the decode steps
+     * stateSuccessorLookup_: contains a list of all state successors for the state at the corresponding index
+     * exitLookup_: contains a list of all exits for the state at the corresponding index
+     */
+    // TODO make this more efficient, especially for states with only one exit (cf. AdvancedTreeSearch)
+    void createSuccessorLookups();
 
     /*
      * Collect all possible within-word extensions for all active hypotheses in the beam.
@@ -265,39 +294,20 @@ private:
     void beamSizePruning(std::vector<LabelHypothesis>& hyps, size_t maxBeamSize);
 
     /*
-     * Helper function for pruning of `extensions_` to `scoreThreshold_`
+     * Helper function for pruning of all elements in `hyps` for which the scaledScore exceeds `pruningThreshold`
      */
-    void scorePruningExtensions();
+    template<typename Element>
+    void scorePruning(std::vector<Element>& hyps, Score pruningThreshold);
 
     /*
-     * Helper function for pruning of `wordEndHypotheses_` to `wordEndScoreThreshold_`
-     */
-    void scorePruningWordEnds();
-
-    /*
-     * Fill `beamActive_` and `beamTerminated_` from `withinWordHypotheses_` and `wordEndHypotheses_`
+     * Fill `newBeam_` from `withinWordHypotheses_` and `wordEndHypotheses_`
      */
     void createNewBeam();
 
     /*
-     * Precompute information about the successor structure of each state in the search tree
-     * to avoid repeated computation during the decode steps
-     * stateSuccessorLookup_: contains a list of all state successors for the state at the corresponding index
-     * exitLookup_: contains a list of all exits for the state at the corresponding index
+     * Split `newBeam_` into `beamActive_` and `beamTerminated_`
      */
-    // TODO make this more efficient, especially for states with only one exit (cf. AdvancedTreeSearch)
-    void createSuccessorLookups();
-
-    /*
-     * All active hypotheses that worse than the best terminated one plus a threshold are pruned.
-     */
-    void pruneActiveAgainstTerminatedByScore();
-
-    /*
-     * All active hypotheses that are not within the overall top-k across both active and terminated
-     * hypotheses are pruned.
-     */
-    void pruneActiveAgainstTerminatedByLimit();
+    void splitActiveTerminated();
 
     /*
      * Return true if no active hypothesis is within a score-limit of the best terminated one plus a threshold

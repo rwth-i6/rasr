@@ -58,7 +58,7 @@ protected:
         size_t                          baseHypIndex;    // Index of base hypothesis in global beam
 
         bool operator<(ExtensionCandidate const& other) const {
-            return score < other.score;
+            return scaledScore < other.scaledScore;
         }
     };
 

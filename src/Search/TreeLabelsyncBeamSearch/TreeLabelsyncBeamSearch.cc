@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Am/ClassicStateModel.hh>
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
@@ -97,7 +98,7 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
 std::string TreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
-    ss << "Score: " << score << "; recent token: " << currentToken << "; traceback: ";
+    ss << "Score: " << score << "; scaled score: " << scaledScore << "; recent token: " << currentToken << "; traceback: ";
 
     auto traceback = trace->performTraceback();
 
@@ -285,7 +286,8 @@ bool TreeLabelsyncBeamSearch::setModelCombination(Speech::ModelCombination const
     if (sentenceEndPronunciation->length() != 1) {
         error() << "Sentence-end lemma pronunciation must contain exactly one label, otherwise the sentence-end label cannot be determined";
     }
-    sentenceEndLabelIndex_ = (*sentenceEndPronunciation)[0];
+    Am::Allophone a((*sentenceEndPronunciation)[0], Am::Allophone::isFinalPhone);
+    sentenceEndLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->allophoneStateAlphabet()->allophoneState(&a, 0));
     log() << "Use sentence-end index " << sentenceEndLabelIndex_ << " inferred from lexicon";
 
     // Create look-ups for state successors and exits of each state
@@ -387,13 +389,12 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     }
 
     if (not scoreExtensions()) {
-        log() << "Can't score extensions";
         return false;
     }
-    log() << "Perform search step " << currentSearchStep_ << " out of max " << totalTimesteps_;
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlFull("current-step", currentSearchStep_);
     }
 
     if (isSet(scoreThreshold_)) {
@@ -520,7 +521,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-terminated-hyps", beamTerminated_.size());
         clog() << Core::XmlFull("num-active-hyps", beamActive_.size());
         auto const* bestTerminatedHyp  = getBestTerminatedHypothesis();
-        auto const* worstTerminatedHyp = getWorstActiveHypothesis();
+        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis();
         auto const* bestActiveHyp      = getBestActiveHypothesis();
         auto const* worstActiveHyp     = getWorstActiveHypothesis();
         if (bestTerminatedHyp != nullptr) {
@@ -909,12 +910,12 @@ void TreeLabelsyncBeamSearch::splitActiveTerminated() {
 
 bool TreeLabelsyncBeamSearch::stopCriterion() {
     if (beamActive_.empty()) {
-        log() << "Stopped search because no active hypotheses are left";
+        log() << "Stopped search because active hypotheses have been pruned";
         return true;
     }
 
     if (isSet(dominationScoreThreshold_) and not beamTerminated_.empty()) {
-        auto threshold = std::min_element(beamTerminated_.begin(), beamTerminated_.end())->scaledScore + dominationScoreThreshold_;
+        auto threshold = getBestTerminatedHypothesis()->scaledScore + dominationScoreThreshold_;
         if (std::all_of(beamActive_.begin(), beamActive_.end(), [&](auto const& hyp) { return hyp.scaledScore > threshold; })) {
             log() << "Stopped search because the best terminiated hypothesis dominates all active ones";
             return true;

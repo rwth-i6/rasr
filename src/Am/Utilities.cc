@@ -22,30 +22,39 @@ LexiconUtilities::LexiconUtilities(const Core::Configuration& c, Bliss::LexiconR
 
 const Bliss::LemmaPronunciation* LexiconUtilities::determineSpecialLemmaPronunciation(const std::string& specialKey) const {
     const Bliss::Lemma* specialLemma = lexicon_->specialLemma(specialKey);
-    if (!specialLemma)
-        error() << "No special lemma \"" << specialKey << "\" defined in lexicon.";
-    else if (specialLemma->nPronunciations() < 1)
+    if (!specialLemma) {
+        warning() << "No special lemma \"" << specialKey << "\" defined in lexicon.";
+        return &(Bliss::LemmaPronunciation::invalidPronunciation());
+    }
+    else if (specialLemma->nPronunciations() < 1) {
         error() << "Special lemma \"" << specialKey << "\" does not have a pronunciation.";
-    else if (specialLemma->nPronunciations() > 1)
+    }
+    else if (specialLemma->nPronunciations() > 1) {
         warning() << "Special lemma \"" << specialKey << "\" has multiple pronunciations. Using /"
                   << specialLemma->pronunciations().first->pronunciation()->format(lexicon_->phonemeInventory())
                   << "/.";
+    }
     return specialLemma->pronunciations().first;
 }
 
 Bliss::Phoneme::Id LexiconUtilities::determineSilencePhoneme() const {
-    Bliss::Phoneme::Id          result = Bliss::Phoneme::term;
-    const Bliss::Pronunciation* silencePronunciation =
-            determineSilencePronunciation()->pronunciation();
-    if (silencePronunciation) {
-        if (silencePronunciation->length() < 1)
-            error("Silence pronunciation contains no phoneme.");
-        else {
-            result = (*silencePronunciation)[0];
-            if (silencePronunciation->length() > 1)
-                error("Silence pronunciation multiple phonemes. Using only /%s/",
-                      lexicon_->phonemeInventory()->phoneme(result)->symbol().str());
+    Bliss::Phoneme::Id               result                    = Bliss::Phoneme::term;
+    const Bliss::LemmaPronunciation* silenceLemmaPronunciation = determineSilencePronunciation();
+    if (silenceLemmaPronunciation != &(Bliss::LemmaPronunciation::invalidPronunciation())) {
+        const Bliss::Pronunciation* silencePronunciation = silenceLemmaPronunciation->pronunciation();
+        if (silencePronunciation) {
+            if (silencePronunciation->length() < 1)
+                error("Silence pronunciation contains no phoneme.");
+            else {
+                result = (*silencePronunciation)[0];
+                if (silencePronunciation->length() > 1)
+                    error("Silence pronunciation multiple phonemes. Using only /%s/",
+                          lexicon_->phonemeInventory()->phoneme(result)->symbol().str());
+            }
         }
+    }
+    else {
+        return Bliss::Phoneme::invalidId;
     }
 
     if (result == Bliss::Phoneme::term)

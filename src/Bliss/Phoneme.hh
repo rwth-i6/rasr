@@ -119,7 +119,8 @@ class Phoneme : public Token {
 public:
     typedef u16                    Id;
     typedef Bliss::u16_char_traits Id_char_traits;
-    static const Id                term = 0;
+    static const Id                term      = 0;
+    static constexpr Id            invalidId = -1;
 
 private:
     bool isContextDependent_;

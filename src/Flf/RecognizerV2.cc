@@ -32,7 +32,10 @@ RecognizerNodeV2::RecognizerNodeV2(const std::string& name, const Core::Configur
           latticeResultBuffer_(),
           segmentResultBuffer_(),
           searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
-          modelCombination_() {
+          modelCombination_(),
+          latticeHandler_(Flf::Module::instance().createLatticeHandler(config)) {
+    latticeHandler_->setLexicon(Flf::Lexicon::us());
+
     Core::Configuration featureExtractionConfig(config, "feature-extraction");
     DataSourceRef       dataSource = DataSourceRef(Speech::Module::instance().createDataSource(featureExtractionConfig));
     featureExtractor_              = SegmentwiseFeatureExtractorRef(new SegmentwiseFeatureExtractor(featureExtractionConfig, dataSource));
@@ -73,7 +76,7 @@ void RecognizerNodeV2::recognizeSegment(const Bliss::SpeechSegment* segment) {
     // Result processing and logging
     auto traceback = searchAlgorithm_->getCurrentBestTraceback();
 
-    auto lattice         = buildLattice(searchAlgorithm_->getCurrentBestWordLattice(), segment->name());
+    auto lattice         = buildLattice(searchAlgorithm_->getCurrentBestWordLattice(), segment->name(), *modelCombination_, latticeHandler_.get());
     latticeResultBuffer_ = lattice;
     segmentResultBuffer_ = SegmentRef(new Flf::Segment(segment));
 
@@ -104,8 +107,8 @@ void RecognizerNodeV2::work() {
     clog() << Core::XmlClose("layer");
 }
 
-ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string segmentName) {
-    auto lmScale = modelCombination_->languageModel()->scale();
+ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string const& segmentName, Speech::ModelCombination const& modelCombination, Flf::LatticeHandler* handler) {
+    auto lmScale = modelCombination.languageModel()->scale();
 
     auto semiring = Semiring::create(Fsa::SemiringTypeTropical, 2);
     semiring->setKey(0, "am");
@@ -114,13 +117,11 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
     semiring->setScale(1, lmScale);
 
     auto                sentenceEndLabel        = Fsa::Epsilon;
-    const Bliss::Lemma* specialSentenceEndLemma = modelCombination_->lexicon()->specialLemma("sentence-end");
+    const Bliss::Lemma* specialSentenceEndLemma = modelCombination.lexicon()->specialLemma("sentence-end");
     if (specialSentenceEndLemma and specialSentenceEndLemma->nPronunciations() > 0) {
         sentenceEndLabel = specialSentenceEndLemma->pronunciations().first->id();
     }
 
-    Flf::LatticeHandler* handler = Flf::Module::instance().createLatticeHandler(config);
-    handler->setLexicon(Lexicon::us());
     if (latticeAdaptor->empty()) {
         return ConstLatticeRef();
     }
@@ -134,7 +135,7 @@ ConstLatticeRef RecognizerNodeV2::buildLattice(Core::Ref<const Search::LatticeAd
     StaticLatticeRef    flfLattice    = StaticLatticeRef(new StaticLattice);
     flfLattice->setType(Fsa::TypeAcceptor);
     flfLattice->setProperties(Fsa::PropertyAcyclic | PropertyCrossWord, Fsa::PropertyAll);
-    flfLattice->setInputAlphabet(modelCombination_->lexicon()->lemmaPronunciationAlphabet());
+    flfLattice->setInputAlphabet(modelCombination.lexicon()->lemmaPronunciationAlphabet());
     flfLattice->setSemiring(semiring);
     flfLattice->setDescription(Core::form("recog(%s)", segmentName.c_str()));
     flfLattice->setBoundaries(ConstBoundariesRef(flfBoundaries));

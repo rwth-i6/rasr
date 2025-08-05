@@ -16,6 +16,8 @@
 #ifndef _PYTHON_SEARCH_HH
 #define _PYTHON_SEARCH_HH
 
+#include <Flf/LatticeHandler.hh>
+#include <Flf/Lexicon.hh>
 #include <Search/SearchV2.hh>
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h
@@ -59,12 +61,22 @@ public:
     // Return the current best result. May contain unstable results.
     Traceback getCurrentBestTraceback();
 
+    // Return the current best n-best list. May contain unstable results.
+    std::vector<Traceback> getCurrentNBestList(size_t nBestSize);
+
     // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
     // Returns the recognition result
     Traceback recognizeSegment(py::array_t<f32> const& features);
 
+    // Convenience function to recognize a full segment given all the features as a tensor of shape [T, F]
+    // Returns a n-best list of recognition results
+    std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
+
 private:
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
+    Flf::LexiconRef                            lexicon_;
+    Speech::ModelCombination                   modelCombination_;
+    std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
 };
 
 #endif  // _PYTHON_SEARCH_HH

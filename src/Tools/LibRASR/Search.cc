@@ -110,8 +110,21 @@ void bindSearchAlgorithm(py::module_& module) {
             "Get the best traceback given all features that have been passed thus far.");
 
     pySearchAlgorithm.def(
+            "get_current_n_best_list",
+            &SearchAlgorithm::getCurrentNBestList,
+            py::arg("n"),
+            "Get a n-best list of tracebacks given all features that have been passed thus far.");
+
+    pySearchAlgorithm.def(
             "recognize_segment",
             &SearchAlgorithm::recognizeSegment,
             py::arg("features"),
             "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return the recognition result.");
+
+    pySearchAlgorithm.def(
+            "recognize_segment_n_best",
+            &SearchAlgorithm::recognizeSegmentNBest,
+            py::arg("features"),
+            py::arg("n"),
+            "Convenience function to reset the search algorithm, start a segment, pass all the features as a numpy array of shape [T, F] or [1, T, F], finish the segment, and return a n-best list of results.");
 }

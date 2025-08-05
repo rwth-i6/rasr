@@ -16,12 +16,13 @@
 #define RECOGNIZER_V2_HH
 
 #include <Flf/FlfCore/Lattice.hh>
+#include <Flf/LatticeHandler.hh>
 #include <Search/Module.hh>
 #include <Search/SearchV2.hh>
+#include <Speech/ModelCombination.hh>
 #include <Speech/Module.hh>
 #include "Network.hh"
 #include "SegmentwiseSpeechProcessor.hh"
-#include "Speech/ModelCombination.hh"
 
 namespace Flf {
 
@@ -53,18 +54,19 @@ private:
      */
     void work();
 
-    /*
-     * Convert an output lattice from `searchAlgorithm_` to an Flf lattice
-     */
-    ConstLatticeRef buildLattice(Core::Ref<const Search::LatticeAdaptor> latticeAdaptor, std::string segmentName);
-
     ConstLatticeRef latticeResultBuffer_;
     ConstSegmentRef segmentResultBuffer_;
 
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Core::Ref<Speech::ModelCombination>        modelCombination_;
     SegmentwiseFeatureExtractorRef             featureExtractor_;
+    std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
 };
+
+/*
+ * Convert an output lattice from `searchAlgorithm_` to an Flf lattice
+ */
+ConstLatticeRef buildLattice(Core::Ref<Search::LatticeAdaptor const> latticeAdaptor, std::string const& segmentName, Speech::ModelCombination const& modelCombination, Flf::LatticeHandler* handler);
 
 }  // namespace Flf
 

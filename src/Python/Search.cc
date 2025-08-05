@@ -136,8 +136,10 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
     auto initialState = nBestLattice->getState(nBestLattice->initialStateId());
 
     for (auto arcIter = initialState->begin(); arcIter != initialState->end(); ++arcIter) {
-        Traceback tb;
-        u32       prevTime = 0;
+        Traceback  tb;
+        u32        prevTime = 0;
+        Flf::Score amScore  = 0;
+        Flf::Score lmScore  = 0;
 
         auto arc = arcIter;
 
@@ -148,8 +150,8 @@ std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
             if (arc->input() != Fsa::Epsilon) {
                 auto label = alphabet->symbol(arc->input());
 
-                auto amScore = arc->score(amId);
-                auto lmScore = arc->score(lmId);
+                amScore += arc->score(amId);
+                lmScore += arc->score(lmId);
 
                 tb.push_back({label,
                               amScore,

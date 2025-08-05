@@ -32,14 +32,22 @@ ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::R
 
 std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    if (inputBuffer_.size() <= stepHistory->currentStep) {
+    auto                  input = getInput(stepHistory->currentStep);
+    if (not input) {
         return {};
     }
-    if (request.nextToken >= featureSize_) {
-        error() << "Tried to get score for token index " << request.nextToken << " but only have " << featureSize_ << " scores available.";
+
+    return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
+}
+
+size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minInputIndex = Core::Type<size_t>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
     }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
+    return minInputIndex;
 }
 
 }  // namespace Nn

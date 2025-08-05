@@ -15,6 +15,7 @@
 #ifndef CORE_BITSTREAM_HH
 #define CORE_BITSTREAM_HH
 
+#include <cstdint>
 #include <functional>
 #include <vector>
 

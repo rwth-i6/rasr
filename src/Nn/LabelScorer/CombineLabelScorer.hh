@@ -38,28 +38,31 @@ public:
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers
-    void reset();
+    void reset() override;
 
     // Forward signal to all sub-scorers
-    void signalNoMoreFeatures();
+    void signalNoMoreFeatures() override;
 
     // Combine initial ScoringContexts from all sub-scorers
-    ScoringContextRef getInitialScoringContext();
+    ScoringContextRef getInitialScoringContext() override;
 
     // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request);
+    ScoringContextRef extendedScoringContext(Request const& request) override;
+
+    // Cleanup all sub-scorers
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
     // Add input to all sub-scorers
-    void addInput(std::shared_ptr<const f32[]> const& input, size_t featureSize);
+    void addInput(DataView const& input) override;
 
     // Add inputs to all sub-scorers
-    virtual void addInputs(std::shared_ptr<const f32[]> const& input, size_t timeSize, size_t featureSize);
+    virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
     // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 protected:
     struct ScaledLabelScorer {

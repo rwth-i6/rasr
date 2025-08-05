@@ -25,11 +25,13 @@
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
 #include <Core/Extensions.hh>
+#include <Core/FormatSet.hh>
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
 #include <Core/Status.hh>
 #include <Core/StringUtilities.hh>
+#include <Core/Types.hh>
 
 #include "Phoneme.hh"
 #include "Symbol.hh"
@@ -479,7 +481,7 @@ class LemmaToEvaluationTokenTransducer;
  *
  * A lemma may be assigned a symbolic name, which the system can
  * use to identify lemmas which have a special meaning to it.
- * E.g. the silence word is is identified by the symbolic name
+ * E.g. the silence word is identified by the symbolic name
  * "silence".  Such lemmas a called "special lemmas".
  */
 
@@ -609,7 +611,7 @@ public:
     void defineSpecialLemma(const std::string& name, Lemma* lemma);
 
     /**
-     * Load lexicon from XML file.
+     * Load lexicon from XML or txt file.
      */
     void load(const std::string& filename);
 
@@ -885,6 +887,11 @@ public:
      * evaluation token sequences, the first is used.
      */
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
+
+private:
+    std::unique_ptr<Core::FormatSet> formats_;
+
+    Core::FormatSet& formats();
 };
 
 }  // namespace Bliss

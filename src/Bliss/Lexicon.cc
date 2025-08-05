@@ -141,40 +141,41 @@ Lexicon::~Lexicon() {
 void Lexicon::load(const std::string& filename) {
     Core::StopWatch stopwatch;
     stopwatch.start();
-
-    Core::MD5 md5;
-    if (md5.updateFromFile(filename)) {
+  
+    Core::MD5   md5;
+    std::string strippedFilename = Core::FormatSet::stripQualifier(filename);
+    if (md5.updateFromFile(strippedFilename)) {
         dependency_.setValue(md5);
     }
     else {
-        warning("could not derive md5 sum from file '%s'", filename.c_str());
+        warning("Could not derive md5 sum from file '%s'", strippedFilename.c_str());
     }
 
     stopwatch.stop();
     log("md5 dependency computed in %.2f seconds", stopwatch.elapsedSeconds());
 
-    std::string absFilename = Core::realPath(filename);
-    log("reading lexicon from file \"%s\" (%s) ...", filename.c_str(), absFilename.c_str());
+    std::string absFilename = Core::realPath(strippedFilename);
+    log("reading lexicon from file \"%s\" (%s) ...", strippedFilename.c_str(), absFilename.c_str());
     stopwatch.reset();
     stopwatch.start();
-    LexiconParser parser(config, this);
-    if (parser.parseFile(filename.c_str()) != 0) {
+
+    if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
     }
+
     stopwatch.stop();
     log("parsed XML lexicon in %.2f seconds", stopwatch.elapsedSeconds());
     log("dependency value: ") << dependency_.value();
 }
 
 LexiconRef Lexicon::create(const Configuration& c) {
-    Lexicon* result = new Lexicon(c);
+    auto result = Core::ref(new Lexicon(c));
     result->load(paramFilename(c));
     if (result->hasFatalErrors()) {
-        delete result;
         return LexiconRef();
     }
     result->logStatistics();
-    return LexiconRef(result);
+    return result;
 }
 
 Lemma* Lexicon::newLemma() {
@@ -868,4 +869,36 @@ Core::Ref<LemmaToEvaluationTokenTransducer> Lexicon::createLemmaToEvaluationToke
 
 Core::Ref<LemmaToEvaluationTokenTransducer> Lexicon::createLemmaToPreferredEvaluationTokenSequenceTransducer() const {
     return createLemmaToEvaluationTokenTransducer(false);
+}
+
+template<>
+class Core::NameHelper<Lexicon> {
+public:
+    operator std::string() const {
+        return "Lexicon";
+    }
+    const char* c_str() const {
+        return "Lexicon";
+    }
+};
+
+template<>
+class Core::NameHelper<Lexicon*> {
+public:
+    operator std::string() const {
+        return "Lexicon*";
+    }
+    const char* c_str() const {
+        return "Lexicon*";
+    }
+};
+
+Core::FormatSet& Lexicon::formats() {
+    if (!formats_) {
+        formats_ = std::make_unique<Core::FormatSet>(Core::Configuration(Core::Application::us()->getConfiguration(), "lexicon-file-format-set"));
+        formats_->registerFormat("xml", new XmlLexiconFormat(), true);
+        formats_->registerFormat("vocab-text", new VocabTextLexiconFormat());
+        formats_->registerFormat("vocab-txt", new VocabTextLexiconFormat());
+    }
+    return *formats_;
 }

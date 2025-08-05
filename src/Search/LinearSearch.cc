@@ -198,7 +198,6 @@ bool LinearSearch::setModelCombination(const Speech::ModelCombination& modelComb
     acousticModel_      = modelCombination.acousticModel();
     lm_                 = modelCombination.languageModel();
     pronunciationScale_ = modelCombination.pronunciationScale();
-    lmLookahead_        = 0;
 
     std::pair<Bliss::Lexicon::LemmaPronunciationIterator, Bliss::Lexicon::LemmaPronunciationIterator> pronunciations = lexicon_->lemmaPronunciations();
     addPronunciations(pronunciations);

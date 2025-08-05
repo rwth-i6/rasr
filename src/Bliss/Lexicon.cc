@@ -141,7 +141,7 @@ Lexicon::~Lexicon() {
 void Lexicon::load(const std::string& filename) {
     Core::StopWatch stopwatch;
     stopwatch.start();
-  
+
     Core::MD5   md5;
     std::string strippedFilename = Core::FormatSet::stripQualifier(filename);
     if (md5.updateFromFile(strippedFilename)) {

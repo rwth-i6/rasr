@@ -59,9 +59,7 @@ Session::Session(Core::Configuration const& config)
             if (std::find(providers.begin(), providers.end(), "CUDAExecutionProvider") == providers.end()) {
                 error() << "Requested CUDA execution provider for ONNX session but it is not available.";
             }
-#ifndef MODULE_CUDA
-            error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
-#endif
+#ifdef MODULE_CUDA
             int deviceCount = 0;
             if (cudaGetDeviceCount(&deviceCount) != cudaSuccess or deviceCount == 0) {
                 error() << "Requested CUDA execution provider but no CUDA device was found.";
@@ -71,6 +69,9 @@ Session::Session(Core::Configuration const& config)
             session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
             Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
             break;
+#else
+            error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
+#endif
         }
         default:
             error() << "Execution provider for ONNX session not known.";

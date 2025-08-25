@@ -300,8 +300,12 @@ void GammaToneNode::init() {
 bool GammaToneNode::work(Flow::PortId p) {
     Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in)) {
-        if (in == Flow::Data::eos())
+        if (in == Flow::Data::eos()) {
             reset();
+        }
+        else if (in == Flow::Data::ood()) {
+            return putOod(p);
+        }
         return putData(0, in.get());
     }
 

@@ -116,6 +116,10 @@ private:
     bool firstData_;
     Time previousStartTime_;
 
+    // Placeholder for latest sync time in case we were able to fetch a sync time
+    // but the data port reported OOD. We re-use the same sync time but re-fetch the data.
+    DataPtr<Timestamp> interpolationTime_;
+
 private:
     void reset();
 
@@ -168,13 +172,18 @@ public:
         return Algorithm::name();
     }
     WeakSynchronizationNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~WeakSynchronizationNode() {}
 };
 
 template<class Algorithm>
 SynchronizationNode<Algorithm>::SynchronizationNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), firstData_(true), previousStartTime_(Core::Type<Time>::min) {
+        : Core::Component(c),
+          Node(c),
+          firstData_(true),
+          previousStartTime_(Core::Type<Time>::min),
+          interpolationTime_() {
     ignoreErrors_ = paramSynchronizationIgnoreErrors(c);
 
     addInputs(2);
@@ -208,26 +217,46 @@ bool SynchronizationNode<Algorithm>::configure() {
 
 template<class Algorithm>
 bool SynchronizationNode<Algorithm>::work(Flow::PortId p) {
-    DataPtr<Timestamp> interpolationTime;
-    if (!getData(1, interpolationTime)) {
-        putData(0, interpolationTime.get());
-        putData(1, interpolationTime.get());
-        return true;
+    if (!interpolationTime_) {
+        if (!getData(1, interpolationTime_)) {
+            verify(Flow::Data::isSentinel(interpolationTime_.get()));
+            if (interpolationTime_.get() == Flow::Data::ood()) {
+                putData(0, interpolationTime_.get());
+                putData(1, interpolationTime_.get());
+                return false;
+            }
+            putData(0, interpolationTime_.get());
+            putData(1, interpolationTime_.get());
+            interpolationTime_.reset();
+            return true;
+        }
     }
 
     DataPointer out;
-    if (Algorithm::work(*interpolationTime, out)) {
+    if (Algorithm::work(*interpolationTime_, out)) {
         verify((bool)out);
         putData(0, out.get());
-        putData(1, interpolationTime.get());
+        putData(1, interpolationTime_.get());
+        interpolationTime_.reset();
         return true;
     }
 
-    if (!ignoreErrors_)
+    verify(Flow::Data::isSentinel(out.get()));
+    if (out == Flow::Data::ood()) {
+        // forward OOD
+        putData(0, out.get());
+        putData(1, out.get());
+        return false;
+    }
+
+    if (!ignoreErrors_) {
         this->criticalError("%s", this->lastError().c_str());
+    }
+
     // Synchronization failed, typically at the end of the segment, so put eos
     putData(0, Flow::Data::eos());
-    putData(1, interpolationTime.get());
+    putData(1, interpolationTime_.get());
+    interpolationTime_.reset();
     return true;
 }
 
@@ -235,8 +264,9 @@ template<class Algorithm>
 bool SynchronizationNode<Algorithm>::nextData(DataPointer& dataPointer) {
     bool result = Node::getData(0, dataPointer);
     if (result) {
-        if (!dataPointer)
+        if (!dataPointer) {
             criticalError("Input is null.");
+        }
 
         if (!firstData_ &&
             !Core::isSignificantlyLess(previousStartTime_, dataPointer->startTime(), timeTolerance)) {
@@ -247,9 +277,11 @@ bool SynchronizationNode<Algorithm>::nextData(DataPointer& dataPointer) {
         firstData_         = false;
         previousStartTime_ = dataPointer->startTime();
     }
-    else {
-        if (firstData_)
-            warning("Input stream is empty.");
+    else if (dataPointer == Flow::Data::ood()) {
+        return result;
+    }
+    else if (firstData_) {
+        warning("Input stream is empty.");
     }
     return result;
 }
@@ -267,6 +299,7 @@ void SynchronizationNode<Algorithm>::reset() {
     Algorithm::reset();
     firstData_         = true;
     previousStartTime_ = Core::Type<Time>::min;
+    interpolationTime_.reset();
 }
 
 }  // namespace Flow

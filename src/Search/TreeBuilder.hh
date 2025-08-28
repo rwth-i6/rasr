@@ -249,10 +249,10 @@ protected:
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
 };
 
-class CtcAedSharedBaseClassTreeBuilder : public AbstractTreeBuilder {
+class SharedBaseClassTreeBuilder : public AbstractTreeBuilder {
 public:
-    CtcAedSharedBaseClassTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
-    virtual ~CtcAedSharedBaseClassTreeBuilder() = default;
+    SharedBaseClassTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
+    virtual ~SharedBaseClassTreeBuilder() = default;
 
 protected:
     // Create a node with invalid AM and TM indices which serves as a root
@@ -268,7 +268,7 @@ protected:
     u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
 };
 
-class CtcTreeBuilder : public CtcAedSharedBaseClassTreeBuilder {
+class CtcTreeBuilder : public SharedBaseClassTreeBuilder {
 public:
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramBlankLoop;
@@ -308,7 +308,7 @@ public:
     virtual ~RnaTreeBuilder() = default;
 };
 
-class AedTreeBuilder : public CtcAedSharedBaseClassTreeBuilder {
+class AedTreeBuilder : public SharedBaseClassTreeBuilder {
 public:
     AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~AedTreeBuilder() = default;

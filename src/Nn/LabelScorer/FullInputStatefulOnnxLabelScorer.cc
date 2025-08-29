@@ -53,7 +53,7 @@ const Core::ParameterInt FullInputStatefulOnnxLabelScorer::paramMaxBatchSize(
         Core::Type<int>::max);
 
 const Core::ParameterInt FullInputStatefulOnnxLabelScorer::paramMaxCachedScores(
-        "max-cached-scores",
+        "max-cached-score-vectors",
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
         1000);
 

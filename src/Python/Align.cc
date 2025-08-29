@@ -23,10 +23,10 @@
 #include <Bliss/CorpusDescription.hh>
 #include <Lm/Module.hh>
 #include <Lm/ScaledLanguageModel.hh>
+#include <Nn/LabelScorer/DataView.hh>
 #include <Speech/ModelCombination.hh>
 #include <stdexcept>
 #include <utility>
-#include "Nn/LabelScorer/DataView.hh"
 
 namespace py = pybind11;
 
@@ -198,6 +198,86 @@ std::vector<s32> ctcAlignment(py::array_t<f32> const& scores, py::array_t<s32> c
     for (size_t t = T - 1; t > 0; --t) {
         s             = backPtr[t * L + s];
         result[t - 1] = fsa[s];
+    }
+
+    return result;
+}
+
+std::vector<s32> rnaAlignment(py::array_t<f32> const& scores, py::array_t<s32> const& targets, s32 blankId) {
+    size_t T = 0ul;
+    size_t V = 0ul;
+    size_t S = 0ul;
+    if (scores.ndim() == 3) {
+        if (scores.shape(0) != 1) {
+            throw std::invalid_argument("Received scores tensor with non-trivial batch dimension");
+        }
+        T = scores.shape(1);
+        V = scores.shape(2);
+    }
+    else if (scores.ndim() == 2) {
+        T = scores.shape(0);
+        V = scores.shape(1);
+    }
+    else {
+        throw std::invalid_argument("Received scores tensor with invalid number of dimensions");
+    }
+
+    if (targets.ndim() == 2) {
+        if (targets.shape(0) != 1) {
+            throw std::invalid_argument("Received target tensor with non-trivial batch dimension");
+        }
+        S = targets.shape(1);
+    }
+    else if (targets.ndim() == 1) {
+        S = targets.shape(0);
+    }
+    else {
+        throw std::invalid_argument("Received target tensor with invalid number of dimensions");
+    }
+
+    Nn::DataView scoresView(scores, T * V);
+    Nn::DataView targetsView(targets, S);
+
+    std::vector<f32>    alphaPrev(S + 1, std::numeric_limits<f32>::infinity());
+    std::vector<f32>    alphaCur(S + 1, std::numeric_limits<f32>::infinity());
+    std::vector<size_t> backPtr(T * (S + 1), 0);
+
+    alphaPrev[0] = 0.0f;
+
+    for (size_t t = 0ul; t < T; ++t) {
+        for (size_t s = 0; s < S + 1; ++s) {
+            f32 best     = alphaPrev[s];  // blank
+            u32 emission = blankId;
+            u32 prev     = s;
+
+            if (s > 0) {
+                f32 v = alphaPrev[s - 1];  // label
+                if (v < best) {
+                    best     = v;
+                    emission = targetsView[s - 1];
+                    prev     = s - 1;
+                }
+            }
+
+            alphaCur[s]              = best + scoresView[t * V + emission];
+            backPtr[t * (S + 1) + s] = prev;
+        }
+        std::swap(alphaPrev, alphaCur);
+    }
+
+    std::vector<s32> result(T);
+    size_t           s = S;
+    size_t           sPrev;
+
+    for (size_t t = T; t > 0; --t) {
+        sPrev = backPtr[(t - 1) * (S + 1) + s];
+        if (s == sPrev) {
+            result[t - 1] = blankId;
+        }
+        else {
+            result[t - 1] = targetsView[s - 1];
+        }
+        s = sPrev;
     }
 
     return result;

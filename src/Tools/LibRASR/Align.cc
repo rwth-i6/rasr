@@ -51,6 +51,14 @@ void bindAligner(py::module_& module) {
             &ctcAlignment,
             py::arg("scores"),
             py::arg("targets"),
-            py::arg("blankId"),
+            py::arg("blank_id"),
             "Compute forced-alignment of targets using CTC topology with the given scores.");
+
+    module.def(
+            "rna_alignment",
+            &rnaAlignment,
+            py::arg("scores"),
+            py::arg("targets"),
+            py::arg("blank_id"),
+            "Compute forced-alignment of targets using RNA topology with the given scores.");
 }

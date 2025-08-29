@@ -44,6 +44,10 @@ private:
     Traceback getBestTraceback();
 };
 
+// Compute forced alignment of targets using an array of scores of shape [T, V] or [1, T, V] with CTC label topology
 std::vector<s32> ctcAlignment(py::array_t<f32> const& scores, py::array_t<s32> const& targets, s32 blankId);
+
+// Compute forced alignment of targets using an array of scores of shape [T, V] or [1, T, V] with RNA label topology
+std::vector<s32> rnaAlignment(py::array_t<f32> const& scores, py::array_t<s32> const& targets, s32 blankId);
 
 #endif  // _PYTHON_ALIGN_HH

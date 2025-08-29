@@ -218,4 +218,52 @@ u32 LatticeTrace::wordCount() const {
     return count;
 }
 
+StableTraceTracker::StableTraceTracker() : stablePrefixTrace_() {}
+
+StableTraceTracker::StableTraceTracker(Core::Ref<LatticeTrace const> const& initialTrace) : stablePrefixTrace_(initialTrace) {}
+
+void StableTraceTracker::setTrace(Core::Ref<LatticeTrace const> const& trace) {
+    stablePrefixTrace_ = trace;
+}
+
+Core::Ref<LatticeTrace const> StableTraceTracker::getStablePrefixTrace() const {
+    return stablePrefixTrace_;
+}
+
+void StableTraceTracker::advanceStablePrefix(std::vector<Core::Ref<LatticeTrace const>> const& extendedTraces) {
+    // Extend stable prefix one-by-one until it's no longer possible
+    while (true) {
+        Core::Ref<LatticeTrace const> candidateNext;
+
+        for (auto const& trace : extendedTraces) {
+            if (trace == stablePrefixTrace_) {
+                // Hyp don't have a successor of current stable prefix so it is as far as we can go
+                return;
+            }
+            auto curr = trace;
+            while (curr->predecessor and curr->predecessor != stablePrefixTrace_) {
+                curr = curr->predecessor;
+            }
+
+            // If this fails then `stablePrefixTrace_` is not along the predecessors of `trace` which violates the precondition.
+            require(curr->predecessor == stablePrefixTrace_);
+
+            if (not candidateNext) {
+                candidateNext = curr;
+            }
+            else if (candidateNext != curr) {
+                // stable prefix can not be extended to candidateNext because candidateNext is not a predecessor of current hyp
+                return;
+            }
+        }
+
+        if (not candidateNext) {
+            return;
+        }
+
+        // All hyps agree on `candidateNext` trace so the stable prefix can be extended there
+        stablePrefixTrace_ = candidateNext;
+    }
+}
+
 }  // namespace Search

@@ -90,11 +90,8 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
-Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    searchAlgorithm_->decodeManySteps();
-
-    auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
-    std::vector<TracebackItem> result;
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> const& traceback) const {
+    Traceback result;
     result.reserve(traceback->size());
 
     u32 prevTime = 0;
@@ -113,6 +110,16 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
         prevTime = it->time;
     }
     return result;
+}
+
+Traceback SearchAlgorithm::getCurrentBestTraceback() {
+    searchAlgorithm_->decodeManySteps();
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
+}
+
+Traceback SearchAlgorithm::getCurrentStableTraceback() {
+    searchAlgorithm_->decodeManySteps();
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentStableTraceback());
 }
 
 std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {

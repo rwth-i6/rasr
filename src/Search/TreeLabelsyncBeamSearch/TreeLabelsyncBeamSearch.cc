@@ -357,6 +357,10 @@ Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentBestTraceback() co
     return getBestHypothesis().trace->performTraceback();
 }
 
+Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentStableTraceback() const {
+    return {};
+}
+
 Core::Ref<const LatticeAdaptor> TreeLabelsyncBeamSearch::getCurrentBestWordLattice() const {
     auto& bestHypothesis = getBestHypothesis();
 

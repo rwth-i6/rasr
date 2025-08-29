@@ -234,6 +234,10 @@ Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentBestTraceba
     return getBestHypothesis().trace->performTraceback();
 }
 
+Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentStableTraceback() const {
+    return {};
+}
+
 Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWordLattice() const {
     auto& bestHypothesis = getBestHypothesis();
 

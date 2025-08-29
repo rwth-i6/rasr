@@ -61,6 +61,9 @@ public:
     // Return the current best result. May contain unstable results.
     Traceback getCurrentBestTraceback();
 
+    // Return the current stable result.
+    Traceback getCurrentStableTraceback();
+
     // Return the current best n-best list. May contain unstable results.
     std::vector<Traceback> getCurrentNBestList(size_t nBestSize);
 
@@ -77,6 +80,8 @@ private:
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
     std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
+
+    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> const& traceback) const;
 };
 
 #endif  // _PYTHON_SEARCH_HH

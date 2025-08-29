@@ -61,6 +61,7 @@ public:
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 
@@ -154,6 +155,8 @@ private:
     size_t totalTimesteps_;
     bool   finishedSegment_;
 
+    Core::Ref<LatticeTrace> stableTrace_;
+
     LabelHypothesis const* getBestTerminatedHypothesis() const;
     LabelHypothesis const* getWorstTerminatedHypothesis() const;
 
@@ -162,6 +165,8 @@ private:
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
+
+    void advanceStableTrace();
 
     void resetStatistics();
     void logStatistics() const;

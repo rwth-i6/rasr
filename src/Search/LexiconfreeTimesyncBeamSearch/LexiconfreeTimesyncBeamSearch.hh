@@ -60,6 +60,7 @@ public:
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 
@@ -143,6 +144,10 @@ private:
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
+
+    // These are modified during getCurrentBestStableTraceback
+    mutable StableTraceTracker stableTraceTracker_;
+    mutable bool               canUpdateStablePrefix_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

@@ -158,6 +158,44 @@ public:
     u32 wordCount() const;
 };
 
+/*
+ * Used to track the longest common prefix of hypotheses during search (i.e. the stable prefix).
+ *
+ * It internally saves the most recent stable prefix and can advance it forward using a list of traces assuming the current
+ * stable prefix is a common prefix of all the traces.
+ */
+class StableTraceTracker {
+public:
+    /*
+     * Initializes the stable trace tracker with an empty stable prefix.
+     */
+    StableTraceTracker();
+
+    /*
+     * Initializes the stable trace tracker with the given initial trace.
+     */
+    StableTraceTracker(Core::Ref<LatticeTrace const> const& initialTrace);
+
+    /*
+     * Forcefully sets the stable trace tracker to the given trace.
+     */
+    void setTrace(Core::Ref<LatticeTrace const> const& trace);
+
+    /*
+     * Get currently stored stable trace.
+     */
+    Core::Ref<LatticeTrace const> getStablePrefixTrace() const;
+
+    /*
+     * Advances the stable trace as much as possible using the given list of traces.
+     * Assumes that all the given traces contain the current stable trace somewhere as a predecessor.
+     */
+    void advanceStablePrefix(std::vector<Core::Ref<LatticeTrace const>> const& traces);
+
+private:
+    Core::Ref<LatticeTrace const> stablePrefixTrace_;
+};
+
 }  // namespace Search
 
 #endif  // TRACEBACK_HH

@@ -46,31 +46,12 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         : scoringContext(newScoringContext),
           currentToken(extension.nextToken),
           score(extension.score),
-          trace() {
-    switch (extension.transitionType) {
-        case Nn::LabelScorer::INITIAL_BLANK:
-        case Nn::LabelScorer::INITIAL_LABEL:
-        case Nn::LabelScorer::LABEL_TO_LABEL:
-        case Nn::LabelScorer::LABEL_TO_BLANK:
-        case Nn::LabelScorer::BLANK_TO_LABEL:
-            trace = Core::ref(new LatticeTrace(
-                    base.trace,
-                    extension.pron,
-                    extension.timeframe + 1,
-                    {extension.score, 0},
-                    {}));
-            break;
-        case Nn::LabelScorer::LABEL_LOOP:
-        case Nn::LabelScorer::BLANK_LOOP:
-            // Copy base trace and update it
-            trace                 = Core::ref(new LatticeTrace(*base.trace));
-            trace->sibling        = {};
-            trace->score.acoustic = extension.score;
-            trace->time           = extension.timeframe + 1;
-            break;
-        default:
-            defect();  // Unexpected transition type which can not be produced by `inferTransitionType`
-    }
+          trace(Core::ref(new LatticeTrace(
+                  base.trace,
+                  extension.pron,
+                  extension.timeframe + 1,
+                  {extension.score, 0},
+                  {}))) {
 }
 
 std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
@@ -154,7 +135,9 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
-          finishedSegment_(false) {
+          finishedSegment_(false),
+          stableTraceTracker_(),
+          canUpdateStablePrefix_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
@@ -203,6 +186,9 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
+    stableTraceTracker_.setTrace(beam_.front().trace);
+    canUpdateStablePrefix_ = false;
+
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
@@ -241,6 +227,20 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
+}
+
+Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentStableTraceback() const {
+    if (canUpdateStablePrefix_) {
+        std::vector<Core::Ref<LatticeTrace const>> traces;
+        traces.reserve(beam_.size());
+        for (auto const& hyp : beam_) {
+            traces.push_back(hyp.trace);
+        }
+        stableTraceTracker_.advanceStablePrefix(traces);
+        canUpdateStablePrefix_ = false;
+    }
+
+    return stableTraceTracker_.getStablePrefixTrace()->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -389,6 +389,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * Log statistics about the new beam after this step.
      */
     beam_.swap(newBeam_);
+    canUpdateStablePrefix_ = true;
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;

@@ -210,9 +210,6 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
         case LabelScorer::TransitionType::INITIAL_LABEL:
             updateState = true;
             break;
-        case LabelScorer::TransitionType::SENTENCE_END:
-            updateState = false;
-            break;
         default:
             error() << "Unknown transition type " << request.transitionType;
     }

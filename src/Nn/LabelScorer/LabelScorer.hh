@@ -83,7 +83,7 @@ public:
         BLANK_TO_LABEL,
         BLANK_LOOP,
         INITIAL_LABEL,
-        INITIAL_BLANK
+        INITIAL_BLANK,
     };
 
     // Request for scoring or context extension

@@ -220,13 +220,11 @@ bool SynchronizationNode<Algorithm>::work(Flow::PortId p) {
     if (!interpolationTime_) {
         if (!getData(1, interpolationTime_)) {
             verify(Flow::Data::isSentinel(interpolationTime_.get()));
-            if (interpolationTime_.get() == Flow::Data::ood()) {
-                putData(0, interpolationTime_.get());
-                putData(1, interpolationTime_.get());
-                return false;
-            }
             putData(0, interpolationTime_.get());
             putData(1, interpolationTime_.get());
+            if (interpolationTime_.get() == Flow::Data::ood()) {
+                return false;
+            }
             interpolationTime_.reset();
             return true;
         }

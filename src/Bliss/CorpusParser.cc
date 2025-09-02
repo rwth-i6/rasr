@@ -30,7 +30,7 @@ class Bliss::SpeakerDescriptionElement : public Core::XmlBuilderElement<Speaker,
 
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char* ch, int len){};
+    virtual void characters(const char* ch, int len) {};
     void         gender(const std::string& s);
 
 public:
@@ -82,7 +82,7 @@ class Bliss::ConditionDescriptionElement : public Core::XmlBuilderElement<Acoust
 
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char* ch, int len){};
+    virtual void characters(const char* ch, int len) {};
 
 public:
     ConditionDescriptionElement(Core::XmlContext* _context, Handler _handler = 0);

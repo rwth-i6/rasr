@@ -137,10 +137,10 @@ private:
 public:
     SymbolSet();
     /** Convert char pointer to Symbol.
-         * Symbol is added if not already present. */
+     * Symbol is added if not already present. */
     Symbol operator[](const Symbol::Char*);
     /** Convert string to Symbol.
-         * Symbol is added if not already present. */
+     * Symbol is added if not already present. */
     Symbol operator[](const Symbol::String&);
 
     /** return void symbol if not present */

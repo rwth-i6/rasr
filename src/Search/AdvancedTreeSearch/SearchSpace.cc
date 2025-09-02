@@ -22,14 +22,15 @@
 #include <Lm/BackingOff.hh>
 #include <Lm/Module.hh>
 #include <Mm/GaussDiagonalMaximumFeatureScorer.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/Traceback.hh>
+#include <Search/TreeBuilder.hh>
 
 #include "AcousticLookAhead.hh"
-#include "PersistentStateTree.hh"
 #include "PrefixFilter.hh"
 #include "Pruning.hh"
 #include "SearchNetworkTransformation.hh"
 #include "SearchSpaceStatistics.hh"
-#include "TreeBuilder.hh"
 
 using namespace AdvancedTreeSearch;
 
@@ -218,7 +219,7 @@ const Core::ParameterBool paramReducedContextTreeKey(
 
 const Core::ParameterBool paramOnTheFlyRescoring(
         "on-the-fly-rescoring",
-        "keep track of recombined histories and use those aswell when searching for word ends",
+        "keep track of recombined histories and use those as well when searching for word ends",
         false);
 
 const Core::ParameterInt paramOnTheFlyRescoringMaxHistories(
@@ -374,11 +375,10 @@ StaticSearchAutomaton::StaticSearchAutomaton(Core::Configuration config, Core::R
         : Precursor(config),
           hmmLength(acousticModel->hmmTopologySet()->getDefault().nPhoneStates() * acousticModel->hmmTopologySet()->getDefault().nSubStates()),
           minimized(paramBuildMinimizedTreeFromScratch(config)),
-          network(config, acousticModel, lexicon),
+          network(config, acousticModel, lexicon, std::bind(&Module_::createTreeBuilder, &Search::Module::instance(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)),
           prefixFilter(nullptr),
           acousticModel_(acousticModel),
-          lexicon_(lexicon) {
-}
+          lexicon_(lexicon) {}
 
 StaticSearchAutomaton::~StaticSearchAutomaton() {
     if (prefixFilter) {
@@ -392,14 +392,14 @@ void StaticSearchAutomaton::buildNetwork() {
     if (!network.read(transformation)) {
         log() << "persistent network image could not be loaded, building it";
 
-        if (minimized) {  // Use TreeStructure.hh
-            TreeBuilder builder(config, *lexicon_, *acousticModel_, network);
-            builder.build();
-        }
-        else {  // Use StateTree.hh
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, network);
+        if (not builder or not minimized) {
             network.build();
             network.cleanup();
             network.cleanup();  // Additional cleanup, to make sure that the exits are ordered correctly
+        }
+        else {
+            builder->build();
         }
 
         if (network.write(transformation)) {
@@ -417,6 +417,9 @@ void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
     invertedStateDepths.resize(network.structure.stateCount(), Core::Type<int>::min);
     fillStateDepths(network.rootState, 0);
     fillStateDepths(network.ciRootState, 0);
+    for (StateId root : network.otherRootStates) {
+        fillStateDepths(root, 0);
+    }
 
     bool offsetted = false;
 
@@ -461,7 +464,7 @@ void StaticSearchAutomaton::buildDepths(bool onlyFromRoot) {
     for (u32 a = 1; a < stateDepths.size(); ++a) {
         if (stateDepths[a] != Core::Type<int>::min && stateDepths[a] != Core::Type<int>::max) {
             for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(a); it; ++it) {
-                if (!it.isLabel()) {
+                if (!it.isLabel() and *it != a) {
                     verify(stateDepths[*it] > stateDepths[a]);
                 }
             }
@@ -483,9 +486,6 @@ void StaticSearchAutomaton::clearDepths() {
 
 int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     if (stateDepths[state] != Core::Type<int>::min) {
-        if (stateDepths[state] != depth) {  /// @todo Find out why this happens on some languages
-            std::cout << "conflicting state depths: " << stateDepths[state] << " vs " << depth << std::endl;
-        }
         if (depth > stateDepths[state]) {
             stateDepths[state] = Core::Type<int>::min;  // Re-fill successor depths
         }
@@ -501,7 +501,7 @@ int StaticSearchAutomaton::fillStateDepths(StateId state, int depth) {
     localDepth = 0;
 
     for (HMMStateNetwork::SuccessorIterator it = network.structure.successors(state); it; ++it) {
-        if (not it.isLabel()) {
+        if (not it.isLabel() and *it != state) {
             int d = fillStateDepths(*it, depth + 1);
 
             if (d > localDepth) {
@@ -726,7 +726,7 @@ void StaticSearchAutomaton::buildBatches() {
         network.dumpDotGraph(paramDumpDotGraph(config), stateDepths);
 
     // Print some useful statistics about pushed and unpushed labels
-    verify(!network.unpushedCoarticulatedRootStates.empty());
+    verify(network.coarticulatedRootStates.empty() || !network.unpushedCoarticulatedRootStates.empty());
 
     u32 unpushedLabels = 0;
     u32 pushedLabels   = 0;
@@ -737,8 +737,10 @@ void StaticSearchAutomaton::buildBatches() {
                 bool    isUnpushed = network.unpushedCoarticulatedRootStates.count(transit) || transit == network.ciRootState || transit == network.rootState;
                 if (isUnpushed) {
                     ++unpushedLabels;
-                    std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
-                    verify(it != network.rootTransitDescriptions.end());
+                    if (!network.rootTransitDescriptions.empty()) {
+                        std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>>::iterator it = network.rootTransitDescriptions.find(transit);
+                        verify(it != network.rootTransitDescriptions.end());
+                    }
                 }
                 else {
                     ++pushedLabels;
@@ -807,7 +809,7 @@ SearchSpace::SearchSpace(const Core::Configuration&               config,
           fullLookAheadStateMinimum_(paramReduceLookAheadStateMinimum(config)),
           fullLookAheadDominanceMinimum_(paramReduceLookAheadDominanceMinimum(config)),
           currentLookaheadInstanceStateThreshold_(fullLookAheadStateMinimum_),
-          fullLookaheadAfterId_(Core::Type<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId>::max),
+          fullLookaheadAfterId_(Core::Type<LanguageModelLookahead::LookaheadId>::max),
           sparseLookahead_(paramSparseLmLookAhead(config)),
           overflowLmScoreToAm_(paramOverflowLmScoreToAm(config)),
           sparseLookaheadSlowPropagation_(paramSparseLmLookaheadSlowPropagation(config)),
@@ -1016,15 +1018,15 @@ void SearchSpace::initializeLanguageModel() {
     StaticSearchAutomaton* automaton = const_cast<StaticSearchAutomaton*>(automaton_);
 
     if (paramEnableLmLookahead(config)) {
-        lmLookahead_ = new AdvancedTreeSearch::LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
-                                                                      wpScale_,
-                                                                      lookaheadLm_,
-                                                                      net.structure,
-                                                                      net.rootState,
-                                                                      net.exits,
-                                                                      acousticModel_);
+        lmLookahead_ = new LanguageModelLookahead(Core::Configuration(config, "lm-lookahead"),
+                                                  wpScale_,
+                                                  lookaheadLm_,
+                                                  net.structure,
+                                                  net.rootState,
+                                                  net.exits,
+                                                  acousticModel_);
 
-        std::set<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId> rootStates;
+        std::set<LanguageModelLookahead::LookaheadId> rootStates;
 
         rootStates.insert(lmLookahead_->lookaheadId(net.rootState));
 
@@ -1133,7 +1135,7 @@ inline bool SearchSpace::eventuallyDeactivateTree(Instance* at, bool increaseIna
 
 void SearchSpace::activateOrUpdateStateHypothesisLoop(const Search::StateHypothesis& hyp, Score score) {
     StateHypothesisIndex& recombination = stateHypothesisRecombinationArray[hyp.state];  // Look-up at node index, contains positions in newStateHypotheses.
-    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);                  //We may be referencing a not allocated position, so we use data()
+    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);                  // We may be referencing a not allocated position, so we use data()
     // Check if present in current tree (starting at currentTreeFirstNewStateHypothesis).
     if (recombination < currentTreeFirstNewStateHypothesis || recombination >= newStateHypotheses.size() || sh.state != hyp.state) {
         recombination = newStateHypotheses.size();
@@ -1141,7 +1143,7 @@ void SearchSpace::activateOrUpdateStateHypothesisLoop(const Search::StateHypothe
         newStateHypotheses.back().score = score;
     }
     else {
-        //Update existing hypothesis
+        // Update existing hypothesis
         if (sh.score >= score) {
             sh.score = score;
             sh.trace = hyp.trace;
@@ -1151,7 +1153,7 @@ void SearchSpace::activateOrUpdateStateHypothesisLoop(const Search::StateHypothe
 
 void SearchSpace::activateOrUpdateStateHypothesisTransition(const Search::StateHypothesis& hyp, Score score, StateId successorState) {
     StateHypothesisIndex& recombination = stateHypothesisRecombinationArray[successorState];
-    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);  //We may be referencing a not allocated position, so we use data()
+    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);  // We may be referencing a not allocated position, so we use data()
     // Check if present in current tree (starting at currentTreeFirstNewStateHypothesis).
     if (recombination < currentTreeFirstNewStateHypothesis || recombination >= newStateHypotheses.size() || sh.state != successorState) {
         recombination = newStateHypotheses.size();
@@ -1160,7 +1162,7 @@ void SearchSpace::activateOrUpdateStateHypothesisTransition(const Search::StateH
         newStateHypotheses.back().state = successorState;
     }
     else {
-        //Update existing hypothesis
+        // Update existing hypothesis
         if (sh.score >= score) {
             sh.score = score;
             sh.trace = hyp.trace;
@@ -1170,14 +1172,14 @@ void SearchSpace::activateOrUpdateStateHypothesisTransition(const Search::StateH
 
 void SearchSpace::activateOrUpdateStateHypothesisDirectly(const Search::StateHypothesis& hyp) {
     StateHypothesisIndex& recombination = stateHypothesisRecombinationArray[hyp.state];
-    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);  //We may be referencing a not allocated position, so we use data()
+    StateHypothesis&      sh(newStateHypotheses.data()[recombination]);  // We may be referencing a not allocated position, so we use data()
 
     if (recombination < currentTreeFirstNewStateHypothesis || recombination >= newStateHypotheses.size() || sh.state != hyp.state) {
         recombination = newStateHypotheses.size();
         addNewStateHypothesis(hyp);
     }
     else {
-        //Update existing hypothesis
+        // Update existing hypothesis
         if (sh.score >= hyp.score) {
             sh.score = hyp.score;
             sh.trace = hyp.trace;
@@ -1213,7 +1215,7 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
     if (forwardScore < Core::Type<Score>::max) {
         std::pair<int, int> successors = net.structure.batchSuccessorsSimple<true>(state.successors);
         if (successors.first != -1) {
-            //Fast iteration
+            // Fast iteration
             for (StateId successor = successors.first; successor != successors.second; ++successor) {
                 if (expandForward)
                     activateOrUpdateStateHypothesisTransition(hyp, forwardScore, successor);  // Already covered by expandState?
@@ -1222,7 +1224,7 @@ void SearchSpace::expandStateSlow(const Search::StateHypothesis& hyp) {
                 {                          // Second order expansion (successors of successor).
                     std::pair<int, int> skipSuccessors = net.structure.batchSuccessorsSimple<true>(net.structure.state(successor).successors);
                     if (skipSuccessors.first != -1) {
-                        //Fast iteration
+                        // Fast iteration
                         for (StateId skipSuccessor = skipSuccessors.first; skipSuccessor != skipSuccessors.second; ++skipSuccessor)
                             activateOrUpdateStateHypothesisTransition(hyp, skipScore, skipSuccessor);
                     }
@@ -1314,7 +1316,7 @@ inline void SearchSpace::expandState(const Search::StateHypothesis& hyp) {
                     activateOrUpdateStateHypothesisTransition(hyp, skipScore, successor2);
         }
         else if (secondStart == 0) {
-            //The secondOrderEdgeSuccessorBatches_ structure can not hold the successors, so use slow expansion to expand the second-order followers
+            // The secondOrderEdgeSuccessorBatches_ structure can not hold the successors, so use slow expansion to expand the second-order followers
             expandStateSlow<false, true>(hyp);
         }
     }
@@ -1468,7 +1470,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
 
         if (shouldIncreaseLookAheadOrder) {
             // The state-count based conditions to increase the lookahead order are satisfied
-            if (fullLookaheadAfterId_ != Core::Type<AdvancedTreeSearch::LanguageModelLookahead::LookaheadId>::max) {
+            if (fullLookaheadAfterId_ != Core::Type<LanguageModelLookahead::LookaheadId>::max) {
                 // Reduced unigram LM lookahead, with check to eventually activate the lookahead based on depth
 
                 applyLookaheadPerf_->start();
@@ -1504,7 +1506,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
         }
     }
 
-    const AdvancedTreeSearch::LanguageModelLookahead::ContextLookahead* la(instance.lookahead.get());
+    const LanguageModelLookahead::ContextLookahead* la(instance.lookahead.get());
     if (!la)
         la = unigramLookAhead_.get();
     else
@@ -1529,7 +1531,7 @@ void SearchSpace::applyLookaheadInInstanceInternal(Instance* _instance, Acoustic
             fail = !la->getScoreForLookAheadHashSparse(ids.first, lmScore);
 
             if (fail) {
-                //This state needs to transfer into the back-off network
+                // This state needs to transfer into the back-off network
 
                 // Set the prospect to max, so this state will be pruned away from this network
                 sh->prospect = F32_MAX;
@@ -1622,7 +1624,7 @@ void SearchSpace::addAcousticScoresInternal(Instance const& instance, Pruning& p
         // Omit overhead of a virtual function-call for cached scores by calling the score function directly with qualification
         for (; sh != sh_end; ++sh) {
             if (sh->prospect == F32_MAX)
-                continue;  //This state will be pruned
+                continue;  // This state will be pruned
 
             const HMMState&  state = network().structure.state(sh->state);
             Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
@@ -1640,7 +1642,7 @@ void SearchSpace::addAcousticScoresInternal(Instance const& instance, Pruning& p
     else {
         for (; sh != sh_end; ++sh) {
             if (sh->prospect == F32_MAX)
-                continue;  //This state will be pruned
+                continue;  // This state will be pruned
 
             const HMMState&  state = network().structure.state(sh->state);
             Mm::MixtureIndex mix   = state.stateDesc.acousticModel;
@@ -1872,7 +1874,6 @@ void SearchSpace::pruneStates(Pruning& pruning) {
 
     activeInstances.resize(instOut);
 }
-
 
 void SearchSpace::updateSsaLm() {
     if (!ssaLm_) {
@@ -2130,13 +2131,13 @@ inline Core::Ref<Trace> SearchSpace::getModifiedTrace(TraceId traceId, const Bli
         bool encodeState = this->encodeState();
 
         verify(trace.get());
-        SearchAlgorithm::TracebackItem::Transit transit;
-        TraceManager::Modification              offsets = trace_manager_.getModification(traceId);
+        TracebackItem::Transit     transit;
+        TraceManager::Modification offsets = trace_manager_.getModification(traceId);
         if (offsets.first || offsets.second || offsets.third) {
             // Add an epsilon traceback entry which corrects the time, score and transit-entry
             TimeframeIndex time = trace->time + offsets.first;
             verify(time <= timeFrame_);
-            SearchAlgorithm::ScoreVector score = trace->score;
+            ScoreVector score = trace->score;
             if (offsets.second)
                 score.acoustic += reinterpret_cast<Search::Score&>(offsets.second);
 
@@ -2512,8 +2513,8 @@ void SearchSpace::addStartupWordEndHypothesis(TimeframeIndex time) {
     verify(rch.isValid());
     verify(lah.isValid());
     verify(sch.isValid());
-    SearchAlgorithm::ScoreVector score(0.0, 0.0);
-    Core::Ref<Trace>             t(new Trace(time, score, describeRootState(rootState)));
+    ScoreVector      score(0.0, 0.0);
+    Core::Ref<Trace> t(new Trace(time, score, describeRootState(rootState)));
     t->score.acoustic += globalScoreOffset_;
     wordEndHypotheses.push_back(WordEndHypothesis(rch, lah, sch, rootState, 0, score, t, Core::Type<u32>::max, PathTrace()));
 }
@@ -2649,8 +2650,8 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                     else
                         ++activeUncoartic;
                 }
-                Score                        score = (*it).score + globalScoreOffset_;
-                SearchAlgorithm::ScoreVector scores(trace_manager_.traceItem((*it).trace).trace->score);
+                Score       score = (*it).score + globalScoreOffset_;
+                ScoreVector scores(trace_manager_.traceItem((*it).trace).trace->score);
                 scores.acoustic = score - scores.lm - at.totalBackOffOffset;
 
                 // Append score- and time correcting epsilon item
@@ -2658,7 +2659,7 @@ Core::Ref<Trace> SearchSpace::getSentenceEnd(TimeframeIndex time, bool shallCrea
                                              epsilonLemmaPronunciation(),
                                              time - 1,
                                              scores,
-                                             encodeState ? describeRootState(it->state) : SearchAlgorithm::TracebackItem::Transit()));
+                                             encodeState ? describeRootState(it->state) : TracebackItem::Transit()));
                 // Append sentence-end epsilon arc
                 t = Core::Ref<Trace>(new Trace(t, 0, time, t->score, describeRootState(net.rootState)));
 
@@ -2906,9 +2907,9 @@ public:
     u32 kept, killed;
 
 private:
-    std::map<Trace*, bool>       keepTraces_;
-    Core::Ref<Trace>             initialTrace_;
-    SearchAlgorithm::ScoreVector baseScore_;
+    std::map<Trace*, bool> keepTraces_;
+    Core::Ref<Trace>       initialTrace_;
+    ScoreVector            baseScore_;
 };
 
 void SearchSpace::changeInitialTrace(Core::Ref<Trace> trace) {
@@ -2979,7 +2980,7 @@ void SearchSpace::doStateStatisticsBeforePruning() {
 
     for (InstanceList::reverse_iterator it = activeInstances.rbegin(); it != activeInstances.rend(); ++it) {
         if (backOffLm) {
-            //Do statistics over the count of states in back-off instances
+            // Do statistics over the count of states in back-off instances
             Instance& mt = dynamic_cast<Instance&>(**it);
 
             if (mt.lookahead.get())
@@ -3070,7 +3071,7 @@ void SearchSpace::doStateStatistics() {
 
     for (InstanceList::reverse_iterator it = activeInstances.rbegin(); it != activeInstances.rend(); ++it) {
         if (backOffLm) {
-            //Do statistics over the count of states in back-off instances
+            // Do statistics over the count of states in back-off instances
             Instance& mt = dynamic_cast<Instance&>(**it);
 
             Lm::History h = mt.lookaheadHistory;
@@ -3078,7 +3079,7 @@ void SearchSpace::doStateStatistics() {
             int len = 0;
 
             if (h.isValid())
-                len = backOffLm->historyLenght(h);
+                len = backOffLm->historyLength(h);
 
             if (mt.lookahead.get())
                 statesInTreesWithLookAhead += mt.states.size();
@@ -3210,10 +3211,10 @@ void SearchSpace::recombineWordEndsInternal(bool shallCreateLattice) {
         ReducedContextRecombinationMap wordEndHypothesisMap;
 
         for (in = out = wordEndHypotheses.begin(); in != wordEndHypotheses.end(); ++in) {
-            auto                                     key = std::make_pair(recombinationLm_->reducedHistory(in->recombinationHistory,
-                                                                       reducedContextWordRecombinationLimit_),
+            auto key = std::make_pair(recombinationLm_->reducedHistory(in->recombinationHistory, reducedContextWordRecombinationLimit_),
                                       in->transitState);
-            ReducedContextRecombinationMap::iterator i   = wordEndHypothesisMap.find(key);
+
+            ReducedContextRecombinationMap::iterator i = wordEndHypothesisMap.find(key);
             if (i != wordEndHypothesisMap.end()) {
                 WordEndHypothesis& a(*in);
                 WordEndHypothesis& b(*(i->second));
@@ -3568,7 +3569,7 @@ Instance* SearchSpace::activateOrUpdateTree(const Core::Ref<Trace>& trace,
                                             Score                   score) {
     /// TODO (Nolden): getLastSyntacticToken is inefficient for long sequences. A simple rule would be better: Stay in same instance, or follow most recent pron.
     InstanceKey key(recombinationHistory, conditionPredecessorWord_ ? getLastSyntacticToken(trace) : Bliss::LemmaPronunciation::invalidId);
-    Instance* instance = instanceForKey(true, key, lookaheadHistory, scoreHistory);
+    Instance*   instance = instanceForKey(true, key, lookaheadHistory, scoreHistory);
 
     if (!instance)
         return 0;
@@ -3587,11 +3588,11 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
     PersistentStateTree::Exit const* we   = &network().exits[exit];
     TraceItem const&                 item = trace_manager_.traceItem(hyp.trace);
 
-    //We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
+    // We can do a more efficient word end handling if there is only one item in the trace, which is the standard case
     verify_(item.scoreHistory.isValid());
 
     EarlyWordEndHypothesis weh(hyp.trace,
-                               SearchAlgorithm::ScoreVector(hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm),
+                               ScoreVector(hyp.score - item.trace->score.lm - at.totalBackOffOffset, item.trace->score.lm),
                                exit,
                                hyp.pathTrace);
     weh.score.acoustic += exitPenalty;
@@ -3612,7 +3613,7 @@ void SearchSpace::processOneWordEnd(Instance const& at, StateHypothesis const& h
     if (onTheFlyRescoring) {
         Core::Ref<Trace> trace = item.trace;
         for (AlternativeHistory const& h : trace->alternativeHistories.container()) {
-            SearchAlgorithm::ScoreVector newScore = oldScore + h.offset;
+            ScoreVector newScore = oldScore + h.offset;
             if (we->pronunciation != Bliss::LemmaPronunciation::invalidId) {
                 Lm::addLemmaPronunciationScoreOmitExtension(lm_, lexicon_->lemmaPronunciation(we->pronunciation), wpScale_, lm_->scale(), h.hist, newScore.lm);
             }
@@ -3665,10 +3666,10 @@ void SearchSpace::findWordEndsInternal() {
             Score           exitPenalty = (*transitionModel(state.stateDesc))[Am::StateTransitionModel::exit];
 
             if (earlyWordEndPruning && hyp.score + exitPenalty + earlyWordEndPruningAnticipatedLmScore_ > bestWordEndPruning) {
-                continue;  //Apply early word-end pruning (If the best score can not be reached, do not even try)
+                continue;  // Apply early word-end pruning (If the best score can not be reached, do not even try)
             }
 
-            ///With pushing, ca. 80% of all label-lists are single-labels, so optimize for this case
+            /// With pushing, ca. 80% of all label-lists are single-labels, so optimize for this case
             if (exit >= 0) {
                 // There is 1 label
                 processOneWordEnd<earlyWordEndPruning, onTheFlyRescoring>(*inst, hyp, exit, exitPenalty, relativePruning, bestWordEndPruning);
@@ -3694,7 +3695,7 @@ void SearchSpace::findWordEndsInternal() {
 }
 
 void SearchSpace::findWordEnds() {
-    //std::cerr << "best hyp: " << bestScore() << std::endl;
+    // std::cerr << "best hyp: " << bestScore() << std::endl;
     if (earlyWordEndPruning_) {
         if (onTheFlyRescoring_) {
             findWordEndsInternal<true, true>();
@@ -3722,7 +3723,7 @@ Instance* SearchSpace::getBackOffInstance(Instance* instance) {
 
     Lm::History useHistory = instance->lookaheadHistory;
 
-    int length = lm->historyLenght(useHistory);
+    int length = lm->historyLength(useHistory);
 
     if (length == 0)
         return 0;
@@ -3730,7 +3731,7 @@ Instance* SearchSpace::getBackOffInstance(Instance* instance) {
     // Create a back-off network for history-length length-1
     Lm::History reduced = lm->reducedHistory(useHistory, length - 1);
 
-    verify(lm->historyLenght(reduced) == length - 1);
+    verify(lm->historyLength(reduced) == length - 1);
 
     verify(reduced.isValid());
 

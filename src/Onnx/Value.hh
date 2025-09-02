@@ -53,6 +53,12 @@ public:
     static Value create(Args... value);
 
     template<typename T>
+    static Value createEmpty(std::initializer_list<int64_t> dim);
+
+    template<typename T>
+    static Value createEmpty(std::vector<int64_t> const& dim);
+
+    template<typename T>
     static Value zeros(std::initializer_list<int64_t> dim);
 
     template<typename T>
@@ -155,6 +161,9 @@ public:
 
     template<typename T>
     void set(std::vector<T> const& vec);
+
+    template<typename T>
+    void set(T const* data, std::vector<int64_t> const& shape);
 
     template<typename T>
     void set(T const& val);

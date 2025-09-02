@@ -85,7 +85,7 @@ void PropertyMap::writeXml(Core::XmlWriter& xml) const {
         xml << Core::XmlFull("key", key(i))
             << Core::XmlOpen("value-map");
         for (Core::Choice::const_iterator it = operator[](i).begin();
-             it !=                             operator[](i).end(); ++it)
+             it != operator[](i).end(); ++it)
             xml << Core::XmlFull("value", it->ident()) + Core::XmlAttribute("id", it->value());
         xml << Core::XmlClose("value-map");
     }

@@ -19,7 +19,6 @@
 #include "ActivationLayer.hh"
 #include "LinearAndActivationLayer.hh"
 #include "LinearLayer.hh"
-#include "LookupLayer.hh"
 #include "NeuralNetworkLayer.hh"
 #include "OperationLayer.hh"
 #include "PoolingLayer.hh"
@@ -48,15 +47,9 @@ const Core::Choice NeuralNetworkLayer<T>::choiceNetworkLayerType(
         "bias", biasLayer,
         "linear+sigmoid", linearAndSigmoidLayer,
         "linear+softmax", linearAndSoftmaxLayer,
-        "linear+tanh", linearAndTanhLayer,
-        "linear+rectified", linearAndRectifiedLayer,
-        "linear+elu", linearAndEluLayer,
-        "lookup", lookupLayer,
         // preprocessing
         "logarithm", logarithmPreprocessingLayer,
         "mean-and-variance-normalization", meanAndVarianceNormalizationPreprocessingLayer,
-        "polynomial", polynomialPreprocessingLayer,
-        "gaussian-noise", gaussianNoisePreprocessingLayer,
         "operation", operationLayer,
         "python", pythonLayer,
         Core::Choice::endMark());
@@ -124,14 +117,6 @@ const Core::ParameterFloat NeuralNetworkLayer<T>::paramActivationVarianceInterpo
         "activation-variance-interpolation", "interpolation: alpha * activation variances + (1-alpha) * unity", 1.0);
 
 template<typename T>
-const Core::ParameterFloat NeuralNetworkLayer<T>::paramDropoutProbability(
-        "dropout-probability", "probability that an activation is set to zero", 0.0);
-
-template<typename T>
-const Core::ParameterFloat NeuralNetworkLayer<T>::paramGaussianNoiseRatio(
-        "gaussian-noise-ratio", "ratio * avg layer std-dev is used as std-dev when adding gaussian noise to the activations", 0.0);
-
-template<typename T>
 const Core::ParameterFloat NeuralNetworkLayer<T>::paramLearningRate(
         "layer-learning-rate", "layer specific learning rate factor", 1.0);
 
@@ -153,8 +138,6 @@ NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration& config)
           activationVarianceInterpolation_(paramActivationVarianceInterpolation(config)),
           learningRate_(paramLearningRate(config)),
           regularizationConstant_(paramRegularizationConstant(config)),
-          dropoutProbability_(paramDropoutProbability(config)),
-          gaussianNoiseRatio_(paramGaussianNoiseRatio(config)),
           inputActivationIndices_(0),
           outputActivationIndex_(0),
           predecessorLayers_(0),
@@ -168,10 +151,6 @@ NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration& config)
           activationStatisticsNeedInit_(true),
           refreshMean_(true),
           refreshVariance_(true) {
-    if (dropoutProbability_ > 0)
-        Core::Component::log("using dropout probability ") << dropoutProbability_ << " for " << layerName_;
-    if (gaussianNoiseRatio_ > 0)
-        Core::Component::log("using gaussian noise ratio ") << gaussianNoiseRatio_ << " for " << layerName_;
     // this is necessary if initializeNetwork(u32 batchSize) is called instead of initializeNetwork(u32 batchSize, std::vector<u32>& streamSizes)
     inputDimensions_.push_back(paramDimensionIn(config));
 }
@@ -298,28 +277,8 @@ void NeuralNetworkLayer<T>::updateStatistics(const NnMatrix& output) {
 }
 
 template<typename T>
-void NeuralNetworkLayer<T>::applyDropout(NnMatrix& output) {
-    output.dropout(dropoutProbability_);
-    // scale result to keep accumulated activations in same order of magnitude
-    output.scale(1.0 / (1.0 - dropoutProbability_));
-}
-
-template<typename T>
-void NeuralNetworkLayer<T>::addGaussianNoise(NnMatrix& output) {
-    require(statisticsSmoothing_ != noStatistics);
-    T avgStdDev = std::sqrt(getActivationVariance().asum() / getActivationVariance().nRows());
-    output.addGaussianNoise(avgStdDev * gaussianNoiseRatio_);
-}
-
-template<typename T>
 void NeuralNetworkLayer<T>::finalizeForwarding(NnMatrix& output) {
-    if (dropoutProbability_ > 0) {
-        applyDropout(output);
-    }
     updateStatistics(output);
-    if (gaussianNoiseRatio_ > 0) {
-        addGaussianNoise(output);
-    }
 }
 
 template<typename T>
@@ -494,11 +453,6 @@ NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Cor
             Core::Application::us()->log("creating new linear layer: ") << layer->name();
             break;
         }
-        case NeuralNetworkLayer<T>::lookupLayer: {
-            layer = new LookupLayer<T>(config);
-            Core::Application::us()->log("creating new lookup layer: ") << layer->name();
-            break;
-        }
         case NeuralNetworkLayer<T>::biasLayer: {
             layer = new BiasLayer<T>(config);
             Core::Application::us()->log("creating new bias layer: ") << layer->name();
@@ -514,21 +468,6 @@ NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Cor
             Core::Application::us()->log("creating new linear+softmax layer: ") << layer->name();
             break;
         }
-        case NeuralNetworkLayer<T>::linearAndTanhLayer: {
-            layer = new LinearAndTanhLayer<T>(config);
-            Core::Application::us()->log("creating new linear+tanh layer: ") << layer->name();
-            break;
-        }
-        case NeuralNetworkLayer<T>::linearAndRectifiedLayer: {
-            layer = new LinearAndRectifiedLayer<T>(config);
-            Core::Application::us()->log("creating new linear+rectified layer: ") << layer->name();
-            break;
-        }
-        case NeuralNetworkLayer<T>::linearAndEluLayer: {
-            layer = new LinearAndEluLayer<T>(config);
-            Core::Application::us()->log("creating new linear+elu layer: ") << layer->name();
-            break;
-        }
         case NeuralNetworkLayer<T>::logarithmPreprocessingLayer: {
             layer = new LogarithmPreprocessingLayer<T>(config);
             Core::Application::us()->log("creating new logarithm-preprocessing layer: ") << layer->name();
@@ -537,16 +476,6 @@ NeuralNetworkLayer<T>* NeuralNetworkLayer<T>::createNeuralNetworkLayer(const Cor
         case NeuralNetworkLayer<T>::meanAndVarianceNormalizationPreprocessingLayer: {
             layer = new MeanAndVarianceNormalizationPreprocessingLayer<T>(config);
             Core::Application::us()->log("creating new mean-and-variance-normalization-preprocessing layer: ") << layer->name();
-            break;
-        }
-        case NeuralNetworkLayer<T>::polynomialPreprocessingLayer: {
-            layer = new PolynomialPreprocessingLayer<T>(config);
-            Core::Application::us()->log("creating new polynomial-preprocessing layer: ") << layer->name();
-            break;
-        }
-        case NeuralNetworkLayer<T>::gaussianNoisePreprocessingLayer: {
-            layer = new GaussianNoisePreprocessingLayer<T>(config);
-            Core::Application::us()->log("creating new Gaussian noise preprocessing layer: ") << layer->name();
             break;
         }
         case NeuralNetworkLayer<T>::operationLayer: {

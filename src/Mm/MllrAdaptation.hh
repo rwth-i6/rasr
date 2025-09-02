@@ -195,10 +195,10 @@ public:
     virtual Sum                minAdaptationObservations() = 0;
     virtual Core::Ref<Adaptor> adaptor(void)               = 0;
     virtual void               accumulate(
-                          Core::Ref<const Feature::Vector>,
-                          DensityIndex,
-                          MixtureIndex,
-                          Core::Ref<MixtureSet>) = 0;
+            Core::Ref<const Feature::Vector>,
+            DensityIndex,
+            MixtureIndex,
+            Core::Ref<MixtureSet>) = 0;
     virtual void accumulate(
             Core::Ref<const Feature::Vector>,
             DensityIndex,
@@ -252,7 +252,7 @@ private:
     Math::Vector<Sum>               countAccumulators_;
     Math::Vector<Math::Vector<Sum>> betaAccumulators_;
     Math::Vector<Math::Vector<Sum>> shiftAccumulators_;
-    std::map<NodeId, Matrix>        shift_;  //not a vector since Id:s need not be successive
+    std::map<NodeId, Matrix>        shift_;  // not a vector since Id:s need not be successive
 
     void init();
 
@@ -363,7 +363,7 @@ protected:
 
     Math::Vector<ZAccumulator> leafZAccumulators_;
     Math::Vector<GAccumulator> leafGAccumulators_;
-    std::map<NodeId, Matrix>   w_;  //not a vector since Id:s need not be successive
+    std::map<NodeId, Matrix>   w_;  // not a vector since Id:s need not be successive
 
     virtual void estimateWMatrices();
 
@@ -403,7 +403,7 @@ public:
     virtual bool read(Core::BinaryInputStream& i);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 namespace {
 template<class T>

@@ -43,4 +43,4 @@ ConstWordLatticeRef removeFailures(ConstWordLatticeRef l) {
     return apply(l, r);
 }
 
-}  //namespace Lattice
+}  // namespace Lattice

@@ -183,16 +183,16 @@ const ParameterFloat CrossCorrelationNode::paramEnd("end", "correlation is calcu
 const ParameterInt   CrossCorrelationNode::paramNumberOfCoefficients("nr-coefficients", "correlation is calculated for 0, 1, 2, ..nr-coefficients-1 discrete values", 0);
 
 const Choice          CrossCorrelationNode::choiceSimilarityFunctionType("multiplication", Multiplication,
-                                                                "absolute-difference", AbsoluteDifference,
-                                                                Choice::endMark());
+                                                                         "absolute-difference", AbsoluteDifference,
+                                                                         Choice::endMark());
 const ParameterChoice CrossCorrelationNode::paramSimilarityFunctionType("similarity-function", &choiceSimilarityFunctionType, "type of similarity function", Multiplication);
 
 const ParameterFloat CrossCorrelationNode::paramPower("power", "power of similarity function", 1.0);
 
 const Choice          CrossCorrelationNode::choiceNormalizationType("none", None,
-                                                           "unbiased-estimate", UnbiasedEstimate,
-                                                           "upper-bound", UpperBound,
-                                                           Choice::endMark());
+                                                                    "unbiased-estimate", UnbiasedEstimate,
+                                                                    "upper-bound", UpperBound,
+                                                                    Choice::endMark());
 const ParameterChoice CrossCorrelationNode::paramNormalizationType("normalization", &choiceNormalizationType, "type of normalization", None);
 
 const ParameterBool CrossCorrelationNode::paramUseFastFourierTransform("use-fft", "use/not FFT for correlation", true);

@@ -48,6 +48,6 @@ public:
     void setMixtureSet(Core::Ref<const MixtureSet>);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_CONVERT_MIXTURE_SET_ESTIMATOR_HH

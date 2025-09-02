@@ -306,8 +306,13 @@ public:
     /**
      * Test whether non-ignored errors have occured.
      * @see error()
-         */
+     */
     bool hasFatalErrors() const;
+
+    /**
+     * Test whether any errors have occured (ignored or not).
+     */
+    bool hasErrors() const;
 
     /**
      * Terminate execution iff an error has occured previously.

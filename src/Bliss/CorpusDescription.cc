@@ -26,9 +26,6 @@
 #include <Modules.hh>
 #include <iomanip>
 
-#ifdef MODULE_THEANO_INTERFACE
-#include "TheanoSegmentOrderingVisitor.hh"
-#endif
 #ifdef MODULE_PYTHON
 #include "PythonSegmentOrdering.hh"
 #endif
@@ -54,7 +51,7 @@ std::string NamedCorpusEntity::fullName() const {
         new_name = name();
     if (!removePrefix_.empty()) {
         auto res = std::mismatch(removePrefix_.begin(), removePrefix_.end(), new_name.begin());
-        if (res.first == removePrefix_.end()){
+        if (res.first == removePrefix_.end()) {
             new_name = std::string(res.second, new_name.end());
         }
     }
@@ -215,10 +212,6 @@ const Core::ParameterBool CorpusDescription::paramSegmentOrderSortByTimeLength(
 const Core::ParameterInt CorpusDescription::paramSegmentOrderSortByTimeLengthChunkSize(
         "segment-order-sort-by-time-length-chunk-size",
         "Only sort each such chunk of segments. (-1 = disabled)", -1);
-const Core::ParameterBool CorpusDescription::paramTheanoSegmentOrder(
-        "theano-segment-order",
-        "use theano to specify the order of segments over shared memory",
-        false);
 const Core::ParameterBool CorpusDescription::paramPythonSegmentOrder(
         "python-segment-order",
         "use Python to specify the order of segments",
@@ -520,19 +513,10 @@ CorpusDescription::CorpusDescription(const Core::Configuration& c)
 
     // Handle the ordering.
     {
-        if (paramTheanoSegmentOrder(config)) {
-#ifdef MODULE_THEANO_INTERFACE
-            verify(!ordering_);
-            ordering_ = new TheanoSegmentOrderingVisitor();
-            log("Using Theano segment ordering");
-#else
-            criticalError("theano-segment-order not possible, MODULE_THEANO_INTERFACE disabled.");
-#endif
-        }
         if (paramPythonSegmentOrder(config)) {
 #ifdef MODULE_PYTHON
             if (ordering_)
-                criticalError("python-segment-order not possible, another ordering (theano?) already used");
+                criticalError("python-segment-order not possible, another ordering already used");
             std::string pyModPath = paramPythonSegmentOrderModPath(config);
             std::string pyModName = paramPythonSegmentOrderModName(config);
             std::string pyConfig  = paramPythonSegmentOrderConfig(config);

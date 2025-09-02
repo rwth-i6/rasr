@@ -34,10 +34,6 @@ CHECK_O		= $(OBJDIR)/check.o 			\
 		  ../Math/libSprintMath.$(a)		\
 		  ../Core/libSprintCore.$(a)
 
-ifdef MODULE_THEANO_INTERFACE
-  LIBBLISS_O += $(OBJDIR)/TheanoCommunicator.o
-  LIBBLISS_O += $(OBJDIR)/TheanoSegmentOrderingVisitor.o
-endif
 ifdef MODULE_PYTHON
   LIBBLISS_O += $(OBJDIR)/PythonSegmentOrdering.o
   CHECK_O += ../Python/libSprintPython.$(a)

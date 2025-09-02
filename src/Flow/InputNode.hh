@@ -16,24 +16,25 @@ public:
     static const Core::ParameterChoice paramSampleType;
     static const Core::ParameterInt    paramTrackCount;
     static const Core::ParameterInt    paramBlockSize;
-    static std::string filterName();
+    static std::string                 filterName();
     InputNode(const Core::Configuration& c);
     virtual ~InputNode() = default;
     virtual bool setParameter(const std::string& name, const std::string& value);
     virtual bool configure();
     virtual bool work(Flow::PortId out);
-    void setByteStreamAppender(ByteStreamAppender const& bsa);
-    bool getEOS() const;
-    void setEOS(bool eos);
-    bool getEOSReceived() const;
-    void setEOSReceived(bool eosReceived);
-    bool getResetSampleCount() const;
-    void setResetSampleCount(bool resetSampleCount);
+    void         setByteStreamAppender(ByteStreamAppender const& bsa);
+    bool         getEOS() const;
+    void         setEOS(bool eos);
+    bool         getEOSReceived() const;
+    void         setEOSReceived(bool eosReceived);
+    bool         getResetSampleCount() const;
+    void         setResetSampleCount(bool resetSampleCount);
+
 private:
-    unsigned         sampleRate_;
-    Flow::SampleType sampleType_;
-    unsigned         trackCount_;
-    unsigned         blockSize_;
+    unsigned           sampleRate_;
+    Flow::SampleType   sampleType_;
+    unsigned           trackCount_;
+    unsigned           blockSize_;
     ByteStreamAppender byteStreamAppender_;
     std::deque<char>   queue_;
     unsigned           sampleCount_;
@@ -41,6 +42,7 @@ private:
     bool               eosReceived_;
     bool               resetSampleCount_;
 };
+
 // ---------- inline implementations ----------
 inline std::string InputNode::filterName() {
     return "stream-input";
@@ -67,6 +69,6 @@ inline void InputNode::setResetSampleCount(bool resetSampleCount) {
     resetSampleCount_ = resetSampleCount;
 }
 
-} // namespace Flow
+}  // namespace Flow
 
 #endif  // INPUT_NODE_HH

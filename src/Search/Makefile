@@ -11,20 +11,23 @@ TARGETS		= libSprintSearch.$(a) check$(exe)
 
 LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Aligner.o \
-		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/LanguageModelLookahead.o \
+		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/Module.o \
+		$(OBJDIR)/PersistentStateTree.o \
 		$(OBJDIR)/Search.o \
 		$(OBJDIR)/StateTree.o \
 		$(OBJDIR)/StateTreeIo.o \
-		$(OBJDIR)/WordConditionedTreeSearch.o
+		$(OBJDIR)/Traceback.o \
+		$(OBJDIR)/TreeBuilder.o \
+		$(OBJDIR)/TreeStructure.o
 
 CHECK_O		= $(OBJDIR)/check.o \
 			  libSprintSearch.$(a) \
 			  ../Bliss/libSprintBliss.$(a) \
 			  ../Fsa/libSprintFsa.$(a) \
 			  ../Core/libSprintCore.$(a)
-			  
+
 
 ifdef MODULE_SEARCH_MBR
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearch.o
@@ -32,6 +35,8 @@ LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskAStarSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskNBestListSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearchUtil.o
 endif
+SUBDIRS += LexiconfreeTimesyncBeamSearch
+SUBDIRS += TreeTimesyncBeamSearch
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -40,9 +45,6 @@ SUBDIRS += AdvancedTreeSearch
 endif
 ifdef MODULE_SEARCH_LINEAR
 LIBSPRINTSEARCH_O += $(OBJDIR)/LinearSearch.o
-endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-SUBDIRS += GenericSeq2SeqTreeSearch
 endif
 
 # -----------------------------------------------------------------------------
@@ -65,17 +67,13 @@ Wfst:
 AdvancedTreeSearch:
 	$(MAKE) -C $@ libSprintAdvancedTreeSearch.$(a)
 
-GenericSeq2SeqTreeSearch:
-	$(MAKE) -C $@  libSprintGenericSeq2SeqTreeSearch.$(a)
-	
+LexiconfreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintLexiconfreeTimesyncBeamSearch.$(a)
+
+TreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintTreeTimesyncBeamSearch.$(a)
+
 include $(TOPDIR)/Rules.make
 
 sinclude $(LIBSPRINTSEARCH_O:.o=.d)
 sinclude $(patsubst %.o,%.d,$(filter %.o,$(CHECK_O)))
-
-# LanguageModelLookahead.cc causes an internal compiler error
-# when using icpc -> compile it using g++
-ifeq ($(COMPILER),icc)
-$(OBJDIR)/LanguageModelLookahead.o : 
-	make COMPILER=gcc $@
-endif

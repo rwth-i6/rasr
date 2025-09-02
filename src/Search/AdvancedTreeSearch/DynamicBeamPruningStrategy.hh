@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
-#define _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
+#ifndef ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
+#define ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
 
 #include <Core/Component.hh>
 #include <Search/Search.hh>
@@ -93,4 +93,4 @@ inline MaximumDelayBeamPruningStrategy::MaximumDelayBeamPruningStrategy(Core::Co
 
 }  // namespace Search
 
-#endif /* _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH */
+#endif  // ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH

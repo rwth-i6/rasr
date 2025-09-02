@@ -402,7 +402,7 @@ void EditDistance::align(Fsa::ConstAutomatonRef a, Fsa::ConstAutomatonRef b, Ali
         }
     }
 
-    //statSearchSpace_  += a->nStates() * b->nStates();
+    // statSearchSpace_  += a->nStates() * b->nStates();
     statMaxStackSize_ += maxStackSize;
     statNExpansions_ += nExpansions;
 

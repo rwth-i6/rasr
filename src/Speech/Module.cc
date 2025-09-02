@@ -65,10 +65,6 @@ Module_::Module_() {
     registry.registerFilter<FeatureScorerNode>();
     registry.registerDatatype<Flow::DataAdaptor<Alignment>>();
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-    registry.registerFilter<Seq2SeqAlignmentNode>();
-#endif
-
 #ifdef MODULE_SPEECH_ALIGNMENT_FLOW_NODES
     registry.registerFilter<AlignmentAddWeightNode>();
     registry.registerFilter<AlignmentCombineItemsNode>();
@@ -127,21 +123,20 @@ enum GraphBuilderTopology {
 };
 
 const Core::Choice GraphBuilderTopologyChoice(
-    "hmm", HMMTopology,
-    "ctc", CTCTopology,
-    "rna", RNATopology,
-    Core::Choice::endMark());
+        "hmm", HMMTopology,
+        "ctc", CTCTopology,
+        "rna", RNATopology,
+        Core::Choice::endMark());
 
 const Core::ParameterChoice paramTopology(
-    "topology", &GraphBuilderTopologyChoice, "topology of graph builder", HMMTopology);
-}
+        "topology", &GraphBuilderTopologyChoice, "topology of graph builder", HMMTopology);
+}  // namespace
 
 AllophoneStateGraphBuilder* Module_::createAllophoneStateGraphBuilder(
-        const Core::Configuration& config,
-        Core::Ref<const Bliss::Lexicon> lexicon,
+        const Core::Configuration&         config,
+        Core::Ref<const Bliss::Lexicon>    lexicon,
         Core::Ref<const Am::AcousticModel> acousticModel,
-        bool flatModelAcceptor) const {
-
+        bool                               flatModelAcceptor) const {
     AllophoneStateGraphBuilder* result = nullptr;
     switch (paramTopology(config)) {
         case HMMTopology:
@@ -161,7 +156,6 @@ AllophoneStateGraphBuilder* Module_::createAllophoneStateGraphBuilder(
     }
     return result;
 }
-
 
 AligningFeatureExtractor* Module_::createAligningFeatureExtractor(
         const Core::Configuration& configuration, AlignedFeatureProcessor& featureProcessor) const {

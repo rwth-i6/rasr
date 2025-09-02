@@ -23,6 +23,7 @@ const Core::Choice          InputNode::choiceSampleType("s8", static_cast<unsign
 const Core::ParameterChoice InputNode::paramSampleType("sample-type", &choiceSampleType, "data type of the samples", static_cast<unsigned>(Flow::SampleType::SampleTypeU16));
 const Core::ParameterInt    InputNode::paramTrackCount("track-count", "number of tracks in the stream", 1, 1);
 const Core::ParameterInt    InputNode::paramBlockSize("block-size", "number of samples per flow vector", 4096, 1);
+
 InputNode::InputNode(const Core::Configuration& c)
         : Core::Component(c),
           Precursor(c),
@@ -36,6 +37,7 @@ InputNode::InputNode(const Core::Configuration& c)
           eos_(true),
           eosReceived_(false) {
 }
+
 bool InputNode::setParameter(const std::string& name, const std::string& value) {
     if (paramSampleRate.match(name)) {
         sampleRate_ = paramSampleRate(value);
@@ -54,6 +56,7 @@ bool InputNode::setParameter(const std::string& name, const std::string& value) 
     }
     return true;
 }
+
 bool InputNode::configure() {
     Core::Ref<Flow::Attributes> a(new Flow::Attributes());
     a->set("sample-rate", sampleRate_);
@@ -82,6 +85,7 @@ bool InputNode::configure() {
     a->set("sample-size", sample_size);
     return putOutputAttributes(0, a);
 }
+
 bool InputNode::work(Flow::PortId out) {
     unsigned sample_size = static_cast<unsigned>(sampleType_) & 0xFF;
     if ((not(eos_ and not eosReceived_)) and (queue_.size() < blockSize_ * sample_size)) {
@@ -107,7 +111,7 @@ bool InputNode::work(Flow::PortId out) {
             queue_.resize(full_samples * sample_size);
         }
     }
-    unsigned num_samples = std::min<unsigned>(blockSize_, full_samples);
+    unsigned          num_samples = std::min<unsigned>(blockSize_, full_samples);
     std::vector<char> buffer(num_samples * sample_size);
     std::copy(queue_.begin(), queue_.begin() + num_samples * sample_size, buffer.begin());
     for (size_t i = 0ul; i < num_samples * sample_size; i++) {

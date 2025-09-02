@@ -225,6 +225,6 @@ public:
     virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
 };
 
-}  //namespace Speech
+}  // namespace Speech
 
 #endif  // _SPEECH_ACCURACY_FSA_BUILDER_HH

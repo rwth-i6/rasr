@@ -3,14 +3,14 @@
 #include <memory>
 #include <vector>
 
-#undef ensure // macro duplication in pybind11/numpy.h
-#include <pybind11/pybind11.h>
+#undef ensure  // macro duplication in pybind11/numpy.h
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 
-#include <Core/Application.hh>
-#include <Core/Component.hh>
-#include <Core/Archive.hh>
 #include <Bliss/CorpusDescription.hh>
+#include <Core/Application.hh>
+#include <Core/Archive.hh>
+#include <Core/Component.hh>
 #include <Nn/AllophoneStateFsaExporter.hh>
 
 namespace py = pybind11;
@@ -39,23 +39,26 @@ AllophoneStateFsaBuilder::AllophoneStateFsaBuilder(const Core::Configuration& c)
           segmentToOrthMap_(nullptr) {
     // init exporter and orth map
     allophoneStateFsaExporter_ = std::make_shared<Nn::AllophoneStateFsaExporter>(select("alignment-fsa-exporter"));
-    segmentToOrthMap_ = build_segment_to_orth_map(select("corpus"));
+    segmentToOrthMap_          = build_segment_to_orth_map(select("corpus"));
 }
 
-py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+std::string AllophoneStateFsaBuilder::getOrthographyBySegmentName(const std::string& segmentName) {
     auto iter = segmentToOrthMap_->find(segmentName);
     if (iter == segmentToOrthMap_->end()) {
         throw std::invalid_argument("Could not find segment with name " + segmentName);
     }
-    return buildByOrthography(iter->second);
+    return iter->second;
+}
+
+py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+    return buildByOrthography(getOrthographyBySegmentName(segmentName));
 }
 
 py::tuple AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {
     Nn::AllophoneStateFsaExporter::ExportedAutomaton automaton = allophoneStateFsaExporter_->exportFsaForOrthography(orthography);
-    return py::make_tuple( 
-        automaton.num_states,
-        automaton.num_edges,
-        py::array_t<u32>(automaton.edges.size(), automaton.edges.data()),
-        py::array_t<f32>(automaton.weights.size(), automaton.weights.data())
-    );
+    return py::make_tuple(
+            automaton.num_states,
+            automaton.num_edges,
+            py::array_t<u32>(automaton.edges.size(), automaton.edges.data()),
+            py::array_t<f32>(automaton.weights.size(), automaton.weights.data()));
 }

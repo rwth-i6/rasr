@@ -51,6 +51,7 @@ public:
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterInt   paramMaximumStableDelay;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -65,7 +66,7 @@ public:
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 
@@ -155,7 +156,7 @@ private:
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request>     requests_;
-    std::vector<LabelHypothesis>              recombinedHypotheses_;
+    std::vector<LabelHypothesis>              tempHypotheses_;  // Intermediate collection for pruning steps
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
@@ -178,8 +179,10 @@ private:
     Core::Statistics<u32> numActiveTrees_;
 
     // These are modified during getCurrentBestStableTraceback
-    mutable StableTraceTracker stableTraceTracker_;
-    mutable bool               canUpdateStablePrefix_;
+    StableTraceTracker stableTraceTracker_;
+    bool               canUpdateStablePrefix_;
+
+    size_t maximumStableDelay_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -224,6 +227,11 @@ private:
      * If no word-end hypotheses exist, use sentence-end fallback or construct an empty hypothesis
      */
     void finalizeLmScoring();
+
+    /*
+     * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

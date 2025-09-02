@@ -85,7 +85,7 @@ public:
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
 
     // Return the current best stable traceback.
-    virtual Core::Ref<const Traceback> getCurrentStableTraceback() const = 0;
+    virtual Core::Ref<const Traceback> getCurrentStableTraceback() = 0;
 
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;

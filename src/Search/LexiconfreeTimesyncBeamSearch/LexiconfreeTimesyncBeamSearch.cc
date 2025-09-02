@@ -52,6 +52,21 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
                   extension.timeframe + 1,
                   {extension.score, 0},
                   {}))) {
+    Core::Ref<LatticeTrace> baseTrace;
+
+    if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {
+        baseTrace = base.trace->predecessor;
+    }
+    else {
+        baseTrace = base.trace;
+    }
+
+    trace = Core::ref(new LatticeTrace(
+            baseTrace,
+            extension.pron,
+            extension.timeframe + 1,
+            {extension.score, 0},
+            {}));
 }
 
 std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
@@ -109,6 +124,12 @@ const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCacheCleanupInterv
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
         10);
 
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelay(
+        "maximum-stable-delay",
+        "Introduce a cutoff point at `current-time` - `delay`. Every hypothesis that disagrees with the current best anywhere before the cutoff gets pruned. This way words in the traceback become stable after at most `delay` frames."
+        "maximum number of frames before results are required to be stable",
+        Core::Type<int>::max, 0);
+
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -125,7 +146,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           extensions_(),
           newBeam_(),
           requests_(),
-          recombinedHypotheses_(),
+          tempHypotheses_(),
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
@@ -137,10 +158,11 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           currentSearchStep_(0ul),
           finishedSegment_(false),
           stableTraceTracker_(),
-          canUpdateStablePrefix_(false) {
+          canUpdateStablePrefix_(false),
+          maximumStableDelay_(paramMaximumStableDelay(config)) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
-    recombinedHypotheses_.reserve(maxBeamSize_);
+    tempHypotheses_.reserve(maxBeamSize_);
     useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
@@ -229,8 +251,10 @@ Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTracebac
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentStableTraceback() const {
+Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentStableTraceback() {
     if (canUpdateStablePrefix_) {
+        maximumStableDelayPruning();
+
         std::vector<Core::Ref<LatticeTrace const>> traces;
         traces.reserve(beam_.size());
         for (auto const& hyp : beam_) {
@@ -372,7 +396,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
     }
 
-    numActiveHyps_ += newBeam_.size();
+    beam_.swap(newBeam_);
+
+    numActiveHyps_ += beam_.size();
 
     /*
      * Clean up label scorer caches.
@@ -388,7 +414,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     /*
      * Log statistics about the new beam after this step.
      */
-    beam_.swap(newBeam_);
+
     canUpdateStablePrefix_ = true;
 
     if (debugChannel_.isOpen()) {
@@ -509,8 +535,8 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesync
 }
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
-    recombinedHypotheses_.clear();
-    recombinedHypotheses_.reserve(hypotheses.size());
+    tempHypotheses_.clear();
+    tempHypotheses_.reserve(hypotheses.size());
     // Map each unique ScoringContext in newHypotheses to its hypothesis
     std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
     for (auto const& hyp : hypotheses) {
@@ -519,8 +545,8 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
 
         if (inserted) {
             // First time seeing this scoring context so move it over to `newHypotheses`
-            recombinedHypotheses_.push_back(std::move(hyp));
-            it->second = &recombinedHypotheses_.back();
+            tempHypotheses_.push_back(std::move(hyp));
+            it->second = &tempHypotheses_.back();
         }
         else {
             verify(not hyp.trace->sibling);
@@ -539,7 +565,55 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
         }
     }
 
-    hypotheses.swap(recombinedHypotheses_);
+    hypotheses.swap(tempHypotheses_);
+}
+
+void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
+    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+        return;
+    }
+
+    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
+
+    // Find trace of current best hypothesis that has a recent word-end within the limit
+    auto&                   bestHyp   = beam_.front();
+    Score                   bestScore = Core::Type<Score>::max;
+    Core::Ref<LatticeTrace> root;
+
+    for (auto const& hyp : beam_) {
+        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
+            bestScore = hyp.score;
+            bestHyp   = hyp;
+            root      = hyp.trace;
+        }
+    }
+
+    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
+    if (not root) {
+        root = getBestHypothesis().trace;
+        warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
+    }
+
+    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
+    Core::Ref<LatticeTrace> preRoot = root->predecessor;
+
+    while (preRoot and preRoot->time >= cutoff) {
+        root    = preRoot;
+        preRoot = preRoot->predecessor;
+    }
+
+    // Perform pruning on root
+    tempHypotheses_.clear();
+    for (auto const& hyp : beam_) {
+        auto curr = hyp.trace;
+        while (curr and curr != root and curr->time > root->time) {
+            curr = curr->predecessor;
+        }
+        if (curr == root) {
+            tempHypotheses_.push_back(hyp);
+        }
+    }
+    beam_.swap(tempHypotheses_);
 }
 
 }  // namespace Search

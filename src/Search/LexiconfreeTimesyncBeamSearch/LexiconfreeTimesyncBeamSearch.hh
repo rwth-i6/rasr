@@ -45,8 +45,10 @@ public:
     static const Core::ParameterFloat paramIntermediateScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterInt   paramMaximumStableDelay;
+    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -60,7 +62,7 @@ public:
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 
@@ -130,7 +132,7 @@ private:
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<LabelHypothesis>          tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -146,8 +148,11 @@ private:
     bool   finishedSegment_;
 
     // These are modified during getCurrentBestStableTraceback
-    mutable StableTraceTracker stableTraceTracker_;
-    mutable bool               canUpdateStablePrefix_;
+    StableTraceTracker stableTraceTracker_;
+    bool               canUpdateStablePrefix_;
+
+    size_t maximumStableDelay_;
+    size_t maximumStableDelayPruningInterval_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -175,6 +180,11 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

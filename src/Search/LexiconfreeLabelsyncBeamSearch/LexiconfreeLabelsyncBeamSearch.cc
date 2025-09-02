@@ -51,13 +51,22 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           length(base.length + 1),
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
-          trace(Core::ref(new LatticeTrace(
-                  base.trace,
-                  extension.pron,
-                  extension.timeframe + 1,
-                  {extension.score, 0},
-                  {}))),
           isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
+    Core::Ref<LatticeTrace> baseTrace;
+
+    if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {
+        baseTrace = base.trace->predecessor;
+    }
+    else {
+        baseTrace = base.trace;
+    }
+
+    trace = Core::ref(new LatticeTrace(
+            baseTrace,
+            extension.pron,
+            extension.timeframe + 1,
+            {extension.score, 0},
+            {}));
 }
 
 std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
@@ -234,7 +243,7 @@ Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentBestTraceba
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentStableTraceback() const {
+Core::Ref<const Traceback> LexiconfreeLabelsyncBeamSearch::getCurrentStableTraceback() {
     return {};
 }
 

@@ -101,7 +101,8 @@ protected:
         Nn::ScoringContextRef scoringContext;
         Lm::History           lmHistory;
 
-        RecombinationContext(LabelHypothesis const& hyp) : state(hyp.currentState), scoringContext(hyp.scoringContext), lmHistory(hyp.lmHistory) {}
+        RecombinationContext(LabelHypothesis const& hyp)
+                : state(hyp.currentState), scoringContext(hyp.scoringContext), lmHistory(hyp.lmHistory) {}
 
         bool operator==(const RecombinationContext& other) const {
             return state == other.state and Nn::ScoringContextEq{}(scoringContext, other.scoringContext) and lmHistory == other.lmHistory;
@@ -160,7 +161,7 @@ public:
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
 

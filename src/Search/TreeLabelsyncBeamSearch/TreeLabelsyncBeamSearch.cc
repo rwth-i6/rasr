@@ -357,7 +357,7 @@ Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentBestTraceback() co
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentStableTraceback() const {
+Core::Ref<const Traceback> TreeLabelsyncBeamSearch::getCurrentStableTraceback() {
     return {};
 }
 
@@ -430,8 +430,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     createWordEndHypotheses();
 
     if (isSet(wordEndScoreThreshold_)) {
-        auto wordEndPruningThreshold = std::min_element(wordEndHypotheses_.begin(), wordEndHypotheses_.end())->scaledScore + wordEndScoreThreshold_;
-        scorePruning(extensions_, wordEndPruningThreshold);
+        if (not wordEndHypotheses_.empty()) {
+            auto wordEndPruningThreshold = std::min_element(wordEndHypotheses_.begin(), wordEndHypotheses_.end())->scaledScore + wordEndScoreThreshold_;
+            scorePruning(wordEndHypotheses_, wordEndPruningThreshold);
+        }
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndHypotheses_.size());
         }
@@ -461,9 +463,11 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
             break;
         case GlobalPruningStrategyType::ACTIVE_AGAINST_TERMINATED: {
             splitActiveTerminated();
-            if (isSet(globalScoreThreshold_) and not beamTerminated_.empty()) {
-                auto globalPruningThreshold = std::min_element(beamTerminated_.begin(), beamTerminated_.end())->scaledScore + globalScoreThreshold_;
-                scorePruning(beamActive_, globalPruningThreshold);
+            if (isSet(globalScoreThreshold_)) {
+                if (not beamTerminated_.empty()) {
+                    auto globalPruningThreshold = std::min_element(beamTerminated_.begin(), beamTerminated_.end())->scaledScore + globalScoreThreshold_;
+                    scorePruning(beamActive_, globalPruningThreshold);
+                }
                 if (logStepwiseStatistics_) {
                     clog() << Core::XmlFull("num-hyps-after-global-score-pruning", beamActive_.size() + beamTerminated_.size());
                 }
@@ -484,8 +488,10 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         }
         case GlobalPruningStrategyType::ALL: {
             if (isSet(globalScoreThreshold_)) {
-                auto globalPruningThreshold = std::min_element(newBeam_.begin(), newBeam_.end())->scaledScore + globalScoreThreshold_;
-                scorePruning(newBeam_, globalPruningThreshold);
+                if (not newBeam_.empty()) {
+                    auto globalPruningThreshold = std::min_element(newBeam_.begin(), newBeam_.end())->scaledScore + globalScoreThreshold_;
+                    scorePruning(newBeam_, globalPruningThreshold);
+                }
                 if (logStepwiseStatistics_) {
                     clog() << Core::XmlFull("num-hyps-after-global-score-pruning", newBeam_.size());
                 }

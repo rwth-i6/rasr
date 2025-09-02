@@ -62,7 +62,7 @@ void Preemphasis::apply(Flow::Vector<f32>& v) {
             previous_ = current;
         }
     }
-    else if (!v.empty()) {
+    else {
         current   = previous_;
         previous_ = v[v.size() - 1];
         for (u32 i = v.size() - 1; i > 0; i--)

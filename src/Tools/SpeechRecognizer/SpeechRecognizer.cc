@@ -140,6 +140,7 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
                 case recognizerV2: {
                     auto recognizer          = Search::Module::instance().createSearchAlgorithmV2(select("recognizer"));
                     auto modelCombinationRef = Core::ref(new Speech::ModelCombination(select("model-combination"), recognizer->requiredModelCombination(), recognizer->requiredAcousticModel()));
+                    modelCombinationRef->load();
                     recognizer->setModelCombination(*modelCombinationRef);
                     delete recognizer;
                     break;

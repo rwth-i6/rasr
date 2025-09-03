@@ -73,6 +73,13 @@ public:
     static const Core::Choice          recognitionModeChoice;
     static const Core::ParameterChoice paramRecognitionMode;
 
+    enum RecognizerType {
+        recognizer,
+        recognizerV2,
+    };
+    static const Core::Choice          RecognizerTypeChoice;
+    static const Core::ParameterChoice paramRecognizerType;
+
 public:
     int main(const std::vector<std::string>& arguments);
 };
@@ -88,6 +95,15 @@ const Core::ParameterChoice SpeechRecognizer::paramRecognitionMode(
         "recognition-mode", &recognitionModeChoice,
         "operation mode: corpus-base (offline) or online",
         offlineRecognition);
+
+const Core::Choice SpeechRecognizer::RecognizerTypeChoice(
+        "recognizer", recognizer,
+        "recognizer-v2", recognizerV2,
+        Core::Choice::endMark());
+const Core::ParameterChoice SpeechRecognizer::paramRecognizerType(
+        "reocgnizer-type", &RecognizerTypeChoice,
+        "search algorithm type: search algorithm or search algorithm v2",
+        recognizer);
 
 int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
     switch (paramRecognitionMode(config)) {
@@ -111,12 +127,24 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
             delete processor;
         } break;
         case initOnlyRecognition: {
-            auto recognizer          = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
-            auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
-            modelCombinationRef->load();
-            recognizer->setModelCombination(*modelCombinationRef);
-            recognizer->init();
-            delete recognizer;
+            switch (paramRecognizerType(config)) {
+                case recognizer: {
+                    auto recognizer          = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
+                    auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
+                    modelCombinationRef->load();
+                    recognizer->setModelCombination(*modelCombinationRef);
+                    recognizer->init();
+                    delete recognizer;
+                    break;
+                }
+                case recognizerV2: {
+                    auto recognizer          = Search::Module::instance().createSearchAlgorithmV2(select("recognizer"));
+                    auto modelCombinationRef = Core::ref(new Speech::ModelCombination(select("model-combination"), recognizer->requiredModelCombination(), recognizer->requiredAcousticModel()));
+                    recognizer->setModelCombination(*modelCombinationRef);
+                    delete recognizer;
+                    break;
+                }
+            }
         } break;
         default: defect();
     }

@@ -101,7 +101,7 @@ const Core::Choice SpeechRecognizer::RecognizerTypeChoice(
         "recognizer-v2", recognizerV2,
         Core::Choice::endMark());
 const Core::ParameterChoice SpeechRecognizer::paramRecognizerType(
-        "reocgnizer-type", &RecognizerTypeChoice,
+        "recognizer-type", &RecognizerTypeChoice,
         "search algorithm type: search algorithm or search algorithm v2",
         recognizer);
 

@@ -89,7 +89,6 @@ public:
         return silence_;
     }
     virtual AllophoneStateIndex silenceAllophoneStateIndex() const {
-        verify(silenceAllophoneStateIndex_ != Fsa::InvalidLabelId);
         return silenceAllophoneStateIndex_;
     }
 

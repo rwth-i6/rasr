@@ -197,6 +197,7 @@ OrthographyFrameStateAccuracyLatticeBuilder::Functor
                 const Bliss::Lemma* lemma = lexicon_->lemma(silence);
                 if (lemma == lexicon_->specialLemma("silence")) {
                     const Fsa::LabelId silAlloStateId = alignmentGenerator_->acousticModel()->silenceAllophoneStateIndex();
+                    verify(silAlloStateId != Fsa::InvalidLabelId);
                     shortPauses_.insert(silAlloStateId);
                 }
                 else {

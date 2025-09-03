@@ -379,6 +379,7 @@ Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::buildTransducer(Fsa::ConstAutoma
 
 Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::applyMinimumDuration(Fsa::ConstAutomatonRef model) {
     Fsa::LabelId                    silenceId  = acousticModel_->silenceAllophoneStateIndex();
+    verify(silenceId != Fsa::InvalidLabelId);
     Core::Ref<Fsa::StaticAutomaton> automaton  = Fsa::staticCopy(model);
     Fsa::ConstAlphabetRef           inAlphabet = automaton->getInputAlphabet();
 
@@ -433,6 +434,7 @@ CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration&     
     log() << "blank allophone id " << blankId_;
     // silence is allowed but not necessarily used
     silenceId_ = acousticModel_->silenceAllophoneStateIndex();
+    verify(silenceId_ != Fsa::InvalidLabelId);
 }
 
 void CTCTopologyGraphBuilder::checkTransitionModel() {

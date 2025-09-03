@@ -393,7 +393,6 @@ void AlignmentWithLinearSegmentationNode::initialize() {
     modelCache_->setDependencies(dependencies);
 
     const Fsa::LabelId silAlloStateId = modelCombination.acousticModel()->silenceAllophoneStateIndex();
-    verify(silAlloStateId != Fsa::InvalidLabelId);
     segmenter_.setSilence(silAlloStateId);
 
     needInit_ = false;

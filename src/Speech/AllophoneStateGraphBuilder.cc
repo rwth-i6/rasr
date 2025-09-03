@@ -434,7 +434,9 @@ CTCTopologyGraphBuilder::CTCTopologyGraphBuilder(const Core::Configuration&     
     log() << "blank allophone id " << blankId_;
     // silence is allowed but not necessarily used
     silenceId_ = acousticModel_->silenceAllophoneStateIndex();
-    verify(silenceId_ != Fsa::InvalidLabelId);
+    if (silenceId_ == Fsa::InvalidLabelId) {
+        warning("No silence allophone state found.");
+    }
 }
 
 void CTCTopologyGraphBuilder::checkTransitionModel() {

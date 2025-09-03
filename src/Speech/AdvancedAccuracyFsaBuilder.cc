@@ -191,13 +191,13 @@ OrthographyFrameStateAccuracyLatticeBuilder::Functor
         std::vector<std::string> shortPausesLemmata = paramShortPausesLemmata(config);
         if (!shortPausesLemmata.empty()) {
             if (shortPausesLemmata.size() == 1) {
+                require(lexicon_->specialLemma("silence") != nullptr);
                 std::string silence(shortPausesLemmata.front());
                 Core::normalizeWhitespace(silence);
                 log("Append short pause lemma \"") << silence << "\"";
                 const Bliss::Lemma* lemma = lexicon_->lemma(silence);
                 if (lemma == lexicon_->specialLemma("silence")) {
                     const Fsa::LabelId silAlloStateId = alignmentGenerator_->acousticModel()->silenceAllophoneStateIndex();
-                    verify(silAlloStateId != Fsa::InvalidLabelId);
                     shortPauses_.insert(silAlloStateId);
                 }
                 else {

@@ -66,6 +66,7 @@ void BufferedAlignedFeatureProcessor<T>::initAcousticModel() {
     modelCombination.load();
     acousticModel_ = modelCombination.acousticModel();
     /* set silence */
+    verify(acousticModel_->silence() != Bliss::Phoneme::invalidId);
     Am::Allophone silenceAllophone(acousticModel_->silence(), Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
     silence_ = classIndex(acousticModel_->allophoneStateAlphabet()->index(&silenceAllophone, 0));
     this->log("silence index is ") << silence_;

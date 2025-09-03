@@ -378,7 +378,7 @@ Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::buildTransducer(Fsa::ConstAutoma
 }
 
 Fsa::ConstAutomatonRef HMMTopologyGraphBuilder::applyMinimumDuration(Fsa::ConstAutomatonRef model) {
-    Fsa::LabelId                    silenceId  = acousticModel_->silenceAllophoneStateIndex();
+    Fsa::LabelId silenceId = acousticModel_->silenceAllophoneStateIndex();
     verify(silenceId != Fsa::InvalidLabelId);
     Core::Ref<Fsa::StaticAutomaton> automaton  = Fsa::staticCopy(model);
     Fsa::ConstAlphabetRef           inAlphabet = automaton->getInputAlphabet();

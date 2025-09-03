@@ -1206,9 +1206,9 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
 // -------------------- SharedBaseClassTreeBuilder --------------------
 
 SharedBaseClassTreeBuilder::SharedBaseClassTreeBuilder(Core::Configuration          config,
-                                                                   const Bliss::Lexicon&        lexicon,
-                                                                   const Am::AcousticModel&     acousticModel,
-                                                                   Search::PersistentStateTree& network)
+                                                       const Bliss::Lexicon&        lexicon,
+                                                       const Am::AcousticModel&     acousticModel,
+                                                       Search::PersistentStateTree& network)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network) {}
 
 StateId SharedBaseClassTreeBuilder::createRoot() {

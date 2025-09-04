@@ -131,7 +131,7 @@ void MeanNormalization::updateStatistics(const Frame& add, const Frame& remove) 
 void MeanNormalization::finalize() {
     if (sumWeight_ > 0) {
         std::transform(sum_.begin(), sum_.end(), mean_.begin(),
-                       std::bind2nd(std::divides<Sum>(), sumWeight_));
+                       std::bind(std::divides<Sum>(), std::placeholders::_1, sumWeight_));
     }
     Precursor::finalize();
 }
@@ -263,7 +263,11 @@ void DivideByMean::apply(Frame& out) {
 
 //===================================================================================================
 MeanNormNormalization::MeanNormNormalization(const Core::Configuration& c, f32 norm)
-        : Core::Component(c), sumOfNorms_(0), averageNorm_(0), norm_(norm), normFunction_(c) {
+        : Core::Component(c),
+          sumOfNorms_(0),
+          averageNorm_(0),
+          norm_(norm),
+          normFunction_(c) {
 }
 
 void MeanNormNormalization::reset() {
@@ -288,7 +292,7 @@ void MeanNormNormalization::finalize() {
 
 void MeanNormNormalization::apply(Frame& out) {
     std::transform(out->begin(), out->end(), out->begin(),
-                   std::bind2nd(std::divides<Value>(), averageNorm_));
+                   std::bind(std::divides<Value>(), std::placeholders::_1, averageNorm_));
 }
 
 //===================================================================================================
@@ -413,15 +417,20 @@ bool NormalizationNode::work(Flow::PortId p) {
     Normalization::Frame in, out;
 
     while (getData(0, in)) {
-        if (update(in, out))
+        if (update(in, out)) {
             return putData(0, out.get());
+        }
     }
 
     // in is invalid
     if (in == Flow::Data::eos()) {
-        while (flush(out))
+        while (flush(out)) {
             putData(0, out.get());
+        }
         reset();
+    }
+    else if (in == Flow::Data::ood()) {
+        return putOod(p);
     }
     return putData(0, in.get());
 }

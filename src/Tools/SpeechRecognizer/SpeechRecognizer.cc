@@ -73,12 +73,12 @@ public:
     static const Core::Choice          recognitionModeChoice;
     static const Core::ParameterChoice paramRecognitionMode;
 
-    enum RecognizerType {
-        recognizer,
-        recognizerV2,
+    enum SearchAlgorithmInterfaceType {
+        search,
+        searchV2,
     };
-    static const Core::Choice          RecognizerTypeChoice;
-    static const Core::ParameterChoice paramRecognizerType;
+    static const Core::Choice          SearchAlgorithmInterfaceTypeChoice;
+    static const Core::ParameterChoice paramSearchAlgorithmInterfaceType;
 
 public:
     int main(const std::vector<std::string>& arguments);
@@ -96,14 +96,14 @@ const Core::ParameterChoice SpeechRecognizer::paramRecognitionMode(
         "operation mode: corpus-base (offline) or online",
         offlineRecognition);
 
-const Core::Choice SpeechRecognizer::RecognizerTypeChoice(
-        "recognizer", recognizer,
-        "recognizer-v2", recognizerV2,
+const Core::Choice SpeechRecognizer::SearchAlgorithmInterfaceTypeChoice(
+        "search", search,
+        "search-v2", searchV2,
         Core::Choice::endMark());
-const Core::ParameterChoice SpeechRecognizer::paramRecognizerType(
-        "recognizer-type", &RecognizerTypeChoice,
-        "search algorithm type: search algorithm or search algorithm v2",
-        recognizer);
+const Core::ParameterChoice SpeechRecognizer::paramSearchAlgorithmInterfaceType(
+        "search-algorithm-interface-type", &SearchAlgorithmInterfaceTypeChoice,
+        "search algorithm interface of type search algorithm or search algorithm v2",
+        search);
 
 int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
     switch (paramRecognitionMode(config)) {
@@ -127,8 +127,8 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
             delete processor;
         } break;
         case initOnlyRecognition: {
-            switch (paramRecognizerType(config)) {
-                case recognizer: {
+            switch (paramSearchAlgorithmInterfaceType(config)) {
+                case search: {
                     auto recognizer          = std::unique_ptr<Search::SearchAlgorithm>(Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer")));
                     auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
                     modelCombinationRef->load();
@@ -136,10 +136,9 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
                     recognizer->init();
                     break;
                 }
-                case recognizerV2: {
+                case searchV2: {
                     auto recognizer          = std::unique_ptr<Search::SearchAlgorithmV2>(Search::Module::instance().createSearchAlgorithmV2(select("recognizer")));
                     auto modelCombinationRef = Core::ref(new Speech::ModelCombination(select("model-combination"), recognizer->requiredModelCombination(), recognizer->requiredAcousticModel()));
-                    modelCombinationRef->load();
                     recognizer->setModelCombination(*modelCombinationRef);
                     break;
                 }

@@ -129,20 +129,18 @@ int SpeechRecognizer::main(const std::vector<std::string>& arguments) {
         case initOnlyRecognition: {
             switch (paramRecognizerType(config)) {
                 case recognizer: {
-                    auto recognizer          = Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer"));
+                    auto recognizer          = std::unique_ptr<Search::SearchAlgorithm>(Search::Module::instance().createRecognizer(static_cast<Search::SearchType>(Speech::Recognizer::paramSearch(config)), select("recognizer")));
                     auto modelCombinationRef = Speech::ModelCombinationRef(new Speech::ModelCombination(select("model-combination"), recognizer->modelCombinationNeeded(), Am::AcousticModel::noEmissions));
                     modelCombinationRef->load();
                     recognizer->setModelCombination(*modelCombinationRef);
                     recognizer->init();
-                    delete recognizer;
                     break;
                 }
                 case recognizerV2: {
-                    auto recognizer          = Search::Module::instance().createSearchAlgorithmV2(select("recognizer"));
+                    auto recognizer          = std::unique_ptr<Search::SearchAlgorithmV2>(Search::Module::instance().createSearchAlgorithmV2(select("recognizer")));
                     auto modelCombinationRef = Core::ref(new Speech::ModelCombination(select("model-combination"), recognizer->requiredModelCombination(), recognizer->requiredAcousticModel()));
                     modelCombinationRef->load();
                     recognizer->setModelCombination(*modelCombinationRef);
-                    delete recognizer;
                     break;
                 }
             }

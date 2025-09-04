@@ -68,6 +68,8 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             trace->score.acoustic = extension.score;
             trace->time           = extension.timeframe + 1;
             break;
+        default:
+            defect();  // Unexpected transition type which can not be produced by `inferTransitionType`
     }
 }
 

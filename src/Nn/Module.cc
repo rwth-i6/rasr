@@ -23,6 +23,7 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -119,6 +120,13 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on hidden state tensors.
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 };
 

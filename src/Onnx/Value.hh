@@ -64,8 +64,11 @@ public:
     template<typename T>
     static Value zeros(std::vector<int64_t> const& dim);
 
+    static Value concat(std::vector<Value const*> const& values, int axis);
+
     Value();
     Value(Value&& other);
+    Value(Value const& other);
     ~Value() = default;
 
     bool empty() const;
@@ -175,6 +178,9 @@ protected:
     Value(Ort::Value&& value);
 
     Ort::Value value_;
+
+    template<typename T>
+    void copyFrom(Ort::Value const& v);
 
     Ort::Value const* rawValue() const;
 };

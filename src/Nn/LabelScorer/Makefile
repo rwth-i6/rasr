@@ -21,7 +21,8 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/FixedContextOnnxLabelScorer.o \
     $(OBJDIR)/NoContextOnnxLabelScorer.o \
     $(OBJDIR)/NoOpLabelScorer.o \
-    $(OBJDIR)/ScoringContext.o
+    $(OBJDIR)/ScoringContext.o \
+    $(OBJDIR)/StatefulOnnxLabelScorer.o
 
 # -----------------------------------------------------------------------------
 

@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 
-#include "FullInputStatefulOnnxLabelScorer.hh"
+#include "StatefulOnnxLabelScorer.hh"
 
 #include <algorithm>
 #include <cstddef>
@@ -33,30 +33,31 @@ namespace Nn {
 
 /*
  * =============================
- * == StatefulOnnxLabelScorer
+ * == StatefulOnnxLabelScorer ==
  * =============================
  */
 
-const Core::ParameterBool FullInputStatefulOnnxLabelScorer::paramBlankUpdatesHistory(
+const Core::ParameterBool StatefulOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
         "Whether previously emitted blank labels should be used to update the history.",
         false);
 
-const Core::ParameterBool FullInputStatefulOnnxLabelScorer::paramLoopUpdatesHistory(
+const Core::ParameterBool StatefulOnnxLabelScorer::paramLoopUpdatesHistory(
         "loop-updates-history",
         "Whether in the case of loop transitions every repeated emission should be used to update the history.",
         false);
 
-const Core::ParameterInt FullInputStatefulOnnxLabelScorer::paramMaxBatchSize(
+const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxBatchSize(
         "max-batch-size",
         "Max number of hidden-states that can be fed into the scorer ONNX model at once.",
         Core::Type<int>::max);
 
-const Core::ParameterInt FullInputStatefulOnnxLabelScorer::paramMaxCachedScores(
+const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
         1000);
 
+// Scorer only takes hidden states as input which are not part of the IO spec
 const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
         Onnx::IOSpecification{
                 "scores",
@@ -105,20 +106,20 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
                 {Onnx::ValueDataType::INT32},
                 {{1}, {-1}}}};  // [1] or [B]
 
-FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configuration const& config)
+StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
-          initialHiddenState_(),
-          initializerOutputToStateNameMap_(),
-          updaterInputToStateNameMap_(),
-          updaterOutputToStateNameMap_(),
-          scorerInputToStateNameMap_(),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
           scorerOnnxModel_(select("scorer-model"), scorerModelIoSpec),
           stateInitializerOnnxModel_(select("state-initializer-model"), stateInitializerModelIoSpec),
           stateUpdaterOnnxModel_(select("state-updater-model"), stateUpdaterModelIoSpec),
+          initialHiddenState_(),
+          initializerOutputToStateNameMap_(),
+          updaterInputToStateNameMap_(),
+          updaterOutputToStateNameMap_(),
+          scorerInputToStateNameMap_(),
           scorerScoresName_(scorerOnnxModel_.mapping.getOnnxName("scores")),
           initializerEncoderStatesName_(stateInitializerOnnxModel_.mapping.getOnnxName("encoder-states")),
           initializerEncoderStatesSizeName_(stateInitializerOnnxModel_.mapping.getOnnxName("encoder-states-size")),
@@ -190,16 +191,16 @@ FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configu
     }
 }
 
-void FullInputStatefulOnnxLabelScorer::reset() {
+void StatefulOnnxLabelScorer::reset() {
     Precursor::reset();
     scoreCache_.clear();
 }
 
-Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::getInitialScoringContext() {
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new OnnxHiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
-Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
     OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
@@ -242,7 +243,7 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
     return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void FullInputStatefulOnnxLabelScorer::addInput(DataView const& input) {
+void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     Precursor::addInput(input);
 
     initialHiddenState_ = OnnxHiddenStateRef();
@@ -253,8 +254,9 @@ void FullInputStatefulOnnxLabelScorer::addInput(DataView const& input) {
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> FullInputStatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    if (expectMoreFeatures_ or bufferSize() == 0ul) {  // Only allow scoring once all encoder states have been passed
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+    if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
+        // Only allow scoring once all encoder states have been passed
         return {};
     }
 
@@ -302,7 +304,7 @@ std::optional<LabelScorer::ScoresWithTimes> FullInputStatefulOnnxLabelScorer::co
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> FullInputStatefulOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result) {
         return {};
@@ -310,11 +312,11 @@ std::optional<LabelScorer::ScoreWithTime> FullInputStatefulOnnxLabelScorer::comp
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
 }
 
-size_t FullInputStatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     return 0u;
 }
 
-void FullInputStatefulOnnxLabelScorer::setupEncoderStatesValue() {
+void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
     if (not encoderStatesValue_.empty()) {
         return;
     }
@@ -330,7 +332,7 @@ void FullInputStatefulOnnxLabelScorer::setupEncoderStatesValue() {
     }
 }
 
-void FullInputStatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
+void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
     if (not encoderStatesSizeValue_.empty()) {
         return;
     }
@@ -340,7 +342,7 @@ void FullInputStatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
     encoderStatesSizeValue_ = Onnx::Value::create(std::vector<s32>{static_cast<s32>(T)});
 }
 
-OnnxHiddenStateRef FullInputStatefulOnnxLabelScorer::computeInitialHiddenState() {
+OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
     verify(not expectMoreFeatures_);
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
@@ -380,7 +382,7 @@ OnnxHiddenStateRef FullInputStatefulOnnxLabelScorer::computeInitialHiddenState()
     return initialHiddenState_;
 }
 
-OnnxHiddenStateRef FullInputStatefulOnnxLabelScorer::updatedHiddenState(OnnxHiddenStateRef const& hiddenState, LabelIndex nextToken) {
+OnnxHiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(OnnxHiddenStateRef const& hiddenState, LabelIndex nextToken) {
     /*
      * Create session inputs
      */
@@ -423,7 +425,7 @@ OnnxHiddenStateRef FullInputStatefulOnnxLabelScorer::updatedHiddenState(OnnxHidd
     return newHiddenState;
 }
 
-void FullInputStatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& historyBatch) {
+void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& historyBatch) {
     if (historyBatch.empty()) {
         return;
     }

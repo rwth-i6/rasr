@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH
-#define FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH
+#ifndef STATEFUL_ONNX_LABEL_SCORER_HH
+#define STATEFUL_ONNX_LABEL_SCORER_HH
 
 #include <optional>
 
@@ -55,8 +55,9 @@ namespace Nn {
  * The Scorer must have a subset of states as input.
  *
  * A common use case for this Label Scorer would be an AED model with cross-attention over the encoder output.
+ * Since the encoder state inputs are optional, it can also be used for stateful language models without acoustic input.
  */
-class FullInputStatefulOnnxLabelScorer : public BufferedLabelScorer {
+class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
@@ -65,8 +66,8 @@ class FullInputStatefulOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    FullInputStatefulOnnxLabelScorer(const Core::Configuration& config);
-    virtual ~FullInputStatefulOnnxLabelScorer() = default;
+    StatefulOnnxLabelScorer(const Core::Configuration& config);
+    virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;
 
@@ -133,4 +134,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // FULL_INPUT_STATEFUL_ONNX_LABEL_SCORER_HH
+#endif  // STATEFUL_ONNX_LABEL_SCORER_HH

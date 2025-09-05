@@ -39,7 +39,6 @@ DEFINE_ONNX_TENSOR_TYPE_MAPING(Ort::BFloat16_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_BF
  * num_blocks: number of incontinious blocks to each take from the arrays
  * block_sizes: number of continuous elements from each array to take per block
  */
-
 template<typename T>
 void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& values, int64_t num_blocks, std::vector<int64_t> const& block_sizes) {
     require_eq(values.size(), block_sizes.size());

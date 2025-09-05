@@ -64,7 +64,7 @@ const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
                 false,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{-1, -2}}}};
+                {{-1, -2}}}};  // [B, V]
 
 const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
         Onnx::IOSpecification{
@@ -73,14 +73,14 @@ const std::vector<Onnx::IOSpecification> stateInitializerModelIoSpec = {
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{1, -1, -2}, {-1, -1, -2}}},
+                {{1, -1, -2}, {-1, -1, -2}}},  // [1, T, E] or [B, T, E]
         Onnx::IOSpecification{
                 "encoder-states-size",
                 Onnx::IODirection::INPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{1}, {-1}}}};
+                {{1}, {-1}}}};  // [1] or [B]
 
 const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
         Onnx::IOSpecification{
@@ -89,21 +89,21 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::FLOAT},
-                {{1, -1, -2}, {-1, -1, -2}}},
+                {{1, -1, -2}, {-1, -1, -2}}},  // [1, T, E] or [B, T, E]
         Onnx::IOSpecification{
                 "encoder-states-size",
                 Onnx::IODirection::INPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{1}, {-1}}},
+                {{1}, {-1}}},  // [1] or [B]
         Onnx::IOSpecification{
                 "token",
                 Onnx::IODirection::INPUT,
                 true,
                 {Onnx::ValueType::TENSOR},
                 {Onnx::ValueDataType::INT32},
-                {{1}, {-1}}}};
+                {{1}, {-1}}}};  // [1] or [B]
 
 FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
@@ -141,6 +141,9 @@ FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configu
             initializerStateNames.insert(stateName);
         }
     }
+    if (initializerStateNames.empty()) {
+        error() << "State initializer does not define any hidden states.";
+    }
 
     // Map state updater inputs and outputs to states
     std::unordered_set<std::string> updaterStateNames;
@@ -161,6 +164,9 @@ FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configu
             updaterStateNames.insert(stateName);
         }
     }
+    if (updaterOutputToStateNameMap_.empty()) {
+        error() << "State updater does not produce any updated hidden states";
+    }
 
     // In the loop we checked that the updater outputs are a subset of the initializer outputs.
     // If they have the same size, they are equal. Otherwise, some initializer outputs
@@ -178,6 +184,9 @@ FullInputStatefulOnnxLabelScorer::FullInputStatefulOnnxLabelScorer(Core::Configu
             }
             scorerInputToStateNameMap_.emplace(key, stateName);
         }
+    }
+    if (scorerInputToStateNameMap_.empty()) {
+        error() << "Scorer does not take any input";
     }
 }
 
@@ -287,7 +296,6 @@ std::optional<LabelScorer::ScoresWithTimes> FullInputStatefulOnnxLabelScorer::co
         auto const& scores = scoreCache_.get(history)->get();
 
         result.scores.push_back(scores.at(request.nextToken));
-
         result.timeframes.push_back(history->labelSeq.size());
     }
 

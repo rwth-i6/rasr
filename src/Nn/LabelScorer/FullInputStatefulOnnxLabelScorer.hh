@@ -99,14 +99,6 @@ private:
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
 
-    OnnxHiddenStateRef initialHiddenState_;
-
-    // Map input/output names of onnx models to hidden state names taken from state initializer model
-    std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
-    std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
-    std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
-
     bool   blankUpdatesHistory_;
     bool   loopUpdatesHistory_;
     size_t maxBatchSize_;
@@ -114,6 +106,14 @@ private:
     Onnx::Model scorerOnnxModel_;
     Onnx::Model stateInitializerOnnxModel_;
     Onnx::Model stateUpdaterOnnxModel_;
+
+    OnnxHiddenStateRef initialHiddenState_;
+
+    // Map input/output names of onnx models to hidden state names taken from state initializer model
+    std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
+    std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
+    std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
+    std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
 
     std::string scorerScoresName_;
 

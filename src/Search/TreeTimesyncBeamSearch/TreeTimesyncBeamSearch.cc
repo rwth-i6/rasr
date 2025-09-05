@@ -216,6 +216,15 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     createSuccessorLookups();
 
     reset();
+
+    // Create global cache
+    if (network_->write(0)) {
+        log() << "writing network image ready";
+    }
+    else {
+        log() << "writing network image failed";
+    }
+
     return true;
 }
 

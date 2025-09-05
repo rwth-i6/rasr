@@ -55,6 +55,10 @@ CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
 
+ifdef MODULE_ONNX
+LIBSPRINTLM_O += $(OBJDIR)/OnnxStatelessLanguageModel.o
+endif
+
 CHECK_O		= $(OBJDIR)/check.o			\
 		  ../Flf/libSprintFlf.$(a) \
 		  ../Flf/FlfCore/libSprintFlfCore.$(a) \

@@ -184,16 +184,6 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
 
-    if (lexicon_->specialLemma("blank")) {
-        blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
-        useBlank_        = true;
-        log() << "Use blank label with index " << blankLabelIndex_;
-    }
-    else {
-        blankLabelIndex_ = Nn::invalidLabelIndex;
-        useBlank_        = false;
-    }
-
     // Build the search tree
     log() << "Start building search tree";
     network_ = Core::ref(new PersistentStateTree(
@@ -211,6 +201,16 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
     builder->build();
+
+    if (lexicon_->specialLemma("blank")) {
+        blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
+        useBlank_        = true;
+        log() << "Use blank label with index " << blankLabelIndex_;
+    }
+    else {
+        blankLabelIndex_ = Nn::invalidLabelIndex;
+        useBlank_        = false;
+    }
 
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();

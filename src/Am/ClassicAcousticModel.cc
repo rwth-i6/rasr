@@ -49,7 +49,7 @@ void ClassicAcousticModel::determineSilenceAllophoneStateIndex() {
             silenceAllophoneStateIndex_ = allophoneStateAlphabet()->index(&allo, 0);
         }
         else {
-            error("Could not determine silence allophone state index.");
+            error("Could not determine silence allophone state index. Probably, silence as no/an empty pronunciation in the lexicon.");
             silenceAllophoneStateIndex_ = Fsa::InvalidLabelId;
         }
     }

@@ -68,10 +68,10 @@ public:
     size_t numSubScorers() const override;
 
     // Compute weighted score of request with a specific sub-scorer
-    std::optional<ScoreWithTime> computeSubScoreWithTime(Request const& request, size_t scorerIdx);
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request, size_t scorerIdx) override;
 
     // Compute weighted scores of requests with a specific sub-scorer
-    std::optional<ScoresWithTimes> computeSubScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx) override;
 
 #ifdef MODULE_PYTHON
     virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;

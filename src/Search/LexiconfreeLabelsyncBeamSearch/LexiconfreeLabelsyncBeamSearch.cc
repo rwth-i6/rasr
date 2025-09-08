@@ -101,6 +101,16 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramScoreThreshold(
         "If not set, no score pruning will be done.",
         Core::Type<Score>::max, 0);
 
+const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramIntermediateScoreThreshold(
+        "intermediate-score-threshold",
+        "Prune any intermediate hypotheses of sub-scorers with a score that is at least this much worse than the best hypothesis. If not set, no intermediate score pruning will be done.",
+        Core::Type<Score>::max, 0);
+
+const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramIntermediateMaxBeamSize(
+        "intermediate-max-beam-size",
+        "",
+        Core::Type<Score>::max, 0);
+
 const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramSentenceEndLabelIndex(
         "sentence-end-index",
         "Index of the sentence-end label in the lexicon."
@@ -131,6 +141,8 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
+          intermediateMaxBeamSize_(paramIntermediateMaxBeamSize(config)),
+          intermediateScoreThreshold_(paramIntermediateScoreThreshold(config)),
           lengthNormScale_(paramLengthNormScale(config)),
           maxLabelsPerTimestep_(paramMaxLabelsPerTimestep(config)),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
@@ -156,7 +168,9 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           currentSearchStep_(0ul),
           totalTimesteps_(0ul),
           finishedSegment_(false) {
-    useScorePruning_ = scoreThreshold_ != Core::Type<Score>::max;
+    useScorePruning_             = scoreThreshold_ != Core::Type<Score>::max;
+    useIntermediateScorePruning_ = intermediateScoreThreshold_ != Core::Type<Score>::max;
+    useIntermediateBeamPruning_  = intermediateMaxBeamSize_ != Core::Type<int>::max;
 
     if (sentenceEndLabelIndex_ != Core::Type<s32>::max) {
         log() << "Use sentence-end label with index " << sentenceEndLabelIndex_;
@@ -282,7 +296,6 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     extensions_.clear();
-    requests_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -311,42 +324,76 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                      0,
                      transitionType,
                      hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
-    }
-
-    if (requests_.empty()) {
-        // All hypotheses are terminated -> no search step can be made.
-        finishedSegment_ = true;
-        return false;
-    }
-
-    /*
-     * Perform scoring of all the requests with the label scorer.
-     */
-    scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
-    scoringTime_.stop();
-
-    if (not result) {
-        // LabelScorer could not compute scores -> no search step can be made.
-        return false;
-    }
-
-    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-        extensions_[extensionIdx].score += result->scores[extensionIdx];
-        extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
     }
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
     }
 
+    for (size_t subScorerIdx = 0ul; subScorerIdx < labelScorer_->numSubScorers(); ++subScorerIdx) {
+        requests_.clear();
+
+        for (auto const& extension : extensions_) {
+            requests_.push_back({beam_[extension.baseHypIndex].scoringContext, extension.nextToken, extension.transitionType});
+        }
+
+        if (requests_.empty()) {
+            // All hypotheses are terminated -> no search step can be made.
+            finishedSegment_ = true;
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
+
+        /*
+         * Perform scoring of all the requests with the label scorer.
+         */
+        scoringTime_.start();
+        auto result = labelScorer_->computeScoresWithTimes(requests_, subScorerIdx);
+        scoringTime_.stop();
+
+        if (not result) {
+            // LabelScorer could not compute scores -> no search step can be made.
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
+
+        for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+            extensions_[extensionIdx].score += result->scores[extensionIdx];
+            extensions_[extensionIdx].timeframe = std::max(extensions_[extensionIdx].timeframe, result->timeframes[extensionIdx]);
+        }
+
+        /*
+         * Prune set of possible extensions by max beam size and possibly also by score.
+         */
+        if (subScorerIdx + 1 < labelScorer_->numSubScorers()) {
+            if (useIntermediateScorePruning_) {
+                scorePruningExtensions(intermediateScoreThreshold_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-score-pruning-" + std::to_string(subScorerIdx), extensions_.size());
+                }
+            }
+
+            if (useIntermediateBeamPruning_) {
+                beamSizePruning(extensions_, intermediateMaxBeamSize_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-beam-pruning-" + std::to_string(subScorerIdx), extensions_.size());
+                }
+            }
+        }
+    }
+
     /*
      * Maybe prune set of possible extensions by score.
      */
     if (useScorePruning_) {
-        scorePruningExtensions();
+        scorePruningExtensions(scoreThreshold_);
         if (logStepwiseStatistics_) {
             clog() << Core::XmlFull("num-extensions-after-score-pruning", extensions_.size());
         }
@@ -408,7 +455,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-active-hyps-after-recombination", numActive);
     }
 
-    beamSizePruning();
+    beamSizePruning(newBeam_, maxBeamSize_);
 
     numActive     = numActiveHyps();
     numTerminated = newBeam_.size() - numActive;
@@ -582,24 +629,28 @@ void LexiconfreeLabelsyncBeamSearch::logStatistics() const {
     numActiveHypsAfterBeamPruning_.write(clog());
 }
 
-void LexiconfreeLabelsyncBeamSearch::beamSizePruning() {
-    if (newBeam_.size() <= maxBeamSize_) {
+template<typename Element>
+void LexiconfreeLabelsyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const {
+    if (hypotheses.size() <= maxBeamSize) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `maxBeamSize_` elements are the best
-    std::nth_element(newBeam_.begin(), newBeam_.begin() + maxBeamSize_, newBeam_.end());
-    newBeam_.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end());
+    hypotheses.resize(maxBeamSize);  // Get rid of excessive elements
 }
 
-void LexiconfreeLabelsyncBeamSearch::scorePruningExtensions() {
+template void LexiconfreeLabelsyncBeamSearch::beamSizePruning<LexiconfreeLabelsyncBeamSearch::ExtensionCandidate>(std::vector<LexiconfreeLabelsyncBeamSearch::ExtensionCandidate>&, size_t) const;
+template void LexiconfreeLabelsyncBeamSearch::beamSizePruning<LexiconfreeLabelsyncBeamSearch::LabelHypothesis>(std::vector<LexiconfreeLabelsyncBeamSearch::LabelHypothesis>&, size_t) const;
+
+void LexiconfreeLabelsyncBeamSearch::scorePruningExtensions(Score scoreThreshold) {
     if (extensions_.empty()) {
         return;
     }
 
     // Compute the pruning threshold
     auto bestScore        = std::min_element(extensions_.begin(), extensions_.end())->score;
-    auto pruningThreshold = bestScore + scoreThreshold_;
+    auto pruningThreshold = bestScore + scoreThreshold;
 
     // Remove elements with score > pruningThreshold
     extensions_.erase(

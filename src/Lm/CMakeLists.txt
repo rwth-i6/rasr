@@ -39,6 +39,7 @@ if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
         QuantizedBlasNceSoftmaxAdapter.cc
         QuantizedCompressedVectorFactory.cc
         ReducedPrecisionCompressedVectorFactory.cc
+        SimpleTransformerLm.cc
         TransformerStateManager.cc
         TFRecurrentLanguageModel.cc
     )

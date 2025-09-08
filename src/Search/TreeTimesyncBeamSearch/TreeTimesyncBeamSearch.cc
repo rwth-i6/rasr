@@ -115,6 +115,16 @@ const Core::ParameterFloat TreeTimesyncBeamSearch::paramScoreThreshold(
         "Prune any within-word hypothesis with a score that is at least this much worse than the best hypothesis.",
         Core::Type<Score>::max, 0);
 
+const Core::ParameterFloat TreeTimesyncBeamSearch::paramIntermediateScoreThreshold(
+        "intermediate-score-threshold",
+        "Prune any intermediate hypotheses of sub-scorers with a score that is at least this much worse than the best hypothesis. If not set, no intermediate score pruning will be done.",
+        Core::Type<Score>::max, 0);
+
+const Core::ParameterInt TreeTimesyncBeamSearch::paramIntermediateMaxBeamSize(
+        "intermediate-max-beam-size",
+        "",
+        Core::Type<Score>::max, 0);
+
 const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordEndScoreThreshold(
         "word-end-score-threshold",
         "Prune any word-end hypothesis with a score that is at least this much worse than the best word-end hypothesis. This threshold is relative to the score-threshold. \
@@ -151,8 +161,10 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
+          intermediateMaxBeamSize_(paramIntermediateMaxBeamSize(config)),
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
+          intermediateScoreThreshold_(paramIntermediateScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           useBlank_(),
@@ -187,6 +199,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
     if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
+    useIntermediateScorePruning_ = intermediateScoreThreshold_ != Core::Type<Score>::max;
+    useIntermediateBeamPruning_  = intermediateMaxBeamSize_ != Core::Type<int>::max;
     wordEndScoreThreshold_ *= scoreThreshold_;
 }
 
@@ -340,7 +354,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     withinWordExtensions_.clear();
-    requests_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -363,29 +376,54 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                      hyp.score,
                      transitionType,
                      hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
     }
 
     /*
      * Perform scoring of all the requests with the label scorer.
      */
-    scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
-    scoringTime_.stop();
-
-    if (not result) {
-        // LabelScorer could not compute scores -> no search step can be made.
-        return false;
-    }
-
-    for (size_t requestIdx = 0ul; requestIdx < withinWordExtensions_.size(); ++requestIdx) {
-        withinWordExtensions_[requestIdx].score += result->scores[requestIdx];
-        withinWordExtensions_[requestIdx].timeframe = result->timeframes[requestIdx];
-    }
-
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
+    }
+    for (size_t subScorerIdx = 0ul; subScorerIdx < labelScorer_->numSubScorers(); ++subScorerIdx) {
+        requests_.clear();
+        for (auto const& extension : withinWordExtensions_) {
+            requests_.push_back({beam_[extension.baseHypIndex].scoringContext, extension.nextToken, extension.transitionType});
+        }
+        scoringTime_.start();
+        auto result = labelScorer_->computeScoresWithTimes(requests_, subScorerIdx);
+        scoringTime_.stop();
+
+        if (not result) {
+            // LabelScorer could not compute scores -> no search step can be made.
+            if (logStepwiseStatistics_) {
+                clog() << Core::XmlClose("search-step-stats");
+            }
+            return false;
+        }
+
+        for (size_t requestIdx = 0ul; requestIdx < withinWordExtensions_.size(); ++requestIdx) {
+            withinWordExtensions_[requestIdx].score += result->scores[requestIdx];
+            withinWordExtensions_[requestIdx].timeframe = result->timeframes[requestIdx];
+        }
+
+        if (subScorerIdx + 1 < labelScorer_->numSubScorers()) {
+            if (useIntermediateScorePruning_) {
+                scorePruning(withinWordExtensions_, intermediateScoreThreshold_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-score-pruning-" + std::to_string(subScorerIdx), withinWordExtensions_.size());
+                }
+            }
+
+            if (useIntermediateBeamPruning_) {
+                beamSizePruning(withinWordExtensions_, intermediateMaxBeamSize_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-beam-pruning-" + std::to_string(subScorerIdx), withinWordExtensions_.size());
+                }
+            }
+        }
     }
 
     /*
@@ -616,7 +654,8 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
     }
 }
 
-void TreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const {
+template<typename Element>
+void TreeTimesyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const {
     if (hypotheses.size() <= maxBeamSize) {
         return;
     }
@@ -625,6 +664,9 @@ void TreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypot
     std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end());
     hypotheses.resize(maxBeamSize);  // Get rid of excessive elements
 }
+
+template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, size_t) const;
+template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, size_t) const;
 
 template<typename Element>
 void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const {

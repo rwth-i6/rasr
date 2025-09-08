@@ -46,6 +46,8 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterInt   paramMaxWordEndBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterFloat paramIntermediateScoreThreshold;
+    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
     static const Core::ParameterFloat paramWordEndScoreThreshold;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramSentenceEndFallBack;
@@ -131,8 +133,12 @@ protected:
 
 private:
     size_t         maxBeamSize_;
+    size_t         intermediateMaxBeamSize_;
+    bool           useIntermediateBeamPruning_;
     size_t         maxWordEndBeamSize_;
     Score          scoreThreshold_;
+    Score          intermediateScoreThreshold_;
+    bool           useIntermediateScorePruning_;
     Score          wordEndScoreThreshold_;
     Nn::LabelIndex blankLabelIndex_;
     size_t         cacheCleanupInterval_;
@@ -199,7 +205,8 @@ private:
     /*
      * Helper function for pruning to maxBeamSize
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold

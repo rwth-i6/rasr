@@ -42,6 +42,8 @@ class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterFloat paramIntermediateScoreThreshold;
+    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
 
     static const Core::ParameterInt   paramSentenceEndLabelIndex;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -117,6 +119,11 @@ private:
     bool  useScorePruning_;
     Score scoreThreshold_;
 
+    size_t intermediateMaxBeamSize_;
+    bool   useIntermediateBeamPruning_;
+    Score  intermediateScoreThreshold_;
+    bool   useIntermediateScorePruning_;
+
     float lengthNormScale_;
 
     float maxLabelsPerTimestep_;
@@ -174,12 +181,13 @@ private:
     /*
      * Helper function for pruning of hyps to `maxBeamSize_`
      */
-    void beamSizePruning();
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning of extensions to `scoreThreshold_`
      */
-    void scorePruningExtensions();
+    void scorePruningExtensions(Score scoreThreshold);
 
     /*
      * Helper function for pruning of hyps to `scoreThreshold_`

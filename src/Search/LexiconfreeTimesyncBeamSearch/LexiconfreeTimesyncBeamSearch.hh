@@ -43,6 +43,7 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramIntermediateScoreThreshold;
+    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
     static const Core::ParameterInt   paramBlankLabelIndex;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
@@ -87,10 +88,12 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        Score                   score;           // Full score of hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
+        Nn::ScoringContextRef            scoringContext;  // Context to compute scores based on this hypothesis
+        Bliss::LemmaPronunciation const* currentPron;     // Pronunciation of the currently ongoing lemma
+        Nn::LabelIndex                   currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
+        Search::TimeframeIndex           timeframe;       // Timestamp of `currentToken` for traceback
+        Score                            score;           // Full score of hypothesis
+        Core::Ref<LatticeTrace>          trace;           // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
@@ -100,6 +103,12 @@ protected:
         }
 
         /*
+         * While label-loops or blank-loops are ongoing, the pronunciation for them does not get committed as a trace yet.
+         * The ongoing pronunciation should be committed as a trace when the loop is over or segment end is reached.
+         */
+        void commitTrace();
+
+        /*
          * Get string representation for debugging.
          */
         std::string toString() const;
@@ -107,6 +116,8 @@ protected:
 
 private:
     size_t maxBeamSize_;
+    size_t intermediateMaxBeamSize_;
+    bool   useIntermediateBeamPruning_;
 
     bool  useScorePruning_;
     Score scoreThreshold_;
@@ -169,7 +180,8 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold_

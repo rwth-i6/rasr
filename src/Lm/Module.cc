@@ -29,6 +29,7 @@
 #include "Zerogram.hh"
 #endif
 #ifdef MODULE_LM_TFRNN
+#include "SimpleTransformerLm.hh"
 #include "TFRecurrentLanguageModel.hh"
 #endif
 #include "CombineLm.hh"
@@ -58,7 +59,8 @@ enum LanguageModelType {
     lmTypeTFRNN,
     lmTypeCheatingSegment,
     lmTypeSimpleHistory,
-    lmTypeOnnxStateless
+    lmTypeOnnxStateless,
+    lmTypeSimpleTransformer
 };
 }
 
@@ -72,6 +74,7 @@ const Core::Choice Module_::lmTypeChoice(
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
         "onnx-stateless", lmTypeOnnxStateless,
+        "simple-transformer", lmTypeSimpleTransformer,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -97,6 +100,7 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
         case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
+        case lmTypeSimpleTransformer: result = Core::ref(new SimpleTransformerLm(c, l)); break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
 #ifdef MODULE_ONNX

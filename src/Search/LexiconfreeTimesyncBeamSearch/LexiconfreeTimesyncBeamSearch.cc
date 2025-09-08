@@ -35,7 +35,9 @@ namespace Search {
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContext(),
+          currentPron(nullptr),
           currentToken(Nn::invalidLabelIndex),
+          timeframe(0),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
@@ -44,28 +46,32 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LexiconfreeTimesyncBeamSearch::ExtensionCandidate const& extension,
         Nn::ScoringContextRef const&                             newScoringContext)
         : scoringContext(newScoringContext),
+          currentPron(base.currentPron),
           currentToken(extension.nextToken),
+          timeframe(base.timeframe),
           score(extension.score),
-          trace(Core::ref(new LatticeTrace(
-                  base.trace,
-                  extension.pron,
-                  extension.timeframe + 1,
-                  {extension.score, 0},
-                  {}))) {
-    Core::Ref<LatticeTrace> baseTrace;
-
-    if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {
-        baseTrace = base.trace->predecessor;
-    }
-    else {
-        baseTrace = base.trace;
+          trace(base.trace) {
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::LABEL_TO_BLANK:
+        case Nn::LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::SENTENCE_END:
+            commitTrace();
+            break;
+        default:
+            break;
     }
 
+    currentPron = extension.pron;
+    timeframe   = extension.timeframe;
+}
+
+void LexiconfreeTimesyncBeamSearch::LabelHypothesis::commitTrace() {
     trace = Core::ref(new LatticeTrace(
-            baseTrace,
-            extension.pron,
-            extension.timeframe + 1,
-            {extension.score, 0},
+            trace,
+            currentPron,
+            timeframe + 1,
+            {score, 0},
             {}));
 }
 
@@ -104,6 +110,11 @@ const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramIntermediateScore
         "Prune any intermediate hypotheses of sub-scorers with a score that is at least this much worse than the best hypothesis. If not set, no intermediate score pruning will be done.",
         Core::Type<Score>::max, 0);
 
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramIntermediateMaxBeamSize(
+        "intermediate-max-beam-size",
+        "",
+        Core::Type<int>::max, 0);
+
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
@@ -134,6 +145,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
         : Core::Component(config),
           SearchAlgorithmV2(config),
           maxBeamSize_(paramMaxBeamSize(config)),
+          intermediateMaxBeamSize_(paramIntermediateMaxBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           intermediateScoreThreshold_(paramIntermediateScoreThreshold(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
@@ -169,6 +181,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
     }
     useScorePruning_             = scoreThreshold_ != Core::Type<Score>::max;
     useIntermediateScorePruning_ = intermediateScoreThreshold_ != Core::Type<Score>::max;
+    useIntermediateBeamPruning_  = intermediateMaxBeamSize_ != Core::Type<int>::max;
 }
 
 Speech::ModelCombination::Mode LexiconfreeTimesyncBeamSearch::requiredModelCombination() const {
@@ -231,6 +244,9 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.stop();
     decodeManySteps();
+    for (auto& hyp : beam_) {
+        hyp.commitTrace();
+    }
     logStatistics();
     finishedSegment_ = true;
 }
@@ -334,27 +350,34 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
 
         if (not result) {
             // LabelScorer could not compute scores -> no search step can be made.
-            return false;
             if (logStepwiseStatistics_) {
                 clog() << Core::XmlClose("search-step-stats");
             }
+            return false;
         }
 
         for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
             extensions_[extensionIdx].score += result->scores[extensionIdx];
-            extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
+            extensions_[extensionIdx].timeframe = std::max(extensions_[extensionIdx].timeframe, result->timeframes[extensionIdx]);
         }
 
         /*
          * Prune set of possible extensions by max beam size and possibly also by score.
          */
-
         if (subScorerIdx + 1 < labelScorer_->numSubScorers()) {
             if (useIntermediateScorePruning_) {
                 scorePruning(extensions_, intermediateScoreThreshold_);
 
                 if (logStepwiseStatistics_) {
                     clog() << Core::XmlFull("num-hyps-after-intermediate-score-pruning-" + std::to_string(subScorerIdx), extensions_.size());
+                }
+            }
+
+            if (useIntermediateBeamPruning_) {
+                beamSizePruning(extensions_, intermediateMaxBeamSize_);
+
+                if (logStepwiseStatistics_) {
+                    clog() << Core::XmlFull("num-hyps-after-intermediate-beam-pruning-" + std::to_string(subScorerIdx), extensions_.size());
                 }
             }
         }
@@ -390,7 +413,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
     }
 
-    beamSizePruning(newBeam_);
+    beamSizePruning(newBeam_, maxBeamSize_);
     numHypsAfterBeamPruning_ += newBeam_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
@@ -506,15 +529,19 @@ Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionTy
     }
 }
 
-void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const {
-    if (hypotheses.size() <= maxBeamSize_) {
+template<typename Element>
+void LexiconfreeTimesyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const {
+    if (hypotheses.size() <= maxBeamSize) {
         return;
     }
 
     // Reorder the hypotheses by associated score value such that the first `beamSize_` elements are the best
-    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize_, hypotheses.end());
-    hypotheses.resize(maxBeamSize_);  // Get rid of excessive elements
+    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end());
+    hypotheses.resize(maxBeamSize);  // Get rid of excessive elements
 }
+
+template void LexiconfreeTimesyncBeamSearch::beamSizePruning<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>&, size_t) const;
+template void LexiconfreeTimesyncBeamSearch::beamSizePruning<LexiconfreeTimesyncBeamSearch::LabelHypothesis>(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>&, size_t) const;
 
 void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score scoreThreshold) const {
     if (extensions.empty()) {
@@ -549,8 +576,6 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
             it->second = &tempHypotheses_.back();
         }
         else {
-            verify(not hyp.trace->sibling);
-
             auto* existingHyp = it->second;
             if (hyp.score < existingHyp->score) {
                 // New hyp is better -> replace in `newHypotheses` and add existing one as sibling

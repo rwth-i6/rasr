@@ -68,7 +68,7 @@ const Core::ParameterString Channel::Target::paramFilename(
 const Core::ParameterBool Channel::Target::paramBuffering(
         "unbuffered",
         "switch to line-buffered mode (useful for watching with tail -f)",
-        false /* For TTY devices the default is true. */);
+        true /* For TTY devices the default is true. */);
 const Core::ParameterBool Channel::Target::paramAppend(
         "append",
         "append to file instead of overwriting",

@@ -176,7 +176,7 @@ size_t CombineLabelScorer::numSubScorers() const {
     return scaledScorers_.size();
 }
 
-std::optional<CombineLabelScorer::ScoreWithTime> CombineLabelScorer::computeSubScoreWithTime(Request const& request, size_t scorerIdx) {
+std::optional<CombineLabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTime(Request const& request, size_t scorerIdx) {
     verify(scorerIdx < scaledScorers_.size());
 
     auto        combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
@@ -200,7 +200,7 @@ std::optional<CombineLabelScorer::ScoreWithTime> CombineLabelScorer::computeSubS
     return ScoreWithTime{result->score * scaledScorer.scale, result->timeframe};
 }
 
-std::optional<CombineLabelScorer::ScoresWithTimes> CombineLabelScorer::computeSubScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx) {
+std::optional<CombineLabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx) {
     // Collect CombineScoringContexts from requests
     std::vector<const CombineScoringContext*> combineContexts;
     combineContexts.reserve(requests.size());
@@ -223,7 +223,7 @@ std::optional<CombineLabelScorer::ScoresWithTimes> CombineLabelScorer::computeSu
     if (!subResults) {
         return {};
     }
-    //
+
     // Initialize accumulated results with zero-valued scores and timesteps
     ScoresWithTimes result{std::vector<Score>(requests.size(), 0.0), {requests.size(), 0}};
 

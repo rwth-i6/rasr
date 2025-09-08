@@ -1058,7 +1058,10 @@ void StateTree::buildCoarticulatedRootStates(Bliss::LexiconRef lexicon) {
         ciRoot_ = states_.size();
         Am::LexiconUtilities lexiconUtilities(getConfiguration(), lexicon);
         boundaryPhonemes.initial = lexiconUtilities.determineSilencePhoneme();
-        boundaryPhonemes.final   = Bliss::Phoneme::term;
+        if (boundaryPhonemes.initial == Bliss::Phoneme::invalidId) {
+            criticalError("Failed to determine silence phoneme.");
+        }
+        boundaryPhonemes.final = Bliss::Phoneme::term;
         verify(cs.boundaryPhonemes.size() == ciRoot_);
         cs.boundaryPhonemes.push_back(boundaryPhonemes);
         BatchRequest* request = new BatchRequest(this, ciRoot_);

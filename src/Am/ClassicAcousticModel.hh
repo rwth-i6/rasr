@@ -142,7 +142,7 @@ public:
             return transitionModel_->classify(phone, subState);
     }
     virtual StateTransitionIndex stateTransitionIndex(AllophoneStateIndex e, s8 subState = 0) const {
-        if (e == silenceAllophoneStateIndex())
+        if (silenceAllophoneStateIndex_ != Fsa::InvalidLabelId and e == silenceAllophoneStateIndex_)
             return TransitionModel::silence;
         else
             return transitionModel_->classifyIndex(e, subState);

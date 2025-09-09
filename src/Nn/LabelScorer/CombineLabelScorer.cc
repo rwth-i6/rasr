@@ -71,6 +71,22 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
+ScoringContextRef CombineLabelScorer::finalizeScoringContext(Request const& request) {
+    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
+
+    std::vector<ScoringContextRef> extScoringContexts;
+    extScoringContexts.reserve(scaledScorers_.size());
+
+    auto scorerIt  = scaledScorers_.begin();
+    auto contextIt = combineContext->scoringContexts.begin();
+
+    for (; scorerIt != scaledScorers_.end(); ++scorerIt, ++contextIt) {
+        Request subRequest{*contextIt, request.nextToken, request.transitionType};
+        extScoringContexts.push_back(scorerIt->scorer->finalizeScoringContext(subRequest));
+    }
+    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+}
+
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     std::vector<const CombineScoringContext*> combineContexts;
     combineContexts.reserve(activeContexts.internalSize());

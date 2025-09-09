@@ -50,7 +50,8 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           timeframe(base.timeframe),
           score(extension.score),
-          trace(base.trace) {
+          trace(base.trace),
+          recentTransitionType(extension.transitionType) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
         case Nn::LabelScorer::TransitionType::LABEL_TO_BLANK:
@@ -417,6 +418,15 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     numHypsAfterBeamPruning_ += newBeam_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
+    }
+
+    for (auto& hyp : newBeam_) {
+        auto newScoringContext = labelScorer_->finalizeScoringContext(
+                {hyp.scoringContext,
+                 hyp.currentToken,
+                 hyp.recentTransitionType});
+
+        hyp.scoringContext = newScoringContext;
     }
 
     beam_.swap(newBeam_);

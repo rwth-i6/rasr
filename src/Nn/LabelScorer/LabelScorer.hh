@@ -119,6 +119,8 @@ public:
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
+    // Compute new hidden states (e.g. in the FullInputStatefulOnnxLabelScorer)
+    virtual ScoringContextRef finalizeScoringContext(Request const& request);
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.

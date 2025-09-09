@@ -225,6 +225,41 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
     std::vector<LabelIndex> newLabelSeq(history->labelSeq);
     newLabelSeq.push_back(request.nextToken);
 
+    return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), history->hiddenState));
+}
+
+Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScoringContext(LabelScorer::Request const& request) {
+    OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
+
+    bool updateState = false;
+    switch (request.transitionType) {
+        case LabelScorer::TransitionType::BLANK_LOOP:
+            updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
+            break;
+        case LabelScorer::TransitionType::LABEL_TO_BLANK:
+        case LabelScorer::TransitionType::INITIAL_BLANK:
+            updateState = blankUpdatesHistory_;
+            break;
+        case LabelScorer::TransitionType::LABEL_LOOP:
+            updateState = loopUpdatesHistory_;
+            break;
+        case LabelScorer::TransitionType::BLANK_TO_LABEL:
+        case LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case LabelScorer::TransitionType::INITIAL_LABEL:
+            updateState = true;
+            break;
+        case LabelScorer::TransitionType::SENTENCE_END:
+            updateState = false;
+            break;
+        default:
+            error() << "Unknown transition type " << request.transitionType;
+    }
+
+    // If history is not going to be modified, return the original one
+    if (not updateState) {
+        return request.context;
+    }
+
     OnnxHiddenStateRef newHiddenState;
     if (not history->hiddenState) {  // Sentinel start-state
         newHiddenState = updatedHiddenState(computeInitialHiddenState(), request.nextToken);
@@ -233,7 +268,7 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
         newHiddenState = updatedHiddenState(history->hiddenState, request.nextToken);
     }
 
-    return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
+    return Core::ref(new OnnxHiddenStateScoringContext(std::move(history->labelSeq), newHiddenState));
 }
 
 void FullInputStatefulOnnxLabelScorer::addInput(DataView const& input) {

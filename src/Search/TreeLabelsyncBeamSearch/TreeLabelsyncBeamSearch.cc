@@ -58,7 +58,8 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           scaledScore(extension.scaledScore),
           trace(base.trace),
-          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
+          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END),
+          recentTransitionType(extension.transitionType) {
 }
 
 TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -423,6 +424,15 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", withinWordHypotheses_.size());
     }
     numHypsAfterBeamPruning_ += withinWordHypotheses_.size();
+
+    for (auto& hyp : newBeam_) {
+        auto newScoringContext = labelScorer_->finalizeScoringContext(
+                {hyp.scoringContext,
+                 hyp.currentToken,
+                 hyp.recentTransitionType});
+
+        hyp.scoringContext = newScoringContext;
+    }
 
     /*
      * Word-end hypotheses

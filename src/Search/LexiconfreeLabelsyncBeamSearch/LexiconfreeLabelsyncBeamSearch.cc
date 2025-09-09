@@ -51,7 +51,8 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           length(base.length + 1),
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
-          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
+          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END),
+          recentTransitionType(extension.transitionType) {
     Core::Ref<LatticeTrace> baseTrace;
 
     if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {
@@ -466,6 +467,17 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-terminated-hyps-after-beam-pruning", numTerminated);
         clog() << Core::XmlFull("num-active-hyps-after-beam-pruning", numActive);
+    }
+
+    for (auto& hyp : newBeam_) {
+        if (hyp.isActive) {
+            auto newScoringContext = labelScorer_->finalizeScoringContext(
+                    {hyp.scoringContext,
+                     hyp.currentToken,
+                     hyp.recentTransitionType});
+
+            hyp.scoringContext = newScoringContext;
+        }
     }
 
     /*

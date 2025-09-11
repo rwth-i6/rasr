@@ -27,6 +27,10 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
+ScoringContextRef LabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
+    return context;
+}
+
 std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     // By default, just loop over the non-batched `computeScoreWithTime` and collect the results
     ScoresWithTimes result;

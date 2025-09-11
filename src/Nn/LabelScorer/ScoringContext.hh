@@ -38,6 +38,8 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
  * Empty scoring context base class
  */
 struct ScoringContext : public Core::ReferenceCounted {
+    bool requiresFinalize = false;
+
     virtual ~ScoringContext() = default;
 
     virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
@@ -206,7 +208,9 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
             : labelSeq(), hiddenState() {}
 
     OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
-            : labelSeq(labelSeq), hiddenState(state) {}
+            : labelSeq(labelSeq), hiddenState(state) {
+        requiresFinalize = false;
+    }
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;

@@ -513,6 +513,13 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
 
     finishedSegment_ = stopCriterion();
 
+    if (not finishedSegment_) {
+        for (auto& hyp : beamActive_) {
+            auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
+            hyp.scoringContext     = newScoringContext;
+        }
+    }
+
     /*
      * Logging and statistics
      */

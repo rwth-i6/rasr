@@ -209,7 +209,7 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 
     OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
             : labelSeq(labelSeq), hiddenState(state) {
-            requiresFinalize = false;
+        requiresFinalize = false;
     }
 
     bool   isEqual(ScoringContextRef const& other) const;

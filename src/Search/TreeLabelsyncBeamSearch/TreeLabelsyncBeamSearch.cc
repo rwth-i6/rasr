@@ -58,8 +58,7 @@ TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           scaledScore(extension.scaledScore),
           trace(base.trace),
-          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END),
-          recentTransitionType(extension.transitionType) {
+          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
 }
 
 TreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(

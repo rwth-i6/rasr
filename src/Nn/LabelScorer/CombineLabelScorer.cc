@@ -71,7 +71,7 @@ ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& requ
     return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
-ScoringContextRef CombineLabelScorer::finalizeScoringContext(ScoringContextRef context) {
+ScoringContextRef CombineLabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
     auto combineContext = dynamic_cast<const CombineScoringContext*>(context.get());
 
     std::vector<ScoringContextRef> extScoringContexts;

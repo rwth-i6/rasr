@@ -66,17 +66,16 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef           scoringContext;        // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                  currentToken;          // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                         currentState;          // Current state in the search tree
-        Lm::History                     lmHistory;             // Language model history
-        size_t                          length;                // Number of tokens in hypothesis for length normalization
-        Speech::TimeframeIndex          time;                  // Timeframe of current token
-        Score                           score;                 // Full score of hypothesis
-        Score                           scaledScore;           // Length-normalized score of hypothesis
-        Core::Ref<LatticeTrace>         trace;                 // Associated trace for traceback or lattice building off of hypothesis
-        bool                            isActive;              // Indicates whether the hypothesis has not produced a sentence-end label yet
-        Nn::LabelScorer::TransitionType recentTransitionType;  // Type of most recently taken transition
+        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                 currentState;    // Current state in the search tree
+        Lm::History             lmHistory;       // Language model history
+        size_t                  length;          // Number of tokens in hypothesis for length normalization
+        Speech::TimeframeIndex  time;            // Timeframe of current token
+        Score                   score;           // Full score of hypothesis
+        Score                   scaledScore;     // Length-normalized score of hypothesis
+        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
+        bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
 

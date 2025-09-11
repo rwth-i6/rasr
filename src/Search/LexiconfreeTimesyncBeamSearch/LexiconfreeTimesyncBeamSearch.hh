@@ -88,13 +88,12 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef            scoringContext;        // Context to compute scores based on this hypothesis
-        Bliss::LemmaPronunciation const* currentPron;           // Pronunciation of the currently ongoing lemma
-        Nn::LabelIndex                   currentToken;          // Most recent token in associated label sequence (useful to infer transition type)
-        Search::TimeframeIndex           timeframe;             // Timestamp of `currentToken` for traceback
-        Score                            score;                 // Full score of hypothesis
-        Core::Ref<LatticeTrace>          trace;                 // Associated trace for traceback or lattice building off of hypothesis
-        Nn::LabelScorer::TransitionType  recentTransitionType;  // Type of most recently taken transition
+        Nn::ScoringContextRef            scoringContext;  // Context to compute scores based on this hypothesis
+        Bliss::LemmaPronunciation const* currentPron;     // Pronunciation of the currently ongoing lemma
+        Nn::LabelIndex                   currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
+        Search::TimeframeIndex           timeframe;       // Timestamp of `currentToken` for traceback
+        Score                            score;           // Full score of hypothesis
+        Core::Ref<LatticeTrace>          trace;           // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);

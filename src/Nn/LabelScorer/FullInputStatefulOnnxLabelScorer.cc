@@ -231,7 +231,7 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
     return newScoringContext;
 }
 
-Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScoringContext(ScoringContextRef context) {
+Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
     // If this scoring context does doe not need finalization, just return it
     if (not context->requiresFinalize) {
         return context;
@@ -241,6 +241,7 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScorin
 
     OnnxHiddenStateRef newHiddenState;
     if (not history->hiddenState) {  // Sentinel start-state
+        verify(not history->labelSeq.empty());
         newHiddenState = updatedHiddenState(computeInitialHiddenState(), history->labelSeq.back());
     }
     else {
@@ -278,9 +279,9 @@ std::optional<LabelScorer::ScoresWithTimes> FullInputStatefulOnnxLabelScorer::co
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedHistories;
 
     for (auto& request : requests) {
-        if (request.context->requiresFinalize) {
-            error() << "Scoring context of at least one request needs to be finalized. Make sure to finalize all scoring contexts before scoring.";
-        }
+        // The search algorithm is supposed to finalize all scoring contexts before using them for scoring again.
+        verify(not request.context->requiresFinalize);
+
         OnnxHiddenStateScoringContextRef historyPtr(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
         if (not scoreCache_.contains(historyPtr)) {
             // Group by unique history

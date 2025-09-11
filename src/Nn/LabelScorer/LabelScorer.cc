@@ -27,7 +27,7 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-ScoringContextRef LabelScorer::finalizeScoringContext(ScoringContextRef context) {
+ScoringContextRef LabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
     return context;
 }
 

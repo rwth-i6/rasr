@@ -51,8 +51,7 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           length(base.length + 1),
           score(extension.score),
           scaledScore(score / std::pow(length, lengthNormScale)),
-          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END),
-          recentTransitionType(extension.transitionType) {
+          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
     Core::Ref<LatticeTrace> baseTrace;
 
     if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {

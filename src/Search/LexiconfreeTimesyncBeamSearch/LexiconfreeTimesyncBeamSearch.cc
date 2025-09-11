@@ -50,8 +50,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           timeframe(base.timeframe),
           score(extension.score),
-          trace(base.trace),
-          recentTransitionType(extension.transitionType) {
+          trace(base.trace) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
         case Nn::LabelScorer::TransitionType::LABEL_TO_BLANK:

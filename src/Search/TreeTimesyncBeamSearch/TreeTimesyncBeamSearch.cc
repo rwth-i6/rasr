@@ -463,12 +463,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     for (auto& hyp : newBeam_) {
-        auto newScoringContext = labelScorer_->finalizeScoringContext(
-                {hyp.scoringContext,
-                 hyp.currentToken,
-                 hyp.recentTransitionType});
-
-        hyp.scoringContext = newScoringContext;
+        auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
+        hyp.scoringContext     = newScoringContext;
     }
 
     /*

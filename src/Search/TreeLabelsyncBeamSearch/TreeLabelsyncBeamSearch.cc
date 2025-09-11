@@ -425,15 +425,6 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     }
     numHypsAfterBeamPruning_ += withinWordHypotheses_.size();
 
-    for (auto& hyp : newBeam_) {
-        auto newScoringContext = labelScorer_->finalizeScoringContext(
-                {hyp.scoringContext,
-                 hyp.currentToken,
-                 hyp.recentTransitionType});
-
-        hyp.scoringContext = newScoringContext;
-    }
-
     /*
      * Word-end hypotheses
      */
@@ -522,6 +513,13 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
     }
 
     finishedSegment_ = stopCriterion();
+
+    if (not finishedSegment_) {
+        for (auto& hyp : beamActive_) {
+            auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
+            hyp.scoringContext     = newScoringContext;
+        }
+    }
 
     /*
      * Logging and statistics

@@ -225,50 +225,32 @@ Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::extendedScorin
     std::vector<LabelIndex> newLabelSeq(history->labelSeq);
     newLabelSeq.push_back(request.nextToken);
 
-    return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), history->hiddenState));
+    auto newScoringContext              = Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), history->hiddenState));
+    newScoringContext->requiresFinalize = true;
+
+    return newScoringContext;
 }
 
-Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScoringContext(LabelScorer::Request const& request) {
-    OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
-
-    bool updateState = false;
-    switch (request.transitionType) {
-        case LabelScorer::TransitionType::BLANK_LOOP:
-            updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
-            break;
-        case LabelScorer::TransitionType::LABEL_TO_BLANK:
-        case LabelScorer::TransitionType::INITIAL_BLANK:
-            updateState = blankUpdatesHistory_;
-            break;
-        case LabelScorer::TransitionType::LABEL_LOOP:
-            updateState = loopUpdatesHistory_;
-            break;
-        case LabelScorer::TransitionType::BLANK_TO_LABEL:
-        case LabelScorer::TransitionType::LABEL_TO_LABEL:
-        case LabelScorer::TransitionType::INITIAL_LABEL:
-            updateState = true;
-            break;
-        case LabelScorer::TransitionType::SENTENCE_END:
-            updateState = false;
-            break;
-        default:
-            error() << "Unknown transition type " << request.transitionType;
+Core::Ref<const ScoringContext> FullInputStatefulOnnxLabelScorer::finalizeScoringContext(ScoringContextRef context) {
+    // If this scoring context does doe not need finalization, just return it
+    if (not context->requiresFinalize) {
+        return context;
     }
 
-    // If history is not going to be modified, return the original one
-    if (not updateState) {
-        return request.context;
-    }
+    OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(context.get()));
 
     OnnxHiddenStateRef newHiddenState;
     if (not history->hiddenState) {  // Sentinel start-state
-        newHiddenState = updatedHiddenState(computeInitialHiddenState(), request.nextToken);
+        newHiddenState = updatedHiddenState(computeInitialHiddenState(), history->labelSeq.back());
     }
     else {
-        newHiddenState = updatedHiddenState(history->hiddenState, request.nextToken);
+        newHiddenState = updatedHiddenState(history->hiddenState, history->labelSeq.back());
     }
 
-    return Core::ref(new OnnxHiddenStateScoringContext(std::move(history->labelSeq), newHiddenState));
+    auto newScoringContext              = Core::ref(new OnnxHiddenStateScoringContext(std::move(history->labelSeq), newHiddenState));
+    newScoringContext->requiresFinalize = false;
+
+    return newScoringContext;
 }
 
 void FullInputStatefulOnnxLabelScorer::addInput(DataView const& input) {
@@ -296,6 +278,9 @@ std::optional<LabelScorer::ScoresWithTimes> FullInputStatefulOnnxLabelScorer::co
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedHistories;
 
     for (auto& request : requests) {
+        if (request.context->requiresFinalize) {
+            error() << "Scoring context of at least one request needs to be finalized. Make sure to finalize all scoring contexts before scoring.";
+        }
         OnnxHiddenStateScoringContextRef historyPtr(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
         if (not scoreCache_.contains(historyPtr)) {
             // Group by unique history

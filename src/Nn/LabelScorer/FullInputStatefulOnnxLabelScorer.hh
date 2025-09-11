@@ -75,7 +75,7 @@ public:
 
     // Forward hidden-state through state-updater ONNX model
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
-    Core::Ref<const ScoringContext> finalizeScoringContext(LabelScorer::Request const& request) override;
+    Core::Ref<const ScoringContext> finalizeScoringContext(ScoringContextRef context) override;
 
     // Add a single encoder outputs to buffer
     void addInput(DataView const& input) override;

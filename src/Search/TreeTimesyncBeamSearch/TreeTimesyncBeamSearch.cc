@@ -533,12 +533,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
             const Bliss::SyntacticToken*        st  = sts.front();
             extension.lmHistory                     = languageModel_->extendedHistory(extension.lmHistory, st);
-            Lm::History newLookaheadHistory         = lookaheadLm_->extendedHistory(extension.fullLookaheadHistory, st);
 
-            if (!(newLookaheadHistory == extension.lookaheadHistory)) {
-                getLmLookahead(extension.lookahead, newLookaheadHistory);
-                extension.lookaheadHistory     = newLookaheadHistory;
-                extension.fullLookaheadHistory = newLookaheadHistory;
+            if (enableLmLookahead_) {
+                Lm::History newLookaheadHistory = lookaheadLm_->extendedHistory(extension.fullLookaheadHistory, st);
+
+                if (!(newLookaheadHistory == extension.lookaheadHistory)) {
+                    getLmLookahead(extension.lookahead, newLookaheadHistory);
+                    extension.lookaheadHistory     = newLookaheadHistory;
+                    extension.fullLookaheadHistory = newLookaheadHistory;
+                }
             }
         }
 

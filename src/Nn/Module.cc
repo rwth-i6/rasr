@@ -20,7 +20,10 @@
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -77,6 +80,7 @@ Module_::Module_()
             [](Core::Configuration const& config) {
                 return Core::ref(new CombineLabelScorer(config));
             });
+
     // Assumes inputs are already finished scores and just passes on the score at the current step
     labelScorerFactory_.registerLabelScorer(
             "no-op",
@@ -102,6 +106,27 @@ Module_::Module_()
                         config,
                         encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
                         Core::ref(new StepwiseNoOpLabelScorer(config))));
+            });
+
+    // Compute scores by forwarding a single input feature vector without history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "no-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "fixed-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on hidden state tensors.
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 };
 

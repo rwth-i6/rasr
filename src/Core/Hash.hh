@@ -15,6 +15,7 @@
 #ifndef _CORE_HASH_HH
 #define _CORE_HASH_HH
 
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <set>
@@ -23,6 +24,18 @@
 #include <unordered_set>
 
 namespace Core {
+
+// Auxiliary function to merge multiple hashes into one via the boost way
+// See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
+inline size_t combineHashes(size_t hash1, size_t hash2) {
+    if (hash1 == 0ul) {
+        return hash2;
+    }
+    if (hash2 == 0ul) {
+        return hash1;
+    }
+    return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2));
+}
 
 template<class Key>
 struct StandardValueHash {

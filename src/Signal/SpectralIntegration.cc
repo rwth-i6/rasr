@@ -84,7 +84,8 @@ const Core::ParameterFloat SpectralIntegrationNode::paramLength(
         "length", "length of window");
 
 SpectralIntegrationNode::SpectralIntegrationNode(const Core::Configuration& c)
-        : Component(c), Predecessor(c) {
+        : Component(c),
+          Predecessor(c) {
     setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c)));
     setShift(u32(paramShift(c)));
     setLength(u32(paramLength(c)));
@@ -119,8 +120,12 @@ bool SpectralIntegrationNode::work(Flow::PortId p) {
     Flow::DataPtr<Flow::Vector<Sample>> in;
     Flow::Vector<Sample>*               out = new Flow::Vector<Sample>();
     if (!getData(0, in)) {
-        if (in == Flow::Data::eos())
+        if (in == Flow::Data::eos()) {
             reset();
+        }
+        else if (in == Flow::Data::ood()) {
+            return putOod(p);
+        }
         return putData(0, in.get());
     }
 

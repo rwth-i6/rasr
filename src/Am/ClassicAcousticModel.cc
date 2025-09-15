@@ -39,31 +39,43 @@ void ClassicAcousticModel::determineSilencePhoneme() {
 }
 
 void ClassicAcousticModel::determineSilenceAllophoneStateIndex() {
-    LexiconUtilities            lexiconUtilities(config, lexiconRef_);
-    const Bliss::Pronunciation* silencePronunciation =
-            lexiconUtilities.determineSilencePronunciation()->pronunciation();
-    if (silencePronunciation) {
-        Allophone allo(stateModelRef_->phonology()(*silencePronunciation, 0),
-                       Allophone::isInitialPhone | Allophone::isFinalPhone);
-        silenceAllophoneStateIndex_ = allophoneStateAlphabet()->index(&allo, 0);
+    LexiconUtilities                 lexiconUtilities(config, lexiconRef_);
+    const Bliss::LemmaPronunciation* silenceLemmaPronunciation = lexiconUtilities.determineSilencePronunciation();
+    if (silenceLemmaPronunciation != &(Bliss::LemmaPronunciation::invalidPronunciation())) {
+        const Bliss::Pronunciation* silencePronunciation = silenceLemmaPronunciation->pronunciation();
+        if (silencePronunciation) {
+            Allophone allo(stateModelRef_->phonology()(*silencePronunciation, 0),
+                           Allophone::isInitialPhone | Allophone::isFinalPhone);
+            silenceAllophoneStateIndex_ = allophoneStateAlphabet()->index(&allo, 0);
+        }
+        else {
+            error("Could not determine silence allophone state index. Probably, silence as no/an empty pronunciation in the lexicon.");
+            silenceAllophoneStateIndex_ = Fsa::InvalidLabelId;
+        }
     }
     else {
-        error("Could not determine silence allophone state index.");
+        warning("Could not determine silence allophone state index.");
         silenceAllophoneStateIndex_ = Fsa::InvalidLabelId;
     }
 }
 
 AllophoneStateIndex ClassicAcousticModel::blankAllophoneStateIndex() const {
-    LexiconUtilities            lexiconUtilities(config, lexiconRef_);
-    const Bliss::Pronunciation* blankPronunciation =
-            lexiconUtilities.determineBlankPronunciation()->pronunciation();
-    if (blankPronunciation) {
-        Allophone allo(stateModelRef_->phonology()(*blankPronunciation, 0),
-                       Allophone::isInitialPhone | Allophone::isFinalPhone);
-        return allophoneStateAlphabet()->index(&allo, 0);
+    LexiconUtilities                 lexiconUtilities(config, lexiconRef_);
+    const Bliss::LemmaPronunciation* blankLemmaPronunciation = lexiconUtilities.determineBlankPronunciation();
+    if (blankLemmaPronunciation != &(Bliss::LemmaPronunciation::invalidPronunciation())) {
+        const Bliss::Pronunciation* blankPronunciation = blankLemmaPronunciation->pronunciation();
+        if (blankPronunciation) {
+            Allophone allo(stateModelRef_->phonology()(*blankPronunciation, 0),
+                           Allophone::isInitialPhone | Allophone::isFinalPhone);
+            return allophoneStateAlphabet()->index(&allo, 0);
+        }
+        else {
+            error("Could not determine blank allophone state index.");
+            return Fsa::InvalidLabelId;
+        }
     }
     else {
-        error("Could not determine blank allophone state index.");
+        warning("Could not determine blank allophone state index.");
         return Fsa::InvalidLabelId;
     }
 }

@@ -329,4 +329,20 @@ protected:
     void addWordBoundaryStates();
 };
 
+class HmmTreeBuilder : public SharedBaseClassTreeBuilder {
+public:
+    HmmTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~HmmTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+    // Build a new persistent state network.
+    virtual void build();
+
+protected:
+    // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
+    // Returns the last state corresponding to `pron`.
+    StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron, bool isSilence = false);
+};
+
 #endif

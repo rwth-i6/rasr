@@ -212,6 +212,12 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         useBlank_        = false;
     }
 
+    for (const auto& lemma : {"silence", "blank"}) {
+        if (lexicon_->specialLemma(lemma) and (lexicon_->specialLemma(lemma)->syntacticTokenSequence()).size() != 0) {
+            warning("Special lemma \"%s\" will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.", lemma);
+        }
+    }
+
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
@@ -421,9 +427,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                                                     Nn::LabelScorer::TransitionType::INITIAL_BLANK,  // The transition type is irrelevant, so just use this as dummy
                                                     hypIndex};
 
-                if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-                    const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-                    const Bliss::SyntacticToken*        st  = sts.front();
+                const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
+                if (not(sts.size() == 0)) {
+                    require(sts.size() == 1);
+                    const Bliss::SyntacticToken* st = sts.front();
 
                     // Add the LM score
                     Lm::Score lmScore = languageModel_->score(wordEndExtension.lmHistory, st);
@@ -447,11 +454,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     // Create new word-end label hypotheses from word-end extension candidates and update the LM history
     wordEndHypotheses_.clear();
     for (auto& extension : extensions_) {
-        const Bliss::Lemma* lemma = extension.pron->lemma();
-        if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-            const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-            const Bliss::SyntacticToken*        st  = sts.front();
-            extension.lmHistory                     = languageModel_->extendedHistory(extension.lmHistory, st);
+        const Bliss::Lemma*                 lemma = extension.pron->lemma();
+        const Bliss::SyntacticTokenSequence sts   = lemma->syntacticTokenSequence();
+        if (not(sts.size() == 0)) {
+            require(sts.size() == 1);
+            const Bliss::SyntacticToken* st = sts.front();
+            extension.lmHistory             = languageModel_->extendedHistory(extension.lmHistory, st);
         }
 
         auto const& baseHyp = newBeam_[extension.baseHypIndex];

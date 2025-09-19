@@ -428,7 +428,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                                                     hypIndex};
 
                 const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-                if (not(sts.size() == 0)) {
+                if (sts.size() != 0) {
                     require(sts.size() == 1);
                     const Bliss::SyntacticToken* st = sts.front();
 
@@ -456,7 +456,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto& extension : extensions_) {
         const Bliss::Lemma*                 lemma = extension.pron->lemma();
         const Bliss::SyntacticTokenSequence sts   = lemma->syntacticTokenSequence();
-        if (not(sts.size() == 0)) {
+        if (sts.size() != 0) {
             require(sts.size() == 1);
             const Bliss::SyntacticToken* st = sts.front();
             extension.lmHistory             = languageModel_->extendedHistory(extension.lmHistory, st);

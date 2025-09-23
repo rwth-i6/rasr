@@ -266,6 +266,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
 
+        // Finalize scoring context of hypotheses from previous iteration
+        hyp.scoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
+
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
             const Bliss::Lemma* lemma(*lemmaIt);

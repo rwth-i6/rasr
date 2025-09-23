@@ -48,6 +48,7 @@ public:
 
     // Get extended context from decoder component
     ScoringContextRef extendedScoringContext(Request const& request) override;
+    ScoringContextRef finalizeScoringContext(ScoringContextRef const& context) override;
 
     // Cleanup decoder component. Encoder is "self-cleaning" already in that it only stores outputs until they are
     // retrieved.

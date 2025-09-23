@@ -232,15 +232,33 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     std::vector<LabelIndex> newLabelSeq(history->labelSeq);
     newLabelSeq.push_back(request.nextToken);
 
-    OnnxHiddenStateRef newHiddenState;
-    if (not history->hiddenState) {  // Sentinel start-state
-        newHiddenState = updatedHiddenState(computeInitialHiddenState(), request.nextToken);
-    }
-    else {
-        newHiddenState = updatedHiddenState(history->hiddenState, request.nextToken);
+    auto newScoringContext              = Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), history->hiddenState));
+    newScoringContext->requiresFinalize = true;
+
+    return newScoringContext;
+}
+
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
+    // If this scoring context does not need finalization, just return it
+    if (not context->requiresFinalize) {
+        return context;
     }
 
-    return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
+    OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(context.get()));
+
+    OnnxHiddenStateRef newHiddenState;
+    if (not history->hiddenState) {  // Sentinel start-state
+        verify(not history->labelSeq.empty());
+        newHiddenState = updatedHiddenState(computeInitialHiddenState(), history->labelSeq.back());
+    }
+    else {
+        newHiddenState = updatedHiddenState(history->hiddenState, history->labelSeq.back());
+    }
+
+    auto newScoringContext              = Core::ref(new OnnxHiddenStateScoringContext(std::move(history->labelSeq), newHiddenState));
+    newScoringContext->requiresFinalize = false;
+
+    return newScoringContext;
 }
 
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
@@ -269,6 +287,9 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedHistories;
 
     for (auto& request : requests) {
+        // The search algorithm is supposed to finalize all scoring contexts before using them for scoring again.
+        verify(not request.context->requiresFinalize);
+
         OnnxHiddenStateScoringContextRef historyPtr(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
         if (not scoreCache_.contains(historyPtr)) {
             // Group by unique history

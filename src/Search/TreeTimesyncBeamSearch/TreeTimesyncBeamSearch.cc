@@ -321,6 +321,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
 
+        // Finalize scoring context of hypotheses from previous iteration
+        hyp.scoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
+
         // Iterate over the successors of this hypothesis' current state in the tree
         for (const auto& successorState : stateSuccessorLookup_[hyp.currentState]) {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;

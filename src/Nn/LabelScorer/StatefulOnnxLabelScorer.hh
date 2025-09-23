@@ -74,8 +74,10 @@ public:
     // If startLabelIndex is set, forward that through the state updater to obtain the start history
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
-    // Forward hidden-state through state-updater ONNX model
+    // Append the new token to the label sequence
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
+    // Forward hidden-state through state-updater ONNX model
+    Core::Ref<const ScoringContext> finalizeScoringContext(ScoringContextRef const& context) override;
 
     // Add a single encoder outputs to buffer
     void addInput(DataView const& input) override;

@@ -135,6 +135,7 @@ Module_::Module_()
             "transition",
             [](Core::Configuration const& config) {
                 return Core::ref(new TransitionLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {

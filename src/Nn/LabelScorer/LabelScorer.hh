@@ -76,7 +76,7 @@ class LabelScorer : public virtual Core::Component,
 public:
     typedef Search::Score Score;
 
-    enum TransitionType {
+    enum class TransitionType {
         LABEL_TO_LABEL,
         LABEL_LOOP,
         LABEL_TO_BLANK,
@@ -84,7 +84,12 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
+        sentinel  // must remain at the end
     };
+
+    static constexpr size_t transitionTypeToIndex(TransitionType transitionType) {
+        return static_cast<size_t>(transitionType);
+    }
 
     // Request for scoring or context extension
     struct Request {

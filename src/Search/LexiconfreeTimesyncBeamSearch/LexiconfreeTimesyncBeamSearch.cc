@@ -48,11 +48,11 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           score(extension.score),
           trace() {
     switch (extension.transitionType) {
-        case Nn::LabelScorer::INITIAL_BLANK:
-        case Nn::LabelScorer::INITIAL_LABEL:
-        case Nn::LabelScorer::LABEL_TO_LABEL:
-        case Nn::LabelScorer::LABEL_TO_BLANK:
-        case Nn::LabelScorer::BLANK_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::INITIAL_BLANK:
+        case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
+        case Nn::LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::LABEL_TO_BLANK:
+        case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
             trace = Core::ref(new LatticeTrace(
                     base.trace,
                     extension.pron,
@@ -60,8 +60,8 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
                     {extension.score, 0},
                     {}));
             break;
-        case Nn::LabelScorer::LABEL_LOOP:
-        case Nn::LabelScorer::BLANK_LOOP:
+        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
+        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
             // Copy base trace and update it
             trace                 = Core::ref(new LatticeTrace(*base.trace));
             trace->sibling        = {};

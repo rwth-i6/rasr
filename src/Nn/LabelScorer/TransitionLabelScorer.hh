@@ -16,6 +16,9 @@
 #ifndef TRANSITION_LABEL_SCORER_HH
 #define TRANSITION_LABEL_SCORER_HH
 
+#include <array>
+#include <utility>
+
 #include "LabelScorer.hh"
 
 namespace Nn {
@@ -26,14 +29,6 @@ namespace Nn {
  * The transition scores are all individually specified as config parameters.
  */
 class TransitionLabelScorer : public LabelScorer {
-    static const Core::ParameterFloat paramLabelToLabelScore;
-    static const Core::ParameterFloat paramLabelLoopScore;
-    static const Core::ParameterFloat paramLabelToBlankScore;
-    static const Core::ParameterFloat paramBlankToLabelScore;
-    static const Core::ParameterFloat paramBlankLoopScore;
-    static const Core::ParameterFloat paramInitialLabelScore;
-    static const Core::ParameterFloat paramInitialBlankScore;
-
 public:
     using Precursor = LabelScorer;
 
@@ -68,13 +63,18 @@ public:
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 private:
-    Score labelToLabelScore_;
-    Score labelLoopScore_;
-    Score labelToBlankScore_;
-    Score blankToLabelScore_;
-    Score blankLoopScore_;
-    Score initialLabelScore_;
-    Score initialBlankScore_;
+    inline static constexpr auto paramNames = std::to_array<char const*>({
+            "label-to-label-score",
+            "label-loop-score",
+            "label-to-blank-score",
+            "blank-to-label-score",
+            "blank-loop-score",
+            "initial-label-score",
+            "initial-blank-score",
+    });
+    static_assert(paramNames.size() == transitionTypeToIndex(TransitionType::sentinel), "paramNames must match number of TransitionType values");
+
+    std::array<Score, paramNames.size()> transitionScores_;
 
     Core::Ref<LabelScorer> baseLabelScorer_;
 

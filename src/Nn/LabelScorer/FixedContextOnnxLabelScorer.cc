@@ -123,7 +123,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScore
             timeIncrement = not verticalLabelTransition_;
             break;
         default:
-            error() << "Unknown transition type " << request.transitionType;
+            error() << "Unknown transition type " << transitionTypeToIndex(request.transitionType);
     }
 
     // If context is not going to be modified, return the original one to avoid copying

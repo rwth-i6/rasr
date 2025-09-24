@@ -35,6 +35,33 @@ DEFINE_ONNX_TENSOR_TYPE_MAPING(std::complex<float>, ONNX_TENSOR_ELEMENT_DATA_TYP
 DEFINE_ONNX_TENSOR_TYPE_MAPING(std::complex<double>, ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128)
 DEFINE_ONNX_TENSOR_TYPE_MAPING(Ort::BFloat16_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16)
 
+/*
+ * num_blocks: number of incontinious blocks to each take from the arrays
+ * block_sizes: number of continuous elements from each array to take per block
+ */
+template<typename T>
+void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& values, int64_t num_blocks, std::vector<int64_t> const& block_sizes) {
+    require_eq(values.size(), block_sizes.size());
+    T* data_out = out.GetTensorMutableData<T>();
+
+    int64_t               out_block_size = 0l;
+    std::vector<T const*> data;
+    data.reserve(values.size());
+
+    for (size_t value_idx = 0ul; value_idx < values.size(); ++value_idx) {
+        out_block_size += block_sizes[value_idx];
+        data.push_back(values[value_idx]->GetTensorData<T>());
+    }
+
+    for (size_t block_idx = 0ul; block_idx < num_blocks; block_idx++) {
+        int64_t partial_sum = 0l;
+        for (size_t value_idx = 0ul; value_idx < data.size(); ++value_idx) {
+            std::copy(data[value_idx] + block_sizes[value_idx] * block_idx, data[value_idx] + block_sizes[value_idx] * (block_idx + 1), data_out + (out_block_size)*block_idx + partial_sum);
+            partial_sum += block_sizes[value_idx];
+        }
+    }
+}
+
 }  // namespace
 
 namespace Onnx {
@@ -130,6 +157,158 @@ template Value Value::zeros<s16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
+
+Value Value::concat(std::vector<Value const*> const& values, int axis) {
+    require(values.size() > 0);
+
+    auto numDims     = values.front()->numDims();
+    auto elementType = values.front()->value_.GetTensorTypeAndShapeInfo().GetElementType();
+    for (auto& value : values) {
+        require_eq(value->numDims(), numDims);
+        require_eq(value->value_.GetTensorTypeAndShapeInfo().GetElementType(), elementType);
+    }
+
+    if (axis < 0) {
+        axis = numDims + axis;
+    }
+
+    std::vector<int64_t> new_shape(numDims);
+
+    for (int d = 0; d < numDims; d++) {
+        if (d != axis) {
+            auto dimSize = values.front()->dimSize(d);
+            for (auto& value : values) {
+                require_eq(value->dimSize(d), dimSize);
+            }
+            new_shape[d] = dimSize;
+        }
+        else {
+            new_shape[d] = std::accumulate(values.begin(), values.end(), 0l, [d](int64_t total, const Value* value) { return total + value->dimSize(d); });
+        }
+    }
+
+    int64_t              num_blocks = 1l;
+    std::vector<int64_t> block_sizes(values.size(), 1l);
+
+    for (int d = 0; d < axis; d++) {
+        num_blocks *= values.front()->dimSize(d);
+    }
+
+    for (int d = axis; d < numDims; d++) {
+        for (size_t i = 0ul; i < values.size(); ++i) {
+            block_sizes[i] *= values[i]->dimSize(d);
+        }
+    }
+
+    std::vector<const Ort::Value*> ort_values;
+    ort_values.reserve(values.size());
+    for (auto& value : values) {
+        ort_values.push_back(&value->value_);
+    }
+
+    Value res;
+
+    switch (values.front()->dataType()) {
+        case ValueDataType::FLOAT: {
+            Value res = Value::zeros<f32>(new_shape);
+            dynamic_rank_concat<f32>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::DOUBLE: {
+            Value res = Value::zeros<f64>(new_shape);
+            dynamic_rank_concat<f64>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::INT64: {
+            Value res = Value::zeros<s64>(new_shape);
+            dynamic_rank_concat<s64>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::UINT64: {
+            Value res = Value::zeros<u64>(new_shape);
+            dynamic_rank_concat<u64>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::INT32: {
+            Value res = Value::zeros<s32>(new_shape);
+            dynamic_rank_concat<s32>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::UINT32: {
+            Value res = Value::zeros<u32>(new_shape);
+            dynamic_rank_concat<u32>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::INT16: {
+            Value res = Value::zeros<s16>(new_shape);
+            dynamic_rank_concat<s16>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::UINT16: {
+            Value res = Value::zeros<u16>(new_shape);
+            dynamic_rank_concat<u16>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        case ValueDataType::INT8: {
+            Value res = Value::zeros<s8>(new_shape);
+            dynamic_rank_concat<s8>(res.value_, ort_values, num_blocks, block_sizes);
+            return res;
+        }
+
+        default: defect();
+    }
+}
+
+Value::Value(Value const& other)
+        : value_(nullptr) {
+    switch (other.dataType()) {
+        case ValueDataType::FLOAT: {
+            copyFrom<float>(other.value_);
+            break;
+        }
+        case ValueDataType::DOUBLE: {
+            copyFrom<double>(other.value_);
+            break;
+        }
+        case ValueDataType::INT64: {
+            copyFrom<int64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT64: {
+            copyFrom<uint64_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT32: {
+            copyFrom<int32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT32: {
+            copyFrom<uint32_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT16: {
+            copyFrom<int16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::UINT16: {
+            copyFrom<uint16_t>(other.value_);
+            break;
+        }
+        case ValueDataType::INT8: {
+            copyFrom<int8_t>(other.value_);
+            break;
+        }
+        default: defect();
+    }
+}
 
 /* ------------------------- Getters ------------------------- */
 
@@ -983,5 +1162,21 @@ template void Value::save<u16>(std::string const&) const;
 template void Value::save<s8>(std::string const&) const;
 template void Value::save<u8>(std::string const&) const;
 template void Value::save<bool>(std::string const&) const;
+
+template<typename T>
+void Value::copyFrom(Ort::Value const& v) {
+    require(v.IsTensor());
+
+    Ort::TensorTypeAndShapeInfo info       = v.GetTensorTypeAndShapeInfo();
+    std::vector<int64_t>        dims       = info.GetShape();
+    int64_t                     total_size = std::accumulate(dims.begin(), dims.end(), 1l, [](int64_t a, int64_t b) { return a * b; });
+
+    Ort::AllocatorWithDefaultOptions allocator;
+    value_       = Ort::Value::CreateTensor<T>(allocator, &(*dims.begin()), dims.size());
+    T const* src = v.GetTensorData<T>();
+    T*       tgt = value_.GetTensorMutableData<T>();
+
+    std::copy(src, src + total_size, tgt);
+}
 
 }  // namespace Onnx

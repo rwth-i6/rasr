@@ -687,6 +687,7 @@ struct PythonControl::Internal : public Core::Component {
         else {
             _initAcousticModel();
             silenceAllophoneStateIdx = acousticModel_->silenceAllophoneStateIndex();
+            verify(silenceAllophoneStateIdx != Fsa::InvalidLabelId);
         }
 
         std::shared_ptr<Core::Archive> a = getCacheArchive(cache_filename_c);

@@ -25,10 +25,14 @@
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
 #include <Core/Extensions.hh>
+#include <Core/FormatSet.hh>
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/StringUtilities.hh>
+#include <Core/Types.hh>
+
 #include "Phoneme.hh"
 #include "Symbol.hh"
 
@@ -105,6 +109,11 @@ public:
     }
     const LemmaPronunciation* nextForThisPronunciation() const {
         return nextForThisPronunciation_;
+    }
+
+    static const LemmaPronunciation& invalidPronunciation() {
+        static LemmaPronunciation invalidInstance(LemmaPronunciation::invalidId);
+        return invalidInstance;
     }
 };
 
@@ -477,7 +486,7 @@ class LemmaToEvaluationTokenTransducer;
  *
  * A lemma may be assigned a symbolic name, which the system can
  * use to identify lemmas which have a special meaning to it.
- * E.g. the silence word is is identified by the symbolic name
+ * E.g. the silence word is identified by the symbolic name
  * "silence".  Such lemmas a called "special lemmas".
  */
 
@@ -539,7 +548,7 @@ protected:
     EvaluationToken*                      getOrCreateEvaluationToken(Symbol);
 
     /** Convert phonemic string to sequence of phoneme ids */
-    void parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
+    Core::Status parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
 
     struct Internal;
     Internal* internal_;
@@ -572,7 +581,7 @@ public:
      * @param phon a string containing a white-space separate list
      * of phoneme symbols.
      */
-    Pronunciation* getPronunciation(const std::string& phon);
+    Core::Status getPronunciation(const std::string& phon, Pronunciation*& out);
 
     /**
      * Add a pronunciation to a lemma.
@@ -607,7 +616,7 @@ public:
     void defineSpecialLemma(const std::string& name, Lemma* lemma);
 
     /**
-     * Load lexicon from XML file.
+     * Load lexicon from XML or txt file.
      */
     void load(const std::string& filename);
 
@@ -883,6 +892,11 @@ public:
      * evaluation token sequences, the first is used.
      */
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
+
+private:
+    std::unique_ptr<Core::FormatSet> formats_;
+
+    Core::FormatSet& formats();
 };
 
 }  // namespace Bliss

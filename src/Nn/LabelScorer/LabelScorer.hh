@@ -84,6 +84,7 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
+        numTypes,  // must remain at the end
     };
 
     // Request for scoring or context extension

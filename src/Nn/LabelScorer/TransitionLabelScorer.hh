@@ -63,6 +63,7 @@ public:
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 private:
+    // List of names is set and size-checked against the TransitionType enum at compile time
     inline static constexpr auto paramNames = std::to_array<char const*>({
             "label-to-label-score",
             "label-loop-score",
@@ -72,7 +73,7 @@ private:
             "initial-label-score",
             "initial-blank-score",
     });
-    static_assert(paramNames.size() == transitionTypeToIndex(TransitionType::sentinel), "paramNames must match number of TransitionType values");
+    static_assert(paramNames.size() == TransitionType::numTypes, "paramNames must match number of TransitionType values");
 
     std::array<Score, paramNames.size()> transitionScores_;
 

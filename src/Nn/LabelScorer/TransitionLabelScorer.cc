@@ -76,7 +76,7 @@ std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScores
 }
 
 LabelScorer::Score TransitionLabelScorer::getTransitionScore(LabelScorer::TransitionType transitionType) const {
-    return transitionScores_[transitionTypeToIndex(transitionType)];
+    return transitionScores_[transitionType];
 }
 
 }  // namespace Nn

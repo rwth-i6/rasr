@@ -221,7 +221,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
             updateState = true;
             break;
         default:
-            error() << "Unknown transition type " << transitionTypeToIndex(request.transitionType);
+            error() << "Unknown transition type " << static_cast<size_t>(request.transitionType);
     }
 
     // If history is not going to be modified, return the original one

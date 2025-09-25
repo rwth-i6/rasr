@@ -54,8 +54,10 @@ protected:
 
     ExitHash exitHash_;
 
+    // Allocate a new tree node with the StateDesc `desc`
     StateId createState(Search::StateTree::StateDesc desc);
-    u32     createExit(Search::PersistentStateTree::Exit exit);
+    // Create a new exit state if it does not exist yet
+    u32 createExit(Search::PersistentStateTree::Exit exit);
 };
 
 class MinimizedTreeBuilder : public AbstractTreeBuilder {
@@ -247,7 +249,26 @@ protected:
     void mapSuccessors(const std::set<StateId>&, std::set<StateId>&, const std::vector<StateId>&, const std::vector<u32>&);
 };
 
-class CtcTreeBuilder : public AbstractTreeBuilder {
+class SharedBaseClassTreeBuilder : public AbstractTreeBuilder {
+public:
+    SharedBaseClassTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network);
+    virtual ~SharedBaseClassTreeBuilder() = default;
+
+protected:
+    // Create a node with invalid AM and TM indices which serves as a root
+    StateId createRoot();
+    // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
+    // Returns the ID of the successor state.
+    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
+    // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
+    void addTransition(StateId predecessor, StateId successor);
+    // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.
+    // The exit is appended to `state`'s successors.
+    // Returns the ID of the exit.
+    u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
+};
+
+class CtcTreeBuilder : public SharedBaseClassTreeBuilder {
 public:
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramBlankLoop;
@@ -270,24 +291,9 @@ protected:
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
 
-    // Create a node with invalid AM and TM indices which serves as a root
-    StateId createRoot();
-
-    // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.
-    // The exit is appended to `state`'s successors.
-    // Returns the ID of the exit.
-    u32 addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron);
-
-    // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
-    // Returns the ID of the successor state.
-    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
-
     // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
     // Returns the last state corresponding to `pron`.
     StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
-
-    // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
-    void addTransition(StateId predecessor, StateId successor);
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
@@ -300,6 +306,27 @@ public:
 
     RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~RnaTreeBuilder() = default;
+};
+
+class AedTreeBuilder : public SharedBaseClassTreeBuilder {
+public:
+    AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+    virtual ~AedTreeBuilder() = default;
+
+    virtual std::unique_ptr<AbstractTreeBuilder> newInstance(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
+
+    // Build a new persistent state network.
+    virtual void build();
+
+protected:
+    StateId wordBoundaryRoot_;
+
+    // Starting in `startState` (usually a root), include the lemma with pronunciation `pron` in the tree
+    // Returns the last state corresponding to `pron`.
+    StateId extendPronunciation(StateId startState, Bliss::Pronunciation const* pron);
+
+    // Build the sub-tree with the word-boundary lemma starting from `wordBoundaryRoot_`.
+    void addWordBoundaryStates();
 };
 
 #endif

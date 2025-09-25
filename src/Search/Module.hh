@@ -32,6 +32,7 @@ enum TreeBuilderType {
     minimizedHmm,
     ctc,
     rna,
+    aed,
 };
 
 enum SearchType {

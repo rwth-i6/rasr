@@ -118,9 +118,7 @@ public:
     // Gets initial scoring context to use for the hypotheses in the first search step
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
-    // Creates a copy of the context in the request that is extended such that the hashing
-    // and equality operators return the correct result but may omit expensive operations
-    // that do not affect the hash (e.g. hidden-state updates).
+    // Creates a copy of the context in the request that is extended using the given token and transition type
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches

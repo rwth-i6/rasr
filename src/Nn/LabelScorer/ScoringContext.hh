@@ -30,8 +30,6 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
  * Empty scoring context base class
  */
 struct ScoringContext : public Core::ReferenceCounted {
-    bool requiresFinalize = false;
-
     virtual ~ScoringContext() = default;
 
     virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
@@ -126,7 +124,7 @@ struct OnnxHiddenState : public Core::ReferenceCounted {
     }
 };
 
-typedef Core::Ref<OnnxHiddenState> OnnxHiddenStateRef;
+typedef Core::Ref<const OnnxHiddenState> OnnxHiddenStateRef;
 
 /*
  * Scoring context consisting of a hidden state.
@@ -134,16 +132,15 @@ typedef Core::Ref<OnnxHiddenState> OnnxHiddenStateRef;
  * from the same label history.
  */
 struct OnnxHiddenStateScoringContext : public ScoringContext {
-    std::vector<LabelIndex> labelSeq;  // Used for hashing
-    OnnxHiddenStateRef      hiddenState;
+    std::vector<LabelIndex>    labelSeq;  // Used for hashing
+    mutable OnnxHiddenStateRef hiddenState;
+    mutable bool               requiresFinalize;
 
     OnnxHiddenStateScoringContext()
-            : labelSeq(), hiddenState() {}
+            : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
     OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
-            : labelSeq(labelSeq), hiddenState(state) {
-        requiresFinalize = false;
-    }
+            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(false) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;

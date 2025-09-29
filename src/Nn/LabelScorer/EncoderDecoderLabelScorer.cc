@@ -37,10 +37,6 @@ ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request cons
     return decoder_->extendedScoringContext(request);
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::finalizeScoringContext(ScoringContextRef const& context) {
-    return decoder_->finalizeScoringContext(context);
-}
-
 void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     decoder_->cleanupCaches(activeContexts);
 }

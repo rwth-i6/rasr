@@ -123,10 +123,6 @@ public:
     // that do not affect the hash (e.g. hidden-state updates).
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
-    // Finalize the scoring context by applying remaining expensive operations (e.g. hidden-state updates)
-    // that don't affect the hash
-    virtual ScoringContextRef finalizeScoringContext(ScoringContextRef const& context);
-
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {};

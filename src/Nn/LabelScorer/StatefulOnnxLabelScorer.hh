@@ -71,13 +71,11 @@ public:
 
     void reset() override;
 
-    // If startLabelIndex is set, forward that through the state updater to obtain the start history
+    // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
-    // Append the new token to the label sequence
+    // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
-    // Forward hidden-state through state-updater ONNX model
-    Core::Ref<const ScoringContext> finalizeScoringContext(ScoringContextRef const& context) override;
 
     // Add a single encoder outputs to buffer
     void addInput(DataView const& input) override;
@@ -89,13 +87,17 @@ protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
 private:
-    // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
-    void forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& historyBatch);
+    // Forward a batch of scoringContexts through the ONNX model and put the resulting scores into the score cache
+    void forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
+    // Computes new hidden state based on previous hidden state and next token through state-updater call
     OnnxHiddenStateRef updatedHiddenState(OnnxHiddenStateRef const& hiddenState, LabelIndex nextToken);
 
+    // Replace hidden-state in scoringContext with an updated version that includes the last label
+    void finalizeScoringContext(OnnxHiddenStateScoringContextRef const& scoringContext);
+
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
-    // So getStartHistory sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedHistory` and `getScoresWithTime`
+    // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
     // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
     OnnxHiddenStateRef computeInitialHiddenState();
 

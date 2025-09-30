@@ -87,6 +87,17 @@ public:
         numTypes,  // must remain at the end
     };
 
+    inline static constexpr auto transitionTypeArray = std::to_array<std::pair<std::string_view, TransitionType>>({
+            {"label-to-label", LABEL_TO_LABEL},
+            {"label-loop", LABEL_LOOP},
+            {"label-to-blank", LABEL_TO_BLANK},
+            {"blank-to-label", BLANK_TO_LABEL},
+            {"blank-loop", BLANK_LOOP},
+            {"initial-label", INITIAL_LABEL},
+            {"initial-blank", INITIAL_BLANK},
+    });
+    static_assert(transitionTypeArray.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");
+
     // Request for scoring or context extension
     struct Request {
         ScoringContextRef context;

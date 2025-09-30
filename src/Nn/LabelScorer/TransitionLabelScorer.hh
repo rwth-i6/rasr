@@ -16,9 +16,6 @@
 #ifndef TRANSITION_LABEL_SCORER_HH
 #define TRANSITION_LABEL_SCORER_HH
 
-#include <array>
-#include <utility>
-
 #include "LabelScorer.hh"
 
 namespace Nn {
@@ -63,23 +60,9 @@ public:
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 private:
-    // List of names is set and size-checked against the TransitionType enum at compile time
-    inline static constexpr auto paramNames = std::to_array<char const*>({
-            "label-to-label-score",
-            "label-loop-score",
-            "label-to-blank-score",
-            "blank-to-label-score",
-            "blank-loop-score",
-            "initial-label-score",
-            "initial-blank-score",
-    });
-    static_assert(paramNames.size() == TransitionType::numTypes, "paramNames must match number of TransitionType values");
-
-    std::array<Score, paramNames.size()> transitionScores_;
+    std::unordered_map<TransitionType, Score> transitionScores_;
 
     Core::Ref<LabelScorer> baseLabelScorer_;
-
-    Score getTransitionScore(TransitionType transitionType) const;
 };
 
 }  // namespace Nn

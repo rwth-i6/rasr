@@ -24,8 +24,9 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
           Precursor(config),
           transitionScores_(),
           baseLabelScorer_(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("base-scorer"))) {
-    for (size_t idx = 0ul; idx < paramNames.size(); ++idx) {
-        transitionScores_[idx] = Core::ParameterFloat(paramNames[idx], "", 0.0)(config);
+    for (auto const& [stringIdentifier, enumValue] : transitionTypeArray) {
+        auto paramName               = std::string(stringIdentifier) + "-score";
+        transitionScores_[enumValue] = Core::ParameterFloat(paramName.c_str(), "", 0.0)(config);
     }
 }
 
@@ -60,7 +61,7 @@ void TransitionLabelScorer::addInputs(DataView const& input, size_t nTimesteps) 
 std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
     auto result = baseLabelScorer_->computeScoreWithTime(request);
     if (result) {
-        result->score += getTransitionScore(request.transitionType);
+        result->score += transitionScores_[request.transitionType];
     }
     return result;
 }
@@ -69,14 +70,10 @@ std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScores
     auto results = baseLabelScorer_->computeScoresWithTimes(requests);
     if (results) {
         for (size_t i = 0ul; i < requests.size(); ++i) {
-            results->scores[i] += getTransitionScore(requests[i].transitionType);
+            results->scores[i] += transitionScores_[requests[i].transitionType];
         }
     }
     return results;
-}
-
-LabelScorer::Score TransitionLabelScorer::getTransitionScore(LabelScorer::TransitionType transitionType) const {
-    return transitionScores_[transitionType];
 }
 
 }  // namespace Nn

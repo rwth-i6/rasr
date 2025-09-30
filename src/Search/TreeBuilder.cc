@@ -1217,11 +1217,16 @@ StateId SharedBaseClassTreeBuilder::createRoot() {
     return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
 }
 
-StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
+StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc, bool ignoreLoops) {
     // Check if the successor already exists
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
-            return *target;
+            if (*target == predecessor && ignoreLoops) {
+                continue;
+            }
+            else {
+                return *target;
+            }
         }
     }
 
@@ -1645,7 +1650,7 @@ StateId HmmTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
                 // Add new state
-                currentState = extendState(currentState, desc);
+                currentState = extendState(currentState, desc, true);
 
                 // Add loop for this state
                 addTransition(currentState, currentState);

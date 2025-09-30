@@ -259,7 +259,7 @@ protected:
     StateId createRoot();
     // Check if a node with StateDesc `desc` is already a successor of the state with ID `predecessor` and add it if not.
     // Returns the ID of the successor state.
-    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc);
+    StateId extendState(StateId predecessor, Search::StateTree::StateDesc desc, bool ignoreLoops=false);
     // Add a transition between two already existing states `predecessor` and `successor`, used to insert loops and skip-transitions
     void addTransition(StateId predecessor, StateId successor);
     // Add an exit from the last state `state` of a word with pronunciation `pron` leading to root node `transitState`.

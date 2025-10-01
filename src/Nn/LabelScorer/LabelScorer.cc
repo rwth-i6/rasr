@@ -34,7 +34,7 @@ LabelScorer::LabelScorer(const Core::Configuration& config)
     auto ignoredTransitionTypeStrings = paramIgnoredTransitionTypes(config);
     for (auto const& transitionTypeString : ignoredTransitionTypeStrings) {
         bool identifierFound = false;
-        for (auto const& [stringIdentifier, enumValue] : transitionTypeArray) {
+        for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
             if (stringIdentifier == transitionTypeString) {
                 ignoredTransitionTypes_.insert(enumValue);
                 identifierFound = true;

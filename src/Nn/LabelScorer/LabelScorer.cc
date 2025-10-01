@@ -25,7 +25,7 @@ namespace Nn {
 
 const Core::ParameterStringVector LabelScorer::paramIgnoredTransitionTypes(
         "ignored-transition-types",
-        "Transition types that should be ignored by the label scorer (i.e. get assigned score 0 and do not affect the ScoringContext",
+        "Transition types that should be ignored by the label scorer (i.e. get assigned score 0 and do not affect the ScoringContext)",
         ",");
 
 LabelScorer::LabelScorer(const Core::Configuration& config)

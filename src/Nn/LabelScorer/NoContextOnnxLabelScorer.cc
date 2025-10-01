@@ -53,7 +53,7 @@ ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(context->currentStep + 1));
 }
@@ -73,7 +73,11 @@ void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContex
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
     ScoresWithTimes result;
     result.scores.reserve(requests.size());
 
@@ -115,7 +119,7 @@ std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeSco
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> NoContextOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> NoContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};

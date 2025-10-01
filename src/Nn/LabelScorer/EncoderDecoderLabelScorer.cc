@@ -33,7 +33,7 @@ ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
     return decoder_->getInitialScoringContext();
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request const& request) {
+ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContextInternal(Request const& request) {
     return decoder_->extendedScoringContext(request);
 }
 
@@ -59,11 +59,15 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     return decoder_->computeScoreWithTime(request);
 }
 
-std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
     return decoder_->computeScoresWithTimes(requests);
 }
 

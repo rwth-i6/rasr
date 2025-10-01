@@ -200,7 +200,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContex
     return Core::ref(new OnnxHiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
-Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
@@ -254,7 +254,11 @@ void StatefulOnnxLabelScorer::addInput(DataView const& input) {
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
     if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
         return {};
@@ -304,7 +308,7 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result) {
         return {};

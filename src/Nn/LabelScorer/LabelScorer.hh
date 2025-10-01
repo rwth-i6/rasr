@@ -73,6 +73,8 @@ namespace Nn {
  */
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
+    static const Core::ParameterStringVector paramIgnoredTransitionTypes;
+
 public:
     typedef Search::Score Score;
 
@@ -131,7 +133,7 @@ public:
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
+    ScoringContextRef extendedScoringContext(Request const& request);
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
@@ -147,13 +149,21 @@ public:
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet
     // (e.g. not enough features received)
-    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) = 0;
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
 
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
     // By default loops over the single-request version
-    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+
+protected:
+    virtual ScoringContextRef              extendedScoringContextInternal(Request const& request) = 0;
+    virtual std::optional<ScoreWithTime>   computeScoreWithTimeInternal(Request const& request)   = 0;
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests);
+
+private:
+    std::unordered_set<TransitionType> ignoredTransitionTypes_;
 };
 
 }  // namespace Nn

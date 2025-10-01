@@ -24,7 +24,7 @@ TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
           Precursor(config),
           transitionScores_(),
           baseLabelScorer_(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("base-scorer"))) {
-    for (auto const& [stringIdentifier, enumValue] : transitionTypeArray) {
+    for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
         auto paramName               = std::string(stringIdentifier) + "-score";
         transitionScores_[enumValue] = Core::ParameterFloat(paramName.c_str(), "", 0.0)(config);
     }

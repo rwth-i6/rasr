@@ -16,7 +16,7 @@ jobs:
       image: ghcr.io/rwth-i6/rasr:build
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v2
       with:

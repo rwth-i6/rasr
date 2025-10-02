@@ -316,7 +316,6 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulTransducerOnnxLabelScorer::c
         auto const& scores = scoreCache_.get(scoringContext)->get();
 
         result.scores.push_back(scores.at(request.nextToken));
-        result.timeframes.push_back(scoringContext->labelSeq.size());
     }
 
     return result;

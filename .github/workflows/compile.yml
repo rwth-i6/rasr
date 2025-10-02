@@ -6,6 +6,9 @@ on:
   pull_request:
     branches:
       - master
+permissions:
+  contents: read
+  packages: read
 jobs:
   compile:
     runs-on: ubuntu-24.04
@@ -14,9 +17,6 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
-    permissions:
-      contents: read
-      packages: read
     steps:
     - uses: actions/checkout@v2
       with:

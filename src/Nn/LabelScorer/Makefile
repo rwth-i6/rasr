@@ -25,6 +25,7 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/OnnxEncoder.o \
     $(OBJDIR)/ScoringContext.o \
     $(OBJDIR)/StatefulOnnxLabelScorer.o \
+    $(OBJDIR)/StatefulTransducerOnnxLabelScorer.o
     $(OBJDIR)/TransitionLabelScorer.o
 
 CCFLAGS += -fexceptions

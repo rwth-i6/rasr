@@ -30,6 +30,7 @@
 #include <Modules.hh>
 #endif
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
@@ -162,6 +163,13 @@ Module_::Module_()
             "stateful-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on input-feature and hidden-state where the hidden-state only depends on the token history
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-transducer-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulTransducerOnnxLabelScorer(config));
             });
 
     // Returns predefined scores based on the transition type of each score request

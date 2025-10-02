@@ -21,16 +21,15 @@
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
-#include "LabelScorer/FullInputStatefulOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
-#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
 #include "Nn/LabelScorer/EncoderFactory.hh"
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -157,18 +156,11 @@ Module_::Module_()
                 return Core::ref(new FixedContextOnnxLabelScorer(config));
             });
 
-    // Compute scores based on hidden state tensors. The full input feature sequence is required for state computation.
+    // Compute scores based on hidden state tensors.
     labelScorerFactory_.registerLabelScorer(
-            "full-input-stateful-onnx",
+            "stateful-onnx",
             [](Core::Configuration const& config) {
-                return Core::ref(new FullInputStatefulOnnxLabelScorer(config));
-            });
-
-    // Returns predefined scores based on the transition type of each score request
-    labelScorerFactory_.registerLabelScorer(
-            "transition",
-            [](Core::Configuration const& config) {
-                return Core::ref(new TransitionLabelScorer(config));
+                return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 };
 

@@ -114,6 +114,8 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
           repeatSilence_(paramRepeatSilence(config)),
           minimizeIterations_(paramMinimizeIterations(config)),
           reverse_(isBackwardRecognition(config)) {
+    require(lexicon.specialLemma("silence") != nullptr);
+
     if (allowCrossWordSkips_) {
         Score skipPenalty    = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::skip);
         Score forwardPenalty = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::forward);

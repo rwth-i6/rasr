@@ -29,8 +29,10 @@
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/Types.hh>
+
 #include "Phoneme.hh"
 #include "Symbol.hh"
 
@@ -546,7 +548,7 @@ protected:
     EvaluationToken*                      getOrCreateEvaluationToken(Symbol);
 
     /** Convert phonemic string to sequence of phoneme ids */
-    void parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
+    Core::Status parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
 
     struct Internal;
     Internal* internal_;
@@ -587,7 +589,7 @@ public:
      * @param phon a string containing a white-space separate list
      * of phoneme symbols.
      */
-    Pronunciation* getPronunciation(const std::string& phon);
+    Core::Status getPronunciation(const std::string& phon, Pronunciation*& out);
 
     /**
      * Add a pronunciation to a lemma.

@@ -15,8 +15,10 @@ set(RasrLabelScorer_SOURCES
 )
 
 if(${MODULE_ONNX})
-    list(APPEND RasrLabelScorer_SOURCES FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
-         FullInputStatefulOnnxLabelScorer.cc
+    list(APPEND RasrLabelScorer_SOURCES
+        FixedContextOnnxLabelScorer.cc
+        NoContextOnnxLabelScorer.cc
+        StatefulOnnxLabelScorer.cc
     )
 endif()
 

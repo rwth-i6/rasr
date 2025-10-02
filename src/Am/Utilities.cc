@@ -48,7 +48,7 @@ Bliss::Phoneme::Id LexiconUtilities::determineSilencePhoneme() const {
             else {
                 result = (*silencePronunciation)[0];
                 if (silencePronunciation->length() > 1)
-                    error("Silence pronunciation multiple phonemes. Using only /%s/",
+                    error("Silence pronunciation has multiple phonemes. Using only /%s/",
                           lexicon_->phonemeInventory()->phoneme(result)->symbol().str());
             }
         }

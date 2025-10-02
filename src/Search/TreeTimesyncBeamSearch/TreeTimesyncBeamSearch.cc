@@ -246,6 +246,12 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         useBlank_        = false;
     }
 
+    for (const auto& lemma : {"silence", "blank"}) {
+        if (lexicon_->specialLemma(lemma) and (lexicon_->specialLemma(lemma)->syntacticTokenSequence()).size() != 0) {
+            warning("Special lemma \"%s\" will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.", lemma);
+        }
+    }
+
     // Create look-ups for state successors and exits of each state
     createSuccessorLookups();
 
@@ -482,14 +488,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
                 auto const* lemma     = lemmaPron->lemma();
 
-                Score lmScore = 0;
-                if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-                    auto const& sts = lemma->syntacticTokenSequence();
+                Score       lmScore = 0;
+                auto const& sts     = lemma->syntacticTokenSequence();
+                if (sts.size() != 0) {
                     require(sts.size() == 1);
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
+                    wordEndExtensions_.push_back({lemmaPron, rootState, hyp.score + lmScore, hypIndex});
                 }
-                wordEndExtensions_.push_back({lemmaPron, rootState, hyp.score + lmScore, hypIndex});
             }
         }
     }
@@ -510,8 +516,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
         auto const* lemma        = extension.pron->lemma();
         auto        newLmHistory = baseHyp.lmHistory;
-        if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-            auto const& sts = lemma->syntacticTokenSequence();
+        auto const& sts          = lemma->syntacticTokenSequence();
+        if (sts.size() != 0) {
             require(sts.size() == 1);
             auto const* st = sts.front();
             newLmHistory   = languageModel_->extendedHistory(newLmHistory, st);

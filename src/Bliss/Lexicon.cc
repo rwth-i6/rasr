@@ -13,10 +13,12 @@
  *  limitations under the License.
  */
 // $Id$
-
+#include <chrono>
 #include <unordered_map>
 
+#include <Core/IoUtilities.hh>
 #include <Core/MD5.hh>
+#include <Core/StopWatch.hh>
 #include <Core/Utility.hh>
 #include <Fsa/AlphabetUtility.hh>
 #include "Fsa.hh"
@@ -146,6 +148,9 @@ const Core::ParameterChoice Lexicon::paramLexiconType(
         "type", &Lexicon::lexiconTypeChoice, "type of the lexicon file", xmlLexicon);
 
 void Lexicon::load(const std::string& filename) {
+    Core::StopWatch stopwatch;
+    stopwatch.start();
+
     Core::MD5   md5;
     std::string strippedFilename = Core::FormatSet::stripQualifier(filename);
     if (md5.updateFromFile(strippedFilename)) {
@@ -155,10 +160,20 @@ void Lexicon::load(const std::string& filename) {
         warning("Could not derive md5 sum from file '%s'", strippedFilename.c_str());
     }
 
-    log("Reading lexicon from file") << " \"" << strippedFilename << "\" ...";
+    stopwatch.stop();
+    log("md5 dependency computed in %.2f seconds", stopwatch.elapsedSeconds());
+
+    std::string absFilename = Core::realPath(strippedFilename);
+    log("reading lexicon from file \"%s\" (%s) ...", strippedFilename.c_str(), absFilename.c_str());
+    stopwatch.reset();
+    stopwatch.start();
+
     if (!formats().read(filename, *this)) {
         error("Error while reading lexicon file.");
     }
+
+    stopwatch.stop();
+    log("parsed XML lexicon in %.2f seconds", stopwatch.elapsedSeconds());
     log("dependency value: ") << dependency_.value();
 }
 
@@ -239,9 +254,7 @@ Pronunciation* Lexicon::getOrCreatePronunciation(const std::vector<Phoneme::Id>&
     tie(it, isNew) = pronunciationMap_.insert(pron);
     if (isNew) {
         phon_.start();
-        for (std::vector<Phoneme::Id>::const_iterator i = phonemes.begin();
-             i != phonemes.end(); ++i)
-            phon_.grow(*i);
+        phon_.grow(phonemes.data(), phonemes.data() + phonemes.size());
         pron->phonemes_ = phon_.currentBegin();
         verify(phon_.currentEnd()[-1] == Phoneme::term);
         phon_.finish();
@@ -254,7 +267,7 @@ Pronunciation* Lexicon::getOrCreatePronunciation(const std::vector<Phoneme::Id>&
     return pron;
 }
 
-void Lexicon::parsePronunciation(const std::string& phonStr, std::vector<Phoneme::Id>& phonemes) const {
+Core::Status Lexicon::parsePronunciation(const std::string& phonStr, std::vector<Phoneme::Id>& phonemes) const {
     require(phonemeInventory());
     const Phoneme*         phoneme;
     std::string::size_type i, j;
@@ -267,20 +280,27 @@ void Lexicon::parsePronunciation(const std::string& phonStr, std::vector<Phoneme
             phonemes.push_back(phoneme->id());
         }
         else {
-            error("ignoring unknown phoneme \"%s\"",
-                  phonStr.substr(i, j - i).c_str());
+            std::string errorMessage = std::string("Unknown phoneme: \"") + phonStr.substr(i, j - i) + "\"";
+            return Core::Status(Core::StatusCode::InvalidArgument, errorMessage);
         }
         i = phonStr.find_first_not_of(utf8::whitespace, j);
     }
+    return Core::Status();
 }
 
-Pronunciation* Lexicon::getPronunciation(const std::string& phon) {
+Core::Status Lexicon::getPronunciation(const std::string& phon, Pronunciation*& out) {
     require(phonemeInventory());
+
     std::vector<Phoneme::Id> phonemes;
-    parsePronunciation(phon, phonemes);
+    Core::Status             status = parsePronunciation(phon, phonemes);
+    if (!status.ok()) {
+        out = nullptr;
+        return status;
+    }
+
     phonemes.push_back(Phoneme::term);
-    Pronunciation* pron = getOrCreatePronunciation(phonemes);
-    return pron;
+    out = getOrCreatePronunciation(phonemes);
+    return status;
 }
 
 void Lexicon::addPronunciation(Lemma* lemma, Pronunciation* pron, f32 weight) {

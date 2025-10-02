@@ -29,6 +29,7 @@ AdaptationTree::AdaptationTree(const Core::Configuration&     c,
                                Bliss::Phoneme::Id             silencePhoneme)
         : Core::Component(c),
           treeDumpChannel_(config, "dump-tree") {
+    verify(silencePhoneme != Bliss::Phoneme::invalidId);
     numberOfBaseClasses_ = paramNumberOfBaseClasses(config);
     log("number of base classe for MLLR adaptation: ") << numberOfBaseClasses_;
 

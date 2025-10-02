@@ -179,10 +179,10 @@ protected:
 
     Ort::Value value_;
 
-    Ort::Value const* rawValue() const;
-
     template<typename T>
     void copyFrom(Ort::Value const& v);
+
+    Ort::Value const* rawValue() const;
 };
 
 // Implementations for some of Values functions (which likely can be inlined)

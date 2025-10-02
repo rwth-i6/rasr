@@ -30,6 +30,7 @@ set(Core_SOURCES
     ReferenceCounting.cc
     ResourceUsageInfo.cc
     Statistics.cc
+    Status.cc
     StopWatch.cc
     StringExpression.cc
     StringUtilities.cc

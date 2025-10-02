@@ -83,6 +83,7 @@ public:
         INITIAL_LABEL,
         INITIAL_BLANK,
         SENTENCE_END
+        numTypes,  // must remain at the end
     };
 
     // Request for scoring or context extension
@@ -150,6 +151,7 @@ public:
 
     // Returns total number of sub-scorers for nested label scorer constructions (e.g. with CombineLabelScorer)
     virtual size_t                         numSubScorers() const;
+
     virtual std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request, size_t scorerIndex);
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests, size_t scorerIndex);
 
@@ -159,6 +161,17 @@ public:
 
     // TODO: Separate scoringContexts out of requests (context + request), also collapsedvector
     // TODO: Cleanup function to clean up input buffer
+protected:
+    inline static constexpr auto transitionTypeArray_ = std::to_array<std::pair<std::string_view, TransitionType>>({
+            {"label-to-label", LABEL_TO_LABEL},
+            {"label-loop", LABEL_LOOP},
+            {"label-to-blank", LABEL_TO_BLANK},
+            {"blank-to-label", BLANK_TO_LABEL},
+            {"blank-loop", BLANK_LOOP},
+            {"initial-label", INITIAL_LABEL},
+            {"initial-blank", INITIAL_BLANK},
+    });
+    static_assert(transitionTypeArray_.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");
 };
 
 }  // namespace Nn

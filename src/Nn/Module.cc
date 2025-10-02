@@ -30,6 +30,7 @@
 #include <Modules.hh>
 #endif
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -161,6 +162,13 @@ Module_::Module_()
             "stateful-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Returns predefined scores based on the transition type of each score request
+    labelScorerFactory_.registerLabelScorer(
+            "transition",
+            [](Core::Configuration const& config) {
+                return Core::ref(new TransitionLabelScorer(config));
             });
 };
 

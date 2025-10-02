@@ -26,14 +26,6 @@ namespace Nn {
  * The transition scores are all individually specified as config parameters.
  */
 class TransitionLabelScorer : public LabelScorer {
-    static const Core::ParameterFloat paramLabelToLabelScore;
-    static const Core::ParameterFloat paramLabelLoopScore;
-    static const Core::ParameterFloat paramLabelToBlankScore;
-    static const Core::ParameterFloat paramBlankToLabelScore;
-    static const Core::ParameterFloat paramBlankLoopScore;
-    static const Core::ParameterFloat paramInitialLabelScore;
-    static const Core::ParameterFloat paramInitialBlankScore;
-
 public:
     using Precursor = LabelScorer;
 
@@ -68,17 +60,9 @@ public:
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
 
 private:
-    Score labelToLabelScore_;
-    Score labelLoopScore_;
-    Score labelToBlankScore_;
-    Score blankToLabelScore_;
-    Score blankLoopScore_;
-    Score initialLabelScore_;
-    Score initialBlankScore_;
+    std::unordered_map<TransitionType, Score> transitionScores_;
 
     Core::Ref<LabelScorer> baseLabelScorer_;
-
-    Score getTransitionScore(TransitionType transitionType) const;
 };
 
 }  // namespace Nn

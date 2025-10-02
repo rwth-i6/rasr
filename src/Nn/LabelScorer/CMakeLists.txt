@@ -19,6 +19,7 @@ if(${MODULE_ONNX})
         FixedContextOnnxLabelScorer.cc
         NoContextOnnxLabelScorer.cc
         StatefulOnnxLabelScorer.cc
+        StatefulTransducerOnnxLabelScorer.cc
     )
 endif()
 

@@ -175,8 +175,6 @@ void StatefulTransducerOnnxLabelScorer::reset() {
 }
 
 Core::Ref<const ScoringContext> StatefulTransducerOnnxLabelScorer::getInitialScoringContext() {
-    verify(not expectMoreFeatures_);
-
     if (not initialScoringContext_) {
         std::vector<std::string> sessionOutputNames;
         std::vector<std::string> stateNames;

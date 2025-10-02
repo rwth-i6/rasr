@@ -8,7 +8,12 @@ on:
       - master
 jobs:
   compile:
-    runs-on: ghcr.io/rwth-i6/rasr:build
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/rwth-i6/rasr:build
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
     steps:
     - uses: actions/checkout@v2
       with:

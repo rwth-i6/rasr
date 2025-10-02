@@ -1,4 +1,4 @@
-name: clang-format
+name: compile
 on:
   push:
     branches:
@@ -15,6 +15,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     permissions:
+      contents: read
       packages: read
     steps:
     - uses: actions/checkout@v2

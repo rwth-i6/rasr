@@ -468,11 +468,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
     }
 
-    for (auto& hyp : newBeam_) {
-        auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
-        hyp.scoringContext     = newScoringContext;
-    }
-
     /*
      * Expand hypotheses to word-end hypotheses and incorporate the language model
      */

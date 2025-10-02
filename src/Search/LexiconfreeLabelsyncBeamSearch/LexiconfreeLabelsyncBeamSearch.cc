@@ -468,13 +468,6 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-active-hyps-after-beam-pruning", numActive);
     }
 
-    for (auto& hyp : newBeam_) {
-        if (hyp.isActive) {
-            auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
-            hyp.scoringContext     = newScoringContext;
-        }
-    }
-
     /*
      * Clean up label scorer caches.
      */

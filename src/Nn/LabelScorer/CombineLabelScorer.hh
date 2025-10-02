@@ -48,7 +48,6 @@ public:
 
     // Combine extended ScoringContexts from all sub-scorers
     ScoringContextRef extendedScoringContext(Request const& request) override;
-    ScoringContextRef finalizeScoringContext(ScoringContextRef const& context) override;
 
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;

@@ -419,11 +419,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning", newBeam_.size());
     }
 
-    for (auto& hyp : newBeam_) {
-        auto newScoringContext = labelScorer_->finalizeScoringContext(hyp.scoringContext);
-        hyp.scoringContext     = newScoringContext;
-    }
-
     beam_.swap(newBeam_);
 
     numActiveHyps_ += beam_.size();

@@ -82,7 +82,7 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
-        SENTENCE_END
+        SENTENCE_END,
         numTypes,  // must remain at the end
     };
 
@@ -123,10 +123,6 @@ public:
     // that do not affect the hash (e.g. hidden-state updates).
     virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
 
-    // Finalize the scoring context by applying remaining expensive operations (e.g. hidden-state updates)
-    // that don't affect the hash
-    virtual ScoringContextRef finalizeScoringContext(ScoringContextRef const& context);
-
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
     virtual void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {};
@@ -151,7 +147,6 @@ public:
 
     // Returns total number of sub-scorers for nested label scorer constructions (e.g. with CombineLabelScorer)
     virtual size_t                         numSubScorers() const;
-
     virtual std::optional<ScoreWithTime>   computeScoreWithTime(Request const& request, size_t scorerIndex);
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests, size_t scorerIndex);
 
@@ -170,6 +165,7 @@ protected:
             {"blank-loop", BLANK_LOOP},
             {"initial-label", INITIAL_LABEL},
             {"initial-blank", INITIAL_BLANK},
+            {"sentence-end", SENTENCE_END},
     });
     static_assert(transitionTypeArray_.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");
 };

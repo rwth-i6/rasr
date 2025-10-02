@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.24)
 project(RASR)
 
 include(cmake_resources/ConfigurationTypes.cmake)

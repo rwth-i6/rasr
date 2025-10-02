@@ -38,8 +38,6 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
  * Empty scoring context base class
  */
 struct ScoringContext : public Core::ReferenceCounted {
-    bool requiresFinalize = false;
-
     virtual ~ScoringContext() = default;
 
     virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;

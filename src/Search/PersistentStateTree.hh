@@ -108,6 +108,9 @@ public:
     // Other root nodes (currently used for the wordBoundaryRoot in CtcTreeBuilder)
     std::set<StateId> otherRootStates;
 
+    // Valid nodes that the search can end in
+    std::set<StateId> finalStates;
+
     // The word-end exits
     std::vector<Exit> exits;
 

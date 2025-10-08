@@ -42,10 +42,6 @@ ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
     return baseLabelScorer_->getInitialScoringContext();
 }
 
-ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    return baseLabelScorer_->extendedScoringContext(request);
-}
-
 void TransitionLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     baseLabelScorer_->cleanupCaches(activeContexts);
 }
@@ -56,6 +52,10 @@ void TransitionLabelScorer::addInput(DataView const& input) {
 
 void TransitionLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     baseLabelScorer_->addInputs(input, nTimesteps);
+}
+
+ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
+    return baseLabelScorer_->extendedScoringContext(request);
 }
 
 std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {

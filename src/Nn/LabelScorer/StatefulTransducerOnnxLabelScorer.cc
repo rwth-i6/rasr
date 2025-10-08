@@ -228,16 +228,15 @@ Core::Ref<const ScoringContext> StatefulTransducerOnnxLabelScorer::extendedScori
     }
 
     std::vector<LabelIndex> newLabelSeq(scoringContext->labelSeq);
-    auto                    newHiddenState   = scoringContext->hiddenState;
     bool                    requiresFinalize = false;
 
     if (pushToken) {
         newLabelSeq.push_back(request.nextToken);
-        newHiddenState   = updatedHiddenState(scoringContext->hiddenState, request.nextToken);
         requiresFinalize = true;
     }
 
-    auto newScoringContext              = Core::ref(new StepOnnxHiddenStateScoringContext(scoringContext->currentStep + timeIncrement, std::move(newLabelSeq), newHiddenState));
+    // Re-use previous hidden-state but mark that finalization (i.e. hidden-state update) is required
+    auto newScoringContext              = Core::ref(new StepOnnxHiddenStateScoringContext(scoringContext->currentStep + timeIncrement, std::move(newLabelSeq), scoringContext->hiddenState));
     newScoringContext->requiresFinalize = requiresFinalize;
 
     return newScoringContext;
@@ -259,7 +258,8 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulTransducerOnnxLabelScorer::c
 
     for (size_t b = 0ul; b < requests.size(); ++b) {
         StepOnnxHiddenStateScoringContextRef context(dynamic_cast<const StepOnnxHiddenStateScoringContext*>(requests[b].context.get()));
-        auto                                 step = context->currentStep;
+        finalizeScoringContext(context);
+        auto step = context->currentStep;
 
         if (not getInput(step)) {
             // Early exit if at least one of the histories is not scorable yet

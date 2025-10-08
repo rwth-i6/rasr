@@ -1286,7 +1286,7 @@ void CtcTreeBuilder::build() {
     }
 
     auto sentenceEndLemma = getSentenceEndLemma();
-    if (sentenceEndLemma != nullptr) {
+    if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
         addSentenceEndStates();
     }
 

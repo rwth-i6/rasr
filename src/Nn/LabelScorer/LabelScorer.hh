@@ -84,6 +84,7 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
+        numTypes,  // must remain at the end
     };
 
     // Request for scoring or context extension
@@ -142,6 +143,18 @@ public:
     // Return two vectors: one vector with scores and one vector with times
     // By default loops over the single-request version
     virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+
+protected:
+    inline static constexpr auto transitionTypeArray_ = std::to_array<std::pair<std::string_view, TransitionType>>({
+            {"label-to-label", LABEL_TO_LABEL},
+            {"label-loop", LABEL_LOOP},
+            {"label-to-blank", LABEL_TO_BLANK},
+            {"blank-to-label", BLANK_TO_LABEL},
+            {"blank-loop", BLANK_LOOP},
+            {"initial-label", INITIAL_LABEL},
+            {"initial-blank", INITIAL_BLANK},
+    });
+    static_assert(transitionTypeArray_.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");
 };
 
 }  // namespace Nn

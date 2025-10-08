@@ -18,13 +18,14 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Am/ClassicStateModel.hh>
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
-#include "Search/Module.hh"
-#include "Search/Traceback.hh"
+#include <Search/Module.hh>
+#include <Search/Traceback.hh>
 
 namespace Search {
 
@@ -137,6 +138,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          blankLabelIndex_(Nn::invalidLabelIndex),
+          sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
@@ -211,6 +214,23 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     else {
         blankLabelIndex_ = Nn::invalidLabelIndex;
         useBlank_        = false;
+    }
+
+    auto const* sentenceEndLemma = lexicon_->specialLemma("sentence-end");
+    if (not sentenceEndLemma) {
+        sentenceEndLemma = lexicon_->specialLemma("sentence-boundary");
+    }
+    if (sentenceEndLemma and sentenceEndLemma->nPronunciations() != 0) {
+        auto const* pron = sentenceEndLemma->pronunciations().first->pronunciation();
+        require(pron->length() == 1);
+        Am::Allophone           allo(acousticModel_->phonology()->allophone(*pron, 0),
+                                     Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
+        Am::AllophoneStateIndex alloStateIdx = acousticModel_->allophoneStateAlphabet()->index(&allo, 0);
+
+        sentenceEndLabelIndex_ = acousticModel_->emissionIndex(alloStateIdx);
+    }
+    else {
+        sentenceEndLabelIndex_ = Nn::invalidLabelIndex;
     }
 
     for (const auto& lemma : {"silence", "blank"}) {
@@ -612,12 +632,16 @@ void TreeTimesyncBeamSearch::logStatistics() const {
 }
 
 Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
-    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
+    bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
+    bool nextIsSentenceEnd = nextLabel == sentenceEndLabelIndex_;
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
@@ -627,6 +651,9 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
     if (prevIsBlank) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
@@ -638,6 +665,9 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;

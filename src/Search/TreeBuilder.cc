@@ -1258,7 +1258,9 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         // Create a special root for sentence-end
         auto sentenceEndLemma = getSentenceEndLemma();
         if (sentenceEndLemma == nullptr or sentenceEndLemma->nPronunciations() == 0) {
-            log() << "Building tree without sentence-end";
+            if (sentenceEndLemma != nullptr) {
+                warning() << "Building tree without sentence-end which means it may also not be scored by the LM";
+            }
 
             // If no sentence-end is present, any root state is a valid final state
             network_.finalStates.insert(network_.rootState);

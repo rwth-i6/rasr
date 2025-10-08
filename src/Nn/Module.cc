@@ -24,6 +24,7 @@
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -127,6 +128,13 @@ Module_::Module_()
             "stateful-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on input-feature and hidden-state where the hidden-state only depends on the token history
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-transducer-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulTransducerOnnxLabelScorer(config));
             });
 };
 

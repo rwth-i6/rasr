@@ -50,7 +50,6 @@ void TensorflowFeatureScorerStateCarryover::_compute() {
         for (const auto& it : saved_state_map_) {
             const SavedState& state = it.second;
             inputs.emplace_back(std::make_pair(state.initial_value_name, Tensorflow::Tensor::create(state.state, true)));
-            //printf("setting %s from saved state (%d, %d), e.g. %.3f\n", state.initial_value_name.c_str(), state.state.nRows(), state.state.nColumns(), state.state(0,0));
         }
         session_.run(inputs, initializer_tensor_names_);
 
@@ -69,7 +68,7 @@ void TensorflowFeatureScorerStateCarryover::_compute() {
 
         auto t_end     = std::chrono::system_clock::now();
         auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
-        printf("num_frames: %zu elapsed: %f AM_RTF: %f\n", num_frames, t_elapsed, t_elapsed / (num_frames / 100.0));
+        log("num_frames: %zu elapsed: %f AM_RTF: %f\n", num_frames, t_elapsed, t_elapsed / (num_frames / 100.0));
 
         // mark computed
         scoresComputed_ = true;

@@ -30,7 +30,7 @@ enum GraphLoaderChoice {
     graphLoaderVanilla,
     graphLoaderMeta
 };
-}  //namespace
+}  // namespace
 
 namespace Tensorflow {
 

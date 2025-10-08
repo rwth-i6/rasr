@@ -29,10 +29,10 @@
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
-#include <Core/robin_hood.h>
 #include <Core/Status.hh>
 #include <Core/StringUtilities.hh>
 #include <Core/Types.hh>
+#include <Core/robin_hood.h>
 
 #include "Phoneme.hh"
 #include "Symbol.hh"
@@ -524,8 +524,8 @@ protected:
     TokenInventory lemmas_;
 
     typedef robin_hood::unordered_map<std::string, robin_hood::unordered_set<const Lemma*>> SpecialLemmaMap;
-    SpecialLemmaMap                     specialLemmas_;
-    typedef Core::StringHashMap<Lemma*> LemmaMap;
+    SpecialLemmaMap                                                                         specialLemmas_;
+    typedef Core::StringHashMap<Lemma*>                                                     LemmaMap;
 
     friend class Bliss::LemmaPronunciationAlphabet;
     typedef std::vector<const LemmaPronunciation*> LemmaPronunciationList;
@@ -538,7 +538,7 @@ protected:
     PronunciationList                         pronunciations_;
     typedef std::unordered_set<Pronunciation*, Pronunciation::Hash,
                                Pronunciation::Equality>
-            PronunciationMap;
+                     PronunciationMap;
     PronunciationMap pronunciationMap_;
     Pronunciation*   getOrCreatePronunciation(const std::vector<Phoneme::Id>& phonemes);
 

@@ -476,7 +476,7 @@ typedef enum {
     Gray,
     Black
 } Color;
-}  //namespace
+}  // namespace
 StaticLatticeRef cleanUp(ConstLatticeRef l) {
     if (l->initialStateId() == Fsa::InvalidStateId)
         return StaticLatticeRef();

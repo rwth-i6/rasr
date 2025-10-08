@@ -29,6 +29,6 @@ private:
     std::vector<Value> state_values_;
 };
 
-}  //namespace Onnx
+}  // namespace Onnx
 
 #endif

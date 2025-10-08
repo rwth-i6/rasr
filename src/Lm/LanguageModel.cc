@@ -200,7 +200,7 @@ void LanguageModel::getBatch(const History& history, const CompiledBatchRequest*
         sco *= ncbr->scale();
         sco += r->offset;
 
-       if (result[r->target] > sco) {
+        if (result[r->target] > sco) {
             result[r->target] = sco;
         }
     }

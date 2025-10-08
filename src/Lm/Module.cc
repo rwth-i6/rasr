@@ -55,7 +55,7 @@ enum LanguageModelType {
     lmTypeCheatingSegment,
     lmTypeSimpleHistory
 };
-}  //namespace Lm
+}  // namespace Lm
 
 const Core::Choice Module_::lmTypeChoice(
         "ARPA", lmTypeArpa,

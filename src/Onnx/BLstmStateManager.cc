@@ -36,4 +36,4 @@ void BLstmStateManager::updateStates(std::vector<Value>& states) {
     }
 }
 
-}  //namespace Onnx
+}  // namespace Onnx

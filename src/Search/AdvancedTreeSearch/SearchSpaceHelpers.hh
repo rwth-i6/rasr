@@ -231,7 +231,7 @@ struct WordEndHypothesis {
     const Bliss::LemmaPronunciation* pronunciation;
     ScoreVector                      score;
     Core::TsRef<Trace>               trace;
-    u32                              endExit;  //Exit from which this word end hypothesis was constructed
+    u32                              endExit;  // Exit from which this word end hypothesis was constructed
     PathTrace                        pathTrace;
 
     WordEndHypothesis(const Lm::History& rch, const Lm::History& lah, const Lm::History& sch, StateId e,

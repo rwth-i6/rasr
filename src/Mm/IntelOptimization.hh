@@ -43,14 +43,12 @@ private:
 #if defined(__SSE2__)
     SSE2L2NormCodeGenerator l2norm_;
     enum {
-        BlockSize = 16
-    };
+            BlockSize = 16};
 #else
     IntelMMXL2NormCodeGenerator l2norm_;
     IntelMMXResetCodeGenerator  reset_;
     enum {
-        BlockSize = 8
-    };
+            BlockSize = 8};
 #endif  // __SSE2__
 #else
     enum {

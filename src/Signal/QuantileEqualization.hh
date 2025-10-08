@@ -291,7 +291,8 @@ public:
         return "signal-quantile-equalization";
     }
     QuantileEqualizationNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c) {
+            : Core::Component(c),
+              SleeveNode(c) {
         setQuantileEqualization(paramQuantileEqualization(c));
         setCombineNeighbors(paramCombineNeighbors(c));
         setQuantileEstimation(paramQuantileEstimation(c));

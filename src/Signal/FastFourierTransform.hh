@@ -31,11 +31,14 @@ protected:
     u32 length_;
     /** sample rate of input vector. */
     f64                        sampleRate_;
+    bool                       applyScale_;
+    bool                       rightPadding_;
     Math::FastFourierTransform fft_;
     std::string                lastError_;
 
 protected:
     virtual bool zeroPadding(std::vector<Data>& data);
+    bool         zeroLeftRightPadding(std::vector<Data>& data);
     virtual bool applyAlgorithm(std::vector<Data>& data) = 0;
     /** Calculates an estimation of the continuous values.
      *  Each element is multiplied by {\Delta t} resp. {\Delta \omega}.
@@ -60,6 +63,14 @@ public:
      * @return number of FFT points.
      */
     u32 setLength(u32 length);
+
+    /** sets wether scale the FFT results by dividing with sample rate
+     */
+    void setApplyScale(bool applyScale);
+
+    /** sets wether padding must be inserted in the tail
+     */
+    void setPaddingType(bool rightPadding);
 
     /** @return maximum input size for the number of FFT points.
      */
@@ -209,6 +220,8 @@ public:
 
 extern const Core::ParameterInt   paramFftLength;
 extern const Core::ParameterFloat paramFftMaximumInputSize;
+extern const Core::ParameterBool  paramApplyScale;
+extern const Core::ParameterBool  paramRightPadding;
 
 /** FastFourierTransformNode
  */
@@ -217,8 +230,11 @@ class FastFourierTransformNode : public SleeveNode {
 private:
     Algorithm algorithm_;
 
-    u32 length_;
-    f64 maximumInputSize_;
+    u32  length_;
+    f64  maximumInputSize_;
+    bool applyScale_;
+    bool rightPadding_;
+
     u32 length(f64 sampleRate) const;
 
 public:
@@ -239,7 +255,9 @@ FastFourierTransformNode<Algorithm>::FastFourierTransformNode(const Core::Config
         : Component(c),
           SleeveNode(c),
           length_(paramFftLength(c)),
-          maximumInputSize_(paramFftMaximumInputSize(c)) {}
+          maximumInputSize_(paramFftMaximumInputSize(c)),
+          applyScale_(paramApplyScale(c)),
+          rightPadding_(paramRightPadding(c)) {}
 
 template<class Algorithm>
 bool FastFourierTransformNode<Algorithm>::setParameter(
@@ -248,6 +266,10 @@ bool FastFourierTransformNode<Algorithm>::setParameter(
         length_ = paramFftLength(value);
     else if (paramFftMaximumInputSize.match(name))
         maximumInputSize_ = paramFftMaximumInputSize(value);
+    else if (paramApplyScale.match(name))
+        applyScale_ = paramApplyScale(value);
+    else if (paramRightPadding.match(name))
+        rightPadding_ = paramRightPadding(value);
     else
         return false;
     return true;
@@ -266,6 +288,8 @@ bool FastFourierTransformNode<Algorithm>::configure() {
 
     algorithm_.setInputSampleRate(sampleRate);
     algorithm_.setLength(length(sampleRate));
+    algorithm_.setApplyScale(applyScale_);
+    algorithm_.setPaddingType(rightPadding_);
     a->set("sample-rate", algorithm_.outputSampleRate());
 
     return putOutputAttributes(0, a);

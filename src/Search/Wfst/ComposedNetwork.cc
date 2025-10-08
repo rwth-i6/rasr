@@ -45,7 +45,13 @@ const Core::ParameterChoice ComposedNetwork::paramGrammarType_(
         AbstractGrammarFst::TypeVector);
 
 ComposedNetwork::ComposedNetwork(const Core::Configuration& c)
-        : Precursor(c), l_(0), r_(0), stateTable_(0), resetCount_(0), resetInterval_(paramResetInterval_(config)), cacheSize_(paramStateCache_(config)) {
+        : Precursor(c),
+          l_(0),
+          r_(0),
+          stateTable_(0),
+          resetCount_(0),
+          resetInterval_(paramResetInterval_(config)),
+          cacheSize_(paramStateCache_(config)) {
 }
 
 ComposedNetwork::~ComposedNetwork() {

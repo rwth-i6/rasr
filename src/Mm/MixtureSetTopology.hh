@@ -32,7 +32,8 @@ private:
 
 public:
     GaussDensityTopology(MeanIndex meanIndex, CovarianceIndex covarianceIndex)
-            : meanIndex_(meanIndex), covarianceIndex_(covarianceIndex) {}
+            : meanIndex_(meanIndex),
+              covarianceIndex_(covarianceIndex) {}
     virtual ~GaussDensityTopology() {}
 
     void setMeanIndex(MeanIndex index) {

@@ -148,9 +148,6 @@ bool MixtureSetTrainer::combine(const std::vector<std::string>& toCombine) {
 }
 
 bool MixtureSetTrainer::combinePartitions(const std::vector<std::string>& toCombine) {
-    typedef Mm::AbstractMixtureSetEstimator::MixtureEstimators MixtureEstimators;
-    typedef Mm::AbstractMixtureEstimator::DensityEstimators    DensityEstimators;
-
     verify(!estimator_);
     estimator_                                    = createMixtureSetEstimator();
     std::vector<std::string>::const_iterator file = toCombine.begin();

@@ -46,7 +46,8 @@ private:
 
 public:
     DrawDotDfsState(DotDrawer<_Automaton>& dd, _ConstAutomatonRef f)
-            : Precursor(f), dd_(dd) {
+            : Precursor(f),
+              dd_(dd) {
         if (dd_.hints_ & Fsa::HintMarkBest) {
             potentials_            = sssp<_Automaton>(transpose<_Automaton>(Precursor::fsa_, false));
             _ConstAutomatonRef tmp = best<_Automaton>(Precursor::fsa_, potentials_);
@@ -133,7 +134,9 @@ public:
 
 template<class _Automaton>
 DotDrawer<_Automaton>::DotDrawer(std::ostream& os, Fsa::Hint hints, bool progress)
-        : os_(os), hints_(hints), progress_(progress) {}
+        : os_(os),
+          hints_(hints),
+          progress_(progress) {}
 
 template<class _Automaton>
 bool DotDrawer<_Automaton>::draw(typename _Automaton::ConstRef f) {

@@ -56,7 +56,8 @@ bool Lemma::hasPronunciation(const Pronunciation* pron) const {
 
 // ===========================================================================
 Pronunciation::Pronunciation(const Phoneme::Id* _phonemes)
-        : lemmas_(0), phonemes_(_phonemes) {}
+        : lemmas_(0),
+          phonemes_(_phonemes) {}
 
 Pronunciation::~Pronunciation() {}
 
@@ -128,8 +129,7 @@ struct Lexicon::Internal {
 Lexicon::Lexicon(const Configuration& c)
         : Component(c),
           symbolSequences_(symbols_),
-          internal_(0) {
-    internal_ = new Internal;
+          internal_(new Internal) {
 }
 
 Lexicon::~Lexicon() {
@@ -199,9 +199,9 @@ void Lexicon::setOrthographicForms(Lemma* lemma, const std::vector<std::string>&
         require(isWhitespaceNormalized(*orth));
         const char *cc, *nc;
         for (cc = nc = orth->c_str(); *cc; cc = nc) {
-            do
+            do {
                 ++nc;
-            while (*nc && utf8::byteType(*nc) == utf8::multiByteTail);
+            } while (*nc && utf8::byteType(*nc) == utf8::multiByteTail);
             letter(std::string(cc, nc));
         }
     }
@@ -219,6 +219,14 @@ void Lexicon::setDefaultLemmaName(Lemma* lemma) {
 
     verify(isWhitespaceNormalized(name));
     lemma->setName(symbols_[name]);
+    lemmas_.link(lemma->name(), lemma);
+}
+
+void Lexicon::setLemmaName(Lemma* lemma, Symbol symbol) {
+    require(lemma);
+    require(!lemma->hasName());
+    verify(isWhitespaceNormalized(symbol.str()));
+    lemma->setName(symbol);
     lemmas_.link(lemma->name(), lemma);
 }
 
@@ -294,6 +302,11 @@ Core::Status Lexicon::getPronunciation(const std::string& phon, Pronunciation*& 
     return status;
 }
 
+Pronunciation* Lexicon::getPronunciation(const std::vector<Phoneme::Id>& phonemes) {
+    require(phonemeInventory());
+    return getOrCreatePronunciation(phonemes);
+}
+
 void Lexicon::addPronunciation(Lemma* lemma, Pronunciation* pron, f32 weight) {
     require(lemma);
     require(pron);
@@ -350,6 +363,20 @@ void Lexicon::setSyntacticTokenSequence(Lemma* lemma, const std::vector<std::str
     lemma->setSyntacticTokenSequence(tokenSequence);
 }
 
+void Lexicon::setSyntacticTokenSequence(Lemma* lemma, const std::vector<Token::Id>& synt_ids) {
+    require(lemma);
+    synts_.start();
+    for (Token::Id id : synt_ids) {
+        SyntacticToken* token = static_cast<SyntacticToken*>(syntacticTokens_[id]);
+        // SyntacticToken* token = syntacticTokens_[id];
+        synts_.grow(token);
+        token->addLemma(lemma);
+    }
+    SyntacticTokenSequence tokenSequence(synts_.currentBegin(), synts_.currentEnd());
+    synts_.finish();
+    lemma->setSyntacticTokenSequence(tokenSequence);
+}
+
 void Lexicon::setDefaultSyntacticToken(Lemma* lemma) {
     require(lemma);
     require(lemma->nOrthographicForms());
@@ -381,6 +408,18 @@ void Lexicon::addEvaluationTokenSequence(Lemma* lemma, const std::vector<std::st
     lemma->addEvaluationTokenSequence(tokenSequence);
 }
 
+void Lexicon::addEvaluationTokenSequence(Lemma* lemma, const std::vector<Token::Id>& ids) {
+    require(lemma);
+    evals_.start();
+    for (auto id : ids) {
+        EvaluationToken* token = static_cast<EvaluationToken*>(evaluationTokens_[id]);
+        evals_.grow(token);
+    }
+    EvaluationTokenSequence tokenSequence(evals_.currentBegin(), evals_.currentEnd());
+    evals_.finish();
+    lemma->addEvaluationTokenSequence(tokenSequence);
+}
+
 void Lexicon::setDefaultEvaluationToken(Lemma* lemma) {
     require(lemma);
     require(lemma->nOrthographicForms());
@@ -392,14 +431,32 @@ void Lexicon::setDefaultEvaluationToken(Lemma* lemma) {
 }
 
 void Lexicon::defineSpecialLemma(const std::string& name, Lemma* lemma) {
-    require(!specialLemma(name));
     require(lemma);
-    specialLemmas_[name] = lemma;
+
+    specialLemmas_[name].insert(lemma);
 }
 
+void Lexicon::removeSpecialLemma(const Lemma* lemma) {
+    for (SpecialLemmaMap::iterator iter = specialLemmas_.begin(); iter != specialLemmas_.end(); ++iter)
+        if (iter->second.count(lemma) > 0) {
+            iter->second.erase(lemma);
+            break;
+        }
+}
+
+// Note: we only return the first lemma (mostly just one for internal specified special names)
 const Lemma* Lexicon::specialLemma(const std::string& name) const {
-    LemmaMap::const_iterator i = specialLemmas_.find(name);
-    return (i == specialLemmas_.end()) ? 0 : i->second;
+    SpecialLemmaMap::const_iterator i = specialLemmas_.find(name);
+    return (i == specialLemmas_.end()) ? 0 : *(i->second.begin());
+}
+
+std::string Lexicon::getSpecialLemmaName(const Lemma* lemma) const {
+    for (const auto it : specialLemmas_) {
+        if (it.second.count(lemma) > 0)
+            return it.first;
+    }
+
+    return "";
 }
 
 void Lexicon::writeXml(Core::XmlWriter& os) const {
@@ -410,12 +467,7 @@ void Lexicon::writeXml(Core::XmlWriter& os) const {
     for (tie(l, l_end) = lemmas(); l != l_end; ++l) {
         const Lemma* lemma(*l);
 
-        std::string specialName = "";
-        for (LemmaMap::const_iterator i = specialLemmas_.begin();
-             i != specialLemmas_.end(); ++i) {
-            if (i->second->id() == lemma->id())
-                specialName = i->first;
-        }
+        std::string specialName = getSpecialLemmaName(lemma);
         if (specialName.length() == 0)
             os << Core::XmlOpen("lemma");
         else

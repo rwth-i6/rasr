@@ -43,7 +43,7 @@ enum LatticeFormat {
     formatSourceFile,
     formatWolfgang
 };
-}
+}  //namespace Lattice
 
 namespace Lattice {
 class FsaArchiveReader;
@@ -85,7 +85,7 @@ enum Alphabet {
     evaluationTokenAlphabet,
     noLexiconCheck
 };
-}
+}  //namespace Lattice
 
 const Core::Choice Archive::alphabetChoice(
         "unknown", unknownAlphabet,

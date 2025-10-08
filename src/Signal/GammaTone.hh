@@ -84,8 +84,10 @@ public:
     };
 
     // Type of center frequency distribution mode
-    enum CenterFrequencyModeType { Human,
-                                   Erb };
+    enum CenterFrequencyModeType {
+        Human,
+        Erb
+    };
 
 private:
     WarpingFunction warp_;
@@ -197,12 +199,15 @@ public:
 
     // calls the other private init() function
     virtual void init();  // There is no check, whether GammaTone is OK. The child object has to do this.
-    void         reset() {
+
+    void reset() {
         needInit_ = true;
     }
+
     bool checkParam() {
         return warp_.checkParam();
     }
+
     void apply(const Flow::Vector<f32>& in, Flow::Vector<Flow::Vector<f32>>& out);
 };  // class GammaTone
 
@@ -235,7 +240,8 @@ private:
 
 public:
     typedef Flow::Vector<Flow::Vector<f32>> BasiliarMembraneData;
-    static std::string                      filterName() {
+
+    static std::string filterName() {
         return "signal-gammatone";
     }
 

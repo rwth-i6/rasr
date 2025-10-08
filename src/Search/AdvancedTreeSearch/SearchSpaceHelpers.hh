@@ -139,7 +139,8 @@ struct Instance {
 
     struct StateRange {  // actually, StateHypothesisRange.
         StateRange()
-                : begin(0), end(0) {
+                : begin(0),
+                  end(0) {
         }
         StateHypothesisIndex begin, end;
 
@@ -160,7 +161,7 @@ struct Instance {
     std::vector<StateHypothesis> rootStateHypotheses;
 
     /// Enter this tree with the given trace, entry-node and score
-    void enter(TraceManager& trace_manager, Core::Ref<Trace> trace, StateId entryNode, Score score);
+    void enter(TraceManager& trace_manager, Core::TsRef<Trace> trace, StateId entryNode, Score score);
 
     /// Enter this tree with the given StateHypothesis whose trace can have longer histories than tree's
     void enterWithState(const StateHypothesis& st);
@@ -210,10 +211,15 @@ struct EarlyWordEndHypothesis {
     PathTrace   pathTrace;
 
     EarlyWordEndHypothesis(TraceId _trace, const ScoreVector& _score, u32 _exit, PathTrace _pathTrace)
-            : trace(_trace), score(_score), exit(_exit), pathTrace(_pathTrace) {
+            : trace(_trace),
+              score(_score),
+              exit(_exit),
+              pathTrace(_pathTrace) {
     }
     EarlyWordEndHypothesis()
-            : trace(0), score(0, 0), exit(0) {
+            : trace(0),
+              score(0, 0),
+              exit(0) {
     }
 };
 
@@ -224,13 +230,13 @@ struct WordEndHypothesis {
     StateId                          transitState;
     const Bliss::LemmaPronunciation* pronunciation;
     ScoreVector                      score;
-    Core::Ref<Trace>                 trace;
-    u32                              endExit;  // Exit from which this word end hypothesis was constructed
+    Core::TsRef<Trace>               trace;
+    u32                              endExit;  //Exit from which this word end hypothesis was constructed
     PathTrace                        pathTrace;
 
     WordEndHypothesis(const Lm::History& rch, const Lm::History& lah, const Lm::History& sch, StateId e,
                       const Bliss::LemmaPronunciation* p, ScoreVector s,
-                      const Core::Ref<Trace>& t, u32 _endExit, PathTrace _pathTrace)
+                      const Core::TsRef<Trace>& t, u32 _endExit, PathTrace _pathTrace)
             : recombinationHistory(rch),
               lookaheadHistory(lah),
               scoreHistory(sch),

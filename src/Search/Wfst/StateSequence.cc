@@ -146,7 +146,10 @@ AllophoneToAlloponeStateSequenceMap::AllophoneToAlloponeStateSequenceMap(Core::R
                                                                          bool                               removeDisambiguators,
                                                                          bool                               tieAllophones,
                                                                          bool                               ignoreFlags)
-        : model_(model), stateSequences_(0), removeDisambiguators_(removeDisambiguators), nDisambiguators_(0) {
+        : model_(model),
+          stateSequences_(0),
+          removeDisambiguators_(removeDisambiguators),
+          nDisambiguators_(0) {
     allophoneAlphabet_      = model_->allophoneAlphabet();
     allophoneStateAlphabet_ = model_->allophoneStateAlphabet();
     if (tieAllophones) {
@@ -204,7 +207,13 @@ const Core::ParameterBool StateSequenceBuilder::paramAddNonWords(
 StateSequenceBuilder::StateSequenceBuilder(const Core::Configuration&         c,
                                            Core::Ref<const Am::AcousticModel> am,
                                            Bliss::LexiconRef                  lexicon)
-        : Core::Component(c), am_(am), lexicon_(lexicon), nDisambiguators_(0), map_(new AllophoneToAlloponeStateSequenceMap(am, paramRemoveDisambiguators(config), paramTiedAllophones(config), paramIgnoreFlags(config))), addNonWords_(paramAddNonWords(config)), nonWordTokens_(0) {
+        : Core::Component(c),
+          am_(am),
+          lexicon_(lexicon),
+          nDisambiguators_(0),
+          map_(new AllophoneToAlloponeStateSequenceMap(am, paramRemoveDisambiguators(config), paramTiedAllophones(config), paramIgnoreFlags(config))),
+          addNonWords_(paramAddNonWords(config)),
+          nonWordTokens_(0) {
     log("tied allophones: %s", paramTiedAllophones(config) ? "true" : "false");
     log("ignore flags: %s", paramIgnoreFlags(config) ? "true" : "false");
     log("add non words: %s", addNonWords_ ? "true" : "false");

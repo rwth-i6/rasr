@@ -20,6 +20,7 @@ LIBSPRINTFLOW_O	= $(OBJDIR)/AbstractNode.o \
 		  $(OBJDIR)/Datatype.o \
 		  $(OBJDIR)/Demo.o \
 		  $(OBJDIR)/Dump.o \
+		  $(OBJDIR)/InputNode.o \
 		  $(OBJDIR)/Link.o \
 		  $(OBJDIR)/Module.o \
 		  $(OBJDIR)/Network.o \
@@ -33,8 +34,7 @@ LIBSPRINTFLOW_O	= $(OBJDIR)/AbstractNode.o \
 		  $(OBJDIR)/Synchronization.o \
 		  $(OBJDIR)/Timestamp.o \
 		  $(OBJDIR)/Vector.o \
-		  $(OBJDIR)/VectorTextInput.o \
-		  $(OBJDIR)/InputNode.o
+		  $(OBJDIR)/VectorTextInput.o
 
 CHECK_O		= $(OBJDIR)/check.o \
                   libSprintFlow.$(a) \

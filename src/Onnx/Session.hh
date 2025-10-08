@@ -10,6 +10,7 @@
 
 #include <Core/Component.hh>
 
+#include "OnnxStateVariable.hh"
 #include "Value.hh"
 
 namespace Onnx {
@@ -26,6 +27,8 @@ public:
     static const Core::ParameterString paramFile;
     static const Core::ParameterInt    paramIntraOpNumThreads;
     static const Core::ParameterInt    paramInterOpNumThreads;
+    static const Core::ParameterString paramStatePrefix;
+    static const Core::ParameterBool   paramRemovePrefixFromKey;
 
     static const Core::Choice          executionProviderChoice;
     static const Core::ParameterChoice paramExecutionProviderType;
@@ -49,10 +52,14 @@ public:
     std::string                     getCustomMetadata(std::string const& key) const;
     std::vector<std::string> const& getCustomMetadataKeys() const;
 
+    std::vector<OnnxStateVariable> const& getStateVariablesMetadata() const;
+
 private:
     const std::string file_;
     const size_t      intraOpNumThreads_;
     const size_t      interOpNumThreads_;
+    const std::string statePrefix_;
+    const bool        removePrefixFromKey_;
 
     Ort::AllocatorWithDefaultOptions allocator_;
     Ort::Env                         env_;
@@ -63,6 +70,10 @@ private:
 
     std::unordered_map<std::string, std::string> customMetadata_;
     std::vector<std::string>                     customMetadataKeys_;
+
+    std::vector<OnnxStateVariable> stateVariables_;
+
+    void initializeStateVariablesMetadata();
 };
 
 }  // namespace Onnx

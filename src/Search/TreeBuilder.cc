@@ -20,6 +20,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
 
+#include "ArchiveIO.hh"
 #include "Helpers.hh"
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"

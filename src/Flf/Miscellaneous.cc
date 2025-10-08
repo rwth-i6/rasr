@@ -296,7 +296,10 @@ protected:
 
 public:
     FittingLattice(ConstLatticeRef l, s32 startTime, s32 endTime, bool forceSentenceEndSymbol)
-            : SlaveLattice(l), startTime_(startTime), endTime_(endTime), forceSentenceEndSymbol_(forceSentenceEndSymbol) {
+            : SlaveLattice(l),
+              startTime_(startTime),
+              endTime_(endTime),
+              forceSentenceEndSymbol_(forceSentenceEndSymbol) {
         topologicalOrderMap_ = findTopologicalOrder(l);
         verify(topologicalOrderMap_ && (topologicalOrderMap_->maxSid != Fsa::InvalidStateId));
         if (startTime_ == Core::Type<s32>::max)
@@ -467,11 +470,13 @@ bool isFinite(ConstSemiringRef semiring, ScoresRef scores) {
     return true;
 }
 namespace {
-typedef enum { None,
-               White,
-               Gray,
-               Black } Color;
-}
+typedef enum {
+    None,
+    White,
+    Gray,
+    Black
+} Color;
+}  //namespace
 StaticLatticeRef cleanUp(ConstLatticeRef l) {
     if (l->initialStateId() == Fsa::InvalidStateId)
         return StaticLatticeRef();

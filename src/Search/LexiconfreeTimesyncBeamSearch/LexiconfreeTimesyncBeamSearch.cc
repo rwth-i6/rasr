@@ -48,7 +48,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace(),
-          reachedSentenceEnd(base.reachedSentenceEnd) {
+          reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::LabelScorer::SENTENCE_END) {
     switch (extension.transitionType) {
         case Nn::LabelScorer::INITIAL_BLANK:
         case Nn::LabelScorer::INITIAL_LABEL:
@@ -56,13 +56,12 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         case Nn::LabelScorer::LABEL_TO_BLANK:
         case Nn::LabelScorer::BLANK_TO_LABEL:
         case Nn::LabelScorer::SENTENCE_END:
-            trace              = Core::ref(new LatticeTrace(
+            trace = Core::ref(new LatticeTrace(
                     base.trace,
                     extension.pron,
                     extension.timeframe + 1,
                     {extension.score, 0},
                     {}));
-            reachedSentenceEnd = true;
             break;
         case Nn::LabelScorer::LABEL_LOOP:
         case Nn::LabelScorer::BLANK_LOOP:
@@ -216,7 +215,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
         sentenceEndLemma_ = lexicon_->specialLemma("sentence-boundary");
     }
     if (sentenceEndLemma_) {
-        if (sentenceEndLabelIndex_ == Core::Type<s32>::max) {
+        if (sentenceEndLabelIndex_ == Nn::invalidLabelIndex) {
             sentenceEndLabelIndex_ = sentenceEndLemma_->id();
             useSentenceEnd_        = true;
             log() << "Use sentence-end index " << sentenceEndLabelIndex_ << " inferred from lexicon";

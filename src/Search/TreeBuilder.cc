@@ -1299,7 +1299,7 @@ void CtcTreeBuilder::build() {
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
         if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma) {
-            // Word-boundary and sentence-end lemmas are handles separately by `addWordBoundaryStates` and `addSentenceEndStates`
+            // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
             continue;
         }
 

@@ -55,22 +55,6 @@ ScoringContextRef CombineLabelScorer::getInitialScoringContext() {
     return Core::ref(new CombineScoringContext(std::move(scoringContexts)));
 }
 
-ScoringContextRef CombineLabelScorer::extendedScoringContextInternal(Request const& request) {
-    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
-
-    std::vector<ScoringContextRef> extScoringContexts;
-    extScoringContexts.reserve(scaledScorers_.size());
-
-    auto scorerIt  = scaledScorers_.begin();
-    auto contextIt = combineContext->scoringContexts.begin();
-
-    for (; scorerIt != scaledScorers_.end(); ++scorerIt, ++contextIt) {
-        Request subRequest{*contextIt, request.nextToken, request.transitionType};
-        extScoringContexts.push_back(scorerIt->scorer->extendedScoringContext(subRequest));
-    }
-    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
-}
-
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     std::vector<const CombineScoringContext*> combineContexts;
     combineContexts.reserve(activeContexts.internalSize());
@@ -99,6 +83,22 @@ void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     for (auto& scaledScorer : scaledScorers_) {
         scaledScorer.scorer->addInputs(input, nTimesteps);
     }
+}
+
+ScoringContextRef CombineLabelScorer::extendedScoringContextInternal(Request const& request) {
+    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
+
+    std::vector<ScoringContextRef> extScoringContexts;
+    extScoringContexts.reserve(scaledScorers_.size());
+
+    auto scorerIt  = scaledScorers_.begin();
+    auto contextIt = combineContext->scoringContexts.begin();
+
+    for (; scorerIt != scaledScorers_.end(); ++scorerIt, ++contextIt) {
+        Request subRequest{*contextIt, request.nextToken, request.transitionType};
+        extScoringContexts.push_back(scorerIt->scorer->extendedScoringContext(subRequest));
+    }
+    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
 std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTimeInternal(Request const& request) {

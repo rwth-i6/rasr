@@ -97,6 +97,31 @@ ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
     return hist;
 }
 
+void FixedContextOnnxLabelScorer::size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
+}
+
+cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+    Precursor::cleanupCaches(activeContexts);
+
+    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
+
+    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
+        if (activeContextSet.find(it->first) == activeContextSet.end()) {
+            it = scoreCache_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
 ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
@@ -142,21 +167,6 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(La
     }
 
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), context->currentStep + timeIncrement));
-}
-
-void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
-    Precursor::cleanupCaches(activeContexts);
-
-    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
-
-    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
-        if (activeContextSet.find(it->first) == activeContextSet.end()) {
-            it = scoreCache_.erase(it);
-        }
-        else {
-            ++it;
-        }
-    }
 }
 
 std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
@@ -242,16 +252,6 @@ std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeSc
         return {};
     }
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
-}
-
-size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts.internalData()) {
-        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
-        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
-    }
-
-    return minTimeIndex;
 }
 
 void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {

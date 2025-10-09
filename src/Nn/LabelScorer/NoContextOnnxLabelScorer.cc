@@ -53,11 +53,6 @@ ScoringContextRef NoContextOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    return Core::ref(new StepScoringContext(context->currentStep + 1));
-}
-
 void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     Precursor::cleanupCaches(activeContexts);
 
@@ -71,6 +66,21 @@ void NoContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContex
             ++it;
         }
     }
+}
+
+size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
+}
+
+ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
+    StepScoringContextRef context(dynamic_cast<const StepScoringContext*>(request.context.get()));
+    return Core::ref(new StepScoringContext(context->currentStep + 1));
 }
 
 std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
@@ -125,16 +135,6 @@ std::optional<LabelScorer::ScoreWithTime> NoContextOnnxLabelScorer::computeScore
         return {};
     }
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
-}
-
-size_t NoContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts.internalData()) {
-        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
-        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
-    }
-
-    return minTimeIndex;
 }
 
 void NoContextOnnxLabelScorer::forwardContext(StepScoringContextRef const& context) {

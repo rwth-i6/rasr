@@ -62,14 +62,14 @@ protected:
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
 private:
-    void forwardContext(StepScoringContextRef const& context);
-
     Onnx::Model onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;
 
     std::unordered_map<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    void forwardContext(StepScoringContextRef const& context);
 };
 
 }  // namespace Nn

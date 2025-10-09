@@ -200,6 +200,21 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContex
     return Core::ref(new OnnxHiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
+void StatefulOnnxLabelScorer::addInput(DataView const& input) {
+    Precursor::addInput(input);
+
+    initialHiddenState_ = OnnxHiddenStateRef();
+
+    if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
+        encoderStatesValue_     = Onnx::Value();
+        encoderStatesSizeValue_ = Onnx::Value();
+    }
+}
+
+size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    return 0u;
+}
+
 Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
@@ -241,17 +256,6 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextI
     }
 
     return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
-}
-
-void StatefulOnnxLabelScorer::addInput(DataView const& input) {
-    Precursor::addInput(input);
-
-    initialHiddenState_ = OnnxHiddenStateRef();
-
-    if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
-        encoderStatesValue_     = Onnx::Value();
-        encoderStatesSizeValue_ = Onnx::Value();
-    }
 }
 
 std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
@@ -314,10 +318,6 @@ std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreW
         return {};
     }
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
-}
-
-size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    return 0u;
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {

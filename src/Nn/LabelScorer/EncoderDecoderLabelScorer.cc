@@ -33,10 +33,6 @@ ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
     return decoder_->getInitialScoringContext();
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContextInternal(Request const& request) {
-    return decoder_->extendedScoringContext(request);
-}
-
 void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     decoder_->cleanupCaches(activeContexts);
 }
@@ -57,6 +53,10 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     // is supposed to receive all available encoder outputs before this signal
     passEncoderOutputsToDecoder();
     decoder_->signalNoMoreFeatures();
+}
+
+ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContextInternal(Request const& request) {
+    return decoder_->extendedScoringContext(request);
 }
 
 std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {

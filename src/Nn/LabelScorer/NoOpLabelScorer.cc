@@ -25,6 +25,16 @@ ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
+size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minInputIndex = Core::Type<size_t>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
+    }
+
+    return minInputIndex;
+}
+
 ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
@@ -38,16 +48,6 @@ std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreW
     }
 
     return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
-}
-
-size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minInputIndex = Core::Type<size_t>::max;
-    for (auto const& context : activeContexts.internalData()) {
-        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
-        minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
-    }
-
-    return minInputIndex;
 }
 
 }  // namespace Nn

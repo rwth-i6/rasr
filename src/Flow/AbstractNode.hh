@@ -105,18 +105,21 @@ protected:
      */
     template<class T>
     bool getData(Link* l, DataPtr<T>& d) {
-        if (l != 0) {
-            if (l->isDataAvailable())
-                return l->getData(d);
-            else {
-                if (l->getFromNode()->work(l->getFromPort()))
-                    return l->getData(d);
-                else {
-                    error("Node '%s' could not generate any output.",
-                          l->getFromNode()->name().c_str());
-                }
-            }
+        if (l == 0) {
+            d.reset();
+            return false;
         }
+        if (l->isDataAvailable()) {
+            return l->getData(d);
+        }
+        if (l->getFromNode()->work(l->getFromPort())) {
+            return l->getData(d);
+        }
+        l->getData(d);
+        if (d == Flow::Data::ood()) {
+            return false;
+        }
+        error("Node '%s' could not generate any output.", l->getFromNode()->name().c_str());
         d.reset();
         return false;
     }

@@ -35,6 +35,8 @@ LinearSearch::Pronunciation::Pronunciation(const Bliss::LemmaPronunciation* cons
     const Am::Phonology&        phonology = *(acousticModel->phonology());
     isRegularWord_                        = isRegularWordPrivate();
 
+    verify(acousticModel->silence() != Bliss::Phoneme::invalidId);
+
     for (u32 a = 0; a < pron->length(); a++) {
         const Am::Allophone* allo = 0;
 

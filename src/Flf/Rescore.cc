@@ -50,7 +50,9 @@ protected:
 
 public:
     ReduceScoresLattice(ConstLatticeRef l, const ScoreIdList& fromIds, ScoreId toId, RescoreMode rescoreMode)
-            : Precursor(l, rescoreMode), fromIds_(fromIds), toId_(toId) {
+            : Precursor(l, rescoreMode),
+              fromIds_(fromIds),
+              toId_(toId) {
         const ScoreList& srScales(l->semiring()->scales());
         scales_.resize(srScales.size(), 0.0);
         for (ScoreIdList::const_iterator it = fromIds_.begin(); it != fromIds_.end(); ++it)
@@ -136,7 +138,9 @@ private:
 
 public:
     ArithmeticLattice(ConstLatticeRef l, ScoreId id, Score c, RescoreMode rescoreMode)
-            : Precursor(l, rescoreMode), id_(id), f_(c) {}
+            : Precursor(l, rescoreMode),
+              id_(id),
+              f_(c) {}
     virtual ~ArithmeticLattice() {}
 
     virtual void rescore(State* sp) const {
@@ -320,7 +324,10 @@ private:
 
 public:
     ExtendByPenaltyLattice(ConstLatticeRef l, Score penalty, ScoreId id, Score scale, RescoreMode rescoreMode)
-            : Precursor(l, rescoreMode), penalty_(penalty), id_(id), scale_(scale) {}
+            : Precursor(l, rescoreMode),
+              penalty_(penalty),
+              id_(id),
+              scale_(scale) {}
     virtual ~ExtendByPenaltyLattice() {}
 
     virtual void rescore(State* sp) const {
@@ -392,7 +399,11 @@ protected:
 
 public:
     ExtendByLemmaSpecificPenaltyLattice(ConstLatticeRef l, Score defaultPenalty, PenaltyMapRef penalties, ScoreId id, Score scale, RescoreMode rescoreMode)
-            : Precursor(l, rescoreMode), defaultPenalty_(defaultPenalty), penalties_(penalties), id_(id), scale_(scale) {
+            : Precursor(l, rescoreMode),
+              defaultPenalty_(defaultPenalty),
+              penalties_(penalties),
+              id_(id),
+              scale_(scale) {
         require(penalties);
         lAlphabet_  = Lexicon::us()->lemmaAlphabet();
         lpAlphabet_ = Lexicon::us()->lemmaPronunciationAlphabet();
@@ -514,7 +525,10 @@ public:
             ScoreId                                            id,
             Score                                              scale,
             RescoreMode                                        rescoreMode)
-            : Precursor(l, rescoreMode), lpAlphabet_(lpAlphabet), id_(id), scale_(scale) {
+            : Precursor(l, rescoreMode),
+              lpAlphabet_(lpAlphabet),
+              id_(id),
+              scale_(scale) {
         require(lpAlphabet);
     }
     virtual ~ExtendByPronunciationScoreLattice() {}

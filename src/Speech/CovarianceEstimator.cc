@@ -19,7 +19,10 @@
 using namespace Speech;
 
 CovarianceEstimator::CovarianceEstimator(const Core::Configuration& c)
-        : Component(c), Extractor(c), Estimator(c), needResize_(true) {
+        : Component(c),
+          Extractor(c),
+          Estimator(c),
+          needResize_(true) {
 }
 
 void CovarianceEstimator::processFeature(Core::Ref<const Speech::Feature> feature) {

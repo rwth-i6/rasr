@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "BlasNceSoftmaxAdapter.hh"
+#include "TFBlasNceSoftmaxAdapter.hh"
 
 #include <Math/Blas.hh>
 
@@ -20,13 +20,13 @@
 
 namespace Lm {
 
-void BlasNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
+void TFBlasNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
     auto const& weight_tensor_info = output_map.get_info("weights");
     auto const& bias_tensor_info   = output_map.get_info("bias");
     session.run({}, {weight_tensor_info.tensor_name(), bias_tensor_info.tensor_name()}, {}, tensors_);
 }
 
-Score BlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFBlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<float>                   nn_output;
     float const*                         data;
     Lm::UncompressedVector<float> const* vec = dynamic_cast<Lm::UncompressedVector<float> const*>(nn_out.get());
@@ -46,7 +46,7 @@ Score BlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_
     return result;
 }
 
-std::vector<Score> BlasNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+std::vector<Score> TFBlasNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     std::vector<float> nn_output(nn_out->size());
     nn_out->uncompress(nn_output.data(), nn_output.size());
 

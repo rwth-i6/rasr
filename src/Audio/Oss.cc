@@ -29,7 +29,9 @@ const Core::ParameterString Audio::OpenSoundSystemDevice::paramDevice(
         "device", "name of audio device", "/dev/dsp");
 
 OpenSoundSystemDevice::OpenSoundSystemDevice(const Core::Configuration& c)
-        : Core::Component(c), Node(c), fd_(-1) {
+        : Core::Component(c),
+          Node(c),
+          fd_(-1) {
     filename_ = paramDevice(config);
 }
 
@@ -143,7 +145,10 @@ void OpenSoundSystemDevice::setTrackCount(u8 _trackCount) {
 
 // ===========================================================================
 OpenSoundSystemInputNode::OpenSoundSystemInputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), RawSourceNode(c), OpenSoundSystemDevice(c) {}
+        : Core::Component(c),
+          Node(c),
+          RawSourceNode(c),
+          OpenSoundSystemDevice(c) {}
 
 bool OpenSoundSystemInputNode::openFile_() {
     return openDevice();
@@ -183,7 +188,10 @@ u32 OpenSoundSystemInputNode::read(u32 nSamples, Flow::Timestamp*& d) {
 
 // ===========================================================================
 OpenSoundSystemOutputNode::OpenSoundSystemOutputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), SinkNode(c), OpenSoundSystemDevice(c) {}
+        : Core::Component(c),
+          Node(c),
+          SinkNode(c),
+          OpenSoundSystemDevice(c) {}
 
 bool OpenSoundSystemOutputNode::openFile_() {
     return openDevice();

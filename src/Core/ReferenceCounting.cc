@@ -13,6 +13,9 @@
  *  limitations under the License.
  */
 #include "ReferenceCounting.hh"
+
+#include <mutex>
+
 #include "Hash.hh"
 #include "Utility.hh"
 

@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "QuantizedBlasNceSoftmaxAdapter.hh"
+#include "TFQuantizedBlasNceSoftmaxAdapter.hh"
 
 #include <immintrin.h>
 
@@ -50,19 +50,19 @@ float quantized_dot_16bit(size_t size, float scale, s16 const* a, s16 const* b) 
 namespace Lm {
 
 template<>
-const Core::ParameterFloat QuantizedBlasNceSoftmaxAdapter16Bit::paramNNOutputEpsilon(
+const Core::ParameterFloat TFQuantizedBlasNceSoftmaxAdapter16Bit::paramNNOutputEpsilon(
         "nn-output-epsilon",
         "if the nn-output vector is not quantized, use this scale for quantization",
         0.001, 0.0);
 
 template<>
-const Core::ParameterFloat QuantizedBlasNceSoftmaxAdapter16Bit::paramWeightsBiasEpsilon(
+const Core::ParameterFloat TFQuantizedBlasNceSoftmaxAdapter16Bit::paramWeightsBiasEpsilon(
         "weights-bias-epsilon",
         "if the nn-output vector is not quantized, use this scale for quantization",
         0.001, 0.0);
 
 template<>
-Score QuantizedBlasNceSoftmaxAdapter16Bit::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFQuantizedBlasNceSoftmaxAdapter16Bit::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<s16>                  nn_output;
     s16 const*                        data;
     float                             scale;

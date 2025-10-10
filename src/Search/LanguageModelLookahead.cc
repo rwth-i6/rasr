@@ -22,6 +22,7 @@
 #include <Core/Utility.hh>
 #include <Lm/BackingOff.hh>
 #include <Lm/FsaLm.hh>
+#include <Search/ArchiveIO.hh>
 #include <Search/Helpers.hh>
 #include <Search/Types.hh>
 
@@ -292,7 +293,8 @@ LanguageModelLookahead::LanguageModelLookahead(
         HMMStateNetwork const&                        tree,
         StateId                                       rootNode,
         std::vector<PersistentStateTree::Exit> const& exits,
-        Core::Ref<const Am::AcousticModel>            acousticModel)
+        Core::Ref<const Am::AcousticModel>            acousticModel,
+        bool                                          sparse)
         : Core::Component(c),
           wpScale_(wpScale),
           maxDepth_(0),

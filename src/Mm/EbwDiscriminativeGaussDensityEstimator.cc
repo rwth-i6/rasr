@@ -79,7 +79,7 @@ Mean* EbwDiscriminativeMeanEstimator::estimate() {
                        buffer.begin(), plusWeighted<Sum>(iterationConstant()));
         Mean* result = new Mean(accumulator_.size());
         std::transform(buffer.begin(), buffer.end(), result->begin(),
-                       std::bind2nd(std::divides<Accumulator::SumType>(), weight));
+                       std::bind(std::divides<Accumulator::SumType>(), std::placeholders::_1, weight));
         return result;
     }
     else {
@@ -188,7 +188,7 @@ Covariance* EbwDiscriminativeCovarianceEstimator::estimate(const CovarianceToMea
     }
     verify(weight > 0);
     std::transform(buffer.begin(), buffer.end(),
-                   buffer.begin(), std::bind2nd(std::divides<Sum>(), weight));
+                   buffer.begin(), std::bind(std::divides<Sum>(), std::placeholders::_1, weight));
     std::vector<VarianceType> buffer32(dimension);
     std::copy(buffer.begin(), buffer.end(), buffer32.begin());
     DiagonalCovariance* result = new DiagonalCovariance(buffer32);

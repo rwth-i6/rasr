@@ -136,15 +136,37 @@ void LmUtilityTool::computePerplexityFromTextFile() {
     Core::TextInputStream  tis(new Core::CompressedInputStream(paramFile(config)));
     Core::TextOutputStream out;
 
+    log("reading text from '%s'", paramFile(config).c_str());
     tis.setEncoding(paramEncoding(config));
+    out.setEncoding(paramEncoding(config));
     std::string out_file = paramScoreFile(config);
     if (not out_file.empty()) {
         out.open(out_file);
+        log("saving scores to '%s'", out_file.c_str());
     }
 
     std::vector<LMRequest> requests;
     size_t                 num_tokens   = 0;
+    size_t                 num_lines    = 0;
+    size_t                 num_unks     = 0;
+    size_t                 num_eos      = 0;
     Lm::Score              corpus_score = 0.0;
+    Lm::Score              eos_scores   = 0.0;
+    Lm::Score              unks_scores  = 0.0;
+
+    Bliss::Lemma const* eos_lemma = lexicon->specialLemma("sentence-boundary");
+    if (eos_lemma == nullptr) {
+        eos_lemma = lexicon->specialLemma("sentence-end");
+    }
+    require_ne(eos_lemma, nullptr);
+
+    Bliss::Lemma const* sos_lemma = lexicon->specialLemma("sentence-begin");
+    if (sos_lemma == nullptr) {
+        warning("sentence-begin not found, using unigram probability instead\n");
+    }
+
+    Bliss::Lemma const* unk_lemma = lexicon->specialLemma("unknown");
+    require_ne(unk_lemma, nullptr);
 
     do {
         std::string line;
@@ -165,17 +187,25 @@ void LmUtilityTool::computePerplexityFromTextFile() {
                     h = lm->extendedHistory(h, t);
                 }
             }
-            Bliss::Lemma const* lemma  = lexicon->specialLemma("sentence-end");
-            auto const          tokens = lemma->syntacticTokenSequence();
+            auto const tokens = eos_lemma->syntacticTokenSequence();
             for (auto const& t : tokens) {
-                requests.emplace_back(LMRequest({"\\n", lemma, t, h, 0.0f}));
+                requests.emplace_back(LMRequest({"\\n", eos_lemma, t, h, 0.0f}));
                 h = lm->extendedHistory(h, t);
             }
+            ++num_lines;
         }
 
         if (not tis.good() or requests.size() >= batch_size) {
             computeAllScores(requests, lm, renormalize);
             for (auto const& r : requests) {
+                if (r.lemma == eos_lemma) {
+                    eos_scores += r.score;
+                    num_eos += 1ul;
+                }
+                if (r.lemma == unk_lemma) {
+                    unks_scores += r.score;
+                    num_unks += 1ul;
+                }
                 corpus_score += r.score;
                 num_tokens += 1ul;
                 if (out.good()) {
@@ -186,9 +216,18 @@ void LmUtilityTool::computePerplexityFromTextFile() {
         }
     } while (tis.good());
 
-    Lm::Score ppl = std::exp(corpus_score / num_tokens);
+    Lm::Score ppl                = std::exp(corpus_score / num_tokens);
+    Lm::Score ppl_wo_eos         = std::exp((corpus_score - eos_scores) / (num_tokens - num_eos));
+    Lm::Score ppl_wo_unks        = std::exp((corpus_score - unks_scores) / (num_tokens - num_unks));
+    Lm::Score ppl_wo_eos_wo_unks = std::exp((corpus_score - unks_scores - eos_scores) / (num_tokens - num_unks - num_eos));
 
     log() << Core::XmlOpen("corpus-score") << corpus_score << Core::XmlClose("corpus-score")
           << Core::XmlOpen("num-tokens") << num_tokens << Core::XmlClose("num-tokens")
-          << Core::XmlOpen("perplexity") << ppl << Core::XmlClose("perplexity");
+          << Core::XmlOpen("num-unks") << num_unks << Core::XmlClose("num-unks")
+          << Core::XmlOpen("unk-ratio") << static_cast<float>(num_unks) / static_cast<float>(num_tokens) << Core::XmlClose("unk-ratio")
+          << Core::XmlOpen("num-lines") << num_lines << Core::XmlClose("num-lines")
+          << Core::XmlOpen("perplexity") << ppl << Core::XmlClose("perplexity")
+          << Core::XmlOpen("perplexity-without-eos") << ppl_wo_eos << Core::XmlClose("perplexity-without-eos")
+          << Core::XmlOpen("perplexity-without-unknowns") << ppl_wo_unks << Core::XmlClose("perplexity-without-unknowns")
+          << Core::XmlOpen("perplexity-without-eos-without-unknowns") << ppl_wo_eos_wo_unks << Core::XmlClose("perplexity-without-eos-without-unknowns");
 }

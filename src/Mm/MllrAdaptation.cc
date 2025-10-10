@@ -378,10 +378,10 @@ void ShiftAdaptorViterbiEstimator::estimateWMatrices() {
     }
 }
 
-void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                              DensityIndex                     density,
-                                              MixtureIndex                     mixture,
-                                              Core::Ref<MixtureSet>            mixtureSet) {
+void ShiftAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                              DensityIndex          density,
+                                              MixtureIndex          mixture,
+                                              Core::Ref<MixtureSet> mixtureSet) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -396,11 +396,11 @@ void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> f
     }
 }
 
-void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                              DensityIndex                     density,
-                                              MixtureIndex                     mixture,
-                                              Core::Ref<MixtureSet>            mixtureSet,
-                                              Mm::Weight                       weight) {
+void ShiftAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                              DensityIndex          density,
+                                              MixtureIndex          mixture,
+                                              Core::Ref<MixtureSet> mixtureSet,
+                                              Mm::Weight            weight) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -690,10 +690,10 @@ void FullAdaptorViterbiEstimator::estimateWMatrices() {
     }
 }
 
-void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                             DensityIndex                     density,
-                                             MixtureIndex                     mixture,
-                                             Core::Ref<MixtureSet>            mixtureSet) {
+void FullAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                             DensityIndex          density,
+                                             MixtureIndex          mixture,
+                                             Core::Ref<MixtureSet> mixtureSet) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -701,11 +701,11 @@ void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> fe
     leafGAccumulators_[(*leafIndex_)[mixture]].accumulate(mean);
 }
 
-void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                             DensityIndex                     density,
-                                             MixtureIndex                     mixture,
-                                             Core::Ref<MixtureSet>            mixtureSet,
-                                             Mm::Weight                       weight) {
+void FullAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                             DensityIndex          density,
+                                             MixtureIndex          mixture,
+                                             Core::Ref<MixtureSet> mixtureSet,
+                                             Mm::Weight            weight) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 

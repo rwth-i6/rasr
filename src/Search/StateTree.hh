@@ -134,7 +134,8 @@ public:
         ModelIndex transitionModelIndex : TM_WIDTH;
 
         StateDesc()
-                : acousticModel(0), transitionModelIndex(0) {
+                : acousticModel(0),
+                  transitionModelIndex(0) {
         }
 
         StateDesc(ModelIndex ami, TransitionModelIndex tmi)

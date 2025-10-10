@@ -30,13 +30,17 @@ private:
 
 public:
     Zerogram(const Core::Configuration& c, Bliss::LexiconRef);
+
     virtual Fsa::ConstAutomatonRef getFsa() const;
-    virtual History                startHistory() const {
+
+    virtual History startHistory() const {
         return history(0);
     }
+
     virtual History extendedHistory(const History& h, Token) const {
         return h;
     }
+
     virtual Score score(const History&, Token) const {
         return score_;
     }

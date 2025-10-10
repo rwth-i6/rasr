@@ -133,7 +133,8 @@ public:
 
     // this needs to be virtual, since AlignedNeuralNetworkTrainer overrides the function to create a supervised trainer
     virtual NeuralNetworkTrainer<T>* createTrainer(const Core::Configuration& config);
-    virtual void                     signOn(Speech::CorpusVisitor& corpusVisitor) {
+
+    virtual void signOn(Speech::CorpusVisitor& corpusVisitor) {
         Speech::DataExtractor::signOn(corpusVisitor);
     }
 

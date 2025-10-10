@@ -27,9 +27,15 @@ namespace {
 
 struct Edge {
     Edge()
-            : from(0u), to(0u), emission_idx(0u), weight(0.0f) {}
+            : from(0u),
+              to(0u),
+              emission_idx(0u),
+              weight(0.0f) {}
     Edge(Fsa::StateId from, Fsa::StateId to, Am::AcousticModel::EmissionIndex emission_idx, float cost)
-            : from(from), to(to), emission_idx(emission_idx), weight(cost) {}
+            : from(from),
+              to(to),
+              emission_idx(emission_idx),
+              weight(cost) {}
 
     Fsa::StateId                     from;
     Fsa::StateId                     to;

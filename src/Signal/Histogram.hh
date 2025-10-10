@@ -76,7 +76,7 @@ void Histogram<Value>::getCdf(LookupTable<Probability, Value>& cdf) const {
     cdf = *this;
     std::partial_sum(cdf.begin(), cdf.end(), cdf.begin());
     std::transform(cdf.begin(), cdf.end(), cdf.begin(),
-                   std::bind2nd(std::divides<Probability>(), this->sum()));
+                   std::bind(std::divides<Probability>(), std::placeholders::_1, this->sum()));
 }
 
 /**

@@ -30,13 +30,15 @@ namespace Signal {
 class WindowFunction {
 public:
     typedef f32 Float;
-    enum Type { Rectangular,
-                Hamming,
-                Hanning,
-                PeriodicHanning,
-                Bartlett,
-                Blackman,
-                Kaiser };
+    enum Type {
+        Rectangular,
+        Hamming,
+        Hanning,
+        PeriodicHanning,
+        Bartlett,
+        Blackman,
+        Kaiser
+    };
 
     static Core::Choice          typeChoice;
     static Core::ParameterChoice paramType;

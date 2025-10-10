@@ -37,10 +37,10 @@ protected:
     Trainer*   trainer_;
 
 protected:
-    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+    virtual void accumulate(Mm::Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {
         defect();
     }
-    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, const PosteriorsAndDensities& p) {
+    virtual void accumulate(Mm::Feature::VectorRef f, const PosteriorsAndDensities& p) {
         defect();
     }
     /*
@@ -87,9 +87,11 @@ protected:
 
 protected:
     virtual const Alignment* getAlignment(Fsa::ConstStateRef from, const Fsa::Arc& a);
-    virtual void             process(TimeframeIndex t, Mm::MixtureIndex m, Mm::Weight w) {
+
+    virtual void process(TimeframeIndex t, Mm::MixtureIndex m, Mm::Weight w) {
         this->accumulate((*accumulationFeatures_)[t]->mainStream(), m, w);
     }
+
     virtual void reset() {}
 
 public:
@@ -100,7 +102,8 @@ public:
     virtual ~AcousticAccumulator() {}
 
     virtual void discoverState(Fsa::ConstStateRef sp);
-    void         setAccumulationFeatures(ConstSegmentwiseFeaturesRef accumulationFeatures) {
+
+    void setAccumulationFeatures(ConstSegmentwiseFeaturesRef accumulationFeatures) {
         accumulationFeatures_ = accumulationFeatures;
     }
 };
@@ -112,7 +115,8 @@ struct Key {
     Speech::TimeframeIndex t;
     Mm::MixtureIndex       m;
     Key(Speech::TimeframeIndex _t, Mm::MixtureIndex _m)
-            : t(_t), m(_m) {}
+            : t(_t),
+              m(_m) {}
 };
 struct KeyHash {
     size_t operator()(const Key& k) const {

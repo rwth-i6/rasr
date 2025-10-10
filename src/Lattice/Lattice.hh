@@ -35,9 +35,11 @@ public:
                 : final(Bliss::Phoneme::term),
                   initial(Bliss::Phoneme::term) {}
         Transit(const std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>& transit)
-                : final(transit.first), initial(transit.second) {}
+                : final(transit.first),
+                  initial(transit.second) {}
         Transit(Bliss::Phoneme::Id _final, Bliss::Phoneme::Id _initial)
-                : final(_final), initial(_initial) {}
+                : final(_final),
+                  initial(_initial) {}
 
         bool operator==(const Transit& rhs) const {
             return final == rhs.final && initial == rhs.initial;
@@ -54,10 +56,12 @@ public:
     WordBoundary(Speech::TimeframeIndex time = Speech::InvalidTimeframeIndex)
             : time_(time) {}
     WordBoundary(Speech::TimeframeIndex time, const Transit& transit)
-            : time_(time), transit_(transit) {}
+            : time_(time),
+              transit_(transit) {}
     WordBoundary(Speech::TimeframeIndex                                   time,
                  const std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>& transit)
-            : time_(time), transit_(transit) {}
+            : time_(time),
+              transit_(transit) {}
 
     void setTime(Speech::TimeframeIndex time) {
         time_ = time;
@@ -244,17 +248,22 @@ public:
     void setWordBoundaries(Core::Ref<const WordBoundaries> wordBoundaries) {
         wordBoundaries_ = wordBoundaries;
     }
+
     Core::Ref<const WordBoundaries> wordBoundaries() const {
         return wordBoundaries_;
     }
+
     const WordBoundary& wordBoundary(Fsa::StateId id) const {
         return (*wordBoundaries_)[id];
     }
+
     Speech::TimeframeIndex time(Fsa::StateId id) const {
         return (*wordBoundaries_)[id].time();
     }
+
     Speech::TimeframeIndex maximumTime() const;
-    bool                   hasPart(const std::string& name) const {
+
+    bool hasPart(const std::string& name) const {
         return parts_[name] != Core::Choice::IllegalValue;
     }
 };

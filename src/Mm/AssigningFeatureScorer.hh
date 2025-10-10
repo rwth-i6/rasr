@@ -50,7 +50,8 @@ protected:
 
 public:
     AssigningFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~AssigningFeatureScorer() {}
 
     virtual void getFeatureDescription(FeatureDescription& description) const {
@@ -60,24 +61,31 @@ public:
     virtual Scorer getScorer(Core::Ref<const Feature> f) const {
         return getAssigningScorer(f);
     }
+
     virtual Scorer getScorer(const FeatureVector& featureVector) const {
         return getAssigningScorer(featureVector);
     }
+
     typedef Core::Ref<const AssigningContextScorer> AssigningScorer;
-    virtual AssigningScorer                         getAssigningScorer(Core::Ref<const Feature> feature) const {
+
+    virtual AssigningScorer getAssigningScorer(Core::Ref<const Feature> feature) const {
         return getAssigningScorer(*feature->mainStream());
     }
+
     virtual AssigningScorer getAssigningScorer(const FeatureVector&) const = 0;
     virtual ComponentIndex  dimension() const                              = 0;
-    virtual DensityIndex    nDensities() const {
+
+    virtual DensityIndex nDensities() const {
         criticalError("nDensities() not available");
         return 0;
     }
+
     virtual const MixtureFeatureScorerElement& mixture(MixtureIndex) const {
         criticalError("mixture() not available");
         static MixtureFeatureScorerElement tmp;
         return tmp;
     }
+
     virtual const std::vector<DensityIndex>& densitiesInMixture(MixtureIndex) const {
         criticalError("densitiesInMixture() not available");
         static std::vector<DensityIndex> tmp;
@@ -104,34 +112,42 @@ protected:
 
     public:
         virtual ~CachedAssigningContextScorer() {}
+
         EmissionIndex nEmissions() const {
             return cache_.size();
         }
+
         virtual Score score(EmissionIndex e) const {
             require_(0 <= e && e < nEmissions());
             if (!cache_.isCalculated(e))
                 return cache_.set(e, featureScorer_->calculateScoreAndDensity(this, e)).score;
             return cache_[e].score;
         }
+
         virtual DensityInMixture bestDensity(EmissionIndex e) const {
             require_(0 <= e && e < nEmissions());
             if (!cache_.isCalculated(e))
                 return cache_.set(e, featureScorer_->calculateScoreAndDensity(this, e)).bestDensity;
             return cache_[e].bestDensity;
         }
+
         virtual Score score(EmissionIndex e, DensityIndex dnsInMix) const {
             require_(0 <= e && e < nEmissions());
             return featureScorer_->calculateScore(this, e, dnsInMix);
         }
+
         virtual void getDensityPosteriorProbabilities(EmissionIndex e, std::vector<Mm::Weight>& result) const {
             featureScorer_->calculateDensityPosteriorProbabilities(this, score(e), e, result);
         }
     };
+
     virtual ScoreAndBestDensity calculateScoreAndDensity(const CachedAssigningContextScorer*, MixtureIndex) const = 0;
-    virtual Score               calculateScore(const CachedAssigningContextScorer*, MixtureIndex, DensityIndex) const {
+
+    virtual Score calculateScore(const CachedAssigningContextScorer*, MixtureIndex, DensityIndex) const {
         criticalError("This feature scorer does not support the calculation of scores given a density in the mixture");
         return Core::Type<Score>::max;
     }
+
     virtual void calculateDensityPosteriorProbabilities(const CachedAssigningContextScorer*, Score logDenominator,
                                                         EmissionIndex e, std::vector<Mm::Weight>& result) const {
         criticalError("This feature scorer does not support the calculation of density posterior probabilities");
@@ -139,7 +155,8 @@ protected:
 
 public:
     CachedAssigningFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~CachedAssigningFeatureScorer() {}
 };
 
@@ -154,7 +171,9 @@ protected:
 
     protected:
         ContextScorer(const DensitySpecificCachedAssigningFeatureScorer* featureScorer, EmissionIndex nEmissions)
-                : CachedAssigningContextScorer(featureScorer, nEmissions), featureScorer_(featureScorer), scoreCache_(nEmissions) {
+                : CachedAssigningContextScorer(featureScorer, nEmissions),
+                  featureScorer_(featureScorer),
+                  scoreCache_(nEmissions) {
         }
 
     public:
@@ -176,7 +195,8 @@ protected:
 
 public:
     DensitySpecificCachedAssigningFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {
+            : Core::Component(c),
+              Precursor(c) {
     }
     virtual ~DensitySpecificCachedAssigningFeatureScorer() {
     }

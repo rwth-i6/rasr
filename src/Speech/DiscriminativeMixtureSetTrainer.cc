@@ -26,7 +26,7 @@ DiscriminativeMixtureSetTrainer::DiscriminativeMixtureSetTrainer(const Core::Con
 
 DiscriminativeMixtureSetTrainer::~DiscriminativeMixtureSetTrainer() {}
 
-void DiscriminativeMixtureSetTrainer::accumulateDenominator(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+void DiscriminativeMixtureSetTrainer::accumulateDenominator(Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {
     required_cast(Mm::DiscriminativeMixtureSetEstimator*, estimator_)->accumulateDenominator(m, f, w);
 }
 void DiscriminativeMixtureSetTrainer::accumulateObjectiveFunction(Mm::Score f) {

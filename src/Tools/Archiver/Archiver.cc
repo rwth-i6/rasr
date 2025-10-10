@@ -38,15 +38,17 @@
 using namespace Core;
 using Core::select2nd;
 
-enum Mode { Add,
-            Combine,
-            Copy,
-            Extract,
-            ExtractAll,
-            List,
-            Recover,
-            Remove,
-            Show };
+enum Mode {
+    Add,
+    Combine,
+    Copy,
+    Extract,
+    ExtractAll,
+    List,
+    Recover,
+    Remove,
+    Show
+};
 static const Choice modeChoice_(
         "add", Add,
         "combine", Combine,
@@ -58,11 +60,13 @@ static const Choice modeChoice_(
         "remove", Remove,
         "show", Show,
         Choice::endMark());
-enum FileType { Ascii,
-                Feat,
-                Align,
-                BinMatrix,
-                FlowCache };
+enum FileType {
+    Ascii,
+    Feat,
+    Align,
+    BinMatrix,
+    FlowCache
+};
 static const Choice typeChoice_(
         "ascii", Ascii,
         "feat", Feat,
@@ -78,6 +82,7 @@ static const ParameterBool   p_quiet_("quiet", "less output", false);
 static const ParameterChoice p_type_("type", &typeChoice_, "file type to serialize", Feat);
 static const ParameterBool   p_full_prec("full-precision", "output with full precision", false);
 static const ParameterString p_allophones_("allophone-file", "allophone file for serialization of alignments", "");
+static const ParameterString p_lut_("lut", "state tying lookup table file for serialization of alignments", "");
 
 enum OverwriteMode {
     overwriteKeepFirst,
@@ -111,15 +116,16 @@ typedef std::vector<std::string>                  StringVector;
 
 class ArchiverApplication : public Core::Application {
 private:
-    Mode                     mode_;
-    bool                     verbose_;
-    bool                     quiet_;
-    bool                     compress_;
-    FileType                 type_;
-    bool                     fullPrecision_;
-    std::vector<std::string> allophones_;
-    OverwriteMode            overwrite_;
-    std::string              prefix_;
+    Mode                       mode_;
+    bool                       verbose_;
+    bool                       quiet_;
+    bool                       compress_;
+    FileType                   type_;
+    bool                       fullPrecision_;
+    std::vector<std::string>   allophones_;
+    std::map<std::string, u32> state_tying_lut_;
+    OverwriteMode              overwrite_;
+    std::string                prefix_;
 
 private:
     std::string getUsage() const {
@@ -158,7 +164,11 @@ private:
 
 public:
     ArchiverApplication()
-            : mode_(List), verbose_(false), compress_(false), type_(Feat), fullPrecision_(false) {
+            : mode_(List),
+              verbose_(false),
+              compress_(false),
+              type_(Feat),
+              fullPrecision_(false) {
         setTitle("archiver");
         setDefaultLoadConfigurationFile(false);
     }
@@ -308,7 +318,7 @@ public:
                         std::cout << i.name() << ": could not add file to archive" << std::endl;
                 }
                 else
-                    error("could not open file '%s' in archive %s for reading", i.name().c_str(), name.c_str());
+                    error("could not open file '%s' in archive %s for reading", i.name().c_str(), a->path().c_str());
             }
             delete src;
         }
@@ -318,7 +328,7 @@ public:
     bool extractFile(Archive* a, const std::string& name, const std::string outputName = "") {
         Core::ArchiveReader src(*a, name);
         if (!src.isOpen())
-            error("could not open file '%s' in archive %s for reading", name.c_str(), name.c_str());
+            error("could not open file '%s' in archive %s for reading", name.c_str(), a->path().c_str());
         respondToDelayedErrors();
         std::string targetName = (outputName.empty() ? name : outputName);
         if (targetName.size() > 3 && targetName.substr(targetName.size() - 3) == ".gz")
@@ -434,6 +444,10 @@ public:
                         std::cout << "\tallophone=\t" << allophones_[allo] << "\t"
                                   << "index=\t" << allo << "\t"
                                   << "state=\t" << state;
+                        if (state_tying_lut_.size() > 0) {
+                            std::string sym = Core::form("%s.%d", allophones_[allo].c_str(), state);
+                            std::cout << "\ttied=\t" << state_tying_lut_[sym] << "\t";
+                        }
                     }
                     std::cout << ((i->weight != 1.0) ? Core::form("\tweight\t= %f", i->weight) : "")
                               << std::endl;
@@ -541,6 +555,19 @@ public:
                 Core::normalizeWhitespace(buf);
                 Core::suppressTrailingBlank(buf);
                 allophones_.push_back(buf);
+            }
+        }
+        std::string lut_file = p_lut_(config);
+        if (lut_file != "") {
+            std::ifstream is(lut_file.c_str());
+            std::string   buf;
+            while (Core::getline(is, buf) != EOF) {
+                if ((buf.size() == 0) || (buf.at(0) == '#'))
+                    continue;
+                Core::normalizeWhitespace(buf);
+                Core::suppressTrailingBlank(buf);
+                std::vector<std::string> fields = Core::split(buf, " ");
+                state_tying_lut_[fields[0]]     = atoi(fields[1].c_str());
             }
         }
 

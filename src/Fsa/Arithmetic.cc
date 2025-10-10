@@ -81,7 +81,8 @@ private:
 
 public:
     ExtendByFsaAutomaton(ConstAutomatonRef f1, ConstAutomatonRef f2)
-            : ModifyAutomaton(f1), fsa2_(f2) {
+            : ModifyAutomaton(f1),
+              fsa2_(f2) {
         require(f1->semiring() == f2->semiring());
     }
     virtual ~ExtendByFsaAutomaton() {}

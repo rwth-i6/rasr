@@ -325,7 +325,7 @@ private:
      */
     mutable Core::Ref<WordBoundaries> timeConditionedWordBoundaries_;
 
-    struct ByInputAndTarget : public std::binary_function<Fsa::Arc, Fsa::Arc, bool> {
+    struct ByInputAndTarget {
         bool operator()(const Fsa::Arc& a, const Fsa::Arc& b) const {
             return ((a.input() < b.input()) || ((a.input() == b.input()) && (a.target() < b.target())));
         }

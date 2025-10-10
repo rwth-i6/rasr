@@ -102,7 +102,8 @@ private:
 
     struct MappedItem {
         MappedItem()
-                : data(0), size(0) {
+                : data(0),
+                  size(0) {
         }
 
         std::string name;
@@ -153,10 +154,12 @@ template<class T>
 class ConstantVector {
 public:
     ConstantVector()
-            : data_(0), size_(0) {}
+            : data_(0),
+              size_(0) {}
 
     ConstantVector(const T* mapped, size_t size)
-            : data_(mapped), size_(size) {}
+            : data_(mapped),
+              size_(size) {}
 
     ConstantVector(const std::vector<T>& data)
             : editable_(data),

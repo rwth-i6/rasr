@@ -84,10 +84,12 @@ const char whitespace[] = " \t\n\r\f\v";
  * bytes.  The two byte values 0xfe and 0xff are illegal, they can
  * never occur in a UTF-8 string.
  */
-enum ByteType { singleByte,
-                multiByteHead,
-                multiByteTail,
-                illegal };
+enum ByteType {
+    singleByte,
+    multiByteHead,
+    multiByteTail,
+    illegal
+};
 inline ByteType byteType(char u) {
     if ((u & 0x80) == 0x00)
         return singleByte;

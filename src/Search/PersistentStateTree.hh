@@ -70,6 +70,14 @@ public:
     /// Dump the search network as a dot graph into the given file
     void dumpDotGraph(std::string file, const std::vector<int>& nodeDepths = {});
 
+    bool isRoot(StateId node) const {
+        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node);
+    }
+
+    Core::DependencySet getDependencies();
+
+    /**  ----- types: ------  */
+
     struct Exit {
         Bliss::LemmaPronunciation::Id pronunciation;
         StateId                       transitState;
@@ -90,10 +98,6 @@ public:
             return pronunciation < rhs.pronunciation || (pronunciation == rhs.pronunciation && transitState < rhs.transitState);
         }
     };
-
-    bool isRoot(StateId node) const {
-        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node);
-    }
 
     typedef std::map<Search::StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>> RootTransitDescriptions;
 

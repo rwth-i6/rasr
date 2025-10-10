@@ -59,7 +59,11 @@ private:
         Am::AllophoneStateIndex emission;
         s32                     nRefs; /**< number of references by traceback arcs in the following timeframe */
         StateHypothesis(StateId si, Score sc, Trace tr, Am::AllophoneStateIndex em)
-                : state(si), score(sc), trace(tr), emission(em), nRefs(0) {}
+                : state(si),
+                  score(sc),
+                  trace(tr),
+                  emission(em),
+                  nRefs(0) {}
     };
 
     TimeframeIndex                       time_;
@@ -102,7 +106,12 @@ public:
 };
 
 Aligner::SearchSpace::SearchSpace(const Core::Configuration& c)
-        : Core::Component(c), viterbi_(true), logVariability_(paramLogVariability(c)), time_(0), traceback_(new Fsa::StaticAutomaton), tracebackRef_(Core::ref(traceback_)) {}
+        : Core::Component(c),
+          viterbi_(true),
+          logVariability_(paramLogVariability(c)),
+          time_(0),
+          traceback_(new Fsa::StaticAutomaton),
+          tracebackRef_(Core::ref(traceback_)) {}
 
 void Aligner::SearchSpace::setViterbi(bool viterbi) {
     viterbi_ = viterbi;
@@ -803,7 +812,9 @@ protected:
 
 public:
     AddWordBoundaryDisambiguatorsAutomaton(Fsa::ConstAutomatonRef f, Fsa::LabelId disambiguator)
-            : Precursor(f), disambiguator_(disambiguator), one_(f->semiring()->one()) {}
+            : Precursor(f),
+              disambiguator_(disambiguator),
+              one_(f->semiring()->one()) {}
 
     virtual Fsa::StateId initialStateId() const {
         return mapStateId(fsa_->initialStateId());

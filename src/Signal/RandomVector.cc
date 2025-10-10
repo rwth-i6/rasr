@@ -26,7 +26,14 @@ const Core::ParameterFloat RandomVectorNode::paramFrameShift(
         "frame-shift", "difference between the start time of two subsequent vectors", 1);
 
 RandomVectorNode::RandomVectorNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), randomVectorGenerator_(0), size_(0), sampleRate_(1), startTime_(0), frameShift_(1), nOutputs_(0) {
+        : Core::Component(c),
+          Precursor(c),
+          randomVectorGenerator_(0),
+          size_(0),
+          sampleRate_(1),
+          startTime_(0),
+          frameShift_(1),
+          nOutputs_(0) {
     setType((Math::RandomVectorGenerator::Type)Math::RandomVectorGenerator::paramType(c));
     size_       = paramSize(c);
     sampleRate_ = paramSampleRate(c);

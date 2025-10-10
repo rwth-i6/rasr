@@ -15,6 +15,7 @@
 #ifndef _TENSORFLOW_GRAPH_HH
 #define _TENSORFLOW_GRAPH_HH
 
+#include <sys/stat.h>  // for stat()
 #include <tensorflow/core/framework/graph.pb.h>
 
 #include <Core/Types.hh>
@@ -45,7 +46,7 @@ public:
     Graph()          = default;
     virtual ~Graph() = default;
 
-    void addLibrary(std::string const& l);
+    bool addLibrary(std::string const& l);
     void addInput(std::string const& i);
     void addUpdateOp(std::string const& uo);
     void addStateVar(std::string const& sv);
@@ -96,8 +97,10 @@ protected:
     void setGraphDef(tf::GraphDef const& graph_def);
 };
 
-inline void Graph::addLibrary(std::string const& l) {
+inline bool Graph::addLibrary(std::string const& l) {
     libraries_.push_back(l);
+    struct stat buffer;
+    return stat(l.c_str(), &buffer) == 0;
 }
 
 inline void Graph::addInput(std::string const& i) {

@@ -158,10 +158,12 @@ private:
     Heap      heap_;  // for the sake of simple index arithmetic the first element in the heap must never be used (aka pseudo sentinel), i.e. heap_[0] == T()
 public:
     BinaryPriorityQueue(const WeakOrder& lessThan = WeakOrder())
-            : lessThan_(lessThan), heap_(1, T()) {}
+            : lessThan_(lessThan),
+              heap_(1, T()) {}
 
     BinaryPriorityQueue(const Heap& heap, const WeakOrder& lessThan = WeakOrder())
-            : lessThan_(lessThan), heap_(heap) {}
+            : lessThan_(lessThan),
+              heap_(heap) {}
 
     Heap& heap() {
         return heap_;
@@ -306,18 +308,22 @@ public:
             Node*        to;
             Fsa::LabelId label;
             Arc(Fsa::LabelId label)
-                    : to(0), label(label) {}
+                    : to(0),
+                      label(label) {}
             Arc(Node* to, Fsa::LabelId label)
-                    : to(to), label(label) {}
+                    : to(to),
+                      label(label) {}
             bool operator<(const Arc& a) const {
                 return label < a.label;
             }
         };
+
         struct Node {
             typedef std::vector<Arc> ArcList;
             ArcList                  arcs;
             StateIdList              suffixes;
-            std::pair<Node*, bool>   add(Fsa::LabelId label) {
+
+            std::pair<Node*, bool> add(Fsa::LabelId label) {
                 if (label == Fsa::Epsilon)
                     return std::make_pair(this, false);
                 ArcList::iterator itArc = std::lower_bound(arcs.begin(), arcs.end(), Arc(label));
@@ -329,6 +335,7 @@ public:
                 else
                     return std::make_pair(itArc->to, false);
             }
+
             bool addSuffix(Fsa::StateId suffixSid) {
                 StateIdList::iterator itSuffix = std::lower_bound(suffixes.begin(), suffixes.end(), suffixSid);
                 if ((itSuffix == suffixes.end()) || (*itSuffix != suffixSid)) {
@@ -382,7 +389,11 @@ public:
         Score          fwdScore, bwdScore;
         DissenterList* dissenters;
         Node()
-                : begin(0), end(0), fwdScore(Core::Type<Score>::max), bwdScore(Core::Type<Score>::max), dissenters(0) {}
+                : begin(0),
+                  end(0),
+                  fwdScore(Core::Type<Score>::max),
+                  bwdScore(Core::Type<Score>::max),
+                  dissenters(0) {}
         ~Node() {
             delete dissenters;
         }
@@ -405,9 +416,15 @@ public:
         Score      detourScore;
         const Arc* dissenter;
         Path()
-                : n(0), fatherId(0), detourScore(0.0), dissenter(0) {}
+                : n(0),
+                  fatherId(0),
+                  detourScore(0.0),
+                  dissenter(0) {}
         Path(Number n, u32 fatherId, Score detourScore, const Arc* dissenter, bool isDuplicate)
-                : n(n), fatherId(fatherId), detourScore(detourScore), dissenter(dissenter) {}
+                : n(n),
+                  fatherId(fatherId),
+                  detourScore(detourScore),
+                  dissenter(dissenter) {}
     };
     typedef std::vector<Path> PathList;
     typedef std::vector<u32>  PathIdList;
@@ -495,7 +512,13 @@ public:
 
     public:
         Detour(Fsa::StateId initialNid, PrefixTree::Node* initialPrefix, u32 pathId, Score pathScore, const DissenterList* dissenters, const ForkList& forks)
-                : initialNid_(initialNid), initialPrefix_(initialPrefix), pathId_(pathId), pathScore_(pathScore), dissenters_(dissenters), forks_(forks), i_(0) {
+                : initialNid_(initialNid),
+                  initialPrefix_(initialPrefix),
+                  pathId_(pathId),
+                  pathScore_(pathScore),
+                  dissenters_(dissenters),
+                  forks_(forks),
+                  i_(0) {
             update();
         }
         // const member access
@@ -558,7 +581,9 @@ private:
 
 public:
     NBestBuilder(ConstLatticeRef l, u32 n, bool removeDuplicates = true, bool ignoreNonWords = true)
-            : l_(), removeDuplicates_(removeDuplicates), nUniquePaths_(0) {
+            : l_(),
+              removeDuplicates_(removeDuplicates),
+              nUniquePaths_(0) {
         ensure(l);
         l_         = persistent(l);
         nodes_     = 0;
@@ -1067,7 +1092,7 @@ ConstLatticeRef nbest(ConstLatticeRef l, u32 n, bool removeDuplicates, NBestAlgo
 namespace {
 const Core::Choice choiceNBestAlgorithm(
         "eppstein", Eppstein,
-        "more", Mori,
+        "mori", Mori,
         Core::Choice::endMark());
 const Core::ParameterString paramNBestAlgorithm(
         "algorithm",
@@ -1301,7 +1326,8 @@ protected:
 
 public:
     DumpNBestNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), dump_(config, "dump") {}
+            : Precursor(name, config),
+              dump_(config, "dump") {}
     virtual ~DumpNBestNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         scoreKeys_ = paramScoreKeys(config);

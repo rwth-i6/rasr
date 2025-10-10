@@ -34,7 +34,8 @@ public:
                                   const TranslationLexicon* lex,
                                   const double              factorLexicon = 1.0);
     virtual ConstStateRef getState(StateId s) const;
-    virtual std::string   describe() const {
+
+    virtual std::string describe() const {
         return std::string("zeroOrderSimpleAlignAutomaton()");
     }
 };

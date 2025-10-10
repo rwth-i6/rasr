@@ -1797,6 +1797,18 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
         waitingLookaheadNodesByDepth_[nodes_[nodeIdx].depth].push_back(std::make_pair(nodeIdx, (Score)0));
     }
 
+    for (const Lm::WordScore& successor : successors) {
+        Score score = successor.score() * scale;
+
+        TokenNodeScore::const_iterator node    = nodeForToken_.begin() + firstNodeForToken_[successor.token()],
+                                       nodeEnd = nodeForToken_.begin() + firstNodeForToken_[successor.token() + 1];
+        for (; node != nodeEnd; ++node) {
+            Score       endScore = score + (*node).second;
+            LookaheadId nodeId   = (*node).first;
+            waitingLookaheadNodesByDepth_[nodes_[nodeId].depth].push_back(std::make_pair(nodeId, endScore));
+        }
+    }
+
     if (nodeRecombination_.empty()) {
         nodeRecombination_.resize(nEntries_, 0);
     }

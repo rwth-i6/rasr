@@ -45,6 +45,7 @@ public:
     inline void                  push_back(const T& value);
     inline const T&              operator[](size_t idx) const;
     inline const T&              at(size_t idx) const;
+    inline void                  set(size_t idx, const T& value);
     inline size_t                size() const noexcept;
     inline void                  clear() noexcept;
     inline void                  reserve(size_t size);
@@ -103,6 +104,21 @@ inline const T& CollapsedVector<T>::at(size_t idx) const {
         throw std::out_of_range("Trying to access illegal index of CollapsedVector");
     }
     return (*this)[idx];
+}
+
+template<typename T>
+inline void CollapsedVector<T>::set(size_t idx, const T& value) {
+    if (idx >= logicalSize_) {
+        throw std::out_of_range("Trying to access illegal index of CollapsedVector");
+    }
+    if (data_.size() != 1ul) {
+        data_[idx] = value;
+        data_.push_back(value);
+    }
+    else if (value != data_.front()) {
+        data_.resize(logicalSize_, data_.front());
+        data_[idx] = value;
+    }
 }
 
 template<typename T>

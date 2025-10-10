@@ -4,6 +4,7 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "Lexicon.hh"
 #include "LibRASR.hh"
 #include "Search.hh"
 
@@ -19,6 +20,7 @@ PYBIND11_MODULE(librasr, m) {
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>());
     pyRasrConfig.def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile));
+    pyRasrConfig.def("enable_logging", &Core::Configuration::enableLogging);
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
@@ -27,4 +29,5 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
     bindSearchAlgorithm(m);
+    bindLexicon(m);
 }

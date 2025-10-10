@@ -44,6 +44,10 @@ protected:
 
     // Gets the buffered score for the requested token at the requested step
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::CTC;
+    }
 };
 
 }  // namespace Nn

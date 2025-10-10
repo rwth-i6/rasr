@@ -60,6 +60,10 @@ protected:
     // Compute scores of base scorer and add transition scores based on transition types of the requests
     std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::ALL;
+    }
+
 private:
     std::unordered_map<TransitionType, Score> transitionScores_;
 

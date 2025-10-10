@@ -73,10 +73,13 @@ namespace Nn {
  */
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
-    static const Core::ParameterStringVector paramIgnoredTransitionTypes;
-
 public:
     typedef Search::Score Score;
+
+    static const Core::Choice          choiceTransitionPreset;
+    static const Core::ParameterChoice paramTransitionPreset;
+
+    static const Core::ParameterStringVector paramExtraTransitionTypes;
 
     enum TransitionType {
         LABEL_TO_LABEL,
@@ -87,6 +90,15 @@ public:
         INITIAL_LABEL,
         INITIAL_BLANK,
         numTypes,  // must remain at the end
+    };
+
+    enum TransitionPresetType {
+        DEFAULT,
+        NONE,
+        ALL,
+        CTC,
+        TRANSDUCER,
+        LM,
     };
 
     // Request for scoring or context extension
@@ -166,8 +178,14 @@ protected:
     // By default loops over the single-request version
     virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests);
 
+    virtual TransitionPresetType defaultPreset() const {
+        return TransitionPresetType::NONE;
+    }
+
 private:
-    std::unordered_set<TransitionType> ignoredTransitionTypes_;
+    std::unordered_set<TransitionType> enabledTransitionTypes_;
+
+    void enableTransitionTypes(Core::Configuration const& config);
 };
 
 }  // namespace Nn

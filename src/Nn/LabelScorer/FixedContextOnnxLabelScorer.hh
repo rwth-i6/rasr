@@ -66,6 +66,10 @@ protected:
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::TRANSDUCER;
+    }
+
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     // Assumes that all histories in the batch are based on the same timestep

@@ -71,6 +71,11 @@ protected:
 
     // Compute weighted scores of requests with all sub-scorers
     std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+
+    // Request filtering should happen in the sub-scorers, this one should let everything through
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::ALL;
+    }
 };
 
 }  // namespace Nn

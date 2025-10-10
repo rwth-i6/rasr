@@ -67,6 +67,11 @@ protected:
     // Run requests through decoder component
     std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
+    // Request filtering should happen in the decoder, this one should let everything through
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::ALL;
+    }
+
 private:
     Core::Ref<Encoder>     encoder_;
     Core::Ref<LabelScorer> decoder_;

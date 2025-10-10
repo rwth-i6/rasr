@@ -218,6 +218,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
         case LabelScorer::TransitionType::BLANK_TO_LABEL:
         case LabelScorer::TransitionType::LABEL_TO_LABEL:
         case LabelScorer::TransitionType::INITIAL_LABEL:
+        case LabelScorer::TransitionType::SENTENCE_END:
             updateState = true;
             break;
         default:

@@ -119,6 +119,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScore
         case TransitionType::BLANK_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
+        case TransitionType::SENTENCE_END:
             pushToken     = true;
             timeIncrement = not verticalLabelTransition_;
             break;

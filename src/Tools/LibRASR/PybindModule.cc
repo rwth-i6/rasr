@@ -1,5 +1,4 @@
 #include <string>
-
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/complex.h>
@@ -35,6 +34,7 @@
 #include <Python/Configuration.hh>
 
 #include "LibRASR.hh"
+#include "Search.hh"
 
 namespace py = pybind11;
 
@@ -94,15 +94,15 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>());
-    pyRasrConfig.def("set_from_file",
-                     (bool (Core::Configuration::*)(const std::string&)) &Core::Configuration::setFromFile);
+    pyRasrConfig.def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile));
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
-    pyFsaBuilder.def("build_by_orthography",
-                     &AllophoneStateFsaBuilder::buildByOrthography);
-    pyFsaBuilder.def("build_by_segment_name",
-                     &AllophoneStateFsaBuilder::buildBySegmentName);
+    pyFsaBuilder.def("get_orthography_by_segment_name", &AllophoneStateFsaBuilder::getOrthographyBySegmentName);
+    pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
+    pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
+
+    bindSearchAlgorithm(m);
 
     py::class_<Bliss::Symbol> symbol(m, "Symbol");
     symbol
@@ -344,7 +344,7 @@ PYBIND11_MODULE(librasr, m) {
     .def("new_lemma", (Bliss::Lemma* (Bliss::Lexicon::*)(const std::string&)) &Bliss::Lexicon::newLemma, py::return_value_policy::reference_internal)
     .def("set_orthographic_forms", &Bliss::Lexicon::setOrthographicForms)
     .def("set_default_lemma_name", &Bliss::Lexicon::setDefaultLemmaName)
-    .def("get_pronunciation", &Bliss::Lexicon::getPronunciation, py::return_value_policy::reference_internal)
+    //.def("get_pronunciation", &Bliss::Lexicon::getPronunciation, py::return_value_policy::reference_internal)
     .def("add_pronunciation", &Bliss::Lexicon::addPronunciation, py::return_value_policy::reference_internal)
     .def("normalize_pronunciation_weights", &Bliss::Lexicon::normalizePronunciationWeights)
     .def("set_syntactic_token_sequence", &Bliss::Lexicon::setSyntacticTokenSequence)

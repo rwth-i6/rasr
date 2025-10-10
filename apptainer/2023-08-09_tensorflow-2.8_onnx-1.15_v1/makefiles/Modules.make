@@ -52,7 +52,6 @@ MODULES   += MODULE_LATTICE_DT
 MODULES += MODULE_LM_ARPA
 MODULES += MODULE_LM_FSA
 MODULES += MODULE_LM_ZEROGRAM
-MODULES += MODULE_LM_FFNN
 MODULES += MODULE_LM_TFRNN
 MODULES += MODULE_LM_ONNX
 
@@ -66,7 +65,6 @@ MODULES += MODULE_MM_DT
 # ****** Neural Network ******
 MODULES += MODULE_NN
 MODULES += MODULE_NN_SEQUENCE_TRAINING
-MODULES += MODULE_THEANO_INTERFACE
 MODULES += MODULE_PYTHON
 
 # ****** OpenFst ******
@@ -77,7 +75,6 @@ MODULES += MODULE_SEARCH_MBR
 # MODULES += MODULE_SEARCH_WFST
 MODULES += MODULE_SEARCH_LINEAR
 MODULES += MODULE_ADVANCED_TREE_SEARCH
-MODULES += MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
 
 # ****** Signal ******
 MODULES += MODULE_SIGNAL_GAMMATONE
@@ -149,13 +146,12 @@ endif
 
 # ****** Libraries ******
 LIBS_SEARCH = src/Search/libSprintSearch.$(a)
+LIBS_SEARCH += src/Search/LexiconfreeTimesyncBeamSearch/libSprintLexiconfreeTimesyncBeamSearch.$(a)
+LIBS_SEARCH += src/Search/TreeTimesyncBeamSearch/libSprintTreeTimesyncBeamSearch.$(a)
 ifdef MODULE_SEARCH_WFST
 LIBS_SEARCH += src/Search/Wfst/libSprintSearchWfst.$(a)
 LIBS_SEARCH += src/OpenFst/libSprintOpenFst.$(a)
 endif
 ifdef MODULE_ADVANCED_TREE_SEARCH
 LIBS_SEARCH += src/Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
-endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-LIBS_SEARCH += src/Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
 endif

@@ -33,6 +33,7 @@ public:
     enum Type { Rectangular,
                 Hamming,
                 Hanning,
+                PeriodicHanning,
                 Bartlett,
                 Blackman,
                 Kaiser };
@@ -76,14 +77,16 @@ public:
 
 template<class Iterator>
 bool WindowFunction::work(const Iterator& begin, const Iterator& end) {
-    ensure(std::distance(begin, end) >= (s32)length());
-
-    if (needInit_ && !init())
+    if (needInit_ && !init()) {
         return false;
+    }
 
-    std::transform(window_.begin(), window_.end(), begin, begin, std::multiplies<Float>());
+    size_t effectiveWindow = std::min<size_t>(std::distance(begin, end), length());
 
-    std::fill(begin + length(), end, 0);
+    std::transform(window_.begin(), window_.begin() + effectiveWindow, begin, begin, std::multiplies<Float>());
+
+    // disregard samples that do not fit in window
+    std::fill(begin + effectiveWindow, end, 0.0);
 
     return true;
 }
@@ -112,8 +115,20 @@ protected:
 /** HanningWindowFunction */
 
 class HanningWindowFunction : public WindowFunction {
+public:
+    HanningWindowFunction(bool periodic)
+            : periodic_(periodic) {}
+
 protected:
     virtual bool init();
+
+private:
+    /**
+     * Indicates if this is a periodic window or not, i.e. if the last value in the window equals the first.
+     * Equivalent to Pytorch's periodic parameter for hann_window:
+     * https://docs.pytorch.org/docs/stable/generated/torch.hann_window.html
+     */
+    bool periodic_;
 };
 
 /** BlackmanWindowFunction */

@@ -233,7 +233,7 @@ public:
     typedef std::unordered_map<
             Core::Ref<AbstractCovarianceEstimator>, MeanSet,
             hashReference<AbstractCovarianceEstimator>>
-            Map;
+                                Map;
     typedef Map::const_iterator const_iterator;
 
 private:
@@ -251,6 +251,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_GAUSS_DENSITY_ESTIMATOR_HH

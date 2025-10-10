@@ -429,7 +429,7 @@ void FastVector<T>::setToZero() {
  */
 template<typename T>
 void FastVector<T>::fill(const T value) {
-    //fill the array with the constant
+    // fill the array with the constant
     std::fill(begin(), end(), value);
 }
 

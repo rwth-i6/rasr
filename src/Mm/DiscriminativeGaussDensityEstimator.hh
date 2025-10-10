@@ -81,6 +81,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

@@ -616,7 +616,7 @@ protected:
         const bool       ciPhone    = isCiPhone(central);
         const bool       finalPhone = a->boundary & Allophone::isFinalPhone;
         OpenFst::StateId iFrom      = getStateId(history, central, 0,
-                                            a->boundary & Allophone::isInitialPhone);
+                                                 a->boundary & Allophone::isInitialPhone);
 
         if (finalPhone && !(exploitDisambiguators_ && ciPhone))
             disambiguatorStates_.insert(iFrom);

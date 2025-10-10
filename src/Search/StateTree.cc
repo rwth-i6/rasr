@@ -12,7 +12,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #include <deque>
 #include <unordered_map>
@@ -21,6 +20,7 @@
 #include <Core/Hash.hh>
 #include <Core/ProgressIndicator.hh>
 #include <Core/Utility.hh>
+
 #include "StateTree.hh"
 #include "StateTreeIo.hh"
 
@@ -824,6 +824,7 @@ private:
             BuildRequest::Hash,
             BuildRequest::Equality>
             Map;
+
     QueueSet           queues_;
     QueueSet::iterator queue_;
     Map                map_;
@@ -1057,7 +1058,10 @@ void StateTree::buildCoarticulatedRootStates(Bliss::LexiconRef lexicon) {
         ciRoot_ = states_.size();
         Am::LexiconUtilities lexiconUtilities(getConfiguration(), lexicon);
         boundaryPhonemes.initial = lexiconUtilities.determineSilencePhoneme();
-        boundaryPhonemes.final   = Bliss::Phoneme::term;
+        if (boundaryPhonemes.initial == Bliss::Phoneme::invalidId) {
+            criticalError("Failed to determine silence phoneme.");
+        }
+        boundaryPhonemes.final = Bliss::Phoneme::term;
         verify(cs.boundaryPhonemes.size() == ciRoot_);
         cs.boundaryPhonemes.push_back(boundaryPhonemes);
         BatchRequest* request = new BatchRequest(this, ciRoot_);

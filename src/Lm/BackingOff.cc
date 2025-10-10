@@ -19,6 +19,7 @@
 #include <Core/Directory.hh>
 #include <Core/IoUtilities.hh>
 #include <Fsa/Sort.hh>
+#include <numeric>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -59,7 +60,7 @@ const BackingOffLm::Node* BackingOffLm::Node::findChild(TokenIndex t) const {
     return binarySearch(childrenBegin(), childrenEnd() - 1, t);
 }
 
-const BackingOffLm::WordScore* BackingOffLm::Node::findWordScore(
+const WordScore* BackingOffLm::Node::findWordScore(
         const WordScore* base, TokenIndex t) const {
     return binarySearch(scoresBegin(base), scoresEnd(base) - 1, t);
 }
@@ -121,7 +122,7 @@ void BackingOffLm::Internal::changeWordScoreCapacity(
     wordScoresEnd_  = wordScores_ + newCapacity;
 }
 
-BackingOffLm::WordScore* BackingOffLm::Internal::newWordScore() {
+WordScore* BackingOffLm::Internal::newWordScore() {
     size_t spareCapacity = wordScoresEnd_ - wordScoresTail_;
     if (spareCapacity < 1) {
         spareCapacity = nWordScores();
@@ -385,7 +386,9 @@ private:
         PositionType end;
     };
     Values values_;
-    enum { formatVersion = v };
+    enum {
+        formatVersion = v
+    };
 
 public:
     virtual u64 nTokens() const {
@@ -629,7 +632,7 @@ bool BackingOffLm::Internal::writeImage(int fd, const std::string& info) const {
 
 bool BackingOffLm::Internal::mountImage(
         int fd, std::string& info,
-        const Bliss::TokenInventory& inventory) {
+        const Bliss::TokenInventory& inventory, bool mapOovToUnk) {
     ImageHeader header(0);
     if (!header.read(fd, info))
         return false;
@@ -644,28 +647,34 @@ bool BackingOffLm::Internal::mountImage(
 
     info = std::string(mmap_ + header.size());
 
+    // lexicon and LM tokenId mapping: allow different lexicon for image building
+    verify(lexiconMapping_->size() == inventory.size());
     tokens_.resize(header.nTokens());
     char* str = mmap_ + header.tokensOffset();
     for (TokenIndex ti = 0; ti < TokenIndex(header.nTokens()); ++ti) {
         const Bliss::Token* token = 0;
         if (*str) {
             token = inventory[str];
-            if (!token) {
-                info = Core::form("undefined token \"%s\"", str);
-                munmap(mmap_, mmapSize_);
-                return false;
+            if (!token) {  // tokens not in the lexicon: never recognized (just record for later usage)
+                noUseTokens_[str] = ti;
             }
-            if (token->id() != ti) {
-                info = Core::form("wrong token index: \"%s\" has index %d, should be %d",
-                                  str, token->id(), ti);
-                munmap(mmap_, mmapSize_);
-                return false;
+            else {  // tokens in the lexicon: map id
+                lexiconMapping_->at(token->id()) = ti;
             }
-            while (*++str)
-                ;
-        }
-        tokens_[ti] = token;
+            while (*++str) {
+            }
+        }  // ignore oov tokens of the image building lexicon
+        tokens_[ti] = token;  // reverse mapping
         ++str;
+    }
+    // map oovs to unk, otherwise max score (and probably never recognized)
+    if (mapOovToUnk) {
+        verify(lexiconMapping_->at(unkTokenId_) != Bliss::Token::invalidId);
+        for (u32 tId = 0; tId < lexiconMapping_->size(); ++tId)
+            if (lexiconMapping_->at(tId) == Bliss::Token::invalidId) {
+                lexiconMapping_->at(tId) = lexiconMapping_->at(unkTokenId_);
+                oovTokens_.insert(tId);
+            }
     }
 
     nodes_     = (Node*)(mmap_ + header.nodesOffset());
@@ -717,6 +726,8 @@ void BackingOffLm::initialize(Core::Ref<Internal> i) {
 void BackingOffLm::logInitialization() const {
     log("size: %d n-grams in %d histories",
         internal_->nWordScores(), internal_->nNodes());
+    if (!internal_->oovTokens_.empty())
+        log() << internal_->oovTokens_.size() << " out-of-vocabulary tokens from lexicon (map to unknown token)";
     log("dependency value: ") << dependency_.value();
     Core::Channel dc(config, "dot");
     if (dc.isOpen())
@@ -742,6 +753,7 @@ void BackingOffLm::load() {
     std::string image = paramImage(config);
     if (!image.size()) {
         read();
+        initTokenMapping(true);
         return;
     }
 
@@ -771,14 +783,17 @@ void BackingOffLm::load() {
         internal_ = Core::ref(new Internal);
     }
 
-    log("mounting image file \"%s\" ...", image.c_str());
+    // all token mapping built during image mounting
+    initTokenMapping();
+    std::string abs_filename = Core::realPath(image);
+    log("mounting image file \"%s\" (%s) ...", image.c_str(), abs_filename.c_str());
     int fd = open(image.c_str(), O_RDONLY);
     if (fd == -1) {
         error("Failed to open image file \"%s\" for reading", image.c_str());
         return;
     }
     std::string info;
-    if (!internal_->mountImage(fd, info, tokenInventory())) {
+    if (!internal_->mountImage(fd, info, tokenInventory(), mapOovToUnk_)) {
         error("failed to mount image file: ") << info;
         return;
     }
@@ -791,6 +806,8 @@ Score BackingOffLm::sentenceBeginScore() const {
 }
 
 const BackingOffLm::Node* BackingOffLm::Internal::startHistory(TokenIndex w) const {
+    w = lexiconMapping_->at(w);
+
     const Node* n = root()->findChild(w);
     if (!n)
         n = root();
@@ -802,6 +819,8 @@ History BackingOffLm::startHistory() const {
 }
 
 const BackingOffLm::Node* BackingOffLm::Internal::extendedHistory(const Node* old, TokenIndex w) const {
+    w = lexiconMapping_->at(w);
+
     TokenIndex hist[old->depth() + 1];
     for (const Node* n = old; n; n = n->parent())
         hist[n->depth()] = n->token();
@@ -818,24 +837,6 @@ const BackingOffLm::Node* BackingOffLm::Internal::extendedHistory(const Node* ol
     return result;
 }
 
-void BackingOffLm::historyTokens(const History& h, const Bliss::Token** target, u32& size, u32 arraySize) const {
-    size = 0;
-    for (const Node* n = descriptor<Self>(h); n; (n = n->parent()) && size < arraySize) {
-        Token tok = internal_->token(n->token());
-        if (tok) {
-            target[size] = tok;
-            ++size;
-        }
-    }
-}
-
-u32 BackingOffLm::historyLenght(const Lm::History& h) const {
-    const Node* n = descriptor<Self>(h);
-    if (!n)
-        return 0;
-    return n->depth();
-}
-
 History BackingOffLm::extendedHistory(const History& h, Token w) const {
     return history(internal_->extendedHistory(descriptor<Self>(h), w->id()));
 }
@@ -845,6 +846,15 @@ History BackingOffLm::reducedHistory(const History& h, u32 limit) const {
     while (n->depth() > limit)
         n = n->parent();
     return history(n);
+}
+
+History BackingOffLm::reduceHistoryByN(const History& h, u32 n) const {
+    const Node* node = descriptor<Self>(h);
+    while (n > 0 && node->depth() > 0) {
+        node = node->parent();
+        n -= 1;
+    }
+    return history(node);
 }
 
 std::string BackingOffLm::Internal::formatHistory(const Node* h) {
@@ -865,6 +875,8 @@ std::string BackingOffLm::formatHistory(const History& h) const {
 }
 
 Lm::Score BackingOffLm::Internal::score(const Node* h, TokenIndex w) const {
+    w = lexiconMapping_->at(w);
+
     Score backOffScore = 0.0;
     for (const Node* n = h; n; n = n->parent()) {
         const WordScore* ws = n->findWordScore(wordScores_, w);
@@ -877,38 +889,6 @@ Lm::Score BackingOffLm::Internal::score(const Node* h, TokenIndex w) const {
 
 Lm::Score BackingOffLm::score(const History& h, Token w) const {
     return internal_->score(descriptor<Self>(h), w->id());
-}
-
-Score BackingOffLm::getAccumulatedBackOffScore(const History& history, int limit) const {
-    const Node* hn  = descriptor<Self>(history);
-    Score       ret = 0;
-    for (const Node* n = hn; n; n = n->parent())
-        if (n->depth() >= limit)
-            ret += n->backOffScore();
-    return ret;
-}
-
-BackingOffLm::BackOffScores BackingOffLm::getBackOffScores(const Lm::History& history, int depth) const {
-    const Node* hn = descriptor<Self>(history);
-    const Node* nodes[hn->depth() + 1];
-    for (const Node* n = hn; n; n = n->parent()) {
-        Node::Depth d = n->depth();
-        nodes[d]      = n;
-    }
-
-    int nodeDepth = ((int)hn->depth()) - depth;
-
-    BackOffScores ret;
-
-    // Node-depth 0 is the zerogram back-off
-    verify(nodeDepth >= 0 && nodeDepth <= hn->depth());
-
-    ret.backOffScore = nodes[nodeDepth]->backOffScore();
-    verify(ret.backOffScore != Core::Type<Score>::max);
-    ret.start = internal_->scoresBegin(nodes[nodeDepth]);
-    ret.end   = internal_->scoresEnd(nodes[nodeDepth]);
-
-    return ret;
 }
 
 void BackingOffLm::getBatch(
@@ -930,10 +910,18 @@ void BackingOffLm::getBatch(
     for (Node::Depth d = 0; d <= hn->depth(); ++d) {
         const Node* n = nodes[d];
         for (const WordScore* ws = internal_->scoresBegin(n); ws != internal_->scoresEnd(n); ++ws) {
-            const Bliss::SyntacticToken* syntacticToken =
-                    static_cast<const Bliss::SyntacticToken*>(lexicon()->syntacticTokenInventory()[ws->token()]);
-            scores[syntacticToken] = ws->score() + backOffScore[d + 1];
+            Token tok = internal_->token(ws->token());
+            if (!tok) {
+                continue;
+            }
+            const Bliss::SyntacticToken* syntacticToken = static_cast<const Bliss::SyntacticToken*>(tok);
+            scores[syntacticToken]                      = ws->score() + backOffScore[d + 1];
         }
+    }
+
+    // mapOovToUnk == no, oovTokens will be empty so we never ask for InvalidId in case the unknown lemma does not have a syntactic token seq.
+    for (TokenSet::const_iterator iter = internal_->oovTokens_.begin(); iter != internal_->oovTokens_.end(); ++iter) {
+        scores[*iter] = scores[internal_->unkTokenId_];
     }
 
     const NonCompiledBatchRequest* ncbr = required_cast(const NonCompiledBatchRequest*, cbr);
@@ -960,6 +948,147 @@ void BackingOffLm::getBatch(
         if (result[r->target] > score)
             result[r->target] = score;
     }
+}
+
+bool BackingOffLm::fixedHistory(s32 limit) const {
+    return limit == 0;
+}
+
+bool BackingOffLm::isSparse(const History& h) const {
+    if (!h.isValid()) {
+        return true;
+    }
+    if (historyLength(h) == 0) {
+        return false;
+    }
+    return true;
+}
+
+HistorySuccessors BackingOffLm::getHistorySuccessors(const History& h) const {
+    BackOffScores     backoff = getBackOffScores(h, 0);
+    size_t            size    = ((size_t)backoff.end - (size_t)backoff.start) / sizeof(WordScore);
+    HistorySuccessors res;
+    res.backOffScore = backoff.backOffScore;
+    if (size == 0) {
+        return res;
+    }
+
+    // mapOovToUnk directly here: hidden from sparse lookahead
+    bool  oov2unk  = mapOovToUnk_ && !internal_->oovTokens_.empty();
+    Score unkScore = Core::Type<Score>::max;
+
+    res.reserve(size);
+    for (const WordScore* ws = backoff.start; ws != backoff.end; ++ws) {
+        Bliss::Token::Id tok = reverseMapToken(ws->token());  // lexicon token Id
+        res.emplace_back(tok, ws->score());
+        if (oov2unk && tok == internal_->unkTokenId_) {
+            unkScore = ws->score();
+        }
+    }
+
+    if (oov2unk && unkScore != Core::Type<Score>::max) {
+        size += internal_->oovTokens_.size();
+        res.reserve(size);
+        for (TokenSet::const_iterator iter = internal_->oovTokens_.begin(); iter != internal_->oovTokens_.end(); ++iter) {
+            res.emplace_back(*iter, unkScore);
+        }
+    }
+
+    return res;
+}
+
+Score BackingOffLm::getBackOffScore(const History& h) const {
+    return getBackOffScores(h, 0).backOffScore;
+}
+
+void BackingOffLm::historyTokens(const History& h, const Bliss::Token** target, u32& size, u32 arraySize) const {
+    size = 0;
+    for (const Node* n = descriptor<Self>(h); n; (n = n->parent()) && size < arraySize) {
+        Token tok = internal_->token(n->token());
+        if (tok) {
+            target[size] = tok;
+            ++size;
+        }
+    }
+}
+
+u32 BackingOffLm::historyLength(const Lm::History& h) const {
+    const Node* n = descriptor<Self>(h);
+    if (!n) {
+        return 0;
+    }
+    return n->depth();
+}
+
+BackingOffLm::BackOffScores BackingOffLm::getBackOffScores(const Lm::History& history, int depth) const {
+    const Node* hn = descriptor<Self>(history);
+    const Node* nodes[hn->depth() + 1];
+    for (const Node* n = hn; n; n = n->parent()) {
+        Node::Depth d = n->depth();
+        nodes[d]      = n;
+    }
+
+    int nodeDepth = ((int)hn->depth()) - depth;
+
+    BackOffScores ret;
+
+    // Node-depth 0 is the zerogram back-off
+    verify(nodeDepth >= 0 && nodeDepth <= hn->depth());
+
+    ret.backOffScore = nodes[nodeDepth]->backOffScore();
+    verify(ret.backOffScore != Core::Type<Score>::max);
+    ret.start = internal_->scoresBegin(nodes[nodeDepth]);
+    ret.end   = internal_->scoresEnd(nodes[nodeDepth]);
+
+    return ret;
+}
+
+Score BackingOffLm::getAccumulatedBackOffScore(const History& history, int limit) const {
+    const Node* hn  = descriptor<Self>(history);
+    Score       ret = 0;
+    for (const Node* n = hn; n; n = n->parent())
+        if (n->depth() >= limit)
+            ret += n->backOffScore();
+    return ret;
+}
+
+void BackingOffLm::initTokenMapping(bool build) {
+    verify(internal_);  // has to be initialized already
+    lexicon_mapping_.clear();
+    lexicon_mapping_.resize(tokenInventory().size(), Bliss::Token::invalidId);
+    staticSize_ = lexicon_mapping_.size();
+
+    Core::ParameterBool paramMapOovToUnk("map-oov-to-unk", "", false);
+    mapOovToUnk_ = paramMapOovToUnk(config);
+    if (!mapOovToUnk_) {
+        internal_->oovTokens_.clear();
+    }
+    auto unk_token         = getSpecialToken("unknown", mapOovToUnk_);
+    internal_->unkTokenId_ = unk_token != nullptr ? unk_token->id() : Bliss::SyntacticToken::invalidId;
+
+    // no LM image used: build token mapping directly here (just same id)
+    // Note: all LM tokens included in the lexicon based on read, thus empty noUseTokens_
+    if (build) {
+        std::iota(lexicon_mapping_.begin(), lexicon_mapping_.end(), 0);
+        internal_->noUseTokens_.clear();
+        if (mapOovToUnk_) {
+            size_t maxInVocab = internal_->tokens_.size();  // maxId + 1
+            verify(maxInVocab <= staticSize_);
+            for (u32 tId = 0; tId < staticSize_; ++tId) {
+                if (tId < maxInVocab && internal_->tokens_[tId])
+                    continue;  // in vocab
+                lexicon_mapping_[tId] = lexicon_mapping_.at(internal_->unkTokenId_);
+                internal_->oovTokens_.insert(tId);
+            }
+        }
+    }
+
+    internal_->lexiconMapping_ = &lexicon_mapping_;
+}
+
+Bliss::Token::Id BackingOffLm::reverseMapToken(Bliss::Token::Id tIdx) const {
+    Token tok = internal_->token(tIdx);
+    return tok ? tok->id() : Bliss::Token::invalidId;
 }
 
 // ===========================================================================

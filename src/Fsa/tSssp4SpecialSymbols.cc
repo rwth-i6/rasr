@@ -273,7 +273,7 @@ private:
                     if (oldDirectHitsEmpty)
                         failPotential_.set(s, failWeight);
                 }  // end else Failure
-            }      // end for arc
+            }  // end for arc
         }
 
         if (state->isFinal()) {
@@ -641,7 +641,7 @@ private:
                     verify(arc->output() == arc->input());  // assume that we only have arcs with fail on both sides
                     _AddArc::failArc(&(*arc), directHits, sourceForwardPotential, oldDirectHitsEmpty, this);
                 }  // end else Failure
-            }      // end arc
+            }  // end arc
         }
     }
 
@@ -1038,8 +1038,8 @@ private:
 
 public:
     /**
-                 *
-                 */
+     *
+     */
     virtual _ConstStateRef getState(Fsa::StateId s) const {
         _ConstStateRef _sp = Precursor::fsa_->getState(s);
         _State*        sp  = new _State(_sp->id(), _sp->tags(), _sp->weight_);

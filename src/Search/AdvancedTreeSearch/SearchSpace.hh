@@ -20,17 +20,19 @@
 
 #include <Lm/SearchSpaceAwareLanguageModel.hh>
 #include <Search/Histogram.hh>
+#include <Search/LanguageModelLookahead.hh>
+#include <Search/Module.hh>
+#include <Search/PersistentStateTree.hh>
 #include <Search/Search.hh>
 #include <Search/StateTree.hh>
+#include <Search/TreeBuilder.hh>
+#include <Search/TreeStructure.hh>
 
 #include "Helpers.hh"
-#include "LanguageModelLookahead.hh"
-#include "PersistentStateTree.hh"
 #include "ScoreDependentStatistics.hh"
 #include "SearchSpaceHelpers.hh"
 #include "SimpleThreadPool.hh"
 #include "Trace.hh"
-#include "TreeStructure.hh"
 
 struct EmissionSetCounter;
 namespace AdvancedTreeSearch {
@@ -68,7 +70,7 @@ public:
     std::vector<int> singleLabels;
     // LM- and acoustic look-ahead ids together, for quicker access
     std::vector<std::pair<u32, u32>> lookAheadIds;
-    // Sparse LM lookahead hash and acoustic lookahead id paired togeter
+    // Sparse LM lookahead hash and acoustic lookahead id paired together
     std::vector<std::pair<u32, u32>> lookAheadIdAndHash;
 
     std::vector<int> stateDepths;
@@ -79,7 +81,7 @@ public:
     std::vector<unsigned char> truncatedInvertedStateDepths;
     std::vector<unsigned char> truncatedStateDepths;
 
-    // number of transitions needed untill the next word end (that is not silence)
+    // number of transitions needed until the next word end (that is not silence)
     std::vector<unsigned> labelDistance;
 
     /// Optional filter which allows limiting the search space to a certain word sequence prefix
@@ -120,7 +122,6 @@ private:
     Bliss::LexiconRef                  lexicon_;
 };
 
-
 class SearchSpace : public Core::Component {
 public:
     /// Statistics:
@@ -145,7 +146,7 @@ protected:
     Core::Ref<const Lm::ScaledLanguageModel>     lookaheadLm_;
     Core::Ref<const Lm::LanguageModel>           recombinationLm_;
     Lm::SearchSpaceAwareLanguageModel const*     ssaLm_;
-    AdvancedTreeSearch::LanguageModelLookahead*  lmLookahead_;
+    LanguageModelLookahead*                      lmLookahead_;
     std::vector<const Am::StateTransitionModel*> transitionModels_;
 
     TraceManager trace_manager_;
@@ -156,8 +157,8 @@ protected:
 
     StaticSearchAutomaton const* automaton_;
 
-    Lm::History                                                           unigramHistory_;
-    AdvancedTreeSearch::LanguageModelLookahead::ContextLookaheadReference unigramLookAhead_;
+    Lm::History                                       unigramHistory_;
+    LanguageModelLookahead::ContextLookaheadReference unigramLookAhead_;
 
     AdvancedTreeSearch::AcousticLookAhead* acousticLookAhead_;
 
@@ -213,7 +214,7 @@ protected:
     // This takes the network-dominance into account, and is calculated at the end of every timeframe.
     u32 currentLookaheadInstanceStateThreshold_;
     // When this lookahead-id (i.e. depth) is crossed, full LM look-ahead is used
-    AdvancedTreeSearch::LanguageModelLookahead::LookaheadId fullLookaheadAfterId_;
+    LanguageModelLookahead::LookaheadId fullLookaheadAfterId_;
 
     bool sparseLookahead_, overflowLmScoreToAm_, sparseLookaheadSlowPropagation_;
     f32  unigramLookaheadBackoffFactor_;
@@ -299,7 +300,7 @@ public:
     // Creates early word end hypotheses from the active state hypotheses
     void findWordEnds();
 
-    // Prunes early word end hypotheses, and expands them to normal word end hypothses
+    // Prunes early word end hypotheses, and expands them to normal word end hypotheses
     void pruneEarlyWordEnds();
 
     // Applies time-, score- and transit-modification to the given trace-id, and returns the corrected trace item (as successor of the original trace item)
@@ -326,13 +327,15 @@ public:
     void rescale(Score offset, bool ignoreWordEnds = false);
 
     // Returns the info from trace manager about whether it needs cleanup
-    inline bool needCleanup() const { return trace_manager_.needCleanup();}
+    inline bool needCleanup() const {
+        return trace_manager_.needCleanup();
+    }
 
     // Needs to be called once in a while, but not every timeframe,
     // deletes all traces that did not survive in stateHypotheses and rootStateHypotheses of activeTrees
     void cleanup();
 
-    // Optimize the lattice, removing redundant silence occurances
+    // Optimize the lattice, removing redundant silence occurrences
     void optimizeSilenceInWordLattice(const Bliss::Lemma* silence);
 
     Core::Ref<Trace> getSentenceEnd(TimeframeIndex time, bool shallCreateLattice);
@@ -358,18 +361,18 @@ public:
     void                                        setLookAhead(const std::deque<Core::Ref<const Speech::Feature>>&);
     Search::SearchAlgorithm::RecognitionContext setContext(Search::SearchAlgorithm::RecognitionContext);
 
-    ///Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
+    /// Returns the best prospect, eg. the score of the best state hypothesis including the look-ahead score
     Score bestProspect() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestProspectStateHypothesis() const;
-    ///Returns the best score (the look-ahead score is not included)
+    /// Returns the best score (the look-ahead score is not included)
     ///@warning: Expensive, but with caching
     Score bestScore() const;
     ///@warning: Expensive, without caching
     StateHypothesesList::const_iterator bestScoreStateHypothesis() const;
     Score                               quantileStateScore(Score min, Score max, u32 nHyp) const;
-    ///Returns the lowest word end score (without look-ahead)
-    ///Always valid after findWordEnds was called
+    /// Returns the lowest word end score (without look-ahead)
+    /// Always valid after findWordEnds was called
     Score minimumWordEndScore() const;
     Score quantileWordEndScore(Score min, Score max, u32 nHyp) const;
 

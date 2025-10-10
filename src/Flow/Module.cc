@@ -24,6 +24,7 @@
 #include "Cutter.hh"
 #include "Demo.hh"
 #include "Dump.hh"
+#include "InputNode.hh"
 #include "Pipe.hh"
 #include "Repeater.hh"
 #include "SequenceFilter.hh"
@@ -153,10 +154,12 @@ Module_::Module_() {
     registry.registerDatatype<Vector<std::complex<f64>>>();
     registry.registerDatatype<Vector<Vector<f32>>>();
     registry.registerDatatype<Flow::Vector<bool>>();
-    //registry.registerDatatype<new GatheredVector<f32> >();
+    // registry.registerDatatype<new GatheredVector<f32> >();
     registry.registerDatatype<String>();
     registry.registerDatatype<Aggregate>();
     registry.registerDatatype<TypedAggregate<Vector<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f64>>>();
+
+    registry.registerFilter<Flow::InputNode>();
 }

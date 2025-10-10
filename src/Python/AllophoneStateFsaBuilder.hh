@@ -15,6 +15,8 @@ public:
     AllophoneStateFsaBuilder(const Core::Configuration& c);
     ~AllophoneStateFsaBuilder() = default;
 
+    std::string getOrthographyBySegmentName(const std::string& segmentName);
+
     py::tuple buildBySegmentName(const std::string& segmentName);
 
     py::tuple buildByOrthography(const std::string& orthography);
@@ -22,7 +24,6 @@ public:
 private:
     std::shared_ptr<Nn::AllophoneStateFsaExporter>    allophoneStateFsaExporter_;
     std::shared_ptr<Core::StringHashMap<std::string>> segmentToOrthMap_;
-
 };
 
-#endif // _PYTHON_ALLOPHONESTATEFSABUILDER_HH
+#endif  // _PYTHON_ALLOPHONESTATEFSABUILDER_HH

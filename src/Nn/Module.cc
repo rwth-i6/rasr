@@ -12,11 +12,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include "Module.hh"
+
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
-
 #include <Modules.hh>
-#include "Module.hh"
+
+#include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/FixedContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoContextOnnxLabelScorer.hh"
+#include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -34,17 +42,12 @@
 #include "PythonFeatureScorer.hh"
 #endif
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include "LabelScorer.hh"
-#ifdef MODULE_TENSORFLOW
-#include "TFLabelScorer.hh"
-#endif
-#endif
-
 using namespace Nn;
 
 Module_::Module_()
-        : formats_(0) {
+        : formats_(nullptr),
+          encoderFactory_(),
+          labelScorerFactory_() {
     Flow::Registry::Instance& registry = Flow::Registry::instance();
 
 #ifdef MODULE_NN
@@ -71,6 +74,68 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // Performs log-linear combination of multiple sub-label-scorers
+    labelScorerFactory_.registerLabelScorer(
+            "combine",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CombineLabelScorer(config));
+            });
+
+    // Assumes inputs are already finished scores and just passes on the score at the current step
+    labelScorerFactory_.registerLabelScorer(
+            "no-op",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
+
+    // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-decoder",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
+                        labelScorerFactory_.createLabelScorer(Core::Configuration(config, "decoder"))));
+            });
+
+    // A label scorer consisting of an encoder that produces scores based on the features
+    labelScorerFactory_.registerLabelScorer(
+            "encoder-only",
+            [this](Core::Configuration const& config) {
+                return Core::ref(new EncoderDecoderLabelScorer(
+                        config,
+                        encoderFactory_.createEncoder(Core::Configuration(config, "encoder")),
+                        Core::ref(new StepwiseNoOpLabelScorer(config))));
+            });
+
+    // Compute scores by forwarding a single input feature vector without history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "no-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new NoContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores by forwarding a single input feature vector together with a fixed-size history through an ONNX model
+    labelScorerFactory_.registerLabelScorer(
+            "fixed-context-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on hidden state tensors.
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Returns predefined scores based on the transition type of each score request
+    labelScorerFactory_.registerLabelScorer(
+            "transition",
+            [](Core::Configuration const& config) {
+                return Core::ref(new TransitionLabelScorer(config));
+            });
 };
 
 Module_::~Module_() {
@@ -88,12 +153,10 @@ Core::FormatSet& Module_::formats() {
     return *formats_;
 }
 
+EncoderFactory& Module_::encoderFactory() {
+    return encoderFactory_;
+}
 
-Core::Ref<LabelScorer> Module_::createLabelScorer(const Core::Configuration& config) const {
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-  LabelScorer* labelScorer = nullptr;
-  return Core::ref(labelScorer);
-#else
-  Core::Application::us()->criticalError("Module MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH not available!");
-#endif
+LabelScorerFactory& Module_::labelScorerFactory() {
+    return labelScorerFactory_;
 }

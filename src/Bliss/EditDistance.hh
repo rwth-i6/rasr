@@ -175,6 +175,6 @@ public:
     }
 };
 
-};  //namespace Bliss
+};  // namespace Bliss
 
 #endif  // _BLISS_EDIT_DISTANCE

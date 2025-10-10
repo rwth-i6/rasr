@@ -22,6 +22,7 @@
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Search/StateTree.hh>
+#include <Search/Traceback.hh>
 #include <vector>
 #include "SearchSpace.hh"
 #include "SearchSpaceStatistics.hh"
@@ -37,7 +38,7 @@ using Core::tie;
 // ===========================================================================
 // Bookkeeping
 
-void AdvancedTreeSearchManager::traceback(Ref<Trace> end, SearchAlgorithm::Traceback& result, Ref<Trace> boundary) const {
+void AdvancedTreeSearchManager::traceback(Ref<Trace> end, Traceback& result, Ref<Trace> boundary) const {
     result.clear();
     for (; end && end != boundary; end = end->predecessor) {
         result.push_back(*end);
@@ -228,7 +229,7 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     ss_->pruneAndAddScores();
 
     if (time_ % cleanupInterval_ == 0 || ss_->needCleanup()) {
-        //We have to rescale before activating the word ends
+        // We have to rescale before activating the word ends
         ss_->rescale(ss_->bestScore());
         ss_->cleanup();
     }
@@ -419,9 +420,9 @@ void AdvancedTreeSearchManager::mergeEpsilonTraces(Ref<Trace> trace) const {
                 if (preTrace->pronunciation == epsilonLemmaPronunciation()) {
                     // Share another correction
                     Correction                     correction(preTrace->predecessor.get(),
-                                          preTrace->time - preTrace->predecessor->time,
-                                          preTrace->score.acoustic - preTrace->predecessor->score.acoustic,
-                                          preTrace->transit);
+                                                              preTrace->time - preTrace->predecessor->time,
+                                                              preTrace->score.acoustic - preTrace->predecessor->score.acoustic,
+                                                              preTrace->transit);
                     CorrectionHash::const_iterator it = corrections.find(correction);
                     if (it != corrections.end()) {
                         preTrace = arcTrace->predecessor = it->second;
@@ -452,7 +453,7 @@ void AdvancedTreeSearchManager::getCurrentBestSentence(Traceback& result) const 
     traceback(t, result);
 }
 
-void AdvancedTreeSearchManager::getCurrentBestSentencePartial(SearchAlgorithm::Traceback& result) const {
+void AdvancedTreeSearchManager::getCurrentBestSentencePartial(Traceback& result) const {
     Ref<Trace> t = sentenceEnd();
     if (!t) {
         result.clear();

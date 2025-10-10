@@ -12,31 +12,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef LMCACHE_HH
-#define LMCACHE_HH
+#ifndef ADVANCEDTREESEARCH_LMCACHE_HH
+#define ADVANCEDTREESEARCH_LMCACHE_HH
 
+#include <Core/Hash.hh>
 #include <Lm/LanguageModel.hh>
-// #include "LinearMiniHash.hh"
-
-template<class Key>
-struct StandardValueHash {
-    inline u32 operator()(Key a) const {
-        // a = (a+0x7ed55d16) + (a<<12);
-        a = (a ^ 0xc761c23c) ^ (a >> 19);
-        // a = (a+0x165667b1) + (a<<5);
-        // a = (a+0xd3a2646c) ^ (a<<9);
-        a = (a + 0xfd7046c5) + (a << 3);
-        // a = (a^0xb55a4f09) ^ (a>>16);
-        return a;
-    }
-};
 
 namespace Search {
 struct LmCacheKey {
     LmCacheKey(Lm::HistoryHandle h, Bliss::LemmaPronunciation::Id _pron)
             : history(h),
               pron(_pron),
-              hash_(StandardValueHash<Bliss::LemmaPronunciation::Id>()(pron) + (((size_t)history) * 311) + ((size_t)history) / sizeof(void*)) {
+              hash_(Core::StandardValueHash<Bliss::LemmaPronunciation::Id>()(pron) + (((size_t)history) * 311) + ((size_t)history) / sizeof(void*)) {
     }
 
     size_t hash() const {
@@ -75,9 +62,9 @@ struct LmCacheItem {
 class LmCache {
     ///@todo Make sure that the handles of the cached histories are kept alive
 public:
-    ///Should be called regularly to clean up the cache
-    ///All items that were not requested since the last call to clean()
-    ///will be removed.
+    /// Should be called regularly to clean up the cache
+    /// All items that were not requested since the last call to clean()
+    /// will be removed.
     ///@return the count of items remaining in the cache
     u32 clean() {
         oldCache_.swap(newCache_);
@@ -110,4 +97,4 @@ private:
 };
 }  // namespace Search
 
-#endif
+#endif  // ADVANCEDTREESEARCH_LMCACHE_HH

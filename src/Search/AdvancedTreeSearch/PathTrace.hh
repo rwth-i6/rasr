@@ -78,8 +78,8 @@ public:
 private:
     PathPruningDescriptor::Ref pruning;
 
-    ///Makes sure that the given descriptor is referenced only once, else creates a copy.
-    ///Use this before manipulating a descriptor.
+    /// Makes sure that the given descriptor is referenced only once, else creates a copy.
+    /// Use this before manipulating a descriptor.
     void makeUnique() {
         if (!pruning)
             pruning = PathPruningDescriptor::Ref(new PathPruningDescriptor);

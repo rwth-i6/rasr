@@ -576,7 +576,7 @@ protected:
         s->setInitialStateId(sp->id());
 
         Time lastEnd = start;
-        //if ((rec.cursor != rec.end()) && (rec.cursor->start > lastEnd)) {
+        // if ((rec.cursor != rec.end()) && (rec.cursor->start > lastEnd)) {
         //	rec.cursor = rec.begin();
         for (; (rec.cursor != rec.end()) && (rec.cursor->end <= lastEnd); ++rec.cursor)
             ;

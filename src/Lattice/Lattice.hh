@@ -141,8 +141,8 @@ public:
         return internal_[id].transit();
     }
     /*
-         * Find word boundary with maximum timeframe index.
-         */
+     * Find word boundary with maximum timeframe index.
+     */
     const WordBoundary getFinalWordBoundary() const;
 
     bool writeBinary(Core::BinaryOutputStream&) const;
@@ -262,9 +262,9 @@ public:
 /**
  * A "normal" word lattice with acoustic and language model scores
  * and word boundary information as it is produced by
- * WordConditionedTreeSearch.  This (badly named) class
+ * AdvancedTreeSearch.  This (badly named) class
  * facilitates the creation of word graph in
- * WordConditionedTreeSearch.  It will probably disappear in the
+ * AdvancedTreeSearch.  It will probably disappear in the
  * near future, when the WordLattice interface is refactored.
  */
 class StandardWordLattice : public WordLattice {
@@ -278,10 +278,10 @@ private:
     Core::Ref<Fsa::StaticAutomaton> acoustic_, lm_;
     Fsa::State *                    initialState_, *finalState_;
     AlphabetType                    alphabetType_;
-    
-    void newArc(Fsa::State* source,
-                Fsa::State* target,
-                Fsa::LabelId id,
+
+    void newArc(Fsa::State*   source,
+                Fsa::State*   target,
+                Fsa::LabelId  id,
                 Speech::Score acoustic, Speech::Score lm);
 
 public:
@@ -300,8 +300,8 @@ public:
                 const Bliss::LemmaPronunciation*,
                 Speech::Score acoustic, Speech::Score lm);
 
-    void newArc(Fsa::State *source,
-                Fsa::State *target,
+    void newArc(Fsa::State* source,
+                Fsa::State* target,
                 const Bliss::Lemma*,
                 Speech::Score acoustic, Speech::Score lm);
 

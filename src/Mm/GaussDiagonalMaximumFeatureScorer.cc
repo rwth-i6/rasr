@@ -21,7 +21,7 @@
 
 using namespace Mm;
 
-//GaussDiagonalMaximumFeatureScorer::Context
+// GaussDiagonalMaximumFeatureScorer::Context
 ////////////////////////////////////////////
 
 GaussDiagonalMaximumFeatureScorer::Context::Context(const FeatureVector&                     featureVector,
@@ -85,7 +85,7 @@ void GaussDiagonalMaximumFeatureScorer::init(const MixtureSet& mixtureSet) {
     }
 }
 
-//debug
+// debug
 void GaussDiagonalMaximumFeatureScorer::outputMeanVectors() const {
     // pure debug method ! delete me after the bug is exterminated
 
@@ -111,7 +111,7 @@ void GaussDiagonalMaximumFeatureScorer::outputMeanVectors() const {
         std::cout << "////////////////////" << std::endl;
     }
 }
-//end debug
+// end debug
 
 AssigningFeatureScorer::ScoreAndBestDensity GaussDiagonalMaximumFeatureScorer::calculateScoreAndDensity(
         const CachedAssigningContextScorer* cs, MixtureIndex mixtureIndex) const {

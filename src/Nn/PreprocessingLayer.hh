@@ -87,57 +87,7 @@ public:
 
 public:
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input){};
-};
-
-/**
- *  Nth-order polynomial preprocessing layer (useful for log-linear models)
- */
-
-template<typename T>
-class PolynomialPreprocessingLayer : public virtual NeuralNetworkLayer<T> {
-    typedef NeuralNetworkLayer<T>       Precursor;
-    typedef typename Types<T>::NnVector NnVector;
-    typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterInt     paramOrder;
-
-protected:
-    const u32 order_;
-
-public:
-    PolynomialPreprocessingLayer(const Core::Configuration& config);
-    virtual ~PolynomialPreprocessingLayer() {}
-
-private:
-    void _forward(const NnMatrix& input, NnMatrix& output);
-
-public:
-    virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
-};
-
-//====================================================================================
-
-/** Gaussian noise preprocessing layer */
-
-template<typename T>
-class GaussianNoisePreprocessingLayer : public virtual NeuralNetworkLayer<T> {
-    typedef NeuralNetworkLayer<T>       Precursor;
-    typedef typename Types<T>::NnVector NnVector;
-    typedef typename Types<T>::NnMatrix NnMatrix;
-    static const Core::ParameterFloat   paramStandardDeviation;
-
-protected:
-    const T standardDeviation_;
-
-public:
-    GaussianNoisePreprocessingLayer(const Core::Configuration& config);
-    virtual ~GaussianNoisePreprocessingLayer() {}
-
-private:
-    void _forward(const NnMatrix& input, NnMatrix& output);
-
-public:
-    virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output);
+    virtual void backpropagateWeights(const NnMatrix& output, std::vector<NnMatrix*>& input) {};
 };
 
 }  // namespace Nn

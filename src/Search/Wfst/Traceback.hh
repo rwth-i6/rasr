@@ -17,6 +17,7 @@
 
 #include <OpenFst/Types.hh>
 #include <Search/Search.hh>
+#include <Search/Traceback.hh>
 #include <Search/Types.hh>
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 
@@ -27,11 +28,9 @@ class WordEndDetector;
 
 class BestPath {
 protected:
-    typedef OpenFst::Label             Label;
-    typedef SearchAlgorithm::Traceback Traceback;
+    typedef OpenFst::Label Label;
 
 public:
-    typedef SearchAlgorithm::ScoreVector ScoreVector;
     struct Item {
         Label          word;
         TimeframeIndex time;

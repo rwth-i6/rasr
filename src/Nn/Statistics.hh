@@ -138,7 +138,7 @@ public:
     }
 
     /** return the gradient of a certain layer*/
-    //assumption: layer is trainable
+    // assumption: layer is trainable
     std::vector<NnMatrix>& gradientWeights(u32 layer) {
         return gradientWeights_.at(layerIndexToTrainableLayerIndex_.at(layer));
     }
@@ -351,6 +351,6 @@ public:
             : std::string("nn-statistics-f64") {}
 };
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _NN_NEURAL_NETWORK_STATISTICS_HH

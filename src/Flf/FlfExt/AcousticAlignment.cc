@@ -274,7 +274,7 @@ StateAlignment LatticeAlignment::stateAlignment(const State* sp, State::const_it
             CoarticulatedLemmaPronunciation  coLp(
                     *tmpLp,
                     Bliss::Phoneme::term,   // leftBoundary.transit().final,
-                    Bliss::Phoneme::term);  //rightBoundary.transit().initial,
+                    Bliss::Phoneme::term);  // rightBoundary.transit().initial,
 #if 0                                        // not supported by the acoustic lattice rescoring
                     (leftBoundary.transit().boundary == AcrossWordBoundary) ? Am::Phonology::isInitialPhone : Am::Phonology::isWithinPhone,
                     (rightBoundary.transit().boundary == AcrossWordBoundary) ? Am::Phonology::isFinalPhone : Am::Phonology::isWithinPhone);

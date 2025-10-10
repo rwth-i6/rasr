@@ -33,16 +33,13 @@ LabelScorer::LabelScorer(const Core::Configuration& config)
           ignoredTransitionTypes_() {
     auto ignoredTransitionTypeStrings = paramIgnoredTransitionTypes(config);
     for (auto const& transitionTypeString : ignoredTransitionTypeStrings) {
-        bool identifierFound = false;
-        for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
-            if (stringIdentifier == transitionTypeString) {
-                ignoredTransitionTypes_.insert(enumValue);
-                identifierFound = true;
-                break;
-            }
+        auto it = std::find_if(transitionTypeArray_.begin(),
+                               transitionTypeArray_.end(),
+                               [&](auto const& entry) { return entry.first == transitionTypeString; });
+        if (it != transitionTypeArray_.end()) {
+            ignoredTransitionTypes_.insert(it->second);
         }
-
-        if (not identifierFound) {
+        else {
             error() << "Ignored transition type name '" << transitionTypeString << "' is not a valid identifier";
         }
     }
@@ -71,16 +68,17 @@ std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTime(Requ
 
 std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     // First, collect all requests for which the transition type is not ignored
-    std::vector<Request>       nonIgnoredRequests;
-    std::unordered_set<size_t> nonIgnoredRequestIndices;
+    std::vector<Request> nonIgnoredRequests;
     nonIgnoredRequests.reserve(requests.size());
+
+    std::vector<size_t> nonIgnoredRequestIndices;
     nonIgnoredRequestIndices.reserve(requests.size());
 
     for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
         auto const& request = requests[requestIndex];
         if (not ignoredTransitionTypes_.contains(request.transitionType)) {
             nonIgnoredRequests.push_back(request);
-            nonIgnoredRequestIndices.emplace(requestIndex);
+            nonIgnoredRequestIndices.push_back(requestIndex);
         }
     }
 
@@ -91,18 +89,12 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     }
 
     // Interleave actual results with 0 scores for requests with ignored transition types
-    ScoresWithTimes result;
-    size_t          nonIgnoredResultsIdx = 0ul;
-    for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
-        if (nonIgnoredRequestIndices.contains(requestIndex)) {
-            result.scores.push_back(nonIgnoredResults->scores[nonIgnoredResultsIdx]);
-            result.timeframes.push_back(nonIgnoredResults->timeframes[nonIgnoredResultsIdx]);
-            ++nonIgnoredResultsIdx;
-        }
-        else {
-            result.scores.push_back(0.0);
-            result.timeframes.push_back(0);
-        }
+    ScoresWithTimes result{{requests.size(), 0.0}, {requests.size(), 0}};
+    for (size_t i = 0ul; i < nonIgnoredRequestIndices.size(); ++i) {
+        auto requestResult          = nonIgnoredResults[i];
+        auto requestIndex           = nonIgnoredRequestIndices[i];
+        result.scores[requestIndex] = requestResult.score;
+        result.timeframes.set(requestIndex, requestResult.timeframe);
     }
 
     return result;

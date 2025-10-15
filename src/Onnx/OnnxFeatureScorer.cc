@@ -3,15 +3,15 @@
  */
 #include "OnnxFeatureScorer.hh"
 
-//#include "Module.hh"
+#include "Value.hh"
 
 namespace {
 
-std::vector<Onnx::IOSpecification> getIOSpec(int64_t num_features, int64_t num_classes) {
+std::vector<Onnx::IOSpecification> getIOSpec(bool static_dims, int64_t num_features, int64_t num_classes) {
     return std::vector<Onnx::IOSpecification>({
-            Onnx::IOSpecification{"features", Onnx::IODirection::INPUT, false, {Onnx::ValueType::TENSOR}, {Onnx::ValueDataType::FLOAT}, {{-1, -1, num_features}, {1, -1, num_features}}},
+            Onnx::IOSpecification{"features", Onnx::IODirection::INPUT, false, {Onnx::ValueType::TENSOR}, {Onnx::ValueDataType::FLOAT}, {{-1, -1, num_features}, {1, static_dims ? -2 : -1, num_features}}},
             Onnx::IOSpecification{"features-size", Onnx::IODirection::INPUT, true, {Onnx::ValueType::TENSOR}, {Onnx::ValueDataType::INT32}, {{-1}}},
-            Onnx::IOSpecification{"output", Onnx::IODirection::OUTPUT, false, {Onnx::ValueType::TENSOR}, {Onnx::ValueDataType::FLOAT}, {{-1, -1, num_classes}, {1, -1, num_classes}}},
+            Onnx::IOSpecification{"output", Onnx::IODirection::OUTPUT, false, {Onnx::ValueType::TENSOR}, {Onnx::ValueDataType::FLOAT}, {{-1, static_dims ? -2 : -1, num_classes}, {1, static_dims ? -2 : -1, num_classes}}},
     });
 }
 
@@ -46,15 +46,21 @@ private:
     u32                      batchIteration_;
 };
 
+const Core::ParameterBool OnnxFeatureScorer::paramAllowStaticDimensions("allow-static-dimensions", "whether to allow static input/output dimensions for the time axis", false);
+
 const Core::ParameterBool OnnxFeatureScorer::paramApplyLogOnOutput("apply-log-on-output", "whether to apply the log-function on the output, usefull if the model outputs softmax instead of log-softmax", false);
 
-const Core::ParameterBool OnnxFeatureScorer::paramNegateOutput("negate-output", "wheter negate output (because the model outputs log softmax and not negative log softmax", true);
+const Core::ParameterBool OnnxFeatureScorer::paramNegateOutput("negate-output", "wether to negate output (because the model outputs log softmax and not negative log softmax", true);
+const Core::ParameterBool OnnxFeatureScorer::paramUseOutputAsIs(
+        "use-output-as-is", "return the output of the neural network without modification", false);
 
 OnnxFeatureScorer::OnnxFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet)
         : Core::Component(config),
           Mm::FeatureScorer(config),
+          allowStaticDimensions_(paramAllowStaticDimensions(config)),
           applyLogOnOutput_(paramApplyLogOnOutput(config)),
           negateOutput_(paramNegateOutput(config)),
+          useOutputAsIs_(paramUseOutputAsIs(config)),
           prior_(config),
           labelWrapper_(),
           expectedFeatureDim_(0l),
@@ -65,9 +71,10 @@ OnnxFeatureScorer::OnnxFeatureScorer(const Core::Configuration& config, Core::Re
           scoresComputed_(false),
           scores_(new Math::FastMatrix<Float>()),
           session_(select("session")),
-          ioSpec_(getIOSpec(-2, -2)),
+          ioSpec_(getIOSpec(allowStaticDimensions_, -2, -2)),
           mapping_(select("io-map"), ioSpec_),
-          validator_(select("validator")) {
+          validator_(select("validator")),
+          state_manager_() {
     bool valid = validator_.validate(ioSpec_, mapping_, session_);
     if (not valid) {
         log("Failed to validate input model");
@@ -84,12 +91,20 @@ OnnxFeatureScorer::OnnxFeatureScorer(const Core::Configuration& config, Core::Re
         if (prior_.fileName() != "") {
             prior_.read();
         }
-        else {
+        else if (mixtureSet->nDensities() > 0) {  // is not empty mixture set
             prior_.setFromMixtureSet(mixtureSet, *labelWrapper_);
         }
+        else {
+            prior_.initUniform(expectedOutputDim_);
+        }
+
         // The prior classes are the NN output classes.
         require_eq(labelWrapper_->nClassesToAccumulate(), prior_.size());
     }
+
+    state_manager_   = StateManager::create(select("state-manager"));
+    state_variables_ = session_.getStateVariablesMetadata();
+    state_manager_->setInitialStates(state_variables_);
 }
 
 Mm::EmissionIndex OnnxFeatureScorer::nMixtures() const {
@@ -107,34 +122,30 @@ Mm::FeatureScorer::Scorer OnnxFeatureScorer::getScorer(const Mm::FeatureVector& 
 }
 
 Mm::Score OnnxFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) const {
-    size_t num_frames = inputBuffer_.size();
-    require_lt(position, num_frames);
-    // process buffer if needed
-    if (!scoresComputed_) {
-        std::vector<std::pair<std::string, Value>> inputs;
-        std::vector<std::string>                   output_names;
+    const_cast<OnnxFeatureScorer*>(this)->computeScoresInternal();
+    require_lt(position, scores_->nRows());
 
-        inputs.emplace_back(mapping_.getOnnxName("features"), createInputValue());
-        if (mapping_.hasOnnxName("features-size")) {
-            inputs.emplace_back(mapping_.getOnnxName("features-size"),
-                                Value::create(std::vector<s32>{static_cast<s32>(num_frames)}));
+    Mm::Score score = Core::Type<Mm::Score>::max;
+
+    if (labelWrapper_->isClassToAccumulate(e)) {
+        u32 idx = labelWrapper_->getOutputIndexFromClassIndex(e);
+        score   = scores_->at(position, idx);
+        if (useOutputAsIs_) {
+            return score;
         }
-        output_names.push_back(mapping_.getOnnxName("output"));
+        if (applyLogOnOutput_) {
+            score = Core::log(score);
+        }
+        if (negateOutput_) {
+            score = -score;
+        }
 
-        auto t_start = std::chrono::steady_clock::now();
-
-        std::vector<Value> output;
-        session_.run(std::move(inputs), output_names, output);
-        output[0].get<>(0, *scores_);
-
-        auto t_end     = std::chrono::steady_clock::now();
-        auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
-        log("num_frames: %zu elapsed: %f AM_RTF: %f", num_frames, t_elapsed, t_elapsed / (num_frames / 100.0));
-
-        // mark computed
-        scoresComputed_ = true;
+        if (prior_.scale() != 0.0f) {
+            score -= -prior_.at(idx) * prior_.scale();  // priors are in +log space. substract them
+        }
     }
-    return getScoreFromOutput(e, position);
+
+    return score;
 }
 
 void OnnxFeatureScorer::reset() const {
@@ -148,18 +159,20 @@ void OnnxFeatureScorer::reset() const {
 }
 
 void OnnxFeatureScorer::finalize() const {
+    state_manager_->setInitialStates(state_variables_);
 }
 
 void OnnxFeatureScorer::addFeature(const Mm::FeatureVector& f) const {
     // Lazily call reset() when flush() went through all the buffer before.
-    if (currentFeature_ > 0 && currentFeature_ >= inputBuffer_.size()) {
+    if (currentFeature_ > 0 && scoresComputed_ && currentFeature_ >= scores_->nRows()) {
         reset();
     }
     addFeatureInternal(f);
 }
 
 Mm::FeatureScorer::Scorer OnnxFeatureScorer::flush() const {
-    require_lt(currentFeature_, inputBuffer_.size());
+    const_cast<OnnxFeatureScorer*>(this)->computeScoresInternal();
+    require_lt(currentFeature_, scores_->nRows());
     Scorer scorer(new ContextScorer(this, currentFeature_, batchIteration_));
     currentFeature_++;
     // We must not call reset() here because the calls to getScore() will be delayed.
@@ -167,7 +180,8 @@ Mm::FeatureScorer::Scorer OnnxFeatureScorer::flush() const {
 }
 
 Mm::FeatureScorer::Scorer OnnxFeatureScorer::getTimeIndexedScorer(u32 time) const {
-    require_lt(time, inputBuffer_.size());
+    const_cast<OnnxFeatureScorer*>(this)->computeScoresInternal();
+    require_lt(time, scores_->nRows());
     Scorer scorer(new ContextScorer(this, time, batchIteration_));
     return scorer;
 }
@@ -180,6 +194,46 @@ void OnnxFeatureScorer::addFeatureInternal(const Mm::FeatureVector& f) const {
                       expectedFeatureDim_, f.size());
     }
     inputBuffer_.push_back(f);
+}
+
+void OnnxFeatureScorer::computeScoresInternal() {
+    if (!scoresComputed_) {
+        size_t                                     num_frames = inputBuffer_.size();
+        std::vector<std::pair<std::string, Value>> inputs;
+        std::vector<std::string>                   output_names;
+
+        // input features and output scores
+        inputs.emplace_back(mapping_.getOnnxName("features"), createInputValue());
+        if (mapping_.hasOnnxName("features-size")) {
+            inputs.emplace_back(mapping_.getOnnxName("features-size"),
+                                Value::create(std::vector<s32>{static_cast<s32>(num_frames)}));
+        }
+        output_names.push_back(mapping_.getOnnxName("output"));
+
+        // input and output states
+        state_manager_->extendFeedDict(inputs, state_variables_);
+        state_manager_->extendTargets(output_names, state_variables_);
+
+        auto t_start = std::chrono::steady_clock::now();
+
+        std::vector<Value> output;
+        session_.run(std::move(inputs), output_names, output);
+        output[0].get<>(0, *scores_);  // output scores
+
+        // get new states
+        std::vector<Value> output_states;
+        for (size_t i = 1ul; i < output.size(); i++) {  // other model outputs
+            output_states.emplace_back(std::move(output[i]));
+        }
+        state_manager_->updateStates(output_states);
+
+        auto t_end     = std::chrono::steady_clock::now();
+        auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
+        log("num_frames: %zu elapsed: %f AM_RTF: %f", num_frames, t_elapsed, t_elapsed / (num_frames / 100.0));
+
+        // mark computed
+        scoresComputed_ = true;
+    }
 }
 
 Value OnnxFeatureScorer::createInputValue() const {
@@ -195,27 +249,6 @@ Value OnnxFeatureScorer::createInputValue() const {
         }
     }
     return Value::create(nnBuffer, true);
-}
-
-Mm::Score OnnxFeatureScorer::getScoreFromOutput(Mm::EmissionIndex e, u32 position) const {
-    Mm::Score score = Core::Type<Mm::Score>::max;
-
-    if (labelWrapper_->isClassToAccumulate(e)) {
-        u32 idx = labelWrapper_->getOutputIndexFromClassIndex(e);
-        score   = scores_->at(position, idx);
-        if (applyLogOnOutput_) {
-            score = Core::log(score);
-        }
-        if (negateOutput_) {
-            score = -score;
-        }
-
-        if (prior_.scale() != 0.0f) {
-            score -= -prior_.at(idx) * prior_.scale();  // priors are in +log space. substract them
-        }
-    }
-
-    return score;
 }
 
 }  // namespace Onnx

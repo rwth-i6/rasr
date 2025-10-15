@@ -115,6 +115,6 @@ Math::Vector<double> convert2Vector(const std::map<NodeId, Math::Vector<double>>
 void                 convert2Matrices(const Math::Vector<double>& x, std::map<NodeId, Math::Vector<double>>& l,
                                       Math::Matrix<double>& u, Math::Matrix<double>& v, ComponentIndex dim);
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_SEMITIEDADAPTATION_HH

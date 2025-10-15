@@ -218,7 +218,7 @@ void AlignmentResetWeightsNode::transform(Alignment& a) {
         a.getFrames(frames);
         std::vector<Alignment::Frame>::const_iterator frame_i;
         for (frame_i = frames.begin(); frame_i != frames.end(); ++frame_i) {
-            Alignment::iterator state_i, state_i_end;  //start- and end-states for timeframe i
+            Alignment::iterator state_i, state_i_end;  // start- and end-states for timeframe i
             for (Core::tie(state_i, state_i_end) = *frame_i; state_i != state_i_end; ++state_i) {
                 Am::AllophoneState alloState = acousticModel_->allophoneStateAlphabet()->allophoneState(state_i->emission);
                 if (selectPhones_.count(alloState.allophone()->central())) {
@@ -255,7 +255,7 @@ void AlignmentResetWeightsNode::transform(Alignment& a) {
 
         std::vector<Alignment::Frame>::const_iterator frame_i;
         for (frame_i = frames.begin(); frame_i != frames.end(); ++frame_i) {
-            Alignment::iterator          state_i, state_i_end;  //start- and end-states for timeframe i
+            Alignment::iterator          state_i, state_i_end;  // start- and end-states for timeframe i
             std::unordered_map<u32, f32> frameStateProb;
             std::unordered_map<u32, u32> frameStateCounts;
             for (Core::tie(state_i, state_i_end) = *frame_i; state_i != state_i_end; ++state_i) {

@@ -93,10 +93,12 @@ class Speaker : public NamedCorpusEntity {
     friend class SpeakerDescriptionElement;
 
 public:
-    enum Gender { unknown,
-                  male,
-                  female,
-                  nGenders };
+    enum Gender {
+        unknown,
+        male,
+        female,
+        nGenders
+    };
     static const char* genderId[nGenders];
 
 private:
@@ -320,9 +322,11 @@ class Segment : public ParentEntity {
     friend class CorpusDescriptionParser;
 
 public:
-    enum Type { typeSpeech,
-                typeOther,
-                nTypes };
+    enum Type {
+        typeSpeech,
+        typeOther,
+        nTypes
+    };
     static const char* typeId[nTypes];
 
 private:
@@ -563,9 +567,11 @@ private:
 
     ProgressReportingVisitorAdaptor* reporter_;
 
-    enum ProgressIndcationMode { noProgress,
-                                 localProgress,
-                                 globalProgress };
+    enum ProgressIndcationMode {
+        noProgress,
+        localProgress,
+        globalProgress
+    };
     static const Core::Choice          progressIndicationChoice;
     static const Core::ParameterChoice paramProgressIndication;
     ProgressIndcationMode              progressIndicationMode_;
@@ -590,7 +596,6 @@ public:
     static const Core::ParameterBool         paramSegmentOrderSortByTimeLength;
     static const Core::ParameterInt          paramSegmentOrderSortByTimeLengthChunkSize;
     static const Core::ParameterBool         paramProgressReportingSegmentOrth;
-    static const Core::ParameterBool         paramTheanoSegmentOrder;
     static const Core::ParameterBool         paramPythonSegmentOrder;
     static const Core::ParameterString       paramPythonSegmentOrderModPath;
     static const Core::ParameterString       paramPythonSegmentOrderModName;

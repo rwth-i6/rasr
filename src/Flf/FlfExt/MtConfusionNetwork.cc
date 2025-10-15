@@ -53,7 +53,9 @@ public:
 
 public:
     MtCnFeatureLattice(ConstLatticeRef l, ConstConfusionNetworkRef cn, RescoreMode rescoreMode, const FeatureIds& ids)
-            : Precursor(l, rescoreMode), cn_(cn), ids_(ids) {
+            : Precursor(l, rescoreMode),
+              cn_(cn),
+              ids_(ids) {
         verify(cn_->hasMap());
         if ((ids_.confidenceId != Semiring::InvalidId) || (ids_.scoreId != Semiring::InvalidId) || (ids_.slotEntropyId != Semiring::InvalidId) || (ids_.nonEpsSlotId != Semiring::InvalidId))
             normalizedCn_ = (cn_->isNormalized()) ? cn_ : normalizeCn(cn_, ids_.cnPosteriorId);
@@ -190,7 +192,9 @@ protected:
         Fsa::StateId bptr;
         Fsa::StateId aid;
         TraceElement()
-                : score(Semiring::Max), bptr(Fsa::InvalidStateId), aid(Fsa::InvalidStateId) {}
+                : score(Semiring::Max),
+                  bptr(Fsa::InvalidStateId),
+                  aid(Fsa::InvalidStateId) {}
     };
     typedef std::vector<TraceElement> Traceback;
 
@@ -294,7 +298,8 @@ protected:
 
 public:
     MtCnFeatureNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), alignedBestChannel_(config, "best") {}
+            : Precursor(name, config),
+              alignedBestChannel_(config, "best") {}
     ~MtCnFeatureNode() {}
 
     void init(const std::vector<std::string>& arguments) {
@@ -306,7 +311,7 @@ public:
         cnPosteriorKey_ = paramPosteriorKey(select("cn"));
         if (cnPosteriorKey_.empty())
             msg << "CN posterior key: " << cnPosteriorKey_ << "\n";
-        //else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
+        // else criticalError("Definition of a key pointing at a posterior probability distribution in the CN is mandatory.");
         msg << "Store the following CN features:\n";
         confidenceKey_ = paramKey(select("confidence"));
         if (!confidenceKey_.empty())

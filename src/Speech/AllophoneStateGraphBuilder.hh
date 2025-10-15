@@ -64,7 +64,9 @@ public:
         FunctorBase(AllophoneStateGraphBuilder& builder,
                     const std::string&          id,
                     BuilderInput... builderInput)
-                : builder_(builder), id_(id), builderInput_(builderInput...) {}
+                : builder_(builder),
+                  id_(id),
+                  builderInput_(builderInput...) {}
 
         const std::string& id() const {
             return id_;
@@ -162,8 +164,8 @@ protected:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Core::XmlChannel                   modelChannel_;
 
-    bool flatModelAcceptor_; // true: single path only
-    u32  minDuration_; // minimum duration
+    bool flatModelAcceptor_;  // true: single path only
+    u32  minDuration_;        // minimum duration
 
 protected:
     // compose-builds allophone-state transducer from lemma acceptor (no additional transitions)
@@ -210,8 +212,10 @@ public:
         return Functor<const std::string>(*this, s.fullName(), s.orth());
     }
     /** Builds allophone state acceptor for phoneme loops, cf. phoneme recognition. */
-    enum InputLevel { lemma,
-                      phone };
+    enum InputLevel {
+        lemma,
+        phone
+    };
     AllophoneStateGraphRef build(const InputLevel& level);
     AllophoneStateGraphRef build(std::tuple<const InputLevel&> const& t) {
         return build(std::get<0>(t));
@@ -296,8 +300,8 @@ public:
             const Core::Configuration&         config,
             Core::Ref<const Bliss::Lexicon>    lexicon,
             Core::Ref<const Am::AcousticModel> acousticModel,
-            bool                               flatModelAcceptor) :
-        Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
+            bool                               flatModelAcceptor)
+            : Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
 
     // further apply transition model (loop, skip + weights)
     Fsa::ConstAutomatonRef buildTransducer(Fsa::ConstAutomatonRef);
@@ -305,7 +309,6 @@ public:
 private:
     Fsa::ConstAutomatonRef applyMinimumDuration(Fsa::ConstAutomatonRef);
 };
-
 
 class CTCTopologyGraphBuilder : public AllophoneStateGraphBuilder {
     typedef AllophoneStateGraphBuilder Precursor;
@@ -328,13 +331,12 @@ protected:
     virtual Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model);
 
 private:
-    bool transitionChecked_;
+    bool         transitionChecked_;
     Fsa::StateId finalStateId_;
     Fsa::LabelId silenceId_;
 
     void checkTransitionModel();
 };
-
 
 class RNATopologyGraphBuilder : public CTCTopologyGraphBuilder {
     typedef CTCTopologyGraphBuilder Precursor;
@@ -344,14 +346,16 @@ public:
             const Core::Configuration&         config,
             Core::Ref<const Bliss::Lexicon>    lexicon,
             Core::Ref<const Am::AcousticModel> acousticModel,
-            bool                               flatModelAcceptor):
-        Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
+            bool                               flatModelAcceptor)
+            : Precursor(config, lexicon, acousticModel, flatModelAcceptor) {}
 
 protected:
     void addBlank(Core::Ref<Fsa::StaticAutomaton>&, Fsa::StateId, std::deque<Fsa::StateId>&);
 
     // no label loop
-    Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model) { return model; }
+    Fsa::ConstAutomatonRef addLoopTransition(Fsa::ConstAutomatonRef model) {
+        return model;
+    }
 };
 
 }  // namespace Speech

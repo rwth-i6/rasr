@@ -27,10 +27,14 @@ namespace Core {
 // ***************************************************************************
 
 CompressedInputStream::CompressedInputStream()
-        : std::istream(0), file_buf_(nullptr), buf_(nullptr) {}
+        : std::istream(0),
+          file_buf_(nullptr),
+          buf_(nullptr) {}
 
 CompressedInputStream::CompressedInputStream(const std::string& name)
-        : std::istream(0), file_buf_(nullptr), buf_(nullptr) {
+        : std::istream(0),
+          file_buf_(nullptr),
+          buf_(nullptr) {
     open(name);
 }
 
@@ -67,10 +71,14 @@ void CompressedInputStream::close() {
 // ***************************************************************************
 
 CompressedOutputStream::CompressedOutputStream()
-        : std::ostream(0), file_buf_(nullptr), buf_(nullptr) {}
+        : std::ostream(0),
+          file_buf_(nullptr),
+          buf_(nullptr) {}
 
 CompressedOutputStream::CompressedOutputStream(const std::string& name)
-        : std::ostream(0), file_buf_(nullptr), buf_(nullptr) {
+        : std::ostream(0),
+          file_buf_(nullptr),
+          buf_(nullptr) {
     open(name);
 }
 
@@ -103,7 +111,7 @@ void CompressedOutputStream::open(const std::string& name) {
 
 void CompressedOutputStream::close() {
     if (buf_) {
-        if (buf_ != std::cin.rdbuf()) {
+        if (buf_ != std::cout.rdbuf()) {
             delete buf_;
         }
         buf_ = nullptr;

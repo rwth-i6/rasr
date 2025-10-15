@@ -35,9 +35,11 @@ public:
                 : final(Bliss::Phoneme::term),
                   initial(Bliss::Phoneme::term) {}
         Transit(const std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>& transit)
-                : final(transit.first), initial(transit.second) {}
+                : final(transit.first),
+                  initial(transit.second) {}
         Transit(Bliss::Phoneme::Id _final, Bliss::Phoneme::Id _initial)
-                : final(_final), initial(_initial) {}
+                : final(_final),
+                  initial(_initial) {}
 
         bool operator==(const Transit& rhs) const {
             return final == rhs.final && initial == rhs.initial;
@@ -54,10 +56,12 @@ public:
     WordBoundary(Speech::TimeframeIndex time = Speech::InvalidTimeframeIndex)
             : time_(time) {}
     WordBoundary(Speech::TimeframeIndex time, const Transit& transit)
-            : time_(time), transit_(transit) {}
+            : time_(time),
+              transit_(transit) {}
     WordBoundary(Speech::TimeframeIndex                                   time,
                  const std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>& transit)
-            : time_(time), transit_(transit) {}
+            : time_(time),
+              transit_(transit) {}
 
     void setTime(Speech::TimeframeIndex time) {
         time_ = time;
@@ -141,8 +145,8 @@ public:
         return internal_[id].transit();
     }
     /*
-         * Find word boundary with maximum timeframe index.
-         */
+     * Find word boundary with maximum timeframe index.
+     */
     const WordBoundary getFinalWordBoundary() const;
 
     bool writeBinary(Core::BinaryOutputStream&) const;
@@ -244,17 +248,22 @@ public:
     void setWordBoundaries(Core::Ref<const WordBoundaries> wordBoundaries) {
         wordBoundaries_ = wordBoundaries;
     }
+
     Core::Ref<const WordBoundaries> wordBoundaries() const {
         return wordBoundaries_;
     }
+
     const WordBoundary& wordBoundary(Fsa::StateId id) const {
         return (*wordBoundaries_)[id];
     }
+
     Speech::TimeframeIndex time(Fsa::StateId id) const {
         return (*wordBoundaries_)[id].time();
     }
+
     Speech::TimeframeIndex maximumTime() const;
-    bool                   hasPart(const std::string& name) const {
+
+    bool hasPart(const std::string& name) const {
         return parts_[name] != Core::Choice::IllegalValue;
     }
 };
@@ -262,9 +271,9 @@ public:
 /**
  * A "normal" word lattice with acoustic and language model scores
  * and word boundary information as it is produced by
- * WordConditionedTreeSearch.  This (badly named) class
+ * AdvancedTreeSearch.  This (badly named) class
  * facilitates the creation of word graph in
- * WordConditionedTreeSearch.  It will probably disappear in the
+ * AdvancedTreeSearch.  It will probably disappear in the
  * near future, when the WordLattice interface is refactored.
  */
 class StandardWordLattice : public WordLattice {
@@ -278,10 +287,10 @@ private:
     Core::Ref<Fsa::StaticAutomaton> acoustic_, lm_;
     Fsa::State *                    initialState_, *finalState_;
     AlphabetType                    alphabetType_;
-    
-    void newArc(Fsa::State* source,
-                Fsa::State* target,
-                Fsa::LabelId id,
+
+    void newArc(Fsa::State*   source,
+                Fsa::State*   target,
+                Fsa::LabelId  id,
                 Speech::Score acoustic, Speech::Score lm);
 
 public:
@@ -300,8 +309,8 @@ public:
                 const Bliss::LemmaPronunciation*,
                 Speech::Score acoustic, Speech::Score lm);
 
-    void newArc(Fsa::State *source,
-                Fsa::State *target,
+    void newArc(Fsa::State* source,
+                Fsa::State* target,
                 const Bliss::Lemma*,
                 Speech::Score acoustic, Speech::Score lm);
 

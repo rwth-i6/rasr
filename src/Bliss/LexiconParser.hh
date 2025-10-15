@@ -31,7 +31,7 @@ class PhonemeInventoryElement : public Core::XmlBuilderElement<
             PhonemeInventory,
             Core::XmlRegularElement,
             Core::CreateUsingNew>
-            Precursor;
+                                    Precursor;
     typedef PhonemeInventoryElement Self;
 
 private:
@@ -51,17 +51,20 @@ struct WeightedPhonemeString;
 class PronunciationElement;
 class LexiconElement;
 class LexiconParser;
+class TextLexiconParser;
+class XmlLexiconParser;
 
 class LexiconElement : public Core::XmlBuilderElement<
                                Lexicon,
                                Core::XmlRegularElement,
                                Core::CreateByContext> {
     friend class LexiconParser;
+    friend class XmlLexiconParser;
     typedef Core::XmlBuilderElement<
             Lexicon,
             Core::XmlRegularElement,
             Core::CreateByContext>
-            Precursor;
+                           Precursor;
     typedef LexiconElement Self;
 
 private:
@@ -93,7 +96,17 @@ private:
 
 public:
     LexiconElement(Core::XmlContext*, CreationHandler, const Core::Configuration& c);
-    virtual void characters(const char*, int){};
+    virtual void characters(const char*, int) {};
+};
+
+/*
+ * Base lexicon parser class
+ */
+class LexiconParser {
+public:
+    virtual ~LexiconParser() {}
+    virtual bool     parseFile(const std::string& filename) = 0;
+    virtual Lexicon* lexicon() const                        = 0;
 };
 
 /**
@@ -103,10 +116,8 @@ public:
  * Format Reference</a>.  It is normally not used directly but
  * through Lexicon.
  */
-
-class LexiconParser : public Core::XmlSchemaParser {
-    typedef Core::XmlSchemaParser Precursor;
-    typedef LexiconParser         Self;
+class XmlLexiconParser : public virtual LexiconParser, public Core::XmlSchemaParser {
+    typedef XmlLexiconParser Self;
 
 private:
     Lexicon* lexicon_;
@@ -116,9 +127,52 @@ private:
     void loadWhitelist(const Core::Configuration&, Core::StringHashSet&);
 
 public:
-    LexiconParser(const Core::Configuration& c, Lexicon*);
-    Lexicon* lexicon() const {
+    XmlLexiconParser(const Core::Configuration& c, Lexicon*);
+    bool     parseFile(const std::string& filename) override;
+    Lexicon* lexicon() const override {
         return lexicon_;
+    }
+};
+
+struct XmlLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        XmlLexiconParser parser(Core::Application::us()->getConfiguration(), &lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
+        return false;
+    }
+};
+
+/**
+ * Parser for text lexicon files containing the vocab, so only the labels
+ * This is meant for "lexicon-free" search
+ * The .txt-file should contain one label per line
+ */
+class VocabTextLexiconParser : public LexiconParser {
+private:
+    Core::Ref<Lexicon>          lexicon_;
+    Core::Ref<PhonemeInventory> phonemeInventory_;
+    void                        createPhoneme(const std::string& line);
+    void                        createLemmata();
+
+public:
+    VocabTextLexiconParser(Lexicon*);
+    bool     parseFile(const std::string& filename) override;
+    Lexicon* lexicon() const override {
+        return lexicon_.get();
+    }
+};
+
+struct VocabTextLexiconFormat : public Core::FormatSet::Format<Lexicon> {
+    bool read(const std::string& filename, Lexicon& lexicon) const override {
+        VocabTextLexiconParser parser(&lexicon);
+        return parser.parseFile(filename);
+    }
+
+    bool write(const std::string& filename, Lexicon const& lexicon) const override {
+        return false;
     }
 };
 

@@ -50,7 +50,9 @@ public:
         // state: 0 pending, 1 pivot, 2 member
         u8 state;
         Arc()
-                : slotDist(Core::Type<Score>::max), slotId(Core::Type<u32>::max), state(0) {}
+                : slotDist(Core::Type<Score>::max),
+                  slotId(Core::Type<u32>::max),
+                  state(0) {}
         struct SortByTime {
             bool operator()(const Arc* a1, const Arc* a2) const {
                 return a1->start < a2->start;
@@ -128,7 +130,8 @@ private:
 
     public:
         StateIndexBuilder(ConstLatticeRef l, Core::Vector<Fsa::StateId>& stateIndex)
-                : TraverseState(l), stateIndex(stateIndex) {}
+                : TraverseState(l),
+                  stateIndex(stateIndex) {}
 
         void build() {
             if (l->getTopologicalSort())
@@ -453,9 +456,11 @@ public:
     class Distance : public Core::ReferenceCounted {
     public:
         virtual ~Distance() {}
-        virtual std::string describe() const                                                       = 0;
-        virtual Score       distance(const PivotArcCn::Arc& ref, const PivotArcCn::Arc& hyp) const = 0;
-        virtual Score       distance(const PivotArcCn::Slot& slot, const PivotArcCn::Arc& arc) const {
+        virtual std::string describe() const = 0;
+
+        virtual Score distance(const PivotArcCn::Arc& ref, const PivotArcCn::Arc& hyp) const = 0;
+
+        virtual Score distance(const PivotArcCn::Slot& slot, const PivotArcCn::Arc& arc) const {
             Score minDist = Core::Type<Score>::max;
             Time  start = std::max(arc.start, slot.start), end = std::min(arc.end, slot.end);
             if (start < end) {
@@ -477,7 +482,8 @@ public:
 
     public:
         WeightedTimeDistance(Score impact, ConstEditDistanceRef editDist)
-                : impact(impact), editDist(editDist) {}
+                : impact(impact),
+                  editDist(editDist) {}
         virtual std::string describe() const {
             return Core::form("weighted time, impact=%f, edit-distance=%s", impact, ((editDist) ? "yes" : "no"));
         }
@@ -525,8 +531,8 @@ private:
 
 private:
     /**
-         * Start: For Debugging
-         **/
+     * Start: For Debugging
+     **/
     void dump(PivotArcCn::SlotPtrList& slots) const {
         Fsa::ConstAlphabetRef alphabet = pcn_->l_->getInputAlphabet();
         u32                   slotId   = 0;
@@ -635,10 +641,14 @@ private:
         Fsa::StateId     bptr;
         PivotArcCn::Arc* arc;
         TraceElement()
-                : score(Semiring::Max), bptr(Fsa::InvalidStateId), arc(0) {}
+                : score(Semiring::Max),
+                  bptr(Fsa::InvalidStateId),
+                  arc(0) {}
     };
+
     typedef std::vector<TraceElement> Traceback;
-    u32                               init(ConstLatticeRef l, ConstFwdBwdRef fb) const {
+
+    u32 init(ConstLatticeRef l, ConstFwdBwdRef fb) const {
         LabelMapRef      nonWordToEpsilonMap = LabelMap::createNonWordToEpsilonMap(Lexicon::us()->alphabetId(l->getInputAlphabet(), true));
         ConstStateMapRef topologicalSort     = sortTopologically(l);
         Fsa::StateId     initialSid          = topologicalSort->front();
@@ -902,7 +912,8 @@ private:
 
 private:
     PivotArcCnBuilder(ConstDistanceRef distFcn, bool fast)
-            : distFcn_(distFcn), fast_(fast) {}
+            : distFcn_(distFcn),
+              fast_(fast) {}
     ~PivotArcCnBuilder() {}
 
 public:
@@ -1106,7 +1117,8 @@ private:
 
 public:
     PivotArcCnBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {
+            : Node(name, config),
+              n_(0) {
         confidenceId_ = Semiring::InvalidId;
     }
     virtual ~PivotArcCnBuilderNode() {}

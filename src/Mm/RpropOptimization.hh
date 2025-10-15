@@ -58,9 +58,11 @@ public:
     typedef RpropSettings<T> Settings;
 
 private:
-    enum Action { decrease,
-                  increase,
-                  hold };
+    enum Action {
+        decrease,
+        increase,
+        hold
+    };
 
 private:
     Settings settings_;
@@ -152,6 +154,6 @@ public:
 
 #include "RpropOptimization.tcc"
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_RPROP_OPTIMIZATION_HH

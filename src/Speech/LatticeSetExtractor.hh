@@ -45,7 +45,6 @@ protected:
     static const Core::ParameterStringVector paramAcousticExtractors;
     static const Core::ParameterStringVector paramEmissionExtractors;
     static const Core::ParameterStringVector paramNnEmissionExtractors;
-    static const Core::ParameterStringVector paramTheanoEmissionExtractors;
     static const Core::ParameterStringVector paramTdpExtractors;
     static const Core::ParameterStringVector paramPronunciationExtractors;
     static const Core::ParameterStringVector paramLmExtractors;
@@ -71,8 +70,10 @@ class LatticeSetGenerator : public LatticeSetProcessor,
     typedef Core::Ref<PhonemeSequenceAlignmentGenerator> AlignmentGeneratorRef;
 
 private:
-    enum SearchType { exactMatch,
-                      fullSearch };
+    enum SearchType {
+        exactMatch,
+        fullSearch
+    };
     static Core::Choice                choiceSearchType;
     static const Core::ParameterChoice paramSearchType;
     static const Core::ParameterBool   paramShareAcousticModel;
@@ -102,7 +103,6 @@ private:
     void appendAcousticRescorers();
     void appendEmissionRescorers();
     void appendNnEmissionRescorers();
-    void appendTheanoEmissionRescorers();
     void appendTdpRescorers();
     void appendPronunciationRescorers();
     void appendLmRescorers();

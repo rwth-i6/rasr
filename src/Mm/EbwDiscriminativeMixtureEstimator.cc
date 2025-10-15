@@ -76,7 +76,7 @@ void EbwDiscriminativeMixtureEstimator::estimateMixtureWeights(
                 Weight sum = std::accumulate(weights.begin(), weights.end(), Weight(0));
                 if (sum > Core::Type<Weight>::delta) {
                     std::transform(weights.begin(), weights.end(),
-                                   weights.begin(), std::bind2nd(std::divides<Weight>(), sum));
+                                   weights.begin(), std::bind(std::divides<Weight>(), std::placeholders::_1, sum));
                 }
                 else {
                     Core::Application::us()->warning("cannot normalize mixture weights because of vanishing sum");

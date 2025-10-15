@@ -20,6 +20,7 @@ LIBSPRINTFLOW_O	= $(OBJDIR)/AbstractNode.o \
 		  $(OBJDIR)/Datatype.o \
 		  $(OBJDIR)/Demo.o \
 		  $(OBJDIR)/Dump.o \
+		  $(OBJDIR)/InputNode.o \
 		  $(OBJDIR)/Link.o \
 		  $(OBJDIR)/Module.o \
 		  $(OBJDIR)/Network.o \

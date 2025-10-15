@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
-#define _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
+#ifndef ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
+#define ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH
 
 #include <Core/Component.hh>
 #include <Search/Search.hh>
@@ -73,7 +73,8 @@ private:
 // iniline implementations
 
 inline DynamicBeamPruningStrategy::DynamicBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning)
-        : Precursor(config), initialPruning_(initialPruning) {
+        : Precursor(config),
+          initialPruning_(initialPruning) {
 }
 
 inline SearchAlgorithm::PruningRef DynamicBeamPruningStrategy::startNewSegment() {
@@ -93,4 +94,4 @@ inline MaximumDelayBeamPruningStrategy::MaximumDelayBeamPruningStrategy(Core::Co
 
 }  // namespace Search
 
-#endif /* _SEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH */
+#endif  // ADVANCEDTREESEARCH_DYNAMIC_BEAM_PRUNING_STRATEGY_HH

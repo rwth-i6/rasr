@@ -19,7 +19,7 @@
  * flow network pipe:
  */
 
-//#include <stdio.h>
+// #include <stdio.h>
 #include <cstdio>
 
 #include "Node.hh"
@@ -37,7 +37,10 @@ public:
         return "generic-pipe";
     }
     PipeNode(const Core::Configuration& c)
-            : Core::Component(c), SourceNode(c), changed_(true), pipe_(0) {}
+            : Core::Component(c),
+              SourceNode(c),
+              changed_(true),
+              pipe_(0) {}
     virtual ~PipeNode() {
         if (pipe_)
             pclose(pipe_);

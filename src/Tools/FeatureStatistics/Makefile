@@ -43,10 +43,16 @@ endif
 ifdef MODULE_NN
 FEATURE_STATISTICS_O += ../../Nn/libSprintNn.$(a)
 endif
+ifdef MODULE_ONNX
+FEATURE_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 FEATURE_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_LM_ONNX
+FEATURE_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 
 

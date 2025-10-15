@@ -151,7 +151,10 @@ private:
 };
 
 ReplaceSingleDimensionLattice::ReplaceSingleDimensionLattice(ConstLatticeRef l, std::vector<size_t> const& state_offsets, std::vector<Score> const& scores, ScoreId id)
-        : Precursor(l), state_offsets_(state_offsets), scores_(scores), id_(id) {
+        : Precursor(l),
+          state_offsets_(state_offsets),
+          scores_(scores),
+          id_(id) {
 }
 
 ConstStateRef ReplaceSingleDimensionLattice::getState(Fsa::StateId sid) const {
@@ -176,9 +179,9 @@ std::string ReplaceSingleDimensionLattice::describe() const {
 // ----------------------------------------------------------------------
 
 const Core::Choice          PushForwardRescorer::rescorerTypeChoice("single-best", singleBestRescoringType,
-                                                           "replacement-approximation", replacementApproximationRescoringType,
-                                                           "traceback-approximation", tracebackApproximationRescoringType,
-                                                           Core::Choice::endMark());
+                                                                    "replacement-approximation", replacementApproximationRescoringType,
+                                                                    "traceback-approximation", tracebackApproximationRescoringType,
+                                                                    Core::Choice::endMark());
 const Core::ParameterChoice PushForwardRescorer::paramRescorerType("rescorer-type", &PushForwardRescorer::rescorerTypeChoice, "what sort of rescoring should be performed", singleBestRescoringType);
 const Core::ParameterInt    PushForwardRescorer::paramMaxHypothesis("max-hypotheses", "maximum number of hypotheses per node", 5);
 const Core::ParameterFloat  PushForwardRescorer::paramPruningThreshold("pruning-threshold", "pruning threshold for rescoring (relative to lm-scale)", 14.0);
@@ -253,7 +256,7 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         ProspectScorePriorityQueue tmp;
         while (not all_hyps[current_state].empty()) {
             Hypothesis hyp = all_hyps[current_state].top();
-            hyp.index = traceback.size();
+            hyp.index      = traceback.size();
             traceback.push_back(hyp);
             tmp.push(hyp);
             all_hyps[current_state].pop();
@@ -337,8 +340,6 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         }
         state_end.push_back(traceback.size());
     }
-
-    log("num expansions: ") << static_cast<double>(num_expansions) / static_cast<double>(total_num_arcs);
 
     ConstLatticeRef result;
 
@@ -498,14 +499,15 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
             defect();
         }
     }
-
+    log("num expansions: ") << static_cast<double>(num_expansions) / static_cast<double>(total_num_arcs);
     return result;
 }
 
 // ----------------------------------------------------------------------
 
 PushForwardRescoringNode::PushForwardRescoringNode(std::string const& name, Core::Configuration const& config)
-        : Precursor(name, config), rescorer_(nullptr) {
+        : Precursor(name, config),
+          rescorer_(nullptr) {
 }
 
 void PushForwardRescoringNode::init(const std::vector<std::string>& arguments) {

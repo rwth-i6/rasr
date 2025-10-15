@@ -191,6 +191,7 @@ OrthographyFrameStateAccuracyLatticeBuilder::Functor
         std::vector<std::string> shortPausesLemmata = paramShortPausesLemmata(config);
         if (!shortPausesLemmata.empty()) {
             if (shortPausesLemmata.size() == 1) {
+                require(lexicon_->specialLemma("silence") != nullptr);
                 std::string silence(shortPausesLemmata.front());
                 Core::normalizeWhitespace(silence);
                 log("Append short pause lemma \"") << silence << "\"";
@@ -227,7 +228,7 @@ Fsa::ConstAutomatonRef OrthographyFrameStateAccuracyLatticeBuilder::build(Lattic
 
 /**
  * OrthographySmoothedFrameStateAccuracyLatticeBuilder
-*/
+ */
 OrthographySmoothedFrameStateAccuracyLatticeBuilder::OrthographySmoothedFrameStateAccuracyLatticeBuilder(
         const Core::Configuration& c, Core::Ref<const Bliss::Lexicon> lexicon)
         : Precursor(c, lexicon),

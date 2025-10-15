@@ -83,8 +83,8 @@ protected:
 
     void         removeDensitiesWithZeroWeight();
     void         removeDensitiesWithLowWeight(Weight minObservationWeight, Weight minRelativeWeight);
-    DensityIndex densityIndex(MixtureIndex, Core::Ref<const Feature::Vector>);
-    void         getDensityPosteriorProbabilities(MixtureIndex, Core::Ref<const Feature::Vector>, std::vector<Mm::Weight>&);
+    DensityIndex densityIndex(MixtureIndex, Feature::VectorRef);
+    void         getDensityPosteriorProbabilities(MixtureIndex, Feature::VectorRef, std::vector<Mm::Weight>&);
     void         readHeader(Core::BinaryInputStream&);
     void         writeHeader(Core::BinaryOutputStream&);
 
@@ -132,8 +132,8 @@ public:
     void setAssigningFeatureScorer(Core::Ref<const AssigningFeatureScorer> assigningFeatureScorer) {
         assigningFeatureScorer_ = assigningFeatureScorer;
     }
-    void         accumulate(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector>);
-    void         accumulate(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector>, Weight);
+    void         accumulate(MixtureIndex mixtureIndex, Feature::VectorRef);
+    void         accumulate(MixtureIndex mixtureIndex, Feature::VectorRef, Weight);
     virtual bool accumulate(const AbstractMixtureSetEstimator&);
     virtual bool accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
     virtual void reset();
@@ -224,14 +224,16 @@ public:
     /** loads a white-space separated mixture-to-mixture id mapping file */
     virtual bool load(const std::string& filename);
     virtual bool save(const std::string& filename) const;
-    u32          nMixtures() const {
+
+    u32 nMixtures() const {
         return size();
     }
+
     u32 nMappedMixtures() const {
         return nOfMappedMixtures_;
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ABSTRACT_MIXTURE_SET_ESTIMATOR_HH

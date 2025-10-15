@@ -23,7 +23,7 @@
 namespace Search {
 // ===========================================================================
 struct SearchSpaceStatistics {
-    ///Can be used to easily do statistics, when performance does not matter
+    /// Can be used to easily do statistics, when performance does not matter
     Core::Statistics<f32>&     customStatistics(const std::string& name);
     Core::HistogramStatistics& customHistogramStatistics(const std::string& name, u32 buckets = 10);
     ~SearchSpaceStatistics();
@@ -31,7 +31,8 @@ struct SearchSpaceStatistics {
     Core::Statistics<u32> treesBeforePruning, treesAfterPrePruning, treesAfterPruning,
             statesBeforePruning, statesAfterPrePruning, statesAfterPruning,
             wordEndsBeforePruning, wordEndsAfterPruning,
-            epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning;
+            epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning,
+            activeInstancesBeforePruning, activeInstancesAfterPruning;
 
     Core::Statistics<Score> acousticHistogramPruningThreshold, lmHistogramPruningThreshold;
 
@@ -40,7 +41,7 @@ struct SearchSpaceStatistics {
 
     SearchSpaceStatistics();
     void clear();
-    void write(Core::XmlWriter&) const;
+    void write(Core::XmlWriter&, const std::string& time) const;
 
 private:
     std::map<std::string, Core::Statistics<f32>*>     customStatistics_;

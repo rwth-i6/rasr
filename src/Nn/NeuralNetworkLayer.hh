@@ -50,13 +50,9 @@ namespace Nn {
  *	- combined: parameter + activation
  *	  - linear+sigmoid
  *	  - linear+softmax
- *	  - linear+rlu
- *	  - linear+tanh
  *	- pre-/post-processing steps
  *	  - logarithm
  *	  - PCA (mean + variance)
- *	  - polynomial
- *	  - GaussianNoise
  *
  *	The layer can have multiple inputs from other layers.
  *	Inputs are connected at "ports", which are just indices of the connections specified in the configuration.
@@ -88,9 +84,6 @@ public:
         biasLayer,
         linearAndSigmoidLayer,
         linearAndSoftmaxLayer,
-        linearAndTanhLayer,
-        linearAndRectifiedLayer,
-        linearAndEluLayer,
         lookupLayer,
         convolutionalLayer,
         convolutionalAndSigmoidLayer,
@@ -98,8 +91,6 @@ public:
         recurrentLinearLayer,
         logarithmPreprocessingLayer,
         meanAndVarianceNormalizationPreprocessingLayer,
-        polynomialPreprocessingLayer,
-        gaussianNoisePreprocessingLayer,
         operationLayer,
         pythonLayer,
     };
@@ -127,8 +118,6 @@ protected:
     static const Core::ParameterString paramNewActivationStandardDeviationFile;
     static const Core::ParameterFloat  paramExponentialTraceInterpolationFactor;
     static const Core::ParameterFloat  paramActivationVarianceInterpolation;
-    static const Core::ParameterFloat  paramDropoutProbability;
-    static const Core::ParameterFloat  paramGaussianNoiseRatio;
     static const Core::ParameterFloat  paramLearningRate;
     static const Core::ParameterFloat  paramRegularizationConstant;
 
@@ -150,10 +139,6 @@ protected:
     const T learningRate_;  // TODO change to vector corresponding to the connections
     // regularization constant
     const T regularizationConstant_;  // TODO change to vector corresponding to the connections
-    // dropout probability
-    const T dropoutProbability_;
-    // ratio for adding gaussian noise to activations
-    const T gaussianNoiseRatio_;
 
 protected:
     // indices of inputs & outputs
@@ -182,6 +167,8 @@ protected:
     bool     activationStatisticsNeedInit_;
     bool     refreshMean_;
     bool     refreshVariance_;
+
+    Core::XmlChannel dataChannel_;
 
 public:
     NeuralNetworkLayer(const Core::Configuration& config);
@@ -281,8 +268,8 @@ public:
     // calculate weight gradients from layer input and error and store result in gradient{Weights,Bias};
     // this may vary among different layer types, this is why the trainer needs to ask
     // the layer to calculate its own gradients
-    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights){};
-    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias){};
+    virtual void addToWeightsGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnMatrix& gradientWeights) {};
+    virtual void addToBiasGradient(const NnMatrix& layerInput, const NnMatrix& errorSignalIn, u32 stream, NnVector& gradientBias) {};
 
     // return pointer to weight matrix and bias vector (if any)
     virtual NnMatrix* getWeights(u32 stream) {
@@ -309,20 +296,22 @@ public:
     }
     virtual NnVector& getActivationMean();
     virtual NnVector& getActivationVariance();
-    virtual bool      hasActivationStatistics() const {
+
+    virtual bool hasActivationStatistics() const {
         return statisticsSmoothing_ != noStatistics;
     }
 
     // Initialize the parameters
-    virtual void initializeNetworkParameters(){};
+    virtual void initializeNetworkParameters() {};
     // Save the parameters to disk
     virtual void saveNetworkParameters(const std::string& filename) const {};
     // Load the parameters from disk
-    virtual void loadNetworkParameters(const std::string& filename){};
+    virtual void loadNetworkParameters(const std::string& filename) {};
 
     virtual void initComputation(bool sync = true) const {}
     virtual void finishComputation(bool sync = true) const {}
-    bool         isComputing() const {
+
+    bool isComputing() const {
         return isComputing_;
     }
 
@@ -356,10 +345,6 @@ public:
     void setMeasureTime(bool val) {
         measureTime_ = val;
     }
-
-protected:
-    virtual void applyDropout(NnMatrix& output);
-    virtual void addGaussianNoise(NnMatrix& output);
 
 private:
     void nonSmoothedStatisticsUpdate(const NnMatrix& output);

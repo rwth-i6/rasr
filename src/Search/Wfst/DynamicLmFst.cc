@@ -24,7 +24,8 @@ class DynamicLmFstScoreCache {
 public:
     typedef std::vector<float> Cache;
     DynamicLmFstScoreCache(size_t maxElements)
-            : maxElements_(maxElements), elements_(0) {}
+            : maxElements_(maxElements),
+              elements_(0) {}
     ~DynamicLmFstScoreCache();
     Cache* Get(u32 s) {
         if (s < data_.size()) {
@@ -95,7 +96,15 @@ void DynamicLmFstScoreCache::CleanCache(bool freeRecent) {
 }
 
 DynamicLmFstImpl::DynamicLmFstImpl(const DynamicLmFstOptions& opts)
-        : CacheImpl(opts), lm_(opts.lm), lemmas_(lm_->lexicon()->lemmaAlphabet()), wpScale_(opts.pronunciationScale), nCalculated_(0), nCached_(0), silenceWeight_(opts.silenceWeight), batchRequest_(0), scoreCache_(new DynamicLmFstScoreCache(MaxScoreCaches)) {
+        : CacheImpl(opts),
+          lm_(opts.lm),
+          lemmas_(lm_->lexicon()->lemmaAlphabet()),
+          wpScale_(opts.pronunciationScale),
+          nCalculated_(0),
+          nCached_(0),
+          silenceWeight_(opts.silenceWeight),
+          batchRequest_(0),
+          scoreCache_(new DynamicLmFstScoreCache(MaxScoreCaches)) {
     require(lm_);
     SetType("dynamic-lm");
     OpenFst::SymbolTable* symbols = 0;
@@ -119,7 +128,19 @@ DynamicLmFstImpl::DynamicLmFstImpl(const DynamicLmFstOptions& opts)
 }
 
 DynamicLmFstImpl::DynamicLmFstImpl(const DynamicLmFstImpl& impl)
-        : CacheImpl(impl), lm_(impl.lm_), lemmas_(impl.lemmas_), lemmaProns_(impl.lemmaProns_), wpScale_(impl.wpScale_), nLabels_(impl.nLabels_), nArcs_(impl.nArcs_), nCalculated_(0), nCached_(0), silence_(impl.silence_), silenceLabel_(impl.silenceLabel_), batchRequest_(0), scoreCache_(new DynamicLmFstScoreCache(MaxScoreCaches)) {
+        : CacheImpl(impl),
+          lm_(impl.lm_),
+          lemmas_(impl.lemmas_),
+          lemmaProns_(impl.lemmaProns_),
+          wpScale_(impl.wpScale_),
+          nLabels_(impl.nLabels_),
+          nArcs_(impl.nArcs_),
+          nCalculated_(0),
+          nCached_(0),
+          silence_(impl.silence_),
+          silenceLabel_(impl.silenceLabel_),
+          batchRequest_(0),
+          scoreCache_(new DynamicLmFstScoreCache(MaxScoreCaches)) {
     SetType("dynamic-lm");
     SetProperties(impl.Properties(), FstLib::kCopyProperties);
     SetInputSymbols(impl.InputSymbols());

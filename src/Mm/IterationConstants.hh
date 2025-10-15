@@ -38,9 +38,11 @@ protected:
     typedef AbstractMixtureSetEstimator::MixtureEstimators MixtureEstimators;
 
 private:
-    enum Type { globalRwth,
-                localRwth,
-                cambridge };
+    enum Type {
+        globalRwth,
+        localRwth,
+        cambridge
+    };
     static Core::Choice               choiceType;
     static Core::ParameterChoice      paramType;
     static const Core::ParameterFloat paramBeta;
@@ -73,6 +75,6 @@ public:
     static IterationConstants* createIterationConstants(const Core::Configuration&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ITERATION_CONSTANTS_HH

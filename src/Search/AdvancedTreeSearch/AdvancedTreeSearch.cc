@@ -22,6 +22,7 @@
 #include <Lattice/Lattice.hh>
 #include <Lattice/LatticeAdaptor.hh>
 #include <Search/StateTree.hh>
+#include <Search/Traceback.hh>
 #include <vector>
 #include "SearchSpace.hh"
 #include "SearchSpaceStatistics.hh"
@@ -33,11 +34,12 @@
 using namespace Search;
 using Core::Ref;
 using Core::tie;
+using Core::TsRef;
 
 // ===========================================================================
 // Bookkeeping
 
-void AdvancedTreeSearchManager::traceback(Ref<Trace> end, SearchAlgorithm::Traceback& result, Ref<Trace> boundary) const {
+void AdvancedTreeSearchManager::traceback(TsRef<Trace> end, Traceback& result, TsRef<Trace> boundary) const {
     result.clear();
     for (; end && end != boundary; end = end->predecessor) {
         result.push_back(*end);
@@ -135,6 +137,10 @@ AdvancedTreeSearchManager::AdvancedTreeSearchManager(
     }
 }
 
+void AdvancedTreeSearchManager::reconfigure(const Core::Configuration& config) {
+    ss_->reconfigure(config);
+}
+
 void AdvancedTreeSearchManager::setGrammar(Fsa::ConstAutomatonRef g) {
     log("Set grammar");
 #ifdef MODULE_LM_FSA
@@ -170,17 +176,38 @@ bool AdvancedTreeSearchManager::setModelCombination(const Speech::ModelCombinati
     return true;
 }
 
-void AdvancedTreeSearchManager::restart() {
+bool AdvancedTreeSearchManager::setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel> lm) {
+    auto t_start = std::chrono::system_clock::now();
+
+    lm_ = lm;
+    clearSearchSpace(true);
+    startSearchSpace();
+
+    auto t_end     = std::chrono::system_clock::now();
+    auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
+    log("AdvancedTreeSearchManager::setLanguageModel() finished in [s]: ") << t_elapsed;
+    return true;
+}
+
+void AdvancedTreeSearchManager::clearSearchSpace(bool rebuild, bool buildBatches) {
+    if (rebuild) {
+        delete ss_;
+        ss_ = nullptr;
+    }
     if (!ss_) {
         verify(lexicon_);  // setModelCombination must have been called already
-
         ss_ = new SearchSpace(config, acousticModel_, lexicon_, lm_, wpScale_);
-        ss_->initialize();
+        ss_->initialize(buildBatches);
         dynamicBeamPruningStrategy_ = createDynamicBeamPruningStrategy(select("dynamic-beam-pruning-strategy"), ss_->describePruning());
     }
     else {
         ss_->clear();
     }
+}
+
+void AdvancedTreeSearchManager::startSearchSpace() {
+    verify(ss_);
+    dynamicBeamPruningStrategy_ = createDynamicBeamPruningStrategy(select("dynamic-beam-pruning-strategy"), ss_->describePruning());
 
     time_                = 0;
     currentSegmentStart_ = 0;
@@ -194,6 +221,11 @@ void AdvancedTreeSearchManager::restart() {
         }
     }
     segmentStartTime_ = std::chrono::steady_clock::now();
+}
+
+void AdvancedTreeSearchManager::restart() {
+    clearSearchSpace();
+    startSearchSpace();
 }
 
 void AdvancedTreeSearchManager::setSegment(Bliss::SpeechSegment const* segment) {
@@ -228,7 +260,7 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     ss_->pruneAndAddScores();
 
     if (time_ % cleanupInterval_ == 0 || ss_->needCleanup()) {
-        //We have to rescale before activating the word ends
+        // We have to rescale before activating the word ends
         ss_->rescale(ss_->bestScore());
         ss_->cleanup();
     }
@@ -268,6 +300,12 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
         ss_->statistics->wordEndsAfterSecondPruning += 0;
     }
 
+    ss_->pruneActiveInstances();
+
+    // has to be done here as the request for partial results occurrs at the end of feed
+    ss_->maximumStableDelayPruning();
+    ss_->maximumMutableSuffixPruning();
+
     if (dynamicBeamPruningStrategy_) {
         auto feed_end       = std::chrono::steady_clock::now();
         f64  frame_duration = std::chrono::duration<f64, std::milli>(feed_end - feed_start).count();
@@ -280,28 +318,39 @@ void AdvancedTreeSearchManager::feed(const Mm::FeatureScorer::Scorer& emissionSc
     }
 }
 
-Ref<Trace> AdvancedTreeSearchManager::getCorrectedCommonPrefix() {
-    Core::Ref<Trace> t = ss_->getCommonPrefix();
-    if (t->pronunciation == epsilonLemmaPronunciation())
+TsRef<Trace> AdvancedTreeSearchManager::getCommonPrefix() const {
+    return ss_->getCommonPrefix();
+}
+
+TsRef<Trace> AdvancedTreeSearchManager::getCorrectedCommonPrefix() const {
+    Core::TsRef<Trace> t = ss_->getCommonPrefix();
+    if (t->pronunciation == epsilonLemmaPronunciation()) {
         t = t->predecessor;
+    }
     mergeEpsilonTraces(t);
+
     return t;
 }
 
 void AdvancedTreeSearchManager::getPartialSentence(Traceback& result) {
-    Ref<Trace> t = getCorrectedCommonPrefix();
+    TsRef<Trace> t = getCommonPrefix();
+
     traceback(t, result, lastPartialTrace_);
     lastPartialTrace_ = t;
 }
 
 struct Correction {
     Correction(const Trace* _trace = 0, int _timeOffset = 0, Score _scoreOffset = 0, Lattice::WordBoundary::Transit _transit = Lattice::WordBoundary::Transit())
-            : trace(_trace), timeOffset(_timeOffset), scoreOffset(_scoreOffset), transit(_transit) {}
+            : trace(_trace),
+              timeOffset(_timeOffset),
+              scoreOffset(_scoreOffset),
+              transit(_transit) {}
     const Trace*                   trace;
     int                            timeOffset;
     Score                          scoreOffset;
     Lattice::WordBoundary::Transit transit;
-    bool                           operator==(const Correction& rhs) const {
+
+    bool operator==(const Correction& rhs) const {
         return trace == rhs.trace && timeOffset == rhs.timeOffset && scoreOffset == rhs.scoreOffset && transit == rhs.transit;
     }
 
@@ -324,7 +373,7 @@ struct Correction {
     };
 };
 
-Ref<Trace> AdvancedTreeSearchManager::sentenceEnd() const {
+TsRef<Trace> AdvancedTreeSearchManager::sentenceEnd() const {
     if (ss_->nWordEndHypotheses() == 0 && startTreesInterval_ > 1) {
         ss_->findWordEnds();
         // pruneWordEnds is required to transform _early_ word-end-hypotheses into real word-end-hypotheses
@@ -335,7 +384,6 @@ Ref<Trace> AdvancedTreeSearchManager::sentenceEnd() const {
     if (!sentenceEnd_) {
         sentenceEnd_ = ss_->getSentenceEnd(time_ + 1, shallCreateLattice_);
         if (!sentenceEnd_) {
-            warning("No active word end hypothesis at sentence end.");
             if (allowSentenceEndFallBack_) {
                 sentenceEnd_ = ss_->getSentenceEndFallBack(time_ + 1, shallCreateLattice_);
             }
@@ -350,7 +398,7 @@ Ref<Trace> AdvancedTreeSearchManager::sentenceEnd() const {
         }
 
         // Eventually log the path-trace
-        Ref<Trace> current = sentenceEnd_;
+        TsRef<Trace> current = sentenceEnd_;
         while (current) {
             current->pathTrace.log(*this, current->pronunciation != epsilonLemmaPronunciation() ? current->pronunciation : current->predecessor->pronunciation);
             current = current->predecessor;
@@ -362,15 +410,15 @@ Ref<Trace> AdvancedTreeSearchManager::sentenceEnd() const {
     return sentenceEnd_;
 }
 
-void AdvancedTreeSearchManager::mergeEpsilonTraces(Ref<Trace> trace) const {
+void AdvancedTreeSearchManager::mergeEpsilonTraces(TsRef<Trace> trace) const {
     verify(trace->pronunciation != epsilonLemmaPronunciation());
     if (!trace->predecessor)
         return;
     // Merge correcting epsilon trace entries into their corresponding predecessor trace entries,
     // to create a valid lattice.
-    typedef std::unordered_map<Correction, Ref<Trace>, Correction::Hash> CorrectionHash;
-    CorrectionHash                                                       corrections;
-    std::stack<Ref<Trace>>                                               stack;
+    typedef std::unordered_map<Correction, TsRef<Trace>, Correction::Hash> CorrectionHash;
+    CorrectionHash                                                         corrections;
+    std::stack<TsRef<Trace>>                                               stack;
     stack.push(trace);
 
     std::unordered_map<const Trace*, bool, Core::conversion<const Trace*, size_t>> visited;
@@ -379,8 +427,8 @@ void AdvancedTreeSearchManager::mergeEpsilonTraces(Ref<Trace> trace) const {
         stack.pop();
         if (visited.count(trace.get()))
             continue;
-        for (Ref<Trace> arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
-            Ref<Trace> temp = arcTrace;  // For security
+        for (TsRef<Trace> arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
+            TsRef<Trace> temp = arcTrace;  // For security
             verify(arcTrace);
             visited[arcTrace.get()] = true;
             verify(arcTrace->predecessor);  // We don't put traces without predecessor onto the stack
@@ -395,33 +443,33 @@ void AdvancedTreeSearchManager::mergeEpsilonTraces(Ref<Trace> trace) const {
                 verify(correction.timeOffset >= 0);
                 verify(corrections.find(correction) == corrections.end() || corrections[correction] == arcTrace);
                 corrections[correction] = arcTrace;
-                Ref<Trace> oldpre       = arcTrace->predecessor;
+                TsRef<Trace> oldpre     = arcTrace->predecessor;
                 *arcTrace               = *oldpre;
 
-                Core::Ref<Trace> currentTrace = arcTrace;
+                Core::TsRef<Trace> currentTrace = arcTrace;
                 while (currentTrace) {
                     verify(currentTrace->pronunciation != epsilonLemmaPronunciation());
                     currentTrace->score.acoustic += correction.scoreOffset;
                     currentTrace->time += correction.timeOffset;
                     currentTrace->transit = correction.transit;
                     if (currentTrace->sibling) {
-                        currentTrace->sibling = Core::Ref<Trace>(new Trace(*currentTrace->sibling));
+                        currentTrace->sibling = Core::TsRef<Trace>(new Trace(*currentTrace->sibling));
                         currentTrace          = currentTrace->sibling;
                     }
                     else {
-                        currentTrace = Core::Ref<Trace>();
+                        currentTrace = Core::TsRef<Trace>();
                     }
                 }
             }
             verify(arcTrace->pronunciation != epsilonLemmaPronunciation());
-            Ref<Trace> preTrace = arcTrace->predecessor;
+            TsRef<Trace> preTrace = arcTrace->predecessor;
             if (preTrace->predecessor) {
                 if (preTrace->pronunciation == epsilonLemmaPronunciation()) {
                     // Share another correction
                     Correction                     correction(preTrace->predecessor.get(),
-                                          preTrace->time - preTrace->predecessor->time,
-                                          preTrace->score.acoustic - preTrace->predecessor->score.acoustic,
-                                          preTrace->transit);
+                                                              preTrace->time - preTrace->predecessor->time,
+                                                              preTrace->score.acoustic - preTrace->predecessor->score.acoustic,
+                                                              preTrace->transit);
                     CorrectionHash::const_iterator it = corrections.find(correction);
                     if (it != corrections.end()) {
                         preTrace = arcTrace->predecessor = it->second;
@@ -442,8 +490,19 @@ void AdvancedTreeSearchManager::mergeEpsilonTraces(Ref<Trace> trace) const {
     }
 }
 
+void AdvancedTreeSearchManager::getCurrentBestTrace(Traceback& result) const {
+    TsRef<Trace> t;
+    t = ss_->getSentenceEnd(time_ + 1, shallCreateLattice_);
+
+    if (!t && allowSentenceEndFallBack_)
+        t = ss_->getSentenceEndFallBack(time_ + 1, shallCreateLattice_);
+    if (!t)
+        return;
+    traceback(t, result);
+}
+
 void AdvancedTreeSearchManager::getCurrentBestSentence(Traceback& result) const {
-    Ref<Trace> t = sentenceEnd();
+    TsRef<Trace> t = sentenceEnd();
     if (!t) {
         error("Cannot determine sentence hypothesis: No active word end hypothesis.");
         result.clear();
@@ -452,8 +511,8 @@ void AdvancedTreeSearchManager::getCurrentBestSentence(Traceback& result) const 
     traceback(t, result);
 }
 
-void AdvancedTreeSearchManager::getCurrentBestSentencePartial(SearchAlgorithm::Traceback& result) const {
-    Ref<Trace> t = sentenceEnd();
+void AdvancedTreeSearchManager::getCurrentBestSentencePartial(Traceback& result) const {
+    TsRef<Trace> t = sentenceEnd();
     if (!t) {
         result.clear();
         return;
@@ -461,7 +520,7 @@ void AdvancedTreeSearchManager::getCurrentBestSentencePartial(SearchAlgorithm::T
     traceback(t, result, lastPartialTrace_);
 }
 
-Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(Ref<Trace> trace) const {
+Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(TsRef<Trace> trace) const {
     if (!trace) {
         warning("Cannot create word lattice.");
         // should not abort, as it can be fixed by incremental decoding
@@ -479,11 +538,11 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(
 
     Core::Ref<Lattice::StandardWordLattice> result(new Lattice::StandardWordLattice(lexicon_));
     Core::Ref<Lattice::WordBoundaries>      wordBoundaries(new Lattice::WordBoundaries);
-    Ref<Trace>                              initialTrace;
+    TsRef<Trace>                            initialTrace;
 
     std::unordered_map<const Trace*, Fsa::State*, Core::conversion<const Trace*, size_t>> state;
     state[trace.get()] = result->finalState();
-    std::stack<Ref<Trace>> stack;
+    std::stack<TsRef<Trace>> stack;
     stack.push(trace);
 
     Fsa::State *previousState, *currentState;
@@ -493,9 +552,9 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::buildLatticeForTrace(
         currentState = state[trace.get()];
         wordBoundaries->set(currentState->id(), Lattice::WordBoundary(trace->time, trace->transit));
 
-        for (Ref<Trace> arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
+        for (TsRef<Trace> arcTrace = trace; arcTrace; arcTrace = arcTrace->sibling) {
             verify(arcTrace->pronunciation != epsilonLemmaPronunciation());
-            Ref<Trace> preTrace = arcTrace->predecessor;
+            TsRef<Trace> preTrace = arcTrace->predecessor;
             if (preTrace->predecessor) {
                 if (state.find(preTrace.get()) == state.end()) {
                     previousState = state[preTrace.get()] = result->newState();
@@ -530,11 +589,11 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::getCurrentWordLattice
 Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::getPartialWordLattice() {
     Core::Ref<const LatticeAdaptor> ret;
     if ((time_ % 100) == 0 && time_ - currentSegmentStart_ > (onlineSegmentationLength_ * 1.0 / onlineSegmentationTolerance_) * 100) {
-        Ref<Trace> t = getCorrectedCommonPrefix();
+        TsRef<Trace> t = getCorrectedCommonPrefix();
 
-        std::vector<std::pair<Ref<Trace>, Ref<Trace>>> gaps;
-        Ref<Trace>                                     current = t;
-        bool                                           isGap   = false;
+        std::vector<std::pair<TsRef<Trace>, TsRef<Trace>>> gaps;
+        TsRef<Trace>                                       current = t;
+        bool                                               isGap   = false;
         while (current) {
             if (current->pronunciation && !pronunciationHasEvaluationTokens(current->pronunciation)) {
                 if (isGap) {
@@ -552,9 +611,9 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::getPartialWordLattice
         }
         log() << "online segmentation: found " << gaps.size() << " gaps between " << currentSegmentStart_ << " and " << time_;
 
-        f32                               bestGapLength = 0;
-        std::pair<Ref<Trace>, Ref<Trace>> bestGap;
-        for (std::vector<std::pair<Ref<Trace>, Ref<Trace>>>::const_iterator it = gaps.begin(); it != gaps.end(); ++it) {
+        f32                                   bestGapLength = 0;
+        std::pair<TsRef<Trace>, TsRef<Trace>> bestGap;
+        for (std::vector<std::pair<TsRef<Trace>, TsRef<Trace>>>::const_iterator it = gaps.begin(); it != gaps.end(); ++it) {
             f32 startTime = it->first->predecessor->time;
             f32 endTime   = it->second->time;
             f32 length    = endTime - startTime;
@@ -572,7 +631,7 @@ Core::Ref<const LatticeAdaptor> AdvancedTreeSearchManager::getPartialWordLattice
                   << " -> " << bestGap.second->time << " (" << bestGap.second->time - bestGap.first->predecessor->time << ")";
             ret = buildLatticeForTrace(onlineSegmentationIncludeGap_ ? bestGap.first : bestGap.first->predecessor);
 
-            Ref<Trace> newInitialTrace;
+            TsRef<Trace> newInitialTrace;
             if (bestGap.second != bestGap.first && onlineSegmentationIncludeGap_) {
                 newInitialTrace = bestGap.second->predecessor;
             }

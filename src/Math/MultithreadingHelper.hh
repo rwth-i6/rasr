@@ -15,6 +15,8 @@
 #ifndef MULTITHREADINGHELPER_HH_
 #define MULTITHREADINGHELPER_HH_
 
+#include <algorithm>
+
 namespace Math {
 
 /**
@@ -104,15 +106,13 @@ T mt_svv2s(int N, T alpha, const T* X, const T* Y, T (*fn)(int, T, const T*, con
     int r      = N % nParts;
     T   result = 0.0;
     if (r == 0) {
-#pragma omp parallel for reduction(+ \
-                                   : result)
+#pragma omp parallel for reduction(+ : result)
         for (int partId = 0; partId < nParts; partId++) {
             result += fn(d, alpha, X + partId * d, Y + partId * d);
         }
     }
     else {
-#pragma omp parallel for reduction(+ \
-                                   : result)
+#pragma omp parallel for reduction(+ : result)
         for (int partId = 0; partId < nParts; partId++) {
             if (partId < nParts - 1)
                 result += fn(d, alpha, X + partId * d, Y + partId * d);

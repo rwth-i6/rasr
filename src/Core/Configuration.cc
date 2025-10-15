@@ -105,7 +105,7 @@ public:
 
     /**
      * Determine if the resource matches a configurtion path.
-     * @param components the coponents of the configuration path
+     * @param components the components of the configuration path
      * @return the number of path components matched by the resource,
      * or -1 of the resource does not match.
      */
@@ -168,8 +168,7 @@ void Configuration::Resource::writeUsage(XmlWriter& os) const {
 /**
  * Central storage place for all resources.
  */
-
-class Configuration::ResourceDataBase {
+class Configuration::ResourceDataBase : public ReferenceCounted {
 private:
     std::set<Resource> resources;
     Resource           noResource_;
@@ -401,24 +400,19 @@ bool Configuration::isWellFormedParameterName(const std::string& s) {
 }
 
 Configuration::Configuration()
-        : db_(0),
-          isDataBaseOwner_(true),
+        : db_(new ResourceDataBase),
           selection_("UNNAMED"),
           name_("UNNAMED") {
-    // define new root configuration
-    db_ = new ResourceDataBase;
 }
 
 Configuration::Configuration(const Configuration& c)
         : db_(c.db_),
-          isDataBaseOwner_(false),
           selection_(c.selection_),
           name_(c.name_) {
 }
 
 Configuration::Configuration(const Configuration& c, const std::string& add_selection)
-        : db_(c.db_),
-          isDataBaseOwner_(false) {
+        : db_(c.db_) {
     require(add_selection.length());
     require(add_selection.find(resource_separation_char) == std::string::npos);
     require(add_selection.find(resource_wildcard_char) == std::string::npos);
@@ -428,16 +422,9 @@ Configuration::Configuration(const Configuration& c, const std::string& add_sele
     ensure(isWellFormedParameterName(selection_));
 }
 
-Configuration::~Configuration() {
-    if (isDataBaseOwner_)
-        delete db_;
-}
+Configuration::~Configuration() {}
 
 Configuration& Configuration::operator=(const Configuration& c) {
-    if (isDataBaseOwner_) {
-        delete db_;
-        isDataBaseOwner_ = false;
-    }
     db_        = c.db_;
     selection_ = c.selection_;
     name_      = c.name_;
@@ -762,8 +749,10 @@ std::vector<std::string> Configuration::setFromCommandline(
         const SourceDescriptor*         source) {
     std::string              option;
     std::vector<std::string> unparsed;
-    enum { Option,
-           Argument } state = Option;
+    enum {
+        Option,
+        Argument
+    } state = Option;
 
     if (arguments.size() == 0)
         return unparsed;

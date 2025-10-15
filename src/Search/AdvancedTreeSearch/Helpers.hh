@@ -12,14 +12,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef HELPERS_HH
-#define HELPERS_HH
+#ifndef ADVANCEDTREESEARCH_HELPERS_HH
+#define ADVANCEDTREESEARCH_HELPERS_HH
 
-#include <Core/ReferenceCounting.hh>
-#include <Core/Types.hh>
-#include <Core/Utility.hh>
 #include <string>
 #include <time.h>
+
+#include <Core/ReferenceCounting.hh>
+#include <Core/StopWatch.hh>
+#include <Core/Types.hh>
+
 #include "SearchSpaceStatistics.hh"
 
 namespace Search {
@@ -34,16 +36,13 @@ namespace Core {
 class Configuration;
 };
 
-bool isBackwardRecognition(const Core::Configuration& config);
-
 class PerformanceCounter {
 public:
     PerformanceCounter(Search::SearchSpaceStatistics& stats, const std::string& name, bool start = true)
-            : running_(false),
-              totalTime_(0),
-              timeStats(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
-        if (start)
-            this->start();
+            : stopWatch_(), timeStats_(stats.customStatistics("Profiling: " + name + ": Centiseconds")) {
+        if (start) {
+            stopWatch_.start();
+        }
     }
 
     ~PerformanceCounter() {
@@ -51,65 +50,28 @@ public:
     }
 
     void start() {
-        stop();
-
-        running_ = true;
-        TIMER_START(starttime_);
+        stopWatch_.stop();
+        stopWatch_.start();
     }
 
     void stop() {
-        if (running_) {
-            running_ = false;
-
-            double  diff = 0;  // in secs
-            timeval end;
-
-            TIMER_STOP(starttime_, end, diff);
-            totalTime_ += diff * 100;  // centi secs
-        }
+        stopWatch_.stop();
     }
 
     /// Prints the current instruction count to the statistics object
     void stopAndYield(bool print = false) {
         stop();
-        timeStats += totalTime_;
-        if (print)
-            std::cout << " time: " << totalTime_ << std::endl;
-        totalTime_ = 0;
-    }
-
-    static inline u64 instructions() {
-        unsigned int a, d;
-        asm __volatile__(""
-                         :
-                         :
-                         : "memory");
-        asm volatile("rdtsc"
-                     : "=a"(a), "=d"(d));
-        return ((u64)a) | (((u64)d) << 32);
+        timeStats_ += stopWatch_.elapsedCentiseconds();
+        if (print) {
+            std::cout << " time: " << stopWatch_.elapsedCentiseconds() << std::endl;
+        }
+        stopWatch_.reset();
     }
 
 private:
-    bool                   running_;
-    timeval                starttime_;
-    f32                    totalTime_;
-    Core::Statistics<f32>& timeStats;
+    Core::StopWatch        stopWatch_;
+    Core::Statistics<f32>& timeStats_;
 };
-
-inline f32 scaledLogAdd(f32 a, f32 b, f32 scale, f32 invertedScale) {
-    if (b == Core::Type<f32>::max)
-        return a;
-    if (a == Core::Type<f32>::max)
-        return b;
-    a *= invertedScale;
-    b *= invertedScale;
-    return scale * (std::min(a, b) - ::log1p(::exp(std::min(a, b) - std::max(a, b))));
-}
-
-inline bool approximatelyEqual(double a, double b, const double threshold = 0.001) {
-    double diff = a - b;
-    return diff > -threshold && diff < threshold;
-}
 
 // Helper function
 template<class T>
@@ -162,18 +124,6 @@ inline std::string dumpPythonArray(std::vector<T> array) {
 
     return txt.str();
 }
-
-template<class T>
-struct SetHash {
-    size_t operator()(const std::set<T>& set) const {
-        size_t a = set.size();
-        a        = (a ^ 0xc761c23c) ^ (a >> 19);
-        a        = (a + 0xfd7046c5) + (a << 3);
-        for (typename std::set<T>::const_iterator it = set.begin(); it != set.end(); ++it)
-            a += (*it << a) + a * *it + (*it ^ 0xb711a53c);
-        return a;
-    }
-};
 
 bool pronunciationHasEvaluationTokens(const Bliss::LemmaPronunciation* pron);
 
@@ -255,7 +205,9 @@ template<class T>
 class AsymmetricIntersectionIterator {
 public:
     AsymmetricIntersectionIterator(const std::vector<T>& array1, const std::vector<T>& array2)
-            : a_(array1.size() < array2.size() ? array1 : array2), b_(array1.size() < array2.size() ? array2 : array1), ready_(false) {
+            : a_(array1.size() < array2.size() ? array1 : array2),
+              b_(array1.size() < array2.size() ? array2 : array1),
+              ready_(false) {
         stack_.reserve(50);
         assert(a_.size() <= b_.size());
 
@@ -373,4 +325,4 @@ private:
     bool                                 ready_;
 };
 
-#endif
+#endif  // ADVANCEDTREESEARCH_HELPERS_HH

@@ -100,7 +100,8 @@ protected:
 
 public:
     LevelNormalization(size_t index)
-            : index_(index), max_(0) {}
+            : index_(index),
+              max_(0) {}
 };
 
 /** Arithmetic average of the sliding window is substracted from the output.
@@ -227,7 +228,12 @@ private:
 private:
     Normalization* algorithm_;
 
-    Type type_;
+    Type   type_;
+    size_t length_;
+    size_t right_;
+    size_t levelIndex_;
+    f32    norm_;
+
     void setType(Type type) {
         if (type_ != type) {
             type_     = type;
@@ -235,31 +241,27 @@ private:
         }
     }
 
-    size_t length_;
-    void   setLength(size_t length) {
+    void setLength(size_t length) {
         if (length_ != length) {
             length_   = length;
             needInit_ = true;
         }
     }
 
-    size_t right_;
-    void   setRight(size_t right) {
+    void setRight(size_t right) {
         if (right_ != right) {
             right_    = right;
             needInit_ = true;
         }
     }
 
-    size_t levelIndex_;
-    void   setLevelIndex(size_t index) {
+    void setLevelIndex(size_t index) {
         if (levelIndex_ != index) {
             levelIndex_ = index;
             needInit_   = true;
         }
     }
 
-    f32  norm_;
     void setNorm(f32 norm) {
         if (norm_ != norm) {
             norm_     = norm;

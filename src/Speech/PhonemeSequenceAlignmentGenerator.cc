@@ -437,9 +437,9 @@ std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> LatticeToAlignmentFsa::convert(
     return std::make_pair(Fsa::ConstAutomatonRef(f_), totalInv);
 }
 
-//Iteration over states (DfsState):
-//do coarticulated pronunciation alignment
-//for all outgoing arcs from a state (getAlignment(coarticulatedPronunciation, begtime, endtime))
+// Iteration over states (DfsState):
+// do coarticulated pronunciation alignment
+// for all outgoing arcs from a state (getAlignment(coarticulatedPronunciation, begtime, endtime))
 class LatticeToAlignment : public Flf::DfsState {
 private:
     PhonemeSequenceAlignmentGenerator* alignmentGenerator_;
@@ -454,7 +454,8 @@ public:
 };
 
 LatticeToAlignment::LatticeToAlignment(PhonemeSequenceAlignmentGenerator* alignmentGenerator, Flf::ConstLatticeRef lattice)
-        : Flf::DfsState(lattice), alignmentGenerator_(alignmentGenerator) {}
+        : Flf::DfsState(lattice),
+          alignmentGenerator_(alignmentGenerator) {}
 
 void LatticeToAlignment::discoverState(Flf::ConstStateRef sp) {
     const TimeframeIndex begtime = fsa_->boundary(sp->id()).time();

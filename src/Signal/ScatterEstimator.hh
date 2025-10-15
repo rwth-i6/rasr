@@ -171,6 +171,6 @@ public:
     void addAccumulatorFiles(const std::vector<std::string>&);
 };
 
-}  //namespace Signal
+}  // namespace Signal
 
 #endif  // _SIGNAL_SCATTER_ESTIMATOR_HH

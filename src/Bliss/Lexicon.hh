@@ -25,10 +25,15 @@
 #include <Core/Component.hh>
 #include <Core/Dependency.hh>
 #include <Core/Extensions.hh>
+#include <Core/FormatSet.hh>
 #include <Core/Obstack.hh>
 #include <Core/Parameter.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/Status.hh>
 #include <Core/StringUtilities.hh>
+#include <Core/Types.hh>
+#include <Core/robin_hood.h>
+
 #include "Phoneme.hh"
 #include "Symbol.hh"
 
@@ -53,8 +58,8 @@ typedef SymbolSequence<const EvaluationToken*> EvaluationTokenSequence;
 typedef std::vector<EvaluationTokenSequence>   EvaluationTokenSequenceList;
 
 /**
-     * @todo pronunciation probabilities are quite slow due to repeated calculation of logarithm
-     */
+ * @todo pronunciation probabilities are quite slow due to repeated calculation of logarithm
+ */
 class LemmaPronunciation {
 public:
     typedef s32 Id;
@@ -106,12 +111,17 @@ public:
     const LemmaPronunciation* nextForThisPronunciation() const {
         return nextForThisPronunciation_;
     }
+
+    static const LemmaPronunciation& invalidPronunciation() {
+        static LemmaPronunciation invalidInstance(LemmaPronunciation::invalidId);
+        return invalidInstance;
+    }
 };
 
 /**
-     * An entry in the Bliss lexion.
-     * @see <a href="../../doc/Bliss.pdf">Bliss documentation</a>
-     */
+ * An entry in the Bliss lexion.
+ * @see <a href="../../doc/Bliss.pdf">Bliss documentation</a>
+ */
 class Lemma : public Token {
 private:
     OrthographicFormList        orth_;
@@ -142,20 +152,20 @@ protected:
 
 public:
     /**
-         * Test for presence of a name.
-         * Under all normal circumstances the answer is "yes".
-         * You don't have to test for this.
-         */
+     * Test for presence of a name.
+     * Under all normal circumstances the answer is "yes".
+     * You don't have to test for this.
+     */
     bool hasName() const {
         return symbol();
     }
 
     /**
-         * A unique string identifier for the lemma.
-         * The sole purpose of the name is to be used as a reference
-         * to the lemma lemma from an external data file
-         * (e.g. a word lattice).
-         */
+     * A unique string identifier for the lemma.
+     * The sole purpose of the name is to be used as a reference
+     * to the lemma lemma from an external data file
+     * (e.g. a word lattice).
+     */
     Symbol name() const {
         return symbol();
     }
@@ -409,6 +419,10 @@ protected:
         lemmas_.push_back(lemma);
     }
 
+    void reduceLemma() {
+        lemmas_.pop_back();  // only size matter, not order
+    }
+
 public:
     /** The number of lemmata this token occurs in. */
     u32 nLemmas() const {
@@ -477,7 +491,7 @@ class LemmaToEvaluationTokenTransducer;
  *
  * A lemma may be assigned a symbolic name, which the system can
  * use to identify lemmas which have a special meaning to it.
- * E.g. the silence word is is identified by the symbolic name
+ * E.g. the silence word is identified by the symbolic name
  * "silence".  Such lemmas a called "special lemmas".
  */
 
@@ -507,9 +521,11 @@ protected:
 
     // lemmas
     friend class Bliss::LemmaAlphabet;
-    TokenInventory                      lemmas_;
-    typedef Core::StringHashMap<Lemma*> LemmaMap;
-    LemmaMap                            specialLemmas_;
+    TokenInventory lemmas_;
+
+    typedef robin_hood::unordered_map<std::string, robin_hood::unordered_set<const Lemma*>> SpecialLemmaMap;
+    SpecialLemmaMap                                                                         specialLemmas_;
+    typedef Core::StringHashMap<Lemma*>                                                     LemmaMap;
 
     friend class Bliss::LemmaPronunciationAlphabet;
     typedef std::vector<const LemmaPronunciation*> LemmaPronunciationList;
@@ -522,7 +538,7 @@ protected:
     PronunciationList                         pronunciations_;
     typedef std::unordered_set<Pronunciation*, Pronunciation::Hash,
                                Pronunciation::Equality>
-            PronunciationMap;
+                     PronunciationMap;
     PronunciationMap pronunciationMap_;
     Pronunciation*   getOrCreatePronunciation(const std::vector<Phoneme::Id>& phonemes);
 
@@ -539,7 +555,7 @@ protected:
     EvaluationToken*                      getOrCreateEvaluationToken(Symbol);
 
     /** Convert phonemic string to sequence of phoneme ids */
-    void parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
+    Core::Status parsePronunciation(const std::string&, std::vector<Phoneme::Id>&) const;
 
     struct Internal;
     Internal* internal_;
@@ -566,13 +582,15 @@ public:
      * Set the unique name of a lemma.
      */
     void setDefaultLemmaName(Lemma* lemma);
+    void setLemmaName(Lemma* lemma, Symbol symbol);
 
     /**
      * Get a pronunciation for a string representation.
      * @param phon a string containing a white-space separate list
      * of phoneme symbols.
      */
-    Pronunciation* getPronunciation(const std::string& phon);
+    Core::Status   getPronunciation(const std::string& phon, Pronunciation*& out);
+    Pronunciation* getPronunciation(const std::vector<Phoneme::Id>& phonemes);
 
     /**
      * Add a pronunciation to a lemma.
@@ -590,12 +608,14 @@ public:
      * Set the a syntactic token sequence for a lemma.
      */
     void setSyntacticTokenSequence(Lemma* lemma, const std::vector<std::string>& synt);
+    void setSyntacticTokenSequence(Lemma* lemma, const std::vector<Token::Id>& synt);
     void setDefaultSyntacticToken(Lemma* lemma);
 
     /**
      * Set the a evaluation token sequence for a lemma.
      */
     void addEvaluationTokenSequence(Lemma* lemma, const std::vector<std::string>& eval);
+    void addEvaluationTokenSequence(Lemma* lemma, const std::vector<Token::Id>& ids);
     void setDefaultEvaluationToken(Lemma* lemma);
 
     /**
@@ -606,8 +626,10 @@ public:
      */
     void defineSpecialLemma(const std::string& name, Lemma* lemma);
 
+    void removeSpecialLemma(const Lemma* lemma);
+
     /**
-     * Load lexicon from XML file.
+     * Load lexicon from XML or txt file.
      */
     void load(const std::string& filename);
 
@@ -696,6 +718,14 @@ public:
      * It is the callers duty to handle this case appropriately.
      */
     const Lemma* specialLemma(const std::string& name) const;
+
+    /**
+     * If a lemma is declared as special, return the string specified
+     * in the "special" attribute (<lemma special="foo">).
+     * @return empty string if a lemma is not special, or the
+     * special attribute specified in the lexicon.
+     */
+    std::string getSpecialLemmaName(const Lemma* lemma) const;
 
     Core::Ref<const LemmaAlphabet> lemmaAlphabet() const;
 
@@ -883,6 +913,11 @@ public:
      * evaluation token sequences, the first is used.
      */
     Core::Ref<LemmaToEvaluationTokenTransducer> createLemmaToPreferredEvaluationTokenSequenceTransducer() const;
+
+private:
+    std::unique_ptr<Core::FormatSet> formats_;
+
+    Core::FormatSet& formats();
 };
 
 }  // namespace Bliss

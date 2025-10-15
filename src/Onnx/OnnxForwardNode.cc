@@ -119,7 +119,7 @@ bool OnnxForwardNode::work(Flow::PortId p) {
         auto t_end     = std::chrono::steady_clock::now();
         auto t_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
         log("num_frames: %zu elapsed: %f AM_RTF: %f",
-               data.size(), t_elapsed, t_elapsed / (static_cast<double>(data.size()) / 100.0));
+            data.size(), t_elapsed, t_elapsed / (static_cast<double>(data.size()) / 100.0));
 
         // Append session outputs to cache
         appendToOutput(session_outputs[0]);

@@ -531,8 +531,9 @@ std::string AllophoneAlphabet::symbol(Fsa::LabelId id) const {
 
 Fsa::LabelId AllophoneAlphabet::index(const std::string& symbol) const {
     Fsa::LabelId lid = specialIndex(symbol);
-    if (lid == Fsa::InvalidLabelId)
+    if (lid == Fsa::InvalidLabelId) {
         lid = index(fromString(symbol));
+    }
     return lid;
 }
 
@@ -798,7 +799,8 @@ struct IndexedAllophoneState {
     Am::AllophoneState allophoneState;
     IndexedAllophoneState() {}
     IndexedAllophoneState(Fsa::LabelId id, Am::AllophoneState allophoneState)
-            : id(id), allophoneState(allophoneState) {}
+            : id(id),
+              allophoneState(allophoneState) {}
     bool operator<(const IndexedAllophoneState& i) const {
         return id < i.id;
     }

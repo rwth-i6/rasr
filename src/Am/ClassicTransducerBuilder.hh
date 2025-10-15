@@ -34,6 +34,9 @@ protected:  // configurable options
     bool filterOutInvalidAllophones_;
     bool fixAllophoneContextAtWordBoundaries_;
 
+    // for context-independent allophones
+    bool linkWordEndStart_;
+
 public:  // configurable options
     virtual void setDisambiguators(u32);
 
@@ -73,21 +76,27 @@ private:  // internal
     struct PhoneBoundaryStateDescriptor {
         Phonology::Context context;
         u8                 flag;  // PhoneBoundaryFlags
-        bool               isWordStart() const {
+
+        bool isWordStart() const {
             return (flag & wordStart);
         }
+
         bool isWordEnd() const {
             return (flag & wordEnd);
         }
+
         bool isCoarticulated() const {
             return (!context.history.empty() && !context.future.empty());
         }
+
         bool operator==(const PhoneBoundaryStateDescriptor& r) const {
             return (context == r.context) && (flag == r.flag);
         }
+
         struct Hash {
             Phonology::Context::Hash ch;
-            u32                      operator()(const PhoneBoundaryStateDescriptor& pbsd) const {
+
+            u32 operator()(const PhoneBoundaryStateDescriptor& pbsd) const {
                 return ch(pbsd.context) ^ (u32(pbsd.flag) << 13);
             }
         };
@@ -97,7 +106,7 @@ private:  // internal
             PhoneBoundaryStateDescriptor,
             Fsa::State*,
             PhoneBoundaryStateDescriptor::Hash>
-            PhoneBoundaryStates;
+                        PhoneBoundaryStates;
     PhoneBoundaryStates phoneBoundaryStates_;
 
     struct AllophoneSuffix {
@@ -111,8 +120,10 @@ private:  // internal
 
         struct Hash {
             ClassicTransducerBuilder* model;
+
             Hash(ClassicTransducerBuilder* mm)
                     : model(mm) {}
+
             size_t operator()(const AllophoneSuffix& as) const {
                 if (!as.hash_) {
                     as.hash_ = model->hashSequence(as);
@@ -125,20 +136,21 @@ private:  // internal
 
         struct Equality {
             ClassicTransducerBuilder* model;
+
             Equality(ClassicTransducerBuilder* mm)
                     : model(mm) {}
+
             bool operator()(const AllophoneSuffix& l, const AllophoneSuffix& r) const {
                 return model->compareSequences(l, r) == 0;
             }
         };
     };
+
     size_t hashSequence(const AllophoneSuffix&);
     int    compareSequences(const AllophoneSuffix&, const AllophoneSuffix&);
-    typedef std::unordered_map<
-            AllophoneSuffix,
-            Fsa::StateId,
-            AllophoneSuffix::Hash, AllophoneSuffix::Equality>
-            AllophoneSuffixMap;
+
+    typedef std::unordered_map<AllophoneSuffix, Fsa::StateId, AllophoneSuffix::Hash, AllophoneSuffix::Equality> AllophoneSuffixMap;
+
     AllophoneSuffixMap allophoneSuffixes_;
 
     class Statistics;

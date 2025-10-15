@@ -71,16 +71,21 @@ public:
     RpropDiscriminativeMeanEstimator(ComponentIndex dimension = 0);
 
     virtual Mean* estimate();
-    void          setStepSizes(const Mean* mean) {
+
+    void setStepSizes(const Mean* mean) {
         Rprop::setStepSizes(*mean);
     }
+
     void setStepSizes(MeanType stepSize) {
         Rprop::setStepSizes(accumulator_.size(), stepSize);
     }
+
     Mean* collectStepSizes();
-    void  setPreviousToPreviousMean(const Mean* mean) {
+
+    void setPreviousToPreviousMean(const Mean* mean) {
         Rprop::setPreviousToPrevious(*mean);
     }
+
     void setCovarianceEstimator(Core::Ref<DiscriminativeCovarianceEstimator> covarianceEstimator) {
         covarianceEstimator_ = covarianceEstimator;
     }
@@ -145,11 +150,14 @@ public:
     void setStepSizes(const Covariance* covariance) {
         Rprop::setStepSizes(covariance->diagonal());
     }
+
     void setStepSizes(VarianceType stepSize) {
         Rprop::setStepSizes(accumulator_.size(), stepSize);
     }
+
     Covariance* collectStepSizes();
-    void        setPreviousToPreviousCovariance(const Covariance* covariance) {
+
+    void setPreviousToPreviousCovariance(const Covariance* covariance) {
         Rprop::setPreviousToPrevious(covariance->diagonal());
     }
 };
@@ -182,6 +190,6 @@ public:
     virtual void reset();
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_RPROP_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

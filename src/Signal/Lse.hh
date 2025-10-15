@@ -52,7 +52,9 @@ public:
 
     public:
         iterator(T* buffer = 0, u8 row_size = 0, u32 column_size = 0)
-                : buffer_(buffer), row_size_(row_size), column_size_(column_size){};
+                : buffer_(buffer),
+                  row_size_(row_size),
+                  column_size_(column_size){};
 
         operator bool() {
             return buffer_ != 0;
@@ -91,7 +93,13 @@ protected:
 
 public:
     LeastSquares()
-            : nr_sample_(0), nr_parameter_(0), X_(0), y_(0), work_(0), lwork_(0), need_init_(true){};
+            : nr_sample_(0),
+              nr_parameter_(0),
+              X_(0),
+              y_(0),
+              work_(0),
+              lwork_(0),
+              need_init_(true){};
     virtual ~LeastSquares() {
         freeBuffers();
     };
@@ -247,8 +255,8 @@ public:  // constructor & destructor
     virtual ~SvdLeastSquares(){};
 
 public:  // methods
-         //singular values <= max(singular value) * tolerance are zerod
-         //Effective rank is the number of non-zero singular values
+         // singular values <= max(singular value) * tolerance are zerod
+         // Effective rank is the number of non-zero singular values
     virtual bool work(const T tolerance, u8* effectiveRank, std::vector<T>* theta);
 
 protected:  // methods
@@ -283,7 +291,7 @@ bool SvdLeastSquares<T>::work(const T tolerance, u8* effectiveRank, std::vector<
             (*theta)[i] = this->y_[i];
     }
 
-    //if (condition_2norm)
+    // if (condition_2norm)
     //*condition_2norm = singularValues_[0] / singularValues_[order_B_ + order_A_ - 1];
 
     if (effectiveRank)
@@ -356,7 +364,10 @@ private:
 
 public:
     LeastSquaresBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true){};
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true){};
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {
@@ -396,24 +407,24 @@ bool LeastSquaresBuilder<T>::work(const std::vector<T>* u, const std::vector<T>*
     u32 i, k;
     for (u32 t = start_t; t < nr_sample; t++) {
         ls_y(t - start_t) = (*y)[t] - (y0 ? (*y0)[t] : 0.0);
-        //cout << "t= " << t << " " << ls_y(t - start_t) << "\t";
+        // cout << "t= " << t << " " << ls_y(t - start_t) << "\t";
 
         k = 0;
         for (i = 1; i <= order_B_; i++) {
             ls_X(t - start_t, k) = (*u)[t - i];
-            //cout << ls_X(t - start_t, k) << " ";
+            // cout << ls_X(t - start_t, k) << " ";
 
             k++;
         }
 
         for (i = 1; i <= order_A_; i++) {
             ls_X(t - start_t, k) = -(*y)[t - i];
-            //cout << ls_X(t - start_t, k) << " ";
+            // cout << ls_X(t - start_t, k) << " ";
 
             k++;
         }
 
-        //cout << endl;
+        // cout << endl;
     }
 
     return true;
@@ -468,7 +479,10 @@ private:
 
 public:
     CovarianceBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true) {}
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true) {}
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {
@@ -592,7 +606,10 @@ private:
 
 public:
     InstrumentalVariablesBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true) {}
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true) {}
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {

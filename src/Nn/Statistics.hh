@@ -89,43 +89,58 @@ public:
     Statistics(u32 nTrainableLayers, u32 statisticTypes);
     Statistics(const Statistics<T>& statistics, bool onlyStructure = false);
     virtual ~Statistics() {}
+
     /** resets the statistics to 0, but keeps sizes of matrices */
     void reset();
+
     /** transformation to a minimization problem and normalization */
     void finalize(bool normalizeByNOfObservations = true);
+
     void incClassificationErrors(u32 increment = 1) {
         nClassificationErrors_ += increment;
     }
+
     void incObservations(u32 increment = 1) {
         nObservations_ += increment;
     }
+
     void decObservations(u32 decrement = 1) {
         nObservations_ -= decrement;
     }
+
     void addToTotalWeight(T weight) {
         totalWeight_ += weight;
     }
+
     void incClassCount(u32 label, u32 increment = 1);
+
     void addToObjectiveFunction(T value) {
         objectiveFunction_ += value;
     }
+
     void addToEntropy(T value) {
         entropy_ += value;
     }
+
     T objectiveFunction() const {
         return objectiveFunction_;
     }
+
     T classificationError() const {
         return (T)nClassificationErrors_ / nObservations_;
     }
+
     u32 nObservations() const {
         return nObservations_;
     }
+
     T totalWeight() const {
         return totalWeight_;
     }
+
     u32 classCount(u32 label) const;
-    T   entropy() const {
+
+    T entropy() const {
         return entropy_ / nObservations_;
     }
 
@@ -133,27 +148,32 @@ public:
     NnVector& featureSum() {
         return sum_;
     }
+
     NnVector& squaredFeatureSum() {
         return sumOfSquares_;
     }
 
     /** return the gradient of a certain layer*/
-    //assumption: layer is trainable
+    // assumption: layer is trainable
     std::vector<NnMatrix>& gradientWeights(u32 layer) {
         return gradientWeights_.at(layerIndexToTrainableLayerIndex_.at(layer));
     }
+
     NnVector& gradientBias(u32 layer) {
         return gradientBias_.at(layerIndexToTrainableLayerIndex_.at(layer));
     }
+
     /** computes the l1 norm of the gradient*/
     T gradientL1Norm() const;
 
     bool hasClassCounts() const {
         return hasClassCounts_;
     }
+
     bool hasBaseStatistics() const {
         return hasBaseStatistics_;
     }
+
     bool hasGradient() const {
         return hasGradient_;
     }
@@ -351,6 +371,6 @@ public:
             : std::string("nn-statistics-f64") {}
 };
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _NN_NEURAL_NETWORK_STATISTICS_HH

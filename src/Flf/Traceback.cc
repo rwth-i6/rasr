@@ -60,6 +60,7 @@ public:
     static const Core::ParameterBool         paramDumpPhonemeAlignment;
     static const Core::ParameterBool         paramDumpSubwordAlignment;
     static const Core::ParameterBool         paramFillEmptySegments;
+    static const Core::ParameterFloat        paramFrameShiftTime;
 
 private:
     Core::Channel                    dump_;
@@ -82,6 +83,7 @@ private:
     bool                       dumpPhonemeAlignment_;
     bool                       dumpSubwordAlignment_;
     bool                       fillEmptySegments_;
+    float                      frameShiftTime_;
     LatticeAlignmentBuilderRef alignmentBuilder_;
 
 protected:
@@ -89,8 +91,8 @@ protected:
         if (l && (l->initialStateId() != Fsa::InvalidStateId)) {
             Core::Ref<const Bliss::LemmaPronunciationAlphabet> lpAlphabet =
                     Lexicon::us()->lemmaPronunciationAlphabet();
-            Search::SearchAlgorithm::Traceback traceback;
-            Lexicon::AlphabetId                alphabetId = Lexicon::us()->alphabetId(l->getInputAlphabet());
+            Search::Traceback   traceback;
+            Lexicon::AlphabetId alphabetId = Lexicon::us()->alphabetId(l->getInputAlphabet());
             if (alphabetId != Lexicon::LemmaPronunciationAlphabetId)
                 warning("DumpTracebackNode: Input alphabet of \"%s\" "
                         "is not lemma pronunciation; map alphabet",
@@ -116,11 +118,11 @@ protected:
                 }
                 traceback.clear();
                 traceback.push_back(
-                        Search::SearchAlgorithm::TracebackItem(
+                        Search::TracebackItem(
                                 0,
                                 0,
-                                Search::SearchAlgorithm::ScoreVector(0.0, 0),
-                                Search::SearchAlgorithm::TracebackItem::Transit()));
+                                Search::ScoreVector(0.0, 0),
+                                Search::TracebackItem::Transit()));
                 Score score = Semiring::One;
                 for (; sr->hasArcs(); sr = p->getState(sr->begin()->target())) {
                     verify(sr->nArcs() == 1);
@@ -137,22 +139,22 @@ protected:
                     if (lemmaPron) {
                         const Boundary& b = boundaries.get(a.target());
                         traceback.push_back(
-                                Search::SearchAlgorithm::TracebackItem(
+                                Search::TracebackItem(
                                         lemmaPron,
                                         b.time(),
-                                        Search::SearchAlgorithm::ScoreVector(score, 0),
-                                        Search::SearchAlgorithm::TracebackItem::Transit()));
+                                        Search::ScoreVector(score, 0),
+                                        Search::TracebackItem::Transit()));
                     }
                 }
                 verify(sr->isFinal());
                 score += sr->weight()->project(scales);
                 const Boundary& b = boundaries.get(sr->id());
                 traceback.push_back(
-                        Search::SearchAlgorithm::TracebackItem(
+                        Search::TracebackItem(
                                 0,
                                 b.time(),
-                                Search::SearchAlgorithm::ScoreVector(score, 0),
-                                Search::SearchAlgorithm::TracebackItem::Transit()));
+                                Search::ScoreVector(score, 0),
+                                Search::TracebackItem::Transit()));
                 Core::XmlOpen tracebackOpen("traceback");
                 tracebackOpen + Core::XmlAttribute("source", "recognized");
                 tracebackOpen + Core::XmlAttribute("n", i);
@@ -209,7 +211,10 @@ protected:
         std::string   tail;
 
         CtmPrinter(std::ostream& os)
-                : os(os), name("unknown"), track(1), scoreIds() {}
+                : os(os),
+                  name("unknown"),
+                  track(1),
+                  scoreIds() {}
         void printHeader(ConstSegmentRef segment) {
             printAsText(os << ";; ", segment) << tail << std::endl;
         }
@@ -341,6 +346,7 @@ protected:
             if (dumpPhonemeAlignment_ || dumpSubwordAlignment_) {
                 latticeAlignment = getLatticeAlignment(l);
             }
+
             ConstStateRef initialSr = l->getState(l->initialStateId());
             if (!l->hasProperty(Fsa::PropertyLinear))
                 printAsText(os << ";; ", segment_) << " [1.." << initialSr->nArcs() << "]-best" << std::endl;
@@ -366,12 +372,13 @@ protected:
                 }
                 cp.printHeader(segment_);
                 header_printed = true;
+
                 for (; sr->hasArcs(); sr = p->getState(sr->begin()->target())) {
                     verify(sr->nArcs() == 1);
                     const Arc&      a            = *sr->begin();
                     const Boundary &leftBoundary = boundaries.get(sr->id()), &rightBoundary = boundaries.get(a.target());
-                    f32             wordBegin = f32(leftBoundary.time()) / 100.00;
-                    f32             wordEnd   = f32(rightBoundary.time()) / 100.00;
+                    f32             wordBegin = f32(leftBoundary.time()) * frameShiftTime_;
+                    f32             wordEnd   = f32(rightBoundary.time()) * frameShiftTime_;
                     if (wordBegin < wordEnd) {
                         if (lAlphabet || lpAlphabet) {
                             std::string      word;
@@ -553,7 +560,9 @@ protected:
 
 public:
     DumpTracebackNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), dump_(config, "dump"), dumpXmlWriter_(0) {}
+            : Precursor(name, config),
+              dump_(config, "dump"),
+              dumpXmlWriter_(0) {}
     virtual ~DumpTracebackNode() {
         delete dumpXmlWriter_;
     }
@@ -580,6 +589,7 @@ public:
                 dumpPhonemeAlignment_               = paramDumpPhonemeAlignment(ctmConfig);
                 dumpSubwordAlignment_               = paramDumpSubwordAlignment(ctmConfig);
                 fillEmptySegments_                  = paramFillEmptySegments(ctmConfig);
+                frameShiftTime_                     = paramFrameShiftTime(ctmConfig);
                 if (dumpPhonemeAlignment_ || dumpSubwordAlignment_) {
                     createAlignmentBuilder(ctmConfig);
                 }
@@ -684,9 +694,11 @@ const Core::ParameterBool DumpTracebackNode::paramFillEmptySegments(
         "fill-empty-segments",
         "fill empty segments (can fix issues with sclite complaining about unsynchronized files if a segment is missing from the ctm file)",
         false);
+const Core::ParameterFloat DumpTracebackNode::paramFrameShiftTime(
+        "frame-shift-time",
+        "shift-time of frames of the lattice time axis in seconds. Defaults to 0.01 = 10ms. Important for correct word boundaries when subsampling is used.",
+        0.01);
 NodeRef createDumpTracebackNode(const std::string& name, const Core::Configuration& config) {
     return NodeRef(new DumpTracebackNode(name, config));
 }
-// -------------------------------------------------------------------------
-
 }  // namespace Flf

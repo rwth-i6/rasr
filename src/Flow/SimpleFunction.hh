@@ -88,7 +88,7 @@ class VectorLnFunctionSave : public SimpleFunction<Vector<T>, T> {
 public:
     void apply(Vector<T>& v, T) {
         const T tinyValue = 1.175494e-38;
-        std::transform(v.begin(), v.end(), v.begin(), std::bind2nd(std::plus<T>(), tinyValue));
+        std::transform(v.begin(), v.end(), v.begin(), std::bind(std::plus<T>(), std::placeholders::_1, tinyValue));
         std::transform(v.begin(), v.end(), v.begin(), static_cast<T (*)(T)>(std::log));
     }
     static std::string name() {
@@ -380,7 +380,7 @@ class VectorSigmoidFunction : public SimpleFunction<Vector<T>, T> {
 public:
     void apply(Vector<T>& v, T) {
         // apply sigmoid
-        //for (u32 i = 0; i < v.size(); i++) {v[i] = (1 / (1 + exp(- (v[i])) ) );};
+        // for (u32 i = 0; i < v.size(); i++) {v[i] = (1 / (1 + exp(- (v[i])) ) );};
         for (typename Vector<T>::iterator it = v.begin(); it != v.end(); it++)
             *it = (1 / (1 + exp(-(*it))));
     }
@@ -402,7 +402,7 @@ public:
         T maxValue = *std::max_element(v.begin(), v.end());
         /* v[i] = v[i] - MAX(v) */
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::plus<T>(), -maxValue));
+                       std::bind(std::plus<T>(), std::placeholders::_1, -maxValue));
         /* v[i] = exp( v[i] - MAX(v) )*/
         std::transform(v.begin(), v.end(), v.begin(), static_cast<T (*)(T)>(std::exp));
 
@@ -410,7 +410,7 @@ public:
         T sumValue = std::accumulate(v.begin(), v.end(), (T)0);
         /* exp( (v[i] - MAX(v)) ) / sum( exp( (v[i] - MAX(v)) ) ) */
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (T)1 / sumValue));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (T)1 / sumValue));
     }
 
     static std::string name() {
@@ -471,7 +471,8 @@ public:
 
 template<class Function>
 SimpleFunctionNode<Function>::SimpleFunctionNode(const Core::Configuration& c)
-        : Component(c), SleeveNode(c) {
+        : Component(c),
+          SleeveNode(c) {
     setFunctionParameter(paramSimpleFunctionParameter(c));
 }
 

@@ -55,7 +55,10 @@ public:
         InternalLabel ilabel;     // input;
         Arc(Fsa::StateId _target,
             Label _input, Label _output, Score _weight)
-                : weight(_weight), nextstate(_target), olabel(_output), ilabel(_input) {}
+                : weight(_weight),
+                  nextstate(_target),
+                  olabel(_output),
+                  ilabel(_input) {}
     };
     typedef Arc* Arcs;
 
@@ -64,7 +67,9 @@ public:
         InternalLabel olabel;     // output;
         Fsa::StateId  nextstate;  // target;
         EpsilonArc(Fsa::StateId _target, Label _output, Score _weight)
-                : weight(_weight), olabel(_output), nextstate(_target) {}
+                : weight(_weight),
+                  olabel(_output),
+                  nextstate(_target) {}
     };
     typedef EpsilonArc* EpsilonArcs;
 
@@ -76,7 +81,11 @@ public:
         // bool final;
         Score weight;
         State(bool f = false, Score weight = 0)
-                : begin(InvalidArcIndex), epsilonArcsBegin(InvalidArcIndex), nArcs(0), nEpsilonArcs(0), weight(f ? weight : NonFinalWeight) {}
+                : begin(InvalidArcIndex),
+                  epsilonArcsBegin(InvalidArcIndex),
+                  nArcs(0),
+                  nEpsilonArcs(0),
+                  weight(f ? weight : NonFinalWeight) {}
     };
     typedef State* States;
 

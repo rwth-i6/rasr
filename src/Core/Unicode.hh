@@ -77,17 +77,19 @@ namespace utf8 {
 const char blank        = ' ';
 const char whitespace[] = " \t\n\r\f\v";
 /**
-     * UTF-8 is based on bytes (8 bit).  Codepoints below 128
-     * (i.e. ASCII characters) are represented as a singleByte.  Other
-     * codepoints are encoded as multi-byte sequence, which consists
-     * of a multiByteHead followed by one up to five multiByteTail
-     * bytes.  The two byte values 0xfe and 0xff are illegal, they can
-     * never occur in a UTF-8 string.
-     */
-enum ByteType { singleByte,
-                multiByteHead,
-                multiByteTail,
-                illegal };
+ * UTF-8 is based on bytes (8 bit).  Codepoints below 128
+ * (i.e. ASCII characters) are represented as a singleByte.  Other
+ * codepoints are encoded as multi-byte sequence, which consists
+ * of a multiByteHead followed by one up to five multiByteTail
+ * bytes.  The two byte values 0xfe and 0xff are illegal, they can
+ * never occur in a UTF-8 string.
+ */
+enum ByteType {
+    singleByte,
+    multiByteHead,
+    multiByteTail,
+    illegal
+};
 inline ByteType byteType(char u) {
     if ((u & 0x80) == 0x00)
         return singleByte;
@@ -99,10 +101,10 @@ inline ByteType byteType(char u) {
 }
 
 /**
-     * Count unicode characters in a UTF-8 string.
-     * Unlike normal strlen(), this function handles multi-byte
-     * characters correctly.
-     */
+ * Count unicode characters in a UTF-8 string.
+ * Unlike normal strlen(), this function handles multi-byte
+ * characters correctly.
+ */
 size_t length(const char*);
 
 }  // namespace utf8

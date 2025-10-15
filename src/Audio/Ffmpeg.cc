@@ -117,7 +117,12 @@ struct FfmpegInputNode::Internal {
 };
 
 FfmpegInputNode::FfmpegInputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), Precursor(c), internal_(new Internal()), buffer_(nullptr), resampleRate_(paramResampleRate(c)) {
+        : Core::Component(c),
+          Node(c),
+          Precursor(c),
+          internal_(new Internal()),
+          buffer_(nullptr),
+          resampleRate_(paramResampleRate(c)) {
     std::call_once(FfmpegInputNode::ffmpeg_initialized, av_register_all);
 }
 
@@ -227,7 +232,7 @@ bool FfmpegInputNode::openFile_() {
     setSampleSize(8 * av_get_bytes_per_sample(packed_fmt));
     setTrackCount(internal_->cdc_ctx->channels);
 
-    //set seeking cursor
+    // set seeking cursor
     lastSeekTime_ = 0;
 
 cleanup:
@@ -305,7 +310,7 @@ bool FfmpegInputNode::seek(SampleCount newSamplePos) {
     // flush output buffer
     flush_buffer(buffer_);
 
-    //set seek cursor
+    // set seek cursor
     lastSeekTime_ = stream_time;
 
     return true;

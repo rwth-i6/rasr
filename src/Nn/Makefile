@@ -37,14 +37,11 @@ ifdef MODULE_NN
   LIBSPRINTNN_O += $(OBJDIR)/BufferedSegmentFeatureProcessor.o
   LIBSPRINTNN_O += $(OBJDIR)/ClassLabelWrapper.o
   LIBSPRINTNN_O += $(OBJDIR)/Criterion.o
-  LIBSPRINTNN_O += $(OBJDIR)/CtcCriterion.o
   LIBSPRINTNN_O += $(OBJDIR)/Estimator.o
   LIBSPRINTNN_O += $(OBJDIR)/FeatureScorer.o
   LIBSPRINTNN_O += $(OBJDIR)/FeedForwardTrainer.o
-  LIBSPRINTNN_O += $(OBJDIR)/GradientCheck.o
   LIBSPRINTNN_O += $(OBJDIR)/LinearAndActivationLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/LinearLayer.o
-  LIBSPRINTNN_O += $(OBJDIR)/LookupLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/MeanNormalizedSgdEstimator.o
   LIBSPRINTNN_O += $(OBJDIR)/NetworkTopology.o
   LIBSPRINTNN_O += $(OBJDIR)/NeuralNetworkForwardNode.o
@@ -56,7 +53,6 @@ ifdef MODULE_NN
   LIBSPRINTNN_O += $(OBJDIR)/PreprocessingLayer.o
   LIBSPRINTNN_O += $(OBJDIR)/Prior.o
   LIBSPRINTNN_O += $(OBJDIR)/Regularizer.o
-  LIBSPRINTNN_O += $(OBJDIR)/RpropEstimator.o
   LIBSPRINTNN_O += $(OBJDIR)/Statistics.o
   LIBSPRINTNN_O += $(OBJDIR)/TrainerFeatureScorer.o
 endif
@@ -77,16 +73,7 @@ ifdef MODULE_PYTHON
   LIBSPRINTNN_O += $(OBJDIR)/PythonLayer.o
 endif
 
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-  LIBSPRINTNN_O += $(OBJDIR)/LabelScorer.o
-  ifdef MODULE_TENSORFLOW
-    LIBSPRINTNN_O += $(OBJDIR)/TFLabelScorer.o
-
-    CXXFLAGS += $(TF_CXXFLAGS)
-    LDFLAGS  += $(TF_LDFLAGS)
-    CHECK_O  += ../Tensorflow/libSprintTensorflow.$(a)
-  endif
-endif
+SUBDIRS += LabelScorer
 
 # -----------------------------------------------------------------------------
 all: $(TARGETS)
@@ -98,6 +85,9 @@ interpol:
 
 libSprintNn.$(a): $(SUBDIRS) $(LIBSPRINTNN_O)
 	$(MAKELIB) $@ $(LIBSPRINTNN_O) $(patsubst %,%/$(OBJDIR)/*.o,$(SUBDIRS))
+
+LabelScorer:
+	$(MAKE) -C $@ libSprintLabelScorer.$(a)
 
 check$(exe): $(CHECK_O)
 	$(LD) $(LD_START_GROUP) $(CHECK_O) $(LD_END_GROUP) -o $@ $(LDFLAGS)

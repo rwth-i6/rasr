@@ -70,9 +70,17 @@ private:
         bool                    disconnect_;
         Substate() {}
         Substate(Fsa::StateId state, Fsa::LabelIdStrings::Id output, Weight weight)
-                : predecessor_(NoPredecessor), state_(state), output_(output), weight_(weight), disconnect_(false) {}
+                : predecessor_(NoPredecessor),
+                  state_(state),
+                  output_(output),
+                  weight_(weight),
+                  disconnect_(false) {}
         Substate(Cursor predecessor, Fsa::StateId state, Fsa::LabelIdStrings::Id output, Weight weight)
-                : predecessor_(predecessor), state_(state), output_(output), weight_(weight), disconnect_(false) {}
+                : predecessor_(predecessor),
+                  state_(state),
+                  output_(output),
+                  weight_(weight),
+                  disconnect_(false) {}
         bool operator<(const Substate& s) const {
             return (state_ < s.state_) || ((state_ == s.state_) && (output_ < s.output_));
         }
@@ -116,7 +124,8 @@ private:
             Cursor                 current_, skip_;
             Substate               substate_;
             const_iterator(const Substates& container, Cursor i)
-                    : container_(container), current_(i) {
+                    : container_(container),
+                      current_(i) {
                 substate_.weight_ = container_.semiring_->one();
                 uncompress();
             }
@@ -189,7 +198,7 @@ private:
             return &predecessors_[p][predecessors_[p].size() - 1];
         }
         Cursor addPredecessor(Cursor p1, Cursor p2) {
-            //if (p2 == None) return p1; // does not occur
+            // if (p2 == None) return p1; // does not occur
             if (p1 == NoPredecessor)
                 return p2;
             if (!(p1 & Overflow)) {
@@ -337,7 +346,8 @@ private:
         typename Substates::Cursor subset_;  // state label: subset of state and weights
         Fsa::LabelIdStrings::Id    output_;  // hash index
         State_(typename Substates::Cursor subset, Fsa::LabelIdStrings::Id output)
-                : subset_(subset), output_(output) {}
+                : subset_(subset),
+                  output_(output) {}
     };
     struct StateHashKey_ {
         const Self& d_;
@@ -389,7 +399,11 @@ private:
         Fsa::LabelId               start_;
         Arc_() {}
         Arc_(typename Substates::Cursor predecessor, Fsa::LabelId input, Fsa::StateId target, Weight weight, Fsa::LabelId start)
-                : predecessor_(predecessor), input_(input), target_(target), weight_(weight), start_(start) {}
+                : predecessor_(predecessor),
+                  input_(input),
+                  target_(target),
+                  weight_(weight),
+                  start_(start) {}
         bool operator<(const Arc_& a) const {
             return input_ < a.input_;
         }
@@ -399,7 +413,9 @@ private:
 
 public:
     DeterminizeAutomaton(_ConstAutomatonRef f, bool disambiguate)
-            : disambiguate_(disambiguate), substates_(f->semiring()), states_(StateHashKey_(*this), StateHashEqual_(*this)) {
+            : disambiguate_(disambiguate),
+              substates_(f->semiring()),
+              states_(StateHashKey_(*this), StateHashEqual_(*this)) {
         fsa_ = sort<_Automaton>(f, Fsa::SortTypeByInput);
         this->unsetProperties(Fsa::PropertyAll);
         this->setProperties(f->knownProperties(), f->properties());

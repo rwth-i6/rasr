@@ -59,13 +59,6 @@ public:
 protected:
     static const Core::ParameterString paramStatisticsFilename;
     static const Core::ParameterBool   paramDoublePrecisionAccumulator;
-    static const Core::ParameterBool   paramConvergenceCheck;
-    static const Core::ParameterFloat  paramConvergenceCheckLearningRateFactor;
-    static const Core::ParameterFloat  paramConvergenceCheckGradNormLimit;
-    static const Core::ParameterBool   paramGradientCheck;
-    static const Core::ParameterFloat  paramGradientCheckPerturbation;
-    static const Core::ParameterInt    paramGradientCheckPrecision;
-    static const Core::ParameterBool   paramSimpleGradientCheck;
     static const Core::ParameterBool   paramNormalizeByNOfObservations;
     static const Core::ParameterFloat  paramErrorSignalClip;
     static const Core::ParameterBool   paramLogFrameEntropy;
@@ -75,14 +68,6 @@ protected:
     const bool        useDoublePrecisionAccumulator_;
     Statistics<T>*    statistics_;
     Statistics<f64>*  doublePrecisionStatistics_;
-    // gradient/convergence check {
-    bool convergenceCheck_;
-    T    convergenceCheckLearningRateFactor_;
-    T    convergenceCheckGradNormLimit_;
-    bool gradientCheck_;
-    T    gradientCheckPerturbation_;
-    int  gradientCheckPrecision_;
-    bool simpleGradientCheck_;
     // }
     bool normalizeByNOfObservations_;
     T    errorSignalClip_;
@@ -152,20 +137,6 @@ protected:
     // initialized double precision accumulator
     virtual void initializeDoublePrecisionStatistics();
 
-    // Reevaluates the criterion.
-    T getNewError();
-    // Component-wise gradient check.
-    void gradientCheck();
-    // Check specific component.
-    template<typename Params>
-    void gradientCheckComponent(T grad, T* paramPtr, Params& params, u32 layerIdx);
-    // Make a simple numerical gradient approximation into the dir of -grad.
-    void simpleGradientCheck(T oldError);
-    // Calculates grad^T * grad * learningRate.
-    T getDirectionalEstimate();
-    // Check whether we should repeat to converge.
-    bool convergenceCheckRepeat(T& error, NnMatrix& errorSignal);
-
     // per-batch time measurements
     virtual void resetBatchTimes();
 
@@ -192,8 +163,8 @@ inline void FeedForwardTrainer<f64>::initializeDoublePrecisionStatistics() {
 //=============================================================================
 
 /*
-* Autoencoder.
-*/
+ * Autoencoder.
+ */
 
 template<class T>
 class FeedForwardAutoTrainer : public FeedForwardTrainer<T> {
@@ -217,7 +188,7 @@ protected:
     static const Core::ParameterInt    paramReferenceInputLayerPort;
 
     virtual void processBatch_feedInput(std::vector<NnMatrix>& features, NnVector* weights, Bliss::Segment* segment);
-    //virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
+    // virtual void processBatch_finishWithSpeechSegment(Bliss::SpeechSegment& segment);
     virtual void processBatch_finishWithAlignment(Math::CudaVector<u32>& alignment);
     virtual void processBatch_finish();
     virtual bool needsToProcessAllFeatures() const {

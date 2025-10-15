@@ -68,7 +68,8 @@ const Core::ParameterInt RegressionNode::parameterOrder(
         "order", "order of derivative to calculate", 1, 0);
 
 RegressionNode::RegressionNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c) {
+        : Core::Component(c),
+          Precursor(c) {
     order_ = parameterOrder(config);
 }
 

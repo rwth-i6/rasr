@@ -42,45 +42,45 @@ using __gnu_cxx::hash_map;
 APPLICATION(Aligner)
 
 std::string Aligner::getUsage() const {
-    std::string usage = "\n"
-                        "aligner [OPTION(S)] <lexicon> <source> <target>\n"
-                        "\n"
-                        "aligner options:\n"
-                        "   --startSentence=<n>         set start sentence\n"
-                        "   --endSentence=<n>           set end sentence\n"
-                        "   --transitionProbs=<p>,<p>,<p>  transition probabilities (diagonal, horizontal, vertical)\n"
-                        "   --factorTransition=<f>     exponent of transition probabilities in log-linear combination\n"
-                        "   --model=<name>              name of the model to use. \n"
-                        "                                 zeroorder, conditional, simple\n"
-                        "   --order=<int>               order of the alignment model (does not apply to all models)\n"
-                        "   --lexiconFloor=<float>     floor value for the lexica\n"
-                        "   --lexiconType=<type>       lexicon type can be \"sri\" or \"plain\"\n"
-                        "   --outputXml=<filename>     output filename for xml format\n"
-                        "   --outputBilang=<filename>  output filename for bilanguage corpus\n"
-                        "   --outputAachen=<filename>  output filename for aachen format\n"
-                        "   --iterationsOrder=<intVector> iterations per order (default: 1,0. one iteration with zero order)\n"
-                        "   --outputLexicon=<filename>  output filename for lexicon\n"
-                        "   --sourceLmFsa=<filename>   source language model (to weight reorderings)"
-                        "\n"
-                        "translator options:\n"
-                        "   --beamPrune=<t>            prune output with beam threshold (default: infinity) (*)\n"
-                        "   --help                      print this page\n"
-                        "   --prune=<t>                 prune output with posterior threshold (default: infinity) (*)\n"
-                        "   --reorder.dfile=<file>      file with distortion probabilities \n"
-                        "   --reorder.distortion=<p>    distortion probability lambda (when no dfile is given, a parametric distribution will be used)\n"
-                        "   --reorder.max-distortion=<n>  maximum allowed distortion for ibm and inverse-ibm constraints (default: 20)\n"
-                        "   --reorder.probability=<p>   probability for main path (default: off)\n"
-                        "   --reorder.type=<n>          type of reordering (default: none)\n"
-                        "   --reorder.window-size=<n>   window size (default: infinity = full sentence)\n"
-                        "   --reorderlex=<file>         lexicon for nbest reorderings (*)\n"
-                        "   --factorReorder=<f>        exponent of the reordering model\n"
-                        "   --factorLexicon=<f>        exponent of the lexicon model\n"
-                        "   --factorSourceLm=<f>        exponent of the source languange model\n"
-                        "\n"
-                        "(*) under construction\n"
-                        "\n"
-                        "possible permutations:\n"
-                        "   ";
+    std::string        usage = "\n"
+                               "aligner [OPTION(S)] <lexicon> <source> <target>\n"
+                               "\n"
+                               "aligner options:\n"
+                               "   --startSentence=<n>         set start sentence\n"
+                               "   --endSentence=<n>           set end sentence\n"
+                               "   --transitionProbs=<p>,<p>,<p>  transition probabilities (diagonal, horizontal, vertical)\n"
+                               "   --factorTransition=<f>     exponent of transition probabilities in log-linear combination\n"
+                               "   --model=<name>              name of the model to use. \n"
+                               "                                 zeroorder, conditional, simple\n"
+                               "   --order=<int>               order of the alignment model (does not apply to all models)\n"
+                               "   --lexiconFloor=<float>     floor value for the lexica\n"
+                               "   --lexiconType=<type>       lexicon type can be \"sri\" or \"plain\"\n"
+                               "   --outputXml=<filename>     output filename for xml format\n"
+                               "   --outputBilang=<filename>  output filename for bilanguage corpus\n"
+                               "   --outputAachen=<filename>  output filename for aachen format\n"
+                               "   --iterationsOrder=<intVector> iterations per order (default: 1,0. one iteration with zero order)\n"
+                               "   --outputLexicon=<filename>  output filename for lexicon\n"
+                               "   --sourceLmFsa=<filename>   source language model (to weight reorderings)"
+                               "\n"
+                               "translator options:\n"
+                               "   --beamPrune=<t>            prune output with beam threshold (default: infinity) (*)\n"
+                               "   --help                      print this page\n"
+                               "   --prune=<t>                 prune output with posterior threshold (default: infinity) (*)\n"
+                               "   --reorder.dfile=<file>      file with distortion probabilities \n"
+                               "   --reorder.distortion=<p>    distortion probability lambda (when no dfile is given, a parametric distribution will be used)\n"
+                               "   --reorder.max-distortion=<n>  maximum allowed distortion for ibm and inverse-ibm constraints (default: 20)\n"
+                               "   --reorder.probability=<p>   probability for main path (default: off)\n"
+                               "   --reorder.type=<n>          type of reordering (default: none)\n"
+                               "   --reorder.window-size=<n>   window size (default: infinity = full sentence)\n"
+                               "   --reorderlex=<file>         lexicon for nbest reorderings (*)\n"
+                               "   --factorReorder=<f>        exponent of the reordering model\n"
+                               "   --factorLexicon=<f>        exponent of the lexicon model\n"
+                               "   --factorSourceLm=<f>        exponent of the source languange model\n"
+                               "\n"
+                               "(*) under construction\n"
+                               "\n"
+                               "possible permutations:\n"
+                               "   ";
     std::ostringstream s;
     Translation::Reordering::typeChoice_.printIdentifiers(s);
     usage += s.str() + "\n\n";
@@ -88,7 +88,17 @@ std::string Aligner::getUsage() const {
 }
 
 Aligner::Aligner()
-        : order_(0), reordering_(0), perplexity_(0.0), userTime_(0.0), sentences_(0), oovs_(0), words_(0), arcs_(0), maxMemory_(0), segmentStart_(0), segmentEnd_(0) {
+        : order_(0),
+          reordering_(0),
+          perplexity_(0.0),
+          userTime_(0.0),
+          sentences_(0),
+          oovs_(0),
+          words_(0),
+          arcs_(0),
+          maxMemory_(0),
+          segmentStart_(0),
+          segmentEnd_(0) {
     setTitle("aligner");
     setDefaultLoadConfigurationFile(false);
     setDefaultOutputXmlHeader(false);
@@ -118,7 +128,7 @@ Aligner::~Aligner() {
     delete reordering_;
 }
 
-//extracts aligned words from a given linear automaton and stores them in a lexicon.
+// extracts aligned words from a given linear automaton and stores them in a lexicon.
 void Aligner::extract(Translation::ConditionalLexiconRef lexicon, ConstAutomatonRef f, int extractionOrder) {
     Fsa::StateId       initialState = f->initialStateId();
     Fsa::ConstStateRef currentState(f->getState(initialState));
@@ -131,21 +141,21 @@ void Aligner::extract(Translation::ConditionalLexiconRef lexicon, ConstAutomaton
     while (!currentState->isFinal()) {
         totalCost_ = totalCost_ + float(currentState->begin()->weight());
 
-        //delta 0
+        // delta 0
         if (currentState->begin()->output() == Epsilon) {
             delta        = 1;
             sourceVector = Core::split(f->getInputAlphabet()->symbol(currentState->begin()->input()), "#");
             targetVector = Core::split(f->getOutputAlphabet()->symbol(currentState->begin()->output()), "#");
         }
 
-        //delta 2
+        // delta 2
         else if (currentState->begin()->input() == Epsilon) {
             delta        = 2;
             sourceVector = Core::split(f->getInputAlphabet()->symbol(currentState->begin()->input()), "#");
             targetVector = Core::split(f->getOutputAlphabet()->symbol(currentState->begin()->output()), "#");
         }
 
-        //delta 1
+        // delta 1
         else {
             delta        = 0;
             sourceVector = Core::split(f->getInputAlphabet()->symbol(currentState->begin()->input()), "#");
@@ -256,7 +266,7 @@ void Aligner::processFile(const std::string& sourceFilename,
                     }
 
                     // counting of alignments should happen here
-                    if (iteration == numberOfIterations - 1) {  //extraction with next order if at the end of the current iteration.
+                    if (iteration == numberOfIterations - 1) {  // extraction with next order if at the end of the current iteration.
                         extract(tmpLexicon, alignment, nextExtractionOrder);
                     }
                     else {

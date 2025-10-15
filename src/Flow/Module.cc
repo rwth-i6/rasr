@@ -24,6 +24,7 @@
 #include "Cutter.hh"
 #include "Demo.hh"
 #include "Dump.hh"
+#include "InputNode.hh"
 #include "Pipe.hh"
 #include "Repeater.hh"
 #include "SequenceFilter.hh"
@@ -140,11 +141,15 @@ Module_::Module_() {
     registry.registerFilter<SequenceFilterNode>();
     registry.registerFilter<WarpTimeFilterNode>();
 
+    registry.registerFilter<Flow::InputNode>();
+
     // register datatypes
     registry.registerDatatype<Timestamp>();
     registry.registerDatatype<Float32>();
     registry.registerDatatype<Float64>();
+    registry.registerDatatype<Vector<u8>>();
     registry.registerDatatype<Vector<s8>>();
+    registry.registerDatatype<Vector<u16>>();
     registry.registerDatatype<Vector<s16>>();
     registry.registerDatatype<Vector<u32>>();
     registry.registerDatatype<Vector<f32>>();
@@ -153,7 +158,7 @@ Module_::Module_() {
     registry.registerDatatype<Vector<std::complex<f64>>>();
     registry.registerDatatype<Vector<Vector<f32>>>();
     registry.registerDatatype<Flow::Vector<bool>>();
-    //registry.registerDatatype<new GatheredVector<f32> >();
+    // registry.registerDatatype<new GatheredVector<f32> >();
     registry.registerDatatype<String>();
     registry.registerDatatype<Aggregate>();
     registry.registerDatatype<TypedAggregate<Vector<f32>>>();

@@ -15,10 +15,16 @@
 #ifndef _NN_MODULE_HH
 #define _NN_MODULE_HH
 
+#include <Core/Configuration.hh>
 #include <Core/Factory.hh>
+#include <Core/Parameter.hh>
+#include <Core/ReferenceCounting.hh>
 #include <Core/Singleton.hh>
-
 #include <Flow/Module.hh>
+
+#include "LabelScorer/EncoderFactory.hh"
+#include "LabelScorer/LabelScorer.hh"
+#include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {
 class FormatSet;
@@ -26,16 +32,13 @@ class FormatSet;
 
 namespace Nn {
 
-class LabelScorer;
-
 class Module_ {
-private:
-    Core::FormatSet* formats_;
-
 public:
     Module_();
     ~Module_();
-    enum { FeatureScorerTypeOffset = 0x300 };
+    enum {
+        FeatureScorerTypeOffset = 0x300
+    };
     enum FeatureScorerType {
         nnOnDemanHybrid        = FeatureScorerTypeOffset,
         nnFullHybrid           = FeatureScorerTypeOffset + 1,
@@ -50,7 +53,22 @@ public:
      */
     Core::FormatSet& formats();
 
+    /*
+     * Access instance of EncoderFactory for registering and creating Encoders.
+     */
+    EncoderFactory& encoderFactory();
+
+    /*
+     * Access instance of LabelScorerFactory for registering and creating LabelScorers.
+     */
+    LabelScorerFactory& labelScorerFactory();
+
     Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
+
+private:
+    Core::FormatSet*   formats_;
+    EncoderFactory     encoderFactory_;
+    LabelScorerFactory labelScorerFactory_;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

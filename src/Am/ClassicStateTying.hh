@@ -38,7 +38,8 @@ private:
 
 public:
     EmissionAlphabet(Mm::MixtureIndex nMixtures = 0)
-            : nMixtures_(nMixtures), nDisambiguators_(0) {}
+            : nMixtures_(nMixtures),
+              nDisambiguators_(0) {}
     Mm::MixtureIndex nMixtures() const {
         return nMixtures_;
     }
@@ -154,7 +155,7 @@ public:
 
 protected:
     static const u32 numBoundaryClasses_;
-    static const u32 numWordEndClasses_; //word end classes for all dense state tyings
+    static const u32 numWordEndClasses_;  // word end classes for all dense state tyings
     u32              numPhoneClasses_;
     u32              numStates_;
     u32              contextLength_;

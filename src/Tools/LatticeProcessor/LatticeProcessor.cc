@@ -368,6 +368,7 @@ std::string LatticeProcessor::getParameterDescription() const {
                       "\t[*.selection]\n"
                       "\t# nothing to configurate\n"
                       "\t\n";
+
     std::vector<Action> actions = processorFactory_.identifiers();
     for (std::vector<Action>::const_iterator a = actions.begin(); a != actions.end(); ++a) {
         std::string name = choiceAction[*a];
@@ -468,8 +469,7 @@ APPLICATION(LatticeProcessor)
 /**
  * Parse the actions and selections statements in the configuration
  */
-void LatticeProcessor::parseActionsSelections(
-        std::vector<Action>& actions, std::vector<Selection>& selections) {
+void LatticeProcessor::parseActionsSelections(std::vector<Action>& actions, std::vector<Selection>& selections) {
     require(actions.empty() && selections.empty());
     std::vector<std::string> _actions = paramActions(config);
     selections                        = paramSelections(config);

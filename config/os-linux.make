@@ -62,6 +62,14 @@ TF_LDFLAGS += -Wl,-rpath -Wl,$(TF_COMPILE_BASE)/bazel-bin/tensorflow
 USE_TENSORFLOW_MKL=1
 endif
 
+
+ifdef MODULE_ONNX
+LDFLAGS += -lonnxruntime
+ifndef MODULE_TENSORFLOW
+CXXFLAGS += -fexceptions
+endif
+endif
+
 # -----------------------------------------------------------------------------
 # system Libraries
 

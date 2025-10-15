@@ -35,11 +35,13 @@ private:
 
 public:
     Bitvector(const Bitvector& v, size_t flipPos)
-            : size_(v.size_), bits_(v.bits_) {
+            : size_(v.size_),
+              bits_(v.bits_) {
         flip(flipPos);
     }
     Bitvector(size_t size, bool value = false)
-            : size_(size), bits_((size + 31) / 32, value ? ~u32(0) : 0) {}
+            : size_(size),
+              bits_((size + 31) / 32, value ? ~u32(0) : 0) {}
     size_t size() const {
         return size_;
     }
@@ -110,7 +112,11 @@ struct LogWeighting {
     std::vector<f32> logProbabilitiesForReorderedPaths;
     std::vector<f32> logProbabilitiesWitoutOrderedPath;
     LogWeighting(ConstSemiringRef semiring, f32 baseProbability, u32 windowSize)
-            : baseProbability_(baseProbability), semiring_(semiring), windowSize_(windowSize), logProbabilitiesForReorderedPaths(windowSize_ + 1), logProbabilitiesWitoutOrderedPath(windowSize_ + 1) {
+            : baseProbability_(baseProbability),
+              semiring_(semiring),
+              windowSize_(windowSize),
+              logProbabilitiesForReorderedPaths(windowSize_ + 1),
+              logProbabilitiesWitoutOrderedPath(windowSize_ + 1) {
         logBaseProbability_ = -log(baseProbability_);
         for (u32 i = 1; i <= windowSize_; ++i) {
             logProbabilitiesForReorderedPaths[i] = -log((1 - baseProbability_) / (i - 1));
@@ -168,7 +174,8 @@ protected:
 
 public:
     PermuteAutomatonBase(ConstAutomatonRef f, u32 windowSize, Processing* processing)
-            : DfsState(cache(f)), processing_(processing) {
+            : DfsState(cache(f)),
+              processing_(processing) {
         if (!hasProperties(fsa_, PropertyLinear))
             std::cerr << "permute is defined properly for linear automata only." << std::endl;
         setProperties(PropertyAcyclic, PropertyAcyclic);
@@ -227,7 +234,8 @@ protected:
         u32       depth_;
         Bitvector used_;
         State_(u32 depth, const Bitvector& used)
-                : depth_(depth), used_(used) {}
+                : depth_(depth),
+                  used_(used) {}
         bool operator==(const State_& s) const {
             return (used_ == s.used_);
         }
@@ -300,7 +308,7 @@ public:
         u32     upperLimit = std::min(size_t(Precursor::states_[s].depth_ + Precursor::windowSize_), Precursor::states_[s].used_.size());
         Precursor::processing_->processState(Precursor::states_[s].used_, lowerLimit, upperLimit);
         for (u32 i = lowerLimit; i < upperLimit; ++i)
-            if (!Precursor::states_[s].used_[i] && (size_t(abs(i - Precursor::states_[s].depth_)) < Precursor::distortionLimit_)) {  // !!! LIMIT
+            if (!Precursor::states_[s].used_[i] && (size_t(abs(static_cast<int>(i - Precursor::states_[s].depth_)) < Precursor::distortionLimit_))) {  // !!! LIMIT
                 u32  depth = Precursor::states_[s].depth_ + 1;
                 Arc* a     = sp->newArc();
                 *a         = Precursor::arcs_[i];
@@ -359,7 +367,8 @@ public:
         Precursor::processing_->processState(Precursor::states_[s].used_, firstBitNotSet,
                                              (Precursor::states_[s].depth_ - firstBitNotSet < Precursor::windowSize_) ? Precursor::states_[s].used_.size() : firstBitNotSet + 1);
         // monotone transition
-        if (size_t(abs(firstBitNotSet - Precursor::states_[s].depth_)) < Precursor::distortionLimit_) {
+        //
+        if (size_t(abs(static_cast<int>(firstBitNotSet - Precursor::states_[s].depth_)) < Precursor::distortionLimit_)) {
             Arc* a     = sp->newArc();
             *a         = Precursor::arcs_[firstBitNotSet];
             a->target_ = Precursor::insertState(Precursor::states_[s].depth_ + 1, Precursor::states_[s].used_, firstBitNotSet);
@@ -367,9 +376,10 @@ public:
         }
         if (Precursor::states_[s].depth_ - firstBitNotSet < Precursor::windowSize_) {  // if we can do non-monotone transitions
             for (u32 i = firstBitNotSet + 1; i < Precursor::states_[s].used_.size(); i++) {
-                if (!Precursor::states_[s].used_[i] && (size_t(abs(i - Precursor::states_[s].depth_)) < Precursor::distortionLimit_)) {  // DISTORTION LIMIT HERE !
-                    Arc* a     = sp->newArc();
-                    *a         = Precursor::arcs_[i];
+                if (!Precursor::states_[s].used_[i] && (size_t(abs(static_cast<int>(i - Precursor::states_[s].depth_)) < Precursor::distortionLimit_))) {  // DISTORTION LIMIT HERE !
+                    Arc* a = sp->newArc();
+                    *a     = Precursor::arcs_[i];
+
                     a->target_ = Precursor::insertState(Precursor::states_[s].depth_ + 1, Precursor::states_[s].used_, i);
                     Precursor::processing_->processArc(i - Precursor::states_[s].depth_, a);
                 }
@@ -459,8 +469,8 @@ private:
         bool reduce_() {
             if (Parent::size() < 2)
                 return false;
-            Span& a             = Parent::operator[](Parent::size() - 2);
-            Span&             b = Parent::back();
+            Span& a = Parent::operator[](Parent::size() - 2);
+            Span& b = Parent::back();
             if (a.first == b.second) {
                 a.first = b.first;
                 Parent::pop_back();
@@ -501,9 +511,14 @@ private:
         Spans     spans_;
 
         State_(u32 depth, const State_& x, u32 newpos)
-                : depth_(depth), used_(x.used_, newpos), last_((depth < used_.size() ? newpos : -2)), spans_(x.spans_, newpos) {}
+                : depth_(depth),
+                  used_(x.used_, newpos),
+                  last_((depth < used_.size() ? newpos : -2)),
+                  spans_(x.spans_, newpos) {}
         State_(u32 depth, const Bitvector& used)
-                : depth_(depth), used_(used), last_(-1) {}
+                : depth_(depth),
+                  used_(used),
+                  last_(-1) {}
 
         bool operator==(const State_& s) const {
             return (used_ == s.used_ && spans_ == s.spans_ && (last_ == s.last_ || (last_ < s.last_ ? used_.isCovered(last_, s.last_) : used_.isCovered(s.last_, last_))));

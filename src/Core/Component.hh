@@ -202,7 +202,9 @@ public:
     private:
         friend class Component;
         Message(const Component* c, ErrorType type, XmlChannel* ch)
-                : ostream_(ch), component_(c), type_(type) {}
+                : ostream_(ch),
+                  component_(c),
+                  type_(type) {}
 
     public:
         operator XmlWriter&() const {
@@ -218,7 +220,9 @@ public:
                 __attribute__((format(printf, 2, 3)));
 
         Message(const Message& m)
-                : ostream_(m.ostream_), component_(m.component_), type_(m.type_) {
+                : ostream_(m.ostream_),
+                  component_(m.component_),
+                  type_(m.type_) {
             const_cast<Message&>(m).component_ = 0;
         }
 
@@ -306,8 +310,13 @@ public:
     /**
      * Test whether non-ignored errors have occured.
      * @see error()
-         */
+     */
     bool hasFatalErrors() const;
+
+    /**
+     * Test whether any errors have occured (ignored or not).
+     */
+    bool hasErrors() const;
 
     /**
      * Terminate execution iff an error has occured previously.

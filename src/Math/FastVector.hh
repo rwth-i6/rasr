@@ -62,6 +62,8 @@ protected:
 public:
     FastVector(u32 nRows = 0);  // constructor with memory allocation
 
+    FastVector(u32 nRows, T value);  // constructor with memory allocation with specified value
+
     FastVector(const FastVector<T>& vector);  // (deep) copy constructor
 
     // destructor
@@ -139,7 +141,7 @@ public:
 
     // add a constant to each element of the vector
     void addConstantElementwise(T c) {
-        std::transform(begin(), end(), begin(), std::bind2nd(std::plus<T>(), c));
+        std::transform(begin(), end(), begin(), std::bind(std::plus<T>(), std::placeholders::_1, c));
     }
 
     // scaling of the vector
@@ -270,6 +272,13 @@ FastVector<T>::FastVector(u32 size)
     resize(size, 0, true);
 }
 
+template<typename T>
+FastVector<T>::FastVector(u32 size, T value)
+        : nRows_(0),
+          elem_(0) {
+    resize(size, value, false);
+}
+
 /**	Copy constructor
  */
 template<typename T>
@@ -300,11 +309,8 @@ void FastVector<T>::resize(u32 newSize, T value, bool allocOnly) {
     }
     else {
         // allocate new array
-        T* newElem = 0;
-        try {
-            newElem = new T[newSize];
-        }
-        catch (std::bad_alloc& ba) {
+        T* newElem = new (std::nothrow) T[newSize];
+        if (newElem == nullptr) {
             Core::Application::us()->criticalError("failed to allocate memory for vector of size ") << nRows_;
         }
         if (!allocOnly) {
@@ -429,7 +435,7 @@ void FastVector<T>::setToZero() {
  */
 template<typename T>
 void FastVector<T>::fill(const T value) {
-    //fill the array with the constant
+    // fill the array with the constant
     std::fill(begin(), end(), value);
 }
 

@@ -24,7 +24,7 @@ NN_TRAINER_O = $(OBJDIR)/NnTrainer.o \
 		../../Mc/libSprintMc.$(a) \
 		../../Mm/libSprintMm.$(a) \
 		../../Nn/libSprintNn.$(a) \
-		../../Search/libSprintSearch.$(a) \
+        $(subst src,../..,$(LIBS_SEARCH)) \
 		../../Signal/libSprintSignal.$(a) \
 		../../Speech/libSprintSpeech.$(a)
 
@@ -37,22 +37,19 @@ endif
 ifdef MODULE_MATH_NR
 NN_TRAINER_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
-ifdef MODULE_ADVANCED_TREE_SEARCH
-NN_TRAINER_O += ../../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
-endif
-ifdef MODULE_SEARCH_WFST
-NN_TRAINER_O += ../../Search/Wfst/libSprintSearchWfst.$(a) ../../OpenFst/libSprintOpenFst.$(a)
-endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-NN_TRAINER_O += ../../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
-endif
 ifdef MODULE_PYTHON
 NN_TRAINER_O += ../../Python/libSprintPython.$(a)
+endif
+ifdef MODULE_ONNX
+NN_TRAINER_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 NN_TRAINER_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_LM_ONNX
+NN_TRAINER_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 
 # -----------------------------------------------------------------------------

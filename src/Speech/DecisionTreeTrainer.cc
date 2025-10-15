@@ -149,8 +149,7 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
             std::vector<f64> mu_private(d, 0.0);           // to store temporary results
             std::vector<f64> sigmaSquare_private(d, 0.0);  // to store temporary results
 
-#pragma omp for nowait reduction(+ \
-                                 : count)
+#pragma omp for nowait reduction(+ : count)
             for (Cart::ExamplePtrList::const_iterator it = begin; it < end; ++it) {  // supported by omp 3.0
                 const Cart::Example& example = **it;
                 require(example.values->rows() == 2);
@@ -168,11 +167,13 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
                 }
             }
 
-#pragma omp critical  // if slow create e.g. std::vector<std::vector<f64> > mus_private(threadnum, std::vector<f64>(d, 0.0)) and merge them \
-                      // with an omp for over dimension                                                                                     \
-                      // and also merge with next for loop                                                                                  \
-                      // order is not defined, non-deterministic sum-up!
+#pragma omp critical
             {
+                /**
+                 * if slow create e.g. std::vector<std::vector<f64>> mus_private(threadnum, std::vector<f64>(d, 0.0)) and merge them
+                 * with an 'omp for' over dimension and also merge with next for loop;
+                 * order is not defined, non-deterministic sum-up!
+                 */
                 std::vector<f64>::iterator itMu_private          = mu_private.begin();
                 std::vector<f64>::iterator itSigmaSquare_private = sigmaSquare_private.begin();
                 std::vector<f64>::iterator itMu                  = mu_.begin();
@@ -184,8 +185,7 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
             }
 
 #pragma omp barrier  // each thread should have access to count, mu, sigmsq
-#pragma omp for reduction(+ \
-                          : ll)
+#pragma omp for reduction(+ : ll)
             for (size_t dimCounter = 0; dimCounter < d; ++dimCounter) {
                 mu_[dimCounter] /= count;
                 sigmaSquare_[dimCounter] /= count;

@@ -23,7 +23,7 @@
 #include <Core/PriorityQueue.hh>
 #include <Core/XmlStream.hh>
 
-//define dbg(message) std::cerr << __FILE__ << ":" <<__LINE__ << "\t" << message << std::endl
+// define dbg(message) std::cerr << __FILE__ << ":" <<__LINE__ << "\t" << message << std::endl
 
 using namespace Cart;
 
@@ -415,8 +415,7 @@ private:
             if (parallel_) {
                 f64 nLeftObs  = 0;
                 f64 nRightObs = 0;
-#pragma omp parallel reduction(+ \
-                               : nLeftObs, nRightObs)
+#pragma omp parallel reduction(+ : nLeftObs, nRightObs)
                 {
                     // some thread private variables
                     ExamplePtrList                 leftExamplePtrs_private((examplePtrs->size() + Core::omp::get_num_threads() - 1) / Core::omp::get_num_threads(), 0);
@@ -508,17 +507,17 @@ private:
             delete node->examplePtrs;
             node->examplePtrs = 0;
             node->left        = new Node(node->depth + 1,
-                                  bestSplitHyp.leftScore,
-                                  bestSplitHyp.nLeftObs,
-                                  leftExamplePtrs);
+                                         bestSplitHyp.leftScore,
+                                         bestSplitHyp.nLeftObs,
+                                         leftExamplePtrs);
             node->right       = new Node(node->depth + 1,
-                                   bestSplitHyp.rightScore,
-                                   bestSplitHyp.nRightObs,
-                                   rightExamplePtrs);
+                                         bestSplitHyp.rightScore,
+                                         bestSplitHyp.nRightObs,
+                                         rightExamplePtrs);
             split             = new Split(node,
-                              questionIds,
-                              bestSplitHyp.questionIdId,
-                              bestSplitHyp.gain);
+                                          questionIds,
+                                          bestSplitHyp.questionIdId,
+                                          bestSplitHyp.gain);
         }
         splitHyps_.reset();
         return split;

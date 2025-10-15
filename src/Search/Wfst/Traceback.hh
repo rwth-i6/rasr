@@ -17,6 +17,7 @@
 
 #include <OpenFst/Types.hh>
 #include <Search/Search.hh>
+#include <Search/Traceback.hh>
 #include <Search/Types.hh>
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 
@@ -27,21 +28,25 @@ class WordEndDetector;
 
 class BestPath {
 protected:
-    typedef OpenFst::Label             Label;
-    typedef SearchAlgorithm::Traceback Traceback;
+    typedef OpenFst::Label Label;
 
 public:
-    typedef SearchAlgorithm::ScoreVector ScoreVector;
     struct Item {
         Label          word;
         TimeframeIndex time;
         ScoreVector    score;
         Item(Label w, TimeframeIndex t, Score s)
-                : word(w), time(t), score(s, 0) {}
+                : word(w),
+                  time(t),
+                  score(s, 0) {}
         Item(Label w, TimeframeIndex t, Score a, Score l)
-                : word(w), time(t), score(a, l) {}
+                : word(w),
+                  time(t),
+                  score(a, l) {}
         Item(Label w, TimeframeIndex t, const ScoreVector& s)
-                : word(w), time(t), score(s) {}
+                : word(w),
+                  time(t),
+                  score(s) {}
     };
     struct CompareTime {
         bool operator()(const Item& a, const Item& b) const {

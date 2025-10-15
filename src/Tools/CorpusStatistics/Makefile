@@ -40,10 +40,16 @@ endif
 ifdef MODULE_NN
 CORPUS_STATISTICS_O += ../../Nn/libSprintNn.$(a)
 endif
+ifdef MODULE_ONNX
+CORPUS_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 ifdef MODULE_TENSORFLOW
 CORPUS_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_LM_ONNX
+CORPUS_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 
 # -----------------------------------------------------------------------------

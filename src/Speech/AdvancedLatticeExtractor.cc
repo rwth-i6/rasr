@@ -34,8 +34,8 @@
 #include <Lattice/Static.hh>
 #include <Lm/FsaLm.hh>
 #include <Modules.hh>
+#include <Search/AdvancedTreeSearch/AdvancedTreeSearch.hh>
 #include <Search/Module.hh>
-#include <Search/WordConditionedTreeSearch.hh>
 #include "AdvancedAccuracyFsaBuilder.hh"
 #include "Alignment.hh"
 #include "AllophoneStateGraphBuilder.hh"
@@ -257,7 +257,7 @@ Fsa::Weight TdpLatticeRescorerAutomaton::_score(
                                                                                                       coarticulatedPronunciation.leftContext(),
                                                                                                       coarticulatedPronunciation.rightContext()))));
         if (fsa_->semiring()->compare(score, fsa_->semiring()->invalid()) == 0) {
-            score = Fsa::Weight(1e9);  //fsa_->semiring()->zero();
+            score = Fsa::Weight(1e9);  // fsa_->semiring()->zero();
         }
         return score;
     }
@@ -300,8 +300,8 @@ TdpLatticeRescorer::~TdpLatticeRescorer() {
 Lattice::ConstWordLatticeRef TdpLatticeRescorer::work(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment) {
     alignmentGenerator_->setSpeechSegment(segment);
     TdpLatticeRescorerAutomaton* f      = new TdpLatticeRescorerAutomaton(lattice, alignmentGenerator_,
-                                                                     allophoneStateGraphBuilder_,
-                                                                     acousticModel_);
+                                                                          allophoneStateGraphBuilder_,
+                                                                          acousticModel_);
     Lattice::WordLattice*        result = new Lattice::WordLattice;
     result->setWordBoundaries(lattice->wordBoundaries());
     result->setFsa(Fsa::ConstAutomatonRef(f), Lattice::WordLattice::acousticFsa);
@@ -433,7 +433,7 @@ CombinedAcousticLatticeRescorer::CombinedAcousticLatticeRescorer(const Core::Con
                                       Am::AcousticModel::complete);
     modelCombination.load();
     allophoneStateGraphBuilder_ = Module::instance().createAllophoneStateGraphBuilder(
-        config, modelCombination.lexicon(), modelCombination.acousticModel());
+            config, modelCombination.lexicon(), modelCombination.acousticModel());
 
     std::vector<std::string> silencesAndNoises = paramSilencesAndNoises(config);
     allophoneStateGraphBuilder_->setSilencesAndNoises(silencesAndNoises);
@@ -545,7 +545,10 @@ private:
         History        history;
         Context(TimeframeIndex _begtim, TimeframeIndex _endtim,
                 Fsa::LabelId _label, const History& _history)
-                : begtim(_begtim), endtim(_endtim), label(_label), history(_history) {}
+                : begtim(_begtim),
+                  endtim(_endtim),
+                  label(_label),
+                  history(_history) {}
     };
     struct ContextHash {
         size_t operator()(const Context& c) const {
@@ -702,8 +705,8 @@ Lattice::ConstWordLatticeRef RestoreScoresLatticeRescorer::work(Lattice::ConstWo
     Lattice::ConstWordLatticeRef latticeWithScores = archiveReader_->get(segment->fullName(), fsaPrefix_);
     if (latticeWithScores && latticeWithScores->nParts() == 1) {
         RestoreScoresLatticeRescorerAutomaton* f      = new RestoreScoresLatticeRescorerAutomaton(lattice,
-                                                                                             latticeWithScores,
-                                                                                             languageModel_);
+                                                                                                  latticeWithScores,
+                                                                                                  languageModel_);
         Lattice::WordLattice*                  result = new Lattice::WordLattice;
         result->setWordBoundaries(lattice->wordBoundaries());
         result->setFsa(Fsa::ConstAutomatonRef(f), Lattice::WordLattice::acousticFsa);
@@ -1126,7 +1129,7 @@ RecognizerWithConstrainedLanguageModel::RecognizerWithConstrainedLanguageModel(c
     ModelCombination modelCombination(select("model-combination"), lexicon, acousticModel, languageModel);
     modelCombination.load();
 
-    recognizer_ = new Search::WordConditionedTreeSearch(select("recognizer"));
+    recognizer_ = new Search::AdvancedTreeSearchManager(select("recognizer"));
     recognizer_->setModelCombination(modelCombination);
     recognizer_->init();
     lemmaPronunciationToLemmaTransducer_ = lexicon->createLemmaPronunciationToLemmaTransducer();

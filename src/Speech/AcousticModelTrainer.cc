@@ -159,7 +159,7 @@ void TiedTextDependentMixtureSetTrainer::setFeatureDescription(const Mm::Feature
             }
 
             void collectEmissions() {
-                for (int e = 0; e < nodes.size(); ++e) {
+                for (size_t e = 0; e < nodes.size(); ++e) {
                     verify(nodes[e]);
                     verify(!nodes[e]->leftChild_ && !nodes[e]->rightChild_);
                     emissions_.push_back(std::vector<std::pair<u32, float>>());
@@ -222,7 +222,7 @@ void TiedTextDependentMixtureSetTrainer::setFeatureDescription(const Mm::Feature
                                                   Core::select2nd<std::pair<u32, f32>>(),
                                                   Core::select2nd<std::pair<u32, f32>>()));
 
-            if (tiedEmissions_[i].size() > maxEmissions_) {
+            if (int(tiedEmissions_[i].size()) > maxEmissions_) {
                 removedEmissions += maxEmissions_ - tiedEmissions_[i].size();
                 tiedEmissions_[i].resize(maxEmissions_);
             }
@@ -256,4 +256,3 @@ void TiedTextDependentMixtureSetTrainer::processAlignedFeature(Core::Ref<const F
     for (u32 i = 0; i < tiedEmissions_[emission].size(); ++i)
         accumulate(f->mainStream(), tiedEmissions_[emission][i].first, tiedEmissions_[emission][i].second * w);
 }
-

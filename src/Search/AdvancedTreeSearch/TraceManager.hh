@@ -15,7 +15,7 @@
 #ifndef SEARCH_TRACEMANAGER_HH
 #define SEARCH_TRACEMANAGER_HH
 
-#include <Core/ReferenceCounting.hh>
+#include <Core/ThreadSafeReference.hh>
 #include "Trace.hh"
 
 namespace Search {
@@ -26,8 +26,11 @@ static const TraceId invalidTraceId = Core::Type<TraceId>::max;
 
 struct TraceItem final {
 public:
-    TraceItem(Core::Ref<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch)
-            : trace(t), recombinationHistory(rch), lookaheadHistory(lah), scoreHistory(sch) {
+    TraceItem(Core::TsRef<Trace> t, Lm::History rch, Lm::History lah, Lm::History sch)
+            : trace(t),
+              recombinationHistory(rch),
+              lookaheadHistory(lah),
+              scoreHistory(sch) {
     }
     TraceItem() {
     }
@@ -42,7 +45,7 @@ public:
     }
 
     TraceItem& operator=(TraceItem const& ti) = default;
-    TraceItem& operator                       =(TraceItem&& ti) {
+    TraceItem& operator=(TraceItem&& ti) {
         trace                = ti.trace;
         recombinationHistory = std::move(ti.recombinationHistory);
         lookaheadHistory     = std::move(ti.lookaheadHistory);
@@ -50,10 +53,10 @@ public:
         return *this;
     }
 
-    Core::Ref<Trace> trace;
-    Lm::History      recombinationHistory;
-    Lm::History      lookaheadHistory;
-    Lm::History      scoreHistory;
+    Core::TsRef<Trace> trace;
+    Lm::History        recombinationHistory;
+    Lm::History        lookaheadHistory;
+    Lm::History        scoreHistory;
 
 private:
     friend class TraceManager;
@@ -214,7 +217,6 @@ public:
 
     /// Returns the unmodified version of the given trace.
     inline TraceId getUnmodified(TraceId trace) const {
-        verify_(isModified(trace));
         if ((trace & ModifyMask) == ModifyMask) {
             return modifications_[trace & UnModifyMask].first;
         }
@@ -223,7 +225,6 @@ public:
         }
     }
     inline TraceId getUnmodified(TraceId trace) {
-        verify_(isModified(trace));
         if ((trace & ModifyMask) == ModifyMask) {
             return modifications_[trace & UnModifyMask].first;
         }
@@ -262,19 +263,18 @@ public:
     inline TraceItem const& traceItem(TraceId trace) const {
         return items_[getUnmodified(trace)];
     }
-    inline TraceItem & traceItem(TraceId trace) {
+    inline TraceItem& traceItem(TraceId trace) {
         return items_[getUnmodified(trace)];
     }
 
     // Helper structure to cleanup the Tracemanager
     struct Cleaner {
-        SparseVector<TraceItem>                    &items_;
-        SparseVector<std::pair<u32, Modification>> &modifications_;
-        std::vector<bool> item_filter;
-        std::vector<bool> mod_filter;
+        SparseVector<TraceItem>&                    items_;
+        SparseVector<std::pair<u32, Modification>>& modifications_;
+        std::vector<bool>                           item_filter;
+        std::vector<bool>                           mod_filter;
 
-
-        Cleaner(SparseVector<TraceItem> &items, SparseVector<std::pair<u32, Modification>> &modifications)
+        Cleaner(SparseVector<TraceItem>& items, SparseVector<std::pair<u32, Modification>>& modifications)
                 : items_(items),
                   modifications_(modifications),
                   item_filter(items.storageSize(), false),
@@ -299,14 +299,13 @@ public:
         }
     };
     Cleaner getCleaner() {
-      return Cleaner(items_, modifications_);
+        return Cleaner(items_, modifications_);
     }
 
 private:
     SparseVector<TraceItem>                    items_;
     SparseVector<std::pair<u32, Modification>> modifications_;
 };
-
 
 }  // namespace Search
 

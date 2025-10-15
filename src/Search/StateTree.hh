@@ -12,14 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-// $Id$
 
 #ifndef _SEARCH_STATE_TREE_HH
 #define _SEARCH_STATE_TREE_HH
 
+#include <list>
+
 #include <Am/AcousticModel.hh>
 #include <Am/ClassicStateModel.hh>
-#include <list>
 
 namespace Search {
 
@@ -125,16 +125,21 @@ public:
         static const u32 AM_WIDTH = 24;
         static const u32 TM_WIDTH = 8;
 
-        static const u32 MAX_AM   = (1 << AM_WIDTH) - 1;
+        static const u32 MAX_AM = (1 << AM_WIDTH) - 1;
 
         typedef u32 ModelIndex;
-        typedef u8  TransitionModelIndex; // keep the typedef for max legal value
+        typedef u8  TransitionModelIndex;  // keep the typedef for max legal value
 
-        ModelIndex acousticModel        : AM_WIDTH;
+        ModelIndex acousticModel : AM_WIDTH;
         ModelIndex transitionModelIndex : TM_WIDTH;
 
         StateDesc()
-                : acousticModel(0), transitionModelIndex(0) {
+                : acousticModel(0),
+                  transitionModelIndex(0) {
+        }
+
+        StateDesc(ModelIndex ami, TransitionModelIndex tmi)
+                : acousticModel(ami), transitionModelIndex(tmi) {
         }
 
         std::string toString() const {

@@ -36,10 +36,14 @@ struct CompactReplaceStateTuple {
     StateId                  nextState_;
 
     CompactReplaceStateTuple(PartId id, StateId state, StateId nextState)
-            : fstId_(id), state_(state), nextState_(nextState) {}
+            : fstId_(id),
+              state_(state),
+              nextState_(nextState) {}
 
     CompactReplaceStateTuple()
-            : fstId_(0), state_(FstLib::kNoStateId), nextState_(FstLib::kNoStateId) {}
+            : fstId_(0),
+              state_(FstLib::kNoStateId),
+              nextState_(FstLib::kNoStateId) {}
 
     bool operator==(const CompactReplaceStateTuple& other) const {
         return fstId_ == other.fstId_ && state_ == other.state_ &&
@@ -118,7 +122,7 @@ private:
     std::vector<OpenFst::StateId>         rootIds_;
     typedef std::unordered_map<CompactReplaceStateTuple, OpenFst::StateId,
                                CompactReplaceStateTupleHash>
-            TupleMap;
+             TupleMap;
     TupleMap tupleMap_;
 };
 
@@ -139,7 +143,7 @@ public:
     using FstLib::internal::FstImpl<A>::InputSymbols;
     using FstLib::internal::FstImpl<A>::OutputSymbols;
 
-    //using FstLib::internal::CacheImpl<A>::AddArc;
+    // using FstLib::internal::CacheImpl<A>::AddArc;
     using FstLib::internal::CacheImpl<A>::HasArcs;
     using FstLib::internal::CacheImpl<A>::HasFinal;
     using FstLib::internal::CacheImpl<A>::HasStart;
@@ -542,7 +546,8 @@ public:
             : CacheStateIterator<OpenFst::CompactReplaceFst<A>>(fst, const_cast<OpenFst::CompactReplaceFstImpl<A>*>(fst.GetImpl())) {}
 
 private:
-    DISALLOW_COPY_AND_ASSIGN(StateIterator);
+    StateIterator(StateIterator&) = delete;
+    void operator=(StateIterator) = delete;
 };
 
 template<class A>
@@ -556,7 +561,15 @@ public:
     typedef OpenFst::CompactReplaceFstImpl<A>               Impl;
 
     ArcIterator(const OpenFst::CompactReplaceFst<A>& fst, StateId s)
-            : fst_(fst), arcs_(0), hasFinal_(false), state_(s), pos_(0), flags_(0), dataFlags_(0), finalFlags_(0), nArcs_(0) {
+            : fst_(fst),
+              arcs_(0),
+              hasFinal_(false),
+              state_(s),
+              pos_(0),
+              flags_(0),
+              dataFlags_(0),
+              finalFlags_(0),
+              nArcs_(0) {
         cacheData_.ref_count = 0;
         localData_.ref_count = 0;
         if (fst_.GetImpl()->HasArcs(state_)) {
@@ -689,7 +702,8 @@ private:
     mutable uint32                       dataFlags_, finalFlags_;
     ssize_t                              nArcs_;  // Number of arcs at state_
     Tuple                                tuple_;
-    DISALLOW_COPY_AND_ASSIGN(ArcIterator);
+    ArcIterator(ArcIterator&)   = delete;
+    void operator=(ArcIterator) = delete;
 };
 
 }  // namespace fst

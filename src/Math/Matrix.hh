@@ -71,16 +71,21 @@ public:
     size_t nRows() const {
         return nRows_;
     }
+
     Vector<T, P> row(size_t row) const {
         return elem_[row];
     }
+
     size_t nColumns() const {
         return nColumns_;
     }
+
     Vector<T, P> column(size_t col) const;
-    bool         empty() const {
+
+    bool empty() const {
         return nRows() == 0 || nColumns() == 0;
     }
+
     size_t size() const {
         return nRows_ * nColumns_;
     }
@@ -115,7 +120,7 @@ public:
 
     // T determinant() const ;
     // T logDeterminant() const ;
-    //Matrix<T, P> invert() const ;
+    // Matrix<T, P> invert() const ;
     Matrix<T, P> transpose() const;
     T            trace() const;
     T            productTrace(const Matrix<T, P>& rs) const;

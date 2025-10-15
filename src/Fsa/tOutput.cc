@@ -76,7 +76,10 @@ private:
 
 public:
     WriteAttDfsState(_ConstAutomatonRef f, std::ostream& o)
-            : Precursor(f), o_(o), input_(f->getInputAlphabet()), output_(f->getOutputAlphabet()) {}
+            : Precursor(f),
+              o_(o),
+              input_(f->getInputAlphabet()),
+              output_(f->getOutputAlphabet()) {}
     void discoverState(_ConstStateRef sp) {
         if (sp->isFinal()) {
             o_ << sp->id();
@@ -161,7 +164,8 @@ private:
 
 public:
     WriteBinaryDfsState(_ConstAutomatonRef f, Core::BinaryOutputStream& o)
-            : Precursor(f), o_(o) {}
+            : Precursor(f),
+              o_(o) {}
     void discoverState(_ConstStateRef sp) {
         Fsa::StateId idAndTags = sp->id() | sp->tags();
         if (!(o_ << idAndTags))
@@ -256,7 +260,12 @@ private:
 
 public:
     WriteLinearDfsState(_ConstAutomatonRef f, std::ostream& o, bool printAll = false)
-            : Precursor(f), first_(true), o_(o), input_(Precursor::fsa_->getInputAlphabet()), output_(Precursor::fsa_->getOutputAlphabet()), printAll_(printAll) {}
+            : Precursor(f),
+              first_(true),
+              o_(o),
+              input_(Precursor::fsa_->getInputAlphabet()),
+              output_(Precursor::fsa_->getOutputAlphabet()),
+              printAll_(printAll) {}
     void discoverState(_ConstStateRef sp) {
         for (typename _State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
             std::string out;
@@ -328,7 +337,8 @@ private:
 
 public:
     WriteXmlDfsState(_ConstAutomatonRef f, Core::XmlWriter& o)
-            : Precursor(f), o_(o) {}
+            : Precursor(f),
+              o_(o) {}
     void discoverState(_ConstStateRef sp) {
         o_ << Core::XmlOpen("state") + Core::XmlAttribute("id", sp->id());
         if (sp->isFinal())
@@ -433,7 +443,9 @@ private:
 
 public:
     NodeTrWGWriter(_ConstAutomatonRef f, std::ostream& o)
-            : Precursor(f), o_(o), max_id_(0) {}
+            : Precursor(f),
+              o_(o),
+              max_id_(0) {}
 
     virtual void discoverState(_ConstStateRef sp) {
         if (max_id_ < sp->id())
@@ -447,13 +459,13 @@ public:
     virtual void finish() {
         if (!final_states_.empty()) {
             if (new_end()) {
-                //introduce new final state
+                // introduce new final state
                 ++max_id_;
                 end_id_ = max_id_;
                 for (std::set<Fsa::StateId>::iterator s = final_states_.begin(); s != final_states_.end(); ++s)
                     o_ << " <node> " << *s << " </node>" << std::endl;
                 o_ << " <node> " << end_id_ << " </node>" << std::endl;
-                //edges have to the new end states have to be written manually
+                // edges have to the new end states have to be written manually
             }
             else {
                 end_id_ = *final_states_.begin();
@@ -492,7 +504,9 @@ protected:
 
 public:
     EdgeTrWGWriter(_ConstAutomatonRef f, NodeTrWGWriter<_Automaton>& nw, std::ostream& o)
-            : Precursor(f), nw_(nw), o_(o) {
+            : Precursor(f),
+              nw_(nw),
+              o_(o) {
         inAlpha_ = f->getInputAlphabet();
     }
 

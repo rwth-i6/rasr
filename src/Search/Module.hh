@@ -17,26 +17,46 @@
 
 #include <Core/Configuration.hh>
 #include <Core/Singleton.hh>
+#include "SearchV2.hh"
+
+#include "TreeBuilder.hh"
 
 namespace Search {
 
 class SearchAlgorithm;
 class LatticeHandler;
 
+enum TreeBuilderType {
+    previousBehavior,
+    classicHmm,
+    minimizedHmm,
+    ctc,
+    rna,
+};
+
 enum SearchType {
-    WordConditionedTreeSearchType,
     AdvancedTreeSearch,
     LinearSearchType,
-    ExpandingFsaSearchType,
-    GenericSeq2SeqTreeSearchType
+    ExpandingFsaSearchType
+};
+
+enum SearchTypeV2 {
+    LexiconfreeTimesyncBeamSearchType,
+    TreeTimesyncBeamSearchType
 };
 
 class Module_ {
+private:
+    static const Core::Choice          searchTypeV2Choice;
+    static const Core::ParameterChoice searchTypeV2Param;
+
 public:
     Module_();
 
-    SearchAlgorithm* createRecognizer(SearchType type, const Core::Configuration& config) const;
-    LatticeHandler*  createLatticeHandler(const Core::Configuration& c) const;
+    std::unique_ptr<AbstractTreeBuilder> createTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true) const;
+    SearchAlgorithm*                     createRecognizer(SearchType type, const Core::Configuration& config) const;
+    SearchAlgorithmV2*                   createSearchAlgorithmV2(const Core::Configuration& config) const;
+    LatticeHandler*                      createLatticeHandler(const Core::Configuration& c) const;
 };
 
 typedef Core::SingletonHolder<Module_> Module;

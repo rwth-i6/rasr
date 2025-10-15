@@ -21,7 +21,10 @@ using namespace Audio;
 // ===========================================================================
 
 FlacInputNode::FlacInputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), SourceNode(c), fd_(0) {}
+        : Core::Component(c),
+          Node(c),
+          SourceNode(c),
+          fd_(0) {}
 
 bool FlacInputNode::openFile_() {
     fd_ = new FlacDecoder();

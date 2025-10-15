@@ -13,7 +13,10 @@
  *  limitations under the License.
  */
 #include "AcousticLookAhead.hh"
+
 #include <Mm/Module.hh>
+#include <Search/Helpers.hh>
+
 #include "SearchNetworkTransformation.hh"
 #include "SearchSpace.hh"
 
@@ -126,7 +129,9 @@ std::string AcousticLookAhead::getMixtureSetFilename(const Core::Configuration& 
 }
 
 AcousticLookAhead::AcousticLookAhead(const Core::Configuration& _config, u32 checksum, bool load)
-        : loaded_(false), checksum_(checksum), config_(select(_config)) {
+        : loaded_(false),
+          checksum_(checksum),
+          config_(select(_config)) {
     minCacheKey_ = nextCacheKey_ = 1;
 
     perDepthFactor_      = paramAcousticLookaheadPerDepthFactor(config_);
@@ -665,7 +670,6 @@ void AcousticLookAhead::getSuccessorMixtures(const PersistentStateTree&         
 }
 
 void AcousticLookAhead::setLookAhead(std::deque<Core::Ref<const Speech::Feature>> const& lookahead) {
-    
     if (!acousticLookAheadScorer_)
         return;
 
@@ -684,7 +688,11 @@ struct Stats {
     size_t cached, computed;
     size_t cacheSizeBefore, cacheSize, cacheSizeSamples;
     Stats()
-            : cached(0), computed(0), cacheSizeBefore(0), cacheSize(0), cacheSizeSamples(0) {
+            : cached(0),
+              computed(0),
+              cacheSizeBefore(0),
+              cacheSize(0),
+              cacheSizeSamples(0) {
     }
     ~Stats() {
         if (cached || computed) {

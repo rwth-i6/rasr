@@ -45,10 +45,10 @@ struct IdSetEntry {
     NodeId id;
     bool   isActive;
     IdSetEntry(NodeId i, bool a = true)
-            : id(i), isActive(a){};
+            : id(i),
+              isActive(a){};
 };
-struct IdSetEntryLess
-        : public std::binary_function<const IdSetEntry&, const IdSetEntry&, bool> {
+struct IdSetEntryLess {
     bool operator()(const IdSetEntry& a, const IdSetEntry& b) const {
         return a.id < b.id;
     }
@@ -192,29 +192,35 @@ public:
     const ClusterId& clusterId() const {
         return clusterId_;
     }
+
     virtual Sum                minAdaptationObservations() = 0;
     virtual Core::Ref<Adaptor> adaptor(void)               = 0;
-    virtual void               accumulate(
-                          Core::Ref<const Feature::Vector>,
-                          DensityIndex,
-                          MixtureIndex,
-                          Core::Ref<MixtureSet>) = 0;
+
     virtual void accumulate(
-            Core::Ref<const Feature::Vector>,
+            Feature::VectorRef,
+            DensityIndex,
+            MixtureIndex,
+            Core::Ref<MixtureSet>) = 0;
+
+    virtual void accumulate(
+            Feature::VectorRef,
             DensityIndex,
             MixtureIndex,
             Core::Ref<MixtureSet>,
             Mm::Weight) = 0;
+
     virtual void accumulate(
             const Speech::Alignment&,
             const std::vector<Core::Ref<const Mm::Feature>>&,
             Core::Ref<const Am::MixtureSetAdaptor>,
             Core::Ref<const Mm::AssigningFeatureScorer>) = 0;
 
-    virtual void        reset() = 0;
+    virtual void reset() = 0;
+
     virtual std::string typeName() const {
         return "adaptor-estimator";
     }
+
     virtual bool read(Core::BinaryInputStream& i);
     virtual bool write(Core::BinaryOutputStream& o) const;
 };
@@ -252,7 +258,7 @@ private:
     Math::Vector<Sum>               countAccumulators_;
     Math::Vector<Math::Vector<Sum>> betaAccumulators_;
     Math::Vector<Math::Vector<Sum>> shiftAccumulators_;
-    std::map<NodeId, Matrix>        shift_;  //not a vector since Id:s need not be successive
+    std::map<NodeId, Matrix>        shift_;  // not a vector since Id:s need not be successive
 
     void init();
 
@@ -271,16 +277,16 @@ public:
     }
     virtual Core::Ref<Adaptor> adaptor(void);
     virtual void               accumulate(
-                          Core::Ref<const Feature::Vector> feature,
-                          DensityIndex                     density,
-                          MixtureIndex                     mixture,
-                          Core::Ref<MixtureSet>            mixtureSet);
+                          Feature::VectorRef    feature,
+                          DensityIndex          density,
+                          MixtureIndex          mixture,
+                          Core::Ref<MixtureSet> mixtureSet);
     virtual void accumulate(
-            Core::Ref<const Feature::Vector> feature,
-            DensityIndex                     density,
-            MixtureIndex                     mixture,
-            Core::Ref<MixtureSet>            mixtureSet,
-            Mm::Weight                       weight);
+            Feature::VectorRef    feature,
+            DensityIndex          density,
+            MixtureIndex          mixture,
+            Core::Ref<MixtureSet> mixtureSet,
+            Mm::Weight            weight);
     virtual void accumulate(
             const Speech::Alignment&                         alignment,
             const std::vector<Core::Ref<const Mm::Feature>>& featureSequence,
@@ -363,7 +369,7 @@ protected:
 
     Math::Vector<ZAccumulator> leafZAccumulators_;
     Math::Vector<GAccumulator> leafGAccumulators_;
-    std::map<NodeId, Matrix>   w_;  //not a vector since Id:s need not be successive
+    std::map<NodeId, Matrix>   w_;  // not a vector since Id:s need not be successive
 
     virtual void estimateWMatrices();
 
@@ -378,16 +384,16 @@ public:
     }
     virtual Core::Ref<Adaptor> adaptor(void);
     virtual void               accumulate(
-                          Core::Ref<const Feature::Vector> feature,
-                          DensityIndex                     density,
-                          MixtureIndex                     mixture,
-                          Core::Ref<MixtureSet>            mixtureSet);
+                          Feature::VectorRef    feature,
+                          DensityIndex          density,
+                          MixtureIndex          mixture,
+                          Core::Ref<MixtureSet> mixtureSet);
     virtual void accumulate(
-            Core::Ref<const Feature::Vector> feature,
-            DensityIndex                     density,
-            MixtureIndex                     mixture,
-            Core::Ref<MixtureSet>            mixtureSet,
-            Mm::Weight                       weight);
+            Feature::VectorRef    feature,
+            DensityIndex          density,
+            MixtureIndex          mixture,
+            Core::Ref<MixtureSet> mixtureSet,
+            Mm::Weight            weight);
     virtual void accumulate(
             const Speech::Alignment&                         alignment,
             const std::vector<Core::Ref<const Mm::Feature>>& featureSequence,
@@ -403,7 +409,7 @@ public:
     virtual bool read(Core::BinaryInputStream& i);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 namespace {
 template<class T>

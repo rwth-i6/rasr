@@ -4,19 +4,24 @@ TOPDIR		= ../..
 
 include $(TOPDIR)/Makefile.cfg
 
-CXXFLAGS += -fexceptions -g
-
 # -----------------------------------------------------------------------------
 
 SUBDIRS		=
 TARGETS		= libSprintOnnx.$(a) check$(exe)
 
-LIBSPRINTONNX_O = $(OBJDIR)/Session.o \
-				  $(OBJDIR)/IOSpecification.o \
-				  $(OBJDIR)/Module.o \
-				  $(OBJDIR)/OnnxFeatureScorer.o \
-				  $(OBJDIR)/OnnxForwardNode.o \
-                  $(OBJDIR)/Value.o
+LIBSPRINTONNX_O = \
+		$(OBJDIR)/BLstmStateManager.o \
+		$(OBJDIR)/ConformerStateManager.o \
+		$(OBJDIR)/DummyStateManager.o \
+		$(OBJDIR)/IOSpecification.o \
+		$(OBJDIR)/Model.o \
+		$(OBJDIR)/Module.o \
+		$(OBJDIR)/OnnxEncoder.o \
+		$(OBJDIR)/OnnxFeatureScorer.o \
+		$(OBJDIR)/OnnxForwardNode.o \
+		$(OBJDIR)/Session.o \
+		$(OBJDIR)/StateManager.o \
+		$(OBJDIR)/Value.o
 
 CHECK_O = $(OBJDIR)/check.o \
           libSprintOnnx.$(a) \

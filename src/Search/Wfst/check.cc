@@ -49,9 +49,7 @@ public:
         return 0;
 
         return EXIT_SUCCESS;
-    }  //end main
-
-protected:
+    }
 };
 
 APPLICATION(TestApplication)

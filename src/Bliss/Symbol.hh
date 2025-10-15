@@ -137,10 +137,10 @@ private:
 public:
     SymbolSet();
     /** Convert char pointer to Symbol.
-         * Symbol is added if not already present. */
+     * Symbol is added if not already present. */
     Symbol operator[](const Symbol::Char*);
     /** Convert string to Symbol.
-         * Symbol is added if not already present. */
+     * Symbol is added if not already present. */
     Symbol operator[](const Symbol::String&);
 
     /** return void symbol if not present */
@@ -165,11 +165,13 @@ private:
 
 protected:
     Token(Id _id, Bliss::Symbol _symbol)
-            : id_(_id), symbol_(_symbol) {}
+            : id_(_id),
+              symbol_(_symbol) {}
     Token(Id _id)
             : id_(_id) {}
     Token(Bliss::Symbol _symbol)
-            : id_(invalidId), symbol_(_symbol) {}
+            : id_(invalidId),
+              symbol_(_symbol) {}
     Token()
             : id_(invalidId) {}
     friend class TokenInventory;
@@ -240,7 +242,8 @@ public:
     }
 
     typedef Token* const* Iterator;
-    Iterator              begin() const {
+
+    Iterator begin() const {
         return &(*list_.begin());
     }
 
@@ -311,13 +314,16 @@ protected:
 
 public:  // FIXME
     SymbolSequence(const Symbol* _begin, const Symbol* _end)
-            : begin_(_begin), end_(_end) {}
+            : begin_(_begin),
+              end_(_end) {}
 
 public:
     SymbolSequence()
-            : begin_(0), end_(0) {}
+            : begin_(0),
+              end_(0) {}
     SymbolSequence(const SymbolSequence& o)
-            : begin_(o.begin_), end_(o.end_) {}
+            : begin_(o.begin_),
+              end_(o.end_) {}
 
     bool valid() const {
         return begin_ != 0;

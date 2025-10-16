@@ -84,7 +84,7 @@ public:
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
 
-    // Return stable traceback. The last trace is the common prefix for all active hypothesis. 
+    // Return stable traceback. The last trace is the common prefix for all active hypothesis.
     virtual Core::Ref<const Traceback> getPartialSentence() = 0;
 
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.

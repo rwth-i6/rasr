@@ -23,17 +23,9 @@ public:
         }
 
         for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            std::cout << "trace: " << it->first << ", time: " << it->first->time << ", score: " << it->first->score << ", pron: " << it->first->pronunciation << ", predecessor: " << it->first->predecessor.get() << std::endl;
-            std::cout << "length: " << it->second.length << ", has_active_hyps: " << it->second.has_active_hyps << std::endl;
-            for (LatticeTrace* follower : it->second.followers) {
-                std::cout << "follower: " << follower << std::endl;
-            }
             if (it->second.length == 1) {
                 // This is "the" root trace
                 //require(not rootTrace_->predecessor);
-                if (rootTrace_ != 0) {
-                    std::cout << "rootTrace_ " << rootTrace_ << std::endl;
-                }
                 rootTrace_ = it->first;
             }
         }

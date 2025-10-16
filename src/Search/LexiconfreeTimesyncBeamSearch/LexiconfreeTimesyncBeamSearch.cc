@@ -24,6 +24,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Traceback.hh>
+#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -194,6 +195,8 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
+    lastPartialTrace_ = beam_.front().trace;
+
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
@@ -230,6 +233,17 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
     featureProcessingTime_.stop();
 }
 
+Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getPartialSentence() {
+    Traceback*              result = new Traceback();
+    Core::Ref<LatticeTrace> t      = getCommonPrefix();
+
+    if (t) {
+        traceback(t, *result, lastPartialTrace_);
+        lastPartialTrace_ = t;
+    }
+    return Core::Ref<const Traceback>(result);
+}
+
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }
@@ -245,11 +259,6 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     }
 
     return endTrace.buildWordLattice(lexicon_);
-}
-
-Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getPartialSentence() {
-    Core::Ref<const Traceback> result;
-    return result;
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
@@ -397,6 +406,18 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis const& LexiconfreeTimesyncBeamSea
     verify(not beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
+}
+
+Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces;
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces.push_back(beam_[hypIndex].trace);
+    }
+
+    RootTraceSearcher searcher(traces);
+    verify(searcher.rootTrace());
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 void LexiconfreeTimesyncBeamSearch::resetStatistics() {

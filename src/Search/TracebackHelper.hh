@@ -6,6 +6,14 @@ inline Bliss::LemmaPronunciation* epsilonLemmaPronunciation() {
     return reinterpret_cast<Bliss::LemmaPronunciation*>(1);
 }
 
+inline void traceback(Core::Ref<LatticeTrace> end, Traceback& result, Core::Ref<LatticeTrace> boundary) {
+    result.clear();
+    for (; end && end != boundary; end = end->predecessor) {
+        result.push_back(*end);
+    }
+    std::reverse(result.begin(), result.end());
+}
+
 class RootTraceSearcher {
 public:
     RootTraceSearcher(std::vector<Core::Ref<LatticeTrace>> traces)
@@ -17,7 +25,7 @@ public:
         for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
             std::cout << "trace: " << it->first << ", time: " << it->first->time << ", score: " << it->first->score << ", pron: " << it->first->pronunciation << ", predecessor: " << it->first->predecessor.get() << std::endl;
             std::cout << "length: " << it->second.length << ", has_active_hyps: " << it->second.has_active_hyps << std::endl;
-            for (LatticeTrace* follower: it->second.followers) {
+            for (LatticeTrace* follower : it->second.followers) {
                 std::cout << "follower: " << follower << std::endl;
             }
             if (it->second.length == 1) {
@@ -30,8 +38,8 @@ public:
             }
         }
 
-        TraceDesc desc       = traces_[rootTrace_];
-        LatticeTrace*    prev_trace = rootTrace_;
+        TraceDesc     desc       = traces_[rootTrace_];
+        LatticeTrace* prev_trace = rootTrace_;
         while (desc.followers.size() == 1 && !desc.has_active_hyps) {  // can not be sure if current root trace still have active state
             LatticeTrace* follower = desc.followers.front();
             if (traces_[follower].has_active_hyps) {
@@ -60,25 +68,26 @@ public:
 
         os << "// " << comment << "\n";
         os << "digraph \""
-        << "traces"
-        << "\" {" << std::endl
-        << "ranksep = 1.5" << std::endl
-        << "rankdir = LR" << std::endl
-        << "node [fontname=\"Helvetica\"]" << std::endl
-        << "edge [fontname=\"Helvetica\"]" << std::endl;
+           << "traces"
+           << "\" {" << std::endl
+           << "ranksep = 1.5" << std::endl
+           << "rankdir = LR" << std::endl
+           << "node [fontname=\"Helvetica\"]" << std::endl
+           << "edge [fontname=\"Helvetica\"]" << std::endl;
 
         for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            os << "\"" << it->first << "\" [label=\"" << it->first << "\\nactive=" << (it->second.has_active_hyps ? "true" : "false" ) << "\\ntime=" << it->first->time << "\\npron=" << it->first->pronunciation << "\"];\n";
+            os << "\"" << it->first << "\" [label=\"" << it->first << "\\nactive=" << (it->second.has_active_hyps ? "true" : "false") << "\\ntime=" << it->first->time << "\\npron=" << it->first->pronunciation << "\"];\n";
         }
         for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            for (auto follower: it->second.followers) {
+            for (auto follower : it->second.followers) {
                 os << "\"" << it->first << "\""
                    << "->"
                    << "\"" << follower << "\"\n";
             }
         }
 
-        os << "}\n" << std::endl;
+        os << "}\n"
+           << std::endl;
         os.close();
     }
 
@@ -113,14 +122,13 @@ private:
     }
 
     struct TraceDesc {
-        int                 length;
+        int                        length;
         std::vector<LatticeTrace*> followers;
-        bool                has_active_hyps;
+        bool                       has_active_hyps;
     };
 
     std::map<LatticeTrace*, TraceDesc> traces_;
     LatticeTrace*                      rootTrace_;
 };
-
 
 }  // namespace Search

@@ -561,14 +561,6 @@ Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
     RootTraceSearcher searcher(traces);
     verify(searcher.rootTrace());
 
-    std::stringstream ss;
-    ss << "acrive traces:\n";
-    for (std::vector<Core::Ref<LatticeTrace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
-        ss << it->get() << ", ";
-    }
-    std::string comment = ss.str();
-    searcher.dumpDotGraph(comment);
-
     return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 

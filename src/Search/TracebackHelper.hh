@@ -63,34 +63,6 @@ public:
         return rootTrace_;
     }
 
-    void dumpDotGraph(std::string& comment) {
-        std::ofstream os("trace.dot");
-
-        os << "// " << comment << "\n";
-        os << "digraph \""
-           << "traces"
-           << "\" {" << std::endl
-           << "ranksep = 1.5" << std::endl
-           << "rankdir = LR" << std::endl
-           << "node [fontname=\"Helvetica\"]" << std::endl
-           << "edge [fontname=\"Helvetica\"]" << std::endl;
-
-        for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            os << "\"" << it->first << "\" [label=\"" << it->first << "\\nactive=" << (it->second.has_active_hyps ? "true" : "false") << "\\ntime=" << it->first->time << "\\npron=" << it->first->pronunciation << "\"];\n";
-        }
-        for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            for (auto follower : it->second.followers) {
-                os << "\"" << it->first << "\""
-                   << "->"
-                   << "\"" << follower << "\"\n";
-            }
-        }
-
-        os << "}\n"
-           << std::endl;
-        os.close();
-    }
-
 private:
     int addTrace(LatticeTrace* trace, LatticeTrace* follower, bool has_active_hyps = false) {
         std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.find(trace);

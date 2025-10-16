@@ -247,6 +247,11 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     return endTrace.buildWordLattice(lexicon_);
 }
 
+Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getPartialSentence() {
+    Core::Ref<const Traceback> result;
+    return result;
+}
+
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     if (finishedSegment_) {
         return false;

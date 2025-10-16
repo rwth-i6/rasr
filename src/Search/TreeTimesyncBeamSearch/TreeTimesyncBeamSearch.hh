@@ -67,6 +67,7 @@ public:
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
+    Core::Ref<const Traceback> getPartialSentence() override;
 
 protected:
     /*
@@ -160,8 +161,12 @@ private:
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
 
+    Core::Ref<LatticeTrace> lastPartialTrace_;
+
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
+
+    Core::Ref<LatticeTrace> getCommonPrefix() const;
 
     void resetStatistics();
     void logStatistics() const;

@@ -25,6 +25,7 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include "Search/Module.hh"
 #include "Search/Traceback.hh"
+#include "Search/TracebackHelper.hh"
 
 namespace Search {
 
@@ -59,6 +60,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         completedTrace->time           = extension.timeframe + 1;
         completedTrace->score.lm       = base.trace->score.lm + extension.lmScore;
         completedTrace->score.acoustic = extension.score - completedTrace->score.lm;
+        completedTrace->predecessor = base.trace;
 
         trace = Core::ref(new LatticeTrace(
                 completedTrace,
@@ -248,6 +250,8 @@ void TreeTimesyncBeamSearch::reset() {
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
+
+    lastPartialTrace_ = beam_.front().trace;
 
     initializationTime_.stop();
 }
@@ -752,6 +756,65 @@ void TreeTimesyncBeamSearch::finalizeLmScoring() {
         }
     }
     beam_.swap(newBeam_);
+}
+
+void traceback(Core::Ref<LatticeTrace> end, Traceback& result, Core::Ref<LatticeTrace> boundary) {
+    result.clear();
+    for (; end && end != boundary; end = end->predecessor) {
+        result.push_back(*end);
+    }
+    std::reverse(result.begin(), result.end());
+}
+
+    
+Core::Ref<const Traceback> TreeTimesyncBeamSearch::getPartialSentence() {
+    //Traceback result;
+    Traceback* result = new Traceback();
+    Core::Ref<LatticeTrace> t = getCommonPrefix();
+
+    if (t) {
+        traceback(t, *result, lastPartialTrace_);
+        lastPartialTrace_ = t;
+    }
+    return Core::Ref<const Traceback>(result);
+}
+
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    // beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
+    // beam_ contains all state hyp and word end hyp
+    std::vector<Core::Ref<LatticeTrace>> traces;
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces.push_back(beam_[hypIndex].trace);
+    }
+
+    //std::set<TraceId> considerTraceIds;
+    //for (std::vector<StateHypothesis>::const_iterator it = stateHypotheses.begin(); it != stateHypotheses.end(); ++it) {
+    //    considerTraceIds.insert(it->trace);
+    //}
+
+    //// Find the trace where all traces merge
+    //std::vector<Core::TsRef<Trace>> traces;
+    //for (std::set<TraceId>::iterator it = considerTraceIds.begin(); it != considerTraceIds.end(); ++it) {
+    //    Core::TsRef<Trace> trace = trace_manager_.traceItem(*it).trace;
+    //    traces.push_back(trace);
+    //}
+
+    //for (WordEndHypothesisList::const_iterator it = wordEndHypotheses.begin(); it != wordEndHypotheses.end(); ++it) {
+    //    traces.push_back(it->trace);
+    //}
+
+    RootTraceSearcher searcher(traces);
+    verify(searcher.rootTrace());
+
+    std::stringstream ss;
+    ss << "acrive traces:\n";
+    for (std::vector<Core::Ref<LatticeTrace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+        ss << it->get() << ", ";
+    }
+    std::string comment = ss.str();
+    searcher.dumpDotGraph(comment);
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 }  // namespace Search

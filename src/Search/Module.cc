@@ -48,6 +48,7 @@ const Core::Choice choiceTreeBuilderType(
         "ctc", static_cast<int>(TreeBuilderType::ctc),
         "rna", static_cast<int>(TreeBuilderType::rna),
         "aed", static_cast<int>(TreeBuilderType::aed),
+        "hmm", static_cast<int>(TreeBuilderType::hmm),
         Core::Choice::endMark());
 
 const Core::ParameterChoice paramTreeBuilderType(
@@ -73,6 +74,9 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
         } break;
         case Search::TreeBuilderType::aed: {
             return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case Search::TreeBuilderType::hmm: {
+            return std::unique_ptr<AbstractTreeBuilder>(new HmmTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();
     }

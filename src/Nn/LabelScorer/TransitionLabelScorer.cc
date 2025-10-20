@@ -45,7 +45,7 @@ ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelSco
 
 std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     LabelScorer::ScoreWithTime result;
-    result.score = transitionScores_[request.transitionType];
+    result.score     = transitionScores_[request.transitionType];
     result.timeframe = static_cast<Speech::TimeframeIndex>(0);
     return result;
 }

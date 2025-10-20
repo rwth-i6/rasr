@@ -25,7 +25,7 @@ public:
         for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
             if (it->second.length == 1) {
                 // This is "the" root trace
-                //require(not rootTrace_->predecessor);
+                // require(not rootTrace_->predecessor);
                 rootTrace_ = it->first;
             }
         }

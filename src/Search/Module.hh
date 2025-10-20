@@ -33,6 +33,7 @@ enum TreeBuilderType {
     ctc,
     rna,
     aed,
+    hmm,
 };
 
 enum SearchType {

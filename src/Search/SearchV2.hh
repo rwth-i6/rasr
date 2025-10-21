@@ -87,6 +87,9 @@ public:
     // Return common prefix of all active traces.
     virtual Core::Ref<LatticeTrace> getCommonPrefix() const = 0;
 
+    // Return the first trace of all hypotheses. Needed for computing partial trace.
+    virtual Core::Ref<LatticeTrace> getRootTrace() const = 0;
+
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;
 

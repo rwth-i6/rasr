@@ -251,9 +251,13 @@ void TreeTimesyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
-    lastPartialTrace_ = beam_.front().trace;
+    rootTrace_ = beam_.front().trace;
 
     initializationTime_.stop();
+}
+
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
 }
 
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {

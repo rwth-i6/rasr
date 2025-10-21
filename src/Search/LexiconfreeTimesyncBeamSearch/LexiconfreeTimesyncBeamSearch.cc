@@ -196,12 +196,16 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    lastPartialTrace_ = beam_.front().trace;
+    rootTrace_ = beam_.front().trace;
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
     initializationTime_.stop();
+}
+
+Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
 }
 
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {

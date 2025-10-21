@@ -6,23 +6,24 @@ inline Bliss::LemmaPronunciation* epsilonLemmaPronunciation() {
     return reinterpret_cast<Bliss::LemmaPronunciation*>(1);
 }
 
-inline void traceback(Core::Ref<LatticeTrace> end, Traceback& result, Core::Ref<LatticeTrace> boundary) {
-    result.clear();
+inline Core::Ref<const Traceback> traceback(Core::Ref<LatticeTrace> end, Core::Ref<LatticeTrace> boundary) {
+    Traceback* result = new Traceback();
     for (; end && end != boundary; end = end->predecessor) {
-        result.push_back(*end);
+        result->push_back(*end);
     }
-    std::reverse(result.begin(), result.end());
+    std::reverse(result->begin(), result->end());
+    return Core::ref(result);
 }
 
 class RootTraceSearcher {
 public:
-    RootTraceSearcher(std::vector<Core::Ref<LatticeTrace>> traces)
+    RootTraceSearcher(const std::vector<Core::Ref<LatticeTrace>>& traces)
             : rootTrace_(0) {
         for (std::vector<Core::Ref<LatticeTrace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             addTrace(it->get(), 0, true);
         }
 
-        for (std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
+        for (std::unordered_map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
             if (it->second.length == 1) {
                 // This is "the" root trace
                 // require(not rootTrace_->predecessor);
@@ -57,7 +58,7 @@ public:
 
 private:
     int addTrace(LatticeTrace* trace, LatticeTrace* follower, bool has_active_hyps = false) {
-        std::map<LatticeTrace*, TraceDesc>::iterator it = traces_.find(trace);
+        std::unordered_map<LatticeTrace*, TraceDesc>::iterator it = traces_.find(trace);
 
         if (it != traces_.end()) {
             // Already there, just add follower
@@ -91,8 +92,8 @@ private:
         bool                       has_active_hyps;
     };
 
-    std::map<LatticeTrace*, TraceDesc> traces_;
-    LatticeTrace*                      rootTrace_;
+    std::unordered_map<LatticeTrace*, TraceDesc> traces_;
+    LatticeTrace*                                rootTrace_;
 };
 
 }  // namespace Search

@@ -64,9 +64,9 @@ public:
     void                            finishSegment() override;
     void                            putFeature(Nn::DataView const& feature) override;
     void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getPartialSentence() override;
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<LatticeTrace>         getCommonPrefix() const;
     bool                            decodeStep() override;
 
 protected:
@@ -165,8 +165,6 @@ private:
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
-
-    Core::Ref<LatticeTrace> getCommonPrefix() const;
 
     void resetStatistics();
     void logStatistics() const;

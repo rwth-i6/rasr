@@ -292,17 +292,6 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
     featureProcessingTime_.stop();
 }
 
-Core::Ref<const Traceback> TreeTimesyncBeamSearch::getPartialSentence() {
-    Traceback*              result = new Traceback();
-    Core::Ref<LatticeTrace> t      = getCommonPrefix();
-
-    if (t) {
-        traceback(t, *result, lastPartialTrace_);
-        lastPartialTrace_ = t;
-    }
-    return Core::Ref<const Traceback>(result);
-}
-
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }
@@ -318,6 +307,20 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces;
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces.push_back(beam_[hypIndex].trace);
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 bool TreeTimesyncBeamSearch::decodeStep() {
@@ -550,18 +553,6 @@ TreeTimesyncBeamSearch::LabelHypothesis const& TreeTimesyncBeamSearch::getWorstH
     verify(not beam_.empty());
 
     return *std::max_element(beam_.begin(), beam_.end());
-}
-
-Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
-    std::vector<Core::Ref<LatticeTrace>> traces;
-    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        traces.push_back(beam_[hypIndex].trace);
-    }
-
-    RootTraceSearcher searcher(traces);
-    verify(searcher.rootTrace());
-
-    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 void TreeTimesyncBeamSearch::resetStatistics() {

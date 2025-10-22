@@ -87,11 +87,11 @@ public:
     // Return the current best traceback. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
 
-    // Return common prefix of all active traces.
-    virtual Core::Ref<LatticeTrace> getCommonPrefix() const = 0;
-
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;
+
+    // Return common prefix of all active traces.
+    virtual Core::Ref<LatticeTrace> getCommonPrefix() const = 0;
 
     // Try to decode one more step. Return bool indicates whether a step could be made.
     virtual bool decodeStep() = 0;

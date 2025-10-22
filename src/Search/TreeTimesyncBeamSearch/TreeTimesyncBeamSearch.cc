@@ -315,14 +315,14 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
 }
 
 Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
-    std::vector<Core::Ref<LatticeTrace>> traces;
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        traces.push_back(beam_[hypIndex].trace);
+        traces[hypIndex] = beam_[hypIndex].trace;
     }
 
     RootTraceSearcher searcher(traces);
     if (not searcher.rootTrace()) {
-        warning("common prefix of all traces is a sentinel value");
+        warning("Common prefix of all traces is a sentinel value");
     }
 
     return Core::Ref<LatticeTrace>(searcher.rootTrace());

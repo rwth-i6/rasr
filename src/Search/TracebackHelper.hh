@@ -26,14 +26,13 @@ public:
         for (std::unordered_map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
             if (it->second.length == 1) {
                 // This is "the" root trace
-                // require(not rootTrace_->predecessor);
                 rootTrace_ = it->first;
             }
         }
 
         TraceDesc     desc       = traces_[rootTrace_];
         LatticeTrace* prev_trace = rootTrace_;
-        while (desc.followers.size() == 1 && !desc.has_active_hyps) {  // can not be sure if current root trace still have active state
+        while (desc.followers.size() == 1 && !desc.has_active_hyps) {  // can not be sure if current root trace still has active state
             LatticeTrace* follower = desc.followers.front();
             if (traces_[follower].has_active_hyps) {
                 break;

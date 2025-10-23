@@ -74,17 +74,21 @@ public:
     // If startLabelIndex is set, forward that through the state updater to obtain the start history
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
-    // Forward hidden-state through state-updater ONNX model
-    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
-
     // Add a single encoder outputs to buffer
     void addInput(DataView const& input) override;
 
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTime(LabelScorer::Request const& request) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
-
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+
+    // Forward hidden-state through state-updater ONNX model
+    Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
+
+    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
+
+    virtual TransitionPresetType defaultPreset() const override {
+        return TransitionPresetType::LM;
+    }
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache

@@ -54,7 +54,7 @@ const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxBatchSize(
 
 const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
-        "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
+        "Maximum size of cache that maps scoring contexts to scores. This prevents memory overflow in case of very long audio segments.",
         1000);
 
 // Scorer only takes hidden states as input which are not part of the IO spec
@@ -201,7 +201,7 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContex
 }
 
 Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
-    OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
+    OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
     switch (request.transitionType) {
@@ -224,23 +224,19 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
             error() << "Unknown transition type " << request.transitionType;
     }
 
-    // If history is not going to be modified, return the original one
+    // If scoring context is not going to be modified, return the original one
     if (not updateState) {
         return request.context;
     }
 
-    std::vector<LabelIndex> newLabelSeq(history->labelSeq);
+    std::vector<LabelIndex> newLabelSeq(scoringContext->labelSeq);
     newLabelSeq.push_back(request.nextToken);
 
-    OnnxHiddenStateRef newHiddenState;
-    if (not history->hiddenState) {  // Sentinel start-state
-        newHiddenState = updatedHiddenState(computeInitialHiddenState(), request.nextToken);
-    }
-    else {
-        newHiddenState = updatedHiddenState(history->hiddenState, request.nextToken);
-    }
+    // Re-use previous hidden-state but mark that finalization (i.e. hidden-state update) is required
+    auto newScoringContext              = Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), scoringContext->hiddenState));
+    newScoringContext->requiresFinalize = true;
 
-    return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
+    return newScoringContext;
 }
 
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
@@ -264,41 +260,44 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     result.scores.reserve(requests.size());
 
     /*
-     * Identify unique histories that still need session runs
+     * Identify unique scoring contexts that still need session runs
      */
-    std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedHistories;
+    std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
 
     for (auto& request : requests) {
-        OnnxHiddenStateScoringContextRef historyPtr(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
-        if (not scoreCache_.contains(historyPtr)) {
-            // Group by unique history
-            uniqueUncachedHistories.emplace(historyPtr);
+        // We need to finalize all scoring contexts before using them for scoring again.
+
+        OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
+        finalizeScoringContext(scoringContext);
+        if (not scoreCache_.contains(scoringContext)) {
+            // Group by unique scoring context
+            uniqueUncachedScoringContexts.emplace(scoringContext);
         }
     }
 
-    std::vector<OnnxHiddenStateScoringContextRef> historyBatch;
-    historyBatch.reserve(std::min(uniqueUncachedHistories.size(), maxBatchSize_));
-    for (auto history : uniqueUncachedHistories) {
-        historyBatch.push_back(history);
-        if (historyBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
-            forwardBatch(historyBatch);
-            historyBatch.clear();
+    std::vector<OnnxHiddenStateScoringContextRef> scoringContextBatch;
+    scoringContextBatch.reserve(std::min(uniqueUncachedScoringContexts.size(), maxBatchSize_));
+    for (auto scoringContext : uniqueUncachedScoringContexts) {
+        scoringContextBatch.push_back(scoringContext);
+        if (scoringContextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
+            forwardBatch(scoringContextBatch);
+            scoringContextBatch.clear();
         }
     }
 
-    forwardBatch(historyBatch);  // Forward remaining histories
+    forwardBatch(scoringContextBatch);  // Forward remaining scoring contexts
 
     /*
      * Assign from cache map to result vector
      */
     for (const auto& request : requests) {
-        OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
+        OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
-        verify(scoreCache_.contains(history));
-        auto const& scores = scoreCache_.get(history)->get();
+        verify(scoreCache_.contains(scoringContext));
+        auto const& scores = scoreCache_.get(scoringContext)->get();
 
         result.scores.push_back(scores.at(request.nextToken));
-        result.timeframes.push_back(history->labelSeq.size());
+        result.timeframes.push_back(scoringContext->labelSeq.size());
     }
 
     return result;
@@ -425,8 +424,25 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::updatedHiddenState(OnnxHiddenStateRe
     return newHiddenState;
 }
 
-void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& historyBatch) {
-    if (historyBatch.empty()) {
+void StatefulOnnxLabelScorer::finalizeScoringContext(OnnxHiddenStateScoringContextRef const& scoringContext) {
+    // If this scoring context does not need finalization, don't change it
+    if (not scoringContext->requiresFinalize) {
+        return;
+    }
+
+    auto hiddenState = scoringContext->hiddenState;
+
+    if (not hiddenState) {  // Sentinel start-state
+        hiddenState = computeInitialHiddenState();
+    }
+    verify(not scoringContext->labelSeq.empty());
+
+    scoringContext->hiddenState      = updatedHiddenState(hiddenState, scoringContext->labelSeq.back());
+    scoringContext->requiresFinalize = false;
+}
+
+void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
+    if (scoringContextBatch.empty()) {
         return;
     }
 
@@ -439,11 +455,11 @@ void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringCon
         // Collect a vector of individual state values of shape [1, *] and afterwards concatenate
         // them to a batched state tensor of shape [B, *]
         std::vector<Onnx::Value const*> stateValues;
-        stateValues.reserve(historyBatch.size());
+        stateValues.reserve(scoringContextBatch.size());
 
-        for (size_t b = 0ul; b < historyBatch.size(); ++b) {
-            auto history     = historyBatch[b];
-            auto hiddenState = history->hiddenState;
+        for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+            auto scoringContext = scoringContextBatch[b];
+            auto hiddenState    = scoringContext->hiddenState;
             if (not hiddenState) {  // Sentinel hidden-state
                 hiddenState = computeInitialHiddenState();
             }
@@ -461,10 +477,10 @@ void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringCon
     /*
      * Put resulting scores into cache map
      */
-    for (size_t b = 0ul; b < historyBatch.size(); ++b) {
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         std::vector<f32> scoreVec;
         sessionOutputs.front().get(b, scoreVec);
-        scoreCache_.put(historyBatch[b], std::move(scoreVec));
+        scoreCache_.put(scoringContextBatch[b], std::move(scoreVec));
     }
 }
 

@@ -172,8 +172,6 @@ inline Core::Ref<const LatticeTraceback> performLatticeTraceback(Core::Ref<Latti
         trace = trace->predecessor;
     }
 
-    //traceback = Core::ref(new Traceback()); do i need this?? as very first lattice trace
-
     std::reverse(traceback->begin(), traceback->end());
     return Core::Ref<const LatticeTraceback>(traceback);
 }

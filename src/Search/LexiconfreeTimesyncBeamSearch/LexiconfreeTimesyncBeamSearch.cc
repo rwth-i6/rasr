@@ -205,10 +205,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     initializationTime_.stop();
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.start();
     labelScorer_->reset();
@@ -239,8 +235,16 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
     featureProcessingTime_.stop();
 }
 
+Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
+}
+
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
+}
+
+Core::Ref<const LatticeTraceback> LexiconfreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
+    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {

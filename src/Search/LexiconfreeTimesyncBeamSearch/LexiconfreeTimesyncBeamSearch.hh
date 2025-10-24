@@ -51,19 +51,21 @@ public:
 
     // Inherited methods from `SearchAlgorithmV2`
 
-    Speech::ModelCombination::Mode    requiredModelCombination() const override;
-    bool                              setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                              reset() override;
+    Speech::ModelCombination::Mode requiredModelCombination() const override;
+    bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                           reset() override;
+    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                           finishSegment() override;
+    void                           putFeature(Nn::DataView const& feature) override;
+    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+
     Core::Ref<LatticeTrace>           getRootTrace() const override;
-    void                              enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                              finishSegment() override;
-    void                              putFeature(Nn::DataView const& feature) override;
-    void                              putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
     Core::Ref<const Traceback>        getCurrentBestTraceback() const override;
     Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const override;
     Core::Ref<const LatticeAdaptor>   getCurrentBestWordLattice() const override;
     Core::Ref<LatticeTrace>           getCommonPrefix() const override;
-    bool                              decodeStep() override;
+
+    bool decodeStep() override;
 
 protected:
     /*

@@ -159,7 +159,7 @@ public:
 };
 
 /*
- * Vector of LatticeTraces
+ * Vector of Refs to LatticeTrace
  */
 class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<LatticeTrace>> {
 };

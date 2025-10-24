@@ -297,6 +297,10 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
     featureProcessingTime_.stop();
 }
 
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
+}
+
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }

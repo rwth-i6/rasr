@@ -51,7 +51,8 @@ private:
 
 private:
     PosteriorCnSortingIterator(ConstPosteriorCnRef cn)
-            : cn_(cn), slot_(0) {
+            : cn_(cn),
+              slot_(0) {
         verify(cn);
     }
 
@@ -246,7 +247,8 @@ private:
 
 public:
     PosteriorCnXmlParser(const Core::Configuration& config)
-            : Precursor(config), cn_(0) {
+            : Precursor(config),
+              cn_(0) {
         Core::XmlMixedElement* headerElement = new Core::XmlMixedElementRelay(
                 "head", this, 0, endHandler(&Self::endHeader), 0,
                 XML_CHILD(new Core::XmlMixedElementRelay(

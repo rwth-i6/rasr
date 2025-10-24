@@ -110,24 +110,29 @@ public:
     // access methods
     NeuralNetworkLayer<T>&       getLayer(u32 index);
     const NeuralNetworkLayer<T>& getLayer(u32 index) const;
-    u32                          getLayerIdByName(const std::string& name) {
+
+    u32 getLayerIdByName(const std::string& name) {
         return topology_.layerElement(name)->topologicalId();
     }
 
     NeuralNetworkLayer<T>&       getTopLayer();
     const NeuralNetworkLayer<T>& getTopLayer() const;
-    NnMatrix&                    getTopLayerOutput() {
+
+    NnMatrix& getTopLayerOutput() {
         require_gt(layers_.size(), 0);
         return activations_.getOutput(nLayers() - 1);
     }
+
     NnMatrix& getLayerOutput(u32 layer) {
         require_le(layer, layers_.size());
         return activations_.getOutput(layer);
     }
+
     std::vector<NnMatrix*>& getLayerInput(u32 layer) {
         require_le(layer, layers_.size());
         return activations_.getInput(layer);
     }
+
     void resetPreviousActivations();
     // remove top layer from network
     NeuralNetworkLayer<T>* popLayer();

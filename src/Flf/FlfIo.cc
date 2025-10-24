@@ -539,7 +539,11 @@ private:
 
 public:
     FlfDescriptorXmlParser(const Core::Configuration& config)
-            : Precursor(config), desc_(0), n_(0), id_(0), hasId_(-1) {
+            : Precursor(config),
+              desc_(0),
+              n_(0),
+              id_(0),
+              hasId_(-1) {
         Core::XmlMixedElement* rootElement = new Core::XmlMixedElementRelay("lattice", this, startHandler(&Self::lattice), 0, 0,
                                                                             XML_CHILD(new Core::XmlIgnoreElement(
                                                                                     "head", this)),
@@ -617,7 +621,8 @@ const Core::ParameterFloat FlfReader::paramScale(
         Semiring::DefaultScale);
 
 FlfReader::FlfReader(const Core::Configuration& config)
-        : Precursor(config), contextHandling_(UpdateContext) {
+        : Precursor(config),
+          contextHandling_(UpdateContext) {
     context_ = FlfContextRef(new FlfContext());
     Core::Choice::Value contextHandling =
             ContextModeChoice[paramContextMode(config)];
@@ -630,7 +635,9 @@ FlfReader::FlfReader(const Core::Configuration& config)
 }
 
 FlfReader::FlfReader(const Core::Configuration& config, FlfContextRef context, u32 contextHandling)
-        : Precursor(config), contextHandling_(contextHandling), context_(context) {
+        : Precursor(config),
+          contextHandling_(contextHandling),
+          context_(context) {
     require(context_);
     init();
 }

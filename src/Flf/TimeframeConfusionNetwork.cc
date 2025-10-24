@@ -194,7 +194,8 @@ private:
 
 public:
     Internal(ConstPosteriorCnRef cn)
-            : cn_(cn), label_(Fsa::InvalidLabelId) {}
+            : cn_(cn),
+              label_(Fsa::InvalidLabelId) {}
 
     void update(Fsa::LabelId label, Time begin, Time duration) {
         label_ = label;
@@ -289,7 +290,8 @@ private:
 
 public:
     ExtendByFramePosteriorConfidenceLattice(ConstLatticeRef l, ConstPosteriorCnRef cn, ScoreId id, RescoreMode rescoreMode)
-            : RescoreLattice(l, rescoreMode), id_(id) {
+            : RescoreLattice(l, rescoreMode),
+              id_(id) {
         verify(cn);
         features_ = FramePosteriorCnFeatures::create(cn);
     }
@@ -380,7 +382,8 @@ private:
 
 public:
     FramePosteriorCnFeatureLattice(ConstLatticeRef l, ConstPosteriorCnRef cn, const FeatureIds& featureIds, RescoreMode rescoreMode)
-            : Precursor(l, rescoreMode), featureIds_(featureIds) {
+            : Precursor(l, rescoreMode),
+              featureIds_(featureIds) {
         verify(cn);
         features_ = FramePosteriorCnFeatures::create(cn);
     }

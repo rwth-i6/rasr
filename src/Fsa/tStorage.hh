@@ -40,17 +40,21 @@ protected:
 
 public:
     StorageAutomaton(Fsa::Type type = Fsa::TypeUnknown);
-    virtual Fsa::Type         type() const;
-    virtual void              setType(Fsa::Type type);
-    virtual void              addProperties(Fsa::Property properties) const;
-    virtual void              setProperties(Fsa::Property knownProperties, Fsa::Property properties) const;
-    virtual void              unsetProperties(Fsa::Property unknownProperties) const;
+    virtual Fsa::Type type() const;
+    virtual void      setType(Fsa::Type type);
+    virtual void      addProperties(Fsa::Property properties) const;
+    virtual void      setProperties(Fsa::Property knownProperties, Fsa::Property properties) const;
+    virtual void      unsetProperties(Fsa::Property unknownProperties) const;
+
     virtual _ConstSemiringRef semiring() const;
-    virtual void              setSemiring(_ConstSemiringRef semiring) {
+
+    virtual void setSemiring(_ConstSemiringRef semiring) {
         semiring_ = semiring;
     }
+
     virtual Fsa::StateId initialStateId() const;
-    virtual void         setInitialStateId(Fsa::StateId initial) {
+
+    virtual void setInitialStateId(Fsa::StateId initial) {
         initial_ = initial;
     }
 

@@ -93,8 +93,8 @@ protected:
     Core::Ref<Mm::StatePosteriorFeatureScorer> posteriorFeatureScorer_;
 
 protected:
-    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {}
-    virtual void accumulate(Core::Ref<const Mm::Feature::Vector> f, const PosteriorsAndDensities& p) {}
+    virtual void accumulate(Mm::Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {}
+    virtual void accumulate(Mm::Feature::VectorRef f, const PosteriorsAndDensities& p) {}
     virtual void accumulate(Core::Ref<const Sparse::Feature::SparseVector> sf, Mm::MixtureIndex m, Mm::Weight w) {}
 
 public:
@@ -102,8 +102,10 @@ public:
                                      typename Precursor::AlignmentGeneratorRef,
                                      Trainer*, Mm::Weight, Core::Ref<const Am::AcousticModel>);
     virtual ~DensityCachedAcousticAccumulator() {}
+
     virtual void finish();
-    void         setFeatureScorer(Core::Ref<Mm::StatePosteriorFeatureScorer> fs) {
+
+    void setFeatureScorer(Core::Ref<Mm::StatePosteriorFeatureScorer> fs) {
         posteriorFeatureScorer_ = fs;
     }
 };
@@ -130,8 +132,10 @@ public:
                    Trainer*, Mm::Weight,
                    Core::Ref<const Am::AcousticModel>);
     virtual ~TdpAccumulator() {}
+
     virtual void discoverState(Fsa::ConstStateRef sp);
-    void         setTransitionFeatures(Core::Ref<TransitionFeatures> transitions) {
+
+    void setTransitionFeatures(Core::Ref<TransitionFeatures> transitions) {
         transitions_ = transitions;
     }
 };
@@ -156,10 +160,13 @@ protected:
 public:
     LmAccumulator(Trainer*, Mm::Weight, Core::Ref<const Lm::LanguageModel>);
     virtual ~LmAccumulator() {}
+
     virtual void discoverState(Fsa::ConstStateRef sp);
-    void         setMgramFeatures(Core::Ref<MgramFeatures> mgrams) {
+
+    void setMgramFeatures(Core::Ref<MgramFeatures> mgrams) {
         mgrams_ = mgrams;
     }
+
     virtual void setFsa(Fsa::ConstAutomatonRef);
 };
 

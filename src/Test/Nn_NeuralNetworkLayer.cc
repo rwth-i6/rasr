@@ -19,7 +19,8 @@
 class NeuralNetworkLayer : public Nn::NeuralNetworkLayer<f64> {
 public:
     NeuralNetworkLayer(const Core::Configuration& config)
-            : Core::Component(config), Nn::NeuralNetworkLayer<f64>(config) {}
+            : Core::Component(config),
+              Nn::NeuralNetworkLayer<f64>(config) {}
     virtual void forward(const std::vector<NnMatrix*>& input, NnMatrix& output) {}
 };
 

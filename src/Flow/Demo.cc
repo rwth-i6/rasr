@@ -25,7 +25,12 @@ const Core::ParameterInt DemoNode::paramMaxInputs_("max-input-nodes", "maximum n
 // =======================================================
 
 DemoNode::DemoNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), demoChannel_(c, "demo-info"), maxInputs_(1), isFirstInPort_(true), isFirstOutPort_(true) {
+        : Core::Component(c),
+          Precursor(c),
+          demoChannel_(c, "demo-info"),
+          maxInputs_(1),
+          isFirstInPort_(true),
+          isFirstOutPort_(true) {
     // note that attributesChannel_ and dataChannel_ are inherited from base class Flow::Node
     // and can be set using dump-attributes = <file> and dump-data = <file>
     // i.e. if you just want to dump the attributes and the data seen by the demo node and not of all nodes use

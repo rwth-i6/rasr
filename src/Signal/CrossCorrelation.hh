@@ -31,13 +31,14 @@ namespace Signal {
  * Leads to the so called unbiased estimate of the cross-correaltion function
  */
 template<class Argument>
-class normalizeCrossCorrelationEstimate : std::binary_function<Argument, s32, Argument> {
+class normalizeCrossCorrelationEstimate {
     s32 sizeX_;
     s32 sizeY_;
 
 public:
     normalizeCrossCorrelationEstimate(const std::vector<Argument>& x, const std::vector<Argument>& y)
-            : sizeX_((s32)x.size()), sizeY_((s32)y.size()) {}
+            : sizeX_((s32)x.size()),
+              sizeY_((s32)y.size()) {}
 
     Argument operator()(Argument element, s32 m) {
         s32 N = std::min(sizeX_ - m, sizeY_) - std::max(0, -m);
@@ -53,7 +54,7 @@ public:
  *   of their autocorrelation is 1.
  */
 template<class Argument>
-class normalizeCrossCorrelationUpperBound : std::binary_function<Argument, s32, Argument> {
+class normalizeCrossCorrelationUpperBound {
     Argument upperBound_;
 
 public:
@@ -70,7 +71,7 @@ public:
  *   0 <= Qxy(m) / (sqrt(Rxx(0)) + sqrt(Ryy(0)))^2 <= 1
  */
 template<class Argument>
-class normalizeCrossSquareDifferenceUpperBound : std::binary_function<Argument, s32, Argument> {
+class normalizeCrossSquareDifferenceUpperBound {
     Argument upperBound_;
 
 public:
@@ -89,7 +90,7 @@ public:
  *   0 <= Dxy(m) / [sum( abs(x(t)) ) + sum( abs(y(t)) )] <= 1
  */
 template<class Argument>
-class normalizeCrossAbsoluteDifferenceUpperBound : std::binary_function<Argument, s32, Argument> {
+class normalizeCrossAbsoluteDifferenceUpperBound {
     Argument upperBound_;
 
 public:
@@ -129,11 +130,15 @@ class CrossCorrelation {
 public:
     typedef f32 Data;
 
-    enum SimilarityFunctionType { Multiplication,
-                                  AbsoluteDifference };
-    enum NormalizationType { None,
-                             UnbiasedEstimate,
-                             UpperBound };
+    enum SimilarityFunctionType {
+        Multiplication,
+        AbsoluteDifference
+    };
+    enum NormalizationType {
+        None,
+        UnbiasedEstimate,
+        UpperBound
+    };
 
 private:
     std::vector<Data> X_;

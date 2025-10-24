@@ -12,14 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "PassthroughSoftmaxAdapter.hh"
+#include "TFPassthroughSoftmaxAdapter.hh"
 
 namespace Lm {
 
-void PassthroughSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
+void TFPassthroughSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
 }
 
-Score PassthroughSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFPassthroughSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     return nn_out->get(output_idx);
 }
 

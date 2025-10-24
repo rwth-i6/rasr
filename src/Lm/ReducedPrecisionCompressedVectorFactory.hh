@@ -24,7 +24,8 @@ namespace Lm {
 class ReducedBitsFloatVector : public CompressedVector<float> {
 public:
     ReducedBitsFloatVector(unsigned drop_bits)
-            : drop_bits_(drop_bits), bits_per_val_(sizeof(float) * 8 - drop_bits_) {
+            : drop_bits_(drop_bits),
+              bits_per_val_(sizeof(float) * 8 - drop_bits_) {
     }
 
     virtual size_t size() const;
@@ -49,7 +50,8 @@ public:
     static const Core::ParameterInt paramDropBits;
 
     ReducedPrecisionCompressedVectorFactory(Core::Configuration const& config)
-            : Precursor(config), drop_bits_(paramDropBits(config)) {}
+            : Precursor(config),
+              drop_bits_(paramDropBits(config)) {}
     virtual ~ReducedPrecisionCompressedVectorFactory() = default;
 
     virtual CompressedVectorPtr<float> compress(float const* data, size_t size, CompressionParameters const* params) const;

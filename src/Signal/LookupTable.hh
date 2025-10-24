@@ -80,7 +80,9 @@ public:
      *  Creates a lookup table with variable amount of buckets.
      */
     LookupTable(const Index bucketSize = 0)
-            : bucketSize_(bucketSize), offset_(0), grow_(true) {}
+            : bucketSize_(bucketSize),
+              offset_(0),
+              grow_(true) {}
     /**
      *  Creates a lookup table with constant amount of buckets.
      *  Index values smaller than min or larger than max will be set back to min resp. max.
@@ -164,7 +166,9 @@ public:
 
 template<class Value, class Index>
 LookupTable<Value, Index>::LookupTable(const Index bucketSize, const Index min, const Index max)
-        : bucketSize_(bucketSize), offset_(0), grow_(true) {
+        : bucketSize_(bucketSize),
+          offset_(0),
+          grow_(true) {
     require(bucketSize > 0);
     insert(min);
     insert(max);
@@ -201,7 +205,7 @@ template<class Value, class Index>
 void LookupTable<Value, Index>::normalizeSurface() {
     Value s = surface();
     require(s != 0);
-    std::transform(begin(), end(), begin(), std::bind2nd(std::divides<Value>(), s));
+    std::transform(begin(), end(), begin(), std::bind(std::divides<Value>(), std::placeholders::_1, s));
 }
 
 template<class Value, class Index>
@@ -280,7 +284,7 @@ template<class Value, class Index>
 LookupTable<Value, Index>&
         LookupTable<Value, Index>::operator*=(const Value scalar) {
     std::transform(begin(), end(), begin(),
-                   std::bind2nd(std::multiplies<Value>(), scalar));
+                   std::bind(std::multiplies<Value>(), std::placeholders::_1, scalar));
     return *this;
 }
 

@@ -38,9 +38,11 @@ using namespace Core;
 
 class Tester : public Component {
 public:
-    enum Flavour { vanilla,
-                   strawberry,
-                   chocolate };
+    enum Flavour {
+        vanilla,
+        strawberry,
+        chocolate
+    };
     static const Choice flavourChoice;
 
     static const ParameterBool   paramBoolean;

@@ -59,7 +59,8 @@ public:
 
 template<class T>
 VectorSequenceConcatenation<T>::VectorSequenceConcatenation(const Core::Configuration& c)
-        : Component(c), Precursor(c) {
+        : Component(c),
+          Precursor(c) {
     expandTimestamp_ = paramVectorSequenceConcatExpandTimestamp(c);
     addOutput(0);
 }

@@ -36,7 +36,8 @@ private:
 
 public:
     LevenshteinAutomaton(ConstAlphabetRef ref, ConstAlphabetRef test, f32 delCost, f32 insCost, f32 subCost, f32 corCost)
-            : inputAlphabet_(ref), outputAlphabet_(test) {
+            : inputAlphabet_(ref),
+              outputAlphabet_(test) {
         setProperties(PropertyStorage, PropertyStorage);
 
         AlphabetMapping mapping;

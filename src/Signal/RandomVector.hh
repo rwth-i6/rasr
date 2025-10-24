@@ -53,7 +53,8 @@ private:
 private:
     void                setType(Math::RandomVectorGenerator::Type);
     Flow::Vector<Data>* createOutput() const;
-    void                reset() {
+
+    void reset() {
         nOutputs_ = 0;
     }
 

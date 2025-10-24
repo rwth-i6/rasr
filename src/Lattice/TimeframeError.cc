@@ -54,7 +54,8 @@ private:
 
 public:
     LemmaMapping(const ShortPauses& shortPauses, Core::Ref<const Bliss::LemmaPronunciationAlphabet> alphabet)
-            : Mapping(shortPauses), alphabet_(alphabet) {}
+            : Mapping(shortPauses),
+              alphabet_(alphabet) {}
     virtual ~LemmaMapping() {}
 
     virtual Fsa::LabelId map(Fsa::LabelId pronId) const {

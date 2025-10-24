@@ -123,7 +123,14 @@ const Core::ParameterChoice ExpandingFsaSearch::paramLatticeType(
         "lattice-type", &choiceLatticeType, "type of generated lattices", LatticeTraceRecorder::HmmLattice);
 
 ExpandingFsaSearch::ExpandingFsaSearch(const Core::Configuration& c)
-        : Core::Component(c), SearchAlgorithm(c), statisticsChannel_(c, "statistics"), memoryInfoChannel_(c, "memory-info"), searchSpace_(0), createLattice_(paramCreateLattice(config)), labelMap_(0), stateSequences_(0) {
+        : Core::Component(c),
+          SearchAlgorithm(c),
+          statisticsChannel_(c, "statistics"),
+          memoryInfoChannel_(c, "memory-info"),
+          searchSpace_(0),
+          createLattice_(paramCreateLattice(config)),
+          labelMap_(0),
+          stateSequences_(0) {
     searchSpace_ = createSearchSpace();
     outputType_  = static_cast<OutputType>(paramOutputType_(config));
     log("output type: %s", choiceOutputType[outputType_].c_str());
@@ -245,6 +252,10 @@ void ExpandingFsaSearch::getCurrentBestSentence(Traceback& result) const {
     else {
         path.getTraceback(lexicon_, outputType_, labelMap_, &result);
     }
+}
+
+void ExpandingFsaSearch::getCurrentBestTrace(Traceback& result) const {  // jiang
+    defect();
 }
 
 Core::Ref<const Search::LatticeAdaptor> ExpandingFsaSearch::getCurrentWordLattice() const {

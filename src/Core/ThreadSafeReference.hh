@@ -38,10 +38,6 @@ private:
     mutable Core::Mutex mutex_;
 
 private:
-    static inline ThreadSafeReferenceCounted* sentinel() {
-        static ThreadSafeReferenceCounted sentinel_(1);
-        return &sentinel_;
-    }
     static bool isSentinel(const ThreadSafeReferenceCounted* object) {
         return object == sentinel();
     }
@@ -50,6 +46,10 @@ private:
     }
 
 protected:
+    static inline ThreadSafeReferenceCounted* sentinel() {
+        static ThreadSafeReferenceCounted sentinel_(1);
+        return &sentinel_;
+    }
     virtual void free() const {
         verify_(isNotSentinel(this));
         delete this;
@@ -118,7 +118,7 @@ protected:
             verify_(Object::isNotSentinel(object_));
             object_->release();
             object_->free();
-            (object_ = sentinel())->increment();
+            object_ = sentinel();
         }
         else
             object_->release();

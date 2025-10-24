@@ -17,7 +17,9 @@
 
 namespace Search {
 HMMStateNetwork::HMMStateNetwork()
-        : subTreeManager_(subTreeListBatches_, states_), edgeTargetManager_(edgeTargetBatches_, states_), tree_() {
+        : subTreeManager_(subTreeListBatches_, states_),
+          edgeTargetManager_(edgeTargetBatches_, states_),
+          tree_() {
     // The zero index is reserved as "invalid", so push one dummy item into all arrays
     states_.push_back(HMMState());
     subTreeListBatches_.push_back(0);
@@ -120,7 +122,7 @@ bool HMMStateNetwork::write(Core::MappedArchiveWriter writer) {
 }
 
 bool HMMStateNetwork::read(Core::MappedArchiveReader reader) {
-    u32 version = 0;
+    u32 version = 0u;
     reader >> version;
 
     if (version == DiskFormatVersionV1) {
@@ -209,7 +211,7 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
 
     Core::Application::us()->log() << "total nodes before cleanup: " << states_.size();
 
-    CleanupResult       ret;
+    CleanupResult       ret(states_.size());
     CountSizeTreeWalker counter(*this);
     if (onlyBatches) {
         for (StateId node = 1; node < states_.size(); ++node)
@@ -276,7 +278,9 @@ HMMStateNetwork::CleanupResult HMMStateNetwork::cleanup(std::list<Search::StateI
                 }
             }
         }
-        std::vector<StateId>        ordered;
+
+        std::vector<StateId> ordered;
+        ordered.reserve(states_.size());
         std::unordered_set<StateId> had;
 
         {

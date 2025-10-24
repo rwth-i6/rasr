@@ -39,13 +39,13 @@ void CovarianceFeatureScorerElement::calculateNormalizationFactor(
 
 bool CovarianceFeatureScorerElement::checkDiagonal(const std::vector<VarianceType>& diagonal) {
     return (std::find_if(diagonal.begin(), diagonal.end(),
-                         std::bind2nd(std::less_equal<VarianceType>(), 0)) == diagonal.end());
+                         std::bind(std::less_equal<VarianceType>(), std::placeholders::_1, 0)) == diagonal.end());
 }
 
 void CovarianceFeatureScorerElement::scale(VarianceType factor) {
     std::transform(inverseSquareRootDiagonal_.begin(), inverseSquareRootDiagonal_.end(),
                    inverseSquareRootDiagonal_.begin(),
-                   std::bind2nd(std::multiplies<VarianceType>(), factor));
+                   std::bind(std::multiplies<VarianceType>(), std::placeholders::_1, factor));
 
     logNormalizationFactor_ *= factor * factor;
 }

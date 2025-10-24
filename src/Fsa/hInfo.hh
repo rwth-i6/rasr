@@ -37,7 +37,16 @@ public:
 
 public:
     AutomatonCounts()
-            : maxStateId_(InvalidStateId), nStates_(0), nFinals_(0), nArcs_(0), nIoEps_(0), nIEps_(0), nOEps_(0), nIoFail_(0), nIFail_(0), nOFail_(0) {}
+            : maxStateId_(InvalidStateId),
+              nStates_(0),
+              nFinals_(0),
+              nArcs_(0),
+              nIoEps_(0),
+              nIEps_(0),
+              nOEps_(0),
+              nIoFail_(0),
+              nIFail_(0),
+              nOFail_(0) {}
 };
 }  // namespace Fsa
 

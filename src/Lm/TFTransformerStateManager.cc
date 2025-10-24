@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "TransformerStateManager.hh"
+#include "TFTransformerStateManager.hh"
 
 #include "FixedQuantizationCompressedVectorFactory.hh"
 
@@ -72,28 +72,28 @@ void uncompress(Lm::CompressedVector<float> const* vec, int8_t* dst, B const& b)
 
 namespace Lm {
 
-/* ----------------------------------- TransformerStateManager ---------------------------------- */
+/* ----------------------------------- TFTransformerStateManager ---------------------------------- */
 
 template<typename T>
-const Core::ParameterInt          TransformerStateManager<T>::paramMaxHistoryLength("max-history",
-                                                                                    "maximum length of the history to feed to the transformer",
-                                                                                    std::numeric_limits<int>::max(),
-                                                                                    0);
-template const Core::ParameterInt TransformerStateManager<float>::paramMaxHistoryLength;
-template const Core::ParameterInt TransformerStateManager<int16_t>::paramMaxHistoryLength;
-template const Core::ParameterInt TransformerStateManager<int8_t>::paramMaxHistoryLength;
+const Core::ParameterInt          TFTransformerStateManager<T>::paramMaxHistoryLength("max-history",
+                                                                                      "maximum length of the history to feed to the transformer",
+                                                                                      std::numeric_limits<int>::max(),
+                                                                                      0);
+template const Core::ParameterInt TFTransformerStateManager<float>::paramMaxHistoryLength;
+template const Core::ParameterInt TFTransformerStateManager<int16_t>::paramMaxHistoryLength;
+template const Core::ParameterInt TFTransformerStateManager<int8_t>::paramMaxHistoryLength;
 
 template<typename T>
-const Core::ParameterBool          TransformerStateManager<T>::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
-                                                                                                 "wether to always include the state of the first token, even if history is restricted by max-history",
-                                                                                                 false);
-template const Core::ParameterBool TransformerStateManager<float>::paramAlwaysIncludeFirstTokenState;
-template const Core::ParameterBool TransformerStateManager<int16_t>::paramAlwaysIncludeFirstTokenState;
-template const Core::ParameterBool TransformerStateManager<int8_t>::paramAlwaysIncludeFirstTokenState;
+const Core::ParameterBool          TFTransformerStateManager<T>::paramAlwaysIncludeFirstTokenState("always-include-first-token-state",
+                                                                                                   "wether to always include the state of the first token, even if history is restricted by max-history",
+                                                                                                   false);
+template const Core::ParameterBool TFTransformerStateManager<float>::paramAlwaysIncludeFirstTokenState;
+template const Core::ParameterBool TFTransformerStateManager<int16_t>::paramAlwaysIncludeFirstTokenState;
+template const Core::ParameterBool TFTransformerStateManager<int8_t>::paramAlwaysIncludeFirstTokenState;
 
 template<typename T>
-typename TransformerStateManager<T>::HistoryState TransformerStateManager<T>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) {
-    TransformerStateManager::HistoryState result;
+typename TFTransformerStateManager<T>::HistoryState TFTransformerStateManager<T>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory) {
+    TFTransformerStateManager::HistoryState result;
     result.reserve(vars.size());
 
     std::vector<float> vec(0, 0.0f);
@@ -107,16 +107,16 @@ typename TransformerStateManager<T>::HistoryState TransformerStateManager<T>::in
 
     return result;
 }
-template typename TransformerStateManager<float>::HistoryState   TransformerStateManager<float>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
-template typename TransformerStateManager<int16_t>::HistoryState TransformerStateManager<int16_t>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
-template typename TransformerStateManager<int8_t>::HistoryState  TransformerStateManager<int8_t>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
+template typename TFTransformerStateManager<float>::HistoryState   TFTransformerStateManager<float>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
+template typename TFTransformerStateManager<int16_t>::HistoryState TFTransformerStateManager<int16_t>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
+template typename TFTransformerStateManager<int8_t>::HistoryState  TFTransformerStateManager<int8_t>::initialState(StateVariables const& vars, CompressedVectorFactory<float> const& vector_factory);
 
 template<typename T>
-void TransformerStateManager<T>::mergeStates(StateVariables const&                   vars,
-                                             std::vector<size_t>&                    prefix_lengths,
-                                             std::vector<HistoryState const*> const& prefix_states,
-                                             FeedDict&                               feed_dict,
-                                             TargetList&                             targets) {
+void TFTransformerStateManager<T>::mergeStates(StateVariables const&                   vars,
+                                               std::vector<size_t>&                    prefix_lengths,
+                                               std::vector<HistoryState const*> const& prefix_states,
+                                               FeedDict&                               feed_dict,
+                                               TargetList&                             targets) {
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
 
     size_t max_prefix = 0ul;
@@ -180,28 +180,28 @@ void TransformerStateManager<T>::mergeStates(StateVariables const&              
     }
 }
 
-template void TransformerStateManager<float>::mergeStates(StateVariables const&                   vars,
-                                                          std::vector<size_t>&                    prefix_lengths,
-                                                          std::vector<HistoryState const*> const& prefix_states,
-                                                          FeedDict&                               feed_dict,
-                                                          TargetList&                             targets);
-template void TransformerStateManager<int16_t>::mergeStates(StateVariables const&                   vars,
+template void TFTransformerStateManager<float>::mergeStates(StateVariables const&                   vars,
                                                             std::vector<size_t>&                    prefix_lengths,
                                                             std::vector<HistoryState const*> const& prefix_states,
                                                             FeedDict&                               feed_dict,
                                                             TargetList&                             targets);
-template void TransformerStateManager<int8_t>::mergeStates(StateVariables const&                   vars,
-                                                           std::vector<size_t>&                    prefix_lengths,
-                                                           std::vector<HistoryState const*> const& prefix_states,
-                                                           FeedDict&                               feed_dict,
-                                                           TargetList&                             targets);
+template void TFTransformerStateManager<int16_t>::mergeStates(StateVariables const&                   vars,
+                                                              std::vector<size_t>&                    prefix_lengths,
+                                                              std::vector<HistoryState const*> const& prefix_states,
+                                                              FeedDict&                               feed_dict,
+                                                              TargetList&                             targets);
+template void TFTransformerStateManager<int8_t>::mergeStates(StateVariables const&                   vars,
+                                                             std::vector<size_t>&                    prefix_lengths,
+                                                             std::vector<HistoryState const*> const& prefix_states,
+                                                             FeedDict&                               feed_dict,
+                                                             TargetList&                             targets);
 
 template<typename T>
-std::vector<typename TransformerStateManager<T>::HistoryState>
-        TransformerStateManager<T>::splitStates(StateVariables const&                  vars,
-                                                std::vector<size_t>&                   suffix_lengths,
-                                                std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                CompressedVectorFactory<float> const&  vector_factory) {
+std::vector<typename TFTransformerStateManager<T>::HistoryState>
+        TFTransformerStateManager<T>::splitStates(StateVariables const&                  vars,
+                                                  std::vector<size_t>&                   suffix_lengths,
+                                                  std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                  CompressedVectorFactory<float> const&  vector_factory) {
     require_eq(vars.size(), state_tensors.size());
 
     size_t max_suffix = *std::max_element(suffix_lengths.begin(), suffix_lengths.end());
@@ -258,78 +258,78 @@ std::vector<typename TransformerStateManager<T>::HistoryState>
     return result;
 }
 
-template std::vector<typename TransformerStateManager<float>::HistoryState>
-        TransformerStateManager<float>::splitStates(StateVariables const&                  vars,
-                                                    std::vector<size_t>&                   suffix_lengths,
-                                                    std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                    CompressedVectorFactory<float> const&  vector_factory);
-template std::vector<typename TransformerStateManager<int16_t>::HistoryState>
-        TransformerStateManager<int16_t>::splitStates(StateVariables const&                  vars,
+template std::vector<typename TFTransformerStateManager<float>::HistoryState>
+        TFTransformerStateManager<float>::splitStates(StateVariables const&                  vars,
                                                       std::vector<size_t>&                   suffix_lengths,
                                                       std::vector<Tensorflow::Tensor> const& state_tensors,
                                                       CompressedVectorFactory<float> const&  vector_factory);
-template std::vector<typename TransformerStateManager<int8_t>::HistoryState>
-        TransformerStateManager<int8_t>::splitStates(StateVariables const&                  vars,
-                                                     std::vector<size_t>&                   suffix_lengths,
-                                                     std::vector<Tensorflow::Tensor> const& state_tensors,
-                                                     CompressedVectorFactory<float> const&  vector_factory);
+template std::vector<typename TFTransformerStateManager<int16_t>::HistoryState>
+        TFTransformerStateManager<int16_t>::splitStates(StateVariables const&                  vars,
+                                                        std::vector<size_t>&                   suffix_lengths,
+                                                        std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                        CompressedVectorFactory<float> const&  vector_factory);
+template std::vector<typename TFTransformerStateManager<int8_t>::HistoryState>
+        TFTransformerStateManager<int8_t>::splitStates(StateVariables const&                  vars,
+                                                       std::vector<size_t>&                   suffix_lengths,
+                                                       std::vector<Tensorflow::Tensor> const& state_tensors,
+                                                       CompressedVectorFactory<float> const&  vector_factory);
 
-/* ----------------------------------- TransformerStateManagerWithCommonPrefix ---------------------------------- */
-
-template<typename T>
-const Core::ParameterString          TransformerStateManagerWithCommonPrefix<T>::paramVarName("var-name", "the name of the original state variable", "");
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramVarName;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramVarName;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int8_t>::paramVarName;
-
-template<typename T>
-const Core::ParameterString          TransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitialValue("common-prefix-initial-value", "the name the initial-value of the corresponding common-prefix variable", "");
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitialValue;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitialValue;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int8_t>::paramCommonPrefixInitialValue;
+/* ----------------------------------- TFTransformerStateManagerWithCommonPrefix ---------------------------------- */
 
 template<typename T>
-const Core::ParameterString          TransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitializer("common-prefix-initializer", "the name of the initializer of the corresponding common-prefix variable", "");
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitializer;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitializer;
-template const Core::ParameterString TransformerStateManagerWithCommonPrefix<int8_t>::paramCommonPrefixInitializer;
+const Core::ParameterString          TFTransformerStateManagerWithCommonPrefix<T>::paramVarName("var-name", "the name of the original state variable", "");
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<float>::paramVarName;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int16_t>::paramVarName;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int8_t>::paramVarName;
 
 template<typename T>
-const Core::ParameterBool          TransformerStateManagerWithCommonPrefix<T>::paramCachePrefix("cache-prefix", "wether to reuse the prefix if it's the same", false);
-template const Core::ParameterBool TransformerStateManagerWithCommonPrefix<float>::paramCachePrefix;
-template const Core::ParameterBool TransformerStateManagerWithCommonPrefix<int16_t>::paramCachePrefix;
-template const Core::ParameterBool TransformerStateManagerWithCommonPrefix<int8_t>::paramCachePrefix;
+const Core::ParameterString          TFTransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitialValue("common-prefix-initial-value", "the name the initial-value of the corresponding common-prefix variable", "");
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitialValue;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitialValue;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int8_t>::paramCommonPrefixInitialValue;
 
 template<typename T>
-const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMinBatchSize("min-batch-size",
-                                                                                                "for batches smaller than the given size we set the common-prefix length to 0",
-                                                                                                2, 0);
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinBatchSize;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinBatchSize;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMinBatchSize;
+const Core::ParameterString          TFTransformerStateManagerWithCommonPrefix<T>::paramCommonPrefixInitializer("common-prefix-initializer", "the name of the initializer of the corresponding common-prefix variable", "");
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<float>::paramCommonPrefixInitializer;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int16_t>::paramCommonPrefixInitializer;
+template const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<int8_t>::paramCommonPrefixInitializer;
 
 template<typename T>
-const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMinCommonPrefixLength("min-common-prefix-length",
-                                                                                                         "if the common-prefix length is smaller than this value, set it to 0",
-                                                                                                         1, 0);
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMinCommonPrefixLength;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMinCommonPrefixLength;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMinCommonPrefixLength;
+const Core::ParameterBool          TFTransformerStateManagerWithCommonPrefix<T>::paramCachePrefix("cache-prefix", "wether to reuse the prefix if it's the same", false);
+template const Core::ParameterBool TFTransformerStateManagerWithCommonPrefix<float>::paramCachePrefix;
+template const Core::ParameterBool TFTransformerStateManagerWithCommonPrefix<int16_t>::paramCachePrefix;
+template const Core::ParameterBool TFTransformerStateManagerWithCommonPrefix<int8_t>::paramCachePrefix;
 
 template<typename T>
-const Core::ParameterInt          TransformerStateManagerWithCommonPrefix<T>::paramMaxCommonPrefixLength("max-common-prefix-length",
-                                                                                                         "Truncate the common prefix to this length. Observes always-include-first-token-state.",
-                                                                                                         std::numeric_limits<int>::max(), 0);
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<float>::paramMaxCommonPrefixLength;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int16_t>::paramMaxCommonPrefixLength;
-template const Core::ParameterInt TransformerStateManagerWithCommonPrefix<int8_t>::paramMaxCommonPrefixLength;
+const Core::ParameterInt          TFTransformerStateManagerWithCommonPrefix<T>::paramMinBatchSize("min-batch-size",
+                                                                                                  "for batches smaller than the given size we set the common-prefix length to 0",
+                                                                                                  2, 0);
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<float>::paramMinBatchSize;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int16_t>::paramMinBatchSize;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int8_t>::paramMinBatchSize;
 
 template<typename T>
-void TransformerStateManagerWithCommonPrefix<T>::mergeStates(typename Precursor::StateVariables const&                   vars,
-                                                             std::vector<size_t>&                                        prefix_lengths,
-                                                             std::vector<typename Precursor::HistoryState const*> const& prefix_states,
-                                                             typename Precursor::FeedDict&                               feed_dict,
-                                                             typename Precursor::TargetList&                             targets) {
+const Core::ParameterInt          TFTransformerStateManagerWithCommonPrefix<T>::paramMinCommonPrefixLength("min-common-prefix-length",
+                                                                                                           "if the common-prefix length is smaller than this value, set it to 0",
+                                                                                                           1, 0);
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<float>::paramMinCommonPrefixLength;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int16_t>::paramMinCommonPrefixLength;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int8_t>::paramMinCommonPrefixLength;
+
+template<typename T>
+const Core::ParameterInt          TFTransformerStateManagerWithCommonPrefix<T>::paramMaxCommonPrefixLength("max-common-prefix-length",
+                                                                                                           "Truncate the common prefix to this length. Observes always-include-first-token-state.",
+                                                                                                           std::numeric_limits<int>::max(), 0);
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<float>::paramMaxCommonPrefixLength;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int16_t>::paramMaxCommonPrefixLength;
+template const Core::ParameterInt TFTransformerStateManagerWithCommonPrefix<int8_t>::paramMaxCommonPrefixLength;
+
+template<typename T>
+void TFTransformerStateManagerWithCommonPrefix<T>::mergeStates(typename Precursor::StateVariables const&                   vars,
+                                                               std::vector<size_t>&                                        prefix_lengths,
+                                                               std::vector<typename Precursor::HistoryState const*> const& prefix_states,
+                                                               typename Precursor::FeedDict&                               feed_dict,
+                                                               typename Precursor::TargetList&                             targets) {
     std::vector<size_t> original_prefix_lengths(prefix_lengths);
     std::vector<size_t> batch_offsets;
     batch_offsets.reserve(prefix_lengths.size() + 1ul);
@@ -464,20 +464,20 @@ common_prefix_length_computation_finished:
     }
 }
 
-template void TransformerStateManagerWithCommonPrefix<float>::mergeStates(StateVariables const&                   vars,
-                                                                          std::vector<size_t>&                    prefix_lengths,
-                                                                          std::vector<HistoryState const*> const& prefix_states,
-                                                                          FeedDict&                               feed_dict,
-                                                                          TargetList&                             targets);
-template void TransformerStateManagerWithCommonPrefix<int16_t>::mergeStates(StateVariables const&                   vars,
+template void TFTransformerStateManagerWithCommonPrefix<float>::mergeStates(StateVariables const&                   vars,
                                                                             std::vector<size_t>&                    prefix_lengths,
                                                                             std::vector<HistoryState const*> const& prefix_states,
                                                                             FeedDict&                               feed_dict,
                                                                             TargetList&                             targets);
-template void TransformerStateManagerWithCommonPrefix<int8_t>::mergeStates(StateVariables const&                   vars,
-                                                                           std::vector<size_t>&                    prefix_lengths,
-                                                                           std::vector<HistoryState const*> const& prefix_states,
-                                                                           FeedDict&                               feed_dict,
-                                                                           TargetList&                             targets);
+template void TFTransformerStateManagerWithCommonPrefix<int16_t>::mergeStates(StateVariables const&                   vars,
+                                                                              std::vector<size_t>&                    prefix_lengths,
+                                                                              std::vector<HistoryState const*> const& prefix_states,
+                                                                              FeedDict&                               feed_dict,
+                                                                              TargetList&                             targets);
+template void TFTransformerStateManagerWithCommonPrefix<int8_t>::mergeStates(StateVariables const&                   vars,
+                                                                             std::vector<size_t>&                    prefix_lengths,
+                                                                             std::vector<HistoryState const*> const& prefix_states,
+                                                                             FeedDict&                               feed_dict,
+                                                                             TargetList&                             targets);
 
 }  // namespace Lm

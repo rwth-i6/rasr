@@ -59,7 +59,7 @@ ISmoothingCovarianceEstimator::Accumulator::SumType ISmoothingCovarianceEstimato
         iSum_ = new std::vector<Accumulator::SumType>(iCovariance().size());
         std::copy(iCovariance().begin(), iCovariance().end(), iSum_->begin());
         std::transform(iSum_->begin(), iSum_->end(), iSum_->begin(),
-                       std::bind2nd(std::multiplies<Accumulator::SumType>(), meanSet.size()));
+                       std::bind(std::multiplies<Accumulator::SumType>(), std::placeholders::_1, meanSet.size()));
         CovarianceToMeanSetMap::MeanSet::const_iterator m = meanSet.begin();
         for (; m != meanSet.end(); ++m) {
             const ISmoothingMeanEstimator* meanEstimator = dynamic_cast<const ISmoothingMeanEstimator*>(m->get());

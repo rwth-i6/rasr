@@ -257,10 +257,6 @@ void TreeTimesyncBeamSearch::reset() {
     initializationTime_.stop();
 }
 
-Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 void TreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.start();
     labelScorer_->reset();

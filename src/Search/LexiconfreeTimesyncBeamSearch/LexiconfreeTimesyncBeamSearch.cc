@@ -205,10 +205,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     initializationTime_.stop();
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 void LexiconfreeTimesyncBeamSearch::enterSegment(Bliss::SpeechSegment const* segment) {
     initializationTime_.start();
     labelScorer_->reset();

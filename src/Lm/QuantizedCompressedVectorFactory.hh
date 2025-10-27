@@ -59,7 +59,8 @@ private:
 
 struct QuantizedCompressionParameters : public CompressionParameters {
     QuantizedCompressionParameters(float min_val, float max_val)
-            : min_val(min_val), max_val(max_val) {}
+            : min_val(min_val),
+              max_val(max_val) {}
     virtual ~QuantizedCompressionParameters() = default;
 
     float min_val;
@@ -89,7 +90,8 @@ public:
     static const Core::ParameterInt paramBitsPerVal;
 
     QuantizedCompressedVectorFactory(Core::Configuration const& config)
-            : Precursor(config), bits_per_val_(paramBitsPerVal(config)) {}
+            : Precursor(config),
+              bits_per_val_(paramBitsPerVal(config)) {}
     virtual ~QuantizedCompressedVectorFactory() = default;
 
     virtual CompressionParameterEstimatorPtr<float> getEstimator() const;

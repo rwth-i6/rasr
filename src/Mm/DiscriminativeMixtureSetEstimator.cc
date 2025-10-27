@@ -185,7 +185,7 @@ bool DiscriminativeMixtureSetEstimator::accumulate(const AbstractMixtureSetEstim
 }
 
 void DiscriminativeMixtureSetEstimator::accumulateDenominator(
-        MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector> featureVector, Weight weight) {
+        MixtureIndex mixtureIndex, Feature::VectorRef featureVector, Weight weight) {
     if (viterbi_) {
         DensityIndex index = densityIndex(mixtureIndex, featureVector);
         mixtureEstimator(mixtureIndex).accumulateDenominator(index, *featureVector, weight);

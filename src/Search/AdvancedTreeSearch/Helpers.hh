@@ -205,7 +205,9 @@ template<class T>
 class AsymmetricIntersectionIterator {
 public:
     AsymmetricIntersectionIterator(const std::vector<T>& array1, const std::vector<T>& array2)
-            : a_(array1.size() < array2.size() ? array1 : array2), b_(array1.size() < array2.size() ? array2 : array1), ready_(false) {
+            : a_(array1.size() < array2.size() ? array1 : array2),
+              b_(array1.size() < array2.size() ? array2 : array1),
+              ready_(false) {
         stack_.reserve(50);
         assert(a_.size() <= b_.size());
 

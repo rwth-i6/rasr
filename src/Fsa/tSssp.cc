@@ -35,9 +35,13 @@ protected:
 
 public:
     SsspQueue()
-            : head_(Fsa::InvalidStateId), tail_(Fsa::InvalidStateId), n_(0) {}
+            : head_(Fsa::InvalidStateId),
+              tail_(Fsa::InvalidStateId),
+              n_(0) {}
     SsspQueue(Fsa::StateId maxStateId)
-            : head_(Fsa::InvalidStateId), tail_(Fsa::InvalidStateId), n_(0) {
+            : head_(Fsa::InvalidStateId),
+              tail_(Fsa::InvalidStateId),
+              n_(0) {
         next_.grow(maxStateId, Fsa::InvalidStateId);
     }
 
@@ -107,7 +111,8 @@ private:
 
 public:
     TopologicalSsspQueue(const Fsa::StateMap& s2t)
-            : SsspQueue(s2t.size() - 1), s2t_(s2t) {}
+            : SsspQueue(s2t.size() - 1),
+              s2t_(s2t) {}
 
     virtual ~TopologicalSsspQueue() {}
 
@@ -419,7 +424,8 @@ public:
         totalInv_           = this->semiring()->invert(backwardPotentials_[f->initialStateId()]);
     }
     PosteriorAutomaton(_ConstAutomatonRef f, const _StatePotentials& forward)
-            : Precursor(f), forwardPotentials_(forward) {
+            : Precursor(f),
+              forwardPotentials_(forward) {
         backwardPotentials_ = sssp<_Automaton>(transpose<_Automaton>(f));
         totalInv_           = this->semiring()->invert(backwardPotentials_[f->initialStateId()]);
     }

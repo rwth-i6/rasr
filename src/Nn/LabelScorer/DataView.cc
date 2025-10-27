@@ -31,7 +31,7 @@ DataView::DataView(std::shared_ptr<f32 const[]> const& ptr, size_t size, size_t 
     dataPtr_ = std::shared_ptr<f32 const[]>(ptr, ptr.get() + offset);
 }
 
-DataView::DataView(Core::Ref<Mm::Feature::Vector const> const& featureVectorRef)
+DataView::DataView(Core::TsRef<Mm::Feature::Vector const> const& featureVectorRef)
         : size_(featureVectorRef->size()) {
     // Copy Ref in custom deleter to keep it alive
     dataPtr_ = std::shared_ptr<f32 const[]>(

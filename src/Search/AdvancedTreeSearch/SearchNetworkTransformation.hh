@@ -42,7 +42,8 @@ public:
     }
 
     StateWithSuccessors(const Search::StateTree::StateDesc& _desc, const std::set<Search::StateId>& _successors)
-            : desc_(_desc), successors_(_successors) {
+            : desc_(_desc),
+              successors_(_successors) {
         buildHash();
     }
 

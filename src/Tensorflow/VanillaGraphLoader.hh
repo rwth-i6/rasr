@@ -35,7 +35,9 @@ private:
 };
 
 inline VanillaGraphLoader::VanillaGraphLoader(Core::Configuration const& config)
-        : Core::Component(config), VanillaGraphLoader::Precursor(config), file_(paramFile(config)) {
+        : Core::Component(config),
+          VanillaGraphLoader::Precursor(config),
+          file_(paramFile(config)) {
 }
 
 }  // namespace Tensorflow

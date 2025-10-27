@@ -13,6 +13,7 @@
  *  limitations under the License.
  */
 #include "TensorflowForwardNode.hh"
+#include <chrono>
 
 #include <Flow/Vector.hh>
 
@@ -132,8 +133,15 @@ bool TensorflowForwardNode::work(Flow::PortId p) {
             }
         }
 
+        auto t_start = std::chrono::steady_clock::now();
+
         std::vector<Tensor> tf_output;
         session_.run(inputs, output_tensor_names_, {}, tf_output);
+
+        auto   t_end      = std::chrono::steady_clock::now();
+        auto   t_elapsed  = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
+        size_t num_frames = data[0].size();  // use first input for reporting
+        log("num_frames: %zu elapsed: %f AM_RTF: %f", num_frames, t_elapsed, t_elapsed / (num_frames / 100.0));
 
         for (size_t i = 0ul; i < tf_output.size(); i++) {
             appendToOutput(tf_output[i], start_frame, outputs_[i]);
@@ -247,7 +255,10 @@ Core::ParameterInt TensorflowOverlappingForwardNode::paramMaxBufferSize_(
         "max-buffer-size", "Maximum number of input features to be forwarded in one run.", 1000, 1);
 
 TensorflowOverlappingForwardNode::TensorflowOverlappingForwardNode(Core::Configuration const& c)
-        : Core::Component(c), Precursor(c), contextSize_(paramContextSize_(config)), maxBufferSize_(paramMaxBufferSize_(config)) {
+        : Core::Component(c),
+          Precursor(c),
+          contextSize_(paramContextSize_(config)),
+          maxBufferSize_(paramMaxBufferSize_(config)) {
     require_gt(maxBufferSize_, 2 * contextSize_);
 }
 

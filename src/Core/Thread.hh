@@ -194,7 +194,8 @@ template<class T>
 class LockingPointer {
 public:
     LockingPointer(volatile T& obj, const volatile Mutex& mutex)
-            : obj_(const_cast<T*>(&obj)), mutex_(const_cast<Mutex*>(&mutex)) {
+            : obj_(const_cast<T*>(&obj)),
+              mutex_(const_cast<Mutex*>(&mutex)) {
         mutex_->lock();
     }
     ~LockingPointer() {

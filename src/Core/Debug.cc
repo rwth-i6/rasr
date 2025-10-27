@@ -192,7 +192,7 @@ void stackTrace(std::ostream& os, int cutoff) {
 
 #else
     os << "Creating stack trace (innermost first):" << std::endl;
-    static const size_t maxTraces = 100;
+    static const size_t maxTraces = 256;
     void*               array[maxTraces];
     size_t              nTraces = backtrace(array, maxTraces);
     char**              strings = backtrace_symbols(array, nTraces);

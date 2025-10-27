@@ -12,22 +12,22 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "NceSoftmaxAdapter.hh"
+#include "TFNceSoftmaxAdapter.hh"
 
 namespace Lm {
 
-void NceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
+void TFNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
     session_    = &session;
     input_map_  = &input_map;
     output_map_ = &output_map;
 }
 
-Score NceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<size_t> output_idxs(1, output_idx);
     return get_scores(nn_out, output_idxs)[0];
 }
 
-std::vector<Score> NceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+std::vector<Score> TFNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     auto const& output_idx_tensor_info = input_map_->get_info("output_idxs");
     auto const& nn_output_tensor_info  = input_map_->get_info("nn_output");
     auto const& softmax_tensor_info    = output_map_->get_info("nce_softmax");

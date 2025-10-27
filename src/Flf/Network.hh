@@ -67,7 +67,9 @@ public:
         Link()
                 : node(0) {}
         Link(Node* node, Port from, Port to)
-                : node(node), from(from), to(to) {}
+                : node(node),
+                  from(from),
+                  to(to) {}
     };
     typedef Core::Vector<Link> LinkList;
 

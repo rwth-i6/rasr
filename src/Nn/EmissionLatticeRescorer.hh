@@ -61,9 +61,11 @@ protected:
 protected:
     virtual Lattice::ConstWordLatticeRef work(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
     void                                 logProperties() const;
-    NeuralNetwork<f32>&                  network() const {
+
+    NeuralNetwork<f32>& network() const {
         return SharedNeuralNetwork::network();
     }
+
     const ClassLabelWrapper& labelWrapper() const {
         return SharedNeuralNetwork::labelWrapper();
     }

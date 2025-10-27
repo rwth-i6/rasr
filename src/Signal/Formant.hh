@@ -34,7 +34,10 @@ public:
     _float energy_;
 
     Formant()
-            : frequency_(0), amplitude_(0), bandwidth_(0), energy_(0) {}
+            : frequency_(0),
+              amplitude_(0),
+              bandwidth_(0),
+              energy_(0) {}
 
     Core::XmlWriter& dump(Core::XmlWriter& o) {
         return o << Core::XmlEmpty("formant") + Core::XmlAttribute("frequency", frequency_) + Core::XmlAttribute("amplitude", amplitude_) + Core::XmlAttribute("bandwidth", bandwidth_) + Core::XmlAttribute("energy", energy_);
@@ -64,7 +67,9 @@ protected:
 
 public:
     FormantExtraction(const Core::Configuration& c)
-            : Component(c), sample_rate_(0), max_nr_formant_(0) {}
+            : Component(c),
+              sample_rate_(0),
+              max_nr_formant_(0) {}
     virtual ~FormantExtraction() {}
 
     u8 getMaxNrFormant() {

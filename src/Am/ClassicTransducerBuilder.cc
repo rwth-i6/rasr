@@ -31,7 +31,8 @@ private:
         bool isCoarticulated;
         PhoneBoundaryStateSetDescriptor(
                 const PhoneBoundaryStateDescriptor& pbsd)
-                : phoneBoundaryFlag(pbsd.flag), isCoarticulated(pbsd.isCoarticulated()) {
+                : phoneBoundaryFlag(pbsd.flag),
+                  isCoarticulated(pbsd.isCoarticulated()) {
         }
 
         Core::XmlOpen xmlAttributes(const Core::XmlOpen&) const;
@@ -140,7 +141,10 @@ static const Core::ParameterBool paramFixAllophoneContextAtWordBoundaries(
 ClassicTransducerBuilder::ClassicTransducerBuilder(Core::Ref<
                                                    const ClassicAcousticModel>
                                                            model)
-        : TransducerBuilder(), model_(model), silencesAndNoises_(0), allophoneSuffixes_(2500, AllophoneSuffix::Hash(this), AllophoneSuffix::Equality(this)) {
+        : TransducerBuilder(),
+          model_(model),
+          silencesAndNoises_(0),
+          allophoneSuffixes_(2500, AllophoneSuffix::Hash(this), AllophoneSuffix::Equality(this)) {
     require(model);
     allophones_      = model_->allophoneAlphabet();
     allophoneList_   = &model_->allophoneAlphabet()->allophones();
@@ -649,8 +653,7 @@ Fsa::ConstAutomatonRef ClassicTransducerBuilder::applyTransitionModel(
 
     const Allophone* silenceAllophone = allophones_->allophone(Allophone(
             Phonology::Allophone(model_->silence_), Allophone::isInitialPhone | Allophone::isFinalPhone));
-    AllophoneState   silenceState     = allophoneStates_->allophoneState(
-            silenceAllophone, 0);
+    AllophoneState   silenceState     = allophoneStates_->allophoneState(silenceAllophone, 0);
 
     Fsa::LabelId silenceLabel = Fsa::InvalidLabelId;
     if (ff->inputAlphabet() == allophoneStates_)
@@ -921,15 +924,21 @@ struct PhoneContext : public Phones {
     bool         boundary_;
     Fsa::LabelId disambiguator_;
     PhoneContext(size_t n, bool boundary = false, Fsa::LabelId disambiguator = Fsa::Epsilon)
-            : Phones(n, Bliss::Phoneme::term), boundary_(boundary), disambiguator_(disambiguator) {
+            : Phones(n, Bliss::Phoneme::term),
+              boundary_(boundary),
+              disambiguator_(disambiguator) {
     }
     PhoneContext(const Phones& phones, bool boundary = false,
                  Fsa::LabelId disambiguator = Fsa::Epsilon)
-            : Phones(phones), boundary_(boundary), disambiguator_(disambiguator) {
+            : Phones(phones),
+              boundary_(boundary),
+              disambiguator_(disambiguator) {
     }
     PhoneContext(Phones::const_iterator pBegin, Phones::const_iterator pEnd,
                  bool boundary = false, Fsa::LabelId disambiguator = Fsa::Epsilon)
-            : Phones(pBegin, pEnd), boundary_(boundary), disambiguator_(disambiguator) {
+            : Phones(pBegin, pEnd),
+              boundary_(boundary),
+              disambiguator_(disambiguator) {
     }
 };
 
@@ -949,7 +958,9 @@ struct NoCoartBoundary {
     Fsa::LabelId input_, phoneDisambiguator_;
     NoCoartBoundary(Fsa::State* state, Fsa::LabelId input,
                     Fsa::LabelId phoneDisambiguator)
-            : state_(state), input_(input), phoneDisambiguator_(phoneDisambiguator) {
+            : state_(state),
+              input_(input),
+              phoneDisambiguator_(phoneDisambiguator) {
     }
 };
 
@@ -1005,10 +1016,10 @@ Fsa::ConstAutomatonRef ClassicTransducerBuilder::createMinimizedContextDependenc
 
     Fsa::Hash<PhoneContext, PhoneContextHash> stateMap;
     PhoneContext                              pc(maxHistory + maxFuture, true);
-    Fsa::State*                               initial = new Fsa::State(stateMap.insert(pc),
-                                         model_->isAcrossWordModelEnabled() ? Fsa::StateTagFinal
-                                                                                                          : Fsa::StateTagNone,
-                                                                       semiring->one());
+
+    Fsa::State* initial = new Fsa::State(stateMap.insert(pc),
+                                         model_->isAcrossWordModelEnabled() ? Fsa::StateTagFinal : Fsa::StateTagNone,
+                                         semiring->one());
     _c->setState(initial);
     _c->setInitialStateId(initial->id());
     if (model_->isAcrossWordModelEnabled()) {

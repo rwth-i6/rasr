@@ -31,9 +31,13 @@ class LatticeArchive : public Core::Component {
 
 public:
     LatticeArchive(const Core::Configuration& c)
-            : Core::Component(c), archive_(0), path_(paramPath(c)) {}
+            : Core::Component(c),
+              archive_(0),
+              path_(paramPath(c)) {}
     LatticeArchive(const Core::Configuration& c, const std::string& path)
-            : Core::Component(c), archive_(0), path_(path) {}
+            : Core::Component(c),
+              archive_(0),
+              path_(path) {}
     virtual ~LatticeArchive();
     bool                   write(const std::string& id, const Search::Wfst::Lattice* l);
     Search::Wfst::Lattice* read(const std::string& id, bool readBoundaries = true);

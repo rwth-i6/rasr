@@ -57,9 +57,11 @@ namespace Core {
 class BinaryStreamIos {
 public:
     typedef std::ios_base::iostate iostate;
-    enum Endianess { bigEndian,
-                     littleEndian,
-                     nativeByteOrder };
+    enum Endianess {
+        bigEndian,
+        littleEndian,
+        nativeByteOrder
+    };
     static const Endianess defaultEndianess = littleEndian;
 
 protected:
@@ -149,9 +151,11 @@ public:
 
 public:
     BinaryOutputStream(Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(endianess), os_(fstream_) {}
+            : BinaryStreamIos(endianess),
+              os_(fstream_) {}
     explicit BinaryOutputStream(std::ostream& stream, Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(stream, endianess), os_(&stream) {}
+            : BinaryStreamIos(stream, endianess),
+              os_(&stream) {}
     explicit BinaryOutputStream(const std::string&      fileName,
                                 std::ios_base::openmode mode      = std::ios::out,
                                 Endianess               endianess = defaultEndianess)
@@ -269,9 +273,11 @@ public:
 
 public:
     BinaryInputStream(Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(endianess), is_(fstream_) {}
+            : BinaryStreamIos(endianess),
+              is_(fstream_) {}
     BinaryInputStream(std::istream& stream, Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(stream, endianess), is_(&stream) {}
+            : BinaryStreamIos(stream, endianess),
+              is_(&stream) {}
     BinaryInputStream(const std::string&      fileName,
                       std::ios_base::openmode mode      = std::ios::in,
                       Endianess               endianess = defaultEndianess)

@@ -21,7 +21,7 @@ namespace Mc {
 
 /** x + y*factor */
 template<class T>
-struct plusWeight : public std::binary_function<T, T, T> {
+struct plusWeight {
     const T weight;
     plusWeight<T>(const T& _weight)
             : weight(_weight) {}
@@ -32,7 +32,7 @@ struct plusWeight : public std::binary_function<T, T, T> {
 
 /** min(x,y) */
 template<class T>
-struct minimum : public std::binary_function<T, T, T> {
+struct minimum {
     T operator()(T x, T y) const {
         return std::min(x, y);
     }
@@ -40,7 +40,7 @@ struct minimum : public std::binary_function<T, T, T> {
 
 /** max(x,y) */
 template<class T>
-struct maximum : public std::binary_function<T, T, T> {
+struct maximum {
     T operator()(T x, T y) const {
         return std::max(x, y);
     }

@@ -33,7 +33,8 @@ private:
 
 public:
     CopyDfsState(StorageAutomaton<_Automaton>* f, _ConstAutomatonRef f2)
-            : Precursor(f2), fsa_(f) {
+            : Precursor(f2),
+              fsa_(f) {
     }
     virtual void discoverState(_ConstStateRef sp) {
         fsa_->setState(new _State(*sp));
@@ -107,7 +108,6 @@ template<class _Automaton>
 void copy(StorageAutomaton<_Automaton>*                   f,
           const Fsa::Hash<std::string, Core::StringHash>& tokens,
           u32                                             sausage) {
-    typedef typename _Automaton::Arc   _Arc;
     typedef typename _Automaton::State _State;
 
     f->setType(Fsa::TypeAcceptor);

@@ -31,7 +31,7 @@ public:
     DiscriminativeMixtureSetTrainer(const Core::Configuration&);
     virtual ~DiscriminativeMixtureSetTrainer();
 
-    void accumulateDenominator(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w);
+    void accumulateDenominator(Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w);
     void accumulateObjectiveFunction(Mm::Score f);
 
     static DiscriminativeMixtureSetTrainer* createDiscriminativeMixtureSetTrainer(const Core::Configuration&, bool iSmoothing);

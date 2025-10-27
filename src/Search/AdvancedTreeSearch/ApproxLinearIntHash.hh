@@ -31,7 +31,8 @@ template<class Key, Key invalidKey, bool useHashChain = false>
 class ApproxLinearIntHash {
     struct Value {
         Value()
-                : value(U16_MAX), mark(0) {
+                : value(U16_MAX),
+                  mark(0) {
         }
         u16 value;
         u16 mark;
@@ -42,7 +43,8 @@ class ApproxLinearIntHash {
 
 public:
     ApproxLinearIntHash()
-            : size_(0), mask_(0) {
+            : size_(0),
+              mask_(0) {
     }
 
     u32 hashSize() const {

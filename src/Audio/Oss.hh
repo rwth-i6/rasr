@@ -45,13 +45,17 @@ protected:
 
 public:
     static const Core::ParameterString paramDevice;
-    static std::string                 filterName() {
+
+    static std::string filterName() {
         return "audio-input-device-oss";
     }
+
     OpenSoundSystemDevice(const Core::Configuration&);
+
     virtual bool isFileOpen() const {
         return isDeviceOpen();
     }
+
     virtual void setSampleRate(Flow::Time _sampleRate);
     virtual void setSampleSize(u8 _sampleSize);
     virtual void setTrackCount(u8 _trackCount);

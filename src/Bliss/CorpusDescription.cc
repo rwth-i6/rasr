@@ -335,7 +335,9 @@ void CorpusDescription::SegmentPartitionVisitorAdaptor::loadSegmentList(const st
 
 // ---------------------------------------------------------------------------
 ProgressReportingVisitorAdaptor::ProgressReportingVisitorAdaptor(Core::XmlChannel& ch, bool reportOrth)
-        : visitor_(0), channel_(ch), reportSegmentOrth_(reportOrth) {}
+        : visitor_(0),
+          channel_(ch),
+          reportSegmentOrth_(reportOrth) {}
 
 void ProgressReportingVisitorAdaptor::enterCorpus(Corpus* c) {
     channel_ << Core::XmlOpen((c->level()) ? "subcorpus" : "corpus") + Core::XmlAttribute("name", c->name()) + Core::XmlAttribute("full-name", c->fullName());
@@ -432,7 +434,9 @@ private:
 
 public:
     ProgressIndicationVisitorAdaptor()
-            : nSegments_(0), visitor_(0), pi_("traversing corpus", "segments") {}
+            : nSegments_(0),
+              visitor_(0),
+              pi_("traversing corpus", "segments") {}
     void setVisitor(CorpusVisitor* v) {
         visitor_ = v;
     }

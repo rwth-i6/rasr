@@ -35,7 +35,8 @@ private:
         Lm::History  right;
 
         State(Fsa::StateId ll, Lm::History rr)
-                : left(ll), right(rr) {}
+                : left(ll),
+                  right(rr) {}
 
         struct Hash {
             size_t operator()(const State& st) const {
@@ -67,7 +68,10 @@ public:
             Fsa::ConstAutomatonRef             left,
             Core::Ref<const Lm::LanguageModel> right,
             Score lmScale, Score syntaxEmissionScale)
-            : left_(left), right_(right), lmScale_(lmScale), syntaxEmissionScale_(syntaxEmissionScale) {
+            : left_(left),
+              right_(right),
+              lmScale_(lmScale),
+              syntaxEmissionScale_(syntaxEmissionScale) {
         setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, 0);
         setProperties(Fsa::PropertyAcyclic, Fsa::hasProperties(left_, Fsa::PropertyAcyclic));
     }

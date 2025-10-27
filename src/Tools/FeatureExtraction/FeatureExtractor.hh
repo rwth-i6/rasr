@@ -29,7 +29,9 @@ protected:
 
 public:
     FeatureExtractor(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), frameShift_(0) {}
+            : Core::Component(c),
+              Precursor(c),
+              frameShift_(0) {}
     virtual ~FeatureExtractor() {}
 
     Flow::Time frameShift() {

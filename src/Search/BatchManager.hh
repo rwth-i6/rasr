@@ -76,7 +76,10 @@ private:
 
 public:
     BatchPointerIterator(BatchIdType batchId, std::vector<NodeIdType>& batches, std::vector<NodeType>& values)
-            : batches_(batches), nodes_(values), batchId_(batchId), valid_(true) {
+            : batches_(batches),
+              nodes_(values),
+              batchId_(batchId),
+              valid_(true) {
         if (batchId_ == invalidBatch_) {
             valid_ = false;
             return;
@@ -424,7 +427,8 @@ public:
     }
 
     BatchBuilder(std::vector<NodeIdType>& batches, std::vector<NodeType>& nodes)
-            : batches_(batches), nodes_(nodes) {
+            : batches_(batches),
+              nodes_(nodes) {
     }
 
     ~BatchBuilder() {}

@@ -59,7 +59,9 @@ private:
             Trace   trace_;
             Token() {}
             Token(StateId state, Score score, Trace trace)
-                    : state_(state), score_(score), trace_(trace) {}
+                    : state_(state),
+                      score_(score),
+                      trace_(trace) {}
         };
         typedef Stack<Token> TokenSet;
 
@@ -69,7 +71,8 @@ private:
             ExpandedToken()
                     : score_(Core::Type<Score>::max) {}
             ExpandedToken(Score score, Trace trace)
-                    : score_(score), trace_(trace) {}
+                    : score_(score),
+                      trace_(trace) {}
         };
         typedef Core::Vector<ExpandedToken> ExpandedTokens;
 
@@ -83,7 +86,17 @@ private:
     public:
         Slice(const StaticAutomaton* fsa, ExpandedTokens& expandedTokens, StaticAutomaton* trace,
               Score threshold, Score finalThreshold)
-                : fsa_(fsa), inputEpsilon_(fsa->getInputAlphabet()->epsilon()), outputEpsilon_(fsa->getOutputAlphabet()->epsilon()), semiring_(fsa->semiring()), bestFinalTrace_(InvalidStateId), trace_(trace), expandedTokens_(expandedTokens), threshold_(threshold), finalThreshold_(finalThreshold), statesBeforePruning_("states before pruning"), statesAfterPruning_("states after pruning") {}
+                : fsa_(fsa),
+                  inputEpsilon_(fsa->getInputAlphabet()->epsilon()),
+                  outputEpsilon_(fsa->getOutputAlphabet()->epsilon()),
+                  semiring_(fsa->semiring()),
+                  bestFinalTrace_(InvalidStateId),
+                  trace_(trace),
+                  expandedTokens_(expandedTokens),
+                  threshold_(threshold),
+                  finalThreshold_(finalThreshold),
+                  statesBeforePruning_("states before pruning"),
+                  statesAfterPruning_("states after pruning") {}
 
         void start() {
             tokens_.clear();
@@ -194,7 +207,12 @@ private:
 
 public:
     Search(const StaticAutomaton* fsa, Score threshold)
-            : fsa_(fsa), trace_(new StaticAutomaton()), traceRef_(trace_), expandedTokens_(fsa->size()), slice0_(fsa_, expandedTokens_, trace_, threshold, 190), slice1_(fsa_, expandedTokens_, trace_, threshold, 190) {
+            : fsa_(fsa),
+              trace_(new StaticAutomaton()),
+              traceRef_(trace_),
+              expandedTokens_(fsa->size()),
+              slice0_(fsa_, expandedTokens_, trace_, threshold, 190),
+              slice1_(fsa_, expandedTokens_, trace_, threshold, 190) {
         restart();
     };
     void restart() {

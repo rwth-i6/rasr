@@ -16,6 +16,7 @@
 #define CONDITIONEDTREESEARCHTRACE_HH
 
 #include <Core/ReferenceCounting.hh>
+#include <Core/ThreadSafeReference.hh>
 #include <Search/Search.hh>
 #include <Search/StateTree.hh>
 #include <Search/Traceback.hh>
@@ -25,9 +26,9 @@
 namespace Search {
 
 struct AlternativeHistory {
-    Lm::History            hist;
-    ScoreVector            offset;
-    Core::Ref<class Trace> trace;
+    Lm::History              hist;
+    ScoreVector              offset;
+    Core::TsRef<class Trace> trace;
 };
 
 struct AlternativeHistoryCompare {
@@ -49,18 +50,18 @@ public:
 
 using AlternativeHistoryQueue = AccessiblePriorityQueue<AlternativeHistory, std::vector<AlternativeHistory>, AlternativeHistoryCompare>;
 
-class Trace : public Core::ReferenceCounted,
+class Trace : public Core::ThreadSafeReferenceCounted,
               public TracebackItem {
 public:
-    Core::Ref<Trace> predecessor;
-    Core::Ref<Trace> sibling;
-    PathTrace        pathTrace;
-    uintptr_t        pruningMark;  // used by BestTracePruning
-    bool             mark;
+    Core::TsRef<Trace> predecessor;
+    Core::TsRef<Trace> sibling;
+    PathTrace          pathTrace;
+    uintptr_t          pruningMark;  // used by BestTracePruning
+    bool               mark;
 
     AlternativeHistoryQueue alternativeHistories;
 
-    Trace(Core::Ref<Trace> const&          pre,
+    Trace(Core::TsRef<Trace> const&        pre,
           Bliss::LemmaPronunciation const* p,
           TimeframeIndex                   t,
           ScoreVector                      s,

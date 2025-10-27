@@ -69,9 +69,6 @@ public:
     // Cleans up buffers, hypotheses, flags etc. from the previous segment recognition.
     virtual void reset() = 0;
 
-    // Return the first trace of all hypotheses. Needed for computing partial trace.
-    virtual Core::Ref<LatticeTrace> getRootTrace() const = 0;
-
     // Signal the beginning of a new audio segment.
     virtual void enterSegment(Bliss::SpeechSegment const* = nullptr) = 0;
 
@@ -84,8 +81,14 @@ public:
     // Pass feature vectors for multiple time steps.
     virtual void putFeatures(Nn::DataView const& features, size_t nTimesteps) = 0;
 
-    // Return the current best traceback. May contain unstable results.
+    // Return the first trace of all hypotheses. Needed for computing partial trace.
+    virtual Core::Ref<LatticeTrace> getRootTrace() const = 0;
+
+    // Return the current best traceback of TracebackItem. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
+
+    // Return the current best traceback of Ref LatticeTrace. May contain unstable results.
+    virtual Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const = 0;
 
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;

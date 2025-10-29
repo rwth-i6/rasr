@@ -397,6 +397,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     /*
      * Prune set of possible within-word extensions by max beam size and possibly also by score.
      */
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-hyps-before-pruning", extensions_.size());
+    }
     scorePruning(extensions_, scoreThreshold_);
     numHypsAfterScorePruning_ += extensions_.size();
     if (logStepwiseStatistics_) {
@@ -472,6 +475,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     /*
      * Prune set of word-end extensions by max beam size and possibly also by score.
      */
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-word-end-hyps-before-pruning", extensions_.size());
+    }
     scorePruning(extensions_, wordEndScoreThreshold_);
     numWordEndHypsAfterScorePruning_ += extensions_.size();
     if (logStepwiseStatistics_) {

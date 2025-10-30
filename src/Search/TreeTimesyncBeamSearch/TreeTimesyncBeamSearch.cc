@@ -117,6 +117,11 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
+const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordExitPenalty(
+        "word-exit-penalty",
+        "Constant score which is added at a word end.",
+        0, 0);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
         "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
@@ -139,6 +144,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          wordExitPenalty_(paramWordExitPenalty(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
@@ -463,6 +469,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     Lm::Score lmScore = languageModel_->score(wordEndExtension.lmHistory, st);
                     wordEndExtension.score += lmScore;
                     wordEndExtension.lmScore = lmScore;
+
+                    // Add word exit penalty
+                    wordEndExtension.score += wordExitPenalty_;
+                    wordEndExtension.lmScore += wordExitPenalty_;
                 }
                 extensions_.push_back(wordEndExtension);
             }

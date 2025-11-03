@@ -60,7 +60,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         completedTrace->time           = extension.timeframe + 1;
         completedTrace->score.lm       = base.trace->score.lm + extension.lmScore;
         completedTrace->score.acoustic = extension.score - completedTrace->score.lm;
-        completedTrace->predecessor    = base.trace;
+        //completedTrace->predecessor    = base.trace;
 
         trace = Core::ref(new LatticeTrace(
                 completedTrace,
@@ -392,6 +392,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlFull("search-step", currentSearchStep_);
     }
 
     /*

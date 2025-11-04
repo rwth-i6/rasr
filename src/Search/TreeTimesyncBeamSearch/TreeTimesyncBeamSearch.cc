@@ -686,6 +686,10 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numWordEndHypsAfterBeamPruning_.write(clog());
     numActiveHyps_.write(clog());
     numActiveTrees_.write(clog());
+
+    if (enableLmLookahead_) {
+        lmLookahead_->logStatistics();
+    }
 }
 
 Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
@@ -829,11 +833,11 @@ Score TreeTimesyncBeamSearch::getLmLookaheadScore(TreeTimesyncBeamSearch::Extens
     Score lookaheadScore = 0;
     bool  scoreFound     = false;
     do {
-        if (extension.lookahead->isSparse()) {  // Non-sparse lookahead
+        if (extension.lookahead->isSparse()) {  // Sparse lookahead
             auto lookaheadHash = lmLookahead_->lookaheadHash(extension.state);
             scoreFound         = extension.lookahead->getScoreForLookAheadHashSparse(lookaheadHash, lookaheadScore);
         }
-        else {  // Sparse lookahead
+        else {  // Non-sparse lookahead
             auto lookaheadId = lmLookahead_->lookaheadId(extension.state);
             lookaheadScore   = extension.lookahead->scoreForLookAheadIdNormal(lookaheadId);
             scoreFound       = true;

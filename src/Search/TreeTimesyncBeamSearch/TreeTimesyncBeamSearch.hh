@@ -61,17 +61,22 @@ public:
 
     // Inherited methods from `SearchAlgorithmV2`
 
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Am::AcousticModel::Mode         requiredAcousticModel() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
+    Speech::ModelCombination::Mode requiredModelCombination() const override;
+    Am::AcousticModel::Mode        requiredAcousticModel() const override;
+    bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                           reset() override;
+    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                           finishSegment() override;
+    void                           putFeature(Nn::DataView const& feature) override;
+    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+
+    Core::Ref<LatticeTrace>           getRootTrace() const override;
+    Core::Ref<const Traceback>        getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const override;
+    Core::Ref<const LatticeAdaptor>   getCurrentBestWordLattice() const override;
+    Core::Ref<LatticeTrace>           getCommonPrefix() const override;
+
+    bool decodeStep() override;
 
 protected:
     /*
@@ -177,6 +182,8 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
+
+    Core::Ref<LatticeTrace> rootTrace_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

@@ -27,6 +27,7 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include "Search/Module.hh"
 #include "Search/Traceback.hh"
+#include "Search/TracebackHelper.hh"
 
 namespace Search {
 
@@ -69,6 +70,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         completedTrace->time           = extension.timeframe + 1;
         completedTrace->score.lm       = base.trace->score.lm + extension.lmScore;
         completedTrace->score.acoustic = extension.score - completedTrace->score.lm;
+        completedTrace->predecessor    = base.trace;
 
         trace = Core::ref(new LatticeTrace(
                 completedTrace,
@@ -191,7 +193,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
-          numActiveTrees_("num-active-trees") {
+          numActiveTrees_("num-active-trees"),
+          rootTrace_() {
     if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
@@ -238,6 +241,12 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     else {
         blankLabelIndex_ = Nn::invalidLabelIndex;
         useBlank_        = false;
+    }
+
+    for (const auto& lemma : {"silence", "blank"}) {
+        if (lexicon_->specialLemma(lemma) and (lexicon_->specialLemma(lemma)->syntacticTokenSequence()).size() != 0) {
+            warning("Special lemma \"%s\" will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.", lemma);
+        }
     }
 
     // Create look-ups for state successors and exits of each state
@@ -304,6 +313,8 @@ void TreeTimesyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
+    rootTrace_ = beam_.front().trace;
+
     initializationTime_.stop();
 }
 
@@ -343,8 +354,16 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
     featureProcessingTime_.stop();
 }
 
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
+}
+
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
+}
+
+Core::Ref<const LatticeTraceback> TreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
+    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -358,6 +377,20 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 bool TreeTimesyncBeamSearch::decodeStep() {
@@ -502,9 +535,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                                                     Nn::LabelScorer::TransitionType::INITIAL_BLANK,  // The transition type is irrelevant, so just use this as dummy
                                                     hypIndex};
 
-                if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-                    const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-                    const Bliss::SyntacticToken*        st  = sts.front();
+                const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
+                if (sts.size() != 0) {
+                    require(sts.size() == 1);
+                    const Bliss::SyntacticToken* st = sts.front();
 
                     // Add the LM score
                     Lm::Score lmScore = languageModel_->score(wordEndExtension.lmHistory, st);
@@ -528,13 +562,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     // Create new word-end label hypotheses from word-end extension candidates, update the LM history and prepare the new lookahead if its history has changed
     wordEndHypotheses_.clear();
     for (auto& extension : extensions_) {
-        const Bliss::Lemma* lemma = extension.pron->lemma();
-        if (lemma != lexicon_->specialLemma("blank") and lemma != lexicon_->specialLemma("silence")) {
-            const Bliss::SyntacticTokenSequence sts = lemma->syntacticTokenSequence();
-            const Bliss::SyntacticToken*        st  = sts.front();
-            extension.lmHistory                     = languageModel_->extendedHistory(extension.lmHistory, st);
+        const Bliss::Lemma*                 lemma = extension.pron->lemma();
+        const Bliss::SyntacticTokenSequence sts   = lemma->syntacticTokenSequence();
+        if (sts.size() != 0) {
+            require(sts.size() == 1);
+            const Bliss::SyntacticToken* st = sts.front();
+            extension.lmHistory             = languageModel_->extendedHistory(extension.lmHistory, st);
 
-            if (enableLmLookahead_) {
+             if (enableLmLookahead_) {
                 Lm::History newLookaheadHistory = lookaheadLm_->extendedHistory(extension.fullLookaheadHistory, st);
 
                 if (!(newLookaheadHistory == extension.lookaheadHistory)) {
@@ -543,6 +578,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     extension.fullLookaheadHistory = newLookaheadHistory;
                 }
             }
+
         }
 
         auto const& baseHyp = newBeam_[extension.baseHypIndex];

@@ -29,7 +29,8 @@ public:
         return std::string("generic-vector-vector") + Core::Type<T>::name + "-multiplication";
     }
     VectorMultNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~VectorMultNode() {}
 
     /**

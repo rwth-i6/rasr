@@ -29,7 +29,8 @@ protected:
 
 public:
     AcousticModelAdaptor(const Core::Configuration& c, Core::Ref<AcousticModel> toAdapt)
-            : Component(c), toAdapt_(toAdapt) {
+            : Component(c),
+              toAdapt_(toAdapt) {
         require(toAdapt_);
     }
     virtual ~AcousticModelAdaptor() {}

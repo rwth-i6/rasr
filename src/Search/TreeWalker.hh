@@ -29,6 +29,7 @@ class SubTreeWalker : public Base {
 public:
     SubTreeWalker(HMMStateNetwork& _tree)
             : tree(_tree) {
+        reserve();
     }
 
     /// Visits the nodes and all its followers, in the correct order
@@ -53,12 +54,18 @@ public:
             this->nodeVisited(node, token);
     }
 
+    void reserve() {
+        Base::visited.reserve(tree.stateCount());
+    }
+
     HMMStateNetwork& tree;
 };
 
 struct CountSizeTreeWalkerBackend {
     CountSizeTreeWalkerBackend()
-            : totalVisited(0), stopAtVisited(false), visitedFinalOutputs(0) {
+            : totalVisited(0),
+              stopAtVisited(false),
+              visitedFinalOutputs(0) {
     }
 
     void nodeVisited(StateId /*node*/, int /*token*/) {

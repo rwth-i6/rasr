@@ -43,7 +43,8 @@ private:
 
     public:
         Element(Cursor next, const T& data)
-                : next_(next), data_(data) {}
+                : next_(next),
+                  data_(data) {}
     };
     HashKey              hashKey_;
     HashEqual            hashEqual_;
@@ -67,7 +68,8 @@ public:
         bins_.resize(defaultSize, InvalidCursor);
     }
     Hash(const HashKey& key, const HashEqual& equal, u32 defaultSize = 10)
-            : hashKey_(key), hashEqual_(equal) {
+            : hashKey_(key),
+              hashEqual_(equal) {
         bins_.resize(defaultSize, InvalidCursor);
     }
     void clear() {

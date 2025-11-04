@@ -28,8 +28,12 @@ namespace Signal {
 class SegmentwiseFormantExtraction : public FormantExtraction {
 public:
     typedef f32 _float;
-    enum DomainType { frequency };
-    enum SegmentEstimatorType { dynamic_programing };
+    enum DomainType {
+        frequency
+    };
+    enum SegmentEstimatorType {
+        dynamic_programing
+    };
 
 private:
     u8  order_;
@@ -46,7 +50,13 @@ private:
 
 public:
     SegmentwiseFormantExtraction(const Core::Configuration& c)
-            : Core::Component(c), FormantExtraction(c), order_(0), max_nr_segment_(0), step_(0), segmentwise_estimator_(0), segment_estimator_(0) {}
+            : Core::Component(c),
+              FormantExtraction(c),
+              order_(0),
+              max_nr_segment_(0),
+              step_(0),
+              segmentwise_estimator_(0),
+              segment_estimator_(0) {}
     virtual ~SegmentwiseFormantExtraction() {
         if (segmentwise_estimator_)
             delete segmentwise_estimator_;
@@ -109,7 +119,9 @@ public:
 
 class SegmentwiseFormantExtractionNode : public SleeveNode, public SegmentwiseFormantExtraction {
 public:
-    enum FormantExtractionType { segmentwise };
+    enum FormantExtractionType {
+        segmentwise
+    };
 
 private:
     static Core::Choice          domain_choice;

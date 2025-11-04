@@ -40,78 +40,101 @@ class SearchSpaceBase {
 public:
     typedef Wfst::Lattice Lattice;
 
+    virtual ~SearchSpaceBase();
+
     virtual void     feed(const Mm::FeatureScorer::Scorer& scorer) = 0;
     virtual void     reset()                                       = 0;
     virtual void     setSegment(const std::string& name)           = 0;
     virtual void     getTraceback(BestPath*)                       = 0;
     virtual Lattice* createLattice(OutputType)                     = 0;
-    void             setPruningThreshold(Score threshold) {
+
+    void setPruningThreshold(Score threshold) {
         pruningThreshold_ = threshold;
     }
+
     void setPruningLimit(u32 limit) {
         pruningLimit_ = limit;
     }
+
     void setPurgeInterval(u32 interval) {
         purgeInterval_ = interval;
     }
+
     void setPruningBins(u32 bins) {
         stateHistogram_.setBins(bins);
     }
+
     void setInitialEpsilonPruning(bool prune) {
         initialEpsPruning_ = prune;
     }
+
     void setEpsilonPruning(bool prune) {
         epsilonArcPruning_ = prune;
     }
+
     void setProspectivePruning(bool prune) {
         prospectivePruning_ = prune;
     }
+
     void setLatticePruning(Score threshold) {
         latticePruning_ = threshold;
     }
+
     void setMergeEpsilonPaths(bool merge) {
         mergeEpsPaths_ = merge;
     }
+
     void setCreateLattice(bool create, LatticeTraceRecorder::LatticeType type) {
         createLattice_ = create;
         latticeType_   = type;
     }
+
     void setMergeSilenceLatticeArcs(bool merge) {
         mergeSilenceArcs_ = merge;
     }
+
     void setWordEndPruning(bool prune, Score threshold) {
         wordEndPruning_   = prune;
         wordEndThreshold_ = threshold;
     }
+
     void setWordEndType(WordEndDetector::WordEndType type) {
         wordEnds_.setType(type);
     }
+
     void setIgnoreLastOutput(bool ignore) {
         ignoreLastOutput_ = ignore;
     }
+
     void setStateSequences(const StateSequenceList* list) {
         stateSequences_ = list;
     }
+
     void setWeightScale(f32 scale) {
         weightScale_ = scale;
     }
+
     void setTransitionModel(Core::Ref<const Am::AcousticModel>);
     bool setNonWordPhones(Core::Ref<const Am::AcousticModel> am, const std::vector<std::string>& phones);
     void setUseNonWordModels(u32 nNonWordModels);
+
     void setSilence(const StateSequence* hmm, OpenFst::Label olabel) {
         silence_       = hmm;
         silenceOutput_ = olabel;
     }
+
     void setLexicon(Bliss::LexiconRef lexicon) {
         lexicon_ = lexicon;
     }
+
     virtual void setStatistics(bool detailed) = 0;
     virtual u32  nActiveStates() const        = 0;
-    u32          nActiveHyps() const {
+
+    u32 nActiveHyps() const {
         return nActiveHmmStateHyps_;
     }
+
     virtual bool init(std::string& msg);
-    virtual ~SearchSpaceBase();
 
     static SearchSpaceBase* create(NetworkType networkType, bool allowSkips, const Core::Configuration& c);
 

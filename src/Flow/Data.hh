@@ -47,18 +47,9 @@ private:
 
 private:
     Data(u32 rc)
-            : Precursor(rc), datatype_(type()) {}
+            : Precursor(rc),
+              datatype_(type()) {}
     static const Datatype* type();
-
-    /** sentinel for void pointer
-     *  Note: Precursor::Sentinel is overriden to create a sentinel of Data
-     *  instead the precursor class. In this way, all the sentinels are Data objects and can be
-     *  handled equally. @see dump method as an example.
-     */
-    static inline Data* sentinel() {
-        static Data sentinel_(1);
-        return &sentinel_;
-    }
 
 protected:
     virtual void free() const;
@@ -108,10 +99,12 @@ public:
 
     // enable support for ascii output (dump filter)
     virtual Core::XmlWriter& dump(Core::XmlWriter&) const;
-    virtual bool             read(Core::BinaryInputStream&) {
+
+    virtual bool read(Core::BinaryInputStream&) {
         defect();
         return false;
     }
+
     virtual bool write(Core::BinaryOutputStream&) const {
         defect();
         return false;
@@ -185,6 +178,7 @@ public:
             : Precursor(p) {}
     template<class S>
     explicit DataPtr(const DataPtr<S>& p) {
+        this->unreference();
         Precursor::object_ = convert(p._get());
         Precursor::reference();
     }
@@ -207,6 +201,9 @@ public:
      *  Remark: overriding of the precursor function is necessary because
      *  in comparisons the compiler uses Precursor::operator bool() instead of Precursor::operator==.
      */
+    operator bool() const {
+        return T::isNotSentinel(Precursor::object_);
+    }
     bool operator==(const DataPtr& r) const {
         return Precursor::operator==(r);
     }

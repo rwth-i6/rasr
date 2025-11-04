@@ -16,12 +16,12 @@
 
 using namespace Speech;
 
-Core::Ref<const Mm::Feature::Vector> Feature::convert(Flow::DataPtr<FlowVector>& v) {
+Mm::Feature::VectorRef Feature::convert(Flow::DataPtr<FlowVector>& v) {
     v.makePrivate();
     Vector* r = new Mm::Feature::Vector;
     std::swap(*r, *v.get());
     delete v.release();
-    return Core::ref(r);
+    return Mm::Feature::VectorRef(r);
 }
 
 void Feature::take(Flow::DataPtr<FlowVector>& v) {

@@ -48,7 +48,9 @@ private:
 
 private:
     CnSortingIterator(ConstConfusionNetworkRef cn)
-            : cn_(cn), posteriorId_(Semiring::InvalidId), slot_(0) {
+            : cn_(cn),
+              posteriorId_(Semiring::InvalidId),
+              slot_(0) {
         verify(cn);
         if (cn->isNormalized()) {
             posteriorId_ = cn->normalizedProperties->posteriorId;
@@ -428,7 +430,8 @@ private:
 
 public:
     ConfusionNetworkXmlParser(const Core::Configuration& config)
-            : Precursor(config), cn_(0) {
+            : Precursor(config),
+              cn_(0) {
         oracleAlignment_                     = 0;
         semiringXmlElement_                  = Semiring::xmlElement(this);
         oracleSemiringXmlElement_            = Semiring::xmlElement(this);

@@ -55,9 +55,11 @@ protected:
     typedef Lattice::ConstWordLatticeRef     ConstWordLatticeRef;
 
 public:
-    enum LatticeFormat { formatDefault,
-                         formatFlf,
-                         formatOpenFst };
+    enum LatticeFormat {
+        formatDefault,
+        formatFlf,
+        formatOpenFst
+    };
 
     LatticeHandler(const Core::Configuration& c)
             : Core::Component(c),

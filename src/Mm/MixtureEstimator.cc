@@ -22,8 +22,8 @@ using namespace Mm;
  */
 void AbstractMixtureEstimator::addDensity(Core::Ref<GaussDensityEstimator> densityEstimator) {
     require(std::find_if(densityEstimators_.begin(), densityEstimators_.end(),
-                         std::bind2nd(std::equal_to<Core::Ref<GaussDensityEstimator>>(),
-                                      densityEstimator)) == densityEstimators_.end());
+                         std::bind(std::equal_to<Core::Ref<GaussDensityEstimator>>(),
+                                   std::placeholders::_1, densityEstimator)) == densityEstimators_.end());
 
     densityEstimators_.push_back(densityEstimator);
     weights_.resize(densityEstimators_.size());
@@ -202,8 +202,8 @@ void AbstractMixtureEstimator::addMixture(const AbstractMixtureEstimator& toAdd)
     for (DensityIndex i = 0; i < toAdd.nDensities(); ++i) {
         Core::Ref<GaussDensityEstimator> densityEstimator = toAdd.densityEstimators()[i];
         require(std::find_if(densityEstimators_.begin(), densityEstimators_.end(),
-                             std::bind2nd(std::equal_to<Core::Ref<GaussDensityEstimator>>(),
-                                          densityEstimator)) == densityEstimators_.end());
+                             std::bind(std::equal_to<Core::Ref<GaussDensityEstimator>>(),
+                                       std::placeholders::_1, densityEstimator)) == densityEstimators_.end());
 
         densityEstimators_.push_back(densityEstimator);
         weights_.push_back(toAdd.weights()[i]);

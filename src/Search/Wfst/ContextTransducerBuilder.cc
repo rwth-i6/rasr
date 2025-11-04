@@ -88,7 +88,10 @@ protected:
 
         TriphoneContextAndBoundary(Bliss::Phoneme::Id h, Bliss::Phoneme::Id c,
                                    u8 disambiguator, bool boundary)
-                : boundary_(boundary), disambiguator_(disambiguator), history_(h), central_(c) {}
+                : boundary_(boundary),
+                  disambiguator_(disambiguator),
+                  history_(h),
+                  central_(c) {}
     };
 
 protected:
@@ -104,21 +107,18 @@ protected:
     OpenFst::Label   getAllophoneLabel(const Allophone* allophone);
     OpenFst::Label   getAllophoneDisambiguator(u32 disambiguator);
     OpenFst::Label   getPhoneLabel(Bliss::Phoneme::Id phone, bool initialPhone) const;
-    void             addArc(OpenFst::StateId from, OpenFst::StateId to,
-                            const Allophone* input, Bliss::Phoneme::Id output,
-                            bool initialPhone);
-    void             addArc(OpenFst::StateId from, OpenFst::StateId to,
-                            Fsa::LabelId input, Fsa::LabelId output);
-    void             addOutputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                               Fsa::LabelId input, u32 disambiguator);
-    void             addWordDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                             Fsa::LabelId input, u32 disambiguator);
-    void             addInputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to,
-                                              u32 disambiguator, Fsa::LabelId output);
-    void             addDisambiguatorArcs(OpenFst::StateId from, OpenFst::StateId to, const Allophone* input = 0);
-    bool             isCiPhone(Bliss::Phoneme::Id phone) const {
+
+    void addArc(OpenFst::StateId from, OpenFst::StateId to, const Allophone* input, Bliss::Phoneme::Id output, bool initialPhone);
+    void addArc(OpenFst::StateId from, OpenFst::StateId to, Fsa::LabelId input, Fsa::LabelId output);
+    void addOutputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to, Fsa::LabelId input, u32 disambiguator);
+    void addWordDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to, Fsa::LabelId input, u32 disambiguator);
+    void addInputDisambiguatorArc(OpenFst::StateId from, OpenFst::StateId to, u32 disambiguator, Fsa::LabelId output);
+    void addDisambiguatorArcs(OpenFst::StateId from, OpenFst::StateId to, const Allophone* input = 0);
+
+    bool isCiPhone(Bliss::Phoneme::Id phone) const {
         return ciPhones_.find(phone) != ciPhones_.end();
     }
+
     OpenFst::Label getSequenceEndSymbol() const {
         if (sequenceEndSymbol_.empty()) {
             return OpenFst::Epsilon;
@@ -163,7 +163,11 @@ protected:
 
 ContextTransducerBuilder::Builder::Builder(Core::Ref<const Am::AcousticModel> model,
                                            Core::Ref<const Bliss::Lexicon>    lexicon)
-        : model_(model), nonWordTokens_(0), disambiguatorOffset_(-1), nWordDisambiguators_(-1), initialPhoneOffset_(-1) {
+        : model_(model),
+          nonWordTokens_(0),
+          disambiguatorOffset_(-1),
+          nWordDisambiguators_(-1),
+          initialPhoneOffset_(-1) {
     allophones_        = model_->allophoneAlphabet();
     allophoneList_     = &model_->allophoneAlphabet()->allophones();
     phonemes_          = lexicon->phonemeInventory()->phonemeAlphabet();
@@ -707,7 +711,8 @@ private:
 class ContextTransducerBuilder::NonDeterministicBuilder : public ContextTransducerBuilder::Builder {
 public:
     NonDeterministicBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
-            : Builder(m, l), iInitial_(OpenFst::InvalidStateId) {}
+            : Builder(m, l),
+              iInitial_(OpenFst::InvalidStateId) {}
 
     virtual void prepare() {
         stateMap_.clear();
@@ -785,7 +790,8 @@ private:
 class ContextTransducerBuilder::WithinWordBuilder : public ContextTransducerBuilder::Builder {
 public:
     WithinWordBuilder(Core::Ref<const Am::AcousticModel> m, Core::Ref<const Bliss::Lexicon> l)
-            : Builder(m, l), exploitDisambiguators_(false) {}
+            : Builder(m, l),
+              exploitDisambiguators_(false) {}
 
     void setExploitDisambiguators(bool exploit) {
         exploitDisambiguators_ = exploit;

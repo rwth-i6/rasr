@@ -88,7 +88,17 @@ std::string Aligner::getUsage() const {
 }
 
 Aligner::Aligner()
-        : order_(0), reordering_(0), perplexity_(0.0), userTime_(0.0), sentences_(0), oovs_(0), words_(0), arcs_(0), maxMemory_(0), segmentStart_(0), segmentEnd_(0) {
+        : order_(0),
+          reordering_(0),
+          perplexity_(0.0),
+          userTime_(0.0),
+          sentences_(0),
+          oovs_(0),
+          words_(0),
+          arcs_(0),
+          maxMemory_(0),
+          segmentStart_(0),
+          segmentEnd_(0) {
     setTitle("aligner");
     setDefaultLoadConfigurationFile(false);
     setDefaultOutputXmlHeader(false);

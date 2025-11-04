@@ -87,7 +87,8 @@ protected:
 
 public:
     NormalizeMapping(_ConstAutomatonRef f)
-            : fsa_(f), nFsa_(dynamic_cast<const _NormalizeAutomaton*>(f.get())) {
+            : fsa_(f),
+              nFsa_(dynamic_cast<const _NormalizeAutomaton*>(f.get())) {
         require(nFsa_);
     }
     Fsa::StateId map(Fsa::StateId target) const {
@@ -183,9 +184,13 @@ private:
 
 public:
     PartialAutomaton(_ConstAutomatonRef f, Fsa::StateId newInitialStateId)
-            : Precursor(f), newInitialStateId_(newInitialStateId), additionalFinalWeight_(f->semiring()->one()) {}
+            : Precursor(f),
+              newInitialStateId_(newInitialStateId),
+              additionalFinalWeight_(f->semiring()->one()) {}
     PartialAutomaton(_ConstAutomatonRef f, Fsa::StateId newInitialStateId, typename _Automaton::Weight additionalFinalWeight)
-            : Precursor(f), newInitialStateId_(newInitialStateId), additionalFinalWeight_(additionalFinalWeight) {}
+            : Precursor(f),
+              newInitialStateId_(newInitialStateId),
+              additionalFinalWeight_(additionalFinalWeight) {}
     virtual Fsa::StateId initialStateId() const {
         return newInitialStateId_;
     }
@@ -228,7 +233,8 @@ private:
 
 public:
     HypothesisAutomaton(_ConstAutomatonRef f, Fsa::StateId n)
-            : Precursor(f), n_(n) {}
+            : Precursor(f),
+              n_(n) {}
     virtual Fsa::StateId initialStateId() const {
         return n_;
     }
@@ -261,7 +267,8 @@ private:
 
 public:
     ChangeSemiringAutomaton(_ConstAutomatonRef f, _ConstSemiringRef semiring)
-            : Precursor(f), semiring_(semiring) {}
+            : Precursor(f),
+              semiring_(semiring) {}
     virtual _ConstSemiringRef semiring() const {
         return semiring_;
     }
@@ -306,7 +313,9 @@ private:
 
 public:
     ConverterAutomaton(_ConstFromAutomatonRef f, _ConstSemiringRef semiring, const _Mapping& map)
-            : Precursor(f), semiring_(semiring), map_(map) {}
+            : Precursor(f),
+              semiring_(semiring),
+              map_(map) {}
     virtual _ConstSemiringRef semiring() const {
         return semiring_;
     }

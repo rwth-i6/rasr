@@ -31,7 +31,8 @@ public:
 
 public:
     Internal(const KeyList& comboKeys, const ScoreList& comboScales)
-            : comboKeys(comboKeys), comboScales(comboScales) {}
+            : comboKeys(comboKeys),
+              comboScales(comboScales) {}
     virtual ~Internal() {}
 
     virtual bool update(const ConstSemiringRefList& semirings) = 0;

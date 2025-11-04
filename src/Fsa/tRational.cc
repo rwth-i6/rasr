@@ -58,7 +58,8 @@ private:
 
 public:
     ClosureAutomaton(_ConstAutomatonRef f)
-            : Precursor(f), initial_(f->initialStateId()) {
+            : Precursor(f),
+              initial_(f->initialStateId()) {
     }
     /*! \todo existing loop weight should be collected with final weight. */
     virtual void modifyState(_State* sp) const {
@@ -98,7 +99,8 @@ private:
 
 public:
     KleeneClosureAutomaton(_ConstAutomatonRef f)
-            : Precursor(closure(f)), initialIsFinal_(false) {
+            : Precursor(closure(f)),
+              initialIsFinal_(false) {
     }
     virtual Fsa::StateId initialStateId() const {
         if (Precursor::fsa_->initialStateId() != Fsa::InvalidStateId) {
@@ -283,35 +285,43 @@ public:
     }
 
     virtual std::string name() const = 0;
-    virtual Fsa::Type   type() const {
+
+    virtual Fsa::Type type() const {
         return type_;
     }
+
     virtual _ConstSemiringRef semiring() const {
         return semiring_;
     }
+
     virtual Fsa::ConstAlphabetRef getInputAlphabet() const {
         return input_;
     }
+
     virtual Fsa::ConstAlphabetRef getOutputAlphabet() const {
         return output_;
     }
+
     virtual void dumpState(Fsa::StateId s, std::ostream& o) const {
         u32 k = subAutomaton(s);
         o << k << ",";
         fsa_[k]->dumpState(subStateId(s), o);
-    };
+    }
+
     virtual size_t getMemoryUsed() const {
         size_t memoryUsed = 0;
         for (typename Core::Vector<_ConstAutomatonRef>::const_iterator i = fsa_.begin(); i != fsa_.end(); ++i)
             memoryUsed += (*i)->getMemoryUsed();
         return memoryUsed;
     }
+
     virtual void dumpMemoryUsage(Core::XmlWriter& o) const {
         o << Core::XmlOpen(name());
         for (typename Core::Vector<_ConstAutomatonRef>::const_iterator i = fsa_.begin(); i != fsa_.end(); ++i)
             (*i)->dumpMemoryUsage(o);
         o << Core::XmlClose(name());
     }
+
     virtual std::string describe() const {
         std::string result = name() + "(";
         for (size_t i = 0; i < fsa_.size(); ++i) {
@@ -322,11 +332,13 @@ public:
         result += ")";
         return result;
     }
+
     // State ids are interleaved.  We reserve 0 for the initial state.
     /** Index of sub-automaton. */
     u32 subAutomaton(Fsa::StateId s) const {
         return (s - 1) % fsa_.size();
     }
+
     /** Id of state in sub-automaton. */
     Fsa::StateId subStateId(Fsa::StateId s) const {
         return (s - 1) / fsa_.size();
@@ -410,7 +422,8 @@ private:
 public:
     UnionAutomaton(const Core::Vector<_ConstAutomatonRef>&          fsa,
                    const Core::Vector<typename _Automaton::Weight>& initialWeights)
-            : Precursor(fsa), initialWeights_(initialWeights) {
+            : Precursor(fsa),
+              initialWeights_(initialWeights) {
         if (initialWeights_.empty())
             initialWeights_.resize(fsa.size(), Precursor::semiring_->one());
         else
@@ -474,7 +487,8 @@ protected:
 
 public:
     UniteMapping(_ConstAutomatonRef f, u32 subAutomaton)
-            : uFsa_(dynamic_cast<const _UniteAutomaton*>(f.get())), subAutomaton_(subAutomaton) {
+            : uFsa_(dynamic_cast<const _UniteAutomaton*>(f.get())),
+              subAutomaton_(subAutomaton) {
         require(uFsa_);
     }
     virtual ~UniteMapping() {}
@@ -709,7 +723,8 @@ private:
         typedef typename _Automaton::Arc _Arc;
 
         ProductiveStateFinder(_ConstAutomatonRef f, std::vector<bool>& productive_states)
-                : Precursor(f), productiveStates_(productive_states) {}
+                : Precursor(f),
+                  productiveStates_(productive_states) {}
 
         virtual void discoverState(_ConstStateRef sp) {
             Fsa::StateTag tags = sp->tags();
@@ -792,7 +807,8 @@ private:
         typedef typename _Automaton::Arc _Arc;
 
         ReachableStateFinder(_ConstAutomatonRef f, std::vector<bool>& reachable_states)
-                : Precursor(f), reachableStates_(reachable_states) {}
+                : Precursor(f),
+                  reachableStates_(reachable_states) {}
 
         virtual void discoverState(_ConstStateRef sp) {
             if (sp->id() >= reachableStates_.size()) {

@@ -42,9 +42,11 @@ private:
     void                         chooseFastPath();
     std::string                  pre_;  /**< unformatted */
     std::string                  pend_; /**< formatted */
-    enum { startOfLine,
-           leftMarginOfLine,
-           withinLine } lineState_;
+    enum {
+        startOfLine,
+        leftMarginOfLine,
+        withinLine
+    } lineState_;
     u32  protection_; /**< number of times "protect" has been seen */
     u32  position_, length_;
     void startNewLine();
@@ -301,13 +303,15 @@ std::streamsize TextOutputStream::Buffer::xsputn(const char* s, std::streamsize 
 
 // ===========================================================================
 TextOutputStream::TextOutputStream()
-        : std::ostream(new Buffer(this)), output_(0) {
+        : std::ostream(new Buffer(this)),
+          output_(0) {
     buffer_ = dynamic_cast<Buffer*>(rdbuf());
     setEncoding();
 }
 
 TextOutputStream::TextOutputStream(std::ostream* s)
-        : std::ostream(new Buffer(this)), output_(s) {
+        : std::ostream(new Buffer(this)),
+          output_(s) {
     buffer_ = dynamic_cast<Buffer*>(rdbuf());
     buffer_->setOutput(output_->rdbuf());
     setEncoding();
@@ -475,13 +479,15 @@ int TextInputStream::Buffer::underflow() {
 
 // ===========================================================================
 TextInputStream::TextInputStream()
-        : std::istream(new Buffer(this)), input_(0) {
+        : std::istream(new Buffer(this)),
+          input_(0) {
     buffer_ = dynamic_cast<Buffer*>(rdbuf());
     setEncoding();
 }
 
 TextInputStream::TextInputStream(std::istream* s)
-        : std::istream(new Buffer(this)), input_(s) {
+        : std::istream(new Buffer(this)),
+          input_(s) {
     buffer_ = dynamic_cast<Buffer*>(rdbuf());
     buffer_->setInput(input_->rdbuf());
     setEncoding();

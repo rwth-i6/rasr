@@ -569,7 +569,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             const Bliss::SyntacticToken* st = sts.front();
             extension.lmHistory             = languageModel_->extendedHistory(extension.lmHistory, st);
 
-             if (enableLmLookahead_) {
+            if (enableLmLookahead_) {
                 Lm::History newLookaheadHistory = lookaheadLm_->extendedHistory(extension.fullLookaheadHistory, st);
 
                 if (!(newLookaheadHistory == extension.lookaheadHistory)) {
@@ -578,7 +578,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     extension.fullLookaheadHistory = newLookaheadHistory;
                 }
             }
-
         }
 
         auto const& baseHyp = newBeam_[extension.baseHypIndex];

@@ -81,7 +81,8 @@ private:
 
     struct RecombinationState {
         RecombinationState()
-                : state(0), loop(false) {
+                : state(0),
+                  loop(false) {
         }
         // The network-state this recombination-state is assigned to
         StateId state;
@@ -89,7 +90,9 @@ private:
 
         struct Successor {
             Successor()
-                    : shortestDistance(Core::Type<u32>::max), longestDistance(0), state(0) {
+                    : shortestDistance(Core::Type<u32>::max),
+                      longestDistance(0),
+                      state(0) {
             }
             u32     shortestDistance;
             u32     longestDistance;

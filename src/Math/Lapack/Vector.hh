@@ -43,11 +43,13 @@ private:
 
 public:
     Vector(u32 n = 0)
-            : buffer_(0), size_(0) {
+            : buffer_(0),
+              size_(0) {
         resize(n);
     }
     Vector(const Vector& vector)
-            : buffer_(0), size_(0) {
+            : buffer_(0),
+              size_(0) {
         operator=(vector);
     }
     ~Vector() {

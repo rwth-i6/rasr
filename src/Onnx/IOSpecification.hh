@@ -86,7 +86,8 @@ inline std::string IOMapping::getOnnxName(std::string const& param) const {
 }
 
 inline IOValidator::IOValidator(Core::Configuration const& config)
-        : Precursor(config), strict_(paramStrict(config)) {
+        : Precursor(config),
+          strict_(paramStrict(config)) {
 }
 
 }  // namespace Onnx

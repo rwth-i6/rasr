@@ -40,12 +40,15 @@ protected:
 public:
     LbfgsSolver()
             : historySize_(-1){};
+
     virtual void solve(const S& in, S& out);
     void         setIterate(u32 i, S* iterate);
     void         setGradient(u32 i, S* gradient);
-    void         setHistorySize(int historyLength) {
+
+    void setHistorySize(int historyLength) {
         historySize_ = historyLength;
     }
+
     int getHistorySize() {
         return historySize_ == -1 ? iterates_.size() - 1 : historySize_;
     }

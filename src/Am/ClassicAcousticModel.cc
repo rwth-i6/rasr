@@ -168,6 +168,7 @@ bool ClassicAcousticModel::loadTransitionModel() {
         transitionModel_->setParentScale(scale());
         return true;
     }
+
     return false;
 }
 

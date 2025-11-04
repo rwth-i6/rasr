@@ -122,8 +122,13 @@ Core::Ref<const Feature> RecognizerDelayHandler::flush() {
             currentScorer = scorer->getScorer(featureBuffer_[featureScorerOffset_]);
         }
         else {
-            verify_(scorer->isBuffered());
-            currentScorer = scorer->flush();
+            if (scorer->isBuffered() and not scorer->bufferEmpty()) {
+                currentScorer = scorer->flush();
+            }
+            else {
+                // there are less number of score frames than input feature frames
+                return Core::Ref<const Feature>();
+            }
         }
     }
     Core::Ref<const Feature> currentFeature = featureBuffer_.front();

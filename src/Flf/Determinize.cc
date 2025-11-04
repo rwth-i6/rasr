@@ -60,7 +60,8 @@ protected:
 
 public:
     DeterminizeNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), toLogSemiring_(false) {}
+            : FilterNode(name, config),
+              toLogSemiring_(false) {}
     ~DeterminizeNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         toLogSemiring_ = paramToLogSemiring(config);

@@ -12,15 +12,20 @@ LDFLAGS  += $(TF_LDFLAGS)
 SUBDIRS		=
 TARGETS		= libSprintTensorflow.$(a) check$(exe)
 
-LIBSPRINTTENSORFLOW_O = $(OBJDIR)/FactoredHybridFeatureScorer.o \
-						$(OBJDIR)/Graph.o \
+LIBSPRINTTENSORFLOW_O = $(OBJDIR)/FactoredHybridFeatureScorer.o
+                        $(OBJDIR)/DummyStateManager.o \
+                        $(OBJDIR)/Graph.o \
                         $(OBJDIR)/GraphLoader.o \
                         $(OBJDIR)/MetaGraphLoader.o \
                         $(OBJDIR)/Module.o \
                         $(OBJDIR)/Session.o \
+                        $(OBJDIR)/StateManager.o \
                         $(OBJDIR)/Tensor.o \
                         $(OBJDIR)/TensorflowForwardNode.o \
+                        $(OBJDIR)/TensorflowFeatureScorer.o \
+                        $(OBJDIR)/TensorflowFeatureScorerStateCarryover.o \
                         $(OBJDIR)/TensorMap.o \
+                        $(OBJDIR)/TransformerStateManager.o \
                         $(OBJDIR)/VanillaGraphLoader.o
 
 CHECK_O = $(OBJDIR)/check.o \

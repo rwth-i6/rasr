@@ -38,7 +38,8 @@ public:
 
         virtual EmissionIndex nEmissions() const           = 0;
         virtual Score         score(EmissionIndex e) const = 0;
-        virtual Score         score(EmissionIndex e, u32 modelIndex) {
+
+        virtual Score score(EmissionIndex e, u32 modelIndex) {
             return 0.0;
         }
         // Following three functions are needed only for emission model calculation in FactoredHybridFeatureScorer
@@ -61,17 +62,20 @@ public:
             : Core::Component(c) {}
     virtual ~FeatureScorer() {}
 
-    virtual EmissionIndex nMixtures() const                                            = 0;
-    virtual void          getFeatureDescription(FeatureDescription& description) const = 0;
-    virtual void          getDependencies(Core::DependencySet& dependencies) const {
+    virtual EmissionIndex nMixtures() const = 0;
+
+    virtual void getFeatureDescription(FeatureDescription& description) const = 0;
+
+    virtual void getDependencies(Core::DependencySet& dependencies) const {
         FeatureDescription description(*this);
         getFeatureDescription(description);
         description.getDependencies(dependencies);
     }
 
     typedef Core::Ref<const ContextScorer> Scorer;
-    virtual Scorer                         getScorer(Core::Ref<const Feature>) const = 0;
-    virtual Scorer                         getScorer(const FeatureVector&) const     = 0;
+
+    virtual Scorer getScorer(Core::Ref<const Feature>) const = 0;
+    virtual Scorer getScorer(const FeatureVector&) const     = 0;
 
     /**
      * reset should be overloaded/defined in/for
@@ -188,7 +192,8 @@ protected:
 
     protected:
         CachedContextScorer(const CachedFeatureScorer* featureScorer, EmissionIndex nEmissions)
-                : featureScorer_(featureScorer), cache_(nEmissions) {}
+                : featureScorer_(featureScorer),
+                  cache_(nEmissions) {}
 
     public:
         virtual ~CachedContextScorer() {}
@@ -214,7 +219,8 @@ public:
 
     public:
         CachedContextScorerOverlay(u32 nEmissions)
-                : cache_(nEmissions), precached_(false) {}
+                : cache_(nEmissions),
+                  precached_(false) {}
         virtual ~CachedContextScorerOverlay() {}
         virtual EmissionIndex nEmissions() const {
             return cache_.size();
@@ -248,7 +254,8 @@ public:
 
 public:
     CachedFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~CachedFeatureScorer() {}
 };
 
@@ -264,7 +271,8 @@ class ContextScorerCache : public Core::ReferenceCounted {
 
 public:
     ContextScorerCache(u64 maxSize)
-            : maxSize_(maxSize), epoch_(0) {
+            : maxSize_(maxSize),
+              epoch_(0) {
     }
 
     // Every returned cached scorer must be released by calling uncacheScorer as soon as it is not needed any more

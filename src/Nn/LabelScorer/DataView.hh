@@ -38,14 +38,14 @@ namespace Nn {
  * it stays valid as long as the view is alive.
  *
  * It can be initialized using various data containers such as a
- * Core::Ref<Mm::Feature::Vector>, another shared_ptr, an Onnx::Value
+ * Core::TsRef<Mm::Feature::Vector>, another shared_ptr, an Onnx::Value
  * or a pybind11::array_t.
  */
 class DataView {
 public:
     DataView(DataView const& dataView);
     DataView(DataView const& dataView, size_t size, size_t offset = 0ul);
-    DataView(Core::Ref<Mm::Feature::Vector const> const& featureVectorRef);
+    DataView(Core::TsRef<Mm::Feature::Vector const> const& featureVectorRef);
     DataView(std::shared_ptr<f32 const[]> const& ptr, size_t size, size_t offset = 0ul);
 
 #ifdef MODULE_ONNX

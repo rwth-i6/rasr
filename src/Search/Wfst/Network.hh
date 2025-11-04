@@ -27,10 +27,12 @@ namespace Search {
 namespace Wfst {
 
 /*! @todo: move this type out of global scope */
-enum NetworkType { NetworkTypeCompressed,
-                   NetworkTypeStatic,
-                   NetworkTypeComposed,
-                   NetworkTypeLattice };
+enum NetworkType {
+    NetworkTypeCompressed,
+    NetworkTypeStatic,
+    NetworkTypeComposed,
+    NetworkTypeLattice
+};
 
 /**
  * base class for OpenFst based networks
@@ -40,7 +42,8 @@ class FstNetwork : public Core::Component {
 protected:
     typedef F Fst;
     Fst*      f_;
-    Fst*      automaton() const {
+
+    Fst* automaton() const {
         return f_;
     }
 
@@ -55,16 +58,21 @@ public:
     u32 nArcs() const {
         return 0;
     }
+
     u32 nEpsilonArcs() const {
         return 0;
     }
+
     virtual u32 nStates() const = 0;
-    size_t      memStates() const {
+
+    size_t memStates() const {
         return 0;
     }
+
     size_t memArcs() const {
         return 0;
     }
+
     size_t memEpsilonArcs() const {
         return 0;
     }
@@ -103,14 +111,17 @@ public:
 
 protected:
     FstNetwork(const Core::Configuration& c)
-            : Core::Component(c), f_(0), memUsageChannel_(c, "memory-info") {}
+            : Core::Component(c),
+              f_(0),
+              memUsageChannel_(c, "memory-info") {}
     virtual ~FstNetwork() {
         delete f_;
     }
 
 protected:
     mutable Core::XmlChannel memUsageChannel_;
-    void                     logMemoryUsage() const {
+
+    void logMemoryUsage() const {
         if (memUsageChannel_.isOpen()) {
             Core::MemoryInfo meminfo;
             memUsageChannel_ << meminfo;
@@ -130,13 +141,17 @@ private:
 public:
     StaticNetwork(const Core::Configuration&);
     virtual ~StaticNetwork() {}
+
     virtual bool init();
-    virtual u32  nStates() const {
+
+    virtual u32 nStates() const {
         return f_->NumStates();
     }
+
     static bool hasGrammarState() {
         return false;
     }
+
     StateIndex grammarState(StateIndex) const {
         return 0;
     }
@@ -145,7 +160,8 @@ public:
     class ArcIterator {
     public:
         ArcIterator(const StaticNetwork* network, StateIndex s)
-                : a_(*network->f_, s), offset_(network->f_->NumInputEpsilons(s)) {
+                : a_(*network->f_, s),
+                  offset_(network->f_->NumInputEpsilons(s)) {
             reset();
         }
         void next() {

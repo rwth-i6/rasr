@@ -92,7 +92,7 @@ public:
     StaticSearchAutomaton(Core::Configuration config, Core::Ref<const Am::AcousticModel> acousticModel, Bliss::LexiconRef lexicon);
     ~StaticSearchAutomaton();
 
-    void buildNetwork();
+    bool buildNetwork();
 
     // Assigns a depth in the automaton_.stateDepths array to each state
     // If onlyFromRoot is true, then the depths are only computed behind the root state,
@@ -117,9 +117,13 @@ public:
     // Creates fast look-up structures like singleOutputs_, quickOutputBatches_ and secondOrderEdgeTargetBatches_.
     void buildBatches();
 
+    void clearBatches();
+    u32  getChecksum();
+
 private:
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Bliss::LexiconRef                  lexicon_;
+    Core::DependencySet                dependencies_;
 };
 
 class SearchSpace : public Core::Component {
@@ -176,12 +180,15 @@ protected:
     unsigned onTheFlyRescoringMaxHistories_;
     unsigned maximumMutableSuffixLength_;
     unsigned maximumMutableSuffixPruningInterval_;
+    unsigned maximumStableDelay_;
+    unsigned maximumStableDelayPruningInterval_;
 
     /// Pruning thresholds
     Score acousticPruning_;       // main pruning threshold (log-scores)
     u32   acousticPruningLimit_;  // maximum number of hypotheses for Histogram pruning
     Score wordEndPruning_;
     u32   wordEndPruningLimit_;
+    u32   activeInstanceLimit_;
     f64   lmStatePruning_;
     f32   wordEndPhonemePruningThreshold_;
     f32   acousticProspectFactor_;
@@ -279,7 +286,7 @@ protected:
     Search::SearchAlgorithm::RecognitionContext recognitionContext_;
 
     /// Memory Leak workaround
-    std::vector<Core::WeakRef<Trace>> altHistTraces_;
+    std::vector<Core::TsRef<Trace>> altHistTraces_;  // TODO ebeck: used to be WeakRef, but it does not work with TsRef, maybe broken now
 
 public:
     /// ----------- Public interface during search --------------:
@@ -308,10 +315,13 @@ public:
     void pruneEarlyWordEnds();
 
     // Applies time-, score- and transit-modification to the given trace-id, and returns the corrected trace item (as successor of the original trace item)
-    inline Core::Ref<Trace> getModifiedTrace(TraceId trace, Bliss::Phoneme::Id initialPhone) const;
+    inline Core::TsRef<Trace> getModifiedTrace(TraceId trace, Bliss::Phoneme::Id initialPhone) const;
 
     // Prunes the normal word end hypotheses regarding their score (remove all hypotheses with score worse than absoluteScoreThreshold)
     void pruneWordEnds(Search::Score absoluteScoreThreshold);
+
+    // Prune all state hypotheses and word end hypotheses that don't originate from the given trace
+    void pruneToCommonTrace(Core::TsRef<Trace> trace);
 
     // Adds the recognized word to the traces of all word end hypotheses
     void createTraces(TimeframeIndex time);
@@ -342,19 +352,25 @@ public:
     // Optimize the lattice, removing redundant silence occurrences
     void optimizeSilenceInWordLattice(const Bliss::Lemma* silence);
 
-    Core::Ref<Trace> getSentenceEnd(TimeframeIndex time, bool shallCreateLattice);
+    // make sure that a prefix of the current best hyp is the prefix for all hyps
+    void maximumStableDelayPruning();
+    void maximumMutableSuffixPruning();
 
-    Core::Ref<Trace> getSentenceEndFallBack(TimeframeIndex time, bool shallCreateLattice);
+    void pruneActiveInstances();
+
+    Core::TsRef<Trace> getSentenceEnd(TimeframeIndex time, bool shallCreateLattice);
+
+    Core::TsRef<Trace> getSentenceEndFallBack(TimeframeIndex time, bool shallCreateLattice);
 
     // Returns the prefix trace which is common to all active hypotheses
-    Core::Ref<Trace> getCommonPrefix() const;
+    Core::TsRef<Trace> getCommonPrefix() const;
 
     // Modifies the search space so that the given trace is the initial trace
     // The score of the given trace will be changed to zero, it will have no pronunciations
     // and no siblings. The search space will be modified so that it is correct relative to this
     // initial trace. All trace (i.e. lattice) paths not leading towards this trace are truncated.
     // Timesstamps are _not_ changed.
-    void changeInitialTrace(Core::Ref<Trace> trace);
+    void changeInitialTrace(Core::TsRef<Trace> trace);
 
     u32 nStateHypotheses() const;
     u32 nEarlyWordEndHypotheses() const;
@@ -385,8 +401,6 @@ protected:
 
     // Apply special search space filtering
     void filterStates();
-    // make sure that a prefix of the current best hyp is the prefix for all hyps
-    void enforceCommonPrefix();
     // Applies state-pruning _before_ acoustic scores are added
     void pruneStatesEarly();
     void pruneStatesPerLmState();
@@ -459,7 +473,7 @@ protected:
     template<bool onTheFlyRescoring>
     void recombineWordEndsInternal(bool shallCreateLattice);
 
-    u32 getLastSyntacticToken(const Core::Ref<Trace>& _trace) {
+    u32 getLastSyntacticToken(const Core::TsRef<Trace>& _trace) {
         const Trace* trace = _trace.get();
         while (trace) {
             if (trace->pronunciation &&
@@ -476,7 +490,7 @@ protected:
         return Core::Type<u32>::max;
     }
 
-    Instance* activateOrUpdateTree(const Core::Ref<Trace>&, Lm::History, Lm::History, Lm::History, StateId, Score);
+    Instance* activateOrUpdateTree(const Core::TsRef<Trace>&, Lm::History, Lm::History, Lm::History, StateId, Score);
 
     Instance* getBackOffInstance(Instance* instance);
 
@@ -513,7 +527,7 @@ protected:
     template<bool recombinationSetPruning, class RecombinationPruning, class Base>
     struct RecombinationSet;
 
-    void pruneSilenceSiblingTraces(Core::Ref<Trace>, const Bliss::Lemma* silence);
+    void pruneSilenceSiblingTraces(Core::TsRef<Trace>, const Bliss::Lemma* silence);
     void dumpWordEnds(std::ostream&, Core::Ref<const Bliss::PhonemeInventory>) const;
     void extendHistoryByLemma(WordEndHypothesis& weh, const Bliss::Lemma* lemma) const;
 
@@ -530,6 +544,7 @@ public:
     SearchSpace(const Core::Configuration& configuration, Core::Ref<const Am::AcousticModel> acousticModel,
                 Bliss::LexiconRef lexicon, Core::Ref<const Lm::ScaledLanguageModel> lm, Score wpScale);
 
+    void reconfigure(const Core::Configuration& config);
     class PruningDesc : public SearchAlgorithm::Pruning {
     public:
         virtual Core::Ref<SearchAlgorithm::Pruning> clone() const {
@@ -657,7 +672,7 @@ public:
     void setMasterBeam(Score value);
 
     // Must be called after creation, after the above functions were called
-    virtual void initialize();
+    virtual void initialize(bool buildBatches = true);
 
     void initializePruning();
 
@@ -667,6 +682,7 @@ private:
     // These are implemented in Pruning.hh
     struct AcousticPruning;
     struct PerInstanceAcousticPruning;
+    struct ActiveInstanceLimitPruning;
     struct RecordMinimum;
     struct RecordMinimumPerInstance;
     struct NoPruning;

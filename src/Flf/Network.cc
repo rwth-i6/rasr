@@ -269,14 +269,17 @@ public:
     static const Core::ParameterStringVector paramLinks;
 
 private:
-    typedef enum { White,
-                   Gray,
-                   Black } Color;
+    typedef enum {
+        White,
+        Gray,
+        Black
+    } Color;
     struct ColoredNode {
         NodeRef node;
         Color   color;
         ColoredNode(NodeRef node, Color color)
-                : node(node), color(color) {}
+                : node(node),
+                  color(color) {}
     };
     typedef std::unordered_map<std::string, ColoredNode, Core::StringHash> ColoredNodeMap;
 
@@ -713,7 +716,8 @@ private:
 
 public:
     SegmentBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), progressChannel_(config, "progress") {}
+            : Node(name, config),
+              progressChannel_(config, "progress") {}
     virtual ~SegmentBuilderNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

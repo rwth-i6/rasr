@@ -42,7 +42,8 @@ struct SsspArcFilter {
     SsspArcFilter() {}
     virtual ~SsspArcFilter() {}
     typedef typename _Automaton::Arc _Arc;
-    virtual bool                     operator()(const _Arc& a) const {
+
+    virtual bool operator()(const _Arc& a) const {
         return true;
     }
 };

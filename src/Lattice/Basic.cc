@@ -59,7 +59,8 @@ struct Cutter {
     Fsa::StateId initial;
     Fsa::Weight  finalWeight;
     Cutter(Fsa::StateId _initial, Fsa::Weight _finalWeight)
-            : initial(_initial), finalWeight(_finalWeight) {}
+            : initial(_initial),
+              finalWeight(_finalWeight) {}
     Fsa::ConstAutomatonRef modify(Fsa::ConstAutomatonRef fsa) {
         return Fsa::partial(fsa, initial, finalWeight);
     }
@@ -165,7 +166,9 @@ public:
 
 public:
     LatticeCounts(ConstWordLatticeRef lattice, Predicate p)
-            : DfsState(lattice), pred(p), nArcs(0) {}
+            : DfsState(lattice),
+              pred(p),
+              nArcs(0) {}
 
     virtual void discoverState(Fsa::ConstStateRef sp) {
         nArcs += std::count_if(sp->begin(), sp->end(), pred);

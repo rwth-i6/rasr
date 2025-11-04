@@ -120,19 +120,22 @@ class TemporalPatternNode : public Flow::SleeveNode, TemporalPattern {
     typedef f32              Value;
 
 private:
-    bool                            needInit_;
-    void                            init(size_t length);
-    size_t                          contextLength_;
+    bool   needInit_;
+    void   init(size_t length);
+    size_t contextLength_;
+    size_t outputSize_;
+
+    static const Core::ParameterInt paramOutputSize;
     static const Core::ParameterInt paramContextLength;
-    void                            setContextLength(size_t length) {
+
+    void setContextLength(size_t length) {
         if (contextLength_ != length) {
             contextLength_ = length;
             needInit_      = true;
         }
     };
-    size_t                          outputSize_;
-    static const Core::ParameterInt paramOutputSize;
-    void                            setOutputSize(size_t size) {
+
+    void setOutputSize(size_t size) {
         if (outputSize_ != size) {
             outputSize_ = size;
             needInit_   = true;

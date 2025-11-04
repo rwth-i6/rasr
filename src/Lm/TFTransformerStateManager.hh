@@ -15,22 +15,25 @@
 #ifndef _LM_TRANSFORMER_STATE_MANAGER_HH
 #define _LM_TRANSFORMER_STATE_MANAGER_HH
 
-#include "StateManager.hh"
+#include "AbstractStateManager.hh"
+
+#include <Tensorflow/Graph.hh>
+#include <Tensorflow/Tensor.hh>
 
 #include <Bliss/Symbol.hh>
 
 namespace Lm {
 
 template<typename T>
-class TransformerStateManager : public StateManager {
+class TFTransformerStateManager : public AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable> {
 public:
-    using Precursor = StateManager;
+    using Precursor = AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable>;
 
     static const Core::ParameterInt  paramMaxHistoryLength;
     static const Core::ParameterBool paramAlwaysIncludeFirstTokenState;
 
-    TransformerStateManager(Core::Configuration const& config);
-    virtual ~TransformerStateManager() = default;
+    TFTransformerStateManager(Core::Configuration const& config);
+    virtual ~TFTransformerStateManager() = default;
 
     virtual bool requiresAllParentStates() const;
 
@@ -51,9 +54,9 @@ protected:
 };
 
 template<typename T>
-class TransformerStateManagerWithCommonPrefix : public TransformerStateManager<T> {
+class TFTransformerStateManagerWithCommonPrefix : public TFTransformerStateManager<T> {
 public:
-    using Precursor = TransformerStateManager<T>;
+    using Precursor = TFTransformerStateManager<T>;
 
     static const Core::ParameterString paramVarName;
     static const Core::ParameterString paramCommonPrefixInitialValue;
@@ -63,8 +66,8 @@ public:
     static const Core::ParameterInt    paramMinCommonPrefixLength;
     static const Core::ParameterInt    paramMaxCommonPrefixLength;
 
-    TransformerStateManagerWithCommonPrefix(Core::Configuration const& config);
-    virtual ~TransformerStateManagerWithCommonPrefix() = default;
+    TFTransformerStateManagerWithCommonPrefix(Core::Configuration const& config);
+    virtual ~TFTransformerStateManagerWithCommonPrefix() = default;
 
     virtual void mergeStates(typename Precursor::StateVariables const&                   vars,
                              std::vector<size_t>&                                        prefix_lengths,
@@ -86,19 +89,19 @@ protected:
 // inline implementations
 
 template<typename T>
-inline TransformerStateManager<T>::TransformerStateManager(Core::Configuration const& config)
+inline TFTransformerStateManager<T>::TFTransformerStateManager(Core::Configuration const& config)
         : Precursor(config),
           maxHistory_(paramMaxHistoryLength(config)),
           alwaysIncludeFirstTokenState_(paramAlwaysIncludeFirstTokenState(config)) {
 }
 
 template<typename T>
-inline bool TransformerStateManager<T>::requiresAllParentStates() const {
+inline bool TFTransformerStateManager<T>::requiresAllParentStates() const {
     return true;
 }
 
 template<typename T>
-inline TransformerStateManagerWithCommonPrefix<T>::TransformerStateManagerWithCommonPrefix(Core::Configuration const& config)
+inline TFTransformerStateManagerWithCommonPrefix<T>::TFTransformerStateManagerWithCommonPrefix(Core::Configuration const& config)
         : Precursor(config),
           cachePrefix_(paramCachePrefix(config)),
           minBatchSize_(paramMinBatchSize(config)),

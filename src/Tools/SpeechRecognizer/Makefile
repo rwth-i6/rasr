@@ -22,6 +22,8 @@ COMMON_O	= ../../Speech/libSprintSpeech.$(a) \
 		  ../../Math/libSprintMath.$(a) \
 		  ../../Math/Lapack/libSprintMathLapack.$(a) \
 		  ../../Core/libSprintCore.$(a) \
+		  ../../Flf/libSprintFlf.$(a) \
+		  ../../Flf/FlfCore/libSprintFlfCore.$(a) \
 		  ../../Fsa/libSprintFsa.$(a)
 
 COMMON_O += $(subst src,../..,$(LIBS_SEARCH))
@@ -29,8 +31,8 @@ COMMON_O += $(subst src,../..,$(LIBS_SEARCH))
 ifdef MODULE_CART
 COMMON_O += ../../Cart/libSprintCart.$(a)
 endif
-ifdef MODULE_FLF_CORE
-COMMON_O += ../../Flf/FlfCore/libSprintFlfCore.$(a)
+ifdef MODULE_FLF_EXT
+COMMON_O += ../../Flf/FlfExt/libSprintFlfExt.$(a)
 endif
 ifdef MODULE_OPENFST
 ifeq ($(OS),darwin)
@@ -56,7 +58,7 @@ endif
 ifdef MODULE_TENSORFLOW
 COMMON_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
-LDFLAGS  += $(TF_LDFLAGS)
+LDFLAGS  := $(TF_LDFLAGS) $(LDFLAGS)
 endif
 
 # -----------------------------------------------------------------------------

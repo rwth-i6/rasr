@@ -53,14 +53,17 @@ namespace Flf {
 struct ForwardBackwardAlignment {
     struct Word {
         Word()
-                : amScore(Core::Type<Score>::max), lmScore(Core::Type<Score>::max) {}
+                : amScore(Core::Type<Score>::max),
+                  lmScore(Core::Type<Score>::max) {}
         const Bliss::LemmaPronunciation* pron;
         u32                              start, end;
         Fsa::StateId                     originState;
         Score                            amScore, lmScore;
-        bool                             intersects(const Word& rhs) const {
+
+        bool intersects(const Word& rhs) const {
             return end >= rhs.start && start <= rhs.end && rhs.end >= start && rhs.start <= end;
         }
+
         bool equals(const Word& rhs) const {
             return pron == rhs.pron && end == rhs.end && start == rhs.start;
         }
@@ -603,7 +606,8 @@ private:
 
     Core::Timer globalTimer_;
     u32         segmentFeatureCount_;
-    f32         globalRtf() const {
+
+    f32 globalRtf() const {
         if (segmentFeatureCount_ == 0)
             return 0;
         else
@@ -636,6 +640,7 @@ private:
     u32                                                lmContextLength_;
 
     f32  relaxPruningFactor_, relaxPruningOffset_, latticeRelaxPruningFactor_, latticeRelaxPruningOffset_, adaptInitialUpdateRate_, adaptRelaxPruningFactor_, adaptRelaxPruningOffset_;
+    u32  latticeRelaxPruningInterval_;
     s32  adaptCorrectionRatio_;
     f32  scoreTolerance_;
     f32  adaptPruningFactor_;
@@ -645,7 +650,6 @@ private:
     bool onlyEnforceMinimumSearchSpace_;
     bool correctStrictInitial_;
     f32  maximumRtf_;
-    u32  latticeRelaxPruningInterval_;
 
     const Bliss::SpeechSegment* segment_;
     // Current sub-segment index, if partial lattices were returned by the decoder
@@ -1511,11 +1515,12 @@ protected:
                 l                      = persistent(l);
             }
             if (fwdBwdThreshold_ >= 0 || minArcsPerSecond_ || maxArcsPerSecond_ < Core::Type<f32>::max) {
-                l                               = pruneByFwdBwdScores(l,
-                                                                      fb,
+                l = pruneByFwdBwdScores(l,
+                                        fb,
                                         fwdBwdThreshold_ < 0 ? (fb->max() - fb->min()) : fwdBwdThreshold_,
-                                                                      minArcsPerSecond_,
-                                                                      maxArcsPerSecond_);
+                                        minArcsPerSecond_,
+                                        maxArcsPerSecond_);
+
                 StaticLatticeRef trimmedLattice = StaticLatticeRef(new StaticLattice);
                 copy(l, trimmedLattice.get(), 0);
                 trimInPlace(trimmedLattice);
@@ -1558,15 +1563,16 @@ public:
               mc_(mc),
               modelAdaptor_(SegmentwiseModelAdaptorRef(new SegmentwiseModelAdaptor(mc))),
               tracebackChannel_(config, "traceback"),
+              segmentFeatureCount_(0),
               lmContextLength_(paramLmContextLength(config)),
               relaxPruningFactor_(paramRelaxPruningFactor(config)),
               relaxPruningOffset_(paramRelaxPruningOffset(config)),
               latticeRelaxPruningFactor_(paramLatticeRelaxPruningFactor(config)),
               latticeRelaxPruningOffset_(paramLatticeRelaxPruningOffset(config)),
-              latticeRelaxPruningInterval_(paramLatticeRelaxPruningInterval(config)),
               adaptInitialUpdateRate_(paramAdaptInitialUpdateRate(config)),
               adaptRelaxPruningFactor_(paramAdaptRelaxPruningFactor(config)),
               adaptRelaxPruningOffset_(paramAdaptRelaxPruningOffset(config)),
+              latticeRelaxPruningInterval_(paramLatticeRelaxPruningInterval(config)),
               adaptCorrectionRatio_(paramAdaptCorrectionRatio(config)),
               scoreTolerance_(paramScoreTolerance(config) * mc->languageModel()->scale()),
               adaptPruningFactor_(paramAdaptPruningFactor(config)),
@@ -1577,7 +1583,6 @@ public:
               correctStrictInitial_(paramCorrectStrictInitial(config)),
               maximumRtf_(paramMaxRtf(config)),
               segment_(0),
-              segmentFeatureCount_(0),
               subSegment_(0),
               verboseRefinement_(paramVerboseRefinement(config)),
               considerSentenceBegin_(paramConsiderSentenceBegin(config)),
@@ -1843,7 +1848,8 @@ public:
             if (preCacheAllFrames_) {
                 struct PreCacher : public Search::SearchAlgorithm {
                     PreCacher()
-                            : SearchAlgorithm(Core::Configuration()), Core::Component(Core::Configuration()) {}
+                            : Core::Component(Core::Configuration()),
+                              SearchAlgorithm(Core::Configuration()) {}
                     virtual void feed(const Mm::FeatureScorer::Scorer& scorer) {
                         dynamic_cast<const Mm::CachedFeatureScorer::CachedContextScorerOverlay*>(scorer.get())->precache();
                     }
@@ -1857,6 +1863,9 @@ public:
                     virtual void setGrammar(Fsa::ConstAutomatonRef) {}
                     virtual bool setModelCombination(const Speech::ModelCombination& modelCombination) {
                         return false;
+                    }
+                    virtual bool setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel>) {
+                        defect();
                     }
                 } precacher;
                 Core::Timer                    timer;
@@ -2228,7 +2237,9 @@ private:
 
 public:
     IncrementalRecognizerNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), mc_(), recognizer_(0) {}
+            : Node(name, config),
+              mc_(),
+              recognizer_(0) {}
     virtual ~IncrementalRecognizerNode() {
         delete recognizer_;
     }

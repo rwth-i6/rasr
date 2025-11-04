@@ -68,7 +68,6 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             trace->sibling        = {};
             trace->score.acoustic = extension.score;
             trace->time           = extension.timeframe + 1;
-            trace->predecessor    = base.trace;
             break;
     }
 }

@@ -26,7 +26,7 @@ Instance::~Instance() {
     }
 }
 
-void Instance::enter(TraceManager& trace_manager, Core::Ref<Trace> trace, StateId entryNode, Score score) {
+void Instance::enter(TraceManager& trace_manager, Core::TsRef<Trace> trace, StateId entryNode, Score score) {
     rootStateHypotheses.push_back(StateHypothesis(entryNode, trace_manager.getTrace(TraceItem(trace, key.history, lookaheadHistory, scoreHistory)), score));
 }
 

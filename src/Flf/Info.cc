@@ -108,7 +108,15 @@ struct LatticeStatistics {
     u32  nFinalStates;
     Time minTime, maxTime;
     LatticeStatistics()
-            : nInputEpsilonArcs(0), nInputNonWordArcs(0), nInputWordArcs(0), nOutputEpsilonArcs(0), nOutputNonWordArcs(0), nOutputWordArcs(0), nFinalStates(0), minTime(Core::Type<Time>::max), maxTime(Core::Type<Time>::min) {}
+            : nInputEpsilonArcs(0),
+              nInputNonWordArcs(0),
+              nInputWordArcs(0),
+              nOutputEpsilonArcs(0),
+              nOutputNonWordArcs(0),
+              nOutputWordArcs(0),
+              nFinalStates(0),
+              minTime(Core::Type<Time>::max),
+              maxTime(Core::Type<Time>::min) {}
 };
 struct BestStatistics : public LatticeStatistics {
     ScoresRef scores;
@@ -134,7 +142,8 @@ struct TraceElement {
     Fsa::StateId bptr;
     Arc          arc;
     TraceElement()
-            : score(Semiring::Max), bptr(Fsa::InvalidStateId) {}
+            : score(Semiring::Max),
+              bptr(Fsa::InvalidStateId) {}
 };
 typedef std::vector<TraceElement> Traceback;
 }  // namespace

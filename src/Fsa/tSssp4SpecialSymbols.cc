@@ -67,7 +67,7 @@ Fsa::ConstSemiring64Ref convertSemiring<Fsa::ConstSemiring64Ref>(Fsa::ConstSemir
 }
 
 template<class _leftArc, class _rightArc>
-struct byInputAndOutput : public std::binary_function<_leftArc, _rightArc, bool> {
+struct byInputAndOutput {
     static bool cmp(const _leftArc& a, const _rightArc& b) {
         if (a.input() < b.input())
             return true;
@@ -183,10 +183,11 @@ private:
         inline static _Weight failArc(const _Arc* arc, DirectHits& directHits, _Accumulator* collector, const bool firstLevel, _SsspBackward4SpecialSymbols* owner) {
             Fsa::StateId ts = arc->target();
             _Weight      failWeight, update;
+
             failWeight = owner->processState<AddArc>(ts, directHits);
-            update     = owner->semiring_->extend(
-                    sssp4SpecialSymbolsHelper::convertWeight<_AutomataWeight, _Weight>(arc->weight()),
-                    failWeight);
+            update     = owner->semiring_->extend(sssp4SpecialSymbolsHelper::convertWeight<_AutomataWeight, _Weight>(arc->weight()),
+                                                  failWeight);
+
             collector->feed(update);
             return failWeight;
         }

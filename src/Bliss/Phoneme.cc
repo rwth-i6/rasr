@@ -22,7 +22,8 @@ using namespace Bliss;
 const Phoneme::Id Phoneme::term;
 
 Phoneme::Phoneme()
-        : Token(), isContextDependent_(true) {}
+        : Token(),
+          isContextDependent_(true) {}
 
 struct PhonemeInventory::Internal {
     SymbolSet                            symbols_;

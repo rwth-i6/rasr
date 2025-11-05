@@ -21,13 +21,14 @@ TEST_O += $(OBJDIR)/Core_StringUtilities.o
 TEST_O += $(OBJDIR)/Core_Thread.o 
 TEST_O += $(OBJDIR)/Core_ThreadPool.o 
 TEST_O += $(OBJDIR)/Fsa_Sssp4SpecialSymbols.o
+TEST_O += $(OBJDIR)/Lm_ArpaLm.o
 TEST_O += $(OBJDIR)/Math_Utilities.o
 TEST_O += $(OBJDIR)/Math_Blas.o 
 TEST_O += $(OBJDIR)/Math_FastVectorOperations.o 
 TEST_O += $(OBJDIR)/Math_CudaVector.o 
 TEST_O += $(OBJDIR)/Math_CudaMatrix.o 
 TEST_O += $(OBJDIR)/Math_FastMatrix.o 
-#TEST_O += $(OBJDIR)/Math_LinearConjugateGradient.o 
+TEST_O += $(OBJDIR)/Math_LinearConjugateGradient.o
 TEST_O += $(OBJDIR)/Test_File.o 
 TEST_O += $(OBJDIR)/Test_Lexicon.o 
 
@@ -104,6 +105,9 @@ ifdef MODULE_TENSORFLOW
 UNIT_TEST_O += ../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_ONNX
+UNIT_TEST_O += ../Onnx/libSprintOnnx.$(a)
 endif
 
 # -----------------------------------------------------------------------------

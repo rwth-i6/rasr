@@ -50,7 +50,8 @@ Core::ParameterString LinearFilterNode::paramY0("y0", "y0 polinom y(-1) ... y(-n
 Core::ParameterInt    LinearFilterNode::paramZeroInputLength("zero-input-length",
                                                              "length of an artificial zero input", 0, 0);
 LinearFilterNode::LinearFilterNode(const Core::Configuration& c)
-        : Core::Component(c), SleeveNode(c) {
+        : Core::Component(c),
+          SleeveNode(c) {
     std::vector<f32> v;
     if (parsePolinom(paramB(c), v))
         setB(v);

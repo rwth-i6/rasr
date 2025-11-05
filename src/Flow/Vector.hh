@@ -48,16 +48,19 @@ public:
     Vector()
             : Timestamp(type()){};
     Vector(size_t size)
-            : Timestamp(type()), std::vector<T>(size) {}
+            : Timestamp(type()),
+              std::vector<T>(size) {}
     Vector(size_t n, const T& t)
-            : Timestamp(type()), std::vector<T>(n, t) {}
+            : Timestamp(type()),
+              std::vector<T>(n, t) {}
     Vector(const std::vector<T>& v)
             : Timestamp(type()), std::vector<T>(v) {}
     Vector(const std::vector<T>& v, Time start, Time end)
             : Timestamp(start, end), std::vector<T>(v) {}
     template<class InputIterator>
     Vector(InputIterator begin, InputIterator end)
-            : Timestamp(type()), std::vector<T>(begin, end) {}
+            : Timestamp(type()),
+              std::vector<T>(begin, end) {}
 
     virtual ~Vector() {}
 

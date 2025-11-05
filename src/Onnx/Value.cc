@@ -36,6 +36,23 @@ DEFINE_ONNX_TENSOR_TYPE_MAPING(std::complex<double>, ONNX_TENSOR_ELEMENT_DATA_TY
 DEFINE_ONNX_TENSOR_TYPE_MAPING(Ort::BFloat16_t, ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16)
 
 /*
+ * num_blocks: number of incontinious blocks to each take from array a and array b
+ * block_size_a: number of continious elements from array a to take per block
+ * block_size_b: number of continious elements from array b to take per block
+ */
+template<typename T>
+void dynamic_rank_concat(Ort::Value& out, Ort::Value const& a, Ort::Value const& b, int64_t num_blocks, int64_t block_size_a, int64_t block_size_b) {
+    T*       data_out = out.GetTensorMutableData<T>();
+    T const* data_a   = a.GetTensorData<T>();
+    T const* data_b   = b.GetTensorData<T>();
+
+    for (int64_t i = 0ul; i < num_blocks; i++) {
+        std::copy(data_a + block_size_a * i, data_a + block_size_a * (i + 1), data_out + (block_size_a + block_size_b) * i);
+        std::copy(data_b + block_size_b * i, data_b + block_size_b * (i + 1), data_out + (block_size_a + block_size_b) * i + block_size_a);
+    }
+}
+
+/*
  * num_blocks: number of incontinious blocks to each take from the arrays
  * block_sizes: number of continuous elements from each array to take per block
  */
@@ -59,6 +76,25 @@ void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& 
             std::copy(data[value_idx] + block_sizes[value_idx] * block_idx, data[value_idx] + block_sizes[value_idx] * (block_idx + 1), data_out + (out_block_size)*block_idx + partial_sum);
             partial_sum += block_sizes[value_idx];
         }
+    }
+}
+
+/*
+ * num_blocks: number of incontinious blocks to take
+ * block_size: number of continious elements to take per block
+ */
+template<typename T>
+void dynamic_rank_slice(Ort::Value& left, Ort::Value const& right, int64_t start, int64_t size, int64_t num_blocks, int64_t block_size) {
+    T*       data_left  = left.GetTensorMutableData<T>();
+    T const* data_right = right.GetTensorData<T>();
+
+    int64_t offset_head;
+    int64_t offset_tail;
+    for (int64_t i = 0; i < num_blocks; i++) {
+        offset_head = (i + start) * block_size;
+        offset_tail = offset_head + size * block_size;
+
+        std::copy(data_right + offset_head, data_right + offset_tail, data_left + i * size * block_size);
     }
 }
 
@@ -157,6 +193,88 @@ template Value Value::zeros<s16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u16>(std::vector<int64_t> const& dim);
 template Value Value::zeros<s8>(std::vector<int64_t> const& dim);
 template Value Value::zeros<u8>(std::vector<int64_t> const& dim);
+
+Value Value::concat(Value const& a, Value const& b, int axis) {
+    require_eq(a.numDims(), b.numDims());
+    require_eq(a.value_.GetTensorTypeAndShapeInfo().GetElementType(), b.value_.GetTensorTypeAndShapeInfo().GetElementType());
+
+    if (axis < 0) {
+        axis = a.numDims() + axis;
+    }
+    require_lt(axis, a.numDims());
+    std::vector<int64_t> new_shape(a.numDims());
+    for (int i = 0; i < a.numDims(); i++) {
+        if (i != axis) {
+            require_eq(a.dimSize(i), b.dimSize(i));
+            new_shape[i] = a.dimSize(i);
+        }
+        else {
+            new_shape[i] = a.dimSize(i) + b.dimSize(i);
+        }
+    }
+
+    int64_t num_blocks   = 1l;
+    int64_t block_size_a = 1l;
+    int64_t block_size_b = 1l;
+    for (int i = 0; i < axis; i++) {
+        num_blocks *= a.dimSize(i);
+    }
+    for (int i = axis; i < a.numDims(); i++) {
+        block_size_a *= a.dimSize(i);
+        block_size_b *= b.dimSize(i);
+    }
+
+    Value res;
+
+    switch (a.dataType()) {
+        case ValueDataType::FLOAT: {
+            Value res = Value::zeros<f32>(new_shape);
+            dynamic_rank_concat<f32>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::DOUBLE: {
+            Value res = Value::zeros<f64>(new_shape);
+            dynamic_rank_concat<f64>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::INT64: {
+            Value res = Value::zeros<s64>(new_shape);
+            dynamic_rank_concat<s64>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::UINT64: {
+            Value res = Value::zeros<u64>(new_shape);
+            dynamic_rank_concat<u64>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::INT32: {
+            Value res = Value::zeros<s32>(new_shape);
+            dynamic_rank_concat<s32>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::UINT32: {
+            Value res = Value::zeros<u32>(new_shape);
+            dynamic_rank_concat<u32>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::INT16: {
+            Value res = Value::zeros<s16>(new_shape);
+            dynamic_rank_concat<s16>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::UINT16: {
+            Value res = Value::zeros<u16>(new_shape);
+            dynamic_rank_concat<u16>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        case ValueDataType::INT8: {
+            Value res = Value::zeros<s8>(new_shape);
+            dynamic_rank_concat<s8>(res.value_, a.value_, b.value_, num_blocks, block_size_a, block_size_b);
+            return res;
+        }
+        default: defect();
+    }
+}
 
 Value Value::concat(std::vector<Value const*> const& values, int axis) {
     require(values.size() > 0);
@@ -927,6 +1045,109 @@ template s16 const* Value::data<s16>(size_t, size_t, size_t) const;
 template u16 const* Value::data<u16>(size_t, size_t, size_t) const;
 template s8 const*  Value::data<s8>(size_t, size_t, size_t) const;
 template u8 const*  Value::data<u8>(size_t, size_t, size_t) const;
+
+Value Value::slice(int64_t start, int64_t end, int axis) {
+    start = start >= 0 ? start : dimSize(axis) + start;
+    end   = end >= 0 ? end : dimSize(axis) + 1 + end;
+
+    require_ge(start, 0);
+    require_le(start, end);
+    require_le(end, dimSize(axis));
+
+    if (end - start >= dimSize(axis)) {  // no enough data for slicing
+        return Value(*this);
+    }
+
+    std::vector<int64_t> new_shape(numDims());
+    for (int i = 0; i < numDims(); i++) {
+        if (dimSize(i) == 0) {
+            return Value(*this);
+        }
+        if (i == axis) {
+            new_shape[i] = end - start;
+        }
+        else {
+            new_shape[i] = dimSize(i);
+        }
+    }
+
+    // index offset per position shift
+    std::vector<int64_t> strides;
+    int64_t              factor = 1l;
+    for (int i = numDims() - 1; i >= 0; i--) {
+        strides.push_back(factor);
+        factor *= dimSize(i);
+    }
+    std::reverse(strides.begin(), strides.end());
+
+    int64_t num_blocks = strides[0] * dimSize(0) / strides[axis - 1];
+    int64_t block_size = strides[axis];
+
+    Value res;
+    if (numDims() > 0) {
+        switch (dataType()) {
+            case ValueDataType::FLOAT: {
+                Value res = Value::zeros<f32>(new_shape);
+                dynamic_rank_slice<f32>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::DOUBLE: {
+                Value res = Value::zeros<f64>(new_shape);
+                dynamic_rank_slice<f64>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::INT64: {
+                Value res = Value::zeros<s64>(new_shape);
+                dynamic_rank_slice<s64>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::UINT64: {
+                Value res = Value::zeros<u64>(new_shape);
+                dynamic_rank_slice<u64>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::INT32: {
+                Value res = Value::zeros<s32>(new_shape);
+                dynamic_rank_slice<s32>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::UINT32: {
+                Value res = Value::zeros<u32>(new_shape);
+                dynamic_rank_slice<u32>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::INT16: {
+                Value res = Value::zeros<s16>(new_shape);
+                dynamic_rank_slice<s16>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::UINT16: {
+                Value res = Value::zeros<u16>(new_shape);
+                dynamic_rank_slice<u16>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            case ValueDataType::INT8: {
+                Value res = Value::zeros<s8>(new_shape);
+                dynamic_rank_slice<s8>(res.value_, value_, start, end - start, num_blocks, block_size);
+                return res;
+            }
+            default: defect();
+        }
+    }
+
+    return res;
+}
+
+Value Value::slice(std::vector<int64_t> const& start, std::vector<int64_t> const& end) {
+    require_le(static_cast<int>(start.size()), numDims());
+    require_eq(start.size(), end.size());
+
+    Value res(*this);
+    for (int i = 0; i < numDims(); i++) {
+        res = res.slice(start[i], end[i], i);
+    }
+    return res;
+}
 
 /* ------------------------- Setters ------------------------- */
 

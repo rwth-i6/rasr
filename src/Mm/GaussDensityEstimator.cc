@@ -151,7 +151,7 @@ Mean* MeanEstimator::estimate() {
 
     Mean* result = new Mean(accumulator_.size());
     std::transform(accumulator_.sum().begin(), accumulator_.sum().end(), result->begin(),
-                   std::bind2nd(std::divides<Accumulator::SumType>(), accumulator_.weight()));
+                   std::bind(std::divides<Accumulator::SumType>(), std::placeholders::_1, accumulator_.weight()));
     return result;
 }
 

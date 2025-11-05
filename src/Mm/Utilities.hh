@@ -25,7 +25,7 @@ namespace Mm {
 
 /** Creates hash key from a pointer by casting to unsigned int. */
 template<class Referenced>
-struct hashReference : std::unary_function<Core::Ref<Referenced>, size_t> {
+struct hashReference {
     size_t operator()(Core::Ref<Referenced> x) const {
         return (size_t)x.get();
     }
@@ -33,7 +33,7 @@ struct hashReference : std::unary_function<Core::Ref<Referenced>, size_t> {
 
 /** @return is *x == *y */
 template<class Pointer>
-struct equalReferenced : public std::binary_function<Pointer, Pointer, bool> {
+struct equalReferenced {
     bool operator()(Pointer x, Pointer y) const {
         return *x == *y;
     }
@@ -84,7 +84,7 @@ double gaussLogNormFactor(InputIterator beginDiagonal, InputIterator endDiagonal
 
 /** 1 / sqrt(x) */
 template<class T>
-struct inverseSquareRoot : public std::unary_function<T, T> {
+struct inverseSquareRoot {
     T operator()(T x) const {
         return (T)1 / (T)sqrt(x);
     }
@@ -92,7 +92,7 @@ struct inverseSquareRoot : public std::unary_function<T, T> {
 
 /** (x - y) / normalization */
 template<class T>
-class normalizedMinus : public std::binary_function<T, T, T> {
+class normalizedMinus {
     T normalization_;
 
 public:
@@ -107,7 +107,7 @@ public:
 
 /** x + weight*y */
 template<class T>
-struct plusWeighted : public std::binary_function<T, T, T> {
+struct plusWeighted {
     T weight_;
 
 private:
@@ -123,7 +123,10 @@ public:
 
 /** x + y^2 */
 template<class T>
-struct plusSquare : public std::binary_function<T, T, T> {
+struct plusSquare {
+    using first_argument_type  = T;
+    using second_argument_type = T;
+
     T operator()(T x, T y) const {
         return x + y * y;
     }
@@ -131,36 +134,44 @@ struct plusSquare : public std::binary_function<T, T, T> {
 
 /** x + weight*y^2 */
 template<class T>
-struct plusSquareWeighted : public std::binary_function<T, T, T> {
+struct plusSquareWeighted {
+public:
+    using first_argument_type  = T;
+    using second_argument_type = T;
+
+    plusSquareWeighted(T weight)
+            : weight_(weight) {}
+
+    T operator()(T x, T y) const {
+        return x + weight_ * y * y;
+    }
+
     T weight_;
 
 private:
     plusSquareWeighted() {}
-
-public:
-    plusSquareWeighted(T weight)
-            : weight_(weight) {}
-    T operator()(T x, T y) const {
-        return x + weight_ * y * y;
-    }
 };
 
 /** x + y^2 / normalization_ */
 template<class T>
-class plusNormalizedSquare : public std::binary_function<T, T, T> {
-    T normalization_;
-
+class plusNormalizedSquare {
 public:
+    using first_argument_type  = T;
+    using second_argument_type = T;
+
     plusNormalizedSquare(T normalization)
             : normalization_(normalization) {}
+
     T operator()(T x, T y) const {
         return x + y * y / normalization_;
     }
+
+    T normalization_;
 };
 
 /** -factor * log (x) */
 template<class T>
-class minusLog : public std::unary_function<T, T> {
+class minusLog {
     T factor_;
 
 public:
@@ -177,7 +188,7 @@ public:
  *  Remark: mean{x} is expected to be 0, so offset is simply to half of the integer interval.
  */
 template<class ValueType, class QuantizedType>
-class quantize : public std::unary_function<ValueType, QuantizedType> {
+class quantize {
     QuantizedType clip(int x) {
         return std::min(std::max(x, int(Core::Type<QuantizedType>::min)),
                         int(Core::Type<QuantizedType>::max));
@@ -452,9 +463,11 @@ private:
 
 public:
     DynamicCache()
-            : isCalculated_(), objects_() {}
+            : isCalculated_(),
+              objects_() {}
     DynamicCache(size_t size)
-            : isCalculated_(size, false), objects_(size, Type()) {}
+            : isCalculated_(size, false),
+              objects_(size, Type()) {}
     ~DynamicCache() {}
 
     const Type& set(size_t index, const Type& obj) {

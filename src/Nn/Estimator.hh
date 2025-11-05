@@ -106,7 +106,8 @@ class DryRunEstimator : public Estimator<T> {
 
 public:
     DryRunEstimator(const Core::Configuration& config)
-            : Core::Component(config), Precursor(config) {}
+            : Core::Component(config),
+              Precursor(config) {}
     virtual std::string type() const {
         return "dry-run";
     }

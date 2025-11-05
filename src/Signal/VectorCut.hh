@@ -66,7 +66,9 @@ public:
     }
 
     VectorCutLength()
-            : first_(0), last_(0), sampleRate_(0) {}
+            : first_(0),
+              last_(0),
+              sampleRate_(0) {}
 
     virtual ~VectorCutLength() {}
 
@@ -184,7 +186,7 @@ protected:
         T limit = integral_.back() * this->first_;
         return std::distance(integral_.begin(),
                              find_if(integral_.begin(), integral_.end(),
-                                     std::bind2nd(std::greater_equal<Value>(), limit)));
+                                     std::bind(std::greater_equal<Value>(), std::placeholders::_1, limit)));
     }
 
     /** last
@@ -200,7 +202,7 @@ protected:
         T limit = integral_.back() * this->last_;
         return std::distance(integral_.begin(),
                              find_if(integral_.begin(), integral_.end(),
-                                     std::bind2nd(std::greater_equal<Value>(), limit)));
+                                     std::bind(std::greater_equal<Value>(), std::placeholders::_1, limit)));
     }
 
 public:
@@ -226,7 +228,8 @@ public:
     }
 
     VectorCutNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c) {
+            : Core::Component(c),
+              SleeveNode(c) {
         this->setFirst(paramVectorCutFirst(c));
         this->setLast(paramVectorCutLast(c));
     }

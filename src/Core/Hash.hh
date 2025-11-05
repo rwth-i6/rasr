@@ -77,7 +77,7 @@ struct StringHash {
     }
 };
 
-struct StringEquality : std::binary_function<const char*, const char*, bool> {
+struct StringEquality {
     bool operator()(const char* s, const char* t) const {
         return (s == t) || (std::strcmp(s, t) == 0);
     }

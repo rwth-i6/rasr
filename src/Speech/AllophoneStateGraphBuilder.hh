@@ -64,7 +64,9 @@ public:
         FunctorBase(AllophoneStateGraphBuilder& builder,
                     const std::string&          id,
                     BuilderInput... builderInput)
-                : builder_(builder), id_(id), builderInput_(builderInput...) {}
+                : builder_(builder),
+                  id_(id),
+                  builderInput_(builderInput...) {}
 
         const std::string& id() const {
             return id_;
@@ -210,8 +212,10 @@ public:
         return Functor<const std::string>(*this, s.fullName(), s.orth());
     }
     /** Builds allophone state acceptor for phoneme loops, cf. phoneme recognition. */
-    enum InputLevel { lemma,
-                      phone };
+    enum InputLevel {
+        lemma,
+        phone
+    };
     AllophoneStateGraphRef build(const InputLevel& level);
     AllophoneStateGraphRef build(std::tuple<const InputLevel&> const& t) {
         return build(std::get<0>(t));

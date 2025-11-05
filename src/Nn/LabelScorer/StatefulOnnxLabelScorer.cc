@@ -108,7 +108,7 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
 
 StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
@@ -200,7 +200,22 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContex
     return Core::ref(new OnnxHiddenStateScoringContext());  // Sentinel empty Ref as initial hidden state
 }
 
-Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+void StatefulOnnxLabelScorer::addInput(DataView const& input) {
+    Precursor::addInput(input);
+
+    initialHiddenState_ = OnnxHiddenStateRef();
+
+    if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
+        encoderStatesValue_     = Onnx::Value();
+        encoderStatesSizeValue_ = Onnx::Value();
+    }
+}
+
+size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    return 0u;
+}
+
+Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     OnnxHiddenStateScoringContextRef history(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
 
     bool updateState = false;
@@ -243,18 +258,11 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContext(
     return Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), newHiddenState));
 }
 
-void StatefulOnnxLabelScorer::addInput(DataView const& input) {
-    Precursor::addInput(input);
-
-    initialHiddenState_ = OnnxHiddenStateRef();
-
-    if (not encoderStatesValue_.empty()) {  // Any previously computed hidden state values are outdated now so reset them
-        encoderStatesValue_     = Onnx::Value();
-        encoderStatesSizeValue_ = Onnx::Value();
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
     }
-}
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
         // Only allow scoring once all encoder states have been passed
         return {};
@@ -304,16 +312,12 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result) {
         return {};
     }
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
-}
-
-size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    return 0u;
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {

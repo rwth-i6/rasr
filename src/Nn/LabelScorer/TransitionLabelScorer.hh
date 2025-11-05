@@ -41,9 +41,6 @@ public:
     // Initial context of base scorer
     ScoringContextRef getInitialScoringContext() override;
 
-    // Extend context via base scorer
-    ScoringContextRef extendedScoringContext(Request const& request) override;
-
     // Clean up base scorer
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
@@ -53,11 +50,15 @@ public:
     // Add inputs to sub-scorer
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
+protected:
+    // Extend context via base scorer
+    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
+
     // Compute score of base scorer and add transition score based on transition type of the request
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
 
     // Compute scores of base scorer and add transition scores based on transition types of the requests
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 
 private:
     std::unordered_map<TransitionType, Score> transitionScores_;

@@ -37,7 +37,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
 
 NoContextOnnxLabelScorer::NoContextOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::CTC),
           onnxModel_(select("onnx-model"), ioSpec),
           inputFeatureName_(onnxModel_.mapping.getOnnxName("input-feature")),
           scoresName_(onnxModel_.mapping.getOnnxName("scores")),

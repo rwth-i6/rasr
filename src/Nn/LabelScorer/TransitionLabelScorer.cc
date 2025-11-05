@@ -21,7 +21,7 @@ namespace Nn {
 
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::ALL),
           transitionScores_(),
           baseLabelScorer_(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("base-scorer"))) {
     for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {

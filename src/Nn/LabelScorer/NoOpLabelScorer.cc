@@ -19,7 +19,8 @@
 namespace Nn {
 
 StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config) {}
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::CTC) {}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());

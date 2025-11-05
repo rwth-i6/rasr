@@ -42,10 +42,10 @@ const Core::ParameterStringVector LabelScorer::paramExtraTransitionTypes(
         "Transition types that should be enabled in addition to the ones given by the preset.",
         ",");
 
-LabelScorer::LabelScorer(const Core::Configuration& config)
+LabelScorer::LabelScorer(const Core::Configuration& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
           enabledTransitionTypes_() {
-    enableTransitionTypes(config);
+    enableTransitionTypes(config, defaultPreset);
 }
 
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
@@ -126,10 +126,10 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesI
     return result;
 }
 
-void LabelScorer::enableTransitionTypes(Core::Configuration const& config) {
+void LabelScorer::enableTransitionTypes(Core::Configuration const& config, TransitionPresetType defaultPreset) {
     auto preset = paramTransitionPreset(config);
     if (preset == TransitionPresetType::DEFAULT) {
-        preset = defaultPreset();
+        preset = defaultPreset;
     }
     verify(preset != TransitionPresetType::DEFAULT);
 

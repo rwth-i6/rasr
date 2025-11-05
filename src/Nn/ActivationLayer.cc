@@ -23,7 +23,8 @@ using namespace Nn;
 /*===========================================================================*/
 template<typename T>
 IdentityLayer<T>::IdentityLayer(const Core::Configuration& config)
-        : Core::Component(config), NeuralNetworkLayer<T>(config) {}
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config) {}
 
 template<typename T>
 IdentityLayer<T>::~IdentityLayer() {}
@@ -54,7 +55,8 @@ void IdentityLayer<T>::backpropagateActivations(const NnMatrix& errorSignalIn,
 /*===========================================================================*/
 template<typename T>
 TanhLayer<T>::TanhLayer(const Core::Configuration& config)
-        : Core::Component(config), NeuralNetworkLayer<T>(config) {}
+        : Core::Component(config),
+          NeuralNetworkLayer<T>(config) {}
 
 template<typename T>
 TanhLayer<T>::~TanhLayer() {}

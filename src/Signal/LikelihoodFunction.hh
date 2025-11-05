@@ -35,7 +35,8 @@ private:
 
 public:
     LikelihoodFunction(const Core::Configuration& c)
-            : Component(c), sumOfWeights_(0) {}
+            : Component(c),
+              sumOfWeights_(0) {}
     virtual ~LikelihoodFunction() {}
 
     virtual bool setClasses(const std::vector<std::string>& classLabels) = 0;
@@ -83,7 +84,8 @@ private:
 private:
     /** Copying of Mm::FeatureScorer not supported. */
     IndependentSequenceLikelihood(const IndependentSequenceLikelihood& v)
-            : Component(v.getConfiguration()), Precursor(v.getConfiguration()) {}
+            : Component(v.getConfiguration()),
+              Precursor(v.getConfiguration()) {}
     IndependentSequenceLikelihood& operator=(const IndependentSequenceLikelihood&) {
         return *this;
     }

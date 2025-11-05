@@ -27,7 +27,9 @@
 using namespace Core;
 
 Archive::Archive(const Core::Configuration& config, const std::string& path, AccessMode access)
-        : Component(config), path_(path), access_(access) {
+        : Component(config),
+          path_(path),
+          access_(access) {
 }
 
 bool Archive::hasFile(const std::string& name) const {
@@ -361,7 +363,10 @@ public:
 }  // namespace
 
 ArchiveWriter::ArchiveWriter(Archive& archive, const std::string& path, bool compress)
-        : std::ostream(new ArchiveWriterBuffer(buffer_)), archive_(archive), path_(path), compress_(compress) {
+        : std::ostream(new ArchiveWriterBuffer(buffer_)),
+          archive_(archive),
+          path_(path),
+          compress_(compress) {
     isOpen_ = true;
 }
 

@@ -42,7 +42,9 @@ public:
 };
 
 FilterBank::Filter::Filter(size_t start, size_t end, const std::vector<FilterWeight>& weights)
-        : start_(start), end_(end), weights_(weights) {
+        : start_(start),
+          end_(end),
+          weights_(weights) {
     require(end_ >= start_);
     require(end_ - start_ == weights_.size());
 }
@@ -56,7 +58,7 @@ void FilterBank::Filter::normalize(FilterBank::NormalizationType normalizationTy
         else
             defect();
         std::transform(weights_.begin(), weights_.end(), weights_.begin(),
-                       std::bind2nd(std::divides<FilterWeight>(), normalizationTerm));
+                       std::bind(std::divides<FilterWeight>(), std::placeholders::_1, normalizationTerm));
     }
 }
 
@@ -223,7 +225,8 @@ protected:
 
 public:
     SymmetricalTriangularFilterBuilder(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+            : Core::Component(c),
+              FilterBank::FilterBuilder(c) {}
 
     virtual FilterBank::Frequency normalizedCenterPosition() const {
         return 0.5;
@@ -254,7 +257,8 @@ protected:
 
 public:
     TrapezeFilterBuilder(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+            : Core::Component(c),
+              FilterBank::FilterBuilder(c) {}
 
     virtual FilterBank::Frequency normalizedCenterPosition() const {
         return 2.5 / (1.3 - (-2.5));
@@ -291,7 +295,8 @@ protected:
 
 public:
     TrapezeRastaFilterBuilder(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::FilterBuilder(c) {}
+            : Core::Component(c),
+              FilterBank::FilterBuilder(c) {}
 
     virtual FilterBank::Frequency normalizedCenterPosition() const {
         return 2.5 / (1.3 - (-2.5));
@@ -479,7 +484,8 @@ class IncludeBoundary : public FilterBank::Boundary {
 
 public:
     IncludeBoundary(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::Boundary(c) {}
+            : Core::Component(c),
+              FilterBank::Boundary(c) {}
     virtual Frequency center(size_t filterIndex) const {
         return warpingFunction_->value(spacing_ * (filterIndex + 1));
     }
@@ -515,7 +521,8 @@ class StretchToCover : public FilterBank::Boundary {
 
 public:
     StretchToCover(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::Boundary(c) {}
+            : Core::Component(c),
+              FilterBank::Boundary(c) {}
 
     virtual bool init(Frequency                      filterWidth,
                       Frequency                      spacing,
@@ -571,7 +578,8 @@ class EmphasizeBoundary : public FilterBank::Boundary {
 
 public:
     EmphasizeBoundary(const Core::Configuration& c)
-            : Core::Component(c), FilterBank::Boundary(c) {}
+            : Core::Component(c),
+              FilterBank::Boundary(c) {}
 
     virtual Frequency center(size_t filterIndex) const {
         return warpingFunction_->value(spacing_ * filterIndex);

@@ -108,7 +108,7 @@ const std::vector<Onnx::IOSpecification> stateUpdaterModelIoSpec = {
 
 StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::LM),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),

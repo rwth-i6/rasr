@@ -62,7 +62,8 @@ public:
 
 template<class T>
 VectorSequenceAggregation<T>::VectorSequenceAggregation(const Core::Configuration& c)
-        : Component(c), Precursor(c) {
+        : Component(c),
+          Precursor(c) {
     expandTimestamp_ = paramVectorSequenceAggregationExpandTimestamp(c);
     addOutput(0);
 }

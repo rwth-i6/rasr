@@ -19,7 +19,7 @@ namespace Nn {
 
 EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& config, Core::Ref<Encoder> const& encoder, Core::Ref<LabelScorer> const& decoder)
         : Core::Component(config),
-          LabelScorer(config),
+          LabelScorer(config, TransitionPresetType::ALL),
           encoder_(encoder),
           decoder_(decoder) {
 }

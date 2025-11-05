@@ -28,9 +28,11 @@ class WindowBuffer {
 public:
     typedef Flow::Time Time;
     typedef f32        Sample;
-    enum FlushPolicy { SendRest,
-                       PadRest,
-                       DiscardRest };
+    enum FlushPolicy {
+        SendRest,
+        PadRest,
+        DiscardRest
+    };
     typedef Flow::Vector<Sample> InputData;
     typedef Flow::Vector<Sample> OutputData;
 

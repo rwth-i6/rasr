@@ -50,28 +50,37 @@ public:
     virtual ~NBestListExtractor();
 
     ConstWordLatticeRef getNBestList(ConstWordLatticeRef);
-    void                initialize(Bliss::LexiconRef);
-    void                setNumberOfHypotheses(u32 nHypotheses) {
+
+    void initialize(Bliss::LexiconRef);
+
+    void setNumberOfHypotheses(u32 nHypotheses) {
         targetNHypotheses_ = nHypotheses;
     }
+
     void setMinPruningThreshold(f32 minThreshold) {
         minThreshold_ = minThreshold;
     }
+
     void setMaxPruningThreshold(f32 maxThreshold) {
         maxThreshold_ = maxThreshold;
     }
+
     void setPruningIncrement(f32 thresholdIncrement) {
         thresholdIncrement_ = thresholdIncrement;
     }
+
     void setWorkOnOutput(bool workOnOutput) {
         workOnOutput_ = workOnOutput;
     }
+
     void setLatticeIsDeterministic(bool isDeterministic) {
         latticeIsDeterministic_ = isDeterministic;
     }
+
     void setHasFailArcs(bool hasFailArcs) {
         hasFailArcs_ = hasFailArcs;
     }
+
     void setNormalize(bool normalize) {
         normalize_ = normalize;
     }

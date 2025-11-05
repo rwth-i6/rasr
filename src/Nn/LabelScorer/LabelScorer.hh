@@ -120,7 +120,7 @@ public:
         Core::CollapsedVector<Speech::TimeframeIndex> timeframes;  // Timeframes vector is internally collapsed  if all timeframes are the same (e.g. time-sync decoding)
     };
 
-    LabelScorer(Core::Configuration const& config);
+    LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
@@ -178,14 +178,10 @@ protected:
     // By default loops over the single-request version
     virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests);
 
-    virtual TransitionPresetType defaultPreset() const {
-        return TransitionPresetType::NONE;
-    }
-
 private:
     std::unordered_set<TransitionType> enabledTransitionTypes_;
 
-    void enableTransitionTypes(Core::Configuration const& config);
+    void enableTransitionTypes(Core::Configuration const& config, TransitionPresetType defaultPreset);
 };
 
 }  // namespace Nn

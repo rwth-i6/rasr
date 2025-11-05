@@ -56,7 +56,8 @@ protected:
 
 public:
     AnalyticUnaryComposition(UnaryAnalyticFunctionRef f, UnaryAnalyticFunctionRef g)
-            : f_(f), g_(g) {
+            : f_(f),
+              g_(g) {
         require(f_);
         require(g_);
     }

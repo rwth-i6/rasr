@@ -86,10 +86,6 @@ protected:
     std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
     std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
-    virtual TransitionPresetType defaultPreset() const override {
-        return TransitionPresetType::LM;
-    }
-
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
     void forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& historyBatch);

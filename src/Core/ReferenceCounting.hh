@@ -67,9 +67,11 @@ protected:
 
 public:
     ReferenceCounted()
-            : referenceCount_(0), weak_refs_(nullptr) {}
+            : referenceCount_(0),
+              weak_refs_(nullptr) {}
     ReferenceCounted(const ReferenceCounted&)
-            : referenceCount_(0), weak_refs_(nullptr) {}
+            : referenceCount_(0),
+              weak_refs_(nullptr) {}
     ReferenceCounted& operator=(const ReferenceCounted&) {
         return *this;
     }

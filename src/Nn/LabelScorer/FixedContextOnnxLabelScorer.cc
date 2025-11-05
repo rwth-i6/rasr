@@ -72,7 +72,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
 
 FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::TRANSDUCER),
           startLabelIndex_(paramStartLabelIndex(config)),
           historyLength_(paramHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),

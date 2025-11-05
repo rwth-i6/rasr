@@ -167,11 +167,13 @@ Cart::Score StateTyingDecisionTreeTrainer::LogLikelihoodGain::logLikelihood(
                 }
             }
 
-#pragma omp critical  // if slow create e.g. std::vector<std::vector<f64> > mus_private(threadnum, std::vector<f64>(d, 0.0)) and merge them \
-                      // with an omp for over dimension                                                                                     \
-                      // and also merge with next for loop                                                                                  \
-                      // order is not defined, non-deterministic sum-up!
+#pragma omp critical
             {
+                /**
+                 * if slow create e.g. std::vector<std::vector<f64>> mus_private(threadnum, std::vector<f64>(d, 0.0)) and merge them
+                 * with an 'omp for' over dimension and also merge with next for loop;
+                 * order is not defined, non-deterministic sum-up!
+                 */
                 std::vector<f64>::iterator itMu_private          = mu_private.begin();
                 std::vector<f64>::iterator itSigmaSquare_private = sigmaSquare_private.begin();
                 std::vector<f64>::iterator itMu                  = mu_.begin();

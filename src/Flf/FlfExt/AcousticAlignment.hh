@@ -36,9 +36,15 @@ struct SubWord {
     Time               duration;
     Bliss::Phoneme::Id leftContext, rightContext;
     SubWord(Fsa::LabelId label, Time duration)
-            : label(label), duration(duration), leftContext(Bliss::Phoneme::term), rightContext(Bliss::Phoneme::term) {}
+            : label(label),
+              duration(duration),
+              leftContext(Bliss::Phoneme::term),
+              rightContext(Bliss::Phoneme::term) {}
     SubWord(Fsa::LabelId label, Time duration, Bliss::Phoneme::Id leftContext, Bliss::Phoneme::Id rightContext)
-            : label(label), duration(duration), leftContext(leftContext), rightContext(rightContext) {}
+            : label(label),
+              duration(duration),
+              leftContext(leftContext),
+              rightContext(rightContext) {}
 };
 
 class SubWordAlignment : public std::vector<SubWord>, public Core::ReferenceCounted {
@@ -50,11 +56,14 @@ private:
 
 public:
     SubWordAlignment()
-            : Precursor(), label_(Fsa::InvalidLabelId) {}
+            : Precursor(),
+              label_(Fsa::InvalidLabelId) {}
     SubWordAlignment(Fsa::LabelId label)
-            : Precursor(), label_(label) {}
+            : Precursor(),
+              label_(label) {}
     SubWordAlignment(Fsa::LabelId label, const SubWord& sw)
-            : Precursor(1, sw), label_(label) {}
+            : Precursor(1, sw),
+              label_(label) {}
     void setLabel(Fsa::LabelId label) {
         label_ = label;
     }
@@ -88,7 +97,8 @@ public:
     void setNonWordLemmaPronunciations(const Lexicon::ConstLemmaPronunciationPtrList& nonWordLemmaProns);
 
     const AcousticPhonemeSequenceAligner* aligner() const;
-    u32                                   size() const {
+
+    u32 size() const {
         return size_;
     }
 

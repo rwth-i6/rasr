@@ -25,7 +25,8 @@ Core::ParameterFloat CombineLabelScorer::paramScale(
         "scale", "Scores of a sub-label-scorer are scaled by this factor", 1.0);
 
 CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config), scaledScorers_() {
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::ALL) {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));

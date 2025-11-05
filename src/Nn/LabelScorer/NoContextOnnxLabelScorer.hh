@@ -61,10 +61,6 @@ protected:
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
-    virtual TransitionPresetType defaultPreset() const override {
-        return TransitionPresetType::CTC;
-    }
-
 private:
     Onnx::Model onnxModel_;
 

@@ -21,7 +21,7 @@ namespace Nn {
 
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::ALL),
           transitionScores_() {
     for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
         auto paramName               = std::string(stringIdentifier) + "-score";
@@ -34,13 +34,13 @@ void TransitionLabelScorer::reset() {}
 void TransitionLabelScorer::signalNoMoreFeatures() {}
 
 ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
-    return Core::ref(new StepScoringContext());
+    return Core::ref(new ScoringContext());
 }
 
 void TransitionLabelScorer::addInput(DataView const& input) {}
 
 ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    return Core::ref(new StepScoringContext());
+    return Core::ref(new ScoringContext());
 }
 
 std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {

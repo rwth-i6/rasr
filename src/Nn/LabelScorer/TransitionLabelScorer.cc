@@ -21,7 +21,7 @@ namespace Nn {
 
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::ALL),
           transitionScores_(),
           baseLabelScorer_(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("base-scorer"))) {
     for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
@@ -42,10 +42,6 @@ ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
     return baseLabelScorer_->getInitialScoringContext();
 }
 
-ScoringContextRef TransitionLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
-    return baseLabelScorer_->extendedScoringContext(request);
-}
-
 void TransitionLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     baseLabelScorer_->cleanupCaches(activeContexts);
 }
@@ -58,7 +54,11 @@ void TransitionLabelScorer::addInputs(DataView const& input, size_t nTimesteps) 
     baseLabelScorer_->addInputs(input, nTimesteps);
 }
 
-std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
+    return baseLabelScorer_->extendedScoringContext(request);
+}
+
+std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     auto result = baseLabelScorer_->computeScoreWithTime(request);
     if (result) {
         result->score += transitionScores_[request.transitionType];
@@ -66,7 +66,11 @@ std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWit
     return result;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
     auto results = baseLabelScorer_->computeScoresWithTimes(requests);
     if (results) {
         for (size_t i = 0ul; i < requests.size(); ++i) {

@@ -392,6 +392,17 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
+        clog() << Core::XmlFull("timestep", currentSearchStep_);
+    }
+
+
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < extensions_.size(); ++hypIdx) {
+            ss << "Extension " << hypIdx + 1ul << ":  " << "next token: " << extensions_[hypIdx].nextToken << ", score: " << extensions_[hypIdx].score << ", base hyp: " << extensions_[hypIdx].baseHypIndex << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
     }
 
     /*
@@ -470,6 +481,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 extensions_.push_back(wordEndExtension);
             }
         }
+    }
+
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < extensions_.size(); ++hypIdx) {
+            ss << "Word-End Extension " << hypIdx + 1ul << ":  " << "next token: " << extensions_[hypIdx].nextToken << ", pron: " << extensions_[hypIdx].pron->lemma()->preferredOrthographicForm().str() << ", score: " << extensions_[hypIdx].score << ", base hyp: " << extensions_[hypIdx].baseHypIndex << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
     }
 
     /*

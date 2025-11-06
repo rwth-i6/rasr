@@ -48,28 +48,22 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace() {
+    Core::Ref<LatticeTrace> predecessor;
     switch (extension.transitionType) {
-        case Nn::LabelScorer::INITIAL_BLANK:
-        case Nn::LabelScorer::INITIAL_LABEL:
-        case Nn::LabelScorer::LABEL_TO_LABEL:
-        case Nn::LabelScorer::LABEL_TO_BLANK:
-        case Nn::LabelScorer::BLANK_TO_LABEL:
-            trace = Core::ref(new LatticeTrace(
-                    base.trace,
-                    extension.pron,
-                    extension.timeframe + 1,
-                    {extension.score, 0},
-                    {}));
+        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
+        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+            predecessor = base.trace->predecessor;
             break;
-        case Nn::LabelScorer::LABEL_LOOP:
-        case Nn::LabelScorer::BLANK_LOOP:
-            // Copy base trace and update it
-            trace                 = Core::ref(new LatticeTrace(*base.trace));
-            trace->sibling        = {};
-            trace->score.acoustic = extension.score;
-            trace->time           = extension.timeframe + 1;
+        default:
+            predecessor = base.trace;
             break;
     }
+    trace = Core::ref(new LatticeTrace(
+            predecessor,
+            extension.pron,
+            extension.timeframe + 1,
+            {score, 0},
+            {}));
 }
 
 std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {

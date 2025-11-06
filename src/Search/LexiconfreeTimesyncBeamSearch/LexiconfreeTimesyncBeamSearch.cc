@@ -501,12 +501,32 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesync
 }
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
+    // Represents a unique combination of currentToken and scoringContext
+    struct RecombinationContext {
+        Nn::LabelIndex        currentToken;
+        Nn::ScoringContextRef scoringContext;
+
+        RecombinationContext(LabelHypothesis const& hyp)
+                : currentToken(hyp.currentToken), scoringContext(hyp.scoringContext) {}
+
+        bool operator==(RecombinationContext const& other) const {
+            return currentToken == other.currentToken and Nn::ScoringContextEq{}(scoringContext, other.scoringContext);
+        }
+    };
+    struct RecombinationContextHash {
+        size_t operator()(RecombinationContext const& context) const {
+            size_t h1 = context.currentToken;
+            size_t h2 = Nn::ScoringContextHash{}(context.scoringContext);
+            return Core::combineHashes(h1, h2);
+        }
+    };
+
     recombinedHypotheses_.clear();
     // Map each unique ScoringContext in newHypotheses to its hypothesis
-    std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
+    std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
     for (auto const& hyp : hypotheses) {
         // Use try_emplace to check if the scoring context already exists and create a new entry if not at the same time
-        auto [it, inserted] = seenScoringContexts.try_emplace(hyp.scoringContext, nullptr);
+        auto [it, inserted] = seenScoringContexts.try_emplace({hyp}, nullptr);
 
         if (inserted) {
             // First time seeing this scoring context so move it over to `newHypotheses`

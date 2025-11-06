@@ -1,3 +1,18 @@
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 #include "Traceback.hh"
 
 namespace Search {
@@ -15,84 +30,42 @@ inline Core::Ref<const Traceback> traceback(Core::Ref<LatticeTrace> end, Core::R
     return Core::ref(result);
 }
 
-class RootTraceSearcher {
+/*
+ * Used to track the longest common prefix of hypotheses during search (i.e. the stable prefix).
+ *
+ * It internally saves the most recent stable prefix and can advance it forward using a list of traces assuming the current
+ * stable prefix is a common prefix of all the traces.
+ */
+class StableTraceTracker {
 public:
-    RootTraceSearcher(const std::vector<Core::Ref<LatticeTrace>>& traces)
-            : rootTrace_(0) {
-        for (std::vector<Core::Ref<LatticeTrace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
-            addTrace(it->get(), 0, true);
-        }
+    /*
+     * Initializes the stable trace tracker with an empty stable prefix.
+     */
+    StableTraceTracker();
 
-        for (std::unordered_map<LatticeTrace*, TraceDesc>::iterator it = traces_.begin(); it != traces_.end(); ++it) {
-            if (it->second.length == 1) {
-                // This is "the" root trace
-                rootTrace_ = it->first;
-            }
-        }
+    /*
+     * Initializes the stable trace tracker with the given initial trace.
+     */
+    StableTraceTracker(Core::Ref<LatticeTrace const> const& initialTrace);
 
-        TraceDesc     desc       = traces_[rootTrace_];
-        LatticeTrace* prev_trace = rootTrace_;
-        while (desc.followers.size() == 1 && !desc.has_active_hyps) {  // can not be sure if current root trace still has active state
-            LatticeTrace* follower = desc.followers.front();
-            if (traces_[follower].has_active_hyps) {
-                break;
-            }
-            prev_trace = rootTrace_;
-            rootTrace_ = follower;
-            desc       = traces_[rootTrace_];
-        }
+    /*
+     * Forcefully sets the stable trace tracker to the given trace.
+     */
+    void setTrace(Core::Ref<LatticeTrace const> const& trace);
 
-        for (LatticeTrace* follower : desc.followers) {
-            // when follower is an epsilon transition, the trace is not yet stable
-            if (follower->pronunciation == epsilonLemmaPronunciation()) {
-                rootTrace_ = prev_trace;
-                break;
-            }
-        }
-    }
+    /*
+     * Get currently stored stable trace.
+     */
+    Core::Ref<LatticeTrace const> getStablePrefixTrace() const;
 
-    LatticeTrace* rootTrace() const {
-        return rootTrace_;
-    }
+    /*
+     * Advances the stable trace as much as possible using the given list of traces.
+     * Assumes that all the given traces contain the current stable trace somewhere as a predecessor.
+     */
+    void advanceStablePrefix(std::vector<Core::Ref<LatticeTrace const>> const& traces);
 
 private:
-    int addTrace(LatticeTrace* trace, LatticeTrace* follower, bool has_active_hyps = false) {
-        std::unordered_map<LatticeTrace*, TraceDesc>::iterator it = traces_.find(trace);
-
-        if (it != traces_.end()) {
-            // Already there, just add follower
-            TraceDesc& desc((*it).second);
-            desc.has_active_hyps |= has_active_hyps;
-            if (follower) {
-                desc.followers.push_back(follower);
-            }
-            return desc.length;
-        }
-        else {
-            // Add the predecessors, compute the length, and add the new trace + follower
-            int length = 1;
-            if (trace->predecessor) {
-                length += addTrace(trace->predecessor.get(), trace, false);
-            }
-            TraceDesc desc;
-            desc.length          = length;
-            desc.has_active_hyps = has_active_hyps;
-            if (follower) {
-                desc.followers.push_back(follower);
-            }
-            traces_.insert(std::make_pair(trace, desc));
-            return length;
-        }
-    }
-
-    struct TraceDesc {
-        int                        length;
-        std::vector<LatticeTrace*> followers;
-        bool                       has_active_hyps;
-    };
-
-    std::unordered_map<LatticeTrace*, TraceDesc> traces_;
-    LatticeTrace*                                rootTrace_;
+    Core::Ref<LatticeTrace const> stablePrefixTrace_;
 };
 
 }  // namespace Search

@@ -26,6 +26,7 @@
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
+#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -65,11 +66,10 @@ public:
     void                           putFeature(Nn::DataView const& feature) override;
     void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
-    Core::Ref<LatticeTrace>           getRootTrace() const override;
-    Core::Ref<const Traceback>        getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const override;
-    Core::Ref<const LatticeAdaptor>   getCurrentBestWordLattice() const override;
-    Core::Ref<LatticeTrace>           getCommonPrefix() const override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeTrace>   getCurrentStableTrace() const override;
+    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
 
     bool decodeStep() override;
 
@@ -77,18 +77,26 @@ protected:
     /*
      * Possible extension for some label hypothesis in the beam
      */
-    struct ExtensionCandidate {
-        Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
-        const Bliss::LemmaPronunciation* pron;            // Pronunciation of the lemma if we are at a word end
-        StateId                          state;           // State in the search tree of this extension
-        Lm::History                      lmHistory;       // LM history of the hypothesis, possibly extended at a word end
-        Score                            score;           // Would-be total score of the full hypothesis after extension (incl. LM score)
-        Score                            lmScore;         // Would-be LM score of a word-end hypothesis after extension
-        Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
-        size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+    struct WithinWordExtensionCandidate {
+        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
+        StateId                         nextState;       // State in the search tree of this extension
+        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
+        Score                           score;           // Would-be total score of the full hypothesis after extension
+        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
+        size_t                          baseHypIndex;    // Index of base hypothesis in beam
 
-        bool operator<(ExtensionCandidate const& other) {
+        bool operator<(WithinWordExtensionCandidate const& other) {
+            return score < other.score;
+        }
+    };
+
+    struct WordEndExtensionCandidate {
+        Bliss::LemmaPronunciation const* pron;          // Proposed lemma pronunciation
+        StateId                          rootState;     // Proposed root-state to transition to
+        Score                            score;         // Would-be total score of the full hypothesis after LM score contribution
+        size_t                           baseHypIndex;  // Index of base hypothesis in beam
+
+        bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;
         }
     };
@@ -101,11 +109,17 @@ protected:
         Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
         StateId                 currentState;    // Current state in the search tree
         Lm::History             lmHistory;       // Language model history
+        Speech::TimeframeIndex  timeframe;       // Timeframe of current token
         Score                   score;           // Full score of the hypothesis
         Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building of hypothesis
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
+
+        // Within-word constructor from base and within-word extension
+        LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
+
+        // Word-end constructor from base and word-end extension
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -138,12 +152,13 @@ private:
     Core::Channel                      debugChannel_;
 
     // Pre-allocated intermediate vectors
-    std::vector<ExtensionCandidate>       extensions_;
-    std::vector<LabelHypothesis>          beam_;
-    std::vector<LabelHypothesis>          newBeam_;
-    std::vector<LabelHypothesis>          wordEndHypotheses_;
-    std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
+    std::vector<WordEndExtensionCandidate>    wordEndExtensions_;
+    std::vector<LabelHypothesis>              beam_;
+    std::vector<LabelHypothesis>              newBeam_;
+    std::vector<LabelHypothesis>              wordEndHypotheses_;
+    std::vector<Nn::LabelScorer::Request>     requests_;
+    std::vector<LabelHypothesis>              recombinedHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
@@ -165,7 +180,9 @@ private:
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
 
-    Core::Ref<LatticeTrace> rootTrace_;
+    // These are modified during getCurrentBestStableTraceback
+    StableTraceTracker mutable stableTraceTracker_;
+    bool mutable canUpdateStablePrefix_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -182,17 +199,20 @@ private:
     /*
      * Helper function for pruning to maxBeamSize
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold
      */
-    void scorePruning(std::vector<TreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score scoreThreshold) const;
+    template<typename Element>
+    void scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const;
 
     /*
-     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history
+     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history.
+     * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
-    void recombination(std::vector<LabelHypothesis>& hypotheses);
+    void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
 
     /*
      * Precompute information about the successor structure of each state in the search tree

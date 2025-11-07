@@ -142,8 +142,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
           finishedSegment_(false),
-          stableTraceTracker_(),
-          canUpdateStablePrefix_(false) {
+          rootTrace_() {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
@@ -191,8 +190,7 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    stableTraceTracker_.setTrace(beam_.front().trace);
-    canUpdateStablePrefix_ = false;
+    rootTrace_ = beam_.front().trace;
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
@@ -230,26 +228,16 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
     featureProcessingTime_.stop();
 }
 
+Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
+}
+
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCurrentStableTrace() const {
-    if (canUpdateStablePrefix_) {
-        std::vector<Core::Ref<LatticeTrace const>> traces;
-        traces.reserve(beam_.size());
-        for (auto const& hyp : beam_) {
-            traces.push_back(hyp.trace);
-        }
-        stableTraceTracker_.advanceStablePrefix(traces);
-        canUpdateStablePrefix_ = false;
-    }
-
-    return stableTraceTracker_.getStablePrefixTrace();
-}
-
-Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentStableTraceback() const {
-    return getCurrentStableTrace()->performTraceback();
+Core::Ref<const LatticeTraceback> LexiconfreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
+    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -263,6 +251,20 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
@@ -380,8 +382,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * Log statistics about the new beam after this step.
      */
     beam_.swap(newBeam_);
-
-    canUpdateStablePrefix_ = true;
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;

@@ -19,7 +19,6 @@ LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/StateTree.o \
 		$(OBJDIR)/StateTreeIo.o \
 		$(OBJDIR)/Traceback.o \
-		$(OBJDIR)/TracebackHelper.o \
 		$(OBJDIR)/TreeBuilder.o \
 		$(OBJDIR)/TreeStructure.o
 

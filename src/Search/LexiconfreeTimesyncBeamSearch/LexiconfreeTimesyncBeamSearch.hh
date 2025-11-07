@@ -25,7 +25,6 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
-#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -60,10 +59,11 @@ public:
     void                           putFeature(Nn::DataView const& feature) override;
     void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
-    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeTrace>   getCurrentStableTrace() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() const override;
-    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<LatticeTrace>           getRootTrace() const override;
+    Core::Ref<const Traceback>        getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const override;
+    Core::Ref<const LatticeAdaptor>   getCurrentBestWordLattice() const override;
+    Core::Ref<LatticeTrace>           getCommonPrefix() const override;
 
     bool decodeStep() override;
 
@@ -146,8 +146,7 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    mutable StableTraceTracker stableTraceTracker_;
-    mutable bool               canUpdateStablePrefix_;
+    Core::Ref<LatticeTrace> rootTrace_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

@@ -175,8 +175,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           numActiveTrees_("num-active-trees"),
-          stableTraceTracker_(),
-          canUpdateStablePrefix_(false) {
+          rootTrace_() {
     if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
@@ -262,8 +261,7 @@ void TreeTimesyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
-    stableTraceTracker_.setTrace(beam_.front().trace);
-    canUpdateStablePrefix_ = false;
+    rootTrace_ = beam_.front().trace;
 
     initializationTime_.stop();
 }
@@ -304,26 +302,16 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
     featureProcessingTime_.stop();
 }
 
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
+    return rootTrace_;
+}
+
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCurrentStableTrace() const {
-    if (canUpdateStablePrefix_) {
-        std::vector<Core::Ref<LatticeTrace const>> traces;
-        traces.reserve(beam_.size());
-        for (auto const& hyp : beam_) {
-            traces.push_back(hyp.trace);
-        }
-        stableTraceTracker_.advanceStablePrefix(traces);
-        canUpdateStablePrefix_ = false;
-    }
-
-    return stableTraceTracker_.getStablePrefixTrace();
-}
-
-Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentStableTraceback() const {
-    return getCurrentStableTrace()->performTraceback();
+Core::Ref<const LatticeTraceback> TreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
+    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -337,6 +325,20 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<LatticeTrace>(searcher.rootTrace());
 }
 
 bool TreeTimesyncBeamSearch::decodeStep() {
@@ -500,8 +502,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
-
-    canUpdateStablePrefix_ = true;
 
     numActiveHyps_ += beam_.size();
 

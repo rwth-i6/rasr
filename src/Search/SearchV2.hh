@@ -81,9 +81,6 @@ public:
     // Pass feature vectors for multiple time steps.
     virtual void putFeatures(Nn::DataView const& features, size_t nTimesteps) = 0;
 
-    // Return the first trace of all hypotheses. Needed for computing partial trace.
-    virtual Core::Ref<LatticeTrace> getRootTrace() const = 0;
-
     // Return the current best traceback of TracebackItem. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
 

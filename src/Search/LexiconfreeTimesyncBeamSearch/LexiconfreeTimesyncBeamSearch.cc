@@ -234,10 +234,6 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
     featureProcessingTime_.stop();
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
 }

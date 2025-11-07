@@ -300,10 +300,6 @@ Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() con
     return getBestHypothesis().trace->performTraceback();
 }
 
-Core::Ref<const LatticeTraceback> TreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
-    return performLatticeTraceback(getBestHypothesis().trace);
-}
-
 Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
     auto&        bestHypothesis = getBestHypothesis();
     LatticeTrace endTrace(bestHypothesis.trace, 0, bestHypothesis.trace->time + 1, bestHypothesis.trace->score, {});
@@ -315,6 +311,10 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
 }
 
 Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {

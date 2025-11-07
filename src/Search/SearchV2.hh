@@ -87,11 +87,11 @@ public:
     // Return the current best traceback of TracebackItem. May contain unstable results.
     virtual Core::Ref<const Traceback> getCurrentBestTraceback() const = 0;
 
-    // Return the current best traceback of Ref LatticeTrace. May contain unstable results.
-    virtual Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const = 0;
-
     // Similar to `getCurrentBestTraceback` but return the lattice instead of just single-best traceback.
     virtual Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const = 0;
+
+    // Return the current best LatticeTrace.
+    virtual Core::Ref<const LatticeTrace> getCurrentBestLatticeTrace() const = 0;
 
     // Return common prefix of all active traces.
     virtual Core::Ref<LatticeTrace> getCommonPrefix() const = 0;

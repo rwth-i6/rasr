@@ -15,6 +15,8 @@
 
 #include "TracebackHelper.hh"
 
+namespace Search {
+
 StableTraceTracker::StableTraceTracker() : stablePrefixTrace_() {}
 
 StableTraceTracker::StableTraceTracker(Core::Ref<LatticeTrace const> const& initialTrace) : stablePrefixTrace_(initialTrace) {}
@@ -67,3 +69,5 @@ void StableTraceTracker::advanceStablePrefix(std::vector<Core::Ref<LatticeTrace 
         stablePrefixTrace_ = candidateNext;
     }
 }
+
+}  // namespace Search

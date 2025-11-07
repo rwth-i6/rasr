@@ -501,6 +501,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
 
+    canUpdateStablePrefix_ = true;
+
     numActiveHyps_ += beam_.size();
 
     /*
@@ -623,8 +625,7 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
     }
 }
 
-template<typename Element>
-void TreeTimesyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const {
+void TreeTimesyncBeamSearch::beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const {
     if (hypotheses.size() <= maxBeamSize) {
         return;
     }
@@ -633,9 +634,6 @@ void TreeTimesyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, s
     std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end());
     hypotheses.resize(maxBeamSize);  // Get rid of excessive elements
 }
-
-template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, size_t) const;
-template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, size_t) const;
 
 template<typename Element>
 void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const {

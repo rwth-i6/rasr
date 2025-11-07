@@ -199,8 +199,7 @@ private:
     /*
      * Helper function for pruning to maxBeamSize
      */
-    template<typename Element>
-    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
+    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold

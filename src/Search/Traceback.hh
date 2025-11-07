@@ -113,6 +113,8 @@ public:
 
     LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit);
 
+    LatticeTrace(LatticeTrace const& other) = delete;
+
     /*
      * Append sibling chain to the end of the own sibling chain
      * Example: If we have sibling chains

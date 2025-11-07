@@ -94,7 +94,7 @@ public:
     virtual Core::Ref<const LatticeTrace> getCurrentBestLatticeTrace() const = 0;
 
     // Return common prefix of all active traces.
-    virtual Core::Ref<LatticeTrace> getCommonPrefix() const = 0;
+    virtual Core::Ref<const LatticeTrace> getCommonPrefix() const = 0;
 
     // Try to decode one more step. Return bool indicates whether a step could be made.
     virtual bool decodeStep() = 0;

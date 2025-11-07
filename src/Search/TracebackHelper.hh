@@ -15,6 +15,15 @@ inline Core::Ref<const Traceback> traceback(Core::Ref<LatticeTrace> end, Core::R
     return Core::ref(result);
 }
 
+inline Core::Ref<const LatticeTraceback> latticeTraceback(Core::Ref<const LatticeTrace> end, Core::Ref<const LatticeTrace> boundary) {
+    LatticeTraceback* result = new LatticeTraceback();
+    for (; end && end != boundary; end = end->predecessor) {
+        result->push_back(end);
+    }
+    std::reverse(result->begin(), result->end());
+    return Core::ref(result);
+}
+
 class RootTraceSearcher {
 public:
     RootTraceSearcher(const std::vector<Core::Ref<LatticeTrace>>& traces)

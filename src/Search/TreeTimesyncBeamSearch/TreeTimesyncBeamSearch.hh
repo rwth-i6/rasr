@@ -69,7 +69,7 @@ public:
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
-    Core::Ref<LatticeTrace>         getCommonPrefix() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
     bool decodeStep() override;
 

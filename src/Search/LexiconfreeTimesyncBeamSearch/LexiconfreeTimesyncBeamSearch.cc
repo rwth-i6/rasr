@@ -259,7 +259,7 @@ Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCurrentBestLatti
     return getBestHypothesis().trace;
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
+Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
     std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         traces[hypIndex] = beam_[hypIndex].trace;
@@ -270,7 +270,7 @@ Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
         warning("Common prefix of all traces is a sentinel value");
     }
 
-    return Core::Ref<LatticeTrace>(searcher.rootTrace());
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {

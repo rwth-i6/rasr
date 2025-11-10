@@ -298,7 +298,8 @@ void CorpusDescriptionParser::initSchema() {
 }
 
 CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c)
-        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+        : XmlSchemaParser(c),
+          progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
     initSchema();
 
     isSubParser_    = false;
@@ -312,7 +313,8 @@ CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c)
 }
 
 CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c, Corpus* _corpus)
-        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+        : XmlSchemaParser(c),
+          progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
     initSchema();
 
     isSubParser_    = true;

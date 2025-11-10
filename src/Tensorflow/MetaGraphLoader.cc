@@ -63,7 +63,9 @@ std::unique_ptr<Graph> MetaGraphLoader::load_graph() {
     setGraphDef(*result, graph_def);
 
     for (std::string const& lib : required_libraries_) {
-        result->addLibrary(lib);
+        bool success = result->addLibrary(lib);
+        if (!success)
+            criticalError("Could not add library '%s': file not found.", lib.c_str());
     }
 
     std::unordered_map<std::string, Variable> vars;

@@ -36,7 +36,8 @@ protected:
 
 public:
     BuildGrammar(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), OutputTypeDependent(c) {}
+            : Operation(c, r),
+              OutputTypeDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -63,7 +64,9 @@ public:
 
 public:
     BuildLexicon(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), DisambiguatorDependentOperation(c, r), OutputTypeDependent(c) {}
+            : Operation(c, r),
+              DisambiguatorDependentOperation(c, r),
+              OutputTypeDependent(c) {}
     virtual bool consumeInput() const {
         return false;
     }
@@ -89,7 +92,8 @@ public:
 class BuildOldLexicon : public BuildLexicon {
 public:
     BuildOldLexicon(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), BuildLexicon(c, r) {}
+            : Operation(c, r),
+              BuildLexicon(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -106,7 +110,8 @@ public:
 class CloseLexicon : public SleeveOperation {
 public:
     CloseLexicon(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -119,15 +124,18 @@ public:
 
 class LemmaMapping : public DisambiguatorDependentOperation {
 protected:
-    enum MapType { LemmaPronunciationToLemma,
-                   LemmaToSyntacticToken };
+    enum MapType {
+        LemmaPronunciationToLemma,
+        LemmaToSyntacticToken
+    };
     static const Core::Choice          mapChoice;
     static const Core::ParameterChoice paramMapType;
     static const Core::ParameterFloat  paramScale;
 
 public:
     LemmaMapping(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), DisambiguatorDependentOperation(c, r) {}
+            : Operation(c, r),
+              DisambiguatorDependentOperation(c, r) {}
     virtual u32 nInputAutomata() const {
         return 0;
     }
@@ -147,7 +155,8 @@ protected:
 
 public:
     AddPronunciationWeight(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), DisambiguatorDependentOperation(c, r) {}
+            : Operation(c, r),
+              DisambiguatorDependentOperation(c, r) {}
     virtual u32 nInputAutomata() const {
         return 0;
     }
@@ -167,7 +176,8 @@ public:
 class RestoreOutputSymbols : public SleeveOperation {
 public:
     RestoreOutputSymbols(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -184,7 +194,9 @@ public:
 class RemovePhoneDisambiguators : public DisambiguatorDependentOperation, public SleeveOperation {
 public:
     RemovePhoneDisambiguators(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), DisambiguatorDependentOperation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              DisambiguatorDependentOperation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual u32 nInputAutomata() const {
@@ -206,7 +218,8 @@ public:
 class PushOutputLabels : public SleeveOperation {
 public:
     PushOutputLabels(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -222,7 +235,8 @@ class CheckLabels : public SleeveOperation {
 
 public:
     CheckLabels(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -250,7 +264,10 @@ class AddNonWordTokens : public OutputTypeDependent, public SleeveOperation {
 
 public:
     AddNonWordTokens(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), OutputTypeDependent(c), SleeveOperation(c, r), renormalize_(paramRenormalize(Operation::config)) {}
+            : Operation(c, r),
+              OutputTypeDependent(c),
+              SleeveOperation(c, r),
+              renormalize_(paramRenormalize(Operation::config)) {}
     virtual u32 nInputAutomata() const {
         return SleeveOperation::nInputAutomata();
     }
@@ -281,7 +298,8 @@ public:
 class RemoveEmptyPath : public SleeveOperation {
 public:
     RemoveEmptyPath(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -303,7 +321,9 @@ class CreateSubwordGrammar : public OutputTypeDependent, public SleeveOperation 
 
 public:
     CreateSubwordGrammar(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), OutputTypeDependent(c), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              OutputTypeDependent(c),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef             process();
@@ -324,7 +344,8 @@ public:
 class ContextBuilder : public SleeveOperation {
 public:
     ContextBuilder(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
     bool consumeInput() const {
         return false;
     }
@@ -345,7 +366,8 @@ public:
 class HmmBuilder : public DisambiguatorDependentOperation {
 public:
     HmmBuilder(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), DisambiguatorDependentOperation(c, r) {}
+            : Operation(c, r),
+              DisambiguatorDependentOperation(c, r) {}
     virtual bool consumeInput() const {
         return false;
     }
@@ -369,7 +391,9 @@ protected:
 
 public:
     CreateStateSequences(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), filename_(paramFilename(config)) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              filename_(paramFilename(config)) {}
 
 protected:
     virtual bool         precondition() const;
@@ -388,7 +412,8 @@ protected:
 
 public:
     NonWordDependentOperation(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), addNonWords_(paramAddNonWords(c)) {}
+            : Operation(c, r),
+              addNonWords_(paramAddNonWords(c)) {}
 
 protected:
     u32  numSpecialSymbols() const;
@@ -405,7 +430,9 @@ protected:
 
 public:
     Factorize(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), NonWordDependentOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              NonWordDependentOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -425,7 +452,9 @@ class ExpandStates : public SleeveOperation, public NonWordDependentOperation {
 
 public:
     ExpandStates(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), NonWordDependentOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              NonWordDependentOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -454,10 +483,13 @@ protected:
 public:
     ConvertStateSequences(const Core::Configuration& c, Resources& r)
             : Operation(c, r) {}
+
     virtual bool precondition() const;
-    virtual u32  nInputAutomata() const {
+
+    virtual u32 nInputAutomata() const {
         return 0;
     }
+
     virtual bool hasOutput() const {
         return false;
     }

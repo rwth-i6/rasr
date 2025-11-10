@@ -31,7 +31,8 @@ protected:
 
 public:
     ChangeInputAlphabetAutomaton(ConstAutomatonRef f, const Fsa::ConstAlphabetRef a)
-            : Precursor(f), inputAlphabet_(a) {}
+            : Precursor(f),
+              inputAlphabet_(a) {}
     virtual Fsa::ConstAlphabetRef getInputAlphabet() const {
         return inputAlphabet_;
     }
@@ -56,7 +57,8 @@ protected:
 
 public:
     ChangeOutputAlphabetAutomaton(ConstAutomatonRef f, const Fsa::ConstAlphabetRef a)
-            : Precursor(f), outputAlphabet_(a) {}
+            : Precursor(f),
+              outputAlphabet_(a) {}
     virtual Fsa::ConstAlphabetRef getOutputAlphabet() const {
         return outputAlphabet_;
     }
@@ -81,7 +83,8 @@ protected:
 
 public:
     ChangeInputOutputAlphabetAutomaton(ConstAutomatonRef f, const Fsa::ConstAlphabetRef a)
-            : Precursor(f), alphabet_(a) {}
+            : Precursor(f),
+              alphabet_(a) {}
     virtual Fsa::ConstAlphabetRef getInputAlphabet() const {
         return alphabet_;
     }

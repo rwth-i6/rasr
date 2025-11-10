@@ -37,10 +37,12 @@ public:
     /**
      * Different types of archives handled by this class.
      **/
-    enum Type { TypeUnknown,
-                TypeDirectory,
-                TypeFile,
-                TypeBundle };
+    enum Type {
+        TypeUnknown,
+        TypeDirectory,
+        TypeFile,
+        TypeBundle
+    };
 
     /**
      * Different access types to archives.
@@ -59,7 +61,8 @@ public:
 
     public:
         Sizes(u32 uncompressed = 0, u32 compressed = 0)
-                : uncompressed_(uncompressed), compressed_(compressed) {}
+                : uncompressed_(uncompressed),
+                  compressed_(compressed) {}
         void setUncompressed(u32 uncompressed) {
             uncompressed_ = uncompressed;
         }
@@ -83,9 +86,11 @@ public:
         virtual ~_const_iterator() {}
         virtual _const_iterator& operator++()          = 0;
         virtual                  operator bool() const = 0;
-        const std::string&       name() {
+
+        const std::string& name() {
             return name_;
         }
+
         const Sizes& sizes() {
             return sizes_;
         }

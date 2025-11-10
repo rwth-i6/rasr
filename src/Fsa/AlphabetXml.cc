@@ -51,7 +51,8 @@ void AlphabetXmlParser::alphabetCharacters(const char* ch, int len) {
 
 AlphabetXmlParser::AlphabetXmlParser(
         const char* name, Core::XmlContext* context, Core::Ref<StaticAlphabet> a)
-        : Core::XmlRegularElement(name, context), a_(a) {
+        : Core::XmlRegularElement(name, context),
+          a_(a) {
     XmlElement* symbol = new Core::XmlMixedElementRelay("symbol", this, startHandler(&Self::symbolStart), endHandler(&Self::symbolEnd),
                                                         charactersHandler(&Self::alphabetCharacters),
                                                         XML_CHILD(new Core::XmlEmptyElementRelay("disambiguator", this, startHandler(&Self::symbolDisambiguatorStart))),

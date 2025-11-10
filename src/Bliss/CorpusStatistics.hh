@@ -61,7 +61,8 @@ private:
         unsigned int nSegments;
         Time         totalDuration;
         SpeakerStatistics()
-                : nSegments(0), totalDuration(0.0) {}
+                : nSegments(0),
+                  totalDuration(0.0) {}
     };
     void                                           writeSpeakerStatistics(const SpeakerStatistics&, Core::XmlWriter&) const;
     typedef Core::StringHashMap<SpeakerStatistics> SpeakerStatisticsMap;
@@ -86,7 +87,8 @@ private:
         unsigned int nSegments;
         Time         totalDuration;
         ConditionStatistics()
-                : nSegments(0), totalDuration(0.0) {}
+                : nSegments(0),
+                  totalDuration(0.0) {}
     };
     void                                             writeConditionStatistics(const ConditionStatistics&, Core::XmlWriter&) const;
     typedef Core::StringHashMap<ConditionStatistics> ConditionStatisticsMap;

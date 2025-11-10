@@ -38,7 +38,8 @@ private:
 
 public:
     EmissionAlphabet(Mm::MixtureIndex nMixtures = 0)
-            : nMixtures_(nMixtures), nDisambiguators_(0) {}
+            : nMixtures_(nMixtures),
+              nDisambiguators_(0) {}
     Mm::MixtureIndex nMixtures() const {
         return nMixtures_;
     }

@@ -192,9 +192,11 @@ struct StateIdPair : public std::pair<Fsa::StateId, Fsa::StateId> {
     typedef std::pair<Fsa::StateId, Fsa::StateId> Precursor;
     StateIdPair(Fsa::StateId first, Fsa::StateId second)
             : Precursor(first, second) {}
+
     struct Hash : public std::hash<Fsa::StateId> {
         typedef std::hash<Fsa::StateId> Precursor;
-        size_t                          operator()(const StateIdPair& pair) const {
+
+        size_t operator()(const StateIdPair& pair) const {
             return Precursor::operator()(pair.first | ~pair.second);
         }
     };
@@ -213,7 +215,8 @@ private:
 
 public:
     Internal()
-            : Precursor(), distance_(0) {}
+            : Precursor(),
+              distance_(0) {}
     ~Internal() {
         delete[] distance_;
     }
@@ -265,7 +268,8 @@ struct StateIdScorePair {
     Fsa::StateId sid;
     Score        score;
     StateIdScorePair(Fsa::StateId sid, Score score)
-            : sid(sid), score(score) {}
+            : sid(sid),
+              score(score) {}
     bool operator<(const StateIdScorePair& pair) const {
         return sid < pair.sid;
     }
@@ -346,7 +350,9 @@ protected:
 
 public:
     DumpAllPairsShortestDistanceNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), dump_(config, "dump"), hasDumped_(false) {}
+            : Precursor(name, config),
+              dump_(config, "dump"),
+              hasDumped_(false) {}
     ~DumpAllPairsShortestDistanceNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         f32 tmp = paramTimeThreshold(config);

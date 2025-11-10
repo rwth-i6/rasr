@@ -30,7 +30,8 @@ class ClassicHmmTopology {
 
 public:
     ClassicHmmTopology(int nPhoneStates, int nSubStates)
-            : nPhoneStates_(nPhoneStates), nSubStates_(nSubStates) {}
+            : nPhoneStates_(nPhoneStates),
+              nSubStates_(nSubStates) {}
     int nPhoneStates() const {
         return nPhoneStates_;
     }

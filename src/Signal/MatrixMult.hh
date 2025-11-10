@@ -102,7 +102,11 @@ public:
 
 template<class T>
 MatrixMultiplicationNode<T>::MatrixMultiplicationNode(const Core::Configuration& c)
-        : Component(c), Node(c), StringExpressionNode(c, paramMultipleDataProcessing(c)), matrixCache_(0), multiData_(paramMultipleDataProcessing(c)) {
+        : Component(c),
+          Node(c),
+          StringExpressionNode(c, paramMultipleDataProcessing(c)),
+          matrixCache_(0),
+          multiData_(paramMultipleDataProcessing(c)) {
     Flow::StringExpressionNode::setTemplate(paramMatrixMultiplicationFileName(c));
     activateCache(paramMatrixMultiplicationUseCache(c));
     ignoreTimestamps_ = paramIgnoreTimestamps(c);

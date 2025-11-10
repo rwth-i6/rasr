@@ -123,7 +123,9 @@ public:
         return std::string("generic-convert-") + In::type()->name() + "-to-" + Out::type()->name();
     }
     TypeConverterNode(const Core::Configuration& c)
-            : Component(c), SleeveNode(c), converter_(c) {}
+            : Component(c),
+              SleeveNode(c),
+              converter_(c) {}
     virtual ~TypeConverterNode() {}
 
     virtual bool configure();

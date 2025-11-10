@@ -178,7 +178,9 @@ std::vector<T> const& QuantizedFloatVectorFixedBits<T>::data() const {
 }
 
 inline FixedQuantizationCompressedVectorFactory::FixedQuantizationCompressedVectorFactory(Core::Configuration const& config)
-        : Precursor(config), bits_per_val_(paramBitsPerVal(config)), epsilon_(paramEpsilon(config)) {
+        : Precursor(config),
+          bits_per_val_(paramBitsPerVal(config)),
+          epsilon_(paramEpsilon(config)) {
     switch (bits_per_val_) {
         case 8:
         case 16:

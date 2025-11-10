@@ -128,7 +128,9 @@ public:
 
 template<class Function>
 VectorScalarFunctionNode<Function>::VectorScalarFunctionNode(const Core::Configuration& c)
-        : Component(c), SleeveNode(c), function_(c) {
+        : Component(c),
+          SleeveNode(c),
+          function_(c) {
     setFunctionParameter(paramVectorScalarFunctionParameter(c));
 }
 

@@ -81,6 +81,9 @@ public:
     virtual ~LinearSearch();
 
     virtual bool setModelCombination(const Speech::ModelCombination& modelCombination);
+    virtual bool setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel>) {
+        defect();
+    }
 
     virtual void setGrammar(Fsa::ConstAutomatonRef);
 
@@ -88,6 +91,7 @@ public:
     virtual void                            feed(const Mm::FeatureScorer::Scorer&);
     virtual void                            getPartialSentence(Traceback& result);
     virtual void                            getCurrentBestSentence(Traceback& result) const;
+    virtual void                            getCurrentBestTrace(Traceback& result) const;  // jiang
     virtual Core::Ref<const LatticeAdaptor> getCurrentWordLattice() const;
     virtual void                            resetStatistics();
     virtual void                            logStatistics() const;

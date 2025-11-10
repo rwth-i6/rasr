@@ -45,7 +45,7 @@ void MeanNormalizedSgd<T>::checkForStatistics(NeuralNetwork<T>& network) {
 
 /**
  * estimation with mean-normalized SGD
- * see Wiesler, Richard, Schlüter & Ney: Mean-Normalized SGD, ICASSP 2014
+ * see Wiesler, Richard, Schlueter & Ney: Mean-Normalized SGD, ICASSP 2014
  */
 template<typename T>
 void MeanNormalizedSgd<T>::estimate(NeuralNetwork<T>& network, Statistics<T>& statistics) {

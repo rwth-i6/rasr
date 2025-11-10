@@ -36,9 +36,11 @@ public:
         LeafNumber leafNumber;
 
         TreeStructureEntry()
-                : id(0), leafNumber(0){};
+                : id(0),
+                  leafNumber(0){};
         TreeStructureEntry(Id i, LeafNumber n)
-                : id(i), leafNumber(n){};
+                : id(i),
+                  leafNumber(n){};
 
         void read(Core::BinaryInputStream& i) {
             i >> id >> leafNumber;
@@ -58,7 +60,11 @@ public:
         u16   leafNumber_;
 
         Node()
-                : left_(0), right_(0), previous_(0), id_(0), leafNumber_(0){};
+                : left_(0),
+                  right_(0),
+                  previous_(0),
+                  id_(0),
+                  leafNumber_(0){};
     };
     typedef std::list<const Node*> LeafList;
 

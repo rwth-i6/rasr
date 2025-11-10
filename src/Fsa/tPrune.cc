@@ -59,7 +59,14 @@ private:
 
 public:
     PosteriorPruneAutomaton(_ConstAutomatonRef f, const _Weight& threshold, bool relative)
-            : Precursor(f), DfsState<_Automaton>(f), threshold_(threshold), fw_(new _StatePotentials), bw_(new _StatePotentials), forward_(*fw_), backward_(*bw_), relative_(relative) {
+            : Precursor(f),
+              DfsState<_Automaton>(f),
+              threshold_(threshold),
+              fw_(new _StatePotentials),
+              bw_(new _StatePotentials),
+              forward_(*fw_),
+              backward_(*bw_),
+              relative_(relative) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyNone);
         Fsa::StateId initial = f->initialStateId();
         if (initial != Fsa::InvalidStateId) {
@@ -70,7 +77,14 @@ public:
     }
 
     PosteriorPruneAutomaton(_ConstAutomatonRef f, const _Weight& threshold, const _StatePotentials& fw, const _StatePotentials& bw, bool relative)
-            : Precursor(f), DfsState<_Automaton>(f), threshold_(threshold), fw_(0), bw_(0), forward_(fw), backward_(bw), relative_(relative) {
+            : Precursor(f),
+              DfsState<_Automaton>(f),
+              threshold_(threshold),
+              fw_(0),
+              bw_(0),
+              forward_(fw),
+              backward_(bw),
+              relative_(relative) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyNone);
         setMinWeight(threshold);
     }
@@ -160,7 +174,9 @@ private:
 
 public:
     SyncPruneAutomaton(_ConstAutomatonRef f, const _Weight& threshold)
-            : Precursor(f), threshold_(threshold), maxWeight_(Precursor::fsa_->semiring()->max()) {
+            : Precursor(f),
+              threshold_(threshold),
+              maxWeight_(Precursor::fsa_->semiring()->max()) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyNone);
         Fsa::StateId initial = f->initialStateId();
         slice_.grow(initial, Fsa::InvalidStateId);

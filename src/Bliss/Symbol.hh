@@ -230,11 +230,11 @@ public:
     }
     Token* operator[](const std::string& sym) const {
         Map::const_iterator i = map_.find(sym.c_str());
-        return (i != map_.end()) ? i->second : 0;
+        return (i != map_.end()) ? i->second : nullptr;
     }
     Token* operator[](Symbol sym) const {
         Map::const_iterator i = map_.find(sym.str());
-        return (i != map_.end()) ? i->second : 0;
+        return (i != map_.end()) ? i->second : nullptr;
     }
 
     u32 size() const {
@@ -244,12 +244,11 @@ public:
     typedef Token* const* Iterator;
 
     Iterator begin() const {
-        return &(*list_.begin());
+        return list_.data();
     }
 
-    // Note: Eliminating the "-1"..."+1" construct causes Sprint to fail in debug mode.
     Iterator end() const {
-        return (&(*(list_.end() - 1)) + 1);
+        return list_.data() + list_.size();
     }
 };
 

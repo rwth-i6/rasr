@@ -25,12 +25,14 @@ void bindLexicon(py::module_& m) {
     symbol
             .def(py::init<>())
             .def(py::init<const Bliss::Symbol&>())
-            .def("length", &Bliss::Symbol::length)
             .def("__eq__", &Bliss::Symbol::operator==, py::is_operator())
             .def("__ne__", &Bliss::Symbol::operator!=, py::is_operator())
             .def("_bool_", &Bliss::Symbol::operator bool, py::is_operator())
             .def("to_string", &Bliss::Symbol::operator Bliss::Symbol::String)
             .def("to_cstring", &Bliss::Symbol::str)
+            .def("__len__", &Bliss::Symbol::length)
+            .def("__str__", [](Bliss::Symbol const& self) { return std::string("Symbol(\"") + self.str() + "\")"; })
+            .def("__repr__", [](Bliss::Symbol const& self) { return std::string("Symbol(\"") + self.str() + "\")"; })
             .def_static("cast", &Bliss::Symbol::cast);
 
     py::class_<Bliss::Symbol::Hash>(symbol, "Hash")
@@ -44,22 +46,19 @@ void bindLexicon(py::module_& m) {
             .def(py::init<const Bliss::Symbol*, const Bliss::Symbol*>())
             .def(py::init<const Bliss::OrthographicFormList&>())
             .def("valid", &Bliss::OrthographicFormList::valid)
-            .def("size", &Bliss::OrthographicFormList::size)
-            .def("length", &Bliss::OrthographicFormList::length)
             .def("is_epsilon", &Bliss::OrthographicFormList::isEpsilon)
             .def("front", &Bliss::OrthographicFormList::front, py::return_value_policy::reference_internal)
-            .def("begin", &Bliss::OrthographicFormList::begin, py::return_value_policy::reference_internal)
-            .def("end", &Bliss::OrthographicFormList::end, py::return_value_policy::reference_internal)
-            .def("__getitem__", &Bliss::OrthographicFormList::operator[], py::is_operator());
+            .def("__getitem__", &Bliss::OrthographicFormList::operator[], py::is_operator())
+            .def("__len__", &Bliss::OrthographicFormList::size)
+            .def("__iter__", [](Bliss::OrthographicFormList const& self) { return py::make_iterator(self.begin(), self.end()); }, py::keep_alive<0, 1>());
 
     py::class_<Bliss::SyntacticTokenSequence>(m, "SyntacticTokenSequence")
             .def(py::init<>())
             .def(py::init<const Bliss::SyntacticTokenSequence&>())
             .def("valid", &Bliss::SyntacticTokenSequence::valid)
-            .def("size", &Bliss::SyntacticTokenSequence::size)
-            .def("length", &Bliss::SyntacticTokenSequence::length)
             .def("is_epsilon", &Bliss::SyntacticTokenSequence::isEpsilon)
             .def("front", &Bliss::SyntacticTokenSequence::front, py::return_value_policy::reference_internal)
+            .def("__len__", &Bliss::SyntacticTokenSequence::size)
             .def("__getitem__", &Bliss::SyntacticTokenSequence::operator[], py::is_operator());
 
     py::class_<Bliss::Token>(m, "Token")
@@ -88,9 +87,9 @@ void bindLexicon(py::module_& m) {
     py::class_<Bliss::Pronunciation, std::unique_ptr<Bliss::Pronunciation, py::nodelete>> pronunciation(m, "Pronunciation");
     pronunciation
             .def("num_lemmas", &Bliss::Pronunciation::nLemmas)
-            .def("length", &Bliss::Pronunciation::length)
             .def("format", &Bliss::Pronunciation::format)
-            .def("phonemes", &Bliss::Pronunciation::phonemes, py::return_value_policy::reference_internal)
+            .def("__len__", &Bliss::Pronunciation::length)
+            .def("__iter__", [](Bliss::Pronunciation const& self) { return py::make_iterator(self.phonemes(), self.phonemes() + self.length()); }, py::keep_alive<0, 1>())
             .def("__getitem__", &Bliss::Pronunciation::operator[], py::is_operator());
 
     py::class_<Bliss::Pronunciation::LemmaIterator>(pronunciation, "LemmaIterator")
@@ -157,17 +156,15 @@ void bindLexicon(py::module_& m) {
             .def("index", &Fsa::Alphabet::index)
             .def("is_disambiguator", &Fsa::Alphabet::isDisambiguator)
             .def("tag", &Fsa::Alphabet::tag)
-            .def("begin", &Fsa::Alphabet::begin)
-            .def("end", &Fsa::Alphabet::end)
             .def("get_memory_used", &Fsa::Alphabet::getMemoryUsed)
+            .def("__iter__", [](Fsa::Alphabet const& self) { return py::make_iterator(self.begin(), self.end()); }, py::keep_alive<0, 1>())
             .def("write_xml", [](Fsa::Alphabet& self, const std::string& name) {
                 std::ofstream file(name + ".xml");
                 if (file) {
                     Core::XmlWriter writer(file);
                     self.writeXml(writer);
                 }
-                file.close();
-            });
+                file.close(); });
 
     py::class_<Fsa::Alphabet::const_iterator>(alphabet, "const_iterator")
             .def(py::init<Core::Ref<const Fsa::Alphabet>, Fsa::LabelId>())
@@ -180,7 +177,6 @@ void bindLexicon(py::module_& m) {
 
     py::class_<Bliss::TokenAlphabet, Fsa::Alphabet, Core::Ref<Bliss::TokenAlphabet>>(m, "TokenAlphabet", py::multiple_inheritance())
             .def("symbol", &Bliss::TokenAlphabet::symbol)
-            .def("end", &Bliss::TokenAlphabet::end)
             .def("index", (Fsa::LabelId(Bliss::TokenAlphabet::*)(const std::string&) const) & Bliss::TokenAlphabet::index)
             .def("index", (Fsa::LabelId(Bliss::TokenAlphabet::*)(const Bliss::Token*) const) & Bliss::TokenAlphabet::index)
             .def("token", &Bliss::TokenAlphabet::token, py::return_value_policy::reference_internal)
@@ -200,18 +196,16 @@ void bindLexicon(py::module_& m) {
             .def("phoneme_inventory", &Bliss::PhonemeAlphabet::phonemeInventory, py::return_value_policy::take_ownership)
             .def("phoneme", &Bliss::PhonemeAlphabet::phoneme, py::return_value_policy::reference_internal)
             .def("symbol", &Bliss::PhonemeAlphabet::symbol)
-            .def("begin", &Bliss::PhonemeAlphabet::begin)
-            .def("end", &Bliss::PhonemeAlphabet::end)
             .def("index", (Fsa::LabelId(Bliss::PhonemeAlphabet::*)(const std::string&) const) & Bliss::PhonemeAlphabet::index)
             .def("index", (Fsa::LabelId(Bliss::PhonemeAlphabet::*)(const Bliss::Token*) const) & Bliss::PhonemeAlphabet::index)
+            .def("__iter__", [](Bliss::PhonemeAlphabet const& self) { return py::make_iterator(self.begin(), self.end()); }, py::keep_alive<0, 1>())
             .def("write_xml", [](Bliss::PhonemeAlphabet& self, const std::string& name) {
                 std::ofstream file(name + ".xml");
                 if (file) {
                     Core::XmlWriter writer(file);
                     self.writeXml(writer);
                 }
-                file.close();
-            });
+                file.close(); });
 
     py::class_<Bliss::LemmaAlphabet, Bliss::TokenAlphabet, Core::Ref<Bliss::LemmaAlphabet>>(m, "LemmaAlphabet", py::multiple_inheritance())
             .def("lemma", &Bliss::LemmaAlphabet::lemma, py::return_value_policy::reference_internal);
@@ -241,8 +235,9 @@ void bindLexicon(py::module_& m) {
             .def("insert", &Bliss::TokenInventory::insert)
             .def("link", &Bliss::TokenInventory::link)
             .def("add", &Bliss::TokenInventory::add)
-            .def("size", &Bliss::TokenInventory::size)
             .def("insert", &Bliss::TokenInventory::insert)
+            .def("__len__", &Bliss::TokenInventory::size)
+            .def("__iter__", [](Bliss::TokenInventory const& self) { return py::make_iterator(self.begin(), self.end()); }, py::keep_alive<0, 1>())
             .def("__getitem__", (Bliss::Token * (Bliss::TokenInventory::*)(Bliss::Token::Id) const) & Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator())
             .def("__getitem__", (Bliss::Token * (Bliss::TokenInventory::*)(const std::string&) const) & Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator())
             .def("__getitem__", (Bliss::Token * (Bliss::TokenInventory::*)(Bliss::Symbol) const) & Bliss::TokenInventory::operator[], py::return_value_policy::reference_internal, py::is_operator());
@@ -264,9 +259,11 @@ void bindLexicon(py::module_& m) {
             //.def("get_pronunciation", &Bliss::Lexicon::getPronunciation, py::return_value_policy::reference_internal)
             .def("add_pronunciation", &Bliss::Lexicon::addPronunciation, py::return_value_policy::reference_internal)
             .def("normalize_pronunciation_weights", &Bliss::Lexicon::normalizePronunciationWeights)
-            .def("set_syntactic_token_sequence", &Bliss::Lexicon::setSyntacticTokenSequence)
+            .def("set_syntactic_token_sequence", py::overload_cast<Bliss::Lemma*, std::vector<std::string> const&>(&Bliss::Lexicon::setSyntacticTokenSequence))
+            .def("set_syntactic_token_sequence", py::overload_cast<Bliss::Lemma*, std::vector<Bliss::Token::Id> const&>(&Bliss::Lexicon::setSyntacticTokenSequence))
             .def("set_default_syntactic_token", &Bliss::Lexicon::setDefaultSyntacticToken)
-            .def("add_evaluation_token_sequence", &Bliss::Lexicon::addEvaluationTokenSequence)
+            .def("add_evaluation_token_sequence", py::overload_cast<Bliss::Lemma*, std::vector<std::string> const&>(&Bliss::Lexicon::addEvaluationTokenSequence))
+            .def("add_evaluation_token_sequence", py::overload_cast<Bliss::Lemma*, std::vector<Bliss::Token::Id> const&>(&Bliss::Lexicon::addEvaluationTokenSequence))
             .def("set_default_evaluation_token", &Bliss::Lexicon::setDefaultEvaluationToken)
             .def("define_special_lemma", &Bliss::Lexicon::defineSpecialLemma)
             .def("load", &Bliss::Lexicon::load)
@@ -281,14 +278,15 @@ void bindLexicon(py::module_& m) {
             .def("log_statistics", &Bliss::Lexicon::logStatistics)
             .def_static("create", &Bliss::Lexicon::create)
             .def("num_lemmas", &Bliss::Lexicon::nLemmas)
+            .def("lemmas", [](Bliss::Lexicon const& self) { auto begin_end = self.lemmas(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
             .def("special_lemma", &Bliss::Lexicon::specialLemma, py::return_value_policy::reference_internal)
             .def("lemma_alphabet", &Bliss::Lexicon::lemmaAlphabet, py::return_value_policy::take_ownership)
             .def("set_phoneme_inventory", &Bliss::Lexicon::setPhonemeInventory)
             .def("phoneme_inventory", &Bliss::Lexicon::phonemeInventory, py::return_value_policy::take_ownership)
             .def("num_pronunciations", &Bliss::Lexicon::nPronunciations)
-            .def("pronunciations", &Bliss::Lexicon::pronunciations)
+            .def("pronunciations", [](Bliss::Lexicon const& self) { auto begin_end = self.pronunciations(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
             .def("num_lemma_pronunciations", &Bliss::Lexicon::nLemmaPronunciations)
-            .def("lemma_pronunciations", &Bliss::Lexicon::lemmaPronunciations)
+            .def("lemma_pronunciations", [](Bliss::Lexicon const& self) { auto begin_end = self.lemmaPronunciations(); return py::make_iterator(begin_end.first, begin_end.second); }, py::keep_alive<0, 1>())
             .def("lemma_pronunciation_alphabet", &Bliss::Lexicon::lemmaPronunciationAlphabet, py::return_value_policy::take_ownership)
             .def("lemma_pronunciation", &Bliss::Lexicon::lemmaPronunciation, py::return_value_policy::reference_internal)
             .def("num_syntactic_tokens", &Bliss::Lexicon::nSyntacticTokens)

@@ -12,9 +12,7 @@ TARGETS         = librasr.so
 CXXFLAGS += -fPIC
 LDFLAGS += -shared
 
-RASR_LIB_O = $(OBJDIR)/LabelScorer.o \
-             $(OBJDIR)/LibRASR.o \
-             $(OBJDIR)/Search.o \
+RASR_LIB_O = $(OBJDIR)/LibRASR.o \
              ../../Flf/libSprintFlf.$(a) \
              ../../Flf/FlfCore/libSprintFlfCore.$(a) \
              ../../Speech/libSprintSpeech.$(a) \
@@ -44,7 +42,8 @@ ifdef MODULE_MATH_NR
 RASR_LIB_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_PYTHON
-RASR_LIB_O += $(OBJDIR)/Lexicon.o \
+RASR_LIB_O += $(OBJDIR)/LabelScorer.o \
+              $(OBJDIR)/Lexicon.o \
               $(OBJDIR)/PybindModule.o \
               $(OBJDIR)/Search.o \
               ../../Python/libSprintPython.$(a)

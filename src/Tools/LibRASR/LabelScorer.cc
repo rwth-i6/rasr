@@ -100,11 +100,11 @@ void bindLabelScorer(py::module_& module) {
             "Create some arbitrary (hashable) python object which symbolizes the scoring context in the first search step");
 
     pyLabelScorer.def(
-            "extended_scoring_context",
+            "extended_scoring_context_internal",
             [](Python::PythonLabelScorer&      self,
                py::object const&               context,
                Nn::LabelIndex                  nextToken,
-               Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContext(context, nextToken, transitionType); },
+               Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContextInternal(context, nextToken, transitionType); },
             py::arg("context"),
             py::arg("next_token"),
             py::arg("transition_type"),
@@ -127,11 +127,11 @@ void bindLabelScorer(py::module_& module) {
             "    inputs: A numpy array of shape [T, F] containing the input features for `T` time steps.");
 
     pyLabelScorer.def(
-            "compute_scores_with_times",
+            "compute_scores_with_times_internal",
             [](Python::PythonLabelScorer&                   self,
                std::vector<py::object> const&               contexts,
                std::vector<Nn::LabelIndex>                  nextTokens,
-               std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimes(contexts, nextTokens, transitionTypes); },
+               std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimesInternal(contexts, nextTokens, transitionTypes); },
             py::arg("contexts"),
             py::arg("next_tokens"),
             py::arg("transition_types"),

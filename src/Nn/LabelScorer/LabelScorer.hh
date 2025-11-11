@@ -81,6 +81,7 @@ public:
 
     static const Core::ParameterStringVector paramExtraTransitionTypes;
 
+    // When updating these, remember to also update the corresponding Python binding in src/Tools/LibRASR/LabelScorer.cc
     enum TransitionType {
         LABEL_TO_LABEL,
         LABEL_LOOP,

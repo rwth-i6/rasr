@@ -21,57 +21,44 @@ namespace Nn {
 
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
-          transitionScores_(),
-          baseLabelScorer_(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("base-scorer"))) {
+          Precursor(config, TransitionPresetType::ALL),
+          transitionScores_() {
     for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
         auto paramName               = std::string(stringIdentifier) + "-score";
         transitionScores_[enumValue] = Core::ParameterFloat(paramName.c_str(), "", 0.0)(config);
     }
 }
 
-void TransitionLabelScorer::reset() {
-    baseLabelScorer_->reset();
-}
+void TransitionLabelScorer::reset() {}
 
-void TransitionLabelScorer::signalNoMoreFeatures() {
-    baseLabelScorer_->signalNoMoreFeatures();
-}
+void TransitionLabelScorer::signalNoMoreFeatures() {}
 
 ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
-    return baseLabelScorer_->getInitialScoringContext();
+    return Core::ref(new ScoringContext());
 }
 
-ScoringContextRef TransitionLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
-    return baseLabelScorer_->extendedScoringContext(request);
+void TransitionLabelScorer::addInput(DataView const& input) {}
+
+ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
+    return Core::ref(new ScoringContext());
 }
 
-void TransitionLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
-    baseLabelScorer_->cleanupCaches(activeContexts);
-}
-
-void TransitionLabelScorer::addInput(DataView const& input) {
-    baseLabelScorer_->addInput(input);
-}
-
-void TransitionLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
-    baseLabelScorer_->addInputs(input, nTimesteps);
-}
-
-std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
-    auto result = baseLabelScorer_->computeScoreWithTime(request);
-    if (result) {
-        result->score += transitionScores_[request.transitionType];
-    }
+std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+    LabelScorer::ScoreWithTime result;
+    result.score     = transitionScores_[request.transitionType];
+    result.timeframe = static_cast<Speech::TimeframeIndex>(0);
     return result;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    auto results = baseLabelScorer_->computeScoresWithTimes(requests);
-    if (results) {
-        for (size_t i = 0ul; i < requests.size(); ++i) {
-            results->scores[i] += transitionScores_[requests[i].transitionType];
-        }
+std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
+    LabelScorer::ScoresWithTimes results;
+    for (size_t i = 0ul; i < requests.size(); ++i) {
+        results.scores.push_back(transitionScores_[requests[i].transitionType]);
+        results.timeframes.push_back(static_cast<Speech::TimeframeIndex>(0));
     }
     return results;
 }

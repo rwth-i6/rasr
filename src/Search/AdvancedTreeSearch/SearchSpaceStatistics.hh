@@ -31,7 +31,8 @@ struct SearchSpaceStatistics {
     Core::Statistics<u32> treesBeforePruning, treesAfterPrePruning, treesAfterPruning,
             statesBeforePruning, statesAfterPrePruning, statesAfterPruning,
             wordEndsBeforePruning, wordEndsAfterPruning,
-            epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning;
+            epsilonWordEndsAdded, wordEndsAfterRecombination, wordEndsAfterSecondPruning,
+            activeInstancesBeforePruning, activeInstancesAfterPruning;
 
     Core::Statistics<Score> acousticHistogramPruningThreshold, lmHistogramPruningThreshold;
 
@@ -40,7 +41,7 @@ struct SearchSpaceStatistics {
 
     SearchSpaceStatistics();
     void clear();
-    void write(Core::XmlWriter&) const;
+    void write(Core::XmlWriter&, const std::string& time) const;
 
 private:
     std::map<std::string, Core::Statistics<f32>*>     customStatistics_;

@@ -32,11 +32,15 @@ public:
     typedef f32                     Data;
     typedef f64                     FloatIndex;
     typedef std::vector<FloatIndex> WarpingFunction;
-    enum MergeType { AritmeticMean,
-                     SelectBegin };
-    enum InterpolationType { KeepEnd,
-                             InsertZero,
-                             LinearInterpolation };
+    enum MergeType {
+        AritmeticMean,
+        SelectBegin
+    };
+    enum InterpolationType {
+        KeepEnd,
+        InsertZero,
+        LinearInterpolation
+    };
     static const f64 copyTolerance;
 
 private:
@@ -77,7 +81,8 @@ private:
 
     public:
         AritmeticMeanInverseItem(u32 begin, u32 end)
-                : begin_(begin), end_(end) {}
+                : begin_(begin),
+                  end_(end) {}
         virtual ~AritmeticMeanInverseItem() {}
 
         virtual Data apply(const std::vector<Data>& in) const {

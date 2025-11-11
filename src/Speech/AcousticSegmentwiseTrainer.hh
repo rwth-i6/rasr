@@ -35,9 +35,11 @@ class AbstractAcousticSegmentwiseTrainer : public AbstractSegmentwiseTrainer {
     typedef AbstractSegmentwiseTrainer Precursor;
 
 public:
-    enum ModelType { gaussianMixture,
-                     maximumEntropy,
-                     neuralNetwork };
+    enum ModelType {
+        gaussianMixture,
+        maximumEntropy,
+        neuralNetwork
+    };
     static Core::Choice          choiceModelType;
     static Core::ParameterChoice paramModelType;
 
@@ -163,7 +165,9 @@ protected:
 
 public:
     AcousticSegmentwiseTrainer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), acc_(0) {}
+            : Core::Component(c),
+              Precursor(c),
+              acc_(0) {}
     virtual ~AcousticSegmentwiseTrainer() {
         delete acc_;
     }

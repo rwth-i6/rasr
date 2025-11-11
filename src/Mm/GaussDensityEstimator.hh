@@ -107,7 +107,8 @@ public:
     virtual void write(Core::XmlWriter&) const          = 0;
 
     virtual bool operator==(const Self&) const = 0;
-    bool         operator!=(const Self& other) const {
+
+    bool operator!=(const Self& other) const {
         return !(*this == other);
     }
 };

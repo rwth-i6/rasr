@@ -211,7 +211,10 @@ protected:
         std::string   tail;
 
         CtmPrinter(std::ostream& os)
-                : os(os), name("unknown"), track(1), scoreIds() {}
+                : os(os),
+                  name("unknown"),
+                  track(1),
+                  scoreIds() {}
         void printHeader(ConstSegmentRef segment) {
             printAsText(os << ";; ", segment) << tail << std::endl;
         }
@@ -343,6 +346,7 @@ protected:
             if (dumpPhonemeAlignment_ || dumpSubwordAlignment_) {
                 latticeAlignment = getLatticeAlignment(l);
             }
+
             ConstStateRef initialSr = l->getState(l->initialStateId());
             if (!l->hasProperty(Fsa::PropertyLinear))
                 printAsText(os << ";; ", segment_) << " [1.." << initialSr->nArcs() << "]-best" << std::endl;
@@ -368,6 +372,7 @@ protected:
                 }
                 cp.printHeader(segment_);
                 header_printed = true;
+
                 for (; sr->hasArcs(); sr = p->getState(sr->begin()->target())) {
                     verify(sr->nArcs() == 1);
                     const Arc&      a            = *sr->begin();
@@ -555,7 +560,9 @@ protected:
 
 public:
     DumpTracebackNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), dump_(config, "dump"), dumpXmlWriter_(0) {}
+            : Precursor(name, config),
+              dump_(config, "dump"),
+              dumpXmlWriter_(0) {}
     virtual ~DumpTracebackNode() {
         delete dumpXmlWriter_;
     }
@@ -694,6 +701,4 @@ const Core::ParameterFloat DumpTracebackNode::paramFrameShiftTime(
 NodeRef createDumpTracebackNode(const std::string& name, const Core::Configuration& config) {
     return NodeRef(new DumpTracebackNode(name, config));
 }
-// -------------------------------------------------------------------------
-
 }  // namespace Flf

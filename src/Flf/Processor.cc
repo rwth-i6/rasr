@@ -21,7 +21,8 @@ namespace Flf {
 
 // -------------------------------------------------------------------------
 Processor::Processor(const Core::Configuration& config, Network* network)
-        : Core::Component(config), network_(network) {
+        : Core::Component(config),
+          network_(network) {
     crawler_ = NetworkCrawlerRef(new NetworkCrawler(network));
 }
 

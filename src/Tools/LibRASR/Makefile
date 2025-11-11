@@ -44,7 +44,9 @@ ifdef MODULE_MATH_NR
 RASR_LIB_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_PYTHON
-RASR_LIB_O += $(OBJDIR)/PybindModule.o \
+RASR_LIB_O += $(OBJDIR)/Lexicon.o \
+              $(OBJDIR)/PybindModule.o \
+              $(OBJDIR)/Search.o \
               ../../Python/libSprintPython.$(a)
 LDFLAGS += -Wl,-u,PyInit_librasr
 endif

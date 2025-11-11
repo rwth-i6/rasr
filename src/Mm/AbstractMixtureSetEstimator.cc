@@ -114,7 +114,7 @@ void AbstractMixtureSetEstimator::setTopology(Core::Ref<const MixtureSet> topolo
     }
 }
 
-void AbstractMixtureSetEstimator::accumulate(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector> featureVector) {
+void AbstractMixtureSetEstimator::accumulate(MixtureIndex mixtureIndex, Feature::VectorRef featureVector) {
     if (viterbi_) {
         DensityIndex index = densityIndex(mixtureIndex, featureVector);
         mixtureEstimators_[mixtureIndex]->accumulate(index, *featureVector);
@@ -124,7 +124,7 @@ void AbstractMixtureSetEstimator::accumulate(MixtureIndex mixtureIndex, Core::Re
     }
 }
 
-void AbstractMixtureSetEstimator::accumulate(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector> featureVector, Weight weight) {
+void AbstractMixtureSetEstimator::accumulate(MixtureIndex mixtureIndex, Feature::VectorRef featureVector, Weight weight) {
     if (viterbi_) {
         DensityIndex index = densityIndex(mixtureIndex, featureVector);
         mixtureEstimators_[mixtureIndex]->accumulate(index, *featureVector, weight);
@@ -367,8 +367,8 @@ void AbstractMixtureSetEstimator::removeDensitiesWithLowWeight(Weight minObserva
     }
 }
 
-DensityIndex AbstractMixtureSetEstimator::densityIndex(MixtureIndex                     mixtureIndex,
-                                                       Core::Ref<const Feature::Vector> featureVector) {
+DensityIndex AbstractMixtureSetEstimator::densityIndex(MixtureIndex       mixtureIndex,
+                                                       Feature::VectorRef featureVector) {
     verify_(mixtureIndex < mixtureEstimators_.size());
 
     DensityIndex densityIndex = 0;
@@ -383,9 +383,9 @@ DensityIndex AbstractMixtureSetEstimator::densityIndex(MixtureIndex             
     return densityIndex;
 }
 
-void AbstractMixtureSetEstimator::getDensityPosteriorProbabilities(MixtureIndex                     mixtureIndex,
-                                                                   Core::Ref<const Feature::Vector> featureVector,
-                                                                   std::vector<Mm::Weight>&         posteriors) {
+void AbstractMixtureSetEstimator::getDensityPosteriorProbabilities(MixtureIndex             mixtureIndex,
+                                                                   Feature::VectorRef       featureVector,
+                                                                   std::vector<Mm::Weight>& posteriors) {
     verify_(mixtureIndex < mixtureEstimators_.size());
 
     if (assigningFeatureScorer_) {
@@ -422,7 +422,7 @@ void AbstractMixtureSetEstimator::writeHeader(Core::BinaryOutputStream& os) {
 void AbstractMixtureSetEstimator::checkEventsWithZeroWeight() {
     for (MixtureIndex mixture = 0; mixture < mixtureEstimators_.size(); ++mixture) {
         if (mixtureEstimators_[mixture]->getWeight() == 0)
-            criticalError("Mixture ") << mixture << " has zero weight.";
+            criticalError("Mixture %d has zero weight.", mixture);
 
         std::string message = Core::form("In mixture %d: ", mixture);
         if (!mixtureEstimators_[mixture]->checkEventsWithZeroWeight(message))

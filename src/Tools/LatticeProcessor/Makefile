@@ -25,8 +25,8 @@ LATTICE_PROCESSOR_O = $(OBJDIR)/LatticeProcessor.o \
 		../../Core/libSprintCore.$(a) \
 		../../Fsa/libSprintFsa.$(a) \
 		../../Flf/FlfCore/libSprintFlfCore.$(a)
-		
-LATTICE_PROCESSOR_O += $(subst src,../..,$(LIBS_SEARCH))		
+
+LATTICE_PROCESSOR_O += $(subst src,../..,$(LIBS_SEARCH))
 
 ifdef MODULE_CART
 LATTICE_PROCESSOR_O += ../../Cart/libSprintCart.$(a)
@@ -47,6 +47,9 @@ ifdef MODULE_TENSORFLOW
 LATTICE_PROCESSOR_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_LM_ONNX
+LATTICE_PROCESSOR_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 # -----------------------------------------------------------------------------
 

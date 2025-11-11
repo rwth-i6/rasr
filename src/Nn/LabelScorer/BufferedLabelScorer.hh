@@ -31,7 +31,7 @@ class BufferedLabelScorer : public LabelScorer {
 public:
     using Precursor = LabelScorer;
 
-    BufferedLabelScorer(Core::Configuration const& config);
+    BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 
     // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer
     // and segment end flag

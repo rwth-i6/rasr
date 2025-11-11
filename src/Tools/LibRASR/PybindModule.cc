@@ -5,6 +5,7 @@
 #include <Python/Configuration.hh>
 
 #include "LabelScorer.hh"
+#include "Lexicon.hh"
 #include "LibRASR.hh"
 #include "Search.hh"
 
@@ -33,8 +34,25 @@ PYBIND11_MODULE(librasr, m) {
             "Retrieve the configured value of a specific parameter key as an unprocessed string.");
 
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
-    pyRasrConfig.def(py::init<>());
-    pyRasrConfig.def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile));
+    pyRasrConfig.def(py::init<>())
+            .def(py::init<PyConfiguration const&>())
+            .def(py::init<PyConfiguration const&, std::string const&>())
+            .def("enable_logging", &Core::Configuration::enableLogging)
+            .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
+            .def("get_selection", &Core::Configuration::getSelection)
+            .def("get_name", &Core::Configuration::getName)
+            .def("set_selection", &Core::Configuration::setSelection)
+            .def("set", &PyConfiguration::set)
+            .def("resolve", &Core::Configuration::resolve)
+            .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
+                std::string value;
+                if (self.get(parameter, value)) {
+                    return std::optional<std::string>(value);
+                }
+                else {
+                    return std::optional<std::string>();
+                }
+            });
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
@@ -44,4 +62,5 @@ PYBIND11_MODULE(librasr, m) {
 
     bindLabelScorer(m);
     bindSearchAlgorithm(m);
+    bindLexicon(m);
 }

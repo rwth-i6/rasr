@@ -101,7 +101,7 @@ py::object PythonLabelScorer::extendedPythonScoringContextInternal(py::object co
     PYBIND11_OVERRIDE_PURE_NAME(
             py::object,
             Nn::LabelScorer,
-            "extended_scoring_context_internal",
+            "extended_scoring_context",
             extendedPythonScoringContext,
             context,
             nextToken,
@@ -166,7 +166,7 @@ std::optional<std::vector<std::pair<Nn::LabelScorer::Score, Speech::TimeframeInd
     PYBIND11_OVERRIDE_PURE_NAME(
             returnType,
             Nn::LabelScorer,
-            "compute_scores_with_times_internal",
+            "compute_scores_with_times",
             computePythonScoresWithTimes,
             contexts,
             nextTokens,

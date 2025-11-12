@@ -18,20 +18,20 @@ PYBIND11_MODULE(librasr, m) {
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
     baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)
-                   .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
-                   .def("get_selection", &Core::Configuration::getSelection)
-                   .def("get_name", &Core::Configuration::getName)
-                   .def("set_selection", &Core::Configuration::setSelection)
-                   .def("resolve", &Core::Configuration::resolve)
-                   .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
-                       std::string value;
-                       if (self.get(parameter, value)) {
-                           return std::optional<std::string>(value);
-                       }
-                       else {
-                           return std::optional<std::string>();
-                       }
-                   });
+            .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
+            .def("get_selection", &Core::Configuration::getSelection)
+            .def("get_name", &Core::Configuration::getName)
+            .def("set_selection", &Core::Configuration::setSelection)
+            .def("resolve", &Core::Configuration::resolve)
+            .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
+                std::string value;
+                if (self.get(parameter, value)) {
+                    return std::optional<std::string>(value);
+                }
+                else {
+                    return std::optional<std::string>();
+                }
+            });
 
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
     pyRasrConfig.def(py::init<>())

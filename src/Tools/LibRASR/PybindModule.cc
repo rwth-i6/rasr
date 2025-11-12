@@ -4,6 +4,7 @@
 #include <Python/AllophoneStateFsaBuilder.hh>
 #include <Python/Configuration.hh>
 
+#include "LabelScorer.hh"
 #include "Lexicon.hh"
 #include "LibRASR.hh"
 #include "Search.hh"
@@ -16,17 +17,11 @@ PYBIND11_MODULE(librasr, m) {
     m.doc() = "RASR python module";
 
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
-
-    py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
-    pyRasrConfig.def(py::init<>())
-            .def(py::init<PyConfiguration const&>())
-            .def(py::init<PyConfiguration const&, std::string const&>())
-            .def("enable_logging", &Core::Configuration::enableLogging)
+    baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)
             .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
             .def("get_selection", &Core::Configuration::getSelection)
             .def("get_name", &Core::Configuration::getName)
             .def("set_selection", &Core::Configuration::setSelection)
-            .def("set", &PyConfiguration::set)
             .def("resolve", &Core::Configuration::resolve)
             .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
                 std::string value;
@@ -38,12 +33,19 @@ PYBIND11_MODULE(librasr, m) {
                 }
             });
 
+    py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
+    pyRasrConfig.def(py::init<>())
+            .def(py::init<PyConfiguration const&>())
+            .def(py::init<PyConfiguration const&, std::string const&>())
+            .def("set", &PyConfiguration::set);
+
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
     pyFsaBuilder.def("get_orthography_by_segment_name", &AllophoneStateFsaBuilder::getOrthographyBySegmentName);
     pyFsaBuilder.def("build_by_orthography", &AllophoneStateFsaBuilder::buildByOrthography);
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
-    bindSearchAlgorithm(m);
+    bindLabelScorer(m);
     bindLexicon(m);
+    bindSearchAlgorithm(m);
 }

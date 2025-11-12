@@ -42,7 +42,8 @@ ifdef MODULE_MATH_NR
 RASR_LIB_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_PYTHON
-RASR_LIB_O += $(OBJDIR)/Lexicon.o \
+RASR_LIB_O += $(OBJDIR)/LabelScorer.o \
+              $(OBJDIR)/Lexicon.o \
               $(OBJDIR)/PybindModule.o \
               $(OBJDIR)/Search.o \
               ../../Python/libSprintPython.$(a)

@@ -100,7 +100,7 @@ void bindLabelScorer(py::module_& module) {
             "Create some arbitrary (hashable) python object which symbolizes the scoring context in the first search step");
 
     pyLabelScorer.def(
-            "extended_scoring_context_internal",
+            "extended_scoring_context",
             [](Python::PythonLabelScorer&      self,
                py::object const&               context,
                Nn::LabelIndex                  nextToken,
@@ -127,7 +127,7 @@ void bindLabelScorer(py::module_& module) {
             "    inputs: A numpy array of shape [T, F] containing the input features for `T` time steps.");
 
     pyLabelScorer.def(
-            "compute_scores_with_times_internal",
+            "compute_scores_with_times",
             [](Python::PythonLabelScorer&                   self,
                std::vector<py::object> const&               contexts,
                std::vector<Nn::LabelIndex>                  nextTokens,

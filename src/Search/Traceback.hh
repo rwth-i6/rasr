@@ -161,24 +161,8 @@ public:
 /*
  * Vector of Refs to LatticeTrace
  */
-class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<LatticeTrace>> {
+class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<const LatticeTrace>> {
 };
-
-/*
- * Perform traceback on the given LatticeTrace reference. Returns a vector reference containing the best path
- * ending in the given trace.
- */
-inline Core::Ref<const LatticeTraceback> performLatticeTraceback(Core::Ref<LatticeTrace> trace) {
-    LatticeTraceback* traceback = new LatticeTraceback();
-
-    while (trace) {
-        traceback->push_back(trace);
-        trace = trace->predecessor;
-    }
-
-    std::reverse(traceback->begin(), traceback->end());
-    return Core::Ref<const LatticeTraceback>(traceback);
-}
 
 }  // namespace Search
 

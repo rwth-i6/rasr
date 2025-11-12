@@ -147,8 +147,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
-          finishedSegment_(false),
-          rootTrace_() {
+          finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
@@ -196,8 +195,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    rootTrace_ = beam_.front().trace;
-
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
@@ -234,16 +231,8 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
     featureProcessingTime_.stop();
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
-}
-
-Core::Ref<const LatticeTraceback> LexiconfreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
-    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -259,7 +248,11 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     return endTrace.buildWordLattice(lexicon_);
 }
 
-Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
+Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
     std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         traces[hypIndex] = beam_[hypIndex].trace;
@@ -270,7 +263,7 @@ Core::Ref<LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
         warning("Common prefix of all traces is a sentinel value");
     }
 
-    return Core::Ref<LatticeTrace>(searcher.rootTrace());
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {

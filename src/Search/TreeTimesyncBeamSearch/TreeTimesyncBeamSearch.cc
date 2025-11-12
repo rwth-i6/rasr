@@ -164,8 +164,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
-          numActiveTrees_("num-active-trees"),
-          rootTrace_() {
+          numActiveTrees_("num-active-trees") {
     if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
@@ -251,8 +250,6 @@ void TreeTimesyncBeamSearch::reset() {
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
-    rootTrace_ = beam_.front().trace;
-
     initializationTime_.stop();
 }
 
@@ -292,16 +289,8 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
     featureProcessingTime_.stop();
 }
 
-Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getRootTrace() const {
-    return rootTrace_;
-}
-
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
-}
-
-Core::Ref<const LatticeTraceback> TreeTimesyncBeamSearch::getCurrentBestLatticeTraceback() const {
-    return performLatticeTraceback(getBestHypothesis().trace);
 }
 
 Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -317,7 +306,11 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     return endTrace.buildWordLattice(lexicon_);
 }
 
-Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
     std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         traces[hypIndex] = beam_[hypIndex].trace;
@@ -328,7 +321,7 @@ Core::Ref<LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
         warning("Common prefix of all traces is a sentinel value");
     }
 
-    return Core::Ref<LatticeTrace>(searcher.rootTrace());
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
 bool TreeTimesyncBeamSearch::decodeStep() {

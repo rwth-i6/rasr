@@ -65,11 +65,10 @@ public:
     void                           putFeature(Nn::DataView const& feature) override;
     void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
-    Core::Ref<LatticeTrace>           getRootTrace() const override;
-    Core::Ref<const Traceback>        getCurrentBestTraceback() const override;
-    Core::Ref<const LatticeTraceback> getCurrentBestLatticeTraceback() const override;
-    Core::Ref<const LatticeAdaptor>   getCurrentBestWordLattice() const override;
-    Core::Ref<LatticeTrace>           getCommonPrefix() const override;
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
     bool decodeStep() override;
 
@@ -164,8 +163,6 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
-
-    Core::Ref<LatticeTrace> rootTrace_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;

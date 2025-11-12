@@ -116,6 +116,16 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
         false);
 
+const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordExitPenalty(
+        "word-exit-penalty",
+        "Constant score which is added at a word end.",
+        0);
+
+const Core::ParameterFloat TreeTimesyncBeamSearch::paramSilencePenalty(
+        "silence-penalty",
+        "Constant score which is added when predicting silence. If not set, it will be the same as word-exit-penalty.",
+        Core::Type<Score>::min);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramSentenceEndFallBack(
         "sentence-end-fall-back",
         "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
@@ -138,6 +148,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          wordExitPenalty_(paramWordExitPenalty(config)),
+          silencePenalty_(paramSilencePenalty(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
@@ -169,6 +181,10 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
     wordEndScoreThreshold_ *= scoreThreshold_;
+
+    if (silencePenalty_ == Core::Type<Score>::min) {
+        silencePenalty_ = wordExitPenalty_;
+    }
 }
 
 Speech::ModelCombination::Mode TreeTimesyncBeamSearch::requiredModelCombination() const {
@@ -455,7 +471,19 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     Lm::Score lmScore = languageModel_->score(wordEndExtension.lmHistory, st);
                     wordEndExtension.score += lmScore;
                     wordEndExtension.lmScore = lmScore;
+
+                    // Add exit penalty for silence or for non-silence word
+                    if (lemma == lexicon_->specialLemma("silence")) {
+                        wordEndExtension.score += silencePenalty_;
+                    }
+                    else {
+                        wordEndExtension.score += wordExitPenalty_;
+                    }
                 }
+                else if (lemma == lexicon_->specialLemma("silence")) {
+                    wordEndExtension.score += silencePenalty_;
+                }
+
                 extensions_.push_back(wordEndExtension);
             }
         }

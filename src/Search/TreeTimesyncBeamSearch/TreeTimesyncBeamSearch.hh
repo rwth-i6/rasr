@@ -48,6 +48,8 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramWordEndScoreThreshold;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterFloat paramWordExitPenalty;
+    static const Core::ParameterFloat paramSilencePenalty;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -121,6 +123,8 @@ private:
     size_t         maxWordEndBeamSize_;
     Score          scoreThreshold_;
     Score          wordEndScoreThreshold_;
+    Score          wordExitPenalty_;
+    Score          silencePenalty_;
     Nn::LabelIndex blankLabelIndex_;
     size_t         cacheCleanupInterval_;
 

@@ -145,8 +145,6 @@ private:
     size_t currentSearchStep_;
     bool   finishedSegment_;
 
-    Core::Ref<LatticeTrace> rootTrace_;
-
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
 

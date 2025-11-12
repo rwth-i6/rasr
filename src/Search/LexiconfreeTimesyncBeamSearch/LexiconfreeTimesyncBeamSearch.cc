@@ -147,8 +147,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numHypsAfterBeamPruning_("num-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
-          finishedSegment_(false),
-          rootTrace_() {
+          finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
     recombinedHypotheses_.reserve(maxBeamSize_);
@@ -195,8 +194,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.clear();
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
-
-    rootTrace_ = beam_.front().trace;
 
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;

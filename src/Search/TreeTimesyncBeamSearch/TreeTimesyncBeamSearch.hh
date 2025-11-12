@@ -164,8 +164,6 @@ private:
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
 
-    Core::Ref<LatticeTrace> rootTrace_;
-
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
 

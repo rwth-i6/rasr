@@ -139,8 +139,8 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
     OnnxHiddenStateScoringContext()
             : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
-    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
-            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(false) {}
+    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;

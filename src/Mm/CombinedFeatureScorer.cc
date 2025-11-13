@@ -102,8 +102,7 @@ bool CombinedFeatureScorer::verifyMixtureIndexTable() {
 void CombinedFeatureScorer::getFeatureDescription(FeatureDescription& description) const {
     for (size_t m = 0; m < nModels(); ++m) {
         FeatureDescription::Stream& stream(description[m]);
-        FeatureDescription          d(FeatureDescription::prepareName(
-                fullName(), "sub-feature-description"));
+        FeatureDescription          d(FeatureDescription::prepareName(fullName(), "sub-feature-description"));
         featureScorers_[m]->getFeatureDescription(d);
         ensure(d.nStreams() == 1);
         stream = d.mainStream();

@@ -174,7 +174,8 @@ public:
     }
 
     HarmonicProductNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
 
     virtual ~HarmonicProductNode() {}
 };

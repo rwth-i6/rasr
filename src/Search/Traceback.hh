@@ -158,6 +158,12 @@ public:
     u32 wordCount() const;
 };
 
+/*
+ * Vector of Refs to LatticeTrace
+ */
+class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<const LatticeTrace>> {
+};
+
 }  // namespace Search
 
 #endif  // TRACEBACK_HH

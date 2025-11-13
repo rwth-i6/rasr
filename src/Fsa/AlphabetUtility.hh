@@ -32,7 +32,9 @@ public:
 
 public:
     AlphabetCounts()
-            : maxLabelId_(0), nLabels_(0), nDisambiguators_(0) {}
+            : maxLabelId_(0),
+              nLabels_(0),
+              nDisambiguators_(0) {}
 };
 
 /**

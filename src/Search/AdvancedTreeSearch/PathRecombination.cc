@@ -69,7 +69,12 @@ void PathRecombination::logStatistics() {
 }
 
 PathRecombination::PathRecombination(const Search::PersistentStateTree& network, const Core::Configuration& config)
-        : network_(network), distancesPtr_(0), offsetAndDistanceStateForStatePtr_(0), currentVisits_(0), nVisits_(0), totalVisits_(0) {
+        : network_(network),
+          distancesPtr_(0),
+          offsetAndDistanceStateForStatePtr_(0),
+          currentVisits_(0),
+          nVisits_(0),
+          totalVisits_(0) {
     convergenceFactor_          = paramConvergenceFactor(config);
     delta_                      = paramDelta(config);
     cache_                      = paramCache(config);
@@ -273,7 +278,9 @@ struct VisitManager {
 
 struct SuccessorPlan {
     SuccessorPlan(StateId _state = 0, u32 _distance = 0, bool _direct = false)
-            : state(_state), distance(_distance), direct(_direct) {
+            : state(_state),
+              distance(_distance),
+              direct(_direct) {
     }
     StateId state;
     u32     distance;

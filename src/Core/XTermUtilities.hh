@@ -68,7 +68,8 @@ struct Command {
 struct move : public Command {
     u16 row, col;
     move(u16 row = 0, u16 col = 0)
-            : row(row), col(col) {}
+            : row(row),
+              col(col) {}
     inline void write(std::ostream& out) const {
         out << "\033[" << row << ";" << col << "H";
     }

@@ -44,9 +44,15 @@ public:
         Reader            reader;
         Writer            writer;
         Format(const std::string& name, const std::string& desc)
-                : name(name), desc(desc), reader(0), writer(0) {}
+                : name(name),
+                  desc(desc),
+                  reader(0),
+                  writer(0) {}
         Format(const std::string& name, const std::string& desc, Reader reader, Writer writer)
-                : name(name), desc(desc), reader(reader), writer(writer) {}
+                : name(name),
+                  desc(desc),
+                  reader(reader),
+                  writer(writer) {}
     };
 
 private:

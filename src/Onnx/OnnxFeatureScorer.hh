@@ -16,7 +16,9 @@
 #include <Nn/Types.hh>
 
 #include "IOSpecification.hh"
+#include "OnnxStateVariable.hh"
 #include "Session.hh"
+#include "StateManager.hh"
 
 namespace Onnx {
 
@@ -25,8 +27,10 @@ public:
     using Precursor = Mm::FeatureScorer;
     using Scorer    = Core::Ref<const ContextScorer>;
 
+    static const Core::ParameterBool paramAllowStaticDimensions;
     static const Core::ParameterBool paramApplyLogOnOutput;
     static const Core::ParameterBool paramNegateOutput;
+    static const Core::ParameterBool paramUseOutputAsIs;
 
     OnnxFeatureScorer(const Core::Configuration& c, Core::Ref<const Mm::MixtureSet> mixtureSet);
     virtual ~OnnxFeatureScorer() = default;
@@ -110,8 +114,10 @@ protected:
     using Float = Mm::Score;
     class ContextScorer;
 
+    const bool allowStaticDimensions_;
     const bool applyLogOnOutput_;
     const bool negateOutput_;
+    const bool useOutputAsIs_;
 
     Nn::Prior<Float>                       prior_;
     std::unique_ptr<Nn::ClassLabelWrapper> labelWrapper_;
@@ -129,10 +135,12 @@ protected:
     std::vector<Onnx::IOSpecification> ioSpec_;
     IOMapping                          mapping_;
     IOValidator                        validator_;
+    std::unique_ptr<StateManager>      state_manager_;
+    std::vector<OnnxStateVariable>     state_variables_;
 
-    void      addFeatureInternal(const Mm::FeatureVector& f) const;
-    Value     createInputValue() const;
-    Mm::Score getScoreFromOutput(Mm::EmissionIndex e, u32 position) const;
+    void         addFeatureInternal(const Mm::FeatureVector& f) const;
+    virtual void computeScoresInternal();
+    Value        createInputValue() const;
 };
 
 // inline implementations
@@ -154,7 +162,7 @@ inline bool OnnxFeatureScorer::bufferFilled() const {
 }
 
 inline bool OnnxFeatureScorer::bufferEmpty() const {
-    return currentFeature_ >= inputBuffer_.size();
+    return scoresComputed_ && currentFeature_ >= scores_->nRows();
 }  // == cannot call flush() anymore
 
 inline u32 OnnxFeatureScorer::bufferSize() const {

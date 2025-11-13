@@ -454,7 +454,8 @@ public:
 };
 
 LatticeToAlignment::LatticeToAlignment(PhonemeSequenceAlignmentGenerator* alignmentGenerator, Flf::ConstLatticeRef lattice)
-        : Flf::DfsState(lattice), alignmentGenerator_(alignmentGenerator) {}
+        : Flf::DfsState(lattice),
+          alignmentGenerator_(alignmentGenerator) {}
 
 void LatticeToAlignment::discoverState(Flf::ConstStateRef sp) {
     const TimeframeIndex begtime = fsa_->boundary(sp->id()).time();

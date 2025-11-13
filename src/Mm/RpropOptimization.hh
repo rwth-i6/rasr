@@ -58,9 +58,11 @@ public:
     typedef RpropSettings<T> Settings;
 
 private:
-    enum Action { decrease,
-                  increase,
-                  hold };
+    enum Action {
+        decrease,
+        increase,
+        hold
+    };
 
 private:
     Settings settings_;

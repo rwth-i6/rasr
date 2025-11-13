@@ -120,15 +120,25 @@ protected:
         bool                 active;
         bool                 used;
         Trace()
-                : active(false), used(false) {}
+                : active(false),
+                  used(false) {}
         Trace(const TraceRef _predecessor, Label _output, TimeframeIndex _time,
               Score _score, bool _wordEnd)
-                : predecessor(_predecessor), sibling(InvalidTraceRef), output(_output), input(0), time(_time), score(_score), wordEnd(_wordEnd), active(true), used(true) {}
+                : predecessor(_predecessor),
+                  sibling(InvalidTraceRef),
+                  output(_output),
+                  input(0),
+                  time(_time),
+                  score(_score),
+                  wordEnd(_wordEnd),
+                  active(true),
+                  used(true) {}
     };
 
 public:
     FirstBestTraceRecorder(bool createLattice = false)
-            : next_(0), createLattice_(createLattice) {}
+            : next_(0),
+              createLattice_(createLattice) {}
     virtual ~FirstBestTraceRecorder() {}
 
     void setCreateLattice(bool create) {

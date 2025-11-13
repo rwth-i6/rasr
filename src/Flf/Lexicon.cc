@@ -117,8 +117,7 @@ Lexicon::Lexicon(const Core::Configuration& config)
     else
         insertionChannel_ = 0;
     nLemmaUpdates_ = 0;
-    emptyPron_     = Precursor::getOrCreatePronunciation(
-            std::vector<Bliss::Phoneme::Id>(1, Bliss::Phoneme::term));
+    emptyPron_     = Precursor::getOrCreatePronunciation(std::vector<Bliss::Phoneme::Id>(1, Bliss::Phoneme::term));
     initSpecialLemmas();
 }
 
@@ -486,7 +485,9 @@ std::pair<const Lemma*, s32> Lexicon::lemmaPronunciationVariant(const Bliss::Lem
 }
 
 Lexicon::SymbolMap::SymbolMap(Fsa::ConstAlphabetRef alphabet, IndexFcn indexFcn)
-        : lexicon_(Lexicon::us().get()), index_(indexFcn), alphabet_(alphabet) {}
+        : lexicon_(Lexicon::us().get()),
+          index_(indexFcn),
+          alphabet_(alphabet) {}
 
 void Lexicon::SymbolMap::indices(const std::string& str, std::vector<Fsa::LabelId>& ids) const {
     const char *b = str.c_str(), *c;
@@ -756,7 +757,8 @@ protected:
 
     public:
         WordListExtractor(ConstLatticeRef l, Core::Vector<bool>& hasLid)
-                : TraverseState(l), hasLid_(hasLid) {
+                : TraverseState(l),
+                  hasLid_(hasLid) {
             traverse();
         }
         virtual ~WordListExtractor() {}
@@ -781,7 +783,9 @@ private:
 
 public:
     WordListExtractorNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), dump_(config, "dump"), hasLid_(0) {}
+            : FilterNode(name, config),
+              dump_(config, "dump"),
+              hasLid_(0) {}
     ~WordListExtractorNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {}
@@ -801,7 +805,8 @@ NodeRef createWordListExtractorNode(const std::string& name, const Core::Configu
 
 // -------------------------------------------------------------------------
 EditDistance::EditDistance(Fsa::ConstAlphabetRef alphabet, const Bliss::TokenAlphabet* toks)
-        : alphabet_(alphabet), toks_(toks) {
+        : alphabet_(alphabet),
+          toks_(toks) {
     lengthD_ = 256;
     D_       = new Cost[lengthD_];
 }

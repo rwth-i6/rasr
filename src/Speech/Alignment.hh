@@ -33,9 +33,13 @@ struct AlignmentItem {
     Fsa::LabelId   emission;
     Mm::Weight     weight;
     AlignmentItem()
-            : time(0), emission(0), weight(0) {}
+            : time(0),
+              emission(0),
+              weight(0) {}
     AlignmentItem(TimeframeIndex t, Am::AllophoneStateIndex e, Mm::Weight w = 1.0)
-            : time(t), emission(e), weight(w) {}
+            : time(t),
+              emission(e),
+              weight(w) {}
     bool operator==(const AlignmentItem& other) const {
         return (time == other.time && emission == other.emission && weight == other.weight);
     }
@@ -59,8 +63,10 @@ Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream&, const Alignment&
 class Alignment : public std::vector<AlignmentItem> {
 public:
     typedef std::pair<Alignment::iterator, Alignment::iterator> Frame;
-    enum LabelType { allophoneStateIds,
-                     emissionIds };
+    enum LabelType {
+        allophoneStateIds,
+        emissionIds
+    };
 
 private:
     typedef std::vector<AlignmentItem> Precursor;

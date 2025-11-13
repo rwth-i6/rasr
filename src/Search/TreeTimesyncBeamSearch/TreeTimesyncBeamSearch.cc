@@ -25,6 +25,7 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include "Search/Module.hh"
 #include "Search/Traceback.hh"
+#include "Search/TracebackHelper.hh"
 
 namespace Search {
 
@@ -303,6 +304,24 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
 bool TreeTimesyncBeamSearch::decodeStep() {

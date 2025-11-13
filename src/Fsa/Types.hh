@@ -52,9 +52,11 @@ static const LabelId Failure        = 2147483647 - 2;  // if no other arc matche
 static const LabelId Any            = 2147483647 - 1;  // any of the own alphabet
 static const LabelId InvalidLabelId = Core::Type<LabelId>::max;
 
-typedef enum { TypeUnknown    = 0,
-               TypeAcceptor   = 1,
-               TypeTransducer = 2 } Type;
+typedef enum {
+    TypeUnknown    = 0,
+    TypeAcceptor   = 1,
+    TypeTransducer = 2
+} Type;
 extern Core::Choice TypeChoice;
 
 /**

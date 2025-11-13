@@ -233,7 +233,8 @@ private:
 
 public:
     FramePosteriorCnCombinationNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), weightingScheme_(WeightingSchemeStatic) {}
+            : Node(name, config),
+              weightingScheme_(WeightingSchemeStatic) {}
     virtual ~FramePosteriorCnCombinationNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

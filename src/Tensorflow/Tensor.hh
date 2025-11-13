@@ -89,6 +89,9 @@ public:
     // getters for a subset of the data (1-dim subset)
 
     template<typename T>
+    void get(size_t dim0_idx, Math::FastMatrix<T>& mat, bool transpose = false) const;
+
+    template<typename T>
     void get(size_t dim0_idx, Math::FastVector<T>& vec) const;
 
     template<typename T>
@@ -133,6 +136,12 @@ public:
 
     template<typename T>
     T const* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const;
+
+    template<typename T>
+    T* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx, size_t dim3_idx);
+
+    template<typename T>
+    T const* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx, size_t dim3_idx) const;
 
     Tensor slice(std::vector<int> const& start, std::vector<int> const& end);
 

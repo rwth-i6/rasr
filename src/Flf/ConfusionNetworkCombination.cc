@@ -51,7 +51,8 @@ public:
 
     public:
         Cost()
-                : refPtr_(0), hypPtr_(0) {}
+                : refPtr_(0),
+                  hypPtr_(0) {}
         virtual ~Cost() {}
         // called before the alignment of ref and hyp starts, i.e. before the first call to the cost functions
         virtual void init(const ConfusionNetwork& ref, const ConfusionNetwork& hyp) const {
@@ -499,7 +500,12 @@ public:
 
     public:
         WeightedCost()
-                : refWeight(0.5), hypWeight(0.5), refNorm(1.0), hypNorm(1.0), refNormedWeight(0.5), hypNormedWeight(0.5) {}
+                : refWeight(0.5),
+                  hypWeight(0.5),
+                  refNorm(1.0),
+                  hypNorm(1.0),
+                  refNormedWeight(0.5),
+                  hypNormedWeight(0.5) {}
         virtual ~WeightedCost() {}
         void setPosteriorIds(ScoreId refPosteriorId, ScoreId hypPosteriorId) {
             verify((refPosteriorId != Semiring::InvalidId) && (hypPosteriorId != Semiring::InvalidId));
@@ -1102,7 +1108,9 @@ public:
 
     public:
         NistScliteCost(std::string null = "@")
-                : Precursor(), null(null), nullLabel(Fsa::Epsilon) {}
+                : Precursor(),
+                  null(null),
+                  nullLabel(Fsa::Epsilon) {}
 
         void setAlphabet(Fsa::ConstAlphabetRef alphabet) {
             this->alphabet = alphabet;
@@ -1229,14 +1237,12 @@ public:
         virtual Score delCost(u32 refId) const {
             const ConfusionNetwork::Slot& ref = refSlot(refId);
             verify(!ref.empty());
-            Score        cost = Infinity, tmpCost = 0.0;
-            Fsa::LabelId label = Fsa::InvalidLabelId;
+            Score cost = Infinity, tmpCost = 0.0;
             for (ConfusionNetwork::Slot::const_iterator itRef = ref.begin(), endRef = ref.end(); itRef != endRef; ++itRef) {
                 const ConfusionNetwork::Arc& refArc = *itRef;
                 tmpCost                             = (refArc.label == Fsa::Epsilon) ? 0.002 : Score(refArc.duration) / 100.0 + 0.003;
                 if (tmpCost < cost) {
-                    label = refArc.label;
-                    cost  = tmpCost;
+                    cost = tmpCost;
                 }
             }
             return cost;
@@ -1251,8 +1257,7 @@ public:
                 cost = delCost(refId) - 0.001;
             }
             else {
-                Score        tmpCost = 0.0;
-                Fsa::LabelId label   = Fsa::InvalidLabelId;
+                Score tmpCost = 0.0;
                 for (ConfusionNetwork::Slot::const_iterator itRef = ref.begin(), endRef = ref.end(); itRef != endRef; ++itRef) {
                     const ConfusionNetwork::Arc& refArc = *itRef;
                     if (refArc.label != Fsa::Epsilon) {
@@ -1266,8 +1271,7 @@ public:
                         if (refArc.label != hypArc.label)
                             tmpCost += 0.001;
                         if (tmpCost < cost) {
-                            label = refArc.label;
-                            cost  = tmpCost;
+                            cost = tmpCost;
                         }
                     }
                 }
@@ -1844,7 +1848,8 @@ public:
 
     public:
         WeightedOracleCost(f64 alpha)
-                : PosteriorCost(), alpha_(alpha) {}
+                : PosteriorCost(),
+                  alpha_(alpha) {}
 
         virtual std::string describe() const {
             return Core::form("weighted-oracle-cost(alpha=%.2f)", alpha_);

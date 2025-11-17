@@ -24,7 +24,11 @@ const Core::ParameterFloat AllPolesPowerSpectrumNode::paramContinuousTotalLength
         "continuous-total-length", "total length of power spectrum in continuous units", 0, 0);
 
 AllPolesPowerSpectrumNode::AllPolesPowerSpectrumNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), discreteTotalLength_(0), continuousTotalLength_(0), totalLength_(0) {
+        : Core::Component(c),
+          Precursor(c),
+          discreteTotalLength_(0),
+          continuousTotalLength_(0),
+          totalLength_(0) {
     discreteTotalLength_   = paramDiscreteTotalLength(c);
     continuousTotalLength_ = paramContinuousTotalLength(c);
 }
@@ -81,7 +85,7 @@ bool AllPolesPowerSpectrumNode::work(Flow::PortId p) {
         out->setTimestamp(*arCoefficients);
         allPolesPowerSpectrum(arCoefficients->gain(), arCoefficients->a(), totalLength_, *out);
         std::transform(out->begin(), out->end(), out->begin(),
-                       std::bind2nd(std::divides<f32>(), sampleRate_ * sampleRate_));
+                       std::bind(std::divides<f32>(), std::placeholders::_1, sampleRate_ * sampleRate_));
         return putData(0, out);
     }
     return putData(0, arCoefficients.get());

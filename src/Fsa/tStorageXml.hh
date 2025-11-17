@@ -213,7 +213,9 @@ private:
 
 public:
     StorageAutomatonXmlParser(const _Resources& resources, _StorageAutomaton* fsa)
-            : Precursor(resources.getConfiguration()), resources_(resources), fsa_(fsa) {
+            : Precursor(resources.getConfiguration()),
+              resources_(resources),
+              fsa_(fsa) {
         fsa_->setType(Fsa::TypeTransducer);
         Core::XmlMixedElement* arcElement   = new Core::XmlMixedElementRelay("arc", this, startHandler(&Self::startArc), 0, 0,
                                                                              XML_CHILD(new Core::XmlMixedElementRelay("in", this, startHandler(&Self::startIn),

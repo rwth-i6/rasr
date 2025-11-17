@@ -65,7 +65,8 @@ public:
 
 public:
     AcousticModel(const Core::Configuration& c)
-            : Core::Component(c), Mc::Component(c) {}
+            : Core::Component(c),
+              Mc::Component(c) {}
     virtual ~AcousticModel() {}
 
     virtual void load(Mode mode = complete) = 0;

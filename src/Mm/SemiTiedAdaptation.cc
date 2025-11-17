@@ -271,7 +271,12 @@ bool SemiTiedEstimator::read(Core::BinaryInputStream& i) {
 SemiTiedOptimizationFunction::SemiTiedOptimizationFunction(ComponentIndex d, const Math::Vector<Matrix>& G,
                                                            const Math::Vector<Matrix>&                   Z,
                                                            const std::map<NodeId, Math::Vector<double>>& l)
-        : dimension_(d), G_(G), Z_(Z), lambda_(l), f1_(dimension_), f2_(dimension_) {}
+        : dimension_(d),
+          G_(G),
+          Z_(Z),
+          lambda_(l),
+          f1_(dimension_),
+          f2_(dimension_) {}
 
 SemiTiedOptimizationFunction::ResultType SemiTiedOptimizationFunction::operator()(const ArgumentType& x) const {
     convert2Matrices(x, lambda_, U_, V_, dimension_);

@@ -309,7 +309,8 @@ protected:
     struct TimeInterval {
         Speech::TimeframeIndex startTime, endTime;
         TimeInterval(Speech::TimeframeIndex _startTime, Speech::TimeframeIndex _endTime)
-                : startTime(_startTime), endTime(_endTime) {}
+                : startTime(_startTime),
+                  endTime(_endTime) {}
     };
     struct TimeIntervalHash {
         size_t operator()(const TimeInterval& i) const {
@@ -324,7 +325,8 @@ protected:
     struct Hypothesis : public TimeInterval {
         Fsa::LabelId label;
         Hypothesis(Fsa::LabelId _label, Speech::TimeframeIndex _startTime, Speech::TimeframeIndex _endTime)
-                : TimeInterval(_startTime, _endTime), label(_label) {}
+                : TimeInterval(_startTime, _endTime),
+                  label(_label) {}
     };
     typedef std::unordered_set<TimeInterval, TimeIntervalHash, TimeIntervalEquality> TimeIntervals;
     typedef std::unordered_map<Fsa::LabelId, TimeIntervals>                          States;
@@ -1052,11 +1054,12 @@ private:
     class SetDerivativesDfsState : public DfsState {
     private:
         // without constant factor @param beta
-        struct diffSigmoid : public std::unary_function<f64, f64> {
+        struct diffSigmoid {
             const f64            beta, marginFactor;
             static constexpr s64 tol = 45035996274LL;  // = Core::differenceUlp(1, 1.00001)
             static constexpr f64 inf = 1e9;
-            f32                  operator()(f64 x) const {
+
+            f32 operator()(f64 x) const {
                 require(!Core::isSignificantlyLessUlp(x, 0, tol) && !Core::isSignificantlyLessUlp(1, x, tol));
                 if (beta != 1) {
                     if (Core::isAlmostEqualUlp(x, 0, tol) || Core::isAlmostEqualUlp(x, 1, tol)) {
@@ -1072,8 +1075,10 @@ private:
                     return 1;
                 }
             }
+
             diffSigmoid(f64 _beta, f64 _margin)
-                    : beta(_beta), marginFactor(exp(beta * _margin)) {
+                    : beta(_beta),
+                      marginFactor(exp(beta * _margin)) {
                 require(beta > 0);
             }
         };

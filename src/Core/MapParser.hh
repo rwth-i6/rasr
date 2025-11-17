@@ -103,7 +103,8 @@ class XmlMapDocument : public XmlSchemaParser {
 private:
     XmlMapElement<Map>* mapElement_;
     Map&                map_;
-    Map*                pseudoCreateMap(const XmlAttributes atts) {
+
+    Map* pseudoCreateMap(const XmlAttributes atts) {
         return &map_;
     }
 

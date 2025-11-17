@@ -33,7 +33,10 @@ struct DynamicLmFstOptions : public FstLib::CacheOptions {
     DynamicLmFstOptions(Core::Ref<Lm::LanguageModel> languageModel = Core::Ref<Lm::LanguageModel>(),
                         OutputType wordType = OutputLemma, f32 pronScale = 0.0,
                         OpenFst::Weight silWeight = OpenFst::Weight::One())
-            : lm(languageModel), outputType(wordType), pronunciationScale(pronScale), silenceWeight(silWeight) {}
+            : lm(languageModel),
+              outputType(wordType),
+              pronunciationScale(pronScale),
+              silenceWeight(silWeight) {}
     DynamicLmFstOptions(const FstLib::CacheOptions& opts)
             : FstLib::CacheOptions(opts) {}
     Core::Ref<Lm::LanguageModel> lm;
@@ -260,7 +263,8 @@ public:
             : CacheStateIterator<Search::Wfst::DynamicLmFst>(fst, const_cast<Search::Wfst::DynamicLmFstImpl*>(fst.GetImpl())) {}
 
 private:
-    DISALLOW_COPY_AND_ASSIGN(StateIterator);
+    StateIterator(StateIterator&) = delete;
+    void operator=(StateIterator) = delete;
 };
 
 /**
@@ -275,7 +279,12 @@ public:
     typedef Arc::StateId                    StateId;
 
     ArcIterator(const Search::Wfst::DynamicLmFst& fst, StateId s)
-            : fst_(fst), state_(s), pos_(1), end_(fst.NumArcs(s)), flags_(FstLib::kArcValueFlags), scores_(0) {
+            : fst_(fst),
+              state_(s),
+              pos_(1),
+              end_(fst.NumArcs(s)),
+              flags_(FstLib::kArcValueFlags),
+              scores_(0) {
         if ((haveCachedArcs_ = fst_.GetImpl()->HasArcs(s))) {
             fst_.GetImpl()->InitArcIterator(s, &cachedArcs_);
             end_ = cachedArcs_.narcs;
@@ -381,7 +390,8 @@ private:
     bool                                                      haveCachedArcs_;
     mutable const Search::Wfst::DynamicLmFstImpl::ScoreCache* scores_;
 
-    DISALLOW_COPY_AND_ASSIGN(ArcIterator);
+    ArcIterator(ArcIterator&)   = delete;
+    void operator=(ArcIterator) = delete;
 };
 
 }  // namespace fst
@@ -403,10 +413,20 @@ public:
     typedef Arc::Weight       Weight;
 
     DynamicLmFstMatcher(const DynamicLmFst& fst, FstLib::MatchType matchType)
-            : fst_(fst.Copy()), arcRead_(true), aiter_(0), mtype_(matchType), state_(FstLib::kNoStateId), loop_(FstLib::kNoLabel, 0, Weight::One(), FstLib::kNoStateId) {}
+            : fst_(fst.Copy()),
+              arcRead_(true),
+              aiter_(0),
+              mtype_(matchType),
+              state_(FstLib::kNoStateId),
+              loop_(FstLib::kNoLabel, 0, Weight::One(), FstLib::kNoStateId) {}
 
     DynamicLmFstMatcher(const DynamicLmFstMatcher& m, bool safe)
-            : fst_(m.fst_->Copy(safe)), arcRead_(true), aiter_(0), mtype_(m.mtype_), state_(FstLib::kNoStateId), loop_(m.loop_) {}
+            : fst_(m.fst_->Copy(safe)),
+              arcRead_(true),
+              aiter_(0),
+              mtype_(m.mtype_),
+              state_(FstLib::kNoStateId),
+              loop_(m.loop_) {}
 
     virtual ~DynamicLmFstMatcher() {
         delete aiter_;

@@ -37,7 +37,7 @@ AffineFeatureTransformAccumulator::AffineFeatureTransformAccumulator(size_t feat
     }
 }
 
-void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vector> feature,
+void AffineFeatureTransformAccumulator::accumulate(Feature::VectorRef feature,
                                                    DensityIndex density, Core::Ref<MixtureSet> mixture) {
     verify(featureDimension_ != 0);
 
@@ -79,7 +79,7 @@ void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vect
     }
 }
 
-void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vector> feature,
+void AffineFeatureTransformAccumulator::accumulate(Feature::VectorRef feature,
                                                    DensityIndex density, Core::Ref<MixtureSet> mixture, Mm::Weight weight) {
     verify(featureDimension_ != 0);
 
@@ -201,7 +201,7 @@ Math::Matrix<FeatureType> AffineFeatureTransformAccumulator::estimate(int       
     hope(transform.nColumns() == featureDimension_ + 1);
     hope(transform.nRows() == targetDimension);
 
-    if (criterion != naive & beta_ < minObsWeight)
+    if (criterion != naive && beta_ < minObsWeight)
         return transform;
 
     if (hldaCriterion) {

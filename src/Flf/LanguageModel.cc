@@ -52,7 +52,8 @@ private:
         Lm::History  history;
 
         InternalState(Fsa::StateId _sid, Lm::History _history)
-                : sid(_sid), history(_history) {}
+                : sid(_sid),
+                  history(_history) {}
 
         struct Hash {
             size_t operator()(const InternalState& s) const {

@@ -90,7 +90,8 @@ private:
 
 public:
     ConvertFsaDfsState(_ConstAutomatonRef f, VectorFst* fst)
-            : Precursor(f), fst_(fst) {
+            : Precursor(f),
+              fst_(fst) {
         inputSymbolMap_.insert(std::make_pair(Fsa::Epsilon, Epsilon));
         outputSymbolMap_.insert(std::make_pair(Fsa::Epsilon, Epsilon));
     }

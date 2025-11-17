@@ -89,7 +89,8 @@ void CorpusProcessor::processSpeechSegment(Bliss::SpeechSegment* segment) {
 
 // -------------------------------------------------------------------------
 SpeechSegmentNode::SpeechSegmentNode(const std::string& name, const Core::Configuration& config)
-        : Node(name, config), blissSpeechSegment_(0) {}
+        : Node(name, config),
+          blissSpeechSegment_(0) {}
 
 void SpeechSegmentNode::init(const std::vector<std::string>& arguments) {
     if (!in().empty())

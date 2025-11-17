@@ -69,13 +69,16 @@ public:
     virtual _Weight     max() const                                       = 0;
     virtual _Weight     extend(const _Weight& a, const _Weight& b) const  = 0;
     virtual _Weight     collect(const _Weight& a, const _Weight& b) const = 0;
-    virtual _Weight     invCollect(const _Weight& a, const _Weight& b) const {
+
+    virtual _Weight invCollect(const _Weight& a, const _Weight& b) const {
         std::cerr << "method \"invCollect\" is not supported" << std::endl;
         return invalid();
     }
+
     virtual bool hasInvCollect() const {
         return false;
     }
+
     virtual _Weight invert(const _Weight& a) const                    = 0;
     virtual int     compare(const _Weight& a, const _Weight& b) const = 0;
     virtual size_t  hash(const _Weight& a) const                      = 0;
@@ -109,7 +112,9 @@ protected:
         Function    f;
         _Weight     w;
         AnchoredAccumulator(const Self* self, Function f, const _Weight& init)
-                : self(self), f(f), w(init) {
+                : self(self),
+                  f(f),
+                  w(init) {
             self->acquireReference();
         }
         virtual ~AnchoredAccumulator() {

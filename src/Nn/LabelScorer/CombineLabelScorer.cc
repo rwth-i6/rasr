@@ -25,7 +25,8 @@ Core::ParameterFloat CombineLabelScorer::paramScale(
         "scale", "Scores of a sub-label-scorer are scaled by this factor", 1.0);
 
 CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config), scaledScorers_() {
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::ALL) {
     size_t numLabelScorers = paramNumLabelScorers(config);
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
@@ -53,22 +54,6 @@ ScoringContextRef CombineLabelScorer::getInitialScoringContext() {
         scoringContexts.push_back(scaledScorer.scorer->getInitialScoringContext());
     }
     return Core::ref(new CombineScoringContext(std::move(scoringContexts)));
-}
-
-ScoringContextRef CombineLabelScorer::extendedScoringContext(Request const& request) {
-    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
-
-    std::vector<ScoringContextRef> extScoringContexts;
-    extScoringContexts.reserve(scaledScorers_.size());
-
-    auto scorerIt  = scaledScorers_.begin();
-    auto contextIt = combineContext->scoringContexts.begin();
-
-    for (; scorerIt != scaledScorers_.end(); ++scorerIt, ++contextIt) {
-        Request subRequest{*contextIt, request.nextToken, request.transitionType};
-        extScoringContexts.push_back(scorerIt->scorer->extendedScoringContext(subRequest));
-    }
-    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
 }
 
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -101,7 +86,23 @@ void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTime(Request const& request) {
+ScoringContextRef CombineLabelScorer::extendedScoringContextInternal(Request const& request) {
+    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
+
+    std::vector<ScoringContextRef> extScoringContexts;
+    extScoringContexts.reserve(scaledScorers_.size());
+
+    auto scorerIt  = scaledScorers_.begin();
+    auto contextIt = combineContext->scoringContexts.begin();
+
+    for (; scorerIt != scaledScorers_.end(); ++scorerIt, ++contextIt) {
+        Request subRequest{*contextIt, request.nextToken, request.transitionType};
+        extScoringContexts.push_back(scorerIt->scorer->extendedScoringContext(subRequest));
+    }
+    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+}
+
+std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTimeInternal(Request const& request) {
     // Initialize accumulated result with zero-valued score and timestep
     ScoreWithTime accumResult{0.0, 0};
 
@@ -130,7 +131,11 @@ std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTi
     return accumResult;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWithTimes(std::vector<Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWithTimesInternal(std::vector<Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
+    }
+
     // Initialize accumulated results with zero-valued scores and timesteps
     ScoresWithTimes accumResult{std::vector<Score>(requests.size(), 0.0), {requests.size(), 0}};
 

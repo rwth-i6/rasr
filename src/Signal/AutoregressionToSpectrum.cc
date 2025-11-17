@@ -26,7 +26,10 @@ const Core::ParameterBool AutoregressionToSpectrumNode::paramSlimSpectrum(
         "slim", "slim spectrum to skip bad band/channels (yes/no)", true);
 
 AutoregressionToSpectrumNode::AutoregressionToSpectrumNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), outputSize_(0), needInit_(true) {
+        : Core::Component(c),
+          Precursor(c),
+          outputSize_(0),
+          needInit_(true) {
     setOutputSize(paramOutputSize(c));
     setSlimSpectrum(paramSlimSpectrum(c));
 }

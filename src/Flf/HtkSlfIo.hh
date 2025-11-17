@@ -37,8 +37,10 @@ namespace Flf {
  * - time field is compulsory
  */
 
-typedef enum { HtkSlfForward,
-               HtkSlfBackward } HtkSlfType;
+typedef enum {
+    HtkSlfForward,
+    HtkSlfBackward
+} HtkSlfType;
 
 class HtkSlfContext;
 typedef Core::Ref<HtkSlfContext> HtkSlfContextRef;
@@ -69,72 +71,88 @@ public:
         return silId_;
     }
 
-    void       setType(HtkSlfType type);
+    void setType(HtkSlfType type);
+
     HtkSlfType type() const {
         return type_;
     }
 
     void setFps(f32 fps);
-    f32  fps() const {
+
+    f32 fps() const {
         return fps_;
     }
 
     void setCapitalize(bool isCapitalize);
+
     bool capitalize() const {
         return isCapitalize_;
     }
 
     void setMergePenalties(bool mergePenalty);
+
     bool mergePenalty() const {
         return mergePenalty_;
     }
 
     void setBase(f32 base);
-    f32  base() const {
+
+    f32 base() const {
         return base_;
     }
 
-    void               setEpsSymbol(const std::string&);
+    void setEpsSymbol(const std::string&);
+
     const std::string& epsSymbol() const {
         return epsSymbol_;
     }
 
-    void             setSemiring(ConstSemiringRef semiring);
+    void setSemiring(ConstSemiringRef semiring);
+
     ConstSemiringRef semiring() const {
         return semiring_;
     }
+
     ScoreId amId() const {
         return amId_;
     }
+
     ScoreId lmId() const {
         return lmId_;
     }
+
     ScoreId penaltyId() const {
         return penaltyId_;
     }
 
     // if silPenalty is not given or invalid, silPenalty = wrdPenalty
     void setPenalties(Score wrdPenalty, Score silPenalty = Semiring::Invalid);
+
     bool hasPenalties() const {
         return wrdPenalty_ != Semiring::Invalid;
     }
+
     Score wordPenalty() const {
         return wrdPenalty_;
     }
+
     Score silPenalty() const {
         return silPenalty_;
     }
 
-    void               setLmName(const std::string& lmName);
+    void setLmName(const std::string& lmName);
+
     const std::string& lmName() const {
         return lmName_;
     }
+
     bool cmpLm(const std::string& lmName) const {
         return lmName_ == lmName;
     }
 
     std::string info() const;
-    void        clear();
+
+    void clear();
 
     static HtkSlfContextRef create(const Core::Configuration& config);
 };
@@ -227,7 +245,8 @@ public:
         StateIdList       htk2fsa;
         StateIdList       fsa2htk;
         ConstStateRefList finals;
-        void              clear() {
+
+        void clear() {
             htk2fsa.clear();
             fsa2htk.clear();
             finals.clear();

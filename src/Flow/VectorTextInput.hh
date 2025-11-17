@@ -97,7 +97,9 @@ public:
         return std::string("generic-vector-") + Core::Type<T>::name + "-text-input";
     }
     VectorTextInputNode(const Core::Configuration& c)
-            : Core::Component(c), VectorTextInputNodeBase(c, Vector<T>::type()), givenSize_(0) {}
+            : Core::Component(c),
+              VectorTextInputNodeBase(c, Vector<T>::type()),
+              givenSize_(0) {}
     virtual ~VectorTextInputNode() {}
 };
 

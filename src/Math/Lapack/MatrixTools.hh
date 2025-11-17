@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _MATH_MATRIX_TOOLS_HH_
-#define _MATH_MATRIX_TOOLS_HH_
+#ifndef _MATH_LAPACK_MATRIX_TOOLS_HH_
+#define _MATH_LAPACK_MATRIX_TOOLS_HH_
 
 #include <Core/Application.hh>
 #include <Math/Matrix.hh>
@@ -189,4 +189,4 @@ T determinant(const Math::Matrix<T, P>& mat, bool critical = true) {
 }  // namespace Lapack
 }  // namespace Math
 
-#endif  // _MATH_MATRIX_TOOLS_HH_
+#endif  // _MATH_LAPACK_MATRIX_TOOLS_HH_

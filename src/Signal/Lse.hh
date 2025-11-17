@@ -52,7 +52,9 @@ public:
 
     public:
         iterator(T* buffer = 0, u8 row_size = 0, u32 column_size = 0)
-                : buffer_(buffer), row_size_(row_size), column_size_(column_size){};
+                : buffer_(buffer),
+                  row_size_(row_size),
+                  column_size_(column_size){};
 
         operator bool() {
             return buffer_ != 0;
@@ -91,7 +93,13 @@ protected:
 
 public:
     LeastSquares()
-            : nr_sample_(0), nr_parameter_(0), X_(0), y_(0), work_(0), lwork_(0), need_init_(true){};
+            : nr_sample_(0),
+              nr_parameter_(0),
+              X_(0),
+              y_(0),
+              work_(0),
+              lwork_(0),
+              need_init_(true){};
     virtual ~LeastSquares() {
         freeBuffers();
     };
@@ -356,7 +364,10 @@ private:
 
 public:
     LeastSquaresBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true){};
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true){};
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {
@@ -468,7 +479,10 @@ private:
 
 public:
     CovarianceBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true) {}
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true) {}
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {
@@ -592,7 +606,10 @@ private:
 
 public:
     InstrumentalVariablesBuilder(LeastSquares<T>& least_squares)
-            : least_squares_(least_squares), order_B_(0), order_A_(0), need_init_(true) {}
+            : least_squares_(least_squares),
+              order_B_(0),
+              order_A_(0),
+              need_init_(true) {}
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {

@@ -34,11 +34,13 @@ protected:
     LatticeTraceRecorder(const StateSequenceList& hmms);
 
 public:
-    enum LatticeType { HmmLattice,
-                       DetermisticHmmLattice,
-                       SimpleWordLattice,
-                       SimpleNonDetWordLattice,
-                       WordLattice };
+    enum LatticeType {
+        HmmLattice,
+        DetermisticHmmLattice,
+        SimpleWordLattice,
+        SimpleNonDetWordLattice,
+        WordLattice
+    };
 
     /**
      * Set input and output label of silence arcs

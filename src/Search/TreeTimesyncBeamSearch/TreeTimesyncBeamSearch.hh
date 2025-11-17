@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/LanguageModelLookahead.hh>
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
@@ -33,6 +34,7 @@ namespace Search {
  * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
+ * Full or sparse language model lookahead can optionally be used with the same or with a separate LM.
  * Supports global or separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
  * Uses a LabelScorer to context initialization/extension and scoring.
@@ -48,6 +50,9 @@ public:
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterFloat paramWordEndScoreThreshold;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
+    static const Core::ParameterBool  paramLmLookahead;
+    static const Core::ParameterBool  paramSeparateLookaheadLm;
+    static const Core::ParameterBool  paramSparseLmLookAhead;
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -81,6 +86,7 @@ protected:
         StateId                         nextState;       // State in the search tree of this extension
         Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
         Score                           score;           // Would-be total score of the full hypothesis after extension
+        Score                           lookaheadScore;  // LM-lookahead score
         Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
         size_t                          baseHypIndex;    // Index of base hypothesis in beam
 
@@ -104,13 +110,17 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                 currentState;    // Current state in the search tree
-        Lm::History             lmHistory;       // Language model history
-        Speech::TimeframeIndex  timeframe;       // Timeframe of current token
-        Score                   score;           // Full score of the hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building of hypothesis
+        Nn::ScoringContextRef                             scoringContext;        // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                                    currentToken;          // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                                           currentState;          // Current state in the search tree
+        LanguageModelLookahead::ContextLookaheadReference lookahead;             // LM-lookahead table
+        Lm::History                                       lmHistory;             // Language model history
+        Lm::History                                       lookaheadHistory;      // LM history used for the lookahead, may be reduced
+        Lm::History                                       fullLookaheadHistory;  // The full/unreduced LM history for the lookahead
+        Speech::TimeframeIndex                            timeframe;             // Timeframe of current token
+        Score                                             score;                 // Full score of the hypothesis
+        Score                                             lookaheadScore;        // LM-lookahead score
+        Core::Ref<LatticeTrace>                           trace;                 // Associated trace for traceback or lattice building of hypothesis
 
         LabelHypothesis();
 
@@ -118,7 +128,7 @@ protected:
         LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
 
         // Word-end constructor from base and word-end extension
-        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory);
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory, LanguageModelLookahead::ContextLookaheadReference const newLookahead, Lm::History const& newLookaheadHistory);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -148,7 +158,13 @@ private:
     Core::Ref<PersistentStateTree>     network_;
     Core::Ref<const Am::AcousticModel> acousticModel_;
     Core::Ref<Lm::ScaledLanguageModel> languageModel_;
+    Core::Ref<Lm::ScaledLanguageModel> lookaheadLm_;
     Core::Channel                      debugChannel_;
+
+    bool                    enableLmLookahead_;
+    bool                    separateLookaheadLm_;
+    bool                    sparseLmLookahead_;
+    LanguageModelLookahead* lmLookahead_;
 
     // Pre-allocated intermediate vectors
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
@@ -207,6 +223,16 @@ private:
      * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
+
+    /*
+     * Retrieve or compute the LM lookahead for the given history
+     */
+    void getLmLookahead(LanguageModelLookahead::ContextLookaheadReference& lookahead, Lm::History history);
+
+    /*
+     * Compute the sparse or non-sparse LM lookahead score for an extension's state and history, with back-off if needed
+     */
+    Score getLmLookaheadScore(TreeTimesyncBeamSearch::WithinWordExtensionCandidate& extension);
 
     /*
      * Precompute information about the successor structure of each state in the search tree

@@ -57,7 +57,9 @@ void bindLabelScorer(py::module_& module) {
             .value("BLANK_TO_LABEL", Nn::LabelScorer::TransitionType::BLANK_TO_LABEL)
             .value("BLANK_LOOP", Nn::LabelScorer::TransitionType::BLANK_LOOP)
             .value("INITIAL_LABEL", Nn::LabelScorer::TransitionType::INITIAL_LABEL)
-            .value("INITIAL_BLANK", Nn::LabelScorer::TransitionType::INITIAL_BLANK);
+            .value("INITIAL_BLANK", Nn::LabelScorer::TransitionType::INITIAL_BLANK)
+            .value("WORD-END", Nn::LabelScorer::TransitionType::WORD_END)
+            .value("SILENCE", Nn::LabelScorer::TransitionType::SILENCE);
 
     // Specify `Python::LabelScorer` as trampoline class and `Core::Ref<Nn::LabelScorer>` as holder type
     py::class_<Nn::LabelScorer, Python::PythonLabelScorer, Core::Ref<Nn::LabelScorer>> pyLabelScorer(

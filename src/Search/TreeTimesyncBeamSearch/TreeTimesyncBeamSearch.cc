@@ -407,10 +407,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
+        contextExtensionTime_.start();
         auto newScoringContext = labelScorer_->extendedScoringContext(
                 {baseHyp.scoringContext,
                  extension.nextToken,
                  extension.transitionType});
+        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }

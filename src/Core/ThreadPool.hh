@@ -60,7 +60,8 @@ public:
     typedef typename Pool::Mapper Mapper;
 
     ThreadPoolThread(Pool* pool, Mapper* mapper)
-            : pool_(pool), mapper_(mapper) {}
+            : pool_(pool),
+              mapper_(mapper) {}
     virtual ~ThreadPoolThread() {}
 
     void run() {
@@ -92,7 +93,9 @@ public:
     typedef ThreadPoolThread<Self>  WorkerThread;
 
     ThreadPoolImpl()
-            : active_threads_(0), running_threads_(0), terminate_(false) {}
+            : active_threads_(0),
+              running_threads_(0),
+              terminate_(false) {}
     ~ThreadPoolImpl() {
         for (typename std::vector<WorkerThread*>::iterator t = threads_.begin(); t != threads_.end(); ++t) {
             delete (*t)->getMapper();

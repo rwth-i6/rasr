@@ -75,7 +75,8 @@ protected:
 
 protected:
     Lattice::ConstWordLatticeRef extractNumerator(const std::string& orth, Lattice::ConstWordLatticeRef denominator) const;
-    Mm::Weight                   weightThreshold() const {
+
+    Mm::Weight weightThreshold() const {
         return weightThreshold_;
     }
 

@@ -81,10 +81,13 @@ public:
                          const double                            factorLexicon    = 1.0,
                          const double                            factorTransition = 1.0,
                          const unsigned                          order            = 0);
+
     virtual ConstStateRef getState(StateId s) const;
-    virtual Fsa::StateId  initialStateId() const {
+
+    virtual Fsa::StateId initialStateId() const {
         return Fsa::StateId(0);
     };
+
     virtual std::string describe() const {
         return std::string("SimpleAlignAutomaton()");
     }

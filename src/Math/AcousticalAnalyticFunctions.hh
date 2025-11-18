@@ -90,7 +90,8 @@ struct BilinearTransform : public UnaryAnalyticFunction {
 
 public:
     BilinearTransform(Argument a, Argument T)
-            : a_(a), T_(T) {
+            : a_(a),
+              T_(T) {
         require(Core::abs(a) < 1);
         require(T > 0);
     }

@@ -264,7 +264,9 @@ private:
 
 public:
     BoundariesCopyBuilder(ConstLatticeRef l, StaticBoundaries* staticBoundaries)
-            : Precursor(l), boundaries_(l->getBoundaries()), staticBoundaries_(staticBoundaries) {
+            : Precursor(l),
+              boundaries_(l->getBoundaries()),
+              staticBoundaries_(staticBoundaries) {
         staticBoundaries->clear();
         traverse();
     }

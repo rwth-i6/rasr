@@ -16,6 +16,8 @@
 #define _MATH_SIMPLE_ANALYTIC_FUNCTION_HH
 
 #include <algorithm>
+#include <functional>
+
 #include "AnalyticFunction.hh"
 
 namespace Math {
@@ -52,13 +54,17 @@ class PiecewiseConstantFunction : public UnaryAnalyticFunction,
 private:
     typedef Precursor::value_type LimitAndValue;
 
-    struct greaterOrEqual : public std::binary_function<LimitAndValue, Argument, bool> {
+    struct greaterOrEqual {
+        using first_argument_type  = LimitAndValue;
+        using second_argument_type = const Argument;
+        using result_type          = bool;
+
         bool operator()(const LimitAndValue& x, const Argument& limit) const {
             return x.first >= limit;
         }
     };
     std::vector<LimitAndValue>::const_iterator findSegment(const Argument& limit) const {
-        return std::find_if(begin(), end(), std::bind2nd(greaterOrEqual(), limit));
+        return std::find_if(begin(), end(), std::bind(greaterOrEqual(), std::placeholders::_1, limit));
     }
 
 public:
@@ -67,12 +73,12 @@ public:
             : Precursor(limitsAndValues) {}
 
     void insert(const LimitAndValue& limitAndValue) {
-        iterator pos = std::find_if(begin(), end(), std::bind2nd(greaterOrEqual(), limitAndValue.first));
+        iterator pos = std::find_if(begin(), end(), std::bind(greaterOrEqual(), std::placeholders::_1, limitAndValue.first));
         Precursor::insert(pos, limitAndValue);
     }
 
     virtual Result value(Argument x) const {
-        const_iterator result = std::find_if(begin(), end(), std::bind2nd(greaterOrEqual(), x));
+        const_iterator result = std::find_if(begin(), end(), std::bind(greaterOrEqual(), std::placeholders::_1, x));
         ensure(result != end());
         return result->second;
     }

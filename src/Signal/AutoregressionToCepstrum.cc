@@ -40,7 +40,10 @@ const Core::ParameterInt AutoregressionToCepstrumNode::paramOutputSize(
         "nr-outputs", "number of outputs");
 
 AutoregressionToCepstrumNode::AutoregressionToCepstrumNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), outputSize_(0), needInit_(true) {
+        : Core::Component(c),
+          Precursor(c),
+          outputSize_(0),
+          needInit_(true) {
     setOutputSize(paramOutputSize(c));
 }
 

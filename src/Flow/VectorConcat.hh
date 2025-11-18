@@ -45,7 +45,9 @@ public:
         return std::string("generic-vector-") + Core::NameHelper<T>() + "-concat";
     }
     VectorConcatNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), output_size_(0) {}
+            : Core::Component(c),
+              Precursor(c),
+              output_size_(0) {}
     virtual ~VectorConcatNode() {}
 
     virtual bool configure() {

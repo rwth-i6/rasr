@@ -64,7 +64,10 @@ private:
 // Inline implementations of simple functions
 
 inline Session::Session(Core::Configuration const& config)
-        : Precursor(config), profileRun_(paramProfileRun(config)), profilePrefix_(paramProfilePrefix(config)), profileCounter_(0ul) {
+        : Precursor(config),
+          profileRun_(paramProfileRun(config)),
+          profilePrefix_(paramProfilePrefix(config)),
+          profileCounter_(0ul) {
     tf::SessionOptions options;
     options.config.set_log_device_placement(paramLogDevicePlacement(config));
     options.config.set_intra_op_parallelism_threads(paramIntraOpParallelismThreads(config));
@@ -76,7 +79,8 @@ inline Session::Session(Core::Configuration const& config)
 
 inline Session::~Session() {
     if (session_.get() != nullptr) {
-        session_->Close();
+        tsl::Status unused = session_->Close();
+        (void)unused;
     }
 }
 

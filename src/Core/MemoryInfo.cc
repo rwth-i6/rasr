@@ -22,7 +22,13 @@
 using namespace Core;
 
 MemoryInfo::MemoryInfo()
-        : size_(0), rss_(0), share_(0), text_(0), lib_(0), data_(0), pageSize_(0) {
+        : size_(0),
+          rss_(0),
+          share_(0),
+          text_(0),
+          lib_(0),
+          data_(0),
+          pageSize_(0) {
     update();
 }
 

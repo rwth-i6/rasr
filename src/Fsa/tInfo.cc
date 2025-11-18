@@ -113,7 +113,9 @@ private:
 
 public:
     CountLinearStatesDfsState(ConstAutomatonRef f, const Core::Vector<u32>& nInDegree)
-            : Precursor(f), nLinearStates_(0), nInDegree_(nInDegree) {
+            : Precursor(f),
+              nLinearStates_(0),
+              nInDegree_(nInDegree) {
     }
     size_t nLinearStates() const {
         return nLinearStates_;
@@ -161,7 +163,11 @@ private:
 
 public:
     CountInputDfsState(ConstAutomatonRef f, Fsa::LabelId label)
-            : Precursor(f), nArcs_(0), nMatched_(0), nEpsilons_(0), label_(label) {
+            : Precursor(f),
+              nArcs_(0),
+              nMatched_(0),
+              nEpsilons_(0),
+              label_(label) {
     }
     virtual void discoverState(ConstStateRef sp) {
         for (typename State::const_iterator a = sp->begin(); a != sp->end(); ++a) {
@@ -204,7 +210,11 @@ private:
 
 public:
     CountOutputDfsState(ConstAutomatonRef f, Fsa::LabelId label)
-            : Precursor(f), nArcs_(0), nMatched_(0), nEpsilons_(0), label_(label) {
+            : Precursor(f),
+              nArcs_(0),
+              nMatched_(0),
+              nEpsilons_(0),
+              label_(label) {
     }
     virtual void discoverState(ConstStateRef sp) {
         for (typename State::const_iterator a = sp->begin(); a != sp->end(); ++a) {

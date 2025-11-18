@@ -42,7 +42,10 @@ private:
 };
 
 inline MetaGraphLoader::MetaGraphLoader(Core::Configuration const& config)
-        : Core::Component(config), MetaGraphLoader::Precursor(config), meta_graph_file_(paramMetaGraphFile(config)), saved_model_file_(paramSavedModelFile(config)) {
+        : Core::Component(config),
+          MetaGraphLoader::Precursor(config),
+          meta_graph_file_(paramMetaGraphFile(config)),
+          saved_model_file_(paramSavedModelFile(config)) {
 }
 
 }  // namespace Tensorflow

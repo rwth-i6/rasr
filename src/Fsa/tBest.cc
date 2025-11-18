@@ -44,13 +44,15 @@ private:
 
 public:
     BestAutomaton(_ConstAutomatonRef f)
-            : Precursor(f), potentials_(sssp<_Automaton>(transpose<_Automaton>(f, false))) {
+            : Precursor(f),
+              potentials_(sssp<_Automaton>(transpose<_Automaton>(f, false))) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyNone);
         this->addProperties(Fsa::PropertySorted);
         this->addProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic);
     }
     BestAutomaton(_ConstAutomatonRef f, const _StatePotentials& backward)
-            : Precursor(f), potentials_(backward) {
+            : Precursor(f),
+              potentials_(backward) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, Fsa::PropertyNone);
         this->addProperties(Fsa::PropertySorted);
         this->addProperties(Fsa::PropertyLinear | Fsa::PropertyAcyclic);
@@ -131,7 +133,10 @@ public:
             Fsa::LabelId input       = Fsa::InvalidLabelId,
             Fsa::LabelId output      = Fsa::InvalidLabelId,
             u32          predecessor = 0)
-            : input_(input), output_(output), count_(1), predecessor_(predecessor) {}
+            : input_(input),
+              output_(output),
+              count_(1),
+              predecessor_(predecessor) {}
 };
 
 class TraceCache : public Core::Vector<Trace> {
@@ -189,14 +194,17 @@ private:
         u32          trace_;
         Hyp() {}
         Hyp(Fsa::StateId state, _Weight potential, u32 trace)
-                : state_(state), potential_(potential), trace_(trace) {}
+                : state_(state),
+                  potential_(potential),
+                  trace_(trace) {}
     };
 
     struct PriorityFunction {
         _ConstSemiringRef       semiring_;
         const _StatePotentials& potentials_;
         PriorityFunction(_ConstSemiringRef semiring, const _StatePotentials& potentials)
-                : semiring_(semiring), potentials_(potentials) {}
+                : semiring_(semiring),
+                  potentials_(potentials) {}
         bool operator()(const Hyp& h1, const Hyp& h2) const {
             return (semiring_->compare(semiring_->extend(h1.potential_, potentials_[h1.state_]),
                                        semiring_->extend(h2.potential_, potentials_[h2.state_])) < 0);
@@ -209,7 +217,8 @@ private:
 
 public:
     NBestTraces(_ConstAutomatonRef f, size_t n, bool bestSequences)
-            : traces_(n), finals_() {
+            : traces_(n),
+              finals_() {
         // check for tropical semiring (or for at least a semiring with property 'ordered')
         if (bestSequences) {
             if (f->type() & Fsa::TypeAcceptor)
@@ -362,14 +371,16 @@ private:
         Fsa::StateId state;
         s32          arc;
         Step(Fsa::StateId _state, s32 _arc)
-                : state(_state), arc(_arc) {}
+                : state(_state),
+                  arc(_arc) {}
     };
 
     struct Trace : Step {
         typedef u32 Id;
         Id          back;
         Trace(Id _back, Fsa::StateId _state, s32 _arc)
-                : Step(_state, _arc), back(_back) {}
+                : Step(_state, _arc),
+                  back(_back) {}
     };
     typedef typename Trace::Id TraceId;
 
@@ -407,10 +418,9 @@ private:
     };
 
     TraceId search(TracePool& traces) {
-        typename Hyp::Priority precedes(this->semiring());
-        Core::TracedPriorityQueue<Hyp, Fsa::StateId, typename Hyp::Key, typename Hyp::Priority>
-                                                  stack(precedes);
-        std::unordered_map<Fsa::StateId, _Weight> closed;
+        typename Hyp::Priority                                                                  precedes(this->semiring());
+        Core::TracedPriorityQueue<Hyp, Fsa::StateId, typename Hyp::Key, typename Hyp::Priority> stack(precedes);
+        std::unordered_map<Fsa::StateId, _Weight>                                               closed;
 
         Hyp newHyp;
         newHyp.state  = Precursor::fsa_->initialStateId();
@@ -454,7 +464,8 @@ private:
     }
 
     std::unordered_map<Fsa::StateId, u32> path_;
-    void                                  traceback(TracePool& traces, TraceId trace) {
+
+    void traceback(TracePool& traces, TraceId trace) {
         while (trace) {
             path_[traces[trace].state] = traces[trace].arc;
             trace                      = traces[trace].back;

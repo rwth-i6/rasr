@@ -72,7 +72,7 @@ namespace Core {
 
 /** Generic unary functor for type conversion. */
 template<typename S, typename T>
-struct conversion : public std::unary_function<S, T> {
+struct conversion {
     T operator()(S s) const {
         return T(s);
     }
@@ -87,7 +87,8 @@ template<class A, class B>
 class tied {
 public:
     inline tied(A& a, B& b)
-            : a_(a), b_(b) {}
+            : a_(a),
+              b_(b) {}
     template<class U, class V>
     inline tied& operator=(const std::pair<U, V>& p) {
         a_ = p.first;
@@ -132,7 +133,7 @@ T abs(const std::complex<T>& v) {
 
 /** absoluteValue: functor for absolute value */
 template<class T>
-struct absoluteValue : public std::unary_function<T, T> {
+struct absoluteValue {
     T operator()(T v) const {
         return Core::abs(v);
     }
@@ -171,7 +172,7 @@ T maxAbsoluteElement(const std::vector<std::complex<T>>& v) {
 
 /** power: functor for pow function */
 template<class T>
-struct power : public std::binary_function<T, T, T> {
+struct power {
     T operator()(T x, T y) const {
         return pow(x, y);
     }
@@ -179,7 +180,7 @@ struct power : public std::binary_function<T, T, T> {
 
 /** min: functor for min function */
 template<class T>
-struct minimum : public std::binary_function<T, T, T> {
+struct minimum {
     T operator()(T x, T y) const {
         return std::min(x, y);
     }
@@ -187,7 +188,7 @@ struct minimum : public std::binary_function<T, T, T> {
 
 /** max: functor for max function */
 template<class T>
-struct maximum : public std::binary_function<T, T, T> {
+struct maximum {
     T operator()(T x, T y) const {
         return std::max(x, y);
     }
@@ -274,10 +275,7 @@ bool isMalformed(InputIterator begin, InputIterator end) {
 
 /** Functor for f(g(x), h(y)) */
 template<class F, class G, class H>
-class composedBinaryFunction
-        : public std::binary_function<typename G::argument_type,
-                                      typename H::argument_type,
-                                      typename F::result_type> {
+class composedBinaryFunction {
 protected:
     F f_;
     G g_;
@@ -285,8 +283,11 @@ protected:
 
 public:
     composedBinaryFunction(const F& f, const G& g, const H& h)
-            : f_(f), g_(g), h_(h) {}
-    typename F::result_type operator()(const typename G::argument_type& x, const typename H::argument_type& y) const {
+            : f_(f),
+              g_(g),
+              h_(h) {}
+    template<typename X, typename Y>
+    auto operator()(const X& x, const Y& y) const -> decltype(f_(g_(x), h_(y))) {
         return f_(g_(x), h_(y));
     }
 };

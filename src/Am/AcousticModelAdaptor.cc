@@ -17,7 +17,8 @@
 using namespace Am;
 
 MixtureSetAdaptor::MixtureSetAdaptor(const Core::Configuration& c, Core::Ref<AcousticModel> toAdapt)
-        : Component(c), Precursor(c, toAdapt) {
+        : Component(c),
+          Precursor(c, toAdapt) {
     Core::Ref<Mm::MixtureSet> mixtureSet = Mm::Module::instance().readMixtureSet(select("mixture-set"));
     if (!mixtureSet || !setMixtureSet(mixtureSet))
         criticalError("failed to initialize mixture set.");

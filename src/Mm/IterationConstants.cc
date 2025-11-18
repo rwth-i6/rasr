@@ -31,12 +31,12 @@ struct AugmentedDensityEstimator {
 /**
  * DensitySet
  */
-struct AugmentedDensityEstimatorHash : public std::unary_function<size_t, AugmentedDensityEstimator> {
+struct AugmentedDensityEstimatorHash {
     size_t operator()(const AugmentedDensityEstimator& d) const {
         return reinterpret_cast<size_t>(d.densityEstimator.get());
     }
 };
-struct AugmentedDensityEstimatorEquality : public std::unary_function<size_t, AugmentedDensityEstimator> {
+struct AugmentedDensityEstimatorEquality {
     bool operator()(const AugmentedDensityEstimator& lhs,
                     const AugmentedDensityEstimator& rhs) const {
         return lhs.densityEstimator.get() == rhs.densityEstimator.get();
@@ -133,7 +133,7 @@ CovarianceToDensitySetMap::CovarianceToDensitySetMap(const AbstractMixtureSetEst
 /*
  * Xi
  *
- *         / beta/[1+(Gamma_max-1) · Gamma_max/gamma_max] : Gamma_max < gamma_max
+ *         / beta/[1+(Gamma_max-1) * Gamma_max/gamma_max] : Gamma_max < gamma_max
  * xi_s = <
  *         \ beta                                         : otherwise
  */
@@ -202,13 +202,13 @@ IterationConstant Xi::denominator(Core::Ref<AbstractMixtureEstimator> mixtureEst
 /**
  * iteration constants b
  *
- * t1 := -Gamma_{s,l}(x_d^2) + sigma_min·Gamma_{s,l}(1)
- * t2 := 2·Gamma_{s,l}(x_d) - Gamma_{s,l}(1)·mu_{s,l,d}
- * t3 := Gamma_{s,l}(x_d) - Gamma_{s,l}(1)·mu_{s,l,d}
+ * t1 := -Gamma_{s,l}(x_d^2) + sigma_min*Gamma_{s,l}(1)
+ * t2 := 2*Gamma_{s,l}(x_d) - Gamma_{s,l}(1)*mu_{s,l,d}
+ * t3 := Gamma_{s,l}(x_d) - Gamma_{s,l}(1)*mu_{s,l,d}
  *
- *                   sum_{s*,l*} [ t1 + t2·mu_{s,l,d} + xi_s·t3^2 ]
+ *                   sum_{s*,l*} [ t1 + t2*mu_{s,l,d} + xi_s*t3^2 ]
  * D_k^min = max_d { ---------------------------------------------- }
- *                   sum_{s*,l*} [ c_{s,l}·(sigma*^2-sigma_min) ]
+ *                   sum_{s*,l*} [ c_{s,l}*(sigma*^2-sigma_min) ]
  *
  *     with sigma*^2 in {sigma_{s,l,d}^2, sigma_{s_d}^2, sigma_d^2}
  */
@@ -366,7 +366,7 @@ GlobalIcb::GlobalIcb(const Core::Configuration&       c,
         IterationConstant                      ic      = default_;
 
         /**
-         * D_k = h · max_{s*,l*} { 1/c_{s,l} · (1/xi_s - Gamma_{s,l}(1)), D_k^min }
+         * D_k = h * max_{s*,l*} { 1/c_{s,l} * (1/xi_s - Gamma_{s,l}(1)), D_k^min }
          */
         const DensitySet&          densitySet = it->second;
         DensitySet::const_iterator d          = densitySet.begin();
@@ -418,7 +418,7 @@ LocalIcb::LocalIcb(const Core::Configuration&       c,
         const IterationConstant D_k_min = minimumDk(it, meanSet);
 
         /**
-         * D_k = h · max_{s*,l*} { 1/c_{s,l} · (1/xi_s - Gamma_{s,l}(1)), D_k^min }
+         * D_k = h * max_{s*,l*} { 1/c_{s,l} * (1/xi_s - Gamma_{s,l}(1)), D_k^min }
          */
         const DensitySet&          densitySet = it->second;
         DensitySet::const_iterator d          = densitySet.begin();

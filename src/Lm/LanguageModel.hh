@@ -184,7 +184,9 @@ struct Request {
     Score                         offset;
     Request() {}
     Request(const Bliss::SyntacticTokenSequence& s, u32 t, Score o = 0.0)
-            : tokens(s), target(t), offset(o) {}
+            : tokens(s),
+              target(t),
+              offset(o) {}
 };
 typedef std::vector<Request> BatchRequest;
 

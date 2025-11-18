@@ -21,7 +21,10 @@ const Core::ParameterString GenericWarpingNode::paramWarpingFunction(
         "warping-function", "warping function declaration");
 
 GenericWarpingNode::GenericWarpingNode(const Core::Configuration& c)
-        : Component(c), Node(c), WarpingNode(c), Flow::StringExpressionNode(c, 1) {
+        : Component(c),
+          Node(c),
+          WarpingNode(c),
+          Flow::StringExpressionNode(c, 1) {
     Flow::StringExpressionNode::setTemplate(paramWarpingFunction(c));
 }
 

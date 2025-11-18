@@ -22,6 +22,7 @@
 #include <Core/Utility.hh>
 #include <Lm/BackingOff.hh>
 #include <Lm/FsaLm.hh>
+#include <Search/ArchiveIO.hh>
 #include <Search/Helpers.hh>
 #include <Search/Types.hh>
 
@@ -292,7 +293,8 @@ LanguageModelLookahead::LanguageModelLookahead(
         HMMStateNetwork const&                        tree,
         StateId                                       rootNode,
         std::vector<PersistentStateTree::Exit> const& exits,
-        Core::Ref<const Am::AcousticModel>            acousticModel)
+        Core::Ref<const Am::AcousticModel>            acousticModel,
+        bool                                          sparse)
         : Core::Component(c),
           wpScale_(wpScale),
           maxDepth_(0),
@@ -1795,6 +1797,18 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
     for (; node != nodeEnd; ++node) {
         LookaheadId nodeIdx = (*node).first;
         waitingLookaheadNodesByDepth_[nodes_[nodeIdx].depth].push_back(std::make_pair(nodeIdx, (Score)0));
+    }
+
+    for (const Lm::WordScore& successor : successors) {
+        Score score = successor.score() * scale;
+
+        TokenNodeScore::const_iterator node    = nodeForToken_.begin() + firstNodeForToken_[successor.token()],
+                                       nodeEnd = nodeForToken_.begin() + firstNodeForToken_[successor.token() + 1];
+        for (; node != nodeEnd; ++node) {
+            Score       endScore = score + (*node).second;
+            LookaheadId nodeId   = (*node).first;
+            waitingLookaheadNodesByDepth_[nodes_[nodeId].depth].push_back(std::make_pair(nodeId, endScore));
+        }
     }
 
     if (nodeRecombination_.empty()) {

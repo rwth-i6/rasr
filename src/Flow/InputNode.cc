@@ -1,17 +1,20 @@
 #include "InputNode.hh"
+
 #include "Timestamp.hh"
 #include "Vector.hh"
 
-using namespace Flow;
-
 namespace {
+
 template<typename T>
 Flow::Timestamp* createTimestamp(T const* data, unsigned num_samples) {
     Flow::Vector<T>* out = new Flow::Vector<T>(num_samples);
     std::copy(data, data + num_samples, out->data());
     return out;
 }
+
 }  // namespace
+
+namespace Flow {
 
 const Core::ParameterInt    InputNode::paramSampleRate("sample-rate", "sample rate of input data", 1, 1);
 const Core::Choice          InputNode::choiceSampleType("s8", static_cast<unsigned>(Flow::SampleType::SampleTypeS8),
@@ -88,17 +91,20 @@ bool InputNode::configure() {
 
 bool InputNode::work(Flow::PortId out) {
     unsigned sample_size = static_cast<unsigned>(sampleType_) & 0xFF;
+
     if ((not(eos_ and not eosReceived_)) and (queue_.size() < blockSize_ * sample_size)) {
         do {  // at least once call byteStreamAppender because it might remove the eos status
             byteStreamAppender_(queue_);
         } while (queue_.size() < blockSize_ * sample_size and not eos_);
     }
+
     if (queue_.empty()) {
         if (resetSampleCount_) {
             sampleCount_ = 0ul;
         }
         return putEos(out);
     }
+
     // remove possible partial samples at EOS
     unsigned full_samples = queue_.size() / sample_size;
     if (eos_ and queue_.size() % sample_size != 0ul) {
@@ -111,6 +117,7 @@ bool InputNode::work(Flow::PortId out) {
             queue_.resize(full_samples * sample_size);
         }
     }
+
     unsigned          num_samples = std::min<unsigned>(blockSize_, full_samples);
     std::vector<char> buffer(num_samples * sample_size);
     std::copy(queue_.begin(), queue_.begin() + num_samples * sample_size, buffer.begin());
@@ -118,6 +125,7 @@ bool InputNode::work(Flow::PortId out) {
         queue_.front() = 0;  // erase data
         queue_.pop_front();
     }
+
     Flow::Timestamp* v = nullptr;
     switch (sampleType_) {
         case Flow::SampleType::SampleTypeS8:
@@ -139,11 +147,16 @@ bool InputNode::work(Flow::PortId out) {
             error("unsupported sample type: %d", static_cast<unsigned>(sampleType_));
             return false;
     }
+
     for (unsigned i = 0ul; i < num_samples; i++) {
         std::fill(buffer.begin(), buffer.end(), 0);  // erase data
     }
+
     v->setStartTime(Flow::Time(sampleCount_) / Flow::Time(sampleRate_) / Flow::Time(trackCount_));
     sampleCount_ += num_samples;
     v->setEndTime(Flow::Time(sampleCount_) / Flow::Time(sampleRate_) / Flow::Time(trackCount_));
+
     return putData(out, v);
 }
+
+}  // namespace Flow

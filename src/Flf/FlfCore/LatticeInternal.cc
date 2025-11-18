@@ -44,7 +44,9 @@ protected:
 
 public:
     StateRescorer(const RescoreLattice* l)
-            : l(*l), predecessor(*l->fsa_), semiring(*l->semiring()) {}
+            : l(*l),
+              predecessor(*l->fsa_),
+              semiring(*l->semiring()) {}
     virtual ~StateRescorer() {}
     virtual ConstStateRef operator()(Fsa::StateId sid) const = 0;
 };

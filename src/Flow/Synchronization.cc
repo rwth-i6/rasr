@@ -32,7 +32,7 @@ bool Synchronization::work(const Timestamp& time, DataPointer& dataPointer) {
         }
     } while (Core::isSignificantlyGreater(startTime, in->startTime(), timeTolerance));
 
-    if (!Core::isAlmostEqual(startTime, in->startTime(), timeTolerance)) {
+    if (!Core::isAlmostEqualUlp(startTime, in->startTime(), timeToleranceUlp)) {
         lastError_ = Core::form("Input stream has no element with the start-time %f.", startTime);
         return false;
     }

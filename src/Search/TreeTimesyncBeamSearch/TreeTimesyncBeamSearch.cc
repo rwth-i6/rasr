@@ -383,13 +383,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             withinWordExtensions_.push_back(
-                    {tokenIdx,
-                     successorState,
-                     0,
-                     hyp.score,
-                     transitionType,
-                     hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
+                    {.nextToken      = tokenIdx,
+                     .nextState      = successorState,
+                     .timeframe      = 0,
+                     .score          = hyp.score,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
+            requests_.push_back({.context        = beam_[hypIndex].scoringContext,
+                                 .nextToken      = tokenIdx,
+                                 .transitionType = transitionType});
         }
     }
 
@@ -429,9 +431,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         auto newScoringContext = labelScorer_->extendedScoringContext(
-                {baseHyp.scoringContext,
-                 extension.nextToken,
-                 extension.transitionType});
+                {.context        = baseHyp.scoringContext,
+                 .nextToken      = extension.nextToken,
+                 .transitionType = extension.transitionType});
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
@@ -471,7 +473,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
                 }
-                wordEndExtensions_.push_back({lemmaPron, exit.transitState, hyp.score + lmScore, hypIndex});
+                wordEndExtensions_.push_back({.pron         = lemmaPron,
+                                              .rootState    = exit.transitState,
+                                              .score        = hyp.score + lmScore,
+                                              .baseHypIndex = hypIndex});
             }
         }
     }
@@ -527,33 +532,28 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
             auto const* lemma     = lemmaPron->lemma();
 
-            ExtensionCandidate wordEndExtension{hyp.currentToken,
-                                                lemmaPron,
-                                                exit.transitState,  // Start from the root node (the exit's transit state) in the next step
-                                                hyp.lmHistory,
-                                                hyp.score,
-                                                0.0,
-                                                static_cast<TimeframeIndex>(currentSearchStep_),
-                                                Nn::LabelScorer::TransitionType::INITIAL_BLANK,  // The transition type is irrelevant, so just use this as dummy
-                                                hypIndex};
+            WordEndExtensionCandidate wordEndExtension{.pron         = lemmaPron,
+                                                       .rootState    = exit.transitState,  // Start from the root node (the exit's transit state) in the next step
+                                                       .score        = hyp.score,
+                                                       .baseHypIndex = hypIndex};
 
-            auto const sts = lemma->syntacticTokenSequence();
+            auto const sts          = lemma->syntacticTokenSequence();
+            auto       newLmHistory = hyp.lmHistory;
             if (sts.size() != 0) {
                 require(sts.size() == 1);
                 auto const* st = sts.front();
 
                 // Add the LM score
-                Lm::Score lmScore = languageModel_->score(wordEndExtension.lmHistory, st);
+                Lm::Score lmScore = languageModel_->score(hyp.lmHistory, st);
                 wordEndExtension.score += lmScore;
-                wordEndExtension.lmScore = lmScore;
 
                 // Extend the LM history
-                wordEndExtension.lmHistory = languageModel_->extendedHistory(wordEndExtension.lmHistory, st);
+                newLmHistory = languageModel_->extendedHistory(hyp.lmHistory, st);
             }
-            wordEndHypotheses_.push_back({hyp, wordEndExtension, hyp.scoringContext});
+            wordEndHypotheses_.push_back({hyp, wordEndExtension, newLmHistory});
         }
     }
-    recombination(wordEndHypotheses_);
+    recombination(wordEndHypotheses_, true);
 
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());

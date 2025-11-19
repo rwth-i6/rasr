@@ -1492,12 +1492,10 @@ std::unique_ptr<AbstractTreeBuilder> AedTreeBuilder::newInstance(Core::Configura
 }
 
 void AedTreeBuilder::build() {
-    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
-    if (wordBoundaryLemma != nullptr) {
-        addWordBoundaryStates();
-    }
+    addWordBoundaryStates();
 
-    auto sentenceEndLemma = lexicon_.specialLemma("sentence-end");
+    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    auto sentenceEndLemma  = lexicon_.specialLemma("sentence-end");
     if (!sentenceEndLemma) {
         sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
     }

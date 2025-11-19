@@ -141,7 +141,10 @@ struct ApplicatorState {
     }
 
     ApplicatorState(Mask m, Fsa::LabelId e, StateType t, Fsa::StateId r)
-            : mask(m), emission(e), weights(t), right(r) {}
+            : mask(m),
+              emission(e),
+              weights(t),
+              right(r) {}
 
     struct Equality {
         bool operator()(ApplicatorState const& ll, ApplicatorState const& rr) const {
@@ -250,7 +253,8 @@ protected:
         }
 
         StateDegrees(Fsa::ConstAutomatonRef ff, Fsa::ConstAlphabetRef aa)
-                : Fsa::DfsState(ff), alphabet_(aa) {}
+                : Fsa::DfsState(ff),
+                  alphabet_(aa) {}
 
         const Degree& operator[](Fsa::StateId ii) const {
             return degrees_[ii];
@@ -260,7 +264,8 @@ protected:
     struct StackItem : AppState {
         Fsa::StateRef result;
         StackItem(AppState const& state, Fsa::StateRef _result)
-                : AppState(state), result(_result) {}
+                : AppState(state),
+                  result(_result) {}
     };
 
     typedef std::stack<StackItem>                                                                            StateStack;
@@ -956,7 +961,9 @@ Am::TransitionModel* Am::TransitionModel::createTransitionModel(const Core::Conf
 // ===========================================================================
 ScaledTransitionModel::ScaledTransitionModel(const Core::Configuration& c,
                                              ClassicStateModelRef       stateModel)
-        : Core::Component(c), Mc::Component(c), transitionModel_(0) {
+        : Core::Component(c),
+          Mc::Component(c),
+          transitionModel_(0) {
     transitionModel_ = TransitionModel::createTransitionModel(c, stateModel);
 }
 

@@ -70,7 +70,8 @@ private:
             AbstractNode* by;
             std::string   as;
             Use(AbstractNode* _by, const std::string& _as)
-                    : by(_by), as(_as) {}
+                    : by(_by),
+                      as(_as) {}
         };
 
     private:
@@ -408,17 +409,6 @@ public:
     /** Resets all links and nodes. */
     void reset();
 
-    void go();
-
-    friend std::ostream& operator<<(std::ostream& o, const Network& n);
-
-    void setFilename(const std::string& f) {
-        filename_ = f;
-    }
-    const std::string& filename() const {
-        return filename_;
-    }
-
     void configureAll() {
         for (auto n : nodes_) {
             auto* network = dynamic_cast<Flow::Network*>(n);
@@ -429,6 +419,17 @@ public:
         }
     }
 
+    void go();
+
+    friend std::ostream& operator<<(std::ostream& o, const Network& n);
+
+    void setFilename(const std::string& f) {
+        filename_ = f;
+    }
+
+    const std::string& filename() const {
+        return filename_;
+    }
 };  // class Network
 
 /*****************************************************************************/

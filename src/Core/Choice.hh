@@ -48,16 +48,21 @@ private:
 
     public:
         Item(const char* ident, const Value value)
-                : ident_(ident), value_(value) {}
+                : ident_(ident),
+                  value_(value) {}
+
         const std::string& ident() const {
             return ident_;
         }
+
         Value value() const {
             return value_;
         }
+
         bool operator<(const Item& item) const {
             return ident_.compare(item.ident_) < 0;
         }
+
         bool operator==(const Item& item) const {
             return (value_ == item.value_) && (ident_ == item.ident_);
         }
@@ -151,9 +156,11 @@ public:
      * Iterator
      **/
     typedef std::set<Item>::const_iterator const_iterator;
-    const_iterator                         begin() const {
+
+    const_iterator begin() const {
         return items_by_ident.begin();
     }
+
     const_iterator end() const {
         return items_by_ident.end();
     }

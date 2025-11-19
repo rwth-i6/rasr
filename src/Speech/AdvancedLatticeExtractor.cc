@@ -547,7 +547,10 @@ private:
         History        history;
         Context(TimeframeIndex _begtim, TimeframeIndex _endtim,
                 Fsa::LabelId _label, const History& _history)
-                : begtim(_begtim), endtim(_endtim), label(_label), history(_history) {}
+                : begtim(_begtim),
+                  endtim(_endtim),
+                  label(_label),
+                  history(_history) {}
     };
     struct ContextHash {
         size_t operator()(const Context& c) const {

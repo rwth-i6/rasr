@@ -122,7 +122,7 @@ bool CollectorNode<I, O>::putNullData() {
     if (checkSameLength_) {
         typename std::vector<InputFrame>::iterator hasData =
                 std::find_if(inputData_.begin(), inputData_.end(),
-                             std::bind2nd(std::equal_to<bool>(), true));
+                             std::bind(std::equal_to<bool>(), std::placeholders::_1, true));
 
         if (hasData != inputData_.end())
             criticalError("Input streams have different length.");
@@ -130,7 +130,7 @@ bool CollectorNode<I, O>::putNullData() {
 
     typename std::vector<InputFrame>::iterator noData =
             std::find_if(inputData_.begin(), inputData_.end(),
-                         std::bind2nd(std::equal_to<bool>(), false));
+                         std::bind(std::equal_to<bool>(), std::placeholders::_1, false));
 
     if (noData == inputData_.end())
         return putEos(0);

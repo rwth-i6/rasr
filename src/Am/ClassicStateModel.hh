@@ -56,9 +56,11 @@ struct Allophone : public Phonology::Allophone {
     Allophone()
             : Precursor() {}
     Allophone(Bliss::Phoneme::Id phoneme, s16 b)
-            : Precursor(phoneme), boundary(b) {}
+            : Precursor(phoneme),
+              boundary(b) {}
     Allophone(const Phonology::Allophone& a, s16 b)
-            : Precursor(a), boundary(b) {}
+            : Precursor(a),
+              boundary(b) {}
 
     bool operator==(const Allophone& allo) const {
         return (boundary == allo.boundary) && Precursor::operator==(allo);
@@ -66,7 +68,8 @@ struct Allophone : public Phonology::Allophone {
 
     struct Hash {
         Phonology::Allophone::Hash ah;
-        u32                        operator()(const Allophone& a) const {
+
+        u32 operator()(const Allophone& a) const {
             return ah(a) ^ (u32(a.boundary) << 13);
         }
     };
@@ -103,7 +106,8 @@ public:
 private:
     struct AllophonePtrHash {
         Allophone::Hash h;
-        size_t          operator()(const Allophone* const a) const {
+
+        size_t operator()(const Allophone* const a) const {
             return h(*a);
         }
     };
@@ -228,11 +232,13 @@ private:
 
 private:
     AllophoneState(const Allophone* allo, s16 state)
-            : allo_(allo), state_(state) {}
+            : allo_(allo),
+              state_(state) {}
 
 public:
     AllophoneState()
-            : allo_(0), state_(0) {}
+            : allo_(0),
+              state_(0) {}
 
     operator const Allophone*() const {
         require(allo_);
@@ -258,13 +264,15 @@ public:
         require(allo_);
         return allo_;
     }
+
     s16 state() const {
         return state_;
     }
 
     struct Hash {
         Allophone::Hash ah;
-        u32             operator()(const AllophoneState& alloState) const {
+
+        u32 operator()(const AllophoneState& alloState) const {
             return ah(alloState) ^ (u32(alloState.state()) << 21);
         }
     };

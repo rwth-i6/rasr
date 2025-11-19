@@ -137,16 +137,20 @@ public:
         return (*transitionModel_)[i];
     }
     virtual StateTransitionIndex stateTransitionIndex(AllophoneState phone, s8 subState = 0) const {
-        if (allophoneStateAlphabet()->isSilence(phone))
+        if (allophoneStateAlphabet()->isSilence(phone)) {
             return TransitionModel::silence;
-        else
+        }
+        else {
             return transitionModel_->classify(phone, subState);
+        }
     }
     virtual StateTransitionIndex stateTransitionIndex(AllophoneStateIndex e, s8 subState = 0) const {
-        if (silenceAllophoneStateIndex_ != Fsa::InvalidLabelId and e == silenceAllophoneStateIndex_)
+        if (silenceAllophoneStateIndex_ != Fsa::InvalidLabelId and e == silenceAllophoneStateIndex_) {
             return TransitionModel::silence;
-        else
+        }
+        else {
             return transitionModel_->classifyIndex(e, subState);
+        }
     }
 
     virtual const ClassicHmmTopology* hmmTopology(Bliss::Phoneme::Id phoneme) const {

@@ -29,7 +29,12 @@ private:
 
 public:
     nBestAutomaton(const std::string& source, const std::string& target, const TranslationLexicon* lex)
-            : source_(Core::split(source, " ")), target_(Core::split(target, " ")), inputSentence_(), outputSentence_(), lexicon_(lex), state_(new State) {
+            : source_(Core::split(source, " ")),
+              target_(Core::split(target, " ")),
+              inputSentence_(),
+              outputSentence_(),
+              lexicon_(lex),
+              state_(new State) {
         std::vector<std::string> numberedSource = numberTokensVector(source_);
         StaticAlphabet*          ia             = new StaticAlphabet();
         for (std::vector<std::string>::const_iterator i = numberedSource.begin(); i != numberedSource.end(); ++i) {

@@ -1,7 +1,5 @@
-#ifndef _LM_ONNX_RECURRENT_LANGUAGE_MODEL_HH
-#define _LM_ONNX_RECURRENT_LANGUAGE_MODEL_HH
-
 #include "OnnxRecurrentLanguageModel.hh"
+#include "OnnxLstmStateManager.hh"
 
 #include "OnnxTransformerStateManager.hh"
 
@@ -23,29 +21,28 @@ std::vector<Onnx::IOSpecification> getIOSpec(int64_t num_classes) {
 namespace Lm {
 
 enum OnnxStateManagerType {
+    OnnxLstmStateManagerType,
     OnnxTransformerStateManagerType,
     OnnxTransformerStateManager16BitType,
     OnnxTransformerStateManager8BitType,
+    OnnxTransformerStateManagerWithCommonPrefixType,
+    OnnxTransformerStateManagerWithCommonPrefix16BitType,
+    OnnxTransformerStateManagerWithCommonPrefix8BitType,
 };
 
 const Core::Choice stateManagerTypeChoice(
-        "transformer", OnnxTransformerStateManagerType,
-        "transformer-16bit", OnnxTransformerStateManager16BitType,
-        "transformer-8bit", OnnxTransformerStateManager8BitType,
+        "lstm", OnnxLstmStateManagerType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice stateManagerTypeParam(
         "type", &stateManagerTypeChoice,
         "type of the state manager",
-        OnnxTransformerStateManagerType);
+        OnnxLstmStateManagerType);
 
 std::unique_ptr<OnnxStateManager> createOnnxStateManager(Core::Configuration const& config) {
     OnnxStateManager* res = nullptr;
-
     switch (stateManagerTypeParam(config)) {
-        case OnnxTransformerStateManagerType: res = new Lm::OnnxTransformerStateManager<float>(config); break;
-        case OnnxTransformerStateManager16BitType: res = new Lm::OnnxTransformerStateManager<int16_t>(config); break;
-        case OnnxTransformerStateManager8BitType: res = new Lm::OnnxTransformerStateManager<int8_t>(config); break;
+        case OnnxLstmStateManagerType: res = new Lm::OnnxLstmStateManager(config); break;
         default: defect();
     }
     return std::unique_ptr<OnnxStateManager>(res);
@@ -116,5 +113,3 @@ Score OnnxRecurrentLanguageModel::transformOutput(Lm::CompressedVectorPtr<float>
 }
 
 }  // namespace Lm
-
-#endif  // _LM_ONNX_RECURRENT_LANGUAGE_MODEL_HH

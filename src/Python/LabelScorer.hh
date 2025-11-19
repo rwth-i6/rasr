@@ -50,10 +50,6 @@ public:
     virtual Nn::ScoringContextRef getInitialScoringContext() override;
     virtual py::object            getInitialPythonScoringContext();
 
-    // Must be overridden in python by name "extended_scoring_context"
-    virtual Nn::ScoringContextRef extendedScoringContext(Request const& request) override;
-    virtual py::object            extendedPythonScoringContext(py::object const& context, Nn::LabelIndex nextToken, TransitionType transitionType);
-
     // Calls batched version with `nTimesteps = 1`
     virtual void addInput(Nn::DataView const& input) override;
 
@@ -61,15 +57,21 @@ public:
     virtual void addInputs(Nn::DataView const& input, size_t nTimesteps) override;
     virtual void addPythonInputs(py::array const& inputs);
 
-    // Calls batched version
-    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
-
-    // Must be overridden in python by name "compute_scores_with_times"
-    virtual std::optional<ScoresWithTimes>                                       computeScoresWithTimes(std::vector<Request> const& requests) override;
-    virtual std::optional<std::vector<std::pair<Score, Speech::TimeframeIndex>>> computePythonScoresWithTimes(std::vector<py::object> const& contexts, std::vector<Nn::LabelIndex> const& nextTokens, std::vector<TransitionType> const& transitionTypes);
-
     // Keep track of python object as a member to make sure it doesn't get garbage collected
     void setInstance(py::object const& instance);
+
+    // the following methods are protected in the base class
+
+    // Must be overridden in python by name "extended_scoring_context_internal"
+    virtual Nn::ScoringContextRef extendedScoringContextInternal(Request const& request) override;
+    virtual py::object            extendedPythonScoringContextInternal(py::object const& context, Nn::LabelIndex nextToken, TransitionType transitionType);
+
+    // Calls batched version
+    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
+
+    // Must be overridden in python by name "compute_scores_with_times_internal"
+    virtual std::optional<ScoresWithTimes>                                       computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+    virtual std::optional<std::vector<std::pair<Score, Speech::TimeframeIndex>>> computePythonScoresWithTimesInternal(std::vector<py::object> const& contexts, std::vector<Nn::LabelIndex> const& nextTokens, std::vector<TransitionType> const& transitionTypes);
 
 protected:
     py::object pyInstance_;  // Hold the Python wrapper

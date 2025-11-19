@@ -72,12 +72,12 @@ void FlfConverter::createSemiring() {
 Flf::ConstLatticeRef FlfConverter::convert(const Search::Wfst::Lattice& lattice,
                                            Fsa::ConstAlphabetRef        inputAlphabet,
                                            Fsa::ConstAlphabetRef        outputAlphabet) {
-    typedef Search::Wfst::Lattice::WordBoundaries WordBoundaries;
+    typedef Search::Wfst::Lattice::WordBoundaries                                                    WordBoundaries;
+    typedef OpenFst::FstMapperAutomaton<Flf::Semiring, LatticeArc, FlfWeightConverter, Flf::Lattice> Mapper;
 
     createSemiring();
-    typedef OpenFst::FstMapperAutomaton<Flf::Semiring, LatticeArc, FlfWeightConverter, Flf::Lattice> Mapper;
-    Mapper*                                                                                          mapper = new Mapper(
-            &lattice, semiring_, FlfWeightConverter<LatticeWeight, Flf::Semiring::Weight>(semiring_));
+
+    Mapper* mapper = new Mapper(&lattice, semiring_, FlfWeightConverter<LatticeWeight, Flf::Semiring::Weight>(semiring_));
     mapper->setInputAlphabet(inputAlphabet);
     mapper->setOutputAlphabet(outputAlphabet);
     Flf::StaticLattice* flfLattice = new Flf::StaticLattice();

@@ -21,9 +21,9 @@
 namespace Nn {
 
 /*
- * This LabelScorer wraps a base LabelScorer and adds predefined transition scores
- * to the base scores depending on the transition type of each request.
+ * This LabelScorer returns predefined transition scores depending on the transition type of each request.
  * The transition scores are all individually specified as config parameters.
+ * It should be used together with a main LabelScorer within the CombineLabelScorer
  */
 class TransitionLabelScorer : public LabelScorer {
 public:
@@ -32,37 +32,30 @@ public:
     TransitionLabelScorer(Core::Configuration const& config);
     virtual ~TransitionLabelScorer() = default;
 
-    // Reset base scorer
+    // No op
     void reset() override;
 
-    // Forward signal to base scorer
+    // No op
     void signalNoMoreFeatures() override;
 
-    // Initial context of base scorer
+    // Return dummy-context
     ScoringContextRef getInitialScoringContext() override;
 
-    // Extend context via base scorer
-    ScoringContextRef extendedScoringContext(Request const& request) override;
-
-    // Clean up base scorer
-    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
-
-    // Add input to base scorer
+    // No op
     void addInput(DataView const& input) override;
 
-    // Add inputs to sub-scorer
-    void addInputs(DataView const& input, size_t nTimesteps) override;
+protected:
+    // Return dummy-context
+    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 
-    // Compute score of base scorer and add transition score based on transition type of the request
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
+    // Return transition score based on transition type of the request
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
 
-    // Compute scores of base scorer and add transition scores based on transition types of the requests
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
+    // Return transition scores based on transition types of the requests
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 
 private:
     std::unordered_map<TransitionType, Score> transitionScores_;
-
-    Core::Ref<LabelScorer> baseLabelScorer_;
 };
 
 }  // namespace Nn

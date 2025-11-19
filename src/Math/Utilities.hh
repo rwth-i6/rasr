@@ -28,7 +28,7 @@ namespace Math {
  * @return |x - y|
  */
 template<class T>
-struct absoluteDifference : public std::binary_function<T, T, T> {
+struct absoluteDifference {
     T operator()(T x, T y) {
         return Core::abs(x - y);
     }
@@ -38,7 +38,7 @@ struct absoluteDifference : public std::binary_function<T, T, T> {
  * @return |x - y|^power
  */
 template<class T>
-class absoluteDifferencePower : public std::binary_function<T, T, T> {
+class absoluteDifferencePower {
 private:
     f64 power_;
 
@@ -55,7 +55,7 @@ public:
  * @return |x - y|^0.5
  */
 template<class T>
-struct absoluteDifferenceSquareRoot : public std::binary_function<T, T, T> {
+struct absoluteDifferenceSquareRoot {
     T operator()(T x, T y) {
         return (T)sqrt(Core::abs(x - y));
     }
@@ -65,7 +65,7 @@ struct absoluteDifferenceSquareRoot : public std::binary_function<T, T, T> {
  * @return |x - y|^2
  */
 template<class T>
-struct absoluteDifferenceSquare : public std::binary_function<T, T, T> {
+struct absoluteDifferenceSquare {
     T operator()(T x, T y) {
         return (x - y) * (x - y);
     }

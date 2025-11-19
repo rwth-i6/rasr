@@ -219,7 +219,8 @@ private:
 
 public:
     LatticeArchiveReaderNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), reader_(0) {}
+            : Precursor(name, config),
+              reader_(0) {}
     virtual ~LatticeArchiveReaderNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {
@@ -287,7 +288,8 @@ private:
 
 public:
     LatticeArchiveWriterNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), writer_(0) {}
+            : Precursor(name, config),
+              writer_(0) {}
     virtual ~LatticeArchiveWriterNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {
@@ -409,7 +411,8 @@ ConfusionNetworkArchive::ConfusionNetworkArchive(
         const Core::Configuration& config,
         const std::string&         pathname,
         CnFormat                   format)
-        : Precursor(config, pathname), format(format) {
+        : Precursor(config, pathname),
+          format(format) {
     encoding = paramEncoding(config);
 }
 
@@ -588,7 +591,8 @@ private:
 
 public:
     ConfusionNetworkArchiveReaderNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), archiveReader_(0) {
+            : Precursor(name, config),
+              archiveReader_(0) {
         isValid_ = false;
     }
     virtual ~ConfusionNetworkArchiveReaderNode() {}
@@ -646,7 +650,8 @@ private:
 
 public:
     ConfusionNetworkArchiveWriterNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), archiveWriter_(0) {}
+            : Precursor(name, config),
+              archiveWriter_(0) {}
     virtual ~ConfusionNetworkArchiveWriterNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         if (!connected(0))
@@ -708,7 +713,8 @@ PosteriorCnArchive::PosteriorCnArchive(
         const Core::Configuration& config,
         const std::string&         pathname,
         PosteriorCnFormat          format)
-        : Precursor(config, pathname), format(format) {
+        : Precursor(config, pathname),
+          format(format) {
     encoding = paramEncoding(config);
 }
 
@@ -886,7 +892,8 @@ private:
 
 public:
     PosteriorCnArchiveReaderNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), archiveReader_(0) {
+            : Precursor(name, config),
+              archiveReader_(0) {
         isValid_ = false;
     }
     virtual ~PosteriorCnArchiveReaderNode() {}
@@ -948,7 +955,9 @@ private:
 
 public:
     PosteriorCnArchiveWriterNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), archiveWriter_(0), flowCache_(0) {}
+            : Precursor(name, config),
+              archiveWriter_(0),
+              flowCache_(0) {}
     virtual ~PosteriorCnArchiveWriterNode() {
         delete archiveWriter_;
         delete flowCache_;

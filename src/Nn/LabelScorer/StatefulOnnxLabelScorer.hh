@@ -78,17 +78,17 @@ public:
     // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
-    // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
-    Core::Ref<const ScoringContext> extendedScoringContext(LabelScorer::Request const& request) override;
-
     // Add a single encoder outputs to buffer
     void addInput(DataView const& input) override;
 
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTime(LabelScorer::Request const& request) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
-
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+
+    // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
+    Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
+
+    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     // Forward a batch of scoringContexts through the ONNX model and put the resulting scores into the score cache

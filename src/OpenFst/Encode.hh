@@ -90,11 +90,11 @@ public:
         return mapper_.table();
     }
 
-    bool Write(std::ostream& strm, const string& source) {
+    bool Write(std::ostream& strm, const std::string& source) {
         return mapper_.Write(strm, source);
     }
 
-    bool Write(const string& filename) {
+    bool Write(const std::string& filename) {
         return mapper_.Write(filename);
     }
 

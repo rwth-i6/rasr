@@ -249,7 +249,8 @@ struct dirent* DirectoryFileIterator::nextEntry() {
 }
 
 DirectoryFileIterator::DirectoryFileIterator(const std::string& path, const Filter* filter)
-        : end_(false), filter_(filter) {
+        : end_(false),
+          filter_(filter) {
     uid_  = getuid();
     gid_  = getgid();
     base_ = path;

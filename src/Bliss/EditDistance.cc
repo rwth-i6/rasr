@@ -127,7 +127,8 @@ struct EditDistance::Trace : public Core::ReferenceCounted,
 
 struct EditDistance::State {
     Fsa::StateId a, b;
-    bool         operator==(const State& rhs) const {
+
+    bool operator==(const State& rhs) const {
         return a == rhs.a && b == rhs.b;
     }
 
@@ -445,10 +446,18 @@ void ErrorStatistic::clear() {
 }
 
 ErrorStatistic::ErrorStatistic()
-        : nLeftTokens_(0), nRightTokens_(0), nInsertions_(0), nDeletions_(0), nSubstitutions_(0) {}
+        : nLeftTokens_(0),
+          nRightTokens_(0),
+          nInsertions_(0),
+          nDeletions_(0),
+          nSubstitutions_(0) {}
 
 ErrorStatistic::ErrorStatistic(const EditDistance::Alignment& a)
-        : nLeftTokens_(0), nRightTokens_(0), nInsertions_(0), nDeletions_(0), nSubstitutions_(0) {
+        : nLeftTokens_(0),
+          nRightTokens_(0),
+          nInsertions_(0),
+          nDeletions_(0),
+          nSubstitutions_(0) {
     *this += a;
 }
 

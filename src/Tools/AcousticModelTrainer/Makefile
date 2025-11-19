@@ -62,7 +62,10 @@ endif
 ifdef MODULE_TENSORFLOW
 ACOUSTIC_MODEL_TRAINER_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
-LDFLAGS  += $(TF_LDFLAGS)
+LDFLAGS  := $(TF_LDFLAGS) $(LDFLAGS)
+endif
+ifdef MODULE_LM_ONNX
+ACOUSTIC_MODEL_TRAINER_O += ../../Onnx/libSprintOnnx.$(a)
 endif
 
 # -----------------------------------------------------------------------------

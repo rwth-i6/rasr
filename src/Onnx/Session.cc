@@ -43,11 +43,21 @@ const Core::Choice Session::executionProviderChoice(
 const Core::ParameterChoice Session::paramExecutionProviderType(
         "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
 
+const Core::ParameterString Session::paramStatePrefix("state-prefix",
+                                                      "Prefix for the state keys in the metadata to distinguish from other metadata",
+                                                      "STATE_");
+
+const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-key",
+                                                            "Whether to remove the prefix from the state keys for the node name lookup",
+                                                            true);
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
           intraOpNumThreads_(paramIntraOpNumThreads(config)),
           interOpNumThreads_(paramInterOpNumThreads(config)),
+          statePrefix_(paramStatePrefix(config)),
+          removePrefixFromKey_(paramRemovePrefixFromKey(config)),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
           session_(nullptr),
@@ -130,6 +140,8 @@ Session::Session(Core::Configuration const& config)
         customMetadataKeys_.emplace_back(key);
         customMetadata_[key] = std::string(value.get());
     }
+
+    initializeStateVariablesMetadata();
 }
 
 std::vector<std::string> Session::getAllInputNames() const {
@@ -271,6 +283,36 @@ std::string Session::getCustomMetadata(std::string const& key) const {
 
 std::vector<std::string> const& Session::getCustomMetadataKeys() const {
     return customMetadataKeys_;
+}
+
+void Session::initializeStateVariablesMetadata() {
+    for (std::string const& key : customMetadataKeys_) {
+        auto state_pos = key.find(statePrefix_);
+
+        if (state_pos != 0) {
+            continue;
+        }
+
+        OnnxStateVariable state_variable;
+
+        if (removePrefixFromKey_) {
+            state_variable.input_state_key = key.substr(statePrefix_.size());
+        }
+        else {
+            state_variable.input_state_key = key;
+        }
+
+        state_variable.output_state_key = getCustomMetadata(key);
+        state_variable.shape            = getInputShape(state_variable.input_state_key);
+
+        log("State: input_state_key=%s output_state_key=%s", state_variable.input_state_key.c_str(), state_variable.output_state_key.c_str());
+
+        stateVariables_.push_back(state_variable);
+    }
+}
+
+std::vector<OnnxStateVariable> const& Session::getStateVariablesMetadata() const {
+    return stateVariables_;
 }
 
 }  // namespace Onnx

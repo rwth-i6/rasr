@@ -18,20 +18,20 @@
 #include <Math/FastMatrix.hh>
 #include <Math/FastVector.hh>
 
-#include "SoftmaxAdapter.hh"
+#include "TFSoftmaxAdapter.hh"
 
 namespace Lm {
 
 template<typename T>
-class QuantizedBlasNceSoftmaxAdapter : public SoftmaxAdapter {
+class TFQuantizedBlasNceSoftmaxAdapter : public TFSoftmaxAdapter {
 public:
-    using Precursor = SoftmaxAdapter;
+    using Precursor = TFSoftmaxAdapter;
 
     static const Core::ParameterFloat paramNNOutputEpsilon;
     static const Core::ParameterFloat paramWeightsBiasEpsilon;
 
-    QuantizedBlasNceSoftmaxAdapter(Core::Configuration const& config);
-    virtual ~QuantizedBlasNceSoftmaxAdapter() = default;
+    TFQuantizedBlasNceSoftmaxAdapter(Core::Configuration const& config);
+    virtual ~TFQuantizedBlasNceSoftmaxAdapter() = default;
 
     virtual void  init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map);
     virtual Score get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx);
@@ -44,18 +44,20 @@ private:
     Math::FastVector<float> bias_;
 };
 
-using QuantizedBlasNceSoftmaxAdapter16Bit = QuantizedBlasNceSoftmaxAdapter<s16>;
-using QuantizedBlasNceSoftmaxAdapter8Bit  = QuantizedBlasNceSoftmaxAdapter<s8>;
+using TFQuantizedBlasNceSoftmaxAdapter16Bit = TFQuantizedBlasNceSoftmaxAdapter<s16>;
+using TFQuantizedBlasNceSoftmaxAdapter8Bit  = TFQuantizedBlasNceSoftmaxAdapter<s8>;
 
 // inline implementations
 
 template<typename T>
-inline QuantizedBlasNceSoftmaxAdapter<T>::QuantizedBlasNceSoftmaxAdapter(Core::Configuration const& config)
-        : Precursor(config), nnOutputEpsilon_(paramNNOutputEpsilon(config)), weightsBiasEpsilon_(paramWeightsBiasEpsilon(config)) {
+inline TFQuantizedBlasNceSoftmaxAdapter<T>::TFQuantizedBlasNceSoftmaxAdapter(Core::Configuration const& config)
+        : Precursor(config),
+          nnOutputEpsilon_(paramNNOutputEpsilon(config)),
+          weightsBiasEpsilon_(paramWeightsBiasEpsilon(config)) {
 }
 
 template<typename T>
-inline void QuantizedBlasNceSoftmaxAdapter<T>::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
+inline void TFQuantizedBlasNceSoftmaxAdapter<T>::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
     auto const&                     weight_tensor_info = output_map.get_info("weights");
     auto const&                     bias_tensor_info   = output_map.get_info("bias");
     std::vector<Tensorflow::Tensor> tensors;

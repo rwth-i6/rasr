@@ -73,7 +73,8 @@ private:
 // iniline implementations
 
 inline DynamicBeamPruningStrategy::DynamicBeamPruningStrategy(Core::Configuration const& config, SearchAlgorithm::PruningRef initialPruning)
-        : Precursor(config), initialPruning_(initialPruning) {
+        : Precursor(config),
+          initialPruning_(initialPruning) {
 }
 
 inline SearchAlgorithm::PruningRef DynamicBeamPruningStrategy::startNewSegment() {

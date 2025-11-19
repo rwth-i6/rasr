@@ -20,6 +20,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
 
+#include "ArchiveIO.hh"
 #include "Helpers.hh"
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"
@@ -1205,19 +1206,19 @@ inline void MinimizedTreeBuilder::mapSuccessors(const std::set<StateId>& success
     }
 }
 
-// -------------------- CtcAedSharedBaseClassTreeBuilder --------------------
+// -------------------- SharedBaseClassTreeBuilder --------------------
 
-CtcAedSharedBaseClassTreeBuilder::CtcAedSharedBaseClassTreeBuilder(Core::Configuration          config,
-                                                                   const Bliss::Lexicon&        lexicon,
-                                                                   const Am::AcousticModel&     acousticModel,
-                                                                   Search::PersistentStateTree& network)
+SharedBaseClassTreeBuilder::SharedBaseClassTreeBuilder(Core::Configuration          config,
+                                                       const Bliss::Lexicon&        lexicon,
+                                                       const Am::AcousticModel&     acousticModel,
+                                                       Search::PersistentStateTree& network)
         : AbstractTreeBuilder(config, lexicon, acousticModel, network) {}
 
-StateId CtcAedSharedBaseClassTreeBuilder::createRoot() {
+StateId SharedBaseClassTreeBuilder::createRoot() {
     return createState(StateTree::StateDesc(Search::StateTree::invalidAcousticModel, Am::TransitionModel::entryM1));
 }
 
-StateId CtcAedSharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
+StateId SharedBaseClassTreeBuilder::extendState(StateId predecessor, StateTree::StateDesc desc) {
     // Check if the successor already exists
     for (HMMStateNetwork::SuccessorIterator target = network_.structure.successors(predecessor); target; ++target) {
         if (!target.isLabel() && network_.structure.state(*target).stateDesc == desc) {
@@ -1231,7 +1232,7 @@ StateId CtcAedSharedBaseClassTreeBuilder::extendState(StateId predecessor, State
     return ret;
 }
 
-void CtcAedSharedBaseClassTreeBuilder::addTransition(StateId predecessor, StateId successor) {
+void SharedBaseClassTreeBuilder::addTransition(StateId predecessor, StateId successor) {
     auto const& predecessorStateDesc = network_.structure.state(predecessor).stateDesc;
     auto const& successorStateDesc   = network_.structure.state(successor).stateDesc;
 
@@ -1246,7 +1247,7 @@ void CtcAedSharedBaseClassTreeBuilder::addTransition(StateId predecessor, StateI
     network_.structure.addTargetToNode(predecessor, successor);
 }
 
-u32 CtcAedSharedBaseClassTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
+u32 SharedBaseClassTreeBuilder::addExit(StateId state, StateId transitState, Bliss::LemmaPronunciation::Id pron) {
     PersistentStateTree::Exit exit;
     exit.transitState  = transitState;
     exit.pronunciation = pron;
@@ -1284,7 +1285,7 @@ const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
         true);
 
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
-        : CtcAedSharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
+        : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
           blankLoop_(paramBlankLoop(config)),
           forceBlank_(paramForceBlank(config)) {
@@ -1468,7 +1469,7 @@ RnaTreeBuilder::RnaTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
 // -------------------- AedTreeBuilder --------------------
 
 AedTreeBuilder::AedTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
-        : CtcAedSharedBaseClassTreeBuilder(config, lexicon, acousticModel, network) {
+        : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network) {
     // auto iters = lexicon.phonemeInventory()->phonemes();
     // for (auto it = iters.first; it != iters.second; ++it) {
     //     require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1491,12 +1492,10 @@ std::unique_ptr<AbstractTreeBuilder> AedTreeBuilder::newInstance(Core::Configura
 }
 
 void AedTreeBuilder::build() {
-    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
-    if (wordBoundaryLemma != nullptr) {
-        addWordBoundaryStates();
-    }
+    addWordBoundaryStates();
 
-    auto sentenceEndLemma = lexicon_.specialLemma("sentence-end");
+    auto wordBoundaryLemma = lexicon_.specialLemma("word-boundary");
+    auto sentenceEndLemma  = lexicon_.specialLemma("sentence-end");
     if (!sentenceEndLemma) {
         sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
     }

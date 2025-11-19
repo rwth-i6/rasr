@@ -46,9 +46,6 @@ public:
     // Combine initial ScoringContexts from all sub-scorers
     ScoringContextRef getInitialScoringContext() override;
 
-    // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request) override;
-
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
@@ -58,24 +55,8 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-    // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
-
-    // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
-
     // Get number of scorers inside combined scorer
     size_t numSubScorers() const override;
-
-    // Compute weighted score of request with a specific sub-scorer
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request, size_t scorerIdx) override;
-
-    // Compute weighted scores of requests with a specific sub-scorer
-    std::optional<ScoresWithTimes> computeScoresWithTimes(const std::vector<Request>& requests, size_t scorerIdx) override;
-
-#ifdef MODULE_PYTHON
-    virtual void registerPythonCallback(std::string const& name, pybind11::function const& callback) override;
-#endif
 
 protected:
     struct ScaledLabelScorer {
@@ -84,6 +65,21 @@ protected:
     };
 
     std::vector<ScaledLabelScorer> scaledScorers_;
+
+    // Combine extended ScoringContexts from all sub-scorers
+    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
+
+    // Compute weighted score of request with all sub-scorers
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
+
+    // Compute weighted score of request with a specific sub-scorer
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, size_t scorerIdx) override;
+
+    // Compute weighted scores of requests with all sub-scorers
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+
+    // Compute weighted scores of requests with a specific sub-scorer
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(const std::vector<Request>& requests, size_t scorerIdx) override;
 };
 
 }  // namespace Nn

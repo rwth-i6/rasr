@@ -70,8 +70,10 @@ class LatticeSetGenerator : public LatticeSetProcessor,
     typedef Core::Ref<PhonemeSequenceAlignmentGenerator> AlignmentGeneratorRef;
 
 private:
-    enum SearchType { exactMatch,
-                      fullSearch };
+    enum SearchType {
+        exactMatch,
+        fullSearch
+    };
     static Core::Choice                choiceSearchType;
     static const Core::ParameterChoice paramSearchType;
     static const Core::ParameterBool   paramShareAcousticModel;

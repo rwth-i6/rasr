@@ -9,6 +9,7 @@
 
 #include "Align.hh"
 #include "LabelScorer.hh"
+#include "Lexicon.hh"
 #include "LibRASR.hh"
 #include "Search.hh"
 
@@ -21,24 +22,27 @@ PYBIND11_MODULE(librasr, m) {
 
     // TODO: Overhaul Configuration pybinds to make Configurations better to interact with from python-side.
     py::class_<Core::Configuration> baseConfigClass(m, "_BaseConfig");
-    baseConfigClass.def(
-            "__getitem__",
-            [](Core::Configuration const& self, std::string const& key) {
-                std::string result;
-                if (self.get(key, result)) {
-                    return result;
+    baseConfigClass.def("enable_logging", &Core::Configuration::enableLogging)
+            .def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile))
+            .def("get_selection", &Core::Configuration::getSelection)
+            .def("get_name", &Core::Configuration::getName)
+            .def("set_selection", &Core::Configuration::setSelection)
+            .def("resolve", &Core::Configuration::resolve)
+            .def("__getitem__", [](Core::Configuration const& self, std::string const& parameter) {
+                std::string value;
+                if (self.get(parameter, value)) {
+                    return std::optional<std::string>(value);
                 }
                 else {
-                    std::cerr << "WARNING: Tried to get config value for key '" << key << "' but it was not configured. Return empty string.\n";
-                    return std::string();
+                    return std::optional<std::string>();
                 }
-            },
-            py::arg("key"),
-            "Retrieve the configured value of a specific parameter key as an unprocessed string.");
+            });
 
     py::class_<PyConfiguration> pyRasrConfig(m, "Configuration", baseConfigClass);
-    pyRasrConfig.def(py::init<>());
-    pyRasrConfig.def("set_from_file", static_cast<bool (Core::Configuration::*)(const std::string&)>(&Core::Configuration::setFromFile));
+    pyRasrConfig.def(py::init<>())
+            .def(py::init<PyConfiguration const&>())
+            .def(py::init<PyConfiguration const&, std::string const&>())
+            .def("set", &PyConfiguration::set);
 
     py::class_<AllophoneStateFsaBuilder> pyFsaBuilder(m, "AllophoneStateFsaBuilder");
     pyFsaBuilder.def(py::init<const Core::Configuration&>());
@@ -47,6 +51,7 @@ PYBIND11_MODULE(librasr, m) {
     pyFsaBuilder.def("build_by_segment_name", &AllophoneStateFsaBuilder::buildBySegmentName);
 
     bindLabelScorer(m);
+    bindLexicon(m);
     bindSearchAlgorithm(m);
     bindAligner(m);
 }

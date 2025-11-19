@@ -59,18 +59,22 @@ public:
 
     // Inherited methods from `SearchAlgorithmV2`
 
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    Am::AcousticModel::Mode         requiredAcousticModel() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Speech::ModelCombination::Mode requiredModelCombination() const override;
+    Am::AcousticModel::Mode        requiredAcousticModel() const override;
+    bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                           reset() override;
+    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                           finishSegment() override;
+    void                           putFeature(Nn::DataView const& feature) override;
+    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
+
+    bool decodeStep() override;
 
 protected:
     /*
@@ -104,14 +108,13 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef           scoringContext;        // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                  currentToken;          // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                         currentState;          // Current state in the search tree
-        Lm::History                     lmHistory;             // Language model history
-        Speech::TimeframeIndex          timeframe;             // Timeframe of current token
-        Score                           score;                 // Full score of the hypothesis
-        Core::Ref<LatticeTrace>         trace;                 // Associated trace for traceback or lattice building of hypothesis
-        Nn::LabelScorer::TransitionType recentTransitionType;  // Type of most recently taken transition
+        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                 currentState;    // Current state in the search tree
+        Lm::History             lmHistory;       // Language model history
+        Speech::TimeframeIndex  timeframe;       // Timeframe of current token
+        Score                   score;           // Full score of the hypothesis
+        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building of hypothesis
 
         LabelHypothesis();
 
@@ -162,7 +165,7 @@ private:
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request>     requests_;
-    std::vector<LabelHypothesis>              tempHypotheses_;  // Intermediate collection for pruning steps
+    std::vector<LabelHypothesis>              recombinedHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
@@ -215,7 +218,8 @@ private:
     void scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const;
 
     /*
-     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history
+     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history.
+     * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
 

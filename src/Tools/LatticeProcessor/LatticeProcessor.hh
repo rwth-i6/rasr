@@ -117,7 +117,9 @@ private:
     static const Core::Choice                choiceAction;
     static const Core::ParameterStringVector paramActions;
     static const Core::ParameterStringVector paramSelections;
-    enum CorpusType { bliss };
+    enum CorpusType {
+        bliss
+    };
     static const Core::Choice          choiceCorpusType;
     static const Core::ParameterChoice paramCorpusType;
     enum ApplicationType {

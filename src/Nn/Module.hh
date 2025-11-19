@@ -40,7 +40,9 @@ class Module_ {
 public:
     Module_();
     ~Module_();
-    enum { FeatureScorerTypeOffset = 0x300 };
+    enum {
+        FeatureScorerTypeOffset = 0x300
+    };
     enum FeatureScorerType {
         nnOnDemanHybrid        = FeatureScorerTypeOffset,
         nnFullHybrid           = FeatureScorerTypeOffset + 1,

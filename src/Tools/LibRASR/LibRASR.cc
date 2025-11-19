@@ -18,6 +18,8 @@
 #ifdef MODULE_ONNX
 #include <Onnx/Module.hh>
 #endif
+#include <Signal/Module.hh>
+#include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif

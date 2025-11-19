@@ -460,8 +460,7 @@ OpenFst::Label AddNonWordTokens::getLabel(const Bliss::Lemma* lemma) const {
         case outputLemmaPronunciations: {
             verify(lemma->nPronunciations() == 1);
             Bliss::Lemma::LemmaPronunciationRange pron = lemma->pronunciations();
-            label                                      = resources_.lexicon()->lemmaPronunciationAlphabet()->index(
-                    pron.first);
+            label                                      = resources_.lexicon()->lemmaPronunciationAlphabet()->index(pron.first);
         } break;
         case outputSyntacticTokens: {
             const Bliss::SyntacticTokenSequence& tokens = lemma->syntacticTokenSequence();

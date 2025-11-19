@@ -113,6 +113,8 @@ public:
 
     LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit);
 
+    LatticeTrace(LatticeTrace const& other) = delete;
+
     /*
      * Append sibling chain to the end of the own sibling chain
      * Example: If we have sibling chains
@@ -194,6 +196,12 @@ public:
 
 private:
     Core::Ref<LatticeTrace const> stablePrefixTrace_;
+};
+
+/*
+ * Vector of Refs to LatticeTrace
+ */
+class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<const LatticeTrace>> {
 };
 
 }  // namespace Search

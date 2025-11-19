@@ -45,10 +45,12 @@ private:
         Am::AcousticModel::StateTransitionIndex transition_;
 
         State(Am::AcousticModel::EmissionIndex e, Am::AcousticModel::StateTransitionIndex t)
-                : emission_(e), transition_(t) {
+                : emission_(e),
+                  transition_(t) {
         }
         State()
-                : emission_(0), transition_(0) {
+                : emission_(0),
+                  transition_(0) {
         }
         bool operator==(const State& o) const {
             return (emission_ == o.emission_ && transition_ == o.transition_);
@@ -333,7 +335,10 @@ class HmmListConverter : public Core::Component {
 
 public:
     HmmListConverter(const Core::Configuration& c)
-            : Core::Component(c), hmmSyms_(0), stateSyms_(0), silencePhone_(paramSilencePhone(config)) {}
+            : Core::Component(c),
+              hmmSyms_(0),
+              stateSyms_(0),
+              silencePhone_(paramSilencePhone(config)) {}
 
     void setHmmSymbols(const OpenFst::SymbolTable* hmmSyms) {
         hmmSyms_ = hmmSyms;
@@ -391,7 +396,8 @@ class StateSequenceResolver {
 public:
     StateSequenceResolver(Core::Ref<const Am::AcousticModel> am,
                           const StateSequenceList&           states)
-            : am_(am), states_(states) {}
+            : am_(am),
+              states_(states) {}
     const StateSequence* find(const std::string& phone, u8 boundary) const;
     const StateSequence* find(const Bliss::Phoneme::Id phone, u8 boundary) const;
     const StateSequence* find(const Bliss::Phoneme* phone, u8 boundary) const;

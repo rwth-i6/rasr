@@ -75,14 +75,19 @@ public:
             return map_.size();
         }
     };
+
     typedef Core::Ref<Filter>       FilterRef;
     typedef Core::Ref<const Filter> ConstFilterRef;
+
     struct IndexAndWeight {
         MixtureIndex e;
         Weight       w;  // -log(x)
+
         IndexAndWeight(MixtureIndex _e, Weight _w)
-                : e(_e), w(_w) {}
+                : e(_e),
+                  w(_w) {}
     };
+
     typedef std::vector<IndexAndWeight> IndicesAndWeights;
 
 public:

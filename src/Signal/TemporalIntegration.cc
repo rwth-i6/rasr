@@ -95,7 +95,8 @@ const Core::ParameterBool TemporalIntegrationNode::paramFlushBeforeGap(
         "flush-before-gap", "if true, flushes before a gap in the input samples", true);
 
 TemporalIntegrationNode::TemporalIntegrationNode(const Core::Configuration& c)
-        : Component(c), Predecessor(c) {
+        : Component(c),
+          Predecessor(c) {
     setWindowFunction(WindowFunction::create((WindowFunction::Type)WindowFunction::paramType(c)));
     setShiftInS(paramShift(c));
     setLengthInS(paramLength(c));

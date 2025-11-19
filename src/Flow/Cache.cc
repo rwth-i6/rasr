@@ -22,7 +22,8 @@ using namespace Flow;
 /******************************************************************************/
 
 CacheReader::CacheReader(Cache* cache, const std::string& name)
-        : Cached(cache, name), reader(*cache->archive_, name) {
+        : Cached(cache, name),
+          reader(*cache->archive_, name) {
     data_.resize(0);
     position_ = 0;
 }
@@ -70,7 +71,9 @@ Data* CacheReader::getData() {
 /******************************************************************************/
 
 CacheWriter::CacheWriter(Cache* cache, const std::string& name)
-        : Cached(cache, name), writer(*cache->archive_, name, cache->compress_), datatype_(0) {
+        : Cached(cache, name),
+          writer(*cache->archive_, name, cache->compress_),
+          datatype_(0) {
 }
 
 /******************************************************************************/

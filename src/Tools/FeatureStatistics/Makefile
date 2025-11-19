@@ -55,6 +55,9 @@ FEATURE_STATISTICS_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
+ifdef MODULE_LM_ONNX
+FEATURE_STATISTICS_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 
 
 # -----------------------------------------------------------------------------

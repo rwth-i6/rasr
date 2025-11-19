@@ -68,7 +68,7 @@ namespace InternalGmm {
 
 class NumeratorAccumulator : public GmmAccumulator {
 protected:
-    virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+    virtual void accumulate(Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {
         trainer_->accumulate(f, m, w);
     }
 
@@ -79,7 +79,7 @@ public:
 
 class DenominatorAccumulator : public GmmAccumulator {
 protected:
-    virtual void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+    virtual void accumulate(Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {
         trainer_->accumulateDenominator(f, m, w);
     }
 

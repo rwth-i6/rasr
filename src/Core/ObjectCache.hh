@@ -46,7 +46,8 @@ private:
 
 public:
     ObjectCacheItem(Data* data)
-            : data_(data), dirty_(true) {
+            : data_(data),
+              dirty_(true) {
         ensure(data);
     }
     ~ObjectCacheItem() {

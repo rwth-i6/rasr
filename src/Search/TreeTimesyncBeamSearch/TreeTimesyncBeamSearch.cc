@@ -25,6 +25,7 @@
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Module.hh>
 #include <Search/Traceback.hh>
+#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -52,8 +53,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           lmHistory(base.lmHistory),
           timeframe(extension.timeframe),
           score(extension.score),
-          trace(base.trace),
-          recentTransitionType(extension.transitionType) {
+          trace(base.trace) {
 }
 
 TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
@@ -65,8 +65,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentState(extension.rootState),
           lmHistory(newLmHistory),
           timeframe(base.timeframe),
-          score(extension.score),
-          recentTransitionType(base.recentTransitionType) {
+          score(extension.score) {
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
@@ -174,6 +173,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           labelScorer_(),
           debugChannel_(config, "debug"),
           withinWordExtensions_(),
+          wordEndExtensions_(),
           beam_(),
           newBeam_(),
           wordEndHypotheses_(),
@@ -349,6 +349,24 @@ Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattic
     return endTrace.buildWordLattice(lexicon_);
 }
 
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> TreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
+}
+
 bool TreeTimesyncBeamSearch::decodeStep() {
     if (finishedSegment_) {
         return false;
@@ -378,16 +396,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             withinWordExtensions_.push_back(
                     {tokenIdx,
                      successorState,
-                     hyp.timeframe,
+                     0,
                      hyp.score,
                      transitionType,
                      hypIndex});
         }
     }
 
-    /*
-     * Perform scoring of all the requests with the label scorer.
-     */
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
     }
@@ -479,18 +494,17 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         if (not exitList.empty()) {
             // Create one word-end hypothesis for each exit
             for (auto const& exit : exitList) {
-                auto        rootState = exit.transitState;
                 auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
                 auto const* lemma     = lemmaPron->lemma();
 
-                Score       lmScore = 0;
-                auto const& sts     = lemma->syntacticTokenSequence();
+                Score                               lmScore = 0;
+                const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
                 if (sts.size() != 0) {
                     require(sts.size() == 1);
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
-                    wordEndExtensions_.push_back({lemmaPron, rootState, hyp.score + lmScore, hypIndex});
                 }
+                wordEndExtensions_.push_back({lemmaPron, exit.transitState, hyp.score + lmScore, hypIndex});
             }
         }
     }
@@ -509,13 +523,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto& extension : wordEndExtensions_) {
         auto const& baseHyp = newBeam_[extension.baseHypIndex];
 
-        auto const* lemma        = extension.pron->lemma();
         auto        newLmHistory = baseHyp.lmHistory;
-        auto const& sts          = lemma->syntacticTokenSequence();
+        auto const& sts          = extension.pron->lemma()->syntacticTokenSequence();
+
         if (sts.size() != 0) {
             require(sts.size() == 1);
-            auto const* st = sts.front();
-            newLmHistory   = languageModel_->extendedHistory(newLmHistory, st);
+            const Bliss::SyntacticToken* st = sts.front();
+            newLmHistory                    = languageModel_->extendedHistory(newLmHistory, st);
         }
 
         wordEndHypotheses_.push_back({baseHyp, extension, newLmHistory});

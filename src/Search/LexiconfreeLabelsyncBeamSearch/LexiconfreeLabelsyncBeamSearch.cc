@@ -723,4 +723,12 @@ size_t LexiconfreeLabelsyncBeamSearch::numActiveHyps() const {
             [](size_t acc, auto const& hyp) { return acc + static_cast<size_t>(hyp.isActive); });
 }
 
+Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return {};
+}
+
+Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCommonPrefix() const {
+    return {};
+}
+
 }  // namespace Search

@@ -106,11 +106,9 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #endif
 #ifdef MODULE_LM_ONNX
         case lmTypeOnnx: result = Core::ref(new OnnxRecurrentLanguageModel(c, l)); break;
-#endif
-        case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
-#ifdef MODULE_ONNX
         case lmTypeOnnxStateless: result = Core::ref(new OnnxStatelessLm(c, l)); break;
 #endif
+        case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:
             Core::Application::us()->criticalError("unknwon language model type: %d", lmTypeParam(c));
     }

@@ -43,7 +43,7 @@ protected:
     ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
     // Gets the buffered score for the requested token at the requested step
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
 };
 
 }  // namespace Nn

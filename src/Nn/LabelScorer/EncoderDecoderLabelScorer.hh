@@ -62,10 +62,10 @@ protected:
     ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 
     // Run request through decoder component
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
 
     // Run requests through decoder component
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) override;
 
 private:
     Core::Ref<Encoder>     encoder_;

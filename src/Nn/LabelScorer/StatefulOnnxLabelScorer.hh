@@ -87,8 +87,8 @@ protected:
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
+    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) override;
 
 private:
     // Forward a batch of scoringContexts through the ONNX model and put the resulting scores into the score cache

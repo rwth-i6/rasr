@@ -253,7 +253,9 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextI
     return newScoringContext;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+
     if (requests.empty()) {
         return ScoresWithTimes{};
     }
@@ -310,8 +312,8 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    auto result = computeScoresWithTimes({request});
+std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    auto result = computeScoresWithTimes({request}, scorerIdx);
     if (not result) {
         return {};
     }

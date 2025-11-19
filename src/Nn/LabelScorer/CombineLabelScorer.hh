@@ -69,17 +69,11 @@ protected:
     // Combine extended ScoringContexts from all sub-scorers
     ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 
-    // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
+    // Compute weighted score of request. If scorerIdx is None, sum up from all sub-scorers.
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, std::optional<size_t> scorerIdx) override;
 
-    // Compute weighted score of request with a specific sub-scorer
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, size_t scorerIdx) override;
-
-    // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
-
-    // Compute weighted scores of requests with a specific sub-scorer
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(const std::vector<Request>& requests, size_t scorerIdx) override;
+    // Compute weighted scores of requests. If scorerIdx is None, sum up from all sub-scorers.
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(const std::vector<Request>& requests, std::optional<size_t> scorerIdx) override;
 };
 
 }  // namespace Nn

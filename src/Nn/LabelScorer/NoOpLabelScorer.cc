@@ -41,7 +41,8 @@ ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContextInternal(LabelS
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     auto                  input = getInput(stepHistory->currentStep);
     if (not input) {

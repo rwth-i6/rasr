@@ -239,9 +239,6 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     labelScorer_->signalNoMoreFeatures();
     featureProcessingTime_.stop();
     decodeManySteps();
-    for (auto& hyp : beam_) {
-        hyp.commitTrace();
-    }
     logStatistics();
     finishedSegment_ = true;
 }
@@ -595,7 +592,7 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
         }
     };
 
-    recombinedHypotheses_.clear();
+    tempHypotheses_.clear();
     // Map each unique ScoringContext in newHypotheses to its hypothesis
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
     for (auto const& hyp : hypotheses) {

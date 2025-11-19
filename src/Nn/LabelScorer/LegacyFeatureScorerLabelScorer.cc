@@ -53,12 +53,14 @@ ScoringContextRef LegacyFeatureScorerLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     if (scoreCache_.size() <= stepHistory->currentStep) {
         return {};

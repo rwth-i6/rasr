@@ -107,12 +107,6 @@ protected:
         }
 
         /*
-         * While label-loops or blank-loops are ongoing, the pronunciation for them does not get committed as a trace yet.
-         * The ongoing pronunciation should be committed as a trace when the loop is over or segment end is reached.
-         */
-        void commitTrace();
-
-        /*
          * Get string representation for debugging.
          */
         std::string toString() const;

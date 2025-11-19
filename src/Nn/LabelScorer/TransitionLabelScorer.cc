@@ -43,14 +43,18 @@ ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelSco
     return Core::ref(new ScoringContext());
 }
 
-std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+
     LabelScorer::ScoreWithTime result;
     result.score     = transitionScores_[request.transitionType];
     result.timeframe = static_cast<Speech::TimeframeIndex>(0);
     return result;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+
     if (requests.empty()) {
         return ScoresWithTimes{};
     }

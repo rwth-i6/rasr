@@ -58,6 +58,7 @@ add_module_option(MODULE_LM_FSA ON)
 add_module_option(MODULE_LM_ZEROGRAM ON)
 add_module_option(MODULE_LM_FFNN ON)
 add_module_option(MODULE_LM_TFRNN ON)
+add_module_option(MODULE_LM_ONNX ON)
 
 # ****** Math ******
 add_module_option(MODULE_MATH_NR ON)
@@ -149,7 +150,9 @@ if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
 endif()
 
-set(SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch RasrLexiconfreeLabelsyncBeamSearch RasrTreeLabelsyncBeamSearch RasrTreeTimesyncBeamSearch)
+set(SEARCH_LIBS RasrLexiconfreeTimesyncBeamSearch RasrLexiconfreeLabelsyncBeamSearch RasrTreeLabelsyncBeamSearch
+                RasrTreeTimesyncBeamSearch
+)
 if(${MODULE_SEARCH_WFST})
     list(APPEND SEARCH_LIBS RasrSearchWfst)
 endif()

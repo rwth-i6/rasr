@@ -165,7 +165,7 @@ private:
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request>     requests_;
-    std::vector<LabelHypothesis>              recombinedHypotheses_;
+    std::vector<LabelHypothesis>              tempHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;

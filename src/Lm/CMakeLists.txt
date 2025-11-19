@@ -4,11 +4,16 @@ set(Lm_SOURCES
     ClassLm.cc
     CombineLm.cc
     Compose.cc
+    CompressedVector.cc
     CorpusStatistics.cc
+    FixedQuantizationCompressedVectorFactory.cc
     IndexMap.cc
     LanguageModel.cc
     Module.cc
     NNHistoryManager.cc
+    QuantizedCompressedVectorFactory.cc
+    RecurrentLanguageModel.cc
+    ReducedPrecisionCompressedVectorFactory.cc
     ReverseArpaLm.cc
     ScaledLanguageModel.cc
     WordlistInterface.cc
@@ -26,31 +31,30 @@ if(${MODULE_LM_ZEROGRAM})
     list(APPEND Lm_SOURCES Zerogram.cc)
 endif()
 
-if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
+if(${MODULE_LM_TFRNN})
     list(
         APPEND
         Lm_SOURCES
-        BlasNceSoftmaxAdapter.cc
-        CompressedVector.cc
-        FixedQuantizationCompressedVectorFactory.cc
-        LstmStateManager.cc
-        NceSoftmaxAdapter.cc
-        PassthroughSoftmaxAdapter.cc
-        QuantizedBlasNceSoftmaxAdapter.cc
-        QuantizedCompressedVectorFactory.cc
-        ReducedPrecisionCompressedVectorFactory.cc
-        SimpleTransformerLm.cc
-        TransformerStateManager.cc
+        TFBlasNceSoftmaxAdapter.cc
+        TFLstmStateManager.cc
+        TFNceSoftmaxAdapter.cc
+        TFPassthroughSoftmaxAdapter.cc
+        TFQuantizedBlasNceSoftmaxAdapter.cc
         TFRecurrentLanguageModel.cc
+        TFTransformerStateManager.cc
     )
 endif()
 
-if(${MODULE_ONNX})
-    list(APPEND Lm_SOURCES OnnxStatelessLanguageModel.cc)
-endif()
-
-if(${MODULE_ONNX})
-  list(APPEND Lm_SOURCES OnnxStatelessLanguageModel.cc)
+if(${MODULE_LM_ONNX})
+    list(
+        APPEND
+        Lm_SOURCES
+        OnnxStatelessLanguageModel.cc
+        OnnxLstmStateManager.cc
+        OnnxPassthroughSoftmaxAdapter.cc
+        OnnxNceSoftmaxAdapter.cc
+        OnnxRecurrentLanguageModel.cc
+    )
 endif()
 
 add_library(RasrLm STATIC ${Lm_SOURCES})
@@ -71,16 +75,13 @@ target_link_libraries(
            RasrSpeech
 )
 
-if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
+if(${MODULE_LM_TFRNN})
     target_link_libraries(RasrLm PUBLIC RasrTensorflow)
 endif()
-if(${MODULE_ONNX})
-  target_link_libraries(RasrLm INTERFACE RasrOnnx)
-  add_onnx_dependencies(RasrLm)
-endif()
 
-if(${MODULE_ONNX})
-    target_link_libraries(RasrLm PUBLIC RasrOnnx)
+if(${MODULE_LM_ONNX})
+    target_link_libraries(RasrLm INTERFACE RasrOnnx)
+    add_onnx_dependencies(RasrLm)
 endif()
 
 # check.cc code is broken add_executable(check-lm check.cc) target_link_libraries(check-lm PRIVATE RasrLm)

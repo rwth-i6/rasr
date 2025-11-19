@@ -169,7 +169,8 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(La
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), context->currentStep + timeIncrement));
 }
 
-std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
     if (requests.empty()) {
         return ScoresWithTimes{};
     }
@@ -246,8 +247,8 @@ std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::compute
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    auto result = computeScoresWithTimes({request});
+std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    auto result = computeScoresWithTimes({request}, scorerIdx);
     if (not result.has_value()) {
         return {};
     }

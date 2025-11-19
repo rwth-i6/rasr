@@ -146,12 +146,12 @@ public:
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet
     // (e.g. not enough features received)
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request, std::optional<size_t> scorerIndex);
 
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests, std::optional<size_t> scorerIndex);
 
     // Returns total number of sub-scorers for nested label scorer constructions (e.g. with CombineLabelScorer)
     virtual size_t numSubScorers() const;
@@ -174,13 +174,11 @@ protected:
     // The public versions of these functions are implemented in this base class and handle the ignoring of transition types.
     // These `Internal` versions contain the actual logic and should be overridden in child classes.
 
-    virtual ScoringContextRef            extendedScoringContextInternal(Request const& request) = 0;
-    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request)   = 0;
-    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, size_t scorerIndex);
+    virtual ScoringContextRef            extendedScoringContextInternal(Request const& request)                                  = 0;
+    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, std::optional<size_t> scorerIndex) = 0;
 
     // By default loops over the single-request version
-    virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests);
-    virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests, size_t scorerIndex);
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests, std::optional<size_t> scorerIndex);
 
 private:
     std::unordered_set<TransitionType> enabledTransitionTypes_;

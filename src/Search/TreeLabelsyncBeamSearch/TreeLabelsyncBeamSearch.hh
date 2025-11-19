@@ -164,6 +164,8 @@ public:
     Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     bool                            decodeStep() override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
 private:
     size_t maxBeamSize_;

@@ -62,14 +62,18 @@ ScoringContextRef LabelScorer::extendedScoringContext(Request const& request) {
     return request.context;
 }
 
-std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTime(Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTime(Request const& request, std::optional<size_t> scorerIndex) {
+    verify(not scorerIndex.has_value() or scorerIndex.value() < numSubScorers());
+
     if (enabledTransitionTypes_.contains(request.transitionType)) {
-        return computeScoreWithTimeInternal(request);
+        return computeScoreWithTimeInternal(request, scorerIndex);
     }
     return ScoreWithTime{0.0, 0};
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIndex) {
+    verify(not scorerIndex.has_value() or scorerIndex.value() < numSubScorers());
+
     // First, collect all requests for which the transition type is not ignored
     std::vector<Request> nonIgnoredRequests;
     nonIgnoredRequests.reserve(requests.size());
@@ -86,7 +90,7 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     }
 
     // Compute scores for non-ignored requests
-    auto nonIgnoredResults = computeScoresWithTimesInternal(nonIgnoredRequests);
+    auto nonIgnoredResults = computeScoresWithTimesInternal(nonIgnoredRequests, scorerIndex);
     if (not nonIgnoredResults) {
         return {};
     }
@@ -104,7 +108,7 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     return result;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIndex) {
     if (requests.empty()) {
         return ScoresWithTimes{};
     }
@@ -115,7 +119,7 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesI
     result.scores.reserve(requests.size());
     result.timeframes.reserve(requests.size());
     for (auto& request : requests) {
-        auto singleResult = computeScoreWithTime(request);
+        auto singleResult = computeScoreWithTime(request, scorerIndex);
         if (not singleResult.has_value()) {
             return {};
         }
@@ -190,16 +194,6 @@ void LabelScorer::enableTransitionTypes(Core::Configuration const& config, Trans
     if (enabledTransitionTypes_.empty()) {
         error() << "Label scorer has no enabled transition types. Activate a preset and/or add extra transition types that should be considered.";
     }
-}
-
-std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTimeInternal(Request const& request, size_t scorerIndex) {
-    verify(scorerIndex == 0ul);
-    return computeScoreWithTimeInternal(request);
-}
-
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesInternal(std::vector<Request> const& requests, size_t scorerIndex) {
-    verify(scorerIndex == 0ul);
-    return computeScoresWithTimesInternal(requests);
 }
 
 }  // namespace Nn

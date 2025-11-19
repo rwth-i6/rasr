@@ -1,11 +1,15 @@
 set(RasrOnnx_SOURCES
-    Session.cc
+    BLstmStateManager.cc
+    ConformerStateManager.cc
+    DummyStateManager.cc
     IOSpecification.cc
     Model.cc
     Module.cc
     OnnxEncoder.cc
     OnnxFeatureScorer.cc
     OnnxForwardNode.cc
+    Session.cc
+    StateManager.cc
     Value.cc
 )
 

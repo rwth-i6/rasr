@@ -46,9 +46,10 @@ public:
 
     ScoringContextRef getInitialScoringContext() override;
 
-    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
+protected:
+    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
 
 private:
     Math::FastMatrix<Score> ctcScores_;

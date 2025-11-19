@@ -67,10 +67,10 @@ public:
     virtual py::object            extendedPythonScoringContextInternal(py::object const& context, Nn::LabelIndex nextToken, TransitionType transitionType);
 
     // Calls batched version
-    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
+    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, std::optional<size_t> scorerIdx) override;
 
     // Must be overridden in python by name "compute_scores_with_times_internal"
-    virtual std::optional<ScoresWithTimes>                                       computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+    virtual std::optional<ScoresWithTimes>                                       computeScoresWithTimesInternal(std::vector<Request> const& requests, std::optional<size_t> scorerIdx) override;
     virtual std::optional<std::vector<std::pair<Score, Speech::TimeframeIndex>>> computePythonScoresWithTimesInternal(std::vector<py::object> const& contexts, std::vector<Nn::LabelIndex> const& nextTokens, std::vector<TransitionType> const& transitionTypes);
 
 protected:

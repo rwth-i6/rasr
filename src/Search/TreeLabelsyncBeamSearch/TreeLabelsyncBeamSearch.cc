@@ -801,7 +801,7 @@ void TreeLabelsyncBeamSearch::createExtensions() {
 
 bool TreeLabelsyncBeamSearch::scoreExtensions() {
     scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
+    auto result = labelScorer_->computeScoresWithTimes(requests_, std::nullopt);
     scoringTime_.stop();
 
     if (not result) {
@@ -938,6 +938,14 @@ bool TreeLabelsyncBeamSearch::stopCriterion() {
     }
 
     return false;
+}
+
+Core::Ref<const LatticeTrace> TreeLabelsyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return {};
+}
+
+Core::Ref<const LatticeTrace> TreeLabelsyncBeamSearch::getCommonPrefix() const {
+    return {};
 }
 
 }  // namespace Search

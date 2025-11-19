@@ -1,8 +1,6 @@
 #include "OnnxRecurrentLanguageModel.hh"
+
 #include "OnnxLstmStateManager.hh"
-
-#include "OnnxTransformerStateManager.hh"
-
 #include "OnnxNceSoftmaxAdapter.hh"
 #include "OnnxPassthroughSoftmaxAdapter.hh"
 

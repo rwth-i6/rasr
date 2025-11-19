@@ -43,7 +43,7 @@ const Core::ParameterInt CTCPrefixLabelScorer::paramBlankIndex("blank-label-inde
 
 CTCPrefixLabelScorer::CTCPrefixLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::LM),
           blankIndex_(paramBlankIndex(config)),
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"))),
           expectMoreFeatures_(true) {
@@ -81,12 +81,12 @@ PrefixScoringContextRef CTCPrefixLabelScorer::getProperInitialScoringContext() {
     ctcScores_.resize(blankIndex_ + 1, 0);  // TODO: HACK! blankIndex_ is not necessarily the last index in the alphabet
     auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
     while (true) {
-        if (not ctcScorer_->computeScoreWithTime({ctcScorerContext, 0ul, BLANK_LOOP})) {
+        if (not ctcScorer_->computeScoreWithTime({ctcScorerContext, 0ul, BLANK_LOOP}, std::nullopt)) {
             break;
         }
         ctcScores_.resizeColsAndKeepContent(ctcScores_.nColumns() + 1);
         for (LabelIndex v = 0ul; v <= blankIndex_; ++v) {  // TODO: See above
-            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({ctcScorerContext, v, BLANK_LOOP})->score;
+            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({ctcScorerContext, v, BLANK_LOOP}, std::nullopt)->score;
         }
         ctcScorerContext = ctcScorer_->extendedScoringContext({ctcScorerContext, blankIndex_, BLANK_LOOP});
     }
@@ -106,7 +106,7 @@ PrefixScoringContextRef CTCPrefixLabelScorer::getProperInitialScoringContext() {
     return Core::ref(new CTCPrefixScoringContext(std::move(prefixScores), Core::Type<LabelIndex>::max));  // `lastLabel` is set to invalid index
 }
 
-ScoringContextRef CTCPrefixLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+ScoringContextRef CTCPrefixLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     // We are given PrefixScore_t([..., a], blank) and PrefixScore_t([..., a], nonblank) for t >= 0
     // as well as CTCScore_t(v) for t >= 1 for any blank or non-blank label v.
     // We want PrefixScore_t([..., a, b], blank) and PrefixScore_t([..., a, b], nonblank).
@@ -161,7 +161,9 @@ ScoringContextRef CTCPrefixLabelScorer::extendedScoringContext(LabelScorer::Requ
     return Core::ref(new CTCPrefixScoringContext(std::move(extPrefixScores), request.nextToken));
 }
 
-std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
+    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+
     if (expectMoreFeatures_) {
         return {};
     }

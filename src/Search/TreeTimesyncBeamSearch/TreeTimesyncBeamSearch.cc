@@ -452,11 +452,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 }
 
                 Score                           penalty               = 0.0;
-                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_END;
+                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
                 if (lemma == lexicon_->specialLemma("silence")) {
-                    wordEndtransitionType = Nn::LabelScorer::SILENCE;
+                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
                 }
-                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, 0, wordEndtransitionType});
+                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
                 if (result) {
                     penalty = result->score;
                 }

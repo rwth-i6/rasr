@@ -136,8 +136,10 @@ protected:
     std::string                        filename_;
     std::string                        segmentId_;
     Core::Ref<const Am::AcousticModel> acousticModel_;
-    enum AlignmentType { standard,
-                         plainText };
+    enum AlignmentType {
+        standard,
+        plainText
+    };
     AlignmentType                    alignmentType_;
     Core::StringHashMap<std::string> parameters_;
     Flow::Attributes::Parser         attributesParser_;
@@ -162,9 +164,11 @@ public:
     }
     Core::ArchiveWriter* newWriter(const std::string& name);
     Core::ArchiveReader* newReader(const std::string& name);
-    bool                 hasAccess(Core::Archive::AccessMode a) const {
+
+    bool hasAccess(Core::Archive::AccessMode a) const {
         return (archive_) ? archive_->hasAccess(a) : false;
     }
+
     bool open(Core::Archive::AccessMode access);
     void close();
     bool isOpen() const {

@@ -21,7 +21,12 @@ using namespace Signal;
 
 //========================================================================================================
 CrossCorrelation::CrossCorrelation()
-        : begin_(0), end_(0), similarityFunctionType_(Multiplication), power_(1.0), normalizationType_(None), useFastFourierTransform_(true) {}
+        : begin_(0),
+          end_(0),
+          similarityFunctionType_(Multiplication),
+          power_(1.0),
+          normalizationType_(None),
+          useFastFourierTransform_(true) {}
 
 void CrossCorrelation::crossCorrelation(const std::vector<Data>& x,
                                         const std::vector<Data>& y,
@@ -198,7 +203,13 @@ const ParameterChoice CrossCorrelationNode::paramNormalizationType("normalizatio
 const ParameterBool CrossCorrelationNode::paramUseFastFourierTransform("use-fft", "use/not FFT for correlation", true);
 
 CrossCorrelationNode::CrossCorrelationNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), continuousBegin_(0), continuousEnd_(0), sampleRate_(0), nCoefficients_(0), needInit_(true) {
+        : Core::Component(c),
+          Node(c),
+          continuousBegin_(0),
+          continuousEnd_(0),
+          sampleRate_(0),
+          nCoefficients_(0),
+          needInit_(true) {
     setContinuousBegin(paramBegin(c));
     setContinuousEnd(paramEnd(c));
     setNumberOfCoefficients(paramNumberOfCoefficients(c));

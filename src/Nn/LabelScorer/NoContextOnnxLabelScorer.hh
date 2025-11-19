@@ -44,32 +44,32 @@ public:
     // Initial scoring context contains step 0
     ScoringContextRef getInitialScoringContext() override;
 
-    // Increment the step by 1
-    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
-
     // Clean up input buffer as well as cached score vectors that are no longer needed
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
-
-    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
-    // compute the scores and cache them
-    // Then, retreive scores from cache
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
-
-    // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
 
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
 
-private:
-    void forwardContext(StepScoringContextRef const& context);
+    // Increment the step by 1
+    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
+    // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
+    // compute the scores and cache them
+    // Then, retreive scores from cache
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
+
+    // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+
+private:
     Onnx::Model onnxModel_;
 
     std::string inputFeatureName_;
     std::string scoresName_;
 
     std::unordered_map<StepScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+
+    void forwardContext(StepScoringContextRef const& context);
 };
 
 }  // namespace Nn

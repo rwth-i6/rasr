@@ -188,7 +188,8 @@ public:
 class SinkNode : public Node {
 public:
     SinkNode(const Core::Configuration& c)
-            : Core::Component(c), Node(c) {
+            : Core::Component(c),
+              Node(c) {
         addInput(0);
     }
     virtual PortId getInput(const std::string& name) {
@@ -201,7 +202,8 @@ public:
 class SourceNode : public Node {
 public:
     SourceNode(const Core::Configuration& c)
-            : Core::Component(c), Node(c) {
+            : Core::Component(c),
+              Node(c) {
         addOutput(0);
     }
     virtual PortId getOutput(const std::string& name) {
@@ -212,7 +214,8 @@ public:
 class SleeveNode : public Node {
 public:
     SleeveNode(const Core::Configuration& c)
-            : Core::Component(c), Node(c) {
+            : Core::Component(c),
+              Node(c) {
         addInput(0);
         addOutput(0);
     }

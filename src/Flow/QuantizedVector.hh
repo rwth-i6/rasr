@@ -37,9 +37,11 @@ public:
     Vector()
             : Data(&Datatype<Self>::type){};
     Vector(int size)
-            : Data(&Datatype<Self>::type), std::vector<T>(size) {}
+            : Data(&Datatype<Self>::type),
+              std::vector<T>(size) {}
     Vector(const std::vector<T>& v)
-            : Data(&Datatype<Self>::type), std::vector<T>(v) {}
+            : Data(&Datatype<Self>::type),
+              std::vector<T>(v) {}
     virtual ~Vector() {}
 
     virtual Data* clone() {
@@ -97,9 +99,12 @@ private:
 
 public:
     NamedVector(const std::string& name = "")
-            : Data(&Datatype<Self>::type), name_(name) {}
+            : Data(&Datatype<Self>::type),
+              name_(name) {}
     NamedVector(const std::string& name, int size)
-            : Data(&Datatype<Self>::type), Vector<T>(size), name_(name) {}
+            : Data(&Datatype<Self>::type),
+              Vector<T>(size),
+              name_(name) {}
     virtual ~NamedVector() {}
 
     const std::string name() const {

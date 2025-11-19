@@ -83,6 +83,7 @@ protected:
     struct HMMSequence {
         HMMSequence()
                 : length(0) {}
+
         enum {
             MaxLength = 12
         };

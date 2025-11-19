@@ -20,6 +20,7 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
 
+#include "ArchiveIO.hh"
 #include "Helpers.hh"
 #include "PersistentStateTree.hh"
 #include "StateTree.hh"
@@ -114,6 +115,8 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
           repeatSilence_(paramRepeatSilence(config)),
           minimizeIterations_(paramMinimizeIterations(config)),
           reverse_(isBackwardRecognition(config)) {
+    require(lexicon.specialLemma("silence") != nullptr);
+
     if (allowCrossWordSkips_) {
         Score skipPenalty    = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::skip);
         Score forwardPenalty = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::forward);
@@ -1292,7 +1295,8 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
     }
 
     // Set the StateDesc for blank
-    blankAllophoneStateIndex_       = acousticModel_.blankAllophoneStateIndex();
+    blankAllophoneStateIndex_ = acousticModel_.blankAllophoneStateIndex();
+    verify(blankAllophoneStateIndex_ != Fsa::InvalidLabelId);
     blankDesc_.acousticModel        = acousticModel_.emissionIndex(blankAllophoneStateIndex_);
     blankDesc_.transitionModelIndex = acousticModel_.stateTransitionIndex(blankAllophoneStateIndex_);
     require_lt(blankDesc_.transitionModelIndex, Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);

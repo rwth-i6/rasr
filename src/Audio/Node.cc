@@ -30,7 +30,12 @@ const Core::ParameterString Node::paramFilename(
         "file", "name of audio file");
 
 Node::Node(const Core::Configuration& c)
-        : Core::Component(c), Flow::Node(c), sampleRate_(0), sampleSize_(0), trackCount_(0), sampleCount_(0) {
+        : Core::Component(c),
+          Flow::Node(c),
+          sampleRate_(0),
+          sampleSize_(0),
+          trackCount_(0),
+          sampleCount_(0) {
     filename_ = paramFilename(config);
 }
 
@@ -58,7 +63,8 @@ const Core::ParameterFloat SourceNode::paramEndTime(
         Core::Type<Flow::Time>::max, 0.0);
 
 SourceNode::SourceNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c) {
+        : Core::Component(c),
+          Node(c) {
     addOutput(0);
     blockSize_        = paramBlockSize(config);
     startTime_        = paramStartTime(config);
@@ -183,7 +189,8 @@ bool SourceNode::work(Flow::PortId out) {
 
 // ===========================================================================
 Audio::SinkNode::SinkNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c) {
+        : Core::Component(c),
+          Node(c) {
     addInput(0);
     addOutput(0);
 }

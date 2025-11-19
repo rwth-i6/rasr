@@ -76,14 +76,15 @@ public:
                 fast_data_ = sentinelEmpty();
             }
             else {
-                // Link is fast and empty: it tipically happens if the "from" node
+                // Link is fast and empty: it typically happens if the "from" node
                 // did not produce a data in the last call to its work method.
                 verify(!queue_.isEmpty());
                 queue_.get(d);
             }
         }
-        else
+        else {
             queue_.getBlocking(d);
+        }
 
         return d;
     }

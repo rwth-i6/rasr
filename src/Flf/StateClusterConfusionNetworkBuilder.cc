@@ -125,7 +125,8 @@ protected:
 
 public:
     ClusterBuilder(const Core::Configuration& config)
-            : Core::Component(config), statisticsChannel_(config, "statistics") {
+            : Core::Component(config),
+              statisticsChannel_(config, "statistics") {
         allowBwdMatch_ = paramBwdMatch(config);
     }
     virtual ~ClusterBuilder() {}
@@ -206,11 +207,14 @@ public:
         ArcCluster *prev, *next;
         ClusterId   id;
         StateCluster()
-                : prev(0), next(0) {}
+                : prev(0),
+                  next(0) {}
         StateCluster(ArcCluster* prev)
-                : prev(prev), next(0) {}
+                : prev(prev),
+                  next(0) {}
         StateCluster(ArcCluster* prev, ArcCluster* next)
-                : prev(prev), next(next) {}
+                : prev(prev),
+                  next(next) {}
         void add(StateId sid, State& state) {
             push_back(sid);
             state.cluster = this;
@@ -234,11 +238,14 @@ public:
         StateCluster *prev, *next;
         ClusterId     id;
         ArcCluster()
-                : prev(0), next(0) {}
+                : prev(0),
+                  next(0) {}
         ArcCluster(StateCluster* prev)
-                : prev(prev), next(0) {}
+                : prev(prev),
+                  next(0) {}
         ArcCluster(StateCluster* prev, StateCluster* next)
-                : prev(prev), next(next) {}
+                : prev(prev),
+                  next(next) {}
         void add(ArcId aid, Arc& arc) {
             push_back(aid);
             arc.cluster = this;
@@ -247,18 +254,22 @@ public:
 
     struct LabelWeakOrder {
         const ArcList& arcs;
-        bool           operator()(ArcId aid1, ArcId aid2) const {
+
+        bool operator()(ArcId aid1, ArcId aid2) const {
             return arcs[aid1].label < arcs[aid2].label;
         }
+
         LabelWeakOrder(const ArcList& arcs)
                 : arcs(arcs) {}
     };
 
     struct BeginWeakOrder {
         const ArcList& arcs;
-        bool           operator()(ArcId aid1, ArcId aid2) const {
+
+        bool operator()(ArcId aid1, ArcId aid2) const {
             return arcs[aid1].begin < arcs[aid2].begin;
         }
+
         BeginWeakOrder(const ArcList& arcs)
                 : arcs(arcs) {}
     };
@@ -334,7 +345,8 @@ protected:
         Score score;
         ArcId id;
         Match()
-                : score(Core::Type<Score>::min), id(InvalidArcId) {}
+                : score(Core::Type<Score>::min),
+                  id(InvalidArcId) {}
     };
     inline void updateFwdMatch(const ArcId hypId, const Arc& hyp, const ArcId refId, const Arc& ref, Match& bestFwdMatch) const {
         Score score = similarity(hyp, ref);
@@ -484,7 +496,6 @@ bool ClusteredLattice::checkPostCondition(const StateCluster* initial, bool verb
             Core::Application::us()->warning("Arc cluster %d is empty.", cluster->next->id);
             good = false;
         }
-        ClusterId prevToClusterId  = 0;
         ClusterId maxFromClusterId = 0, minToClusterId = Core::Type<ClusterId>::max;
         for (ArcCluster::const_iterator a = cluster->next->begin(), a_end = cluster->next->end(); a != a_end; ++a) {
             const Arc& arc = arcs_[*a];
@@ -506,14 +517,6 @@ bool ClusteredLattice::checkPostCondition(const StateCluster* initial, bool verb
                 Core::Application::us()->warning("Arc cluster out of bounds: %d not in (%d,%d].", arc.cluster->id, fromClusterId, toClusterId);
                 good = false;
             }
-            /*
-             * Allow any order
-             *
-             * if (toClusterId < prevToClusterId)
-             * Core::Application::us()->criticalError(
-             * "Inner arc cluster order violation: expected %d < %d.", prevToClusterId, toClusterId);
-             */
-            prevToClusterId  = toClusterId;
             maxFromClusterId = std::max(maxFromClusterId, fromClusterId);
             minToClusterId   = std::min(minToClusterId, toClusterId);
         }
@@ -1294,7 +1297,8 @@ protected:
 
 public:
     StateIndexBuilder(ConstLatticeRef l, Core::Vector<Fsa::StateId>& stateIndex)
-            : TraverseState(l), stateIndex(stateIndex) {}
+            : TraverseState(l),
+              stateIndex(stateIndex) {}
 
     void build() {
         if (l->getTopologicalSort())
@@ -1526,7 +1530,8 @@ private:
 
 public:
     StateClusterCnBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {}
+            : Node(name, config),
+              n_(0) {}
     virtual ~StateClusterCnBuilderNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

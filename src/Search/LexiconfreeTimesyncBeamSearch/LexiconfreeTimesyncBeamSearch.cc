@@ -24,6 +24,7 @@
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
 #include <Search/Traceback.hh>
+#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -47,28 +48,22 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace() {
+    Core::Ref<LatticeTrace> predecessor;
     switch (extension.transitionType) {
-        case Nn::LabelScorer::INITIAL_BLANK:
-        case Nn::LabelScorer::INITIAL_LABEL:
-        case Nn::LabelScorer::LABEL_TO_LABEL:
-        case Nn::LabelScorer::LABEL_TO_BLANK:
-        case Nn::LabelScorer::BLANK_TO_LABEL:
-            trace = Core::ref(new LatticeTrace(
-                    base.trace,
-                    extension.pron,
-                    extension.timeframe + 1,
-                    {extension.score, 0},
-                    {}));
+        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
+        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+            predecessor = base.trace->predecessor;
             break;
-        case Nn::LabelScorer::LABEL_LOOP:
-        case Nn::LabelScorer::BLANK_LOOP:
-            // Copy base trace and update it
-            trace                 = Core::ref(new LatticeTrace(*base.trace));
-            trace->sibling        = {};
-            trace->score.acoustic = extension.score;
-            trace->time           = extension.timeframe + 1;
+        default:
+            predecessor = base.trace;
             break;
     }
+    trace = Core::ref(new LatticeTrace(
+            predecessor,
+            extension.pron,
+            extension.timeframe + 1,
+            {score, 0},
+            {}));
 }
 
 std::string LexiconfreeTimesyncBeamSearch::LabelHypothesis::toString() const {
@@ -245,6 +240,24 @@ Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWor
     }
 
     return endTrace.buildWordLattice(lexicon_);
+}
+
+Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> LexiconfreeTimesyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
 }
 
 bool LexiconfreeTimesyncBeamSearch::decodeStep() {
@@ -481,12 +494,32 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesync
 }
 
 void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyncBeamSearch::LabelHypothesis>& hypotheses) {
+    // Represents a unique combination of currentToken and scoringContext
+    struct RecombinationContext {
+        Nn::LabelIndex        currentToken;
+        Nn::ScoringContextRef scoringContext;
+
+        RecombinationContext(LabelHypothesis const& hyp)
+                : currentToken(hyp.currentToken), scoringContext(hyp.scoringContext) {}
+
+        bool operator==(RecombinationContext const& other) const {
+            return currentToken == other.currentToken and Nn::ScoringContextEq{}(scoringContext, other.scoringContext);
+        }
+    };
+    struct RecombinationContextHash {
+        size_t operator()(RecombinationContext const& context) const {
+            size_t h1 = context.currentToken;
+            size_t h2 = Nn::ScoringContextHash{}(context.scoringContext);
+            return Core::combineHashes(h1, h2);
+        }
+    };
+
     recombinedHypotheses_.clear();
     // Map each unique ScoringContext in newHypotheses to its hypothesis
-    std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
+    std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
     for (auto const& hyp : hypotheses) {
         // Use try_emplace to check if the scoring context already exists and create a new entry if not at the same time
-        auto [it, inserted] = seenScoringContexts.try_emplace(hyp.scoringContext, nullptr);
+        auto [it, inserted] = seenScoringContexts.try_emplace({hyp}, nullptr);
 
         if (inserted) {
             // First time seeing this scoring context so move it over to `newHypotheses`

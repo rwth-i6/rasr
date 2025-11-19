@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -12,15 +12,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "PassthroughSoftmaxAdapter.hh"
 
-namespace Lm {
+#include "ScoringContext.hh"
 
-void PassthroughSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
+namespace Python {
+
+size_t PythonScoringContext::hash() const {
+    return py::hash(py::cast<py::handle>(object));
 }
 
-Score PassthroughSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
-    return nn_out->get(output_idx);
+bool PythonScoringContext::isEqual(Nn::ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const PythonScoringContext*>(other.get());
+
+    py::gil_scoped_acquire gil;
+    return object.equal(py::cast<py::handle>(otherPtr->object));
 }
 
-}  // namespace Lm
+}  // namespace Python

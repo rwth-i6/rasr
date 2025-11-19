@@ -89,7 +89,9 @@ struct AlignmentToPython {
     Math::FastMatrix<f32>*                 features_;  // optional. dim * time
 
     AlignmentToPython()
-            : nSkippedAlignmentFrames_(0), parent_(NULL), features_(NULL) {}
+            : nSkippedAlignmentFrames_(0),
+              parent_(NULL),
+              features_(NULL) {}
 
     bool _alignmentLabelIndex(const Speech::Alignment& alignment, Fsa::LabelId emissionIndex, u32& index) {
         u32 labelIndex = emissionIndex;
@@ -206,7 +208,8 @@ struct AlignmentToPython {
 
 struct BuildSegmentToOrthMapVisitor : public Bliss::CorpusVisitor {
     BuildSegmentToOrthMapVisitor()
-            : Bliss::CorpusVisitor(), map_(new Core::StringHashMap<std::string>()) {}
+            : Bliss::CorpusVisitor(),
+              map_(new Core::StringHashMap<std::string>()) {}
 
     virtual void visitSpeechSegment(Bliss::SpeechSegment* s) {
         (*map_)[s->fullName()] = s->orth();
@@ -687,6 +690,7 @@ struct PythonControl::Internal : public Core::Component {
         else {
             _initAcousticModel();
             silenceAllophoneStateIdx = acousticModel_->silenceAllophoneStateIndex();
+            verify(silenceAllophoneStateIdx != Fsa::InvalidLabelId);
         }
 
         std::shared_ptr<Core::Archive> a = getCacheArchive(cache_filename_c);
@@ -944,11 +948,14 @@ static const Core::ParameterString paramAlignmentPortName(
 
 struct NoneFeatureExtractor : public Speech::CorpusProcessor {
     typedef Speech::CorpusProcessor Precursor;
-    Core::Ref<Speech::DataSource>   dataSource() const {
+
+    Core::Ref<Speech::DataSource> dataSource() const {
         return Core::Ref<Speech::DataSource>();
     }
+
     NoneFeatureExtractor(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
 };
 
 // See Speech::AligningFeatureExtractor.

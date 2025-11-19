@@ -117,7 +117,12 @@ struct FfmpegInputNode::Internal {
 };
 
 FfmpegInputNode::FfmpegInputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), Precursor(c), internal_(new Internal()), buffer_(nullptr), resampleRate_(paramResampleRate(c)) {
+        : Core::Component(c),
+          Node(c),
+          Precursor(c),
+          internal_(new Internal()),
+          buffer_(nullptr),
+          resampleRate_(paramResampleRate(c)) {
     std::call_once(FfmpegInputNode::ffmpeg_initialized, av_register_all);
 }
 

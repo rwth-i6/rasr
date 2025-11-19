@@ -31,7 +31,7 @@ class BufferedLabelScorer : public LabelScorer {
 public:
     using Precursor = LabelScorer;
 
-    BufferedLabelScorer(Core::Configuration const& config);
+    BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset);
 
     // Prepares the LabelScorer to receive new inputs by resetting input buffer, timeframe buffer
     // and segment end flag
@@ -62,6 +62,9 @@ protected:
     //  - getInput(2) will return the third added input
     //  - getInput(3) will return None since no fourth input was added yet
     std::optional<DataView> getInput(size_t inputIndex) const;
+
+    // Get number of currently buffered elements
+    size_t bufferSize() const;
 
 private:
     std::deque<DataView> inputBuffer_;       // Buffer that contains all the feature data for the current segment

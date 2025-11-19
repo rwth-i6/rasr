@@ -51,7 +51,8 @@ public:
     DataAdaptor()
             : NetworkData(type()){};
     explicit DataAdaptor(const Type& d)
-            : NetworkData(type()), data_(d) {}
+            : NetworkData(type()),
+              data_(d) {}
     virtual ~DataAdaptor() {}
 
     static const Datatype* type() {

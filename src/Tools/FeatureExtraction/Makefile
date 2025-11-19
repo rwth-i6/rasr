@@ -54,7 +54,9 @@ FEATURE_EXTRACTION_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
-
+ifdef MODULE_LM_ONNX
+FEATURE_EXTRACTION_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 
 # -----------------------------------------------------------------------------
 

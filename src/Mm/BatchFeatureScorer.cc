@@ -29,7 +29,16 @@ const Core::ParameterInt BatchFeatureScorerBase::paramBufferSize(
         "buffer-size", "number of pre-calculated scores", 4, 0);
 
 BatchFeatureScorerBase::BatchFeatureScorerBase(const Core::Configuration& c)
-        : Core::Component(c), FeatureScorer(c), scores_(0), paddedDimension_(0), dimension_(0), nMixtures_(0), nDensities_(0), currentFeature_(0), buffered_(0), bufferSize_(paramBufferSize(c)) {
+        : Core::Component(c),
+          FeatureScorer(c),
+          scores_(0),
+          paddedDimension_(0),
+          dimension_(0),
+          nMixtures_(0),
+          nDensities_(0),
+          currentFeature_(0),
+          buffered_(0),
+          bufferSize_(paramBufferSize(c)) {
     log("batch feature scorer using buffer size %d", bufferSize_);
 }
 
@@ -120,11 +129,21 @@ struct BatchFeatureScorerBase::AllDensitySelector {
 const size_t BatchFloatFeatureScorer::BlockSize = 8;
 
 BatchFloatFeatureScorer::BatchFloatFeatureScorer(const Core::Configuration& c)
-        : Core::Component(c), BatchFeatureScorerBase(c), features_(0), means_(0), variance_(0), constants_(0) {}
+        : Core::Component(c),
+          BatchFeatureScorerBase(c),
+          features_(0),
+          means_(0),
+          variance_(0),
+          constants_(0) {}
 
 BatchFloatFeatureScorer::BatchFloatFeatureScorer(const Core::Configuration&  c,
                                                  Core::Ref<const MixtureSet> mixtureSet)
-        : Core::Component(c), BatchFeatureScorerBase(c), features_(0), means_(0), variance_(0), constants_(0) {
+        : Core::Component(c),
+          BatchFeatureScorerBase(c),
+          features_(0),
+          means_(0),
+          variance_(0),
+          constants_(0) {
     init(*mixtureSet);
 }
 
@@ -136,7 +155,7 @@ BatchFloatFeatureScorer::~BatchFloatFeatureScorer() {
 }
 
 void BatchFloatFeatureScorer::setFeature(size_t pos, const FeatureVector& f) const {
-    verify(pos < bufferSize_);
+    verify(int(pos) < bufferSize_);
     f32* feature = features_ + (pos * paddedDimension_);
     memset(feature, 0, sizeof(f32) * paddedDimension_);
     std::transform(f.begin(), f.end(), variance_, feature, std::multiplies<f32>());
@@ -237,12 +256,18 @@ void BatchFloatFeatureScorer::fillScoreCacheTpl(EmissionIndex e, u32 featureInde
 
 BatchPreselectionFloatFeatureScorer::BatchPreselectionFloatFeatureScorer(
         const Core::Configuration& c)
-        : Core::Component(c), BatchFloatFeatureScorer(c), clustering_(new FloatDensityClustering(select("density-clustering"))), activeClusters_(new bool[bufferSize_ * clustering_->nClusters()]) {}
+        : Core::Component(c),
+          BatchFloatFeatureScorer(c),
+          clustering_(new FloatDensityClustering(select("density-clustering"))),
+          activeClusters_(new bool[bufferSize_ * clustering_->nClusters()]) {}
 
 BatchPreselectionFloatFeatureScorer::BatchPreselectionFloatFeatureScorer(
         const Core::Configuration&  c,
         Core::Ref<const MixtureSet> mixtureSet)
-        : Core::Component(c), BatchFloatFeatureScorer(c), clustering_(new FloatDensityClustering(select("density-clustering"))), activeClusters_(new bool[bufferSize_ * clustering_->nClusters()]) {
+        : Core::Component(c),
+          BatchFloatFeatureScorer(c),
+          clustering_(new FloatDensityClustering(select("density-clustering"))),
+          activeClusters_(new bool[bufferSize_ * clustering_->nClusters()]) {
     init(*mixtureSet);
 }
 
@@ -267,7 +292,8 @@ void BatchPreselectionFloatFeatureScorer::setFeature(size_t pos, const FeatureVe
 class BatchPreselectionFloatFeatureScorer::ClusterDensitySelection {
 public:
     ClusterDensitySelection(const bool* activeClusters, const DensityClusteringBase& clustering)
-            : activeClusters_(activeClusters), clustering_(clustering) {}
+            : activeClusters_(activeClusters),
+              clustering_(clustering) {}
 
     bool operator()(u32 bufferIndex, size_t density) const {
         return activeClusters_[bufferIndex * clustering_.nClusters() + clustering_.clusterIndexForDensity(density)];
@@ -300,12 +326,22 @@ struct BatchIntFeatureScorer::MultiplyAndQuantize {
 
 BatchIntFeatureScorer::BatchIntFeatureScorer(
         const Core::Configuration& c)
-        : Core::Component(c), BatchFeatureScorerBase(c), features_(0), means_(0), variance_(0), constants_(0) {}
+        : Core::Component(c),
+          BatchFeatureScorerBase(c),
+          features_(0),
+          means_(0),
+          variance_(0),
+          constants_(0) {}
 
 BatchIntFeatureScorer::BatchIntFeatureScorer(
         const Core::Configuration&  c,
         Core::Ref<const MixtureSet> mixtureSet)
-        : Core::Component(c), BatchFeatureScorerBase(c), features_(0), means_(0), variance_(0), constants_(0) {
+        : Core::Component(c),
+          BatchFeatureScorerBase(c),
+          features_(0),
+          means_(0),
+          variance_(0),
+          constants_(0) {
     init(*mixtureSet);
 }
 
@@ -355,7 +391,7 @@ void BatchIntFeatureScorer::init(const MixtureSet& mixtureSet) {
     f32 scaleSquared = scale * scale;
     scale_           = 2.0 * scaleSquared;
     std::transform(variance_, variance_ + paddedDimension_, variance_,
-                   std::bind2nd(std::multiplies<f32>(), scale));
+                   std::bind(std::multiplies<f32>(), std::placeholders::_1, scale));
     const float logNormFactor = covariance.logNormalizationFactor() * scaleSquared;
 
     // allocate feature buffer and means in the same memory area.
@@ -477,12 +513,18 @@ void BatchIntFeatureScorer::fillScoreCache(EmissionIndex e, u32 featureIndex, u3
 
 BatchPreselectionIntFeatureScorer::BatchPreselectionIntFeatureScorer(
         const Core::Configuration& c)
-        : Core::Component(c), BatchIntFeatureScorer(c), clustering_(new IntDensityClustering(select("density-clustering"))), activeClusters_(0) {}
+        : Core::Component(c),
+          BatchIntFeatureScorer(c),
+          clustering_(new IntDensityClustering(select("density-clustering"))),
+          activeClusters_(0) {}
 
 BatchPreselectionIntFeatureScorer::BatchPreselectionIntFeatureScorer(
         const Core::Configuration&  c,
         Core::Ref<const MixtureSet> mixtureSet)
-        : Core::Component(c), BatchIntFeatureScorer(c), clustering_(new IntDensityClustering(select("density-clustering"))), activeClusters_(0) {
+        : Core::Component(c),
+          BatchIntFeatureScorer(c),
+          clustering_(new IntDensityClustering(select("density-clustering"))),
+          activeClusters_(0) {
     init(*mixtureSet);
 }
 
@@ -508,7 +550,9 @@ void BatchPreselectionIntFeatureScorer::setFeature(size_t pos, const FeatureVect
 class BatchPreselectionIntFeatureScorer::ClusterIterator {
 public:
     ClusterIterator(const bool* activeClusters, const DensityClusteringBase& clustering)
-            : activeClusters_(activeClusters), clustering_(clustering), offset_(0) {}
+            : activeClusters_(activeClusters),
+              clustering_(clustering),
+              offset_(0) {}
 
     void seek(u32 bufferIndex, size_t firstDensity) const {
         offset_  = bufferIndex * clustering_.nClusters();
@@ -538,12 +582,14 @@ const size_t BatchUnrolledIntFeatureScorer::Dimension = 3 * BatchUnrolledIntFeat
 
 BatchUnrolledIntFeatureScorer::BatchUnrolledIntFeatureScorer(
         const Core::Configuration& c)
-        : Core::Component(c), BatchIntFeatureScorer(c) {}
+        : Core::Component(c),
+          BatchIntFeatureScorer(c) {}
 
 BatchUnrolledIntFeatureScorer::BatchUnrolledIntFeatureScorer(
         const Core::Configuration&  c,
         Core::Ref<const MixtureSet> mixtureSet)
-        : Core::Component(c), BatchIntFeatureScorer(c) {
+        : Core::Component(c),
+          BatchIntFeatureScorer(c) {
     init(*mixtureSet);
 }
 

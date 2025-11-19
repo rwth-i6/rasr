@@ -67,6 +67,7 @@ public:
         return "audio-output-file-wav";
     }
     WavOutputNode(const Core::Configuration& c);
+
     virtual ~WavOutputNode() {
         if (isFileOpen())
             closeFile_();

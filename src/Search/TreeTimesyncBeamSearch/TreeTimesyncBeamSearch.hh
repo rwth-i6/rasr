@@ -144,6 +144,7 @@ private:
     bool           useIntermediateScorePruning_;
     Score          wordEndScoreThreshold_;
     Nn::LabelIndex blankLabelIndex_;
+    Nn::LabelIndex sentenceEndLabelIndex_;
     size_t         cacheCleanupInterval_;
 
     bool useBlank_;
@@ -234,10 +235,10 @@ private:
 
     /*
      * After reaching the segment end, go through the active hypotheses, only keep those
-     * which are at a word end (in the root state) and add the sentence end LM score.
-     * If no word-end hypotheses exist, use sentence-end fallback or construct an empty hypothesis
+     * which are final states of the search tree.
+     * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
      */
-    void finalizeLmScoring();
+    void finalizeHypotheses();
 
     /*
      * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.

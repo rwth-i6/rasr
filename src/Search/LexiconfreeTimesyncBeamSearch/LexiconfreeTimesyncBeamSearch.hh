@@ -45,6 +45,9 @@ public:
     static const Core::ParameterFloat paramIntermediateScoreThreshold;
     static const Core::ParameterInt   paramIntermediateMaxBeamSize;
     static const Core::ParameterInt   paramBlankLabelIndex;
+    static const Core::ParameterInt   paramSentenceEndLabelIndex;
+    static const Core::ParameterBool  paramAllowBlankAfterSentenceEnd;
+    static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -92,12 +95,11 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef            scoringContext;  // Context to compute scores based on this hypothesis
-        Bliss::LemmaPronunciation const* currentPron;     // Pronunciation of the currently ongoing lemma
-        Nn::LabelIndex                   currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        Search::TimeframeIndex           timeframe;       // Timestamp of `currentToken` for traceback
-        Score                            score;           // Full score of hypothesis
-        Core::Ref<LatticeTrace>          trace;           // Associated trace for traceback or lattice building off of hypothesis
+        Nn::ScoringContextRef   scoringContext;      // Context to compute scores based on this hypothesis
+        Nn::LabelIndex          currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        Score                   score;               // Full score of hypothesis
+        Core::Ref<LatticeTrace> trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                    reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
@@ -122,8 +124,15 @@ private:
     bool  useIntermediateScorePruning_;
     Score intermediateScoreThreshold_;
 
+    bool sentenceEndFallback_;
+
     bool           useBlank_;
     Nn::LabelIndex blankLabelIndex_;
+    bool           allowBlankAfterSentenceEnd_;
+
+    bool                useSentenceEnd_;
+    Bliss::Lemma const* sentenceEndLemma_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
 
     bool collapseRepeatedLabels_;
 
@@ -195,6 +204,12 @@ private:
      * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.
      */
     void maximumStableDelayPruning();
+
+    /*
+     * Prune away all hypotheses that have not reached sentence end.
+     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     */
+    void finalizeHypotheses();
 };
 
 }  // namespace Search

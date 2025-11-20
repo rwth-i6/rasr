@@ -452,7 +452,18 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
                 }
-                wordEndExtensions_.push_back({lemmaPron, exit.transitState, hyp.score + lmScore, hypIndex});
+
+                Score                           penalty               = 0.0;
+                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+                if (lemma == lexicon_->specialLemma("silence")) {
+                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                }
+                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
+                if (result) {
+                    penalty = result->score;
+                }
+
+                wordEndExtensions_.push_back({lemmaPron, exit.transitState, hyp.score + lmScore + penalty, hypIndex});
             }
         }
     }

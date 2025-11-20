@@ -144,7 +144,6 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           finishedSegment_(false) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
-    recombinedHypotheses_.reserve(maxBeamSize_);
     useBlank_ = blankLabelIndex_ != Nn::invalidLabelIndex;
     if (useBlank_) {
         log() << "Use blank label with index " << blankLabelIndex_;
@@ -517,6 +516,8 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
     };
 
     recombinedHypotheses_.clear();
+    // Reserve capacity because future reallocations would break the raw pointer we are storing later
+    recombinedHypotheses_.reserve(hypotheses.size());
     // Map each unique ScoringContext in newHypotheses to its hypothesis
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
     for (auto const& hyp : hypotheses) {

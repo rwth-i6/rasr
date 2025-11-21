@@ -450,6 +450,14 @@ const Lemma* Lexicon::specialLemma(const std::string& name) const {
     return (i == specialLemmas_.end()) ? 0 : *(i->second.begin());
 }
 
+robin_hood::unordered_set<const Lemma*> Lexicon::specialLemmas(const std::string& name) const {
+    auto it = specialLemmas_.find(name);
+    if (it == specialLemmas_.end()) {
+        return {};
+    }
+    return {it->second};
+}
+
 std::string Lexicon::getSpecialLemmaName(const Lemma* lemma) const {
     for (const auto it : specialLemmas_) {
         if (it.second.count(lemma) > 0)

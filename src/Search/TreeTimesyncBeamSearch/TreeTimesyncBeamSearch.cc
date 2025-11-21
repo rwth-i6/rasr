@@ -153,6 +153,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorer_(),
+          nonWordLemmas_(),
           debugChannel_(config, "debug"),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -194,6 +195,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     labelScorer_   = modelCombination.labelScorer();
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
+
+    nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
     // Build the search tree
     log() << "Start building search tree";
@@ -457,6 +460,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
                 if (lemma == lexicon_->specialLemma("silence")) {
                     wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                }
+                else if (nonWordLemmas_.contains(lemma)) {
+                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
                 }
                 auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
                 if (result) {

@@ -257,7 +257,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     if (not sentenceEndLemma) {
         sentenceEndLemma = lexicon_->specialLemma("sentence-boundary");
     }
-    if (sentenceEndLemma and sentenceEndLemma->nPronunciations() != 0) {
+    if (sentenceEndLemma and sentenceEndLemma->nPronunciations() != 0 and sentenceEndLemma->pronunciations().first->pronunciation()->length() > 0) {
         auto const* pron = sentenceEndLemma->pronunciations().first->pronunciation();
         require(pron->length() == 1);
         Am::Allophone           allo(acousticModel_->phonology()->allophone(*pron, 0),
@@ -542,7 +542,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 else if (nonWordLemmas_.contains(lemma)) {
                     wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
                 }
-                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
+                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType}, std::nullopt);
                 if (result) {
                     penalty = result->score;
                 }

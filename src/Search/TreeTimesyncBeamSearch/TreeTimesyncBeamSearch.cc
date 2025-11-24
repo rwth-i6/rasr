@@ -174,6 +174,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorer_(),
+          nonWordLemmas_(),
           debugChannel_(config, "debug"),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -220,6 +221,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     labelScorer_   = modelCombination.labelScorer();
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
+
+    nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
     // Build the search tree
     log() << "Start building search tree";
@@ -485,10 +488,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
+        contextExtensionTime_.start();
         auto newScoringContext = labelScorer_->extendedScoringContext(
                 {.context        = baseHyp.scoringContext,
                  .nextToken      = extension.nextToken,
                  .transitionType = extension.transitionType});
+        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
@@ -528,9 +533,23 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
                 }
+
+                Score                           penalty               = 0.0;
+                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+                if (lemma == lexicon_->specialLemma("silence")) {
+                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                }
+                else if (nonWordLemmas_.contains(lemma)) {
+                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+                }
+                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
+                if (result) {
+                    penalty = result->score;
+                }
+
                 wordEndExtensions_.push_back({.pron         = lemmaPron,
                                               .rootState    = exit.transitState,
-                                              .score        = hyp.score + lmScore,
+                                              .score        = hyp.score + lmScore + penalty,
                                               .baseHypIndex = hypIndex});
             }
         }

@@ -727,6 +727,12 @@ public:
      */
     const Lemma* specialLemma(const std::string& name) const;
 
+    /*
+     * Similar to `specialLemma` but return collection of all
+     * special lemmas with the given name instead of just one.
+     */
+    robin_hood::unordered_set<const Lemma*> specialLemmas(const std::string& name) const;
+
     /**
      * If a lemma is declared as special, return the string specified
      * in the "special" attribute (<lemma special="foo">).

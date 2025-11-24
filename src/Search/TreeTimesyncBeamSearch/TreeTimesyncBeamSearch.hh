@@ -152,12 +152,13 @@ private:
     bool sentenceEndFallback_;
     bool logStepwiseStatistics_;
 
-    Core::Ref<Nn::LabelScorer>         labelScorer_;
-    Bliss::LexiconRef                  lexicon_;
-    Core::Ref<PersistentStateTree>     network_;
-    Core::Ref<const Am::AcousticModel> acousticModel_;
-    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
-    Core::Channel                      debugChannel_;
+    Core::Ref<Nn::LabelScorer>                     labelScorer_;
+    Bliss::LexiconRef                              lexicon_;
+    robin_hood::unordered_set<const Bliss::Lemma*> nonWordLemmas_;
+    Core::Ref<PersistentStateTree>                 network_;
+    Core::Ref<const Am::AcousticModel>             acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel>             languageModel_;
+    Core::Channel                                  debugChannel_;
 
     // Pre-allocated intermediate vectors
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;

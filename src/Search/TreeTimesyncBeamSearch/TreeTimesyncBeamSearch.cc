@@ -198,8 +198,6 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
 
     nonWordLemmas_ = lexicon_->specialLemmas("nonword");
 
-    // Build the search tree
-    log() << "Start building search tree";
     network_ = Core::ref(new PersistentStateTree(
             config,
             acousticModel_,
@@ -213,8 +211,19 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
                     std::placeholders::_4,
                     std::placeholders::_5)));
 
-    std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
-    builder->build();
+    // Read the search tree from image or build it
+    if (not network_->read()) {
+        log() << "Persistent search tree image could not be loaded; building it";
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
+        builder->build();
+
+        if (network_->write(0)) {
+            log() << "Wrote search tree image to file";
+        }
+        else {
+            log() << "Writing search tree image failed";
+        }
+    }
 
     if (lexicon_->specialLemma("blank")) {
         blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
@@ -236,14 +245,6 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     createSuccessorLookups();
 
     reset();
-
-    // Create global cache
-    if (network_->write(0)) {
-        log() << "writing network image ready";
-    }
-    else {
-        log() << "writing network image failed";
-    }
 
     return true;
 }

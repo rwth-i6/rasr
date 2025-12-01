@@ -46,14 +46,15 @@ namespace Math {
 template<class S, typename T>
 class CgPreconditioner {
 public:
-    CgPreconditioner(){};
+    CgPreconditioner() {};
+    virtual ~CgPreconditioner()                                  = default;
     virtual void applyInversePreconditioner(const S& in, S& out) = 0;
 };
 
 template<class S, typename T>
 class DiagonalCgPreconditioner : public CgPreconditioner<S, T>, public S {
 public:
-    DiagonalCgPreconditioner(){};
+    DiagonalCgPreconditioner() {};
     virtual void applyInversePreconditioner(const S& in, S& out);
 };
 
@@ -66,7 +67,7 @@ void DiagonalCgPreconditioner<S, T>::applyInversePreconditioner(const S& in, S& 
 template<class S, typename T>
 class LbfgsPreconditioner : public CgPreconditioner<S, T>, public LbfgsSolver<S, T> {
 public:
-    LbfgsPreconditioner(){};
+    LbfgsPreconditioner() {};
     virtual void applyInversePreconditioner(const S& in, S& out);
 };
 

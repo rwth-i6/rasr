@@ -73,7 +73,7 @@ public:
     class SemiContext : public std::basic_string<Phoneme::Id, Phoneme::Id_char_traits> {
     public:
         typedef std::basic_string<Phoneme::Id, Phoneme::Id_char_traits> Precursor;
-        SemiContext(){};
+        SemiContext() {};
         SemiContext(Phoneme::Id p)
                 : Precursor(1, p) {}
         SemiContext(size_t s, Phoneme::Id p = Phoneme::term)
@@ -163,7 +163,7 @@ private:
 
 public:
     PhonemeInContext()
-            : phoneme_(Phoneme::term){};
+            : phoneme_(Phoneme::term) {};
     PhonemeInContext(Phoneme::Id phoneme, const SemiContext& history = SemiContext(), const SemiContext& future = SemiContext())
             : phoneme_(phoneme),
               context_(history, future) {}

@@ -46,7 +46,7 @@ protected:
 public:
     using manipulator = std::ios_base& (*)(std::ios_base&);
 
-    XmlAttribute(){};
+    XmlAttribute() {};
     template<typename V>
     XmlAttribute(const std::string& name, const V& value) {
         name_ = name;

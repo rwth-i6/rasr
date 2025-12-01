@@ -61,7 +61,7 @@ public:
     /** Creates a new sparse vector. */
     Vector()
             : Flow::Timestamp(type()),
-              Precursor(){};
+              Precursor() {};
 
     /**
      * Creates a new sparse vector with given size.

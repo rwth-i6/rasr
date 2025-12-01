@@ -144,7 +144,7 @@ public:
     typedef FstLib::PhiMatcher<M> Matcher;
 
     FailArcGrammarFst() {}
-    virtual ~FailArcGrammarFst(){};
+    virtual ~FailArcGrammarFst() {};
     bool        load(const std::string& filename);
     GrammarType type() const {
         return TypeFailArc;

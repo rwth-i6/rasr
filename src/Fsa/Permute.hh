@@ -300,7 +300,7 @@ private:
 
 public:
     IBMPermuteAutomaton(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit, Processing* processing)
-            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing){};
+            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing) {};
 
     virtual void permuteArcs(State* sp) const {
         StateId s          = sp->id();
@@ -328,7 +328,7 @@ private:
 
 public:
     LocalPermuteAutomaton(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit, Processing* processing)
-            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing){};
+            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing) {};
 
     virtual void permuteArcs(State* sp) const {
         StateId s = sp->id();
@@ -357,7 +357,7 @@ private:
 
 public:
     InverseIBMPermuteAutomaton(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit, Processing* processing)
-            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing){};
+            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing) {};
 
     virtual void permuteArcs(State* sp) const {
         StateId s = sp->id();
@@ -398,7 +398,7 @@ private:
 
 public:
     DoubleLocalPermuteAutomaton(ConstAutomatonRef f, u32 windowSize, u16 distortionLimit, Processing* processing)
-            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing){};
+            : PermuteAutomaton<Processing>(f, windowSize, distortionLimit, processing) {};
 
     virtual void permuteArcs(State* sp) const {
         // normal local window

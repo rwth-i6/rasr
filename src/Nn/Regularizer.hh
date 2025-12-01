@@ -107,7 +107,7 @@ private:
 
 public:
     CenteredL2Regularizer(const Core::Configuration& config);
-    virtual ~CenteredL2Regularizer(){};
+    virtual ~CenteredL2Regularizer() {};
     virtual T    objectiveFunction(NeuralNetwork<T>& network, T factor);
     virtual void addGradient(NeuralNetwork<T>& network, Statistics<T>& statistics, T factor);
 };

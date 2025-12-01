@@ -30,9 +30,9 @@ protected:
 public:
     DataSource(const Core::Configuration& c, bool loadFromFile = true)
             : Component(c),
-              Precursor(c, loadFromFile){};
+              Precursor(c, loadFromFile) {};
 
-    ~DataSource(){};
+    ~DataSource() {};
 
     /** Pulls one data object from the network
      *  @return is false if the port could not deliver an output object.

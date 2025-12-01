@@ -54,7 +54,7 @@ public:
         iterator(T* buffer = 0, u8 row_size = 0, u32 column_size = 0)
                 : buffer_(buffer),
                   row_size_(row_size),
-                  column_size_(column_size){};
+                  column_size_(column_size) {};
 
         operator bool() {
             return buffer_ != 0;
@@ -99,7 +99,7 @@ public:
               y_(0),
               work_(0),
               lwork_(0),
-              need_init_(true){};
+              need_init_(true) {};
     virtual ~LeastSquares() {
         freeBuffers();
     };
@@ -183,8 +183,8 @@ void LeastSquares<T>::freeBuffers() {
 template<class T>
 class QrLeastSquares : public LeastSquares<T> {
 public:  // constructor & destructor
-    QrLeastSquares(){};
-    virtual ~QrLeastSquares(){};
+    QrLeastSquares() {};
+    virtual ~QrLeastSquares() {};
 
 public:  // methods
     virtual bool work(T* estimation_error, std::vector<T>* theta);
@@ -251,8 +251,8 @@ protected:  // attributes
 
 public:  // constructor & destructor
     SvdLeastSquares()
-            : singularValues_(0){};
-    virtual ~SvdLeastSquares(){};
+            : singularValues_(0) {};
+    virtual ~SvdLeastSquares() {};
 
 public:  // methods
          // singular values <= max(singular value) * tolerance are zerod
@@ -367,7 +367,7 @@ public:
             : least_squares_(least_squares),
               order_B_(0),
               order_A_(0),
-              need_init_(true){};
+              need_init_(true) {};
 
     void setOrder_B(u8 order_B) {
         if (order_B_ != order_B) {

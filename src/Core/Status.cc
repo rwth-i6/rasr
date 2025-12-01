@@ -57,7 +57,7 @@ std::string statusCodeToString(StatusCode code) {
 
 Status::Status()
         : code_(StatusCode::Ok),
-          msg_(""){};
+          msg_("") {};
 
 Status::Status(StatusCode code, std::string msg)
         : code_(code),

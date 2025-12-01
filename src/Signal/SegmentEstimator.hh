@@ -34,8 +34,8 @@ protected:
 public:
     SegmentwiseEstimator()
             : current_segment_begin_(-1),
-              current_segment_end_(-1){};
-    virtual ~SegmentwiseEstimator(){};
+              current_segment_end_(-1) {};
+    virtual ~SegmentwiseEstimator() {};
 
     bool setSegment(s32 segment_begin, s32 segment_end) {
         current_segment_begin_ = segment_begin;

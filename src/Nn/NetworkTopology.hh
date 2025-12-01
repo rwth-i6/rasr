@@ -41,7 +41,7 @@ private:
 public:
     NetworkTopologyElement(s32 id, NeuralNetworkLayer<T>* layer);
 
-    ~NetworkTopologyElement(){};
+    ~NetworkTopologyElement() {};
 
     // getter and setter methods
     s32 id() const {

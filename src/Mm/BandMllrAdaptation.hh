@@ -46,7 +46,7 @@ public:
     BandMllrEstimator(const Core::Configuration&          c,
                       Core::Ref<const Mm::MixtureSet>     mixtureSet,
                       const Core::Ref<Am::AdaptationTree> adaptationTree);
-    virtual ~BandMllrEstimator(){};
+    virtual ~BandMllrEstimator() {};
 
     // virtual AdaptorEstimator* clone() const;
     virtual std::string typeName() const {

@@ -33,7 +33,7 @@ class CorpusStatisticsVisitor : public Core::Component,
                                 public CorpusVisitor {
 public:
     CorpusStatisticsVisitor(const Core::Configuration& c)
-            : Component(c){};
+            : Component(c) {};
     virtual void reset()                             = 0;
     virtual void writeReport(Core::XmlWriter&) const = 0;
 };
@@ -46,7 +46,7 @@ private:
 
 public:
     CorpusSizeStatisticsVisitor(const Core::Configuration& c)
-            : CorpusStatisticsVisitor(c){};
+            : CorpusStatisticsVisitor(c) {};
     virtual void enterRecording(Recording*);
     virtual void visitSegment(Segment*);
     virtual void visitSpeechSegment(SpeechSegment*);
@@ -75,7 +75,7 @@ private:
 
 public:
     CorpusSpeakerStatisticsVisitor(const Core::Configuration& c)
-            : CorpusStatisticsVisitor(c){};
+            : CorpusStatisticsVisitor(c) {};
     virtual void visitSpeechSegment(SpeechSegment*);
     virtual void reset();
     virtual void writeReport(Core::XmlWriter&) const;
@@ -99,7 +99,7 @@ private:
 
 public:
     CorpusConditionStatisticsVisitor(const Core::Configuration& c)
-            : CorpusStatisticsVisitor(c){};
+            : CorpusStatisticsVisitor(c) {};
     virtual void visitSegment(Segment*);
     virtual void reset();
     virtual void writeReport(Core::XmlWriter&) const;

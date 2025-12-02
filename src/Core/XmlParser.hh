@@ -299,7 +299,7 @@ public:
 
     virtual bool matches(const char* _name) const;
 
-    virtual ~XmlElement() {};
+    virtual ~XmlElement(){};
 
     /**
      * Handle start of the current XML element.

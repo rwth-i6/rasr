@@ -80,7 +80,7 @@ void Math::Nr::dlinmin(Math::Vector<double>& p, Math::Vector<double>& xi, double
 
 f1dim::f1dim(int ncom, const FunctorBase<Math::Vector<double>, double>& nrfunc, const Math::Vector<double>& pcom,
              const Math::Vector<double>& xicom)
-        : ncom_(ncom), nrfunc_(nrfunc), pcom_(pcom), xicom_(xicom) {};
+        : ncom_(ncom), nrfunc_(nrfunc), pcom_(pcom), xicom_(xicom){};
 
 double f1dim::operator()(const double& x) const {
     int j;
@@ -96,7 +96,7 @@ df1dim::df1dim(int                                                             n
                const GradientBase<Math::Vector<double>, Math::Vector<double>>& nrdfun,
                const Math::Vector<double>&                                     pcom,
                const Math::Vector<double>&                                     xicom)
-        : ncom_(ncom), nrfunc_(nrfunc), nrdfun_(nrdfun), pcom_(pcom), xicom_(xicom) {};
+        : ncom_(ncom), nrfunc_(nrfunc), nrdfun_(nrdfun), pcom_(pcom), xicom_(xicom){};
 
 double df1dim::operator()(const double& x) const {
     int                  j;

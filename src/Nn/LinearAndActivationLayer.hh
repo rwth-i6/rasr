@@ -91,7 +91,7 @@ protected:
     bool logPriorIsRemovedFromBias_;  // has bias been modified in initialization ?
 public:
     LinearAndSoftmaxLayer(const Core::Configuration& config);
-    virtual ~LinearAndSoftmaxLayer() {};
+    virtual ~LinearAndSoftmaxLayer(){};
 
     virtual bool isComposedLayer() const {
         return true;

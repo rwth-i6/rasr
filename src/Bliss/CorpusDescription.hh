@@ -51,7 +51,7 @@ protected:
     NamedCorpusEntity(ParentEntity* _parent = 0);
 
 public:
-    virtual ~NamedCorpusEntity() {};
+    virtual ~NamedCorpusEntity(){};
 
     ParentEntity* parent() const {
         return parent_;

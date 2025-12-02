@@ -46,7 +46,7 @@ public:
         return &dt;
     };
     Vector()
-            : Timestamp(type()) {};
+            : Timestamp(type()){};
     Vector(size_t size)
             : Timestamp(type()),
               std::vector<T>(size) {}

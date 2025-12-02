@@ -38,7 +38,7 @@ typedef size_t      HistoryHash;
  */
 class HistoryManager {
 protected:
-    HistoryManager() {};
+    HistoryManager(){};
 
     friend class History;
 
@@ -75,7 +75,7 @@ protected:
     }
 
 public:
-    virtual ~HistoryManager() {};
+    virtual ~HistoryManager(){};
 };
 
 class SingletonHistoryManager : public HistoryManager {

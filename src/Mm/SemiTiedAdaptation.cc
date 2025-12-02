@@ -52,7 +52,7 @@ SemiTiedEstimator::SemiTiedEstimator(const Core::Configuration&          c,
 
 SemiTiedEstimator::SemiTiedEstimator(const Core::Configuration&          c,
                                      const Core::Ref<Am::AdaptationTree> adaptationTree)
-        : FullAdaptorViterbiEstimator(c, adaptationTree) {};
+        : FullAdaptorViterbiEstimator(c, adaptationTree){};
 
 void SemiTiedEstimator::estimateWMatrices() {
 #ifdef __semi_tied_one_base__

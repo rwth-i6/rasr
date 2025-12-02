@@ -51,7 +51,7 @@ public:
     SemiTiedEstimator(const Core::Configuration&          c,
                       Core::Ref<const Mm::MixtureSet>     mixtureSet,
                       const Core::Ref<Am::AdaptationTree> adaptationTree);
-    virtual ~SemiTiedEstimator() {};
+    virtual ~SemiTiedEstimator(){};
 
     virtual Sum minAdaptationObservations() {
         return minSemiTiedAdaptationObservations_;
@@ -82,7 +82,7 @@ public:
     SemiTiedOptimizationFunction(ComponentIndex d, const Math::Vector<Matrix>& G,
                                  const Math::Vector<Matrix>&                   Z,
                                  const std::map<NodeId, Math::Vector<double>>& l);
-    virtual ~SemiTiedOptimizationFunction() {};
+    virtual ~SemiTiedOptimizationFunction(){};
 
     virtual ResultType operator()(const ArgumentType& x) const;
 };
@@ -105,7 +105,7 @@ public:
     SemiTiedOptimizationGradient(ComponentIndex d, const Math::Vector<Matrix>& G,
                                  const Math::Vector<Matrix>&                   Z,
                                  const std::map<NodeId, Math::Vector<double>>& l);
-    virtual ~SemiTiedOptimizationGradient() {};
+    virtual ~SemiTiedOptimizationGradient(){};
 
     virtual void operator()(const InputType& x, ResultType& f) const;
 };

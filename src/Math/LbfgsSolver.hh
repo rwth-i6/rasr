@@ -39,7 +39,7 @@ protected:
 
 public:
     LbfgsSolver()
-            : historySize_(-1) {};
+            : historySize_(-1){};
 
     virtual void solve(const S& in, S& out);
     void         setIterate(u32 i, S* iterate);

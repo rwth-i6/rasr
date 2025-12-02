@@ -49,7 +49,7 @@ private:
 
 public:
     DataAdaptor()
-            : NetworkData(type()) {};
+            : NetworkData(type()){};
     explicit DataAdaptor(const Type& d)
             : NetworkData(type()),
               data_(d) {}

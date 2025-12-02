@@ -69,7 +69,7 @@ public:
         const OrthographicParser* parser_;
 
     public:
-        virtual ~Handler() {};
+        virtual ~Handler(){};
         virtual void initialize(const OrthographicParser*);
         virtual Node newNode()                                       = 0;
         virtual void newEdge(Node from, Node to, const Lemma* lemma) = 0;

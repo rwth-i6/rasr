@@ -65,7 +65,7 @@ public:
               u_(0),
               y_(0),
               y0_(0),
-              need_init_(false) {};
+              need_init_(false){};
     virtual ~ArxEstimator() {
         freeBuffers();
     };

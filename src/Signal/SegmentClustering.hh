@@ -216,7 +216,7 @@ public:
      */
     void mergeModels(const BICFullCovMonoGaussianModel& x, const BICFullCovMonoGaussianModel& y);
 
-    ~BICFullCovMonoGaussianModel() {};
+    ~BICFullCovMonoGaussianModel(){};
 };
 
 // ------------------------------------------------------------------------
@@ -295,7 +295,7 @@ public:
         models_ = &models;
     }
 
-    ~CorrFullCovMonoGaussianModel() {};
+    ~CorrFullCovMonoGaussianModel(){};
 
     /** @return the relative feature vector */
     const Math::Vector<f32> relativeFeature() const {
@@ -348,8 +348,8 @@ private:
     f32 score_;
 
 public:
-    Tracker() {};
-    ~Tracker() {};
+    Tracker(){};
+    ~Tracker(){};
 
     void update(u32 left, u32 right, f32 score) {
         leftIdx_  = left;
@@ -451,7 +451,7 @@ public:
               bestscore_(-99999.9),
               totalframes_(0),
               minframes_(0),
-              infoChannel_(c, "cluster-info") {};
+              infoChannel_(c, "cluster-info"){};
     virtual ~SegmentClustering() {}
 
     /** minimum number of frames to consider the segment for segment clustering */

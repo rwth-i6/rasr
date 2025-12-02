@@ -41,7 +41,7 @@ private:
 
 public:  // constructor & destructor
     LevinsonLeastSquares() {}
-    virtual ~LevinsonLeastSquares() {};
+    virtual ~LevinsonLeastSquares(){};
 
     /** Performs the Levinson algorithm on the autocorrelation coeffitients (@param R) */
     bool work(const std::vector<InputData>& R);

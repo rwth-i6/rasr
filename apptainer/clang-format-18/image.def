@@ -1,0 +1,8 @@
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: build
+
+%post
+    apt update -y
+
+    DEBIAN_FRONTEND=noninteractive apt install -y clang-format-18 git

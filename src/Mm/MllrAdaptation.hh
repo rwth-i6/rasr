@@ -46,7 +46,7 @@ struct IdSetEntry {
     bool   isActive;
     IdSetEntry(NodeId i, bool a = true)
             : id(i),
-              isActive(a) {};
+              isActive(a){};
 };
 struct IdSetEntryLess {
     bool operator()(const IdSetEntry& a, const IdSetEntry& b) const {
@@ -105,7 +105,7 @@ private:
 
 public:
     ShiftAdaptor(const Core::Configuration&);
-    virtual ~ShiftAdaptor() {};
+    virtual ~ShiftAdaptor(){};
 
     virtual void                    setMatrix(std::map<NodeId, Matrix>&, std::vector<NodeId>&);
     virtual void                    adaptMixtureSet(Core::Ref<Mm::MixtureSet> adaptableMixtureSet) const;
@@ -135,7 +135,7 @@ private:
 
 public:
     FullAdaptor(const Core::Configuration&);
-    virtual ~FullAdaptor() {};
+    virtual ~FullAdaptor(){};
 
     virtual void                    setMatrix(std::map<NodeId, Matrix>&, std::vector<NodeId>&);
     virtual void                    adaptMixtureSet(Core::Ref<Mm::MixtureSet> adaptableMixtureSet) const;
@@ -312,8 +312,8 @@ protected:
 
 public:
     AccumulatorBase()
-            : count_(0) {};
-    virtual ~AccumulatorBase() {};
+            : count_(0){};
+    virtual ~AccumulatorBase(){};
 
     Math::Matrix<double> matrix() const {
         return matrix_;
@@ -351,7 +351,7 @@ protected:
     public:
         ZAccumulator(ComponentIndex dim);
         ZAccumulator();
-        virtual ~ZAccumulator() {};
+        virtual ~ZAccumulator(){};
         void                         accumulate(const Mm::Mean&, const FeatureVector&);
         void                         accumulate(const Mm::Mean&, const FeatureVector&, Mm::Weight);
         virtual Math::Matrix<double> squareMatrix() const;
@@ -361,7 +361,7 @@ protected:
     public:
         GAccumulator(ComponentIndex dim);
         GAccumulator();
-        virtual ~GAccumulator() {};
+        virtual ~GAccumulator(){};
         void                         accumulate(const Mm::Mean&);
         void                         accumulate(const Mm::Mean&, Mm::Weight);
         virtual Math::Matrix<double> squareMatrix() const;

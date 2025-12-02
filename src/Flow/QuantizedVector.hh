@@ -35,7 +35,7 @@ private:
 
 public:
     Vector()
-            : Data(&Datatype<Self>::type) {};
+            : Data(&Datatype<Self>::type){};
     Vector(int size)
             : Data(&Datatype<Self>::type),
               std::vector<T>(size) {}

@@ -72,7 +72,7 @@ protected:
 
 public:
     MeanAndVarianceNormalizationPreprocessingLayer(const Core::Configuration& config);
-    virtual ~MeanAndVarianceNormalizationPreprocessingLayer() {};
+    virtual ~MeanAndVarianceNormalizationPreprocessingLayer(){};
 
 private:
     void loadNetworkParameterMean(const std::string& filename);

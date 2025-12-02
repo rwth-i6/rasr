@@ -60,7 +60,7 @@ public:
 
 public:
     VectorSelectNode(const Core::Configuration& c);
-    virtual ~VectorSelectNode() {};
+    virtual ~VectorSelectNode(){};
 
     virtual bool configure();
     virtual bool setParameter(const std::string& name, const std::string& value);

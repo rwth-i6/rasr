@@ -78,7 +78,7 @@ public:
             : Precursor(v) {}
     Mean(const Precursor& v)
             : Precursor(v) {}
-    virtual ~Mean() {};
+    virtual ~Mean(){};
     virtual bool write(std::ostream& o) const;
     virtual bool read(std::istream& i);
 };

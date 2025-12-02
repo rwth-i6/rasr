@@ -29,7 +29,7 @@ protected:
 
 public:
     KaiserWindowFunction(f64 beta = 0)
-            : beta_(beta) {};
+            : beta_(beta){};
 
     void setBeta(f64 beta) {
         beta_     = beta;

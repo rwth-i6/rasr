@@ -56,15 +56,15 @@ public:
     using std::vector<T>::end;
 
     Vector()
-            : std::vector<T>() {};
+            : std::vector<T>(){};
     Vector(size_t n, const T& value)
-            : std::vector<T>(n, value) {};
+            : std::vector<T>(n, value){};
     explicit Vector(size_t n)
-            : std::vector<T>(n) {};
+            : std::vector<T>(n){};
     Vector(const Vector<T>& x)
-            : std::vector<T>(x) {};
+            : std::vector<T>(x){};
     Vector(const std::vector<T>& x)
-            : std::vector<T>(x) {};
+            : std::vector<T>(x){};
     template<typename S>
     Vector(const std::vector<S>& x)
             : std::vector<T>(x.size()) {
@@ -78,7 +78,7 @@ public:
 #else
     Vector(typename std::vector<T>::const_iterator first,
            typename std::vector<T>::const_iterator last)
-            : std::vector<T>(first, last) {};
+            : std::vector<T>(first, last){};
 #endif /* __STL_MEMBER_TEMPLATES */
 
     T& operator[](size_t n) {
@@ -389,22 +389,22 @@ public:
             (*this)[i] = T(x[i]);
     }
     ReferenceCountedVector()
-            : Vector<T, P>() {};
+            : Vector<T, P>(){};
     ReferenceCountedVector(size_t n, const T& value)
-            : Vector<T, P>(n, value) {};
+            : Vector<T, P>(n, value){};
     explicit ReferenceCountedVector(size_t n)
-            : Vector<T, P>(n) {};
+            : Vector<T, P>(n){};
     ReferenceCountedVector(const ReferenceCountedVector<T>& x)
-            : Vector<T, P>(x) {};
+            : Vector<T, P>(x){};
     ReferenceCountedVector(const Vector<T, P>& x)
-            : Vector<T, P>(x) {};
+            : Vector<T, P>(x){};
 #ifdef __STL_MEMBER_TEMPLATES
     template<class InputIterator>
     ReferenceCountedVector(InputIterator first, InputIterator last)
             : Vector<T, P>(first, last){};
 #else
     ReferenceCountedVector(typename Base::const_iterator first, typename Base::const_iterator last)
-            : Vector<T, P>(first, last) {};
+            : Vector<T, P>(first, last){};
 #endif /* __STL_MEMBER_TEMPLATES */
 };
 }  // namespace Math

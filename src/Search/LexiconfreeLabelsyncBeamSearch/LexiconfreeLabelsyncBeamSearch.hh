@@ -113,20 +113,14 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
-    float lengthNormScale_;
-
-    float maxLabelsPerTimestep_;
-
+    size_t         maxBeamSize_;
+    bool           useScorePruning_;
+    Score          scoreThreshold_;
+    float          lengthNormScale_;
+    float          maxLabelsPerTimestep_;
     Nn::LabelIndex sentenceEndLabelIndex_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    bool           logStepwiseStatistics_;
+    size_t         cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 

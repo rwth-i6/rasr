@@ -49,16 +49,36 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         float                                                     lengthNormScale)
         : scoringContext(newScoringContext),
           currentToken(extension.nextToken),
-          length(base.length + 1),
           score(extension.score),
-          scaledScore(score / std::pow(length, lengthNormScale)),
-          trace(Core::ref(new LatticeTrace(
-                  base.trace,
-                  extension.pron,
-                  extension.timeframe + 1,
-                  {extension.score, 0},
-                  {}))),
+          trace(),
           isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
+        case Nn::LabelScorer::TransitionType::SENTENCE_END:
+            length = base.length + 1;
+        default:
+            length = base.length;
+    }
+    scaledScore = score / std::pow(length, lengthNormScale);
+
+    Core::Ref<LatticeTrace> predecessor;
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
+        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+            predecessor = base.trace->predecessor;
+            break;
+        default:
+            predecessor = base.trace;
+            break;
+    }
+    trace = Core::ref(new LatticeTrace(
+            predecessor,
+            extension.pron,
+            extension.timeframe + 1,
+            {score, 0},
+            {}));
 }
 
 std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
@@ -289,6 +309,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
      */
     extensions_.clear();
     requests_.clear();
+    extensions_.reserve(beam_.size() * lexicon_->nLemmas());
+    requests_.reserve(extensions_.size());
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];

@@ -90,6 +90,9 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
+        WORD_EXIT,
+        NONWORD_EXIT,
+        SILENCE_EXIT,
         SENTENCE_END,
         numTypes,  // must remain at the end
     };
@@ -168,6 +171,9 @@ protected:
             {"blank-loop", BLANK_LOOP},
             {"initial-label", INITIAL_LABEL},
             {"initial-blank", INITIAL_BLANK},
+            {"word-exit", WORD_EXIT},
+            {"nonword-exit", NONWORD_EXIT},
+            {"silence-exit", SILENCE_EXIT},
             {"sentence-end", SENTENCE_END},
     });
     static_assert(transitionTypeArray_.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");

@@ -156,6 +156,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           labelScorer_(),
+          nonWordLemmas_(),
           debugChannel_(config, "debug"),
           withinWordExtensions_(),
           wordEndExtensions_(),
@@ -198,8 +199,8 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     acousticModel_ = modelCombination.acousticModel();
     languageModel_ = modelCombination.languageModel();
 
-    // Build the search tree
-    log() << "Start building search tree";
+    nonWordLemmas_ = lexicon_->specialLemmas("nonword");
+
     network_ = Core::ref(new PersistentStateTree(
             config,
             acousticModel_,
@@ -213,9 +214,19 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
                     std::placeholders::_4,
                     std::placeholders::_5)));
 
-    std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
-    builder->build();
-    network_->dumpDotGraph("tree.dot");
+    // Read the search tree from image or build it
+    if (not network_->read()) {
+        log() << "Persistent search tree image could not be loaded; building it";
+        std::unique_ptr<AbstractTreeBuilder> builder = Search::Module::instance().createTreeBuilder(config, *lexicon_, *acousticModel_, *network_);
+        builder->build();
+
+        if (network_->write(0)) {
+            log() << "Wrote search tree image to file";
+        }
+        else {
+            log() << "Writing search tree image failed";
+        }
+    }
 
     if (lexicon_->specialLemma("blank")) {
         blankLabelIndex_ = acousticModel_->emissionIndex(acousticModel_->blankAllophoneStateIndex());
@@ -254,14 +265,6 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
     createSuccessorLookups();
 
     reset();
-
-    // Create global cache
-    if (network_->write(0)) {
-        log() << "writing network image ready";
-    }
-    else {
-        log() << "writing network image failed";
-    }
 
     return true;
 }
@@ -430,10 +433,12 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
+        contextExtensionTime_.start();
         auto newScoringContext = labelScorer_->extendedScoringContext(
                 {.context        = baseHyp.scoringContext,
                  .nextToken      = extension.nextToken,
                  .transitionType = extension.transitionType});
+        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
@@ -473,9 +478,23 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     auto const* st = sts.front();
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
                 }
+
+                Score                           penalty               = 0.0;
+                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+                if (lemma == lexicon_->specialLemma("silence")) {
+                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                }
+                else if (nonWordLemmas_.contains(lemma)) {
+                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+                }
+                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
+                if (result) {
+                    penalty = result->score;
+                }
+
                 wordEndExtensions_.push_back({.pron         = lemmaPron,
                                               .rootState    = exit.transitState,
-                                              .score        = hyp.score + lmScore,
+                                              .score        = hyp.score + lmScore + penalty,
                                               .baseHypIndex = hypIndex});
             }
         }

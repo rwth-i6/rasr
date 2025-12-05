@@ -76,6 +76,12 @@ class LabelScorer : public virtual Core::Component,
 public:
     typedef Search::Score Score;
 
+    static const Core::Choice          choiceTransitionPreset;
+    static const Core::ParameterChoice paramTransitionPreset;
+
+    static const Core::ParameterStringVector paramExtraTransitionTypes;
+
+    // When updating these, remember to also update the corresponding Python binding in src/Tools/LibRASR/LabelScorer.cc
     enum TransitionType {
         LABEL_TO_LABEL,
         LABEL_LOOP,
@@ -84,7 +90,20 @@ public:
         BLANK_LOOP,
         INITIAL_LABEL,
         INITIAL_BLANK,
-        SENTENCE_END
+        WORD_EXIT,
+        NONWORD_EXIT,
+        SILENCE_EXIT,
+        SENTENCE_END,
+        numTypes,  // must remain at the end
+    };
+
+    enum TransitionPresetType {
+        DEFAULT,
+        NONE,
+        ALL,
+        CTC,
+        TRANSDUCER,
+        LM,
     };
 
     // Request for scoring or context extension
@@ -106,7 +125,7 @@ public:
         Core::CollapsedVector<Speech::TimeframeIndex> timeframes;  // Timeframes vector is internally collapsed  if all timeframes are the same (e.g. time-sync decoding)
     };
 
-    LabelScorer(Core::Configuration const& config);
+    LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
@@ -120,7 +139,7 @@ public:
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
+    ScoringContextRef extendedScoringContext(Request const& request);
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
@@ -136,13 +155,42 @@ public:
     // Return score and timeframe index of the corresponding output
     // May not return a value if the LabelScorer is not ready to score the request yet
     // (e.g. not enough features received)
-    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) = 0;
+    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request);
 
     // Perform scoring computation for a batch of requests
     // May be implemented more efficiently than iterated calls of `getScoreWithTime`
     // Return two vectors: one vector with scores and one vector with times
+    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+
+protected:
+    inline static constexpr auto transitionTypeArray_ = std::to_array<std::pair<std::string_view, TransitionType>>({
+            {"label-to-label", LABEL_TO_LABEL},
+            {"label-loop", LABEL_LOOP},
+            {"label-to-blank", LABEL_TO_BLANK},
+            {"blank-to-label", BLANK_TO_LABEL},
+            {"blank-loop", BLANK_LOOP},
+            {"initial-label", INITIAL_LABEL},
+            {"initial-blank", INITIAL_BLANK},
+            {"word-exit", WORD_EXIT},
+            {"nonword-exit", NONWORD_EXIT},
+            {"silence-exit", SILENCE_EXIT},
+            {"sentence-end", SENTENCE_END},
+    });
+    static_assert(transitionTypeArray_.size() == TransitionType::numTypes, "transitionTypeArray size must match number of TransitionType values");
+
+    // The public versions of these functions are implemented in this base class and handle the ignoring of transition types.
+    // These `Internal` versions contain the actual logic and should be overridden in child classes.
+
+    virtual ScoringContextRef            extendedScoringContextInternal(Request const& request) = 0;
+    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request)   = 0;
+
     // By default loops over the single-request version
-    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+    virtual std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests);
+
+private:
+    std::unordered_set<TransitionType> enabledTransitionTypes_;
+
+    void enableTransitionTypes(Core::Configuration const& config, TransitionPresetType defaultPreset);
 };
 
 }  // namespace Nn

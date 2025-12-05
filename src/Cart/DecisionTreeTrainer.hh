@@ -43,7 +43,8 @@ struct ExamplePtrRange {
     ExamplePtrList::const_iterator begin;
     ExamplePtrList::const_iterator end;
     ExamplePtrRange(ExamplePtrList::const_iterator begin, ExamplePtrList::const_iterator end)
-            : begin(begin), end(end) {}
+            : begin(begin),
+              end(end) {}
     size_t size() const {
         return end - begin;
     }
@@ -73,10 +74,10 @@ public:
             const ExamplePtrRange& leftExamples, const ExamplePtrRange& rightExamples,
             const Score fatherScore,
             Score& leftChildScore, Score& rightChildScore) const = 0;
-    virtual void operator()(
-            const ExamplePtrRange& examples,
-            Score&                 score) const {
+
+    virtual void operator()(const ExamplePtrRange& examples, Score& score) const {
         Score dummy;
+
         operator()(examples, ExamplePtrRange(ExamplePtrList::const_iterator(), ExamplePtrList::const_iterator()), 0.0, score, dummy);
     }
 };

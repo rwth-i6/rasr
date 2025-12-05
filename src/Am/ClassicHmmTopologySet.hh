@@ -30,7 +30,8 @@ class ClassicHmmTopology {
 
 public:
     ClassicHmmTopology(int nPhoneStates, int nSubStates)
-            : nPhoneStates_(nPhoneStates), nSubStates_(nSubStates) {}
+            : nPhoneStates_(nPhoneStates),
+              nSubStates_(nSubStates) {}
     int nPhoneStates() const {
         return nPhoneStates_;
     }
@@ -58,11 +59,14 @@ private:
     bool isAcrossWordModelEnabled_;
 
 public:
-    ClassicHmmTopologySet(const Core::Configuration&, Bliss::Phoneme::Id silenceId);
+    ClassicHmmTopologySet(const Core::Configuration&, Bliss::Phoneme::Id silenceId = Bliss::Phoneme::invalidId);
 
     void getDependencies(Core::DependencySet&) const;
 
     const ClassicHmmTopology* get(Bliss::Phoneme::Id phoneme) const {
+        if (silenceId_ == Bliss::Phoneme::invalidId) {
+            return &default_;
+        }
         return (phoneme != silenceId_ ? &default_ : &silence_);
     }
     const ClassicHmmTopology& getDefault() const {

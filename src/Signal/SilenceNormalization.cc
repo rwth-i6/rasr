@@ -25,7 +25,14 @@ using namespace Signal;
 class GaussianDensity {
 public:
     GaussianDensity(f32 bias = 1.0)
-            : mean_(0), variance_(0), sigma_(0), offset_(0), energySum_(0), energySquareSum_(0), energyCount_(0), bias_(bias) {
+            : mean_(0),
+              variance_(0),
+              sigma_(0),
+              offset_(0),
+              energySum_(0),
+              energySquareSum_(0),
+              energyCount_(0),
+              bias_(bias) {
     }
 
     // Returns the score regarding the gaussian distribution
@@ -454,7 +461,8 @@ ParameterInt SilenceNormalizationNode::paramEMIterations(
         "em-iterations", "number of expectation maximization iterations", 20);
 
 SilenceNormalizationNode::SilenceNormalizationNode(const Core::Configuration& c)
-        : Component(c), Predecessor(c) {
+        : Component(c),
+          Predecessor(c) {
     setSilenceFraction(paramSilenceFraction(c));
     setMinSurroundingSilence(paramMinSurroundingSilence(c));
     setInitializationFraction(paramInitializationFraction(c));

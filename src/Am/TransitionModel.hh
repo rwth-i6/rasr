@@ -94,7 +94,8 @@ public:
 
 protected:
     std::vector<StateTransitionModel*> transitionModels_;
-    void                               dump(Core::XmlWriter&) const;
+
+    void dump(Core::XmlWriter&) const;
 
 public:
     TransitionModel(const Core::Configuration&);
@@ -107,9 +108,11 @@ public:
      *  @return is false if correction was necessary.
      */
     bool correct();
-    u32  nModels() const {
+
+    u32 nModels() const {
         return transitionModels_.size();
     }
+
     const StateTransitionModel* operator[](int i) const {
         require_(0 <= i && i < (int)transitionModels_.size() && transitionModels_[i] != 0);
         return transitionModels_[i];

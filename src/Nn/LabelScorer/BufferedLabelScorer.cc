@@ -17,9 +17,9 @@
 
 namespace Nn {
 
-BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config)
+BufferedLabelScorer::BufferedLabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, defaultPreset),
           expectMoreFeatures_(true),
           inputBuffer_(),
           numDeletedInputs_(0ul) {
@@ -63,6 +63,10 @@ std::optional<DataView> BufferedLabelScorer::getInput(size_t inputIndex) const {
     }
 
     return inputBuffer_[bufferPosition];
+}
+
+size_t BufferedLabelScorer::bufferSize() const {
+    return inputBuffer_.size();
 }
 
 }  // namespace Nn

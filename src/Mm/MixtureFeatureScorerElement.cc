@@ -29,5 +29,5 @@ void MixtureFeatureScorerElement::operator=(const Mixture& mixture) {
 
 void MixtureFeatureScorerElement::scale(Score scale) {
     std::transform(minus2LogWeights_.begin(), minus2LogWeights_.end(),
-                   minus2LogWeights_.begin(), std::bind2nd(std::multiplies<Score>(), scale));
+                   minus2LogWeights_.begin(), std::bind(std::multiplies<Score>(), std::placeholders::_1, scale));
 }

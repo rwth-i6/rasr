@@ -63,7 +63,10 @@ bool WarpTimeFilterNode::work(PortId p) {
         return putData(0, in.get());
     }
 
-    if (in.get() == Flow::Data::eos() && warping_.size()) {
+    if (in.get() == Flow::Data::ood()) {
+        return putOod(p);
+    }
+    else if (in.get() == Flow::Data::eos() && warping_.size()) {
         Core::Component::Message msg = log();
         msg << "warping map:";
         for (std::vector<std::pair<Time, Time>>::iterator it = warping_.begin(); it != warping_.end(); ++it)

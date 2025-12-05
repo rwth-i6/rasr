@@ -5,6 +5,10 @@
 
 #include <chrono>
 
+#ifdef MODULE_CUDA
+#include <cuda_runtime.h>
+#endif
+
 #include "Util.hh"
 
 namespace Onnx {
@@ -21,11 +25,29 @@ const Core::ParameterInt Session::paramInterOpNumThreads("inter-op-num-threads",
                                                          "number of threads to use between ops",
                                                          1);
 
+const Core::Choice Session::executionProviderChoice(
+        "cpu", ExecutionProviderType::cpu,
+        "cuda", ExecutionProviderType::cuda,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Session::paramExecutionProviderType(
+        "execution-provider-type", &Session::executionProviderChoice, "type of execution provider", ExecutionProviderType::cpu);
+
+const Core::ParameterString Session::paramStatePrefix("state-prefix",
+                                                      "Prefix for the state keys in the metadata to distinguish from other metadata",
+                                                      "STATE_");
+
+const Core::ParameterBool Session::paramRemovePrefixFromKey("remove-prefix-from-key",
+                                                            "Whether to remove the prefix from the state keys for the node name lookup",
+                                                            true);
+
 Session::Session(Core::Configuration const& config)
         : Precursor(config),
           file_(paramFile(config)),
           intraOpNumThreads_(paramIntraOpNumThreads(config)),
           interOpNumThreads_(paramInterOpNumThreads(config)),
+          statePrefix_(paramStatePrefix(config)),
+          removePrefixFromKey_(paramRemovePrefixFromKey(config)),
           allocator_(),
           env_(ORT_LOGGING_LEVEL_WARNING),
           session_(nullptr),
@@ -34,6 +56,37 @@ Session::Session(Core::Configuration const& config)
     Ort::SessionOptions session_opts;
     session_opts.SetIntraOpNumThreads(intraOpNumThreads_);
     session_opts.SetInterOpNumThreads(interOpNumThreads_);
+
+    auto providers = Ort::GetAvailableProviders();
+    switch (paramExecutionProviderType(config)) {
+        case ExecutionProviderType::cpu: {
+            if (std::find(providers.begin(), providers.end(), "CPUExecutionProvider") == providers.end()) {
+                error() << "Requested CPU execution provider for ONNX session but it is not available.";
+            }
+            break;
+        }
+        case ExecutionProviderType::cuda: {
+            if (std::find(providers.begin(), providers.end(), "CUDAExecutionProvider") == providers.end()) {
+                error() << "Requested CUDA execution provider for ONNX session but it is not available.";
+            }
+#ifdef MODULE_CUDA
+            int deviceCount = 0;
+            if (cudaGetDeviceCount(&deviceCount) != cudaSuccess or deviceCount == 0) {
+                error() << "Requested CUDA execution provider but no CUDA device was found.";
+            }
+            OrtCUDAProviderOptionsV2* cuda_opts = nullptr;
+            Ort::ThrowOnError(Ort::GetApi().CreateCUDAProviderOptions(&cuda_opts));
+            session_opts.AppendExecutionProvider_CUDA_V2(*cuda_opts);
+            Ort::GetApi().ReleaseCUDAProviderOptions(cuda_opts);
+            break;
+#else
+            error() << "Requested CUDA execution provider but RASR was not compiled with MODULE_CUDA which is required for it.";
+#endif
+        }
+        default:
+            error() << "Execution provider for ONNX session not known.";
+    }
+
     session_ = Ort::Session(env_, file_.c_str(), session_opts);
 
     size_t num_inputs  = session_.GetInputCount();
@@ -77,6 +130,8 @@ Session::Session(Core::Configuration const& config)
         customMetadataKeys_.emplace_back(key);
         customMetadata_[key] = std::string(value.get());
     }
+
+    initializeStateVariablesMetadata();
 }
 
 bool Session::hasInput(std::string const& name) const {
@@ -199,6 +254,36 @@ std::string Session::getCustomMetadata(std::string const& key) const {
 
 std::vector<std::string> const& Session::getCustomMetadataKeys() const {
     return customMetadataKeys_;
+}
+
+void Session::initializeStateVariablesMetadata() {
+    for (std::string const& key : customMetadataKeys_) {
+        auto state_pos = key.find(statePrefix_);
+
+        if (state_pos != 0) {
+            continue;
+        }
+
+        OnnxStateVariable state_variable;
+
+        if (removePrefixFromKey_) {
+            state_variable.input_state_key = key.substr(statePrefix_.size());
+        }
+        else {
+            state_variable.input_state_key = key;
+        }
+
+        state_variable.output_state_key = getCustomMetadata(key);
+        state_variable.shape            = getInputShape(state_variable.input_state_key);
+
+        log("State: input_state_key=%s output_state_key=%s", state_variable.input_state_key.c_str(), state_variable.output_state_key.c_str());
+
+        stateVariables_.push_back(state_variable);
+    }
+}
+
+std::vector<OnnxStateVariable> const& Session::getStateVariablesMetadata() const {
+    return stateVariables_;
 }
 
 }  // namespace Onnx

@@ -35,11 +35,8 @@ class XmlMatrixElement : public XmlBuilderElement<Math::Matrix<T>,
                                                   XmlElement,
                                                   CreateByContext> {
 public:
-    typedef XmlBuilderElement<Math::Matrix<T>,
-                              XmlElement,
-                              CreateByContext>
-                                Predecessor;
-    typedef XmlMatrixElement<T> Self;
+    typedef XmlBuilderElement<Math::Matrix<T>, XmlElement, CreateByContext> Predecessor;
+    typedef XmlMatrixElement<T>                                             Self;
     typedef Math::Matrix<T>* (XmlContext::*CreationHandler)(const XmlAttributes atts);
 
 private:
@@ -124,7 +121,8 @@ class XmlMatrixDocument : public XmlSchemaParser {
 private:
     XmlMatrixElement<T>* matrixElement_;
     Math::Matrix<T>&     matrix_;
-    Math::Matrix<T>*     pseudoCreateMatrix(const XmlAttributes atts) {
+
+    Math::Matrix<T>* pseudoCreateMatrix(const XmlAttributes atts) {
         return &matrix_;
     }
 

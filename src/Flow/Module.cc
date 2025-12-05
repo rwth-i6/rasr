@@ -141,11 +141,15 @@ Module_::Module_() {
     registry.registerFilter<SequenceFilterNode>();
     registry.registerFilter<WarpTimeFilterNode>();
 
+    registry.registerFilter<Flow::InputNode>();
+
     // register datatypes
     registry.registerDatatype<Timestamp>();
     registry.registerDatatype<Float32>();
     registry.registerDatatype<Float64>();
+    registry.registerDatatype<Vector<u8>>();
     registry.registerDatatype<Vector<s8>>();
+    registry.registerDatatype<Vector<u16>>();
     registry.registerDatatype<Vector<s16>>();
     registry.registerDatatype<Vector<u32>>();
     registry.registerDatatype<Vector<f32>>();
@@ -160,6 +164,4 @@ Module_::Module_() {
     registry.registerDatatype<TypedAggregate<Vector<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f32>>>();
     registry.registerDatatype<Flow::DataAdaptor<Math::Matrix<f64>>>();
-
-    registry.registerFilter<Flow::InputNode>();
 }

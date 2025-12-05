@@ -15,29 +15,6 @@
 #include "AcousticModelTrainer.hh"
 #include <Am/Module.hh>
 #include <Audio/Module.hh>
-#include <Flow/Module.hh>
-#include <Lm/Module.hh>
-#include <Math/Module.hh>
-#include <Mm/Module.hh>
-#include <Signal/Module.hh>
-#include <Speech/AverageFeatureScorerActivation.hh>
-#include <Speech/Module.hh>
-#ifdef MODULE_NN
-#include <Nn/Module.hh>
-#endif
-#ifdef MODULE_ONNX
-#include <Onnx/Module.hh>
-#endif
-#include <Speech/AcousticModelTrainer.hh>
-#include <Speech/AlignerModelAcceptor.hh>
-#include <Speech/AligningFeatureExtractor.hh>
-#include <Speech/FeatureScorer.hh>
-#include <Speech/LabelingFeatureExtractor.hh>
-#include <Speech/LatticeSetExtractor.hh>
-#include <Speech/LatticeSetProcessor.hh>
-#include <Speech/MixtureSetTrainer.hh>
-#include <Speech/ScatterMatricesEstimator.hh>
-#include <Speech/TextIndependentMixtureSetTrainer.hh>
 #ifdef MODULE_CART
 #include <Cart/Cluster.hh>
 #include <Cart/DecisionTree.hh>
@@ -45,6 +22,29 @@
 #include <Cart/Parser.hh>
 #include <Speech/DecisionTreeTrainer.hh>
 #endif
+#include <Flow/Module.hh>
+#include <Lm/Module.hh>
+#include <Math/Module.hh>
+#include <Mm/Module.hh>
+#ifdef MODULE_NN
+#include <Nn/Module.hh>
+#endif
+#ifdef MODULE_ONNX
+#include <Onnx/Module.hh>
+#endif
+#include <Signal/Module.hh>
+#include <Speech/AcousticModelTrainer.hh>
+#include <Speech/AlignerModelAcceptor.hh>
+#include <Speech/AligningFeatureExtractor.hh>
+#include <Speech/AverageFeatureScorerActivation.hh>
+#include <Speech/FeatureScorer.hh>
+#include <Speech/LabelingFeatureExtractor.hh>
+#include <Speech/LatticeSetExtractor.hh>
+#include <Speech/LatticeSetProcessor.hh>
+#include <Speech/MixtureSetTrainer.hh>
+#include <Speech/Module.hh>
+#include <Speech/ScatterMatricesEstimator.hh>
+#include <Speech/TextIndependentMixtureSetTrainer.hh>
 #ifdef MODULE_SPEECH_DT_ADVANCED
 #include <Speech/ClusterMixtureSetTrainer.hh>
 #endif

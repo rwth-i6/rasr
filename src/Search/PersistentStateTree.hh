@@ -70,6 +70,14 @@ public:
     /// Dump the search network as a dot graph into the given file
     void dumpDotGraph(std::string file, const std::vector<int>& nodeDepths = {});
 
+    bool isRoot(StateId node) const {
+        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node);
+    }
+
+    Core::DependencySet getDependencies();
+
+    /**  ----- types: ------  */
+
     struct Exit {
         Bliss::LemmaPronunciation::Id pronunciation;
         StateId                       transitState;
@@ -91,10 +99,6 @@ public:
         }
     };
 
-    bool isRoot(StateId node) const {
-        return node == rootState || node == ciRootState || coarticulatedRootStates.count(node);
-    }
-
     typedef std::map<Search::StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>> RootTransitDescriptions;
 
     /**  ----- state tree data: ------  */
@@ -107,6 +111,9 @@ public:
 
     // Other root nodes (currently used for the wordBoundaryRoot in CtcTreeBuilder)
     std::set<StateId> otherRootStates;
+
+    // Valid nodes that the search can end in
+    std::set<StateId> finalStates;
 
     // The word-end exits
     std::vector<Exit> exits;

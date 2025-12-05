@@ -38,7 +38,9 @@
  * */
 
 std::string hostAndProcessId() {
-    enum { Len = 1000 };
+    enum {
+        Len = 1000
+    };
     char buf[Len];
     gethostname(buf, Len);
     u64                pid = getpid();

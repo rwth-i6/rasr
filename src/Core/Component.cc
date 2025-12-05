@@ -171,6 +171,10 @@ bool Component::hasFatalErrors() const {
     return false;
 }
 
+bool Component::hasErrors() const {
+    return errorCounts_[ErrorTypeError] > 0 or errorCounts_[ErrorTypeCriticalError] > 0;
+}
+
 void Component::respondToDelayedErrors() const {
     if (hasFatalErrors())
         exit();

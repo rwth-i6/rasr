@@ -32,8 +32,10 @@ private:
     Fsa::Weight                       threshold_;
     bool                              thresholdIsRelative_;
     bool                              hasFailArcs_;
-    enum PruningType { forwardBackward,
-                       forward };
+    enum PruningType {
+        forwardBackward,
+        forward
+    };
     static Core::Choice                choicePruningType;
     static const Core::ParameterChoice paramPruningType;
     PruningType                        pruningType_;

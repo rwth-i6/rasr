@@ -80,7 +80,8 @@ const Core::ParameterIntVector VectorSelectNode<T>::paramFeatureSelectTemp(
 
 template<class T>
 VectorSelectNode<T>::VectorSelectNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c) {
+        : Core::Component(c),
+          Precursor(c) {
     setFeatureRange(paramFeatureSelect(c));
 }
 

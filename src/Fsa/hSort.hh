@@ -32,7 +32,7 @@ typedef enum {
 
 namespace Ftl {
 template<class _Automaton>
-struct byArc : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byArc {
     typename _Automaton::ConstSemiringRef semiring_;
     byArc(typename _Automaton::ConstSemiringRef semiring)
             : semiring_(semiring) {}
@@ -50,21 +50,21 @@ struct byArc : public std::binary_function<typename _Automaton::Arc, typename _A
 };
 
 template<class _Automaton>
-struct byInput : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byInput {
     bool operator()(const typename _Automaton::Arc& a, const typename _Automaton::Arc& b) const {
         return a.input() < b.input();
     }
 };
 
 template<class _Automaton>
-struct byOutput : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byOutput {
     bool operator()(const typename _Automaton::Arc& a, const typename _Automaton::Arc& b) const {
         return a.output() < b.output();
     }
 };
 
 template<class _Automaton>
-struct byInputAndTarget : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byInputAndTarget {
     bool operator()(const typename _Automaton::Arc& a, const typename _Automaton::Arc& b) const {
         if (a.input() < b.input())
             return true;
@@ -75,7 +75,7 @@ struct byInputAndTarget : public std::binary_function<typename _Automaton::Arc, 
 };
 
 template<class _Automaton>
-struct byInputAndOutput : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byInputAndOutput {
     bool operator()(const typename _Automaton::Arc& a, const typename _Automaton::Arc& b) const {
         if (a.input() < b.input())
             return true;
@@ -86,7 +86,7 @@ struct byInputAndOutput : public std::binary_function<typename _Automaton::Arc, 
 };
 
 template<class _Automaton>
-struct byInputAndOutputAndTarget : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byInputAndOutputAndTarget {
     bool operator()(const typename _Automaton::Arc& a, const typename _Automaton::Arc& b) const {
         if (a.input() < b.input())
             return true;
@@ -101,7 +101,7 @@ struct byInputAndOutputAndTarget : public std::binary_function<typename _Automat
 };
 
 template<class _Automaton>
-struct byWeight : public std::binary_function<typename _Automaton::Arc, typename _Automaton::Arc, bool> {
+struct byWeight {
     typename _Automaton::ConstSemiringRef semiring_;
     byWeight(typename _Automaton::ConstSemiringRef semiring)
             : semiring_(semiring) {}

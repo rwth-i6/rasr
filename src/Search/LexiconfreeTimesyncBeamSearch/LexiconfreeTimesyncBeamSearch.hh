@@ -43,6 +43,9 @@ public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
     static const Core::ParameterInt   paramBlankLabelIndex;
+    static const Core::ParameterInt   paramSentenceEndLabelIndex;
+    static const Core::ParameterBool  paramAllowBlankAfterSentenceEnd;
+    static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
@@ -51,16 +54,20 @@ public:
 
     // Inherited methods from `SearchAlgorithmV2`
 
-    Speech::ModelCombination::Mode  requiredModelCombination() const override;
-    bool                            setModelCombination(Speech::ModelCombination const& modelCombination) override;
-    void                            reset() override;
-    void                            enterSegment(Bliss::SpeechSegment const* = nullptr) override;
-    void                            finishSegment() override;
-    void                            putFeature(Nn::DataView const& feature) override;
-    void                            putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+    Speech::ModelCombination::Mode requiredModelCombination() const override;
+    bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                           reset() override;
+    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                           finishSegment() override;
+    void                           putFeature(Nn::DataView const& feature) override;
+    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
-    bool                            decodeStep() override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
+
+    bool decodeStep() override;
 
 protected:
     /*
@@ -83,10 +90,11 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        Score                   score;           // Full score of hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
+        Nn::ScoringContextRef   scoringContext;      // Context to compute scores based on this hypothesis
+        Nn::LabelIndex          currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        Score                   score;               // Full score of hypothesis
+        Core::Ref<LatticeTrace> trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                    reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
@@ -107,8 +115,15 @@ private:
     bool  useScorePruning_;
     Score scoreThreshold_;
 
+    bool sentenceEndFallback_;
+
     bool           useBlank_;
     Nn::LabelIndex blankLabelIndex_;
+    bool           allowBlankAfterSentenceEnd_;
+
+    bool                useSentenceEnd_;
+    Bliss::Lemma const* sentenceEndLemma_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
 
     bool collapseRepeatedLabels_;
 
@@ -167,6 +182,12 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Prune away all hypotheses that have not reached sentence end.
+     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     */
+    void finalizeHypotheses();
 };
 
 }  // namespace Search

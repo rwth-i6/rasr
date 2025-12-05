@@ -70,9 +70,11 @@ public:
     Boundary()
             : time_(Speech::InvalidTimeframeIndex) {}
     Boundary(Speech::TimeframeIndex time)
-            : time_(time), transit_() {}
+            : time_(time),
+              transit_() {}
     Boundary(Speech::TimeframeIndex time, const Transit& transit)
-            : time_(time), transit_(transit) {}
+            : time_(time),
+              transit_(transit) {}
 
     void setTime(Speech::TimeframeIndex time) {
         time_ = time;
@@ -164,7 +166,8 @@ private:
 
 public:
     MappedBoundaries(ConstBoundariesRef boundaries, Fsa::ConstMappingRef map)
-            : boundaries_(boundaries), map_(map) {}
+            : boundaries_(boundaries),
+              map_(map) {}
     virtual ~MappedBoundaries() {}
 
     virtual bool valid() const {

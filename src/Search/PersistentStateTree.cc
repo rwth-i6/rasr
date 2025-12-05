@@ -25,6 +25,9 @@
 #include "StateTree.hh"
 #include "TreeStructure.hh"
 
+#include "ArchiveIO.hh"
+#include "TreeBuilder.hh"
+
 using namespace Search;
 using namespace Core;
 
@@ -33,7 +36,7 @@ static const Core::ParameterString paramCacheArchive(
         "cache archive in which the persistent state-network should be cached",
         "global-cache");
 
-static u32 formatVersion = 13;
+static u32 formatVersion = 14;
 
 namespace Search {
 struct ConvertTree {
@@ -50,7 +53,9 @@ struct ConvertTree {
     std::map<StateId, std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id>> rootTransitDescriptions;
 
     ConvertTree(const Search::StateTree* _tree, HMMStateNetwork& _subtrees)
-            : tree(_tree), subtrees(_subtrees), lostNodeIndices(0) {
+            : tree(_tree),
+              subtrees(_subtrees),
+              lostNodeIndices(0) {
     }
 
     void convert() {
@@ -260,36 +265,6 @@ bool PersistentStateTree::write(int transformation) {
     return writer.good();
 }
 
-template<class T>
-MappedArchiveReader& operator>>(MappedArchiveReader& reader, std::set<T>& target) {
-    target.clear();
-    std::vector<T> vec;
-    reader >> vec;
-    target.insert(vec.begin(), vec.end());
-    return reader;
-}
-
-template<class T>
-MappedArchiveWriter& operator<<(MappedArchiveWriter& writer, const std::set<T>& set) {
-    writer << std::vector<T>(set.begin(), set.end());
-    return writer;
-}
-
-template<class T, class T2>
-MappedArchiveReader& operator>>(MappedArchiveReader& reader, std::map<T, T2>& target) {
-    target.clear();
-    std::vector<std::pair<T, T2>> vec;
-    reader >> vec;
-    target.insert(vec.begin(), vec.end());
-    return reader;
-}
-
-template<class T, class T2>
-MappedArchiveWriter& operator<<(MappedArchiveWriter& writer, const std::map<T, T2>& set) {
-    writer << std::vector<std::pair<T, T2>>(set.begin(), set.end());
-    return writer;
-}
-
 void PersistentStateTree::write(Core::MappedArchiveWriter out) {
     out << formatVersion << (u32)dependencies_.getChecksum();
 
@@ -298,7 +273,7 @@ void PersistentStateTree::write(Core::MappedArchiveWriter out) {
 
     out << coarticulatedRootStates << unpushedCoarticulatedRootStates;
     out << rootTransitDescriptions << pushedWordEndNodes << uncoarticulatedWordEndStates;
-    out << rootState << ciRootState << otherRootStates;
+    out << rootState << ciRootState << otherRootStates << finalStates;
 }
 
 bool PersistentStateTree::read(Core::MappedArchiveReader in) {
@@ -307,8 +282,8 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
 
     /// @todo Eventually do memory-mapping
 
-    if (v != formatVersion) {
-        Core::Application::us()->log() << "Wrong compressed network format, need " << formatVersion << " got " << v;
+    if (v < 13) {
+        Core::Application::us()->log() << "Wrong compressed network format, need version >= 13 got " << v;
         return false;
     }
 
@@ -333,6 +308,9 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     in >> pushedWordEndNodes >> uncoarticulatedWordEndStates;
 
     in >> rootState >> ciRootState >> otherRootStates;
+    if (v >= 14) {
+        in >> finalStates;
+    }
 
     return in.good();
 }
@@ -376,7 +354,7 @@ void PersistentStateTree::removeOutputs() {
 
     for (std::unordered_map<StateId, StateId>::const_iterator it = cleanupResult.nodeMap.begin(); it != cleanupResult.nodeMap.end(); ++it) {
         if (it->first != it->second)
-            std::cout << "mapped " << it->first << " to " << it->second << std::endl;
+            Core::Application::us()->log() << "mapped " << it->first << " to " << it->second;
         verify(it->first == it->second);
     }
 }
@@ -537,4 +515,9 @@ void PersistentStateTree::dumpDotGraph(std::string file, const std::vector<int>&
 
     os << "}" << std::endl;
 }
+
+Core::DependencySet PersistentStateTree::getDependencies() {
+    return dependencies_;
+}
+
 }  // namespace Search

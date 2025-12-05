@@ -72,7 +72,7 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
 
 FixedContextOnnxLabelScorer::FixedContextOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config),
+          Precursor(config, TransitionPresetType::TRANSDUCER),
           startLabelIndex_(paramStartLabelIndex(config)),
           historyLength_(paramHistoryLength(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
@@ -97,7 +97,32 @@ ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
     return hist;
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
+        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
+    }
+
+    return minTimeIndex;
+}
+
+void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
+    Precursor::cleanupCaches(activeContexts);
+
+    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
+
+    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
+        if (activeContextSet.find(it->first) == activeContextSet.end()) {
+            it = scoreCache_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
+ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
 
     bool   pushToken     = false;
@@ -119,6 +144,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScore
         case TransitionType::BLANK_TO_LABEL:
         case TransitionType::LABEL_TO_LABEL:
         case TransitionType::INITIAL_LABEL:
+        case TransitionType::SENTENCE_END:
             pushToken     = true;
             timeIncrement = not verticalLabelTransition_;
             break;
@@ -144,22 +170,11 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(LabelScore
     return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), context->currentStep + timeIncrement));
 }
 
-void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
-    Precursor::cleanupCaches(activeContexts);
-
-    std::unordered_set<ScoringContextRef, ScoringContextHash, ScoringContextEq> activeContextSet(activeContexts.internalData().begin(), activeContexts.internalData().end());
-
-    for (auto it = scoreCache_.begin(); it != scoreCache_.end();) {
-        if (activeContextSet.find(it->first) == activeContextSet.end()) {
-            it = scoreCache_.erase(it);
-        }
-        else {
-            ++it;
-        }
+std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
+    if (requests.empty()) {
+        return ScoresWithTimes{};
     }
-}
 
-std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
     ScoresWithTimes result;
     result.scores.reserve(requests.size());
 
@@ -232,22 +247,12 @@ std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::compute
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
     }
     return ScoreWithTime{result->scores.front(), result->timeframes.front()};
-}
-
-size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
-    auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
-    for (auto const& context : activeContexts.internalData()) {
-        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
-        minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
-    }
-
-    return minTimeIndex;
 }
 
 void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {

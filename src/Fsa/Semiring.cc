@@ -224,6 +224,8 @@ ConstSemiringRef getSemiring(SemiringType type) {
             return CountSemiring;
         case SemiringTypeProbability:
             return ProbabilitySemiring;
+        case SemiringTypeExpectation:
+            return ConstSemiringRef();
     }
     return ConstSemiringRef();
 }

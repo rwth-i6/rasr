@@ -166,6 +166,7 @@ void LabelScorer::enableTransitionTypes(Core::Configuration const& config, Trans
             enabledTransitionTypes_ = {
                     LABEL_TO_LABEL,
                     INITIAL_LABEL,
+                    SENTENCE_END,
             };
             break;
     }

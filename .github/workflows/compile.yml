@@ -18,11 +18,13 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        path: "rasr"
-    - name: Compile RASR
-      run: |
-        cd rasr
-        ./apptainer/2025-04-23_tensorflow-2.17_onnx-1.20_v2/setup_makefiles.sh
-        make -j4
+      - name: Delete unnecessary tools folder
+        run: rm -rf /opt/hostedtoolcache
+      - uses: actions/checkout@v2
+        with:
+          path: "rasr"
+      - name: Compile RASR
+        run: |
+          cd rasr
+          ./apptainer/2025-04-23_tensorflow-2.17_onnx-1.20_v2/setup_makefiles.sh
+          make -j4

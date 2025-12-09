@@ -23,6 +23,7 @@
 #include <Core/XmlStream.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Search/Traceback.hh>
+#include <Search/TracebackHelper.hh>
 
 namespace Search {
 
@@ -48,24 +49,35 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         float                                                     lengthNormScale)
         : scoringContext(newScoringContext),
           currentToken(extension.nextToken),
-          length(base.length + 1),
           score(extension.score),
-          scaledScore(score / std::pow(length, lengthNormScale)),
+          trace(),
           isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
-    Core::Ref<LatticeTrace> baseTrace;
-
-    if (extension.transitionType == Nn::LabelScorer::TransitionType::BLANK_LOOP or extension.transitionType == Nn::LabelScorer::TransitionType::LABEL_LOOP) {
-        baseTrace = base.trace->predecessor;
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::TransitionType::LABEL_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
+        case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
+        case Nn::LabelScorer::TransitionType::SENTENCE_END:
+            length = base.length + 1;
+        default:
+            length = base.length;
     }
-    else {
-        baseTrace = base.trace;
-    }
+    scaledScore = score / std::pow(length, lengthNormScale);
 
+    Core::Ref<LatticeTrace> predecessor;
+    switch (extension.transitionType) {
+        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
+        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+            predecessor = base.trace->predecessor;
+            break;
+        default:
+            predecessor = base.trace;
+            break;
+    }
     trace = Core::ref(new LatticeTrace(
-            baseTrace,
+            predecessor,
             extension.pron,
             extension.timeframe + 1,
-            {extension.score, 0},
+            {score, 0},
             {}));
 }
 
@@ -118,7 +130,7 @@ const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramSentenceEndLabelIn
 
 const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramLengthNormScale(
         "length-norm-scale",
-        "Exponent of length for the hypothesis length normalization. Scaled scores are computed as score / length^length_norm_scale.",
+        "Exponent of length for the hypothesis score length normalization. Scaled scores are computed as score / length^length_norm_scale.",
         0.0);
 
 const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramMaxLabelsPerTimestep(
@@ -277,6 +289,24 @@ Core::Ref<const LatticeAdaptor> LexiconfreeLabelsyncBeamSearch::getCurrentBestWo
     return endTrace.buildWordLattice(lexicon_);
 }
 
+Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCurrentBestLatticeTrace() const {
+    return getBestHypothesis().trace;
+}
+
+Core::Ref<const LatticeTrace> LexiconfreeLabelsyncBeamSearch::getCommonPrefix() const {
+    std::vector<Core::Ref<LatticeTrace>> traces(beam_.size());
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        traces[hypIndex] = beam_[hypIndex].trace;
+    }
+
+    RootTraceSearcher searcher(traces);
+    if (not searcher.rootTrace()) {
+        warning("Common prefix of all traces is a sentinel value");
+    }
+
+    return Core::Ref<const LatticeTrace>(searcher.rootTrace());
+}
+
 bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     if (finishedSegment_) {
         return false;
@@ -296,6 +326,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     extensions_.clear();
+    requests_.clear();
+    extensions_.reserve(beam_.size() * lexicon_->nLemmas());
+    requests_.reserve(extensions_.size());
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -682,13 +715,34 @@ void LexiconfreeLabelsyncBeamSearch::scorePruning() {
 }
 
 void LexiconfreeLabelsyncBeamSearch::recombination() {
+    // Represents a unique combination of currentToken and scoringContext
+    struct RecombinationContext {
+        Nn::LabelIndex        currentToken;
+        Nn::ScoringContextRef scoringContext;
+
+        RecombinationContext(LabelHypothesis const& hyp)
+                : currentToken(hyp.currentToken), scoringContext(hyp.scoringContext) {}
+
+        bool operator==(RecombinationContext const& other) const {
+            return currentToken == other.currentToken and Nn::ScoringContextEq{}(scoringContext, other.scoringContext);
+        }
+    };
+    struct RecombinationContextHash {
+        size_t operator()(RecombinationContext const& context) const {
+            size_t h1 = context.currentToken;
+            size_t h2 = Nn::ScoringContextHash{}(context.scoringContext);
+            return Core::combineHashes(h1, h2);
+        }
+    };
+
     recombinedHypotheses_.clear();
+    recombinedHypotheses_.reserve(newBeam_.size());
 
     // Map each unique ScoringContext in `newBeam_` to its hypothesis
-    std::unordered_map<Nn::ScoringContextRef, LabelHypothesis*, Nn::ScoringContextHash, Nn::ScoringContextEq> seenScoringContexts;
+    std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenScoringContexts;
     for (auto const& hyp : newBeam_) {
         // Use try_emplace to check if the scoring context already exists and create a new entry if not at the same time
-        auto [it, inserted] = seenScoringContexts.try_emplace(hyp.scoringContext, nullptr);
+        auto [it, inserted] = seenScoringContexts.try_emplace({hyp}, nullptr);
 
         if (inserted) {
             // First time seeing this scoring context so move it over to `newHypotheses`

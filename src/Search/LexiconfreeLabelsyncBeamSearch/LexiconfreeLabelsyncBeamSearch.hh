@@ -65,6 +65,8 @@ public:
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
     Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
     bool                            decodeStep() override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
@@ -116,25 +118,14 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
-    size_t intermediateMaxBeamSize_;
-    bool   useIntermediateBeamPruning_;
-    Score  intermediateScoreThreshold_;
-    bool   useIntermediateScorePruning_;
-
-    float lengthNormScale_;
-
-    float maxLabelsPerTimestep_;
-
+    size_t         maxBeamSize_;
+    bool           useScorePruning_;
+    Score          scoreThreshold_;
+    float          lengthNormScale_;
+    float          maxLabelsPerTimestep_;
     Nn::LabelIndex sentenceEndLabelIndex_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    bool           logStepwiseStatistics_;
+    size_t         cacheCleanupInterval_;
 
     Core::Channel debugChannel_;
 

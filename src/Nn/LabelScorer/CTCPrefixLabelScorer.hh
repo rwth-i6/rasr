@@ -34,6 +34,7 @@ class CTCPrefixLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
     static const Core::ParameterInt paramBlankIndex;
+    static const Core::ParameterInt paramVocabSize;
 
 public:
     CTCPrefixLabelScorer(Core::Configuration const& config);
@@ -52,12 +53,22 @@ protected:
     std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
 
 private:
-    Math::FastMatrix<Score> ctcScores_;
-    PrefixScoringContextRef getProperInitialScoringContext();
+    Math::FastMatrix<Score> ctcScores_;  // Cached T x V matrix of scores
 
     LabelIndex             blankIndex_;
+    size_t                 vocabSize_;
     Core::Ref<LabelScorer> ctcScorer_;
     bool                   expectMoreFeatures_;
+
+    /*
+     * Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
+     */
+    void setupCTCScores();
+
+    /*
+     * Compute updated prefix scores.
+     */
+    void finalizeScoringContext(CTCPrefixScoringContextRef const& scoringContext) const;
 };
 
 }  // namespace Nn

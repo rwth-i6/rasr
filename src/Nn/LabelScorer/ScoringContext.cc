@@ -108,22 +108,21 @@ bool SeqStepScoringContext::isEqual(ScoringContextRef const& other) const {
  */
 
 size_t CTCPrefixScoringContext::hash() const {
-    return Core::combineHashes(Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(prefixScores.data()), prefixScores.size() * sizeof(PrefixScore), 0x78b174eb), lastLabel);
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
 }
 
 bool CTCPrefixScoringContext::isEqual(ScoringContextRef const& other) const {
     auto* otherPtr = dynamic_cast<const CTCPrefixScoringContext*>(other.get());
-
-    if (lastLabel != otherPtr->lastLabel) {
+    if (otherPtr == nullptr) {
         return false;
     }
 
-    if (prefixScores.size() != otherPtr->prefixScores.size()) {
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
         return false;
     }
 
-    for (auto it_l = prefixScores.begin(), it_r = otherPtr->prefixScores.begin(); it_l != prefixScores.end(); ++it_l, ++it_r) {
-        if (it_l->blankEndingScore != it_r->blankEndingScore or it_l->nonBlankEndingScore != it_r->nonBlankEndingScore) {
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
             return false;
         }
     }

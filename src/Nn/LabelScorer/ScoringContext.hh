@@ -117,20 +117,21 @@ struct CTCPrefixScoringContext : public ScoringContext {
         Search::Score nonBlankEndingScore;
     };
 
-    std::vector<PrefixScore> prefixScores;
-    LabelIndex               lastLabel;
+    std::vector<LabelIndex>                           labelSeq;
+    mutable std::shared_ptr<std::vector<PrefixScore>> prefixScores;
+    mutable bool                                      requiresFinalize;
 
     CTCPrefixScoringContext()
-            : prefixScores(), lastLabel(Core::Type<LabelIndex>::max) {}
+            : labelSeq(), prefixScores(), requiresFinalize(true) {}
 
-    CTCPrefixScoringContext(std::vector<PrefixScore>&& prefixScores, LabelIndex lastLabel)
-            : prefixScores(std::move(prefixScores)), lastLabel(lastLabel) {}
+    CTCPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& prefixScores, bool requiresFinalize)
+            : labelSeq(seq), prefixScores(prefixScores), requiresFinalize(requiresFinalize) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
-typedef Core::Ref<const CTCPrefixScoringContext> PrefixScoringContextRef;
+typedef Core::Ref<const CTCPrefixScoringContext> CTCPrefixScoringContextRef;
 
 /*
  * Combines multiple scoring contexts at once

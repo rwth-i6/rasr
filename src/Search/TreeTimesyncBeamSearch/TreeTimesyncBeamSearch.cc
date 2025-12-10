@@ -559,6 +559,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
      */
     if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
         maximumStableDelayPruning();
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
+        }
     }
 
     /*

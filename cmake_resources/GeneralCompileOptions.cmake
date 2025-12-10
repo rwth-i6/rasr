@@ -12,7 +12,6 @@ add_compile_options(
     -Wno-long-long
     -Wno-deprecated
     -fno-strict-aliasing
-    -ffast-math
 )
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "linux-x86_64")

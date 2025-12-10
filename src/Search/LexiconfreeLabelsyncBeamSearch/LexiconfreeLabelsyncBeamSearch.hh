@@ -68,8 +68,6 @@ public:
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
     bool                            decodeStep() override;
-    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
-    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
 
 protected:
     /*
@@ -121,6 +119,10 @@ private:
     size_t         maxBeamSize_;
     bool           useScorePruning_;
     Score          scoreThreshold_;
+    bool           useIntermediateBeamPruning_;
+    bool           useIntermediateScorePruning_;
+    size_t         intermediateMaxBeamSize_;
+    Score          intermediateScoreThreshold_;
     float          lengthNormScale_;
     float          maxLabelsPerTimestep_;
     Nn::LabelIndex sentenceEndLabelIndex_;

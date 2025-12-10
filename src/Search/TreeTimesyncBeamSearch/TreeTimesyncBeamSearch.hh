@@ -51,6 +51,8 @@ public:
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterInt   paramMaximumStableDelay;
+    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -137,6 +139,8 @@ private:
     Score          wordEndScoreThreshold_;
     Nn::LabelIndex blankLabelIndex_;
     size_t         cacheCleanupInterval_;
+    size_t         maximumStableDelay_;
+    size_t         maximumStableDelayPruningInterval_;
 
     bool useBlank_;
     bool collapseRepeatedLabels_;
@@ -158,7 +162,7 @@ private:
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request>     requests_;
-    std::vector<LabelHypothesis>              recombinedHypotheses_;
+    std::vector<LabelHypothesis>              tempHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
@@ -224,6 +228,11 @@ private:
      * If no word-end hypotheses exist, use sentence-end fallback or construct an empty hypothesis
      */
     void finalizeLmScoring();
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

@@ -385,7 +385,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      */
     if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
         Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
-        for (auto const& hyp : newBeam_) {
+        for (auto const& hyp : beam_) {
             activeContexts.push_back(hyp.scoringContext);
         }
         labelScorer_->cleanupCaches(activeContexts);

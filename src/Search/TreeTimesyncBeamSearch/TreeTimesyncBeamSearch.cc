@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <strings.h>
 
+#include <Am/ClassicStateModel.hh>
 #include <Core/CollapsedVector.hh>
 #include <Core/XmlStream.hh>
 #include <Lattice/LatticeAdaptor.hh>
@@ -147,6 +148,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           scoreThreshold_(paramScoreThreshold(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          blankLabelIndex_(Nn::invalidLabelIndex),
+          sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
@@ -235,6 +238,23 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         useBlank_        = false;
     }
 
+    auto const* sentenceEndLemma = lexicon_->specialLemma("sentence-end");
+    if (not sentenceEndLemma) {
+        sentenceEndLemma = lexicon_->specialLemma("sentence-boundary");
+    }
+    if (sentenceEndLemma and sentenceEndLemma->nPronunciations() != 0 and sentenceEndLemma->pronunciations().first->pronunciation()->length() > 0) {
+        auto const* pron = sentenceEndLemma->pronunciations().first->pronunciation();
+        require(pron->length() == 1);
+        Am::Allophone           allo(acousticModel_->phonology()->allophone(*pron, 0),
+                                     Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
+        Am::AllophoneStateIndex alloStateIdx = acousticModel_->allophoneStateAlphabet()->index(&allo, 0);
+
+        sentenceEndLabelIndex_ = acousticModel_->emissionIndex(alloStateIdx);
+    }
+    else {
+        sentenceEndLabelIndex_ = Nn::invalidLabelIndex;
+    }
+
     for (const auto& lemma : {"silence", "blank"}) {
         if (lexicon_->specialLemma(lemma) and (lexicon_->specialLemma(lemma)->syntacticTokenSequence()).size() != 0) {
             warning("Special lemma \"%s\" will be scored by the language model. To prevent the LM from scoring it, set an empty syntactic token sequence for it in the lexicon.", lemma);
@@ -288,7 +308,7 @@ void TreeTimesyncBeamSearch::finishSegment() {
     decodeManySteps();
     logStatistics();
     finishedSegment_ = true;
-    finalizeLmScoring();
+    finalizeHypotheses();
 }
 
 void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
@@ -366,13 +386,15 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             withinWordExtensions_.push_back(
-                    {tokenIdx,
-                     successorState,
-                     0,
-                     hyp.score,
-                     transitionType,
-                     hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
+                    {.nextToken      = tokenIdx,
+                     .nextState      = successorState,
+                     .timeframe      = 0,
+                     .score          = hyp.score,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
+            requests_.push_back({.context        = beam_[hypIndex].scoringContext,
+                                 .nextToken      = tokenIdx,
+                                 .transitionType = transitionType});
         }
     }
 
@@ -413,9 +435,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
         contextExtensionTime_.start();
         auto newScoringContext = labelScorer_->extendedScoringContext(
-                {baseHyp.scoringContext,
-                 extension.nextToken,
-                 extension.transitionType});
+                {.context        = baseHyp.scoringContext,
+                 .nextToken      = extension.nextToken,
+                 .transitionType = extension.transitionType});
         contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
@@ -470,7 +492,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     penalty = result->score;
                 }
 
-                wordEndExtensions_.push_back({lemmaPron, exit.transitState, hyp.score + lmScore + penalty, hypIndex});
+                wordEndExtensions_.push_back({.pron         = lemmaPron,
+                                              .rootState    = exit.transitState,
+                                              .score        = hyp.score + lmScore + penalty,
+                                              .baseHypIndex = hypIndex});
             }
         }
     }
@@ -512,6 +537,42 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-word-end-hyps-after-beam-pruning", wordEndHypotheses_.size());
     }
+
+    /*
+     * Take having two exits back-to-back for the word-end hyps into account (usually for sentence-end with zero-length pronunciation after word-end)
+     */
+    auto const origSize = wordEndHypotheses_.size();
+    for (size_t hypIndex = 0ul; hypIndex < origSize; ++hypIndex) {
+        auto& hyp = wordEndHypotheses_[hypIndex];
+
+        auto exitList = exitLookup_[hyp.currentState];
+        // Create one word-end hypothesis for each exit
+        for (const auto& exit : exitList) {
+            auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
+            auto const* lemma     = lemmaPron->lemma();
+
+            WordEndExtensionCandidate wordEndExtension{.pron         = lemmaPron,
+                                                       .rootState    = exit.transitState,  // Start from the root node (the exit's transit state) in the next step
+                                                       .score        = hyp.score,
+                                                       .baseHypIndex = hypIndex};
+
+            auto const sts          = lemma->syntacticTokenSequence();
+            auto       newLmHistory = hyp.lmHistory;
+            if (sts.size() != 0) {
+                require(sts.size() == 1);
+                auto const* st = sts.front();
+
+                // Add the LM score
+                Lm::Score lmScore = languageModel_->score(hyp.lmHistory, st);
+                wordEndExtension.score += lmScore;
+
+                // Extend the LM history
+                newLmHistory = languageModel_->extendedHistory(hyp.lmHistory, st);
+            }
+            wordEndHypotheses_.push_back({hyp, wordEndExtension, newLmHistory});
+        }
+    }
+    recombination(wordEndHypotheses_, true);
 
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
@@ -605,12 +666,16 @@ void TreeTimesyncBeamSearch::logStatistics() const {
 }
 
 Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
-    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
+    bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
+    bool nextIsSentenceEnd = nextLabel == sentenceEndLabelIndex_;
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
@@ -620,6 +685,9 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
     if (prevIsBlank) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
@@ -631,6 +699,9 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+        }
+        else if (nextIsSentenceEnd) {
+            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
@@ -752,30 +823,24 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
     }
 }
 
-void TreeTimesyncBeamSearch::finalizeLmScoring() {
+void TreeTimesyncBeamSearch::finalizeHypotheses() {
     newBeam_.clear();
-    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        auto& hyp = beam_[hypIndex];
-        // Check if the hypotheses in the beam are at a root state and add the sentence-end LM score
-        if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
-            Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-            hyp.score += sentenceEndScore;
-            hyp.trace->score.lm += sentenceEndScore;
+    for (auto const& hyp : beam_) {
+        if (network_->finalStates.contains(hyp.currentState)) {
             newBeam_.push_back(hyp);
         }
     }
 
-    if (newBeam_.empty()) {  // There was no word-end hypothesis in the beam
+    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
         warning("No active word-end hypothesis at segment end.");
         if (sentenceEndFallback_) {
             log() << "Use sentence-end fallback";
             // The trace of the unfinished word keeps an empty pronunciation, only the LM score is added
-            for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-                auto&     hyp              = beam_[hypIndex];
-                Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-                hyp.score += sentenceEndScore;
-                hyp.trace->score.lm += sentenceEndScore;
+            for (auto const& hyp : beam_) {
                 newBeam_.push_back(hyp);
+                Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
+                newBeam_.back().score += sentenceEndScore;
+                newBeam_.back().trace->score.lm += sentenceEndScore;
             }
         }
         else {

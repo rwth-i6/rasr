@@ -58,6 +58,7 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
         case Nn::LabelScorer::TransitionType::SENTENCE_END:
             length = base.length + 1;
+            break;
         default:
             length = base.length;
     }

@@ -43,7 +43,7 @@ const Core::ParameterInt CTCPrefixLabelScorer::paramVocabSize("vocab-size", "Num
 
 CTCPrefixLabelScorer::CTCPrefixLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
-          Precursor(config, TransitionPresetType::LM),
+          Precursor(config, TransitionPresetType::CTC_PREFIX),
           blankIndex_(paramBlankIndex(config)),
           vocabSize_(paramVocabSize(config)),
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"))),
@@ -93,11 +93,8 @@ std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWith
         return {};
     }
 
-    if (request.transitionType == BLANK_LOOP or request.transitionType == LABEL_TO_BLANK) {
-        return ScoreWithTime{0.0, 0};
-    }
-
     auto context = Core::ref(dynamic_cast<const CTCPrefixScoringContext*>(request.context.get()));
+    finalizeScoringContext(context);
 
     Score totalScore = std::numeric_limits<Score>::infinity();
 
@@ -120,16 +117,16 @@ void CTCPrefixLabelScorer::setupCTCScores() {
     ctcScores_.resize(vocabSize_, 0);
     auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
     while (true) {
+        // Check if scores for next timestep are available
+        if (not ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = 0, .transitionType = LABEL_TO_BLANK}, std::nullopt)) {
+            break;
+        }
+
+        // Add column for next timestep to matrix and insert score values into it
         ctcScores_.resizeColsAndKeepContent(ctcScores_.nColumns() + 1);
         for (LabelIndex v = 0ul; v < vocabSize_; ++v) {
             // Transition type can be anything as we assume that the score is independent of it
-            auto nextScores = ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = v, .transitionType = LABEL_TO_BLANK}, std::nullopt);
-            if (not nextScores) {
-                // Reached the end of the time axis
-                ctcScores_.resizeColsAndKeepContent(ctcScores_.nColumns() - 1);
-                break;
-            }
-            ctcScores_.at(v, ctcScores_.nColumns() - 1) = nextScores->score;
+            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = v, .transitionType = LABEL_TO_BLANK}, std::nullopt)->score;
         }
         // Transition type and next token assumed to not influence the scoring context
         ctcScorerContext = ctcScorer_->extendedScoringContext({.context = ctcScorerContext, .nextToken = invalidLabelIndex, .transitionType = LABEL_TO_BLANK});

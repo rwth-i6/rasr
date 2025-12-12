@@ -96,6 +96,7 @@ public:
         NONE,
         ALL,
         CTC,
+        CTC_PREFIX,
         TRANSDUCER,
         LM,
     };

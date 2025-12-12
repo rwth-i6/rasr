@@ -17,14 +17,14 @@
 #include <Core/Configuration.hh>
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
+#include "LabelScorer/CTCPrefixLabelScorer.hh"
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/Encoder.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
+#include "LabelScorer/EncoderFactory.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
-#include "Nn/LabelScorer/CTCPrefixLabelScorer.hh"
-#include "Nn/LabelScorer/EncoderFactory.hh"
 
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>

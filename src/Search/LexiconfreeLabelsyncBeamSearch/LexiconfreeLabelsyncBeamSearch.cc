@@ -58,6 +58,7 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
         case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
         case Nn::LabelScorer::TransitionType::SENTENCE_END:
             length = base.length + 1;
+            break;
         default:
             length = base.length;
     }
@@ -83,7 +84,7 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
 std::string LexiconfreeLabelsyncBeamSearch::LabelHypothesis::toString() const {
     std::stringstream ss;
-    ss << "Score: " << score << ", traceback: ";
+    ss << "Score: " << score << ", length: " << length << ", scaledScore: " << scaledScore << ", traceback: ";
 
     auto traceback = trace->performTraceback();
 

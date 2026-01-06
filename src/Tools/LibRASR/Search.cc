@@ -16,6 +16,8 @@
 #include "Search.hh"
 
 #include <sstream>
+#include <pybind11/stl.h>
+#include "pybind11/pytypes.h"
 
 #include <Python/Search.hh>
 
@@ -32,6 +34,7 @@ void bindSearchAlgorithm(py::module_& module) {
     pyTracebackItem.def_readwrite("lemma", &TracebackItem::lemma);
     pyTracebackItem.def_readwrite("am_score", &TracebackItem::amScore);
     pyTracebackItem.def_readwrite("lm_score", &TracebackItem::lmScore);
+    pyTracebackItem.def_readwrite("confidence_score", &TracebackItem::confidenceScore);
     pyTracebackItem.def_readwrite("start_time", &TracebackItem::startTime);
     pyTracebackItem.def_readwrite("end_time", &TracebackItem::endTime);
 
@@ -43,6 +46,13 @@ void bindSearchAlgorithm(py::module_& module) {
                 ss << "lemma='" << t.lemma << "'";
                 ss << ", am_score=" << t.amScore;
                 ss << ", lm_score=" << t.lmScore;
+                ss << ", confidence_score=";
+                if (t.confidenceScore) {
+                    ss << *t.confidenceScore;
+                }
+                else {
+                    ss << "None";
+                }
                 ss << ", start_time=" << t.startTime;
                 ss << ", end_time=" << t.endTime;
                 ss << ")>";

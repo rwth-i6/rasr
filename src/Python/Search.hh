@@ -29,17 +29,20 @@
 namespace py = pybind11;
 
 struct TracebackItem {
-    std::string lemma;
-    f32         amScore;
-    f32         lmScore;
-    u32         startTime;
-    u32         endTime;
+    std::string        lemma;
+    f32                amScore;
+    f32                lmScore;
+    std::optional<f32> confidenceScore;
+    u32                startTime;
+    u32                endTime;
 };
 
 typedef std::vector<TracebackItem> Traceback;
 
 class SearchAlgorithm : public Core::Component {
 public:
+    static const Core::ParameterBool paramConfidenceScores;
+
     SearchAlgorithm(const Core::Configuration& c);
 
     // Call before starting a new recognition. Clean up existing data structures
@@ -76,12 +79,15 @@ public:
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
 
 private:
+    Traceback getTracebackWithoutConfidence();
+    Traceback getTracebackWithConfidence();
+
+    bool addConfidenceScores_;
+
+    std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
     Flf::LexiconRef                            lexicon_;
     Speech::ModelCombination                   modelCombination_;
-    std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
-
-    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> const& traceback) const;
 };
 
 #endif  // _PYTHON_SEARCH_HH

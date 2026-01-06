@@ -30,6 +30,11 @@
 
 namespace Nn {
 
+/*
+ * Compute prefix scores with a CTC model in order to decode label-synchronously.
+ * Prefix scores are computed like in algorithm 2 of "Hybrid CTC/Attention Architecture
+ * for End-to-End Speech Recognition" (Watanabe et al., 2017)
+ */
 class CTCPrefixLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 

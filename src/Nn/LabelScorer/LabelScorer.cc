@@ -27,7 +27,6 @@ const Core::Choice LabelScorer::choiceTransitionPreset(
         "default", TransitionPresetType::DEFAULT,
         "none", TransitionPresetType::NONE,
         "ctc", TransitionPresetType::CTC,
-        "ctc-prefix", TransitionPresetType::CTC_PREFIX,
         "transducer", TransitionPresetType::TRANSDUCER,
         "lm", TransitionPresetType::LM,
         Core::Choice::endMark());
@@ -159,13 +158,6 @@ void LabelScorer::enableTransitionTypes(Core::Configuration const& config, Trans
                     BLANK_LOOP,
                     INITIAL_LABEL,
                     INITIAL_BLANK,
-            };
-            break;
-        case TransitionPresetType::CTC_PREFIX:
-            enabledTransitionTypes_ = {
-                    LABEL_TO_LABEL,
-                    BLANK_TO_LABEL,
-                    INITIAL_LABEL,
             };
             break;
         case TransitionPresetType::TRANSDUCER:

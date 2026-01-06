@@ -397,7 +397,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         }
 
         for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-            extensions_[extensionIdx].score += result->scores[extensionIdx];
+            extensions_[extensionIdx].score     = result->scores[extensionIdx];
             extensions_[extensionIdx].timeframe = std::max(extensions_[extensionIdx].timeframe, result->timeframes[extensionIdx]);
         }
 
@@ -421,6 +421,14 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                 }
             }
         }
+    }
+    if (debugChannel_.isOpen()) {
+        std::stringstream ssExtensions;
+        for (size_t hypIdx = 0ul; hypIdx < extensions_.size(); ++hypIdx) {
+            auto const& hyp = extensions_[hypIdx];
+            ssExtensions << "Extension " << hypIdx + 1ul << " token " << hyp.pron->lemma()->symbol() << ", score " << hyp.score << ", transitionType " << hyp.transitionType << ", base: " << beam_[hyp.baseHypIndex].toString() << "\n";
+        }
+        debugChannel_ << ssExtensions.str();
     }
 
     /*
@@ -488,6 +496,30 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-terminated-hyps-after-recombination", numTerminated);
         clog() << Core::XmlFull("num-active-hyps-after-recombination", numActive);
     }
+    beam_.swap(newBeam_);
+    if (logStepwiseStatistics_) {
+        auto const* bestTerminatedHyp  = getBestTerminatedHypothesis();
+        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis();
+        auto const* bestActiveHyp      = getBestActiveHypothesis();
+        auto const* worstActiveHyp     = getWorstActiveHypothesis();
+        if (bestTerminatedHyp != nullptr) {
+            clog() << Core::XmlFull("best-terminated-hyp-score-after-recombination", bestTerminatedHyp->score);
+            clog() << Core::XmlFull("best-terminated-hyp-normalized-score-after-recombination", bestTerminatedHyp->scaledScore);
+        }
+        if (worstTerminatedHyp != nullptr) {
+            clog() << Core::XmlFull("worst-terminated-hyp-score-after-recombination", worstTerminatedHyp->score);
+            clog() << Core::XmlFull("worst-terminated-hyp-normalized-score-after-recombination", worstTerminatedHyp->scaledScore);
+        }
+        if (bestActiveHyp != nullptr) {
+            clog() << Core::XmlFull("best-active-hyp-score-after-recombination", bestActiveHyp->score);
+            clog() << Core::XmlFull("best-active-hyp-normalized-score-after-recombination", bestActiveHyp->scaledScore);
+        }
+        if (worstActiveHyp != nullptr) {
+            clog() << Core::XmlFull("worst-active-hyp-score-after-recombination", worstActiveHyp->score);
+            clog() << Core::XmlFull("worst-active-hyp-normalized-score-after-recombination", worstActiveHyp->scaledScore);
+        }
+    }
+    beam_.swap(newBeam_);
 
     beamSizePruning(newBeam_, maxBeamSize_);
 
@@ -538,7 +570,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     if (logStepwiseStatistics_) {
         auto const* bestTerminatedHyp  = getBestTerminatedHypothesis();
-        auto const* worstTerminatedHyp = getWorstActiveHypothesis();
+        auto const* worstTerminatedHyp = getWorstTerminatedHypothesis();
         auto const* bestActiveHyp      = getBestActiveHypothesis();
         auto const* worstActiveHyp     = getWorstActiveHypothesis();
         if (bestTerminatedHyp != nullptr) {

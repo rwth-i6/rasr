@@ -23,6 +23,7 @@
 #include <Mm/Types.hh>
 #include <Onnx/Value.hh>
 #include <Speech/Types.hh>
+#include <limits>
 #ifdef MODULE_PYTHON
 #include <pybind11/pytypes.h>
 namespace py = pybind11;
@@ -113,12 +114,16 @@ typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
 
 struct CTCPrefixScoringContext : public ScoringContext {
     struct PrefixScore {
-        Search::Score blankEndingScore;
-        Search::Score nonBlankEndingScore;
+        Search::Score blankEndingScore    = std::numeric_limits<Search::Score>::infinity();
+        Search::Score nonBlankEndingScore = std::numeric_limits<Search::Score>::infinity();
+
+        Search::Score totalScore() const {
+            return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
+        }
     };
 
     std::vector<LabelIndex>                           labelSeq;
-    mutable std::shared_ptr<std::vector<PrefixScore>> prefixScores;
+    mutable std::shared_ptr<std::vector<PrefixScore>> prefixScores;  // Represents probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
     mutable bool                                      requiresFinalize;
 
     CTCPrefixScoringContext()

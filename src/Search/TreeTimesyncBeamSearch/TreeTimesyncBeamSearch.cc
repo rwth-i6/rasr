@@ -460,8 +460,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         }
 
         for (size_t requestIdx = 0ul; requestIdx < withinWordExtensions_.size(); ++requestIdx) {
-            withinWordExtensions_[requestIdx].score += result->scores[requestIdx];
-            withinWordExtensions_[requestIdx].timeframe = result->timeframes[requestIdx];
+            auto& ext = withinWordExtensions_[requestIdx];
+            ext.score += result->scores[requestIdx];
+            ext.timeframe = std::max(beam_[ext.baseHypIndex].timeframe, result->timeframes[requestIdx]);
         }
 
         if (subScorerIdx + 1 < labelScorer_->numSubScorers()) {

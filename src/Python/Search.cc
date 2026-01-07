@@ -100,8 +100,7 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
-Traceback SearchAlgorithm::getTracebackWithoutConfidence() {
-    auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
     std::vector<TracebackItem> result;
     result.reserve(traceback->size());
 
@@ -184,9 +183,7 @@ Traceback SearchAlgorithm::getTracebackWithConfidence() {
 
         prevTime = endTime;
         if (nextState->hasArcs()) {
-            std::cout << "Get next arc" << std::endl;
             arc = nextState->getArc(0);
-            std::cout << "Next arc target: " << arc->target() << std::endl;
         }
         else {
             break;
@@ -203,8 +200,13 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
         return getTracebackWithConfidence();
     }
     else {
-        return getTracebackWithoutConfidence();
+        return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
     }
+}
+
+Traceback SearchAlgorithm::getCurrentStableTraceback() {
+    searchAlgorithm_->decodeManySteps();
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentStableTraceback());
 }
 
 std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {

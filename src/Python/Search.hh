@@ -79,7 +79,7 @@ public:
     std::vector<Traceback> recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize);
 
 private:
-    Traceback getTracebackWithoutConfidence();
+    Traceback searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback);
     Traceback getTracebackWithConfidence();
 
     bool addConfidenceScores_;

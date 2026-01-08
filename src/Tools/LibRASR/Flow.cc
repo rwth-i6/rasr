@@ -71,6 +71,17 @@ void bindFlow(py::module_& m) {
     //    bool read(Core::BinaryInputStream& i)
     //    bool write(Core::BinaryOutputStream& o) const
 
+    py::class_<Mm::Feature, Core::Ref<Mm::Feature>>(m, "MmFeature")
+            .def(py::init<size_t>())
+            .def("add", (size_t(Mm::Feature::*)(const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::add)
+            .def("add", (void(Mm::Feature::*)(size_t, const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::add)
+            .def("set", (void(Mm::Feature::*)(size_t, const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::set)
+            .def("set", (void(Mm::Feature::*)(const std::vector<size_t>&, const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::set)
+            .def("clear", &Mm::Feature::clear)
+            .def("main_stream", &Mm::Feature::mainStream, py::return_value_policy::take_ownership)
+            .def("set_number_of_streams", &Mm::Feature::setNumberOfStreams)
+            .def("num_streams", &Mm::Feature::nStreams);
+
     py::class_<Speech::Feature, Mm::Feature, Core::Ref<Speech::Feature>>(m, "Feature")
             .def(py::init<>())
             .def(py::init<Flow::DataPtr<Speech::Feature::FlowVector>&>())  // must be tested

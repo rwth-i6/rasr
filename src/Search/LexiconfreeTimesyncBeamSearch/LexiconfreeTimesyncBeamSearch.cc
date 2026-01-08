@@ -303,7 +303,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
 
     /*
      * Collect all possible extensions for all hypotheses in the beam.
-     * Also Create scoring requests for the label scorer.
      * Each extension candidate makes up a request.
      */
     extensions_.clear();
@@ -335,6 +334,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         requests_.clear();
 
+        /*
+         * Create scoring requests for the current label scorer.
+         */
         for (auto const& ext : extensions_) {
             requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
         }
@@ -574,7 +576,7 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
                 : currentToken(hyp.currentToken), scoringContexts(hyp.scoringContexts) {}
 
         bool operator==(RecombinationContext const& other) const {
-            if (currentToken != Nn::invalidLabelIndex) {
+            if (currentToken != other.currentToken) {
                 return false;
             }
             if (scoringContexts.size() != other.scoringContexts.size()) {

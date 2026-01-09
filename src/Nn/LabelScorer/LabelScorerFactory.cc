@@ -25,8 +25,9 @@ void LabelScorerFactory::registerLabelScorer(const char* name, CreationFunction 
     registry_.push_back(std::move(creationFunction));
 }
 
-Core::Ref<LabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {
-    return registry_.at(paramLabelScorerType(config))(config);
+Core::Ref<ScaledLabelScorer> LabelScorerFactory::createLabelScorer(Core::Configuration const& config) const {
+    auto subScorer = registry_.at(paramLabelScorerType(config))(config);
+    return Core::ref(new ScaledLabelScorer(config, subScorer));
 }
 
 }  // namespace Nn

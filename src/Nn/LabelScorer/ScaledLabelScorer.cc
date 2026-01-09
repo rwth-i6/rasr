@@ -58,7 +58,7 @@ ScoringContextRef ScaledLabelScorer::extendedScoringContextInternal(Request cons
 
 std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTimeInternal(Request const& request) {
     auto result = scorer_->computeScoreWithTime(request);
-    if (result) {
+    if (result and scale_ != 1) {
         result->score *= scale_;
     }
     return result;

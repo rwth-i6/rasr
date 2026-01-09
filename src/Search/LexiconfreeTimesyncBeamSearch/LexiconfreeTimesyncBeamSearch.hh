@@ -46,6 +46,8 @@ public:
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterInt   paramMaximumStableDelay;
+    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -106,19 +108,16 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
+    size_t         maxBeamSize_;
+    bool           useScorePruning_;
+    Score          scoreThreshold_;
     bool           useBlank_;
     Nn::LabelIndex blankLabelIndex_;
-
-    bool collapseRepeatedLabels_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    bool           collapseRepeatedLabels_;
+    bool           logStepwiseStatistics_;
+    size_t         cacheCleanupInterval_;
+    size_t         maximumStableDelay_;
+    size_t         maximumStableDelayPruningInterval_;
 
     Core::Channel debugChannel_;
 
@@ -130,7 +129,7 @@ private:
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<LabelHypothesis>          tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -171,6 +170,11 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

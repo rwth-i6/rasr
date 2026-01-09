@@ -35,17 +35,6 @@ void bindFlow(py::module_& m) {
     py::class_<Flow::Datatype>(m, "Datatype")
             .def("name", &Flow::Datatype::name, py::return_value_policy::reference_internal);
 
-    /*
-     * virtual Data* clone() const
-     * const Datatype* datatype() const
-     * virtual Core::XmlWriter& dump(Core::XmlWriter&) const
-     * virtual bool             read(Core::BinaryInputStream&)
-     * virtual bool write(Core::BinaryOutputStream&) const
-     * static inline Data* ood()
-     * static bool isSentinel(const ThreadSafeReferenceCounted* object)
-     * static bool isNotSentinel(const ThreadSafeReferenceCounted* object)
-     */
-
     py::class_<Flow::Timestamp, Flow::Data, Flow::DataPtr<Flow::Timestamp>>(m, "Timestamp")
             .def(py::init<Flow::Time, Flow::Time>())
             .def("set_start_time", &Flow::Timestamp::setStartTime)
@@ -66,11 +55,6 @@ void bindFlow(py::module_& m) {
             .def("contains", (bool(Flow::Timestamp::*)(const Flow::Timestamp&) const) & Flow::Timestamp::contains)
             .def("overlap", &Flow::Timestamp::overlap);
 
-    //    static const Datatype* type()
-    //    virtual Core::XmlWriter& dump(Core::XmlWriter& o) const
-    //    bool read(Core::BinaryInputStream& i)
-    //    bool write(Core::BinaryOutputStream& o) const
-
     py::class_<Mm::Feature, Core::Ref<Mm::Feature>>(m, "MmFeature")
             .def(py::init<size_t>())
             .def("add", (size_t(Mm::Feature::*)(const Core::TsRef<const Mm::Feature::Vector>&)) & Mm::Feature::add)
@@ -84,7 +68,7 @@ void bindFlow(py::module_& m) {
 
     py::class_<Speech::Feature, Mm::Feature, Core::Ref<Speech::Feature>>(m, "Feature")
             .def(py::init<>())
-            .def(py::init<Flow::DataPtr<Speech::Feature::FlowVector>&>())  // must be tested
+            .def(py::init<Flow::DataPtr<Speech::Feature::FlowVector>&>())
             .def(py::init<Flow::DataPtr<Speech::Feature::FlowFeature>&>())
             .def("set_timestamp", &Speech::Feature::setTimestamp)
             .def("timestamp", &Speech::Feature::timestamp, py::return_value_policy::reference_internal)
@@ -92,40 +76,35 @@ void bindFlow(py::module_& m) {
             .def("take", (void(Speech::Feature::*)(Flow::DataPtr<Speech::Feature::FlowFeature>&)) & Speech::Feature::take)
             .def("take", (bool(Speech::Feature::*)(Flow::DataPtr<Flow::Timestamp>&)) & Speech::Feature::take);
 
-    // virtual Mm::FeatureDescription* getDescription(const Core::Configurable& parent) const
-
-    py::class_<Flow::AbstractNode>(m, "AbstractNode")  // Core::Component
+    py::class_<Flow::AbstractNode>(m, "AbstractNode")
             .def_readonly_static("param_threaded", &Flow::AbstractNode::paramThreaded)
-            .def_readonly_static("param_ignore_unknown_parameters", &Flow::AbstractNode::paramIgnoreUnknownParameters)  // Core::ParameterBool
+            .def_readonly_static("param_ignore_unknown_parameters", &Flow::AbstractNode::paramIgnoreUnknownParameters)
             .def("run", &Flow::AbstractNode::Run)
             .def("set_threaded", (void(Flow::AbstractNode::*)(bool)) & Flow::AbstractNode::setThreaded)
             .def("set_threaded", (void(Flow::AbstractNode::*)(const std::string&)) & Flow::AbstractNode::setThreaded)
             .def("is_threaded", &Flow::AbstractNode::isThreaded)
-            .def("add_parameter", &Flow::AbstractNode::addParameter)  //Core::StringExpression
+            .def("add_parameter", &Flow::AbstractNode::addParameter)
             .def("set_parameter", &Flow::AbstractNode::setParameter)
             .def("erase_output_attributes", &Flow::AbstractNode::eraseOutputAttributes)
             .def("configure", &Flow::AbstractNode::configure)
             .def("work", &Flow::AbstractNode::work)
-            .def("getRemaining_dataLen", &Flow::AbstractNode::getRemainingDataLen)  // o ssize_t, PortId
+            .def("getRemaining_dataLen", &Flow::AbstractNode::getRemainingDataLen)
             .def("addUnresolved_parameter", &Flow::AbstractNode::addUnresolvedParameter)
             .def("unresolved_attributes", &Flow::AbstractNode::unresolvedAttributes, py::return_value_policy::reference_internal)
             .def("__lt__", &Flow::AbstractNode::operator<);
 
-    // friend std::ostream& operator<<(std::ostream& o, const AbstractNode& n);
-    // friend std::ostream& operator<<(std::ostream& o, const AbstractNode* n) {
-
-    py::class_<Flow::Node, Flow::AbstractNode>(m, "Node")
+    py::class_<Flow::Node, Flow::AbstractNode>(m, "Node", py::multiple_inheritance())
             .def("get_input", &Flow::Node::getInput)
             .def("get_output", &Flow::Node::getOutput)
             .def("configure", &Flow::Node::configure)
             .def("work", &Flow::Node::work);
 
-    py::class_<Flow::SourceNode, Flow::Node>(m, "SourceNode")
+    py::class_<Flow::SourceNode, Flow::Node>(m, "SourceNode", py::multiple_inheritance())
             .def("get_output", &Flow::SourceNode::getOutput);
 
-    py::class_<Flow::InputNode, Flow::SourceNode>(m, "InputNode")
+    py::class_<Flow::InputNode, Flow::SourceNode>(m, "InputNode", py::multiple_inheritance())
             .def(py::init<const Core::Configuration&>())
-            .def_readonly_static("param_sample_rate", &Flow::InputNode::paramSampleRate)  // Core::Parameters
+            .def_readonly_static("param_sample_rate", &Flow::InputNode::paramSampleRate)
             .def_readonly_static("choice_sample_type", &Flow::InputNode::choiceSampleType)
             .def_readonly_static("param_sample_type", &Flow::InputNode::paramSampleType)
             .def_readonly_static("param_track_count", &Flow::InputNode::paramTrackCount)
@@ -142,9 +121,7 @@ void bindFlow(py::module_& m) {
             .def("get_reset_sample_count", &Flow::InputNode::getResetSampleCount)
             .def("set_reset_sample_count", &Flow::InputNode::setResetSampleCount);
 
-    // void setByteStreamAppender(ByteStreamAppender const& bsa);
-
-    py::class_<Flow::Network, Flow::AbstractNode>(m, "Network")
+    py::class_<Flow::Network, Flow::AbstractNode>(m, "Network", py::multiple_inheritance())
             .def(py::init<const Core::Configuration&, bool>())
             .def("build_from_string", &Flow::Network::buildFromString)
             .def("build_from_file", &Flow::Network::buildFromFile)
@@ -154,7 +131,7 @@ void bindFlow(py::module_& m) {
             .def("get_node", &Flow::Network::getNode, py::return_value_policy::reference_internal)
             .def("add_link", &Flow::Network::addLink)
             .def("declare_parameter", &Flow::Network::declareParameter)
-            .def("add_parameter_use", &Flow::Network::addParameterUse)  // Core::StringExpression
+            .def("add_parameter_use", &Flow::Network::addParameterUse)
             .def("add_input", &Flow::Network::addInput)
             .def("get_input", &Flow::Network::getInput)
             .def("add_output", &Flow::Network::addOutput)
@@ -162,12 +139,12 @@ void bindFlow(py::module_& m) {
             .def("output_name", &Flow::Network::outputName, py::return_value_policy::reference_internal)
             .def("outputs", &Flow::Network::outputs)
             .def("activate_output", &Flow::Network::activateOutput)
-            .def("put_data", &Flow::Network::putData)  // Data
+            .def("put_data", &Flow::Network::putData)
             .def("put_eos", &Flow::Network::putEos)
             .def("put_ood", &Flow::Network::putOod)
-            .def("get_port_link", &Flow::Network::getPortLink, py::return_value_policy::reference_internal)  // Link
+            .def("get_port_link", &Flow::Network::getPortLink, py::return_value_policy::reference_internal)
             .def("get_data", (bool(Flow::Network::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Flow::Network::getData)
-            .def("put_attributes", &Flow::Network::putAttributes)  // Attributes
+            .def("put_attributes", &Flow::Network::putAttributes)
             .def("get_attribute", &Flow::Network::getAttribute)
             .def("set_parameter", &Flow::Network::setParameter)
             .def("configure", &Flow::Network::configure)
@@ -179,11 +156,9 @@ void bindFlow(py::module_& m) {
             .def("filename", &Flow::Network::filename, py::return_value_policy::reference_internal)
             .def("configure_all", &Flow::Network::configureAll);
 
-    // friend std::ostream& operator<<(std::ostream& o, const Network& n);
-
     py::class_<Flow::DataSource, Flow::Network>(m, "FlowDataSource", py::multiple_inheritance())
             .def(py::init<const Core::Configuration&, bool>())
-            .def("get_data", (bool(Flow::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Flow::DataSource::getData);  // vector
+            .def("get_data", (bool(Flow::DataSource::*)(Flow::PortId, Flow::DataPtr<Flow::Data>&)) & Flow::DataSource::getData);
 
     py::class_<Speech::DataSource, Flow::DataSource>(m, "DataSource")
             .def(py::init<const Core::Configuration&, bool>())

@@ -40,16 +40,6 @@ public:
 };
 
 void bindFeatureExtractor(py::module_& m) {
-    //    typedef std::vector<Core::Ref<const Vector>>::const_iterator Iterator;
-
-    //    static Core::Ref<const Vector> convert(const FeatureVector& f)
-    //    explicit Feature(const Core::Ref<const Vector>& f)
-    //    explicit Feature(const FeatureVector& f)
-    //    bool operator==(const Feature& r) const
-    //    Core::Ref<const Vector> operator[](size_t streamIndex) const
-    //    Iterator begin() const
-    //    Iterator end() const
-
     py::class_<Speech::DataExtractor, Speech::CorpusProcessor>(m, "DataExtractor")
             .def(py::init<const Core::Configuration&, bool>())
             .def("sign_on", &Speech::DataExtractor::signOn)
@@ -65,7 +55,4 @@ void bindFeatureExtractor(py::module_& m) {
             .def("process_segment", &PublicFeatureExtractor::processSegment)
             .def("process_feature", &PublicFeatureExtractor::processFeature)
             .def("process_segment", &PublicFeatureExtractor::setFeatureDescription);
-
-    //py::class_<Speech::FeatureVectorExtractor, Speech::FeatureExtractor>(m, "FeatureVectorExtractor")
-    //.def(py::init<const Core::Configuration&>());
 }

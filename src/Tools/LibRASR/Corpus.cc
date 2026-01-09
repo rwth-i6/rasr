@@ -219,12 +219,12 @@ void bindCorpus(py::module_& m) {
             .def("clear", (bool(Core::StringExpression::*)(const std::string&)) & Core::StringExpression::clear)
             .def("clear", (void(Core::StringExpression::*)()) & Core::StringExpression::clear);
 
-    //    py::class_<Bliss::CorpusKey, Core::StringExpression, Core::Ref<Bliss::CorpusKey>>(m, "CorpusKey", py::multiple_inheritance())
-    //    .def(py::init<const Core::Configuration&>())
-    //    .def_readonly_static("open_tag", &Bliss::CorpusKey::openTag)
-    //    .def_readonly_static("close_tag", &Bliss::CorpusKey::closeTag)
-    //    .def("resolve", &Bliss::CorpusKey::resolve)
-    //    .def_readonly_static("param_template", &Bliss::CorpusKey::paramTemplate);
+    py::class_<Bliss::CorpusKey, Core::StringExpression, Core::Ref<Bliss::CorpusKey>>(m, "CorpusKey", py::multiple_inheritance())
+            .def(py::init<const Core::Configuration&>())
+            .def_readonly_static("open_tag", &Bliss::CorpusKey::openTag)
+            .def_readonly_static("close_tag", &Bliss::CorpusKey::closeTag)
+            .def("resolve", &Bliss::CorpusKey::resolve)
+            .def_readonly_static("param_template", &Bliss::CorpusKey::paramTemplate);
 
     py::class_<Bliss::CorpusDescriptionParser>(m, "CorpusDescriptionParser")
             .def(py::init<const Core::Configuration&>())

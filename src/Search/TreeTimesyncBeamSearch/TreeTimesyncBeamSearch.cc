@@ -381,7 +381,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     /*
      * Collect all possible within-word extensions for all hypotheses in the beam.
-     * Also create scoring requests for the label scorer.
      * Each extension candidate makes up a request.
      */
     withinWordExtensions_.clear();
@@ -416,6 +415,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         requests_.clear();
+
+        /*
+         * Create scoring requests for the current label scorer.
+         */
         for (auto const& ext : withinWordExtensions_) {
             requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
         }

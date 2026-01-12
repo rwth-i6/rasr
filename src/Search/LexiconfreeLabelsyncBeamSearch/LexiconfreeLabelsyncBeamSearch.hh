@@ -40,16 +40,16 @@ namespace Search {
  */
 class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterFloat paramIntermediateScoreThreshold;
-    static const Core::ParameterInt   paramIntermediateMaxBeamSize;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
 
     static const Core::ParameterInt   paramSentenceEndLabelIndex;
     static const Core::ParameterBool  paramCacheCleanupInterval;
     static const Core::ParameterFloat paramLengthNormScale;
     static const Core::ParameterFloat paramMaxLabelsPerTimestep;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterInt   paramMaximumStableDelay;
+    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
 
     LexiconfreeLabelsyncBeamSearch(Core::Configuration const&);
 
@@ -89,16 +89,16 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        size_t                  length;          // Number of tokens in hypothesis for length normalization
-        Score                   score;           // Full score of hypothesis
-        Score                   scaledScore;     // Length-normalized score of hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building off of hypothesis
-        bool                    isActive;        // Indicates whether the hypothesis has not produced a sentence-end label yet
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        size_t                             length;           // Number of tokens in hypothesis for length normalization
+        Score                              score;            // Full score of hypothesis
+        Score                              scaledScore;      // Length-normalized score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        bool                               isActive;         // Indicates whether the hypothesis has not produced a sentence-end label yet
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts, float lengthNormScale);
 
         bool operator<(LabelHypothesis const& other) const {
             return scaledScore < other.scaledScore;
@@ -115,48 +115,43 @@ protected:
     };
 
 private:
-    size_t         maxBeamSize_;
-    bool           useScorePruning_;
-    Score          scoreThreshold_;
-    bool           useIntermediateBeamPruning_;
-    bool           useIntermediateScorePruning_;
-    size_t         intermediateMaxBeamSize_;
-    Score          intermediateScoreThreshold_;
-    float          lengthNormScale_;
-    float          maxLabelsPerTimestep_;
-    Nn::LabelIndex sentenceEndLabelIndex_;
-    bool           logStepwiseStatistics_;
-    size_t         cacheCleanupInterval_;
+    std::vector<size_t> maxBeamSizes_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
+    float               lengthNormScale_;
+    float               maxLabelsPerTimestep_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    bool                logStepwiseStatistics_;
+    size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<LabelHypothesis>          tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numTerminatedHypsAfterScorePruning_;
-    Core::Statistics<u32> numTerminatedHypsAfterRecombination_;
-    Core::Statistics<u32> numTerminatedHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHypsAfterScorePruning_;
-    Core::Statistics<u32> numActiveHypsAfterRecombination_;
-    Core::Statistics<u32> numActiveHypsAfterBeamPruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    Core::Statistics<u32>              numHypsAfterRecombination_;
+    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHyps_;
+    Core::Statistics<u32>              numTerminatedHyps_;
 
     size_t currentSearchStep_;
     size_t totalTimesteps_;
     bool   finishedSegment_;
-
-    Core::Ref<LatticeTrace> stableTrace_;
 
     LabelHypothesis const* getBestTerminatedHypothesis() const;
     LabelHypothesis const* getWorstTerminatedHypothesis() const;
@@ -166,8 +161,6 @@ private:
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
-
-    void advanceStableTrace();
 
     void resetStatistics();
     void logStatistics() const;
@@ -192,6 +185,11 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination();
+
+    /*
+     * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.
+     */
+    void maximumStableDelayPruning();
 
     /*
      * Count hyps with `isActive` flag in `newBeam_`

@@ -21,7 +21,7 @@
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 // #include "NonAutoregressiveSearch/NonAutoregressiveSearch.hh"
 #include "TreeBuilder.hh"
-#include "TreeLabelsyncBeamSearch/TreeLabelsyncBeamSearch.hh"
+// #include "TreeLabelsyncBeamSearch/TreeLabelsyncBeamSearch.hh"
 #include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
@@ -130,9 +130,9 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
         // case NonAutoregressiveSearchType:
         //     searchAlgorithm = new Search::NonAutoregressiveSearch(config);
         //     break;
-        case TreeLabelsyncBeamSearchType:
-            searchAlgorithm = new Search::TreeLabelsyncBeamSearch(config);
-            break;
+        // case TreeLabelsyncBeamSearchType:
+        //     searchAlgorithm = new Search::TreeLabelsyncBeamSearch(config);
+        //     break;
         case TreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;

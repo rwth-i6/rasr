@@ -84,8 +84,8 @@ protected:
     // Forward hidden-state through state-updater ONNX model
     Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) override;
+    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache

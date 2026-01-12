@@ -49,10 +49,10 @@ protected:
     ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 
     // Return transition score based on transition type of the request
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request, std::optional<size_t> scorerIdx) override;
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
 
     // Return transition scores based on transition types of the requests
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests, std::optional<size_t> scorerIdx) override;
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 
 private:
     std::unordered_map<TransitionType, Score> transitionScores_;

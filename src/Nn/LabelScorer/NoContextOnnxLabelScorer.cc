@@ -83,8 +83,7 @@ ScoringContextRef NoContextOnnxLabelScorer::extendedScoringContextInternal(Label
     return Core::ref(new StepScoringContext(context->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) {
-    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
     if (requests.empty()) {
         return ScoresWithTimes{};
     }
@@ -130,8 +129,8 @@ std::optional<LabelScorer::ScoresWithTimes> NoContextOnnxLabelScorer::computeSco
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> NoContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
-    auto result = computeScoresWithTimes({request}, scorerIdx);
+std::optional<LabelScorer::ScoreWithTime> NoContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+    auto result = computeScoresWithTimes({request});
     if (not result.has_value()) {
         return {};
     }

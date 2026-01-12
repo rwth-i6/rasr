@@ -51,7 +51,7 @@ protected:
     ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
     // Use cached context scorer at given step to score the next token.
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;

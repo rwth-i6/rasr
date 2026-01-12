@@ -10,16 +10,14 @@ set(RasrLabelScorer_SOURCES
     EncoderDecoderLabelScorer.cc
     LabelScorer.cc
     LabelScorerFactory.cc
+    ScaledLabelScorer.cc
     ScoringContext.cc
     TransitionLabelScorer.cc
 )
 
 if(${MODULE_ONNX})
-    list(APPEND RasrLabelScorer_SOURCES
-        FixedContextOnnxLabelScorer.cc
-        NoContextOnnxLabelScorer.cc
-        StatefulOnnxLabelScorer.cc
-        StatefulTransducerOnnxLabelScorer.cc
+    list(APPEND RasrLabelScorer_SOURCES FixedContextOnnxLabelScorer.cc NoContextOnnxLabelScorer.cc
+         StatefulOnnxLabelScorer.cc StatefulTransducerOnnxLabelScorer.cc
     )
 endif()
 

@@ -242,8 +242,7 @@ Core::Ref<const ScoringContext> StatefulTransducerOnnxLabelScorer::extendedScori
     return newScoringContext;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulTransducerOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests, std::optional<size_t> scorerIdx) {
-    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
+std::optional<LabelScorer::ScoresWithTimes> StatefulTransducerOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
     if (requests.empty()) {
         return ScoresWithTimes();
     }
@@ -322,8 +321,8 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulTransducerOnnxLabelScorer::c
     return result;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulTransducerOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
-    auto result = computeScoresWithTimes({request}, scorerIdx);
+std::optional<LabelScorer::ScoreWithTime> StatefulTransducerOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+    auto result = computeScoresWithTimes({request});
     if (not result) {
         return {};
     }

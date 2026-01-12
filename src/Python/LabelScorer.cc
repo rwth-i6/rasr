@@ -108,9 +108,7 @@ py::object PythonLabelScorer::extendedPythonScoringContextInternal(py::object co
             transitionType);
 }
 
-std::optional<Nn::LabelScorer::ScoreWithTime> PythonLabelScorer::computeScoreWithTimeInternal(Request const& request, std::optional<size_t> scorerIdx) {
-    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
-
+std::optional<Nn::LabelScorer::ScoreWithTime> PythonLabelScorer::computeScoreWithTimeInternal(Request const& request) {
     // Extract the underlying `py::object` from ScoringContext in `request` to supply them to the virtual python call
     auto* pythonScoringContext = dynamic_cast<PythonScoringContext const*>(request.context.get());
 
@@ -130,9 +128,7 @@ std::optional<Nn::LabelScorer::ScoreWithTime> PythonLabelScorer::computeScoreWit
     return {};
 }
 
-std::optional<Nn::LabelScorer::ScoresWithTimes> PythonLabelScorer::computeScoresWithTimesInternal(std::vector<Request> const& requests, std::optional<size_t> scorerIdx) {
-    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
-
+std::optional<Nn::LabelScorer::ScoresWithTimes> PythonLabelScorer::computeScoresWithTimesInternal(std::vector<Request> const& requests) {
     std::vector<py::object>     contexts;
     std::vector<Nn::LabelIndex> nextTokens;
     std::vector<TransitionType> transitionTypes;

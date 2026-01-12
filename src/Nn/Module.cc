@@ -25,7 +25,6 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
-
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif

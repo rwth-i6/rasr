@@ -86,9 +86,7 @@ ScoringContextRef CTCPrefixLabelScorer::extendedScoringContextInternal(LabelScor
     return Core::ref(new CTCPrefixScoringContext(std::move(newLabelSeq), context->prefixScores, true));
 }
 
-std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) {
-    require(not scorerIdx.has_value() or scorerIdx.value() == 0ul);
-
+std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     if (expectMoreFeatures_) {
         return {};
     }
@@ -135,7 +133,7 @@ void CTCPrefixLabelScorer::setupCTCScores() {
     auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
     while (true) {
         // Check if scores for next timestep are available
-        if (not ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = 0, .transitionType = LABEL_TO_BLANK}, std::nullopt)) {
+        if (not ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = 0, .transitionType = LABEL_TO_BLANK})) {
             break;
         }
 
@@ -143,7 +141,7 @@ void CTCPrefixLabelScorer::setupCTCScores() {
         ctcScores_.resizeColsAndKeepContent(ctcScores_.nColumns() + 1);
         for (LabelIndex v = 0ul; v < vocabSize_; ++v) {
             // Transition type can be anything as we assume that the score is independent of it
-            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = v, .transitionType = LABEL_TO_BLANK}, std::nullopt)->score;
+            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = v, .transitionType = LABEL_TO_BLANK})->score;
         }
         // Transition type and next token assumed to not influence the scoring context
         ctcScorerContext = ctcScorer_->extendedScoringContext({.context = ctcScorerContext, .nextToken = invalidLabelIndex, .transitionType = LABEL_TO_BLANK});

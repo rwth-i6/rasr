@@ -27,7 +27,6 @@
 #include "LabelScorer/LabelScorerFactory.hh"
 
 #include "LabelScorer/EncoderFactory.hh"
-#include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {

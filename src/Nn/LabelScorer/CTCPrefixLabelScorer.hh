@@ -55,7 +55,7 @@ public:
 protected:
     ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request, std::optional<size_t> scorerIdx) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
 private:
     Math::FastMatrix<Score> ctcScores_;  // Cached T x V matrix of scores

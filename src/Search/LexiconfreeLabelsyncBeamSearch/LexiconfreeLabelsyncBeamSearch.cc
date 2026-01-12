@@ -115,7 +115,7 @@ const Core::ParameterFloat LexiconfreeLabelsyncBeamSearch::paramScoreThreshold(
         Core::Type<Score>::max, 0);
 
 const Core::ParameterInt LexiconfreeLabelsyncBeamSearch::paramSentenceEndLabelIndex(
-        "sentence-end-index",
+        "sentence-end-label-index",
         "Index of the sentence-end label in the lexicon."
         "Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`");
 

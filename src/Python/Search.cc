@@ -204,9 +204,9 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
     }
 }
 
-Traceback SearchAlgorithm::getCurrentStableTraceback() {
+Traceback SearchAlgorithm::getCommonPrefix() {
     searchAlgorithm_->decodeManySteps();
-    return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentStableTraceback());
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCommonPrefix()->performTraceback());
 }
 
 std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {

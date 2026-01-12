@@ -64,8 +64,8 @@ public:
     // Return the current best result. May contain unstable results.
     Traceback getCurrentBestTraceback();
 
-    // Return the current stable result.
-    Traceback getCurrentStableTraceback();
+    // Return the current stable result, i.e. common prefix of all current search hypotheses.
+    Traceback getCommonPrefix();
 
     // Return the current best n-best list. May contain unstable results.
     std::vector<Traceback> getCurrentNBestList(size_t nBestSize);

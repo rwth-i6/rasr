@@ -181,8 +181,6 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
           finishedSegment_(false),
-          stableTraceTracker_(),
-          canUpdateStablePrefix_(false),
           maximumStableDelay_(paramMaximumStableDelay(config)) {
     beam_.reserve(maxBeamSize_);
     newBeam_.reserve(maxBeamSize_);
@@ -252,9 +250,6 @@ void LexiconfreeTimesyncBeamSearch::reset() {
     beam_.push_back(LabelHypothesis());
     beam_.front().scoringContext = labelScorer_->getInitialScoringContext();
 
-    stableTraceTracker_.setTrace(beam_.front().trace);
-    canUpdateStablePrefix_ = false;
-
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
@@ -294,22 +289,6 @@ void LexiconfreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, si
 
 Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
-}
-
-Core::Ref<const Traceback> LexiconfreeTimesyncBeamSearch::getCurrentStableTraceback() {
-    if (canUpdateStablePrefix_) {
-        maximumStableDelayPruning();
-
-        std::vector<Core::Ref<LatticeTrace const>> traces;
-        traces.reserve(beam_.size());
-        for (auto const& hyp : beam_) {
-            traces.push_back(hyp.trace);
-        }
-        stableTraceTracker_.advanceStablePrefix(traces);
-        canUpdateStablePrefix_ = false;
-    }
-
-    return stableTraceTracker_.getStablePrefixTrace()->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> LexiconfreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -494,8 +473,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     /*
      * Log statistics about the new beam after this step.
      */
-
-    canUpdateStablePrefix_ = true;
 
     if (debugChannel_.isOpen()) {
         std::stringstream ss;

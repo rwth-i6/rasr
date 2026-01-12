@@ -67,7 +67,6 @@ public:
     void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
@@ -164,10 +163,6 @@ private:
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
-
-    // These are modified during getCurrentBestStableTraceback
-    StableTraceTracker stableTraceTracker_;
-    bool               canUpdateStablePrefix_;
 
     size_t maximumStableDelay_;
     size_t maximumStableDelayPruningInterval_;

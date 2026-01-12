@@ -69,7 +69,6 @@ public:
     void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
 
     Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
-    Core::Ref<const Traceback>      getCurrentStableTraceback() override;
     Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
     Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
     Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
@@ -188,10 +187,6 @@ private:
     Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
     Core::Statistics<u32> numActiveHyps_;
     Core::Statistics<u32> numActiveTrees_;
-
-    // These are modified during getCurrentBestStableTraceback
-    StableTraceTracker stableTraceTracker_;
-    bool               canUpdateStablePrefix_;
 
     size_t maximumStableDelay_;
 

@@ -120,8 +120,8 @@ void bindSearchAlgorithm(py::module_& module) {
             "Get the best traceback given all features that have been passed thus far.");
 
     pySearchAlgorithm.def(
-            "get_current_stable_traceback",
-            &SearchAlgorithm::getCurrentStableTraceback,
+            "get_common_prefix",
+            &SearchAlgorithm::getCommonPrefix,
             "Get the best stable traceback given all features that have been passed thus far.");
 
     pySearchAlgorithm.def(

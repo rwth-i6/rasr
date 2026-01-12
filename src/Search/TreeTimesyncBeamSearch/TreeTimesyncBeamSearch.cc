@@ -197,8 +197,6 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           numWordEndHypsAfterBeamPruning_("num-word-end-hyps-after-beam-pruning"),
           numActiveHyps_("num-active-hyps"),
           numActiveTrees_("num-active-trees"),
-          stableTraceTracker_(),
-          canUpdateStablePrefix_(false),
           maximumStableDelay_(paramMaximumStableDelay(config)) {
     if (scoreThreshold_ == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
@@ -304,9 +302,6 @@ void TreeTimesyncBeamSearch::reset() {
     beam_.front().currentState   = network_->rootState;
     beam_.front().lmHistory      = languageModel_->startHistory();
 
-    stableTraceTracker_.setTrace(beam_.front().trace);
-    canUpdateStablePrefix_ = false;
-
     currentSearchStep_ = 0ul;
     finishedSegment_   = false;
 
@@ -351,22 +346,6 @@ void TreeTimesyncBeamSearch::putFeatures(Nn::DataView const& features, size_t nT
 
 Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentBestTraceback() const {
     return getBestHypothesis().trace->performTraceback();
-}
-
-Core::Ref<const Traceback> TreeTimesyncBeamSearch::getCurrentStableTraceback() {
-    if (canUpdateStablePrefix_) {
-        maximumStableDelayPruning();
-
-        std::vector<Core::Ref<LatticeTrace const>> traces;
-        traces.reserve(beam_.size());
-        for (auto const& hyp : beam_) {
-            traces.push_back(hyp.trace);
-        }
-        stableTraceTracker_.advanceStablePrefix(traces);
-        canUpdateStablePrefix_ = false;
-    }
-
-    return stableTraceTracker_.getStablePrefixTrace()->performTraceback();
 }
 
 Core::Ref<const LatticeAdaptor> TreeTimesyncBeamSearch::getCurrentBestWordLattice() const {
@@ -462,6 +441,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         for (size_t requestIdx = 0ul; requestIdx < withinWordExtensions_.size(); ++requestIdx) {
             auto& ext = withinWordExtensions_[requestIdx];
             ext.score += result->scores[requestIdx];
+
             ext.timeframe = std::max(beam_[ext.baseHypIndex].timeframe, result->timeframes[requestIdx]);
         }
 
@@ -641,8 +621,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     beam_.swap(newBeam_);
     beam_.insert(beam_.end(), wordEndHypotheses_.begin(), wordEndHypotheses_.end());
-
-    canUpdateStablePrefix_ = true;
 
     numActiveHyps_ += beam_.size();
 

@@ -326,7 +326,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             Nn::LabelIndex      tokenIdx = lemma->id();
 
             auto transitionType = Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
-            if (hyp.currentToken == Core::Type<Nn::LabelIndex>::max) {
+            if (hyp.currentToken == Nn::invalidLabelIndex) {
                 transitionType = Nn::LabelScorer::TransitionType::INITIAL_LABEL;
             }
             if (tokenIdx == sentenceEndLabelIndex_) {
@@ -361,6 +361,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         // LabelScorer could not compute scores -> no search step can be made.
         return false;
     }
+    ++currentSearchStep_;
 
     for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
         extensions_[extensionIdx].score += result->scores[extensionIdx];
@@ -453,7 +454,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     /*
      * Clean up label scorer caches.
      */
-    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+    if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
         Core::CollapsedVector<Nn::ScoringContextRef> activeContexts;
         for (auto const& hyp : newBeam_) {
             activeContexts.push_back(hyp.scoringContext);

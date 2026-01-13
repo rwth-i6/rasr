@@ -1349,7 +1349,8 @@ void CtcTreeBuilder::build() {
         addWordBoundaryStates();
     }
 
-    auto sentenceEndLemma = getSentenceEndLemma();
+    auto sentenceBeginLemma = getSentenceBeginLemma();
+    auto sentenceEndLemma   = getSentenceEndLemma();
     if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
         addSentenceEndStates();
     }
@@ -1360,8 +1361,9 @@ void CtcTreeBuilder::build() {
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma) {
+        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (sentenceBeginLemma and (*it)->lemma() == sentenceBeginLemma)) {
             // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
+            // Sentence-begin is not part of the tree
             continue;
         }
 
@@ -1506,6 +1508,10 @@ Bliss::Lemma const* CtcTreeBuilder::getSentenceEndLemma() const {
         sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
     }
     return sentenceEndLemma;
+}
+
+Bliss::Lemma const* CtcTreeBuilder::getSentenceBeginLemma() const {
+    return lexicon_.specialLemma("sentence-begin");
 }
 
 // -------------------- RnaTreeBuilder --------------------

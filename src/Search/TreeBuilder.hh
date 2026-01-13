@@ -306,6 +306,7 @@ protected:
     void addSentenceEndStates();
 
     Bliss::Lemma const* getSentenceEndLemma() const;
+    Bliss::Lemma const* getSentenceBeginLemma() const;
 };
 
 class RnaTreeBuilder : public CtcTreeBuilder {

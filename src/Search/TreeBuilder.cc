@@ -1361,7 +1361,7 @@ void CtcTreeBuilder::build() {
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (sentenceBeginLemma and (*it)->lemma() == sentenceBeginLemma)) {
+        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
             // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
             // Sentence-begin is not part of the tree
             continue;

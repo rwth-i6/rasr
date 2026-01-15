@@ -139,7 +139,7 @@ public:
 private:
     Object*        object_;
     static Object* sentinel() {
-        return static_cast<Object*>(Object::sentinel());
+        return reinterpret_cast<Object*>(Object::sentinel());
     }
 
     /**
@@ -152,7 +152,7 @@ private:
     void set(Object* o) {
         const Object* old = object_;
         ++(object_ = o)->referenceCount_;
-        if (!(--old->referenceCount_)) {
+        if (!old->releaseReference()) {
             verify_(Object::isNotSentinel(old));
             old->free();
         }
@@ -161,13 +161,13 @@ private:
 public:
     Ref()
             : object_(sentinel()) {
-        ++object_->referenceCount_;
+        object_->acquireReference();
     }
 
     explicit Ref(Object* o)
             : object_(o) {
         require_(o);
-        ++object_->referenceCount_;
+        object_->acquireReference();
     }
 
     /**
@@ -181,7 +181,7 @@ public:
      */
     Ref(const Ref& r)
             : object_(r.object_) {
-        ++object_->referenceCount_;
+        object_->acquireReference();
     }
     /**
      * Template Copy Constuctor.
@@ -195,16 +195,16 @@ public:
     template<class S>
     Ref(const Ref<S>& r)
             : object_(r._get()) {
-        ++object_->referenceCount_;
+        object_->acquireReference();
     }
     template<class S>
     Ref(const WeakRef<S>& r)
             : object_(r._get()) {
-        ++object_->referenceCount_;
+        object_->acquireReference();
     }
 
     ~Ref() {
-        if (!(--object_->referenceCount_)) {
+        if (not object_->releaseReference()) {
             verify_(Object::isNotSentinel(object_));
             object_->free();
         }
@@ -231,10 +231,11 @@ public:
      */
     void reset() {
         if (Object::isNotSentinel(object_)) {
-            if (!(--object_->referenceCount_)) {
+            if (not object_->releaseReference()) {
                 object_->free();
             }
-            ++(object_ = sentinel())->referenceCount_;
+            object_ = sentinel();
+            object_->acquireReference();
         }
     }
 

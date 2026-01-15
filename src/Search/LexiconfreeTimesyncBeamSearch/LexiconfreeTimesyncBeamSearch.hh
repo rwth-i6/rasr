@@ -48,6 +48,8 @@ public:
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramCacheCleanupInterval;
+    static const Core::ParameterInt   paramMaximumStableDelay;
+    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
     static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -110,26 +112,21 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
-    bool sentenceEndFallback_;
-
-    bool           useBlank_;
-    Nn::LabelIndex blankLabelIndex_;
-    bool           allowBlankAfterSentenceEnd_;
-
+    size_t              maxBeamSize_;
+    bool                useScorePruning_;
+    Score               scoreThreshold_;
+    bool                useBlank_;
+    Nn::LabelIndex      blankLabelIndex_;
+    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
-
-    bool collapseRepeatedLabels_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    bool                sentenceEndFallback_;
+    bool                collapseRepeatedLabels_;
+    size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
+    bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;
 
@@ -141,7 +138,7 @@ private:
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<LabelHypothesis>          tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -188,6 +185,11 @@ private:
      * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
      */
     void finalizeHypotheses();
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

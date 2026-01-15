@@ -28,7 +28,7 @@ CCFLAGS		+= -funsigned-char
 CCFLAGS		+= -fno-exceptions
 CFLAGS		+= -std=c99
 CXXFLAGS	+= -std=c++20
-CXXFLAGS	+= -Wno-unknown-pragmas
+CXXFLAGS	+= -Wno-unknown-pragmas -Werror=return-type -Werror=reorder -Werror=format-security -Werror=delete-non-virtual-dtor -Werror=unused-but-set-variable
 #CCFLAGS	+= -pedantic
 CCFLAGS		+= -Wall
 CCFLAGS		+= -Wno-long-long

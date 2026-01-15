@@ -13,60 +13,57 @@
  *  limitations under the License.
  */
 
-#ifndef COMBINE_LABEL_SCORER_HH
-#define COMBINE_LABEL_SCORER_HH
+#ifndef SCALED_LABEL_SCORER_HH
+#define SCALED_LABEL_SCORER_HH
+
+#include <Core/Configuration.hh>
 
 #include "LabelScorer.hh"
 
 namespace Nn {
 
 /*
- * Performs log-linear combination of multiple sub-label-scorers, assuming
- * that the sub-scorers have the same label alphabet, i.e.
- * combined_score(request) = sum_i { score_i(request) * scale_i }
- * The assigned timeframe is the maximum over the sub-timeframes, i.e.
- * combined_timeframe(request) = max_i { timeframe_i(request) }
+ * Wraps a sub label scorer and scales all the scores by a given factor
  */
-class CombineLabelScorer : public LabelScorer {
-    using Precursor = LabelScorer;
-
+class ScaledLabelScorer : public LabelScorer {
 public:
-    static Core::ParameterInt paramNumLabelScorers;
+    static const Core::ParameterFloat paramScale;
 
-    CombineLabelScorer(const Core::Configuration& config);
-    virtual ~CombineLabelScorer() = default;
+    ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer);
 
-    // Reset all sub-scorers
+    // Reset sub-scorer
     void reset() override;
 
-    // Forward signal to all sub-scorers
+    // Forward signal to sub-scorer
     void signalNoMoreFeatures() override;
 
-    // Combine initial ScoringContexts from all sub-scorers
+    // Initial ScoringContext from sub-scorer
     ScoringContextRef getInitialScoringContext() override;
 
-    // Cleanup all sub-scorers
+    // Cleanup sub-scorer
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
-    // Add input to all sub-scorers
+    // Add input to sub-scorer
     void addInput(DataView const& input) override;
 
-    // Add inputs to all sub-scorers
+    // Add inputs to sub-scorer
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
 protected:
-    std::vector<Core::Ref<LabelScorer>> scorers_;
-
-    // Combine extended ScoringContexts from all sub-scorers
+    // Extended ScoringContext from sub-scorer
     ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 
-    // Compute weighted score of request with all sub-scorers
+    // Compute scaled score of request with sub-scorer
     std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
 
-    // Compute weighted scores of requests with all sub-scorers
+    // Compute scaled scores of requests with sub-scorer
     std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+
+private:
+    Core::Ref<LabelScorer> scorer_;
+    Score                  scale_;
 };
 
 }  // namespace Nn
 
-#endif  // COMBINE_LABEL_SCORER_HH
+#endif  // SCALED_LABEL_SCORER_HH

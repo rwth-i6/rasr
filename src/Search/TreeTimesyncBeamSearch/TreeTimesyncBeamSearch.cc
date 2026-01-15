@@ -141,6 +141,19 @@ const Core::ParameterBool TreeTimesyncBeamSearch::paramCacheCleanupInterval(
         "Interval of search steps after which buffered inputs that are not needed anymore get cleaned up.",
         10);
 
+const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelay(
+        "maximum-stable-delay",
+        "Introduce a cutoff point at `current-time` - `delay`. Every hypothesis that disagrees with the current best anywhere before the cutoff gets pruned."
+        "This way words in the traceback become stable after at most `delay` frames.",
+        Core::Type<int>::max,
+        0);
+
+const Core::ParameterInt TreeTimesyncBeamSearch::paramMaximumStableDelayPruningInterval(
+        "maximum-stable-delay-pruning-interval",
+        "Interval of search steps after which the maximum-stable-delay-pruning gets applied.",
+        10,
+        1);
+
 TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
@@ -151,6 +164,8 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           blankLabelIndex_(Nn::invalidLabelIndex),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
+          maximumStableDelay_(paramMaximumStableDelay(config)),
+          maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
           useBlank_(),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
@@ -164,7 +179,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           newBeam_(),
           wordEndHypotheses_(),
           requests_(),
-          recombinedHypotheses_(),
+          tempHypotheses_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
           initializationTime_(),
@@ -579,6 +594,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
     numActiveHyps_ += beam_.size();
 
+    ++currentSearchStep_;
+
     /*
      * Clean up label scorer caches and calculate number of active trees
      */
@@ -590,12 +607,22 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             seenHistories.push_back(hyp.lmHistory);
         }
     }
-    if (++currentSearchStep_ % cacheCleanupInterval_ == 0) {
+    if (currentSearchStep_ % cacheCleanupInterval_ == 0) {
         labelScorer_->cleanupCaches(activeContexts);
     }
     numActiveTrees_ += seenHistories.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-active-trees", seenHistories.size());
+    }
+
+    /*
+     * Apply maximum-stable-delay-pruning.
+     */
+    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
+        maximumStableDelayPruning();
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
+        }
     }
 
     /*
@@ -764,9 +791,9 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
         }
     };
 
-    recombinedHypotheses_.clear();
+    tempHypotheses_.clear();
     // Reserve capacity because future reallocations would break the raw pointer we are storing later
-    recombinedHypotheses_.reserve(hypotheses.size());
+    tempHypotheses_.reserve(hypotheses.size());
     // Map each unique combination of StateId, ScoringContext and LmHistory in newHypotheses to its hypothesis
     std::unordered_map<RecombinationContext, LabelHypothesis*, RecombinationContextHash> seenCombinations;
     for (auto const& hyp : hypotheses) {
@@ -775,8 +802,8 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
 
         if (inserted) {
             // First time seeing this combination so move it over to `newHypotheses`
-            recombinedHypotheses_.push_back(std::move(hyp));
-            it->second = &recombinedHypotheses_.back();
+            tempHypotheses_.push_back(std::move(hyp));
+            it->second = &tempHypotheses_.back();
         }
         else {
             if (hyp.currentState == network_->rootState or network_->otherRootStates.find(hyp.currentState) != network_->otherRootStates.end()) {
@@ -800,7 +827,7 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
         }
     }
 
-    hypotheses.swap(recombinedHypotheses_);
+    hypotheses.swap(tempHypotheses_);
 }
 
 void TreeTimesyncBeamSearch::createSuccessorLookups() {
@@ -845,13 +872,61 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         }
         else {
             // Construct an empty hypothesis with a lattice containing only one empty pronunciation from start to end
-            newBeam_.push_back(LabelHypothesis());
-            newBeam_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
-            newBeam_.front().trace->pronunciation = nullptr;
-            newBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
+            tempHypotheses_.push_back(LabelHypothesis());
+            tempHypotheses_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
+            tempHypotheses_.front().trace->pronunciation = nullptr;
+            tempHypotheses_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
         }
     }
-    beam_.swap(newBeam_);
+    beam_.swap(tempHypotheses_);
+}
+
+void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
+    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+        return;
+    }
+
+    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
+
+    // Find trace of current best hypothesis that has a recent word-end within the limit
+    auto&                   bestHyp   = beam_.front();
+    Score                   bestScore = Core::Type<Score>::max;
+    Core::Ref<LatticeTrace> root;
+
+    for (auto const& hyp : beam_) {
+        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
+            bestScore = hyp.score;
+            bestHyp   = hyp;
+            root      = hyp.trace;
+        }
+    }
+
+    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
+    if (not root) {
+        root = getBestHypothesis().trace;
+        warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
+    }
+
+    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
+    Core::Ref<LatticeTrace> preRoot = root->predecessor;
+
+    while (preRoot and preRoot->time >= cutoff) {
+        root    = preRoot;
+        preRoot = preRoot->predecessor;
+    }
+
+    // Perform pruning on root
+    tempHypotheses_.clear();
+    for (auto const& hyp : beam_) {
+        auto curr = hyp.trace;
+        while (curr and curr != root and curr->time > root->time) {
+            curr = curr->predecessor;
+        }
+        if (curr == root) {
+            tempHypotheses_.push_back(hyp);
+        }
+    }
+    beam_.swap(tempHypotheses_);
 }
 
 }  // namespace Search

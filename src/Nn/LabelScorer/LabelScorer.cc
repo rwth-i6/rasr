@@ -165,6 +165,7 @@ void LabelScorer::enableTransitionTypes(Core::Configuration const& config, Trans
         case TransitionPresetType::LM:
             enabledTransitionTypes_ = {
                     LABEL_TO_LABEL,
+                    BLANK_TO_LABEL,
                     INITIAL_LABEL,
                     SENTENCE_END,
             };

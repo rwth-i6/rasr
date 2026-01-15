@@ -23,7 +23,6 @@
 #include <Flow/Module.hh>
 
 #include "LabelScorer/EncoderFactory.hh"
-#include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {
@@ -62,8 +61,6 @@ public:
      * Access instance of LabelScorerFactory for registering and creating LabelScorers.
      */
     LabelScorerFactory& labelScorerFactory();
-
-    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 
 private:
     Core::FormatSet*   formats_;

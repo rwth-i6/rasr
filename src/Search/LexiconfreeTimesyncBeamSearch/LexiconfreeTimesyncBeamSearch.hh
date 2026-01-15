@@ -48,9 +48,9 @@ public:
     static const Core::ParameterBool  paramSentenceEndFallBack;
     static const Core::ParameterBool  paramCollapseRepeatedLabels;
     static const Core::ParameterBool  paramCacheCleanupInterval;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
     static const Core::ParameterInt   paramMaximumStableDelay;
     static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterBool  paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 

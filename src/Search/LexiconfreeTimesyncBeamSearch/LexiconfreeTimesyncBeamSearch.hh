@@ -110,26 +110,19 @@ protected:
     };
 
 private:
-    size_t maxBeamSize_;
-
-    bool  useScorePruning_;
-    Score scoreThreshold_;
-
-    bool sentenceEndFallback_;
-
-    bool           useBlank_;
-    Nn::LabelIndex blankLabelIndex_;
-    bool           allowBlankAfterSentenceEnd_;
-
+    size_t              maxBeamSize_;
+    bool                useScorePruning_;
+    Score               scoreThreshold_;
+    bool                useBlank_;
+    Nn::LabelIndex      blankLabelIndex_;
+    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
-
-    bool collapseRepeatedLabels_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    bool                sentenceEndFallback_;
+    bool                collapseRepeatedLabels_;
+    size_t              cacheCleanupInterval_;
+    bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;
 

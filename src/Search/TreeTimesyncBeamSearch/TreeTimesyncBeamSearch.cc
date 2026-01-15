@@ -830,7 +830,7 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
-        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
+        if (hyp.score < bestScore and hyp.trace->time >= cutoff and not stateSuccessorLookup_[hyp.currentState].empty()) {
             bestScore = hyp.score;
             bestHyp   = hyp;
             root      = hyp.trace;

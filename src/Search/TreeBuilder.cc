@@ -1349,7 +1349,7 @@ void CtcTreeBuilder::build() {
         addWordBoundaryStates();
     }
 
-    auto sentenceBeginLemma = getSentenceBeginLemma();
+    auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
     auto sentenceEndLemma   = getSentenceEndLemma();
     if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
         addSentenceEndStates();
@@ -1508,10 +1508,6 @@ Bliss::Lemma const* CtcTreeBuilder::getSentenceEndLemma() const {
         sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
     }
     return sentenceEndLemma;
-}
-
-Bliss::Lemma const* CtcTreeBuilder::getSentenceBeginLemma() const {
-    return lexicon_.specialLemma("sentence-begin");
 }
 
 // -------------------- RnaTreeBuilder --------------------

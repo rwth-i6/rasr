@@ -41,6 +41,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           currentToken(Nn::invalidLabelIndex),
           currentState(invalidTreeNodeIndex),
           lmHistory(),
+          timeframe(0),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
@@ -979,7 +980,7 @@ void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
     Core::Ref<LatticeTrace> root;
 
     for (auto const& hyp : beam_) {
-        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
+        if (hyp.score < bestScore and hyp.trace->time >= cutoff and not stateSuccessorLookup_[hyp.currentState].empty()) {
             bestScore = hyp.score;
             root      = hyp.trace;
         }

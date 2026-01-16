@@ -1349,7 +1349,8 @@ void CtcTreeBuilder::build() {
         addWordBoundaryStates();
     }
 
-    auto sentenceEndLemma = getSentenceEndLemma();
+    auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
+    auto sentenceEndLemma   = getSentenceEndLemma();
     if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
         addSentenceEndStates();
     }
@@ -1360,8 +1361,9 @@ void CtcTreeBuilder::build() {
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma) {
+        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
             // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
+            // sentence-begin is not part of the tree
             continue;
         }
 

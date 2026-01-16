@@ -163,6 +163,8 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
+          maximumStableDelay_(paramMaximumStableDelay(config)),
+          maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
           beam_(),
@@ -431,7 +433,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         }
 
         for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-            extensions_[extensionIdx].score     = result->scores[extensionIdx];
+            extensions_[extensionIdx].score += result->scores[extensionIdx];
             extensions_[extensionIdx].timeframe = std::max(extensions_[extensionIdx].timeframe, result->timeframes[extensionIdx]);
         }
 

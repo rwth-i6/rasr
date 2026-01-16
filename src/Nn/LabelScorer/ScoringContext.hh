@@ -122,15 +122,17 @@ struct CTCPrefixScoringContext : public ScoringContext {
         }
     };
 
-    std::vector<LabelIndex>                           labelSeq;
-    mutable std::shared_ptr<std::vector<PrefixScore>> prefixScores;  // Represents probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
-    mutable bool                                      requiresFinalize;
+    std::vector<LabelIndex>                               labelSeq;
+    mutable std::shared_ptr<std::vector<PrefixScore>>     timePrefixScores;  // Represents probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
+    mutable Search::Score                                 prefixScore;       // -log P(prefix, ...)
+    mutable std::unordered_map<LabelIndex, Search::Score> extScores;         // -log P(prefix + token, ...)
+    mutable bool                                          requiresFinalize;
 
     CTCPrefixScoringContext()
-            : labelSeq(), prefixScores(), requiresFinalize(true) {}
+            : labelSeq(), timePrefixScores(), prefixScore(0.0), extScores(), requiresFinalize(true) {}
 
-    CTCPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& prefixScores, bool requiresFinalize)
-            : labelSeq(seq), prefixScores(prefixScores), requiresFinalize(requiresFinalize) {}
+    CTCPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& timePrefixScores, Search::Score prefixScore, bool requiresFinalize)
+            : labelSeq(seq), timePrefixScores(timePrefixScores), prefixScore(prefixScore), extScores(), requiresFinalize(requiresFinalize) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;

@@ -1321,7 +1321,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         auto sentenceEndLemma = getSentenceEndLemma();
         if (sentenceEndLemma == nullptr or sentenceEndLemma->nPronunciations() == 0) {
             if (sentenceEndLemma != nullptr) {
-                warning() << "Building tree without sentence-end which means it may also not be scored by the LM";
+                warning() << "Building tree without sentence-end which means it may also not be scored by a LabelScorer or an LM in SearchAlgorithmV2 implementations";
             }
 
             // If no sentence-end is present, any root state is a valid final state
@@ -1351,7 +1351,7 @@ void CtcTreeBuilder::build() {
 
     auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
     auto sentenceEndLemma   = getSentenceEndLemma();
-    if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
+    if (sentenceEndLemma != nullptr and sentenceEndLemma->nPronunciations() > 0) {
         addSentenceEndStates();
     }
 

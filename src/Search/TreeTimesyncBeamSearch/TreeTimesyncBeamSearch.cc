@@ -188,7 +188,10 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
     if (scoreThresholds_.back() == Core::Type<Score>::max and wordEndScoreThreshold_ != Core::Type<Score>::max) {
         error() << "Word-end score-threshold which is relative to the score-threshold is set, but score-threshold is not set";
     }
-    wordEndScoreThreshold_ *= scoreThresholds_.back();
+    if (wordEndScoreThreshold_ != Core::Type<Score>::max) {
+        log() << "Use absolute word-end score-threshold of " << wordEndScoreThreshold_ * scoreThresholds_.back() << "; computed relative to within-word threshold " << scoreThresholds_.back() << " with factor " << wordEndScoreThreshold_;
+        wordEndScoreThreshold_ *= scoreThresholds_.back();
+    }
 
     for (size_t i = 1ul; i <= scoreThresholds_.size(); ++i) {
         numHypsAfterScorePruning_.push_back({"num-hyps-after-score-pruning-" + std::to_string(i)});
@@ -402,7 +405,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             withinWordExtensions_.push_back(
                     {tokenIdx,
                      successorState,
-                     hyp.timeframe,
+                     0,
                      hyp.score,
                      transitionType,
                      hypIndex});

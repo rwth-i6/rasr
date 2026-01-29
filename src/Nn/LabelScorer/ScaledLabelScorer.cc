@@ -25,6 +25,7 @@ const Core::ParameterFloat ScaledLabelScorer::paramScale(
 ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)
         : Core::Component(config),
           LabelScorer(config, TransitionPresetType::ALL),
+          scorer_(scorer),
           scale_(paramScale(config)) {
 }
 

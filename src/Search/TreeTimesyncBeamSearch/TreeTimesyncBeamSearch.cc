@@ -405,7 +405,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             withinWordExtensions_.push_back(
                     {tokenIdx,
                      successorState,
-                     0,
+                     hyp.timeframe,
                      hyp.score,
                      transitionType,
                      hypIndex});

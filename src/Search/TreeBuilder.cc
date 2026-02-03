@@ -1497,8 +1497,9 @@ void CtcTreeBuilder::addSentenceEndStates() {
 
     // Add optional blank after the sentence-end lemma
     if (allowBlankAfterSentenceEnd_) {
-        StateId blankAfter = extendState(sentenceEndSink_, blankDesc_);
-        addExit(blankAfter, sentenceEndSink_, lexicon_.specialLemma("blank")->id());
+        StateId     blankAfter = extendState(sentenceEndSink_, blankDesc_);
+        auto const& blankPron  = lexicon_.specialLemma("blank").pronunciations().first;
+        addExit(blankAfter, sentenceEndSink_, blankPron->id());
     }
 }
 

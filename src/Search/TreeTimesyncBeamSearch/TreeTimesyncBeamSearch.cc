@@ -851,23 +851,25 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
 }
 
 void TreeTimesyncBeamSearch::finalizeHypotheses() {
-    newBeam_.clear();
+    tempHypotheses_.clear();
     for (auto const& hyp : beam_) {
         if (network_->finalStates.contains(hyp.currentState)) {
-            newBeam_.push_back(hyp);
+            tempHypotheses_.push_back(hyp);
         }
     }
 
-    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
+    if (tempHypotheses_.empty()) {  // There was no valid final hypothesis in the beam
         warning("No active word-end hypothesis at segment end.");
         if (sentenceEndFallback_) {
             log() << "Use sentence-end fallback";
             // The trace of the unfinished word keeps an empty pronunciation, only the LM score is added
+            tempHypotheses_.reserve(beam_.size());
+
             for (auto const& hyp : beam_) {
-                newBeam_.push_back(hyp);
+                tempHypotheses_.push_back(hyp);
                 Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-                newBeam_.back().score += sentenceEndScore;
-                newBeam_.back().trace->score.lm += sentenceEndScore;
+                tempHypotheses_.back().score += sentenceEndScore;
+                tempHypotheses_.back().trace->score.lm += sentenceEndScore;
             }
         }
         else {
@@ -878,6 +880,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             tempHypotheses_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
         }
     }
+
     beam_.swap(tempHypotheses_);
 }
 

@@ -33,7 +33,8 @@ namespace Search {
  * Can handle a blank symbol if a blank index is set.
  * Main purpose is open vocabulary search with CTC/Neural Transducer (or similar) models.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.

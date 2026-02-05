@@ -33,24 +33,25 @@ namespace Search {
  * Can handle a blank symbol if a blank index is set.
  * Main purpose is open vocabulary search with CTC/Neural Transducer (or similar) models.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.
  */
 class LexiconfreeTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterInt   paramBlankLabelIndex;
-    static const Core::ParameterInt   paramSentenceEndLabelIndex;
-    static const Core::ParameterBool  paramAllowBlankAfterSentenceEnd;
-    static const Core::ParameterBool  paramSentenceEndFallBack;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramCacheCleanupInterval;
-    static const Core::ParameterInt   paramMaximumStableDelay;
-    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
+    static const Core::ParameterBool        paramSentenceEndFallBack;
+    static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -92,14 +93,14 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;      // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
-        Score                   score;               // Full score of hypothesis
-        Core::Ref<LatticeTrace> trace;               // Associated trace for traceback or lattice building off of hypothesis
-        bool                    reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
+        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;               // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
-        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
+        LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         bool operator<(LabelHypothesis const& other) const {
             return score < other.score;
@@ -112,9 +113,10 @@ protected:
     };
 
 private:
-    size_t              maxBeamSize_;
-    bool                useScorePruning_;
-    Score               scoreThreshold_;
+    std::vector<size_t> maxBeamSizes_;
+
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
     bool                allowBlankAfterSentenceEnd_;
@@ -130,9 +132,9 @@ private:
 
     Core::Channel debugChannel_;
 
-    Core::Ref<Nn::LabelScorer>   labelScorer_;
-    Bliss::LexiconRef            lexicon_;
-    std::vector<LabelHypothesis> beam_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
+    Bliss::LexiconRef                       lexicon_;
+    std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
     std::vector<ExtensionCandidate>       extensions_;
@@ -145,10 +147,10 @@ private:
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numHypsAfterScorePruning_;
-    Core::Statistics<u32> numHypsAfterRecombination_;
-    Core::Statistics<u32> numHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHyps_;
+    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    Core::Statistics<u32>              numHypsAfterRecombination_;
+    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHyps_;
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
@@ -168,12 +170,13 @@ private:
     /*
      * Helper function for pruning to maxBeamSize_
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses) const;
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold_
      */
-    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions) const;
+    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score threshold) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

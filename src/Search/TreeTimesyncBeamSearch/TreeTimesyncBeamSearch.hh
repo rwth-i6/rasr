@@ -33,9 +33,10 @@ namespace Search {
  * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
- * Supports global or separate pruning of within-word and word-end hypotheses
+ * Performs separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
  * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
@@ -43,16 +44,16 @@ namespace Search {
  */
 class TreeTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
-    static const Core::ParameterInt   paramMaxBeamSize;
-    static const Core::ParameterInt   paramMaxWordEndBeamSize;
-    static const Core::ParameterFloat paramScoreThreshold;
-    static const Core::ParameterFloat paramWordEndScoreThreshold;
-    static const Core::ParameterBool  paramCollapseRepeatedLabels;
-    static const Core::ParameterBool  paramSentenceEndFallBack;
-    static const Core::ParameterBool  paramLogStepwiseStatistics;
-    static const Core::ParameterBool  paramCacheCleanupInterval;
-    static const Core::ParameterInt   paramMaximumStableDelay;
-    static const Core::ParameterInt   paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterInt         paramMaxWordEndBeamSize;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterFloat       paramWordEndScoreThreshold;
+    static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterBool        paramSentenceEndFallBack;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
+    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -106,18 +107,18 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        Nn::ScoringContextRef   scoringContext;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex          currentToken;    // Most recent token in associated label sequence (useful to infer transition type)
-        StateId                 currentState;    // Current state in the search tree
-        Lm::History             lmHistory;       // Language model history
-        Speech::TimeframeIndex  timeframe;       // Timeframe of current token
-        Score                   score;           // Full score of the hypothesis
-        Core::Ref<LatticeTrace> trace;           // Associated trace for traceback or lattice building of hypothesis
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                            currentState;     // Current state in the search tree
+        Lm::History                        lmHistory;        // Language model history
+        Speech::TimeframeIndex             timeframe;        // Timeframe of current token
+        Score                              score;            // Full score of the hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building of hypothesis
 
         LabelHypothesis();
 
         // Within-word constructor from base and within-word extension
-        LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext);
+        LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
 
         // Word-end constructor from base and word-end extension
         LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory);
@@ -133,22 +134,22 @@ protected:
     };
 
 private:
-    size_t         maxBeamSize_;
-    size_t         maxWordEndBeamSize_;
-    Score          scoreThreshold_;
-    Score          wordEndScoreThreshold_;
-    Nn::LabelIndex blankLabelIndex_;
-    Nn::LabelIndex sentenceEndLabelIndex_;
-    size_t         cacheCleanupInterval_;
-    size_t         maximumStableDelay_;
-    size_t         maximumStableDelayPruningInterval_;
+    std::vector<size_t> maxBeamSizes_;
+    size_t              maxWordEndBeamSize_;
+    std::vector<Score>  scoreThresholds_;
+    Score               wordEndScoreThreshold_;
+    Nn::LabelIndex      blankLabelIndex_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
 
     bool useBlank_;
     bool collapseRepeatedLabels_;
     bool sentenceEndFallback_;
     bool logStepwiseStatistics_;
 
-    Core::Ref<Nn::LabelScorer>                     labelScorer_;
+    std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
     Bliss::LexiconRef                              lexicon_;
     robin_hood::unordered_set<const Bliss::Lemma*> nonWordLemmas_;
     Core::Ref<PersistentStateTree>                 network_;
@@ -176,14 +177,14 @@ private:
     Core::StopWatch scoringTime_;
     Core::StopWatch contextExtensionTime_;
 
-    Core::Statistics<u32> numHypsAfterScorePruning_;
-    Core::Statistics<u32> numHypsAfterRecombination_;
-    Core::Statistics<u32> numHypsAfterBeamPruning_;
-    Core::Statistics<u32> numWordEndHypsAfterScorePruning_;
-    Core::Statistics<u32> numWordEndHypsAfterRecombination_;
-    Core::Statistics<u32> numWordEndHypsAfterBeamPruning_;
-    Core::Statistics<u32> numActiveHyps_;
-    Core::Statistics<u32> numActiveTrees_;
+    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    Core::Statistics<u32>              numHypsAfterRecombination_;
+    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
+    Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
+    Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHyps_;
+    Core::Statistics<u32>              numActiveTrees_;
 
     LabelHypothesis const& getBestHypothesis() const;
     LabelHypothesis const& getWorstHypothesis() const;
@@ -200,7 +201,8 @@ private:
     /*
      * Helper function for pruning to maxBeamSize
      */
-    void beamSizePruning(std::vector<LabelHypothesis>& hypotheses, size_t maxBeamSize) const;
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
 
     /*
      * Helper function for pruning to scoreThreshold

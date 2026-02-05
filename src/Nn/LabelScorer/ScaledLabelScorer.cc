@@ -19,7 +19,7 @@ namespace Nn {
 
 const Core::ParameterFloat ScaledLabelScorer::paramScale(
         "scale",
-        "Scale to multiply the scores of the sub-scorer by.",
+        "Scale used to multiply the sub-scorer scores.",
         1.0);
 
 ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)

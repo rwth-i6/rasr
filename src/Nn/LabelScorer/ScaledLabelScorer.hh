@@ -23,7 +23,7 @@
 namespace Nn {
 
 /*
- * Wraps a sub label scorer and scaled all the scores by a given factor
+ * Wraps a sub label scorer and scales all the scores by a given factor
  */
 class ScaledLabelScorer : public LabelScorer {
 public:

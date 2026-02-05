@@ -46,9 +46,9 @@ void Confidences::updateStatistics(const Alignment& alignment) {
 }
 
 void Confidences::dumpStatistics() {
-    log(Core::form("statistics: %d with weight '0' and %d with weight '1'",
-                   statistics_.nZero, statistics_.nOne)
-                .c_str());
+    log("%s", Core::form("statistics: %d with weight '0' and %d with weight '1'",
+                         statistics_.nZero, statistics_.nOne)
+                      .c_str());
 }
 
 void Confidences::clear() {

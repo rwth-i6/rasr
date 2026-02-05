@@ -201,7 +201,6 @@ void CartViewer::displayMultiple(DecisionTree::NodePtrList& list) {
                  << " and " << list.back()->id() << endl;
             break;
         default:
-            DecisionTree::NodePtrList::const_iterator it = list.begin();
             cout << "class ids are ";
             for (size_t i = 0; i < list.size() - 1; ++i)
                 cout << list[i]->id() << ", ";

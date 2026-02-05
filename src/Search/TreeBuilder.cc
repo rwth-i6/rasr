@@ -1284,11 +1284,17 @@ const Core::ParameterBool CtcTreeBuilder::paramForceBlank(
         "require a blank label between two identical labels (only works if label-loops are disabled)",
         true);
 
+const Core::ParameterBool CtcTreeBuilder::paramAllowBlankAfterSentenceEnd(
+        "allow-blank-after-sentence-end",
+        "blanks can still be produced after the sentence-end has been reached",
+        true);
+
 CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize)
         : SharedBaseClassTreeBuilder(config, lexicon, acousticModel, network),
           labelLoop_(paramLabelLoop(config)),
           blankLoop_(paramBlankLoop(config)),
-          forceBlank_(paramForceBlank(config)) {
+          forceBlank_(paramForceBlank(config)),
+          allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
     for (auto it = iters.first; it != iters.second; ++it) {
         require(not(*it)->isContextDependent());  // Context dependent labels are not supported
@@ -1310,6 +1316,26 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
             wordBoundaryRoot_ = createRoot();
             network_.otherRootStates.insert(wordBoundaryRoot_);
         }
+
+        // Create a special root for sentence-end
+        auto sentenceEndLemma = getSentenceEndLemma();
+        if (sentenceEndLemma == nullptr or sentenceEndLemma->nPronunciations() == 0) {
+            if (sentenceEndLemma != nullptr) {
+                warning() << "Building tree without sentence-end which means it may also not be scored by a LabelScorer or an LM in SearchAlgorithmV2 implementations";
+            }
+
+            // If no sentence-end is present, any root state is a valid final state
+            network_.finalStates.insert(network_.rootState);
+            for (auto const& otherRootState : network_.otherRootStates) {
+                network_.finalStates.insert(otherRootState);
+            }
+        }
+        else {
+            // If sentence-end is present, the sink state is the only valid final state
+            sentenceEndSink_ = createRoot();
+            network_.otherRootStates.insert(sentenceEndSink_);
+            network_.finalStates.insert(sentenceEndSink_);
+        }
     }
 }
 
@@ -1323,15 +1349,21 @@ void CtcTreeBuilder::build() {
         addWordBoundaryStates();
     }
 
+    auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
+    auto sentenceEndLemma   = getSentenceEndLemma();
+    if (sentenceEndLemma != nullptr and sentenceEndLemma->nPronunciations() > 0) {
+        addSentenceEndStates();
+    }
+
     auto blankLemma   = lexicon_.specialLemma("blank");
     auto silenceLemma = lexicon_.specialLemma("silence");
     auto iters        = lexicon_.lemmaPronunciations();
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma) {
-            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_
-            // This is handled separately in addWordBoundaryStates()
+        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
+            // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
+            // Sentence-begin is not part of the tree
             continue;
         }
 
@@ -1446,6 +1478,37 @@ void CtcTreeBuilder::addWordBoundaryStates() {
         // Add loop for this blank state
         addTransition(blankBefore, blankBefore);
     }
+}
+
+void CtcTreeBuilder::addSentenceEndStates() {
+    auto sentenceEndLemma = getSentenceEndLemma();
+    if (sentenceEndLemma == nullptr) {
+        return;
+    }
+
+    // Add the sentence-end to the tree, starting from the root.
+    require(sentenceEndLemma->nPronunciations() == 1);  // Sentence-end must have at least one pronunciation, even if it is empty.
+    auto const& sentenceEndPron = *sentenceEndLemma->pronunciations().first;
+    // It may be that sentenceEndLastState == root if the pronunciation has length 0.
+    StateId sentenceEndLastState = extendPronunciation(network_.rootState, sentenceEndPron.pronunciation());
+    verify(sentenceEndLastState != 0);
+
+    addExit(sentenceEndLastState, sentenceEndSink_, sentenceEndPron.id());
+
+    // Add optional blank after the sentence-end lemma
+    if (allowBlankAfterSentenceEnd_) {
+        StateId     blankAfter = extendState(sentenceEndSink_, blankDesc_);
+        auto const& blankPron  = lexicon_.specialLemma("blank")->pronunciations().first;
+        addExit(blankAfter, sentenceEndSink_, blankPron->id());
+    }
+}
+
+Bliss::Lemma const* CtcTreeBuilder::getSentenceEndLemma() const {
+    auto sentenceEndLemma = lexicon_.specialLemma("sentence-end");
+    if (sentenceEndLemma == nullptr) {
+        sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
+    }
+    return sentenceEndLemma;
 }
 
 // -------------------- RnaTreeBuilder --------------------

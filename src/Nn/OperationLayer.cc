@@ -83,7 +83,7 @@ OperationLayer<T>::OperationLayer(const Core::Configuration& config)
             out += Core::form("gamma=%f", gamma_);
             break;
     }
-    this->log(out.c_str());
+    this->log("%s", out.c_str());
 }
 
 template<typename T>

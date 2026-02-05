@@ -51,6 +51,8 @@ public:
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
     static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
 
     TreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -136,7 +138,10 @@ private:
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Nn::LabelIndex      blankLabelIndex_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
 
     bool useBlank_;
     bool collapseRepeatedLabels_;
@@ -158,7 +163,7 @@ private:
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
     std::vector<Nn::LabelScorer::Request>     requests_;
-    std::vector<LabelHypothesis>              recombinedHypotheses_;
+    std::vector<LabelHypothesis>              tempHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
     std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
@@ -221,10 +226,15 @@ private:
 
     /*
      * After reaching the segment end, go through the active hypotheses, only keep those
-     * which are at a word end (in the root state) and add the sentence end LM score.
-     * If no word-end hypotheses exist, use sentence-end fallback or construct an empty hypothesis
+     * which are final states of the search tree.
+     * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
      */
-    void finalizeLmScoring();
+    void finalizeHypotheses();
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

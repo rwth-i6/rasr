@@ -43,8 +43,13 @@ public:
     static const Core::ParameterIntVector   paramMaxBeamSizes;
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramBlankLabelIndex;
+    static const Core::ParameterInt         paramSentenceEndLabelIndex;
+    static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
+    static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -87,10 +92,11 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
-        Score                              score;            // Full score of hypothesis
-        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;               // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
@@ -108,17 +114,20 @@ protected:
 private:
     std::vector<size_t> maxBeamSizes_;
 
-    std::vector<bool>  useScorePruning_;
-    std::vector<Score> scoreThresholds_;
-
-    bool           useBlank_;
-    Nn::LabelIndex blankLabelIndex_;
-
-    bool collapseRepeatedLabels_;
-
-    bool logStepwiseStatistics_;
-
-    size_t cacheCleanupInterval_;
+    std::vector<bool>   useScorePruning_;
+    std::vector<Score>  scoreThresholds_;
+    bool                useBlank_;
+    Nn::LabelIndex      blankLabelIndex_;
+    bool                allowBlankAfterSentenceEnd_;
+    bool                useSentenceEnd_;
+    Bliss::Lemma const* sentenceEndLemma_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    bool                sentenceEndFallback_;
+    bool                collapseRepeatedLabels_;
+    size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
+    bool                logStepwiseStatistics_;
 
     Core::Channel debugChannel_;
 
@@ -130,7 +139,7 @@ private:
     std::vector<ExtensionCandidate>       extensions_;
     std::vector<LabelHypothesis>          newBeam_;
     std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          recombinedHypotheses_;
+    std::vector<LabelHypothesis>          tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -172,6 +181,17 @@ private:
      * Helper function for recombination of hypotheses with the same scoring context
      */
     void recombination(std::vector<LabelHypothesis>& hypotheses);
+
+    /*
+     * Prune away all hypotheses that have not reached sentence end.
+     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     */
+    void finalizeHypotheses();
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
 };
 
 }  // namespace Search

@@ -90,11 +90,11 @@ private:
     // Forward a batch of scoringContexts through the ONNX model and put the resulting scores into the score cache
     void forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
-    // Computes new hidden state based on previous hidden state and next token through state-updater call
-    OnnxHiddenStateRef updatedHiddenState(OnnxHiddenStateRef const& hiddenState, LabelIndex nextToken);
+    // Computes new hidden state based on previous hidden state and next token through state-updater call (batched)
+    std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
 
-    // Replace hidden-state in scoringContext with an updated version that includes the last label
-    void finalizeScoringContext(OnnxHiddenStateScoringContextRef const& scoringContext);
+    // Replace hidden-state in scoringContexts with updated versions that includes the last label
+    void finalizeScoringContexts(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
     // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`

@@ -268,6 +268,18 @@ public:
      */
     static std::string resolveArithmeticExpressions(const std::string& value);
 
+    /**
+     * Returns true iff this configuration's selection contains at least one explicit resource.
+     * Wildcard resources are ignored unless their path begins with the selection prefix.
+     */
+    bool hasExplicitResources() const;
+
+    /**
+     * Returns a new configuration whose selection is rebased to the parent selection,
+     * or to the root selection if no parent exists.
+     */
+    Configuration parent(std::size_t levels = 1) const;
+
 private:
     /**
      * Find the resource for a given parameter.

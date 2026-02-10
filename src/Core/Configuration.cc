@@ -793,6 +793,45 @@ std::string Configuration::resolveArithmeticExpressions(const std::string& value
     return result;
 }
 
+bool Configuration::hasExplicitResources() const {
+    // If there is no selection, there is nothing beneath it.
+    const std::string& selection = getSelection();
+    if (selection.empty()) {
+        return false;
+    }
+
+    const std::string prefix = selection + resource_separation_string;  // selection + '.'
+
+    // Check if resource with this prefix exists
+    const std::set<Resource>& resources = db_->getResources();
+    for (std::set<Resource>::const_iterator it = resources.begin(); it != resources.end(); ++it) {
+        const std::string& name = it->getName();
+        if (name.size() >= prefix.size() && name.compare(0, prefix.size(), prefix) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Configuration Configuration::parent(std::size_t levels) const {
+    Configuration config(*this);
+    std::string   selection = config.getSelection();
+
+    // Get parent selection string
+    while (levels-- and not selection.empty()) {
+        std::string::size_type parent = selection.find_last_of(resource_separation_char);
+        if (parent == std::string::npos) {
+            // Parent does not exist
+            selection.clear();
+            break;
+        }
+        selection.erase(parent);
+    }
+
+    config.setSelection(selection);
+    return config;
+}
+
 #ifdef MODULE_CORE_CACHE_MANAGER
 std::string Configuration::resolveCacheManagerCommands(const std::string& value) const {
     return Core::resolveCacheManagerCommands(value);

@@ -77,6 +77,13 @@ public:
                      Core::Ref<Am::AcousticModel>,
                      Core::Ref<Lm::ScaledLanguageModel>);
 
+    // ModelCombination for a certain model index
+    ModelCombination(const Core::Configuration&,
+                     size_t                  = 0,
+                     Mode                    = complete,
+                     Am::AcousticModel::Mode = Am::AcousticModel::complete,
+                     Bliss::LexiconRef       = Bliss::LexiconRef());
+
     virtual ~ModelCombination();
 
     Mm::Score pronunciationScale() const {

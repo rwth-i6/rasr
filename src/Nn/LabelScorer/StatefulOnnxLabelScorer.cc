@@ -452,7 +452,7 @@ void StatefulOnnxLabelScorer::finalizeScoringContexts(std::vector<OnnxHiddenStat
     }
 
     // If no scoring contexts need finalization, nothing has to be done
-    if (not nonFinalizedContexts.empty()) {
+    if (nonFinalizedContexts.empty()) {
         return;
     }
 

@@ -47,24 +47,24 @@ public:
     // Initial scoring context contains step 0 and a history vector filled with the start label index
     ScoringContextRef getInitialScoringContext() override;
 
+    // Clean up input buffer as well as cached score vectors that are no longer needed
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+
+protected:
+    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+
     // May increment the step by 1 (except for vertical transitions) and may append the next token to the
     // history label sequence depending on the transition type and whether loops/blanks update the history
     // or not
-    ScoringContextRef extendedScoringContext(LabelScorer::Request const& request) override;
-
-    // Clean up input buffer as well as cached score vectors that are no longer needed
-    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
+    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
 
     // If scores for the given scoring contexts are not yet cached, prepare and run an ONNX session to
     // compute the scores and cache them
     // Then, retreive scores from cache
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
     // Uses `getScoresWithTimes` internally with some wrapping for vector packing/expansion
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
-
-protected:
-    size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache

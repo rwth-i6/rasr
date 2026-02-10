@@ -288,6 +288,7 @@ public:
     static std::string filterName() {
         return "lattice-expm";
     }
+
     LatticeExpmNode(const Core::Configuration&);
 };
 
@@ -303,9 +304,11 @@ protected:
 
 public:
     static const Core::ParameterBool paramNormalize;
-    static std::string               filterName() {
+
+    static std::string filterName() {
         return "lattice-expectation-posterior";
     }
+
     LatticeExpectationPosteriorNode(const Core::Configuration&);
 };
 
@@ -317,6 +320,7 @@ public:
     static std::string filterName() {
         return "lattice-nbest";
     }
+
     LatticeNBestNode(const Core::Configuration&);
     virtual ~LatticeNBestNode() {}
 

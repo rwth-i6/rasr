@@ -528,6 +528,42 @@ template void Tensor::get<bool>(bool&) const;
 // getters for a subset of the data (1-dim subset)
 
 template<typename T>
+void Tensor::get(size_t dim0_idx, Math::FastMatrix<T>& mat, bool transpose) const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_eq(tensor_->dims(), 3);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 3>();
+    u32  rows       = static_cast<u32>(tensor_->dim_size(transpose ? 2 : 1));
+    u32  cols       = static_cast<u32>(tensor_->dim_size(transpose ? 1 : 2));
+
+    mat.resize(rows, cols);
+    if (transpose) {
+        for (u32 c = 0u; c < mat.nColumns(); c++) {
+            for (u32 r = 0u; r < mat.nRows(); r++) {
+                mat.at(r, c) = tensor_map(dim0_idx, c, r);
+            }
+        }
+    }
+    else {
+        for (u32 c = 0u; c < mat.nColumns(); c++) {
+            for (u32 r = 0u; r < mat.nRows(); r++) {
+                mat.at(r, c) = tensor_map(dim0_idx, r, c);
+            }
+        }
+    }
+}
+
+template void Tensor::get<f32>(size_t, Math::FastMatrix<f32>&, bool) const;
+template void Tensor::get<f64>(size_t, Math::FastMatrix<f64>&, bool) const;
+template void Tensor::get<s32>(size_t, Math::FastMatrix<s32>&, bool) const;
+template void Tensor::get<u32>(size_t, Math::FastMatrix<u32>&, bool) const;
+template void Tensor::get<s64>(size_t, Math::FastMatrix<s64>&, bool) const;
+template void Tensor::get<u64>(size_t, Math::FastMatrix<u64>&, bool) const;
+
+template<typename T>
 void Tensor::get(size_t dim0_idx, Math::FastVector<T>& vec) const {
     tf::DataType expected_dtype = ToDataType<T>::tf_type;
     require(not empty());
@@ -878,11 +914,66 @@ template s8 const*      Tensor::data<s8>(size_t, size_t, size_t) const;
 template u8 const*      Tensor::data<u8>(size_t, size_t, size_t) const;
 template tstring const* Tensor::data<tstring>(size_t, size_t, size_t) const;
 
+template<typename T>
+T* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx, size_t dim3_idx) {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 4);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+    require_gt(tensor_->dim_size(2), static_cast<s64>(dim2_idx));
+    require_gt(tensor_->dim_size(3), static_cast<s64>(dim3_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 4>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx), static_cast<s64>(dim3_idx)));
+}
+
+template f32*     Tensor::data<f32>(size_t, size_t, size_t, size_t);
+template f64*     Tensor::data<f64>(size_t, size_t, size_t, size_t);
+template s64*     Tensor::data<s64>(size_t, size_t, size_t, size_t);
+template u64*     Tensor::data<u64>(size_t, size_t, size_t, size_t);
+template s32*     Tensor::data<s32>(size_t, size_t, size_t, size_t);
+template u32*     Tensor::data<u32>(size_t, size_t, size_t, size_t);
+template s16*     Tensor::data<s16>(size_t, size_t, size_t, size_t);
+template u16*     Tensor::data<u16>(size_t, size_t, size_t, size_t);
+template s8*      Tensor::data<s8>(size_t, size_t, size_t, size_t);
+template u8*      Tensor::data<u8>(size_t, size_t, size_t, size_t);
+template tstring* Tensor::data<tstring>(size_t, size_t, size_t, size_t);
+
+template<typename T>
+T const* Tensor::data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx, size_t dim3_idx) const {
+    tf::DataType expected_dtype = ToDataType<T>::tf_type;
+    require(not empty());
+    require_ge(tensor_->dims(), 4);
+    require_eq(tensor_->dtype(), expected_dtype);
+    require_gt(tensor_->dim_size(0), static_cast<s64>(dim0_idx));
+    require_gt(tensor_->dim_size(1), static_cast<s64>(dim1_idx));
+    require_gt(tensor_->dim_size(2), static_cast<s64>(dim2_idx));
+    require_gt(tensor_->dim_size(3), static_cast<s64>(dim3_idx));
+
+    auto tensor_map = tensor_->flat_outer_dims<typename ToDataType<T>::cpp_type, 4>();
+    return reinterpret_cast<T*>(&tensor_map(static_cast<s64>(dim0_idx), static_cast<s64>(dim1_idx), static_cast<s64>(dim2_idx), static_cast<s64>(dim3_idx)));
+}
+
+template f32 const*     Tensor::data<f32>(size_t, size_t, size_t, size_t) const;
+template f64 const*     Tensor::data<f64>(size_t, size_t, size_t, size_t) const;
+template s64 const*     Tensor::data<s64>(size_t, size_t, size_t, size_t) const;
+template u64 const*     Tensor::data<u64>(size_t, size_t, size_t, size_t) const;
+template s32 const*     Tensor::data<s32>(size_t, size_t, size_t, size_t) const;
+template u32 const*     Tensor::data<u32>(size_t, size_t, size_t, size_t) const;
+template s16 const*     Tensor::data<s16>(size_t, size_t, size_t, size_t) const;
+template u16 const*     Tensor::data<u16>(size_t, size_t, size_t, size_t) const;
+template s8 const*      Tensor::data<s8>(size_t, size_t, size_t, size_t) const;
+template u8 const*      Tensor::data<u8>(size_t, size_t, size_t, size_t) const;
+template tstring const* Tensor::data<tstring>(size_t, size_t, size_t, size_t) const;
+
 Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end) {
     require_le(static_cast<int>(start.size()), numDims());
     require_eq(start.size(), end.size());
 
-    u32                nDim = numDims();
+    bool               empty = false;
+    u32                nDim  = numDims();
     std::vector<int64> start_vec(nDim);
     std::vector<int64> size_vec(nDim);
     for (size_t i = 0ul; i < nDim; ++i) {
@@ -896,25 +987,28 @@ Tensor Tensor::slice(std::vector<int> const& start, std::vector<int> const& end)
         }
         start_vec[i] = dim_start;
         size_vec[i]  = dim_end - dim_start;
+        empty |= size_vec[i] == 0;
         require_ge(size_vec[i], 0);
     }
 
     Tensor res;
     res.tensor_.reset(new tf::Tensor(tensor_->dtype(), tf::TensorShape(size_vec)));
 
-    switch (tensor_->dtype()) {
-        case tf::DT_FLOAT: dynamic_rank_slice<tf::EnumToDataType<tf::DT_FLOAT>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_DOUBLE: dynamic_rank_slice<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_INT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_UINT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_INT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_UINT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_INT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_UINT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_INT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_UINT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        case tf::DT_BOOL: dynamic_rank_slice<tf::EnumToDataType<tf::DT_BOOL>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
-        default: defect();
+    if (not empty) {
+        switch (tensor_->dtype()) {
+            case tf::DT_FLOAT: dynamic_rank_slice<tf::EnumToDataType<tf::DT_FLOAT>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_DOUBLE: dynamic_rank_slice<tf::EnumToDataType<tf::DT_DOUBLE>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_INT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_UINT64: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT64>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_INT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_UINT32: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT32>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_INT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_UINT16: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT16>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_INT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_INT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_UINT8: dynamic_rank_slice<tf::EnumToDataType<tf::DT_UINT8>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            case tf::DT_BOOL: dynamic_rank_slice<tf::EnumToDataType<tf::DT_BOOL>::Type>(*res.tensor_, *tensor_, start_vec, size_vec); break;
+            default: defect();
+        }
     }
 
     return res;

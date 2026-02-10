@@ -47,7 +47,9 @@ public:
         Functor(MetricFsaBuilder&  builder,
                 const std::string& id,
                 BuilderInput       builderInput)
-                : builder_(builder), id_(id), builderInput_(builderInput) {}
+                : builder_(builder),
+                  id_(id),
+                  builderInput_(builderInput) {}
 
         const std::string& id() const {
             return id_;

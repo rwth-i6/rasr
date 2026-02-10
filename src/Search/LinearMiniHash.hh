@@ -51,7 +51,9 @@ class LinearMiniHash {
 
 public:
     LinearMiniHash(Value defaultValue)
-            : size_(0), mask_(0), defaultValue_(defaultValue) {
+            : size_(0),
+              mask_(0),
+              defaultValue_(defaultValue) {
     }
 
     void read(Core::MappedArchiveReader reader) {

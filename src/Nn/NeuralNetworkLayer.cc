@@ -150,7 +150,8 @@ NeuralNetworkLayer<T>::NeuralNetworkLayer(const Core::Configuration& config)
           nObservations_(0),
           activationStatisticsNeedInit_(true),
           refreshMean_(true),
-          refreshVariance_(true) {
+          refreshVariance_(true),
+          dataChannel_(config, "dump-activations", Core::Channel::disabled) {
     // this is necessary if initializeNetwork(u32 batchSize) is called instead of initializeNetwork(u32 batchSize, std::vector<u32>& streamSizes)
     inputDimensions_.push_back(paramDimensionIn(config));
 }

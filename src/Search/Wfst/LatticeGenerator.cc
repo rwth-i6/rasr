@@ -44,7 +44,9 @@ public:
 
     SilenceLabelVisitor(Label ilabel, Label olabel,
                         std::vector<bool>* silence_states)
-            : states_(silence_states), ilabel_(ilabel), olabel_(olabel) {}
+            : states_(silence_states),
+              ilabel_(ilabel),
+              olabel_(olabel) {}
 
     void InitVisit(const FstLib::Fst<Arc>& fst) {}
     bool InitState(StateId s, StateId root) {
@@ -103,7 +105,12 @@ LatticeTraceRecorder* LatticeTraceRecorder::create(LatticeType type, const State
 }
 
 LatticeTraceRecorder::LatticeTraceRecorder(const StateSequenceList& hmms)
-        : hmmsBegin_(&hmms.front()), lattice_(new Lattice), silence_(OpenFst::InvalidLabelId), silenceOutput_(OpenFst::InvalidLabelId), mergeSilence_(true), pruningThreshold_(Core::Type<Score>::max) {}
+        : hmmsBegin_(&hmms.front()),
+          lattice_(new Lattice),
+          silence_(OpenFst::InvalidLabelId),
+          silenceOutput_(OpenFst::InvalidLabelId),
+          mergeSilence_(true),
+          pruningThreshold_(Core::Type<Score>::max) {}
 
 LatticeTraceRecorder::~LatticeTraceRecorder() {
     delete lattice_;

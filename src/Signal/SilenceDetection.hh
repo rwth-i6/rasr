@@ -35,9 +35,11 @@ namespace Signal {
 class SilenceDetection {
 public:
     typedef f32 Float;
-    enum SilenceType { silence,
-                       speech,
-                       unsure };
+    enum SilenceType {
+        silence,
+        speech,
+        unsure
+    };
 
 protected:
     // Frame
@@ -52,9 +54,12 @@ protected:
 
     public:
         Frame()
-                : energy_(0), silence_(unsure) {}
+                : energy_(0),
+                  silence_(unsure) {}
         Frame(const Flow::DataPtr<Flow::Vector<Float>>& data, const Float energyScalingFactor)
-                : Flow::DataPtr<Flow::Vector<Float>>(data), energy_(0), silence_(unsure) {
+                : Flow::DataPtr<Flow::Vector<Float>>(data),
+                  energy_(0),
+                  silence_(unsure) {
             energy_ = getEnergy(energyScalingFactor);
         }
 
@@ -79,7 +84,8 @@ private:
     Float threshold_;
     void  updateThreshold();
     u32   fractile(f32 percent /*[0..1]*/) const;
-    u32   bin(Float v) const {
+
+    u32 bin(Float v) const {
         return (u32)(v < 0 ? 0 : (v > energyHistogram_.size() ? energyHistogram_.size() - 1 : v));
     }
 
@@ -110,7 +116,8 @@ private:
 
 public:
     SilenceDetection()
-            : energyHistogram_(270), need_init_(true) {}
+            : energyHistogram_(270),
+              need_init_(true) {}
     ~SilenceDetection() {}
 
     void setHistogramBufferSize(const u32 size) {
@@ -222,7 +229,8 @@ public:
     }
 
     SilenceDetectionNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c) {
+            : Core::Component(c),
+              SleeveNode(c) {
         setHistogramBufferSize(paramHistogramBufferSize(c));
         setHistogramBufferDelay(paramHistogramBufferDelay(c));
         setBlockSize(paramBlockSize(c));

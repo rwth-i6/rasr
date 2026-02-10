@@ -15,8 +15,12 @@
 #include "Module.hh"
 
 #include <Flow/Registry.hh>
+#include <Mm/FeatureScorerFactory.hh>
+#include <Mm/Module.hh>
 
 #include "MetaGraphLoader.hh"
+#include "TensorflowFeatureScorer.hh"
+#include "TensorflowFeatureScorerStateCarryover.hh"
 #include "TensorflowForwardNode.hh"
 #include "VanillaGraphLoader.hh"
 
@@ -26,7 +30,7 @@ enum GraphLoaderChoice {
     graphLoaderVanilla,
     graphLoaderMeta
 };
-}
+}  // namespace
 
 namespace Tensorflow {
 
@@ -41,6 +45,11 @@ Module_::Module_() {
 
     registry.registerFilter<TensorflowForwardNode>();
     registry.registerFilter<TensorflowOverlappingForwardNode>();
+
+    Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<TensorflowFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
+            0x300 + 7, "tf-feature-scorer");  // TODO enum value
+    Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<TensorflowFeatureScorerStateCarryover, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
+            0x300 + 8, "tf-feature-scorer-state-carryover");  // TODO enum value
 }
 
 std::unique_ptr<GraphLoader> Module_::createGraphLoader(Core::Configuration const& config) {

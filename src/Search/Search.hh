@@ -15,6 +15,8 @@
 #ifndef _SEARCH_SEARCHALGORITHM_HH
 #define _SEARCH_SEARCHALGORITHM_HH
 
+#include <memory>
+
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Component.hh>
@@ -22,6 +24,7 @@
 #include <Lm/LanguageModel.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/ModelCombination.hh>
+
 #include "Traceback.hh"
 #include "Types.hh"
 
@@ -41,8 +44,10 @@ public:
     SearchAlgorithm(const Core::Configuration&);
     virtual ~SearchAlgorithm() {}
 
+    virtual void                           reconfigure(const Core::Configuration& config) {};
     virtual Speech::ModelCombination::Mode modelCombinationNeeded() const;
     virtual bool                           setModelCombination(const Speech::ModelCombination& modelCombination) = 0;
+    virtual bool                           setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel>)            = 0;
 
     virtual void setGrammar(Fsa::ConstAutomatonRef) = 0;
 

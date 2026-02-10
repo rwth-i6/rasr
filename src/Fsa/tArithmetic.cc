@@ -35,7 +35,8 @@ private:
 
 public:
     CollectAutomaton(_ConstAutomatonRef f, _Weight value)
-            : Precursor(f), value_(value) {}
+            : Precursor(f),
+              value_(value) {}
     virtual void modifyState(_State* sp) const {
         if (sp->hasTags(Fsa::StateTagFinal))
             sp->weight_ = this->semiring()->collect(sp->weight_, value_);
@@ -67,7 +68,8 @@ private:
 
 public:
     ExtendAutomaton(_ConstAutomatonRef f, _Weight value)
-            : Precursor(f), value_(value) {}
+            : Precursor(f),
+              value_(value) {}
     virtual void modifyState(_State* sp) const {
         if (sp->hasTags(Fsa::StateTagFinal))
             sp->weight_ = this->semiring()->extend(sp->weight_, value_);
@@ -100,7 +102,8 @@ private:
 
 public:
     ExtendFinalAutomaton(_ConstAutomatonRef f, _Weight value)
-            : Precursor(f), value_(value) {
+            : Precursor(f),
+              value_(value) {
         require(hasProperties(this->fsa_, Fsa::PropertyAcyclic));
     }
     virtual _ConstStateRef getState(Fsa::StateId s) const {
@@ -137,7 +140,8 @@ private:
 
 public:
     WeightModifyAutomaton(_ConstAutomatonRef f, const Modifier& m)
-            : Precursor(f), m_(m) {}
+            : Precursor(f),
+              m_(m) {}
     virtual void modifyState(_State* sp) const {
         if (sp->hasTags(Fsa::StateTagFinal))
             sp->weight_ = m_(sp->weight_);

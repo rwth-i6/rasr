@@ -94,7 +94,9 @@ struct FileArchive::FileInfo {
     Sizes       sizes;
 
     FileInfo(const std::string& n, u64 p, const Sizes& s)
-            : name(n), position(p), sizes(s) {}
+            : name(n),
+              position(p),
+              sizes(s) {}
 
     void clear() {
         name.clear();
@@ -105,7 +107,7 @@ struct FileArchive::FileInfo {
         return (name.empty() && position == 0);
     }
 
-    struct Empty : public std::unary_function<FileInfo, bool> {
+    struct Empty {
         bool operator()(const FileInfo& f) const {
             return f.isEmpty();
         }
@@ -120,7 +122,8 @@ private:
 
 public:
     _const_iterator(const FileArchive& a)
-            : iter_(a.files_.begin()), a_(a) {
+            : iter_(a.files_.begin()),
+              a_(a) {
         if (iter_ != a_.files_.end()) {
             name_  = iter_->name;
             sizes_ = iter_->sizes;

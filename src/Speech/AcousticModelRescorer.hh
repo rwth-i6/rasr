@@ -35,7 +35,9 @@ private:
 
 public:
     AcousticModelRescorer(const Core::Configuration& c)
-            : Core::Configurable(c), scorer_(0), rescorer_(0) {
+            : Core::Configurable(c),
+              scorer_(0),
+              rescorer_(0) {
         beamCount_ = 0;
     }
     ~AcousticModelRescorer() {

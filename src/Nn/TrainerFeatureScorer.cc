@@ -40,6 +40,9 @@ static const Core::ParameterInt paramOutputDimension(
 static const Core::ParameterBool paramReturnScoresInNegLog(
         "return-scores-in-neg-log", "return scores in -log space (default)", true);
 
+static const Core::ParameterBool paramApplyLog(
+        "apply-log", "apply log (default)", true);
+
 TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Core::Ref<const Mm::MixtureSet> mixtureSet)
         : Core::Component(config),
           Mm::FeatureScorer(config),
@@ -47,6 +50,7 @@ TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Co
           currentFeature_(0),
           scoresComputed_(false),
           returnScoresInNegLog_(paramReturnScoresInNegLog(config)),
+          applyLog_(paramApplyLog(config)),
           nClasses_(mixtureSet->nMixtures()),
           inputDimension_(paramFeatureDimension(config)),
           batchIteration_(0),
@@ -71,7 +75,7 @@ TrainerFeatureScorer::TrainerFeatureScorer(const Core::Configuration& config, Co
     if (!labelWrapper_->isOneToOneMapping())
         error("no one-to-one correspondence between network outputs and classes!");
 
-    require_eq(trainer_->getClassLabelPosteriorDimension(), labelWrapper_->nClassesToAccumulate());
+    require_eq(u32(trainer_->getClassLabelPosteriorDimension()), labelWrapper_->nClassesToAccumulate());
 
     std::vector<u32> streamSizes(1 /* one single stream */, inputDimension_);
     trainer_->initializeTrainer(1000 /* dummy buffer size, will be resized automatically */, streamSizes);
@@ -193,8 +197,11 @@ Mm::Score TrainerFeatureScorer::getScore(Mm::EmissionIndex e, u32 position) cons
         u32 idx = labelWrapper_->getOutputIndexFromClassIndex(e);
         // Get score in std space.
         score = trainer_->getClassLabelPosteriors().at(idx, position);
+        if (applyLog_) {
+            score = Core::log(score);
+        }
         if (returnScoresInNegLog_) {
-            score = -Core::log(score);  // transfer to -log space
+            score = -score;
             if (prior_.scale() != 0)
                 score -= -prior_.at(idx) * prior_.scale();  // priors are in +log space. substract them
         }

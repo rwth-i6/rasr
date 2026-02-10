@@ -102,14 +102,17 @@ public:
      *  Remark: output type is const reference for the moment, might need to get changed.
      */
     virtual const std::vector<VarianceType>& diagonal() const = 0;
+
     /**
      *  Returns weights of the features.
      */
     virtual const std::vector<f64>& weights() const = 0;
+
     /**
      *  set weights of the features.
      */
     virtual void setFeatureWeights(const std::vector<f64>& w) = 0;
+
     /**
      *  1 / 2 { N * log(2 * pi) + log(determinant) }.
      *  Remark: default implementation uses only the diagonal elements.
@@ -119,12 +122,17 @@ public:
     }
 
     virtual Covariance* clone() const = 0;
-    virtual void        setOffset(ComponentIndex offset) {
+
+    virtual void setOffset(ComponentIndex offset) {
         verify(0); /* not implemented in this covariance type */
     }
-    virtual void           setDimension(ComponentIndex size) = 0;
-    virtual ComponentIndex dimension() const                 = 0;
-    virtual bool           isPositiveDefinite() const        = 0;
+
+    virtual void setDimension(ComponentIndex size) = 0;
+
+    virtual ComponentIndex dimension() const = 0;
+
+    virtual bool isPositiveDefinite() const = 0;
+
     /**
      * print/scan methods for std::iostreams
      * used in operator<< resp. operator>>
@@ -134,6 +142,7 @@ public:
         Core::Application::us()->error("write() not yet implented for (inherited) Covariance");
         return false;
     }
+
     virtual bool read(std::istream& i) {
         Core::Application::us()->error("read() not yet implented for (inherited) Covariance");
         return false;
@@ -165,7 +174,8 @@ public:
         setDimension(dimension);
     }
     DiagonalCovariance(const std::vector<VarianceType>& v, const std::vector<f64>& w)
-            : buffer_(v), featureWeights_(w) {}
+            : buffer_(v),
+              featureWeights_(w) {}
     DiagonalCovariance(const std::vector<VarianceType>& v)
             : buffer_(v) {
         featureWeights_.resize(v.size(), 1.0);
@@ -204,7 +214,7 @@ public:
     }
     virtual bool isPositiveDefinite() const {
         return std::find_if(diagonal().begin(), diagonal().end(),
-                            std::bind2nd(std::less_equal<VarianceType>(), 0)) == diagonal().end();
+                            std::bind(std::less_equal<VarianceType>(), std::placeholders::_1, 0)) == diagonal().end();
     }
     virtual bool write(std::ostream& o) const;
     virtual bool read(std::istream& i);

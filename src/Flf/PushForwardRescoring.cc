@@ -151,7 +151,10 @@ private:
 };
 
 ReplaceSingleDimensionLattice::ReplaceSingleDimensionLattice(ConstLatticeRef l, std::vector<size_t> const& state_offsets, std::vector<Score> const& scores, ScoreId id)
-        : Precursor(l), state_offsets_(state_offsets), scores_(scores), id_(id) {
+        : Precursor(l),
+          state_offsets_(state_offsets),
+          scores_(scores),
+          id_(id) {
 }
 
 ConstStateRef ReplaceSingleDimensionLattice::getState(Fsa::StateId sid) const {
@@ -338,8 +341,6 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
         state_end.push_back(traceback.size());
     }
 
-    log("num expansions: ") << static_cast<double>(num_expansions) / static_cast<double>(total_num_arcs);
-
     ConstLatticeRef result;
 
     // do traceback
@@ -498,14 +499,15 @@ ConstLatticeRef PushForwardRescorer::rescore(ConstLatticeRef l, ScoreId id) {
             defect();
         }
     }
-
+    log("num expansions: ") << static_cast<double>(num_expansions) / static_cast<double>(total_num_arcs);
     return result;
 }
 
 // ----------------------------------------------------------------------
 
 PushForwardRescoringNode::PushForwardRescoringNode(std::string const& name, Core::Configuration const& config)
-        : Precursor(name, config), rescorer_(nullptr) {
+        : Precursor(name, config),
+          rescorer_(nullptr) {
 }
 
 void PushForwardRescoringNode::init(const std::vector<std::string>& arguments) {

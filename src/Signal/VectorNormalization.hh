@@ -45,7 +45,7 @@ public:
         Value squareMeanEnergy = sqrt(std::inner_product(v.begin(), v.end(), v.begin(), 0.0) / v.size());
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (Value)1 / squareMeanEnergy));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (Value)1 / squareMeanEnergy));
     }
 };
 
@@ -70,7 +70,7 @@ public:
         Value squareEnergy = sqrt(std::inner_product(v.begin(), v.end(), v.begin(), 0.0));
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (Value)1 / squareEnergy));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (Value)1 / squareEnergy));
     }
 };
 
@@ -102,7 +102,7 @@ public:
                                   T((v.size() - 1) * 2));
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (Value)1 / squareEnergy));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (Value)1 / squareEnergy));
     }
 };
 
@@ -121,7 +121,7 @@ public:
         Value mean = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::plus<T>(), -mean));
+                       std::bind(std::plus<T>(), std::placeholders::_1, -mean));
     }
 };
 
@@ -144,10 +144,10 @@ public:
         Value deviation = sqrt((sumSquare - sum * sum / v.size()) / v.size());
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::plus<T>(), -mean));
+                       std::bind(std::plus<T>(), std::placeholders::_1, -mean));
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (Value)1 / deviation));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (Value)1 / deviation));
     }
 };
 
@@ -166,7 +166,7 @@ public:
         Value maximum = *std::max_element(v.begin(), v.end());
 
         std::transform(v.begin(), v.end(), v.begin(),
-                       std::bind2nd(std::multiplies<T>(), (Value)1 / maximum));
+                       std::bind(std::multiplies<T>(), std::placeholders::_1, (Value)1 / maximum));
     }
 };
 
@@ -183,7 +183,8 @@ public:
     }
 
     VectorNormalizationNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c) {}
+            : Core::Component(c),
+              SleeveNode(c) {}
 
     virtual ~VectorNormalizationNode() {}
 

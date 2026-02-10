@@ -69,7 +69,9 @@ class MeanEstimatorNode : public Flow::SleeveNode,
 
 public:
     MeanEstimatorNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), MeanEstimator(c) {}
+            : Core::Component(c),
+              Precursor(c),
+              MeanEstimator(c) {}
     virtual ~MeanEstimatorNode() {}
     bool               configure();
     bool               work(Flow::PortId p);

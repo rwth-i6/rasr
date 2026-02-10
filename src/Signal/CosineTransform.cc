@@ -18,7 +18,8 @@ using namespace Signal;
 
 //==================================================================================================
 CosineTransform::CosineTransform()
-        : N_(0), normalize_(false) {}
+        : N_(0),
+          normalize_(false) {}
 
 void CosineTransform::init(InputType                      inputType,
                            size_t                         inputSize,
@@ -77,7 +78,7 @@ void CosineTransform::apply(const std::vector<Value>& in, std::vector<Value>& ou
     out = transformation_ * in;
     if (normalize_) {
         verify_(N_ > 0);
-        std::transform(out.begin(), out.end(), out.begin(), std::bind2nd(std::divides<Value>(), N_));
+        std::transform(out.begin(), out.end(), out.begin(), std::bind(std::divides<Value>(), std::placeholders::_1, N_));
     }
 }
 

@@ -31,8 +31,7 @@ class CombineLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
 public:
-    static Core::ParameterInt   paramNumLabelScorers;
-    static Core::ParameterFloat paramScale;
+    static Core::ParameterInt paramNumLabelScorers;
 
     CombineLabelScorer(const Core::Configuration& config);
     virtual ~CombineLabelScorer() = default;
@@ -46,9 +45,6 @@ public:
     // Combine initial ScoringContexts from all sub-scorers
     ScoringContextRef getInitialScoringContext() override;
 
-    // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request) override;
-
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
@@ -58,19 +54,17 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
+protected:
+    std::vector<Core::Ref<LabelScorer>> scorers_;
+
+    // Combine extended ScoringContexts from all sub-scorers
+    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
+
     // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
+    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
 
     // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
-
-protected:
-    struct ScaledLabelScorer {
-        Core::Ref<LabelScorer> scorer;
-        Score                  scale;
-    };
-
-    std::vector<ScaledLabelScorer> scaledScorers_;
+    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
 };
 
 }  // namespace Nn

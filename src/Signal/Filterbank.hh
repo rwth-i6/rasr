@@ -52,14 +52,20 @@ public:
     typedef f64  Frequency;
     typedef f32  Data;
     typedef Data FilterWeight;
-    enum FilterType { typeTriangular,
-                      typeTrapeze,
-                      typeRastaTrapeze };
-    enum BoundaryType { includeBoundary,
-                        stretchToCover,
-                        emphasizeBoundary };
-    enum NormalizationType { normalizeNone,
-                             normalizeSurface };
+    enum FilterType {
+        typeTriangular,
+        typeTrapeze,
+        typeRastaTrapeze
+    };
+    enum BoundaryType {
+        includeBoundary,
+        stretchToCover,
+        emphasizeBoundary
+    };
+    enum NormalizationType {
+        normalizeNone,
+        normalizeSurface
+    };
 
 public:
     class Filter;
@@ -156,7 +162,8 @@ public:
     void      apply(const std::vector<Data>& in, std::vector<Data>& out);
     Frequency outputSampleRate();
     void      dump(Core::XmlWriter&);
-    bool      isConfigurationAllowed() {
+
+    bool isConfigurationAllowed() {
         return !needInit_ || init();
     }
 };

@@ -20,7 +20,9 @@ using namespace Signal;
 
 FastFourierTransform::FastFourierTransform(u32 length, Data sampleRate)
         : length_(0),
-          sampleRate_(0) {
+          sampleRate_(0),
+          applyScale_(true),
+          rightPadding_(true) {
     setLength(length);
     setInputSampleRate(sampleRate);
 }
@@ -38,9 +40,26 @@ u32 FastFourierTransform::setLength(u32 length) {
     return (length_ = (1 << (u32)power));
 }
 
+void FastFourierTransform::setApplyScale(bool applyScale) {
+    applyScale_ = applyScale;
+}
+
+void FastFourierTransform::setPaddingType(bool rightPadding) {
+    rightPadding_ = rightPadding;
+}
+
 bool FastFourierTransform::zeroPadding(std::vector<Data>& data) {
     require_(data.size() <= maximalInputSize());
     data.resize(maximalInputSize(), 0);
+    return true;
+}
+
+bool FastFourierTransform::zeroLeftRightPadding(std::vector<Data>& data) {
+    require_(data.size() <= maximalInputSize());
+    size_t left_pad_len  = (maximalInputSize() - data.size()) / 2;
+    size_t right_pad_len = maximalInputSize() - data.size() - left_pad_len;
+    data.insert(data.begin(), left_pad_len, 0);
+    data.insert(data.end(), right_pad_len, 0);
     return true;
 }
 
@@ -48,7 +67,7 @@ bool FastFourierTransform::estimateContinuous(std::vector<Data>& data) {
     verify_(sampleRate_ > 0);
     if (sampleRate_ != 1) {
         std::transform(data.begin(), data.end(), data.begin(),
-                       std::bind2nd(std::multiplies<Data>(), 1 / (Data)sampleRate_));
+                       std::bind(std::multiplies<Data>(), std::placeholders::_1, 1 / (Data)sampleRate_));
     }
     return true;
 }
@@ -60,9 +79,7 @@ bool FastFourierTransform::transform(std::vector<Data>& data) {
         return false;
     }
 
-    return zeroPadding(data) &&
-           applyAlgorithm(data) &&
-           estimateContinuous(data);
+    return (rightPadding_ ? zeroPadding(data) : zeroLeftRightPadding(data)) && applyAlgorithm(data) && (applyScale_ ? estimateContinuous(data) : true);
 }
 
 // RealFastFourierTransform
@@ -109,7 +126,7 @@ bool RealInverseFastFourierTransform::estimateContinuous(std::vector<Data>& data
     verify_(sampleRate_ > 0);
     if (sampleRate_ != 2) {
         std::transform(data.begin(), data.end(), data.begin(),
-                       std::bind2nd(std::multiplies<Data>(), 2 / (Data)sampleRate_));
+                       std::bind(std::multiplies<Data>(), std::placeholders::_1, 2 / (Data)sampleRate_));
     }
     return true;
 }
@@ -132,3 +149,9 @@ const Core::ParameterInt Signal::paramFftLength(
 
 const Core::ParameterFloat Signal::paramFftMaximumInputSize(
         "maximum-input-size", "number of FFT points = max-input-size * sampe-rate", 0, 0);
+
+const Core::ParameterBool Signal::paramApplyScale(
+        "apply-scale", "wether to scale FFT result", true);
+
+const Core::ParameterBool Signal::paramRightPadding(
+        "right-padding", "wether to add padding in the tail", true);

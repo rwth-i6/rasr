@@ -186,8 +186,12 @@ void Prior<T>::setFromMixtureSet(Core::Ref<const Mm::MixtureSet> mixtureSet, con
 
     for (u32 c = 0; c < logPrior_.size(); ++c)
         logPrior_.at(c) = std::log(logPrior_.at(c) / observationWeight);
-    if (statisticsChannel_.isOpen())
-        statisticsChannel_ << logPrior_;
+    if (statisticsChannel_.isOpen()) {
+        std::stringstream ss;
+        for (u32 c = 0; c < std::min(logPrior_.size(), 10u); ++c)
+            ss << logPrior_.at(c) << " ";
+        statisticsChannel_ << "first state prior values: " << ss.str() << " ...";
+    }
     // sync to GPU memory. train() expects it to be up-to-date
     logPrior_.initComputation(true);
     logPrior_.finishComputation(false);

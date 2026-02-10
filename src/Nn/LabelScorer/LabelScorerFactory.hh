@@ -23,6 +23,7 @@
 #include <Core/ReferenceCounting.hh>
 
 #include "LabelScorer.hh"
+#include "ScaledLabelScorer.hh"
 
 namespace Nn {
 
@@ -49,9 +50,9 @@ public:
     void registerLabelScorer(const char* name, CreationFunction creationFunction);
 
     /*
-     * Create a LabelScorer instance of the type given by `paramLabelScorerType` using the config object
+     * Create a ScaledLabelScorer instance of the type given by `paramLabelScorerType` using the config object
      */
-    Core::Ref<LabelScorer> createLabelScorer(Core::Configuration const& config) const;
+    Core::Ref<ScaledLabelScorer> createLabelScorer(Core::Configuration const& config) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;

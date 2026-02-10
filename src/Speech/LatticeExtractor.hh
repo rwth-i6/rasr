@@ -267,7 +267,8 @@ class ApproximateDistanceLatticeRescorer : public DistanceLatticeRescorer {
 
 protected:
     virtual Lattice::ConstWordLatticeRef work(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*);
-    virtual Fsa::ConstAutomatonRef       getDistanceFsa(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*) {
+
+    virtual Fsa::ConstAutomatonRef getDistanceFsa(Lattice::ConstWordLatticeRef, Bliss::SpeechSegment*) {
         return Fsa::ConstAutomatonRef();
     }
 

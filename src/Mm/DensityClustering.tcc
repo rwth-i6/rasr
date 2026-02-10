@@ -109,7 +109,7 @@ f64 DensityClustering<F, D>::updateClusterMeans(const FeatureType* densities, De
             std::transform(sums.begin(), sums.end(), density, sums.begin(), std::plus<f64>());
         }
         std::transform(sums.begin(), sums.end(), meanForCluster(cluster),
-                       std::bind2nd(std::divides<f64>(), assignedDensities.size()));
+                       std::bind(std::divides<f64>(), std::placeholders::_1, assignedDensities.size()));
         for (u32 assigned = 0; assigned < assignedDensities.size(); ++assigned)
             totalAssignmentDistance += unrolledVectorDistance<FeatureType, DistanceType>(
                     meanForCluster(cluster),

@@ -102,7 +102,8 @@ private:
 
     struct MappedItem {
         MappedItem()
-                : data(0), size(0) {
+                : data(0),
+                  size(0) {
         }
 
         std::string name;
@@ -153,10 +154,12 @@ template<class T>
 class ConstantVector {
 public:
     ConstantVector()
-            : data_(0), size_(0) {}
+            : data_(0),
+              size_(0) {}
 
     ConstantVector(const T* mapped, size_t size)
-            : data_(mapped), size_(size) {}
+            : data_(mapped),
+              size_(size) {}
 
     ConstantVector(const std::vector<T>& data)
             : editable_(data),
@@ -265,7 +268,7 @@ public:
 
     template<class T>
     void readValue(T& value) {
-        verify(std::is_pod<T>::value && "must be a pod type");
+        verify(std::is_standard_layout<T>::value && std::is_trivial<T>::value && "must be a pod type");
         if (!good() || get()->offset_ + sizeof(T) > get()->initialOffset_ + get()->size_) {
             invalidate();
             return;
@@ -421,7 +424,7 @@ public:
 
     template<class Type>
     inline void writeValue(const Type& value) {
-        verify(std::is_pod<Type>::value && "must be a pod type");
+        verify(std::is_standard_layout<Type>::value && std::is_trivial<Type>::value && "must be a pod type");
         get()->out_->write((const char*)&value, sizeof(Type));
     }
 

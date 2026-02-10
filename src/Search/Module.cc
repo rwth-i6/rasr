@@ -51,6 +51,7 @@ const Core::Choice choiceTreeBuilderType(
         "minimized-hmm", static_cast<int>(TreeBuilderType::minimizedHmm),
         "ctc", static_cast<int>(TreeBuilderType::ctc),
         "rna", static_cast<int>(TreeBuilderType::rna),
+        "aed", static_cast<int>(TreeBuilderType::aed),
         Core::Choice::endMark());
 
 const Core::ParameterChoice paramTreeBuilderType(
@@ -73,6 +74,9 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
         } break;
         case Search::TreeBuilderType::rna: {
             return std::unique_ptr<AbstractTreeBuilder>(new RnaTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case Search::TreeBuilderType::aed: {
+            return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();
     }

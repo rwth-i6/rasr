@@ -50,7 +50,10 @@ struct AlignedCoarticulatedLemmaPronunciation {
 
         Key(
                 const CoarticulatedLemmaPronunciation& coLp, Time beginTime, Time endTime)
-                : coLp(coLp), id(coLp.object().id()), beginTime(beginTime), endTime(endTime) {}
+                : coLp(coLp),
+                  id(coLp.object().id()),
+                  beginTime(beginTime),
+                  endTime(endTime) {}
     };
 };
 struct AlignedCoarticulatedLemmaPronunciation::Key::Hash {
@@ -168,7 +171,11 @@ Time SubWordAlignment::duration() const {
 
 // -------------------------------------------------------------------------
 LatticeAlignment::LatticeAlignment(ConstLatticeRef l, AcousticPhonemeSequenceAligner* aligner, const LabelMapList& subwordMaps)
-        : l_(l), isLemma_(false), aligner_(aligner), subwordMaps_(subwordMaps), size_(aligner->features()->size()) {
+        : l_(l),
+          isLemma_(false),
+          aligner_(aligner),
+          subwordMaps_(subwordMaps),
+          size_(aligner->features()->size()) {
     switch (Lexicon::us()->alphabetId(l_->getInputAlphabet())) {
         case Lexicon::LemmaAlphabetId:
             isLemma_ = true;
@@ -432,7 +439,8 @@ struct SubwordArcAligner {
     const LatticeAlignment& latticeAlignment;
     u32                     i_;
     SubwordArcAligner(const LatticeAlignment& latticeAlignment, u32 i)
-            : latticeAlignment(latticeAlignment), i_(i) {}
+            : latticeAlignment(latticeAlignment),
+              i_(i) {}
     Fsa::ConstAlphabetRef alphabet() const {
         return Lexicon::us()->lemmaPronunciationAlphabet();
     }
@@ -519,7 +527,10 @@ protected:
     }
 
     LatticeFromLatticeAlignmentBuilder(ConstLatticeRef l, const ArcAligner& arcAligner, StaticLattice* s, StaticBoundaries* b)
-            : TraverseState(l), arcAligner_(arcAligner), s_(s), b_(b) {
+            : TraverseState(l),
+              arcAligner_(arcAligner),
+              s_(s),
+              b_(b) {
         semiring_               = l->semiring();
         boundaries_             = l->getBoundaries();
         Fsa::StateId initialSid = l->initialStateId();
@@ -726,7 +737,9 @@ ConstPosteriorCnRef LatticeAlignment::subwordFramePosteriorCn(ConstFwdBwdRef fb,
 
 // -------------------------------------------------------------------------
 LatticeAlignmentBuilder::LatticeAlignmentBuilder(const Core::Configuration& config, AcousticPhonemeSequenceAligner* aligner, const LabelMapList& subwordMaps)
-        : Core::Component(config), aligner_(aligner), subwordMaps_(subwordMaps) {
+        : Core::Component(config),
+          aligner_(aligner),
+          subwordMaps_(subwordMaps) {
     if (aligner_->acousticModel()->hmmTopologySet()->getDefault().nPhoneStates() < 3)
         Core::Application::us()->warning("Default HMM has less than 3 states; proper function of phoneme/sub-word-unit alignment cannot be guaranted.");
     for (LabelMapList::const_iterator itMap = subwordMaps.begin(); itMap != subwordMaps.end(); ++itMap) {
@@ -851,7 +864,12 @@ public:
             Score                    maxScore,
             bool                     scoreEpsArcs,
             RescoreMode              rescoreMode)
-            : Precursor(l, rescoreMode), latticeAlignment_(latticeAlignment), id_(id), scale_(scale), maxScore_(maxScore), scoreEpsArcs_(scoreEpsArcs) {
+            : Precursor(l, rescoreMode),
+              latticeAlignment_(latticeAlignment),
+              id_(id),
+              scale_(scale),
+              maxScore_(maxScore),
+              scoreEpsArcs_(scoreEpsArcs) {
         require(latticeAlignment);
     }
     virtual ~ExtendByAcousticScoreLattice() {}
@@ -1063,7 +1081,10 @@ public:
     PosteriorCnFeatureLattice(
             ConstLatticeRef l, RescoreMode rescoreMode, const Configuration& config,
             ConstLatticeAlignmentRef latticeAlignment, ConstPosteriorCnRef phonemeCn)
-            : Precursor(l, rescoreMode), config_(config), latticeAlignment_(latticeAlignment), phonemeCn_(phonemeCn) {}
+            : Precursor(l, rescoreMode),
+              config_(config),
+              latticeAlignment_(latticeAlignment),
+              phonemeCn_(phonemeCn) {}
 
     virtual void rescore(State* sp) const {
         const Boundaries& boundaries = *fsa_->getBoundaries();
@@ -1277,7 +1298,8 @@ ConstLatticeRef OrthographyAlignment::lattice() const {
 
 // -------------------------------------------------------------------------
 OrthographyAlignmentBuilder::OrthographyAlignmentBuilder(const Core::Configuration& config, AcousticOrthographyAligner* aligner)
-        : Core::Component(config), aligner_(aligner) {}
+        : Core::Component(config),
+          aligner_(aligner) {}
 
 OrthographyAlignmentBuilder::~OrthographyAlignmentBuilder() {
     delete aligner_;

@@ -52,7 +52,7 @@ public:
                 continue;
             if (it.name() == Lattice::Archive::latticeConfigFilename)
                 continue;
-            if (it.name() == Fsa::ArchiveReader::alphabetFilename)
+            if (it.name() == Fsa::Archive::paramAlphabetFilename(config))
                 continue;
             log("read \"%s\"", it.name().c_str());
             Fsa::ConstAutomatonRef f =
@@ -68,6 +68,6 @@ public:
         delete archiveReader;
         return 0;
     }
-} app;  // <- You have to create ONE instance of the application
+};
 
-APPLICATION
+APPLICATION(TestApplication)

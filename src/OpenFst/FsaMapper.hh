@@ -191,7 +191,7 @@ public:
             return impl_->Properties(mask);
         }
     }
-    virtual const string& Type() const {
+    virtual const std::string& Type() const {
         return impl_->Type();
     }
     virtual Self* Copy(bool reset = false) const {
@@ -229,7 +229,8 @@ class FsaMapperStateIteratorBase : public FstLib::StateIteratorBase<typename F::
 public:
     typedef typename F::StateId StateId;
     explicit FsaMapperStateIteratorBase(typename F::ConstAutomatonRef f)
-            : fsa_(f), s_(0) {}
+            : fsa_(f),
+              s_(0) {}
     virtual ~FsaMapperStateIteratorBase() {}
 
     virtual bool Done() const {
@@ -294,7 +295,8 @@ private:
     const F&         parent_;
     std::vector<Arc> arcs_;
     size_t           i;
-    void             createArcs(ConstStateRef state) {
+
+    void createArcs(ConstStateRef state) {
         arcs_.resize(state->nArcs());
         typename std::vector<Arc>::iterator fstArc = arcs_.begin();
         for (typename F::FsaType::State::const_iterator a = state->begin(); a != state->end(); ++a, ++fstArc) {

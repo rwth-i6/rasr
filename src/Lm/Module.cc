@@ -13,9 +13,17 @@
  *  limitations under the License.
  */
 #include "Module.hh"
+
 #include <Core/Application.hh>
 #include <Modules.hh>
 #include "ClassLm.hh"
+#include "CombineLm.hh"
+#include "DummyCompressedVectorFactory.hh"
+#include "FixedQuantizationCompressedVectorFactory.hh"
+#include "QuantizedCompressedVectorFactory.hh"
+#include "ReducedPrecisionCompressedVectorFactory.hh"
+#include "SimpleHistoryLm.hh"
+
 #ifdef MODULE_LM_ARPA
 #include "ArpaLm.hh"
 #endif
@@ -29,16 +37,9 @@
 #ifdef MODULE_LM_TFRNN
 #include "TFRecurrentLanguageModel.hh"
 #endif
-#include "CombineLm.hh"
-
-#ifdef MODULE_LM_TFRNN
-#include "DummyCompressedVectorFactory.hh"
-#include "FixedQuantizationCompressedVectorFactory.hh"
-#include "QuantizedCompressedVectorFactory.hh"
-#include "ReducedPrecisionCompressedVectorFactory.hh"
+#ifdef MODULE_LM_ONNX
+#include "OnnxRecurrentLanguageModel.hh"
 #endif
-
-#include "SimpleHistoryLm.hh"
 
 using namespace Lm;
 
@@ -50,10 +51,11 @@ enum LanguageModelType {
     lmTypeZerogram,
     lmTypeCombine,
     lmTypeTFRNN,
+    lmTypeOnnx,
     lmTypeCheatingSegment,
     lmTypeSimpleHistory
 };
-}
+}  // namespace Lm
 
 const Core::Choice Module_::lmTypeChoice(
         "ARPA", lmTypeArpa,
@@ -62,6 +64,7 @@ const Core::Choice Module_::lmTypeChoice(
         "zerogram", lmTypeZerogram,
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
+        "onnx", lmTypeOnnx,
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
         Core::Choice::endMark());
@@ -90,6 +93,9 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
 #endif
+#ifdef MODULE_LM_ONNX
+        case lmTypeOnnx: result = Core::ref(new OnnxRecurrentLanguageModel(c, l)); break;
+#endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:
             Core::Application::us()->criticalError("unknwon language model type: %d", lmTypeParam(c));
@@ -105,7 +111,6 @@ Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
     return languageModel ? Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) : Core::Ref<ScaledLanguageModel>();
 }
 
-#ifdef MODULE_LM_TFRNN
 enum CompressedVectorFactoryType {
     DummyCompressedVectorFactoryType,
     FixedQuantizationCompressedVectorFactoryType,
@@ -134,5 +139,3 @@ Lm::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Cor
         default: defect();
     }
 }
-
-#endif

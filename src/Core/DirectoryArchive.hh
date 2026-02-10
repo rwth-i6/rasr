@@ -33,7 +33,8 @@ private:
 
     public:
         _const_iterator(const DirectoryArchive& a)
-                : iter_(a.path(), &DirectoryFileIterator::fileFilter), a_(a) {
+                : iter_(a.path(), &DirectoryFileIterator::fileFilter),
+                  a_(a) {
             if (iter_)
                 if (a_.probe(iter_.path(), iter_.state(), sizes_))
                     name_ = iter_.path();

@@ -261,8 +261,13 @@ void LexiconElement::addPhon(const WeightedPhonemeString& phon) {
         return;
     }
 
-    Pronunciation* pron = product_->getPronunciation(phon.phon);
-    if (lemma_->hasPronunciation(pron)) {
+    Pronunciation* pron   = nullptr;
+    Core::Status   status = product_->getPronunciation(phon.phon, pron);
+    if (pron == nullptr) {
+        parser()->error("Could not create pronunciation for %s: %s", phon.phon.c_str(), status.message().c_str());
+        return;
+    }
+    else if (lemma_->hasPronunciation(pron)) {
         parser()->error("duplicate pronunciation");
         return;
     }
@@ -458,8 +463,14 @@ void VocabTextLexiconParser::createLemmata() {
         Lemma* newLemma_ = lexicon_->newLemma();
         // set orth
         lexicon_->setOrthographicForms(newLemma_, {symbol});
+
         // set phon
-        Pronunciation* pron = lexicon_->getPronunciation(symbol);
+        Pronunciation* pron   = nullptr;
+        Core::Status   status = lexicon_->getPronunciation(symbol, pron);
+        if (pron == nullptr) {
+            Core::Application::us()->error("Could not create pronunciation for %s: %s", symbol.c_str(), status.message().c_str());
+            return;
+        }
         lexicon_->addPronunciation(newLemma_, pron);
         lexicon_->setDefaultLemmaName(newLemma_);
     }

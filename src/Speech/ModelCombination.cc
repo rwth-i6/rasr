@@ -67,7 +67,6 @@ ModelCombination::ModelCombination(const Core::Configuration& c,
             criticalError("Failed to initialize language model");
         }
     }
-
     if (mode & useLabelScorer) {
         setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select("label-scorer")));
         if (!labelScorer_) {

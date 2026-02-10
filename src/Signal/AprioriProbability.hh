@@ -42,7 +42,10 @@ private:
 
 public:
     UniformAprioriProbability(const Core::Configuration& c)
-            : Component(c), AprioriProbability(c), nClasses_(0), logNClasses_(0) {}
+            : Component(c),
+              AprioriProbability(c),
+              nClasses_(0),
+              logNClasses_(0) {}
     virtual ~UniformAprioriProbability() {}
 
     virtual bool  setClasses(const std::vector<std::string>& classLabels);

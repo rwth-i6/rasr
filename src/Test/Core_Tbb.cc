@@ -31,9 +31,11 @@ private:
 
 public:
     Sum(const std::vector<T>& data)
-            : data_(data), sum_(0) {}
+            : data_(data),
+              sum_(0) {}
     Sum(const Sum& o, tbb::split)
-            : data_(o.data_), sum_(0) {}
+            : data_(o.data_),
+              sum_(0) {}
     T result() const {
         return sum_;
     }
@@ -57,7 +59,8 @@ private:
 
 public:
     Plus(T* const data, T inc)
-            : data_(data), increment_(inc) {}
+            : data_(data),
+              increment_(inc) {}
     void operator()(tbb::blocked_range<size_t>& range) const {
         size_t end = range.end();
         for (size_t i = range.begin(); i != end; ++i)

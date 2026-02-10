@@ -36,7 +36,8 @@ namespace Flf {
 typedef Core::Ref<FwdBwd> FwdBwdRef;
 
 FwdBwd::State::State()
-        : begin_(0), end_(0) {}
+        : begin_(0),
+          end_(0) {}
 
 FwdBwd::Arc::Arc() {}
 
@@ -46,7 +47,12 @@ struct FwdBwd::Internal {
     FwdBwd::Arc*         arcs;
     f64                  min, max, sum;
     Internal(const ConstSemiringRefList& semirings)
-            : semirings(semirings), states(0), arcs(0), min(Core::Type<f64>::max), max(Core::Type<f64>::min), sum(Core::Type<f64>::min) {}
+            : semirings(semirings),
+              states(0),
+              arcs(0),
+              min(Core::Type<f64>::max),
+              max(Core::Type<f64>::min),
+              sum(Core::Type<f64>::min) {}
     ~Internal() {
         delete[] states;
         delete[] arcs;
@@ -99,7 +105,11 @@ protected:
         Core::Vector<Fsa::StateId>        finalStateIds;
         Core::Ref<StateMap>               topologicalSort;
         Properties()
-                : offset(0), nInitialArcs(0), nArcs(0), startTime(0), endTime(0) {}
+                : offset(0),
+                  nInitialArcs(0),
+                  nArcs(0),
+                  startTime(0),
+                  endTime(0) {}
     };
 
     class TraverseLatticeProperties : protected DfsState {
@@ -1030,7 +1040,8 @@ private:
     struct SingleConfiguration {
         ConstSemiringRef   semiring;
         FwdBwd::Parameters params;
-        void               dump(std::ostream& os) const {
+
+        void dump(std::ostream& os) const {
             if (semiring) {
                 os << "Target semiring is \"" << semiring->name() << "\"." << std::endl;
                 if (params.scoreId != Semiring::InvalidId)
@@ -1060,7 +1071,8 @@ private:
 
     struct CombinationConfiguration {
         FwdBwd::CombinationParameters params;
-        void                          dump(std::ostream& os) const {
+
+        void dump(std::ostream& os) const {
             if (params.combination) {
                 os << "Target semiring is \"" << params.combination->semiring()->name() << "\"." << std::endl;
                 if (params.scoreId != Semiring::InvalidId)
@@ -1293,7 +1305,8 @@ private:
 
 public:
     FwdBwdBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {}
+            : Node(name, config),
+              n_(0) {}
     virtual ~FwdBwdBuilderNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

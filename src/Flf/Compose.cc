@@ -41,7 +41,9 @@ private:
 
 public:
     UnweightLattice(ConstLatticeRef l, ConstSemiringRef semiring)
-            : Precursor(l), semiring_(semiring), one_(semiring->one()) {
+            : Precursor(l),
+              semiring_(semiring),
+              one_(semiring->one()) {
         setBoundaries(InvalidBoundaries);
     }
     virtual ~UnweightLattice() {}

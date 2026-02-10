@@ -45,7 +45,10 @@ struct BoundedSegment {
     Time                 offset;
     s32                  startFrame, endFrame;
     BoundedSegment()
-            : segment(), offset(0), startFrame(Core::Type<s32>::max), endFrame(Core::Type<s32>::max) {}
+            : segment(),
+              offset(0),
+              startFrame(Core::Type<s32>::max),
+              endFrame(Core::Type<s32>::max) {}
 };
 typedef std::vector<BoundedSegment> BoundedSegmentList;
 s32                                 startFrame, endFrame;
@@ -227,7 +230,8 @@ protected:
 
 public:
     ConcatenateNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), dump_(config, "dump") {}
+            : Node(name, config),
+              dump_(config, "dump") {}
     virtual ~ConcatenateNode() {}
 
     virtual ConstSegmentRef sendSegment(Port to) {
@@ -346,7 +350,11 @@ public:
 
     public:
         ConcatenatedLatticeBuilder()
-                : s_(0), b_(0), maxSid_(0), finalSid_(0), endTime_(0) {}
+                : s_(0),
+                  b_(0),
+                  maxSid_(0),
+                  finalSid_(0),
+                  endTime_(0) {}
         ~ConcatenatedLatticeBuilder() {
             delete s_;
         }
@@ -383,7 +391,8 @@ private:
 
 public:
     ConcatenateLatticesNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), reader_(0) {}
+            : Precursor(name, config),
+              reader_(0) {}
     virtual ~ConcatenateLatticesNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {
@@ -466,7 +475,8 @@ private:
 
 public:
     ConcatenateFCnsNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), reader_(0) {}
+            : Precursor(name, config),
+              reader_(0) {}
     virtual ~ConcatenateFCnsNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

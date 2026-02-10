@@ -300,13 +300,6 @@ XmlParser::Location XmlParser::location() const {
     return result;
 }
 
-void XmlParser::giveUp() {
-    ctxt_->valid      = 0;
-    ctxt_->disableSAX = 1;
-
-    error("unrecoverable error, giving up parsing");
-}
-
 // public functions ==========================================================
 
 const ParameterBool XmlParser::paramWarnAboutUnexpectedElements(
@@ -332,8 +325,9 @@ void XmlParser::warnAboutUnexpectedElement(const char* element, const char* cont
 int XmlParser::parse() {
     int ret = 0;
 
-    if (ctxt_ == NULL)
+    if (ctxt_ == NULL) {
         return -1;
+    }
 
     xmlSAXHandler* oldSax = ctxt_->sax;
     ctxt_->sax            = const_cast<xmlSAXHandler*>(&SAX_callbacks);
@@ -342,22 +336,30 @@ int XmlParser::parse() {
 
     xmlParseDocument(ctxt_);
 
-    if (ctxt_->wellFormed && ctxt_->valid)
+    if (ctxt_->wellFormed && ctxt_->valid) {
         ret = 0;
-    else
+    }
+    else {
         ret = (ctxt_->errNo != 0) ? ctxt_->errNo : -1;
+    }
 
     ctxt_->sax = oldSax;
 
     respondToDelayedErrors();
+
+    if (ret == 0 and hasErrors()) {
+        ret = -1;
+    }
 
     return ret;
 }
 
 int XmlParser::parseString(const char* str) {
     ctxt_ = xmlCreateMemoryParserCtxt(const_cast<char*>(str), strlen(str));
-    if (ctxt_ == NULL)
+    if (ctxt_ == NULL) {
         error("Failed to setup XML parser");
+        return -1;
+    }
     int status = parse();
     xmlFreeParserCtxt(ctxt_);
     ctxt_ = NULL;
@@ -396,13 +398,8 @@ int XmlParser::parseStream(std::istream& is, const std::string& filename) {
 size_t XmlParser::readChunk(std::istream& is, char* buffer, size_t bufferSize) {
     require(bufferSize > 1);
 
-#if GCC_v3
-    /** in gcc-3.1 istream::readsome(...) returns always zero. It worked fine in gcc-3.0.4. */
-    return is.readsome(buffer, bufferSize - 1);
-#else
     is.read(buffer, bufferSize);
     return is.gcount();
-#endif
 }
 
 int XmlParser::parseFile(const char* filename) {
@@ -411,9 +408,11 @@ int XmlParser::parseFile(const char* filename) {
         error("Failed to setup XML parser for \"%s\"", filename);
         return -1;
     }
+
     int status = parse();
     xmlFreeParserCtxt(ctxt_);
     ctxt_ = NULL;
+
     return status;
 }
 

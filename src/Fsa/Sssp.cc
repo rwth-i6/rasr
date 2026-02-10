@@ -77,14 +77,17 @@ public:
     virtual ~StatePotentials64DfsState() {}
 
     virtual void finishState(StateId s);
-    f64          totalFlow() const {
+
+    f64 totalFlow() const {
         return totalFlow_;
     }
 };
 
 StatePotentials64DfsState::StatePotentials64DfsState(
         ConstAutomatonRef transposed, StatePotentials64& potentials)
-        : DfsState(transposed), potentials_(potentials), totalFlow_(0.0) {
+        : DfsState(transposed),
+          potentials_(potentials),
+          totalFlow_(0.0) {
     require(fsa_->semiring() == LogSemiring);
     potentials_.clear();
 }
@@ -328,7 +331,9 @@ public:
 };
 
 PosteriorEAutomaton::PosteriorEAutomaton(ConstAutomatonRef f, ConstAutomatonRef r, bool vNormalized, s32 tol)
-        : Posterior64Automaton(f), r_(r), normalization_(0) {
+        : Posterior64Automaton(f),
+          r_(r),
+          normalization_(0) {
     ConstAutomatonRef transposed = transpose(fsa_);
     ssspE(transposed, transpose(r_), forwardPotentials_, generalizedForwardPotentials_);
     ssspE(fsa_, r_, backwardPotentials_, generalizedBackwardPotentials_);

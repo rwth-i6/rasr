@@ -38,7 +38,9 @@ private:
 
 public:
     FwdBwdPruningLattice(ConstLatticeRef l, ConstFwdBwdRef fb, Score threshold)
-            : SlaveLattice(l), fb_(fb), threshold_(threshold) {}
+            : SlaveLattice(l),
+              fb_(fb),
+              threshold_(threshold) {}
     virtual ~FwdBwdPruningLattice() {}
 
     virtual ConstStateRef getState(Fsa::StateId sid) const {

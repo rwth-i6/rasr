@@ -32,7 +32,8 @@ namespace Builder {
 class RemoveHmmDisambiguators : public SleeveOperation {
 public:
     RemoveHmmDisambiguators(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -49,7 +50,8 @@ public:
 class Info : public SleeveOperation {
 public:
     Info(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -65,7 +67,8 @@ class Count : public SleeveOperation {
 
 public:
     Count(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -82,7 +85,8 @@ class CreateStateSequenceSymbols : public SleeveOperation {
 
 public:
     CreateStateSequenceSymbols(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();

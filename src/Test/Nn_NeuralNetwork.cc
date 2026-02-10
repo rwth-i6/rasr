@@ -24,7 +24,8 @@ public:
 
 public:
     NeuralNetwork(Core::Configuration& c)
-            : Core::Component(c), Nn::NeuralNetwork<T>(c) {}
+            : Core::Component(c),
+              Nn::NeuralNetwork<T>(c) {}
 };
 
 class TestNeuralNetwork : public Test::ConfigurableFixture {

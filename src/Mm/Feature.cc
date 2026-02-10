@@ -17,10 +17,10 @@
 using namespace Mm;
 
 //=============================================================================================
-void Feature::add(size_t newIndex, const Core::Ref<const Vector>& v) {
+void Feature::add(size_t newIndex, const VectorRef& v) {
     if (newIndex >= nStreams())
         streams_.resize(newIndex + 1);
-    Core::Ref<const Vector>& s(streams_[newIndex]);
+    VectorRef& s(streams_[newIndex]);
     require_(!s);
     s = v;
 }

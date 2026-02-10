@@ -287,13 +287,11 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     for (auto scoringContext : uniqueUncachedScoringContexts) {
         scoringContextBatch.push_back(scoringContext);
         if (scoringContextBatch.size() == maxBatchSize_) {  // Batch is full -> forward now
-            finalizeScoringContexts(scoringContextBatch);
             forwardBatch(scoringContextBatch);
             scoringContextBatch.clear();
         }
     }
 
-    finalizeScoringContexts(scoringContextBatch);
     forwardBatch(scoringContextBatch);  // Forward remaining scoring contexts
 
     /*
@@ -481,6 +479,7 @@ void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringCon
     if (scoringContextBatch.empty()) {
         return;
     }
+    finalizeScoringContexts(scoringContextBatch);
 
     /*
      * Create session inputs

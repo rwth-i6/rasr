@@ -419,7 +419,7 @@ bool TreeLabelsyncBeamSearch::decodeStep() {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
 
             auto transitionType = Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
-            if (hyp.currentToken == Core::Type<Nn::LabelIndex>::max) {
+            if (hyp.currentToken == Nn::invalidLabelIndex) {
                 transitionType = Nn::LabelScorer::TransitionType::INITIAL_LABEL;
             }
             if (tokenIdx == sentenceEndLabelIndex_) {

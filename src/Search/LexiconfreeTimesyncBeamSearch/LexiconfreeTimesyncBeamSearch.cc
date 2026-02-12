@@ -59,8 +59,6 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         default:
             predecessor = base.trace;
             break;
-        default:
-            defect();  // Unexpected transition type which can not be produced by `inferTransitionType`
     }
     trace = Core::ref(new LatticeTrace(
             predecessor,

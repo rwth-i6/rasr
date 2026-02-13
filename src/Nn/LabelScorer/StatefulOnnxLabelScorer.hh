@@ -134,6 +134,7 @@ private:
     Onnx::Value encoderStatesSizeValue_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq> stateCache_;
 };
 
 }  // namespace Nn

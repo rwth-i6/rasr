@@ -291,6 +291,7 @@ bool TreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const&
         Am::AllophoneStateIndex alloStateIdx = acousticModel_->allophoneStateAlphabet()->index(&allo, 0);
 
         sentenceEndLabelIndex_ = acousticModel_->emissionIndex(alloStateIdx);
+        log() << "Use sentence-end label with index " << sentenceEndLabelIndex_;
     }
     else {
         sentenceEndLabelIndex_ = Nn::invalidLabelIndex;

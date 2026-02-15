@@ -694,6 +694,23 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
     hypotheses.swap(tempHypotheses_);
 }
 
+void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
+    if (not useSentenceEnd_) {
+        return;
+    }
+
+    for (auto& hyp : beam_) {
+        // Score sentence-end with all label scorers
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            // requests_.push_back({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+            scoringTime_.start();
+            auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+            scoringTime_.stop();
+            hyp.score += result->score;
+        }
+    }
+}
+
 void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
     if (currentSearchStep_ + 1 <= maximumStableDelay_) {
         return;
@@ -740,23 +757,6 @@ void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
         }
     }
     beam_.swap(tempHypotheses_);
-}
-
-void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
-    if (not useSentenceEnd_) {
-        return;
-    }
-
-    for (auto& hyp : beam_) {
-        // Score sentence-end with all label scorers
-        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            // requests_.push_back({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
-            scoringTime_.start();
-            auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
-            scoringTime_.stop();
-            hyp.score += result->score;
-        }
-    }
 }
 
 }  // namespace Search

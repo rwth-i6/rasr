@@ -617,7 +617,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Take having two exits back-to-back for the word-end hyps into account (usually for sentence-end with zero-length pronunciation after word-end)
+     * Take having two exits back-to-back for the word-end hyps into account
      */
     auto const origSize = wordEndHypotheses_.size();
     for (size_t hypIndex = 0ul; hypIndex < origSize; ++hypIndex) {
@@ -768,16 +768,12 @@ void TreeTimesyncBeamSearch::logStatistics() const {
 }
 
 Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
-    bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
-    bool nextIsSentenceEnd = nextLabel == sentenceEndLabelIndex_;
+    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
@@ -787,9 +783,6 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
     if (prevIsBlank) {
         if (nextIsBlank) {
             return Nn::LabelScorer::TransitionType::BLANK_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
@@ -801,9 +794,6 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
             return Nn::LabelScorer::TransitionType::LABEL_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
         }
         else {
             return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
@@ -949,6 +939,19 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
     for (auto const& hyp : beam_) {
         if (network_->finalStates.contains(hyp.currentState)) {
             tempHypotheses_.push_back(hyp);
+            if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
+                // Score sentence-end with all label scorers
+                for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+                    scoringTime_.start();
+                    auto result = labelScorers_[scorerIdx]->computeScoreWithTime({tempHypotheses_.back().scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+                    scoringTime_.stop();
+                    tempHypotheses_.back().score += result->score;
+                }
+            }
+            // Add the LM's sentence-end score
+            Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(tempHypotheses_.back().lmHistory);
+            tempHypotheses_.back().score += sentenceEndScore;
+            tempHypotheses_.back().trace->score.lm += sentenceEndScore;
         }
     }
 
@@ -956,12 +959,22 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
         warning("No active word-end hypothesis at segment end.");
         if (sentenceEndFallback_) {
             log() << "Use sentence-end fallback";
-            // The trace of the unfinished word keeps an empty pronunciation, only the LM score is added
+            // The trace of the unfinished word keeps an empty pronunciation
             tempHypotheses_.reserve(beam_.size());
 
             for (auto const& hyp : beam_) {
                 tempHypotheses_.push_back(hyp);
-                Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
+                if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
+                    // Score sentence-end with all label scorers
+                    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+                        scoringTime_.start();
+                        auto result = labelScorers_[scorerIdx]->computeScoreWithTime({tempHypotheses_.back().scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+                        scoringTime_.stop();
+                        tempHypotheses_.back().score += result->score;
+                    }
+                }
+                // Add the LM's sentence-end score
+                Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(tempHypotheses_.back().lmHistory);
                 tempHypotheses_.back().score += sentenceEndScore;
                 tempHypotheses_.back().trace->score.lm += sentenceEndScore;
             }

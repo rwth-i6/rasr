@@ -229,6 +229,7 @@ private:
      * After reaching the segment end, go through the active hypotheses, only keep those
      * which are final states of the search tree.
      * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * Score sentence-end with all label scorers for all final hypotheses and add the LM's sentence-end score
      */
     void finalizeHypotheses();
 

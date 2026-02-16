@@ -741,6 +741,25 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
     }
 
     beam_.swap(newBeam_);
+
+    numActiveHyps_ += beam_.size();
+
+    // Log statistics about the final beam
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
+        clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+        clog() << Core::XmlClose("search-step-stats");
+    }
 }
 
 void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {

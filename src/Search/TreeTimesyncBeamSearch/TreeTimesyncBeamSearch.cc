@@ -986,6 +986,34 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
     }
 
     beam_.swap(tempHypotheses_);
+
+    numActiveHyps_ += beam_.size();
+
+    // Log statistics about the final beam
+    std::vector<Lm::History> seenHistories;
+    for (auto const& hyp : beam_) {
+        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
+            seenHistories.push_back(hyp.lmHistory);
+        }
+    }
+    numActiveTrees_ += seenHistories.size();
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("num-active-trees", seenHistories.size());
+        clog() << Core::XmlFull("active-hyps", beam_.size());
+        clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+        clog() << Core::XmlClose("search-step-stats");
+    }
+
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
 }
 
 void TreeTimesyncBeamSearch::maximumStableDelayPruning() {

@@ -699,16 +699,48 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
         return;
     }
 
-    for (auto& hyp : beam_) {
-        // Score sentence-end with all label scorers
-        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-            // requests_.push_back({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
-            scoringTime_.start();
-            auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
-            scoringTime_.stop();
-            hyp.score += result->score;
+    extensions_.clear();
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        auto& hyp = beam_[hypIndex];
+        extensions_.push_back(
+                {sentenceEndLabelIndex_,
+                 sentenceEndLemma_->pronunciations().first,
+                 hyp.score,
+                 hyp.trace->time,
+                 Nn::LabelScorer::TransitionType::SENTENCE_END,
+                 hypIndex});
+    }
+
+    // Score sentence-end with all label scorers
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        requests_.clear();
+        for (auto const& ext : extensions_) {
+            requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+        }
+
+        scoringTime_.start();
+        auto result = labelScorers_[scorerIdx]->computeScoresWithTimes(requests_);
+        scoringTime_.stop();
+
+        if (not result) {
+            continue;
+        }
+
+        for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+            auto& ext = extensions_[extensionIdx];
+            ext.score += result->scores[extensionIdx];
+            ext.timeframe = std::max(ext.timeframe, result->timeframes[extensionIdx]);
         }
     }
+
+    newBeam_.clear();
+    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+        auto&       ext     = extensions_[extensionIdx];
+        auto const& baseHyp = beam_[ext.baseHypIndex];
+        newBeam_.push_back({baseHyp, ext, baseHyp.scoringContexts});
+    }
+
+    beam_.swap(newBeam_);
 }
 
 void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {

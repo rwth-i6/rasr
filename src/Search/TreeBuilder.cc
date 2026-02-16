@@ -1344,6 +1344,8 @@ void CtcTreeBuilder::build() {
             continue;
         }
 
+        require((*it)->pronunciation()->length() > 0);
+
         StateId lastState = extendPronunciation(network_.rootState, (*it)->pronunciation());
 
         if (wordBoundaryLemma != nullptr && (*it)->lemma() != blankLemma && (*it)->lemma() != silenceLemma) {

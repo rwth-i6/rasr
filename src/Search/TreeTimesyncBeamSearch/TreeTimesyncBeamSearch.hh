@@ -139,6 +139,7 @@ private:
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;

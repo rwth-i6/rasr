@@ -358,9 +358,9 @@ void TreeTimesyncBeamSearch::finishSegment() {
     }
     featureProcessingTime_.stop();
     decodeManySteps();
-    logStatistics();
-    finishedSegment_ = true;
     finalizeHypotheses();
+    finishedSegment_ = true;
+    logStatistics();
 }
 
 void TreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {

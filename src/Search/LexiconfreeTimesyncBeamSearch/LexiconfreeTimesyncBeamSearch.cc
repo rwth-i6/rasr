@@ -281,8 +281,8 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
     finalizeHypotheses();
-    logStatistics();
     finishedSegment_ = true;
+    logStatistics();
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
@@ -733,14 +733,14 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
         }
     }
 
-    newBeam_.clear();
+    tempHypotheses_.clear();
     for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
         auto&       ext     = extensions_[extensionIdx];
         auto const& baseHyp = beam_[ext.baseHypIndex];
-        newBeam_.push_back({baseHyp, ext, baseHyp.scoringContexts});
+        tempHypotheses_.push_back({baseHyp, ext, baseHyp.scoringContexts});
     }
 
-    beam_.swap(newBeam_);
+    beam_.swap(tempHypotheses_);
 
     numActiveHyps_ += beam_.size();
 

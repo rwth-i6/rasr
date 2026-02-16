@@ -363,11 +363,11 @@ OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
 
         if (initializerEncoderStatesName_ != "") {
             setupEncoderStatesValue();
-            sessionInputs.emplace_back(initializerEncoderStatesName_, std::move(encoderStatesValue_));
+            sessionInputs.emplace_back(initializerEncoderStatesName_, encoderStatesValue_);
         }
         if (initializerEncoderStatesSizeName_ != "") {
             setupEncoderStatesSizeValue();
-            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, std::move(encoderStatesSizeValue_));
+            sessionInputs.emplace_back(initializerEncoderStatesSizeName_, encoderStatesSizeValue_);
         }
 
         std::vector<std::string> sessionOutputNames;
@@ -400,11 +400,11 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
 
     if (updaterEncoderStatesName_ != "") {
         setupEncoderStatesValue();
-        sessionInputs.emplace_back(updaterEncoderStatesName_, std::move(encoderStatesValue_));
+        sessionInputs.emplace_back(updaterEncoderStatesName_, encoderStatesValue_);
     }
     if (updaterEncoderStatesSizeName_ != "") {
         setupEncoderStatesSizeValue();
-        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, std::move(encoderStatesSizeValue_));
+        sessionInputs.emplace_back(updaterEncoderStatesSizeName_, encoderStatesSizeValue_);
     }
     if (updaterTokenName_ != "") {
         sessionInputs.emplace_back(updaterTokenName_, Onnx::Value::create(nextTokensBatch));
@@ -443,7 +443,7 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
         for (size_t i = 0; i < sessionOutputs.size(); ++i) {
             stateValues.push_back(sessionOutputs[i].slice(b, b + 1, 0));
         }
-        newHiddenStates.push_back(Core::ref(new OnnxHiddenState(std::move(stateNames), std::move(stateValues))));
+        newHiddenStates.push_back(Core::ref(new OnnxHiddenState({stateNames.begin(), stateNames.end()}, std::move(stateValues))));
     }
 
     return newHiddenStates;
@@ -475,12 +475,12 @@ void StatefulOnnxLabelScorer::finalizeScoringContexts(std::vector<OnnxHiddenStat
     }
 
     auto newHiddenStates = updatedHiddenStates(hiddenStates, nextTokens);
-    verify(newHiddenStates.size() == scoringContexts.size());
+    verify(newHiddenStates.size() == nonFinalizedContexts.size());
 
     for (size_t i = 0ul; i < nonFinalizedContexts.size(); ++i) {
         nonFinalizedContexts[i]->hiddenState      = newHiddenStates[i];
         nonFinalizedContexts[i]->requiresFinalize = false;
-        stateCache_.put(nonFinalizedContexts[i], nonFinalizedContexts[i]->hiddenState);
+        stateCache_.put(nonFinalizedContexts[i], newHiddenStates[i]);
     }
 }
 

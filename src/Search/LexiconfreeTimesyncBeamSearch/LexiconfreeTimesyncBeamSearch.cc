@@ -726,7 +726,7 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         requests_.clear();
         for (auto const& ext : extensions_) {
-            requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+            requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
         }
 
         scoringTime_.start();

@@ -933,7 +933,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
                 requests_.clear();
                 for (auto const& ext : withinWordExtensions_) {
-                    requests_.push_back({tempHypotheses_[ext.baseHypIndex].scoringContexts[scorerIdx], sentenceEndLabelIndex_, Nn::LabelScorer::TransitionType::SENTENCE_END});
+                    requests_.push_back({tempHypotheses_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
                 }
 
                 scoringTime_.start();

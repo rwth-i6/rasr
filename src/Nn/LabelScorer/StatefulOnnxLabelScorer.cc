@@ -129,7 +129,7 @@ StatefulOnnxLabelScorer::StatefulOnnxLabelScorer(Core::Configuration const& conf
           encoderStatesValue_(),
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
-          stateCache_(scoreCache_.size()) {
+          stateCache_(scoreCache_.maxSize()) {
     auto initializerMetadataKeys = stateInitializerOnnxModel_.session.getCustomMetadataKeys();
     auto updaterMetadataKeys     = stateUpdaterOnnxModel_.session.getCustomMetadataKeys();
     auto scorerMetadataKeys      = scorerOnnxModel_.session.getCustomMetadataKeys();
@@ -470,16 +470,17 @@ void StatefulOnnxLabelScorer::finalizeScoringContexts(std::vector<OnnxHiddenStat
             hiddenState = computeInitialHiddenState();
         }
         hiddenStates.push_back(hiddenState);
-        nextTokens.push_back(scoringContext->labelSeq.back());
         verify(not scoringContext->labelSeq.empty());
+        nextTokens.push_back(scoringContext->labelSeq.back());
     }
 
     auto newHiddenStates = updatedHiddenStates(hiddenStates, nextTokens);
     verify(newHiddenStates.size() == scoringContexts.size());
 
-    for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
-        scoringContexts[i]->hiddenState      = newHiddenStates[i];
-        scoringContexts[i]->requiresFinalize = false;
+    for (size_t i = 0ul; i < nonFinalizedContexts.size(); ++i) {
+        nonFinalizedContexts[i]->hiddenState      = newHiddenStates[i];
+        nonFinalizedContexts[i]->requiresFinalize = false;
+        stateCache_.put(nonFinalizedContexts[i], nonFinalizedContexts[i]->hiddenState);
     }
 }
 
@@ -523,7 +524,6 @@ void StatefulOnnxLabelScorer::forwardBatch(std::vector<OnnxHiddenStateScoringCon
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
         std::vector<f32> scoreVec;
         sessionOutputs.front().get(b, scoreVec);
-        stateCache_.put(scoringContextBatch[b], scoringContextBatch[b]->hiddenState);
         scoreCache_.put(scoringContextBatch[b], std::move(scoreVec));
     }
 }

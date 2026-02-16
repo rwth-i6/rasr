@@ -236,7 +236,7 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
             warning() << "SentenceEnd lemma exists in lexicon with id " << sentenceEndLemma_->id() << " but is overwritten by config parameter with value " << sentenceEndLabelIndex_;
         }
     }
-    else {    // Retrieve sentenceEndLemma_ from the lexicon through its label index
+    else {  // Retrieve sentenceEndLemma_ from the lexicon through its label index
         auto lemmas = lexicon_->lemmas();
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
             const Bliss::Lemma* lemma(*lemmaIt);
@@ -748,6 +748,7 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
     for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
         auto&       ext     = extensions_[extensionIdx];
         auto const& baseHyp = beam_[ext.baseHypIndex];
+        // The scoring context is not updated as no further scoring is done afterwards
         tempHypotheses_.push_back({baseHyp, ext, baseHyp.scoringContexts});
     }
 

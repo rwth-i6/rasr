@@ -955,6 +955,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             for (size_t extensionIdx = 0ul; extensionIdx < withinWordExtensions_.size(); ++extensionIdx) {
                 auto&       ext     = withinWordExtensions_[extensionIdx];
                 auto const& baseHyp = tempHypotheses_[ext.baseHypIndex];
+                // The scoring context is not updated as no further scoring is done afterwards
                 newBeam_.push_back({baseHyp, ext, baseHyp.scoringContexts});
             }
 
@@ -962,6 +963,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
                 auto& hyp = newBeam_[hypIndex];
                 // Add the LM's sentence-end score
+                // The LM history is not updated as this is the last LM scoring step
                 Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
                 wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
                                               .rootState    = hyp.currentState,
@@ -990,16 +992,7 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
     numActiveHyps_ += beam_.size();
 
     // Log statistics about the final beam
-    std::vector<Lm::History> seenHistories;
-    for (auto const& hyp : beam_) {
-        if (std::find(seenHistories.begin(), seenHistories.end(), hyp.lmHistory) == seenHistories.end()) {
-            seenHistories.push_back(hyp.lmHistory);
-        }
-    }
-    numActiveTrees_ += seenHistories.size();
-
     if (logStepwiseStatistics_) {
-        clog() << Core::XmlFull("num-active-trees", seenHistories.size());
         clog() << Core::XmlFull("active-hyps", beam_.size());
         clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
         clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);

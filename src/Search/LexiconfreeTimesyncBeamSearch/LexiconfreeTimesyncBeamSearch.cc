@@ -236,6 +236,17 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
             warning() << "SentenceEnd lemma exists in lexicon with id " << sentenceEndLemma_->id() << " but is overwritten by config parameter with value " << sentenceEndLabelIndex_;
         }
     }
+    else {    // Retrieve sentenceEndLemma_ from the lexicon through its label index
+        auto lemmas = lexicon_->lemmas();
+        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
+            const Bliss::Lemma* lemma(*lemmaIt);
+            Nn::LabelIndex      tokenIdx = lemma->id();
+            if (tokenIdx == sentenceEndLabelIndex_) {
+                sentenceEndLemma_ = lemma;
+                break;
+            }
+        }
+    }
 
     reset();
     return true;

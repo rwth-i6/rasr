@@ -1076,28 +1076,32 @@ Value Value::slice(int64_t start, int64_t end, int axis) {
     // wlog collapse all dimensions to the left and all dimensions to the right of `axis` into one. Then
     // value_[i, start:end, :] is a continuous block of data for each i = 0, ..., dim[0] - 1
     // Thus, we can perform the slicing via a block-wise copy.
-
-    // index offset per position shift
-    std::vector<int64_t> strides;
-    int64_t              factor = 1l;
+    //
+    // Example: For shape [4, 10, 6], axis = 1, start = 3, end = 5 we need to copy 4 blocks:
+    //   res[0, :, :] = value_[0, 3:5, :]
+    //   res[1, :, :] = value_[1, 3:5, :]
+    //   res[2, :, :] = value_[2, 3:5, :]
+    //   res[3, :, :] = value_[3, 3:5, :]
+    //
+    // Thus, the parameters for the blockwise copy are
+    //   offset = index of value_[0, 3, 0] = start * strides[axis] = 18
+    //   block_stride = distance from value_[0, 3, 0] to value_[1, 3, 0] = strides[axis] = 60
+    //   block_size = size of value_[0, 3:5, :] = (end - start) * strides[axis] = 12
+    //   num_blocks = total size / size of value_[0, :, :] = total_size / strides[axis-1] = 4
+    //
+    // Include total size in strides for convenience when axis == 0, i.e. in this example `strides = [240, 60, 6, 1]`
+    std::vector<int64_t> strides = {1ul};
+    int64_t              factor  = 1l;
     for (int i = numDims() - 1; i >= 0; i--) {
-        strides.push_back(factor);
         factor *= dimSize(i);
+        strides.push_back(factor);
     }
     std::reverse(strides.begin(), strides.end());
 
-    int64_t offset       = start * strides[axis];
-    int64_t block_size   = (end - start) * strides[axis];
-    int64_t block_stride = dimSize(axis) * strides[axis];
-
-    int64_t num_blocks;
-    if (axis == 0) {
-        num_blocks = 1;
-    }
-    else {
-        int64_t total_size = dimSize(0) * strides[0];
-        num_blocks         = total_size / strides[axis - 1];
-    }
+    int64_t offset       = start * strides[axis + 1];
+    int64_t block_size   = (end - start) * strides[axis + 1];
+    int64_t block_stride = strides[axis];
+    int64_t num_blocks   = strides[0] / strides[axis];
 
     Value res;
     if (numDims() > 0) {

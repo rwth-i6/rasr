@@ -1073,7 +1073,7 @@ Value Value::slice(int64_t start, int64_t end, int axis) {
         }
     }
 
-    // wlog collapse all dimensions to the left of `axis` into one. Then
+    // wlog collapse all dimensions to the left and all dimensions to the right of `axis` into one. Then
     // value_[i, start:end, :] is a continuous block of data for each i = 0, ..., dim[0] - 1
     // Thus, we can perform the slicing via a block-wise copy.
 

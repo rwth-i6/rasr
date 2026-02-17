@@ -1085,9 +1085,9 @@ Value Value::slice(int64_t start, int64_t end, int axis) {
     //
     // Thus, the parameters for the blockwise copy are
     //   offset = index of value_[0, 3, 0] = start * strides[axis] = 18
-    //   block_stride = distance from value_[0, 3, 0] to value_[1, 3, 0] = strides[axis] = 60
-    //   block_size = size of value_[0, 3:5, :] = (end - start) * strides[axis] = 12
-    //   num_blocks = total size / size of value_[0, :, :] = total_size / strides[axis-1] = 4
+    //   block_stride = distance from value_[i, 3, 0] to value_[i, 3, 0] = strides[axis-1] = 60
+    //   block_size = size of value_[i, 3:5, :] = (end - start) * strides[axis] = 12
+    //   num_blocks = total size / size of value_[i, :, :] = total_size / strides[axis-1] = 4
     //
     // Include total size in strides for convenience when axis == 0, i.e. in this example `strides = [240, 60, 6, 1]`
     std::vector<int64_t> strides = {1ul};

@@ -25,6 +25,7 @@ cmake-build*
 *.o
 *.so
 /RASR.egg-info
+compile_commands.json
 
 # For exec-files, the postfix is ".$(OS)-$(PROC)-$(COMPILE)[-$(SUFFIX)]".
 *.*-*-*

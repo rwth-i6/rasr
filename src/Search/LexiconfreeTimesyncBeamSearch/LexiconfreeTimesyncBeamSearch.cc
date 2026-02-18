@@ -61,7 +61,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
     trace = Core::ref(new LatticeTrace(
             predecessor,
             extension.pron,
-            extension.timeframe + 1,
+            extension.timeframe,
             {score, 0},
             {}));
 }
@@ -475,11 +475,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning-" + std::to_string(labelScorers_.size()), newBeam_.size());
     }
 
-    beam_.swap(newBeam_);
-
     numActiveHyps_ += beam_.size();
-
-    ++currentSearchStep_;
 
     beam_.swap(newBeam_);
 
@@ -495,16 +491,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                 activeContexts.push_back(hyp.scoringContexts[scorerIdx]);
             }
             labelScorers_[scorerIdx]->cleanupCaches(activeContexts);
-        }
-    }
-
-    /*
-     * Perform maximum-stable-delay-pruning.
-     */
-    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
-        maximumStableDelayPruning();
-        if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
         }
     }
 

@@ -28,6 +28,7 @@
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
+#include "LabelScorer/ScaledLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulTransducerOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"

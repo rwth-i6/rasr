@@ -187,7 +187,6 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
-          contextExtensionTime_(),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
@@ -503,7 +502,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
-        contextExtensionTime_.start();
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
@@ -511,7 +509,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                      .nextToken      = extension.nextToken,
                      .transitionType = extension.transitionType}));
         }
-        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
@@ -680,7 +677,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Apply maximum-stable-delay-pruning
+     * Apply maximum-stable-delay-pruning.
      */
     if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
         maximumStableDelayPruning();
@@ -728,7 +725,6 @@ void TreeTimesyncBeamSearch::resetStatistics() {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
-    contextExtensionTime_.reset();
     for (auto& stat : numHypsAfterScorePruning_) {
         stat.clear();
     }
@@ -748,7 +744,6 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     for (auto const& stat : numHypsAfterScorePruning_) {
         stat.write(clog());
@@ -938,34 +933,85 @@ void TreeTimesyncBeamSearch::createSuccessorLookups() {
 }
 
 void TreeTimesyncBeamSearch::finalizeHypotheses() {
-    newBeam_.clear();
+    tempHypotheses_.clear();
     for (auto const& hyp : beam_) {
         if (network_->finalStates.contains(hyp.currentState)) {
-            newBeam_.push_back(hyp);
+            tempHypotheses_.push_back(hyp);
         }
     }
 
-    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
+    if (tempHypotheses_.empty()) {  // There was no valid final hypothesis in the beam
         warning("No active word-end hypothesis at segment end.");
         if (sentenceEndFallback_) {
             log() << "Use sentence-end fallback";
             // The trace of the unfinished word keeps an empty pronunciation, only the LM score is added
+            tempHypotheses_.reserve(beam_.size());
+
             for (auto const& hyp : beam_) {
-                newBeam_.push_back(hyp);
+                tempHypotheses_.push_back(hyp);
                 Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-                newBeam_.back().score += sentenceEndScore;
-                newBeam_.back().trace->score.lm += sentenceEndScore;
+                tempHypotheses_.back().score += sentenceEndScore;
+                tempHypotheses_.back().trace->score.lm += sentenceEndScore;
             }
         }
         else {
             // Construct an empty hypothesis with a lattice containing only one empty pronunciation from start to end
-            newBeam_.push_back(LabelHypothesis());
-            newBeam_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
-            newBeam_.front().trace->pronunciation = nullptr;
-            newBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
+            tempHypotheses_.push_back(LabelHypothesis());
+            tempHypotheses_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
+            tempHypotheses_.front().trace->pronunciation = nullptr;
+            tempHypotheses_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
         }
     }
-    beam_.swap(newBeam_);
+
+    beam_.swap(tempHypotheses_);
+}
+
+void TreeTimesyncBeamSearch::maximumStableDelayPruning() {
+    if (currentSearchStep_ + 1 <= maximumStableDelay_) {
+        return;
+    }
+
+    auto cutoff = currentSearchStep_ + 1 - maximumStableDelay_;
+
+    // Find trace of current best hypothesis that has a recent word-end within the limit
+    auto&                   bestHyp   = beam_.front();
+    Score                   bestScore = Core::Type<Score>::max;
+    Core::Ref<LatticeTrace> root;
+
+    for (auto const& hyp : beam_) {
+        if (hyp.score < bestScore and hyp.trace->time >= cutoff) {
+            bestScore = hyp.score;
+            bestHyp   = hyp;
+            root      = hyp.trace;
+        }
+    }
+
+    // No Hypothesis with a recent word-end was found so just take the overall best as fallback
+    if (not root) {
+        root = getBestHypothesis().trace;
+        warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
+    }
+
+    // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff
+    Core::Ref<LatticeTrace> preRoot = root->predecessor;
+
+    while (preRoot and preRoot->time >= cutoff) {
+        root    = preRoot;
+        preRoot = preRoot->predecessor;
+    }
+
+    // Perform pruning on root
+    tempHypotheses_.clear();
+    for (auto const& hyp : beam_) {
+        auto curr = hyp.trace;
+        while (curr and curr != root and curr->time > root->time) {
+            curr = curr->predecessor;
+        }
+        if (curr == root) {
+            tempHypotheses_.push_back(hyp);
+        }
+    }
+    beam_.swap(tempHypotheses_);
 }
 
 void TreeTimesyncBeamSearch::maximumStableDelayPruning() {

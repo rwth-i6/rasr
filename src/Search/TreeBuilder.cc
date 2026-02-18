@@ -1321,7 +1321,7 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
         auto sentenceEndLemma = getSentenceEndLemma();
         if (sentenceEndLemma == nullptr or sentenceEndLemma->nPronunciations() == 0) {
             if (sentenceEndLemma != nullptr) {
-                warning() << "Building tree without sentence-end which means it may also not be scored by the LM";
+                warning() << "Building tree without sentence-end which means it may also not be scored by a LabelScorer or an LM in SearchAlgorithmV2 implementations";
             }
 
             // If no sentence-end is present, any root state is a valid final state
@@ -1351,7 +1351,7 @@ void CtcTreeBuilder::build() {
 
     auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
     auto sentenceEndLemma   = getSentenceEndLemma();
-    if (sentenceEndLemma != nullptr or sentenceEndLemma->nPronunciations() == 0) {
+    if (sentenceEndLemma != nullptr and sentenceEndLemma->nPronunciations() > 0) {
         addSentenceEndStates();
     }
 
@@ -1363,7 +1363,7 @@ void CtcTreeBuilder::build() {
     for (auto it = iters.first; it != iters.second; ++it) {
         if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
             // Word-boundary and sentence-end lemmas are handled separately by `addWordBoundaryStates` and `addSentenceEndStates`
-            // sentence-begin is not part of the tree
+            // Sentence-begin is not part of the tree
             continue;
         }
 
@@ -1497,8 +1497,9 @@ void CtcTreeBuilder::addSentenceEndStates() {
 
     // Add optional blank after the sentence-end lemma
     if (allowBlankAfterSentenceEnd_) {
-        StateId blankAfter = extendState(sentenceEndSink_, blankDesc_);
-        addExit(blankAfter, sentenceEndSink_, lexicon_.specialLemma("blank")->id());
+        StateId     blankAfter = extendState(sentenceEndSink_, blankDesc_);
+        auto const& blankPron  = lexicon_.specialLemma("blank")->pronunciations().first;
+        addExit(blankAfter, sentenceEndSink_, blankPron->id());
     }
 }
 

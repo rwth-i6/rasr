@@ -158,8 +158,10 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
           sentenceEndFallback_(paramSentenceEndFallBack(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
-          logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
+          maximumStableDelay_(paramMaximumStableDelay(config)),
+          maximumStableDelayPruningInterval_(paramMaximumStableDelayPruningInterval(config)),
+          logStepwiseStatistics_(paramLogStepwiseStatistics(config)),
           debugChannel_(config, "debug"),
           labelScorers_(),
           beam_(),
@@ -170,7 +172,6 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
-          contextExtensionTime_(),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numActiveHyps_("num-active-hyps"),
           currentSearchStep_(0ul),
@@ -457,7 +458,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : extensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
-        contextExtensionTime_.start();
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
@@ -465,7 +465,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                      extension.nextToken,
                      extension.transitionType}));
         }
-        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
@@ -486,6 +485,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     beam_.swap(newBeam_);
 
     numActiveHyps_ += beam_.size();
+
+    ++currentSearchStep_;
+
+    beam_.swap(newBeam_);
 
     ++currentSearchStep_;
 
@@ -513,9 +516,18 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     }
 
     /*
+     * Perform maximum-stable-delay-pruning.
+     */
+    if (currentSearchStep_ % maximumStableDelayPruningInterval_ == 0) {
+        maximumStableDelayPruning();
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-maximum-stable-delay-pruning", beam_.size());
+        }
+    }
+
+    /*
      * Log statistics about the new beam after this step.
      */
-
     if (debugChannel_.isOpen()) {
         std::stringstream ss;
         for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
@@ -551,7 +563,6 @@ void LexiconfreeTimesyncBeamSearch::resetStatistics() {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
-    contextExtensionTime_.reset();
     for (auto& stat : numHypsAfterScorePruning_) {
         stat.clear();
     }
@@ -567,7 +578,6 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     for (auto const& stat : numHypsAfterScorePruning_) {
         stat.write(clog());
@@ -744,7 +754,7 @@ void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
     // No Hypothesis with a recent word-end was found so just take the overall best as fallback
     if (not root) {
         root = getBestHypothesis().trace;
-        warning() << "Most recent word in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
+        warning() << "Most recent label in best hypothesis is before cutoff point for maximum-stable-delay-pruning so the limit will be surpassed";
     }
 
     // Determine the right predecessor of best trace for pruning. `root->time` should be after the cutoff and `root->predecessor->time` before the cutoff

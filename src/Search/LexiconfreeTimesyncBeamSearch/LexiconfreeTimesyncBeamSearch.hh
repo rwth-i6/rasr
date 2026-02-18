@@ -140,7 +140,6 @@ private:
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
-    Core::StopWatch contextExtensionTime_;
 
     std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;

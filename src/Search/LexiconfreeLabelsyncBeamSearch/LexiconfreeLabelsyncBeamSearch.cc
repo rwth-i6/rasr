@@ -16,7 +16,6 @@
 #include "LexiconfreeLabelsyncBeamSearch.hh"
 
 #include <algorithm>
-#include <cstddef>
 #include <numeric>
 #include <strings.h>
 
@@ -377,7 +376,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             Nn::LabelIndex      tokenIdx = lemma->id();
 
             auto transitionType = Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
-            if (hyp.currentToken == Core::Type<Nn::LabelIndex>::max) {
+            if (hyp.currentToken == Nn::invalidLabelIndex) {
                 transitionType = Nn::LabelScorer::TransitionType::INITIAL_LABEL;
             }
             if (tokenIdx == sentenceEndLabelIndex_) {

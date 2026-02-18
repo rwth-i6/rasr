@@ -174,7 +174,6 @@ private:
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
-    Core::StopWatch contextExtensionTime_;
 
     std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
@@ -232,7 +231,7 @@ private:
     void finalizeHypotheses();
 
     /*
-     * Prune such that the most recent stable word is at most `maximumStableDelay_` steps behind the current search step.
+     * Apply maximum-stable-delay-pruning to beam_
      */
     void maximumStableDelayPruning();
 };

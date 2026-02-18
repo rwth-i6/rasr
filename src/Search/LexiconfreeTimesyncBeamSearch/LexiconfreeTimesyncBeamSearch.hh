@@ -33,7 +33,8 @@ namespace Search {
  * Can handle a blank symbol if a blank index is set.
  * Main purpose is open vocabulary search with CTC/Neural Transducer (or similar) models.
  * Supports global pruning by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The search requires a lexicon that represents the vocabulary. Each lemma is viewed as a token with its index
  * in the lexicon corresponding to the associated output index of the label scorer.
@@ -44,13 +45,11 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
-    static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
-    static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
-    static const Core::ParameterBool        paramLogStepwiseStatistics;
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
 
@@ -92,11 +91,10 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
-        Score                              score;               // Full score of hypothesis
-        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
-        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;            // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
@@ -113,15 +111,14 @@ protected:
 
 private:
     std::vector<size_t> maxBeamSizes_;
+
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
-    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
-    bool                sentenceEndFallback_;
     bool                collapseRepeatedLabels_;
     bool                logStepwiseStatistics_;
     size_t              cacheCleanupInterval_;
@@ -186,8 +183,7 @@ private:
     void maximumStableDelayPruning();
 
     /*
-     * Prune away all hypotheses that have not reached sentence end.
-     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     * Score sentence-end with all label scores for all hypotheses in the beam
      */
     void finalizeHypotheses();
 };

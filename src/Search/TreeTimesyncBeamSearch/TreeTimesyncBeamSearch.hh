@@ -33,9 +33,10 @@ namespace Search {
  * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
  * At a word end, a language model score is added to the hypothesis score,
  * if no language model should be used, the LM-scale has to be set to 0.0.
- * Supports global or separate pruning of within-word and word-end hypotheses
+ * Performs separate pruning of within-word and word-end hypotheses
  * by max beam-size and by score difference to the best hypothesis.
- * Uses a LabelScorer to context initialization/extension and scoring.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
  *
  * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
  * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
@@ -138,6 +139,7 @@ private:
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -227,6 +229,7 @@ private:
      * After reaching the segment end, go through the active hypotheses, only keep those
      * which are final states of the search tree.
      * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * Score sentence-end with all label scorers for all final hypotheses and add the LM's sentence-end score
      */
     void finalizeHypotheses();
 

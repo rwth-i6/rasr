@@ -82,21 +82,23 @@ void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& 
 }
 
 /*
- * num_blocks: number of incontinious blocks to take
- * block_size: number of continious elements to take per block
+ * Copy data from `right` to `left` block-by-block where each block is a continuous segment of data.
+ * Effectively sets
+ * left[i * block_size : (i+1) * block_size] = right[offset + i * block_stride : offset + i * block_stride + block_size]
+ * for i = 0, ..., num_blocks - 1.
  */
 template<typename T>
-void dynamic_rank_slice(Ort::Value& left, Ort::Value const& right, int64_t start, int64_t size, int64_t num_blocks, int64_t block_size) {
+void blockwise_copy(Ort::Value& left, Ort::Value const& right, int64_t offset, int64_t block_stride, int64_t block_size, int64_t num_blocks) {
     T*       data_left  = left.GetTensorMutableData<T>();
     T const* data_right = right.GetTensorData<T>();
 
-    int64_t offset_head;
-    int64_t offset_tail;
-    for (int64_t i = 0; i < num_blocks; i++) {
-        offset_head = (i + start) * block_size;
-        offset_tail = offset_head + size * block_size;
+    int64_t block_head;
+    int64_t block_tail;
+    for (size_t block_idx = 0ul; block_idx < num_blocks; ++block_idx) {
+        block_head = offset + block_idx * block_stride;
+        block_tail = block_head + block_size;
 
-        std::copy(data_right + offset_head, data_right + offset_tail, data_left + i * size * block_size);
+        std::copy(data_right + block_head, data_right + block_tail, data_left + block_idx * block_size);
     }
 }
 
@@ -1073,65 +1075,83 @@ Value Value::slice(int64_t start, int64_t end, int axis) {
         }
     }
 
-    // index offset per position shift
-    std::vector<int64_t> strides;
-    int64_t              factor = 1l;
+    // wlog collapse all dimensions to the left and all dimensions to the right of `axis` into one. Then
+    // value_[i, start:end, :] is a continuous block of data for each i = 0, ..., dim[0] - 1
+    // Thus, we can perform the slicing via a block-wise copy.
+    //
+    // Example: For shape [4, 10, 6], axis = 1, start = 3, end = 5 we need to copy 4 blocks:
+    //   res[0, :, :] = value_[0, 3:5, :]
+    //   res[1, :, :] = value_[1, 3:5, :]
+    //   res[2, :, :] = value_[2, 3:5, :]
+    //   res[3, :, :] = value_[3, 3:5, :]
+    //
+    // Thus, the parameters for the blockwise copy are
+    //   offset = index of value_[0, 3, 0] = start * strides[axis] = 18
+    //   block_size = size of value_[i, 3:5, :] = (end - start) * strides[axis] = 12
+    //   block_stride = distance from value_[i, 3, 0] to value_[i+1, 3, 0] = strides[axis-1] = 60
+    //   num_blocks = total size / size of value_[i, :, :] = total_size / strides[axis-1] = 4
+    //
+    // Include total size in strides for convenience when axis == 0, i.e. in this example `strides = [240, 60, 6, 1]`
+    int64_t              factor  = 1l;
+    std::vector<int64_t> strides = {factor};
     for (int i = numDims() - 1; i >= 0; i--) {
-        strides.push_back(factor);
         factor *= dimSize(i);
+        strides.push_back(factor);
     }
     std::reverse(strides.begin(), strides.end());
 
-    int64_t num_blocks = strides[0] * dimSize(0) / strides[axis - 1];
-    int64_t block_size = strides[axis];
+    int64_t offset       = start * strides[axis + 1];
+    int64_t block_size   = (end - start) * strides[axis + 1];
+    int64_t block_stride = strides[axis];
+    int64_t num_blocks   = strides[0] / strides[axis];
 
     Value res;
     if (numDims() > 0) {
         switch (dataType()) {
             case ValueDataType::FLOAT: {
-                Value res = Value::zeros<f32>(new_shape);
-                dynamic_rank_slice<f32>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<f32>(new_shape);
+                blockwise_copy<f32>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::DOUBLE: {
-                Value res = Value::zeros<f64>(new_shape);
-                dynamic_rank_slice<f64>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<f64>(new_shape);
+                blockwise_copy<f64>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::INT64: {
-                Value res = Value::zeros<s64>(new_shape);
-                dynamic_rank_slice<s64>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<s64>(new_shape);
+                blockwise_copy<s64>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::UINT64: {
-                Value res = Value::zeros<u64>(new_shape);
-                dynamic_rank_slice<u64>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<u64>(new_shape);
+                blockwise_copy<u64>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::INT32: {
-                Value res = Value::zeros<s32>(new_shape);
-                dynamic_rank_slice<s32>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<s32>(new_shape);
+                blockwise_copy<s32>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::UINT32: {
-                Value res = Value::zeros<u32>(new_shape);
-                dynamic_rank_slice<u32>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<u32>(new_shape);
+                blockwise_copy<u32>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::INT16: {
-                Value res = Value::zeros<s16>(new_shape);
-                dynamic_rank_slice<s16>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<s16>(new_shape);
+                blockwise_copy<s16>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::UINT16: {
-                Value res = Value::zeros<u16>(new_shape);
-                dynamic_rank_slice<u16>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<u16>(new_shape);
+                blockwise_copy<u16>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             case ValueDataType::INT8: {
-                Value res = Value::zeros<s8>(new_shape);
-                dynamic_rank_slice<s8>(res.value_, value_, start, end - start, num_blocks, block_size);
-                return res;
+                res = Value::zeros<s8>(new_shape);
+                blockwise_copy<s8>(res.value_, value_, offset, block_stride, block_size, num_blocks);
+                break;
             }
             default: defect();
         }

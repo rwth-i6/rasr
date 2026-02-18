@@ -389,8 +389,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         auto& hyp = beam_[hypIndex];
 
         // Iterate over the successors of this hypothesis' current state in the tree
-        for (const auto& successorState : stateSuccessorLookup_[hyp.currentState]) {
-            Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
+        for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
+            const StateId  successorState = stateSuccessors_[i];
+            Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
             // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
             if (collapseRepeatedLabels_ and
                 hyp.currentState == network_->rootState and
@@ -476,39 +477,37 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
         auto& hyp = newBeam_[hypIndex];
 
-        auto const& exitList = exitLookup_[hyp.currentState];
-        if (not exitList.empty()) {
-            // Create one word-end hypothesis for each exit
-            for (auto const& exit : exitList) {
-                auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
-                auto const* lemma     = lemmaPron->lemma();
+        // Create one word-end hypothesis for each exit
+        for (size_t i = stateExitsOffset_[hyp.currentState]; i < stateExitsOffset_[hyp.currentState + 1]; ++i) {
+            const PersistentStateTree::Exit exit      = stateExits_[i];
+            auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
+            auto const*                     lemma     = lemmaPron->lemma();
 
-                Score                               lmScore = 0;
-                const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
-                if (sts.size() != 0) {
-                    require(sts.size() == 1);
-                    auto const* st = sts.front();
-                    lmScore        = languageModel_->score(hyp.lmHistory, st);
-                }
-
-                Score                           penalty               = 0.0;
-                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
-                if (lemma == lexicon_->specialLemma("silence")) {
-                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
-                }
-                else if (nonWordLemmas_.contains(lemma)) {
-                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
-                }
-                auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
-                if (result) {
-                    penalty = result->score;
-                }
-
-                wordEndExtensions_.push_back({.pron         = lemmaPron,
-                                              .rootState    = exit.transitState,
-                                              .score        = hyp.score + lmScore + penalty,
-                                              .baseHypIndex = hypIndex});
+            Score                               lmScore = 0;
+            const Bliss::SyntacticTokenSequence sts     = lemma->syntacticTokenSequence();
+            if (sts.size() != 0) {
+                require(sts.size() == 1);
+                auto const* st = sts.front();
+                lmScore        = languageModel_->score(hyp.lmHistory, st);
             }
+
+            Score                           penalty               = 0.0;
+            Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+            if (lemma == lexicon_->specialLemma("silence")) {
+                wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+            }
+            else if (nonWordLemmas_.contains(lemma)) {
+                wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+            }
+            auto result = labelScorer_->computeScoreWithTime({hyp.scoringContext, Nn::invalidLabelIndex, wordEndtransitionType});
+            if (result) {
+                penalty = result->score;
+            }
+
+            wordEndExtensions_.push_back({.pron         = lemmaPron,
+                                          .rootState    = exit.transitState,
+                                          .score        = hyp.score + lmScore + penalty,
+                                          .baseHypIndex = hypIndex});
         }
     }
 
@@ -557,11 +556,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (size_t hypIndex = 0ul; hypIndex < origSize; ++hypIndex) {
         auto& hyp = wordEndHypotheses_[hypIndex];
 
-        auto exitList = exitLookup_[hyp.currentState];
         // Create one word-end hypothesis for each exit
-        for (const auto& exit : exitList) {
-            auto const* lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
-            auto const* lemma     = lemmaPron->lemma();
+        for (size_t i = stateExitsOffset_[hyp.currentState]; i < stateExitsOffset_[hyp.currentState + 1]; ++i) {
+            const PersistentStateTree::Exit exit      = stateExits_[i];
+            auto const*                     lemmaPron = lexicon_->lemmaPronunciation(exit.pronunciation);
+            auto const*                     lemma     = lemmaPron->lemma();
 
             WordEndExtensionCandidate wordEndExtension{.pron         = lemmaPron,
                                                        .rootState    = exit.transitState,  // Start from the root node (the exit's transit state) in the next step
@@ -826,23 +825,28 @@ void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::L
 }
 
 void TreeTimesyncBeamSearch::createSuccessorLookups() {
-    stateSuccessorLookup_.resize(network_->structure.stateCount());
-    exitLookup_.resize(network_->structure.stateCount());
+    size_t numStates = network_->structure.stateCount();
 
-    for (u32 state = 1; state < network_->structure.stateCount(); ++state) {
-        std::vector<StateId>                   stateList;  // Collect the state successors of all nodes
-        std::vector<PersistentStateTree::Exit> exitList;   // Collect the exits of all nodes
+    stateSuccessorsOffset_.assign(numStates + 1, 0);
+    stateExitsOffset_.assign(numStates + 1, 0);
+
+    for (u32 state = 1; state < numStates; ++state) {
+        // The offset for the next state is the current size of the data vectors
+        stateSuccessorsOffset_[state] = stateSuccessors_.size();
+        stateExitsOffset_[state]      = stateExits_.size();
+
+        // Add successor/exit data to contiguous vectors
         for (HMMStateNetwork::SuccessorIterator it = network_->structure.successors(state); it; ++it) {
             if (not it.isLabel()) {
-                stateList.push_back(*it);
+                stateSuccessors_.push_back(*it);
             }
             else {
-                exitList.push_back(network_->exits[it.label()]);
+                stateExits_.push_back(network_->exits[it.label()]);
             }
         }
-        stateSuccessorLookup_[state] = stateList;
-        exitLookup_[state]           = exitList;
     }
+    stateSuccessorsOffset_[numStates] = stateSuccessors_.size();
+    stateExitsOffset_[numStates]      = stateExits_.size();
 }
 
 void TreeTimesyncBeamSearch::finalizeHypotheses() {

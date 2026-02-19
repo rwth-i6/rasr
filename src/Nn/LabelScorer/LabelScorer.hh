@@ -67,6 +67,9 @@ namespace Nn {
  */
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
+    // Grant access to wrapper so it can directly call `...Internal` functions of the class
+    friend class ScaledLabelScorer;
+
 public:
     typedef Search::Score Score;
 
@@ -156,8 +159,9 @@ public:
     // Return two vectors: one vector with scores and one vector with times
     std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
 
-    // TODO: Separate scoringContexts out of requests (context + request), also collapsedvector
-    // TODO: Cleanup function to clean up input buffer
+    // Return the set of all transition types that do not get ignored by this label scorer
+    std::unordered_set<TransitionType> enabledTransitionTypes() const;
+
 protected:
     inline static constexpr auto transitionTypeArray_ = std::to_array<std::pair<std::string_view, TransitionType>>({
             {"label-to-label", LABEL_TO_LABEL},

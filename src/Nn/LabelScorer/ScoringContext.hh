@@ -137,7 +137,7 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
     mutable bool               requiresFinalize;
 
     OnnxHiddenStateScoringContext()
-            : labelSeq(), hiddenState(), requiresFinalize(true) {}
+            : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
     OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
             : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}

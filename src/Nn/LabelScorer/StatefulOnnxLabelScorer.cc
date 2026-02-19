@@ -199,12 +199,7 @@ void StatefulOnnxLabelScorer::reset() {
 }
 
 Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContext() {
-    auto initialScoringContext = Core::ref(new OnnxHiddenStateScoringContext());
-    if (initialHiddenState_) {
-        initialScoringContext->hiddenState      = initialHiddenState_;
-        initialScoringContext->requiresFinalize = false;
-    }
-    return initialScoringContext;
+    return Core::ref(new OnnxHiddenStateScoringContext());
 }
 
 void StatefulOnnxLabelScorer::addInput(DataView const& input) {
@@ -471,12 +466,7 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
     std::vector<OnnxHiddenStateScoringContextRef> nonFinalizedContexts;
     for (auto const& scoringContext : scoringContextBatch) {
         if (scoringContext->requiresFinalize) {
-            if (scoringContext->labelSeq.empty()) {
-                stateCache_.put(scoringContext, computeInitialHiddenState());
-            }
-            else {
-                nonFinalizedContexts.push_back(scoringContext);
-            }
+            nonFinalizedContexts.push_back(scoringContext);
         }
     }
 
@@ -488,7 +478,12 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
     std::vector<OnnxHiddenStateRef> hiddenStates;
     std::vector<s32>                nextTokens;
     for (auto const& scoringContext : nonFinalizedContexts) {
-        hiddenStates.push_back(scoringContext->hiddenState);
+        if (scoringContext->hiddenState) {
+            hiddenStates.push_back(scoringContext->hiddenState);
+        }
+        else {
+            hiddenStates.push_back(computeInitialHiddenState());
+        }
         verify(not scoringContext->labelSeq.empty());
         nextTokens.push_back(scoringContext->labelSeq.back());
     }
@@ -518,10 +513,16 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
         stateValues.reserve(scoringContextBatch.size());
 
         for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-            auto scoringContext = scoringContextBatch[b];
-            auto hiddenState    = stateCache_.get(scoringContext);
+            auto const&        scoringContext = scoringContextBatch[b];
+            OnnxHiddenStateRef hiddenState;
+            if (scoringContext->labelSeq.empty()) {
+                hiddenState = computeInitialHiddenState();
+            }
+            else {
+                hiddenState = (*stateCache_.get(scoringContext)).get();
+            }
             verify(hiddenState);
-            stateValues.push_back(&(*hiddenState).get()->stateValueMap.at(stateName));
+            stateValues.push_back(&hiddenState->stateValueMap.at(stateName));
         }
         sessionInputs.emplace_back(inputName, Onnx::Value::concat(stateValues, 0));
     }

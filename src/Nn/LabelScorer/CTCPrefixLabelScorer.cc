@@ -119,7 +119,7 @@ std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWith
 
             timestepScore += ctcScores_.at(request.nextToken, t);
 
-            totalScore = Math::scoreSum(totalScore, timestepScore);
+            totalScore = std::min(totalScore, timestepScore);
         }
     }
     context->extScores.emplace(request.nextToken, totalScore);
@@ -202,11 +202,11 @@ void CTCPrefixLabelScorer::finalizeScoringContext(CTCPrefixScoringContextRef con
             nonBlankEndingScore = extPrefixScores->at(t - 1).nonBlankEndingScore;  // Label loop
             if (scoringContext->labelSeq.size() >= 2 and nextToken == scoringContext->labelSeq[scoringContext->labelSeq.size() - 2]) {
                 // If the last label is equal to the one before it, there must be a blank in between, i.e., the prefix must not end at non-blank at t-1
-                nonBlankEndingScore = Math::scoreSum(nonBlankEndingScore, prefixScores->at(t - 1).blankEndingScore);  // Blank-to-label
+                nonBlankEndingScore = std::min(nonBlankEndingScore, prefixScores->at(t - 1).blankEndingScore);  // Blank-to-label
             }
             else {
                 // If the last two labels are different, the prefix can end in both blank or non-blank
-                nonBlankEndingScore = Math::scoreSum(nonBlankEndingScore, prefixScores->at(t - 1).totalScore());  // Blank-to-label or label-to-label
+                nonBlankEndingScore = std::min(nonBlankEndingScore, prefixScores->at(t - 1).totalScore());  // Blank-to-label or label-to-label
             }
             nonBlankEndingScore += ctcScores_.at(nextToken, t);
         }

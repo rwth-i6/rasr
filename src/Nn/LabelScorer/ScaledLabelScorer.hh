@@ -50,6 +50,9 @@ public:
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
 protected:
+    // These directly call the `Internal` version of `scorer_` since the ScaledLabelScorer wrapper shares
+    // the same enabled transition types and the requests have already been filtered
+
     // Extended ScoringContext from sub-scorer
     ScoringContextRef extendedScoringContextInternal(Request const& request) override;
 

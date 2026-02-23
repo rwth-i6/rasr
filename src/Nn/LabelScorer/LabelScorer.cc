@@ -104,6 +104,10 @@ std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(
     return result;
 }
 
+std::unordered_set<LabelScorer::TransitionType> LabelScorer::enabledTransitionTypes() const {
+    return enabledTransitionTypes_;
+}
+
 std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
     if (requests.empty()) {
         return ScoresWithTimes{};

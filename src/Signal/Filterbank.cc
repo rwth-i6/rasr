@@ -592,8 +592,8 @@ public:
 //============================================================================================
 FilterBank::FilterBank(const Core::Configuration& c)
         : Core::Component(c),
-          builder_(0),
-          boundary_(0),
+          builder_(nullptr),
+          boundary_(nullptr),
           filterWidth_(0),
           spacing_(0),
           minimumFrequency_(0),
@@ -603,22 +603,16 @@ FilterBank::FilterBank(const Core::Configuration& c)
           normalizationType_(normalizeNone),
           needInit_(true) {}
 
-FilterBank::~FilterBank() {
-    delete builder_;
-    delete boundary_;
-}
-
 void FilterBank::setFilterType(FilterType type) {
-    delete builder_;
     switch (type) {
         case typeTriangular:
-            builder_ = new SymmetricalTriangularFilterBuilder(select("filter-builder"));
+            builder_.reset(new SymmetricalTriangularFilterBuilder(select("filter-builder")));
             break;
         case typeTrapeze:
-            builder_ = new TrapezeFilterBuilder(select("filter-builder"));
+            builder_.reset(new TrapezeFilterBuilder(select("filter-builder")));
             break;
         case typeRastaTrapeze:
-            builder_ = new TrapezeRastaFilterBuilder(select("filter-builder"));
+            builder_.reset(new TrapezeRastaFilterBuilder(select("filter-builder")));
             break;
         default:
             defect();
@@ -627,16 +621,15 @@ void FilterBank::setFilterType(FilterType type) {
 }
 
 void FilterBank::setBoundaryType(BoundaryType type) {
-    delete boundary_;
     switch (type) {
         case includeBoundary:
-            boundary_ = new IncludeBoundary(select("boundary"));
+            boundary_.reset(new IncludeBoundary(select("boundary")));
             break;
         case stretchToCover:
-            boundary_ = new StretchToCover(select("boundary"));
+            boundary_.reset(new StretchToCover(select("boundary")));
             break;
         case emphasizeBoundary:
-            boundary_ = new EmphasizeBoundary(select("boundary"));
+            boundary_.reset(new EmphasizeBoundary(select("boundary")));
             break;
         default:
             defect();
@@ -662,8 +655,9 @@ bool FilterBank::init() {
                                        maximumFrequency_,
                                        discreteToContinuousFunction_,
                                        warpingFunction_, shouldWarpDifferentialUnit());
-        if (!filters_[i])
+        if (!filters_[i]) {
             return false;
+        }
         filters_[i]->normalize(normalizationType_);
     }
     return !(needInit_ = false);

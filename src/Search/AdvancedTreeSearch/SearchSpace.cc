@@ -3021,9 +3021,9 @@ Core::TsRef<Trace> SearchSpace::getSentenceEndFallBack(TimeframeIndex time, bool
     return best;
 }
 
-class RootTraceSearcher {
+class AdvancedTreeSearchRootTraceSearcher {
 public:
-    RootTraceSearcher(std::vector<Core::TsRef<Trace>> traces)
+    AdvancedTreeSearchRootTraceSearcher(std::vector<Core::TsRef<Trace>> traces)
             : rootTrace_(0) {
         for (std::vector<Core::TsRef<Trace>>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             addTrace(it->get(), 0, true);
@@ -3119,7 +3119,7 @@ Core::TsRef<Trace> SearchSpace::getCommonPrefix() const {
         traces.push_back(it->trace);
     }
 
-    RootTraceSearcher searcher(traces);
+    AdvancedTreeSearchRootTraceSearcher searcher(traces);
     verify(searcher.rootTrace());
 
     return Core::TsRef<Trace>(searcher.rootTrace());

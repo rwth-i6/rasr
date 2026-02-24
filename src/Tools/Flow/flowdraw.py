@@ -54,7 +54,6 @@ def main(argv):
         for i in range(len(atts)):
             key = atts.item(i).name
             value = att(n, key)
-            # 			value = clean(value)
             if key == "name":
                 continue
             if key == "filter":
@@ -106,7 +105,6 @@ def main(argv):
         print("%s -> %s %s;" % (fr, to, label), file=out)
 
     print("}", file=out)
-    # print "dot -Tpng < %s > %s.png; eog %s.png " % (outname, outname, outname)
     out.close()
 
     if len(argv) == 3:

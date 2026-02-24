@@ -186,7 +186,6 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           initializationTime_(),
           featureProcessingTime_(),
           scoringTime_(),
-          contextExtensionTime_(),
           numHypsAfterRecombination_("num-hyps-after-recombination"),
           numWordEndHypsAfterScorePruning_("num-word-end-hyps-after-score-pruning"),
           numWordEndHypsAfterRecombination_("num-word-end-hyps-after-recombination"),
@@ -506,7 +505,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     for (auto const& extension : withinWordExtensions_) {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
-        contextExtensionTime_.start();
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
@@ -514,7 +512,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                      .nextToken      = extension.nextToken,
                      .transitionType = extension.transitionType}));
         }
-        contextExtensionTime_.stop();
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
@@ -731,7 +728,6 @@ void TreeTimesyncBeamSearch::resetStatistics() {
     initializationTime_.reset();
     featureProcessingTime_.reset();
     scoringTime_.reset();
-    contextExtensionTime_.reset();
     for (auto& stat : numHypsAfterScorePruning_) {
         stat.clear();
     }
@@ -751,7 +747,6 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     clog() << Core::XmlOpen("initialization-time") << initializationTime_.elapsedMilliseconds() << Core::XmlClose("initialization-time");
     clog() << Core::XmlOpen("feature-processing-time") << featureProcessingTime_.elapsedMilliseconds() << Core::XmlClose("feature-processing-time");
     clog() << Core::XmlOpen("scoring-time") << scoringTime_.elapsedMilliseconds() << Core::XmlClose("scoring-time");
-    clog() << Core::XmlOpen("context-extension-time") << contextExtensionTime_.elapsedMilliseconds() << Core::XmlClose("context-extension-time");
     clog() << Core::XmlClose("timing-statistics");
     for (auto const& stat : numHypsAfterScorePruning_) {
         stat.write(clog());

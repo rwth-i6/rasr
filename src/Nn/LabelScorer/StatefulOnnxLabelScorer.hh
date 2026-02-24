@@ -87,14 +87,14 @@ protected:
     std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
-    // Forward a batch of scoringContexts through the ONNX model and put the resulting scores into the score cache
-    void forwardBatch(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+    // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
+    void cacheScores(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
-    // Computes new hidden state based on previous hidden state and next token through state-updater call
-    OnnxHiddenStateRef updatedHiddenState(OnnxHiddenStateRef const& hiddenState, LabelIndex nextToken);
+    // Computes new hidden state based on previous hidden state and next token with batched state-updater call
+    std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
 
-    // Replace hidden-state in scoringContext with an updated version that includes the last label
-    void finalizeScoringContext(OnnxHiddenStateScoringContextRef const& scoringContext);
+    // Compute updated states for all non-finalized scoring contexts and put them into the state cache
+    void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
     // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
@@ -134,6 +134,7 @@ private:
     Onnx::Value encoderStatesSizeValue_;
 
     Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq> stateCache_;
 };
 
 }  // namespace Nn

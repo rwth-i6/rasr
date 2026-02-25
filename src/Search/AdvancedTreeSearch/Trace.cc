@@ -32,16 +32,14 @@ void Trace::write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory> phi
 }
 
 Trace::Trace(SearchAlgorithm::TimeframeIndex t, ScoreVector s, const Search::TracebackItem::Transit& transit)
-        : TracebackItem(0, t, s, transit) {}
+        : Core::ThreadSafeReferenceCounted(), TracebackItem(0, t, s, transit) {}
 
 Trace::Trace(const Core::TsRef<Trace>&             pre,
              const Bliss::LemmaPronunciation*      p,
              SearchAlgorithm::TimeframeIndex       t,
              ScoreVector                           s,
              const Search::TracebackItem::Transit& transit)
-        : TracebackItem(p, t, s, transit),
-          predecessor(pre),
-          pruningMark(0) {}
+        : Core::ThreadSafeReferenceCounted(), TracebackItem(p, t, s, transit), predecessor(pre), pruningMark(0) {}
 
 void Trace::getLemmaSequence(std::vector<Bliss::Lemma*>& lemmaSequence) const {
     if (predecessor) {

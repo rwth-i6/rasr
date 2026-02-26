@@ -41,6 +41,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
           currentToken(Nn::invalidLabelIndex),
           currentState(invalidTreeNodeIndex),
           lmHistory(),
+          timeframe(0),
           score(0.0),
           trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 

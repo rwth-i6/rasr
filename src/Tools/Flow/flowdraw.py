@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import sys, tempfile, os
+
+import os
+import sys
+import tempfile
 from xml.dom.minidom import parse
 
 
@@ -18,7 +21,6 @@ def main(argv):
     links = dom.getElementsByTagName("link")
     inputs = dom.getElementsByTagName("in")
     outputs = dom.getElementsByTagName("out")
-    params = dom.getElementsByTagName("param")
     network = dom.getElementsByTagName("network")[0]
 
     out, outname = tempfile.mkstemp()
@@ -27,7 +29,6 @@ def main(argv):
 
     att = lambda n, a: n.getAttribute(a)
 
-    txt = ""
     netname = att(network, "name")
     if not netname:
         netname = "network"
@@ -37,7 +38,7 @@ def main(argv):
         print(
             """%s [shape=plaintext
 			label = "%s:%s"];"""
-            % (i, netname, i),
+            % (clean(i), netname, i),
             file=out,
         )
 
@@ -53,7 +54,6 @@ def main(argv):
         for i in range(len(atts)):
             key = atts.item(i).name
             value = att(n, key)
-            # 			value = clean(value)
             if key == "name":
                 continue
             if key == "filter":
@@ -80,10 +80,9 @@ def main(argv):
             file=out,
         )
 
-    for l in links:
-
-        fr = att(l, "from")
-        to = att(l, "to")
+    for link in links:
+        fr = att(link, "from")
+        to = att(link, "to")
 
         fr = clean(fr)
         to = clean(to)
@@ -106,7 +105,6 @@ def main(argv):
         print("%s -> %s %s;" % (fr, to, label), file=out)
 
     print("}", file=out)
-    # print "dot -Tpng < %s > %s.png; eog %s.png " % (outname, outname, outname)
     out.close()
 
     if len(argv) == 3:

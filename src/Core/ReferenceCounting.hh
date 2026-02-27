@@ -17,6 +17,7 @@
 #ifndef _CORE_REFERENCE_COUNTING
 #define _CORE_REFERENCE_COUNTING
 
+#include <atomic>
 #include <memory>
 #include <unordered_set>
 
@@ -45,7 +46,7 @@ private:
 
     using WeakRefSet = std::unordered_set<WeakRefBase*>;
 
-    mutable u32                         referenceCount_;
+    mutable std::atomic<u32>            referenceCount_;
     mutable std::unique_ptr<WeakRefSet> weak_refs_;
 
     explicit ReferenceCounted(u32 rc)

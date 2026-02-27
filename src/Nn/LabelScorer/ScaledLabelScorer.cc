@@ -19,7 +19,7 @@ namespace Nn {
 
 const Core::ParameterFloat ScaledLabelScorer::paramScale(
         "scale",
-        "Scale to multiply the scores of the sub-scorer by.",
+        "Scale used to multiply the sub-scorer scores.",
         1.0);
 
 ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)
@@ -27,6 +27,7 @@ ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Re
           LabelScorer(config, TransitionPresetType::ALL),
           scorer_(scorer),
           scale_(paramScale(config)) {
+    enabledTransitionTypes_ = scorer_->enabledTransitionTypes();
 }
 
 void ScaledLabelScorer::reset() {
@@ -54,11 +55,11 @@ void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
 }
 
 ScoringContextRef ScaledLabelScorer::extendedScoringContextInternal(Request const& request) {
-    return scorer_->extendedScoringContext(request);
+    return scorer_->extendedScoringContextInternal(request);
 }
 
 std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTimeInternal(Request const& request) {
-    auto result = scorer_->computeScoreWithTime(request);
+    auto result = scorer_->computeScoreWithTimeInternal(request);
     if (result and scale_ != 1) {
         result->score *= scale_;
     }
@@ -66,7 +67,7 @@ std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTim
 }
 
 std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    auto result = scorer_->computeScoresWithTimes(requests);
+    auto result = scorer_->computeScoresWithTimesInternal(requests);
     if (result and scale_ != 1) {
         for (auto& score : result->scores) {
             score *= scale_;

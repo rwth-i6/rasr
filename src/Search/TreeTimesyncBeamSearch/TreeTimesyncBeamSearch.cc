@@ -553,20 +553,20 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 lmScore        = languageModel_->score(hyp.lmHistory, st);
             }
 
-                Score                           penalty               = 0.0;
-                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
-                if (lemma == lexicon_->specialLemma("silence")) {
-                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+            Score                           penalty               = 0.0;
+            Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+            if (lemma == lexicon_->specialLemma("silence")) {
+                wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+            }
+            else if (nonWordLemmas_.contains(lemma)) {
+                wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+            }
+            for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+                auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], Nn::invalidLabelIndex, wordEndtransitionType});
+                if (result) {
+                    penalty += result->score;
                 }
-                else if (nonWordLemmas_.contains(lemma)) {
-                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
-                }
-                for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-                    auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], Nn::invalidLabelIndex, wordEndtransitionType});
-                    if (result) {
-                        penalty += result->score;
-                    }
-                }
+            }
 
             wordEndExtensions_.push_back({.pron         = lemmaPron,
                                           .rootState    = exit.transitState,

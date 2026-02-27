@@ -49,11 +49,11 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace(),
-          reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::LabelScorer::SENTENCE_END) {
+          reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::TransitionType::SENTENCE_END) {
     Core::Ref<LatticeTrace> predecessor;
     switch (extension.transitionType) {
-        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
-        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+        case Nn::TransitionType::LABEL_LOOP:
+        case Nn::TransitionType::BLANK_LOOP:
             predecessor = base.trace->predecessor;
             break;
         default:
@@ -166,7 +166,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           beam_(),
           extensions_(),
           newBeam_(),
-          requests_(),
+          scoringContexts_(),
           tempHypotheses_(),
           initializationTime_(),
           featureProcessingTime_(),
@@ -201,7 +201,6 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
     labelScorer_ = modelCombination.labelScorer();
 
     extensions_.reserve(maxBeamSize_ * lexicon_->nLemmas());
-    requests_.reserve(extensions_.size());
 
     auto blankLemma = lexicon_->specialLemma("blank");
     if (blankLemma) {
@@ -329,15 +328,31 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * Also Create scoring requests for the label scorer.
      * Each extension candidate makes up a request.
      */
-    extensions_.clear();
-    requests_.clear();
+    scoringContexts_.clear();
 
+    for (auto const& hyp : beam_) {
+        scoringContexts_.push_back(hyp.scoringContext);
+    }
+
+    /*
+     * Perform scoring of all the scoringContexts with the label scorer.
+     */
+    scoringTime_.start();
+    auto scoreAccessors = labelScorer_->getScoreAccessors(scoringContexts_);
+    scoringTime_.stop();
+
+    extensions_.clear();
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
 
+        if (not scoreAccessors[hypIndex]) {
+            continue;
+        }
+        auto const& scoreAccessor = *scoreAccessors[hypIndex];
+
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            const Bliss::Lemma* lemma(*lemmaIt);
+            Bliss::Lemma const* lemma(*lemmaIt);
             Nn::LabelIndex      tokenIdx = lemma->id();
 
             // After first sentence-end token only allow looping that sentence-end or blanks afterwards
@@ -349,33 +364,22 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             }
 
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+            if (not labelScorer_->scoresTransition(transitionType)) {
+                continue;
+            }
 
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
-                     hyp.score,
-                     0,
+                     hyp.score + scoreAccessor->getScoreForTransition(transitionType) + scoreAccessor->getScoreForLabel(tokenIdx),
+                     scoreAccessor->getTime(),
                      transitionType,
                      hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
     }
 
-    /*
-     * Perform scoring of all the requests with the label scorer.
-     */
-    scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
-    scoringTime_.stop();
-
-    if (not result) {
-        // LabelScorer could not compute scores -> no search step can be made.
+    if (extensions_.empty()) {
         return false;
-    }
-
-    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-        extensions_[extensionIdx].score += result->scores[extensionIdx];
-        extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
     }
 
     if (logStepwiseStatistics_) {
@@ -402,9 +406,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         auto newScoringContext = labelScorer_->extendedScoringContext(
-                {baseHyp.scoringContext,
-                 extension.nextToken,
-                 extension.transitionType});
+                baseHyp.scoringContext,
+                extension.nextToken,
+                extension.transitionType);
 
         newBeam_.push_back({baseHyp, extension, newScoringContext});
     }
@@ -505,46 +509,46 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     numActiveHyps_.write(clog());
 }
 
-Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
     bool nextIsSentenceEnd = (useSentenceEnd_ and nextLabel == sentenceEndLabelIndex_);
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+            return Nn::TransitionType::INITIAL_BLANK;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+            return Nn::TransitionType::INITIAL_LABEL;
         }
     }
 
     if (prevIsBlank) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+            return Nn::TransitionType::BLANK_LOOP;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
+            return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
     else {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+            return Nn::TransitionType::LABEL_TO_BLANK;
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+            return Nn::TransitionType::LABEL_LOOP;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+            return Nn::TransitionType::LABEL_TO_LABEL;
         }
     }
 }

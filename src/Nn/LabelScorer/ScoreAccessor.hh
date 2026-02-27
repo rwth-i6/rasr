@@ -26,7 +26,7 @@ namespace Nn {
 /*
  * Abstract base class for score accessor interface
  */
-class ScoreAccessor : Core::ReferenceCounted {
+class ScoreAccessor : public Core::ReferenceCounted {
 public:
     virtual Score          getScoreForLabel(LabelIndex labelIndex) const;
     virtual Score          getScoreForTransition(TransitionType transitionType) const;

@@ -284,7 +284,7 @@ std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAc
         OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContext.get()));
         if (not scoreCache_.contains(onnxHiddenStateScoringContext)) {
             // Group by unique scoring context
-            uniqueUncachedScoringContexts.emplace(scoringContext);
+            uniqueUncachedScoringContexts.emplace(onnxHiddenStateScoringContext);
         }
     }
 

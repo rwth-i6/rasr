@@ -22,10 +22,10 @@ namespace Nn {
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::ALL),
-          transitionScores_() {
-    for (auto const& [stringIdentifier, enumValue] : transitionTypeArray_) {
-        auto paramName               = std::string(stringIdentifier) + "-score";
-        transitionScores_[enumValue] = Core::ParameterFloat(paramName.c_str(), "", 0.0)(config);
+          transitionScoreAccessor_(new FixedTransitionScoreAccessor()) {
+    for (auto const& [stringIdentifier, enumValue] : TransitionTypeArray) {
+        auto paramName = std::string(stringIdentifier) + "-score";
+        transitionScoreAccessor_->setScore(enumValue, Core::ParameterFloat(paramName.c_str(), "", 0.0)(config));
     }
 }
 
@@ -39,28 +39,12 @@ ScoringContextRef TransitionLabelScorer::getInitialScoringContext() {
 
 void TransitionLabelScorer::addInput(DataView const& input) {}
 
-ScoringContextRef TransitionLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
+ScoringContextRef TransitionLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     return Core::ref(new ScoringContext());
 }
 
-std::optional<LabelScorer::ScoreWithTime> TransitionLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    LabelScorer::ScoreWithTime result;
-    result.score     = transitionScores_[request.transitionType];
-    result.timeframe = static_cast<Speech::TimeframeIndex>(0);
-    return result;
-}
-
-std::optional<LabelScorer::ScoresWithTimes> TransitionLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    if (requests.empty()) {
-        return ScoresWithTimes{};
-    }
-
-    LabelScorer::ScoresWithTimes results;
-    for (size_t i = 0ul; i < requests.size(); ++i) {
-        results.scores.push_back(transitionScores_[requests[i].transitionType]);
-        results.timeframes.push_back(static_cast<Speech::TimeframeIndex>(0));
-    }
-    return results;
+std::optional<ScoreAccessorRef> TransitionLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    return transitionScoreAccessor_;
 }
 
 }  // namespace Nn

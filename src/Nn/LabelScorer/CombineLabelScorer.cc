@@ -13,8 +13,10 @@
  *  limitations under the License.
  */
 
-#include "CombineLabelScorer.hh"
 #include <Nn/Module.hh>
+#include "Types.hh"
+
+#include "CombineLabelScorer.hh"
 
 namespace Nn {
 
@@ -28,6 +30,7 @@ CombineLabelScorer::CombineLabelScorer(Core::Configuration const& config)
     for (size_t i = 0ul; i < numLabelScorers; ++i) {
         Core::Configuration subConfig = select(std::string("scorer-") + std::to_string(i + 1));
         scorers_.push_back(Nn::Module::instance().labelScorerFactory().createLabelScorer(subConfig));
+        enabledTransitions_.enableIntersection(scorers_.back()->enabledTransitions());
     }
 }
 
@@ -47,17 +50,32 @@ ScoringContextRef CombineLabelScorer::getInitialScoringContext() {
     std::vector<ScoringContextRef> scoringContexts;
     scoringContexts.reserve(scorers_.size());
 
-    for (const auto& scorer : scorers_) {
+    for (auto const& scorer : scorers_) {
         scoringContexts.push_back(scorer->getInitialScoringContext());
     }
     return Core::ref(new CombineScoringContext(std::move(scoringContexts)));
 }
 
+ScoringContextRef CombineLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    auto combineContext = dynamic_cast<CombineScoringContext const*>(scoringContext.get());
+
+    std::vector<ScoringContextRef> extScoringContexts;
+    extScoringContexts.reserve(scorers_.size());
+
+    auto scorerIt  = scorers_.begin();
+    auto contextIt = combineContext->scoringContexts.begin();
+
+    for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
+        extScoringContexts.push_back((*scorerIt)->extendedScoringContext(*contextIt, nextToken, transitionType));
+    }
+    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
+}
+
 void CombineLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
-    std::vector<const CombineScoringContext*> combineContexts;
+    std::vector<CombineScoringContext const*> combineContexts;
     combineContexts.reserve(activeContexts.internalSize());
     for (auto const& activeContext : activeContexts.internalData()) {
-        combineContexts.push_back(dynamic_cast<const CombineScoringContext*>(activeContext.get()));
+        combineContexts.push_back(dynamic_cast<CombineScoringContext const*>(activeContext.get()));
     }
 
     for (size_t scorerIdx = 0ul; scorerIdx < scorers_.size(); ++scorerIdx) {
@@ -83,95 +101,77 @@ void CombineLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-ScoringContextRef CombineLabelScorer::extendedScoringContextInternal(Request const& request) {
-    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
+std::optional<ScoreAccessorRef> CombineLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    auto combineContext = dynamic_cast<CombineScoringContext const*>(scoringContext.get());
 
-    std::vector<ScoringContextRef> extScoringContexts;
-    extScoringContexts.reserve(scorers_.size());
+    auto                          combinedAccessor = Core::ref(new CombinedScoreAccessor());
+    std::vector<ScoreAccessorRef> subAccessors;
+    subAccessors.reserve(scorers_.size());
 
     auto scorerIt  = scorers_.begin();
     auto contextIt = combineContext->scoringContexts.begin();
-
     for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
-        Request subRequest{*contextIt, request.nextToken, request.transitionType};
-        extScoringContexts.push_back((*scorerIt)->extendedScoringContext(subRequest));
-    }
-    return Core::ref(new CombineScoringContext(std::move(extScoringContexts)));
-}
-
-std::optional<LabelScorer::ScoreWithTime> CombineLabelScorer::computeScoreWithTimeInternal(Request const& request) {
-    // Initialize accumulated result with zero-valued score and timestep
-    ScoreWithTime accumResult{0.0, 0};
-
-    auto combineContext = dynamic_cast<const CombineScoringContext*>(request.context.get());
-
-    // Iterate over all the scorers and accumulate their results into `accumResult`
-    auto scorerIt  = scorers_.begin();
-    auto contextIt = combineContext->scoringContexts.begin();
-    for (; scorerIt != scorers_.end(); ++scorerIt, ++contextIt) {
-        // Prepare sub-request for the current scorer by extracting the appropriate
-        // ScoringContext from the combined ScoringContext
-        Request subRequest{*contextIt, request.nextToken, request.transitionType};
-
-        // Run current scorer
-        auto result = (*scorerIt)->computeScoreWithTime(subRequest);
-        if (!result) {
+        auto subAccessor = (*scorerIt)->getScoreAccessor(*contextIt);
+        // If any of the sub-scorers can't score, the overall result is also None
+        if (not subAccessor) {
             return {};
         }
 
-        // Merge results of current scorer into `accumResult`
-        // Scores are weighted sum, timeframes are maximum
-        accumResult.score += result->score;
-        accumResult.timeframe = std::max(accumResult.timeframe, result->timeframe);
+        combinedAccessor->addSubAccessor(*subAccessor);
     }
 
-    return accumResult;
+    return combinedAccessor;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> CombineLabelScorer::computeScoresWithTimesInternal(std::vector<Request> const& requests) {
-    if (requests.empty()) {
-        return ScoresWithTimes{};
+std::vector<std::optional<ScoreAccessorRef>> CombineLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    // Collect CombineScoringContexts
+    std::vector<CombineScoringContext const*> combineContexts;
+    combineContexts.reserve(scoringContexts.size());
+    for (auto const& scoringContext : scoringContexts) {
+        combineContexts.push_back(dynamic_cast<CombineScoringContext const*>(scoringContext.get()));
     }
 
-    // Initialize accumulated results with zero-valued scores and timesteps
-    ScoresWithTimes accumResult{std::vector<Score>(requests.size(), 0.0), {requests.size(), 0}};
-
-    // Collect CombineScoringContexts from requests
-    std::vector<const CombineScoringContext*> combineContexts;
-    combineContexts.reserve(requests.size());
-    for (const auto& request : requests) {
-        combineContexts.push_back(dynamic_cast<const CombineScoringContext*>(request.context.get()));
+    std::vector<std::optional<ScoreAccessorRef>> combinedAccessors;
+    combinedAccessors.reserve(scoringContexts.size());
+    for (size_t i = 0ul; i < scoringContexts.size(); ++i) {
+        combinedAccessors.push_back(Core::ref(new CombinedScoreAccessor()));
     }
 
-    // Iterate over all the scorers and accumulate their results into `accumResult`
+    // Count how many score accessors are already set to std::nullopt in order to
+    // break early when everything is null.
+    size_t numNullAccessors = 0ul;
+
     for (size_t scorerIdx = 0ul; scorerIdx < scorers_.size(); ++scorerIdx) {
-        // Prepare sub-requests for the current scorer by extracting the appropriate
-        // ScoringContext from all the CombineScoringContexts
-        std::vector<Request> subRequests;
-        subRequests.reserve(requests.size());
-        auto requestIt = requests.begin();
-        auto contextIt = combineContexts.begin();
-        for (; requestIt != requests.end(); ++requestIt, ++contextIt) {
-            subRequests.push_back(Request{(*contextIt)->scoringContexts[scorerIdx], requestIt->nextToken, requestIt->transitionType});
+        // Extract contexts for current scorer from
+        std::vector<ScoringContextRef> subScorerContexts;
+        subScorerContexts.reserve(combineContexts.size());
+        for (auto const& combineContext : combineContexts) {
+            subScorerContexts.push_back(combineContext->scoringContexts[scorerIdx]);
         }
 
-        // Run current scorer
-        auto subResults = scorers_[scorerIdx]->computeScoresWithTimes(subRequests);
-        if (!subResults) {
-            return {};
-        }
+        // Get score accessors for sub-scorer and merge them into the existing combinedAccessors
+        auto subAccessors = scorers_[scorerIdx]->getScoreAccessors(subScorerContexts);
+        for (size_t i = 0ul; i < combinedAccessors.size(); ++i) {
+            if (not combinedAccessors[i]) {
+                // Null accessors continue to be null for all further scorers
+                continue;
+            }
+            if (subAccessors[i]) {
+                dynamic_cast<CombinedScoreAccessor*>(combinedAccessors[i]->get())->addSubAccessor(*subAccessors[i]);
+            }
+            else {
+                combinedAccessors[i] = std::nullopt;
+                ++numNullAccessors;
 
-        // Merge results of current scorer into `accumResult`
-        // Scores are weighted sum, timeframes are maximum
-        Core::CollapsedVector<Speech::TimeframeIndex> newTimeframes;
-        for (size_t requestIdx = 0ul; requestIdx < requests.size(); ++requestIdx) {
-            accumResult.scores[requestIdx] += subResults->scores[requestIdx];
-            newTimeframes.push_back(std::max(accumResult.timeframes[requestIdx], subResults->timeframes[requestIdx]));
+                // Break early if all elements are null
+                if (numNullAccessors == combinedAccessors.size()) {
+                    return combinedAccessors;
+                }
+            }
         }
-        accumResult.timeframes = newTimeframes;
     }
 
-    return accumResult;
+    return combinedAccessors;
 }
 
 }  // namespace Nn

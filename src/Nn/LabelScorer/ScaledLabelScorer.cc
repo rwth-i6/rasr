@@ -24,10 +24,10 @@ const Core::ParameterFloat ScaledLabelScorer::paramScale(
 
 ScaledLabelScorer::ScaledLabelScorer(Core::Configuration const& config, Core::Ref<LabelScorer> const& scorer)
         : Core::Component(config),
-          LabelScorer(config, TransitionPresetType::ALL),
+          LabelScorer(config),
           scorer_(scorer),
           scale_(paramScale(config)) {
-    enabledTransitionTypes_ = scorer_->enabledTransitionTypes();
+    enabledTransitions_ = scorer->enabledTransitions();
 }
 
 void ScaledLabelScorer::reset() {
@@ -42,6 +42,10 @@ ScoringContextRef ScaledLabelScorer::getInitialScoringContext() {
     return scorer_->getInitialScoringContext();
 }
 
+ScoringContextRef ScaledLabelScorer::extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType) {
+    return scorer_->extendedScoringContext(context, nextToken, transitionType);
+}
+
 void ScaledLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
     scorer_->cleanupCaches(activeContexts);
 }
@@ -54,23 +58,20 @@ void ScaledLabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     scorer_->addInputs(input, nTimesteps);
 }
 
-ScoringContextRef ScaledLabelScorer::extendedScoringContextInternal(Request const& request) {
-    return scorer_->extendedScoringContextInternal(request);
-}
-
-std::optional<LabelScorer::ScoreWithTime> ScaledLabelScorer::computeScoreWithTimeInternal(Request const& request) {
-    auto result = scorer_->computeScoreWithTimeInternal(request);
-    if (result and scale_ != 1) {
-        result->score *= scale_;
+std::optional<ScoreAccessorRef> ScaledLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    auto subAccessor = scorer_->getScoreAccessor(scoringContext);
+    if (subAccessor) {
+        return Core::ref(new ScaledScoreAccessor(*subAccessor, scale_));
     }
-    return result;
+    return {};
 }
 
-std::optional<LabelScorer::ScoresWithTimes> ScaledLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    auto result = scorer_->computeScoresWithTimesInternal(requests);
-    if (result and scale_ != 1) {
-        for (auto& score : result->scores) {
-            score *= scale_;
+std::vector<std::optional<ScoreAccessorRef>> ScaledLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    auto                                         subAccessors = scorer_->getScoreAccessors(scoringContexts);
+    std::vector<std::optional<ScoreAccessorRef>> result(subAccessors.size(), std::nullopt);
+    for (size_t i = 0ul; i < subAccessors.size(); ++i) {
+        if (subAccessors[i]) {
+            result[i] = Core::ref(new ScaledScoreAccessor(*subAccessors[i], scale_));
         }
     }
     return result;

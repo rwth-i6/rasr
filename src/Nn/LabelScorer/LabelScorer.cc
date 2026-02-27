@@ -22,30 +22,17 @@ namespace Nn {
  * === LabelScorer =============
  * =============================
  */
-
-const Core::Choice LabelScorer::choiceTransitionPreset(
-        "default", TransitionPresetType::DEFAULT,
-        "none", TransitionPresetType::NONE,
-        "ctc", TransitionPresetType::CTC,
-        "transducer", TransitionPresetType::TRANSDUCER,
-        "lm", TransitionPresetType::LM,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice LabelScorer::paramTransitionPreset(
-        "transition-preset",
-        &LabelScorer::choiceTransitionPreset,
-        "Preset for which transition types should be enabled for the label scorer. Disabled transition types get assigned score 0 and do not affect the ScoringContext.",
-        TransitionPresetType::DEFAULT);
-
-const Core::ParameterStringVector LabelScorer::paramExtraTransitionTypes(
-        "extra-transition-types",
-        "Transition types that should be enabled in addition to the ones given by the preset.",
-        ",");
-
-LabelScorer::LabelScorer(const Core::Configuration& config, TransitionPresetType defaultPreset)
+LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
         : Core::Component(config),
-          enabledTransitionTypes_() {
-    enableTransitionTypes(config, defaultPreset);
+          enabledTransitions_(config, defaultPreset) {
+}
+
+TransitionSet LabelScorer::enabledTransitions() const {
+    return enabledTransitions_;
+}
+
+bool LabelScorer::scoresTransition(TransitionType transitionType) const {
+    return enabledTransitions_.contains(transitionType);
 }
 
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
@@ -55,143 +42,13 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-ScoringContextRef LabelScorer::extendedScoringContext(Request const& request) {
-    if (enabledTransitionTypes_.contains(request.transitionType)) {
-        return extendedScoringContextInternal(request);
+std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    std::vector<std::optional<ScoreAccessorRef>> result;
+    result.reserve(scoringContexts.size());
+    for (auto const& scoringContext : scoringContexts) {
+        result.push_back(getScoreAccessor(scoringContext));
     }
-    return request.context;
-}
-
-std::optional<LabelScorer::ScoreWithTime> LabelScorer::computeScoreWithTime(Request const& request) {
-    if (enabledTransitionTypes_.contains(request.transitionType)) {
-        return computeScoreWithTimeInternal(request);
-    }
-    return ScoreWithTime{0.0, 0};
-}
-
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    // First, collect all requests for which the transition type is not ignored
-    std::vector<Request> nonIgnoredRequests;
-    nonIgnoredRequests.reserve(requests.size());
-
-    std::vector<size_t> nonIgnoredRequestIndices;
-    nonIgnoredRequestIndices.reserve(requests.size());
-
-    for (size_t requestIndex = 0ul; requestIndex < requests.size(); ++requestIndex) {
-        auto const& request = requests[requestIndex];
-        if (enabledTransitionTypes_.contains(request.transitionType)) {
-            nonIgnoredRequests.push_back(request);
-            nonIgnoredRequestIndices.push_back(requestIndex);
-        }
-    }
-
-    // Compute scores for non-ignored requests
-    auto nonIgnoredResults = computeScoresWithTimesInternal(nonIgnoredRequests);
-    if (not nonIgnoredResults) {
-        return {};
-    }
-
-    // Interleave actual results with 0 scores for requests with ignored transition types
-    ScoresWithTimes result{
-            .scores = std::vector<Score>(requests.size(), 0.0),
-            .timeframes{requests.size(), 0}};
-    for (size_t i = 0ul; i < nonIgnoredRequestIndices.size(); ++i) {
-        auto requestIndex           = nonIgnoredRequestIndices[i];
-        result.scores[requestIndex] = nonIgnoredResults->scores[i];
-        result.timeframes.set(requestIndex, nonIgnoredResults->timeframes[i]);
-    }
-
     return result;
-}
-
-std::unordered_set<LabelScorer::TransitionType> LabelScorer::enabledTransitionTypes() const {
-    return enabledTransitionTypes_;
-}
-
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    if (requests.empty()) {
-        return ScoresWithTimes{};
-    }
-
-    // By default, just loop over the non-batched `computeScoreWithTime` and collect the results
-    ScoresWithTimes result;
-
-    result.scores.reserve(requests.size());
-    result.timeframes.reserve(requests.size());
-    for (auto& request : requests) {
-        auto singleResult = computeScoreWithTime(request);
-        if (not singleResult.has_value()) {
-            return {};
-        }
-        result.scores.push_back(singleResult->score);
-        result.timeframes.push_back(singleResult->timeframe);
-    }
-
-    return result;
-}
-
-void LabelScorer::enableTransitionTypes(Core::Configuration const& config, TransitionPresetType defaultPreset) {
-    auto preset = paramTransitionPreset(config);
-    if (preset == TransitionPresetType::DEFAULT) {
-        preset = defaultPreset;
-    }
-    verify(preset != TransitionPresetType::DEFAULT);
-
-    switch (preset) {
-        case TransitionPresetType::NONE:
-            break;
-        case TransitionPresetType::ALL:
-            for (auto const& [_, transitionType] : transitionTypeArray_) {
-                enabledTransitionTypes_.insert(transitionType);
-            }
-            break;
-        case TransitionPresetType::CTC:
-            enabledTransitionTypes_ = {
-                    LABEL_TO_LABEL,
-                    LABEL_LOOP,
-                    LABEL_TO_BLANK,
-                    BLANK_TO_LABEL,
-                    BLANK_LOOP,
-                    INITIAL_LABEL,
-                    INITIAL_BLANK,
-            };
-            break;
-        case TransitionPresetType::TRANSDUCER:
-            enabledTransitionTypes_ = {
-                    LABEL_TO_LABEL,
-                    LABEL_TO_BLANK,
-                    BLANK_TO_LABEL,
-                    BLANK_LOOP,
-                    INITIAL_LABEL,
-                    INITIAL_BLANK,
-            };
-            break;
-        case TransitionPresetType::LM:
-            enabledTransitionTypes_ = {
-                    LABEL_TO_LABEL,
-                    BLANK_TO_LABEL,
-                    INITIAL_LABEL,
-                    SENTENCE_END,
-            };
-            break;
-    }
-
-    auto extraTransitionTypeStrings = paramExtraTransitionTypes(config);
-    for (auto const& transitionTypeString : extraTransitionTypeStrings) {
-        auto it = std::find_if(transitionTypeArray_.begin(),
-                               transitionTypeArray_.end(),
-                               [&](auto const& entry) { return entry.first == transitionTypeString; });
-        if (it != transitionTypeArray_.end()) {
-            enabledTransitionTypes_.insert(it->second);
-        }
-        else {
-            error() << "Extra transition type name '" << transitionTypeString << "' is not a valid identifier";
-        }
-    }
-
-    if (enabledTransitionTypes_.empty()) {
-        error() << "Label scorer has no enabled transition types. Activate a preset and/or add extra transition types that should be considered.";
-    }
 }
 
 }  // namespace Nn

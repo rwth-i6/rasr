@@ -17,8 +17,10 @@
 #define SCALED_LABEL_SCORER_HH
 
 #include <Core/Configuration.hh>
+#include <cstddef>
 
 #include "LabelScorer.hh"
+#include "ScoreAccessor.hh"
 
 namespace Nn {
 
@@ -40,6 +42,9 @@ public:
     // Initial ScoringContext from sub-scorer
     ScoringContextRef getInitialScoringContext() override;
 
+    // Extended ScoringContext from sub-scorer
+    ScoringContextRef extendedScoringContext(ScoringContextRef context, LabelIndex nextToken, TransitionType transitionType) override;
+
     // Cleanup sub-scorer
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
@@ -49,18 +54,11 @@ public:
     // Add inputs to sub-scorer
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-protected:
-    // These directly call the `Internal` version of `scorer_` since the ScaledLabelScorer wrapper shares
-    // the same enabled transition types and the requests have already been filtered
+    // Score accessor wrapper that scales the scores
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
-    // Extended ScoringContext from sub-scorer
-    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
-
-    // Compute scaled score of request with sub-scorer
-    std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
-
-    // Compute scaled scores of requests with sub-scorer
-    std::optional<ScoresWithTimes> computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
+    // Score accessor wrapper that scales the scores
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     Core::Ref<LabelScorer> scorer_;

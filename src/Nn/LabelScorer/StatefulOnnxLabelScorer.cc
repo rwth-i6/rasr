@@ -26,7 +26,7 @@
 #include <Mm/Module.hh>
 #include <Speech/Types.hh>
 
-#include "LabelScorer.hh"
+#include "ScoreAccessor.hh"
 #include "ScoringContext.hh"
 
 namespace Nn {
@@ -198,7 +198,7 @@ void StatefulOnnxLabelScorer::reset() {
     scoreCache_.clear();
 }
 
-Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::getInitialScoringContext() {
+ScoringContextRef StatefulOnnxLabelScorer::getInitialScoringContext() {
     return Core::ref(new OnnxHiddenStateScoringContext());
 }
 
@@ -217,41 +217,40 @@ size_t StatefulOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<Sco
     return 0u;
 }
 
-Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
-
+ScoringContextRef StatefulOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     bool updateState = false;
-    switch (request.transitionType) {
-        case LabelScorer::TransitionType::BLANK_LOOP:
+    switch (transitionType) {
+        case TransitionType::BLANK_LOOP:
             updateState = blankUpdatesHistory_ and loopUpdatesHistory_;
             break;
-        case LabelScorer::TransitionType::LABEL_TO_BLANK:
-        case LabelScorer::TransitionType::INITIAL_BLANK:
+        case TransitionType::LABEL_TO_BLANK:
+        case TransitionType::INITIAL_BLANK:
             updateState = blankUpdatesHistory_;
             break;
-        case LabelScorer::TransitionType::LABEL_LOOP:
+        case TransitionType::LABEL_LOOP:
             updateState = loopUpdatesHistory_;
             break;
-        case LabelScorer::TransitionType::BLANK_TO_LABEL:
-        case LabelScorer::TransitionType::LABEL_TO_LABEL:
-        case LabelScorer::TransitionType::INITIAL_LABEL:
-        case LabelScorer::TransitionType::SENTENCE_END:
+        case TransitionType::BLANK_TO_LABEL:
+        case TransitionType::LABEL_TO_LABEL:
+        case TransitionType::INITIAL_LABEL:
+        case TransitionType::SENTENCE_END:
             updateState = true;
             break;
         default:
-            error() << "Unknown transition type " << request.transitionType;
+            error() << "Unknown transition type " << transitionType;
     }
 
     // If scoring context is not going to be modified, return the original one
     if (not updateState) {
-        return request.context;
+        return scoringContext;
     }
 
-    std::vector<LabelIndex> newLabelSeq(scoringContext->labelSeq);
-    newLabelSeq.push_back(request.nextToken);
+    OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContext.get()));
+    std::vector<LabelIndex>          newLabelSeq(onnxHiddenStateScoringContext->labelSeq);
+    newLabelSeq.push_back(nextToken);
 
     // Re-use previous hidden-state but mark that finalization (i.e. hidden-state update) is required
-    auto newScoringContext = Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), scoringContext->hiddenState, true));
+    auto newScoringContext = Core::ref(new OnnxHiddenStateScoringContext(std::move(newLabelSeq), onnxHiddenStateScoringContext->hiddenState, true));
 
     auto hiddenState = stateCache_.get(newScoringContext);
     if (hiddenState) {
@@ -262,29 +261,28 @@ Core::Ref<const ScoringContext> StatefulOnnxLabelScorer::extendedScoringContextI
     return newScoringContext;
 }
 
-std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    if (requests.empty()) {
-        return ScoresWithTimes{};
-    }
-
-    if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
-        // Only allow scoring once all encoder states have been passed
+std::vector<std::optional<ScoreAccessorRef>> StatefulOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    if (scoringContexts.empty()) {
         return {};
     }
 
-    ScoresWithTimes result;
-    result.scores.reserve(requests.size());
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
+
+    if ((initializerEncoderStatesName_ != "" or initializerEncoderStatesSizeName_ != "" or updaterEncoderStatesName_ != "" or updaterEncoderStatesSizeName_ != "") and (expectMoreFeatures_ or bufferSize() == 0)) {
+        // Only allow scoring once all encoder states have been passed
+        return scoreAccessors;
+    }
 
     /*
      * Identify unique scoring contexts that still need session runs
      */
     std::unordered_set<OnnxHiddenStateScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedScoringContexts;
 
-    for (auto& request : requests) {
+    for (auto const& scoringContext : scoringContexts) {
         // We need to finalize all scoring contexts before using them for scoring again.
 
-        OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
-        if (not scoreCache_.contains(scoringContext)) {
+        OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContext.get()));
+        if (not scoreCache_.contains(onnxHiddenStateScoringContext)) {
             // Group by unique scoring context
             uniqueUncachedScoringContexts.emplace(scoringContext);
         }
@@ -311,32 +309,27 @@ std::optional<LabelScorer::ScoresWithTimes> StatefulOnnxLabelScorer::computeScor
     /*
      * Assign states from cache to scoring contexts and scores from cache to result vector
      */
-    for (const auto& request : requests) {
-        OnnxHiddenStateScoringContextRef scoringContext(dynamic_cast<const OnnxHiddenStateScoringContext*>(request.context.get()));
+    for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
+        OnnxHiddenStateScoringContextRef onnxHiddenStateScoringContext(dynamic_cast<OnnxHiddenStateScoringContext const*>(scoringContexts[contextIndex].get()));
 
-        if (scoringContext->requiresFinalize) {
-            auto hiddenState = stateCache_.get(scoringContext);
+        if (onnxHiddenStateScoringContext->requiresFinalize) {
+            auto hiddenState = stateCache_.get(onnxHiddenStateScoringContext);
             verify(hiddenState);
-            scoringContext->hiddenState      = *hiddenState;
-            scoringContext->requiresFinalize = false;
+            onnxHiddenStateScoringContext->hiddenState      = *hiddenState;
+            onnxHiddenStateScoringContext->requiresFinalize = false;
         }
 
-        verify(scoreCache_.contains(scoringContext));
-        auto const& scores = scoreCache_.get(scoringContext)->get();
-
-        result.scores.push_back(scores.at(request.nextToken));
-        result.timeframes.push_back(scoringContext->labelSeq.size());
+        verify(scoreCache_.contains(onnxHiddenStateScoringContext));
+        auto const& scoreVec         = scoreCache_.get(onnxHiddenStateScoringContext)->get();
+        auto const  timeframe        = onnxHiddenStateScoringContext->labelSeq.size();
+        scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timeframe));
     }
 
-    return result;
+    return scoreAccessors;
 }
 
-std::optional<LabelScorer::ScoreWithTime> StatefulOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    auto result = computeScoresWithTimes({request});
-    if (not result) {
-        return {};
-    }
-    return ScoreWithTime{result->scores.front(), result->timeframes.front()};
+std::optional<ScoreAccessorRef> StatefulOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    return getScoreAccessors({scoringContext})[0];
 }
 
 void StatefulOnnxLabelScorer::setupEncoderStatesValue() {
@@ -535,9 +528,9 @@ void StatefulOnnxLabelScorer::cacheScores(std::vector<OnnxHiddenStateScoringCont
      * Put resulting scores into cache map
      */
     for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
-        std::vector<f32> scoreVec;
-        sessionOutputs.front().get(b, scoreVec);
-        scoreCache_.put(scoringContextBatch[b], std::move(scoreVec));
+        auto scoreVec = std::make_shared<std::vector<Score>>();
+        sessionOutputs.front().get(b, *scoreVec);
+        scoreCache_.put(scoringContextBatch[b], scoreVec);
     }
 }
 

@@ -51,12 +51,12 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(extension.nextToken),
           score(extension.score),
           trace(),
-          isActive(extension.transitionType != Nn::LabelScorer::TransitionType::SENTENCE_END) {
+          isActive(extension.transitionType != Nn::TransitionType::SENTENCE_END) {
     switch (extension.transitionType) {
-        case Nn::LabelScorer::TransitionType::LABEL_TO_LABEL:
-        case Nn::LabelScorer::TransitionType::BLANK_TO_LABEL:
-        case Nn::LabelScorer::TransitionType::INITIAL_LABEL:
-        case Nn::LabelScorer::TransitionType::SENTENCE_END:
+        case Nn::TransitionType::LABEL_TO_LABEL:
+        case Nn::TransitionType::BLANK_TO_LABEL:
+        case Nn::TransitionType::INITIAL_LABEL:
+        case Nn::TransitionType::SENTENCE_END:
             length = base.length + 1;
             break;
         default:
@@ -66,8 +66,8 @@ LexiconfreeLabelsyncBeamSearch::LabelHypothesis::LabelHypothesis(
 
     Core::Ref<LatticeTrace> predecessor;
     switch (extension.transitionType) {
-        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
-        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+        case Nn::TransitionType::LABEL_LOOP:
+        case Nn::TransitionType::BLANK_LOOP:
             predecessor = base.trace->predecessor;
             break;
         default:
@@ -154,7 +154,7 @@ LexiconfreeLabelsyncBeamSearch::LexiconfreeLabelsyncBeamSearch(Core::Configurati
           beam_(),
           extensions_(),
           newBeam_(),
-          requests_(),
+          scoringContexts_(),
           recombinedHypotheses_(),
           initializationTime_(),
           featureProcessingTime_(),
@@ -294,7 +294,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     if (finishedSegment_) {
         return false;
     }
-    if (currentSearchStep_ >= maxLabelsPerTimestep_ * totalTimesteps_) {
+    if (currentSearchStep_ >= maxLabelsPerTimestep_ * totalTimesteps_ or std::all_of(beam_.begin(), beam_.end(), [](LabelHypothesis const& hyp) { return not hyp.isActive; })) {
         warning() << "Terminated search due to reaching max number of label outputs given input count";
         finishedSegment_ = true;
         return false;
@@ -303,15 +303,22 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
     // Assume the output labels are stored as lexicon lemma orth and ordered consistently with NN output index
     auto lemmas = lexicon_->lemmas();
 
+    scoringContexts_.clear();
+    for (auto const& hyp : beam_) {
+        scoringContexts_.push_back(hyp.scoringContext);
+    }
+
+    /*
+     * Perform scoring of all the requests with the label scorer.
+     */
+    scoringTime_.start();
+    auto scoreAccessors = labelScorer_->getScoreAccessors(scoringContexts_);
+    scoringTime_.stop();
+
     /*
      * Collect all possible extensions for all hypotheses in the beam.
-     * Also Create scoring requests for the label scorer.
-     * Each extension candidate makes up a request.
      */
     extensions_.clear();
-    requests_.clear();
-    extensions_.reserve(beam_.size() * lexicon_->nLemmas());
-    requests_.reserve(extensions_.size());
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -320,53 +327,40 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             continue;
         }
 
+        if (not scoreAccessors[hypIndex]) {
+            continue;
+        }
+
+        auto const& scoreAccessor = *scoreAccessors[hypIndex];
+
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            const Bliss::Lemma* lemma(*lemmaIt);
+            Bliss::Lemma const* lemma(*lemmaIt);
             Nn::LabelIndex      tokenIdx = lemma->id();
 
-            auto transitionType = Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+            auto transitionType = Nn::TransitionType::LABEL_TO_LABEL;
             if (hyp.currentToken == Nn::invalidLabelIndex) {
-                transitionType = Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+                transitionType = Nn::TransitionType::INITIAL_LABEL;
             }
             if (tokenIdx == sentenceEndLabelIndex_) {
-                transitionType = Nn::LabelScorer::TransitionType::SENTENCE_END;
+                transitionType = Nn::TransitionType::SENTENCE_END;
             }
 
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
-                     hyp.score,
-                     0,
+                     hyp.score + scoreAccessor->getScoreForTransition(transitionType) + scoreAccessor->getScoreForLabel(tokenIdx),
+                     scoreAccessor->getTime(),
                      transitionType,
                      hypIndex});
-            requests_.push_back({beam_[hypIndex].scoringContext, tokenIdx, transitionType});
         }
     }
 
-    if (requests_.empty()) {
-        // All hypotheses are terminated -> no search step can be made.
-        finishedSegment_ = true;
+    if (extensions_.empty()) {
         return false;
     }
 
-    /*
-     * Perform scoring of all the requests with the label scorer.
-     */
-    scoringTime_.start();
-    auto result = labelScorer_->computeScoresWithTimes(requests_);
-    scoringTime_.stop();
-
-    if (not result) {
-        // LabelScorer could not compute scores -> no search step can be made.
-        return false;
-    }
     ++currentSearchStep_;
-
-    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-        extensions_[extensionIdx].score += result->scores[extensionIdx];
-        extensions_[extensionIdx].timeframe = result->timeframes[extensionIdx];
-    }
 
     if (logStepwiseStatistics_) {
         clog() << Core::XmlOpen("search-step-stats");
@@ -397,9 +391,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
         auto const& baseHyp = beam_[extension.baseHypIndex];
 
         auto newScoringContext = labelScorer_->extendedScoringContext(
-                {baseHyp.scoringContext,
-                 extension.nextToken,
-                 extension.transitionType});
+                baseHyp.scoringContext,
+                extension.nextToken,
+                extension.transitionType);
         newBeam_.push_back({baseHyp, extension, newScoringContext, lengthNormScale_});
     }
 

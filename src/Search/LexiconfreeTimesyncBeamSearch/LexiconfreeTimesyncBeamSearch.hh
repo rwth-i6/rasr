@@ -83,6 +83,7 @@ protected:
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
+        size_t                           scoringContextIndex;
 
         bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;

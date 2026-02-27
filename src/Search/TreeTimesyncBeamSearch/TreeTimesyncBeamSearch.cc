@@ -180,7 +180,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           beam_(),
           newBeam_(),
           wordEndHypotheses_(),
-          requests_(),
+          scoringContexts_(),
           tempHypotheses_(),
           currentSearchStep_(0ul),
           finishedSegment_(false),
@@ -422,12 +422,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     withinWordExtensions_.clear();
+    scoringContexts_.clear();
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
+        scoringContexts_.push_back(hyp.scoringContexts.front());
 
         // Iterate over the successors of this hypothesis' current state in the tree
-        for (const auto& successorState : stateSuccessorLookup_[hyp.currentState]) {
+        for (auto const& successorState : stateSuccessorLookup_[hyp.currentState]) {
             Nn::LabelIndex tokenIdx = network_->structure.state(successorState).stateDesc.acousticModel;
             // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
             if (collapseRepeatedLabels_ and
@@ -438,12 +440,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             withinWordExtensions_.push_back(
-                    {.nextToken      = tokenIdx,
-                     .nextState      = successorState,
-                     .timeframe      = hyp.timeframe,
-                     .score          = hyp.score,
-                     .transitionType = transitionType,
-                     .baseHypIndex   = hypIndex});
+                    {.nextToken           = tokenIdx,
+                     .nextState           = successorState,
+                     .timeframe           = hyp.timeframe,
+                     .score               = hyp.score,
+                     .transitionType      = transitionType,
+                     .baseHypIndex        = hypIndex,
+                     .scoringContextIndex = hypIndex});
         }
     }
 
@@ -452,34 +455,36 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-        requests_.clear();
-
-        /*
-         * Create scoring requests for the current label scorer.
-         */
-        for (auto const& ext : withinWordExtensions_) {
-            requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
-        }
+        auto const& labelScorer = labelScorers_[scorerIdx];
 
         /*
          * Perform scoring of all the requests with the label scorer.
          */
         scoringTime_.start();
-        auto result = labelScorers_[scorerIdx]->computeScoresWithTimes(requests_);
+        auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
 
-        if (not result) {
-            // LabelScorer could not compute scores -> no search step can be made.
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlClose("search-step-stats");
-            }
+        withinWordExtensions_.erase(
+                std::remove_if(
+                        withinWordExtensions_.begin(),
+                        withinWordExtensions_.end(),
+                        [&](auto const& ext) { return not scoreAccessors[ext.baseHypIndex]; }),
+                withinWordExtensions_.end());
+
+        if (withinWordExtensions_.empty()) {
+            clog() << Core::XmlClose("search-step-stats");
             return false;
         }
 
-        for (size_t requestIdx = 0ul; requestIdx < withinWordExtensions_.size(); ++requestIdx) {
-            auto& ext = withinWordExtensions_[requestIdx];
-            ext.score += result->scores[requestIdx];
-            ext.timeframe = std::max(ext.timeframe, result->timeframes[requestIdx]);
+        for (auto& ext : withinWordExtensions_) {
+            if (not labelScorer->scoresTransition(ext.transitionType)) {
+                continue;
+            }
+            auto const& scoreAccessor = *scoreAccessors[ext.baseHypIndex];
+
+            ext.score += scoreAccessor->getScoreForTransition(ext.transitionType);
+            ext.score += scoreAccessor->getScoreForLabel(ext.nextToken);
+            ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
         }
 
         /*
@@ -498,6 +503,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             if (logStepwiseStatistics_) {
                 clog() << Core::XmlFull("num-hyps-after-beam-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
             }
+
+            // Prepare scoring context list for next iteration
+            scoringContexts_.clear();
+            for (auto& ext : withinWordExtensions_) {
+                ext.scoringContextIndex = scoringContexts_.size();
+                scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+            }
         }
     }
 
@@ -509,9 +521,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                    {.context        = baseHyp.scoringContexts[scorerIdx],
-                     .nextToken      = extension.nextToken,
-                     .transitionType = extension.transitionType}));
+                    baseHyp.scoringContexts[scorerIdx],
+                    extension.nextToken,
+                    extension.transitionType));
         }
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
@@ -553,19 +565,23 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     lmScore        = languageModel_->score(hyp.lmHistory, st);
                 }
 
-                Score                           penalty               = 0.0;
-                Nn::LabelScorer::TransitionType wordEndtransitionType = Nn::LabelScorer::WORD_EXIT;
+                Score              penalty               = 0.0;
+                Nn::TransitionType wordEndtransitionType = Nn::TransitionType::WORD_EXIT;
                 if (lemma == lexicon_->specialLemma("silence")) {
-                    wordEndtransitionType = Nn::LabelScorer::SILENCE_EXIT;
+                    wordEndtransitionType = Nn::TransitionType::SILENCE_EXIT;
                 }
                 else if (nonWordLemmas_.contains(lemma)) {
-                    wordEndtransitionType = Nn::LabelScorer::NONWORD_EXIT;
+                    wordEndtransitionType = Nn::TransitionType::NONWORD_EXIT;
                 }
                 for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-                    auto result = labelScorers_[scorerIdx]->computeScoreWithTime({hyp.scoringContexts[scorerIdx], Nn::invalidLabelIndex, wordEndtransitionType});
-                    if (result) {
-                        penalty += result->score;
+                    if (not labelScorers_[scorerIdx]->scoresTransition(wordEndtransitionType)) {
+                        continue;
                     }
+                    auto scoreAccessor = labelScorers_[scorerIdx]->getScoreAccessor(hyp.scoringContexts[scorerIdx]);
+                    if (not scoreAccessor) {
+                        continue;
+                    }
+                    penalty += (*scoreAccessor)->getScoreForTransition(wordEndtransitionType);
                 }
 
                 wordEndExtensions_.push_back({.pron         = lemmaPron,
@@ -763,46 +779,46 @@ void TreeTimesyncBeamSearch::logStatistics() const {
     numActiveTrees_.write(clog());
 }
 
-Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+Nn::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
     bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
     bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
     bool nextIsSentenceEnd = nextLabel == sentenceEndLabelIndex_;
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
+            return Nn::TransitionType::INITIAL_BLANK;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+            return Nn::TransitionType::INITIAL_LABEL;
         }
     }
 
     if (prevIsBlank) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::BLANK_LOOP;
+            return Nn::TransitionType::BLANK_LOOP;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
+            return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
     else {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+            return Nn::TransitionType::LABEL_TO_BLANK;
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::LabelScorer::TransitionType::LABEL_LOOP;
+            return Nn::TransitionType::LABEL_LOOP;
         }
         else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::SENTENCE_END;
         }
         else {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+            return Nn::TransitionType::LABEL_TO_LABEL;
         }
     }
 }

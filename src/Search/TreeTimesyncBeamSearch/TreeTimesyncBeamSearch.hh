@@ -80,12 +80,13 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
-        StateId                         nextState;       // State in the search tree of this extension
-        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
-        Score                           score;           // Would-be total score of the full hypothesis after extension
-        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
-        size_t                          baseHypIndex;    // Index of base hypothesis in beam
+        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
+        StateId                nextState;       // State in the search tree of this extension
+        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
+        Score                  score;           // Would-be total score of the full hypothesis after extension
+        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
+        size_t                 baseHypIndex;    // Index of base hypothesis in beam
+        size_t                 scoringContextIndex;
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;
@@ -163,7 +164,7 @@ private:
     std::vector<LabelHypothesis>              beam_;
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
-    std::vector<Nn::LabelScorer::Request>     requests_;
+    std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
     std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
@@ -195,7 +196,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper function for pruning to maxBeamSize

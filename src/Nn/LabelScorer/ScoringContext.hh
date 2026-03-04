@@ -22,18 +22,9 @@
 #include <Math/FastVector.hh>
 #include <Mm/Types.hh>
 #include <Onnx/Value.hh>
-#include <Speech/Types.hh>
-#include <limits>
-#ifdef MODULE_PYTHON
-#include <pybind11/pytypes.h>
-namespace py = pybind11;
-#endif
-#include <Search/Types.hh>
+#include "Types.hh"
 
 namespace Nn {
-
-typedef Mm::EmissionIndex   LabelIndex;
-static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 
 /*
  * Empty scoring context base class
@@ -41,11 +32,11 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
 
-    virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
+    virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
     virtual size_t hash() const;
 };
 
-typedef Core::Ref<const ScoringContext> ScoringContextRef;
+typedef Core::Ref<ScoringContext const> ScoringContextRef;
 
 struct ScoringContextHash {
     size_t operator()(ScoringContextRef const& scoringContext) const {
@@ -156,30 +147,7 @@ struct CombineScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
-
-#ifdef MODULE_PYTHON
-
-/*
- * Scoring context containing some arbitrary python object
- */
-struct PythonScoringContext : public ScoringContext {
-    py::object object;
-    size_t     step;
-
-    PythonScoringContext()
-            : object(py::none()), step(0ul) {}
-
-    PythonScoringContext(py::object&& object, size_t step)
-            : object(object), step(step) {}
-
-    bool   isEqual(ScoringContextRef const& other) const;
-    size_t hash() const;
-};
-
-typedef Core::Ref<const PythonScoringContext> PythonScoringContextRef;
-
-#endif
+typedef Core::Ref<CombineScoringContext const> CombineScoringContextRef;
 
 /*
  * Hidden state represented by a dictionary of named ONNX values
@@ -199,7 +167,7 @@ struct OnnxHiddenState : public Core::ReferenceCounted {
     }
 };
 
-typedef Core::Ref<const OnnxHiddenState> OnnxHiddenStateRef;
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
 
 /*
  * Scoring context consisting of a hidden state.
@@ -221,7 +189,7 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
  * Scoring context consisting of a hidden state and a step.

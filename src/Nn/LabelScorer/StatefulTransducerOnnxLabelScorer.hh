@@ -16,8 +16,6 @@
 #ifndef STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 #define STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 
-#include <optional>
-
 #include <Core/Component.hh>
 #include <Core/Configuration.hh>
 #include <Core/FIFOCache.hh>
@@ -78,14 +76,14 @@ public:
     // If startLabelIndex is set, forward that through the state updater to obtain the start history
     Core::Ref<const ScoringContext> getInitialScoringContext() override;
 
+    // Forward hidden-state through state-updater ONNX model
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
+    virtual std::optional<ScoreAccessorRef>              getScoreAccessor(ScoringContextRef scoringContext) override;
+    virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
+
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
-
-    // Forward hidden-state through state-updater ONNX model
-    Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     // Forward a batch of histories through the ONNX model and put the resulting scores into the score cache
@@ -122,7 +120,7 @@ private:
 
     std::string updaterTokenName_;
 
-    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
 };
 
 }  // namespace Nn

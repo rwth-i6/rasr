@@ -11,8 +11,10 @@ set(RasrLabelScorer_SOURCES
     LabelScorer.cc
     LabelScorerFactory.cc
     ScaledLabelScorer.cc
+    ScoreAccessor.cc
     ScoringContext.cc
     TransitionLabelScorer.cc
+    TransitionTypes.cc
 )
 
 if(${MODULE_ONNX})

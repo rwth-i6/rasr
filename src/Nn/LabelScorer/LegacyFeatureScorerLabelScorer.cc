@@ -53,19 +53,18 @@ ScoringContextRef LegacyFeatureScorerLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
+ScoringContextRef LegacyFeatureScorerLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(scoringContext.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> LegacyFeatureScorerLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
+std::optional<ScoreAccessorRef> LegacyFeatureScorerLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(scoringContext.get()));
     if (scoreCache_.size() <= stepHistory->currentStep) {
         return {};
     }
     // Retrieve score from score cache at the right index
-    auto cachedScore = scoreCache_.at(stepHistory->currentStep);
-    return ScoreWithTime{cachedScore->score(request.nextToken), stepHistory->currentStep};
+    return Core::ref(new FeatureScorerScoreAccessor(scoreCache_.at(stepHistory->currentStep), stepHistory->currentStep));
 }
 
 }  // namespace Nn

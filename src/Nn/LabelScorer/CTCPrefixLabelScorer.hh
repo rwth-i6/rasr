@@ -50,20 +50,17 @@ public:
     void addInput(DataView const& input) override;
     void addInputs(DataView const& inputs, size_t nTimesteps) override;
 
-    ScoringContextRef getInitialScoringContext() override;
-
-protected:
-    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    ScoringContextRef               getInitialScoringContext() override;
+    ScoringContextRef               extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
-    Math::FastMatrix<Score> ctcScores_;  // Cached T x V matrix of scores
-
     LabelIndex             blankIndex_;
     size_t                 vocabSize_;
     Core::Ref<LabelScorer> ctcScorer_;
     bool                   expectMoreFeatures_;
+
+    std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 
     /*
      * Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.

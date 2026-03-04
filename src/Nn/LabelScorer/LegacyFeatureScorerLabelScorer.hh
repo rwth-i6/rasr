@@ -46,12 +46,11 @@ public:
     // Initial context just contains step 0.
     ScoringContextRef getInitialScoringContext() override;
 
-protected:
     // Scoring context with step incremented by 1.
-    ScoringContextRef extendedScoringContextInternal(LabelScorer::Request const& request) override;
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
     // Use cached context scorer at given step to score the next token.
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
 private:
     Core::Ref<Mm::FeatureScorer>           featureScorer_;

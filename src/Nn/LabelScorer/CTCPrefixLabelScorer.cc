@@ -27,7 +27,6 @@
 #include <Speech/Types.hh>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <utility>
 
 namespace Nn {
@@ -47,7 +46,8 @@ CTCPrefixLabelScorer::CTCPrefixLabelScorer(Core::Configuration const& config)
           blankIndex_(paramBlankIndex(config)),
           vocabSize_(paramVocabSize(config)),
           ctcScorer_(Module::instance().labelScorerFactory().createLabelScorer(select("ctc-scorer"))),
-          expectMoreFeatures_(true) {
+          expectMoreFeatures_(true),
+          ctcScores_(std::make_shared<Math::FastMatrix<Score>>(vocabSize_, 0)) {
 }
 
 void CTCPrefixLabelScorer::reset() {
@@ -73,77 +73,46 @@ ScoringContextRef CTCPrefixLabelScorer::getInitialScoringContext() {
     return Core::ref(new CTCPrefixScoringContext());
 }
 
-ScoringContextRef CTCPrefixLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    auto context = Core::ref(dynamic_cast<CTCPrefixScoringContext const*>(request.context.get()));
+ScoringContextRef CTCPrefixLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    auto context = Core::ref(dynamic_cast<CTCPrefixScoringContext const*>(scoringContext.get()));
 
     std::vector<LabelIndex> newLabelSeq(context->labelSeq);
-    newLabelSeq.push_back(request.nextToken);
+    newLabelSeq.push_back(nextToken);
     // Before scoring context extension, the score has already been computed in `computeScoreWithTimeInternal`
-    auto extScore = context->extScores.at(request.nextToken);
+    auto extScore = context->extScores.at(nextToken);
 
     return Core::ref(new CTCPrefixScoringContext(std::move(newLabelSeq), context->timePrefixScores, extScore, true));
 }
 
-std::optional<LabelScorer::ScoreWithTime> CTCPrefixLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
+std::optional<ScoreAccessorRef> CTCPrefixLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
     if (expectMoreFeatures_) {
         return {};
     }
 
-    auto context = Core::ref(dynamic_cast<const CTCPrefixScoringContext*>(request.context.get()));
+    auto context = Core::ref(dynamic_cast<const CTCPrefixScoringContext*>(scoringContext.get()));
     finalizeScoringContext(context);
 
-    Score totalScore;
-    if (request.transitionType == SENTENCE_END) {
-        // For EOS, the exact prefix must have been emitted until time T, so we only need
-        // to consider the last element of the prefixScores vector which corresponds to t=T.
-        totalScore = context->timePrefixScores->back().totalScore();
-    }
-    else {
-        if (context->labelSeq.empty()) {
-            totalScore = ctcScores_.at(request.nextToken, 0);
-        }
-        else {
-            totalScore = std::numeric_limits<Score>::infinity();
-        }
-        for (size_t t = 1ul; t < ctcScores_.nColumns(); ++t) {
-            // Prefix can always end by time t-1 with blank label
-            Score timestepScore;
-            if (not context->labelSeq.empty() and request.nextToken == context->labelSeq.back()) {
-                // If prefix ends in the same token as `nextToken` there must a blank between, thus the prefix can only end in blank at t-1
-                timestepScore = context->timePrefixScores->at(t - 1).blankEndingScore;
-            }
-            else {
-                // If prefix ends in a different token as `nextToken` can it end in both blank or non-blank at t-1
-                timestepScore = context->timePrefixScores->at(t - 1).totalScore();
-            }
-
-            timestepScore += ctcScores_.at(request.nextToken, t);
-
-            totalScore = std::min(totalScore, timestepScore);
-        }
-    }
-    context->extScores.emplace(request.nextToken, totalScore);
-
-    return ScoreWithTime{totalScore - context->prefixScore, static_cast<Speech::TimeframeIndex>(context->labelSeq.size() + 1)};
+    return Core::ref(new CTCPrefixScoreAccessor(context, ctcScores_));
 }
 
 void CTCPrefixLabelScorer::setupCTCScores() {
-    ctcScores_.resize(vocabSize_, 0);
+    ctcScores_->resize(vocabSize_, 0);
     auto ctcScorerContext = ctcScorer_->getInitialScoringContext();
     while (true) {
-        // Check if scores for next timestep are available
-        if (not ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = 0, .transitionType = LABEL_TO_BLANK})) {
+        auto scoreAccessor = ctcScorer_->getScoreAccessor(ctcScorerContext);
+
+        if (not scoreAccessor) {
             break;
         }
 
         // Add column for next timestep to matrix and insert score values into it
-        ctcScores_.resizeColsAndKeepContent(ctcScores_.nColumns() + 1);
+        ctcScores_->resizeColsAndKeepContent(ctcScores_->nColumns() + 1);
         for (LabelIndex v = 0ul; v < vocabSize_; ++v) {
             // Transition type can be anything as we assume that the score is independent of it
-            ctcScores_.at(v, ctcScores_.nColumns() - 1) = ctcScorer_->computeScoreWithTime({.context = ctcScorerContext, .nextToken = v, .transitionType = LABEL_TO_BLANK})->score;
+            ctcScores_->at(v, ctcScores_->nColumns() - 1) = (*scoreAccessor)->getScoreForLabel(v);
         }
         // Transition type and next token assumed to not influence the scoring context
-        ctcScorerContext = ctcScorer_->extendedScoringContext({.context = ctcScorerContext, .nextToken = invalidLabelIndex, .transitionType = LABEL_TO_BLANK});
+        ctcScorerContext = ctcScorer_->extendedScoringContext(ctcScorerContext, invalidLabelIndex, LABEL_TO_BLANK);
     }
 }
 
@@ -158,11 +127,11 @@ void CTCPrefixLabelScorer::finalizeScoringContext(CTCPrefixScoringContextRef con
         // PrefixScore_t([], nonblank) = -inf for t >= 0
 
         auto prefixScores = std::make_shared<std::vector<CTCPrefixScoringContext::PrefixScore>>();
-        prefixScores->resize(ctcScores_.nColumns());
+        prefixScores->resize(ctcScores_->nColumns());
 
         Score cumulativeBlankScore = 0.0;
-        for (size_t t = 0ul; t < ctcScores_.nColumns(); ++t) {
-            cumulativeBlankScore += ctcScores_.at(blankIndex_, t);
+        for (size_t t = 0ul; t < ctcScores_->nColumns(); ++t) {
+            cumulativeBlankScore += ctcScores_->at(blankIndex_, t);
             prefixScores->at(t).blankEndingScore = cumulativeBlankScore;
         }
 
@@ -191,14 +160,14 @@ void CTCPrefixLabelScorer::finalizeScoringContext(CTCPrefixScoringContextRef con
 
         extPrefixScores->resize(prefixScores->size());
         if (scoringContext->labelSeq.size() == 1) {
-            extPrefixScores->at(0).nonBlankEndingScore = ctcScores_.at(nextToken, 0);
+            extPrefixScores->at(0).nonBlankEndingScore = ctcScores_->at(nextToken, 0);
         }
 
-        for (size_t t = 1ul; t < ctcScores_.nColumns(); ++t) {
+        for (size_t t = 1ul; t < ctcScores_->nColumns(); ++t) {
             Score& blankEndingScore    = extPrefixScores->at(t).blankEndingScore;
             Score& nonBlankEndingScore = extPrefixScores->at(t).nonBlankEndingScore;
 
-            blankEndingScore    = extPrefixScores->at(t - 1).totalScore() + ctcScores_.at(blankIndex_, t);
+            blankEndingScore    = extPrefixScores->at(t - 1).totalScore() + ctcScores_->at(blankIndex_, t);
             nonBlankEndingScore = extPrefixScores->at(t - 1).nonBlankEndingScore;  // Label loop
             if (scoringContext->labelSeq.size() >= 2 and nextToken == scoringContext->labelSeq[scoringContext->labelSeq.size() - 2]) {
                 // If the last label is equal to the one before it, there must be a blank in between, i.e., the prefix must not end at non-blank at t-1
@@ -208,7 +177,7 @@ void CTCPrefixLabelScorer::finalizeScoringContext(CTCPrefixScoringContextRef con
                 // If the last two labels are different, the prefix can end in both blank or non-blank
                 nonBlankEndingScore = std::min(nonBlankEndingScore, prefixScores->at(t - 1).totalScore());  // Blank-to-label or label-to-label
             }
-            nonBlankEndingScore += ctcScores_.at(nextToken, t);
+            nonBlankEndingScore += ctcScores_->at(nextToken, t);
         }
 
         scoringContext->timePrefixScores = extPrefixScores;

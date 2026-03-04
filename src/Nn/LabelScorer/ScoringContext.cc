@@ -144,7 +144,7 @@ size_t CombineScoringContext::hash() const {
 }
 
 bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const CombineScoringContext*>(other.get());
+    auto* otherPtr = dynamic_cast<CombineScoringContext const*>(other.get());
 
     if (otherPtr == nullptr or scoringContexts.size() != otherPtr->scoringContexts.size()) {
         return false;
@@ -160,24 +160,6 @@ bool CombineScoringContext::isEqual(ScoringContextRef const& other) const {
 }
 
 /*
- * =============================
- * === PythonScoringContext ====
- * =============================
- */
-size_t PythonScoringContext::hash() const {
-    return py::hash(py::cast<py::handle>(object));
-}
-
-bool PythonScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const PythonScoringContext*>(other.get());
-    if (step != otherPtr->step) {
-        return false;
-    }
-
-    return object.equal(py::cast<py::handle>(otherPtr->object));
-}
-
-/*
  * =================================
  * = OnnxHiddenStateScoringContext =
  * =================================
@@ -187,7 +169,7 @@ size_t OnnxHiddenStateScoringContext::hash() const {
 }
 
 bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
-    auto* otherPtr = dynamic_cast<const OnnxHiddenStateScoringContext*>(other.get());
+    auto* otherPtr = dynamic_cast<OnnxHiddenStateScoringContext const*>(other.get());
     if (otherPtr == nullptr) {
         return false;
     }

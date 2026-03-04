@@ -118,7 +118,9 @@ public:
     virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
 
     // Check whether the given transition type can be scored by this LabelScorer
-    bool scoresTransition(TransitionType transitionType) const;
+    inline bool scoresTransition(TransitionType transitionType) const {
+        return enabledTransitions_.contains(transitionType);
+    }
 
     // Return the set of all transition types that can get scored by this label scorer
     TransitionSet enabledTransitions() const;

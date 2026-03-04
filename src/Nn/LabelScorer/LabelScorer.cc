@@ -31,10 +31,6 @@ TransitionSet LabelScorer::enabledTransitions() const {
     return enabledTransitions_;
 }
 
-bool LabelScorer::scoresTransition(TransitionType transitionType) const {
-    return enabledTransitions_.contains(transitionType);
-}
-
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     auto featureSize = input.size() / nTimesteps;
     for (size_t t = 0ul; t < nTimesteps; ++t) {

@@ -359,8 +359,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      * Each extension candidate makes up a request.
      */
     extensions_.clear();
-    extensions_.reserve(beam_.size() * lexicon_->nLemmas());
-    requests_.reserve(extensions_.size());
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];

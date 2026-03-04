@@ -91,10 +91,11 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
-        Score                              score;            // Full score of hypothesis
-        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
+        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;               // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
+        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);

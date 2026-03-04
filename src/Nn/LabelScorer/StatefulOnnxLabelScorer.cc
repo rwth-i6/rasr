@@ -366,7 +366,7 @@ void StatefulOnnxLabelScorer::setupEncoderStatesSizeValue() {
 }
 
 OnnxHiddenStateRef StatefulOnnxLabelScorer::computeInitialHiddenState() {
-    verify(not expectMoreFeatures_);
+    verify(not expectMoreFeatures_ or (initializerEncoderStatesName_ == "" and initializerEncoderStatesSizeName_ == ""));
 
     if (not initialHiddenState_) {  // initialHiddenState_ is still sentinel value -> compute it
         /*
@@ -464,20 +464,13 @@ std::vector<OnnxHiddenStateRef> StatefulOnnxLabelScorer::updatedHiddenStates(std
 
 void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch) {
     std::vector<OnnxHiddenStateScoringContextRef> nonFinalizedContexts;
+    std::vector<OnnxHiddenStateRef>               hiddenStates;
+    std::vector<s32>                              nextTokens;
     for (auto const& scoringContext : scoringContextBatch) {
-        if (scoringContext->requiresFinalize) {
-            nonFinalizedContexts.push_back(scoringContext);
+        if (not scoringContext->requiresFinalize) {
+            continue;
         }
-    }
-
-    // If no scoring contexts need finalization, nothing has to be done
-    if (nonFinalizedContexts.empty()) {
-        return;
-    }
-
-    std::vector<OnnxHiddenStateRef> hiddenStates;
-    std::vector<s32>                nextTokens;
-    for (auto const& scoringContext : nonFinalizedContexts) {
+        nonFinalizedContexts.push_back(scoringContext);
         if (scoringContext->hiddenState) {
             hiddenStates.push_back(scoringContext->hiddenState);
         }
@@ -486,6 +479,11 @@ void StatefulOnnxLabelScorer::cacheStates(std::vector<OnnxHiddenStateScoringCont
         }
         verify(not scoringContext->labelSeq.empty());
         nextTokens.push_back(scoringContext->labelSeq.back());
+    }
+
+    // If no scoring contexts need finalization, nothing has to be done
+    if (nonFinalizedContexts.empty()) {
+        return;
     }
 
     auto newHiddenStates = updatedHiddenStates(hiddenStates, nextTokens);

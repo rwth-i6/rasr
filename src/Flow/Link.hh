@@ -15,7 +15,6 @@
 #ifndef _FLOW_LINK_HH
 #define _FLOW_LINK_HH
 
-// #include <ostream.h>
 #include <ostream>
 
 #include <Core/Assertions.hh>
@@ -106,16 +105,31 @@ public:
                     fast_data_ = d;
                     return true;
                 }
-                else {
+                else if (fast_data_ == Data::ood()) {
+                    // override OOD with fresh data
+                    d->increment();
                     fast_data_->decrement();
+                    fast_data_ = d;
+                    return true;
+                }
+                else {
                     queue_.put(fast_data_);
+                    fast_data_->decrement();
                     fast_data_ = sentinelEmpty();
                 }
             }
-            queue_.put(d);
+            if (d != Data::ood()) {
+                // don't push OOD into the queue when we already have data in it
+                queue_.put(d);
+            }
+            require(!isEmpty(fast_data_) or !queue_.isEmpty());
             return true;
         }
-        queue_.putAtomar(d);
+        if (d != Data::ood() or queue_.isEmpty()) {
+            queue_.putAtomar(d);
+        }
+
+        require(!isEmpty(fast_data_) or !queue_.isEmpty());
         return true;
     }
 

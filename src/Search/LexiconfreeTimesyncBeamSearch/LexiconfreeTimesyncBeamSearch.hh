@@ -138,6 +138,7 @@ private:
     std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                   hypIndexToContextIndexMap_;
     std::vector<ExtensionCandidate>    extensions_;
     std::vector<LabelHypothesis>       newBeam_;
     std::vector<Nn::ScoringContextRef> scoringContexts_;

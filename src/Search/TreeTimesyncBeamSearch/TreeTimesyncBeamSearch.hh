@@ -159,6 +159,7 @@ private:
     Core::Channel                                  debugChannel_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                          hypIndexToContextIndexMap_;
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
     std::vector<WordEndExtensionCandidate>    wordEndExtensions_;
     std::vector<LabelHypothesis>              beam_;

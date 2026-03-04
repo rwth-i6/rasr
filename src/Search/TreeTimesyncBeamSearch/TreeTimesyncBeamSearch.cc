@@ -175,6 +175,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           labelScorers_(),
           nonWordLemmas_(),
           debugChannel_(config, "debug"),
+          hypIndexToContextIndexMap_(),
           withinWordExtensions_(),
           wordEndExtensions_(),
           beam_(),
@@ -423,10 +424,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
      */
     withinWordExtensions_.clear();
     scoringContexts_.clear();
+    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
-        scoringContexts_.push_back(hyp.scoringContexts.front());
 
         // Iterate over the successors of this hypothesis' current state in the tree
         for (auto const& successorState : stateSuccessorLookup_[hyp.currentState]) {
@@ -438,6 +439,11 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 (not useBlank_ or tokenIdx != blankLabelIndex_)) {
                 continue;
             }
+
+            if (hypIndexToContextIndexMap_[hypIndex] == -1) {
+                hypIndexToContextIndexMap_[hypIndex] = scoringContexts_.size();
+                scoringContexts_.push_back(hyp.scoringContexts.front());
+            }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             withinWordExtensions_.push_back(
                     {.nextToken           = tokenIdx,
@@ -446,7 +452,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                      .score               = hyp.score,
                      .transitionType      = transitionType,
                      .baseHypIndex        = hypIndex,
-                     .scoringContextIndex = hypIndex});
+                     .scoringContextIndex = static_cast<size_t>(hypIndexToContextIndexMap_[hypIndex])});
         }
     }
 
@@ -468,7 +474,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 std::remove_if(
                         withinWordExtensions_.begin(),
                         withinWordExtensions_.end(),
-                        [&](auto const& ext) { return not scoreAccessors[ext.baseHypIndex]; }),
+                        [&](auto const& ext) { return not scoreAccessors[ext.scoringContextIndex]; }),
                 withinWordExtensions_.end());
 
         if (withinWordExtensions_.empty()) {
@@ -480,7 +486,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             if (not labelScorer->scoresTransition(ext.transitionType)) {
                 continue;
             }
-            auto const& scoreAccessor = *scoreAccessors[ext.baseHypIndex];
+            auto const& scoreAccessor = *scoreAccessors[ext.scoringContextIndex];
 
             ext.score += scoreAccessor->getScoreForTransition(ext.transitionType);
             ext.score += scoreAccessor->getScoreForLabel(ext.nextToken);
@@ -506,9 +512,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
 
             // Prepare scoring context list for next iteration
             scoringContexts_.clear();
+            hypIndexToContextIndexMap_.assign(beam_.size(), -1);
             for (auto& ext : withinWordExtensions_) {
-                ext.scoringContextIndex = scoringContexts_.size();
-                scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+                if (hypIndexToContextIndexMap_[ext.baseHypIndex] == -1) {
+                    hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
+                    scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+                }
+                ext.scoringContextIndex = hypIndexToContextIndexMap_[ext.baseHypIndex];
             }
         }
     }

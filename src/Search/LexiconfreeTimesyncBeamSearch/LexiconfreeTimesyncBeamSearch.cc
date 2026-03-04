@@ -165,6 +165,7 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           debugChannel_(config, "debug"),
           labelScorers_(),
           beam_(),
+          hypIndexToContextIndexMap_(),
           extensions_(),
           newBeam_(),
           scoringContexts_(),
@@ -362,10 +363,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
      */
     extensions_.clear();
     scoringContexts_.clear();
+    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
-        scoringContexts_.push_back(hyp.scoringContexts.front());
 
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
@@ -379,6 +380,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                         or (allowBlankAfterSentenceEnd_ and tokenIdx == blankLabelIndex_))) {                                            // blank
                 continue;
             }
+            if (hypIndexToContextIndexMap_[hypIndex] == -1) {
+                hypIndexToContextIndexMap_[hypIndex] = scoringContexts_.size();
+                scoringContexts_.push_back(hyp.scoringContexts.front());
+            }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             extensions_.push_back(
                     {.nextToken           = tokenIdx,
@@ -387,7 +392,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                      .timeframe           = hyp.trace->time,
                      .transitionType      = transitionType,
                      .baseHypIndex        = hypIndex,
-                     .scoringContextIndex = hypIndex});
+                     .scoringContextIndex = static_cast<size_t>(hypIndexToContextIndexMap_[hypIndex])});
         }
     }
 
@@ -406,7 +411,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                 std::remove_if(
                         extensions_.begin(),
                         extensions_.end(),
-                        [&](auto const& ext) { return not scoreAccessors[ext.baseHypIndex]; }),
+                        [&](auto const& ext) { return not scoreAccessors[ext.scoringContextIndex]; }),
                 extensions_.end());
 
         if (extensions_.empty()) {
@@ -418,7 +423,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             if (not labelScorer->scoresTransition(ext.transitionType)) {
                 continue;
             }
-            auto const& scoreAccessor = *scoreAccessors[ext.baseHypIndex];
+            auto const& scoreAccessor = *scoreAccessors[ext.scoringContextIndex];
 
             ext.score += scoreAccessor->getScoreForTransition(ext.transitionType);
             ext.score += scoreAccessor->getScoreForLabel(ext.nextToken);
@@ -448,9 +453,13 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             }
 
             scoringContexts_.clear();
+            hypIndexToContextIndexMap_.assign(beam_.size(), -1);
             for (auto& ext : extensions_) {
-                ext.scoringContextIndex = scoringContexts_.size();
-                scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+                if (hypIndexToContextIndexMap_[ext.baseHypIndex] == -1) {
+                    hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
+                    scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+                }
+                ext.scoringContextIndex = hypIndexToContextIndexMap_[ext.baseHypIndex];
             }
         }
     }

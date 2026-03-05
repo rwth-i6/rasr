@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
@@ -47,8 +48,10 @@ public:
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterFloat       paramAcousticLookaheadTemporalApproximationScale;
     static const Core::ParameterInt         paramMaximumStableDelay;
     static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+    static const Core::ParameterInt         paramHistogramPruningBins;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
 
     LexiconfreeTimesyncBeamSearch(Core::Configuration const&);
@@ -75,16 +78,17 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct ExtensionCandidate {
-        Nn::LabelIndex                   nextToken;       // Proposed token to extend the hypothesis with
-        const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
-        Score                            score;           // Would-be score of full hypothesis after extension
+        Nn::LabelIndex                   nextToken;  // Proposed token to extend the hypothesis with
+        const Bliss::LemmaPronunciation* pron;       // Pronunciation of lemma corresponding to `nextToken` for traceback
+        Score                            score;      // Would-be score of full hypothesis after extension
+        Score                            prospect;
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
         size_t                           scoringContextIndex;
 
         bool operator<(ExtensionCandidate const& other) const {
-            return score < other.score;
+            return prospect < other.prospect;
         }
     };
 
@@ -115,6 +119,8 @@ private:
 
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
+    Histogram           scoreHistogram_;
+    Score               acousticLookaheadTemporalApproximationScale_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
     bool                useSentenceEnd_;

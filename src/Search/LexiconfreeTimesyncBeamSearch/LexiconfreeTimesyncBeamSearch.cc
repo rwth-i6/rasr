@@ -101,6 +101,19 @@ const Core::ParameterFloatVector LexiconfreeTimesyncBeamSearch::paramScoreThresh
         0,
         Core::Type<Score>::max);
 
+const Core::ParameterFloat LexiconfreeTimesyncBeamSearch::paramAcousticLookaheadTemporalApproximationScale(
+        "acoustic-lookahead-temporal-approximation-scale",
+        "",
+        0.0,
+        0.0,
+        Core::Type<Score>::max);
+
+const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramHistogramPruningBins(
+        "histogram-pruning-bins",
+        "",
+        100,
+        2);
+
 const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramBlankLabelIndex(
         "blank-label-index",
         "Index of the blank label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='blank'`. If not set, the search will not use blank.",
@@ -142,6 +155,8 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramMaximumStableDelayP
 LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration const& config)
         : Core::Component(config),
           SearchAlgorithmV2(config),
+          scoreHistogram_(paramHistogramPruningBins(config)),
+          acousticLookaheadTemporalApproximationScale_(paramAcousticLookaheadTemporalApproximationScale(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
@@ -396,6 +411,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlOpen("search-step-stats");
     }
 
+    Score bestScore  = Core::Type<Score>::max;
+    Score worstScore = Core::Type<Score>::min;
+
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
         auto const& labelScorer = labelScorers_[scorerIdx];
         scoringTime_.start();
@@ -415,39 +433,49 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             return false;
         }
 
+        bestScore  = Core::Type<Score>::max;
+        worstScore = Core::Type<Score>::min;
+
         for (auto& ext : extensions_) {
             if (not labelScorer->scoresTransition(ext.transitionType)) {
                 continue;
             }
             auto const& scoreAccessor = *scoreAccessors[ext.scoringContextIndex];
 
-            ext.score += scoreAccessor->getScoreForTransition(ext.transitionType);
-            ext.score += scoreAccessor->getScoreForLabel(ext.nextToken);
+            auto labelScore      = scoreAccessor->getScoreForLabel(ext.nextToken);
+            auto transitionScore = scoreAccessor->getScoreForTransition(ext.transitionType);
+
+            ext.score += labelScore + transitionScore;
+            ext.prospect += (1 + acousticLookaheadTemporalApproximationScale_) * labelScore + transitionScore;
             ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
+
+            bestScore  = std::min(bestScore, ext.prospect);
+            worstScore = std::max(worstScore, ext.prospect);
+        }
+        if (useScorePruning_[scorerIdx]) {
+            worstScore = bestScore + scoreThresholds_[scorerIdx];
+        }
+        scoreHistogram_.clear();
+        scoreHistogram_.setLimits(bestScore, worstScore);
+        for (auto const& ext : extensions_) {
+            scoreHistogram_ += ext.prospect;
         }
 
         /*
          * Prune set of possible extensions by max beam size and possibly also by score.
          */
 
-        if (useScorePruning_[scorerIdx]) {
-            scorePruning(extensions_, scoreThresholds_[scorerIdx]);
-
-            numHypsAfterScorePruning_[scorerIdx] += extensions_.size();
-
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlFull("num-hyps-after-score-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
-            }
+        std::size_t maxSize = extensions_.size();
+        if (scorerIdx < labelScorers_.size() - 1) {
+            maxSize = maxBeamSizes_[scorerIdx];
         }
+        scorePruning(extensions_, scoreHistogram_.quantile(maxSize));
+        if (logStepwiseStatistics_) {
+            clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
+        }
+        numHypsAfterScorePruning_[scorerIdx] += extensions_.size();
 
         if (scorerIdx < labelScorers_.size() - 1) {
-            beamSizePruning(extensions_, maxBeamSizes_[scorerIdx]);
-            numHypsAfterBeamPruning_[scorerIdx] += extensions_.size();
-
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlFull("num-hyps-after-beam-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
-            }
-
             scoringContexts_.clear();
             hypIndexToContextIndexMap_.assign(beam_.size(), -1);
             for (auto& ext : extensions_) {
@@ -640,16 +668,12 @@ void LexiconfreeTimesyncBeamSearch::scorePruning(std::vector<LexiconfreeTimesync
         return;
     }
 
-    // Compute the pruning threshold
-    auto bestScore        = std::min_element(extensions.begin(), extensions.end())->score;
-    auto pruningThreshold = bestScore + threshold;
-
     // Remove elements with score > pruningThreshold
     extensions.erase(
             std::remove_if(
                     extensions.begin(),
                     extensions.end(),
-                    [=](auto const& ext) { return ext.score > pruningThreshold; }),
+                    [=](auto const& ext) { return ext.prospect > threshold; }),
             extensions.end());
 }
 
@@ -732,6 +756,7 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
                 {sentenceEndLabelIndex_,
                  sentenceEndLemma_->pronunciations().first,
                  hyp.score,
+                 hyp.score,
                  hyp.trace->time,
                  Nn::TransitionType::SENTENCE_END,
                  hypIndex});
@@ -758,8 +783,10 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
             }
             auto& ext = extensions_[extensionIdx];
             ext.score += (*scoreAccessors[extensionIdx])->getScoreForTransition(ext.transitionType);
+            ext.prospect += (*scoreAccessors[extensionIdx])->getScoreForTransition(ext.transitionType);
             if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
                 ext.score += (*scoreAccessors[extensionIdx])->getScoreForLabel(sentenceEndLabelIndex_);
+                ext.prospect += (1 + acousticLookaheadTemporalApproximationScale_) * (*scoreAccessors[extensionIdx])->getScoreForLabel(sentenceEndLabelIndex_);
             }
             ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
         }

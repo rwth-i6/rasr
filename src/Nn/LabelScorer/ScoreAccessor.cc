@@ -148,7 +148,7 @@ TimeframeIndex FixedTransitionScoreAccessor::getTime() const {
  * =============================
  */
 
-CTCPrefixScoreAccessor::CTCPrefixScoreAccessor(CTCPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores) {
+CTCPrefixScoreAccessor::CTCPrefixScoreAccessor(CTCPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores) : ctcScores_(ctcScores), scoringContext_(scoringContext) {
 }
 
 Score CTCPrefixScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {

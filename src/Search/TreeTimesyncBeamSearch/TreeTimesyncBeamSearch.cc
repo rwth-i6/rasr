@@ -973,73 +973,71 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
     }
 
     if (not tempHypotheses_.empty()) {
-        if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
-            withinWordExtensions_.clear();
-            for (size_t hypIndex = 0ul; hypIndex < tempHypotheses_.size(); ++hypIndex) {
-                auto& hyp = tempHypotheses_[hypIndex];
-                withinWordExtensions_.push_back(
-                        {sentenceEndLabelIndex_,
-                         hyp.currentState,
-                         hyp.trace->time,
-                         hyp.score,
-                         Nn::TransitionType::SENTENCE_END,
-                         hypIndex});
+        withinWordExtensions_.clear();
+        for (size_t hypIndex = 0ul; hypIndex < tempHypotheses_.size(); ++hypIndex) {
+            auto& hyp = tempHypotheses_[hypIndex];
+            withinWordExtensions_.push_back(
+                    {sentenceEndLabelIndex_,
+                     hyp.currentState,
+                     hyp.trace->time,
+                     hyp.score,
+                     Nn::TransitionType::SENTENCE_END,
+                     hypIndex});
+        }
+
+        // Score sentence-end with all label scorers
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            if (not labelScorers_[scorerIdx]->scoresTransition(Nn::TransitionType::SENTENCE_END)) {
+                continue;
             }
 
-            // Score sentence-end with all label scorers
-            for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-                if (not labelScorers_[scorerIdx]->scoresTransition(Nn::TransitionType::SENTENCE_END)) {
+            scoringContexts_.clear();
+            for (auto const& hyp : tempHypotheses_) {
+                scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
+            }
+
+            scoringTime_.start();
+            auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+            scoringTime_.stop();
+
+            for (size_t extensionIdx = 0ul; extensionIdx < withinWordExtensions_.size(); ++extensionIdx) {
+                if (not scoreAccessors[extensionIdx]) {
                     continue;
                 }
-
-                scoringContexts_.clear();
-                for (auto const& hyp : tempHypotheses_) {
-                    scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
+                auto& ext = withinWordExtensions_[extensionIdx];
+                ext.score += (*scoreAccessors[extensionIdx])->getScoreForTransition(ext.transitionType);
+                if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
+                    ext.score += (*scoreAccessors[extensionIdx])->getScoreForLabel(sentenceEndLabelIndex_);
                 }
-
-                scoringTime_.start();
-                auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
-                scoringTime_.stop();
-
-                for (size_t extensionIdx = 0ul; extensionIdx < withinWordExtensions_.size(); ++extensionIdx) {
-                    if (not scoreAccessors[extensionIdx]) {
-                        continue;
-                    }
-                    auto& ext = withinWordExtensions_[extensionIdx];
-                    ext.score += (*scoreAccessors[extensionIdx])->getScoreForTransition(ext.transitionType);
-                    if (sentenceEndLabelIndex_ != Nn::invalidLabelIndex) {
-                        ext.score += (*scoreAccessors[extensionIdx])->getScoreForLabel(sentenceEndLabelIndex_);
-                    }
-                    ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
-                }
+                ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
             }
+        }
 
-            newBeam_.clear();
-            for (size_t extensionIdx = 0ul; extensionIdx < withinWordExtensions_.size(); ++extensionIdx) {
-                auto&       ext     = withinWordExtensions_[extensionIdx];
-                auto const& baseHyp = tempHypotheses_[ext.baseHypIndex];
-                // The scoring context is not updated as no further scoring is done afterwards
-                newBeam_.push_back({baseHyp, ext, baseHyp.scoringContexts});
-            }
+        newBeam_.clear();
+        for (size_t extensionIdx = 0ul; extensionIdx < withinWordExtensions_.size(); ++extensionIdx) {
+            auto&       ext     = withinWordExtensions_[extensionIdx];
+            auto const& baseHyp = tempHypotheses_[ext.baseHypIndex];
+            // The scoring context is not updated as no further scoring is done afterwards
+            newBeam_.push_back({baseHyp, ext, baseHyp.scoringContexts});
+        }
 
-            wordEndExtensions_.clear();
-            for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
-                auto& hyp = newBeam_[hypIndex];
-                // Add the LM's sentence-end score
-                // The LM history is not updated as this is the last LM scoring step
-                Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-                wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
-                                              .rootState    = hyp.currentState,
-                                              .score        = hyp.score + sentenceEndScore,
-                                              .baseHypIndex = hypIndex});
-            }
+        wordEndExtensions_.clear();
+        for (size_t hypIndex = 0ul; hypIndex < newBeam_.size(); ++hypIndex) {
+            auto& hyp = newBeam_[hypIndex];
+            // Add the LM's sentence-end score
+            // The LM history is not updated as this is the last LM scoring step
+            Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
+            wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
+                                          .rootState    = hyp.currentState,
+                                          .score        = hyp.score + sentenceEndScore,
+                                          .baseHypIndex = hypIndex});
+        }
 
-            tempHypotheses_.clear();
-            for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
-                auto&       ext     = wordEndExtensions_[extensionIdx];
-                auto const& baseHyp = newBeam_[ext.baseHypIndex];
-                tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
-            }
+        tempHypotheses_.clear();
+        for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
+            auto&       ext     = wordEndExtensions_[extensionIdx];
+            auto const& baseHyp = newBeam_[ext.baseHypIndex];
+            tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
         }
     }
     else {  // No valid final hypotheses and no sentence-end fallback

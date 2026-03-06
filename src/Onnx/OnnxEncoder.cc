@@ -104,8 +104,8 @@ void OnnxEncoder::encode() {
     Nn::DataView onnx_output_view(std::move(session_outputs.front()));
 
     size_t outputs_per_input = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (T_in / T_out + (T_in % T_out != 0));
-    size_t input_step = (inputStepSize_ != 0ul) ? inputStepSize_ : outputs_per_input;
-    size_t start_input = 0ul;
+    size_t input_step        = (inputStepSize_ != 0ul) ? inputStepSize_ : outputs_per_input;
+    size_t start_input       = 0ul;
     for (size_t t = 0ul; t < T_out; ++t) {
         size_t end_input = std::min(start_input + outputs_per_input, T_in);
         outputBuffer_.push_back(Nn::EncodedSpan{{onnx_output_view, output_size, t * output_size}, start_input, end_input});

@@ -131,23 +131,17 @@ void bindLabelScorer(py::module_& module) {
 
     pyLabelScorer.def(
             "compute_scores_with_times",
-            [](Python::PythonLabelScorer&                   self,
-               std::vector<py::object> const&               contexts,
-               std::vector<Nn::LabelIndex>                  nextTokens,
-               std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimesInternal(contexts, nextTokens, transitionTypes); },
+            [](Python::PythonLabelScorer&     self,
+               std::vector<py::object> const& contexts) { return self.getPythonScoresWithTimes(contexts); },
             py::arg("contexts"),
-            py::arg("next_tokens"),
-            py::arg("transition_types"),
             "Compute the scores and timestamps of tokens given the current scoring contexts. Timestamps need to be computed because\n"
             "each label scorer may implement custom logic about how much time is advanced depending on the situation\n"
             "(e.g. vertical vs. diagonal blank transitions in transducer).\n\n"
             "Args:\n"
             "    contexts: A list of length `B` containing current scoring contexts for all requests. The type is the same as the one returned by"
             "              `get_initial_scoring_context` and `extended_scoring_context`.\n"
-            "    next_tokens: A list of length `B` containing the tokens for which the score should be computed.\n"
-            "    transition_types: A list of length `B` containing the types of the hypothesized transitions.\n\n"
             "Returns:\n"
-            "    Either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
-            "    or a list of length `B` containing the scores and timestamps for each request. The returned timestamps will be used\n"
+            "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
+            "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
 }

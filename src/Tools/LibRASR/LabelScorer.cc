@@ -50,17 +50,17 @@ void bindLabelScorer(py::module_& module) {
             "          in order to make RASR instantiate a label scorer of this type later.\n"
             "    label_scorer_cls: A class that inherits from `librasr.LabelScorer` and implements the abstract methods.");
 
-    py::enum_<Nn::LabelScorer::TransitionType>(module, "TransitionType")
-            .value("LABEL_TO_LABEL", Nn::LabelScorer::TransitionType::LABEL_TO_LABEL)
-            .value("LABEL_LOOP", Nn::LabelScorer::TransitionType::LABEL_LOOP)
-            .value("LABEL_TO_BLANK", Nn::LabelScorer::TransitionType::LABEL_TO_BLANK)
-            .value("BLANK_TO_LABEL", Nn::LabelScorer::TransitionType::BLANK_TO_LABEL)
-            .value("BLANK_LOOP", Nn::LabelScorer::TransitionType::BLANK_LOOP)
-            .value("INITIAL_LABEL", Nn::LabelScorer::TransitionType::INITIAL_LABEL)
-            .value("INITIAL_BLANK", Nn::LabelScorer::TransitionType::INITIAL_BLANK)
-            .value("WORD_EXIT", Nn::LabelScorer::TransitionType::WORD_EXIT)
-            .value("NONWORD_EXIT", Nn::LabelScorer::TransitionType::NONWORD_EXIT)
-            .value("SILENCE_EXIT", Nn::LabelScorer::TransitionType::SILENCE_EXIT);
+    py::enum_<Nn::TransitionType>(module, "TransitionType")
+            .value("LABEL_TO_LABEL", Nn::TransitionType::LABEL_TO_LABEL)
+            .value("LABEL_LOOP", Nn::TransitionType::LABEL_LOOP)
+            .value("LABEL_TO_BLANK", Nn::TransitionType::LABEL_TO_BLANK)
+            .value("BLANK_TO_LABEL", Nn::TransitionType::BLANK_TO_LABEL)
+            .value("BLANK_LOOP", Nn::TransitionType::BLANK_LOOP)
+            .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
+            .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
+            .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
+            .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
+            .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT);
 
     // Specify `Python::LabelScorer` as trampoline class and `Core::Ref<Nn::LabelScorer>` as holder type
     py::class_<Nn::LabelScorer, Python::PythonLabelScorer, Core::Ref<Nn::LabelScorer>> pyLabelScorer(
@@ -104,10 +104,10 @@ void bindLabelScorer(py::module_& module) {
 
     pyLabelScorer.def(
             "extended_scoring_context",
-            [](Python::PythonLabelScorer&      self,
-               py::object const&               context,
-               Nn::LabelIndex                  nextToken,
-               Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContextInternal(context, nextToken, transitionType); },
+            [](Python::PythonLabelScorer& self,
+               py::object const&          context,
+               Nn::LabelIndex             nextToken,
+               Nn::TransitionType         transitionType) { return self.extendedPythonScoringContext(context, nextToken, transitionType); },
             py::arg("context"),
             py::arg("next_token"),
             py::arg("transition_type"),

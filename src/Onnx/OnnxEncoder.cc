@@ -98,8 +98,9 @@ void OnnxEncoder::encode() {
     // Make "global" DataView from output value so that feature slice DataViews can be created from it that ref-count the original value
     Nn::DataView onnx_output_view(std::move(session_outputs.front()));
 
+    size_t outputs_per_input = T_in / T_out + (T_in % T_out != 0);
     for (size_t t = 0ul; t < T_out; ++t) {
-        outputBuffer_.push_back({onnx_output_view, output_size, t * output_size});
+        outputBuffer_.push_back(Nn::EncodedSpan{{onnx_output_view, output_size, t * output_size}, t * outputs_per_input, std::min((t+1) * outputs_per_input, T_in)});
     }
 
     // Get new states

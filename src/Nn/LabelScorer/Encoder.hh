@@ -20,11 +20,22 @@
 #include <optional>
 
 #include <Core/Component.hh>
+
 #include "DataView.hh"
 
 namespace Nn {
 
-/*
+/**
+ * This struct represents one output frame of the encoder and the input frames that correspond to it, counted from the last time reset was called.
+ * The boundaries are inclusive for input_start and exclusive for input_end.
+ */
+struct EncodedSpan {
+    DataView encoding;
+    size_t   input_start;
+    size_t   input_end;
+};
+
+/**
  * Encoder class can take features (e.g. from feature flow) and run them through an encoder model to get encoder states.
  * Works with input/output buffer logic, i.e. features get added to an input buffer and outputs are retreived from an output buffer.
  */
@@ -49,11 +60,11 @@ public:
     // Retrieve the next encoder output frame
     // Performs encoder forwarding internally if necessary
     // Can return None if not enough input features are available yet
-    std::optional<DataView> getNextOutput();
+    std::optional<EncodedSpan> getNextOutput();
 
 protected:
-    std::deque<DataView> inputBuffer_;
-    std::deque<DataView> outputBuffer_;
+    std::deque<DataView>    inputBuffer_;
+    std::deque<EncodedSpan> outputBuffer_;
 
     bool expectMoreFeatures_;
 

@@ -13,10 +13,9 @@
  *  limitations under the License.
  */
 
+#include "CombineLabelScorer.hh"
 #include <Nn/Module.hh>
 #include "Types.hh"
-
-#include "CombineLabelScorer.hh"
 
 namespace Nn {
 

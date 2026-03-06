@@ -107,8 +107,4 @@ void TransitionSet::enableIntersection(TransitionSet const& other) {
     mask_ &= other.mask_;
 }
 
-bool TransitionSet::contains(TransitionType transitionType) const {
-    return (mask_ & (Mask{1} << static_cast<unsigned>(transitionType)));
-}
-
 }  // namespace Nn

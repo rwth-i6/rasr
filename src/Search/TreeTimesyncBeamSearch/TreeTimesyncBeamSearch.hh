@@ -167,8 +167,11 @@ private:
     std::vector<Nn::LabelScorer::Request>     requests_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
-    std::vector<std::vector<StateId>>                   stateSuccessorLookup_;
-    std::vector<std::vector<PersistentStateTree::Exit>> exitLookup_;
+    // Precomputed successor/exit lookups (offset tables + contiguous data).
+    std::vector<size_t>                    stateSuccessorsOffset_;
+    std::vector<StateId>                   stateSuccessors_;
+    std::vector<size_t>                    stateExitsOffset_;
+    std::vector<PersistentStateTree::Exit> stateExits_;
 
     size_t currentSearchStep_;
     bool   finishedSegment_;
@@ -217,12 +220,11 @@ private:
     void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
 
     /*
-     * Precompute information about the successor structure of each state in the search tree
-     * to avoid repeated computation during the decode steps
-     * stateSuccessorLookup_: contains a list of all state successors for the state at the corresponding index
-     * exitLookup_: contains a list of all exits for the state at the corresponding index
+     * Precompute successor and exit lookups for each state to avoid traversing the network structure during decoding.
+     * Successors and exits are stored in the contiguous vectors stateSuccessors_ and stateExits_.
+     * for a state `s`, the corresponding ranges are indexed by
+     * (stateSuccessorsOffset_[s], stateSuccessorsOffset_[s+1]) and (stateExitsOffset_[s], stateExitsOffset_[s+1])
      */
-    // TODO make this more efficient, especially for states with only one exit (cf. AdvancedTreeSearch)
     void createSuccessorLookups();
 
     /*

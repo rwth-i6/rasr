@@ -37,7 +37,8 @@ const Core::ParameterStringVector TransitionSet::paramExtraTransitionTypes(
         "Transition types that should be enabled in addition to the ones given by the preset.",
         ",");
 
-TransitionSet::TransitionSet(Core::Configuration const& config, TransitionPresetType defaultPreset) : mask_(0) {
+TransitionSet::TransitionSet(Core::Configuration const& config, TransitionPresetType defaultPreset)
+        : mask_(0) {
     enablePreset(static_cast<TransitionPresetType>(paramTransitionPreset(config, defaultPreset)));
 
     auto extraTransitionTypeStrings = paramExtraTransitionTypes(config);
@@ -50,9 +51,11 @@ TransitionSet::TransitionSet(Core::Configuration const& config, TransitionPreset
     }
 }
 
-TransitionSet::TransitionSet(TransitionSet const& other) : mask_(other.mask_) {}
+TransitionSet::TransitionSet(TransitionSet const& other)
+        : mask_(other.mask_) {}
 
-TransitionSet::TransitionSet(Mask mask) : mask_(mask) {}
+TransitionSet::TransitionSet(Mask mask)
+        : mask_(mask) {}
 
 void TransitionSet::enable(TransitionType transitionType) {
     auto idx = static_cast<unsigned>(transitionType);

@@ -31,6 +31,8 @@ public:
     virtual Score          getScoreForLabel(LabelIndex labelIndex) const;
     virtual Score          getScoreForTransition(TransitionType transitionType) const;
     virtual TimeframeIndex getTime() const;
+    
+    virtual ~ScoreAccessor() = default;
 };
 
 typedef Core::Ref<ScoreAccessor> ScoreAccessorRef;

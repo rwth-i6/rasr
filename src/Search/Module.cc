@@ -125,7 +125,7 @@ SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& c
             break;
         case ModelCombTreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::ModelCombTreeTimesyncBeamSearch(config);
-        break;
+            break;
         case TreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;

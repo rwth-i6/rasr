@@ -361,8 +361,8 @@ bool ModelCombTreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombinati
 
     for (size_t i = 0ul; i < numModels_; ++i) {
         // Set the ModelCombination
-        Core::Configuration modelConfig = select(std::string("model-") + std::to_string(i + 1));
-        Core::Ref<Speech::ModelCombination> modelComb = Core::ref(new Speech::ModelCombination(modelConfig, modelCombinationMode, requiredAcousticModel(), globalLexicon_));
+        Core::Configuration                 modelConfig = select(std::string("model-") + std::to_string(i + 1));
+        Core::Ref<Speech::ModelCombination> modelComb   = Core::ref(new Speech::ModelCombination(modelConfig, modelCombinationMode, requiredAcousticModel(), globalLexicon_));
         models_.push_back(Model(modelConfig));
 
         models_[i].lexicon       = modelComb->lexicon();
@@ -632,7 +632,7 @@ bool ModelCombTreeTimesyncBeamSearch::decodeStep() {
             models_[i].previousWordEndExtensions.push_back(
                     {models_[i].blankLabelIndex,
                      previousHyp.pron,
-                     previousHyp.currentState,	// Stay in the root state
+                     previousHyp.currentState,  // Stay in the root state
                      false,
                      false,
                      previousHyp.lmHistory,

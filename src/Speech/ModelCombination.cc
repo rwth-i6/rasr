@@ -88,63 +88,6 @@ ModelCombination::ModelCombination(const Core::Configuration&         c,
     setLanguageModel(languageModel);
 }
 
-ModelCombination::ModelCombination(const Core::Configuration& c,
-                                   size_t                     modelIndex,
-                                   Mode                       mode,
-                                   Am::AcousticModel::Mode    acousticModelMode,
-                                   Bliss::LexiconRef          lexicon)
-        : Core::Component(c),
-          Mc::Component(c),
-          pronunciationScale_(0) {
-    setPronunciationScale(paramPronunciationScale(c));
-
-    // Use the model's individual lexicon if defined or the global one otherwise
-    Core::Configuration lexiconConfig = select(std::string("lexicon-") + std::to_string(modelIndex + 1));
-    if (lexiconConfig.hasExplicitResources()) {
-        setLexicon(Bliss::Lexicon::create(lexiconConfig));
-    }
-    if (!lexicon_) {
-        setLexicon(lexicon);
-        log() << "Use global lexicon for model " << modelIndex + 1;
-    }
-    else {
-        log() << "Created lexicon for model " << modelIndex + 1;
-    }
-    if (!lexicon_) {
-        criticalError("Failed to initialize the lexicon for model %zu", modelIndex + 1);
-    }
-
-    // Use the model's individual AM config if defined or the global one otherwise
-    if (mode & useAcousticModel) {
-        Core::Configuration amConfig = select(std::string("acoustic-model-") + std::to_string(modelIndex + 1));
-        if (amConfig.hasExplicitResources()) {
-            setAcousticModel(Am::Module::instance().createAcousticModel(amConfig, lexicon_, acousticModelMode));
-            log() << "Created AM for model " << modelIndex + 1;
-        }
-        else {
-            auto                parentCfg = getConfiguration().parent();
-            Core::Configuration amConfig(parentCfg, "acoustic-model");
-            setAcousticModel(Am::Module::instance().createAcousticModel(amConfig, lexicon_, acousticModelMode));
-            log() << "Use global AM for model " << modelIndex + 1;
-        }
-
-        if (!acousticModel_) {
-            criticalError("Failed to initialize the AM for model %zu", modelIndex + 1);
-        }
-    }
-
-    // Individual label scorer is necessary, cannot have only a global one
-    if (mode & useLabelScorer) {
-        Core::Configuration labelscorerConfig = select(std::string("label-scorer-") + std::to_string(modelIndex + 1));
-        setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(labelscorerConfig));
-
-        if (!labelScorer_) {
-            criticalError("Failed to initialize label scorer for model %zu", modelIndex + 1);
-        }
-        log() << "Created label scorer for model " << modelIndex + 1;
-    }
-}
-
 ModelCombination::~ModelCombination() {}
 
 void ModelCombination::setLexicon(Bliss::LexiconRef lexicon) {

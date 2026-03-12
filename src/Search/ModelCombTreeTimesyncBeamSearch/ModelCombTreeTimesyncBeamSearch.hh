@@ -251,7 +251,6 @@ private:
     Core::Channel debugChannel_;
 
     Bliss::LexiconRef                  globalLexicon_;
-    Core::Ref<Am::AcousticModel>       globalAcousticModel_;
     Core::Ref<Lm::ScaledLanguageModel> globalLanguageModel_;
 
     std::vector<LabelHypothesis>           recombinedHypotheses_;  // only temporary storage for one model

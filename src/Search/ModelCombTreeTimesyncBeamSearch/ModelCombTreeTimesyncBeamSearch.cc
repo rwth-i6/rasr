@@ -344,7 +344,7 @@ ModelCombTreeTimesyncBeamSearch::ModelCombTreeTimesyncBeamSearch(Core::Configura
 
 // Mode for the global model combination
 Speech::ModelCombination::Mode ModelCombTreeTimesyncBeamSearch::requiredModelCombination() const {
-    return Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel | Speech::ModelCombination::useLanguageModel;
+    return Speech::ModelCombination::useLexicon | Speech::ModelCombination::useLanguageModel;
 }
 
 Am::AcousticModel::Mode ModelCombTreeTimesyncBeamSearch::requiredAcousticModel() const {
@@ -353,7 +353,6 @@ Am::AcousticModel::Mode ModelCombTreeTimesyncBeamSearch::requiredAcousticModel()
 
 bool ModelCombTreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination const& modelCombination) {
     globalLexicon_       = modelCombination.lexicon();
-    globalAcousticModel_ = modelCombination.acousticModel();
     globalLanguageModel_ = modelCombination.languageModel();
 
     models_.reserve(numModels_);
@@ -361,10 +360,9 @@ bool ModelCombTreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombinati
     Speech::ModelCombination::Mode modelCombinationMode = Speech::ModelCombination::useLabelScorer | Speech::ModelCombination::useLexicon | Speech::ModelCombination::useAcousticModel;
 
     for (size_t i = 0ul; i < numModels_; ++i) {
-        // TODO refactor this special ModelCombination and Configuration related logic for this algorithm
-        Core::Ref<Speech::ModelCombination> modelComb = Core::ref(new Speech::ModelCombination(config, i, modelCombinationMode, requiredAcousticModel(), globalLexicon_));
-
+        // Set the ModelCombination
         Core::Configuration modelConfig = select(std::string("model-") + std::to_string(i + 1));
+        Core::Ref<Speech::ModelCombination> modelComb = Core::ref(new Speech::ModelCombination(modelConfig, modelCombinationMode, requiredAcousticModel(), globalLexicon_));
         models_.push_back(Model(modelConfig));
 
         models_[i].lexicon       = modelComb->lexicon();

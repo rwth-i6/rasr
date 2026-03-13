@@ -47,6 +47,14 @@ OnnxEncoder::OnnxEncoder(Core::Configuration const& config)
           featuresName_(onnxModel_.mapping.getOnnxName("features")),
           featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
           outputName_(onnxModel_.mapping.getOnnxName("outputs")) {
+    stateManager_   = StateManager::create(select("state-manager"));
+    stateVariables_ = onnxModel_.session.getStateVariablesMetadata();
+    stateManager_->setInitialStates(stateVariables_);
+}
+
+void OnnxEncoder::reset() {
+    Encoder::reset();
+    stateManager_->setInitialStates(stateVariables_);
 }
 
 void OnnxEncoder::encode() {
@@ -54,46 +62,52 @@ void OnnxEncoder::encode() {
         return;
     }
 
-    /*
-     * Create session inputs
-     */
-    std::vector<std::pair<std::string, Value>> sessionInputs;
+    // Create session inputs/outputs
+    std::vector<std::pair<std::string, Value>> session_inputs;
+    std::vector<std::string>                   output_names{{outputName_}};
 
     size_t T_in = inputBuffer_.size();
     size_t F    = inputBuffer_.front().size();
 
-    std::vector<int64_t> featuresShape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(F)};
+    std::vector<int64_t> feature_shape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(F)};
 
-    Value value = Value::createEmpty<f32>(featuresShape);
+    Value value = Value::createEmpty<f32>(feature_shape);
 
     for (size_t t = 0ul; t < T_in; ++t) {
         std::copy(inputBuffer_[t].data(), inputBuffer_[t].data() + F, value.data<f32>(0, t));
     }
-    sessionInputs.emplace_back(std::make_pair(featuresName_, std::move(value)));
+    session_inputs.emplace_back(std::make_pair(featuresName_, std::move(value)));
 
     // features-size is an optional input
     if (featuresSizeName_ != "") {
-        sessionInputs.emplace_back(std::make_pair(featuresSizeName_, Value::create(std::vector<s32>{static_cast<int>(T_in)})));
+        session_inputs.emplace_back(std::make_pair(featuresSizeName_, Value::create(std::vector<s32>{static_cast<int>(T_in)})));
     }
 
-    /*
-     * Run session
-     */
-    std::vector<Value> sessionOutputs;
-    onnxModel_.session.run(std::move(sessionInputs), {outputName_}, sessionOutputs);
+    // input and output states
+    stateManager_->extendFeedDict(session_inputs, stateVariables_);
+    stateManager_->extendTargets(output_names, stateVariables_);
 
-    /*
-     * Put outputs into buffer
-     */
-    size_t T_out      = sessionOutputs.front().dimSize(1);
-    size_t outputSize = sessionOutputs.front().dimSize(2);
+    // Run session
+    std::vector<Value> session_outputs;
+    onnxModel_.session.run(std::move(session_inputs), output_names, session_outputs);
+
+    // Put outputs into buffer
+    size_t T_out       = session_outputs.front().dimSize(1);
+    size_t output_size = session_outputs.front().dimSize(2);
 
     // Make "global" DataView from output value so that feature slice DataViews can be created from it that ref-count the original value
-    Nn::DataView onnxOutputView(std::move(sessionOutputs.front()));
+    Nn::DataView onnx_output_view(std::move(session_outputs.front()));
 
     for (size_t t = 0ul; t < T_out; ++t) {
-        outputBuffer_.push_back({onnxOutputView, outputSize, t * outputSize});
+        outputBuffer_.push_back({onnx_output_view, output_size, t * output_size});
     }
+
+    // Get new states
+    std::vector<Value> output_states;
+    for (size_t i = 1ul; i < session_outputs.size(); i++) {  // other model outputs
+        output_states.emplace_back(std::move(session_outputs[i]));
+    }
+    stateManager_->updateStates(output_states);
 }
 
 }  // namespace Onnx

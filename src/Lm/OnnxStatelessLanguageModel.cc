@@ -67,6 +67,7 @@ History OnnxStatelessLm::startHistory() const {
     if (startHistory_.isValid()) {
         return startHistory_;
     }
+    batchQueue_.clear();
 
     auto            sentBeginId = lexicon_mapping_.at(sentenceBeginToken()->id());
     TokenIdSequence tokenSequence(1ul, sentBeginId);
@@ -74,7 +75,9 @@ History OnnxStatelessLm::startHistory() const {
     auto historyManager = dynamic_cast<NNHistoryManager*>(historyManager_);
     auto handle         = historyManager->get<HistoryDescriptor>(tokenSequence);
     auto hist           = history(handle);
-    batchQueue_.push_back(hist);
+    if (maxBatchSize_ > 1) {
+        batchQueue_.push_back(hist);
+    }
     return hist;
 }
 

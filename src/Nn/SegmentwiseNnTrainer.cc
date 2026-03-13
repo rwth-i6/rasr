@@ -406,6 +406,7 @@ void SegmentwiseNnTrainer<T>::setClassWeights() {
         NeuralNetworkTrainer<f32>::weightedAccumulation_ = true;
     }
     else if (silenceWeight != -1.0) {
+        verify(this->acousticModel()->silence() != Bliss::Phoneme::invalidId);
         Am::Allophone silenceAllophone(this->acousticModel()->silence(), Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
         u32           silence = this->acousticModel()->emissionIndex(this->acousticModel()->allophoneStateAlphabet()->index(&silenceAllophone, 0));
         this->log("silence index is ") << silence;

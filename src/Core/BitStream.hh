@@ -15,6 +15,7 @@
 #ifndef CORE_BITSTREAM_HH
 #define CORE_BITSTREAM_HH
 
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -73,7 +74,10 @@ constexpr size_t bitsizeof() {
 
 template<typename T>
 BitStream<T>::BitStream()
-        : posg_(0ul), posp_(0ul), size_(0ul), store_() {
+        : posg_(0ul),
+          posp_(0ul),
+          size_(0ul),
+          store_() {
 }
 
 template<typename T>

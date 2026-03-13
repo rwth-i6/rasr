@@ -103,6 +103,12 @@ inline void LinearAndSoftmaxLayer<T>::_forward(const std::vector<NnMatrix*>& inp
     PrecursorLinear::_forward(input, output, reset);
     if (evaluateSoftmax_)
         PrecursorSoftmax::_forward(output, output);
+
+    if (PrecursorSoftmax::dataChannel_.isOpen()) {
+        PrecursorSoftmax::dataChannel_ << Core::XmlOpen("layer-output-data");
+        output.write(PrecursorSoftmax::dataChannel_);
+        PrecursorSoftmax::dataChannel_ << Core::XmlClose("layer-output-data");
+    }
 }
 
 template<typename T>

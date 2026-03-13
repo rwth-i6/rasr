@@ -25,15 +25,20 @@
 
 namespace Speech {
 
-/** Combination of a lexicon, an acoustic model or label scorer, and a language model.
- *  It supports creation and initialization of these three mutually dependent objects.
+/** Combination of a lexicon, an acoustic model, a label scorer and a language model.
+ *  It supports the creation and initialization of these four mutually dependent objects.
  *
  *  Usage:
- *    1) create ModelCombination object locally to create the three parts:
- *       lexicon, acoustic model, and language model.Store references of those parts which you
- *    2) call function load, to load the scaling values
- *    3) Store the references to those parts you will use later.
- *    4) When the local ModelCombination object get destructed, the unreferenced parts gets freed as well.
+ *    - Create a ModelCombination object locally to create the four parts:
+ *       lexicon, acoustic model, label scorer and/or language model.
+ *    - The ModelCombination can be directly created by passing references to the lexicon,
+ *      acoustic model and language model.
+ *    - Alternatively, it is possible to set a Mode indicating which components are required
+ *      by setting useLexicon, useAcousticModel, useLanguageModel and/or useLabelScorer.
+ *      In this case, the ModelCombination will create the relevant parts from the config.
+ *      (A Mode for the acoustic model and a lexicon reference can optionally be passed as well.)
+ *    - Store the references to those parts which you will use later.
+ *    - When the local ModelCombination object is destructed, the unreferenced parts get freed as well.
  */
 class ModelCombination : public Mc::Component, public Core::ReferenceCounted {
 public:
@@ -45,13 +50,14 @@ public:
     static const Mode useLabelScorer;
 
     static const Core::ParameterFloat paramPronunciationScale;
+    static const Core::ParameterInt   paramNumLabelScorers;
 
 protected:
-    Bliss::LexiconRef                  lexicon_;
-    Mm::Score                          pronunciationScale_;
-    Core::Ref<Am::AcousticModel>       acousticModel_;
-    Core::Ref<Lm::ScaledLanguageModel> languageModel_;
-    Core::Ref<Nn::LabelScorer>         labelScorer_;
+    Bliss::LexiconRef                       lexicon_;
+    Mm::Score                               pronunciationScale_;
+    Core::Ref<Am::AcousticModel>            acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel>      languageModel_;
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers_;
 
 private:
     void setPronunciationScale(Mm::Score scale) {
@@ -66,41 +72,48 @@ public:
                      Mode                    = complete,
                      Am::AcousticModel::Mode = Am::AcousticModel::complete,
                      Bliss::LexiconRef       = Bliss::LexiconRef());
+
     ModelCombination(const Core::Configuration&,
-                     Bliss::LexiconRef, Core::Ref<Am::AcousticModel>, Core::Ref<Lm::ScaledLanguageModel>);
+                     Bliss::LexiconRef,
+                     Core::Ref<Am::AcousticModel>,
+                     Core::Ref<Lm::ScaledLanguageModel>);
+
     virtual ~ModelCombination();
-
-    void build(Mode = complete, Am::AcousticModel::Mode = Am::AcousticModel::complete, Bliss::LexiconRef = Bliss::LexiconRef());
-
-    void getDependencies(Core::DependencySet&) const;
-
-    Bliss::LexiconRef lexicon() const {
-        return lexicon_;
-    }
-
-    void setLexicon(Bliss::LexiconRef);
 
     Mm::Score pronunciationScale() const {
         return pronunciationScale_ * scale();
     }
 
+    void setLexicon(Bliss::LexiconRef);
+
+    Bliss::LexiconRef lexicon() const {
+        return lexicon_;
+    }
+
+    void setAcousticModel(Core::Ref<Am::AcousticModel>);
+
     Core::Ref<Am::AcousticModel> acousticModel() const {
         return acousticModel_;
     }
 
-    void setAcousticModel(Core::Ref<Am::AcousticModel>);
+    void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
 
     Core::Ref<Lm::ScaledLanguageModel> languageModel() const {
         return languageModel_;
     }
 
-    void setLanguageModel(Core::Ref<Lm::ScaledLanguageModel>);
+    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls, size_t index = 0ul);
 
-    void setLabelScorer(Core::Ref<Nn::LabelScorer> ls);
-
-    Core::Ref<Nn::LabelScorer> labelScorer() const {
-        return labelScorer_;
+    Core::Ref<Nn::LabelScorer> labelScorer(size_t index = 0ul) const {
+        verify(index < labelScorers_.size());
+        return labelScorers_[index];
     }
+
+    std::vector<Core::Ref<Nn::LabelScorer>> labelScorers() const {
+        return labelScorers_;
+    }
+
+    void getDependencies(Core::DependencySet&) const;
 };
 
 typedef Core::Ref<ModelCombination> ModelCombinationRef;

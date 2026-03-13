@@ -19,24 +19,36 @@
 namespace Nn {
 
 StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config) {}
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::CTC) {}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
+size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
+    auto minInputIndex = Core::Type<size_t>::max;
+    for (auto const& context : activeContexts.internalData()) {
+        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
+    }
+
+    return minInputIndex;
+}
+
+ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
     return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
+std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
     StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    if (inputBuffer_.size() <= stepHistory->currentStep) {
+    auto                  input = getInput(stepHistory->currentStep);
+    if (not input) {
         return {};
     }
 
-    return ScoreWithTime{inputBuffer_.at(stepHistory->currentStep)[request.nextToken], stepHistory->currentStep};
+    return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
 }
 
 }  // namespace Nn

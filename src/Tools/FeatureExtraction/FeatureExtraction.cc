@@ -34,9 +34,11 @@
 
 class ExtractionApplication : public Core::Application {
 private:
-    enum Format { noFormat,
-                  sietillFormat,
-                  mm2Format };
+    enum Format {
+        noFormat,
+        sietillFormat,
+        mm2Format
+    };
     static const Core::Choice          choiceFormat;
     static const Core::ParameterChoice paramFormat;
     static const Core::ParameterBool   paramVerbose;

@@ -32,15 +32,17 @@ public:
     static const Core::ParameterFloat paramBucketSize;
 
 private:
-    Core::Ref<Bliss::CorpusKey>            corpusKey_;
     typedef Signal::HistogramVector<Value> HistogramVector;
-    HistogramVector*                       currentHistogramVector_;
+    typedef Core::ObjectCache<Core::MruObjectCacheList<
+            std::string, HistogramVector, Core::StringHash, Core::StringEquality>>
+            HistogramVectorCache;
+
+    Core::Ref<Bliss::CorpusKey> corpusKey_;
+    HistogramVector*            currentHistogramVector_;
 
     size_t featureDimension_;
     Value  bucketSize_;
-    typedef Core::ObjectCache<Core::MruObjectCacheList<
-            std::string, HistogramVector, Core::StringHash, Core::StringEquality>>
-                         HistogramVectorCache;
+
     HistogramVectorCache histogramVectorCache_;
 
 private:
@@ -48,7 +50,7 @@ private:
 
 protected:
     virtual void setFeatureVectorDescription(const Mm::FeatureDescription::Stream&);
-    virtual void processFeatureVector(Core::Ref<const Feature::Vector> f) {
+    virtual void processFeatureVector(Feature::VectorRef f) {
         verify_(currentHistogramVector_ != 0);
         currentHistogramVector_->accumulate(*f);
     }

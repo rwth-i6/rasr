@@ -1,0 +1,244 @@
+/** Copyright 2025 RWTH Aachen University. All rights reserved.
+ *
+ *  Licensed under the RWTH ASR License (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.hltpr.rwth-aachen.de/rwth-asr/rwth-asr-license.html
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#ifndef TREE_TIMESYNC_BEAM_SEARCH_HH
+#define TREE_TIMESYNC_BEAM_SEARCH_HH
+
+#include <Bliss/Lexicon.hh>
+#include <Core/Channel.hh>
+#include <Core/Parameter.hh>
+#include <Core/StopWatch.hh>
+#include <Nn/LabelScorer/DataView.hh>
+#include <Nn/LabelScorer/LabelScorer.hh>
+#include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/PersistentStateTree.hh>
+#include <Search/SearchV2.hh>
+#include <Search/Traceback.hh>
+
+namespace Search {
+
+/*
+ * Simple time synchronous beam search algorithm on a search tree built by a TreeBuilder.
+ * At a word end, a language model score is added to the hypothesis score,
+ * if no language model should be used, the LM-scale has to be set to 0.0.
+ * Performs separate pruning of within-word and word-end hypotheses
+ * by max beam-size and by score difference to the best hypothesis.
+ * Uses one or more LabelScorers for context initialization/extension and scoring.
+ * The LabelScorers are applied one after another with intermediate pruning in-between.
+ *
+ * The (optional) blank label index is retrieved from the lexicon to ensure consistency with the blank index used for the search tree.
+ * If the search tree contains label-loops, one will most likely want to set "collapse-repeated-labels" to true so
+ * the label loops are also considered when inferring the transtion type as scoring context.
+ */
+class TreeTimesyncBeamSearch : public SearchAlgorithmV2 {
+public:
+    static const Core::ParameterIntVector   paramMaxBeamSizes;
+    static const Core::ParameterInt         paramMaxWordEndBeamSize;
+    static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterFloat       paramWordEndScoreThreshold;
+    static const Core::ParameterBool        paramCollapseRepeatedLabels;
+    static const Core::ParameterBool        paramSentenceEndFallBack;
+    static const Core::ParameterBool        paramLogStepwiseStatistics;
+    static const Core::ParameterBool        paramCacheCleanupInterval;
+    static const Core::ParameterInt         paramMaximumStableDelay;
+    static const Core::ParameterInt         paramMaximumStableDelayPruningInterval;
+
+    TreeTimesyncBeamSearch(Core::Configuration const&);
+
+    // Inherited methods from `SearchAlgorithmV2`
+
+    Speech::ModelCombination::Mode requiredModelCombination() const override;
+    Am::AcousticModel::Mode        requiredAcousticModel() const override;
+    bool                           setModelCombination(Speech::ModelCombination const& modelCombination) override;
+    void                           reset() override;
+    void                           enterSegment(Bliss::SpeechSegment const* = nullptr) override;
+    void                           finishSegment() override;
+    void                           putFeature(Nn::DataView const& feature) override;
+    void                           putFeatures(Nn::DataView const& features, size_t nTimesteps) override;
+
+    Core::Ref<const Traceback>      getCurrentBestTraceback() const override;
+    Core::Ref<const LatticeAdaptor> getCurrentBestWordLattice() const override;
+    Core::Ref<const LatticeTrace>   getCurrentBestLatticeTrace() const override;
+    Core::Ref<const LatticeTrace>   getCommonPrefix() const override;
+
+    bool decodeStep() override;
+
+protected:
+    /*
+     * Possible extension for some label hypothesis in the beam
+     */
+    struct WithinWordExtensionCandidate {
+        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
+        StateId                         nextState;       // State in the search tree of this extension
+        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
+        Score                           score;           // Would-be total score of the full hypothesis after extension
+        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
+        size_t                          baseHypIndex;    // Index of base hypothesis in beam
+
+        bool operator<(WithinWordExtensionCandidate const& other) {
+            return score < other.score;
+        }
+    };
+
+    struct WordEndExtensionCandidate {
+        Bliss::LemmaPronunciation const* pron;          // Proposed lemma pronunciation
+        StateId                          rootState;     // Proposed root-state to transition to
+        Score                            score;         // Would-be total score of the full hypothesis after LM score contribution
+        size_t                           baseHypIndex;  // Index of base hypothesis in beam
+
+        bool operator<(WordEndExtensionCandidate const& other) {
+            return score < other.score;
+        }
+    };
+
+    /*
+     * Struct containing all information about a single hypothesis in the beam
+     */
+    struct LabelHypothesis {
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        StateId                            currentState;     // Current state in the search tree
+        Lm::History                        lmHistory;        // Language model history
+        Speech::TimeframeIndex             timeframe;        // Timeframe of current token
+        Score                              score;            // Full score of the hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building of hypothesis
+
+        LabelHypothesis();
+
+        // Within-word constructor from base and within-word extension
+        LabelHypothesis(LabelHypothesis const& base, WithinWordExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
+
+        // Word-end constructor from base and word-end extension
+        LabelHypothesis(LabelHypothesis const& base, WordEndExtensionCandidate const& extension, Lm::History const& newLmHistory);
+
+        bool operator<(LabelHypothesis const& other) const {
+            return score < other.score;
+        }
+
+        /*
+         * Get string representation for debugging
+         */
+        std::string toString() const;
+    };
+
+private:
+    std::vector<size_t> maxBeamSizes_;
+    size_t              maxWordEndBeamSize_;
+    std::vector<Score>  scoreThresholds_;
+    Score               wordEndScoreThreshold_;
+    Nn::LabelIndex      blankLabelIndex_;
+    Nn::LabelIndex      sentenceEndLabelIndex_;
+    size_t              cacheCleanupInterval_;
+    size_t              maximumStableDelay_;
+    size_t              maximumStableDelayPruningInterval_;
+
+    bool useBlank_;
+    bool collapseRepeatedLabels_;
+    bool sentenceEndFallback_;
+    bool logStepwiseStatistics_;
+
+    std::vector<Core::Ref<Nn::LabelScorer>>        labelScorers_;
+    Bliss::LexiconRef                              lexicon_;
+    robin_hood::unordered_set<const Bliss::Lemma*> nonWordLemmas_;
+    Core::Ref<PersistentStateTree>                 network_;
+    Core::Ref<const Am::AcousticModel>             acousticModel_;
+    Core::Ref<Lm::ScaledLanguageModel>             languageModel_;
+    Core::Channel                                  debugChannel_;
+
+    // Pre-allocated intermediate vectors
+    std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
+    std::vector<WordEndExtensionCandidate>    wordEndExtensions_;
+    std::vector<LabelHypothesis>              beam_;
+    std::vector<LabelHypothesis>              newBeam_;
+    std::vector<LabelHypothesis>              wordEndHypotheses_;
+    std::vector<Nn::LabelScorer::Request>     requests_;
+    std::vector<LabelHypothesis>              tempHypotheses_;
+
+    // Precomputed successor/exit lookups (offset tables + contiguous data).
+    std::vector<size_t>                    stateSuccessorsOffset_;
+    std::vector<StateId>                   stateSuccessors_;
+    std::vector<size_t>                    stateExitsOffset_;
+    std::vector<PersistentStateTree::Exit> stateExits_;
+
+    size_t currentSearchStep_;
+    bool   finishedSegment_;
+
+    Core::StopWatch initializationTime_;
+    Core::StopWatch featureProcessingTime_;
+    Core::StopWatch scoringTime_;
+
+    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    Core::Statistics<u32>              numHypsAfterRecombination_;
+    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
+    Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
+    Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numActiveHyps_;
+    Core::Statistics<u32>              numActiveTrees_;
+
+    LabelHypothesis const& getBestHypothesis() const;
+    LabelHypothesis const& getWorstHypothesis() const;
+
+    void resetStatistics();
+    void logStatistics() const;
+
+    /*
+     * Infer type of transition between two tokens based on whether each of them is blank
+     * and/or whether they are the same
+     */
+    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+
+    /*
+     * Helper function for pruning to maxBeamSize
+     */
+    template<typename Element>
+    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
+
+    /*
+     * Helper function for pruning to scoreThreshold
+     */
+    template<typename Element>
+    void scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const;
+
+    /*
+     * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history.
+     * With `createTraceSiblings` the traces of the recombined hypotheses will be added as siblings (for word-end recombination).
+     */
+    void recombination(std::vector<LabelHypothesis>& hypotheses, bool createTraceSiblings);
+
+    /*
+     * Precompute successor and exit lookups for each state to avoid traversing the network structure during decoding.
+     * Successors and exits are stored in the contiguous vectors stateSuccessors_ and stateExits_.
+     * for a state `s`, the corresponding ranges are indexed by
+     * (stateSuccessorsOffset_[s], stateSuccessorsOffset_[s+1]) and (stateExitsOffset_[s], stateExitsOffset_[s+1])
+     */
+    void createSuccessorLookups();
+
+    /*
+     * After reaching the segment end, go through the active hypotheses, only keep those
+     * which are final states of the search tree.
+     * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     */
+    void finalizeHypotheses();
+
+    /*
+     * Apply maximum-stable-delay-pruning to beam_
+     */
+    void maximumStableDelayPruning();
+};
+
+}  // namespace Search
+
+#endif  // TREE_TIMESYNC_BEAM_SEARCH_HH

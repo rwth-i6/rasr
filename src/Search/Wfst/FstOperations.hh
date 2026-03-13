@@ -31,7 +31,9 @@ class Minimize : public SleeveOperation, public SemiringDependent {
 
 public:
     Minimize(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              SemiringDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -52,7 +54,9 @@ public:
 class Determinize : public SleeveOperation, public SemiringDependent {
 public:
     Determinize(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              SemiringDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -69,7 +73,8 @@ public:
 class ArcInputSort : public SleeveOperation {
 public:
     ArcInputSort(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -86,7 +91,8 @@ public:
 class ArcOutputSort : public SleeveOperation {
 public:
     ArcOutputSort(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -107,7 +113,9 @@ protected:
 
 public:
     Compose(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), right_(0) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              right_(0) {}
     virtual u32 nInputAutomata() const {
         return 2;
     }
@@ -133,7 +141,8 @@ protected:
 
 public:
     LabelCoding(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 };
 
 /**
@@ -146,7 +155,8 @@ class LabelEncode : public LabelCoding {
 
 public:
     LabelEncode(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), LabelCoding(c, r) {}
+            : Operation(c, r),
+              LabelCoding(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -171,7 +181,8 @@ public:
 class LabelDecode : public LabelCoding {
 public:
     LabelDecode(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), LabelCoding(c, r) {}
+            : Operation(c, r),
+              LabelCoding(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -190,7 +201,8 @@ public:
 class WeightEncode : public LabelEncode {
 public:
     WeightEncode(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), LabelEncode(c, r) {}
+            : Operation(c, r),
+              LabelEncode(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -210,7 +222,8 @@ class Relabel : public SleeveOperation {
 
 public:
     Relabel(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -233,7 +246,9 @@ public:
 class PushWeights : public SleeveOperation, public SemiringDependent {
 public:
     PushWeights(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              SemiringDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -252,7 +267,8 @@ class PushLabels : public SleeveOperation {
 
 public:
     PushLabels(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -269,7 +285,9 @@ public:
 class NormalizeEpsilon : public SleeveOperation, public LabelTypeDependent {
 public:
     NormalizeEpsilon(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              LabelTypeDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -286,7 +304,9 @@ public:
 class Project : public SleeveOperation, public LabelTypeDependent {
 public:
     Project(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), LabelTypeDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              LabelTypeDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -305,7 +325,9 @@ class RemoveEpsilon : public SleeveOperation, public SemiringDependent
 {
 public:
     RemoveEpsilon(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              SemiringDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -322,7 +344,9 @@ public:
 class Synchronize : public SleeveOperation, public SemiringDependent {
 public:
     Synchronize(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), SemiringDependent(c) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              SemiringDependent(c) {}
 
 protected:
     virtual AutomatonRef process();
@@ -339,7 +363,8 @@ public:
 class Invert : public SleeveOperation {
 public:
     Invert(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -365,7 +390,9 @@ protected:
 
 public:
     CreateLookahead(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), WriteOperation(c, r), toRelabel_(0) {}
+            : Operation(c, r),
+              WriteOperation(c, r),
+              toRelabel_(0) {}
     virtual bool consumeInput() const {
         return false;
     }
@@ -393,14 +420,17 @@ public:
  * applies composition using a label lookahead matcher.
  */
 class ReachableCompose : public Compose {
-    enum LookAheadType { LabelLookAhead,
-                         ArcLookAhead };
+    enum LookAheadType {
+        LabelLookAhead,
+        ArcLookAhead
+    };
     static const Core::Choice          lookAheadChoice;
     static const Core::ParameterChoice paramLookAheadType;
 
 public:
     ReachableCompose(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), Compose(c, r) {}
+            : Operation(c, r),
+              Compose(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -419,7 +449,8 @@ class ScaleWeights : public SleeveOperation {
 
 public:
     ScaleWeights(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -439,7 +470,8 @@ class ScaleLabelWeights : public SleeveOperation {
 
 public:
     ScaleLabelWeights(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -456,7 +488,8 @@ public:
 class RemoveWeights : public SleeveOperation {
 public:
     RemoveWeights(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();

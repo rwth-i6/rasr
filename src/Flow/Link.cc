@@ -45,8 +45,9 @@ void Link::clear() {
     queue_.clear();
 
     if (!isEmpty(fast_data_)) {
-        if (fast_data_->decrement())
+        if (fast_data_->decrement()) {
             fast_data_->free();
+        }
         fast_data_ = sentinelEmpty();
     }
 }
@@ -83,8 +84,9 @@ std::ostream& Flow::operator<<(std::ostream& o, const Link& l) {
 /******************************************************************************/
 
 void Link::configure() {
-    if (getFromNode())
+    if (getFromNode()) {
         is_fast_ = !getFromNode()->isThreaded();
+    }
 }
 
 /******************************************************************************/

@@ -32,6 +32,7 @@ enum TreeBuilderType {
     minimizedHmm,
     ctc,
     rna,
+    aed,
 };
 
 enum SearchType {
@@ -41,7 +42,9 @@ enum SearchType {
 };
 
 enum SearchTypeV2 {
-    LexiconfreeTimesyncBeamSearchType
+    LexiconfreeLabelsyncBeamSearchType,
+    LexiconfreeTimesyncBeamSearchType,
+    TreeTimesyncBeamSearchType
 };
 
 class Module_ {

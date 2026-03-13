@@ -15,8 +15,10 @@
 #include <Modules.hh>
 #include <Search/LatticeHandler.hh>
 #include <Search/Module.hh>
+#include "LexiconfreeLabelsyncBeamSearch/LexiconfreeLabelsyncBeamSearch.hh"
 #include "LexiconfreeTimesyncBeamSearch/LexiconfreeTimesyncBeamSearch.hh"
 #include "TreeBuilder.hh"
+#include "TreeTimesyncBeamSearch/TreeTimesyncBeamSearch.hh"
 #ifdef MODULE_SEARCH_WFST
 #include <Search/Wfst/ExpandingFsaSearch.hh>
 #include <Search/Wfst/LatticeHandler.hh>
@@ -34,7 +36,9 @@ Module_::Module_() {
 }
 
 const Core::Choice Module_::searchTypeV2Choice(
+        "lexiconfree-labelsync-beam-search", SearchTypeV2::LexiconfreeLabelsyncBeamSearchType,
         "lexiconfree-timesync-beam-search", SearchTypeV2::LexiconfreeTimesyncBeamSearchType,
+        "tree-timesync-beam-search", SearchTypeV2::TreeTimesyncBeamSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::searchTypeV2Param(
@@ -45,6 +49,7 @@ const Core::Choice choiceTreeBuilderType(
         "minimized-hmm", static_cast<int>(TreeBuilderType::minimizedHmm),
         "ctc", static_cast<int>(TreeBuilderType::ctc),
         "rna", static_cast<int>(TreeBuilderType::rna),
+        "aed", static_cast<int>(TreeBuilderType::aed),
         Core::Choice::endMark());
 
 const Core::ParameterChoice paramTreeBuilderType(
@@ -67,6 +72,9 @@ std::unique_ptr<AbstractTreeBuilder> Module_::createTreeBuilder(Core::Configurat
         } break;
         case Search::TreeBuilderType::rna: {
             return std::unique_ptr<AbstractTreeBuilder>(new RnaTreeBuilder(config, lexicon, acousticModel, network, initialize));
+        } break;
+        case Search::TreeBuilderType::aed: {
+            return std::unique_ptr<AbstractTreeBuilder>(new AedTreeBuilder(config, lexicon, acousticModel, network, initialize));
         } break;
         default: defect();
     }
@@ -107,8 +115,14 @@ SearchAlgorithm* Module_::createRecognizer(SearchType type, const Core::Configur
 SearchAlgorithmV2* Module_::createSearchAlgorithmV2(const Core::Configuration& config) const {
     SearchAlgorithmV2* searchAlgorithm = nullptr;
     switch (searchTypeV2Param(config)) {
+        case LexiconfreeLabelsyncBeamSearchType:
+            searchAlgorithm = new Search::LexiconfreeLabelsyncBeamSearch(config);
+            break;
         case LexiconfreeTimesyncBeamSearchType:
             searchAlgorithm = new Search::LexiconfreeTimesyncBeamSearch(config);
+            break;
+        case TreeTimesyncBeamSearchType:
+            searchAlgorithm = new Search::TreeTimesyncBeamSearch(config);
             break;
         default:
             Core::Application::us()->criticalError("Unknown search algorithm type: %d", searchTypeV2Param(config));

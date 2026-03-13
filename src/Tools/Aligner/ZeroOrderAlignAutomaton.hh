@@ -21,14 +21,18 @@
 namespace Fsa {
 class ZeroOrderAlignAutomaton : public AlignAutomaton {
 private:
-    typedef enum { diagonal   = 0,
-                   horizontal = 1,
-                   vertical   = 2 } Transitions;
+    typedef enum {
+        diagonal   = 0,
+        horizontal = 1,
+        vertical   = 2
+    } Transitions;
+
     Translation::ConstConditionalLexiconRef lexicon_;
-    u32                                     I;
-    u32                                     J;
-    u32                                     M;
-    u32                                     maxIndex;
+
+    u32 I;
+    u32 J;
+    u32 M;
+    u32 maxIndex;
 
 public:
     ZeroOrderAlignAutomaton(Core::Configuration&                    config,
@@ -40,7 +44,8 @@ public:
                             const double                            factorTransition = 1.0);
 
     virtual ConstStateRef getState(StateId s) const;
-    virtual std::string   describe() const {
+
+    virtual std::string describe() const {
         return std::string("zeroOrderAlignAutomaton()");
     }
 };

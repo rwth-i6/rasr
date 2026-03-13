@@ -116,13 +116,17 @@ public:
      * scales
      **/
     virtual void setScales(const ScoreList& scales) const;
-    ScoreList&   scales() const {
+
+    ScoreList& scales() const {
         return scales_;
     }
+
     virtual void setScale(ScoreId id, Score scale) const;
-    Score        scale(ScoreId id) const {
+
+    Score scale(ScoreId id) const {
         return scales_[id];
     }
+
     /*
      * return value:
      * 0 scales are equal

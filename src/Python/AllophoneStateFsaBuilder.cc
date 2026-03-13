@@ -17,7 +17,8 @@ namespace py = pybind11;
 
 struct BuildSegmentToOrthMapVisitor : public Bliss::CorpusVisitor {
     BuildSegmentToOrthMapVisitor()
-            : Bliss::CorpusVisitor(), map_(new Core::StringHashMap<std::string>()) {}
+            : Bliss::CorpusVisitor(),
+              map_(new Core::StringHashMap<std::string>()) {}
 
     virtual void visitSpeechSegment(Bliss::SpeechSegment* s) {
         (*map_)[s->fullName()] = s->orth();
@@ -42,12 +43,16 @@ AllophoneStateFsaBuilder::AllophoneStateFsaBuilder(const Core::Configuration& c)
     segmentToOrthMap_          = build_segment_to_orth_map(select("corpus"));
 }
 
-py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+std::string AllophoneStateFsaBuilder::getOrthographyBySegmentName(const std::string& segmentName) {
     auto iter = segmentToOrthMap_->find(segmentName);
     if (iter == segmentToOrthMap_->end()) {
         throw std::invalid_argument("Could not find segment with name " + segmentName);
     }
-    return buildByOrthography(iter->second);
+    return iter->second;
+}
+
+py::tuple AllophoneStateFsaBuilder::buildBySegmentName(const std::string& segmentName) {
+    return buildByOrthography(getOrthographyBySegmentName(segmentName));
 }
 
 py::tuple AllophoneStateFsaBuilder::buildByOrthography(const std::string& orthography) {

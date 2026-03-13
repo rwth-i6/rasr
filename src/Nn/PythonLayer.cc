@@ -37,7 +37,10 @@ static const Core::ParameterString paramPyModConfig(
 
 template<typename T>
 PythonLayer<T>::PythonLayer(const Core::Configuration& config)
-        : Core::Component(config), Precursor(config), timeForward_(0), timeBackward_(0) {
+        : Core::Component(config),
+          Precursor(config),
+          timeForward_(0),
+          timeBackward_(0) {
     pythonInitializer_.init();
 
     // Get us the CPython GIL. However, when we return here,
@@ -129,7 +132,7 @@ template<typename T>
 void PythonLayer<T>::initializeNetworkParameters() {
     Python::ScopedGIL gil;
     Python::PyCallKw_IgnRet_HandleError(getPythonCriticalErrorFunc(),
-                                        pyObject_, "initializeNetworkParameters", "");
+                                        pyObject_, "initializeNetworkParameters", "{}");
 }
 
 template<typename T>
@@ -152,7 +155,7 @@ template<typename T>
 bool PythonLayer<T>::isTrainable() const {
     Python::ScopedGIL gil;
     Python::ObjRef    res;
-    res.takeOver(Python::PyCallKw(pyObject_, "isTrainable", ""));
+    res.takeOver(Python::PyCallKw(pyObject_, "isTrainable", "{}"));
     if (!res) {
         pythonCriticalError("PythonLayer: exception occured while calling 'isTrainable'");
         return false;
@@ -255,7 +258,7 @@ void PythonLayer<T>::finalize() {
         Python::ScopedGIL gil;
         Python::PyCallKw_IgnRet_HandleError(
                 getPythonCriticalErrorFunc(),
-                pyObject_, "finalize", "");
+                pyObject_, "finalize", "{}");
     }
     if (this->measureTime_) {
         this->log("Python layer: Time for forward pass: ") << timeForward_;
@@ -268,7 +271,7 @@ template<typename T>
 u32 PythonLayer<T>::getNumberOfFreeParameters() const {
     Python::ScopedGIL gil;
     Python::ObjRef    res;
-    res.takeOver(Python::PyCallKw(pyObject_, "getNumberOfFreeParameters", ""));
+    res.takeOver(Python::PyCallKw(pyObject_, "getNumberOfFreeParameters", "{}"));
     if (!res) {
         pythonCriticalError("PythonLayer: exception occured while calling 'getNumberOfFreeParameters'");
         return false;

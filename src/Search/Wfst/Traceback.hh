@@ -36,11 +36,17 @@ public:
         TimeframeIndex time;
         ScoreVector    score;
         Item(Label w, TimeframeIndex t, Score s)
-                : word(w), time(t), score(s, 0) {}
+                : word(w),
+                  time(t),
+                  score(s, 0) {}
         Item(Label w, TimeframeIndex t, Score a, Score l)
-                : word(w), time(t), score(a, l) {}
+                : word(w),
+                  time(t),
+                  score(a, l) {}
         Item(Label w, TimeframeIndex t, const ScoreVector& s)
-                : word(w), time(t), score(s) {}
+                : word(w),
+                  time(t),
+                  score(s) {}
     };
     struct CompareTime {
         bool operator()(const Item& a, const Item& b) const {

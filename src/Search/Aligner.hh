@@ -169,9 +169,11 @@ public:
     void                                           getAlignment(Speech::Alignment&, std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> alignmentPosteriorFsa) const;
     void                                           getAlignment(Speech::Alignment&) const;
     Score                                          alignmentScore() const;
-    bool                                           reachedFinalState() const {
+
+    bool reachedFinalState() const {
         return alignmentScore() != Core::Type<Score>::max;
     }
+
     void selectMode(Mode);
     void selectMode();
     Mode getMode() const;

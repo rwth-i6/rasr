@@ -837,7 +837,7 @@ template<typename T>
 T CudaVector<T>::normEuclidean() const {
     require(isComputing_);
     if (gpuMode_) {
-        T result;
+        T result = 0;
         Cuda::nrm2(cublasHandle, nRows_, d_elem_, 1, &result);
         return result;
     }

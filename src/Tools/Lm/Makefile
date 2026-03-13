@@ -52,6 +52,9 @@ LM_UTIL_TOOL_O += ../../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
+ifdef MODULE_LM_ONNX
+LM_UTIL_TOOL_O += ../../Onnx/libSprintOnnx.$(a)
+endif
 
 # -----------------------------------------------------------------------------
 
@@ -61,7 +64,7 @@ install:
 	$(INSTALL) $(TARGETS) $(INSTALL_TARGET)
 
 lm-util$(exe): $(LM_UTIL_TOOL_O)
-	$(LD) $^ -o $@ $(LDFLAGS)
+	$(LD) $(LD_START_GROUP) $^ $(LD_END_GROUP) -o $@ $(LDFLAGS)
 
 include $(TOPDIR)/Rules.make
 

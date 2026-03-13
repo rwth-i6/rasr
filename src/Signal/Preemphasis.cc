@@ -79,7 +79,8 @@ void Preemphasis::apply(Flow::Vector<f32>& v) {
 Core::ParameterFloat Signal::PreemphasisNode::paramAlpha("alpha", "preemphasis weight", 1);
 
 PreemphasisNode::PreemphasisNode(const Core::Configuration& c)
-        : Core::Component(c), SleeveNode(c) {
+        : Core::Component(c),
+          SleeveNode(c) {
     setAlpha(paramAlpha(c));
 }
 
@@ -107,8 +108,12 @@ bool PreemphasisNode::configure() {
 bool PreemphasisNode::work(Flow::PortId p) {
     Flow::DataPtr<Flow::Vector<f32>> in;
     if (!getData(0, in)) {
-        if (in == Flow::Data::eos())
+        if (in == Flow::Data::eos()) {
             Preemphasis::reset();
+        }
+        else if (in == Flow::Data::ood()) {
+            return putOod(p);
+        }
         return putData(0, in.get());
     }
 

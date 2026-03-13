@@ -13,7 +13,6 @@ LIBSPRINTADVANCEDTREESEARCH_O = $(OBJDIR)/AcousticLookAhead.o \
                         $(OBJDIR)/AdvancedTreeSearch.o \
                         $(OBJDIR)/DynamicBeamPruningStrategy.o \
                         $(OBJDIR)/Helpers.o \
-                        $(OBJDIR)/LanguageModelLookahead.o \
                         $(OBJDIR)/PathRecombination.o \
                         $(OBJDIR)/PathRecombinationApproximation.o \
                         $(OBJDIR)/PrefixFilter.o \

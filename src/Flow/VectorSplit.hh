@@ -52,7 +52,10 @@ public:
         return std::string("generic-vector-") + Core::Type<T>::name + "-split";
     }
     VectorSplitNode(const Core::Configuration& c)
-            : Core::Component(c), SinkNode(c), reverse_(false), timestamp_(false) {
+            : Core::Component(c),
+              SinkNode(c),
+              reverse_(false),
+              timestamp_(false) {
         reverse_   = paramVectorSplitNodeReverse(c);
         timestamp_ = paramVectorSplitNodeTimeStamp(c);
     }

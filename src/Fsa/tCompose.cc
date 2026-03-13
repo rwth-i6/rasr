@@ -71,7 +71,8 @@ protected:
 
     public:
         State_(Fsa::StateId l, Fsa::StateId f, Fsa::StateId r)
-                : l_(l | (f << Fsa::StateIdBits)), r_(r) {}
+                : l_(l | (f << Fsa::StateIdBits)),
+                  r_(r) {}
         Fsa::StateId l() const {
             return l_ & Fsa::StateIdMask;
         }

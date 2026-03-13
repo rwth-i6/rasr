@@ -15,6 +15,8 @@
 #ifndef _CORE_THREAD_SAFE_REFERENCE_
 #define _CORE_THREAD_SAFE_REFERENCE_
 
+#include <atomic>
+
 #include "Assertions.hh"
 #include "Thread.hh"
 #include "Types.hh"
@@ -34,14 +36,9 @@ class ThreadSafeReferenceCounted {
     friend class TsRef;
 
 private:
-    mutable u32         referenceCount_;
-    mutable Core::Mutex mutex_;
+    mutable std::atomic<u32> referenceCount_;
 
 private:
-    static inline ThreadSafeReferenceCounted* sentinel() {
-        static ThreadSafeReferenceCounted sentinel_(1);
-        return &sentinel_;
-    }
     static bool isSentinel(const ThreadSafeReferenceCounted* object) {
         return object == sentinel();
     }
@@ -50,17 +47,15 @@ private:
     }
 
 protected:
+    static inline ThreadSafeReferenceCounted* sentinel() {
+        static ThreadSafeReferenceCounted sentinel_(1);
+        return &sentinel_;
+    }
     virtual void free() const {
         verify_(isNotSentinel(this));
         delete this;
     }
 
-    void lock() const {
-        mutex_.lock();
-    }
-    void release() const {
-        mutex_.release();
-    }
     void increment() const {
         ++referenceCount_;
     }
@@ -81,7 +76,7 @@ public:
         return *this;
     }
     /** Constructor for static objects. */
-    virtual ~ThreadSafeReferenceCounted() {}  // calling mutex_.lock() might be useful for debugging
+    virtual ~ThreadSafeReferenceCounted() {}
 
     u32 refCount() const {
         return referenceCount_;
@@ -105,23 +100,17 @@ protected:
 
 protected:
     inline void referenceObject(Object* obj) {
-        obj->lock();
         obj->increment();
-        obj->release();
     }
     inline void reference() {
         referenceObject(object_);
     }
     inline void unreference() {
-        object_->lock();
         if (object_->decrement()) {
             verify_(Object::isNotSentinel(object_));
-            object_->release();
             object_->free();
-            (object_ = sentinel())->increment();
+            object_ = sentinel();
         }
-        else
-            object_->release();
     }
 
     /** Takes over the value of @param o.

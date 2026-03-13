@@ -75,12 +75,11 @@ void QuantileEqualization::readTrainingQuantilesFromFile() {
     }
     else {
         u32 i;
-        int res;
         for (u16 d = 0; d < dim(); d++) {
-            res = fscanf(f, "%u ", &i);
+            fscanf(f, "%u ", &i);
             for (u16 i = 0; i <= numberOfQuantiles_; i++)
-                res = fscanf(f, "%f ", &trainingQuantile_[i * dim() + d]);
-            res = fscanf(f, "\n");
+                fscanf(f, "%f ", &trainingQuantile_[i * dim() + d]);
+            fscanf(f, "\n");
         }
     }
     fclose(f);

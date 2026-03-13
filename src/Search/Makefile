@@ -11,6 +11,7 @@ TARGETS		= libSprintSearch.$(a) check$(exe)
 
 LIBSPRINTSEARCH_O	= \
 		$(OBJDIR)/Aligner.o \
+		$(OBJDIR)/LanguageModelLookahead.o \
 		$(OBJDIR)/LatticeHandler.o \
 		$(OBJDIR)/Module.o \
 		$(OBJDIR)/PersistentStateTree.o \
@@ -34,7 +35,9 @@ LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskAStarSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskNBestListSearch.o
 LIBSPRINTSEARCH_O += $(OBJDIR)/MinimumBayesRiskSearchUtil.o
 endif
+SUBDIRS += LexiconfreeLabelsyncBeamSearch
 SUBDIRS += LexiconfreeTimesyncBeamSearch
+SUBDIRS += TreeTimesyncBeamSearch
 ifdef MODULE_SEARCH_WFST
 SUBDIRS += Wfst
 endif
@@ -64,9 +67,15 @@ Wfst:
 
 AdvancedTreeSearch:
 	$(MAKE) -C $@ libSprintAdvancedTreeSearch.$(a)
+	
+LexiconfreeLabelsyncBeamSearch:
+	$(MAKE) -C $@ libSprintLexiconfreeLabelsyncBeamSearch.$(a)
 
 LexiconfreeTimesyncBeamSearch:
 	$(MAKE) -C $@ libSprintLexiconfreeTimesyncBeamSearch.$(a)
+
+TreeTimesyncBeamSearch:
+	$(MAKE) -C $@ libSprintTreeTimesyncBeamSearch.$(a)
 
 include $(TOPDIR)/Rules.make
 

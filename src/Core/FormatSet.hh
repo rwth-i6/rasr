@@ -83,12 +83,19 @@ public:
      */
     typedef StringHashMap<Ref<ReferenceCounted>> Formats;
 
+    /*
+     * Returns the format specifier or and empty string if not found
+     */
+    static std::string getQualifier(const std::string& filename);
+    /*
+     * Returns the filename without the format specifier or the full filename if not found
+     */
+    static std::string stripQualifier(const std::string& filename);
+
 private:
     Formats formats_;
 
 private:
-    static std::string getQualifier(const std::string& filename);
-    static std::string stripQualifier(const std::string& filename);
     template<class T>
     void getTypeSpecificFormats(Ref<TypeSpecificFormats<T>>&);
     template<class T>

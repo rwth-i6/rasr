@@ -69,7 +69,9 @@ public:
 public:
     Question(PropertyMapRef     map,
              const std::string& desc = "")
-            : map_(map), desc_(desc), index(InvalidQuestionIndex) {}
+            : map_(map),
+              desc_(desc),
+              index(InvalidQuestionIndex) {}
     virtual ~Question() {}
 
     virtual Answer operator()(const Properties& props) const = 0;

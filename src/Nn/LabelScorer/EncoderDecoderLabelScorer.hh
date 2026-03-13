@@ -46,8 +46,9 @@ public:
     // Get start context from decoder component
     ScoringContextRef getInitialScoringContext() override;
 
-    // Get extended context from decoder component
-    ScoringContextRef extendedScoringContext(Request const& request) override;
+    // Cleanup decoder component. Encoder is "self-cleaning" already in that it only stores outputs until they are
+    // retrieved.
+    void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
 
     // Add an input feature to the encoder component and if possible forward the encoder and add
     // the encoder states as inputs to the decoder component
@@ -56,11 +57,15 @@ public:
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
+protected:
+    // Get extended context from decoder component
+    ScoringContextRef extendedScoringContextInternal(Request const& request) override;
+
     // Run request through decoder component
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
 
     // Run requests through decoder component
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
+    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     Core::Ref<Encoder>     encoder_;

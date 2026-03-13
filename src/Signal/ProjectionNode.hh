@@ -59,7 +59,8 @@ const Core::ParameterString ProjectionNode<T>::paramProjectionComponents(
 
 template<class T>
 ProjectionNode<T>::ProjectionNode(const Core::Configuration& c)
-        : Component(c), SleeveNode(c) {
+        : Component(c),
+          SleeveNode(c) {
     log() << "Initializing projection";
     addInput(0);
     addOutput(0);

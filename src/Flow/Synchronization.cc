@@ -22,12 +22,17 @@ bool Synchronization::work(const Timestamp& time, DataPointer& dataPointer) {
     Time        startTime = time.startTime();
     do {
         if (!nextData(in)) {
+            if (in == Flow::Data::ood()) {
+                dataPointer = in;
+                return false;
+            }
+
             lastError_ = Core::form("Input stream ended before the start-time %f.", startTime);
             return false;
         }
     } while (Core::isSignificantlyGreater(startTime, in->startTime(), timeTolerance));
 
-    if (!Core::isAlmostEqual(startTime, in->startTime(), timeTolerance)) {
+    if (!Core::isAlmostEqualUlp(startTime, in->startTime(), timeToleranceUlp)) {
         lastError_ = Core::form("Input stream has no element with the start-time %f.", startTime);
         return false;
     }
@@ -38,7 +43,7 @@ bool Synchronization::work(const Timestamp& time, DataPointer& dataPointer) {
 
 bool TimestampCopy::work(const Timestamp& time, DataPointer& dataPointer) {
     if (!nextData(dataPointer)) {
-        lastError_ = "input stream endet before target stream";
+        lastError_ = "input stream ended before target stream";
         return false;
     }
     dataPointer->setTimestamp(time);

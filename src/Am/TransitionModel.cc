@@ -139,7 +139,10 @@ struct ApplicatorState {
     }
 
     ApplicatorState(Mask m, Fsa::LabelId e, StateType t, Fsa::StateId r)
-            : mask(m), emission(e), weights(t), right(r) {}
+            : mask(m),
+              emission(e),
+              weights(t),
+              right(r) {}
 
     struct Equality {
         bool operator()(ApplicatorState const& ll, ApplicatorState const& rr) const {
@@ -189,11 +192,11 @@ protected:
     // -----------------------------------------------------------------------
     class StateDegrees : public Fsa::DfsState {
     public:
-        enum Direction {
+        enum class Direction : u32 {
             incoming = 0,
             outgoing = 2
         };
-        enum Type {
+        enum class Type : u32 {
             emitting       = 0,
             epsilon        = 4,
             disambiguating = 8
@@ -212,7 +215,7 @@ protected:
                     : flags_(0) {}
 
             void add(Direction direction, Type type) {
-                u32 shift = direction + type;
+                u32 shift = static_cast<u32>(direction) + static_cast<u32>(type);
                 if (flags_ & (one << shift))
                     flags_ |= (many << shift);
                 else
@@ -220,7 +223,7 @@ protected:
             };
 
             u8 operator()(Direction direction, Type type) const {
-                u32 shift = direction + type;
+                u32 shift = static_cast<u32>(direction) + static_cast<u32>(type);
                 return (flags_ >> shift) & 0x03;
             };
         };
@@ -233,11 +236,11 @@ protected:
         void exploreArc(Fsa::ConstStateRef from, const Fsa::Arc& arc) {
             degrees_.grow(from->id(), Degree());
             degrees_.grow(arc.target(), Degree());
-            Type type = (arc.input() == Fsa::Epsilon)               ? epsilon
-                        : (alphabet_->isDisambiguator(arc.input())) ? disambiguating
-                                                                    : emitting;
-            degrees_[from->id()].add(outgoing, type);
-            degrees_[arc.target()].add(incoming, type);
+            Type type = (arc.input() == Fsa::Epsilon)               ? Type::epsilon
+                        : (alphabet_->isDisambiguator(arc.input())) ? Type::disambiguating
+                                                                    : Type::emitting;
+            degrees_[from->id()].add(Direction::outgoing, type);
+            degrees_[arc.target()].add(Direction::incoming, type);
         }
 
         virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& arc) {
@@ -248,7 +251,8 @@ protected:
         }
 
         StateDegrees(Fsa::ConstAutomatonRef ff, Fsa::ConstAlphabetRef aa)
-                : Fsa::DfsState(ff), alphabet_(aa) {}
+                : Fsa::DfsState(ff),
+                  alphabet_(aa) {}
 
         const Degree& operator[](Fsa::StateId ii) const {
             return degrees_[ii];
@@ -258,7 +262,8 @@ protected:
     struct StackItem : AppState {
         Fsa::StateRef result;
         StackItem(AppState const& state, Fsa::StateRef _result)
-                : AppState(state), result(_result) {}
+                : AppState(state),
+                  result(_result) {}
     };
 
     typedef std::stack<StackItem>                                                                            StateStack;
@@ -440,8 +445,8 @@ void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::A
     require(ra->input() != Fsa::Epsilon);
 
     typename AbstractApplicator<AppState>::StateDegrees::Degree targetDegree       = (*rightStateDegrees_)[ra->target()];
-    bool                                                        wouldSkipToDeadEnd = ((targetDegree(StateDegrees::outgoing, StateDegrees::emitting) +
-                                targetDegree(StateDegrees::outgoing, StateDegrees::epsilon)) == 0);
+    bool                                                        wouldSkipToDeadEnd = ((targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) +
+                                targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::epsilon)) == 0);
     if (wouldSkipToDeadEnd)
         return;
 
@@ -451,9 +456,9 @@ void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::A
         return;
     }
 
-    bool isEligbleForSkipOptimization = ((targetDegree(StateDegrees::outgoing, StateDegrees::disambiguating) == 0) &&
-                                         (targetDegree(StateDegrees::outgoing, StateDegrees::epsilon) == 0) &&
-                                         (targetDegree(StateDegrees::outgoing, StateDegrees::emitting) == 1));
+    bool isEligbleForSkipOptimization = ((targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::disambiguating) == 0) &&
+                                         (targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::epsilon) == 0) &&
+                                         (targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) == 1));
 
     Fsa::ConstStateRef rat;
     const Fsa::Arc*    ras = 0;
@@ -556,9 +561,9 @@ Fsa::ConstAutomatonRef AbstractApplicator<AppState>::apply(Fsa::ConstAutomatonRe
 
         typename StateDegrees::Degree degree = (*rightStateDegrees_)[current.right];
 
-        bool shouldDischarge = (degree(StateDegrees::incoming, StateDegrees::emitting) == StateDegrees::many) &&
-                               ((degree(StateDegrees::outgoing, StateDegrees::emitting) == StateDegrees::many) ||
-                                (degree(StateDegrees::outgoing, StateDegrees::disambiguating) == StateDegrees::many));
+        bool shouldDischarge = (degree(StateDegrees::Direction::incoming, StateDegrees::Type::emitting) == StateDegrees::many) &&
+                               ((degree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) == StateDegrees::many) ||
+                                (degree(StateDegrees::Direction::outgoing, StateDegrees::Type::disambiguating) == StateDegrees::many));
 
         //	std::cerr << Core::form("expand: mask=%x\temission=%d\tweights=%d\tright=%zd\n", current.mask, current.emission, current.weights, current.right); // DEBUG
 
@@ -954,7 +959,9 @@ Am::TransitionModel* Am::TransitionModel::createTransitionModel(const Core::Conf
 // ===========================================================================
 ScaledTransitionModel::ScaledTransitionModel(const Core::Configuration& c,
                                              ClassicStateModelRef       stateModel)
-        : Core::Component(c), Mc::Component(c), transitionModel_(0) {
+        : Core::Component(c),
+          Mc::Component(c),
+          transitionModel_(0) {
     transitionModel_ = TransitionModel::createTransitionModel(c, stateModel);
 }
 

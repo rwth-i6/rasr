@@ -231,13 +231,13 @@ public:
 
     /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline_ HMMState& state(StateId state) {
-        verify_(state > 0 && state < (int)states_.size());
+        verify_(state >= 0 && state < (int)states_.size());
         return states_[state];
     }
 
     /// Do not keep pointers to the returned state, the address may change when the network is manipulated
     inline const HMMState& state(StateId state) const {
-        verify_(state > 0 && state < (int)states_.size());
+        verify_(state >= 0 && state < (int)states_.size());
         return states_[state];
     }
 
@@ -268,6 +268,9 @@ public:
         Core::HashMap<StateId, StateId> nodeMap;
 
         std::set<StateId> mapNodes(const std::set<StateId>& nodes) const;
+        CleanupResult(size_t nstates) {
+            nodeMap.reserve(nstates);
+        }
     };
 
     /// Completely removes all nodes that are not reachable from the given start-nodes, compressing the structure
@@ -329,11 +332,13 @@ public:
 
     private:
         ChangePlan(HMMStateNetwork& _structure, StateId _node)
-                : node(_node), structure(&_structure) {
+                : node(_node),
+                  structure(&_structure) {
         }
 
         ChangePlan()
-                : node(0), structure(0) {
+                : node(0),
+                  structure(0) {
         }
 
         std::set<int> add;

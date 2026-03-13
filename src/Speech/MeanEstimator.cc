@@ -23,7 +23,10 @@ const Core::ParameterString MeanEstimator::paramFile(
         "file", "output filename for mean");
 
 MeanEstimator::MeanEstimator(const Core::Configuration& c)
-        : Component(c), Extractor(c), Estimator(c), needResize_(true) {}
+        : Component(c),
+          Extractor(c),
+          Estimator(c),
+          needResize_(true) {}
 
 MeanEstimator::~MeanEstimator() {}
 

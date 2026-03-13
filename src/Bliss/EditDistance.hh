@@ -62,23 +62,29 @@ namespace Bliss {
 
 class EditDistance : public Core::Component {
 public:
-    typedef enum { Deletion,
-                   Insertion,
-                   Substitution,
-                   Correct,
-                   Empty } EditOperation;
+    typedef enum {
+        Deletion,
+        Insertion,
+        Substitution,
+        Correct,
+        Empty
+    } EditOperation;
     typedef f32                            Score;
     typedef u32                            Cost;
     typedef std::pair<EditOperation, Cost> EditCost;
 
-    typedef enum { FormatBliss,
-                   FormatNist } AlignmentFormat;
+    typedef enum {
+        FormatBliss,
+        FormatNist
+    } AlignmentFormat;
 
     struct AlignmentItem {
         const Token * a, *b;
         EditOperation op;
         AlignmentItem(const Bliss::Token* _a, const Bliss::Token* _b, EditOperation _op)
-                : a(_a), b(_b), op(_op) {}
+                : a(_a),
+                  b(_b),
+                  op(_op) {}
 
         void                 write(std::ostream& o) const;
         friend std::ostream& operator<<(std::ostream& o, const AlignmentItem& a) {
@@ -99,7 +105,9 @@ public:
 
     public:
         Alignment(AlignmentFormat format = FormatBliss)
-                : format_(format), score(0), cost(0) {}
+                : format_(format),
+                  score(0),
+                  cost(0) {}
         void clear();
         void write(Core::XmlWriter& xml) const;
     };
@@ -155,21 +163,27 @@ public:
     void operator+=(const EditDistance::Alignment&);
     void operator+=(const ErrorStatistic&);
     void write(Core::XmlWriter&) const;
-    u32  nLeftTokens() const {
+
+    u32 nLeftTokens() const {
         return nLeftTokens_;
     }
+
     u32 nRightTokens() const {
         return nLeftTokens_ - nDeletions_ + nInsertions_;
     }
+
     u32 nInsertions() const {
         return nInsertions_;
     }
+
     u32 nDeletions() const {
         return nDeletions_;
     }
+
     u32 nSubstitutions() const {
         return nSubstitutions_;
     }
+
     u32 nErrors() const {
         return nInsertions_ + nDeletions_ + nSubstitutions_;
     }

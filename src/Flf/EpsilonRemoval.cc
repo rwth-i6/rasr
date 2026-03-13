@@ -57,7 +57,8 @@ private:
 
 public:
     ArcSortLattice(ConstLatticeRef l)
-            : ModifyLattice(l), weakOrder_(l) {
+            : ModifyLattice(l),
+              weakOrder_(l) {
         this->setProperties(Fsa::PropertySorted, WeakOrder::properties());
     }
     virtual ~ArcSortLattice() {}
@@ -199,7 +200,8 @@ protected:
 
 public:
     ArcRemovalNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), toLogSemiring_(false) {}
+            : FilterNode(name, config),
+              toLogSemiring_(false) {}
     ~ArcRemovalNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         toLogSemiring_ = paramToLogSemiring(config);
@@ -295,7 +297,9 @@ public:
         const Boundaries& boundaries;
         const Time        t;
         Filter(ConstLatticeRef l, ConstStateRef sr)
-                : l(l), boundaries(*l->getBoundaries()), t(l->getBoundaries()->get(sr->id()).time()) {}
+                : l(l),
+                  boundaries(*l->getBoundaries()),
+                  t(l->getBoundaries()->get(sr->id()).time()) {}
         bool operator()(const Arc& a) const {
             if (boundaries.get(a.target()).time() == t) {
                 if ((a.input() != Fsa::Epsilon) || (a.output() != Fsa::Epsilon))
@@ -312,7 +316,8 @@ public:
         const Boundaries& boundaries;
         Time              t;
         WeakOrder(ConstLatticeRef l)
-                : l(l), boundaries(*l->getBoundaries()) {}
+                : l(l),
+                  boundaries(*l->getBoundaries()) {}
         bool operator()(const Arc& a1, const Arc& a2) const {
             Time t1 = boundaries.get(a1.target()).time(), t2 = boundaries.get(a1.target()).time();
             if (t1 < t2)

@@ -64,6 +64,7 @@ LIBSPRINTLM_O += $(OBJDIR)/OnnxLstmStateManager.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxPassthroughSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxRecurrentLanguageModel.o
+LIBSPRINTLM_O += $(OBJDIR)/OnnxStatelessLanguageModel.o
 #MODF OnnxStateVariable.hh
 #MODF OnnxSoftmaxAdapter.hh
 endif

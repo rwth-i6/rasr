@@ -93,7 +93,9 @@ History OnnxStatelessLm::extendedHistory(History const& hist, Token nextToken) c
     auto extHandle = historyManager->get<HistoryDescriptor>(newTokens);
 
     auto extHist = history(extHandle);
-    batchQueue_.push_back(extHist);
+    if (maxBatchSize_ > 1) {
+        batchQueue_.push_back(extHist);
+    }
     return extHist;
 }
 

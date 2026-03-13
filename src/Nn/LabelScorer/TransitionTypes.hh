@@ -82,7 +82,9 @@ public:
     void enableUnion(TransitionSet const& other);
     void enableIntersection(TransitionSet const& other);
 
-    bool contains(TransitionType transitionType) const;
+    inline bool contains(TransitionType transitionType) const {
+        return (mask_ & (Mask{1} << static_cast<unsigned>(transitionType)));
+    }
 
 private:
     using Mask = uint32_t;  // Enough to contain <= 32 transition types

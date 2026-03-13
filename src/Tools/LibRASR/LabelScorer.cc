@@ -142,6 +142,6 @@ void bindLabelScorer(py::module_& module) {
             "              `get_initial_scoring_context` and `extended_scoring_context`.\n"
             "Returns:\n"
             "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
-            "    or a tuple of a score-list and a timestamp for each request. The returned timestamps will be used\n"
+            "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
 }

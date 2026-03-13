@@ -43,7 +43,9 @@ TimeframeIndex ScoreAccessor::getTime() const {
  * === ScaledScoreAccessor =====
  * =============================
  */
-ScaledScoreAccessor::ScaledScoreAccessor(ScoreAccessorRef base, Score scale) : base_(base), scale_(scale) {}
+ScaledScoreAccessor::ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
+        : base_(base),
+          scale_(scale) {}
 
 Score ScaledScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
     return base_->getScoreForLabel(labelIndex) * scale_;
@@ -62,7 +64,8 @@ TimeframeIndex ScaledScoreAccessor::getTime() const {
  * === CombinedScoreAccessor ===
  * =============================
  */
-CombinedScoreAccessor::CombinedScoreAccessor() : subAccessors_() {}
+CombinedScoreAccessor::CombinedScoreAccessor()
+        : subAccessors_() {}
 
 void CombinedScoreAccessor::addSubAccessor(ScoreAccessorRef subAccessor) {
     subAccessors_.push_back(subAccessor);
@@ -92,7 +95,9 @@ TimeframeIndex CombinedScoreAccessor::getTime() const {
  * =============================
  */
 
-VectorScoreAccessor::VectorScoreAccessor(std::shared_ptr<std::vector<Score>> scores, TimeframeIndex time) : scores_(scores), time_(time) {}
+VectorScoreAccessor::VectorScoreAccessor(std::shared_ptr<std::vector<Score>> scores, TimeframeIndex time)
+        : scores_(scores),
+          time_(time) {}
 
 Score VectorScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
     return scores_->at(labelIndex);
@@ -108,7 +113,9 @@ TimeframeIndex VectorScoreAccessor::getTime() const {
  * =============================
  */
 
-DataViewScoreAccessor::DataViewScoreAccessor(DataView const& dataView, TimeframeIndex time) : dataView_(dataView), time_(time) {}
+DataViewScoreAccessor::DataViewScoreAccessor(DataView const& dataView, TimeframeIndex time)
+        : dataView_(dataView),
+          time_(time) {}
 
 Score DataViewScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
     return dataView_[labelIndex];
@@ -124,7 +131,8 @@ TimeframeIndex DataViewScoreAccessor::getTime() const {
  * =============================
  */
 
-FixedTransitionScoreAccessor::FixedTransitionScoreAccessor() : transitionScores_() {
+FixedTransitionScoreAccessor::FixedTransitionScoreAccessor()
+        : transitionScores_() {
     for (auto const& [stringIdentifier, enumValue] : TransitionTypeArray) {
         setScore(enumValue, 0.0);
     }

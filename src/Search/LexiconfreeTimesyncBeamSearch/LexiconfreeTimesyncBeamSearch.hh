@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
@@ -43,6 +44,7 @@ class LexiconfreeTimesyncBeamSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterIntVector   paramMaxBeamSizes;
     static const Core::ParameterFloatVector paramScoreThresholds;
+    static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
     static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
@@ -114,9 +116,9 @@ protected:
 
 private:
     std::vector<size_t> maxBeamSizes_;
-
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
+    mutable Histogram   scoreHistogram_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
     bool                allowBlankAfterSentenceEnd_;
@@ -146,9 +148,9 @@ private:
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
 
-    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
-    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numHypsAfterPruning_;
     Core::Statistics<u32>              numActiveHyps_;
 
     size_t currentSearchStep_;
@@ -167,15 +169,11 @@ private:
     Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Helper function for pruning to maxBeamSize_
+     * Helper function for acoustic pruning. Calculates an absolute threshold based on best score + relative threshold and
+     * score histogram. Removes all hypotheses with a score > absolute threshold.
      */
     template<typename Element>
-    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxSize) const;
-
-    /*
-     * Helper function for pruning to scoreThreshold_
-     */
-    void scorePruning(std::vector<LexiconfreeTimesyncBeamSearch::ExtensionCandidate>& extensions, Score threshold) const;
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) const;
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

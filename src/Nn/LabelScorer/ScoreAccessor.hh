@@ -30,7 +30,7 @@ class ScoreAccessor : public Core::ReferenceCounted {
 public:
     virtual Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const;
     virtual TimeframeIndex getTime() const;
-    
+
     virtual ~ScoreAccessor() = default;
 };
 

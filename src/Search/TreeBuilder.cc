@@ -1296,8 +1296,8 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
           forceBlank_(paramForceBlank(config)),
           allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)) {
     auto iters = lexicon.phonemeInventory()->phonemes();
-    for (auto it = iters.first; it != iters.second; ++it) {
-        require(not(*it)->isContextDependent());  // Context dependent labels are not supported
+    if (std::any_of(iters.first, iters.second, [](const Lexicon::PhonemeInventory::PhonemeIndex& index) { return index.isContextDependent(); })) {
+        warning("The lexicon contains phonemes with variation=context which is ignored by the tree builder");
     }
 
     // Set the StateDesc for blank

@@ -26,11 +26,7 @@ namespace Nn {
  * =============================
  */
 
-Score ScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
-    return 0.0;
-};
-
-Score ScoreAccessor::getScoreForTransition(TransitionType transitionType) const {
+Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return 0.0;
 };
 
@@ -47,12 +43,8 @@ ScaledScoreAccessor::ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
         : base_(base),
           scale_(scale) {}
 
-Score ScaledScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
-    return base_->getScoreForLabel(labelIndex) * scale_;
-}
-
-Score ScaledScoreAccessor::getScoreForTransition(TransitionType transitionType) const {
-    return base_->getScoreForTransition(transitionType) * scale_;
+Score ScaledScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    return base_->getScore(transitionType, labelIndex) * scale_;
 }
 
 TimeframeIndex ScaledScoreAccessor::getTime() const {
@@ -71,15 +63,9 @@ void CombinedScoreAccessor::addSubAccessor(ScoreAccessorRef subAccessor) {
     subAccessors_.push_back(subAccessor);
 }
 
-Score CombinedScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
-    return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [labelIndex](Score acc, ScoreAccessorRef subAccessor) {
-        return acc + subAccessor->getScoreForLabel(labelIndex);
-    });
-}
-
-Score CombinedScoreAccessor::getScoreForTransition(TransitionType transitionType) const {
-    return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [transitionType](Score acc, ScoreAccessorRef subAccessor) {
-        return acc + subAccessor->getScoreForTransition(transitionType);
+Score CombinedScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [transitionType, labelIndex](Score acc, ScoreAccessorRef subAccessor) {
+        return acc + subAccessor->getScore(transitionType, labelIndex);
     });
 }
 
@@ -99,7 +85,7 @@ VectorScoreAccessor::VectorScoreAccessor(std::shared_ptr<std::vector<Score>> sco
         : scores_(scores),
           time_(time) {}
 
-Score VectorScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
+Score VectorScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return scores_->at(labelIndex);
 }
 
@@ -117,7 +103,7 @@ DataViewScoreAccessor::DataViewScoreAccessor(DataView const& dataView, Timeframe
         : dataView_(dataView),
           time_(time) {}
 
-Score DataViewScoreAccessor::getScoreForLabel(LabelIndex labelIndex) const {
+Score DataViewScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return dataView_[labelIndex];
 }
 
@@ -142,7 +128,7 @@ void FixedTransitionScoreAccessor::setScore(TransitionType transitionType, Score
     transitionScores_.emplace(transitionType, score);
 }
 
-Score FixedTransitionScoreAccessor::getScoreForTransition(TransitionType transitionType) const {
+Score FixedTransitionScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return transitionScores_.at(transitionType);
 }
 

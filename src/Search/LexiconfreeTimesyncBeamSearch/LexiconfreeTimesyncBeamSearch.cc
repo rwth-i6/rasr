@@ -425,8 +425,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             }
             auto const& scoreAccessor = *scoreAccessors[ext.scoringContextIndex];
 
-            ext.score += scoreAccessor->getScoreForTransition(ext.transitionType);
-            ext.score += scoreAccessor->getScoreForLabel(ext.nextToken);
+            ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
             ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
         }
 

@@ -349,7 +349,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
-                     hyp.score + scoreAccessor->getScoreForTransition(transitionType) + scoreAccessor->getScoreForLabel(tokenIdx),
+                     hyp.score + scoreAccessor->getScore(transitionType, tokenIdx),
                      scoreAccessor->getTime(),
                      transitionType,
                      hypIndex});

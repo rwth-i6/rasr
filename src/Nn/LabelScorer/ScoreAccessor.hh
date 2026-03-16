@@ -28,8 +28,7 @@ namespace Nn {
  */
 class ScoreAccessor : public Core::ReferenceCounted {
 public:
-    virtual Score          getScoreForLabel(LabelIndex labelIndex) const;
-    virtual Score          getScoreForTransition(TransitionType transitionType) const;
+    virtual Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const;
     virtual TimeframeIndex getTime() const;
     
     virtual ~ScoreAccessor() = default;
@@ -44,8 +43,7 @@ class ScaledScoreAccessor : public ScoreAccessor {
 public:
     ScaledScoreAccessor(ScoreAccessorRef base, Score scale);
 
-    Score          getScoreForLabel(LabelIndex labelIndex) const override;
-    Score          getScoreForTransition(TransitionType transitionType) const override;
+    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
     TimeframeIndex getTime() const override;
 
 private:
@@ -62,11 +60,8 @@ public:
 
     void addSubAccessor(ScoreAccessorRef subAccessor);
 
-    // Sum of label scores from sub-scorers
-    Score getScoreForLabel(LabelIndex labelIndex) const override;
-
-    // Sum of transition scores from sub-scorers
-    Score getScoreForTransition(TransitionType transitionType) const override;
+    // Sum of scores from sub-scorers
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
 
     // Max of timeframes from sub-scorers
     TimeframeIndex getTime() const override;
@@ -82,8 +77,8 @@ class VectorScoreAccessor : public ScoreAccessor {
 public:
     VectorScoreAccessor(std::shared_ptr<std::vector<Score>> scores, TimeframeIndex time);
 
-    Score          getScoreForLabel(LabelIndex labelIndex) const;
-    TimeframeIndex getTime() const;
+    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
+    TimeframeIndex getTime() const override;
 
 private:
     std::shared_ptr<std::vector<Score>> scores_;
@@ -97,7 +92,7 @@ class DataViewScoreAccessor : public ScoreAccessor {
 public:
     DataViewScoreAccessor(DataView const& dataView, TimeframeIndex time);
 
-    Score          getScoreForLabel(LabelIndex labelIndex) const override;
+    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
     TimeframeIndex getTime() const override;
 
 private:
@@ -114,7 +109,7 @@ public:
 
     void setScore(TransitionType transitionType, Score score);
 
-    Score          getScoreForTransition(TransitionType transitionType) const override;
+    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
     TimeframeIndex getTime() const override;
 
 private:

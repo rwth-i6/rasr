@@ -444,22 +444,22 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
         }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
+    }
 
-        // Create new beam from surviving extensions.
-        newBeam_.clear();
-        for (auto const& extension : extensions_) {
-            auto const& baseHyp = beam_[extension.baseHypIndex];
+    // Create new beam from surviving extensions.
+    newBeam_.clear();
+    for (auto const& extension : extensions_) {
+        auto const& baseHyp = beam_[extension.baseHypIndex];
 
-            std::vector<Nn::ScoringContextRef> newScoringContexts;
-            for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-                newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                        {baseHyp.scoringContexts[scorerIdx],
-                         extension.nextToken,
-                         extension.transitionType}));
-            }
-
-            newBeam_.push_back({baseHyp, extension, newScoringContexts});
+        std::vector<Nn::ScoringContextRef> newScoringContexts;
+        for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+            newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
+                    {baseHyp.scoringContexts[scorerIdx],
+                     extension.nextToken,
+                     extension.transitionType}));
         }
+
+        newBeam_.push_back({baseHyp, extension, newScoringContexts});
     }
 
     // For all hypotheses with the same scoring context keep only the best since they will all develop in the same way.

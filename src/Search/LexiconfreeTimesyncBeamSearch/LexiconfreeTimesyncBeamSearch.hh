@@ -118,7 +118,7 @@ private:
     std::vector<size_t> maxBeamSizes_;
     std::vector<bool>   useScorePruning_;
     std::vector<Score>  scoreThresholds_;
-    mutable Histogram   scoreHistogram_;
+    Histogram           scoreHistogram_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
     bool                allowBlankAfterSentenceEnd_;
@@ -173,7 +173,7 @@ private:
      * score histogram. Removes all hypotheses with a score > absolute threshold.
      */
     template<typename Element>
-    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) const;
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

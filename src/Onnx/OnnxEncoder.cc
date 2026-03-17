@@ -40,9 +40,14 @@ const std::vector<IOSpecification> encoderIoSpec = {
                 {ValueDataType::FLOAT},
                 {{-1, -1, -2}, {1, -1, -2}}}};
 
+const Core::ParameterInt OnnxEncoder::paramInputsPerOutput("inputs-per-output", "The number of input features needed to produce one output. Set to 0 to infer at runtime.", 0, 0);
+const Core::ParameterInt OnnxEncoder::paramInputStepSize("input-step-size", "The difference in the number of input features between the first features corresponding to two consecutive outputs. Set to 0 to copy value from inputs-per-output.", 0, 0);
+
 OnnxEncoder::OnnxEncoder(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config),
+          inputsPerOutput_(paramInputsPerOutput(config)),
+          inputStepSize_(paramInputStepSize(config)),
           onnxModel_(select("onnx-model"), encoderIoSpec),
           featuresName_(onnxModel_.mapping.getOnnxName("features")),
           featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
@@ -98,8 +103,13 @@ void OnnxEncoder::encode() {
     // Make "global" DataView from output value so that feature slice DataViews can be created from it that ref-count the original value
     Nn::DataView onnx_output_view(std::move(session_outputs.front()));
 
+    size_t outputs_per_input = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (T_in / T_out + (T_in % T_out != 0));
+    size_t input_step        = (inputStepSize_ != 0ul) ? inputStepSize_ : outputs_per_input;
+    size_t start_input       = 0ul;
     for (size_t t = 0ul; t < T_out; ++t) {
-        outputBuffer_.push_back({onnx_output_view, output_size, t * output_size});
+        size_t end_input = std::min(start_input + outputs_per_input, T_in);
+        outputBuffer_.push_back(Nn::EncodedSpan{{onnx_output_view, output_size, t * output_size}, start_input, end_input});
+        start_input = std::min(start_input + input_step, std::max(T_in, 1ul) - 1ul);
     }
 
     // Get new states

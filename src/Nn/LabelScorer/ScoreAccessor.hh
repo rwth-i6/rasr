@@ -113,7 +113,7 @@ public:
     TimeframeIndex getTime() const override;
 
 private:
-    std::unordered_map<TransitionType, Score> transitionScores_;
+    std::array<Score, TransitionType::numTypes> transitionScores_;
 };
 
 }  // namespace Nn

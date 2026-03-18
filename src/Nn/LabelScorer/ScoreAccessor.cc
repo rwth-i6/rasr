@@ -125,7 +125,7 @@ FixedTransitionScoreAccessor::FixedTransitionScoreAccessor()
 }
 
 void FixedTransitionScoreAccessor::setScore(TransitionType transitionType, Score score) {
-    transitionScores_.emplace(transitionType, score);
+    transitionScores_[static_cast<size_t>(transitionType)] = score;
 }
 
 Score FixedTransitionScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {

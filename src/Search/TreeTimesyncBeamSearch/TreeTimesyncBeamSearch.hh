@@ -82,12 +82,12 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
-        StateId                         nextState;       // State in the search tree of this extension
-        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
-        Score                           score;           // Would-be total score of the full hypothesis after extension
-        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
-        size_t                          baseHypIndex;    // Index of base hypothesis in beam
+        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
+        StateId                nextState;       // State in the search tree of this extension
+        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
+        Score                  score;           // Would-be total score of the full hypothesis after extension
+        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
+        size_t                 baseHypIndex;    // Index of base hypothesis in beam
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;
@@ -142,6 +142,7 @@ private:
     Score               wordEndScoreThreshold_;
     Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -161,12 +162,13 @@ private:
     Core::Channel                                  debugChannel_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                          hypIndexToContextIndexMap_;
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
     std::vector<WordEndExtensionCandidate>    wordEndExtensions_;
     std::vector<LabelHypothesis>              beam_;
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
-    std::vector<Nn::LabelScorer::Request>     requests_;
+    std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
     // Precomputed successor/exit lookups (offset tables + contiguous data).
@@ -182,9 +184,9 @@ private:
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
 
-    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
-    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numHypsAfterPruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
@@ -201,7 +203,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper function for acoustic pruning. Calculates an absolute threshold based on best score + relative threshold and
@@ -228,6 +230,7 @@ private:
      * After reaching the segment end, go through the active hypotheses, only keep those
      * which are final states of the search tree.
      * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * Score sentence-end with all label scorers for all final hypotheses and add the LM's sentence-end score
      */
     void finalizeHypotheses();
 

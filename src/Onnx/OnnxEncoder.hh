@@ -25,9 +25,12 @@ namespace Onnx {
 
 // Encoder that runs the input features through an ONNX model
 class OnnxEncoder : public virtual Nn::Encoder {
-    typedef Nn::Encoder Precursor;
-
 public:
+    using Precursor = Nn::Encoder;
+
+    static const Core::ParameterInt paramInputsPerOutput;
+    static const Core::ParameterInt paramInputStepSize;
+
     OnnxEncoder(Core::Configuration const& config);
     virtual ~OnnxEncoder() = default;
 
@@ -39,6 +42,9 @@ protected:
     virtual void encode() override;
 
 private:
+    const size_t inputsPerOutput_;
+    const size_t inputStepSize_;
+
     Model       onnxModel_;
     std::string featuresName_;
     std::string featuresSizeName_;

@@ -26,6 +26,7 @@
 #include <Search/Histogram.hh>
 #include <Search/Traceback.hh>
 #include <Search/TracebackHelper.hh>
+#include <numeric>
 
 namespace Search {
 
@@ -39,8 +40,7 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis()
         : scoringContexts(),
           currentToken(Nn::invalidLabelIndex),
           score(0.0),
-          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))),
-          reachedSentenceEnd(false) {}
+          trace(Core::ref(new LatticeTrace(0, {0, 0}, {}))) {}
 
 LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         LexiconfreeTimesyncBeamSearch::LabelHypothesis const&    base,
@@ -49,12 +49,11 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
         : scoringContexts(newScoringContexts),
           currentToken(extension.nextToken),
           score(extension.score),
-          trace(),
-          reachedSentenceEnd(base.reachedSentenceEnd or extension.transitionType == Nn::LabelScorer::SENTENCE_END) {
+          trace() {
     Core::Ref<LatticeTrace> predecessor;
     switch (extension.transitionType) {
-        case Nn::LabelScorer::TransitionType::LABEL_LOOP:
-        case Nn::LabelScorer::TransitionType::BLANK_LOOP:
+        case Nn::TransitionType::LABEL_LOOP:
+        case Nn::TransitionType::BLANK_LOOP:
             predecessor = base.trace->predecessor;
             break;
         default:
@@ -118,16 +117,6 @@ const Core::ParameterInt LexiconfreeTimesyncBeamSearch::paramSentenceEndLabelInd
         "Index of the sentence end label in the lexicon. Can also be inferred from lexicon if it has a lemma with `special='sentence-end'` or `special='sentence-boundary'`. If not set, the search will not use sentence end.",
         Nn::invalidLabelIndex);
 
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramAllowBlankAfterSentenceEnd(
-        "allow-blank-after-sentence-end",
-        "blanks can still be produced after the sentence-end has been reached",
-        true);
-
-const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramSentenceEndFallBack(
-        "sentence-end-fall-back",
-        "Allow for fallback solution if no active word-end hypothesis exists at the end of a segment.",
-        true);
-
 const Core::ParameterBool LexiconfreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
@@ -161,10 +150,8 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           SearchAlgorithmV2(config),
           scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(paramBlankLabelIndex(config)),
-          allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)),
           sentenceEndLemma_(),
           sentenceEndLabelIndex_(paramSentenceEndLabelIndex(config)),
-          sentenceEndFallback_(paramSentenceEndFallBack(config)),
           collapseRepeatedLabels_(paramCollapseRepeatedLabels(config)),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
           maximumStableDelay_(paramMaximumStableDelay(config)),
@@ -173,9 +160,10 @@ LexiconfreeTimesyncBeamSearch::LexiconfreeTimesyncBeamSearch(Core::Configuration
           debugChannel_(config, "debug"),
           labelScorers_(),
           beam_(),
+          hypIndexToContextIndexMap_(),
           extensions_(),
           newBeam_(),
-          requests_(),
+          scoringContexts_(),
           tempHypotheses_(),
           initializationTime_(),
           featureProcessingTime_(),
@@ -255,6 +243,17 @@ bool LexiconfreeTimesyncBeamSearch::setModelCombination(Speech::ModelCombination
             warning() << "SentenceEnd lemma exists in lexicon with id " << sentenceEndLemma_->id() << " but is overwritten by config parameter with value " << sentenceEndLabelIndex_;
         }
     }
+    else {  // Retrieve sentenceEndLemma_ from the lexicon through its label index
+        auto lemmas = lexicon_->lemmas();
+        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
+            const Bliss::Lemma* lemma(*lemmaIt);
+            Nn::LabelIndex      tokenIdx = lemma->id();
+            if (tokenIdx == sentenceEndLabelIndex_) {
+                sentenceEndLemma_ = lemma;
+                break;
+            }
+        }
+    }
 
     reset();
     return true;
@@ -300,8 +299,8 @@ void LexiconfreeTimesyncBeamSearch::finishSegment() {
     featureProcessingTime_.stop();
     decodeManySteps();
     finalizeHypotheses();
-    logStatistics();
     finishedSegment_ = true;
+    logStatistics();
 }
 
 void LexiconfreeTimesyncBeamSearch::putFeature(Nn::DataView const& feature) {
@@ -365,35 +364,39 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
 
     /*
      * Collect all possible extensions for all hypotheses in the beam.
-     * Each extension candidate makes up a request.
+     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
+     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
+     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
      */
     extensions_.clear();
+    scoringContexts_.clear();
+    scoringContexts_.reserve(beam_.size());
+    hypIndexToContextIndexMap_.resize(beam_.size());
+    std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
 
+        scoringContexts_.push_back(hyp.scoringContexts.front());
+
         // Iterate over possible successors (all lemmas)
         for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            const Bliss::Lemma* lemma(*lemmaIt);
+            Bliss::Lemma const* lemma(*lemmaIt);
             Nn::LabelIndex      tokenIdx = lemma->id();
 
-            // After first sentence-end token only allow looping that sentence-end or blanks afterwards
-            if (hyp.reachedSentenceEnd and
-                not(
-                        (collapseRepeatedLabels_ and hyp.currentToken == sentenceEndLabelIndex_ and tokenIdx == sentenceEndLabelIndex_)  // sentence-end-loop
-                        or (allowBlankAfterSentenceEnd_ and tokenIdx == blankLabelIndex_))) {                                            // blank
+            // Don't score the sentence-end token
+            if (tokenIdx == sentenceEndLabelIndex_) {
                 continue;
             }
-
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-
             extensions_.push_back(
-                    {tokenIdx,
-                     lemma->pronunciations().first,
-                     hyp.score,
-                     hyp.trace->time,
-                     transitionType,
-                     hypIndex});
+                    {.nextToken      = tokenIdx,
+                     .pron           = lemma->pronunciations().first,
+                     .score          = hyp.score,
+                     .timeframe      = hyp.trace->time,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
         }
     }
 
@@ -402,34 +405,32 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     }
 
     for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
-        requests_.clear();
-
-        /*
-         * Create scoring requests for the current label scorer.
-         */
-        for (auto const& ext : extensions_) {
-            requests_.push_back({beam_[ext.baseHypIndex].scoringContexts[scorerIdx], ext.nextToken, ext.transitionType});
-        }
-
-        /*
-         * Perform scoring of all the requests with the label scorer.
-         */
+        auto const& labelScorer = labelScorers_[scorerIdx];
         scoringTime_.start();
-        auto result = labelScorers_[scorerIdx]->computeScoresWithTimes(requests_);
+        auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
 
-        if (not result) {
-            // LabelScorer could not compute scores -> no search step can be made.
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlClose("search-step-stats");
-            }
+        // Remove extensions that couldn't be scored
+        extensions_.erase(
+                std::remove_if(
+                        extensions_.begin(),
+                        extensions_.end(),
+                        [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
+                extensions_.end());
+
+        if (extensions_.empty()) {
+            clog() << Core::XmlClose("search-step-stats");
             return false;
         }
 
-        for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
-            auto& ext = extensions_[extensionIdx];
-            ext.score += result->scores[extensionIdx];
-            ext.timeframe = std::max(ext.timeframe, result->timeframes[extensionIdx]);
+        for (auto& ext : extensions_) {
+            if (not labelScorer->scoresTransition(ext.transitionType)) {
+                continue;
+            }
+            auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+
+            ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
+            ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
         }
 
         /*
@@ -444,6 +445,25 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
         }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
+
+        if (scorerIdx < labelScorers_.size() - 1) {
+            // Prepare scoring context list for next iteration
+            // Some scoring contexts from the current iteration may not have survived pruning, so we need to recreate the list
+            // Use -1 as placeholder to signify that this hyp was not visited yet
+            scoringContexts_.clear();
+            hypIndexToContextIndexMap_.assign(beam_.size(), -1);
+            for (auto& ext : extensions_) {
+                if (hypIndexToContextIndexMap_[ext.baseHypIndex] == -1) {
+                    hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
+                    scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
+                }
+            }
+        }
+    }
+
+    if (extensions_.empty()) {
+        clog() << Core::XmlClose("search-step-stats");
+        return false;
     }
 
     // Create new beam from surviving extensions.
@@ -454,9 +474,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         std::vector<Nn::ScoringContextRef> newScoringContexts;
         for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
             newScoringContexts.push_back(labelScorers_[scorerIdx]->extendedScoringContext(
-                    {baseHyp.scoringContexts[scorerIdx],
-                     extension.nextToken,
-                     extension.transitionType}));
+                    baseHyp.scoringContexts[scorerIdx],
+                    extension.nextToken,
+                    extension.transitionType));
         }
 
         newBeam_.push_back({baseHyp, extension, newScoringContexts});
@@ -564,46 +584,36 @@ void LexiconfreeTimesyncBeamSearch::logStatistics() const {
     numActiveHyps_.write(clog());
 }
 
-Nn::LabelScorer::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
-    bool prevIsBlank       = (useBlank_ and prevLabel == blankLabelIndex_);
-    bool nextIsBlank       = (useBlank_ and nextLabel == blankLabelIndex_);
-    bool nextIsSentenceEnd = (useSentenceEnd_ and nextLabel == sentenceEndLabelIndex_);
+Nn::TransitionType LexiconfreeTimesyncBeamSearch::inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const {
+    bool prevIsBlank = (useBlank_ and prevLabel == blankLabelIndex_);
+    bool nextIsBlank = (useBlank_ and nextLabel == blankLabelIndex_);
 
     if (prevLabel == Nn::invalidLabelIndex) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::INITIAL_BLANK;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::INITIAL_BLANK;
         }
         else {
-            return Nn::LabelScorer::TransitionType::INITIAL_LABEL;
+            return Nn::TransitionType::INITIAL_LABEL;
         }
     }
 
     if (prevIsBlank) {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::BLANK_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::BLANK_LOOP;
         }
         else {
-            return Nn::LabelScorer::TransitionType::BLANK_TO_LABEL;
+            return Nn::TransitionType::BLANK_TO_LABEL;
         }
     }
     else {
         if (nextIsBlank) {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_BLANK;
+            return Nn::TransitionType::LABEL_TO_BLANK;
         }
         else if (collapseRepeatedLabels_ and prevLabel == nextLabel) {
-            return Nn::LabelScorer::TransitionType::LABEL_LOOP;
-        }
-        else if (nextIsSentenceEnd) {
-            return Nn::LabelScorer::TransitionType::SENTENCE_END;
+            return Nn::TransitionType::LABEL_LOOP;
         }
         else {
-            return Nn::LabelScorer::TransitionType::LABEL_TO_LABEL;
+            return Nn::TransitionType::LABEL_TO_LABEL;
         }
     }
 }
@@ -736,6 +746,80 @@ void LexiconfreeTimesyncBeamSearch::recombination(std::vector<LexiconfreeTimesyn
     hypotheses.swap(tempHypotheses_);
 }
 
+void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
+    if (not useSentenceEnd_) {
+        return;
+    }
+
+    // Create extensions for all hypotheses in beam
+    extensions_.clear();
+    for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+        auto& hyp = beam_[hypIndex];
+        extensions_.push_back(
+                {.nextToken      = sentenceEndLabelIndex_,
+                 .pron           = sentenceEndLemma_->pronunciations().first,
+                 .score          = hyp.score,
+                 .timeframe      = hyp.trace->time,
+                 .transitionType = Nn::TransitionType::SENTENCE_END,
+                 .baseHypIndex   = hypIndex});
+    }
+
+    // Score sentence-end with all label scorers
+    for (size_t scorerIdx = 0ul; scorerIdx < labelScorers_.size(); ++scorerIdx) {
+        if (not labelScorers_[scorerIdx]->scoresTransition(Nn::TransitionType::SENTENCE_END)) {
+            continue;
+        }
+
+        scoringContexts_.clear();
+        for (auto const& hyp : beam_) {
+            scoringContexts_.push_back(hyp.scoringContexts[scorerIdx]);
+        }
+
+        scoringTime_.start();
+        auto scoreAccessors = labelScorers_[scorerIdx]->getScoreAccessors(scoringContexts_);
+        scoringTime_.stop();
+
+        for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+            if (not scoreAccessors[extensionIdx]) {
+                continue;
+            }
+            auto& ext   = extensions_[extensionIdx];
+            auto  score = (*scoreAccessors[extensionIdx])->getScore(ext.transitionType, ext.nextToken);
+            ext.score += score;
+            ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
+        }
+    }
+
+    tempHypotheses_.clear();
+    for (size_t extensionIdx = 0ul; extensionIdx < extensions_.size(); ++extensionIdx) {
+        auto&       ext     = extensions_[extensionIdx];
+        auto const& baseHyp = beam_[ext.baseHypIndex];
+        // The scoring context is not updated as no further scoring is done afterwards
+        tempHypotheses_.push_back({baseHyp, ext, baseHyp.scoringContexts});
+    }
+
+    beam_.swap(tempHypotheses_);
+
+    numActiveHyps_ += beam_.size();
+
+    // Log statistics about the final beam
+    if (debugChannel_.isOpen()) {
+        std::stringstream ss;
+        for (size_t hypIdx = 0ul; hypIdx < beam_.size(); ++hypIdx) {
+            ss << "Hypothesis " << hypIdx + 1ul << ":  " << beam_[hypIdx].toString() << "\n";
+        }
+        ss << "\n";
+        debugChannel_ << ss.str();
+    }
+
+    if (logStepwiseStatistics_) {
+        clog() << Core::XmlFull("active-hyps", beam_.size());
+        clog() << Core::XmlFull("best-hyp-score", getBestHypothesis().score);
+        clog() << Core::XmlFull("worst-hyp-score", getWorstHypothesis().score);
+        clog() << Core::XmlClose("search-step-stats");
+    }
+}
+
 void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
     if (currentSearchStep_ + 1 <= maximumStableDelay_) {
         return;
@@ -782,38 +866,6 @@ void LexiconfreeTimesyncBeamSearch::maximumStableDelayPruning() {
         }
     }
     beam_.swap(tempHypotheses_);
-}
-
-void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
-    if (not useSentenceEnd_) {
-        return;
-    }
-
-    newBeam_.clear();
-    for (auto const& hyp : beam_) {
-        if (hyp.reachedSentenceEnd) {
-            newBeam_.push_back(hyp);
-        }
-    }
-
-    if (newBeam_.empty()) {  // There was no valid final hypothesis in the beam
-        warning("No hypothesis has produced sentence-end by the end of the segment.");
-        if (sentenceEndFallback_) {
-            log() << "Use sentence-end fallback";
-            // Keep `beam_` as it is
-        }
-        else {
-            newBeam_.push_back(LabelHypothesis());
-            newBeam_.front().trace->time          = beam_.front().trace->time;  // Retrieve the timeframe from any hyp in the old beam
-            newBeam_.front().trace->pronunciation = nullptr;
-            newBeam_.front().trace->predecessor   = Core::ref(new LatticeTrace(0, {0, 0}, {}));
-            newBeam_.front().reachedSentenceEnd   = true;
-            beam_.swap(newBeam_);
-        }
-    }
-    else {
-        newBeam_.swap(beam_);
-    }
 }
 
 }  // namespace Search

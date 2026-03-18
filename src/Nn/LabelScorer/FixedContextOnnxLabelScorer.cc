@@ -14,6 +14,7 @@
  */
 
 #include "FixedContextOnnxLabelScorer.hh"
+#include "ScoreAccessor.hh"
 
 namespace Nn {
 
@@ -100,7 +101,7 @@ ScoringContextRef FixedContextOnnxLabelScorer::getInitialScoringContext() {
 size_t FixedContextOnnxLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minTimeIndex = Core::Type<Speech::TimeframeIndex>::max;
     for (auto const& context : activeContexts.internalData()) {
-        SeqStepScoringContextRef stepHistory(dynamic_cast<const SeqStepScoringContext*>(context.get()));
+        SeqStepScoringContextRef stepHistory(dynamic_cast<SeqStepScoringContext const*>(context.get()));
         minTimeIndex = std::min(minTimeIndex, stepHistory->currentStep);
     }
 
@@ -122,12 +123,10 @@ void FixedContextOnnxLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringCon
     }
 }
 
-ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(LabelScorer::Request const& request) {
-    SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
-
+ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
     bool   pushToken     = false;
     size_t timeIncrement = 0ul;
-    switch (request.transitionType) {
+    switch (transitionType) {
         case TransitionType::BLANK_LOOP:
             pushToken     = blankUpdatesHistory_ and loopUpdatesHistory_;
             timeIncrement = 1ul;
@@ -149,71 +148,76 @@ ScoringContextRef FixedContextOnnxLabelScorer::extendedScoringContextInternal(La
             timeIncrement = not verticalLabelTransition_;
             break;
         default:
-            error() << "Unknown transition type " << request.transitionType;
+            error() << "Unknown transition type " << transitionType;
     }
 
     // If context is not going to be modified, return the original one to avoid copying
     if (not pushToken and timeIncrement == 0ul) {
-        return request.context;
+        return scoringContext;
     }
+
+    SeqStepScoringContextRef seqStepScoringContext(dynamic_cast<SeqStepScoringContext const*>(scoringContext.get()));
 
     std::vector<LabelIndex> newLabelSeq;
-    newLabelSeq.reserve(context->labelSeq.size());
+    newLabelSeq.reserve(seqStepScoringContext->labelSeq.size());
     if (pushToken) {
-        newLabelSeq.insert(newLabelSeq.end(), context->labelSeq.begin() + 1, context->labelSeq.end());
-        newLabelSeq.push_back(request.nextToken);
+        newLabelSeq.insert(newLabelSeq.end(), seqStepScoringContext->labelSeq.begin() + 1, seqStepScoringContext->labelSeq.end());
+        newLabelSeq.push_back(nextToken);
     }
     else {
-        newLabelSeq = context->labelSeq;
+        newLabelSeq = seqStepScoringContext->labelSeq;
     }
 
-    return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), context->currentStep + timeIncrement));
+    return Core::ref(new SeqStepScoringContext(std::move(newLabelSeq), seqStepScoringContext->currentStep + timeIncrement));
 }
 
-std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) {
-    if (requests.empty()) {
-        return ScoresWithTimes{};
+std::vector<std::optional<ScoreAccessorRef>> FixedContextOnnxLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    if (scoringContexts.empty()) {
+        return {};
     }
 
-    ScoresWithTimes result;
-    result.scores.reserve(requests.size());
+    // Cast scoring contexts to concrete types
+    std::vector<SeqStepScoringContextRef> seqStepScoringContexts;
+    seqStepScoringContexts.reserve(scoringContexts.size());
+    for (auto const& scoringContext : scoringContexts) {
+        seqStepScoringContexts.push_back(Core::ref(dynamic_cast<SeqStepScoringContext const*>(scoringContext.get())));
+    }
 
     /*
      * Collect all requests that are based on the same timestep (-> same input feature) and
      * group them together
      */
-    std::unordered_map<size_t, std::vector<size_t>> requestsWithTimestep;  // Maps timestep to list of all indices of requests with that timestep
+    std::unordered_map<size_t, std::vector<size_t>> contextsWithTimestep;  // Maps timestep to list of all indices of scoringContexts with that timestep
 
-    for (size_t b = 0ul; b < requests.size(); ++b) {
-        SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(requests[b].context.get()));
-        auto                     step = context->currentStep;
+    for (size_t contextIndex = 0ul; contextIndex < scoringContexts.size(); ++contextIndex) {
+        auto step = seqStepScoringContexts[contextIndex]->currentStep;
 
         auto input = getInput(step);
         if (not input) {
-            // Early exit if at least one of the histories is not scorable yet
-            return {};
+            // If input is not available, this context can't be forwarded
+            continue;
         }
-        result.timeframes.push_back(step);
 
         // Create new vector if step value isn't present in map yet
-        auto [it, inserted] = requestsWithTimestep.emplace(step, std::vector<size_t>());
-        it->second.push_back(b);
+        auto [it, inserted] = contextsWithTimestep.emplace(step, std::vector<size_t>());
+        it->second.push_back(contextIndex);
     }
+
+    std::vector<std::optional<ScoreAccessorRef>> scoreAccessors(scoringContexts.size(), std::nullopt);
 
     /*
      * Iterate over distinct timesteps
      */
-    for (const auto& [timestep, requestIndices] : requestsWithTimestep) {
+    for (auto const& [timestep, contextIndices] : contextsWithTimestep) {
         /*
          * Identify unique histories that still need session runs
          */
         std::unordered_set<SeqStepScoringContextRef, ScoringContextHash, ScoringContextEq> uniqueUncachedContexts;
 
-        for (auto requestIndex : requestIndices) {
-            SeqStepScoringContextRef contextPtr(dynamic_cast<const SeqStepScoringContext*>(requests[requestIndex].context.get()));
-            if (scoreCache_.find(contextPtr) == scoreCache_.end()) {
+        for (auto contextIndex : contextIndices) {
+            if (scoreCache_.find(seqStepScoringContexts[contextIndex]) == scoreCache_.end()) {
                 // Group by unique context
-                uniqueUncachedContexts.emplace(contextPtr);
+                uniqueUncachedContexts.emplace(seqStepScoringContexts[contextIndex]);
             }
         }
 
@@ -232,31 +236,23 @@ std::optional<LabelScorer::ScoresWithTimes> FixedContextOnnxLabelScorer::compute
         }
 
         forwardBatch(contextBatch);  // Forward remaining histories
+
+        // Create score accessors from cache
+        for (auto const& contextIndex : contextIndices) {
+            auto const& scoreVec         = scoreCache_.at(seqStepScoringContexts[contextIndex]);
+            scoreAccessors[contextIndex] = Core::ref(new VectorScoreAccessor(scoreVec, timestep));
+        }
     }
 
-    /*
-     * Assign from cache map to result vector
-     */
-    for (const auto& request : requests) {
-        SeqStepScoringContextRef context(dynamic_cast<const SeqStepScoringContext*>(request.context.get()));
-
-        auto const& scores = scoreCache_.at(context);
-        result.scores.push_back(scores[request.nextToken]);
-    }
-
-    return result;
+    return scoreAccessors;
 }
 
-std::optional<LabelScorer::ScoreWithTime> FixedContextOnnxLabelScorer::computeScoreWithTimeInternal(LabelScorer::Request const& request) {
-    auto result = computeScoresWithTimes({request});
-    if (not result.has_value()) {
-        return {};
-    }
-    return ScoreWithTime{result->scores.front(), result->timeframes.front()};
+std::optional<ScoreAccessorRef> FixedContextOnnxLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    return getScoreAccessors({scoringContext})[0];
 }
 
-void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& contextBatch) {
-    if (contextBatch.empty()) {
+void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContextRef> const& scoringContextBatch) {
+    if (scoringContextBatch.empty()) {
         return;
     }
 
@@ -265,14 +261,14 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
      */
 
     // All requests in this iteration share the same input feature which is set up here
-    auto                 inputFeatureDataView = getInput(contextBatch.front()->currentStep);
+    auto                 inputFeatureDataView = getInput(scoringContextBatch.front()->currentStep);
     f32 const*           inputFeatureData     = inputFeatureDataView->data();
     std::vector<int64_t> inputFeatureShape    = {1ul, static_cast<int64_t>(inputFeatureDataView->size())};
 
     // Create batched context input
-    Math::FastMatrix<s32> historyMat(historyLength_, contextBatch.size());
-    for (size_t b = 0ul; b < contextBatch.size(); ++b) {
-        auto context = contextBatch[b];
+    Math::FastMatrix<s32> historyMat(historyLength_, scoringContextBatch.size());
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+        auto context = scoringContextBatch[b];
         std::copy(context->labelSeq.begin(), context->labelSeq.end(), &(historyMat.at(0, b)));  // Pointer to first element in column b
     }
 
@@ -289,10 +285,10 @@ void FixedContextOnnxLabelScorer::forwardBatch(std::vector<SeqStepScoringContext
     /*
      * Put resulting scores into cache map
      */
-    for (size_t b = 0ul; b < contextBatch.size(); ++b) {
-        std::vector<f32> scoreVec;
-        sessionOutputs.front().get(b, scoreVec);
-        scoreCache_.emplace(contextBatch[b], std::move(scoreVec));
+    for (size_t b = 0ul; b < scoringContextBatch.size(); ++b) {
+        auto scoreVec = std::make_shared<std::vector<Score>>();
+        sessionOutputs.front().get(b, *scoreVec);
+        scoreCache_.emplace(scoringContextBatch[b], scoreVec);
     }
 }
 

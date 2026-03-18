@@ -47,8 +47,6 @@ public:
     static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
-    static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
-    static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
@@ -83,7 +81,7 @@ protected:
         const Bliss::LemmaPronunciation* pron;            // Pronunciation of lemma corresponding to `nextToken` for traceback
         Score                            score;           // Would-be score of full hypothesis after extension
         Search::TimeframeIndex           timeframe;       // Timestamp of `nextToken` for traceback
-        Nn::LabelScorer::TransitionType  transitionType;  // Type of transition toward `nextToken`
+        Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
         bool operator<(ExtensionCandidate const& other) const {
@@ -95,11 +93,10 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
-        Score                              score;               // Full score of hypothesis
-        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
-        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;            // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
@@ -121,11 +118,9 @@ private:
     Histogram           scoreHistogram_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
-    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
-    bool                sentenceEndFallback_;
     bool                collapseRepeatedLabels_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -139,10 +134,11 @@ private:
     std::vector<LabelHypothesis>            beam_;
 
     // Pre-allocated intermediate vectors
-    std::vector<ExtensionCandidate>       extensions_;
-    std::vector<LabelHypothesis>          newBeam_;
-    std::vector<Nn::LabelScorer::Request> requests_;
-    std::vector<LabelHypothesis>          tempHypotheses_;
+    std::vector<int>                   hypIndexToContextIndexMap_;
+    std::vector<ExtensionCandidate>    extensions_;
+    std::vector<LabelHypothesis>       newBeam_;
+    std::vector<Nn::ScoringContextRef> scoringContexts_;
+    std::vector<LabelHypothesis>       tempHypotheses_;
 
     Core::StopWatch initializationTime_;
     Core::StopWatch featureProcessingTime_;
@@ -166,7 +162,7 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
      * Helper function for acoustic pruning. Calculates an absolute threshold based on best score + relative threshold and
@@ -181,8 +177,7 @@ private:
     void recombination(std::vector<LabelHypothesis>& hypotheses);
 
     /*
-     * Prune away all hypotheses that have not reached sentence end.
-     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     * Score sentence-end with all label scores for all hypotheses in the beam
      */
     void finalizeHypotheses();
 

@@ -1295,10 +1295,10 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
           blankLoop_(paramBlankLoop(config)),
           forceBlank_(paramForceBlank(config)),
           allowBlankAfterSentenceEnd_(paramAllowBlankAfterSentenceEnd(config)) {
-    // auto iters = lexicon.phonemeInventory()->phonemes();
-    // for (auto it = iters.first; it != iters.second; ++it) {
-    //     require(not(*it)->isContextDependent());  // Context dependent labels are not supported
-    // }
+    auto iters = lexicon.phonemeInventory()->phonemes();
+    for (auto it = iters.first; it != iters.second; ++it) {
+        require(not(*it)->isContextDependent());  // Context dependent labels are not supported
+    }
 
     // Set the StateDesc for blank
     blankAllophoneStateIndex_ = acousticModel_.blankAllophoneStateIndex();

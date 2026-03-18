@@ -125,6 +125,12 @@ const Core::ParameterFloat TreeTimesyncBeamSearch::paramWordEndScoreThreshold(
         If not set, global score pruning will be done and word-end hypotheses will not be pruned separately.",
         Core::Type<Score>::max, 0);
 
+const Core::ParameterInt TreeTimesyncBeamSearch::paramNumHistogramBins(
+        "num-histogram-bins",
+        "Number of bins for histogram pruning of hypotheses (very minor effect).",
+        100,
+        2);
+
 const Core::ParameterBool TreeTimesyncBeamSearch::paramCollapseRepeatedLabels(
         "collapse-repeated-labels",
         "Collapse repeated emission of the same label into one output. If false, every emission is treated like a new output.",
@@ -163,6 +169,7 @@ TreeTimesyncBeamSearch::TreeTimesyncBeamSearch(Core::Configuration const& config
           SearchAlgorithmV2(config),
           maxWordEndBeamSize_(paramMaxWordEndBeamSize(config)),
           wordEndScoreThreshold_(paramWordEndScoreThreshold(config)),
+          scoreHistogram_(paramNumHistogramBins(config)),
           blankLabelIndex_(Nn::invalidLabelIndex),
           sentenceEndLabelIndex_(Nn::invalidLabelIndex),
           cacheCleanupInterval_(paramCacheCleanupInterval(config)),
@@ -486,19 +493,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         /*
          * Prune set of possible within-word extensions by max beam size and possibly also by score.
          */
-        scorePruning(withinWordExtensions_, scoreThresholds_[scorerIdx]);
+        size_t maxBeamSize = withinWordExtensions_.size();
+        if (scorerIdx < labelScorers_.size() - 1) {
+            maxBeamSize = maxBeamSizes_[scorerIdx];
+        }
+        scorePruning(withinWordExtensions_, scoreThresholds_[scorerIdx], maxBeamSize);
         numHypsAfterScorePruning_[scorerIdx] += withinWordExtensions_.size();
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-score-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
-        }
-
-        if (scorerIdx < labelScorers_.size() - 1) {
-            beamSizePruning(withinWordExtensions_, maxBeamSizes_[scorerIdx]);
-            numHypsAfterBeamPruning_[scorerIdx] += withinWordExtensions_.size();
-
-            if (logStepwiseStatistics_) {
-                clog() << Core::XmlFull("num-hyps-after-beam-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
-            }
+            clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(scorerIdx + 1), withinWordExtensions_.size());
         }
     }
 
@@ -526,7 +528,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-hyps-after-recombination", newBeam_.size());
     }
 
-    beamSizePruning(newBeam_, maxBeamSizes_[labelScorers_.size() - 1]);
+    scorePruning(newBeam_, Core::Type<Score>::max, maxBeamSizes_[labelScorers_.size() - 1]);
     numHypsAfterBeamPruning_[labelScorers_.size() - 1] += newBeam_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-hyps-after-beam-pruning-" + std::to_string(labelScorers_.size()), newBeam_.size());
@@ -578,7 +580,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     /*
      * Prune set of word-end extensions by max beam size and possibly also by score.
      */
-    scorePruning(wordEndExtensions_, wordEndScoreThreshold_);
+    scorePruning(wordEndExtensions_, wordEndScoreThreshold_, wordEndExtensions_.size());
     numWordEndHypsAfterScorePruning_ += wordEndExtensions_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-word-end-hyps-after-score-pruning", wordEndExtensions_.size());
@@ -607,7 +609,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-recombination", wordEndHypotheses_.size());
     }
 
-    beamSizePruning(wordEndHypotheses_, maxWordEndBeamSize_);
+    scorePruning(wordEndHypotheses_, Core::Type<Score>::max, maxWordEndBeamSize_);
     numWordEndHypsAfterBeamPruning_ += wordEndHypotheses_.size();
     if (logStepwiseStatistics_) {
         clog() << Core::XmlFull("num-word-end-hyps-after-beam-pruning", wordEndHypotheses_.size());
@@ -807,40 +809,64 @@ Nn::LabelScorer::TransitionType TreeTimesyncBeamSearch::inferTransitionType(Nn::
 }
 
 template<typename Element>
-void TreeTimesyncBeamSearch::beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const {
-    if (hypotheses.size() <= maxBeamSize) {
+void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize) {
+    if (hypotheses.size() <= maxBeamSize and relativeThreshold == Core::Type<Score>::max) {
+        // Neither relative score pruning nor max beam size pruning triggers
         return;
     }
 
-    // Sort the hypotheses by associated score value such that the first `maxBeamSize` elements are the best
-    std::nth_element(hypotheses.begin(), hypotheses.begin() + maxBeamSize, hypotheses.end());
-    hypotheses.resize(maxBeamSize);  // Get rid of excessive elements
-}
+    // Find ranges for score histogram and setting absolute threshold
+    Score lowerScore = Core::Type<Score>::max;
+    Score upperScore = Core::Type<Score>::min;
 
-template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, size_t) const;
-template void TreeTimesyncBeamSearch::beamSizePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, size_t) const;
+    for (auto const& hyp : hypotheses) {
+        lowerScore = std::min(lowerScore, hyp.score);
+        upperScore = std::max(upperScore, hyp.score);
+    }
 
-template<typename Element>
-void TreeTimesyncBeamSearch::scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const {
-    if (hyps.empty() or scoreThreshold == Core::Type<Score>::max) {
+    if (lowerScore == upperScore) {
+        // All scores are the same (usually only happens when exactly 1 hyp is active)
+        if (hypotheses.size() > maxBeamSize) {
+            hypotheses.resize(maxBeamSize);
+        }
         return;
     }
 
-    // Compute the pruning threshold
-    auto bestScore        = std::min_element(hyps.begin(), hyps.end())->score;
-    auto pruningThreshold = bestScore + scoreThreshold;
+    Score absoluteThreshold = upperScore;
 
-    // Remove elements with score > pruningThreshold
-    hyps.erase(
+    // Pruning by relative score threshold
+    if (relativeThreshold != Core::Type<Score>::max) {
+        absoluteThreshold = lowerScore + relativeThreshold;
+    }
+
+    // Pruning by max beam size
+    if (hypotheses.size() > maxBeamSize) {
+        scoreHistogram_.clear();
+        scoreHistogram_.setLimits(lowerScore, upperScore);
+
+        for (auto const& hyp : hypotheses) {
+            scoreHistogram_ += hyp.score;
+        }
+
+        absoluteThreshold = std::min(absoluteThreshold, scoreHistogram_.quantile(maxBeamSize));
+    }
+
+    if (absoluteThreshold >= upperScore) {
+        // Nothing will be pruned
+        return;
+    }
+
+    // Remove elements with score > absoluteThreshold
+    hypotheses.erase(
             std::remove_if(
-                    hyps.begin(),
-                    hyps.end(),
-                    [=](auto const& ext) { return ext.score > pruningThreshold; }),
-            hyps.end());
+                    hypotheses.begin(),
+                    hypotheses.end(),
+                    [absoluteThreshold](auto const& hyp) { return hyp.score > absoluteThreshold; }),
+            hypotheses.end());
 }
 
-template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, Score) const;
-template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, Score) const;
+template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WithinWordExtensionCandidate>&, Score, size_t);
+template void TreeTimesyncBeamSearch::scorePruning<TreeTimesyncBeamSearch::WordEndExtensionCandidate>(std::vector<TreeTimesyncBeamSearch::WordEndExtensionCandidate>&, Score, size_t);
 
 void TreeTimesyncBeamSearch::recombination(std::vector<TreeTimesyncBeamSearch::LabelHypothesis>& hypotheses, bool createTraceSiblings) {
     // Represents a unique combination of StateId, ScoringContext and LmHistory

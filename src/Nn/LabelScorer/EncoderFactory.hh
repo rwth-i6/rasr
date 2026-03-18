@@ -33,12 +33,17 @@ class EncoderModelCache {
 public:
     template<typename T>
     std::shared_ptr<T> get() const {
+        if (not model_) {
+            return {};
+        }
+        verify(type_ == typeid(T));
         return std::static_pointer_cast<T>(model_);
     }
 
     template<typename T>
     void put(std::shared_ptr<T> model) {
         model_ = std::static_pointer_cast<void>(model);
+        type_  = typeid(T);
     }
 
     bool empty() const {
@@ -47,6 +52,7 @@ public:
 
 private:
     std::shared_ptr<void> model_;
+    std::type_index       type_{typeid(void)};
 };
 
 /*

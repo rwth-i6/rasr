@@ -419,15 +419,22 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Collect all possible within-word extensions for all hypotheses in the beam.
-     * Each extension candidate makes up a request.
+     * Collect all possible extensions for all hypotheses in the beam.
+     * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
+     * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
+     * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
+     * some scoring contexts become no longer relevant when all extensions using them have been pruned.
      */
     withinWordExtensions_.clear();
     scoringContexts_.clear();
-    hypIndexToContextIndexMap_.assign(beam_.size(), -1);
+    scoringContexts_.reserve(beam_.size());
+    hypIndexToContextIndexMap_.resize(beam_.size());
+    std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
+
+        scoringContexts_.push_back(hyp.scoringContexts.front());
 
         // Iterate over the successors of this hypothesis' current state in the tree
         for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
@@ -440,20 +447,14 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 (not useBlank_ or tokenIdx != blankLabelIndex_)) {
                 continue;
             }
-
-            if (hypIndexToContextIndexMap_[hypIndex] == -1) {
-                hypIndexToContextIndexMap_[hypIndex] = scoringContexts_.size();
-                scoringContexts_.push_back(hyp.scoringContexts.front());
-            }
             auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
             withinWordExtensions_.push_back(
-                    {.nextToken           = tokenIdx,
-                     .nextState           = successorState,
-                     .timeframe           = hyp.timeframe,
-                     .score               = hyp.score,
-                     .transitionType      = transitionType,
-                     .baseHypIndex        = hypIndex,
-                     .scoringContextIndex = static_cast<size_t>(hypIndexToContextIndexMap_[hypIndex])});
+                    {.nextToken      = tokenIdx,
+                     .nextState      = successorState,
+                     .timeframe      = hyp.timeframe,
+                     .score          = hyp.score,
+                     .transitionType = transitionType,
+                     .baseHypIndex   = hypIndex});
         }
     }
 
@@ -475,7 +476,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 std::remove_if(
                         withinWordExtensions_.begin(),
                         withinWordExtensions_.end(),
-                        [&](auto const& ext) { return not scoreAccessors[ext.scoringContextIndex]; }),
+                        [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
                 withinWordExtensions_.end());
 
         if (withinWordExtensions_.empty()) {
@@ -487,7 +488,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             if (not labelScorer->scoresTransition(ext.transitionType)) {
                 continue;
             }
-            auto const& scoreAccessor = *scoreAccessors[ext.scoringContextIndex];
+            auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
             ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
             ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
@@ -511,6 +512,8 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             }
 
             // Prepare scoring context list for next iteration
+            // Some scoring contexts from the current iteration may not have survived pruning, so we need to recreate the list
+            // Use -1 as placeholder to signify that this hyp was not visited yet
             scoringContexts_.clear();
             hypIndexToContextIndexMap_.assign(beam_.size(), -1);
             for (auto& ext : withinWordExtensions_) {
@@ -518,7 +521,6 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     hypIndexToContextIndexMap_[ext.baseHypIndex] = scoringContexts_.size();
                     scoringContexts_.push_back(beam_[ext.baseHypIndex].scoringContexts[scorerIdx + 1]);
                 }
-                ext.scoringContextIndex = hypIndexToContextIndexMap_[ext.baseHypIndex];
             }
         }
     }

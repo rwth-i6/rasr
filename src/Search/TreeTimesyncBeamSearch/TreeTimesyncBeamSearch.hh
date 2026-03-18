@@ -86,7 +86,6 @@ protected:
         Score                  score;           // Would-be total score of the full hypothesis after extension
         Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
         size_t                 baseHypIndex;    // Index of base hypothesis in beam
-        size_t                 scoringContextIndex;
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;

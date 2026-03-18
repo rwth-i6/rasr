@@ -27,10 +27,6 @@ LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType
           enabledTransitions_(config, defaultPreset) {
 }
 
-TransitionSet LabelScorer::enabledTransitions() const {
-    return enabledTransitions_;
-}
-
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     auto featureSize = input.size() / nTimesteps;
     for (size_t t = 0ul; t < nTimesteps; ++t) {
@@ -45,6 +41,10 @@ std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std:
         result.push_back(getScoreAccessor(scoringContext));
     }
     return result;
+}
+
+TransitionSet LabelScorer::enabledTransitions() const {
+    return enabledTransitions_;
 }
 
 }  // namespace Nn

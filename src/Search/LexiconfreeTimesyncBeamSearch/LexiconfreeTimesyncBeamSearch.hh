@@ -45,8 +45,6 @@ public:
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterInt         paramBlankLabelIndex;
     static const Core::ParameterInt         paramSentenceEndLabelIndex;
-    static const Core::ParameterBool        paramAllowBlankAfterSentenceEnd;
-    static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramCacheCleanupInterval;
     static const Core::ParameterInt         paramMaximumStableDelay;
@@ -93,11 +91,10 @@ protected:
      * Struct containing all information about a single hypothesis in the beam
      */
     struct LabelHypothesis {
-        std::vector<Nn::ScoringContextRef> scoringContexts;     // Context to compute scores based on this hypothesis
-        Nn::LabelIndex                     currentToken;        // Most recent token in associated label sequence (useful to infer transition type)
-        Score                              score;               // Full score of hypothesis
-        Core::Ref<LatticeTrace>            trace;               // Associated trace for traceback or lattice building off of hypothesis
-        bool                               reachedSentenceEnd;  // Flag whether hypothesis trace contains a sentence end emission
+        std::vector<Nn::ScoringContextRef> scoringContexts;  // Context to compute scores based on this hypothesis
+        Nn::LabelIndex                     currentToken;     // Most recent token in associated label sequence (useful to infer transition type)
+        Score                              score;            // Full score of hypothesis
+        Core::Ref<LatticeTrace>            trace;            // Associated trace for traceback or lattice building off of hypothesis
 
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, std::vector<Nn::ScoringContextRef> const& newScoringContexts);
@@ -119,11 +116,9 @@ private:
     std::vector<Score>  scoreThresholds_;
     bool                useBlank_;
     Nn::LabelIndex      blankLabelIndex_;
-    bool                allowBlankAfterSentenceEnd_;
     bool                useSentenceEnd_;
     Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
-    bool                sentenceEndFallback_;
     bool                collapseRepeatedLabels_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -183,8 +178,7 @@ private:
     void recombination(std::vector<LabelHypothesis>& hypotheses);
 
     /*
-     * Prune away all hypotheses that have not reached sentence end.
-     * If no hypotheses would survive this, either construct an empty one or keep the beam intact if sentence-end fallback is enabled.
+     * Score sentence-end with all label scores for all hypotheses in the beam
      */
     void finalizeHypotheses();
 

@@ -36,7 +36,7 @@ public:
     virtual ~OnnxEncoder() = default;
 
     // Clear buffers and reset segment end flag.
-    virtual void reset();
+    virtual void reset() override;
 
 protected:
     // Encode features inside the input buffer and put the results into the output buffer

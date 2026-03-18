@@ -66,25 +66,28 @@ class StatefulOnnxLabelScorer : public BufferedLabelScorer {
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulOnnxLabelScorer(const Core::Configuration& config);
+    StatefulOnnxLabelScorer(Core::Configuration const& config);
     virtual ~StatefulOnnxLabelScorer() = default;
 
     void reset() override;
 
     // If startLabelIndex is set, forward that through the state updater to obtain the start ScoringContext
-    Core::Ref<const ScoringContext> getInitialScoringContext() override;
+    ScoringContextRef getInitialScoringContext() override;
 
-    // Add a single encoder outputs to buffer
+    // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
+
+    // Add a single input feature to buffer
     void addInput(DataView const& input) override;
+
+    // Update hidden state, run scorer and get an accessor for the output score vector
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
+
+    // Update hidden states (batched), run scorers (batched) and get accessor for the output score vectors
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 protected:
     size_t getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const override;
-
-    // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
-    Core::Ref<const ScoringContext> extendedScoringContextInternal(LabelScorer::Request const& request) override;
-
-    std::optional<LabelScorer::ScoreWithTime>   computeScoreWithTimeInternal(LabelScorer::Request const& request) override;
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimesInternal(std::vector<LabelScorer::Request> const& requests) override;
 
 private:
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
@@ -133,8 +136,8 @@ private:
     Onnx::Value encoderStatesValue_;
     Onnx::Value encoderStatesSizeValue_;
 
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::vector<Score>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq> stateCache_;
+    Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;
 };
 
 }  // namespace Nn

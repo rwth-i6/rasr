@@ -69,9 +69,9 @@ std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScore
 }
 
 void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
-    std::optional<DataView> encoderOutput;
+    std::optional<EncodedSpan> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(*encoderOutput);
+        decoder_->addInput(encoderOutput->encoding);
     }
 }
 

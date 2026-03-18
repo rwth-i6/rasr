@@ -139,6 +139,7 @@ private:
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -231,6 +232,7 @@ private:
      * After reaching the segment end, go through the active hypotheses, only keep those
      * which are final states of the search tree.
      * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * Score sentence-end with all label scorers for all final hypotheses and add the LM's sentence-end score
      */
     void finalizeHypotheses();
 

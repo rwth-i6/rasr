@@ -32,6 +32,7 @@ public:
     static const Core::ParameterInt paramInputStepSize;
 
     OnnxEncoder(Core::Configuration const& config);
+    OnnxEncoder(Core::Configuration const& config, std::shared_ptr<Model>& cachedModel);
     virtual ~OnnxEncoder() = default;
 
     // Clear buffers and reset segment end flag.
@@ -45,10 +46,10 @@ private:
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
 
-    Model       onnxModel_;
-    std::string featuresName_;
-    std::string featuresSizeName_;
-    std::string outputName_;
+    std::shared_ptr<Model> onnxModel_;
+    std::string            featuresName_;
+    std::string            featuresSizeName_;
+    std::string            outputName_;
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;

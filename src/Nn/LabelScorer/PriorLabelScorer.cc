@@ -11,10 +11,10 @@ public:
     using Score = Nn::Score;
 
     PriorScoreAccessor(Core::Ref<ScoreAccessor> scoreAccessor, bool negateOutput, std::shared_ptr<Nn::Prior<Score>> prior)
-        : scoreAccessor_(scoreAccessor), negateOutput_(negateOutput), prior_(prior) {}
+            : scoreAccessor_(scoreAccessor), negateOutput_(negateOutput), prior_(prior) {}
 
     virtual Score getScore(Nn::TransitionType transitionType, Nn::LabelIndex labelIndex = Nn::invalidLabelIndex) const {
-        Score score = scoreAccessor_->getScore(transitionType, labelIndex); 
+        Score score = scoreAccessor_->getScore(transitionType, labelIndex);
         if (negateOutput_) {
             score = -score;
         }
@@ -34,7 +34,7 @@ private:
     std::shared_ptr<Nn::Prior<Score>> prior_;
 };
 
-using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor> ;
+using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;
 
 }  // namespace
 

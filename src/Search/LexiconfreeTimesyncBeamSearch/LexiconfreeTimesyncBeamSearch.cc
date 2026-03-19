@@ -370,28 +370,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        auto& hyp = beam_[hypIndex];
-
-        scoringContexts_.push_back(hyp.scoringContexts.front());
-
-        // Iterate over possible successors (all lemmas)
-        for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
-            Bliss::Lemma const* lemma(*lemmaIt);
-            Nn::LabelIndex      tokenIdx = lemma->id();
-
-            // Don't score the sentence-end token
-            if (tokenIdx == sentenceEndLabelIndex_) {
-                continue;
-            }
-            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-            extensions_.push_back(
-                    {.nextToken      = tokenIdx,
-                     .pron           = lemma->pronunciations().first,
-                     .score          = hyp.score,
-                     .timeframe      = hyp.trace->time,
-                     .transitionType = transitionType,
-                     .baseHypIndex   = hypIndex});
-        }
+        scoringContexts_.push_back(beam_[hypIndex].scoringContexts.front());
     }
 
     if (logStepwiseStatistics_) {
@@ -404,27 +383,70 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
 
-        // Remove extensions that couldn't be scored
-        extensions_.erase(
-                std::remove_if(
-                        extensions_.begin(),
-                        extensions_.end(),
-                        [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
-                extensions_.end());
+        if (scorerIdx == 0ul) {
+            Score currentBestScore = Core::Type<Score>::max;
+
+            // In the first iteration, create extensions while pre-pruning
+            for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+                auto const& hyp = beam_[hypIndex];
+
+                auto scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                if (not scoreAccessor) {
+                    // No extensions for hyps that couldn't be scored
+                    continue;
+                }
+
+                // Iterate over possible successors (all lemmas)
+                for (auto lemmaIt = lemmas.first; lemmaIt != lemmas.second; ++lemmaIt) {
+                    Bliss::Lemma const* lemma(*lemmaIt);
+                    Nn::LabelIndex      tokenIdx = lemma->id();
+                    // Don't score the sentence-end token
+                    if (tokenIdx == sentenceEndLabelIndex_) {
+                        continue;
+                    }
+                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+                    auto extScore       = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+
+                    // Pre-prune based on score before creating extension instance and appending to list
+                    if (extScore > currentBestScore + scoreThresholds_.front()) {
+                        continue;
+                    }
+                    currentBestScore = std::min(currentBestScore, extScore);
+
+                    extensions_.push_back(
+                            {.nextToken      = tokenIdx,
+                             .pron           = lemma->pronunciations().first,
+                             .score          = extScore,
+                             .timeframe      = std::max(hyp.trace->time, (*scoreAccessor)->getTime()),
+                             .transitionType = transitionType,
+                             .baseHypIndex   = hypIndex});
+                }
+            }
+        }
+        else {
+            // Remove extensions that couldn't be scored
+            extensions_.erase(
+                    std::remove_if(
+                            extensions_.begin(),
+                            extensions_.end(),
+                            [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
+                    extensions_.end());
+
+            // Update ext score and timestep
+            for (auto& ext : extensions_) {
+                if (not labelScorer->scoresTransition(ext.transitionType)) {
+                    continue;
+                }
+                auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+
+                ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
+                ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
+            }
+        }
 
         if (extensions_.empty()) {
             clog() << Core::XmlClose("search-step-stats");
             return false;
-        }
-
-        for (auto& ext : extensions_) {
-            if (not labelScorer->scoresTransition(ext.transitionType)) {
-                continue;
-            }
-            auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
-
-            ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
-            ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
         }
 
         /*

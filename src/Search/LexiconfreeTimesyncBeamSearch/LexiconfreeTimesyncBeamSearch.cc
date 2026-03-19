@@ -384,9 +384,9 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         scoringTime_.stop();
 
         if (scorerIdx == 0ul) {
+            // In the first iteration, create extensions while pre-pruning
             Score currentBestScore = Core::Type<Score>::max;
 
-            // In the first iteration, create extensions while pre-pruning
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
                 auto const& hyp = beam_[hypIndex];
 
@@ -408,7 +408,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                     auto extScore       = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
 
                     // Pre-prune based on score before creating extension instance and appending to list
-                    if (extScore > currentBestScore + scoreThresholds_.front()) {
+                    if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
                         continue;
                     }
                     currentBestScore = std::min(currentBestScore, extScore);

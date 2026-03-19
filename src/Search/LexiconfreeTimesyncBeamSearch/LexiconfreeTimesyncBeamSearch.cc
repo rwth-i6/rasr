@@ -442,7 +442,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
         }
         scorePruning(extensions_, scoreThresholds_[scorerIdx], maxBeamSize);
         if (logStepwiseStatistics_) {
-            clog() << Core::XmlFull("num-hyps-after-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
+            clog() << Core::XmlFull("num-hyps-after-intermediate-pruning-" + std::to_string(scorerIdx + 1), extensions_.size());
         }
         numHypsAfterIntermediatePruning_[scorerIdx] += extensions_.size();
 

@@ -206,7 +206,7 @@ private:
     Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Helper function for acoustic pruning. Calculates an absolute threshold based on best score + relative threshold and
+     * Helper function for pruning. Calculates an absolute threshold based on best score + relative threshold and
      * score histogram. Removes all hypotheses with a score > absolute threshold.
      */
     template<typename Element>

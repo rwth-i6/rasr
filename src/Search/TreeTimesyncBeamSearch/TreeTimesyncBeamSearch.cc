@@ -607,7 +607,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     }
 
     /*
-     * Prune set of word-end extensions by max beam size and possibly also by score.
+     * Prune set of word-end extensions by score.
      */
     scorePruning(wordEndExtensions_, wordEndScoreThreshold_, wordEndExtensions_.size());
     numWordEndHypsAfterScorePruning_ += wordEndExtensions_.size();
@@ -638,6 +638,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         clog() << Core::XmlFull("num-word-end-hyps-after-recombination", wordEndHypotheses_.size());
     }
 
+    // Prune set of word-end hypotheses by max beam size.
     scorePruning(wordEndHypotheses_, Core::Type<Score>::max, maxWordEndBeamSize_);
     numWordEndHypsAfterBeamPruning_ += wordEndHypotheses_.size();
     if (logStepwiseStatistics_) {

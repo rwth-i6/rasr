@@ -18,6 +18,7 @@
 
 #include <Nn/LabelScorer/Encoder.hh>
 
+#include <Nn/LabelScorer/EncoderFactory.hh>
 #include "Model.hh"
 #include "StateManager.hh"
 
@@ -31,11 +32,11 @@ public:
     static const Core::ParameterInt paramInputsPerOutput;
     static const Core::ParameterInt paramInputStepSize;
 
-    OnnxEncoder(Core::Configuration const& config);
+    OnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
     virtual ~OnnxEncoder() = default;
 
     // Clear buffers and reset segment end flag.
-    virtual void reset();
+    virtual void reset() override;
 
 protected:
     // Encode features inside the input buffer and put the results into the output buffer
@@ -45,10 +46,10 @@ private:
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
 
-    Model       onnxModel_;
-    std::string featuresName_;
-    std::string featuresSizeName_;
-    std::string outputName_;
+    std::shared_ptr<Model> onnxModel_;
+    std::string            featuresName_;
+    std::string            featuresSizeName_;
+    std::string            outputName_;
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;

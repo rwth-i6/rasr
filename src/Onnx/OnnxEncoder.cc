@@ -43,17 +43,20 @@ const std::vector<IOSpecification> encoderIoSpec = {
 const Core::ParameterInt OnnxEncoder::paramInputsPerOutput("inputs-per-output", "The number of input features needed to produce one output. Set to 0 to infer at runtime.", 0, 0);
 const Core::ParameterInt OnnxEncoder::paramInputStepSize("input-step-size", "The difference in the number of input features between the first features corresponding to two consecutive outputs. Set to 0 to copy value from inputs-per-output.", 0, 0);
 
-OnnxEncoder::OnnxEncoder(Core::Configuration const& config)
+OnnxEncoder::OnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel)
         : Core::Component(config),
           Precursor(config),
           inputsPerOutput_(paramInputsPerOutput(config)),
-          inputStepSize_(paramInputStepSize(config)),
-          onnxModel_(select("onnx-model"), encoderIoSpec),
-          featuresName_(onnxModel_.mapping.getOnnxName("features")),
-          featuresSizeName_(onnxModel_.mapping.getOnnxName("features-size")),
-          outputName_(onnxModel_.mapping.getOnnxName("outputs")) {
-    stateManager_   = StateManager::create(select("state-manager"));
-    stateVariables_ = onnxModel_.session.getStateVariablesMetadata();
+          inputStepSize_(paramInputStepSize(config)) {
+    if (cachedModel.empty()) {
+        cachedModel.put(std::make_shared<Model>(select("onnx-model"), encoderIoSpec));
+    }
+    onnxModel_        = cachedModel.get<Model>();
+    featuresName_     = onnxModel_->mapping.getOnnxName("features");
+    featuresSizeName_ = onnxModel_->mapping.getOnnxName("features-size");
+    outputName_       = onnxModel_->mapping.getOnnxName("outputs");
+    stateManager_     = StateManager::create(select("state-manager"));
+    stateVariables_   = onnxModel_->session.getStateVariablesMetadata();
     stateManager_->setInitialStates(stateVariables_);
 }
 
@@ -94,7 +97,7 @@ void OnnxEncoder::encode() {
 
     // Run session
     std::vector<Value> session_outputs;
-    onnxModel_.session.run(std::move(session_inputs), output_names, session_outputs);
+    onnxModel_->session.run(std::move(session_inputs), output_names, session_outputs);
 
     // Put outputs into buffer
     size_t T_out       = session_outputs.front().dimSize(1);

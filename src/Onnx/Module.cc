@@ -22,7 +22,11 @@ Module_::Module_() {
     Flow::Registry::instance().registerFilter<OnnxForwardNode>();
 
     // Forward encoder inputs through an onnx model
-    Nn::Module::instance().encoderFactory().registerEncoder("onnx", [](Core::Configuration const& config) { return Core::ref(new OnnxEncoder(config)); });
+    Nn::Module::instance().encoderFactory().registerEncoder(
+            "onnx",
+            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+                return Core::ref(new OnnxEncoder(config, modelCache));
+            });
 }
 
 }  // namespace Onnx

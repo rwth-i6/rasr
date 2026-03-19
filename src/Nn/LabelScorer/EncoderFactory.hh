@@ -27,6 +27,35 @@
 namespace Nn {
 
 /*
+ * Class that contains a cached model to re-use when creating multiple encoder instances
+ */
+class EncoderModelCache {
+public:
+    template<typename T>
+    std::shared_ptr<T> get() const {
+        if (not model_) {
+            return {};
+        }
+        verify(type_ == typeid(T));
+        return std::static_pointer_cast<T>(model_);
+    }
+
+    template<typename T>
+    void put(std::shared_ptr<T> model) {
+        model_ = std::static_pointer_cast<void>(model);
+        type_  = typeid(T);
+    }
+
+    bool empty() const {
+        return not model_;
+    }
+
+private:
+    std::shared_ptr<void> model_;
+    std::type_index       type_{typeid(void)};
+};
+
+/*
  * Factory class to register types of Encoders and create them.
  * Introduced so that Encoders can be registered from different places in the codebase
  * (e.g. inside src/Nn/LabelScorer and src/Onnx)
@@ -37,7 +66,7 @@ private:
     Core::Choice choices_;
 
 public:
-    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&)> CreationFunction;
+    typedef std::function<Core::Ref<Encoder>(Core::Configuration const&, EncoderModelCache&)> CreationFunction;
 
     Core::ParameterChoice paramEncoderType;
 
@@ -49,9 +78,12 @@ public:
     void registerEncoder(const char* name, CreationFunction creationFunction);
 
     /*
-     * Create an Encoder instance of type given by `paramEncoderType` using the config object
+     * Create an Encoder instance of type given by `paramEncoderType` using the config object. Optionally supply a
+     * cache location for the model. If the cache is filled, the model is reused by the encoder constructor, otherwise
+     * the encoder constructs a model itself and puts it into the cache.
      */
     Core::Ref<Encoder> createEncoder(Core::Configuration const& config) const;
+    Core::Ref<Encoder> createEncoder(Core::Configuration const& config, EncoderModelCache& modelCache) const;
 
 private:
     typedef std::vector<CreationFunction> Registry;

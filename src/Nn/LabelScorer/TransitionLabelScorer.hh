@@ -37,7 +37,6 @@ private:
     std::array<Score, TransitionType::numTypes> transitionScores_;
 };
 
-
 /*
  * This LabelScorer returns predefined transition scores depending on the transition type of each request.
  * The transition scores are all individually specified as config parameters.

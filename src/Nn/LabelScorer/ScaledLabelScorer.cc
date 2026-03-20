@@ -25,8 +25,8 @@ using namespace Nn;
 class ScaledScoreAccessor : public ScoreAccessor {
 public:
     ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
-        : base_(base),
-          scale_(scale) {}
+            : base_(base),
+              scale_(scale) {}
 
     Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
         return base_->getScore(transitionType, labelIndex) * scale_;

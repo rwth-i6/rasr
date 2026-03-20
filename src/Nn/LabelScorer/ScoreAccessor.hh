@@ -36,7 +36,6 @@ public:
 
 typedef Core::Ref<ScoreAccessor> ScoreAccessorRef;
 
-
 inline Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
     return 0.0;
 };
@@ -44,7 +43,6 @@ inline Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex l
 inline TimeframeIndex ScoreAccessor::getTime() const {
     return 0;
 };
-
 
 /*
  * Score accessor that contains a vector of scores for each label

@@ -27,7 +27,7 @@ using namespace Nn;
 class CombinedScoreAccessor : public ScoreAccessor {
 public:
     CombinedScoreAccessor()
-        : subAccessors_() {}
+            : subAccessors_() {}
 
     void addSubAccessor(ScoreAccessorRef subAccessor) {
         subAccessors_.push_back(subAccessor);

@@ -40,7 +40,7 @@ using PriorScoreAccessorRef = Core::Ref<PriorScoreAccessor>;
 
 namespace Nn {
 
-const Core::ParameterBool PriorLabelScorer::paramNegateOutput("negate-output", "wether to negate the scores obtained from Score/DataViewMessages", false);
+const Core::ParameterBool PriorLabelScorer::paramNegateOutput("negate-output", "whether to negate the scores obtained from Score/DataViewMessages", false);
 
 PriorLabelScorer::PriorLabelScorer(Core::Configuration const& config)
         : Core::Component(config),

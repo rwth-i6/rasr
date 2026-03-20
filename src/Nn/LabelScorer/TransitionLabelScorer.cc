@@ -17,7 +17,44 @@
 
 #include <Nn/Module.hh>
 
+namespace {
+
+using namespace Nn;
+
+}  // namespace
+
 namespace Nn {
+
+/*
+ * ==================================
+ * == FixedTransitionScoreAccessor ==
+ * ==================================
+ */
+
+FixedTransitionScoreAccessor::FixedTransitionScoreAccessor()
+        : transitionScores_() {
+    for (auto const& [stringIdentifier, enumValue] : TransitionTypeArray) {
+        setScore(enumValue, 0.0);
+    }
+}
+
+void FixedTransitionScoreAccessor::setScore(TransitionType transitionType, Score score) {
+    transitionScores_[static_cast<size_t>(transitionType)] = score;
+}
+
+Score FixedTransitionScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    return transitionScores_.at(transitionType);
+}
+
+TimeframeIndex FixedTransitionScoreAccessor::getTime() const {
+    return 0;
+}
+
+/*
+ * ===========================
+ * == TransitionLabelScorer ==
+ * ===========================
+ */
 
 TransitionLabelScorer::TransitionLabelScorer(Core::Configuration const& config)
         : Core::Component(config),

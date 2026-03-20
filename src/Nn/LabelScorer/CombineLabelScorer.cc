@@ -17,6 +17,42 @@
 #include <Nn/Module.hh>
 #include "Types.hh"
 
+namespace {
+
+using namespace Nn;
+
+/*
+ * Score accessor that contains a list of sub-accessors and adds up the scores they return
+ */
+class CombinedScoreAccessor : public ScoreAccessor {
+public:
+    CombinedScoreAccessor()
+        : subAccessors_() {}
+
+    void addSubAccessor(ScoreAccessorRef subAccessor) {
+        subAccessors_.push_back(subAccessor);
+    }
+
+    // Sum of scores from sub-scorers
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
+        return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [transitionType, labelIndex](Score acc, ScoreAccessorRef subAccessor) {
+            return acc + subAccessor->getScore(transitionType, labelIndex);
+        });
+    }
+
+    // Max of timeframes from sub-scorers
+    TimeframeIndex getTime() const override {
+        return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0, [](TimeframeIndex max, ScoreAccessorRef subAccessor) {
+            return std::max(max, subAccessor->getTime());
+        });
+    }
+
+private:
+    std::vector<ScoreAccessorRef> subAccessors_;
+};
+
+}  // namespace
+
 namespace Nn {
 
 Core::ParameterInt CombineLabelScorer::paramNumLabelScorers(

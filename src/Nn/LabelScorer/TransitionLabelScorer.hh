@@ -21,6 +21,24 @@
 namespace Nn {
 
 /*
+ * Score accessor with fixed score values for each transition type
+ */
+class FixedTransitionScoreAccessor : public ScoreAccessor {
+public:
+    FixedTransitionScoreAccessor();
+
+    void setScore(TransitionType transitionType, Score score);
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
+
+    TimeframeIndex getTime() const override;
+
+private:
+    std::array<Score, TransitionType::numTypes> transitionScores_;
+};
+
+
+/*
  * This LabelScorer returns predefined transition scores depending on the transition type of each request.
  * The transition scores are all individually specified as config parameters.
  * It should be used together with a main LabelScorer

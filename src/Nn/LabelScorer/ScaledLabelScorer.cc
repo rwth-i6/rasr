@@ -15,6 +15,34 @@
 
 #include "ScaledLabelScorer.hh"
 
+namespace {
+
+using namespace Nn;
+
+/*
+ * Score accessor that wraps a sub-accessor and scales all its scores by a given factor
+ */
+class ScaledScoreAccessor : public ScoreAccessor {
+public:
+    ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
+        : base_(base),
+          scale_(scale) {}
+
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override {
+        return base_->getScore(transitionType, labelIndex) * scale_;
+    }
+
+    TimeframeIndex getTime() const override {
+        return base_->getTime();
+    }
+
+private:
+    ScoreAccessorRef base_;
+    Score            scale_;
+};
+
+}  // namespace
+
 namespace Nn {
 
 const Core::ParameterFloat ScaledLabelScorer::paramScale(

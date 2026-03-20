@@ -19,6 +19,8 @@ public:
             score = -score;
         }
         if (prior_->scale() != 0.0) {
+            // The Prior class returns scores in +log prob space
+            // Thus add it here to the -log prob space score
             score += prior_->at(labelIndex) * prior_->scale();
         }
         return score;

@@ -22,61 +22,6 @@ namespace Nn {
 
 /*
  * =============================
- * ====== ScoreAccessor ========
- * =============================
- */
-
-Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
-    return 0.0;
-};
-
-TimeframeIndex ScoreAccessor::getTime() const {
-    return 0;
-};
-
-/*
- * =============================
- * === ScaledScoreAccessor =====
- * =============================
- */
-ScaledScoreAccessor::ScaledScoreAccessor(ScoreAccessorRef base, Score scale)
-        : base_(base),
-          scale_(scale) {}
-
-Score ScaledScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
-    return base_->getScore(transitionType, labelIndex) * scale_;
-}
-
-TimeframeIndex ScaledScoreAccessor::getTime() const {
-    return base_->getTime();
-}
-
-/*
- * =============================
- * === CombinedScoreAccessor ===
- * =============================
- */
-CombinedScoreAccessor::CombinedScoreAccessor()
-        : subAccessors_() {}
-
-void CombinedScoreAccessor::addSubAccessor(ScoreAccessorRef subAccessor) {
-    subAccessors_.push_back(subAccessor);
-}
-
-Score CombinedScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
-    return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0.0, [transitionType, labelIndex](Score acc, ScoreAccessorRef subAccessor) {
-        return acc + subAccessor->getScore(transitionType, labelIndex);
-    });
-}
-
-TimeframeIndex CombinedScoreAccessor::getTime() const {
-    return std::accumulate(subAccessors_.begin(), subAccessors_.end(), 0, [](TimeframeIndex max, ScoreAccessorRef subAccessor) {
-        return std::max(max, subAccessor->getTime());
-    });
-}
-
-/*
- * =============================
  * ==== VectorScoreAccessor ====
  * =============================
  */
@@ -109,31 +54,6 @@ Score DataViewScoreAccessor::getScore(TransitionType transitionType, LabelIndex 
 
 TimeframeIndex DataViewScoreAccessor::getTime() const {
     return time_;
-}
-
-/*
- * =============================
- * == TransitionScoreAccessor ==
- * =============================
- */
-
-FixedTransitionScoreAccessor::FixedTransitionScoreAccessor()
-        : transitionScores_() {
-    for (auto const& [stringIdentifier, enumValue] : TransitionTypeArray) {
-        setScore(enumValue, 0.0);
-    }
-}
-
-void FixedTransitionScoreAccessor::setScore(TransitionType transitionType, Score score) {
-    transitionScores_[static_cast<size_t>(transitionType)] = score;
-}
-
-Score FixedTransitionScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
-    return transitionScores_.at(transitionType);
-}
-
-TimeframeIndex FixedTransitionScoreAccessor::getTime() const {
-    return 0;
 }
 
 }  // namespace Nn

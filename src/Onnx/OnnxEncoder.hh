@@ -25,7 +25,7 @@
 namespace Onnx {
 
 // Encoder that runs the input features through an ONNX model
-class OnnxEncoder : public virtual Nn::Encoder {
+class OnnxEncoder : public Nn::Encoder {
 public:
     using Precursor = Nn::Encoder;
 
@@ -39,10 +39,18 @@ public:
     virtual void reset() override;
 
 protected:
+    struct SessionRunResult {
+        Nn::DataView outputView;
+        size_t       nOutputs;
+        size_t       outputSize;
+    };
+
     // Encode features inside the input buffer and put the results into the output buffer
     virtual void encode() override;
 
-private:
+    // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
+    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs);
+
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
 
@@ -53,6 +61,50 @@ private:
 
     std::unique_ptr<StateManager>  stateManager_;
     std::vector<OnnxStateVariable> stateVariables_;
+};
+
+/*
+ * Encoder that chunks the input features before running them through an ONNX model
+ * For example with chunk-size = 50, step-size = 25, left-padding = 10, right-padding = 5
+ * and 90 feature inputs in total
+ *  - The first chunk consists of features 0 to 55 and the outputs corresponding to
+ *    features 0 to 50 are returned
+ *  - The second chunk consists of features 15 to 80 and the outputs corresponding to
+ *    features 25 to 75 are returned
+ *  - The third chunk consists of features 40 to 90 and the outputs corresponding to
+ *    features 50 to 90 are returned
+ */
+class ChunkedOnnxEncoder : public OnnxEncoder {
+public:
+    using Precursor = OnnxEncoder;
+
+    static const Core::ParameterInt paramChunkSize;
+    static const Core::ParameterInt paramStepSize;
+    static const Core::ParameterInt paramLeftPadding;
+    static const Core::ParameterInt paramRightPadding;
+
+    ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
+
+    virtual void reset() override;
+
+protected:
+    // Check if enough features are buffered to fill the chunk or segment end has been signaled
+    virtual bool canEncode() const override;
+
+    // Encode a single chunk of features
+    virtual void encode() override;
+
+    // Discard all features from input buffer that are no longer needed for future chunks
+    virtual void postEncodeCleanup() override;
+
+private:
+    const size_t chunkSize_;
+    const size_t stepSize_;
+    const size_t leftPadding_;
+    const size_t rightPadding_;
+
+    size_t chunkCenterStart_;  // Current absolute chunk start position disregarding how many features have been discarded so far
+    size_t numDiscardedFeatures_;
 };
 
 }  // namespace Onnx

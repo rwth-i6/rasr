@@ -27,6 +27,13 @@ Module_::Module_() {
             [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
                 return Core::ref(new OnnxEncoder(config, modelCache));
             });
+
+    // Forward encoder inputs through an onnx model in a chunk-wise manner
+    Nn::Module::instance().encoderFactory().registerEncoder(
+            "chunked-onnx",
+            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+                return Core::ref(new ChunkedOnnxEncoder(config, modelCache));
+            });
 }
 
 }  // namespace Onnx

@@ -17,6 +17,12 @@
 
 namespace Onnx {
 
+/*
+ * ============================
+ * ======= OnnxEncoder ========
+ * ============================
+ */
+
 const std::vector<IOSpecification> encoderIoSpec = {
         IOSpecification{
                 "features",
@@ -65,62 +71,181 @@ void OnnxEncoder::reset() {
     stateManager_->setInitialStates(stateVariables_);
 }
 
+OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, size_t nInputs) {
+    verify(inputStartIndex + nInputs <= inputBuffer_.size());
+    verify(nInputs > 0ul);
+
+    std::vector<std::pair<std::string, Value>> sessionInputs;
+    std::vector<std::string>                   outputNames{{outputName_}};
+
+    size_t F = inputBuffer_[inputStartIndex].size();
+
+    // Create session inputs
+    std::vector<int64_t> featureShape = {1l, static_cast<int64_t>(nInputs), static_cast<int64_t>(F)};
+    Value                value        = Value::createEmpty<f32>(featureShape);
+
+    for (size_t t = 0ul; t < nInputs; ++t) {
+        std::copy(inputBuffer_[inputStartIndex + t].data(), inputBuffer_[inputStartIndex + t].data() + F, value.data<f32>(0, t));
+    }
+    sessionInputs.emplace_back(featuresName_, std::move(value));
+
+    if (featuresSizeName_ != "") {
+        sessionInputs.emplace_back(featuresSizeName_, Value::create(std::vector<s32>{static_cast<int>(nInputs)}));
+    }
+
+    stateManager_->extendFeedDict(sessionInputs, stateVariables_);
+    stateManager_->extendTargets(outputNames, stateVariables_);
+
+    // Run session
+    std::vector<Value> sessionOutputs;
+    onnxModel_->session.run(std::move(sessionInputs), outputNames, sessionOutputs);
+
+    // Retrieve outputs
+    size_t T_out      = sessionOutputs.front().dimSize(1);
+    size_t outputSize = sessionOutputs.front().dimSize(2);
+
+    Nn::DataView outputView(std::move(sessionOutputs.front()));
+
+    std::vector<Value> outputStates;
+    for (size_t i = 1ul; i < sessionOutputs.size(); ++i) {
+        outputStates.emplace_back(std::move(sessionOutputs[i]));
+    }
+    stateManager_->updateStates(outputStates);
+
+    return {.outputView = std::move(outputView), .nOutputs = T_out, .outputSize = outputSize};
+}
+
 void OnnxEncoder::encode() {
     if (inputBuffer_.empty()) {
         return;
     }
 
-    // Create session inputs/outputs
-    std::vector<std::pair<std::string, Value>> session_inputs;
-    std::vector<std::string>                   output_names{{outputName_}};
+    size_t nInputs = inputBuffer_.size();
 
-    size_t T_in = inputBuffer_.size();
-    size_t F    = inputBuffer_.front().size();
+    auto [outputView, nOutputs, outputSize] = runSession(0ul, nInputs);
 
-    std::vector<int64_t> feature_shape = {1l, static_cast<int64_t>(T_in), static_cast<int64_t>(F)};
+    size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
+    size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
+    size_t startInput      = 0ul;
 
-    Value value = Value::createEmpty<f32>(feature_shape);
-
-    for (size_t t = 0ul; t < T_in; ++t) {
-        std::copy(inputBuffer_[t].data(), inputBuffer_[t].data() + F, value.data<f32>(0, t));
+    for (size_t t = 0ul; t < nOutputs; ++t) {
+        size_t endInput = std::min(startInput + inputsPerOutput, nInputs);
+        outputBuffer_.push_back(
+                Nn::EncodedSpan{
+                        .encoding    = {outputView, outputSize, t * outputSize},
+                        .input_start = startInput,
+                        .input_end   = endInput});
+        startInput = std::min(startInput + inputStep, std::max(nInputs, 1ul) - 1ul);
     }
-    session_inputs.emplace_back(std::make_pair(featuresName_, std::move(value)));
+}
 
-    // features-size is an optional input
-    if (featuresSizeName_ != "") {
-        session_inputs.emplace_back(std::make_pair(featuresSizeName_, Value::create(std::vector<s32>{static_cast<int>(T_in)})));
+/*
+ * ============================
+ * ==== ChunkedOnnxEncoder ====
+ * ============================
+ */
+
+const Core::ParameterInt ChunkedOnnxEncoder::paramChunkSize(
+        "chunk-size",
+        "The number of central input features processed in one chunk.",
+        1,
+        1);
+
+const Core::ParameterInt ChunkedOnnxEncoder::paramStepSize(
+        "step-size",
+        "The shift in central input features between two consecutive chunks.",
+        1,
+        1);
+
+const Core::ParameterInt ChunkedOnnxEncoder::paramLeftPadding(
+        "left-padding",
+        "The number of input features of left context to prepend to each chunk.",
+        0,
+        0);
+
+const Core::ParameterInt ChunkedOnnxEncoder::paramRightPadding(
+        "right-padding",
+        "The number of input features of right context to append to each chunk.",
+        0,
+        0);
+
+ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel)
+        : Core::Component(config),
+          Precursor(config, cachedModel),
+          chunkSize_(paramChunkSize(config)),
+          stepSize_(paramStepSize(config)),
+          leftPadding_(paramLeftPadding(config)),
+          rightPadding_(paramRightPadding(config)),
+          chunkCenterStart_(0ul),
+          numDiscardedFeatures_(0ul) {
+    if (not stateVariables_.empty()) {
+        // With overlap, state variable outputs of the previous chunk don't work as inputs for the next chunk
+        error() << "ChunkedOnnxEncoder does not support state variables.";
+    }
+}
+
+void ChunkedOnnxEncoder::reset() {
+    Precursor::reset();
+    chunkCenterStart_     = 0ul;
+    numDiscardedFeatures_ = 0ul;
+}
+
+bool ChunkedOnnxEncoder::canEncode() const {
+    size_t availableEnd = numDiscardedFeatures_ + inputBuffer_.size();
+
+    if (not expectMoreFeatures_) {
+        return availableEnd > chunkCenterStart_;
     }
 
-    // input and output states
-    stateManager_->extendFeedDict(session_inputs, stateVariables_);
-    stateManager_->extendTargets(output_names, stateVariables_);
+    return availableEnd >= chunkCenterStart_ + chunkSize_ + rightPadding_;
+}
 
-    // Run session
-    std::vector<Value> session_outputs;
-    onnxModel_->session.run(std::move(session_inputs), output_names, session_outputs);
+void ChunkedOnnxEncoder::encode() {
+    size_t availableEnd = numDiscardedFeatures_ + inputBuffer_.size();
 
-    // Put outputs into buffer
-    size_t T_out       = session_outputs.front().dimSize(1);
-    size_t output_size = session_outputs.front().dimSize(2);
+    size_t chunkStart     = chunkCenterStart_ > leftPadding_ ? chunkCenterStart_ - leftPadding_ : 0ul;
+    size_t chunkCenterEnd = std::min(chunkCenterStart_ + chunkSize_, availableEnd);
+    size_t chunkEnd       = std::min(chunkCenterEnd + rightPadding_, availableEnd);
 
-    // Make "global" DataView from output value so that feature slice DataViews can be created from it that ref-count the original value
-    Nn::DataView onnx_output_view(std::move(session_outputs.front()));
+    // If we need to access e.g. feature 17 and so far 10 features have been discarded,
+    // feature 17 will be in inputBuffer_[7]
+    size_t inputStartIndex = chunkStart - numDiscardedFeatures_;
+    size_t nInputs         = chunkEnd - chunkStart;
 
-    size_t outputs_per_input = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (T_in / T_out + (T_in % T_out != 0));
-    size_t input_step        = (inputStepSize_ != 0ul) ? inputStepSize_ : outputs_per_input;
-    size_t start_input       = 0ul;
-    for (size_t t = 0ul; t < T_out; ++t) {
-        size_t end_input = std::min(start_input + outputs_per_input, T_in);
-        outputBuffer_.push_back(Nn::EncodedSpan{{onnx_output_view, output_size, t * output_size}, start_input, end_input});
-        start_input = std::min(start_input + input_step, std::max(T_in, 1ul) - 1ul);
+    auto [outputView, nOutputs, outputSize] = runSession(inputStartIndex, nInputs);
+
+    size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
+    size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
+
+    // Buffer all outputs for which the start input lies inside the interval [chunkCenterStart_, chunkCenterEnd)
+    // The rest corresponds to the padding frames and gets skipped
+    size_t startInput = chunkStart;
+    for (size_t t = 0ul; t < nOutputs; ++t) {
+        size_t endInput = std::min(startInput + inputsPerOutput, availableEnd);
+        if (startInput >= chunkCenterStart_) {
+            outputBuffer_.push_back(
+                    Nn::EncodedSpan{
+                            .encoding    = {outputView, outputSize, t * outputSize},
+                            .input_start = startInput,
+                            .input_end   = endInput});
+        }
+        startInput += inputStep;
+
+        if (startInput >= chunkCenterEnd) {
+            break;
+        }
     }
 
-    // Get new states
-    std::vector<Value> output_states;
-    for (size_t i = 1ul; i < session_outputs.size(); i++) {  // other model outputs
-        output_states.emplace_back(std::move(session_outputs[i]));
-    }
-    stateManager_->updateStates(output_states);
+    // Move to next chunk after encoding
+    chunkCenterStart_ += stepSize_;
+}
+
+void ChunkedOnnxEncoder::postEncodeCleanup() {
+    size_t firstNeededIndex = chunkCenterStart_ > leftPadding_ ? chunkCenterStart_ - leftPadding_ : 0ul;
+    size_t numToDiscard     = std::min(firstNeededIndex - numDiscardedFeatures_, inputBuffer_.size());
+
+    inputBuffer_.erase(inputBuffer_.begin(), inputBuffer_.begin() + numToDiscard);
+    numDiscardedFeatures_ += numToDiscard;
 }
 
 }  // namespace Onnx

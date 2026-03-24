@@ -177,12 +177,7 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::En
           leftPadding_(paramLeftPadding(config)),
           rightPadding_(paramRightPadding(config)),
           chunkCenterStart_(0ul),
-          numDiscardedFeatures_(0ul) {
-    if (not stateVariables_.empty()) {
-        // With overlap, state variable outputs of the previous chunk don't work as inputs for the next chunk
-        error() << "ChunkedOnnxEncoder does not support state variables.";
-    }
-}
+          numDiscardedFeatures_(0ul) {}
 
 void ChunkedOnnxEncoder::reset() {
     Precursor::reset();

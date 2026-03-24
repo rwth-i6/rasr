@@ -236,8 +236,14 @@ void ChunkedOnnxEncoder::encode() {
         }
     }
 
-    // Move to next chunk after encoding
-    chunkCenterStart_ += stepSize_;
+    if (not expectMoreFeatures_ and chunkCenterEnd == availableEnd) {
+        // At segment end, stop once all inputs have been covered by a chunk center
+        chunkCenterStart_ = availableEnd;
+    }
+    else {
+        // Move to next chunk after encoding
+        chunkCenterStart_ += stepSize_;
+    }
 }
 
 void ChunkedOnnxEncoder::postEncodeCleanup() {

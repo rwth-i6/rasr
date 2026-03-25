@@ -36,38 +36,12 @@ public:
 
 typedef Core::Ref<ScoreAccessor> ScoreAccessorRef;
 
-/*
- * Score accessor that wraps a sub-accessor and scales all its scores by a given factor
- */
-class ScaledScoreAccessor : public ScoreAccessor {
-public:
-    ScaledScoreAccessor(ScoreAccessorRef base, Score scale);
-
-    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
-    TimeframeIndex getTime() const override;
-
-private:
-    ScoreAccessorRef base_;
-    Score            scale_;
+inline Score ScoreAccessor::getScore(TransitionType transitionType, LabelIndex labelIndex) const {
+    return 0.0;
 };
 
-/*
- * Score accessor that contains a list of sub-accessors and adds up the scores they return
- */
-class CombinedScoreAccessor : public ScoreAccessor {
-public:
-    CombinedScoreAccessor();
-
-    void addSubAccessor(ScoreAccessorRef subAccessor);
-
-    // Sum of scores from sub-scorers
-    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
-
-    // Max of timeframes from sub-scorers
-    TimeframeIndex getTime() const override;
-
-private:
-    std::vector<ScoreAccessorRef> subAccessors_;
+inline TimeframeIndex ScoreAccessor::getTime() const {
+    return 0;
 };
 
 /*
@@ -98,22 +72,6 @@ public:
 private:
     DataView       dataView_;
     TimeframeIndex time_;
-};
-
-/*
- * Score accessor with fixed score values for each transition type
- */
-class FixedTransitionScoreAccessor : public ScoreAccessor {
-public:
-    FixedTransitionScoreAccessor();
-
-    void setScore(TransitionType transitionType, Score score);
-
-    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
-    TimeframeIndex getTime() const override;
-
-private:
-    std::array<Score, TransitionType::numTypes> transitionScores_;
 };
 
 }  // namespace Nn

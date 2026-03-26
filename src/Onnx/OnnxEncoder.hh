@@ -17,8 +17,8 @@
 #define ONNX_ENCODER_HH
 
 #include <Nn/LabelScorer/Encoder.hh>
-
 #include <Nn/LabelScorer/EncoderFactory.hh>
+
 #include "Model.hh"
 #include "StateManager.hh"
 
@@ -78,12 +78,21 @@ class ChunkedOnnxEncoder : public OnnxEncoder {
 public:
     using Precursor = OnnxEncoder;
 
-    static const Core::ParameterInt paramChunkSize;
-    static const Core::ParameterInt paramStepSize;
-    static const Core::ParameterInt paramLeftPadding;
-    static const Core::ParameterInt paramRightPadding;
+    static const Core::ParameterInt    paramChunkSize;
+    static const Core::ParameterInt    paramStepSize;
+    static const Core::ParameterInt    paramLeftPadding;
+    static const Core::ParameterInt    paramRightPadding;
+    static const Core::ParameterBool   paramZeroPadding;
+    static const Core::Choice          windowTypeChoice;
+    static const Core::ParameterChoice paramWindowType;
+    static const Core::Choice          interpolationModeChoice;
+    static const Core::ParameterChoice paramInterpolationMode;
 
     ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
+
+    // Modify these to optionally add zero-padding at beginning and end
+    void signalNoMoreFeatures() override;
+    void addInput(Nn::DataView const& input) override;
 
     virtual void reset() override;
 
@@ -98,13 +107,51 @@ protected:
     virtual void postEncodeCleanup() override;
 
 private:
-    const size_t chunkSize_;
-    const size_t stepSize_;
-    const size_t leftPadding_;
-    const size_t rightPadding_;
+    enum WindowType {
+        None,
+        Triangular,
+        Hamming,
+    };
 
-    size_t chunkCenterStart_;  // Current absolute chunk start position disregarding how many features have been discarded so far
-    size_t numDiscardedFeatures_;
+    enum InterpolationMode {
+        NoInterpolation,
+        Linear,
+        LinearRenorm,
+        NegLogLinear,
+        NegLogLinearRenorm,
+    };
+
+    struct PendingOutput {
+        size_t                 inputEnd;
+        std::shared_ptr<f32[]> accumulator;  // Used to build up the interpolation result
+        size_t                 accumulatorSize;
+        f64                    totalWeight;  // For potential renormalization
+
+        void finalize(InterpolationMode mode);
+    };
+
+    // Pre-compute window weights for expected chunk output size
+    void initWindow(WindowType windowType);
+
+    // Flush all outputs for which the input start time is before `inputStart` as no outputs from later chunks will add to them
+    void flushPendingOutputsUpTo(size_t inputStart);
+
+    // Add data from outputView to associated pending output or create a new one if none exists
+    void accumulatePendingOutput(Nn::EncodedSpan data, f64 weight);
+
+    size_t            chunkSize_;
+    size_t            stepSize_;
+    size_t            leftPadding_;
+    size_t            rightPadding_;
+    bool              zeroPadding_;
+    bool              leftZeroPaddingAdded_;
+    bool              rightZeroPaddingAdded_;
+    std::vector<f32>  window_;
+    InterpolationMode interpolationMode_;
+
+    size_t                          chunkCenterStart_;  // Current absolute chunk start position disregarding how many features have been discarded so far
+    size_t                          numDiscardedFeatures_;
+    std::map<size_t, PendingOutput> pendingOutputs_;  // Associate outputs with their input start time to interpolate outputs from different chunks. Ordered for flushing
 };
 
 }  // namespace Onnx

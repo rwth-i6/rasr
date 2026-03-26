@@ -71,7 +71,7 @@ void OnnxEncoder::reset() {
     stateManager_->setInitialStates(stateVariables_);
 }
 
-OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, size_t nInputs) {
+OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding, size_t rightZeroPadding) {
     verify(inputStartIndex + nInputs <= inputBuffer_.size());
     verify(nInputs > 0ul);
 
@@ -81,12 +81,14 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     size_t F = inputBuffer_[inputStartIndex].size();
 
     // Create session inputs
-    std::vector<int64_t> featureShape = {1l, static_cast<int64_t>(nInputs), static_cast<int64_t>(F)};
+    std::vector<int64_t> featureShape = {1l, static_cast<int64_t>(leftZeroPadding + nInputs + rightZeroPadding), static_cast<int64_t>(F)};
     Value                value        = Value::createEmpty<f32>(featureShape);
 
-    for (size_t t = 0ul; t < nInputs; ++t) {
-        std::copy(inputBuffer_[inputStartIndex + t].data(), inputBuffer_[inputStartIndex + t].data() + F, value.data<f32>(0, t));
+    std::fill(value.data<f32>(0, 0), value.data<f32>(0, leftZeroPadding), 0.0f);
+    for (size_t t = leftZeroPadding; t < leftZeroPadding + nInputs; ++t) {
+        std::copy(inputBuffer_[inputStartIndex + t - leftZeroPadding].data(), inputBuffer_[inputStartIndex + t - leftZeroPadding].data() + F, value.data<f32>(0, t));
     }
+    std::fill(value.data<f32>(0, leftZeroPadding + nInputs), value.data<f32>(0, leftZeroPadding + nInputs + rightZeroPadding), 0.0f);
     sessionInputs.emplace_back(featuresName_, std::move(value));
 
     if (featuresSizeName_ != "") {
@@ -208,8 +210,6 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::En
           leftPadding_(paramLeftPadding(config)),
           rightPadding_(paramRightPadding(config)),
           zeroPadding_(paramZeroPadding(config)),
-          leftZeroPaddingAdded_(false),
-          rightZeroPaddingAdded_(false),
           interpolationMode_(static_cast<InterpolationMode>(paramInterpolationMode(config))),
           chunkCenterStart_(0ul),
           numDiscardedFeatures_(0ul),
@@ -217,44 +217,14 @@ ChunkedOnnxEncoder::ChunkedOnnxEncoder(Core::Configuration const& config, Nn::En
     if (inputsPerOutput_ > chunkSize_) {
         error("Chunk size must be large enough to produce at least one output");
     }
-    require(inputsPerOutput_ <= chunkSize_);
     initWindow(static_cast<WindowType>(paramWindowType(config)));
 }
 
 void ChunkedOnnxEncoder::reset() {
     Precursor::reset();
-    chunkCenterStart_      = 0ul;
-    numDiscardedFeatures_  = 0ul;
-    leftZeroPaddingAdded_  = false;
-    rightZeroPaddingAdded_ = false;
+    chunkCenterStart_     = 0ul;
+    numDiscardedFeatures_ = 0ul;
     pendingOutputs_.clear();
-}
-
-void ChunkedOnnxEncoder::signalNoMoreFeatures() {
-    Precursor::signalNoMoreFeatures();
-    if (not rightZeroPaddingAdded_) {
-        rightZeroPaddingAdded_ = true;
-        if (inputBuffer_.empty()) {
-            return;
-        }
-        auto inputSize  = inputBuffer_.begin()->size();
-        auto zeroVector = Core::tsRef(new Mm::Feature::Vector(inputSize));
-        for (size_t i = 0ul; i < rightPadding_; ++i) {
-            Precursor::addInput({zeroVector});
-        }
-    }
-}
-
-void ChunkedOnnxEncoder::addInput(Nn::DataView const& input) {
-    if (not leftZeroPaddingAdded_) {
-        leftZeroPaddingAdded_ = true;
-        auto inputSize        = input.size();
-        auto zeroVector       = Core::tsRef(new Mm::Feature::Vector(inputSize));
-        for (size_t i = 0ul; i < leftPadding_; ++i) {
-            Precursor::addInput({zeroVector});
-        }
-    }
-    Precursor::addInput(input);
 }
 
 bool ChunkedOnnxEncoder::canEncode() const {
@@ -270,16 +240,27 @@ bool ChunkedOnnxEncoder::canEncode() const {
 void ChunkedOnnxEncoder::encode() {
     size_t availableEnd = numDiscardedFeatures_ + inputBuffer_.size();
 
+    // Figure out which inputs need to be supplied to the session and which parts belong to the chunk center
+    // If zero-padding is enabled, also count how many zero-features need to be prepended or appended to the session input
     size_t chunkStart     = chunkCenterStart_ > leftPadding_ ? chunkCenterStart_ - leftPadding_ : 0ul;
     size_t chunkCenterEnd = std::min(chunkCenterStart_ + chunkSize_, availableEnd);
     size_t chunkEnd       = std::min(chunkCenterEnd + rightPadding_, availableEnd);
+
+    size_t prependZeroCount = 0ul;
+    if (zeroPadding_ and leftPadding_ > chunkCenterStart_ - chunkStart) {
+        prependZeroCount = leftPadding_ - (chunkCenterStart_ - chunkStart);
+    }
+    size_t appendZeroCount = 0ul;
+    if (zeroPadding_ and rightPadding_ > chunkEnd - chunkCenterEnd) {
+        appendZeroCount = rightPadding_ - (chunkEnd - chunkCenterEnd);
+    }
 
     // If we need to access e.g. feature 17 and so far 10 features have been discarded,
     // feature 17 will be in inputBuffer_[7]
     size_t inputStartIndex = chunkStart - numDiscardedFeatures_;
     size_t nInputs         = chunkEnd - chunkStart;
 
-    auto [outputView, nOutputs, outputSize] = runSession(inputStartIndex, nInputs);
+    auto [outputView, nOutputs, outputSize] = runSession(inputStartIndex, nInputs, prependZeroCount, appendZeroCount);
 
     size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
     size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
@@ -291,11 +272,16 @@ void ChunkedOnnxEncoder::encode() {
     for (size_t t = 0ul; t < nOutputs; ++t) {
         size_t endInput = std::min(startInput + inputsPerOutput, availableEnd);
         if (startInput >= chunkCenterStart_) {
-            accumulatePendingOutput(Nn::EncodedSpan{
-                                            .encoding    = {outputView, outputSize, t * outputSize},
-                                            .input_start = startInput,
-                                            .input_end   = endInput},
-                                    *weightIterator);
+            Nn::EncodedSpan output{
+                    .encoding    = {outputView, outputSize, t * outputSize},
+                    .input_start = startInput,
+                    .input_end   = endInput};
+            if (interpolationMode_ == InterpolationMode::NoInterpolation) {
+                outputBuffer_.push_back(output);
+            }
+            else {
+                accumulatePendingOutput(output, *weightIterator);
+            }
             ++weightIterator;
         }
         startInput += inputStep;
@@ -308,12 +294,13 @@ void ChunkedOnnxEncoder::encode() {
     bool isLastChunk  = not expectMoreFeatures_ and chunkCenterEnd == availableEnd;
     chunkCenterStart_ = isLastChunk ? availableEnd : chunkCenterStart_ + stepSize_;
 
-    if (interpolationMode_ == InterpolationMode::NoInterpolation or isLastChunk) {
-        // Flush everything
-        flushPendingOutputsUpTo(Core::Type<size_t>::max);
-    }
-    else {
-        flushPendingOutputsUpTo(chunkCenterStart_);
+    if (interpolationMode_ != InterpolationMode::NoInterpolation) {
+        if (isLastChunk) {
+            flushPendingOutputsUpTo(Core::Type<size_t>::max);
+        }
+        else {
+            flushPendingOutputsUpTo(chunkCenterStart_);
+        }
     }
 }
 
@@ -326,7 +313,6 @@ void ChunkedOnnxEncoder::postEncodeCleanup() {
 }
 
 void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::InterpolationMode mode) {
-    // Maybe renormalize based on totalWeight
     switch (mode) {
         case InterpolationMode::LinearRenorm:
             std::transform(
@@ -340,7 +326,7 @@ void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::Interpolati
                     accumulator.get(),
                     accumulator.get() + accumulatorSize,
                     accumulator.get(),
-                    [this](f32 value) { return value - totalWeight; });
+                    [this](f32 value) { return value + std::log(totalWeight); });
             break;
         default:
             break;
@@ -348,11 +334,11 @@ void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::Interpolati
 }
 
 void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
-    if (inputStepSize_ == 0) {
-        // We can't calculate the true window size based on the chunk size if the parameter hasn't been set
+    if (inputStepSize_ == 0ul) {
+        // We can't calculate the true window size based on the chunk size if the parameter hasn't been set.
         if (interpolationMode_ == InterpolationMode::NoInterpolation or windowType == WindowType::None) {
             // If the weights don't depend on the window size, we don't care about the true window size and just
-            // resize it with an upper bound
+            // resize it with an upper bound.
             window_.resize(chunkSize_);
         }
         else {
@@ -366,35 +352,45 @@ void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
 
     switch (windowType) {
         case WindowType::None:
-            std::fill(window_.begin(), window_.end(), 1.0);
+            std::fill(window_.begin(), window_.end(), 1.0f);
             break;
-        case WindowType::Triangular:
+        case WindowType::Triangular: {
+            f32 len = window_.size() + 1;
             for (size_t t = 0ul; t < window_.size() / 2; ++t) {
-                window_[t] = static_cast<double>(t + 1) / window_.size();
+                window_[t] = static_cast<f32>(t + 1) / len;
             }
             for (size_t t = window_.size() / 2; t < window_.size(); ++t) {
-                window_[t] = 1.0 - static_cast<double>(t + 1) / window_.size();
+                window_[t] = 1.0 - static_cast<f32>(t + 1) / len;
             }
             break;
-        case WindowType::Hamming:
-            const double alpha = 0.54;
+        }
+        case WindowType::Hamming: {
+            if (window_.size() == 1ul) {
+                window_.front() = 1.0f;
+                break;
+            }
+            f32 const alpha = 0.54;
+            f32 const pi    = std::acos(-1.0);
             for (size_t n = 0ul; n < window_.size(); ++n) {
-                window_[n] = alpha - (1.0 - alpha) * std::cos((2.0 * M_PI * static_cast<double>(n)) / window_.size());
+                window_[n] = alpha - (1.0 - alpha) * std::cos((2.0 * pi * static_cast<f32>(n)) / static_cast<f32>(window_.size() - 1ul));
             }
             break;
+        }
     }
 
     if (interpolationMode_ == InterpolationMode::NegLogLinear or interpolationMode_ == InterpolationMode::NegLogLinearRenorm) {
-        std::transform(window_.begin(), window_.end(), window_.begin(), [](f32 weight) { return -std::log(weight); });
+        std::transform(
+                window_.begin(),
+                window_.end(),
+                window_.begin(),
+                [](f32 value) { return -std::log(value); });
     }
 }
 
 void ChunkedOnnxEncoder::flushPendingOutputsUpTo(size_t inputStart) {
-    for (auto it = pendingOutputs_.begin(); it != pendingOutputs_.end(); ++it) {
-        if (it->first >= inputStart) {
-            break;
-        }
-        auto& pendingOutput = it->second;
+    auto it = pendingOutputs_.begin();
+    while (it != pendingOutputs_.end() and it->first < inputStart) {
+        PendingOutput& pendingOutput = it->second;
         pendingOutput.finalize(interpolationMode_);
 
         outputBuffer_.push_back(
@@ -403,82 +399,55 @@ void ChunkedOnnxEncoder::flushPendingOutputsUpTo(size_t inputStart) {
                         .input_start = it->first,
                         .input_end   = pendingOutput.inputEnd,
                 });
-        pendingOutputs_.erase(it);
+        it = pendingOutputs_.erase(it);
     }
 }
 
-void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f64 weight) {
-    auto                   it = pendingOutputs_.find(data.input_start);
-    std::shared_ptr<f32[]> weightedEncoding(new f32[data.encoding.size()], std::default_delete<f32[]>());
-    switch (interpolationMode_) {
-        case InterpolationMode::Linear:
-        case InterpolationMode::LinearRenorm:
-            std::transform(
-                    data.encoding.data(),
-                    data.encoding.data() + data.encoding.size(),
-                    weightedEncoding.get(),
-                    [weight](f32 encodingValue) {
-                        return weight * encodingValue;
-                    });
-            break;
-        case InterpolationMode::NegLogLinear:
-        case InterpolationMode::NegLogLinearRenorm:
-            std::transform(
-                    data.encoding.data(),
-                    data.encoding.data() + data.encoding.size(),
-                    weightedEncoding.get(),
-                    [weight](f32 encodingValue) {
-                        return weight + encodingValue;
-                    });
-            break;
-        default:
-            std::copy(
-                    data.encoding.data(),
-                    data.encoding.data() + data.encoding.size(),
-                    weightedEncoding.get());
-            break;
-    }
+void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weight) {
+    bool negLogInterpolation = interpolationMode_ == InterpolationMode::NegLogLinear or interpolationMode_ == InterpolationMode::NegLogLinearRenorm;
 
-    if (it == pendingOutputs_.end()) {
-        pendingOutputs_.emplace(
-                data.input_start,
-                PendingOutput{
-                        .inputEnd        = data.input_end,
-                        .accumulator     = weightedEncoding,
-                        .accumulatorSize = data.encoding.size(),
-                        .totalWeight     = weight});
+    // Check if matching output is already pending
+    auto [it, inserted] = pendingOutputs_.emplace(
+            data.input_start,
+            PendingOutput{
+                    .inputEnd        = data.input_end,
+                    .accumulator     = std::shared_ptr<f32[]>(new f32[data.encoding.size()], std::default_delete<f32[]>()),
+                    .accumulatorSize = data.encoding.size(),
+                    .totalWeight     = weight});
+
+    PendingOutput& pendingOutput = it->second;
+    if (inserted) {
+        // No matching output exists, so initialize the accumulator with the weighted encoding
+        pendingOutput.inputEnd = data.input_end;
+        auto weightingFunction = negLogInterpolation
+                                         ? std::function<f32(f32)>([weight](f32 value) { return weight + value; })
+                                         : std::function<f32(f32)>([weight](f32 value) { return weight * value; });
+        std::transform(
+                data.encoding.data(),
+                data.encoding.data() + data.encoding.size(),
+                pendingOutput.accumulator.get(),
+                weightingFunction);
+        pendingOutput.totalWeight = weight;
         return;
     }
 
-    auto& pendingOutput = it->second;
+    // A matching output exists, so we combine it with the weighted encoding
+    auto interpolationFunction = negLogInterpolation
+                                         ? std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return Math::scoreSum(accumValue, encodingValue + weight); })
+                                         : std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return accumValue + encodingValue * weight; });
     require(pendingOutput.accumulatorSize == data.encoding.size());
-    switch (interpolationMode_) {
-        case InterpolationMode::Linear:
-        case InterpolationMode::LinearRenorm:
-            std::transform(
-                    pendingOutput.accumulator.get(),
-                    pendingOutput.accumulator.get() + pendingOutput.accumulatorSize,
-                    weightedEncoding.get(),
-                    pendingOutput.accumulator.get(),
-                    [pendingOutput](f32 currentValue, f32 encodingValue) {
-                        return currentValue + encodingValue;
-                    });
-            pendingOutput.totalWeight += weight;
-            break;
-        case InterpolationMode::NegLogLinear:
-        case InterpolationMode::NegLogLinearRenorm:
-            std::transform(
-                    pendingOutput.accumulator.get(),
-                    pendingOutput.accumulator.get() + pendingOutput.accumulatorSize,
-                    weightedEncoding.get(),
-                    pendingOutput.accumulator.get(),
-                    [pendingOutput](f32 currentValue, f32 encodingValue) {
-                        return Math::scoreSum(currentValue, encodingValue);
-                    });
-            pendingOutput.totalWeight = Math::scoreSum(pendingOutput.totalWeight, weight);
-            break;
-        default:
-            break;
+    std::transform(
+            pendingOutput.accumulator.get(),
+            pendingOutput.accumulator.get() + pendingOutput.accumulatorSize,
+            data.encoding.data(),
+            pendingOutput.accumulator.get(),
+            interpolationFunction);
+
+    if (negLogInterpolation) {
+        pendingOutput.totalWeight = Math::scoreSum(pendingOutput.totalWeight, weight);
+    }
+    else {
+        pendingOutput.totalWeight += weight;
     }
 }
 

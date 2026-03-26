@@ -16,6 +16,8 @@
 #ifndef ONNX_ENCODER_HH
 #define ONNX_ENCODER_HH
 
+#include <map>
+
 #include <Nn/LabelScorer/Encoder.hh>
 #include <Nn/LabelScorer/EncoderFactory.hh>
 
@@ -49,7 +51,8 @@ protected:
     virtual void encode() override;
 
     // Runs onnxModel_ on features from inputBuffer_[inputStartIndex : inputStartIndex + nInputs]
-    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs);
+    // Potentially add zero-padding features to inputs before running session
+    SessionRunResult runSession(size_t inputStartIndex, size_t nInputs, size_t leftZeroPadding = 0ul, size_t rightZeroPadding = 0ul);
 
     const size_t inputsPerOutput_;
     const size_t inputStepSize_;
@@ -90,10 +93,6 @@ public:
 
     ChunkedOnnxEncoder(Core::Configuration const& config, Nn::EncoderModelCache& cachedModel);
 
-    // Modify these to optionally add zero-padding at beginning and end
-    void signalNoMoreFeatures() override;
-    void addInput(Nn::DataView const& input) override;
-
     virtual void reset() override;
 
 protected:
@@ -125,8 +124,9 @@ private:
         size_t                 inputEnd;
         std::shared_ptr<f32[]> accumulator;  // Used to build up the interpolation result
         size_t                 accumulatorSize;
-        f64                    totalWeight;  // For potential renormalization
+        f32                    totalWeight;  // For potential renormalization
 
+        // Optional renormalization based on total weight depending on mode
         void finalize(InterpolationMode mode);
     };
 
@@ -137,15 +137,13 @@ private:
     void flushPendingOutputsUpTo(size_t inputStart);
 
     // Add data from outputView to associated pending output or create a new one if none exists
-    void accumulatePendingOutput(Nn::EncodedSpan data, f64 weight);
+    void accumulatePendingOutput(Nn::EncodedSpan data, f32 weight);
 
     size_t            chunkSize_;
     size_t            stepSize_;
     size_t            leftPadding_;
     size_t            rightPadding_;
     bool              zeroPadding_;
-    bool              leftZeroPaddingAdded_;
-    bool              rightZeroPaddingAdded_;
     std::vector<f32>  window_;
     InterpolationMode interpolationMode_;
 

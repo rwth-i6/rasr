@@ -20,7 +20,6 @@
 #include <cstddef>
 
 #include "LabelScorer.hh"
-#include "ScoreAccessor.hh"
 
 namespace Nn {
 

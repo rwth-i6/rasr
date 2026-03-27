@@ -84,11 +84,15 @@ OnnxEncoder::SessionRunResult OnnxEncoder::runSession(size_t inputStartIndex, si
     std::vector<int64_t> featureShape = {1l, static_cast<int64_t>(leftZeroPadding + nInputs + rightZeroPadding), static_cast<int64_t>(F)};
     Value                value        = Value::createEmpty<f32>(featureShape);
 
-    std::fill(value.data<f32>(0, 0), value.data<f32>(0, leftZeroPadding), 0.0f);
+    if (leftZeroPadding > 0) {
+        std::fill(value.data<f32>(0, 0), value.data<f32>(0, 0) + leftZeroPadding * F, 0.0f);
+    }
     for (size_t t = leftZeroPadding; t < leftZeroPadding + nInputs; ++t) {
         std::copy(inputBuffer_[inputStartIndex + t - leftZeroPadding].data(), inputBuffer_[inputStartIndex + t - leftZeroPadding].data() + F, value.data<f32>(0, t));
     }
-    std::fill(value.data<f32>(0, leftZeroPadding + nInputs), value.data<f32>(0, leftZeroPadding + nInputs + rightZeroPadding), 0.0f);
+    if (rightZeroPadding > 0) {
+        std::fill(value.data<f32>(0, leftZeroPadding + nInputs), value.data<f32>(0, leftZeroPadding + nInputs) + rightZeroPadding * F, 0.0f);
+    }
     sessionInputs.emplace_back(featuresName_, std::move(value));
 
     if (featuresSizeName_ != "") {

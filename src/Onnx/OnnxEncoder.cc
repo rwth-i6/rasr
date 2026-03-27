@@ -195,11 +195,8 @@ const Core::ParameterChoice ChunkedOnnxEncoder::paramWindowType(
 const Core::Choice ChunkedOnnxEncoder::interpolationModeChoice(
         "no-interpolation", InterpolationMode::NoInterpolation,
         "linear", InterpolationMode::Linear,
-        "linear-renorm", InterpolationMode::LinearRenorm,
         "log-linear", InterpolationMode::LogLinear,
-        "log-linear-renorm", InterpolationMode::LogLinearRenorm,
         "neglog-linear", InterpolationMode::NegLogLinear,
-        "neglog-linear-renorm", InterpolationMode::NegLogLinearRenorm,
         Core::Choice::endMark());
 
 const Core::ParameterChoice ChunkedOnnxEncoder::paramInterpolationMode(
@@ -321,15 +318,15 @@ void ChunkedOnnxEncoder::postEncodeCleanup() {
 
 void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::InterpolationMode mode) {
     switch (mode) {
-        case InterpolationMode::LinearRenorm:
+        case InterpolationMode::Linear:
             std::transform(
                     accumulator.get(),
                     accumulator.get() + accumulatorSize,
                     accumulator.get(),
                     [this](f32 value) { return value / totalWeight; });
             break;
-        case InterpolationMode::LogLinearRenorm:
-        case InterpolationMode::NegLogLinearRenorm:
+        case InterpolationMode::LogLinear:
+        case InterpolationMode::NegLogLinear:
             std::transform(
                     accumulator.get(),
                     accumulator.get() + accumulatorSize,
@@ -388,7 +385,6 @@ void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
 
     switch (interpolationMode_) {
         case InterpolationMode::LogLinear:
-        case InterpolationMode::LogLinearRenorm:
             std::transform(
                     window_.begin(),
                     window_.end(),
@@ -396,7 +392,6 @@ void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
                     [](f32 value) { return std::log(value); });
             break;
         case InterpolationMode::NegLogLinear:
-        case InterpolationMode::NegLogLinearRenorm:
             std::transform(
                     window_.begin(),
                     window_.end(),
@@ -443,13 +438,10 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
         std::function<f32(f32)> weightingFunction;
         switch (interpolationMode_) {
             case InterpolationMode::Linear:
-            case InterpolationMode::LinearRenorm:
                 weightingFunction = std::function<f32(f32)>([weight](f32 value) { return weight * value; });
                 break;
             case InterpolationMode::LogLinear:
-            case InterpolationMode::LogLinearRenorm:
             case InterpolationMode::NegLogLinear:
-            case InterpolationMode::NegLogLinearRenorm:
                 weightingFunction = std::function<f32(f32)>([weight](f32 value) { return weight + value; });
                 break;
             default:
@@ -469,17 +461,14 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
     std::function<f32(f32, f32)> interpolationFunction;
     switch (interpolationMode_) {
         case InterpolationMode::Linear:
-        case InterpolationMode::LinearRenorm:
             interpolationFunction = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return accumValue + encodingValue * weight; });
             pendingOutput.totalWeight += weight;
             break;
         case InterpolationMode::LogLinear:
-        case InterpolationMode::LogLinearRenorm:
             interpolationFunction     = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return -Math::scoreSum(-accumValue, -(encodingValue + weight)); });
             pendingOutput.totalWeight = -Math::scoreSum(-pendingOutput.totalWeight, -weight);
             break;
         case InterpolationMode::NegLogLinear:
-        case InterpolationMode::NegLogLinearRenorm:
             interpolationFunction     = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return Math::scoreSum(accumValue, encodingValue + weight); });
             pendingOutput.totalWeight = Math::scoreSum(pendingOutput.totalWeight, weight);
             break;

@@ -115,11 +115,8 @@ private:
     enum InterpolationMode {
         NoInterpolation,
         Linear,
-        LinearRenorm,
         LogLinear,
-        LogLinearRenorm,
         NegLogLinear,
-        NegLogLinearRenorm,
     };
 
     struct PendingOutput {

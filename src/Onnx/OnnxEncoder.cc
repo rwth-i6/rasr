@@ -489,6 +489,7 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
     }
 
     require(pendingOutput.accumulatorSize == data.encoding.size());
+    pendingOutput.inputEnd = std::max(pendingOutput.inputEnd, data.input_end);
     std::transform(
             pendingOutput.accumulator.get(),
             pendingOutput.accumulator.get() + pendingOutput.accumulatorSize,

@@ -116,6 +116,8 @@ private:
         NoInterpolation,
         Linear,
         LinearRenorm,
+        LogLinear,
+        LogLinearRenorm,
         NegLogLinear,
         NegLogLinearRenorm,
     };

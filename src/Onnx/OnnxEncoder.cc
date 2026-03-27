@@ -192,6 +192,8 @@ const Core::Choice ChunkedOnnxEncoder::interpolationModeChoice(
         "no-interpolation", InterpolationMode::NoInterpolation,
         "linear", InterpolationMode::Linear,
         "linear-renorm", InterpolationMode::LinearRenorm,
+        "log-linear", InterpolationMode::LogLinear,
+        "log-linear-renorm", InterpolationMode::LogLinearRenorm,
         "neglog-linear", InterpolationMode::NegLogLinear,
         "neglog-linear-renorm", InterpolationMode::NegLogLinearRenorm,
         Core::Choice::endMark());
@@ -321,12 +323,19 @@ void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::Interpolati
                     accumulator.get(),
                     [this](f32 value) { return value / totalWeight; });
             break;
+        case InterpolationMode::LogLinearRenorm:
+            std::transform(
+                    accumulator.get(),
+                    accumulator.get() + accumulatorSize,
+                    accumulator.get(),
+                    [this](f32 value) { return value - totalWeight; });
+            break;
         case InterpolationMode::NegLogLinearRenorm:
             std::transform(
                     accumulator.get(),
                     accumulator.get() + accumulatorSize,
                     accumulator.get(),
-                    [this](f32 value) { return value + std::log(totalWeight); });
+                    [this](f32 value) { return value + totalWeight; });
             break;
         default:
             break;
@@ -378,12 +387,25 @@ void ChunkedOnnxEncoder::initWindow(WindowType windowType) {
         }
     }
 
-    if (interpolationMode_ == InterpolationMode::NegLogLinear or interpolationMode_ == InterpolationMode::NegLogLinearRenorm) {
-        std::transform(
-                window_.begin(),
-                window_.end(),
-                window_.begin(),
-                [](f32 value) { return -std::log(value); });
+    switch (interpolationMode_) {
+        case InterpolationMode::LogLinear:
+        case InterpolationMode::LogLinearRenorm:
+            std::transform(
+                    window_.begin(),
+                    window_.end(),
+                    window_.begin(),
+                    [](f32 value) { return std::log(value); });
+            break;
+        case InterpolationMode::NegLogLinear:
+        case InterpolationMode::NegLogLinearRenorm:
+            std::transform(
+                    window_.begin(),
+                    window_.end(),
+                    window_.begin(),
+                    [](f32 value) { return -std::log(value); });
+            break;
+        default:
+            break;
     }
 }
 
@@ -404,7 +426,7 @@ void ChunkedOnnxEncoder::flushPendingOutputsUpTo(size_t inputStart) {
 }
 
 void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weight) {
-    bool negLogInterpolation = interpolationMode_ == InterpolationMode::NegLogLinear or interpolationMode_ == InterpolationMode::NegLogLinearRenorm;
+    verify(interpolationMode_ != InterpolationMode::NoInterpolation);
 
     // Check if matching output is already pending
     auto [it, inserted] = pendingOutputs_.emplace(
@@ -419,9 +441,22 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
     if (inserted) {
         // No matching output exists, so initialize the accumulator with the weighted encoding
         pendingOutput.inputEnd = data.input_end;
-        auto weightingFunction = negLogInterpolation
-                                         ? std::function<f32(f32)>([weight](f32 value) { return weight + value; })
-                                         : std::function<f32(f32)>([weight](f32 value) { return weight * value; });
+        std::function<f32(f32)> weightingFunction;
+        switch (interpolationMode_) {
+            case InterpolationMode::Linear:
+            case InterpolationMode::LinearRenorm:
+                weightingFunction = std::function<f32(f32)>([weight](f32 value) { return weight * value; });
+                break;
+            case InterpolationMode::LogLinear:
+            case InterpolationMode::LogLinearRenorm:
+            case InterpolationMode::NegLogLinear:
+            case InterpolationMode::NegLogLinearRenorm:
+                weightingFunction = std::function<f32(f32)>([weight](f32 value) { return weight + value; });
+                break;
+            default:
+                error("Encountered unexpected interpolation mode");
+                break;
+        }
         std::transform(
                 data.encoding.data(),
                 data.encoding.data() + data.encoding.size(),
@@ -432,9 +467,28 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
     }
 
     // A matching output exists, so we combine it with the weighted encoding
-    auto interpolationFunction = negLogInterpolation
-                                         ? std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return Math::scoreSum(accumValue, encodingValue + weight); })
-                                         : std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return accumValue + encodingValue * weight; });
+    std::function<f32(f32, f32)> interpolationFunction;
+    switch (interpolationMode_) {
+        case InterpolationMode::Linear:
+        case InterpolationMode::LinearRenorm:
+            interpolationFunction = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return accumValue + encodingValue * weight; });
+            pendingOutput.totalWeight += weight;
+            break;
+        case InterpolationMode::LogLinear:
+        case InterpolationMode::LogLinearRenorm:
+            interpolationFunction     = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return -Math::scoreSum(-accumValue, -(encodingValue + weight)); });
+            pendingOutput.totalWeight = -Math::scoreSum(-pendingOutput.totalWeight, -weight);
+            break;
+        case InterpolationMode::NegLogLinear:
+        case InterpolationMode::NegLogLinearRenorm:
+            interpolationFunction     = std::function<f32(f32, f32)>([weight](f32 accumValue, f32 encodingValue) { return Math::scoreSum(accumValue, encodingValue + weight); });
+            pendingOutput.totalWeight = Math::scoreSum(pendingOutput.totalWeight, weight);
+            break;
+        default:
+            error("Encountered unexpected interpolation mode");
+            break;
+    }
+
     require(pendingOutput.accumulatorSize == data.encoding.size());
     std::transform(
             pendingOutput.accumulator.get(),
@@ -442,13 +496,6 @@ void ChunkedOnnxEncoder::accumulatePendingOutput(Nn::EncodedSpan data, f32 weigh
             data.encoding.data(),
             pendingOutput.accumulator.get(),
             interpolationFunction);
-
-    if (negLogInterpolation) {
-        pendingOutput.totalWeight = Math::scoreSum(pendingOutput.totalWeight, weight);
-    }
-    else {
-        pendingOutput.totalWeight += weight;
-    }
 }
 
 }  // namespace Onnx

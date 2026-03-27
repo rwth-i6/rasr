@@ -268,8 +268,9 @@ void ChunkedOnnxEncoder::encode() {
 
     auto [outputView, nOutputs, outputSize] = runSession(inputStartIndex, nInputs, prependZeroCount, appendZeroCount);
 
-    size_t inputsPerOutput = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (nInputs / nOutputs + (nInputs % nOutputs != 0ul));
-    size_t inputStep       = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
+    size_t totalSessionInputs = prependZeroCount + nInputs + appendZeroCount;
+    size_t inputsPerOutput    = (inputsPerOutput_ != 0ul) ? inputsPerOutput_ : (totalSessionInputs / nOutputs + (totalSessionInputs % nOutputs != 0ul));
+    size_t inputStep          = (inputStepSize_ != 0ul) ? inputStepSize_ : inputsPerOutput;
 
     // Buffer all outputs for which the start input lies inside the interval [chunkCenterStart_, chunkCenterEnd)
     // The rest corresponds to the padding frames and gets skipped.

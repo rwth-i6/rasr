@@ -329,18 +329,12 @@ void ChunkedOnnxEncoder::PendingOutput::finalize(ChunkedOnnxEncoder::Interpolati
                     [this](f32 value) { return value / totalWeight; });
             break;
         case InterpolationMode::LogLinearRenorm:
-            std::transform(
-                    accumulator.get(),
-                    accumulator.get() + accumulatorSize,
-                    accumulator.get(),
-                    [this](f32 value) { return value - totalWeight; });
-            break;
         case InterpolationMode::NegLogLinearRenorm:
             std::transform(
                     accumulator.get(),
                     accumulator.get() + accumulatorSize,
                     accumulator.get(),
-                    [this](f32 value) { return value + totalWeight; });
+                    [this](f32 value) { return value - totalWeight; });
             break;
         default:
             break;

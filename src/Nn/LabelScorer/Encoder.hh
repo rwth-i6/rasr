@@ -49,7 +49,7 @@ public:
     virtual void reset();
 
     // Signal that no more features are expected for the current segment.
-    virtual void signalNoMoreFeatures();
+    void signalNoMoreFeatures();
 
     // Add a single input feature
     virtual void addInput(DataView const& input);

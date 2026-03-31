@@ -773,6 +773,8 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
         auto&       ext     = extensions_[extensionIdx];
         auto const& baseHyp = beam_[ext.baseHypIndex];
         // The scoring context is not updated as no further scoring is done afterwards
+        // Make sentence-end length 0 as it should not consume a timestep
+        ext.timeframe -= 1;
         tempHypotheses_.push_back({baseHyp, ext, baseHyp.scoringContexts});
     }
 

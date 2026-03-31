@@ -1002,8 +1002,10 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
 
         tempHypotheses_.clear();
         for (size_t extensionIdx = 0ul; extensionIdx < wordEndExtensions_.size(); ++extensionIdx) {
-            auto&       ext     = wordEndExtensions_[extensionIdx];
-            auto const& baseHyp = newBeam_[ext.baseHypIndex];
+            auto& ext     = wordEndExtensions_[extensionIdx];
+            auto& baseHyp = newBeam_[ext.baseHypIndex];
+            // Make sentence-end length 0 as it should not consume a timestep
+            baseHyp.timeframe -= 1;
             tempHypotheses_.push_back({baseHyp, ext, baseHyp.lmHistory});
         }
     }

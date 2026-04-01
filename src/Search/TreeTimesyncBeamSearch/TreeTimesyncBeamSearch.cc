@@ -976,7 +976,6 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
                 }
                 auto& ext = withinWordExtensions_[extensionIdx];
                 ext.score += (*scoreAccessors[extensionIdx])->getScore(ext.transitionType, sentenceEndLabelIndex_);
-                ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
             }
         }
 

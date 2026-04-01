@@ -764,7 +764,6 @@ void LexiconfreeTimesyncBeamSearch::finalizeHypotheses() {
             auto& ext   = extensions_[extensionIdx];
             auto  score = (*scoreAccessors[extensionIdx])->getScore(ext.transitionType, ext.nextToken);
             ext.score += score;
-            ext.timeframe = std::max(ext.timeframe, (*scoreAccessors[extensionIdx])->getTime());
         }
     }
 

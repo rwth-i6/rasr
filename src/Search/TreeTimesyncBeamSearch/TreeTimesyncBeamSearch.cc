@@ -599,12 +599,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
             }
 
-            wordEndExtensions_.push_back({.pron         = lemmaPron,
-                                          .rootState    = exit.transitState,
-                                          .score        = hyp.score + lmScore + penalty,
-                                          .transitionType = wordEndtransitionType,
-                                          .baseHypIndex = hypIndex,
-                                          });
+            wordEndExtensions_.push_back({
+                    .pron           = lemmaPron,
+                    .rootState      = exit.transitState,
+                    .score          = hyp.score + lmScore + penalty,
+                    .transitionType = wordEndtransitionType,
+                    .baseHypIndex   = hypIndex,
+            });
         }
     }
 
@@ -998,12 +999,13 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             // Add the LM's sentence-end score
             // The LM history is not updated as this is the last LM scoring step
             Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-            wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
-                                          .rootState    = hyp.currentState,
-                                          .score        = hyp.score + sentenceEndScore,
-                                          .transitionType = Nn::TransitionType::SENTENCE_END,
-                                          .baseHypIndex = hypIndex,
-                                          });
+            wordEndExtensions_.push_back({
+                    .pron           = sentenceEndLemma_->pronunciations().first,
+                    .rootState      = hyp.currentState,
+                    .score          = hyp.score + sentenceEndScore,
+                    .transitionType = Nn::TransitionType::SENTENCE_END,
+                    .baseHypIndex   = hypIndex,
+            });
         }
 
         tempHypotheses_.clear();

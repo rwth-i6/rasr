@@ -72,7 +72,7 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
     auto totalAmScore = score - totalLmScore;
 
     // Only increment timeframe when not SENTENCE_END
-    timeframe = Nn::TransitionType::SENTENCE_END ? base.timeframe : base.timeframe + 1;
+    timeframe = extension.transitionType == Nn::TransitionType::SENTENCE_END ? base.timeframe : base.timeframe + 1;
 
     // Create a successor trace item from base
     trace = Core::ref(new LatticeTrace(
@@ -602,7 +602,9 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             wordEndExtensions_.push_back({.pron         = lemmaPron,
                                           .rootState    = exit.transitState,
                                           .score        = hyp.score + lmScore + penalty,
-                                          .baseHypIndex = hypIndex});
+                                          .transitionType = wordEndtransitionType,
+                                          .baseHypIndex = hypIndex,
+                                          });
         }
     }
 
@@ -999,7 +1001,9 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
                                           .rootState    = hyp.currentState,
                                           .score        = hyp.score + sentenceEndScore,
-                                          .baseHypIndex = hypIndex});
+                                          .transitionType = Nn::TransitionType::SENTENCE_END,
+                                          .baseHypIndex = hypIndex,
+                                          });
         }
 
         tempHypotheses_.clear();

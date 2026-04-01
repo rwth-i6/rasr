@@ -96,6 +96,7 @@ protected:
         Bliss::LemmaPronunciation const* pron;          // Proposed lemma pronunciation
         StateId                          rootState;     // Proposed root-state to transition to
         Score                            score;         // Would-be total score of the full hypothesis after LM score contribution
+        Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
         size_t                           baseHypIndex;  // Index of base hypothesis in beam
 
         bool operator<(WordEndExtensionCandidate const& other) {

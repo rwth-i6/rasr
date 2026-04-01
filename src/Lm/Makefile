@@ -31,6 +31,8 @@ LIBSPRINTLM_O	= \
 
 #MODF AbstractStateManager.hh
 #MODF DummyCompressedVectorFactory.hh
+#MODF LstmStateManager.hh
+#MODF TransformerStateManager.hh
 
 ifdef MODULE_LM_ARPA
 LIBSPRINTLM_O += $(OBJDIR)/ArpaLm.o
@@ -51,8 +53,8 @@ LIBSPRINTLM_O += $(OBJDIR)/TFNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFPassthroughSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFQuantizedBlasNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
-LIBSPRINTLM_O += $(OBJDIR)/TFTransformerStateManager.o
 #MODF TFSoftmaxAdapter.hh
+#MODF TFTransformerStateManager.hh
 
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
@@ -65,6 +67,7 @@ LIBSPRINTLM_O += $(OBJDIR)/OnnxNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxRecurrentLanguageModel.o
 #MODF OnnxStateVariable.hh
 #MODF OnnxSoftmaxAdapter.hh
+#MODF OnnxTransformerSateManager.hh
 endif
 
 CHECK_O		= $(OBJDIR)/check.o			\

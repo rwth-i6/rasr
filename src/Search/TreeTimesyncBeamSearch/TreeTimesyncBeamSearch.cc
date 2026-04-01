@@ -66,17 +66,19 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(base.currentToken),
           currentState(extension.rootState),
           lmHistory(newLmHistory),
-          timeframe(base.timeframe),
           score(extension.score) {
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
 
+    // Only increment timeframe when not SENTENCE_END
+    timeframe = extension.transitionType == Nn::TransitionType::SENTENCE_END ? base.timeframe : base.timeframe + 1;
+
     // Create a successor trace item from base
     trace = Core::ref(new LatticeTrace(
             base.trace,
             extension.pron,
-            timeframe + 1,
+            timeframe,
             {totalAmScore, totalLmScore},
             {}));
 }
@@ -599,10 +601,13 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                 penalty += (*scoreAccessor)->getScore(wordEndtransitionType);
             }
 
-            wordEndExtensions_.push_back({.pron         = lemmaPron,
-                                          .rootState    = exit.transitState,
-                                          .score        = hyp.score + lmScore + penalty,
-                                          .baseHypIndex = hypIndex});
+            wordEndExtensions_.push_back({
+                    .pron           = lemmaPron,
+                    .rootState      = exit.transitState,
+                    .score          = hyp.score + lmScore + penalty,
+                    .transitionType = wordEndtransitionType,
+                    .baseHypIndex   = hypIndex,
+            });
         }
     }
 
@@ -1017,10 +1022,13 @@ void TreeTimesyncBeamSearch::finalizeHypotheses() {
             // Add the LM's sentence-end score
             // The LM history is not updated as this is the last LM scoring step
             Lm::Score sentenceEndScore = languageModel_->sentenceEndScore(hyp.lmHistory);
-            wordEndExtensions_.push_back({.pron         = sentenceEndLemma_->pronunciations().first,
-                                          .rootState    = hyp.currentState,
-                                          .score        = hyp.score + sentenceEndScore,
-                                          .baseHypIndex = hypIndex});
+            wordEndExtensions_.push_back({
+                    .pron           = sentenceEndLemma_->pronunciations().first,
+                    .rootState      = hyp.currentState,
+                    .score          = hyp.score + sentenceEndScore,
+                    .transitionType = Nn::TransitionType::SENTENCE_END,
+                    .baseHypIndex   = hypIndex,
+            });
         }
 
         tempHypotheses_.clear();

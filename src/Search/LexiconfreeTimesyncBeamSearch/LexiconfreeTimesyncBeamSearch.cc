@@ -60,10 +60,13 @@ LexiconfreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
             predecessor = base.trace;
             break;
     }
-    trace = Core::ref(new LatticeTrace(
+
+    // Only increment timeframe when not SENTENCE_END
+    auto timeframe = extension.transitionType == Nn::TransitionType::SENTENCE_END ? extension.timeframe : extension.timeframe + 1;
+    trace          = Core::ref(new LatticeTrace(
             predecessor,
             extension.pron,
-            extension.timeframe + 1,
+            timeframe,
             {score, 0},
             {}));
 }

@@ -67,7 +67,7 @@ LIBSPRINTLM_O += $(OBJDIR)/OnnxNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxRecurrentLanguageModel.o
 #MODF OnnxStateVariable.hh
 #MODF OnnxSoftmaxAdapter.hh
-#MODF OnnxTransformerSateManager.hh
+#MODF OnnxTransformerStateManager.hh
 endif
 
 CHECK_O		= $(OBJDIR)/check.o			\

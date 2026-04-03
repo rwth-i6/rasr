@@ -66,19 +66,20 @@ TreeTimesyncBeamSearch::LabelHypothesis::LabelHypothesis(
           currentToken(base.currentToken),
           currentState(extension.rootState),
           lmHistory(newLmHistory),
+          timeframe(base.timeframe),
           score(extension.score) {
     auto newLmScore   = score - base.score;
     auto totalLmScore = base.trace->score.lm + newLmScore;
     auto totalAmScore = score - totalLmScore;
 
     // Only increment timeframe when not SENTENCE_END
-    timeframe = extension.transitionType == Nn::TransitionType::SENTENCE_END ? base.timeframe : base.timeframe + 1;
+    auto trace_timeframe = extension.transitionType == Nn::TransitionType::SENTENCE_END ? base.timeframe : base.timeframe + 1;
 
     // Create a successor trace item from base
     trace = Core::ref(new LatticeTrace(
             base.trace,
             extension.pron,
-            timeframe,
+            trace_timeframe,
             {totalAmScore, totalLmScore},
             {}));
 }

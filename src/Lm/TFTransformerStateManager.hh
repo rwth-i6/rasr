@@ -102,7 +102,7 @@ const Core::ParameterString TFTransformerStateManagerWithCommonPrefix<T>::paramC
 
 template<typename T>
 const Core::ParameterBool TFTransformerStateManagerWithCommonPrefix<T>::paramCachePrefix("cache-prefix",
-                                                                                         "wether to reuse the prefix if it's the same",
+                                                                                         "whether to reuse the prefix if it's the same",
                                                                                          false);
 
 template<typename T>

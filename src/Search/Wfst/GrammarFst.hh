@@ -71,14 +71,16 @@ protected:
  */
 class AbstractGrammarFst {
 public:
-    enum GrammarType { TypeAny,
-                       TypeVector,
-                       TypeConst,
-                       TypeCompact,
-                       TypeCombine,
-                       TypeCompose,
-                       TypeDynamic,
-                       TypeFailArc };
+    enum GrammarType {
+        TypeAny,
+        TypeVector,
+        TypeConst,
+        TypeCompact,
+        TypeCombine,
+        TypeCompose,
+        TypeDynamic,
+        TypeFailArc
+    };
 
     AbstractGrammarFst() {}
     virtual ~AbstractGrammarFst() {}
@@ -167,13 +169,17 @@ typedef GrammarFstTpl<FstLib::StdConstFst,
 class CombinedGrammarFst : public AbstractGrammarFst, public Core::Component {
 public:
     CombinedGrammarFst(const Core::Configuration& c)
-            : Core::Component(c), fst_(0), rootFst_(0) {}
+            : Core::Component(c),
+              fst_(0),
+              rootFst_(0) {}
     virtual ~CombinedGrammarFst();
+
     bool                  load(const std::string& root);
     void                  relabel(const GrammarRelabelerBase& relabeler);
     const FstLib::StdFst* getFst() const;
     void                  reset();
-    GrammarType           type() const {
+
+    GrammarType type() const {
         return TypeCombine;
     }
 
@@ -200,7 +206,13 @@ class ComposedGrammarFst : public AbstractGrammarFst, public Core::Component {
 
 public:
     ComposedGrammarFst(const Core::Configuration& c)
-            : Core::Component(c), cfst_(0), pfst_(0), rfst_(0), table_(0), rootFst_(0), addOnFst_(0) {}
+            : Core::Component(c),
+              cfst_(0),
+              pfst_(0),
+              rfst_(0),
+              table_(0),
+              rootFst_(0),
+              addOnFst_(0) {}
     virtual ~ComposedGrammarFst();
     bool                  load(const std::string& root);
     void                  relabel(const GrammarRelabelerBase& relabeler);
@@ -227,7 +239,8 @@ protected:
 class DynamicGrammarFst : public AbstractGrammarFst, public Core::Component {
 public:
     DynamicGrammarFst(const Core::Configuration& c)
-            : Core::Component(c), fst_(0) {}
+            : Core::Component(c),
+              fst_(0) {}
     virtual ~DynamicGrammarFst();
     void setLexicon(Bliss::LexiconRef lexicon) {
         lexicon_ = lexicon;

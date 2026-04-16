@@ -19,6 +19,7 @@
 
 #include <Core/Component.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/ThreadSafeReference.hh>
 #include <Mm/Types.hh>
 #include <Search/Histogram.hh>
 #include <Search/LatticeAdaptor.hh>
@@ -79,29 +80,36 @@ private:
     mutable Core::XmlChannel statisticsChannel_;
 
 private:
-    mutable Core::Ref<Trace> sentenceEnd_;
+    mutable Core::TsRef<Trace> sentenceEnd_;
 
-    Core::Ref<Trace> lastPartialTrace_;
+    Core::TsRef<Trace> lastPartialTrace_;
 
-    Core::Ref<Trace> sentenceEnd() const;
+    Core::TsRef<Trace> sentenceEnd() const;
 
-    void mergeEpsilonTraces(Core::Ref<Trace> trace) const;
+    void mergeEpsilonTraces(Core::TsRef<Trace> trace) const;
 
     bool shouldComputeWordEnds();
 
-    Core::Ref<Trace> getCorrectedCommonPrefix();
+    Core::TsRef<Trace> getCommonPrefix() const;
+    Core::TsRef<Trace> getCorrectedCommonPrefix() const;
 
-    Core::Ref<const LatticeAdaptor> buildLatticeForTrace(Core::Ref<Trace> trace) const;
+    Core::Ref<const LatticeAdaptor> buildLatticeForTrace(Core::TsRef<Trace> trace) const;
 
-    void traceback(Core::Ref<Trace>, Traceback& result, Core::Ref<Trace> boundary = Core::Ref<Trace>()) const;
+    void traceback(Core::TsRef<Trace>, Traceback& result, Core::TsRef<Trace> boundary = Core::TsRef<Trace>()) const;
+
+    void clearSearchSpace(bool rebuild = false, bool buildBatches = true);
+
+    void startSearchSpace();
 
 public:
     AdvancedTreeSearchManager(const Core::Configuration&);
     virtual ~AdvancedTreeSearchManager();
     AdvancedTreeSearchManager(const AdvancedTreeSearchManager& rhs);
+    virtual void reconfigure(const Core::Configuration& config);
 
     virtual void                            setAllowHmmSkips(bool allow);
     virtual bool                            setModelCombination(const Speech::ModelCombination& modelCombination);
+    virtual bool                            setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel>);
     virtual void                            setGrammar(Fsa::ConstAutomatonRef);
     virtual void                            restart();
     virtual void                            setSegment(Bliss::SpeechSegment const* segment);
@@ -109,6 +117,7 @@ public:
     virtual void                            getPartialSentence(Traceback& result);
     virtual void                            getCurrentBestSentencePartial(Traceback& result) const;
     virtual void                            getCurrentBestSentence(Traceback& result) const;
+    virtual void                            getCurrentBestTrace(Traceback& result) const;  // jiang
     virtual Core::Ref<const LatticeAdaptor> getCurrentWordLattice() const;
     virtual Core::Ref<const LatticeAdaptor> getPartialWordLattice();
     virtual void                            resetStatistics();

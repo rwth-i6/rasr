@@ -36,7 +36,7 @@ class MinimumBayesRiskSearchNode : public LatticeSetProcessor {
     typedef LatticeSetProcessor Precursor;
 
     /** Registered actions to perform for minimum Bayes risk. */
-    typedef enum SearchMethod {
+    enum SearchMethod {
         searchDryRun,
         searchMap,
         searchNBestListNaive,

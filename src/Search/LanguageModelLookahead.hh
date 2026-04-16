@@ -171,7 +171,7 @@ public:
                            Search::HMMStateNetwork const&                        tree,
                            Search::StateId                                       rootNode,
                            std::vector<Search::PersistentStateTree::Exit> const& exits,
-                           Core::Ref<const Am::AcousticModel>);
+                           Core::Ref<const Am::AcousticModel>, bool sparse = false);
 
     ~LanguageModelLookahead();
 

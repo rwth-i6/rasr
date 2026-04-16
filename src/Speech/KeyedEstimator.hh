@@ -41,9 +41,11 @@ public:
             Core::StringHash,
             Core::StringEquality>>
             AccumulatorCache;
-    enum Operation { estimate,
-                     calculate,
-                     combines };
+    enum Operation {
+        estimate,
+        calculate,
+        combines
+    };
 
 public:
     static const Core::ParameterFloat  paramCombinationWeight;

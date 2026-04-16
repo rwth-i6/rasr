@@ -21,7 +21,8 @@ namespace Flf {
 Lattice::nLattices = 0;
 
 Lattice::Lattice()
-        : Precursor(), boundaries_(InvalidBoundaries) {
+        : Precursor(),
+          boundaries_(InvalidBoundaries) {
     ++nLattices;
 }
 
@@ -30,7 +31,8 @@ Lattice::~Lattice() {
 }
 #else
 Lattice::Lattice()
-        : Precursor(), boundaries_(InvalidBoundaries) {}
+        : Precursor(),
+          boundaries_(InvalidBoundaries) {}
 
 Lattice::~Lattice() {}
 #endif

@@ -242,7 +242,8 @@ protected:
 
 public:
     EvaluatorNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), evaluator_(0) {
+            : Precursor(name, config),
+              evaluator_(0) {
         validReference_ = false;
     }
     virtual ~EvaluatorNode() {

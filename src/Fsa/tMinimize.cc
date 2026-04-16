@@ -42,7 +42,8 @@ protected:
             : Precursor(f) {
     }
     StateMappedAutomaton(_ConstAutomatonRef f, const Fsa::StateMap& map)
-            : Precursor(f), map_(map) {
+            : Precursor(f),
+              map_(map) {
     }
 
 public:
@@ -91,7 +92,8 @@ private:
         Fsa::StateId id_;
         ClassId      class_;
         ClassEntry(Fsa::StateId id, ClassId c)
-                : id_(id), class_(c) {
+                : id_(id),
+                  class_(c) {
         }
         bool operator<(const ClassEntry& e) const {
             return class_ < e.class_;
@@ -111,7 +113,11 @@ private:
         HashTargetMappedAndLabels(_ConstAutomatonRef              f,
                                   const ClassMap&                 classMap,
                                   const StatePotentials<_Weight>& statePotentials)
-                : transducer_(f->type() == Fsa::TypeTransducer), fsa_(f), classMap_(classMap), semiring_(f->semiring()), statePotentials_(statePotentials) {}
+                : transducer_(f->type() == Fsa::TypeTransducer),
+                  fsa_(f),
+                  classMap_(classMap),
+                  semiring_(f->semiring()),
+                  statePotentials_(statePotentials) {}
         size_t operator()(Fsa::StateId s) const {
             const _ConstStateRef sp  = fsa_->getState(s);
             size_t               key = 100003 * semiring_->hash(statePotentials_[s]) + sp->nArcs();
@@ -136,7 +142,10 @@ private:
         EqualTargetMappedAndLabels(_ConstAutomatonRef              f,
                                    const ClassMap&                 classMap,
                                    const StatePotentials<_Weight>& statePotentials)
-                : fsa_(f), classMap_(classMap), semiring_(f->semiring()), statePotentials_(statePotentials) {
+                : fsa_(f),
+                  classMap_(classMap),
+                  semiring_(f->semiring()),
+                  statePotentials_(statePotentials) {
         }
         bool operator()(Fsa::StateId as, Fsa::StateId bs) const {
             if (semiring_->compare(statePotentials_[as],

@@ -8,14 +8,14 @@
 #include <Math/Module.hh>
 #include <Mm/Module.hh>
 #include <Modules.hh>
-#include <Signal/Module.hh>
-#include <Speech/Module.hh>
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
 #ifdef MODULE_ONNX
 #include <Onnx/Module.hh>
 #endif
+#include <Signal/Module.hh>
+#include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif

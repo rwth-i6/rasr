@@ -19,12 +19,9 @@
 #include <Core/ReferenceCounting.hh>
 #include <Mm/Types.hh>
 #include <Onnx/Value.hh>
-#include <Speech/Types.hh>
+#include "Types.hh"
 
 namespace Nn {
-
-typedef Mm::EmissionIndex   LabelIndex;
-static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 
 /*
  * Empty scoring context base class
@@ -32,11 +29,11 @@ static constexpr LabelIndex invalidLabelIndex = Core::Type<LabelIndex>::max;
 struct ScoringContext : public Core::ReferenceCounted {
     virtual ~ScoringContext() = default;
 
-    virtual bool   isEqual(Core::Ref<const ScoringContext> const& other) const;
+    virtual bool   isEqual(Core::Ref<ScoringContext const> const& other) const;
     virtual size_t hash() const;
 };
 
-typedef Core::Ref<const ScoringContext> ScoringContextRef;
+typedef Core::Ref<ScoringContext const> ScoringContextRef;
 
 struct ScoringContextHash {
     size_t operator()(ScoringContextRef const& scoringContext) const {
@@ -66,7 +63,7 @@ struct CombineScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const CombineScoringContext> CombineScoringContextRef;
+typedef Core::Ref<CombineScoringContext const> CombineScoringContextRef;
 
 /*
  * Scoring context that only describes the current decoding step
@@ -84,7 +81,7 @@ struct StepScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const StepScoringContext> StepScoringContextRef;
+typedef Core::Ref<StepScoringContext const> StepScoringContextRef;
 
 /*
  * Scoring context that describes a sequence of previously observed labels as well as the current decoding step
@@ -104,7 +101,7 @@ struct SeqStepScoringContext : public ScoringContext {
     size_t hash() const;
 };
 
-typedef Core::Ref<const SeqStepScoringContext> SeqStepScoringContextRef;
+typedef Core::Ref<SeqStepScoringContext const> SeqStepScoringContextRef;
 
 /*
  * Hidden state represented by a dictionary of named ONNX values
@@ -124,7 +121,7 @@ struct OnnxHiddenState : public Core::ReferenceCounted {
     }
 };
 
-typedef Core::Ref<const OnnxHiddenState> OnnxHiddenStateRef;
+typedef Core::Ref<OnnxHiddenState const> OnnxHiddenStateRef;
 
 /*
  * Scoring context consisting of a hidden state.
@@ -139,14 +136,14 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
     OnnxHiddenStateScoringContext()
             : labelSeq(), hiddenState(), requiresFinalize(false) {}
 
-    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state)
-            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(false) {}
+    OnnxHiddenStateScoringContext(std::vector<LabelIndex> const& labelSeq, OnnxHiddenStateRef state, bool requiresFinalize)
+            : labelSeq(labelSeq), hiddenState(state), requiresFinalize(requiresFinalize) {}
 
     bool   isEqual(ScoringContextRef const& other) const;
     size_t hash() const;
 };
 
-typedef Core::Ref<const OnnxHiddenStateScoringContext> OnnxHiddenStateScoringContextRef;
+typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
 /*
  * Scoring context consisting of a hidden state and a step.

@@ -293,7 +293,8 @@ ParameterFloat PeakDetectionNode::paramWidthHeightFactor("width-height-factor",
 ParameterBool PeakDetectionNode::paramMountainWidth("use-mountain-width", "peak/mountain (includes close peaks) width for width confidence", true);
 
 PeakDetectionNode::PeakDetectionNode(const Configuration& c)
-        : Core::Component(c), Node(c) {
+        : Core::Component(c),
+          Node(c) {
     setContinuousMinPosition(paramMinPosition(c));
     setContinuousMaxPosition(paramMaxPosition(c));
     setContinuousMaxWidth(paramMaxWidth(c));

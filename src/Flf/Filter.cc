@@ -30,7 +30,8 @@ private:
 
 public:
     ArcFilterLattice(ConstLatticeRef l, const ArcFilter& filter)
-            : Precursor(l), filter_(filter) {}
+            : Precursor(l),
+              filter_(filter) {}
     virtual ~ArcFilterLattice() {}
 
     virtual ConstStateRef getState(Fsa::StateId sid) const {
@@ -56,7 +57,8 @@ struct InputFilter {
     Fsa::ConstAlphabetRef alphabet;
     Fsa::LabelId          input;
     InputFilter(Fsa::ConstAlphabetRef alphabet, Fsa::LabelId input)
-            : alphabet(alphabet), input(input) {}
+            : alphabet(alphabet),
+              input(input) {}
     bool operator()(const Arc& a) const {
         return a.input() == input;
     }
@@ -82,7 +84,8 @@ struct OutputFilter {
     Fsa::ConstAlphabetRef alphabet;
     Fsa::LabelId          output;
     OutputFilter(Fsa::ConstAlphabetRef alphabet, Fsa::LabelId output)
-            : alphabet(alphabet), output(output) {}
+            : alphabet(alphabet),
+              output(output) {}
     bool operator()(const Arc& a) const {
         return a.output() == output;
     }

@@ -13,8 +13,12 @@
  *  limitations under the License.
  */
 #include "Init.hh"
-#include <Core/Debug.hh>
+
 #include <cstdlib>
+#include <signal.h>
+
+#include <Core/Debug.hh>
+
 #include "Numpy.hh"
 #include "Utilities.hh"
 
@@ -85,12 +89,23 @@ void Initializer::init() {
     else
         Core::printWarning("Python::Initializer: no Application instance found, cannot load parameters");
 
+    // Pythons signal module will overwrite signal handlers that are set to SIG_DFL (default).
+    // The signal module is imported when we init numpy, but to be on the safe side we already save
+    // signal handlers here.
+    std::vector<struct sigaction> handlers(_NSIG);
+    for (int i = 0; i < _NSIG; i++) {
+        sigaction(i, nullptr, &handlers[i]);
+    }
+
     // Init CPython if not yet initialized. Safe to be called multiple times.
     Py_InitializeEx(0 /* don't install signal handlers */);
 
+#if PY_VERSION_HEX < 0x03090000
     // Start the CPython interpreter's thread-awareness, if not yet done.
     // Safe to be called multiple times.
+    // This function was deprecated in python 3.9
     PyEval_InitThreads();
+#endif
 
     // Note that we expect that we have the CPython GIL acquired
     // at this moment. If we initialized CPython above, this is the case.
@@ -102,13 +117,20 @@ void Initializer::init() {
 
     // See comment in AtExitUninitHandler().
     std::atexit(AtExitUninitHandler);
-    if (Core::Application::us())
+    if (Core::Application::us()) {
         Core::Application::us()->atexit(AtExitUninitHandler);
+    }
 
-    // Acquire the GIL to do some further initing.
-    ScopedGIL gil;
+    {
+        // Acquire the GIL to do some further initing.
+        ScopedGIL gil;
+        initNumpy();
+    }
 
-    initNumpy();
+    // restore handlers
+    for (int i = 0; i < _NSIG; i++) {
+        sigaction(i, &handlers[i], nullptr);
+    }
 }
 
 void Initializer::uninit() {

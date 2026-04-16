@@ -112,7 +112,10 @@ public:
     typedef std::vector<Hypo> HypoVector;
 
     WordPronunciationState(const Bliss::LemmaPronunciation* const lemma, const Am::AcousticModel* const acousticModel, Score unigramScore)
-            : pron_(new LinearSearch::Pronunciation(lemma, acousticModel)), position_(0), unigramScore_(unigramScore), irregularChain_(false) {
+            : pron_(new LinearSearch::Pronunciation(lemma, acousticModel)),
+              position_(0),
+              unigramScore_(unigramScore),
+              irregularChain_(false) {
         hyp_.resize(pron_->nMixtures() + 1);
         HypoVector::iterator it = hyp_.begin();
         it->mixture             = 0;
@@ -186,7 +189,10 @@ private:
 };
 
 LinearSearch::LinearSearch(const Core::Configuration& conf)
-        : Core::Component(conf), SearchAlgorithm(conf), singleWordRecognition_(paramSingleWordRecognition_(conf)), time_(0) {
+        : Core::Component(conf),
+          SearchAlgorithm(conf),
+          singleWordRecognition_(paramSingleWordRecognition_(conf)),
+          time_(0) {
     log("using linear search");
     if (singleWordRecognition_)
         log("using new single-word-recognition");
@@ -461,6 +467,10 @@ void LinearSearch::getCurrentBestSentence(Traceback& result) const {
     std::reverse(result.begin(), result.end());
 }
 
+void LinearSearch::getCurrentBestTrace(Traceback& result) const {  // jiang
+    defect();
+}
+
 void LinearSearch::getPartialSentence(Traceback& result) {
     getCurrentBestSentence(result);
     restart();
@@ -475,7 +485,11 @@ void LinearSearch::resetStatistics() {}
 void LinearSearch::logStatistics() const {}
 
 LinearSearch::Book::Book()
-        : score(Core::Type<Score>::max), lmScore(0), hadRegularWord(false), bkp(0), time(0) {
+        : score(Core::Type<Score>::max),
+          lmScore(0),
+          hadRegularWord(false),
+          bkp(0),
+          time(0) {
 }
 
 LinearSearch::Book::~Book() {

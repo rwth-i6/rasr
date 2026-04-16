@@ -15,6 +15,7 @@
 #include "NetworkParser.hh"
 #include <Core/CacheManager.hh>
 #include <Core/Directory.hh>
+#include <Core/IoUtilities.hh>
 #include <Modules.hh>
 #include <cstdlib>
 #include "Filter.hh"
@@ -275,14 +276,11 @@ bool NodeBuilder::findNetworkFile(const std::string& pathname, std::string& foun
     std::vector<std::string> paths;
     paths.push_back(currentDirectory_);
     paths.push_back(paramNetworkFilePath(config));
-    char* ret;
 
     for (std::vector<std::string>::const_iterator p = paths.begin(); p != paths.end(); ++p) {
         std::string result = Core::joinPaths(*p, pathnameWithExtension);
         if (Core::isRegularFile(result)) {
-            char realname[PATH_MAX + 1];
-            ret           = realpath(result.c_str(), realname);  // absolute path
-            foundPathname = std::string(realname);
+            foundPathname = Core::realPath(result);
             return true;
         }
     }

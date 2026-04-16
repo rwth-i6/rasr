@@ -418,9 +418,11 @@ private:
     ItemList items_;
 
     bool hasUniqueHead_;
-    mutable enum { dirty,
-                   sorted,
-                   hashValid } consolidation_;
+    mutable enum {
+        dirty,
+        sorted,
+        hashValid
+    } consolidation_;
 
 private:
     void sort() {
@@ -429,10 +431,12 @@ private:
     }
 
     mutable u32 hash_;
-    void        updateHash(const PronunciationSuffix& s) const {
+
+    void updateHash(const PronunciationSuffix& s) const {
         hash_ = (hash_ << 5) | (hash_ >> 27);
         hash_ ^= PronunciationSuffix::Hash(model_)(s);
     }
+
     void updateHash() const {
         verify(consolidation_ >= sorted);
         hash_ = 0;
@@ -636,7 +640,7 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> StateTree::describeRootState(S
         else {
             std::string text = Core::form("Unknown transit index %d. Context is set to non-coarticulated. ", s);
             text += "It is likely that it occurs in combination with \"No active word end hypothesis at sentence end.\"";
-            warning(text.c_str());
+            warning("%s", text.c_str());
             final = initial = Bliss::Phoneme::term;
         }
     }
@@ -653,9 +657,11 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> StateTree::describeRootState(S
  */
 struct StateTree::BuildRequest {
     Depth depth;
-    enum RequestType { unknown,
-                       batchRequest,
-                       leapRequest };
+    enum RequestType {
+        unknown,
+        batchRequest,
+        leapRequest
+    };
     RequestType type;
     BuildRequest(RequestType t)
             : type(t) {}
@@ -789,10 +795,13 @@ private:
 public:
     StraightRequestQueue(StateTree*);
     virtual ~StraightRequestQueue() {}
+
     virtual void submit(BatchRequest*);
-    virtual u32  size() const {
+
+    virtual u32 size() const {
         return queue_.size();
     }
+
     virtual BuildRequest* pop();
 };
 
@@ -833,10 +842,13 @@ private:
 public:
     RecombiningRequestQueue(StateTree*);
     virtual ~RecombiningRequestQueue() {}
+
     virtual void submit(BatchRequest*);
-    virtual u32  size() const {
+
+    virtual u32 size() const {
         return size_;
     }
+
     virtual BuildRequest* pop();
 };
 
@@ -1323,7 +1335,9 @@ void StateTree::createSecondOrderBatches() {
 struct StateTree::LevelStatistics {
     u32 nStates, nChildren, nExits;
     LevelStatistics()
-            : nStates(0), nChildren(0), nExits(0) {}
+            : nStates(0),
+              nChildren(0),
+              nExits(0) {}
 };
 
 void StateTree::logStatistics() const {

@@ -22,9 +22,10 @@ namespace Nn {
  * === LabelScorer =============
  * =============================
  */
-
-LabelScorer::LabelScorer(const Core::Configuration& config)
-        : Core::Component(config) {}
+LabelScorer::LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset)
+        : Core::Component(config),
+          enabledTransitions_(config, defaultPreset) {
+}
 
 void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     auto featureSize = input.size() / nTimesteps;
@@ -33,22 +34,17 @@ void LabelScorer::addInputs(DataView const& input, size_t nTimesteps) {
     }
 }
 
-std::optional<LabelScorer::ScoresWithTimes> LabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    // By default, just loop over the non-batched `computeScoreWithTime` and collect the results
-    ScoresWithTimes result;
-
-    result.scores.reserve(requests.size());
-    result.timeframes.reserve(requests.size());
-    for (auto& request : requests) {
-        auto singleResult = computeScoreWithTime(request);
-        if (not singleResult.has_value()) {
-            return {};
-        }
-        result.scores.push_back(singleResult->score);
-        result.timeframes.push_back(singleResult->timeframe);
+std::vector<std::optional<ScoreAccessorRef>> LabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    std::vector<std::optional<ScoreAccessorRef>> result;
+    result.reserve(scoringContexts.size());
+    for (auto const& scoringContext : scoringContexts) {
+        result.push_back(getScoreAccessor(scoringContext));
     }
-
     return result;
+}
+
+TransitionSet LabelScorer::enabledTransitions() const {
+    return enabledTransitions_;
 }
 
 }  // namespace Nn

@@ -91,7 +91,8 @@ public:
         SemiContext history, future;
         Context() {}
         Context(const SemiContext& h, const SemiContext& f)
-                : history(h), future(f) {}
+                : history(h),
+                  future(f) {}
         bool operator==(const Context& rhs) const {
             return history == rhs.history && future == rhs.future;
         }
@@ -164,7 +165,8 @@ public:
     PhonemeInContext()
             : phoneme_(Phoneme::term){};
     PhonemeInContext(Phoneme::Id phoneme, const SemiContext& history = SemiContext(), const SemiContext& future = SemiContext())
-            : phoneme_(phoneme), context_(history, future) {}
+            : phoneme_(phoneme),
+              context_(history, future) {}
 
     bool operator==(const PhonemeInContext& rhs) const {
         return phoneme_ == rhs.phoneme_ && context_ == rhs.context_;

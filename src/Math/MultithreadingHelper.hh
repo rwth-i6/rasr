@@ -15,6 +15,8 @@
 #ifndef MULTITHREADINGHELPER_HH_
 #define MULTITHREADINGHELPER_HH_
 
+#include <algorithm>
+
 namespace Math {
 
 /**

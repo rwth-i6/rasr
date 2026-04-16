@@ -23,7 +23,6 @@
 #include <Flow/Module.hh>
 
 #include "LabelScorer/EncoderFactory.hh"
-#include "LabelScorer/LabelScorer.hh"
 #include "LabelScorer/LabelScorerFactory.hh"
 
 namespace Core {
@@ -36,7 +35,9 @@ class Module_ {
 public:
     Module_();
     ~Module_();
-    enum { FeatureScorerTypeOffset = 0x300 };
+    enum {
+        FeatureScorerTypeOffset = 0x300
+    };
     enum FeatureScorerType {
         nnOnDemanHybrid        = FeatureScorerTypeOffset,
         nnFullHybrid           = FeatureScorerTypeOffset + 1,
@@ -60,8 +61,6 @@ public:
      * Access instance of LabelScorerFactory for registering and creating LabelScorers.
      */
     LabelScorerFactory& labelScorerFactory();
-
-    Core::Ref<LabelScorer> createLabelScorer(const Core::Configuration& config) const;
 
 private:
     Core::FormatSet*   formats_;

@@ -51,6 +51,7 @@ public:
         M_.clear();
         M_.push_back(0);
     }
+
     void feed(f64 xx) {
         M_.push_back(M_.back() + xx);
         if (f_ > 0) {
@@ -62,8 +63,10 @@ public:
         if (Q_.back() > Core::Type<f64>::max)
             error("delimit overflow => segment to long?");
     }
+
     virtual Delimitation getDelimitation() const;
-    const u32            nFeatures() const {
+
+    const u32 nFeatures() const {
         verify(Q_.size() == M_.size());
         return Q_.size() - 1;
     }

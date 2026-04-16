@@ -40,7 +40,9 @@ private:
 
 public:
     UnionBoundaries(const ConstLatticeRefList& lats)
-            : Boundaries(), nLats_(lats.size()), boundaries_(lats.size()) {
+            : Boundaries(),
+              nLats_(lats.size()),
+              boundaries_(lats.size()) {
         boundaries_[0]   = lats[0]->getBoundaries();
         initialBoundary_ = boundaries_[0]->get(lats[0]->initialStateId());
         for (u32 i = 1; i < nLats_; ++i) {
@@ -93,7 +95,10 @@ private:
 
 public:
     UnionLattice(const ConstLatticeRefList& lats, ConstSemiringRef semiring)
-            : SlaveLattice(lats[0]), nLats_(lats.size()), lats_(lats), semiring_(semiring) {
+            : SlaveLattice(lats[0]),
+              nLats_(lats.size()),
+              lats_(lats),
+              semiring_(semiring) {
         verify(semiring);
         bool hasBoundaries = false;
         for (u32 i = 0; i < nLats_; ++i) {
@@ -240,7 +245,8 @@ NodeRef createUnionNode(const std::string& name, const Core::Configuration& conf
 namespace {
 struct MeshedFullBoundaryBuilder {
     typedef Fsa::Hash<Boundary, Boundary::Hash, Boundary::Equal> HashList;
-    Boundary                                                     operator()(const Boundary& b) const {
+
+    Boundary operator()(const Boundary& b) const {
         return b;
     }
 };
@@ -251,13 +257,16 @@ struct MeshedTimeBoundaryBuilder {
             return size_t(b.time());
         }
     };
+
     struct BoundaryTimeEqual {
         bool operator()(const Boundary& b1, const Boundary& b2) const {
             return b1.time() == b2.time();
         }
     };
+
     typedef Fsa::Hash<Boundary, Boundary::Hash, Boundary::Equal> HashList;
-    Boundary                                                     operator()(const Boundary& b) const {
+
+    Boundary operator()(const Boundary& b) const {
         return Boundary(b.time());
     }
 };
@@ -294,8 +303,6 @@ ConstLatticeRef expandTransits(ConstLatticeRef lat, Bliss::Phoneme::Id leftConte
         std::multimap<int, u32>           initialPhoneArcs;
         std::set<int>                     finalPhones, initialPhones;
 
-        bool hasRealInArcs = false;
-
         for (Hypotheses::const_iterator inHypIt = inArcs.begin();
              inHypIt != inHypEnd; ++inHypIt) {
             Bliss::Phoneme::Id final = Bliss::Phoneme::term;
@@ -305,8 +312,7 @@ ConstLatticeRef expandTransits(ConstLatticeRef lat, Bliss::Phoneme::Id leftConte
             else {
                 const Bliss::LemmaPronunciation* pron = lpAlphabet->lemmaPronunciation(inHypIt->second.second.input());
                 if (pron && pron->pronunciation()->length()) {
-                    hasRealInArcs = true;
-                    final         = pron->pronunciation()->phonemes()[pron->pronunciation()->length() - 1];
+                    final = pron->pronunciation()->phonemes()[pron->pronunciation()->length() - 1];
                 }
             }
             if (final != Bliss::Phoneme::term && lexicon->phonemeInventory()->phoneme(final)->isContextDependent()) {

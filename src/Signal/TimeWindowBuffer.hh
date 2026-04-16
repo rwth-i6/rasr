@@ -34,9 +34,11 @@ template<typename T>
 class TimeWindowBuffer {
 public:
     typedef Flow::Time Time;
-    enum FlushPolicy { SendRest,
-                       PadRest,
-                       DiscardRest };
+    enum FlushPolicy {
+        SendRest,
+        PadRest,
+        DiscardRest
+    };
     typedef Flow::Vector<T> InputData;
     typedef Flow::Vector<T> OutputData;
 

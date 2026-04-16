@@ -80,7 +80,7 @@ protected:
 
 protected:
     template<class T>
-    struct power : public std::unary_function<T, T> {
+    struct power {
     private:
         T n_;
 

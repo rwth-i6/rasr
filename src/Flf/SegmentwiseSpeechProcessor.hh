@@ -52,7 +52,8 @@ private:
 
 public:
     SegmentwiseModelAdaptor(ModelCombinationRef modelCombination)
-            : modelCombination_(modelCombination), acousticModel_(modelCombination->acousticModel()) {}
+            : modelCombination_(modelCombination),
+              acousticModel_(modelCombination->acousticModel()) {}
 
     ModelCombinationRef modelCombination() {
         return modelCombination_;

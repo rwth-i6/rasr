@@ -168,7 +168,7 @@ void stackTrace(std::ostream& os, int cutoff) {
     os << std::endl
        << "Analyzing stack trace with command " << addr2lineCmd << std::endl;
     os << "Please be patient (approx. 30 s)..." << std::endl;
-    system(addr2lineCmd.c_str());
+    int unused = system(addr2lineCmd.c_str());
 
     // Evaluate addr2line output
     os << "Stack trace (innermost first):" << std::endl;
@@ -192,7 +192,7 @@ void stackTrace(std::ostream& os, int cutoff) {
 
 #else
     os << "Creating stack trace (innermost first):" << std::endl;
-    static const size_t maxTraces = 100;
+    static const size_t maxTraces = 256;
     void*               array[maxTraces];
     size_t              nTraces = backtrace(array, maxTraces);
     char**              strings = backtrace_symbols(array, nTraces);

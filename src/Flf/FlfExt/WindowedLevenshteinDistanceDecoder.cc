@@ -16,7 +16,9 @@ namespace Flf {
 
 // -------------------------------------------------------------------------
 ConditionalPosterior::Value::Value(Fsa::LabelId label, Score condPosteriorScore, Score tuplePosteriorScore)
-        : label(label), condPosteriorScore(condPosteriorScore), tuplePosteriorScore(tuplePosteriorScore) {}
+        : label(label),
+          condPosteriorScore(condPosteriorScore),
+          tuplePosteriorScore(tuplePosteriorScore) {}
 
 class ConditionalPosterior::Internal {
     friend class ConditionalPosteriorBuilder;
@@ -30,7 +32,9 @@ public:
             Fsa::LabelId label;
             u32          begin, end;
             Node(Fsa::LabelId label, u32 begin, u32 end)
-                    : label(label), begin(begin), end(end) {}
+                    : label(label),
+                      begin(begin),
+                      end(end) {}
         };
         typedef std::vector<Node> NodeList;
 
@@ -85,7 +89,8 @@ private:
 
 private:
     Internal(ConstLatticeRef l, u32 windowSize)
-            : l_(l), windowSize_(windowSize) {}
+            : l_(l),
+              windowSize_(windowSize) {}
 
 public:
     inline u32 windowSize() const {
@@ -234,7 +239,9 @@ private:
         u32             arcPtrIdx;
         ConstArcPtrList arcPtrs;
         Hypothesis(Node* node, Score score, u32 nReserve)
-                : node(node), score(score), arcPtrIdx(0) {
+                : node(node),
+                  score(score),
+                  arcPtrIdx(0) {
             arcPtrs.reserve(nReserve);
         }
     };
@@ -275,7 +282,9 @@ private:
 
 public:
     ConditionalPosteriorBuilder(u32 windowSize, bool compact)
-            : windowSize_(windowSize), compact_(compact), prune_(false) {}
+            : windowSize_(windowSize),
+              compact_(compact),
+              prune_(false) {}
 
     /*
      * Pruning requires a compact CN (necessary due to practical/technical issues; see below)
@@ -338,7 +347,8 @@ public:
     ConstConfusionNetworkRef cn;
     const Fsa::LabelId       invalidLabel;
     PruningFilter(ConstConfusionNetworkRef cn, Fsa::LabelId invalidLabel)
-            : cn(cn), invalidLabel(invalidLabel) {}
+            : cn(cn),
+              invalidLabel(invalidLabel) {}
     virtual bool keep(const Fsa::LabelId label) const {
         return (label == Fsa::Epsilon) ? false : true;
     }
@@ -983,7 +993,8 @@ private:
 
 public:
     ConditionalPosteriorsNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), dumpChannel_(config, "dump") {}
+            : FilterNode(name, config),
+              dumpChannel_(config, "dump") {}
     virtual ~ConditionalPosteriorsNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {
@@ -1107,9 +1118,12 @@ protected:
             BackpointerRef backptr;
             BackpointerRef sideptr;
             Backpointer()
-                    : hypLabel(Fsa::InvalidLabelId), refLabel(Fsa::InvalidLabelId) {}
+                    : hypLabel(Fsa::InvalidLabelId),
+                      refLabel(Fsa::InvalidLabelId) {}
             Backpointer(BackpointerRef backptr, Fsa::LabelId hypLabel, Fsa::LabelId refLabel)
-                    : hypLabel(hypLabel), refLabel(refLabel), backptr(backptr) {}
+                    : hypLabel(hypLabel),
+                      refLabel(refLabel),
+                      backptr(backptr) {}
 
             static BackpointerRef create();
             static BackpointerRef extend(BackpointerRef backptr, Fsa::LabelId hypLabel, Fsa::LabelId refLabel);
@@ -2087,7 +2101,9 @@ struct WindowedLevenshteinDistanceDecoder::AlignmentHelper {
         Fsa::StateId   fromSid, toSid;
         BackpointerRef bptr;
         Arc(Fsa::StateId fromSid, Fsa::StateId toSid, BackpointerRef bptr)
-                : fromSid(fromSid), toSid(toSid), bptr(bptr) {}
+                : fromSid(fromSid),
+                  toSid(toSid),
+                  bptr(bptr) {}
     };
     typedef std::vector<Arc> ArcList;
 

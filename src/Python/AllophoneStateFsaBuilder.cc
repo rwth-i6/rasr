@@ -17,7 +17,8 @@ namespace py = pybind11;
 
 struct BuildSegmentToOrthMapVisitor : public Bliss::CorpusVisitor {
     BuildSegmentToOrthMapVisitor()
-            : Bliss::CorpusVisitor(), map_(new Core::StringHashMap<std::string>()) {}
+            : Bliss::CorpusVisitor(),
+              map_(new Core::StringHashMap<std::string>()) {}
 
     virtual void visitSpeechSegment(Bliss::SpeechSegment* s) {
         (*map_)[s->fullName()] = s->orth();

@@ -47,7 +47,7 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Get extended context from decoder component
-    ScoringContextRef extendedScoringContext(Request const& request) override;
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
     // Cleanup decoder component. Encoder is "self-cleaning" already in that it only stores outputs until they are
     // retrieved.
@@ -60,11 +60,11 @@ public:
     // Same as `addInput` but adds features for multiple timesteps at once
     void addInputs(DataView const& input, size_t nTimesteps) override;
 
-    // Run request through decoder component
-    std::optional<LabelScorer::ScoreWithTime> computeScoreWithTime(LabelScorer::Request const& request) override;
+    // Return accessor from decoder component
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
-    // Run requests through decoder component
-    std::optional<LabelScorer::ScoresWithTimes> computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) override;
+    // Return accessors from decoder component
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
 private:
     Core::Ref<Encoder>     encoder_;

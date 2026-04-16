@@ -127,6 +127,71 @@ struct SearchSpace::PerInstanceAcousticPruning {
     InstanceKey  prevInstance_;
 };
 
+struct SearchSpace::ActiveInstanceLimitPruning {
+    struct InstanceStats {
+        InstanceKey key;
+        Score       score;
+        bool        prune;
+    };
+
+    ActiveInstanceLimitPruning(unsigned numInstances)
+            : numInstances_(numInstances),
+              instanceStats_(),
+              instanceMap_(),
+              curInstance_(0ul) {
+    }
+
+    ~ActiveInstanceLimitPruning() = default;
+
+    void startInstance(InstanceKey const& key) {
+        curInstance_ = instanceStats_.size();
+        auto iter    = instanceMap_.find(key);
+        if (iter != instanceMap_.end()) {
+            curInstance_ = iter->second;
+        }
+        else {
+            instanceMap_[key] = instanceStats_.size();
+            curInstance_      = instanceStats_.size();
+            instanceStats_.emplace_back(InstanceStats{key, Core::Type<Score>::max, false});
+        }
+    }
+
+    void prepare(const StateHypothesis& hyp) {
+        if (hyp.prospect < instanceStats_[curInstance_].score) {
+            instanceStats_[curInstance_].score = hyp.prospect;
+        }
+    }
+
+    void calculatePruning() {
+        std::sort(instanceStats_.begin(), instanceStats_.end(), [](InstanceStats const& a, InstanceStats const& b) { return a.score < b.score; });
+
+        for (size_t i = numInstances_; i < instanceStats_.size(); i++) {
+            instanceStats_[i].prune = true;
+        }
+
+        for (size_t i = 0ul; i < instanceStats_.size(); i++) {
+            instanceMap_[instanceStats_[i].key] = i;
+        }
+    }
+
+    bool prune(const StateHypothesis& hyp) const {
+        return instanceStats_[curInstance_].prune;
+    }
+
+    bool prune(const TraceManager&, const StateHypothesis& hyp) const {
+        return prune(hyp);
+    }
+
+    enum {
+        CanPrune = 1
+    };
+
+    unsigned                                                   numInstances_;
+    std::vector<InstanceStats>                                 instanceStats_;
+    std::unordered_map<InstanceKey, size_t, InstanceKey::Hash> instanceMap_;
+    size_t                                                     curInstance_;
+};
+
 struct SearchSpace::RecordMinimum {
     RecordMinimum(SearchSpace& ss)
             : ss_(ss),
@@ -227,9 +292,9 @@ struct SearchSpace::BestTracePruning {
     std::unordered_set<TraceId> live_traces;
     std::unordered_set<TraceId> dead_traces;
 
-    BestTracePruning(Core::Ref<Trace> root)
+    BestTracePruning(Core::TsRef<Trace> root)
             : root_ptr(reinterpret_cast<uintptr_t>(root.get())) {
-        root_ptr = root->pruningMark;
+        root->pruningMark = root_ptr;
     }
 
     inline void startInstance(InstanceKey const& key) {}

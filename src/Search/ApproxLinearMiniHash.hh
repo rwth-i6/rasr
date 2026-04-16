@@ -57,7 +57,8 @@ class ApproxLinearMiniHash {
 
 public:
     ApproxLinearMiniHash()
-            : size_(0), mask_(0) {
+            : size_(0),
+              mask_(0) {
         verify(sizeof(float) == sizeof(u32));  // Expected in all of the code
     }
 

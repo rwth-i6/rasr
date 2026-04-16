@@ -49,7 +49,9 @@ public:
         return std::string("signal-vector-") + Core::Type<T>::name + "-resize";
     }
     VectorResizeNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), newSize_(0) {
+            : Core::Component(c),
+              Precursor(c),
+              newSize_(0) {
         continuousNewSize_ = paramVectorResizeNewSize(c);
         discreteNewSize_   = paramVectorResizeNewDiscreteSize(c);
         initialValue_      = paramVectorResizeInitialValue(c);

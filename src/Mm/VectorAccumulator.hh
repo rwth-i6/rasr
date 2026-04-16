@@ -41,7 +41,8 @@ public:
         resize(size);
     }
     VectorAccumulator(const std::vector<SumType>& sum, Weight weight)
-            : sum_(sum), weight_(weight) {}
+            : sum_(sum),
+              weight_(weight) {}
 
     void resize(ComponentIndex size) {
         sum_.resize(size);

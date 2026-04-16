@@ -113,7 +113,8 @@ public:
         return std::string("generic-vector-") + Core::Type<T>::name + "-" + Policy::name() + "-malformed";
     }
     VectorMalformedNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c) {}
+            : Core::Component(c),
+              SleeveNode(c) {}
     virtual ~VectorMalformedNode() {}
 
     virtual bool configure() {

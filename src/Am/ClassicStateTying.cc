@@ -246,9 +246,9 @@ NoStateTyingDense::NoStateTyingDense(const Core::Configuration& config, ClassicS
           numPhoneClasses_(stateModel->getPhonemeInventory()->nPhonemes() + 1),                                                     // +1 for additional 0 phone == no-context
           numStates_(stateModel->getHmmTopologySet()->getDefault().nPhoneStates()),                                                 // usually 3
           contextLength_(std::max(stateModel->phonology().maximumHistoryLength(), stateModel->phonology().maximumFutureLength())),  // usually 1
+          nClasses_(0),
           useBoundaryClasses_(paramUseBoundaryClasses(config)),
-          useWordEndClasses_(paramUseWordEndClasses(config)),
-          nClasses_(0) {
+          useWordEndClasses_(paramUseWordEndClasses(config)) {
     require(!(useBoundaryClasses_ && useWordEndClasses_));
     nClasses_ = numStates_;
     if (useBoundaryClasses_) {

@@ -168,6 +168,8 @@ protected:
     bool     refreshMean_;
     bool     refreshVariance_;
 
+    Core::XmlChannel dataChannel_;
+
 public:
     NeuralNetworkLayer(const Core::Configuration& config);
     virtual ~NeuralNetworkLayer() {}
@@ -294,7 +296,8 @@ public:
     }
     virtual NnVector& getActivationMean();
     virtual NnVector& getActivationVariance();
-    virtual bool      hasActivationStatistics() const {
+
+    virtual bool hasActivationStatistics() const {
         return statisticsSmoothing_ != noStatistics;
     }
 
@@ -307,7 +310,8 @@ public:
 
     virtual void initComputation(bool sync = true) const {}
     virtual void finishComputation(bool sync = true) const {}
-    bool         isComputing() const {
+
+    bool isComputing() const {
         return isComputing_;
     }
 

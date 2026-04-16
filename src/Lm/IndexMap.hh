@@ -42,7 +42,8 @@ protected:
     void               initializeMapping(InternalClassIndex nInternalClasses);
     InternalClassIndex newClass();
     void               mapToken(Token, InternalClassIndex idx);
-    bool               isTokenMapped(Token t) const {
+
+    bool isTokenMapped(Token t) const {
         return tokenMap_[t] != invalidClass;
     }
     void finalizeMapping();

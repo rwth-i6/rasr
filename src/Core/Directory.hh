@@ -156,7 +156,8 @@ public:
 
     public:
         FileNameFilter(const std::string& name, bool exactMatch = false)
-                : name_(name), exactMatch_(exactMatch) {}
+                : name_(name),
+                  exactMatch_(exactMatch) {}
 
         virtual bool operator()(const std::string& path, const struct stat64& state, uid_t uid, gid_t gid) const;
     };

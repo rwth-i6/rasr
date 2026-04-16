@@ -16,11 +16,24 @@ namespace Onnx {
 Module_::Module_() {
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<OnnxFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             0x400 + 0, "onnx-feature-scorer");  // TODO enum value
+    Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<OnnxFeatureScorer, Mm::MixtureSet, Mm::EmptyMixtureSetLoader>(
+            0x400 + 1, "onnx-feature-scorer-no-mixture");  // TODO enum value
 
     Flow::Registry::instance().registerFilter<OnnxForwardNode>();
 
     // Forward encoder inputs through an onnx model
-    Nn::Module::instance().encoderFactory().registerEncoder("onnx", [](Core::Configuration const& config) { return Core::ref(new OnnxEncoder(config)); });
+    Nn::Module::instance().encoderFactory().registerEncoder(
+            "onnx",
+            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+                return Core::ref(new OnnxEncoder(config, modelCache));
+            });
+
+    // Forward encoder inputs through an onnx model in a chunk-wise manner
+    Nn::Module::instance().encoderFactory().registerEncoder(
+            "chunked-onnx",
+            [](Core::Configuration const& config, Nn::EncoderModelCache& modelCache) {
+                return Core::ref(new ChunkedOnnxEncoder(config, modelCache));
+            });
 }
 
 }  // namespace Onnx

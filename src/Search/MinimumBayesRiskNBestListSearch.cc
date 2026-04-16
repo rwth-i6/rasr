@@ -104,8 +104,7 @@ void MinimumBayesRiskNBestListNaiveSearch::performSearch(Fsa::ConstAutomatonRef 
     clog() << Core::XmlFull("map-probability", exp(-f32(mapProbability_)));
     clog() << Core::XmlFull("map-risk", exp(-f32(mapRisk_)));
 
-    Fsa::Weight risk        = Fsa::LogSemiring->zero();
-    u32         mbrPosition = 0;
+    u32 mbrPosition = 0;
 
     Core::ProgressIndicator p("hypotheses", "");
     p.start(evaluationSpaceSize_);

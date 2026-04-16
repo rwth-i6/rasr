@@ -126,30 +126,39 @@ public:
     virtual ~SearchSpace() {
         delete network_;
     }
+
     void feed(const Mm::FeatureScorer::Scorer& scorer);
     void reset();
+
     void setSegment(const std::string& name) {
         network_->setSegment(name);
     }
+
     void     getTraceback(BestPath* path);
     Lattice* createLattice(OutputType type);
-    void     setStatistics(bool detailed) {
+
+    void setStatistics(bool detailed) {
         require(!statisticsCollector_);
         if (detailed)
             statisticsCollector_ = new Statistics::DetailedCollector<Self>(this);
         else
             statisticsCollector_ = new Statistics::DefaultCollector(this);
     }
+
     u32 nActiveStates() const {
         return activeStates_.size();
     }
+
     bool init(std::string& msg);
-    u32  nStates() const {
+
+    u32 nStates() const {
         return network_->nStates();
     }
+
     u32 nArcs() const {
         return network_->nArcs();
     }
+
     u32 nEpsilonArcs() const {
         return network_->nEpsilonArcs();
     }
@@ -158,7 +167,9 @@ private:
     typedef typename Network::ArcIterator        ArcIterator;
     typedef typename Network::EpsilonArcIterator EpsilonArcIterator;
 
-    enum { NumIncomingHyps = 1 + UseSkips };
+    enum {
+        NumIncomingHyps = 1 + UseSkips
+    };
     /**
      * active state
      */
@@ -194,14 +205,20 @@ private:
         Score      score;
         TraceRef   trace[NumIncomingHyps];
         EpsilonArcHyp(StateIndex _target, Label _output, Score _score)
-                : target(_target), output(_output), score(_score) {}
+                : target(_target),
+                  output(_output),
+                  score(_score) {}
         EpsilonArcHyp(StateIndex _target, Label _output, Score _score, const IncomingHyp* _in)
-                : target(_target), output(_output), score(_score) {
+                : target(_target),
+                  output(_output),
+                  score(_score) {
             for (u32 i = 0; i < NumIncomingHyps; ++i)
                 trace[i] = _in[i].trace;
         }
         EpsilonArcHyp(StateIndex _target, Label _output, Score _score, const TraceRef* _trace)
-                : target(_target), output(_output), score(_score) {
+                : target(_target),
+                  output(_output),
+                  score(_score) {
             for (u32 i = 0; i < NumIncomingHyps; ++i)
                 trace[i] = _trace[i];
         }
@@ -210,7 +227,8 @@ private:
     class StateHypIterator {
     public:
         StateHypIterator(const StateHypotheses& states)
-                : iter_(states.begin()), end_(states.end()) {
+                : iter_(states.begin()),
+                  end_(states.end()) {
             update();
         }
         bool done() const {
@@ -867,11 +885,9 @@ void SearchSpace<N, S>::pruneWordEnds(Score threshold) {
  * create a new StateHyp (corresponding to @c stateIndex) in activeStates_ if does not already exist
  */
 template<class N, bool S>
-inline typename SearchSpace<N, S>::StateHyp*
-        SearchSpace<N, S>::getStateHyp(StateIndex stateIndex) {
+inline typename SearchSpace<N, S>::StateHyp* SearchSpace<N, S>::getStateHyp(StateIndex stateIndex) {
     StateHyp*                      stateHyp = 0;
-    typename StateToHypMap::Cursor i        = stateToHyp_.find(
-            StateToHypElement(stateIndex, 0));
+    typename StateToHypMap::Cursor i        = stateToHyp_.find(StateToHypElement(stateIndex, 0));
     if (i == StateToHypMap::InvalidCursor) {
         stateToHyp_.insert(StateToHypElement(stateIndex, activeStates_.size()));
         activeStates_.push_back(StateHyp(stateIndex));

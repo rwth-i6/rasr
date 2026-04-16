@@ -120,7 +120,8 @@ private:
 
     public:
         StateIndexBuilder(ConstLatticeRef l, Core::Vector<Fsa::StateId>& stateIndex)
-                : TraverseState(l), stateIndex(stateIndex) {}
+                : TraverseState(l),
+                  stateIndex(stateIndex) {}
 
         void build() {
             if (l->getTopologicalSort())
@@ -469,7 +470,8 @@ private:
         Properties props;
         IdList     arcIds;
         Frame()
-                : t(0.0), updated(true) {}
+                : t(0.0),
+                  updated(true) {}
     };
     typedef std::vector<Frame> FrameList;
 
@@ -718,7 +720,9 @@ private:
     }
 
     CenterFrameCnBuilder()
-            : staticL_(0), staticB_(0), feCn_(0) {}
+            : staticL_(0),
+              staticB_(0),
+              feCn_(0) {}
 
 public:
     ~CenterFrameCnBuilder() {}
@@ -911,7 +915,8 @@ private:
 
 public:
     CenterFrameCnBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {
+            : Node(name, config),
+              n_(0) {
         confidenceId_ = Semiring::InvalidId;
     }
     virtual ~CenterFrameCnBuilderNode() {}

@@ -225,7 +225,8 @@ protected:
 
 public:
     TimeframeErrorNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), xml_(config, "dump") {}
+            : FilterNode(name, config),
+              xml_(config, "dump") {}
     virtual ~TimeframeErrorNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {
@@ -848,7 +849,9 @@ private:
 
 public:
     MinimumFrameWerDecoderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0), decoder_(0) {}
+            : Node(name, config),
+              n_(0),
+              decoder_(0) {}
     virtual ~MinimumFrameWerDecoderNode() {
         delete decoder_;
     }

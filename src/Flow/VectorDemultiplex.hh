@@ -49,7 +49,9 @@ public:
     }
 
     VectorDemultiplexNode(const Core::Configuration& c)
-            : Core::Component(c), SleeveNode(c), nTracks_(1) {
+            : Core::Component(c),
+              SleeveNode(c),
+              nTracks_(1) {
         setTrack(parameterTrack(c));
     }
     virtual ~VectorDemultiplexNode() {}
@@ -76,8 +78,12 @@ public:
         Flow::DataPtr<Flow::Vector<T>> in;
 
         if (!getData(0, in)) {
-            if (in == Data::eos())
+            if (in == Data::eos()) {
                 offset_ = track_;
+            }
+            else if (in == Data::ood()) {
+                return putOod(p);
+            }
             return putData(0, in.get());
         }
 

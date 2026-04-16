@@ -113,6 +113,8 @@ public:
 
     LatticeTrace(Speech::TimeframeIndex timeframe, ScoreVector scores, const Transit& transit);
 
+    LatticeTrace(LatticeTrace const& other) = delete;
+
     /*
      * Append sibling chain to the end of the own sibling chain
      * Example: If we have sibling chains
@@ -156,6 +158,12 @@ public:
      * Count number of items with valid pronunciations along associated traceback.
      */
     u32 wordCount() const;
+};
+
+/*
+ * Vector of Refs to LatticeTrace
+ */
+class LatticeTraceback : public Core::ReferenceCounted, public std::vector<Core::Ref<const LatticeTrace>> {
 };
 
 }  // namespace Search

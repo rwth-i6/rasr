@@ -23,6 +23,10 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/PriorLabelScorer.hh"
+#include "LabelScorer/ScaledLabelScorer.hh"
+#include "LabelScorer/StatefulOnnxLabelScorer.hh"
+#include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
 
 #ifdef MODULE_NN
@@ -87,6 +91,13 @@ Module_::Module_()
                 return Core::ref(new StepwiseNoOpLabelScorer(config));
             });
 
+    // Same as no-op, but can also negate output and subtract prior
+    labelScorerFactory_.registerLabelScorer(
+            "prior",
+            [](Core::Configuration const& config) {
+                return Core::ref(new PriorLabelScorer(config));
+            });
+
     // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder
     labelScorerFactory_.registerLabelScorer(
             "encoder-decoder",
@@ -119,6 +130,20 @@ Module_::Module_()
             "fixed-context-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new FixedContextOnnxLabelScorer(config));
+            });
+
+    // Compute scores based on hidden state tensors.
+    labelScorerFactory_.registerLabelScorer(
+            "stateful-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Returns predefined scores based on the transition type of each score request
+    labelScorerFactory_.registerLabelScorer(
+            "transition",
+            [](Core::Configuration const& config) {
+                return Core::ref(new TransitionLabelScorer(config));
             });
 };
 

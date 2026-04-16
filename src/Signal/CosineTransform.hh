@@ -27,8 +27,10 @@ class CosineTransform {
 public:
     typedef f32 Value;
 
-    enum InputType { NplusOneData,
-                     evenAboutNminusHalf };
+    enum InputType {
+        NplusOneData,
+        evenAboutNminusHalf
+    };
 
 private:
     Math::Matrix<Value> transformation_;
@@ -145,7 +147,8 @@ private:
     f64 timeDomainSampleRate(size_t inputSize);
 
     Math::UnaryAnalyticFunctionRef createWarpingFunction(f64 sampleRate);
-    void                           setWarpDifferentialUnit(bool should) {
+
+    void setWarpDifferentialUnit(bool should) {
         if (shouldWarpDifferenctialUnit_ != should) {
             shouldWarpDifferenctialUnit_ = should;
             needInit_                    = true;

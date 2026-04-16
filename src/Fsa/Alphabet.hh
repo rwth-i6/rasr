@@ -56,7 +56,8 @@ public:
 
     public:
         explicit const_iterator(Core::Ref<const Alphabet> a, LabelId i)
-                : alphabet_(a), label_(i) {
+                : alphabet_(a),
+                  label_(i) {
         }
         const_iterator& operator++() {
             label_ = alphabet_->next(label_);
@@ -221,7 +222,8 @@ private:
         // Symbol(const std::string &name, bool isDisambiguator = false) :
         //   name_(name), tag_(isDisambiguator ? disambiguatorTag : 0) {}
         Symbol(const std::string& name, AlphabetTag tag = 0)
-                : name_(name), tag_(tag) {}
+                : name_(name),
+                  tag_(tag) {}
     };
     Core::Vector<Symbol>                                       symbols_;
     std::unordered_map<std::string, LabelId, Core::StringHash> indices_;

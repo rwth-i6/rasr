@@ -64,8 +64,10 @@ namespace Core {
 
 class ProgressIndicator {
 public:
-    enum Alignment { Left,
-                     Right };
+    enum Alignment {
+        Left,
+        Right
+    };
 
 private:
     static const int defaultLength;

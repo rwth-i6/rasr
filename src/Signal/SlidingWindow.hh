@@ -45,10 +45,12 @@ public:
     typedef typename Precursor::reverse_iterator       ReverseIterator;
 
 public:
-    enum MarginPolicyType { marginPolicyCopy,
-                            marginPolicyMean,
-                            marginPolicyZero,
-                            marginPolicyOne };
+    enum MarginPolicyType {
+        marginPolicyCopy,
+        marginPolicyMean,
+        marginPolicyZero,
+        marginPolicyOne
+    };
     /** Base class for margin policies creating missing elements. */
     class marginPolicy {
     protected:
@@ -105,15 +107,14 @@ public:
 
             // ... normalize the sum to get the mean Values
             std::transform(vec.begin(), vec.end(), vec.begin(),
-                           std::bind2nd(std::divides<V>(), (validLast + validFirst + 1)));
+                           std::bind(std::divides<V>(), std::placeholders::_1, (validLast + validFirst + 1)));
 
             return (Flow::DataPtr<Flow::Vector<V>>)(&vec);
         }
 
         virtual void get(int relativeIndex, T& out) const {
             Flow::Vector<f32>* meanVec = new Flow::Vector<f32>();
-            out                        = setMean(
-                    *meanVec);
+            out                        = setMean(*meanVec);
         }
     };
 

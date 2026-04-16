@@ -41,7 +41,9 @@ public:
 
     protected:
         CachedAssigningTransformingContextScorer(const CachedAssigningTransformingFeatureScorer* featureScorer, EmissionIndex nEmissions)
-                : ContextPrecursor(featureScorer, nEmissions), featureScorer_(featureScorer), transformedFeatureCache_(nEmissions) {
+                : ContextPrecursor(featureScorer, nEmissions),
+                  featureScorer_(featureScorer),
+                  transformedFeatureCache_(nEmissions) {
         }
 
     public:
@@ -73,7 +75,8 @@ public:
 
 public:
     CachedAssigningTransformingFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {
+            : Core::Component(c),
+              Precursor(c) {
     }
     virtual ~CachedAssigningTransformingFeatureScorer() {
     }

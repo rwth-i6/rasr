@@ -19,31 +19,32 @@
 namespace Nn {
 
 StepwiseNoOpLabelScorer::StepwiseNoOpLabelScorer(Core::Configuration const& config)
-        : Core::Component(config), Precursor(config) {}
+        : Core::Component(config),
+          Precursor(config, TransitionPresetType::CTC) {}
 
 ScoringContextRef StepwiseNoOpLabelScorer::getInitialScoringContext() {
     return Core::ref(new StepScoringContext());
 }
 
-ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(LabelScorer::Request const& request) {
-    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    return Core::ref(new StepScoringContext(stepHistory->currentStep + 1));
+ScoringContextRef StepwiseNoOpLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
+    return Core::ref(new StepScoringContext(stepScoringContext->currentStep + 1));
 }
 
-std::optional<LabelScorer::ScoreWithTime> StepwiseNoOpLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
-    StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(request.context.get()));
-    auto                  input = getInput(stepHistory->currentStep);
+std::optional<ScoreAccessorRef> StepwiseNoOpLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    StepScoringContextRef stepScoringContext(dynamic_cast<StepScoringContext const*>(scoringContext.get()));
+    auto                  input = getInput(stepScoringContext->currentStep);
     if (not input) {
         return {};
     }
 
-    return ScoreWithTime{(*input)[request.nextToken], stepHistory->currentStep};
+    return Core::ref(new DataViewScoreAccessor(*input, stepScoringContext->currentStep));
 }
 
 size_t StepwiseNoOpLabelScorer::getMinActiveInputIndex(Core::CollapsedVector<ScoringContextRef> const& activeContexts) const {
     auto minInputIndex = Core::Type<size_t>::max;
     for (auto const& context : activeContexts.internalData()) {
-        StepScoringContextRef stepHistory(dynamic_cast<const StepScoringContext*>(context.get()));
+        StepScoringContextRef stepHistory(dynamic_cast<StepScoringContext const*>(context.get()));
         minInputIndex = std::min(minInputIndex, static_cast<size_t>(stepHistory->currentStep));
     }
 

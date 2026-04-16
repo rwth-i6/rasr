@@ -55,7 +55,8 @@ public:
     }
 
     XmlBuilderElementTemplate(const char* _name, XmlContext* _context, Handler _handler = 0)
-            : Precursor(_name, _context), handler_(_handler) {}
+            : Precursor(_name, _context),
+              handler_(_handler) {}
 };
 
 struct CreateStatic {};

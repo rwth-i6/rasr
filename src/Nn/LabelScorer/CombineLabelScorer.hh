@@ -31,10 +31,9 @@ class CombineLabelScorer : public LabelScorer {
     using Precursor = LabelScorer;
 
 public:
-    static Core::ParameterInt   paramNumLabelScorers;
-    static Core::ParameterFloat paramScale;
+    static Core::ParameterInt paramNumLabelScorers;
 
-    CombineLabelScorer(const Core::Configuration& config);
+    CombineLabelScorer(Core::Configuration const& config);
     virtual ~CombineLabelScorer() = default;
 
     // Reset all sub-scorers
@@ -47,7 +46,7 @@ public:
     ScoringContextRef getInitialScoringContext() override;
 
     // Combine extended ScoringContexts from all sub-scorers
-    ScoringContextRef extendedScoringContext(Request const& request) override;
+    ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
 
     // Cleanup all sub-scorers
     void cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) override;
@@ -58,19 +57,14 @@ public:
     // Add inputs to all sub-scorers
     virtual void addInputs(DataView const& input, size_t nTimesteps) override;
 
-    // Compute weighted score of request with all sub-scorers
-    std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) override;
+    // Get accessor that returns score-sum of all sub-scorers
+    std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
 
-    // Compute weighted scores of requests with all sub-scorers
-    std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests) override;
+    // Get accessors that return score-sums of all sub-scorers
+    std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) override;
 
-protected:
-    struct ScaledLabelScorer {
-        Core::Ref<LabelScorer> scorer;
-        Score                  scale;
-    };
-
-    std::vector<ScaledLabelScorer> scaledScorers_;
+private:
+    std::vector<Core::Ref<LabelScorer>> scorers_;
 };
 
 }  // namespace Nn

@@ -815,32 +815,26 @@ bool Network::dump(const bool initialCall, Core::XmlChannel& dumpChannel, std::s
 /******************************************************************************/
 
 std::ostream& Flow::operator<<(std::ostream& o, const Network& n) {
-    bool dumped = false;
-
     if (!n.name().empty()) {
         o << "network: '" << n.name() << "'";
         if (n.isThreaded())
             o << " threaded ";
-        dumped = true;
         o << std::endl;
     }
     if (n.params_.size()) {
         o << "param(s): ";
         std::copy(n.params_.begin(), n.params_.end(),
                   std::ostream_iterator<Network::Parameter>(o, "\n"));
-        dumped = true;
     }
     if (n.inputs_.size()) {
         o << "input(s): ";
         std::copy(n.inputs_.begin(), n.inputs_.end(),
                   std::ostream_iterator<Network::Port>(o, "\n"));
-        dumped = true;
     }
     if (n.outputs_.size()) {
         o << "output(s): ";
         std::copy(n.outputs_.begin(), n.outputs_.end(),
                   std::ostream_iterator<Network::Port>(o, "\n"));
-        dumped = true;
     }
     o << "node(s):" << std::endl;
     std::copy(n.nodes_.begin(), n.nodes_.end(), std::ostream_iterator<AbstractNode*>(o, "\n"));

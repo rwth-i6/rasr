@@ -228,16 +228,21 @@ private:
         int                        simpleCacheTimeframe_;
 
         CacheForTimeframe(int maxDepth)
-                : maxDepth_(maxDepth), simpleCacheTimeframe_(-1) {
+                : maxDepth_(maxDepth),
+                  simpleCacheTimeframe_(-1) {
             clear();
         }
 
         struct CacheValue {
             CacheValue()
-                    : timeframe(-1), cacheKey(0), score(0.0f) {
+                    : timeframe(-1),
+                      cacheKey(0),
+                      score(0.0f) {
             }
             CacheValue(int t, u32 c, Score s)
-                    : timeframe(t), cacheKey(c), score(s) {
+                    : timeframe(t),
+                      cacheKey(c),
+                      score(s) {
             }
             int   timeframe;
             u32   cacheKey;

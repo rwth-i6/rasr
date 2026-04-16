@@ -49,6 +49,7 @@ protected:
     struct HMMSequence {
         HMMSequence()
                 : length(0) {}
+
         enum {
             MaxLength = 12
         };
@@ -287,6 +288,7 @@ protected:
     bool labelLoop_;
     bool blankLoop_;
     bool forceBlank_;
+    bool allowBlankAfterSentenceEnd_;
 
     StateId                      wordBoundaryRoot_;
     Search::StateTree::StateDesc blankDesc_;
@@ -298,6 +300,8 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
+
+    Bliss::Lemma const* getSentenceEndLemma() const;
 };
 
 class RnaTreeBuilder : public CtcTreeBuilder {

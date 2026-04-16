@@ -165,11 +165,13 @@ private:
 
 protected:
     Token(Id _id, Bliss::Symbol _symbol)
-            : id_(_id), symbol_(_symbol) {}
+            : id_(_id),
+              symbol_(_symbol) {}
     Token(Id _id)
             : id_(_id) {}
     Token(Bliss::Symbol _symbol)
-            : id_(invalidId), symbol_(_symbol) {}
+            : id_(invalidId),
+              symbol_(_symbol) {}
     Token()
             : id_(invalidId) {}
     friend class TokenInventory;
@@ -228,11 +230,11 @@ public:
     }
     Token* operator[](const std::string& sym) const {
         Map::const_iterator i = map_.find(sym.c_str());
-        return (i != map_.end()) ? i->second : 0;
+        return (i != map_.end()) ? i->second : nullptr;
     }
     Token* operator[](Symbol sym) const {
         Map::const_iterator i = map_.find(sym.str());
-        return (i != map_.end()) ? i->second : 0;
+        return (i != map_.end()) ? i->second : nullptr;
     }
 
     u32 size() const {
@@ -240,13 +242,13 @@ public:
     }
 
     typedef Token* const* Iterator;
-    Iterator              begin() const {
-        return &(*list_.begin());
+
+    Iterator begin() const {
+        return list_.data();
     }
 
-    // Note: Eliminating the "-1"..."+1" construct causes Sprint to fail in debug mode.
     Iterator end() const {
-        return (&(*(list_.end() - 1)) + 1);
+        return list_.data() + list_.size();
     }
 };
 
@@ -311,13 +313,16 @@ protected:
 
 public:  // FIXME
     SymbolSequence(const Symbol* _begin, const Symbol* _end)
-            : begin_(_begin), end_(_end) {}
+            : begin_(_begin),
+              end_(_end) {}
 
 public:
     SymbolSequence()
-            : begin_(0), end_(0) {}
+            : begin_(0),
+              end_(0) {}
     SymbolSequence(const SymbolSequence& o)
-            : begin_(o.begin_), end_(o.end_) {}
+            : begin_(o.begin_),
+              end_(o.end_) {}
 
     bool valid() const {
         return begin_ != 0;

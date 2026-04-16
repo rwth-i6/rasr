@@ -49,7 +49,7 @@ bool Encoder::canEncode() const {
     return not inputBuffer_.empty() and not expectMoreFeatures_;
 }
 
-std::optional<DataView> Encoder::getNextOutput() {
+std::optional<EncodedSpan> Encoder::getNextOutput() {
     // Check if there are still outputs in the buffer to pass
     if (not outputBuffer_.empty()) {
         auto result = outputBuffer_.front();

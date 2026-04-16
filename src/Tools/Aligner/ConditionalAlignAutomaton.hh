@@ -20,9 +20,11 @@
 namespace Fsa {
 class ConditionalAlignAutomaton : public AlignAutomaton {
 private:
-    typedef enum { diagonal   = 0,
-                   horizontal = 1,
-                   vertical   = 2 } Transitions;
+    typedef enum {
+        diagonal   = 0,
+        horizontal = 1,
+        vertical   = 2
+    } Transitions;
     Translation::ConstConditionalLexiconRef lexicon_;
     u32                                     I;
     u32                                     J;

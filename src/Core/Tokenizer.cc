@@ -20,15 +20,20 @@ using namespace Core;
 const std::string StringTokenizer::whiteSpace_ = " \t\n\r\f\v";
 
 StringTokenizer::Iterator::Iterator()
-        : parent_(), begin_(0), end_(0) {}
+        : parent_(),
+          begin_(0),
+          end_(0) {}
 
 StringTokenizer::Iterator::Iterator(const StringTokenizer* parent)
-        : parent_(parent), begin_(0) {
+        : parent_(parent),
+          begin_(0) {
     end_ = findNext(begin_);
 }
 
 StringTokenizer::Iterator::Iterator(const StringTokenizer* parent, size_type begin, size_type end)
-        : parent_(parent), begin_(begin), end_(end) {}
+        : parent_(parent),
+          begin_(begin),
+          end_(end) {}
 
 inline StringTokenizer::Iterator::size_type StringTokenizer::Iterator::findStart(size_type begin) const {
     return parent_->str_.find_first_not_of(parent_->delim_, begin);
@@ -65,10 +70,16 @@ std::string StringTokenizer::Iterator::operator*() const {
 }
 
 StringTokenizer::StringTokenizer(const std::string& text, const std::string& delimiter, bool trim)
-        : str_(text), delim_(delimiter), trim_(trim), endIterator_(this, std::string::npos, std::string::npos) {}
+        : str_(text),
+          delim_(delimiter),
+          trim_(trim),
+          endIterator_(this, std::string::npos, std::string::npos) {}
 
 StringTokenizer::StringTokenizer(const std::string& text)
-        : str_(text), delim_(whiteSpace_), trim_(true), endIterator_(this, std::string::npos, std::string::npos) {}
+        : str_(text),
+          delim_(whiteSpace_),
+          trim_(true),
+          endIterator_(this, std::string::npos, std::string::npos) {}
 
 StringTokenizer::Iterator StringTokenizer::begin() const {
     return Iterator(this);

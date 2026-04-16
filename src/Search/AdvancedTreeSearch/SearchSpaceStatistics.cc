@@ -16,7 +16,7 @@
 
 using namespace Search;
 
-void SearchSpaceStatistics::write(Core::XmlWriter& os) const {
+void SearchSpaceStatistics::write(Core::XmlWriter& os, const std::string& time) const {
     os << Core::XmlOpen("search-space-statistics")
        << treesBeforePruning
        << treesAfterPrePruning
@@ -29,6 +29,8 @@ void SearchSpaceStatistics::write(Core::XmlWriter& os) const {
        << epsilonWordEndsAdded
        << wordEndsAfterRecombination
        << wordEndsAfterSecondPruning
+       << activeInstancesBeforePruning
+       << activeInstancesAfterPruning
        << acousticHistogramPruningThreshold
        << lmHistogramPruningThreshold
        << entryStateHypotheses
@@ -40,6 +42,10 @@ void SearchSpaceStatistics::write(Core::XmlWriter& os) const {
     for (std::map<std::string, Core::HistogramStatistics*>::const_iterator it = customHistogramStatistics_.begin(); it != customHistogramStatistics_.end(); ++it)
         os << *(*it).second;
 
+    if (!time.empty()) {
+        os << Core::XmlFull("time", time);
+    }
+    os << Core::XmlFull("frames", statesBeforePruning.nObservations());
     os << Core::XmlClose("search-space-statistics");
 }
 
@@ -55,6 +61,8 @@ SearchSpaceStatistics::SearchSpaceStatistics()
           epsilonWordEndsAdded("epsilon word ends added"),
           wordEndsAfterRecombination("ending words after recombi"),
           wordEndsAfterSecondPruning("ending words after 2nd pruning"),
+          activeInstancesBeforePruning("active instances before pruning"),
+          activeInstancesAfterPruning("active instances after pruning"),
           acousticHistogramPruningThreshold("acoustic histogram pruning threshold"),
           lmHistogramPruningThreshold("lm histogram pruning threshold"),
           entryStateHypotheses("entry state hypotheses"),
@@ -72,6 +80,8 @@ void SearchSpaceStatistics::clear() {
     epsilonWordEndsAdded.clear();
     wordEndsAfterRecombination.clear();
     wordEndsAfterSecondPruning.clear();
+    activeInstancesBeforePruning.clear();
+    activeInstancesAfterPruning.clear();
     acousticHistogramPruningThreshold.clear();
     lmHistogramPruningThreshold.clear();
     entryStateHypotheses.clear();

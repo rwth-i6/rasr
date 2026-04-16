@@ -52,7 +52,8 @@ protected:
 
 public:
     Cached(Cache* cache, const std::string& name)
-            : name_(name), cache_(cache) {}
+            : name_(name),
+              cache_(cache) {}
 };
 
 class CacheReader : public Cached {
@@ -62,9 +63,11 @@ private:
 
 public:
     CacheReader(Cache* cache, const std::string& name);
+
     void  readData();
     Data* getData();
-    bool  isOpen() const {
+
+    bool isOpen() const {
         return reader.isOpen();
     }
 };
@@ -125,6 +128,7 @@ public:
         return path_;
     }
     void setPath(const std::string& path) {
+        log("path = %s", path.c_str());
         path_ = path;
     }
     void setPrefix(const std::string& prefix) {

@@ -39,10 +39,12 @@ class ModelTransformEstimator : public KeyedEstimator {
 public:
     static const Core::Choice          mllrModelingChoice;
     static const Core::ParameterChoice paramMllrModeling;
-    enum MllrModelingMode { fullMllr,
-                            semiTiedMllr,
-                            bandMllr,
-                            shiftMllr };
+    enum MllrModelingMode {
+        fullMllr,
+        semiTiedMllr,
+        bandMllr,
+        shiftMllr
+    };
 
 private:
     Core::Ref<Am::AdaptationTree> adaptationTree_;

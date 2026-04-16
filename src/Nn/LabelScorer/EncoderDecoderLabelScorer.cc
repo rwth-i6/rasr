@@ -22,6 +22,7 @@ EncoderDecoderLabelScorer::EncoderDecoderLabelScorer(Core::Configuration const& 
           LabelScorer(config),
           encoder_(encoder),
           decoder_(decoder) {
+    enabledTransitions_ = decoder_->enabledTransitions();
 }
 
 void EncoderDecoderLabelScorer ::reset() {
@@ -33,8 +34,8 @@ ScoringContextRef EncoderDecoderLabelScorer::getInitialScoringContext() {
     return decoder_->getInitialScoringContext();
 }
 
-ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(Request const& request) {
-    return decoder_->extendedScoringContext(request);
+ScoringContextRef EncoderDecoderLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {
+    return decoder_->extendedScoringContext(scoringContext, nextToken, transitionType);
 }
 
 void EncoderDecoderLabelScorer::cleanupCaches(Core::CollapsedVector<ScoringContextRef> const& activeContexts) {
@@ -59,18 +60,18 @@ void EncoderDecoderLabelScorer::signalNoMoreFeatures() {
     decoder_->signalNoMoreFeatures();
 }
 
-std::optional<LabelScorer::ScoreWithTime> EncoderDecoderLabelScorer::computeScoreWithTime(LabelScorer::Request const& request) {
-    return decoder_->computeScoreWithTime(request);
+std::optional<ScoreAccessorRef> EncoderDecoderLabelScorer::getScoreAccessor(ScoringContextRef scoringContext) {
+    return decoder_->getScoreAccessor(scoringContext);
 }
 
-std::optional<LabelScorer::ScoresWithTimes> EncoderDecoderLabelScorer::computeScoresWithTimes(std::vector<LabelScorer::Request> const& requests) {
-    return decoder_->computeScoresWithTimes(requests);
+std::vector<std::optional<ScoreAccessorRef>> EncoderDecoderLabelScorer::getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts) {
+    return decoder_->getScoreAccessors(scoringContexts);
 }
 
 void EncoderDecoderLabelScorer::passEncoderOutputsToDecoder() {
-    std::optional<DataView> encoderOutput;
+    std::optional<EncodedSpan> encoderOutput;
     while ((encoderOutput = encoder_->getNextOutput())) {
-        decoder_->addInput(*encoderOutput);
+        decoder_->addInput(encoderOutput->encoding);
     }
 }
 

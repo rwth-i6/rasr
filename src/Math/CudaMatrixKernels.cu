@@ -751,7 +751,7 @@ __global__ void __cuda_addToAllColumnsWithOffset(T* data, T* datab, unsigned int
 }
 
 template<typename T>
-void _cuda_addToAllColumnsWithOffset(T* data, T* datab, unsigned int nRowsMat, unsigned nRowsVec, unsigned int nColumns, T alpha) {
+void _cuda_addToAllColumnsWithOffset(T* data, T* datab, unsigned int nRowsMat, unsigned int nRowsVec, unsigned int nColumns, T alpha) {
     // TODO implement kernel without % operator (slow on GPU)
     unsigned int nElements = nRowsVec * nColumns;
     int          gridSize  = (int)ceil((float)nElements / THREADS_PER_BLOCK);

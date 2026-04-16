@@ -30,26 +30,27 @@ private:
     static const Core::ParameterFloat  paramEndTime;
 
 private:
-    bool sent_;
-    bool send(const std::string& value);
-
-    std::string key_;
-    void        setKey(const std::string& key);
-
     typedef Core::StringHashMap<std::string> Map;
-    Map                                      map_;
-    void                                     setMapFile(const std::string& filename);
 
+    bool        sent_;
+    std::string key_;
+    Map         map_;
     std::string defaultOutput_;
-    void        setDefaultOutput(const std::string& defaultOutput) {
+    Time        startTime_;
+    Time        endTime_;
+
+    bool send(const std::string& value);
+    void setKey(const std::string& key);
+    void setMapFile(const std::string& filename);
+
+    void setDefaultOutput(const std::string& defaultOutput) {
         defaultOutput_ = defaultOutput;
     }
 
-    Time startTime_;
     void setStartTime(Time time) {
         startTime_ = time;
     }
-    Time endTime_;
+
     void setEndTime(Time time) {
         endTime_ = time;
     }

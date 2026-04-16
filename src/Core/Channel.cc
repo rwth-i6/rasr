@@ -101,7 +101,11 @@ const Core::ParameterBool Channel::Target::paramAddSprintTags(
         true);
 
 Channel::Target::Target(const Core::Configuration& c, bool isXmlDocument, const std::string& defaultFilename, std::streambuf* defaultStreamBuf)
-        : Core::Configurable(c), isTty_(false), xml_(*this), isXmlDocument_(isXmlDocument), defaultStreamBuf_(defaultStreamBuf) {
+        : Core::Configurable(c),
+          isTty_(false),
+          xml_(*this),
+          isXmlDocument_(isXmlDocument),
+          defaultStreamBuf_(defaultStreamBuf) {
     open(paramFilename(config, defaultFilename));
     setup();
 }
@@ -133,7 +137,11 @@ public:
 #endif
 
 Channel::Target::Target(const Core::Configuration& c, bool isXmlDocument, std::ostream* defaultStream)
-        : Core::Configurable(c), isTty_(false), xml_(*this), isXmlDocument_(isXmlDocument), defaultStreamBuf_(defaultStream->rdbuf()) {
+        : Core::Configurable(c),
+          isTty_(false),
+          xml_(*this),
+          isXmlDocument_(isXmlDocument),
+          defaultStreamBuf_(defaultStream->rdbuf()) {
     require(defaultStream);
     std::string filename = paramFilename(config);
     if (filename.size()) {

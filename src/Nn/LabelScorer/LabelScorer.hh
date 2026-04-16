@@ -33,7 +33,9 @@
 #include <Speech/Types.hh>
 
 #include "DataView.hh"
+#include "ScoreAccessor.hh"
 #include "ScoringContext.hh"
+#include "TransitionTypes.hh"
 
 namespace Nn {
 
@@ -49,13 +51,15 @@ namespace Nn {
  *  - Before or during the search, features can be added
  *  - At the beginning of search, `getInitialScoringContext` should be called
  *    and used for the first hypotheses
- *  - For a given hypothesis in search, its search context together with a successor token and
- *    transition type are packed into a request and scored via `getScoreWithTime`. This also returns
- *    the timestamp of the successor.
- *    Note: The scoring function may return no value, in this case it is not ready yet
- *    and needs more input features.
- *    Note: There is also the function `getScoresWithTimes` which can handle an entire batch of
- *    requests at once and might be implemented more efficiently (e.g. using batched model forwarding).
+ *  - For all scoring contexts of active hypotheses in search, call `getScoreAccessor` on each or
+ *    `getScoresAccessors` on the list (possibly utilizing batched computation) to construct
+ *    ScoreAccessor objects.
+ *    Note: If the LabelScorer is not able to produce scores for a given context (e.g. when
+ *    not enough input features are available) it returns std::nullopt instead.
+ *  - For each possible extension of the active hypotheses, check whether the LabelScorer
+ *    handles the associated transiton type via `scoresTransition`. If this is true, get the
+ *    label- and transition-score from the ScoreAccessor and use them to rank and prune the
+ *    extensions.
  *  - For all hypotheses that survive pruning, the LabelScorer can compute a new scoring context
  *    that extends the previous scoring context of that hypothesis with a given successor token. This new
  *    scoring context can then be used as context in subsequent search steps.
@@ -74,38 +78,7 @@ namespace Nn {
 class LabelScorer : public virtual Core::Component,
                     public Core::ReferenceCounted {
 public:
-    typedef Search::Score Score;
-
-    enum TransitionType {
-        LABEL_TO_LABEL,
-        LABEL_LOOP,
-        LABEL_TO_BLANK,
-        BLANK_TO_LABEL,
-        BLANK_LOOP,
-        INITIAL_LABEL,
-        INITIAL_BLANK,
-    };
-
-    // Request for scoring or context extension
-    struct Request {
-        ScoringContextRef context;
-        LabelIndex        nextToken;
-        TransitionType    transitionType;
-    };
-
-    // Return value of scoring function
-    struct ScoreWithTime {
-        Score                  score;
-        Speech::TimeframeIndex timeframe;
-    };
-
-    // Return value of batched scoring function
-    struct ScoresWithTimes {
-        std::vector<Score>                            scores;
-        Core::CollapsedVector<Speech::TimeframeIndex> timeframes;  // Timeframes vector is internally collapsed  if all timeframes are the same (e.g. time-sync decoding)
-    };
-
-    LabelScorer(Core::Configuration const& config);
+    LabelScorer(Core::Configuration const& config, TransitionPresetType defaultPreset = TransitionPresetType::NONE);
     virtual ~LabelScorer() = default;
 
     // Prepares the LabelScorer to receive new inputs
@@ -119,7 +92,7 @@ public:
     virtual ScoringContextRef getInitialScoringContext() = 0;
 
     // Creates a copy of the context in the request that is extended using the given token and transition type
-    virtual ScoringContextRef extendedScoringContext(Request const& request) = 0;
+    virtual ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) = 0;
 
     // Given a collection of currently active contexts, this function can clean up values in any internal caches
     // or buffers that are saved for scoring contexts which no longer are active.
@@ -131,17 +104,29 @@ public:
     // Add input features for multiple time steps at once
     virtual void addInputs(DataView const& input, size_t nTimesteps);
 
-    // Perform scoring computation for a single request
-    // Return score and timeframe index of the corresponding output
-    // May not return a value if the LabelScorer is not ready to score the request yet
-    // (e.g. not enough features received)
-    virtual std::optional<ScoreWithTime> computeScoreWithTime(Request const& request) = 0;
+    // Perform scoring computation for a single context and return a score accessor
+    // that allows retrieving the scores of specific labels or transition types as well
+    // as the associated timeframe.
+    // Returns std::nullopt if the LabelScorer is not ready to score the context yet
+    virtual std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) = 0;
 
-    // Perform scoring computation for a batch of requests
-    // May be implemented more efficiently than iterated calls of `getScoreWithTime`
-    // Return two vectors: one vector with scores and one vector with times
-    // By default loops over the single-request version
-    virtual std::optional<ScoresWithTimes> computeScoresWithTimes(std::vector<Request> const& requests);
+    // Perform scoring computation for a batch of contexts and return score accessors for each
+    // that allow retrieving the scores of specific labels or transition types as well
+    // as the associated timeframes.
+    // By default loops over the single-context version if not overridden in concrete LabelScorer
+    // Returns std::nullopt for a context if the LabelScorer is not ready to score it yet
+    virtual std::vector<std::optional<ScoreAccessorRef>> getScoreAccessors(std::vector<ScoringContextRef> const& scoringContexts);
+
+    // Check whether the given transition type can be scored by this LabelScorer
+    inline bool scoresTransition(TransitionType transitionType) const {
+        return enabledTransitions_.contains(transitionType);
+    }
+
+    // Return the set of all transition types that can get scored by this label scorer
+    TransitionSet enabledTransitions() const;
+
+protected:
+    TransitionSet enabledTransitions_;
 };
 
 }  // namespace Nn

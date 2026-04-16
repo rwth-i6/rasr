@@ -57,9 +57,11 @@ namespace Core {
 class BinaryStreamIos {
 public:
     typedef std::ios_base::iostate iostate;
-    enum Endianess { bigEndian,
-                     littleEndian,
-                     nativeByteOrder };
+    enum Endianess {
+        bigEndian,
+        littleEndian,
+        nativeByteOrder
+    };
     static const Endianess defaultEndianess = littleEndian;
 
 protected:
@@ -118,18 +120,14 @@ public:
 /**
  * BinaryOutputStream
  */
-
 class BinaryOutputStream : virtual public BinaryStreamIos {
-private:
-    std::ostream* os_;
-
 public:
     template<class Tp>
-    class Iterator : public std::iterator<std::output_iterator_tag, Tp> {
-    protected:
-        BinaryOutputStream* stream_;
-
+    class Iterator {
     public:
+        using iterator_category = std::output_iterator_tag;
+        using value_type        = Tp;
+
         Iterator(BinaryOutputStream& os)
                 : stream_(&os) {}
         Iterator<Tp>& operator=(const Tp& value) {
@@ -145,13 +143,17 @@ public:
         Iterator<Tp>& operator++(int) {
             return *this;
         }
+
+    protected:
+        BinaryOutputStream* stream_;
     };
 
-public:
     BinaryOutputStream(Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(endianess), os_(fstream_) {}
+            : BinaryStreamIos(endianess),
+              os_(fstream_) {}
     explicit BinaryOutputStream(std::ostream& stream, Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(stream, endianess), os_(&stream) {}
+            : BinaryStreamIos(stream, endianess),
+              os_(&stream) {}
     explicit BinaryOutputStream(const std::string&      fileName,
                                 std::ios_base::openmode mode      = std::ios::out,
                                 Endianess               endianess = defaultEndianess)
@@ -199,6 +201,9 @@ public:
     BinaryOutputStream& operator<<(bool);
     BinaryOutputStream& operator<<(f64);
     BinaryOutputStream& operator<<(f32);
+
+private:
+    std::ostream* os_;
 };
 
 template<class T>
@@ -228,24 +233,14 @@ BinaryOutputStream& operator<<(BinaryOutputStream& o, const std::set<T>& s) {
 /**
  * BinaryInputStream
  */
-
 class BinaryInputStream : virtual public BinaryStreamIos {
-private:
-    std::istream* is_;
-
 public:
     template<class Tp>
-    class Iterator : public std::iterator<std::input_iterator_tag, Tp> {
-    protected:
-        BinaryInputStream* stream_;
-        Tp                 value_;
-
-        void read() {
-            if (!stream_->eof())
-                (*stream_) >> value_;
-        }
-
+    class Iterator {
     public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type        = Tp;
+
         Iterator(BinaryInputStream& is)
                 : stream_(&is) {
             read();
@@ -265,13 +260,23 @@ public:
             read();
             return tmp;
         }
+
+    protected:
+        BinaryInputStream* stream_;
+        Tp                 value_;
+
+        void read() {
+            if (!stream_->eof())
+                (*stream_) >> value_;
+        }
     };
 
-public:
     BinaryInputStream(Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(endianess), is_(fstream_) {}
+            : BinaryStreamIos(endianess),
+              is_(fstream_) {}
     BinaryInputStream(std::istream& stream, Endianess endianess = defaultEndianess)
-            : BinaryStreamIos(stream, endianess), is_(&stream) {}
+            : BinaryStreamIos(stream, endianess),
+              is_(&stream) {}
     BinaryInputStream(const std::string&      fileName,
                       std::ios_base::openmode mode      = std::ios::in,
                       Endianess               endianess = defaultEndianess)
@@ -316,6 +321,9 @@ public:
     BinaryInputStream& operator>>(bool&);
     BinaryInputStream& operator>>(f64&);
     BinaryInputStream& operator>>(f32&);
+
+private:
+    std::istream* is_;
 };
 
 template<class T>

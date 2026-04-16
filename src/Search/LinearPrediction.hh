@@ -90,7 +90,8 @@ public:
 private:
     struct Stat {
         Stat(u32 c = 0, u32 s = 0)
-                : count(c), sum(s) {
+                : count(c),
+                  sum(s) {
         }
 
         u32 count;

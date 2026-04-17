@@ -247,10 +247,10 @@ common_prefix_length_computation_finished:
             size_t prefix_length = prefix_lengths[b];
             size_t prefix_offset = original_prefix_lengths[b] - prefix_length;
             for (size_t p = 0ul; p < prefix_length; p++) {
-                std::gslice         slice(b * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim], sizes, strides);
-                ContiguousBlockInfo block_info(slice);
-                size_t              idx = state_offset + prefix_offset + p;
-                detail::uncompress(prefix_states[idx]->at(v).get(), var_tensor.data<T>(), block_info);
+                std::gslice             slice(b * batch_stride + (max_prefix - prefix_length + p) * strides[time_dim], sizes, strides);
+                Nn::ContiguousBlockInfo block_info(slice);
+                size_t                  idx = state_offset + prefix_offset + p;
+                Nn::detail::uncompress(prefix_states[idx]->at(v).get(), var_tensor.data<T>(), block_info);
             }
             state_offset += original_prefix_lengths[b];
         }
@@ -276,9 +276,9 @@ common_prefix_length_computation_finished:
                 if (not Precursor::alwaysIncludeFirstTokenState_ or p != 0) {
                     pos += common_prefix_offset;
                 }
-                std::gslice         slice(p * strides[time_dim], sizes, strides);
-                ContiguousBlockInfo block_info(slice);
-                detail::uncompress(prefix_states[pos]->at(v).get(), common_prefix_tensor.data<T>(), block_info);
+                std::gslice             slice(p * strides[time_dim], sizes, strides);
+                Nn::ContiguousBlockInfo block_info(slice);
+                Nn::detail::uncompress(prefix_states[pos]->at(v).get(), common_prefix_tensor.data<T>(), block_info);
             }
             auto iter = varMap_.find(vars[v].name);
             require(iter != varMap_.end());

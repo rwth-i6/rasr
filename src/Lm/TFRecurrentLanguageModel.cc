@@ -1,12 +1,12 @@
 #include "TFRecurrentLanguageModel.hh"
 
-#include "TFBlasNceSoftmaxAdapter.hh"
 #include <Tensorflow/TFLstmStateManager.hh>
+#include <Tensorflow/TFTransformerStateManager.hh>
+#include "TFBlasNceSoftmaxAdapter.hh"
 #include "TFNceSoftmaxAdapter.hh"
 #include "TFPassthroughSoftmaxAdapter.hh"
 #include "TFQuantizedBlasNceSoftmaxAdapter.hh"
 #include "TFSoftmaxAdapter.hh"
-#include <Tensorflow/TFTransformerStateManager.hh>
 
 namespace Lm {
 

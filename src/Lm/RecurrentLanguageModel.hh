@@ -1,7 +1,6 @@
 #ifndef _LM_RECURRENT_LANGUAGE_MODEL_HH
 #define _LM_RECURRENT_LANGUAGE_MODEL_HH
 
-#include <deque>
 #include <future>
 #include <thread>
 #include <vector>
@@ -9,8 +8,8 @@
 #include <Math/FastMatrix.hh>
 #include <Core/readerwriterqueue.h>
 
-#include "AbstractNNLanguageModel.hh"
 #include <Nn/AbstractStateManager.hh>
+#include "AbstractNNLanguageModel.hh"
 #include "Module.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
 
@@ -172,7 +171,7 @@ private:
 
     std::unique_ptr<Nn::AbstractStateManager<value_t, state_variable_t>> state_manager_;
 
-    std::function<Score(Score)>       output_transform_function_;
+    std::function<Score(Score)>           output_transform_function_;
     Nn::CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
     Nn::CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
 
@@ -733,7 +732,7 @@ void RecurrentLanguageModel<value_t, state_variable_t>::forward(Lm::History cons
     }
 
     std::vector<typename Nn::AbstractStateManager<value_t, state_variable_t>::HistoryState const*> prefix_states(full_prefix_required ? total_prefix_length : requests.size());
-    size_t                                                                                     current_offset = 0ul;
+    size_t                                                                                         current_offset = 0ul;
     for (size_t r = 0ul; r < requests.size(); r++) {
         ScoresWithContext* current_cache = requests[r].initial_cache;
         if (full_prefix_required) {

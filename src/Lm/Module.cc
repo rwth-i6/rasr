@@ -16,12 +16,12 @@
 
 #include <Core/Application.hh>
 #include <Modules.hh>
-#include "ClassLm.hh"
-#include "CombineLm.hh"
 #include <Nn/DummyCompressedVectorFactory.hh>
 #include <Nn/FixedQuantizationCompressedVectorFactory.hh>
 #include <Nn/QuantizedCompressedVectorFactory.hh>
 #include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
+#include "ClassLm.hh"
+#include "CombineLm.hh"
 #include "SimpleHistoryLm.hh"
 
 #ifdef MODULE_LM_ARPA

@@ -1,16 +1,16 @@
-#ifndef _LM_TF_LSTM_STATE_MANAGER_HH
-#define _LM_TF_LSTM_STATE_MANAGER_HH
+#ifndef _TF_LSTM_STATE_MANAGER_HH
+#define _TF_LSTM_STATE_MANAGER_HH
 
 #include <Tensorflow/Graph.hh>
 #include <Tensorflow/Tensor.hh>
 
-#include "LstmStateManager.hh"
+#include <Nn/LstmStateManager.hh>
 
-namespace Lm {
+namespace Tensorflow {
 
-class TFLstmStateManager : public LstmStateManager<Tensorflow::Tensor, Tensorflow::Variable> {
+class TFLstmStateManager : public Nn::LstmStateManager<Tensorflow::Tensor, Tensorflow::Variable> {
 public:
-    using Precursor = LstmStateManager<Tensorflow::Tensor, Tensorflow::Variable>;
+    using Precursor = Nn::LstmStateManager<Tensorflow::Tensor, Tensorflow::Variable>;
 
     TFLstmStateManager(Core::Configuration const& config);
     virtual ~TFLstmStateManager() = default;
@@ -26,6 +26,6 @@ inline TFLstmStateManager::TFLstmStateManager(Core::Configuration const& config)
         : Precursor(config) {
 }
 
-}  // namespace Lm
+}  // namespace Tensorflow
 
-#endif  // _LM_TF_LSTM_STATE_MANAGER_HH
+#endif  // _TF_LSTM_STATE_MANAGER_HH

@@ -27,7 +27,7 @@ protected:
     virtual void                            getOutputs(std::vector<std::pair<std::string, Tensorflow::Tensor>>& inputs, std::vector<Tensorflow::Tensor>& outputs, std::vector<std::string> const& targets) const;
     virtual std::vector<Tensorflow::Tensor> fetchStates(std::vector<Tensorflow::Tensor>& outputs) const;
 
-    virtual Score transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const;
+    virtual Score transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const;
 
 private:
     mutable Tensorflow::Session              session_;

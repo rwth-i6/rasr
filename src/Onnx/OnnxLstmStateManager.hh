@@ -1,16 +1,16 @@
-#ifndef _LM_ONNX_LSTM_STATE_MANAGER_HH
-#define _LM_ONNX_LSTM_STATE_MANAGER_HH
+#ifndef _ONNX_LSTM_STATE_MANAGER_HH
+#define _ONNX_LSTM_STATE_MANAGER_HH
 
 #include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
 
-#include "LstmStateManager.hh"
+#include <Nn/LstmStateManager.hh>
 
-namespace Lm {
+namespace Onnx {
 
-class OnnxLstmStateManager : public LstmStateManager<Onnx::Value, Onnx::OnnxStateVariable> {
+class OnnxLstmStateManager : public Nn::LstmStateManager<Onnx::Value, Onnx::OnnxStateVariable> {
 public:
-    using Precursor = LstmStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
+    using Precursor = Nn::LstmStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
 
     OnnxLstmStateManager(Core::Configuration const& config);
     virtual ~OnnxLstmStateManager() = default;
@@ -26,6 +26,6 @@ inline OnnxLstmStateManager::OnnxLstmStateManager(Core::Configuration const& con
         : Precursor(config) {
 }
 
-}  // namespace Lm
+}  // namespace Onnx
 
-#endif  // _LM_ONNX_LSTM_STATE_MANAGER_HH
+#endif  // _ONNX_LSTM_STATE_MANAGER_HH

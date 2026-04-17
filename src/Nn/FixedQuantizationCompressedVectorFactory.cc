@@ -16,7 +16,7 @@
 
 #include <immintrin.h>
 
-namespace Lm {
+namespace Nn {
 
 // --------------------------- QuantizedFloatVector ---------------------------
 
@@ -224,4 +224,4 @@ CompressedVectorPtr<float> FixedQuantizationCompressedVectorFactory::compress(fl
     defect();
 }
 
-}  // namespace Lm
+}  // namespace Nn

@@ -16,7 +16,7 @@
 
 #include <Math/Blas.hh>
 
-#include "DummyCompressedVectorFactory.hh"
+#include <Nn/DummyCompressedVectorFactory.hh>
 
 namespace Lm {
 
@@ -26,10 +26,10 @@ void TFBlasNceSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::Ten
     session.run({}, {weight_tensor_info.tensor_name(), bias_tensor_info.tensor_name()}, {}, tensors_);
 }
 
-Score TFBlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
+Score TFBlasNceSoftmaxAdapter::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
     std::vector<float>                   nn_output;
     float const*                         data;
-    Lm::UncompressedVector<float> const* vec = dynamic_cast<Lm::UncompressedVector<float> const*>(nn_out.get());
+    Nn::UncompressedVector<float> const* vec = dynamic_cast<Nn::UncompressedVector<float> const*>(nn_out.get());
 
     if (vec != nullptr) {
         data = vec->data();
@@ -46,7 +46,7 @@ Score TFBlasNceSoftmaxAdapter::get_score(Lm::CompressedVectorPtr<float> const& n
     return result;
 }
 
-std::vector<Score> TFBlasNceSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+std::vector<Score> TFBlasNceSoftmaxAdapter::get_scores(Nn::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     std::vector<float> nn_output(nn_out->size());
     nn_out->uncompress(nn_output.data(), nn_output.size());
 

@@ -12,14 +12,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH
-#define _LM_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH
+#ifndef _NN_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH
+#define _NN_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH
 
 #include <Core/BitStream.hh>
 
 #include "CompressedVector.hh"
 
-namespace Lm {
+namespace Nn {
 
 class ReducedBitsFloatVector : public CompressedVector<float> {
 public:
@@ -61,6 +61,6 @@ private:
     unsigned drop_bits_;
 };
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif /* _LM_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH */
+#endif  // _NN_REDUCED_PRECISION_COMPRESSED_VECTOR_FACTORY_HH

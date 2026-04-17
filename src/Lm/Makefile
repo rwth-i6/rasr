@@ -15,24 +15,15 @@ LIBSPRINTLM_O	= \
 		$(OBJDIR)/ClassLm.o \
 		$(OBJDIR)/CombineLm.o \
 		$(OBJDIR)/Compose.o \
-		$(OBJDIR)/CompressedVector.o \
 		$(OBJDIR)/CorpusStatistics.o \
-		$(OBJDIR)/FixedQuantizationCompressedVectorFactory.o \
 		$(OBJDIR)/IndexMap.o \
 		$(OBJDIR)/LanguageModel.o \
 		$(OBJDIR)/Module.o \
 		$(OBJDIR)/NNHistoryManager.o \
-		$(OBJDIR)/QuantizedCompressedVectorFactory.o \
 		$(OBJDIR)/RecurrentLanguageModel.o \
-		$(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o \
 		$(OBJDIR)/ReverseArpaLm.o \
 		$(OBJDIR)/ScaledLanguageModel.o \
 		$(OBJDIR)/WordlistInterface.o
-
-#MODF AbstractStateManager.hh
-#MODF DummyCompressedVectorFactory.hh
-#MODF LstmStateManager.hh
-#MODF TransformerStateManager.hh
 
 ifdef MODULE_LM_ARPA
 LIBSPRINTLM_O += $(OBJDIR)/ArpaLm.o
@@ -48,26 +39,20 @@ LIBSPRINTLM_O += $(OBJDIR)/Zerogram.o
 endif
 ifdef MODULE_LM_TFRNN
 LIBSPRINTLM_O += $(OBJDIR)/TFBlasNceSoftmaxAdapter.o
-LIBSPRINTLM_O += $(OBJDIR)/TFLstmStateManager.o
 LIBSPRINTLM_O += $(OBJDIR)/TFNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFPassthroughSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFQuantizedBlasNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/TFRecurrentLanguageModel.o
 #MODF TFSoftmaxAdapter.hh
-#MODF TFTransformerStateManager.hh
-
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
 endif
 
 ifdef MODULE_LM_ONNX
-LIBSPRINTLM_O += $(OBJDIR)/OnnxLstmStateManager.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxPassthroughSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxNceSoftmaxAdapter.o
 LIBSPRINTLM_O += $(OBJDIR)/OnnxRecurrentLanguageModel.o
-#MODF OnnxStateVariable.hh
 #MODF OnnxSoftmaxAdapter.hh
-#MODF OnnxTransformerStateManager.hh
 endif
 
 CHECK_O		= $(OBJDIR)/check.o			\
@@ -89,6 +74,10 @@ CHECK_O += ../Lattice/libSprintLattice.$(a)
 CHECK_O += ../Fsa/libSprintFsa.$(a) 
 CHECK_O += libSprintLm.$(a)
 CHECK_O += ../Core/libSprintCore.$(a)
+
+ifdef MODULE_ONNX
+CHECK_O += ../Onnx/libSprintOnnx.$(a)
+endif
 
 ifdef MODULE_CART
 CHECK_O += ../Cart/libSprintCart.$(a)
@@ -125,7 +114,7 @@ libSprintLm.$(a): $(SUBDIRS) $(LIBSPRINTLM_O)
 	$(MAKELIB) $@ $(LIBSPRINTLM_O) $(ADD_FILES)
 
 check$(exe): $(CHECK_O)
-	$(LD) $^ -o $@ $(LDFLAGS)
+	$(LD) $(LD_START_GROUP) $+ $(LD_END_GROUP) -o $@ $(LDFLAGS)
 
 include $(TOPDIR)/Rules.make
 

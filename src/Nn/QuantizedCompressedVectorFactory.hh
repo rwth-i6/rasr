@@ -12,10 +12,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH
-#define _LM_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH
+#ifndef _NN_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH
+#define _NN_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH
 
-#include <algorithm>
 #include <limits>
 
 #include <Core/BitStream.hh>
@@ -28,7 +27,7 @@
  * will be restored correctly.
  */
 
-namespace Lm {
+namespace Nn {
 
 class QuantizedFloatVector : public CompressedVector<float> {
 public:
@@ -102,6 +101,6 @@ private:
     unsigned bits_per_val_;
 };
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif /* _LM_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH */
+#endif  // _NN_QUANTIZED_COMPRESSED_VECTOR_FACTORY_HH

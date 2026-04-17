@@ -1,19 +1,21 @@
-#ifndef _LM_ONNX_TRANSFORMER_STATE_MANAGER_HH
-#define _LM_ONNX_TRANSFORMER_STATE_MANAGER_HH
+#ifndef _ONNX_TRANSFORMER_STATE_MANAGER_HH
+#define _ONNX_TRANSFORMER_STATE_MANAGER_HH
+
+#include <utility>
 
 #include <Onnx/OnnxStateVariable.hh>
 #include <Onnx/Value.hh>
 
-#include "TransformerStateManager.hh"
+#include <Nn/TransformerStateManager.hh>
 
-namespace Lm {
+namespace Onnx {
 
 template<typename T>
 class OnnxTransformerStateManager
-        : public TransformerStateManager<T, Onnx::Value, Onnx::OnnxStateVariable> {
+        : public Nn::TransformerStateManager<T, Onnx::Value, Onnx::OnnxStateVariable> {
 public:
     using Precursor =
-            TransformerStateManager<T, Onnx::Value, Onnx::OnnxStateVariable>;
+            Nn::TransformerStateManager<T, Onnx::Value, Onnx::OnnxStateVariable>;
 
     OnnxTransformerStateManager(Core::Configuration const& config);
     virtual ~OnnxTransformerStateManager() = default;
@@ -45,6 +47,6 @@ void OnnxTransformerStateManager<T>::extendTargets(
     targets.emplace_back(state_var.output_state_key);
 }
 
-}  // namespace Lm
+}  // namespace Onnx
 
-#endif  // _LM_ONNX_TRANSFORMER_STATE_MANAGER_HH
+#endif  // _ONNX_TRANSFORMER_STATE_MANAGER_HH

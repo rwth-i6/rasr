@@ -12,22 +12,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_TF_TRANSFORMER_STATE_MANAGER_HH
-#define _LM_TF_TRANSFORMER_STATE_MANAGER_HH
+#ifndef _TF_TRANSFORMER_STATE_MANAGER_HH
+#define _TF_TRANSFORMER_STATE_MANAGER_HH
+
+#include <limits>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <valarray>
 
 #include <Tensorflow/Graph.hh>
 #include <Tensorflow/Tensor.hh>
 
 #include <Bliss/Symbol.hh>
 
-#include "TransformerStateManager.hh"
+#include <Nn/TransformerStateManager.hh>
 
-namespace Lm {
+namespace Tensorflow {
 
 template<typename T>
-class TFTransformerStateManager : public TransformerStateManager<T, Tensorflow::Tensor, Tensorflow::Variable> {
+class TFTransformerStateManager : public Nn::TransformerStateManager<T, Tensorflow::Tensor, Tensorflow::Variable> {
 public:
-    using Precursor = TransformerStateManager<T, Tensorflow::Tensor, Tensorflow::Variable>;
+    using Precursor = Nn::TransformerStateManager<T, Tensorflow::Tensor, Tensorflow::Variable>;
 
     TFTransformerStateManager(Core::Configuration const& config);
     virtual ~TFTransformerStateManager() = default;
@@ -78,12 +84,12 @@ inline TFTransformerStateManager<T>::TFTransformerStateManager(Core::Configurati
 }
 
 template<typename T>
-void TFTransformerStateManager<T>::extendFeedDict(typename Lm::TFTransformerStateManager<T>::Precursor::FeedDict& feed_dict, Tensorflow::Variable const& state_var, Tensorflow::Tensor& var) {
+void TFTransformerStateManager<T>::extendFeedDict(typename Tensorflow::TFTransformerStateManager<T>::Precursor::FeedDict& feed_dict, Tensorflow::Variable const& state_var, Tensorflow::Tensor& var) {
     feed_dict.emplace_back(state_var.initial_value_name, var);
 }
 
 template<typename T>
-void TFTransformerStateManager<T>::extendTargets(typename Lm::TFTransformerStateManager<T>::Precursor::TargetList& targets, Tensorflow::Variable const& state_var) {
+void TFTransformerStateManager<T>::extendTargets(typename Tensorflow::TFTransformerStateManager<T>::Precursor::TargetList& targets, Tensorflow::Variable const& state_var) {
     targets.emplace_back(state_var.initializer_name);
 }
 
@@ -282,6 +288,6 @@ common_prefix_length_computation_finished:
     }
 }
 
-}  // namespace Lm
+}  // namespace Tensorflow
 
-#endif  // _LM_TF_TRANSFORMER_STATE_MANAGER_HH
+#endif  // _TF_TRANSFORMER_STATE_MANAGER_HH

@@ -10,6 +10,7 @@ SUBDIRS		=
 TARGETS		= libSprintOnnx.$(a) check$(exe)
 
 LIBSPRINTONNX_O = \
+		$(OBJDIR)/OnnxLstmStateManager.o \
 		$(OBJDIR)/BLstmStateManager.o \
 		$(OBJDIR)/ConformerStateManager.o \
 		$(OBJDIR)/DummyStateManager.o \

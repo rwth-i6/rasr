@@ -1,8 +1,8 @@
 #include "OnnxRecurrentLanguageModel.hh"
 
-#include "AbstractStateManager.hh"
-#include "OnnxLstmStateManager.hh"
-#include "OnnxTransformerStateManager.hh"
+#include <Nn/AbstractStateManager.hh>
+#include <Onnx/OnnxLstmStateManager.hh>
+#include <Onnx/OnnxTransformerStateManager.hh>
 
 #include "OnnxNceSoftmaxAdapter.hh"
 #include "OnnxPassthroughSoftmaxAdapter.hh"
@@ -61,20 +61,20 @@ const Core::ParameterChoice stateManagerTypeParam("type",
                                                   "type of the state manager",
                                                   OnnxLstmStateManagerType);
 
-std::unique_ptr<OnnxStateManager> createOnnxStateManager(Core::Configuration const& config) {
+std::unique_ptr<Nn::AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> createOnnxStateManager(Core::Configuration const& config) {
     switch (stateManagerTypeParam(config)) {
         case OnnxLstmStateManagerType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxLstmStateManager(config));
+            return std::unique_ptr<Nn::AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxLstmStateManager(config));
         case OnnxTransformerStateManagerType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<float>(config));
+            return std::unique_ptr<Nn::AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<float>(config));
         case OnnxTransformerStateManager16BitType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<int16_t>(config));
+            return std::unique_ptr<Nn::AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<int16_t>(config));
         case OnnxTransformerStateManager8BitType:
-            return std::unique_ptr<OnnxStateManager>(
-                    new Lm::OnnxTransformerStateManager<int8_t>(config));
+            return std::unique_ptr<Nn::AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<int8_t>(config));
         default:
             defect();
     }
@@ -154,7 +154,7 @@ std::vector<Onnx::Value> OnnxRecurrentLanguageModel::fetchStates(std::vector<Onn
     return state_vars;
 }
 
-Score OnnxRecurrentLanguageModel::transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const {
+Score OnnxRecurrentLanguageModel::transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const {
     return softmax_adapter_->get_score(nn_output, index);
 }
 

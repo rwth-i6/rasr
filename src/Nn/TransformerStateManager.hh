@@ -1,48 +1,54 @@
-#ifndef _LM_TRANSFORMER_STATE_MANAGER_HH
-#define _LM_TRANSFORMER_STATE_MANAGER_HH
+#ifndef _NN_TRANSFORMER_STATE_MANAGER_HH
+#define _NN_TRANSFORMER_STATE_MANAGER_HH
+
+#include <algorithm>
+#include <limits>
+#include <numeric>
+#include <type_traits>
+#include <valarray>
 
 #include "AbstractStateManager.hh"
 #include "CompressedVector.hh"
 #include "FixedQuantizationCompressedVectorFactory.hh"
 
-namespace Lm {
+namespace Nn {
 
 namespace detail {
 
 template<typename B>
-Lm::CompressedVectorPtr<float> compress(float const* data, B const& b, Lm::CompressedVectorFactory<float> const& vector_factory, Lm::CompressionParameters const* parameters) {
+Nn::CompressedVectorPtr<float> compress(float const* data, B const& b, Nn::CompressedVectorFactory<float> const& vector_factory, Nn::CompressionParameters const* parameters) {
     return vector_factory.compress(data, b, parameters);
 }
 
 template<typename B>
-Lm::CompressedVectorPtr<float> compress(int16_t const* data, B const& b, Lm::CompressedVectorFactory<float> const& vector_factory, Lm::CompressionParameters const* parameters) {
-    Lm::QuantizedFloatVector16Bits* res = new Lm::QuantizedFloatVector16Bits(0.001);
+Nn::CompressedVectorPtr<float> compress(int16_t const* data, B const& b, Nn::CompressedVectorFactory<float> const& vector_factory, Nn::CompressionParameters const* parameters) {
+    Nn::QuantizedFloatVector16Bits* res = new Nn::QuantizedFloatVector16Bits(0.001);
     res->store(data, b);
-    return Lm::CompressedVectorPtr<float>(res);
+    return Nn::CompressedVectorPtr<float>(res);
 }
 
 template<typename B>
-Lm::CompressedVectorPtr<float> compress(int8_t const* data, B const& b, Lm::CompressedVectorFactory<float> const& vector_factory, Lm::CompressionParameters const* parameters) {
-    Lm::QuantizedFloatVector8Bits* res = new Lm::QuantizedFloatVector8Bits(0.05);
+Nn::CompressedVectorPtr<float> compress(int8_t const* data, B const& b, Nn::CompressedVectorFactory<float> const& vector_factory, Nn::CompressionParameters const* parameters) {
+    Nn::QuantizedFloatVector8Bits* res = new Nn::QuantizedFloatVector8Bits(0.05);
     res->store(data, b);
-    return Lm::CompressedVectorPtr<float>(res);
+    return Nn::CompressedVectorPtr<float>(res);
 }
 
 template<typename B>
-void uncompress(Lm::CompressedVector<float> const* vec, float* dst, B const& b) {
+void uncompress(Nn::CompressedVector<float> const* vec, float* dst, B const& b) {
     vec->uncompress(dst, b);
 }
 
 template<typename B>
-void uncompress(Lm::CompressedVector<float> const* vec, int16_t* dst, B const& b) {
-    Lm::QuantizedFloatVector16Bits const* qvec = dynamic_cast<Lm::QuantizedFloatVector16Bits const*>(vec);
+void uncompress(Nn::CompressedVector<float> const* vec, int16_t* dst, B const& b) {
+    Nn::QuantizedFloatVector16Bits const* qvec = dynamic_cast<Nn::QuantizedFloatVector16Bits const*>(vec);
     require(qvec != nullptr);
     qvec->load(dst, b);
 }
 
 template<typename B>
-void uncompress(Lm::CompressedVector<float> const* vec, int8_t* dst, B const& b) {
-    Lm::QuantizedFloatVector8Bits const* qvec = dynamic_cast<Lm::QuantizedFloatVector8Bits const*>(vec);
+void uncompress(Nn::CompressedVector<float> const* vec, int8_t* dst, B const& b) {
+    Nn::QuantizedFloatVector8Bits const* qvec = dynamic_cast<Nn::QuantizedFloatVector8Bits const*>(vec);
     require(qvec != nullptr);
     qvec->load(dst, b);
 }
@@ -253,6 +259,6 @@ std::vector<typename TransformerStateManager<T, value_t, state_variable_t>::Prec
     return result;
 }
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif  // _LM_TRANSFORMER_STATE_MANAGER_HH
+#endif  // _NN_TRANSFORMER_STATE_MANAGER_HH

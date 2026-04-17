@@ -1,25 +1,15 @@
-#ifndef _LM_ABSTRACT_STATE_MANAGER_HH
-#define _LM_ABSTRACT_STATE_MANAGER_HH
+#ifndef _NN_ABSTRACT_STATE_MANAGER_HH
+#define _NN_ABSTRACT_STATE_MANAGER_HH
 
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <Core/Component.hh>
-#ifdef MODULE_LM_ONNX
-#include <Onnx/Value.hh>
-#endif
-#ifdef MODULE_LM_TFRNN
-#include <Tensorflow/Graph.hh>
-#include <Tensorflow/Tensor.hh>
-#endif
 
 #include "CompressedVector.hh"
-#ifdef MODULE_LM_ONNX
-#include <Onnx/OnnxStateVariable.hh>
-#endif
 
-namespace Lm {
+namespace Nn {
 
 template<typename value_t, typename state_variable_t>
 class AbstractStateManager : public Core::Component {
@@ -49,13 +39,6 @@ public:
                                                   CompressedVectorFactory<float> const& vector_factory) = 0;
 };
 
-#ifdef MODULE_LM_ONNX
-using OnnxStateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
-#endif
-#ifdef MODULE_LM_TFRNN
-using TFStateManager = AbstractStateManager<Tensorflow::Tensor, Tensorflow::Variable>;
-#endif
-
 template<typename value_t, typename state_variable_t>
 inline bool AbstractStateManager<value_t, state_variable_t>::requiresAllParentStates() const {
     return false;
@@ -66,6 +49,6 @@ inline AbstractStateManager<value_t, state_variable_t>::AbstractStateManager(Cor
         : Precursor(config) {
 }
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif  // _LM_ABSTRACT_STATE_MANAGER_HH
+#endif  // _NN_ABSTRACT_STATE_MANAGER_HH

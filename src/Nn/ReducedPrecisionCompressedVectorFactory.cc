@@ -14,7 +14,7 @@
  */
 #include "ReducedPrecisionCompressedVectorFactory.hh"
 
-namespace Lm {
+namespace Nn {
 
 size_t ReducedBitsFloatVector::size() const {
     return stream_.size() / bits_per_val_;
@@ -92,4 +92,4 @@ CompressedVectorPtr<float> ReducedPrecisionCompressedVectorFactory::compress(flo
     return CompressedVectorPtr<float>(vec);
 }
 
-}  // namespace Lm
+}  // namespace Nn

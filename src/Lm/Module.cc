@@ -16,10 +16,6 @@
 
 #include <Core/Application.hh>
 #include <Modules.hh>
-#include <Nn/DummyCompressedVectorFactory.hh>
-#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
-#include <Nn/QuantizedCompressedVectorFactory.hh>
-#include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
 #include "ClassLm.hh"
 #include "CombineLm.hh"
 #include "SimpleHistoryLm.hh"
@@ -109,33 +105,4 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
         const Core::Configuration& c, Core::Ref<LanguageModel> languageModel) {
     return languageModel ? Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) : Core::Ref<ScaledLanguageModel>();
-}
-
-enum CompressedVectorFactoryType {
-    DummyCompressedVectorFactoryType,
-    FixedQuantizationCompressedVectorFactoryType,
-    QuantizedCompressedVectorFactoryType,
-    ReducedPrecisionCompressedVectorFactoryType
-};
-
-const Core::Choice Module_::compressedVectorFactoryTypeChoice(
-        "dummy", DummyCompressedVectorFactoryType,
-        "fixed-quantization", FixedQuantizationCompressedVectorFactoryType,
-        "quantized", QuantizedCompressedVectorFactoryType,
-        "reduced-precision", ReducedPrecisionCompressedVectorFactoryType,
-        Core::Choice::endMark());
-
-const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
-        "type", &Module_::compressedVectorFactoryTypeChoice,
-        "type of compressed vector factory",
-        DummyCompressedVectorFactoryType);
-
-Nn::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
-    switch (compressedVectorFactoryTypeParam(config)) {
-        case DummyCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::DummyCompressedVectorFactory<float>(config));
-        case FixedQuantizationCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::FixedQuantizationCompressedVectorFactory(config));
-        case QuantizedCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::QuantizedCompressedVectorFactory(config));
-        case ReducedPrecisionCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::ReducedPrecisionCompressedVectorFactory(config));
-        default: defect();
-    }
 }

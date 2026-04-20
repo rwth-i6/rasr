@@ -31,6 +31,7 @@
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/ScaledLabelScorer.hh"
+#include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
@@ -187,6 +188,13 @@ Module_::Module_()
             "stateful-onnx",
             [](Core::Configuration const& config) {
                 return Core::ref(new StatefulOnnxLabelScorer(config));
+            });
+
+    // Compute scores with recurrent ONNX state packing delegated to a StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "state-managed-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StateManagedOnnxLabelScorer(config));
             });
 
     // Returns predefined scores based on the transition type of each score request

@@ -136,4 +136,39 @@ bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) cons
     return true;
 }
 
+/*
+ * ====================================
+ * = StateManagedOnnxScoringContext ===
+ * ====================================
+ */
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(HistoryState&& initialState)
+        : labelSeq(),
+          parent(),
+          state(std::make_shared<HistoryState>(std::move(initialState))) {
+}
+
+StateManagedOnnxScoringContext::StateManagedOnnxScoringContext(std::vector<LabelIndex>&&                       labelSeq,
+                                                               Core::Ref<StateManagedOnnxScoringContext const> parent)
+        : labelSeq(std::move(labelSeq)),
+          parent(parent),
+          state() {
+}
+
+size_t StateManagedOnnxScoringContext::hash() const {
+    return Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb);
+}
+
+bool StateManagedOnnxScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<StateManagedOnnxScoringContext const*>(other.get());
+    if (otherPtr == nullptr or labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+    for (auto it_l = labelSeq.begin(), it_r = otherPtr->labelSeq.begin(); it_l != labelSeq.end(); ++it_l, ++it_r) {
+        if (*it_l != *it_r) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace Nn

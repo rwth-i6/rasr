@@ -50,17 +50,17 @@ void bindLabelScorer(py::module_& module) {
             "          in order to make RASR instantiate a label scorer of this type later.\n"
             "    label_scorer_cls: A class that inherits from `librasr.LabelScorer` and implements the abstract methods.");
 
-    py::enum_<Nn::LabelScorer::TransitionType>(module, "TransitionType")
-            .value("LABEL_TO_LABEL", Nn::LabelScorer::TransitionType::LABEL_TO_LABEL)
-            .value("LABEL_LOOP", Nn::LabelScorer::TransitionType::LABEL_LOOP)
-            .value("LABEL_TO_BLANK", Nn::LabelScorer::TransitionType::LABEL_TO_BLANK)
-            .value("BLANK_TO_LABEL", Nn::LabelScorer::TransitionType::BLANK_TO_LABEL)
-            .value("BLANK_LOOP", Nn::LabelScorer::TransitionType::BLANK_LOOP)
-            .value("INITIAL_LABEL", Nn::LabelScorer::TransitionType::INITIAL_LABEL)
-            .value("INITIAL_BLANK", Nn::LabelScorer::TransitionType::INITIAL_BLANK)
-            .value("WORD_EXIT", Nn::LabelScorer::TransitionType::WORD_EXIT)
-            .value("NONWORD_EXIT", Nn::LabelScorer::TransitionType::NONWORD_EXIT)
-            .value("SILENCE_EXIT", Nn::LabelScorer::TransitionType::SILENCE_EXIT);
+    py::enum_<Nn::TransitionType>(module, "TransitionType")
+            .value("LABEL_TO_LABEL", Nn::TransitionType::LABEL_TO_LABEL)
+            .value("LABEL_LOOP", Nn::TransitionType::LABEL_LOOP)
+            .value("LABEL_TO_BLANK", Nn::TransitionType::LABEL_TO_BLANK)
+            .value("BLANK_TO_LABEL", Nn::TransitionType::BLANK_TO_LABEL)
+            .value("BLANK_LOOP", Nn::TransitionType::BLANK_LOOP)
+            .value("INITIAL_LABEL", Nn::TransitionType::INITIAL_LABEL)
+            .value("INITIAL_BLANK", Nn::TransitionType::INITIAL_BLANK)
+            .value("WORD_EXIT", Nn::TransitionType::WORD_EXIT)
+            .value("NONWORD_EXIT", Nn::TransitionType::NONWORD_EXIT)
+            .value("SILENCE_EXIT", Nn::TransitionType::SILENCE_EXIT);
 
     // Specify `Python::LabelScorer` as trampoline class and `Core::Ref<Nn::LabelScorer>` as holder type
     py::class_<Nn::LabelScorer, Python::PythonLabelScorer, Core::Ref<Nn::LabelScorer>> pyLabelScorer(
@@ -104,10 +104,10 @@ void bindLabelScorer(py::module_& module) {
 
     pyLabelScorer.def(
             "extended_scoring_context",
-            [](Python::PythonLabelScorer&      self,
-               py::object const&               context,
-               Nn::LabelIndex                  nextToken,
-               Nn::LabelScorer::TransitionType transitionType) { return self.extendedPythonScoringContextInternal(context, nextToken, transitionType); },
+            [](Python::PythonLabelScorer& self,
+               py::object const&          context,
+               Nn::LabelIndex             nextToken,
+               Nn::TransitionType         transitionType) { return self.extendedPythonScoringContext(context, nextToken, transitionType); },
             py::arg("context"),
             py::arg("next_token"),
             py::arg("transition_type"),
@@ -131,23 +131,17 @@ void bindLabelScorer(py::module_& module) {
 
     pyLabelScorer.def(
             "compute_scores_with_times",
-            [](Python::PythonLabelScorer&                   self,
-               std::vector<py::object> const&               contexts,
-               std::vector<Nn::LabelIndex>                  nextTokens,
-               std::vector<Nn::LabelScorer::TransitionType> transitionTypes) { return self.computePythonScoresWithTimesInternal(contexts, nextTokens, transitionTypes); },
+            [](Python::PythonLabelScorer&     self,
+               std::vector<py::object> const& contexts) { return self.getPythonScoresWithTimes(contexts); },
             py::arg("contexts"),
-            py::arg("next_tokens"),
-            py::arg("transition_types"),
             "Compute the scores and timestamps of tokens given the current scoring contexts. Timestamps need to be computed because\n"
             "each label scorer may implement custom logic about how much time is advanced depending on the situation\n"
             "(e.g. vertical vs. diagonal blank transitions in transducer).\n\n"
             "Args:\n"
             "    contexts: A list of length `B` containing current scoring contexts for all requests. The type is the same as the one returned by"
             "              `get_initial_scoring_context` and `extended_scoring_context`.\n"
-            "    next_tokens: A list of length `B` containing the tokens for which the score should be computed.\n"
-            "    transition_types: A list of length `B` containing the types of the hypothesized transitions.\n\n"
             "Returns:\n"
-            "    Either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
-            "    or a list of length `B` containing the scores and timestamps for each request. The returned timestamps will be used\n"
+            "    A vector of length `B` containing either `None` if the label scorer is not ready to process the requests (e.g. expects more features or segment end signal)\n"
+            "    or a tuple of a score-list and a timestamp for each context. The returned timestamps will be used\n"
             "    to form word boundaries in the search traceback.");
 }

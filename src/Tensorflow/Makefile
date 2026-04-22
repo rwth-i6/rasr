@@ -13,6 +13,7 @@ SUBDIRS		=
 TARGETS		= libSprintTensorflow.$(a) check$(exe)
 
 LIBSPRINTTENSORFLOW_O = $(OBJDIR)/DummyStateManager.o \
+                        $(OBJDIR)/TFLstmStateManager.o \
                         $(OBJDIR)/Graph.o \
                         $(OBJDIR)/GraphLoader.o \
                         $(OBJDIR)/MetaGraphLoader.o \

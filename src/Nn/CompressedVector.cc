@@ -14,7 +14,7 @@
  */
 #include "CompressedVector.hh"
 
-namespace Lm {
+namespace Nn {
 
 ContiguousBlockInfo::ContiguousBlockInfo(std::gslice const& slice)
         : start_(slice.start()),
@@ -57,4 +57,4 @@ size_t ContiguousBlockInfo::blockOffset(size_t idx) const {
     return res;
 }
 
-}  // namespace Lm
+}  // namespace Nn

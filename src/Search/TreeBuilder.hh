@@ -274,7 +274,6 @@ public:
     static const Core::ParameterBool paramLabelLoop;
     static const Core::ParameterBool paramBlankLoop;
     static const Core::ParameterBool paramForceBlank;
-    static const Core::ParameterBool paramAllowBlankAfterSentenceEnd;
 
     CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon& lexicon, const Am::AcousticModel& acousticModel, Search::PersistentStateTree& network, bool initialize = true);
     virtual ~CtcTreeBuilder() = default;
@@ -291,7 +290,6 @@ protected:
     bool allowBlankAfterSentenceEnd_;
 
     StateId                      wordBoundaryRoot_;
-    StateId                      sentenceEndSink_;  // Reached after emitting sentence-end with no more outgoing transitions except for blank-looping if `allowBlankAfterSentenceEnd_` is enabled
     Search::StateTree::StateDesc blankDesc_;
     Am::AllophoneStateIndex      blankAllophoneStateIndex_;
 
@@ -301,9 +299,6 @@ protected:
 
     // Build the sub-tree with the word-boundary lemma plus optional blank starting from `wordBoundaryRoot_`.
     void addWordBoundaryStates();
-
-    // Build the sub-tree with the sentence-end lemma plus optional blank starting from `sentenceEndRoot_`.
-    void addSentenceEndStates();
 
     Bliss::Lemma const* getSentenceEndLemma() const;
 };

@@ -12,12 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_DUMMY_COMPRESSED_VECTOR_FACTORY_HH
-#define _LM_DUMMY_COMPRESSED_VECTOR_FACTORY_HH
+#ifndef _NN_DUMMY_COMPRESSED_VECTOR_FACTORY_HH
+#define _NN_DUMMY_COMPRESSED_VECTOR_FACTORY_HH
 
 #include "CompressedVector.hh"
 
-namespace Lm {
+namespace Nn {
 
 template<typename T>
 class UncompressedVector : public CompressedVector<T> {
@@ -98,6 +98,6 @@ public:
     }
 };
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif /* _LM_DUMMY_COMPRESSED_VECTOR_FACTORY_HH */
+#endif  // _NN_DUMMY_COMPRESSED_VECTOR_FACTORY_HH

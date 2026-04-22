@@ -1,4 +1,4 @@
-/** Copyright 2020 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -12,15 +12,21 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#include "TFPassthroughSoftmaxAdapter.hh"
 
-namespace Lm {
+#ifndef TYPES_HH
+#define TYPES_HH
 
-void TFPassthroughSoftmaxAdapter::init(Tensorflow::Session& session, Tensorflow::TensorInputMap const& input_map, Tensorflow::TensorOutputMap const& output_map) {
-}
+#include <Mm/Types.hh>
+#include <Search/Types.hh>
+#include <Speech/Types.hh>
 
-Score TFPassthroughSoftmaxAdapter::get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) {
-    return nn_out->get(output_idx);
-}
+namespace Nn {
 
-}  // namespace Lm
+typedef Search::Score          Score;
+typedef Speech::TimeframeIndex TimeframeIndex;
+typedef Mm::EmissionIndex      LabelIndex;
+static constexpr LabelIndex    invalidLabelIndex = Core::Type<LabelIndex>::max;
+
+}  // namespace Nn
+
+#endif  // TYPES_HH

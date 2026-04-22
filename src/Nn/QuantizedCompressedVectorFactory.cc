@@ -18,7 +18,7 @@
 #include <immintrin.h>
 #endif
 
-namespace Lm {
+namespace Nn {
 
 // --------------------------- QuantizedFloatVector ---------------------------
 
@@ -168,4 +168,4 @@ CompressedVectorPtr<float> QuantizedCompressedVectorFactory::compress(float cons
     return CompressedVectorPtr<float>(vec);
 }
 
-}  // namespace Lm
+}  // namespace Nn

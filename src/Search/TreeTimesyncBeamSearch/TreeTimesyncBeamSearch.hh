@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
 #include <Search/PersistentStateTree.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
@@ -48,6 +49,7 @@ public:
     static const Core::ParameterInt         paramMaxWordEndBeamSize;
     static const Core::ParameterFloatVector paramScoreThresholds;
     static const Core::ParameterFloat       paramWordEndScoreThreshold;
+    static const Core::ParameterInt         paramNumHistogramBins;
     static const Core::ParameterBool        paramCollapseRepeatedLabels;
     static const Core::ParameterBool        paramSentenceEndFallBack;
     static const Core::ParameterBool        paramLogStepwiseStatistics;
@@ -80,12 +82,12 @@ protected:
      * Possible extension for some label hypothesis in the beam
      */
     struct WithinWordExtensionCandidate {
-        Nn::LabelIndex                  nextToken;       // Proposed token to extend the hypothesis with
-        StateId                         nextState;       // State in the search tree of this extension
-        Search::TimeframeIndex          timeframe;       // Timestamp of `nextToken` for traceback
-        Score                           score;           // Would-be total score of the full hypothesis after extension
-        Nn::LabelScorer::TransitionType transitionType;  // Type of transition toward `nextToken`
-        size_t                          baseHypIndex;    // Index of base hypothesis in beam
+        Nn::LabelIndex         nextToken;       // Proposed token to extend the hypothesis with
+        StateId                nextState;       // State in the search tree of this extension
+        Search::TimeframeIndex timeframe;       // Timestamp of `nextToken` for traceback
+        Score                  score;           // Would-be total score of the full hypothesis after extension
+        Nn::TransitionType     transitionType;  // Type of transition toward `nextToken`
+        size_t                 baseHypIndex;    // Index of base hypothesis in beam
 
         bool operator<(WithinWordExtensionCandidate const& other) {
             return score < other.score;
@@ -93,10 +95,11 @@ protected:
     };
 
     struct WordEndExtensionCandidate {
-        Bliss::LemmaPronunciation const* pron;          // Proposed lemma pronunciation
-        StateId                          rootState;     // Proposed root-state to transition to
-        Score                            score;         // Would-be total score of the full hypothesis after LM score contribution
-        size_t                           baseHypIndex;  // Index of base hypothesis in beam
+        Bliss::LemmaPronunciation const* pron;            // Proposed lemma pronunciation
+        StateId                          rootState;       // Proposed root-state to transition to
+        Score                            score;           // Would-be total score of the full hypothesis after LM score contribution
+        Nn::TransitionType               transitionType;  // Type of transition towward `rootState`
+        size_t                           baseHypIndex;    // Index of base hypothesis in beam
 
         bool operator<(WordEndExtensionCandidate const& other) {
             return score < other.score;
@@ -138,7 +141,9 @@ private:
     size_t              maxWordEndBeamSize_;
     std::vector<Score>  scoreThresholds_;
     Score               wordEndScoreThreshold_;
+    Histogram           scoreHistogram_;
     Nn::LabelIndex      blankLabelIndex_;
+    Bliss::Lemma const* sentenceEndLemma_;
     Nn::LabelIndex      sentenceEndLabelIndex_;
     size_t              cacheCleanupInterval_;
     size_t              maximumStableDelay_;
@@ -158,12 +163,13 @@ private:
     Core::Channel                                  debugChannel_;
 
     // Pre-allocated intermediate vectors
+    std::vector<int>                          hypIndexToContextIndexMap_;
     std::vector<WithinWordExtensionCandidate> withinWordExtensions_;
     std::vector<WordEndExtensionCandidate>    wordEndExtensions_;
     std::vector<LabelHypothesis>              beam_;
     std::vector<LabelHypothesis>              newBeam_;
     std::vector<LabelHypothesis>              wordEndHypotheses_;
-    std::vector<Nn::LabelScorer::Request>     requests_;
+    std::vector<Nn::ScoringContextRef>        scoringContexts_;
     std::vector<LabelHypothesis>              tempHypotheses_;
 
     // Precomputed successor/exit lookups (offset tables + contiguous data).
@@ -179,9 +185,9 @@ private:
     Core::StopWatch featureProcessingTime_;
     Core::StopWatch scoringTime_;
 
-    std::vector<Core::Statistics<u32>> numHypsAfterScorePruning_;
+    std::vector<Core::Statistics<u32>> numHypsAfterIntermediatePruning_;
     Core::Statistics<u32>              numHypsAfterRecombination_;
-    std::vector<Core::Statistics<u32>> numHypsAfterBeamPruning_;
+    Core::Statistics<u32>              numHypsAfterPruning_;
     Core::Statistics<u32>              numWordEndHypsAfterScorePruning_;
     Core::Statistics<u32>              numWordEndHypsAfterRecombination_;
     Core::Statistics<u32>              numWordEndHypsAfterBeamPruning_;
@@ -198,19 +204,14 @@ private:
      * Infer type of transition between two tokens based on whether each of them is blank
      * and/or whether they are the same
      */
-    Nn::LabelScorer::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
+    Nn::TransitionType inferTransitionType(Nn::LabelIndex prevLabel, Nn::LabelIndex nextLabel) const;
 
     /*
-     * Helper function for pruning to maxBeamSize
+     * Helper function for pruning. Calculates an absolute threshold based on best score + relative threshold and
+     * score histogram. Removes all hypotheses with a score > absolute threshold.
      */
     template<typename Element>
-    void beamSizePruning(std::vector<Element>& hypotheses, size_t maxBeamSize) const;
-
-    /*
-     * Helper function for pruning to scoreThreshold
-     */
-    template<typename Element>
-    void scorePruning(std::vector<Element>& hyps, Score scoreThreshold) const;
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
 
     /*
      * Helper function for recombination of hypotheses at the same point in the tree with the same scoring context and LM history.
@@ -230,6 +231,7 @@ private:
      * After reaching the segment end, go through the active hypotheses, only keep those
      * which are final states of the search tree.
      * If no such hypotheses exist, use sentence-end fallback or construct an empty hypothesis.
+     * Score sentence-end with all label scorers for all final hypotheses and add the LM's sentence-end score
      */
     void finalizeHypotheses();
 

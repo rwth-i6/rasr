@@ -13,6 +13,10 @@ TARGETS 	= libSprintNn.$(a) check$(exe)
 
 LIBSPRINTNN_O	=						\
 		$(OBJDIR)/Module.o				\
+		$(OBJDIR)/CompressedVector.o				\
+		$(OBJDIR)/FixedQuantizationCompressedVectorFactory.o	\
+		$(OBJDIR)/QuantizedCompressedVectorFactory.o		\
+		$(OBJDIR)/ReducedPrecisionCompressedVectorFactory.o	\
 
 INCLUDES	+=
 

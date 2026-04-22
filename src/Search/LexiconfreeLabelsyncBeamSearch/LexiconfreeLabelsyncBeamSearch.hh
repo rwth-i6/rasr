@@ -23,6 +23,7 @@
 #include <Nn/LabelScorer/DataView.hh>
 #include <Nn/LabelScorer/LabelScorer.hh>
 #include <Nn/LabelScorer/ScoringContext.hh>
+#include <Search/Histogram.hh>
 #include <Search/SearchV2.hh>
 #include <Search/Traceback.hh>
 
@@ -42,6 +43,7 @@ class LexiconfreeLabelsyncBeamSearch : public SearchAlgorithmV2 {
 public:
     static const Core::ParameterInt   paramMaxBeamSize;
     static const Core::ParameterFloat paramScoreThreshold;
+    static const Core::ParameterInt   paramNumHistogramBins;
 
     static const Core::ParameterInt   paramSentenceEndLabelIndex;
     static const Core::ParameterBool  paramCacheCleanupInterval;
@@ -78,6 +80,10 @@ protected:
         Nn::TransitionType               transitionType;  // Type of transition toward `nextToken`
         size_t                           baseHypIndex;    // Index of base hypothesis in global beam
 
+        inline Score pruningScore() const {
+            return score;
+        }
+
         bool operator<(ExtensionCandidate const& other) const {
             return score < other.score;
         }
@@ -98,6 +104,10 @@ protected:
         LabelHypothesis();
         LabelHypothesis(LabelHypothesis const& base, ExtensionCandidate const& extension, Nn::ScoringContextRef const& newScoringContext, float lengthNormScale);
 
+        inline Score pruningScore() const {
+            return scaledScore;
+        }
+
         bool operator<(LabelHypothesis const& other) const {
             return scaledScore < other.scaledScore;
         }
@@ -116,6 +126,7 @@ private:
     size_t         maxBeamSize_;
     bool           useScorePruning_;
     Score          scoreThreshold_;
+    Histogram      scoreHistogram_;
     float          lengthNormScale_;
     float          maxLabelsPerTimestep_;
     Nn::LabelIndex sentenceEndLabelIndex_;
@@ -163,19 +174,11 @@ private:
     void logStatistics() const;
 
     /*
-     * Helper function for pruning of hyps to `maxBeamSize_`
+     * Helper function for acoustic pruning of hypotheses. Calculates an absolute threshold based on best score + relative threshold and
+     * score histogram. Removes all extensions worse than the absolute threshold.
      */
-    void beamSizePruning();
-
-    /*
-     * Helper function for pruning of extensions to `scoreThreshold_`
-     */
-    void scorePruningExtensions();
-
-    /*
-     * Helper function for pruning of hyps to `scoreThreshold_`
-     */
-    void scorePruning();
+    template<typename Element>
+    void scorePruning(std::vector<Element>& hypotheses, Score relativeThreshold, size_t maxBeamSize);
 
     /*
      * Helper function for recombination of hypotheses with the same scoring context

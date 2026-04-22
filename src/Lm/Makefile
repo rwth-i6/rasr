@@ -114,7 +114,7 @@ libSprintLm.$(a): $(SUBDIRS) $(LIBSPRINTLM_O)
 	$(MAKELIB) $@ $(LIBSPRINTLM_O) $(ADD_FILES)
 
 check$(exe): $(CHECK_O)
-	$(LD) $(LD_START_GROUP) $+ $(LD_END_GROUP) -o $@ $(LDFLAGS)
+	$(LD) $^ -o $@ $(LDFLAGS)
 
 include $(TOPDIR)/Rules.make
 

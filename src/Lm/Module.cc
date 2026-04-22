@@ -16,6 +16,10 @@
 
 #include <Core/Application.hh>
 #include <Modules.hh>
+#include <Nn/DummyCompressedVectorFactory.hh>
+#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
+#include <Nn/QuantizedCompressedVectorFactory.hh>
+#include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
 #include "ClassLm.hh"
 #include "CombineLm.hh"
 #include "SimpleHistoryLm.hh"

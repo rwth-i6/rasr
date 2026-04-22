@@ -137,6 +137,32 @@ bool OnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) cons
 }
 
 /*
+ * =====================================
+ * = StepOnnxHiddenStateScoringContext =
+ * =====================================
+ */
+size_t StepOnnxHiddenStateScoringContext::hash() const {
+    return Core::combineHashes(currentStep, Core::MurmurHash3_x64_64(reinterpret_cast<void const*>(labelSeq.data()), labelSeq.size() * sizeof(LabelIndex), 0x78b174eb));
+}
+
+bool StepOnnxHiddenStateScoringContext::isEqual(ScoringContextRef const& other) const {
+    auto* otherPtr = dynamic_cast<const StepOnnxHiddenStateScoringContext*>(other.get());
+    if (otherPtr == nullptr) {
+        return false;
+    }
+
+    if (currentStep != otherPtr->currentStep) {
+        return false;
+    }
+
+    if (labelSeq.size() != otherPtr->labelSeq.size()) {
+        return false;
+    }
+
+    return true;
+}
+
+/*
  * ====================================
  * = StateManagedOnnxScoringContext ===
  * ====================================

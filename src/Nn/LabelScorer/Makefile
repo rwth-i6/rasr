@@ -28,6 +28,7 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/ScaledLabelScorer.o \
     $(OBJDIR)/StateManagedOnnxLabelScorer.o \
     $(OBJDIR)/StatefulOnnxLabelScorer.o \
+    $(OBJDIR)/StatefulTransducerOnnxLabelScorer.o \
     $(OBJDIR)/TransitionLabelScorer.o \
     $(OBJDIR)/TransitionTypes.o
 

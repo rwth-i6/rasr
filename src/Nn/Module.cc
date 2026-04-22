@@ -19,6 +19,7 @@
 #include <Modules.hh>
 
 #include "LabelScorer/CombineLabelScorer.hh"
+#include "LabelScorer/CtcPrefixLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
@@ -76,6 +77,13 @@ Module_::Module_()
     Mm::Module::instance().featureScorerFactory()->registerFeatureScorer<PythonFeatureScorer, Mm::MixtureSet, Mm::AbstractMixtureSetLoader>(
             pythonFeatureScorer, "python-feature-scorer");
 #endif
+
+    // A label scorer that wraps a time-synchronous CTC scorer and computes label-synchronous prefix scores
+    labelScorerFactory_.registerLabelScorer(
+            "ctc-prefix",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CtcPrefixLabelScorer(config));
+            });
 
     // Performs log-linear combination of multiple sub-label-scorers
     labelScorerFactory_.registerLabelScorer(

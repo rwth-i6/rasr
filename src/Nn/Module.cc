@@ -17,6 +17,12 @@
 #include <Core/FormatSet.hh>
 #include <Flow/Registry.hh>
 #include <Modules.hh>
+#include <Nn/DummyCompressedVectorFactory.hh>
+#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
+#include <Nn/QuantizedCompressedVectorFactory.hh>
+#include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
+#include <Onnx/OnnxLstmStateManager.hh>
+#include <Onnx/OnnxTransformerStateManager.hh>
 
 #include "LabelScorer/CombineLabelScorer.hh"
 #include "LabelScorer/EncoderDecoderLabelScorer.hh"
@@ -25,6 +31,7 @@
 #include "LabelScorer/NoOpLabelScorer.hh"
 #include "LabelScorer/PriorLabelScorer.hh"
 #include "LabelScorer/ScaledLabelScorer.hh"
+#include "LabelScorer/StateManagedOnnxLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
@@ -45,6 +52,50 @@
 #endif
 
 using namespace Nn;
+
+namespace {
+
+enum CompressedVectorFactoryType {
+    DummyCompressedVectorFactoryType,
+    FixedQuantizationCompressedVectorFactoryType,
+    QuantizedCompressedVectorFactoryType,
+    ReducedPrecisionCompressedVectorFactoryType
+};
+
+enum StateManagerType {
+    LstmStateManagerType,
+    TransformerStateManagerType,
+    TransformerStateManager16BitType,
+    TransformerStateManager8BitType,
+};
+
+}  // namespace
+
+const Core::Choice Module_::compressedVectorFactoryTypeChoice(
+        "dummy", DummyCompressedVectorFactoryType,
+        "fixed-quantization", FixedQuantizationCompressedVectorFactoryType,
+        "quantized", QuantizedCompressedVectorFactoryType,
+        "reduced-precision", ReducedPrecisionCompressedVectorFactoryType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
+        "type",
+        &Module_::compressedVectorFactoryTypeChoice,
+        "type of compressed vector factory",
+        DummyCompressedVectorFactoryType);
+
+const Core::Choice Module_::stateManagerTypeChoice(
+        "lstm", LstmStateManagerType,
+        "transformer", TransformerStateManagerType,
+        "transformer-16bit", TransformerStateManager16BitType,
+        "transformer-8bit", TransformerStateManager8BitType,
+        Core::Choice::endMark());
+
+const Core::ParameterChoice Module_::stateManagerTypeParam(
+        "type",
+        &Module_::stateManagerTypeChoice,
+        "type of the state manager",
+        LstmStateManagerType);
 
 Module_::Module_()
         : formats_(nullptr),
@@ -139,6 +190,13 @@ Module_::Module_()
                 return Core::ref(new StatefulOnnxLabelScorer(config));
             });
 
+    // Compute scores with recurrent ONNX state packing delegated to a StateManager.
+    labelScorerFactory_.registerLabelScorer(
+            "state-managed-onnx",
+            [](Core::Configuration const& config) {
+                return Core::ref(new StateManagedOnnxLabelScorer(config));
+            });
+
     // Returns predefined scores based on the transition type of each score request
     labelScorerFactory_.registerLabelScorer(
             "transition",
@@ -168,4 +226,38 @@ EncoderFactory& Module_::encoderFactory() {
 
 LabelScorerFactory& Module_::labelScorerFactory() {
     return labelScorerFactory_;
+}
+
+CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
+    switch (compressedVectorFactoryTypeParam(config)) {
+        case DummyCompressedVectorFactoryType:
+            return CompressedVectorFactoryPtr<float>(new DummyCompressedVectorFactory<float>(config));
+        case FixedQuantizationCompressedVectorFactoryType:
+            return CompressedVectorFactoryPtr<float>(new FixedQuantizationCompressedVectorFactory(config));
+        case QuantizedCompressedVectorFactoryType:
+            return CompressedVectorFactoryPtr<float>(new QuantizedCompressedVectorFactory(config));
+        case ReducedPrecisionCompressedVectorFactoryType:
+            return CompressedVectorFactoryPtr<float>(new ReducedPrecisionCompressedVectorFactory(config));
+        default:
+            defect();
+    }
+}
+
+std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>> Module_::createStateManager(Core::Configuration const& config) {
+    switch (stateManagerTypeParam(config)) {
+        case LstmStateManagerType:
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxLstmStateManager(config));
+        case TransformerStateManagerType:
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<float>(config));
+        case TransformerStateManager16BitType:
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<int16_t>(config));
+        case TransformerStateManager8BitType:
+            return std::unique_ptr<AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>>(
+                    new Onnx::OnnxTransformerStateManager<int8_t>(config));
+        default:
+            defect();
+    }
 }

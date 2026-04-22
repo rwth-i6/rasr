@@ -16,7 +16,9 @@
 #ifndef _PYTHON_SEARCH_HH
 #define _PYTHON_SEARCH_HH
 
+#include <Flf/LatticeHandler.hh>
 #include <Search/SearchV2.hh>
+#include "Flf/Lexicon.hh"
 
 #pragma push_macro("ensure")  // Macro duplication in numpy.h
 #undef ensure
@@ -27,17 +29,20 @@
 namespace py = pybind11;
 
 struct TracebackItem {
-    std::string lemma;
-    f32         amScore;
-    f32         lmScore;
-    u32         startTime;
-    u32         endTime;
+    std::string        lemma;
+    f32                amScore;
+    f32                lmScore;
+    std::optional<f32> confidenceScore;
+    u32                startTime;
+    u32                endTime;
 };
 
 typedef std::vector<TracebackItem> Traceback;
 
 class SearchAlgorithm : public Core::Component {
 public:
+    static const Core::ParameterBool paramConfidenceScores;
+
     SearchAlgorithm(const Core::Configuration& c);
 
     // Call before starting a new recognition. Clean up existing data structures
@@ -64,7 +69,15 @@ public:
     Traceback recognizeSegment(py::array_t<f32> const& features);
 
 private:
+    Traceback getTracebackWithoutConfidence();
+    Traceback getTracebackWithConfidence();
+
+    bool addConfidenceScores_;
+
+    std::unique_ptr<Flf::LatticeHandler>       latticeHandler_;
     std::unique_ptr<Search::SearchAlgorithmV2> searchAlgorithm_;
+    Flf::LexiconRef                            lexicon_;
+    Speech::ModelCombination                   modelCombination_;
 };
 
 #endif  // _PYTHON_SEARCH_HH

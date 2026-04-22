@@ -12,15 +12,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_COMPRESSED_VECTOR_HH
-#define _LM_COMPRESSED_VECTOR_HH
+#ifndef _NN_COMPRESSED_VECTOR_HH
+#define _NN_COMPRESSED_VECTOR_HH
 
 #include <memory>
 #include <valarray>
 
 #include <Core/Component.hh>
 
-namespace Lm {
+namespace Nn {
 
 // utility class
 
@@ -122,6 +122,6 @@ inline size_t ContiguousBlockInfo::blockSize() const {
     return blockSize_;
 }
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif /* _LM_COMPRESSED_VECTOR_HH */
+#endif  // _NN_COMPRESSED_VECTOR_HH

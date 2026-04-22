@@ -555,17 +555,18 @@ private:
     bool isConsistent(PivotArcCn::SlotPtrList& slots) const {
         bool consistent = true;
         if (slots.size() > 1) {
-            Time pStart = 0, pEnd = 0, tStart = slots.front()->start, tEnd = slots.front()->end;
+            Time tStart = slots.front()->start;
+            Time tEnd   = slots.front()->end;
             if (!(tStart < tEnd)) {
                 dbg(1);
                 consistent = false;
             }
             for (PivotArcCn::SlotPtrList::const_iterator itSlotPtr = slots.begin() + 1; (itSlotPtr != slots.end()) && consistent; ++itSlotPtr) {
-                const PivotArcCn::Slot& slot = **itSlotPtr;
-                pStart                       = tStart;
-                pEnd                         = tEnd;
-                tStart                       = slot.start;
-                tEnd                         = slot.end;
+                const PivotArcCn::Slot& slot   = **itSlotPtr;
+                Time                    pStart = tStart;
+                Time                    pEnd   = tEnd;
+                tStart                         = slot.start;
+                tEnd                           = slot.end;
                 if (!(tStart < tEnd)) {
                     consistent = false;
                     break;

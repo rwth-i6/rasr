@@ -16,14 +16,19 @@ LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/Encoder.o \
     $(OBJDIR)/EncoderDecoderLabelScorer.o \
     $(OBJDIR)/EncoderFactory.o \
+    $(OBJDIR)/FixedContextOnnxLabelScorer.o \
     $(OBJDIR)/LabelScorer.o \
     $(OBJDIR)/LabelScorerFactory.o \
-    $(OBJDIR)/FixedContextOnnxLabelScorer.o \
     $(OBJDIR)/NoContextOnnxLabelScorer.o \
     $(OBJDIR)/NoOpLabelScorer.o \
+    $(OBJDIR)/PriorLabelScorer.o \
+    $(OBJDIR)/ScaledLabelScorer.o \
+    $(OBJDIR)/ScoreAccessor.o \
     $(OBJDIR)/ScoringContext.o \
+    $(OBJDIR)/ScaledLabelScorer.o \
     $(OBJDIR)/StatefulOnnxLabelScorer.o \
-    $(OBJDIR)/TransitionLabelScorer.o
+    $(OBJDIR)/TransitionLabelScorer.o \
+    $(OBJDIR)/TransitionTypes.o
 
 # -----------------------------------------------------------------------------
 

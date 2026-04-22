@@ -36,7 +36,7 @@ static const Core::ParameterString paramCacheArchive(
         "cache archive in which the persistent state-network should be cached",
         "global-cache");
 
-static u32 formatVersion = 13;
+static u32 formatVersion = 14;
 
 namespace Search {
 struct ConvertTree {
@@ -273,7 +273,7 @@ void PersistentStateTree::write(Core::MappedArchiveWriter out) {
 
     out << coarticulatedRootStates << unpushedCoarticulatedRootStates;
     out << rootTransitDescriptions << pushedWordEndNodes << uncoarticulatedWordEndStates;
-    out << rootState << ciRootState << otherRootStates;
+    out << rootState << ciRootState << otherRootStates << finalStates;
 }
 
 bool PersistentStateTree::read(Core::MappedArchiveReader in) {
@@ -282,8 +282,8 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
 
     /// @todo Eventually do memory-mapping
 
-    if (v != formatVersion) {
-        Core::Application::us()->log() << "Wrong compressed network format, need " << formatVersion << " got " << v;
+    if (v < 13) {
+        Core::Application::us()->log() << "Wrong compressed network format, need version >= 13 got " << v;
         return false;
     }
 
@@ -308,6 +308,9 @@ bool PersistentStateTree::read(Core::MappedArchiveReader in) {
     in >> pushedWordEndNodes >> uncoarticulatedWordEndStates;
 
     in >> rootState >> ciRootState >> otherRootStates;
+    if (v >= 14) {
+        in >> finalStates;
+    }
 
     return in.good();
 }

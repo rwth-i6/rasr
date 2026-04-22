@@ -5,7 +5,7 @@
 #include <Onnx/IOSpecification.hh>
 #include <Onnx/Session.hh>
 
-#include "CompressedVector.hh"
+#include <Nn/CompressedVector.hh>
 
 namespace Lm {
 
@@ -19,8 +19,8 @@ public:
     virtual ~OnnxSoftmaxAdapter() = default;
 
     virtual void               init(Onnx::Session& session, Onnx::IOMapping& mapping)                     = 0;
-    virtual Score              get_score(Lm::CompressedVectorPtr<float> const& nn_out, size_t output_idx) = 0;
-    virtual std::vector<Score> get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs);
+    virtual Score              get_score(Nn::CompressedVectorPtr<float> const& nn_out, size_t output_idx) = 0;
+    virtual std::vector<Score> get_scores(Nn::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs);
 
 private:
 };
@@ -31,7 +31,7 @@ inline OnnxSoftmaxAdapter::OnnxSoftmaxAdapter(Core::Configuration const& config)
         : Precursor(config) {
 }
 
-inline std::vector<Score> OnnxSoftmaxAdapter::get_scores(Lm::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
+inline std::vector<Score> OnnxSoftmaxAdapter::get_scores(Nn::CompressedVectorPtr<float> const& nn_out, std::vector<size_t> const& output_idxs) {
     std::vector<Score> scores;
     scores.reserve(output_idxs.size());
     for (size_t output_idx : output_idxs) {

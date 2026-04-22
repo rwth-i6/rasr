@@ -17,6 +17,7 @@
 #define PYTHON_LABEL_SCORER_HH
 
 #include <pybind11/pybind11.h>
+#include "Nn/LabelScorer/Types.hh"
 
 #include <Nn/LabelScorer/LabelScorer.hh>
 
@@ -63,15 +64,15 @@ public:
     // the following methods are protected in the base class
 
     // Must be overridden in python by name "extended_scoring_context_internal"
-    virtual Nn::ScoringContextRef extendedScoringContextInternal(Request const& request) override;
-    virtual py::object            extendedPythonScoringContextInternal(py::object const& context, Nn::LabelIndex nextToken, TransitionType transitionType);
+    virtual Nn::ScoringContextRef extendedScoringContext(Nn::ScoringContextRef scoringContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType) override;
+    virtual py::object            extendedPythonScoringContext(py::object const& pythonContext, Nn::LabelIndex nextToken, Nn::TransitionType transitionType);
 
     // Calls batched version
-    virtual std::optional<ScoreWithTime> computeScoreWithTimeInternal(Request const& request) override;
+    virtual std::optional<Nn::ScoreAccessorRef> getScoreAccessor(Nn::ScoringContextRef scoringContext) override;
 
     // Must be overridden in python by name "compute_scores_with_times_internal"
-    virtual std::optional<ScoresWithTimes>                                       computeScoresWithTimesInternal(std::vector<Request> const& requests) override;
-    virtual std::optional<std::vector<std::pair<Score, Speech::TimeframeIndex>>> computePythonScoresWithTimesInternal(std::vector<py::object> const& contexts, std::vector<Nn::LabelIndex> const& nextTokens, std::vector<TransitionType> const& transitionTypes);
+    virtual std::vector<std::optional<Nn::ScoreAccessorRef>>                                  getScoreAccessors(std::vector<Nn::ScoringContextRef> const& scoringContexts) override;
+    virtual std::vector<std::optional<std::pair<std::vector<Nn::Score>, Nn::TimeframeIndex>>> getPythonScoresWithTimes(std::vector<py::object> const& pythonContexts);
 
 protected:
     py::object pyInstance_;  // Hold the Python wrapper

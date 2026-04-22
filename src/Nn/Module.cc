@@ -23,6 +23,8 @@
 #include "LabelScorer/FixedContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoContextOnnxLabelScorer.hh"
 #include "LabelScorer/NoOpLabelScorer.hh"
+#include "LabelScorer/PriorLabelScorer.hh"
+#include "LabelScorer/ScaledLabelScorer.hh"
 #include "LabelScorer/StatefulOnnxLabelScorer.hh"
 #include "LabelScorer/TransitionLabelScorer.hh"
 #include "Statistics.hh"
@@ -87,6 +89,13 @@ Module_::Module_()
             "no-op",
             [](Core::Configuration const& config) {
                 return Core::ref(new StepwiseNoOpLabelScorer(config));
+            });
+
+    // Same as no-op, but can also negate output and subtract prior
+    labelScorerFactory_.registerLabelScorer(
+            "prior",
+            [](Core::Configuration const& config) {
+                return Core::ref(new PriorLabelScorer(config));
             });
 
     // A label scorer consisting of an encoder that pre-processes the features and another label scorer acting as decoder

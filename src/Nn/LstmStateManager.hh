@@ -12,13 +12,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _LM_LSTM_STATE_MANAGER_HH
-#define _LM_LSTM_STATE_MANAGER_HH
+#ifndef _NN_LSTM_STATE_MANAGER_HH
+#define _NN_LSTM_STATE_MANAGER_HH
 
 #include "AbstractStateManager.hh"
 #include "CompressedVector.hh"
 
-namespace Lm {
+namespace Nn {
 
 template<typename value_t, typename state_variable_t>
 class LstmStateManager : public AbstractStateManager<value_t, state_variable_t> {
@@ -136,6 +136,6 @@ std::vector<typename LstmStateManager<value_t, state_variable_t>::Precursor::His
     return result;
 }
 
-}  // namespace Lm
+}  // namespace Nn
 
-#endif  // _LM_LSTM_STATE_MANAGER_HH
+#endif  // _NN_LSTM_STATE_MANAGER_HH

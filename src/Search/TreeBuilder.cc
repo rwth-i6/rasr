@@ -1310,6 +1310,12 @@ CtcTreeBuilder::CtcTreeBuilder(Core::Configuration config, const Bliss::Lexicon&
             wordBoundaryRoot_ = createRoot();
             network_.otherRootStates.insert(wordBoundaryRoot_);
         }
+
+        // Any root state is a valid final state
+        network_.finalStates.insert(network_.rootState);
+        for (auto const& otherRootState : network_.otherRootStates) {
+            network_.finalStates.insert(otherRootState);
+        }
     }
 }
 
@@ -1323,17 +1329,22 @@ void CtcTreeBuilder::build() {
         addWordBoundaryStates();
     }
 
+    auto sentenceBeginLemma = lexicon_.specialLemma("sentence-begin");
+    auto sentenceEndLemma   = getSentenceEndLemma();
+
     auto blankLemma   = lexicon_.specialLemma("blank");
     auto silenceLemma = lexicon_.specialLemma("silence");
     auto iters        = lexicon_.lemmaPronunciations();
 
     // Iterate over the lemmata and add them to the tree
     for (auto it = iters.first; it != iters.second; ++it) {
-        if ((*it)->lemma() == wordBoundaryLemma) {
-            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_
-            // This is handled separately in addWordBoundaryStates()
+        if ((*it)->lemma() == wordBoundaryLemma or (*it)->lemma() == sentenceEndLemma or (*it)->lemma() == sentenceBeginLemma) {
+            // The wordBoundaryLemma should be a successor of the wordBoundaryRoot_, this is handled separately in addWordBoundaryStates()
+            // Sentence-end and sentence-begin should not be part of the tree, they are handled in the search algorithms
             continue;
         }
+
+        require((*it)->pronunciation()->length() > 0);
 
         StateId lastState = extendPronunciation(network_.rootState, (*it)->pronunciation());
 
@@ -1446,6 +1457,14 @@ void CtcTreeBuilder::addWordBoundaryStates() {
         // Add loop for this blank state
         addTransition(blankBefore, blankBefore);
     }
+}
+
+Bliss::Lemma const* CtcTreeBuilder::getSentenceEndLemma() const {
+    auto sentenceEndLemma = lexicon_.specialLemma("sentence-end");
+    if (sentenceEndLemma == nullptr) {
+        sentenceEndLemma = lexicon_.specialLemma("sentence-boundary");
+    }
+    return sentenceEndLemma;
 }
 
 // -------------------- RnaTreeBuilder --------------------

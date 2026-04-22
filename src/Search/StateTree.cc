@@ -640,7 +640,7 @@ std::pair<Bliss::Phoneme::Id, Bliss::Phoneme::Id> StateTree::describeRootState(S
         else {
             std::string text = Core::form("Unknown transit index %d. Context is set to non-coarticulated. ", s);
             text += "It is likely that it occurs in combination with \"No active word end hypothesis at sentence end.\"";
-            warning(text.c_str());
+            warning("%s", text.c_str());
             final = initial = Bliss::Phoneme::term;
         }
     }

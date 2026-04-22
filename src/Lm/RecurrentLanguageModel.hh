@@ -1,7 +1,6 @@
 #ifndef _LM_RECURRENT_LANGUAGE_MODEL_HH
 #define _LM_RECURRENT_LANGUAGE_MODEL_HH
 
-#include <deque>
 #include <future>
 #include <thread>
 #include <vector>
@@ -9,8 +8,8 @@
 #include <Math/FastMatrix.hh>
 #include <Core/readerwriterqueue.h>
 
+#include <Nn/AbstractStateManager.hh>
 #include "AbstractNNLanguageModel.hh"
-#include "AbstractStateManager.hh"
 #include "Module.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
 
@@ -25,8 +24,8 @@ struct ScoresWithContext : public Lm::NNCacheWithStats {
 
     std::atomic<bool>                           computed;
     Lm::History                                 parent;
-    Lm::CompressedVectorPtr<float>              nn_output;
-    std::vector<Lm::CompressedVectorPtr<float>> state;
+    Nn::CompressedVectorPtr<float>              nn_output;
+    std::vector<Nn::CompressedVectorPtr<float>> state;
     Lm::SearchSpaceInformation                  info;
     Search::TimeframeIndex                      last_used;
     Search::TimeframeIndex                      last_info;
@@ -110,7 +109,7 @@ public:
     static const Core::ParameterBool   paramSingleStepOnly;
     static const Core::ParameterBool   paramVerbose;
 
-    RecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::unique_ptr<AbstractStateManager<value_t, state_variable_t>> state_manager);
+    RecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::unique_ptr<Nn::AbstractStateManager<value_t, state_variable_t>> state_manager);
     virtual ~RecurrentLanguageModel();
 
     virtual History startHistory() const;
@@ -132,7 +131,7 @@ protected:
     virtual void                 extendTargets(std::vector<std::string>& targets) const                                                                                                                                         = 0;
     virtual void                 getOutputs(std::vector<std::pair<std::string, value_t>>& inputs, std::vector<value_t>& outputs, std::vector<std::string> const& targets) const                                                 = 0;
     virtual std::vector<value_t> fetchStates(std::vector<value_t>& outputs) const                                                                                                                                               = 0;
-    virtual Score                transformOutput(Lm::CompressedVectorPtr<float> const& nn_output, size_t index) const                                                                                                           = 0;
+    virtual Score                transformOutput(Nn::CompressedVectorPtr<float> const& nn_output, size_t index) const                                                                                                           = 0;
 
     std::vector<state_variable_t> state_variables_;
 
@@ -170,11 +169,11 @@ private:
     mutable detail::TimeStatistics fwd_statistics_;
     mutable size_t                 dump_inputs_counter_;
 
-    std::unique_ptr<AbstractStateManager<value_t, state_variable_t>> state_manager_;
+    std::unique_ptr<Nn::AbstractStateManager<value_t, state_variable_t>> state_manager_;
 
-    std::function<Score(Score)>       output_transform_function_;
-    CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
-    CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
+    std::function<Score(Score)>           output_transform_function_;
+    Nn::CompressedVectorFactoryPtr<float> state_comp_vec_factory_;
+    Nn::CompressedVectorFactoryPtr<float> nn_output_comp_vec_factory_;
 
     History empty_history_;  // a history used to provide the previous (all zero) state to the first real history (1 sentence-begin token)
 
@@ -256,7 +255,7 @@ template<typename value_t, typename state_variable_t>
 const Core::ParameterBool RecurrentLanguageModel<value_t, state_variable_t>::paramVerbose("verbose", "wether to print detailed statistics to stderr", false);
 
 template<typename value_t, typename state_variable_t>
-RecurrentLanguageModel<value_t, state_variable_t>::RecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::unique_ptr<AbstractStateManager<value_t, state_variable_t>> state_manager)
+RecurrentLanguageModel<value_t, state_variable_t>::RecurrentLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l, std::unique_ptr<Nn::AbstractStateManager<value_t, state_variable_t>> state_manager)
         : Core::Component(c),
           Precursor(c, l),
           transform_output_log_(paramTransformOuputLog(config)),
@@ -732,8 +731,8 @@ void RecurrentLanguageModel<value_t, state_variable_t>::forward(Lm::History cons
         total_suffix_length += suffix_lengths[r];
     }
 
-    std::vector<typename AbstractStateManager<value_t, state_variable_t>::HistoryState const*> prefix_states(full_prefix_required ? total_prefix_length : requests.size());
-    size_t                                                                                     current_offset = 0ul;
+    std::vector<typename Nn::AbstractStateManager<value_t, state_variable_t>::HistoryState const*> prefix_states(full_prefix_required ? total_prefix_length : requests.size());
+    size_t                                                                                         current_offset = 0ul;
     for (size_t r = 0ul; r < requests.size(); r++) {
         ScoresWithContext* current_cache = requests[r].initial_cache;
         if (full_prefix_required) {

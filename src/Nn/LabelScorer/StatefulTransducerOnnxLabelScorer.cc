@@ -31,12 +31,6 @@
 
 namespace Nn {
 
-/*
- * =============================
- * == StatefulTransducerOnnxLabelScorer ==
- * =============================
- */
-
 const Core::ParameterBool StatefulTransducerOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",
         "Whether previously emitted blank labels should be used to update the history.",
@@ -60,7 +54,7 @@ const Core::ParameterInt StatefulTransducerOnnxLabelScorer::paramMaxBatchSize(
 const Core::ParameterInt StatefulTransducerOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps histories to scores. This prevents memory overflow in case of very long audio segments.",
-        1000);
+        10000);
 
 // Scorer only takes hidden states as input which are not part of the IO spec
 const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {
@@ -426,24 +420,6 @@ void StatefulTransducerOnnxLabelScorer::cacheStates(std::vector<StepOnnxHiddenSt
     for (size_t i = 0ul; i < nonFinalizedContexts.size(); ++i) {
         stateCache_.put(nonFinalizedContexts[i], newHiddenStates[i]);
     }
-}
-
-void StatefulTransducerOnnxLabelScorer::finalizeScoringContext(StepOnnxHiddenStateScoringContextRef const& scoringContext) {
-    // If this scoring context does not need finalization, don't change it
-    if (not scoringContext->requiresFinalize) {
-        return;
-    }
-
-    verify(not scoringContext->labelSeq.empty());
-
-    auto hiddenState = stateCache_.get(scoringContext);
-    if (not hiddenState) {
-        cacheStates({scoringContext});
-        hiddenState = stateCache_.get(scoringContext);
-    }
-    verify(hiddenState);
-    scoringContext->hiddenState      = *hiddenState;
-    scoringContext->requiresFinalize = false;
 }
 
 void StatefulTransducerOnnxLabelScorer::cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch) {

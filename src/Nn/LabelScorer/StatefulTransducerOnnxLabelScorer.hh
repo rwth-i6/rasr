@@ -100,9 +100,6 @@ private:
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
     void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
-    // Replace hidden-state in scoringContext with an updated version that includes the last label
-    void finalizeScoringContext(StepOnnxHiddenStateScoringContextRef const& scoringContext);
-
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
 
@@ -117,7 +114,7 @@ private:
 
     StepOnnxHiddenStateScoringContextRef initialScoringContext_;
 
-    // Map input/output names of onnx models to hidden state names taken from state initializer model
+    // Map input/output names of onnx models to hidden state names
     std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
@@ -134,4 +131,4 @@ private:
 
 }  // namespace Nn
 
-#endif  // STATEFUL_ONNX_LABEL_SCORER_HH
+#endif  // STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH

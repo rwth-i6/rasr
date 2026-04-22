@@ -55,7 +55,7 @@ const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxBatchSize(
 const Core::ParameterInt StatefulOnnxLabelScorer::paramMaxCachedScores(
         "max-cached-score-vectors",
         "Maximum size of cache that maps scoring contexts to scores. This prevents memory overflow in case of very long audio segments.",
-        1000);
+        10000);
 
 // Scorer only takes hidden states as input which are not part of the IO spec
 const std::vector<Onnx::IOSpecification> scorerModelIoSpec = {

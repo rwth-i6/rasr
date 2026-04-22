@@ -103,9 +103,6 @@ private:
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
     void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
-    // Replace hidden-state in scoringContext with an updated version that includes the last label
-    void finalizeScoringContext(OnnxHiddenStateScoringContextRef const& scoringContext);
-
     // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
     // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
     // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
@@ -124,7 +121,7 @@ private:
 
     OnnxHiddenStateRef initialHiddenState_;
 
-    // Map input/output names of onnx models to hidden state names taken from state initializer model
+    // Map input/output names of onnx models to hidden state names
     std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterInputToStateNameMap_;
     std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;

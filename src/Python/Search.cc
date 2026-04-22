@@ -142,6 +142,7 @@ Traceback SearchAlgorithm::getTracebackWithConfidence() {
 
     auto mapLattice        = Flf::mapInput(confidenceLattice, Flf::MapToLemma);
     auto singleBestLattice = Flf::nbest(mapLattice, 1, true);
+    // TODO: Investigate why `Flf::best` doesn't work here
     // Flf::drawDot(singleBestLattice, "nBestLattice.dot");
     // singleBestLattice = Flf::best(mapLattice, Flf::BellmanFord);
     // Flf::drawDot(singleBestLattice, "singleLattice.dot");

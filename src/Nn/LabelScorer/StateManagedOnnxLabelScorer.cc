@@ -71,9 +71,12 @@ static const std::vector<Onnx::IOSpecification> ioSpec = {
  * ==================================
  */
 
-const Core::ParameterInt StateManagedOnnxLabelScorer::paramStartLabelIndex(
-        "start-label-index",
-        "Initial recurrent update token used to obtain the first score distribution.",
+const Core::ParameterIntVector StateManagedOnnxLabelScorer::paramStartLabels(
+        "start-labels",
+        "Initial context consists of these tokens.",
+        "",
+        0,
+        Core::Type<s32>::max,
         0);
 
 const Core::ParameterBool StateManagedOnnxLabelScorer::paramBlankUpdatesHistory(
@@ -99,7 +102,6 @@ const Core::ParameterInt StateManagedOnnxLabelScorer::paramMaxCachedScores(
 StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration const& config)
         : Core::Component(config),
           Precursor(config, TransitionPresetType::LM),
-          startLabelIndex_(paramStartLabelIndex(config)),
           blankUpdatesHistory_(paramBlankUpdatesHistory(config)),
           loopUpdatesHistory_(paramLoopUpdatesHistory(config)),
           maxBatchSize_(paramMaxBatchSize(config)),
@@ -117,6 +119,8 @@ StateManagedOnnxLabelScorer::StateManagedOnnxLabelScorer(Core::Configuration con
           encoderStatesSizeValue_(),
           scoreCache_(paramMaxCachedScores(config)),
           stateCache_(scoreCache_.maxSize()) {
+    auto startLabels = paramStartLabels(config);
+    startLabels_.insert(startLabels_.begin(), startLabels.begin(), startLabels.end());
 }
 
 void StateManagedOnnxLabelScorer::reset() {
@@ -139,10 +143,15 @@ ScoringContextRef StateManagedOnnxLabelScorer::getInitialScoringContext() {
         error("Initial recurrent state is empty.");
     }
 
-    StateManagedOnnxScoringContextRef root = Core::ref(new StateManagedOnnxScoringContext(std::move(rootState)));
+    auto context = Core::ref(new StateManagedOnnxScoringContext(std::move(rootState)));
 
-    std::vector<LabelIndex> labelSeq{static_cast<LabelIndex>(startLabelIndex_)};
-    return Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), root));
+    for (auto const label : startLabels_) {
+        std::vector<LabelIndex> labelSeq(context->labelSeq);
+        labelSeq.push_back(label);
+        context = Core::ref(new StateManagedOnnxScoringContext(std::move(labelSeq), context));
+        cacheStatesAndScores({context});
+    }
+    return context;
 }
 
 ScoringContextRef StateManagedOnnxLabelScorer::extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) {

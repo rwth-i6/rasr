@@ -35,11 +35,11 @@ class StateManagedOnnxLabelScorer : public BufferedLabelScorer {
     using StateManager = AbstractStateManager<Onnx::Value, Onnx::OnnxStateVariable>;
     using HistoryState = StateManager::HistoryState;
 
-    static const Core::ParameterInt  paramStartLabelIndex;
-    static const Core::ParameterBool paramBlankUpdatesHistory;
-    static const Core::ParameterBool paramLoopUpdatesHistory;
-    static const Core::ParameterInt  paramMaxBatchSize;
-    static const Core::ParameterInt  paramMaxCachedScores;
+    static const Core::ParameterIntVector paramStartLabels;
+    static const Core::ParameterBool      paramBlankUpdatesHistory;
+    static const Core::ParameterBool      paramLoopUpdatesHistory;
+    static const Core::ParameterInt       paramMaxBatchSize;
+    static const Core::ParameterInt       paramMaxCachedScores;
 
 public:
     StateManagedOnnxLabelScorer(Core::Configuration const& config);
@@ -64,10 +64,10 @@ private:
     // Forward a batch of scoringContexts through the ONNX model and put the resulting states and scores into the caches
     void cacheStatesAndScores(std::vector<StateManagedOnnxScoringContextRef> const& scoringContextBatch);
 
-    size_t startLabelIndex_;
-    bool   blankUpdatesHistory_;
-    bool   loopUpdatesHistory_;
-    size_t maxBatchSize_;
+    std::vector<size_t> startLabels_;
+    bool                blankUpdatesHistory_;
+    bool                loopUpdatesHistory_;
+    size_t              maxBatchSize_;
 
     Onnx::Model onnxModel_;
 

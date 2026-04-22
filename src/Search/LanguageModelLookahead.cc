@@ -1870,7 +1870,6 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
                                        parentEnd = parents_.begin() + nodes_[node.first + 1].firstParent;
             for (; parent != parentEnd; ++parent) {
                 verify(nodes_[*parent].depth < static_cast<u32>(depth));
-                ;
                 waitingLookaheadNodesByDepth_[nodes_[*parent].depth].push_back(std::make_pair(*parent, node.second));
             }
         }

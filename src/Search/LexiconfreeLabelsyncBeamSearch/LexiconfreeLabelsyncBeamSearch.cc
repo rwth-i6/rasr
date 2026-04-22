@@ -305,7 +305,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     scoringContexts_.clear();
     for (auto const& hyp : beam_) {
-        scoringContexts_.push_back(hyp.scoringContext);
+        if (hyp.isActive) {
+            scoringContexts_.push_back(hyp.scoringContext);
+        }
     }
 
     /*

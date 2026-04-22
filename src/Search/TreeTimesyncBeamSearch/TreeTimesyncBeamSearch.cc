@@ -458,7 +458,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
                 auto const hyp = beam_[hypIndex];
 
-                auto scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
                 if (not scoreAccessor) {
                     // No extensions for hyps that couldn't be scored
                     continue;
@@ -476,7 +476,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                         continue;
                     }
                     auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-                    auto extScore       = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    auto extScore       = hyp.score;
+                    if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
+                        extScore = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    }
 
                     // Pre-prune based on score before creating extension instance and appending to list
                     if (scoreThresholds_.front() != Core::Type<Score>::max and extScore > currentBestScore + scoreThresholds_.front()) {
@@ -488,30 +491,28 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                             {.nextToken      = tokenIdx,
                              .nextState      = successorState,
                              .timeframe      = hyp.timeframe,
-                             .score          = hyp.score,
+                             .score          = extScore,
                              .transitionType = transitionType,
                              .baseHypIndex   = hypIndex});
                 }
             }
         }
         else {
-            // Remove extensions that couldn't be scored
-            withinWordExtensions_.erase(
-                    std::remove_if(
-                            withinWordExtensions_.begin(),
-                            withinWordExtensions_.end(),
-                            [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
-                    withinWordExtensions_.end());
-
             // Update ext score and timestep
             for (auto& ext : withinWordExtensions_) {
                 if (not labelScorer->scoresTransition(ext.transitionType)) {
                     continue;
                 }
-                auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
-                ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
-                ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
+                if (scoreAccessor) {
+                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
+                }
+                else {
+                    // Extension is not scorable so set the score to max in order to prune it later
+                    ext.score = Core::Type<Score>::max;
+                }
             }
         }
 

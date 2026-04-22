@@ -357,7 +357,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
     auto lemmas = lexicon_->lemmas();
 
     /*
-     * Collect all possible extensions for all hypotheses in the beam.
      * We build a list of all scoring contexts that need to be passed to the LabelScorer for scoring scored inside `scoringContexts_`.
      * `hypIndexToContextIndexMap_` stores the mapping, i.e. beam_[i].scoringContext = scoringContexts_[hypIndexToScoringContextMap_[i]].
      * In the first iteration, this is just an identity mapping, i.e. hypIndexToContextIndexMap_[i] = i but for later label scorers
@@ -390,7 +389,7 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
                 auto const& hyp = beam_[hypIndex];
 
-                auto scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
                 if (not scoreAccessor) {
                     // No extensions for hyps that couldn't be scored
                     continue;
@@ -405,7 +404,10 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                         continue;
                     }
                     auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-                    auto extScore       = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    auto extScore       = hyp.score;
+                    if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
+                        extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    }
 
                     // Pre-prune based on score before creating extension instance and appending to list
                     if (useScorePruning_.front() and extScore > currentBestScore + scoreThresholds_.front()) {
@@ -437,10 +439,16 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
                 if (not labelScorer->scoresTransition(ext.transitionType)) {
                     continue;
                 }
-                auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
 
-                ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
-                ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
+                if (scoreAccessor) {
+                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
+                }
+                else {
+                    // Extension is not scorable so set the score to max in order to prune it later
+                    ext.score = Core::Type<Score>::max;
+                }
             }
         }
 

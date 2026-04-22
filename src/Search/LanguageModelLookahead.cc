@@ -732,7 +732,7 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
         s32 collectTopologicalStates(StateId node, int depth,
                                      std::vector<std::vector<StateId>>& topologicalStates,
                                      std::vector<s32>&                  collected) {
-            if (topologicalStates.size() <= depth) {
+            if (topologicalStates.size() <= static_cast<size_t>(depth)) {
                 topologicalStates.resize(depth + 1);
             }
 
@@ -1105,9 +1105,9 @@ struct WeightedDistributedStandardHash {
                 continue;
             }
             s32 cell = hash % testHash.size();
-            verify(cell >= 0 && cell < testHash.size());
+            verify(cell >= 0 && static_cast<size_t>(cell) < testHash.size());
             s32 previousCell = previous % testHash.size();
-            verify(previousCell >= 0 && previousCell < testHash.size());
+            verify(previousCell >= 0 && static_cast<size_t>(previousCell) < testHash.size());
             float currentLocality = abs(cell - previousCell) / (float)testHash.size();
             verify(currentLocality <= 1.0 && currentLocality >= 0.0);
             if ((currentLocality == 0 || currentLocality > locality + (1.0 / testHash.size())) && iter < maxIter) {
@@ -1167,7 +1167,7 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
             nodeId_.edit(*ri) = ci;
     }
 
-    for (StateTree::StateId si = nodeStart; si < numNodes; ++si)
+    for (StateTree::StateId si = nodeStart; si < static_cast<StateTree::StateId>(numNodes); ++si)
         verify(nodeId_[si] != invalidId);
 
     // add sentinel
@@ -1291,7 +1291,7 @@ void LanguageModelLookahead::buildCompressesLookaheadStructure(u32              
     log() << "lexicon syntactic tokens: " << lm_->lexicon()->nSyntacticTokens();
 
     // using lexicon_->nSyntacticTokens() intead of lm_->tokenInventory().size() here for mismatch case
-    for (int token = 0; token < lm_->lexicon()->nSyntacticTokens(); ++token) {
+    for (int token = 0; token < static_cast<int>(lm_->lexicon()->nSyntacticTokens()); ++token) {
         firstNodeForToken_.push_back(nodeForToken_.size());
         std::pair<TokenNodeMap::iterator, TokenNodeMap::iterator> range = nodeForTokenMap.equal_range(token);
         for (; range.first != range.second; ++range.first)
@@ -1402,9 +1402,9 @@ void LanguageModelLookahead::assignHashes(std::string hashName, Hash& hash, u32 
     for (u32 s = 1; s < nEntries_; ++s) {
         // Locality statistics
         s32 cell = hashForNode_[s] % testHash.size();
-        verify(cell >= 0 && cell < testHash.size());
+        verify(cell >= 0 && static_cast<size_t>(cell) < testHash.size());
         s32 previousCell = hashForNode_[s - 1] % testHash.size();
-        verify(previousCell >= 0 && previousCell < testHash.size());
+        verify(previousCell >= 0 && static_cast<size_t>(previousCell) < testHash.size());
         float currentLocality = abs(cell - previousCell) / (float)testHash.size();
         averageLocality += currentLocality;
     }
@@ -1413,9 +1413,9 @@ void LanguageModelLookahead::assignHashes(std::string hashName, Hash& hash, u32 
 
     for (u32 s = 1; s < nEntries_; ++s) {
         s32 cell = hashForNode_[s] % testHash.size();
-        verify(cell >= 0 && cell < testHash.size());
+        verify(cell >= 0 && static_cast<size_t>(cell) < testHash.size());
         s32 previousCell = hashForNode_[s - 1] % testHash.size();
-        verify(previousCell >= 0 && previousCell < testHash.size());
+        verify(previousCell >= 0 && static_cast<size_t>(previousCell) < testHash.size());
         float currentLocality = abs(cell - previousCell) / (float)testHash.size();
         quadraticLocalityDeviation += (currentLocality - averageLocality) * (currentLocality - averageLocality);
     }
@@ -1435,7 +1435,7 @@ void LanguageModelLookahead::propagateDepth(int node, int depth) {
         nodes_.edit(node).depth = depth;
     }
     else {
-        if (depth > nodes_[node].depth) {
+        if (static_cast<u32>(depth) > nodes_[node].depth) {
             nodes_.edit(node).depth = depth;
         }
 
@@ -1461,7 +1461,7 @@ void LanguageModelLookahead::buildDepths() {
         for (u32 p = nodes_[a].firstParent; p < nodes_[a + 1].firstParent; ++p) {
             LookaheadId parentNode  = parents_[p];
             int         parentDepth = ((int)nodes_[a].depth) - 1;
-            if (parentDepth > nodes_[parentNode].depth) {
+            if (static_cast<u32>(parentDepth) > nodes_[parentNode].depth) {
                 propagateDepth(parentNode, parentDepth);
             }
         }
@@ -1869,7 +1869,8 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
             Successors::const_iterator parent    = parents_.begin() + nodes_[node.first].firstParent,
                                        parentEnd = parents_.begin() + nodes_[node.first + 1].firstParent;
             for (; parent != parentEnd; ++parent) {
-                verify(nodes_[*parent].depth < depth);
+                verify(nodes_[*parent].depth < static_cast<u32>(depth));
+                ;
                 waitingLookaheadNodesByDepth_[nodes_[*parent].depth].push_back(std::make_pair(*parent, node.second));
             }
         }
@@ -2140,8 +2141,8 @@ LanguageModelLookahead::LookaheadId LanguageModelLookahead::lastNodeOnDepth(int 
     verify(depth < 100000);
 
     LanguageModelLookahead::LookaheadId ret = 0;
-    for (int a = 0; a < nEntries_; ++a) {
-        if (nodes_[a].depth == depth) {
+    for (int a = 0; a < static_cast<int>(nEntries_); ++a) {
+        if (nodes_[a].depth == static_cast<u32>(depth)) {
             ret = a;
         }
     }

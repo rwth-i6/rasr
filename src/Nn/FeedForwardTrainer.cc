@@ -185,7 +185,7 @@ void FeedForwardTrainer<T>::finalize() {
             Core::Component::log(
                     "The last %i batches were ignored because of accumulate-multiple-batches=%i",
                     latestRecentBatchesCount, estimator().accumulateMultipleBatches());
-            if (minibatchCount_ < estimator().accumulateMultipleBatches())
+            if (minibatchCount_ < static_cast<u32>(estimator().accumulateMultipleBatches()))
                 Core::Component::warning("We did not use any batches. (because accumulate-multiple-batches)");
         }
     }

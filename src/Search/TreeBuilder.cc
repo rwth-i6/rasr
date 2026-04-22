@@ -120,7 +120,7 @@ MinimizedTreeBuilder::MinimizedTreeBuilder(Core::Configuration config, const Bli
     if (allowCrossWordSkips_) {
         Score skipPenalty    = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::skip);
         Score forwardPenalty = acousticModel_.stateTransition(0)->operator[](Am::StateTransitionModel::forward);
-        for (u32 t = 0; t < acousticModel_.nStateTransitions(); ++t) {
+        for (u32 t = 0; t < static_cast<u32>(acousticModel_.nStateTransitions()); ++t) {
             Score modelPenalty        = acousticModel_.stateTransition(t)->operator[](Am::StateTransitionModel::skip);
             Score modelForwardPenalty = acousticModel_.stateTransition(t)->operator[](Am::StateTransitionModel::forward);
             if (modelPenalty != skipPenalty)
@@ -286,7 +286,7 @@ void MinimizedTreeBuilder::buildBody() {
 
         std::pair<Bliss::Pronunciation::LemmaIterator, Bliss::Pronunciation::LemmaIterator> lemmaProns = pron.lemmas();
 
-        if (pronLength - 1 < minPhones_ || !isContextDependent(phones[pronLength - 1])) {
+        if (pronLength - 1 < static_cast<u32>(minPhones_) || !isContextDependent(phones[pronLength - 1])) {
             // Statically expand the fan-out.
             for (std::set<Bliss::Phoneme::Id>::iterator initialIt = initialPhonemes_.begin(); initialIt != initialPhonemes_.end(); ++initialIt) {
                 std::pair<StateId, StateId> tail = extendPhone(currentState.second, pronLength - 1, phones, Bliss::Phoneme::term, *initialIt);
@@ -634,12 +634,12 @@ void MinimizedTreeBuilder::hmmFromAllophone(HMMSequence&       ret,
 
     const Am::ClassicHmmTopology* hmmTopology = acousticModel_.hmmTopology(central);
 
-    for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+    for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
         Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
         StateTree::StateDesc desc;
         desc.acousticModel = acousticModel_.emissionIndex(alloState);  // Decision tree look-up for CART id.
 
-        for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+        for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
             desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
             verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
@@ -702,7 +702,7 @@ std::pair<AbstractTreeBuilder::StateId, AbstractTreeBuilder::StateId> MinimizedT
         currentState = extendBodyState(currentState, left, phones[phoneIndex], hmm[hmmState++]);
     }
 
-    for (; hmmState < hmm.length; ++hmmState) {
+    for (; hmmState < static_cast<u32>(hmm.length); ++hmmState) {
         previousState = currentState;
         currentState  = extendState(currentState, hmm[hmmState]);
     }
@@ -1380,12 +1380,12 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         const Am::ClassicHmmTopology*        hmmTopology      = acousticModel_.hmmTopology(phoneme);
         const bool                           allophoneIsBlank = acousticModel_.allophoneStateAlphabet()->index(allophone, 0, false) == blankAllophoneStateIndex_;
 
-        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+        for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
             StateTree::StateDesc desc;
             desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
 
-            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+            for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
                 desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
                 verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 
@@ -1405,7 +1405,7 @@ StateId CtcTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
                 }
                 prevNonBlankState = currentState;
 
-                bool isLastStateInLemma = ((phoneState + 1) == hmmTopology->nPhoneStates()) and ((subState + 1) == hmmTopology->nSubStates()) and (boundary & Am::Allophone::isFinalPhone);
+                bool isLastStateInLemma = ((phoneState + 1) == static_cast<u32>(hmmTopology->nPhoneStates())) and ((subState + 1) == static_cast<u32>(hmmTopology->nSubStates())) and (boundary & Am::Allophone::isFinalPhone);
                 if (not allophoneIsBlank and not isLastStateInLemma) {
                     // Add blank state after the newly created state
                     currentState = extendState(currentState, blankDesc_);
@@ -1561,12 +1561,12 @@ StateId AedTreeBuilder::extendPronunciation(StateId startState, Bliss::Pronuncia
         const Am::Allophone*                 allophone   = acousticModel_.allophoneAlphabet()->allophone(Am::Allophone(Bliss::ContextPhonology::PhonemeInContext(phoneme, history, future), boundary));
         const Am::ClassicHmmTopology*        hmmTopology = acousticModel_.hmmTopology(phoneme);
 
-        for (u32 phoneState = 0; phoneState < hmmTopology->nPhoneStates(); ++phoneState) {
+        for (u32 phoneState = 0; phoneState < static_cast<u32>(hmmTopology->nPhoneStates()); ++phoneState) {
             Am::AllophoneState   alloState = acousticModel_.allophoneStateAlphabet()->allophoneState(allophone, phoneState);
             StateTree::StateDesc desc;
             desc.acousticModel = acousticModel_.emissionIndex(alloState);  // state-tying look-up
 
-            for (u32 subState = 0; subState < hmmTopology->nSubStates(); ++subState) {
+            for (u32 subState = 0; subState < static_cast<u32>(hmmTopology->nSubStates()); ++subState) {
                 desc.transitionModelIndex = acousticModel_.stateTransitionIndex(alloState, subState);
                 verify(desc.transitionModelIndex < Core::Type<StateTree::StateDesc::TransitionModelIndex>::max);
 

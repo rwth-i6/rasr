@@ -81,7 +81,7 @@ Score CtcPrefixScoreAccessor::getScore(TransitionType transitionType, LabelIndex
 }
 
 TimeframeIndex CtcPrefixScoreAccessor::getTime() const {
-    return scoringContext_->labelSeq.size() + 1;
+    return scoringContext_->labelSeq.size();
 }
 
 /*

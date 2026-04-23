@@ -57,7 +57,6 @@ public:
             const Core::Configuration& c, Bliss::LexiconRef l) {
         return createScaledLanguageModel(c, createLanguageModel(c, l));
     }
-
 };
 
 typedef Core::SingletonHolder<Module_> Module;

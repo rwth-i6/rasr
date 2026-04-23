@@ -393,11 +393,17 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             Score currentBestScore = Core::Type<Score>::max;
 
             for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-                auto const& hyp           = beam_[hypIndex];
+                auto const& hyp = beam_[hypIndex];
+
+                if (not hyp.isActive) {
+                    continue;
+                }
+
                 auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
 
                 if (not scoreAccessor) {
                     // No extensions for hyps that couldn't be scored
+                    continue;
                 }
 
                 // Iterate over possible successors (all lemmas)

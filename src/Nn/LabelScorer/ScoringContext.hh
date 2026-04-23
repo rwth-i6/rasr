@@ -153,24 +153,24 @@ typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringCon
  */
 struct CtcPrefixScoringContext : public ScoringContext {
     struct PrefixScore {
-        Search::Score blankEndingScore    = std::numeric_limits<Search::Score>::infinity();
-        Search::Score nonBlankEndingScore = std::numeric_limits<Search::Score>::infinity();
+        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
+        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
 
-        Search::Score totalScore() const {
+        Score totalScore() const {
             return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
         }
     };
 
-    std::vector<LabelIndex>                               labelSeq;
-    mutable std::shared_ptr<std::vector<PrefixScore>>     timePrefixScores;  // Represents probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
-    mutable Search::Score                                 prefixScore;       // -log P(prefix, ...)
-    mutable std::unordered_map<LabelIndex, Search::Score> extScores;         // -log P(prefix + token, ...)
-    mutable bool                                          requiresFinalize;
+    std::vector<LabelIndex>                           labelSeq;
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
+    mutable Score                                     prefixScore;       // -log P(prefix, ...)
+    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
+    mutable bool                                      requiresFinalize;
 
     CtcPrefixScoringContext()
             : labelSeq(), timePrefixScores(), prefixScore(0.0), extScores(), requiresFinalize(true) {}
 
-    CtcPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& timePrefixScores, Search::Score prefixScore, bool requiresFinalize)
+    CtcPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& timePrefixScores, Score prefixScore, bool requiresFinalize)
             : labelSeq(seq), timePrefixScores(timePrefixScores), prefixScore(prefixScore), extScores(), requiresFinalize(requiresFinalize) {}
 
     bool   isEqual(ScoringContextRef const& other) const;

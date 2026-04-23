@@ -1,4 +1,4 @@
-/** Copyright 2025 RWTH Aachen University. All rights reserved.
+/** Copyright 2026 RWTH Aachen University. All rights reserved.
  *
  *  Licensed under the RWTH ASR License (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,27 +13,21 @@
  *  limitations under the License.
  */
 
-#ifndef PREFIX_LABEL_SCORER_HH
-#define PREFIX_LABEL_SCORER_HH
+#ifndef CTC_PREFIX_LABEL_SCORER_HH
+#define CTC_PREFIX_LABEL_SCORER_HH
 
-#include <Core/Component.hh>
-#include <Core/Configuration.hh>
-#include <Core/FIFOCache.hh>
-#include <Core/ReferenceCounting.hh>
-#include <Mm/FeatureScorer.hh>
-#include <Speech/Feature.hh>
 #include "LabelScorer.hh"
-#include "ScoringContext.hh"
-
-#include <Onnx/IOSpecification.hh>
-#include <Onnx/Session.hh>
 
 namespace Nn {
 
 class CtcPrefixScoreAccessor : public ScoreAccessor {
 public:
     CtcPrefixScoreAccessor(CtcPrefixScoringContextRef const& scoringContext, std::shared_ptr<Math::FastMatrix<Score>> const& ctcScores);
-    Score          getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
+
+    // Compute score of extended prefix with labelIndex on-demand
+    Score getScore(TransitionType transitionType, LabelIndex labelIndex = invalidLabelIndex) const override;
+
+    // Label-sequence length of extended prefix
     TimeframeIndex getTime() const override;
 
 private:
@@ -73,17 +67,13 @@ private:
 
     std::shared_ptr<Math::FastMatrix<Score>> ctcScores_;  // Cached T x V matrix of scores
 
-    /*
-     * Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
-     */
+    // Retrieve matrix of CTC scores from sub-scorer. Assumes that these scores only depend on timestep and label index, not history or transition type.
     void setupCTCScores();
 
-    /*
-     * Compute updated prefix scores.
-     */
+    // Update prefix scores in scoringContext
     void finalizeScoringContext(CtcPrefixScoringContextRef const& scoringContext) const;
 };
 
 }  // namespace Nn
 
-#endif  // PREFIX_LABEL_SCORER_HH
+#endif  // CTC_PREFIX_LABEL_SCORER_HH

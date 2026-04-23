@@ -78,18 +78,18 @@ Module_::Module_()
             pythonFeatureScorer, "python-feature-scorer");
 #endif
 
-    // A label scorer that wraps a time-synchronous CTC scorer and computes label-synchronous prefix scores
-    labelScorerFactory_.registerLabelScorer(
-            "ctc-prefix",
-            [](Core::Configuration const& config) {
-                return Core::ref(new CtcPrefixLabelScorer(config));
-            });
-
     // Performs log-linear combination of multiple sub-label-scorers
     labelScorerFactory_.registerLabelScorer(
             "combine",
             [](Core::Configuration const& config) {
                 return Core::ref(new CombineLabelScorer(config));
+            });
+
+    // A label scorer that wraps a time-synchronous CTC scorer and computes label-synchronous prefix scores
+    labelScorerFactory_.registerLabelScorer(
+            "ctc-prefix",
+            [](Core::Configuration const& config) {
+                return Core::ref(new CtcPrefixLabelScorer(config));
             });
 
     // Assumes inputs are already finished scores and just passes on the score at the current step

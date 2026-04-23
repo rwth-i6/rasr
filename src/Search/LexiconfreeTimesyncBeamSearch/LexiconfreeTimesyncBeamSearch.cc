@@ -435,14 +435,6 @@ bool LexiconfreeTimesyncBeamSearch::decodeStep() {
             }
         }
         else {
-            // Remove extensions that couldn't be scored
-            extensions_.erase(
-                    std::remove_if(
-                            extensions_.begin(),
-                            extensions_.end(),
-                            [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
-                    extensions_.end());
-
             // Update ext score and timestep
             for (auto& ext : extensions_) {
                 if (not labelScorer->scoresTransition(ext.transitionType)) {

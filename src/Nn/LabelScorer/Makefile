@@ -11,8 +11,8 @@ TARGETS		= libSprintLabelScorer.$(a)
 
 LIBSPRINTLABELSCORER_O =  \
     $(OBJDIR)/BufferedLabelScorer.o \
-    $(OBJDIR)/CtcPrefixLabelScorer.o \
     $(OBJDIR)/CombineLabelScorer.o \
+    $(OBJDIR)/CtcPrefixLabelScorer.o \
     $(OBJDIR)/DataView.o \
     $(OBJDIR)/Encoder.o \
     $(OBJDIR)/EncoderDecoderLabelScorer.o \

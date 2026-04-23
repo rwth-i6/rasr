@@ -18,6 +18,7 @@
 #include <Nn/Module.hh>
 
 namespace Nn {
+
 /*
  * =============================
  * == CtcPrefixScoreAccessor ===

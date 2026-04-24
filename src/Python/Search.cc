@@ -15,6 +15,10 @@
 
 #include "Search.hh"
 
+#include <Flf/Map.hh>
+#include <Flf/Module.hh>
+#include <Flf/NBest.hh>
+#include <Flf/RecognizerV2.hh>
 #include <Search/Module.hh>
 #include <Speech/ModelCombination.hh>
 
@@ -22,8 +26,12 @@ namespace py = pybind11;
 
 SearchAlgorithm::SearchAlgorithm(const Core::Configuration& c)
         : Core::Component(c),
-          searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))) {
-    searchAlgorithm_->setModelCombination({config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel()});
+          latticeHandler_(Flf::Module::instance().createLatticeHandler(config)),
+          searchAlgorithm_(Search::Module::instance().createSearchAlgorithmV2(select("search-algorithm"))),
+          lexicon_(new Flf::Lexicon(select("lexicon"))),
+          modelCombination_(config, searchAlgorithm_->requiredModelCombination(), searchAlgorithm_->requiredAcousticModel(), lexicon_) {
+    Flf::Module::instance().setLexicon(lexicon_.get());
+    searchAlgorithm_->setModelCombination(modelCombination_);
 }
 
 void SearchAlgorithm::reset() {
@@ -77,10 +85,7 @@ void SearchAlgorithm::putFeatures(py::array_t<f32> const& features) {
     searchAlgorithm_->putFeatures({features, T * F}, T);
 }
 
-Traceback SearchAlgorithm::getCurrentBestTraceback() {
-    searchAlgorithm_->decodeManySteps();
-
-    auto                       traceback = searchAlgorithm_->getCurrentBestTraceback();
+Traceback SearchAlgorithm::searchTracebackToPythonTraceback(Core::Ref<Search::Traceback const> traceback) {
     std::vector<TracebackItem> result;
     result.reserve(traceback->size());
 
@@ -91,14 +96,91 @@ Traceback SearchAlgorithm::getCurrentBestTraceback() {
             continue;
         }
         result.push_back({
-                it->pronunciation->lemma()->symbol(),
-                it->score.acoustic,
-                it->score.lm,
-                prevTime,
-                it->time,
+                .lemma     = it->pronunciation->lemma()->symbol(),
+                .amScore   = it->score.acoustic,
+                .lmScore   = it->score.lm,
+                .startTime = prevTime,
+                .endTime   = it->time,
         });
         prevTime = it->time;
     }
+    return result;
+}
+
+Traceback SearchAlgorithm::getCurrentBestTraceback() {
+    searchAlgorithm_->decodeManySteps();
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCurrentBestTraceback());
+}
+
+Traceback SearchAlgorithm::getCommonPrefix() {
+    searchAlgorithm_->decodeManySteps();
+    return searchTracebackToPythonTraceback(searchAlgorithm_->getCommonPrefix()->performTraceback());
+}
+
+std::vector<Traceback> SearchAlgorithm::getCurrentNBestList(size_t nBestSize) {
+    searchAlgorithm_->decodeManySteps();
+
+    auto lattice = searchAlgorithm_->getCurrentBestWordLattice();
+
+    // Use Flf functions to convert search lattice to n-best lattice
+    auto flfLattice   = convertSearchLatticeToFlf(lattice, latticeHandler_.get(), "", modelCombination_.languageModel()->scale());
+    auto mapLattice   = Flf::mapInput(flfLattice, Flf::MapToLemma);
+    auto nBestLattice = Flf::nbest(mapLattice, nBestSize, true);
+
+    Fsa::ConstAlphabetRef alphabet   = nBestLattice->getInputAlphabet();
+    auto                  semiring   = nBestLattice->semiring();
+    auto                  boundaries = nBestLattice->getBoundaries();
+
+    auto amId = semiring->id("am");
+    auto lmId = semiring->id("lm");
+
+    std::vector<Traceback> result;
+
+    auto initialState = nBestLattice->getState(nBestLattice->initialStateId());
+
+    // The nbest lattice looks roughly like this where each outgoing arc from the initial state goes into
+    // a linear path which can be followed until the end:
+    //  /-----\
+    // o ------o
+    //  \-----/
+    for (auto arcIter = initialState->begin(); arcIter != initialState->end(); ++arcIter) {
+        Traceback  tb;
+        u32        prevTime = 0;
+        Flf::Score amScore  = 0;
+        Flf::Score lmScore  = 0;
+
+        auto arc = arcIter;
+
+        while (true) {
+            auto nextState = nBestLattice->getState(arc->target());
+            auto endTime   = boundaries->time(nextState);
+
+            if (arc->input() != Fsa::Epsilon) {
+                auto label = alphabet->symbol(arc->input());
+
+                amScore += arc->score(amId);
+                lmScore += arc->score(lmId);
+
+                tb.push_back({.lemma     = label,
+                              .amScore   = amScore,
+                              .lmScore   = lmScore,
+                              .startTime = prevTime,
+                              .endTime   = endTime});
+            }
+
+            prevTime = endTime;
+
+            if (nextState->hasArcs()) {
+                arc = nextState->begin();
+            }
+            else {
+                break;
+            }
+        }
+
+        result.push_back(tb);
+    }
+
     return result;
 }
 
@@ -108,4 +190,12 @@ Traceback SearchAlgorithm::recognizeSegment(py::array_t<f32> const& features) {
     putFeatures(features);
     finishSegment();
     return getCurrentBestTraceback();
+}
+
+std::vector<Traceback> SearchAlgorithm::recognizeSegmentNBest(py::array_t<f32> const& features, size_t nBestSize) {
+    reset();
+    enterSegment();
+    putFeatures(features);
+    finishSegment();
+    return getCurrentNBestList(nBestSize);
 }

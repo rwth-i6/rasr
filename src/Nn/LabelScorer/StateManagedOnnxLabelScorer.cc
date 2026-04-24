@@ -77,7 +77,7 @@ const Core::ParameterIntVector StateManagedOnnxLabelScorer::paramStartLabels(
         "",
         0,
         Core::Type<s32>::max,
-        0);
+        1);
 
 const Core::ParameterBool StateManagedOnnxLabelScorer::paramBlankUpdatesHistory(
         "blank-updates-history",

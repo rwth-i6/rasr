@@ -70,7 +70,7 @@ void dynamic_rank_concat(Ort::Value& out, std::vector<Ort::Value const*> const& 
         data.push_back(values[value_idx]->GetTensorData<T>());
     }
 
-    for (size_t block_idx = 0ul; block_idx < static_cast<size_t>(num_blocks); block_idx++) {
+    for (int64_t block_idx = 0ul; block_idx < num_blocks; block_idx++) {
         int64_t partial_sum = 0l;
         for (size_t value_idx = 0ul; value_idx < data.size(); ++value_idx) {
             std::copy(data[value_idx] + block_sizes[value_idx] * block_idx, data[value_idx] + block_sizes[value_idx] * (block_idx + 1), data_out + (out_block_size)*block_idx + partial_sum);

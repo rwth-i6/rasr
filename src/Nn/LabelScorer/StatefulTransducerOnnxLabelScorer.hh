@@ -13,8 +13,8 @@
  *  limitations under the License.
  */
 
-#ifndef STATEFUL_ONNX_LABEL_SCORER_HH
-#define STATEFUL_ONNX_LABEL_SCORER_HH
+#ifndef STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
+#define STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH
 
 #include <optional>
 
@@ -36,9 +36,9 @@ namespace Nn {
 /*
  * Label Scorer that performs scoring by forwarding hidden states through an ONNX model.
  * This Label Scorer requires three ONNX models:
- *  - A State Initializer which produces the hidden states for the first step (optionally based on the input sequence)
- *  - A State Updater which produces updated hidden states based on the previous hidden states and optionally also the input sequence and the next token
- *  - A Scorer which computes scores based on the hidden states
+ *  - A State Initializer which produces the hidden states for the first step
+ *  - A State Updater which produces updated hidden states based on the previous hidden states and the next token
+ *  - A Scorer which computes scores based on the current input feature and the hidden states
  *
  * The hidden states can be any number of ONNX tensors of any shape and type.
  * Each ONNX model must have metadata that specifies the mapping of its input and output names to the corresponding state names.
@@ -52,26 +52,26 @@ namespace Nn {
  *
  * The State Initializer must have all states as output.
  * The State Updater must have a subset of states as input and all states as output.
- * The Scorer must have a subset of states as input.
+ * The Scorer must have a subset of states and a feature as input.
  *
- * A common use case for this Label Scorer would be an AED model with cross-attention over the encoder output.
- * Since the encoder state inputs are optional, it can also be used for stateful language models without acoustic input.
+ * A common use case for this Label Scorer would be a Transducer model with unlimited context.
  *
- * Note: This LabelScorer is similar to the `StatefulTransducerOnnxLabelScorer`. The difference is that in this it is assumed that the
- * input features are processed into the hidden states and they are not directly fed into the scorer. For this, the state initializer
- * and updater here also take input features in addition to tokens.
+ * Note: This LabelScorer is similar to the `StatefulOnnxLabelScorer`. The difference is that in this one the ScoringContext also
+ * contains the current step and the input feature at the current step is fed to the Scorer. Furthermore, the state initializer
+ * and updater here only take tokens and no input features.
  */
-class StatefulOnnxLabelScorer : public BufferedLabelScorer {
+class StatefulTransducerOnnxLabelScorer : public BufferedLabelScorer {
     using Precursor = BufferedLabelScorer;
 
     static const Core::ParameterBool paramBlankUpdatesHistory;
     static const Core::ParameterBool paramLoopUpdatesHistory;
+    static const Core::ParameterBool paramVerticalLabelTransition;
     static const Core::ParameterInt  paramMaxBatchSize;
     static const Core::ParameterInt  paramMaxCachedScores;
 
 public:
-    StatefulOnnxLabelScorer(Core::Configuration const& config);
-    virtual ~StatefulOnnxLabelScorer() = default;
+    StatefulTransducerOnnxLabelScorer(Core::Configuration const& config);
+    virtual ~StatefulTransducerOnnxLabelScorer() = default;
 
     void reset() override;
 
@@ -80,9 +80,6 @@ public:
 
     // Append the new token to the label sequence; does not update the hidden-state. This is only done once the scoringContext is used for scoring again.
     ScoringContextRef extendedScoringContext(ScoringContextRef scoringContext, LabelIndex nextToken, TransitionType transitionType) override;
-
-    // Add a single input feature to buffer
-    void addInput(DataView const& input) override;
 
     // Update hidden state, run scorer and get an accessor for the output score vector
     std::optional<ScoreAccessorRef> getScoreAccessor(ScoringContextRef scoringContext) override;
@@ -95,31 +92,27 @@ protected:
 
 private:
     // Forward a batch of scoringContexts through the ONNX scorer model and put the resulting scores into the score cache
-    void cacheScores(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
+    void cacheScores(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     // Computes new hidden state based on previous hidden state and next token with batched state-updater call
     std::vector<OnnxHiddenStateRef> updatedHiddenStates(std::vector<OnnxHiddenStateRef> const& hiddenStatesBatch, std::vector<s32> nextTokensBatch);
 
     // Compute updated states for all non-finalized scoring contexts and put them into the state cache
-    void cacheStates(std::vector<OnnxHiddenStateScoringContextRef> const& scoringContextBatch);
-
-    // Since the hidden-state matrix depends on the encoder time axis, we cannot create properly create hidden-states until all encoder states have been passed.
-    // So getInitialScoringContext sets the initial hidden-state to a sentinel value (empty Ref) and when other functions such as `extendedScoringContext` and `getScoresWithTime`
-    // encounter this sentinel value they call `computeInitialHiddenState` instead to get a usable hidden-state.
-    OnnxHiddenStateRef computeInitialHiddenState();
+    void cacheStates(std::vector<StepOnnxHiddenStateScoringContextRef> const& scoringContextBatch);
 
     void setupEncoderStatesValue();
     void setupEncoderStatesSizeValue();
 
     bool   blankUpdatesHistory_;
     bool   loopUpdatesHistory_;
+    bool   verticalLabelTransition_;
     size_t maxBatchSize_;
 
     Onnx::Model scorerOnnxModel_;
     Onnx::Model stateInitializerOnnxModel_;
     Onnx::Model stateUpdaterOnnxModel_;
 
-    OnnxHiddenStateRef initialHiddenState_;
+    StepOnnxHiddenStateScoringContextRef initialScoringContext_;
 
     // Map input/output names of onnx models to hidden state names
     std::unordered_map<std::string, std::string> initializerOutputToStateNameMap_;
@@ -127,23 +120,15 @@ private:
     std::unordered_map<std::string, std::string> updaterOutputToStateNameMap_;
     std::unordered_map<std::string, std::string> scorerInputToStateNameMap_;
 
+    std::string scorerInputFeatureName_;
     std::string scorerScoresName_;
 
-    std::string initializerEncoderStatesName_;
-    std::string initializerEncoderStatesSizeName_;
-
-    std::string updaterEncoderStatesName_;
-    std::string updaterEncoderStatesSizeName_;
     std::string updaterTokenName_;
 
-    // Store the onnx values with all encoder states and lengths inside so that it doesn't have to be recomputed every time
-    Onnx::Value encoderStatesValue_;
-    Onnx::Value encoderStatesSizeValue_;
-
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
-    Core::FIFOCache<OnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, std::shared_ptr<std::vector<Score>>, ScoringContextHash, ScoringContextEq> scoreCache_;
+    Core::FIFOCache<StepOnnxHiddenStateScoringContextRef, OnnxHiddenStateRef, ScoringContextHash, ScoringContextEq>                  stateCache_;
 };
 
 }  // namespace Nn
 
-#endif  // STATEFUL_ONNX_LABEL_SCORER_HH
+#endif  // STATEFUL_TRANSDUCER_ONNX_LABEL_SCORER_HH

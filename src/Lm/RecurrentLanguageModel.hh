@@ -313,6 +313,11 @@ RecurrentLanguageModel<value_t, state_variable_t>::RecurrentLanguageModel(Core::
             return -v;
         };
     }
+    else {
+        output_transform_function_ = [](Score v) {
+            return v;
+        };
+    }
 
     if (async_) {
         background_forwarder_thread_ = std::thread(std::bind(&RecurrentLanguageModel<value_t, state_variable_t>::background_forward, this));

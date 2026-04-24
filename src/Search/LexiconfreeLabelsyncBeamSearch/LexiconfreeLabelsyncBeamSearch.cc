@@ -312,7 +312,9 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
 
     scoringContexts_.clear();
     for (auto const& hyp : beam_) {
-        scoringContexts_.push_back(hyp.scoringContext);
+        if (hyp.isActive) {
+            scoringContexts_.push_back(hyp.scoringContext);
+        }
     }
 
     /*
@@ -326,6 +328,8 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
      * Collect all possible extensions for all hypotheses in the beam.
      */
     extensions_.clear();
+
+    Score currentBestScore = Core::Type<Score>::max;
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
         auto& hyp = beam_[hypIndex];
@@ -352,11 +356,18 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
             if (tokenIdx == sentenceEndLabelIndex_) {
                 transitionType = Nn::TransitionType::SENTENCE_END;
             }
+            auto extScore = hyp.score + scoreAccessor->getScore(transitionType, tokenIdx);
+
+            // Pre-prune based on score before creating extension instance and appending to list
+            if (useScorePruning_ and extScore > currentBestScore + scoreThreshold_) {
+                continue;
+            }
+            currentBestScore = std::min(currentBestScore, extScore);
 
             extensions_.push_back(
                     {tokenIdx,
                      lemma->pronunciations().first,
-                     hyp.score + scoreAccessor->getScore(transitionType, tokenIdx),
+                     extScore,
                      scoreAccessor->getTime(),
                      transitionType,
                      hypIndex});

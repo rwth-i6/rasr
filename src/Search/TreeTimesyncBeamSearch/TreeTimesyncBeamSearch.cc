@@ -442,30 +442,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
     std::iota(hypIndexToContextIndexMap_.begin(), hypIndexToContextIndexMap_.end(), 0ul);
 
     for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
-        auto& hyp = beam_[hypIndex];
-
-        scoringContexts_.push_back(hyp.scoringContexts.front());
-
-        // Iterate over the successors of this hypothesis' current state in the tree
-        for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
-            const StateId  successorState = stateSuccessors_[i];
-            Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
-            // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
-            if (collapseRepeatedLabels_ and
-                hyp.currentState == network_->rootState and
-                tokenIdx == hyp.currentToken and
-                (not useBlank_ or tokenIdx != blankLabelIndex_)) {
-                continue;
-            }
-            auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
-            withinWordExtensions_.push_back(
-                    {.nextToken      = tokenIdx,
-                     .nextState      = successorState,
-                     .timeframe      = hyp.timeframe,
-                     .score          = hyp.score,
-                     .transitionType = transitionType,
-                     .baseHypIndex   = hypIndex});
-        }
+        scoringContexts_.push_back(beam_[hypIndex].scoringContexts.front());
     }
 
     if (logStepwiseStatistics_) {
@@ -476,32 +453,80 @@ bool TreeTimesyncBeamSearch::decodeStep() {
         auto const& labelScorer = labelScorers_[scorerIdx];
 
         /*
-         * Perform scoring of all the requests with the label scorer.
+         * Perform scoring of all the scoring contexts with the label scorer.
          */
         scoringTime_.start();
         auto scoreAccessors = labelScorer->getScoreAccessors(scoringContexts_);
         scoringTime_.stop();
 
-        withinWordExtensions_.erase(
-                std::remove_if(
-                        withinWordExtensions_.begin(),
-                        withinWordExtensions_.end(),
-                        [&](auto const& ext) { return not scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]]; }),
-                withinWordExtensions_.end());
+        if (scorerIdx == 0ul) {
+            // In the first iteration, create extensions while pre-pruning
+            Score currentBestScore = Core::Type<Score>::max;
+
+            for (size_t hypIndex = 0ul; hypIndex < beam_.size(); ++hypIndex) {
+                auto const hyp = beam_[hypIndex];
+
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[hypIndex]];
+                if (not scoreAccessor) {
+                    // No extensions for hyps that couldn't be scored
+                    continue;
+                }
+
+                // Iterate over the successors of this hypothesis' current state in the tree
+                for (size_t i = stateSuccessorsOffset_[hyp.currentState]; i < stateSuccessorsOffset_[hyp.currentState + 1]; ++i) {
+                    const StateId  successorState = stateSuccessors_[i];
+                    Nn::LabelIndex tokenIdx       = network_->structure.state(successorState).stateDesc.acousticModel;
+                    // If we collapse repeated labels, a new word should not start with the same token as the previous word ended (except for blank itself)
+                    if (collapseRepeatedLabels_ and
+                        hyp.currentState == network_->rootState and
+                        tokenIdx == hyp.currentToken and
+                        (not useBlank_ or tokenIdx != blankLabelIndex_)) {
+                        continue;
+                    }
+                    auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
+                    auto extScore       = hyp.score;
+                    if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
+                        extScore = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                    }
+
+                    // Pre-prune based on score before creating extension instance and appending to list
+                    if (scoreThresholds_.front() != Core::Type<Score>::max and extScore > currentBestScore + scoreThresholds_.front()) {
+                        continue;
+                    }
+                    currentBestScore = std::min(currentBestScore, extScore);
+
+                    withinWordExtensions_.push_back(
+                            {.nextToken      = tokenIdx,
+                             .nextState      = successorState,
+                             .timeframe      = hyp.timeframe,
+                             .score          = extScore,
+                             .transitionType = transitionType,
+                             .baseHypIndex   = hypIndex});
+                }
+            }
+        }
+        else {
+            // Update ext score and timestep
+            for (auto& ext : withinWordExtensions_) {
+                if (not labelScorer->scoresTransition(ext.transitionType)) {
+                    continue;
+                }
+                auto const& scoreAccessor = scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
+
+                if (scoreAccessor) {
+                    ext.score += (*scoreAccessor)->getScore(ext.transitionType, ext.nextToken);
+                    ext.timeframe = std::max(ext.timeframe, (*scoreAccessor)->getTime());
+                }
+                else {
+                    // Extension is not scorable so set the score to max in order to prune it later
+                    ext.score = Core::Type<Score>::max;
+                }
+            }
+        }
 
         if (withinWordExtensions_.empty()) {
             clog() << Core::XmlClose("search-step-stats");
             return false;
-        }
-
-        for (auto& ext : withinWordExtensions_) {
-            if (not labelScorer->scoresTransition(ext.transitionType)) {
-                continue;
-            }
-            auto const& scoreAccessor = *scoreAccessors[hypIndexToContextIndexMap_[ext.baseHypIndex]];
-
-            ext.score += scoreAccessor->getScore(ext.transitionType, ext.nextToken);
-            ext.timeframe = std::max(ext.timeframe, scoreAccessor->getTime());
         }
 
         /*

@@ -419,8 +419,10 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                         transitionType = Nn::TransitionType::SENTENCE_END;
                     }
                     auto extScore = hyp.score;
+                    auto extTime  = hyp.trace->time;
                     if (labelScorer->scoresTransition(transitionType)) {
                         extScore += (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                        extTime = std::max(extTime, (*scoreAccessor)->getTime());
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
@@ -433,7 +435,7 @@ bool LexiconfreeLabelsyncBeamSearch::decodeStep() {
                             {.nextToken      = tokenIdx,
                              .pron           = lemma->pronunciations().first,
                              .score          = extScore,
-                             .timeframe      = std::max(hyp.trace->time, (*scoreAccessor)->getTime()),
+                             .timeframe      = extTime,
                              .transitionType = transitionType,
                              .baseHypIndex   = hypIndex});
                 }

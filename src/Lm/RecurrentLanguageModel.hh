@@ -10,6 +10,7 @@
 #include <Core/readerwriterqueue.h>
 
 #include <Nn/AbstractStateManager.hh>
+#include <Nn/Module.hh>
 #include "AbstractNNLanguageModel.hh"
 #include "Module.hh"
 #include "SearchSpaceAwareLanguageModel.hh"
@@ -288,8 +289,8 @@ RecurrentLanguageModel<value_t, state_variable_t>::RecurrentLanguageModel(Core::
           dump_inputs_counter_(0ul),
           state_manager_(std::move(state_manager)),
           output_transform_function_(),
-          state_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("state-compression"))),
-          nn_output_comp_vec_factory_(Lm::Module::instance().createCompressedVectorFactory(select("nn-output-compression"))),
+          state_comp_vec_factory_(Nn::Module::instance().createCompressedVectorFactory(select("state-compression"))),
+          nn_output_comp_vec_factory_(Nn::Module::instance().createCompressedVectorFactory(select("nn-output-compression"))),
           empty_history_(),
           should_stop_(false),
           background_forwarder_thread_(),

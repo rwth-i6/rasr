@@ -485,8 +485,10 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     }
                     auto transitionType = inferTransitionType(hyp.currentToken, tokenIdx);
                     auto extScore       = hyp.score;
+                    auto extTime        = hyp.timeframe;
                     if (labelScorers_[scorerIdx]->scoresTransition(transitionType)) {
                         extScore = hyp.score + (*scoreAccessor)->getScore(transitionType, tokenIdx);
+                        extTime  = std::max(extTime, (*scoreAccessor)->getTime());
                     }
 
                     // Pre-prune based on score before creating extension instance and appending to list
@@ -498,7 +500,7 @@ bool TreeTimesyncBeamSearch::decodeStep() {
                     withinWordExtensions_.push_back(
                             {.nextToken      = tokenIdx,
                              .nextState      = successorState,
-                             .timeframe      = hyp.timeframe,
+                             .timeframe      = extTime,
                              .score          = extScore,
                              .transitionType = transitionType,
                              .baseHypIndex   = hypIndex});

@@ -90,7 +90,7 @@ ConstLatticeRef pruneByFwdBwdScores(ConstLatticeRef l, ConstFwdBwdRef fb, Score 
 
     if (minArcsPerSec) {
         LatticeCounts counts = count(l);
-        if (counts.nArcs_ <= minArcs)
+        if (counts.nArcs_ <= static_cast<size_t>(minArcs))
             return l;
     }
 
@@ -99,7 +99,7 @@ ConstLatticeRef pruneByFwdBwdScores(ConstLatticeRef l, ConstFwdBwdRef fb, Score 
 
     if (maxArcs != Core::Type<s32>::max) {
         LatticeCounts counts = count(p);
-        while ((counts.nArcs_ > maxArcs) && t > 0.1) {
+        while ((counts.nArcs_ > static_cast<size_t>(maxArcs)) && t > 0.1) {
             t *= 0.9;  /// @todo binary search instead of static steps
             Core::Application::us()->log() << "pruning because too many arcs: " << counts.nArcs_ << ", specified maximum: " << maxArcs << " new threshold: " << t;
             p      = ConstLatticeRef(new FwdBwdPruningLattice(l, fb, t + fb->min()));
@@ -108,7 +108,7 @@ ConstLatticeRef pruneByFwdBwdScores(ConstLatticeRef l, ConstFwdBwdRef fb, Score 
     }
     if (minArcs) {
         LatticeCounts counts = count(p);
-        while (counts.nArcs_ < minArcs && t < 100.0) {
+        while (counts.nArcs_ < static_cast<size_t>(minArcs) && t < 100.0) {
             t *= 1.2;  /// @todo binary search instead of static steps
             Core::Application::us()->log() << "pruning because too few arcs per second: " << counts.nArcs_ << ", specified minimum: " << minArcs << " new threshold: " << t;
             p      = ConstLatticeRef(new FwdBwdPruningLattice(l, fb, t + fb->min()));
@@ -159,13 +159,13 @@ private:
             maxTime_ = time + 1;
         ScoreAndArc* best    = bestArcs(time, phoneId);
         ScoreAndArc* bestEnd = best + coverage_;
-        verify(bestEnd - bestArcs_.data() <= bestArcs_.size());
+        verify(static_cast<size_t>(bestEnd - bestArcs_.data()) <= bestArcs_.size());
 
         for (ScoreAndArc* current = bestEnd - 1; current >= best; --current) {
             if (scoredArc.first > current->first) {
                 if (current < bestEnd - 1) {
                     // Insert behind
-                    verify((current - bestArcs_.data()) + 2 + (coverage_ - 2 - (current - best)) <= bestArcs_.size());
+                    verify(static_cast<size_t>((current - bestArcs_.data()) + 2 + (coverage_ - 2 - (current - best))) <= bestArcs_.size());
                     memmove(current + 2, current + 1, (coverage_ - 2 - (current - best)) * sizeof(ScoreAndArc));
                     *(current + 1) = scoredArc;
                 }

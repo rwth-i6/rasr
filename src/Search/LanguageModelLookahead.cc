@@ -732,7 +732,7 @@ void LanguageModelLookahead::ConstructionTree::build(HMMStateNetwork const&     
         s32 collectTopologicalStates(StateId node, int depth,
                                      std::vector<std::vector<StateId>>& topologicalStates,
                                      std::vector<s32>&                  collected) {
-            if (topologicalStates.size() <= static_cast<size_t>(depth)) {
+            if (static_cast<int>(topologicalStates.size()) <= depth) {
                 topologicalStates.resize(depth + 1);
             }
 
@@ -1435,7 +1435,7 @@ void LanguageModelLookahead::propagateDepth(int node, int depth) {
         nodes_.edit(node).depth = depth;
     }
     else {
-        if (static_cast<u32>(depth) > nodes_[node].depth) {
+        if (depth > static_cast<int>(nodes_[node].depth)) {
             nodes_.edit(node).depth = depth;
         }
 
@@ -1461,7 +1461,7 @@ void LanguageModelLookahead::buildDepths() {
         for (u32 p = nodes_[a].firstParent; p < nodes_[a + 1].firstParent; ++p) {
             LookaheadId parentNode  = parents_[p];
             int         parentDepth = ((int)nodes_[a].depth) - 1;
-            if (static_cast<u32>(parentDepth) > nodes_[parentNode].depth) {
+            if (parentDepth > static_cast<int>(nodes_[parentNode].depth)) {
                 propagateDepth(parentNode, parentDepth);
             }
         }
@@ -1869,7 +1869,7 @@ bool LanguageModelLookahead::computeScoresSparse(LanguageModelLookahead::Context
             Successors::const_iterator parent    = parents_.begin() + nodes_[node.first].firstParent,
                                        parentEnd = parents_.begin() + nodes_[node.first + 1].firstParent;
             for (; parent != parentEnd; ++parent) {
-                verify(nodes_[*parent].depth < static_cast<u32>(depth));
+                verify(static_cast<int>(nodes_[*parent].depth) < depth);
                 waitingLookaheadNodesByDepth_[nodes_[*parent].depth].push_back(std::make_pair(*parent, node.second));
             }
         }
@@ -2141,7 +2141,7 @@ LanguageModelLookahead::LookaheadId LanguageModelLookahead::lastNodeOnDepth(int 
 
     LanguageModelLookahead::LookaheadId ret = 0;
     for (int a = 0; a < static_cast<int>(nEntries_); ++a) {
-        if (nodes_[a].depth == static_cast<u32>(depth)) {
+        if (static_cast<int>(nodes_[a].depth) == depth) {
             ret = a;
         }
     }

@@ -1,6 +1,8 @@
 set(onnx_INCLUDE_DIR "/opt/thirdparty/usr/include")
 
-find_library(onnxruntime_LIBRARY onnxruntime REQUIRED HINTS "/opt/thirdparty/usr/lib")
+find_library(
+    onnxruntime_LIBRARY onnxruntime REQUIRED HINTS "/opt/thirdparty/usr/lib"
+)
 
 function(add_onnx_dependencies TARGET)
     target_compile_options(${TARGET} PUBLIC "-fexceptions")

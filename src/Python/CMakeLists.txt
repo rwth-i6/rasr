@@ -1,9 +1,5 @@
-set(RasrPython_SOURCES
-        AllophoneStateFsaBuilder.cc
-        Configuration.cc
-        Init.cc
-        Numpy.cc
-        Utilities.cc
+set(RasrPython_SOURCES AllophoneStateFsaBuilder.cc Configuration.cc Init.cc
+                       Numpy.cc Utilities.cc
 )
 
 add_library(RasrPython STATIC ${RasrPython_SOURCES})

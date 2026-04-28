@@ -1,155 +1,165 @@
 set(Speech_SOURCES
-        AcousticModelTrainer.cc
-        AlignerModelAcceptor.cc
-        AligningFeatureExtractor.cc
-        Alignment.cc
-        AlignmentNode.cc
-        AlignmentWithLinearSegmentation.cc
-        AllophoneStateGraphBuilder.cc
-        AverageFeatureScorerActivation.cc
-        CorpusProcessor.cc
-        CorpusVisitor.cc
-        CovarianceEstimator.cc
-        DataExtractor.cc
-        DataSource.cc
-        DelayedRecognizer.cc
-        Feature.cc
-        FeatureScorer.cc
-        FeatureScorerNode.cc
-        FsaCache.cc
-        LabelingFeatureExtractor.cc
-        MixtureSetTrainer.cc
-        ModelCombination.cc
-        Module.cc
-        Recognizer.cc
-        ScatterMatricesEstimator.cc
-        TextDependentSequenceFiltering.cc
-        TextIndependentMixtureSetTrainer.cc)
+    AcousticModelTrainer.cc
+    AlignerModelAcceptor.cc
+    AligningFeatureExtractor.cc
+    Alignment.cc
+    AlignmentNode.cc
+    AlignmentWithLinearSegmentation.cc
+    AllophoneStateGraphBuilder.cc
+    AverageFeatureScorerActivation.cc
+    CorpusProcessor.cc
+    CorpusVisitor.cc
+    CovarianceEstimator.cc
+    DataExtractor.cc
+    DataSource.cc
+    DelayedRecognizer.cc
+    Feature.cc
+    FeatureScorer.cc
+    FeatureScorerNode.cc
+    FsaCache.cc
+    LabelingFeatureExtractor.cc
+    MixtureSetTrainer.cc
+    ModelCombination.cc
+    Module.cc
+    Recognizer.cc
+    ScatterMatricesEstimator.cc
+    TextDependentSequenceFiltering.cc
+    TextIndependentMixtureSetTrainer.cc
+)
 
-if (${MODULE_SPEECH_LATTICE_ALIGNMENT})
+if(${MODULE_SPEECH_LATTICE_ALIGNMENT})
     list(APPEND Speech_SOURCES PhonemeSequenceAlignmentGenerator.cc
-            SegmentwiseAlignmentGenerator.cc SegmentwiseFeatureExtractor.cc)
-endif ()
+         SegmentwiseAlignmentGenerator.cc SegmentwiseFeatureExtractor.cc
+    )
+endif()
 
-if (${MODULE_SPEECH_DT})
+if(${MODULE_SPEECH_DT})
     list(
-            APPEND
-            Speech_SOURCES
-            AbstractSegmentwiseTrainer.cc
-            AccuracyFsaBuilder.cc
-            AcousticSegmentwiseTrainer.cc
-            Confidences.cc
-            DiscriminativeMixtureSetTrainer.cc
-            EbwDiscriminativeMixtureSetTrainer.cc
-            LatticeExtractor.cc
-            LatticeSetExtractor.cc
-            LatticeSetProcessor.cc
-            PruningLatticeSetNode.cc
-            SegmentwiseGmmTrainer.cc
-            WordLatticeExtractor.cc)
-endif ()
+        APPEND
+        Speech_SOURCES
+        AbstractSegmentwiseTrainer.cc
+        AccuracyFsaBuilder.cc
+        AcousticSegmentwiseTrainer.cc
+        Confidences.cc
+        DiscriminativeMixtureSetTrainer.cc
+        EbwDiscriminativeMixtureSetTrainer.cc
+        LatticeExtractor.cc
+        LatticeSetExtractor.cc
+        LatticeSetProcessor.cc
+        PruningLatticeSetNode.cc
+        SegmentwiseGmmTrainer.cc
+        WordLatticeExtractor.cc
+    )
+endif()
 
-if (${MODULE_SPEECH_DT_ADVANCED})
+if(${MODULE_SPEECH_DT_ADVANCED})
     list(
-            APPEND
-            Speech_SOURCES
-            AdvancedAccuracyFsaBuilder.cc
-            AdvancedLatticeExtractor.cc
-            AuxiliarySegmentwiseTrainer.cc
-            ClusterMixtureSetTrainer.cc
-            AdvancedLatticeSetProcessor.cc
-            NBestListExtractor.cc
-            RpropDiscriminativeMixtureSetTrainer.cc)
-endif ()
+        APPEND
+        Speech_SOURCES
+        AdvancedAccuracyFsaBuilder.cc
+        AdvancedLatticeExtractor.cc
+        AuxiliarySegmentwiseTrainer.cc
+        ClusterMixtureSetTrainer.cc
+        AdvancedLatticeSetProcessor.cc
+        NBestListExtractor.cc
+        RpropDiscriminativeMixtureSetTrainer.cc
+    )
+endif()
 
-if (${MODULE_FLF_EXT})
+if(${MODULE_FLF_EXT})
     list(APPEND Speech_SOURCES AlignedFeatureCache.cc)
-endif ()
+endif()
 
-if (${MODULE_SPEECH_LATTICE_FLOW_NODES})
+if(${MODULE_SPEECH_LATTICE_FLOW_NODES})
     list(APPEND Speech_SOURCES AlignmentFromLattice.cc LatticeNodes.cc
-            LatticeArcAccumulator.cc)
-endif ()
+         LatticeArcAccumulator.cc
+    )
+endif()
 
-if (${MODULE_SPEECH_ALIGNMENT_FLOW_NODES})
+if(${MODULE_SPEECH_ALIGNMENT_FLOW_NODES})
     list(APPEND Speech_SOURCES AlignmentGeneratorNode.cc
-            AlignmentTransformNode.cc SegmentNode.cc)
-endif ()
+         AlignmentTransformNode.cc SegmentNode.cc
+    )
+endif()
 
-if (${MODULE_ADAPT_MLLR})
-    list(APPEND Speech_SOURCES ModelTransformEstimator.cc FeatureShiftAdaptor.cc)
-endif ()
+if(${MODULE_ADAPT_MLLR})
+    list(APPEND Speech_SOURCES ModelTransformEstimator.cc
+         FeatureShiftAdaptor.cc
+    )
+endif()
 
-if (${MODULE_ADAPT_CMLLR})
+if(${MODULE_ADAPT_CMLLR})
     list(APPEND Speech_SOURCES AffineFeatureTransformEstimator.cc
-            KeyedEstimator.cc)
-endif ()
+         KeyedEstimator.cc
+    )
+endif()
 
-if (${MODULE_CART})
+if(${MODULE_CART})
     list(APPEND Speech_SOURCES DecisionTreeTrainer.cc)
-endif ()
+endif()
 
-if (${MODULE_SPEECH_LATTICE_RESCORING})
+if(${MODULE_SPEECH_LATTICE_RESCORING})
     list(APPEND Speech_SOURCES LatticeRescorerAutomaton.cc
-            LatticeRescorerNodes.cc StatePosteriorFeatureScorerNode.cc)
-endif ()
+         LatticeRescorerNodes.cc StatePosteriorFeatureScorerNode.cc
+    )
+endif()
 
-if (${MODULE_SIGNAL_ADVANCED})
+if(${MODULE_SIGNAL_ADVANCED})
     list(APPEND Speech_SOURCES HistogramEstimator.cc MeanEstimator.cc)
-endif ()
+endif()
 
-if (${MODULE_SEARCH_MBR})
+if(${MODULE_SEARCH_MBR})
     list(APPEND Speech_SOURCES MinimumBayesRiskSearch.cc)
-endif ()
+endif()
 
 add_library(RasrSpeech STATIC ${Speech_SOURCES})
 
 target_link_libraries(
-        RasrSpeech
-        INTERFACE
-        RasrLm
-        RasrAm
-        RasrMm
-        RasrMc
-        RasrNn
-        RasrSearch
-        RasrBliss
-        RasrFlow
-        RasrFsa
-        RasrCore
-        RasrLattice
-        RasrMath
-        RasrMathLapack)
+    RasrSpeech
+    INTERFACE RasrLm
+              RasrAm
+              RasrMm
+              RasrMc
+              RasrNn
+              RasrSearch
+              RasrBliss
+              RasrFlow
+              RasrFsa
+              RasrCore
+              RasrLattice
+              RasrMath
+              RasrMathLapack
+)
 
-if (${MODULE_CART})
+if(${MODULE_CART})
     target_link_libraries(RasrSpeech INTERFACE RasrCart)
-endif ()
+endif()
 
-if (${MODULE_MATH_NR})
+if(${MODULE_MATH_NR})
     target_link_libraries(RasrSpeech INTERFACE RasrMathNr)
-endif ()
+endif()
 
-if (${MODULE_SEARCH_WFST})
+if(${MODULE_SEARCH_WFST})
     target_link_libraries(RasrSpeech INTERFACE RasrSearchWfst RasrOpenFst)
-endif ()
+endif()
 
-if (${MODULE_ADVANCED_TREE_SEARCH})
+if(${MODULE_ADVANCED_TREE_SEARCH})
     target_link_libraries(RasrSpeech INTERFACE RasrAdvancedTreeSearch)
-endif ()
+endif()
 
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
+if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
     target_link_libraries(RasrSpeech INTERFACE RasrGenericSeq2SeqTreeSearch)
-endif ()
+endif()
 
-if (${MODULE_PYTHON})
+if(${MODULE_PYTHON})
     target_link_libraries(RasrSpeech INTERFACE RasrPython)
     add_python_dependencies(RasrSpeech)
-endif ()
+endif()
 
-if (${MODULE_TENSORFLOW})
+if(${MODULE_TENSORFLOW})
     target_link_libraries(RasrSpeech INTERFACE RasrTensorflow)
     add_tf_dependencies(RasrSpeech)
-endif ()
+endif()
 
 add_executable(check-speech check.cc)
 target_link_libraries(check-speech PRIVATE RasrSpeech)

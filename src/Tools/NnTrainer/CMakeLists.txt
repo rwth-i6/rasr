@@ -2,43 +2,44 @@ add_executable(nn-trainer NnTrainer.cc)
 add_install_executable(nn-trainer)
 
 target_link_libraries(
-        nn-trainer
-        PRIVATE RasrAm
-        RasrAudio
-        RasrBliss
-        RasrFlow
-        RasrLm
-        RasrMathLapack
-        RasrMath
-        RasrMc
-        RasrMm
-        RasrSignal
-        RasrSpeech
-        ${SEARCH_LIBS}
-        RasrNn
-        RasrFsa
-        RasrCore)
+    nn-trainer
+    PRIVATE RasrAm
+            RasrAudio
+            RasrBliss
+            RasrFlow
+            RasrLm
+            RasrMathLapack
+            RasrMath
+            RasrMc
+            RasrMm
+            RasrSignal
+            RasrSpeech
+            ${SEARCH_LIBS}
+            RasrNn
+            RasrFsa
+            RasrCore
+)
 
 target_compile_options(nn-trainer PRIVATE "-fexceptions")
 
-if (${MODULE_CART})
+if(${MODULE_CART})
     target_link_libraries(nn-trainer PRIVATE RasrCart)
-endif ()
+endif()
 
-if (${MODULE_FLF_CORE})
+if(${MODULE_FLF_CORE})
     target_link_libraries(nn-trainer PRIVATE RasrFlfCore)
-endif ()
+endif()
 
-if (${MODULE_MATH_NR})
+if(${MODULE_MATH_NR})
     target_link_libraries(nn-trainer PRIVATE RasrMathNr)
-endif ()
+endif()
 
-if (${MODULE_PYTHON})
+if(${MODULE_PYTHON})
     target_link_libraries(nn-trainer PRIVATE RasrPython)
     add_python_dependencies(nn-trainer)
-endif ()
+endif()
 
-if (${MODULE_TENSORFLOW})
+if(${MODULE_TENSORFLOW})
     target_link_libraries(nn-trainer PRIVATE RasrTensorflow)
     add_tf_dependencies(nn-trainer)
-endif ()
+endif()

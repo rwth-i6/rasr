@@ -1,23 +1,26 @@
 function(add_module_option MODULE_NAME DEFAULT_VALUE)
     option(${MODULE_NAME} "Enable module ${MODULE_NAME}" ${DEFAULT_VALUE})
-    if (${MODULE_NAME})
+    if(${MODULE_NAME})
         add_compile_definitions(${MODULE_NAME})
         message(STATUS "Module ${MODULE_NAME} is enabled")
-    else ()
+    else()
         message(STATUS "Module ${MODULE_NAME} disabled")
-    endif ()
+    endif()
 endfunction()
 
 set(TOOLS "")
 
 function(add_tool_option TOOL_NAME DEFAULT_VALUE)
     option(${TOOL_NAME} "Enable tool ${TOOL_NAME}" ${DEFAULT_VALUE})
-    if (${TOOL_NAME})
-        set(TOOLS ${TOOLS} ${TOOL_NAME} PARENT_SCOPE)
+    if(${TOOL_NAME})
+        set(TOOLS
+            ${TOOLS} ${TOOL_NAME}
+            PARENT_SCOPE
+        )
         message(STATUS "Tool ${TOOL_NAME} is enabled")
-    else ()
+    else()
         message(STATUS "Tool ${TOOL_NAME} is disabled")
-    endif ()
+    endif()
 endfunction()
 
 # ****** Adaptation ******
@@ -126,31 +129,32 @@ add_tool_option(Lm ON)
 add_tool_option(SpeechRecognizer ON)
 add_tool_option(Xml ON)
 
-if (${MODULE_CART})
+if(${MODULE_CART})
     add_tool_option(Cart ON)
-endif ()
+endif()
 
-if (${MODULE_MM_DT}
-        AND ${MODULE_LATTICE_DT}
-        AND ${MODULE_SPEECH_DT})
+if(${MODULE_MM_DT}
+   AND ${MODULE_LATTICE_DT}
+   AND ${MODULE_SPEECH_DT}
+)
     add_tool_option(LatticeProcessor ON)
-endif ()
+endif()
 
-if (${MODULE_FLF})
+if(${MODULE_FLF})
     add_tool_option(Flf ON)
-endif ()
+endif()
 
-if (${MODULE_NN})
+if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
-endif ()
+endif()
 
 set(SEARCH_LIBS RasrSearch)
-if (${MODULE_SEARCH_WFST})
+if(${MODULE_SEARCH_WFST})
     list(APPEND SEARCH_LIBS RasrSearchWfst RasrOpenFst)
-endif ()
-if (${MODULE_ADVANCED_TREE_SEARCH})
+endif()
+if(${MODULE_ADVANCED_TREE_SEARCH})
     list(APPEND SEARCH_LIBS RasrAdvancedTreeSearch)
-endif ()
-if (${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
+endif()
+if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
     list(APPEND SEARCH_LIBS RasrGenericSeq2SeqTreeSearch)
-endif ()
+endif()

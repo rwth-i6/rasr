@@ -1,0 +1,98 @@
+# i6 TF image using Ubuntu 24.04 and Cuda 12.9.1 from official nvidia images
+# For release notes see https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-25-06.html
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:25.06-py3
+Stage: build
+
+%files
+    /home/simon/apptainer/def/fast_rnnt.patch /fast_rnnt.patch
+	/home/simon/apptainer/def/flashlight_no_tree_limit.patch /flashlight_no_tree_limit.patch
+
+%post
+    apt update -y
+
+    apt install -y nala
+
+    # all the fundamental basics, zsh is need because calling the cache manager might launch the user shell
+    DEBIAN_FRONTEND=noninteractive nala install -y wget git unzip gzip libssl-dev lsb-release zsh \
+        bison libxml2-dev libopenblas-dev libsndfile1-dev libcrypto++-dev libcppunit-dev \
+        parallel xmlstarlet python3-lxml htop strace gdb sox python3-pip cmake ffmpeg vim \
+        libx11-xcb1 libnss3-dev vim wget git curl tmux locales-all ninja-build gettext cmake \
+        unzip python3-venv libxtst6 ripgrep fzf fd-find libfuse2 python3-venv texlive-latex-extra \
+        latexmk default-jdk okular jq ninja-build python3-lxml cmake python3-pip swig python3-numpy \
+        rsync
+
+    pip3 install "pybind11[global]"
+
+    # flashlight-text requirements
+    nala install -y libboost-all-dev libeigen3-dev
+
+    # Returnn + Sisyphus + i6_core/-experiments/-models dependencies
+    pip3 install black h5py typing psutil ipython flask better-exchook flake8 Sphinx sphinx-rtd-theme \
+        sphinxcontrib-mermaid tox urwid matplotlib soundfile librosa==0.10 typeguard pytest optuna optuna-dashboard \
+        lazy_dataset six dm-tree typing-extensions lovely-tensors icecream protobuf resampy astor avro boto3 \
+        configobj docker fastavro grpcio_tools lxml mutagen numpy psutil pyarabic pyyaml regex num2words opencc \
+        sentencepiece tabulate scan-build onnxruntime-gpu
+
+    # download the cache manager and place in /usr/local
+    cd /usr/local
+    git clone https://github.com/rwth-i6/cache-manager.git
+    cd bin
+    ln -s ../cache-manager/cf cf
+
+    # ONNX
+    cd /usr/local
+    wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-gpu-1.22.0.tgz
+    tar xzvf onnxruntime-linux-x64-*.tgz
+    mkdir -p /usr/local/{include,lib}
+    mv onnxruntime-linux-x64-*/include/* /usr/local/include/
+    mv onnxruntime-linux-x64-*/lib/cmake/* /usr/local/lib/cmake
+    mv onnxruntime-linux-x64-*/lib/pkgconfig/* /usr/local/lib/pkgconfig
+    rmdir onnxruntime-linux-x64-*/lib/cmake
+    rmdir onnxruntime-linux-x64-*/lib/pkgconfig
+    mv onnxruntime-linux-x64-*/lib/* /usr/local/lib/
+    rm -r onnxruntime-linux-x64-*
+    ldconfig
+
+    # fast_rnnt
+    git clone https://github.com/k2-fsa/fast_rnnt.git
+    cd fast_rnnt
+    git apply /fast_rnnt.patch
+    FT_CMAKE_ARGS='-DCMAKE_CXX_STANDARD=17' FT_MAKE_ARGS='-j10' pip3 install --verbose .
+    rm /fast_rnnt.patch
+    cd ..
+    rm -r fast_rnnt
+
+    # torchaudio
+    git clone https://github.com/pytorch/audio
+    cd audio
+    printf '%s\n%s\n' "#include <float.h>" "$(cat src/libtorchaudio/cuctc/src/ctc_prefix_decoder_kernel_v2.cu)" > src/libtorchaudio/cuctc/src/ctc_prefix_decoder_kernel_v2.cu
+    sed -i 's/install_requires/#install_requires/g' setup.py
+    python3 setup.py install
+    cd ..
+
+    # build and install flashlight with tree limit patch
+    cd /usr/local
+    git clone https://github.com/flashlight/text
+    cd text
+    patch flashlight/lib/text/decoder/Trie.cpp < /flashlight_no_tree_limit.patch
+    cmake -S . -B build 
+    cmake --build build --parallel
+    pip install git+https://github.com/kpu/kenlm
+    pip install .
+    cd /usr/local
+    rm -rf text
+
+    # Sisyphus
+    pip3 install git+https://github.com/rwth-i6/sisyphus.git
+
+    # For GUI compatibility
+    DEBIAN_FRONTEND=noninteractive nala install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev python3-blinker xorg xclip xsel
+
+%environment
+    export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+

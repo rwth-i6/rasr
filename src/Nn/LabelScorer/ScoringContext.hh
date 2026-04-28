@@ -145,6 +145,40 @@ struct OnnxHiddenStateScoringContext : public ScoringContext {
 
 typedef Core::Ref<OnnxHiddenStateScoringContext const> OnnxHiddenStateScoringContextRef;
 
+/*
+ * Scoring context for computation of CTC prefix scores.
+ * Contains time-wise and overall score for prefix as well as a cache for the score of
+ * extended prefixes.
+ * Hash and equality operators are based on the label sequence.
+ */
+struct CtcPrefixScoringContext : public ScoringContext {
+    struct PrefixScore {
+        Score blankEndingScore    = std::numeric_limits<Score>::infinity();
+        Score nonBlankEndingScore = std::numeric_limits<Score>::infinity();
+
+        Score totalScore() const {
+            return Math::scoreSum(blankEndingScore, nonBlankEndingScore);
+        }
+    };
+
+    std::vector<LabelIndex>                           labelSeq;
+    mutable std::shared_ptr<std::vector<PrefixScore>> timePrefixScores;  // Represents neg-log-probabilities of emitting `labelSeq` ending in blank or nonblank up to time t for each t = 0, ..., T
+    mutable Score                                     prefixScore;       // -log P(prefix, ...)
+    mutable std::unordered_map<LabelIndex, Score>     extScores;         // Cache for -log P(prefix + token, ...) to avoid repeated computation
+    mutable bool                                      requiresFinalize;
+
+    CtcPrefixScoringContext()
+            : labelSeq(), timePrefixScores(), prefixScore(0.0), extScores(), requiresFinalize(true) {}
+
+    CtcPrefixScoringContext(std::vector<LabelIndex> const& seq, std::shared_ptr<std::vector<PrefixScore>> const& timePrefixScores, Score prefixScore, bool requiresFinalize)
+            : labelSeq(seq), timePrefixScores(timePrefixScores), prefixScore(prefixScore), extScores(), requiresFinalize(requiresFinalize) {}
+
+    bool   isEqual(ScoringContextRef const& other) const;
+    size_t hash() const;
+};
+
+typedef Core::Ref<const CtcPrefixScoringContext> CtcPrefixScoringContextRef;
+
 }  // namespace Nn
 
 #endif  // SCORING_CONTEXT_HH

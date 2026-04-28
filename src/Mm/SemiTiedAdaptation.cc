@@ -47,7 +47,7 @@ SemiTiedEstimator::SemiTiedEstimator(const Core::Configuration&          c,
         : FullAdaptorViterbiEstimator(c, dim, adaptationTree),
           stopCriterion_(paramIterationStop_(config)) {
     minSemiTiedAdaptationObservations_ = paramMinSemiTiedAdaptationObservations_(config);
-    //no logging because only used for clone()
+    // no logging because only used for clone()
 };
 
 SemiTiedEstimator::SemiTiedEstimator(const Core::Configuration&          c,
@@ -71,7 +71,7 @@ void SemiTiedEstimator::estimateWMatrices() {
         while (id != tree_->root() && count_[id] <= minSemiTiedAdaptationObservations_) {
             id = tree_->previous(id);
         }
-        //get corresponding matrix
+        // get corresponding matrix
 
         qId = id;
 
@@ -84,14 +84,14 @@ void SemiTiedEstimator::estimateWMatrices() {
         qId = tree_->root();
 #endif
         if (qId == tree_->root() && (pit == w_.end())) {
-            //not enough observations in complete tree
+            // not enough observations in complete tree
             log("too few observations for base adaptation\n") << minAdaptationObservations_ << " observations needed, " << count_[qId] << " seen.\n"
                                                               << "resetting matrix to unity";
             w_[qId] = adaptationUnitMatrix(dimension_);
             return;
         }
         if (qId != id)
-            tyingScheme[qId].insert(id);  //else: qId is already leaf
+            tyingScheme[qId].insert(id);  // else: qId is already leaf
     }
 
     for (NodeIdToIdSetMap::iterator p = tyingScheme.begin();
@@ -146,7 +146,7 @@ void SemiTiedEstimator::estimateWMatrices() {
         }
     }
 
-    //normalize all matrices by overall largest element
+    // normalize all matrices by overall largest element
     double weight = 1.0 / maxValue;
     weight        = 1.0;
 
@@ -200,7 +200,7 @@ void SemiTiedEstimator::solveEstimationEquations(const IdSet&                idS
     Matrix               U = w_[qId], V(dimension_);
     Math::Vector<double> wInit(dimension_, 0.0);
 
-    //get initial values;
+    // get initial values;
     svd(U, wInit, V, w_[qId]);
 
 #ifndef __lambda_only__
@@ -214,7 +214,7 @@ void SemiTiedEstimator::solveEstimationEquations(const IdSet&                idS
     double                       returnValue;
     Math::Vector<double>         x = convert2Vector(lambda, U, V);
 
-    frprmn(x, stopCriterion_, iterations, returnValue, function, gradient);  //numerical recipes conjugate gradient
+    frprmn(x, stopCriterion_, iterations, returnValue, function, gradient);  // numerical recipes conjugate gradient
     log("number of conjugate gradient iterations for semi-tied MLLR estimation: ") << iterations;
 
     convert2Matrices(x, lambda, U, V, dimension_);
@@ -271,7 +271,12 @@ bool SemiTiedEstimator::read(Core::BinaryInputStream& i) {
 SemiTiedOptimizationFunction::SemiTiedOptimizationFunction(ComponentIndex d, const Math::Vector<Matrix>& G,
                                                            const Math::Vector<Matrix>&                   Z,
                                                            const std::map<NodeId, Math::Vector<double>>& l)
-        : dimension_(d), G_(G), Z_(Z), lambda_(l), f1_(dimension_), f2_(dimension_) {}
+        : dimension_(d),
+          G_(G),
+          Z_(Z),
+          lambda_(l),
+          f1_(dimension_),
+          f2_(dimension_) {}
 
 SemiTiedOptimizationFunction::ResultType SemiTiedOptimizationFunction::operator()(const ArgumentType& x) const {
     convert2Matrices(x, lambda_, U_, V_, dimension_);

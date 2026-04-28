@@ -50,6 +50,6 @@ public:
         std::cout << semiring->describe(semiring->uncompress(vIt), Fsa::HintShowDetails) << std::endl;
         return 0;
     }
-} app;  // <- You have to create ONE instance of the application
+};
 
 APPLICATION(MyApplication)

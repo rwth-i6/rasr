@@ -39,12 +39,14 @@ private:
 
 public:
     ClassTokenAlphabet(ConstClassMappingRef mapping)
-            : Bliss::TokenAlphabet(mapping->tokenInventory()), mapping_(mapping) {}
+            : Bliss::TokenAlphabet(mapping->tokenInventory()),
+              mapping_(mapping) {}
     virtual ~ClassTokenAlphabet() {}
 };
 
 ClassMapping::ClassMapping(const Core::Configuration& config, Bliss::LexiconRef lexicon)
-        : Core::Component(config), lexicon_(lexicon) {
+        : Core::Component(config),
+          lexicon_(lexicon) {
     tokenAlphabet_ = Fsa::ConstAlphabetRef(new ClassTokenAlphabet(Core::ref(this)));
 }
 

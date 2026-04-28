@@ -29,10 +29,12 @@ protected:
     static const Core::ParameterString paramFilename;
     static const Core::Choice          choiceType;
     static const Core::ParameterChoice paramType;
-    enum FileType { TypeVector,
-                    TypeConst,
-                    TypeCompact,
-                    TypeNGram };
+    enum FileType {
+        TypeVector,
+        TypeConst,
+        TypeCompact,
+        TypeNGram
+    };
     std::string filename() const;
 
 public:
@@ -46,7 +48,8 @@ protected:
 class ReadOperation : public FileOperation {
 public:
     ReadOperation(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), FileOperation(c, r) {}
+            : Operation(c, r),
+              FileOperation(c, r) {}
 
 protected:
     static const Core::ParameterStringVector paramAttributes;
@@ -59,7 +62,8 @@ protected:
 class ReadFst : public ReadOperation {
 public:
     ReadFst(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), ReadOperation(c, r) {}
+            : Operation(c, r),
+              ReadOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -76,7 +80,8 @@ public:
 class ReadFsa : public ReadOperation {
 public:
     ReadFsa(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), ReadOperation(c, r) {}
+            : Operation(c, r),
+              ReadOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -93,7 +98,9 @@ public:
 class WriteOperation : public SleeveOperation, protected FileOperation {
 public:
     WriteOperation(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r), FileOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r),
+              FileOperation(c, r) {}
 
 protected:
     virtual bool precondition() const;
@@ -105,7 +112,8 @@ protected:
 class WriteFst : public WriteOperation {
 public:
     WriteFst(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), WriteOperation(c, r) {}
+            : Operation(c, r),
+              WriteOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -126,7 +134,8 @@ public:
 class WriteFsa : public WriteOperation {
 public:
     WriteFsa(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), WriteOperation(c, r) {}
+            : Operation(c, r),
+              WriteOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();
@@ -145,7 +154,8 @@ public:
 class Compress : public WriteOperation {
 public:
     Compress(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), WriteOperation(c, r) {}
+            : Operation(c, r),
+              WriteOperation(c, r) {}
 
 protected:
     virtual AutomatonRef process();

@@ -160,7 +160,9 @@ protected:
 
 public:
     RiskBuilder()
-            : offsets(0), risks(0), confidences(0) {}
+            : offsets(0),
+              risks(0),
+              confidences(0) {}
     virtual ~RiskBuilder() {}
 
     void set(Core::Vector<u32>* offsets, ScoreList* risks, ScoreList* confidences) {
@@ -305,7 +307,9 @@ private:
 
 public:
     LocalOverlapRiskBuilder(f64 alpha = 0.5)
-            : Precursor(), hypWeight_(alpha), refWeight_(1.0 - alpha) {}
+            : Precursor(),
+              hypWeight_(alpha),
+              refWeight_(1.0 - alpha) {}
     void        build(ConstLatticeRef hypSpaceL, ConstLatticeRef sumSpaceL, ConstFwdBwdRef sumSpaceFb);
     std::string name() const {
         return Core::form("local-time-overlap(alpha=%.2f)", hypWeight_);
@@ -442,7 +446,11 @@ public:
             // accuracy aka confidence
             f64 accuracy;
             Path()
-                    : target(Core::Type<u32>::max), fbScore(Core::Type<f64>::max), nToken(0.0), nCorrect(0.0), accuracy(0.0) {}
+                    : target(Core::Type<u32>::max),
+                      fbScore(Core::Type<f64>::max),
+                      nToken(0.0),
+                      nCorrect(0.0),
+                      accuracy(0.0) {}
         };
 
         typedef std::vector<Path> PathList;
@@ -516,7 +524,8 @@ private:
 
 public:
     ContinousCostScorer1(f64 alpha = 1.0)
-            : Precursor(), alpha_(alpha) {}
+            : Precursor(),
+              alpha_(alpha) {}
 
     void initialize(Closure::Path& path, const HypothesisSpace::Arc& hypArc, const f64 hypProp, const SummationSpace::Arc& refArc, const f64 refProp) const {
         // insertion
@@ -553,7 +562,8 @@ private:
 
 public:
     ContinousCostScorer2(f64 alpha = 0.5)
-            : Precursor(), alpha_(alpha) {}
+            : Precursor(),
+              alpha_(alpha) {}
 
     void initialize(Closure::Path& path, const HypothesisSpace::Arc& hypArc, const f64 hypProp, const SummationSpace::Arc& refArc, const f64 refProp) const {
         // insertion
@@ -605,7 +615,8 @@ private:
 
 public:
     DiscreteCostScorer(f64 alpha = 0.5)
-            : Precursor(), alpha_(alpha) {}
+            : Precursor(),
+              alpha_(alpha) {}
 
     void initialize(Closure::Path& path, const HypothesisSpace::Arc& hypArc, const f64 hypProp, const SummationSpace::Arc& refArc, const f64 refProp) const {
         // insertion
@@ -739,7 +750,8 @@ void LocalCostDecoder::LocalAlignmentRiskBuilder::build(ConstLatticeRef hypSpace
 
 // -------------------------------------------------------------------------
 LocalCostDecoder::LocalCostDecoder(LocalCostDecoder::RiskBuilderRef riskBuilder, Score wordPenalty)
-        : riskBuilder_(riskBuilder), wordPenalty_(wordPenalty) {
+        : riskBuilder_(riskBuilder),
+          wordPenalty_(wordPenalty) {
     verify(riskBuilder_);
     riskBuilder_->set(&offsets_, &risks_, &confidences_);
 }
@@ -1039,7 +1051,10 @@ public:
     ExtendByLocalRiskLattice(
             ConstLatticeRef l, ConstLocalCostDecoderRef scorer,
             ScoreId scoreId, ScoreId confidenceId, RescoreMode rescoreMode)
-            : RescoreLattice(l, rescoreMode), scorer_(scorer), scoreId_(scoreId), confidenceId_(confidenceId) {
+            : RescoreLattice(l, rescoreMode),
+              scorer_(scorer),
+              scoreId_(scoreId),
+              confidenceId_(confidenceId) {
         verify(scorer_);
     }
     virtual ~ExtendByLocalRiskLattice() {}
@@ -1175,7 +1190,8 @@ protected:
 
 public:
     LocalCostDecoderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {
+            : Node(name, config),
+              n_(0) {
         scoreId_ = confidenceId_ = Semiring::InvalidId;
     }
     ~LocalCostDecoderNode() {}

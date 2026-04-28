@@ -52,7 +52,7 @@ void PrefixFilter::setPrefixWords(std::string prefixWords) {
 }
 
 void PrefixFilter::prepareReachability() {
-    //Build list of non word lemmas
+    // Build list of non word lemmas
     for (u32 lemmaId = 0; lemmaId < lexicon_->nLemmas(); ++lemmaId) {
         const Bliss::Lemma* lemma = *(lexicon_->lemmas().first + lemmaId);
         if (!lemma->hasSyntacticTokenSequence() || lemma->syntacticTokenSequence().size() == 0) {
@@ -106,7 +106,7 @@ bool PrefixFilter::reachable(StateId state, const Bliss::Lemma* lemma) {
     return false;
 }
 
-bool PrefixFilter::prune(const TraceManager &trace_manager, const StateHypothesis& hyp) const {
+bool PrefixFilter::prune(const TraceManager& trace_manager, const StateHypothesis& hyp) const {
     verify(hyp.trace != invalidTraceId);
 
     const Search::Trace&       traceItem(*trace_manager.traceItem(hyp.trace).trace);
@@ -114,14 +114,14 @@ bool PrefixFilter::prune(const TraceManager &trace_manager, const StateHypothesi
     traceItem.getLemmaSequence(lemmaSequence);
 
     s32 position = 0;
-    //Iterate over the lemma sequence of the current trace
+    // Iterate over the lemma sequence of the current trace
     for (int i = 0; i < lemmaSequence.size(); i++) {
-        //Skip non word lemmas
+        // Skip non word lemmas
         if (nonWordLemmas_.count(lemmaSequence[i])) {
             continue;
         }
         if (position < prefixSequence_.size()) {
-            //Trace is invalid if lemma sequence and prefix sequence do not match
+            // Trace is invalid if lemma sequence and prefix sequence do not match
             if (lemmaSequence[i] != prefixSequence_[position] && prefixSequence_[position] != 0) {
                 return true;
             }
@@ -130,7 +130,7 @@ bool PrefixFilter::prune(const TraceManager &trace_manager, const StateHypothesi
             }
         }
         else {
-            //Stop if end of prefix sequence is reached
+            // Stop if end of prefix sequence is reached
             return false;
         }
     }
@@ -138,7 +138,7 @@ bool PrefixFilter::prune(const TraceManager &trace_manager, const StateHypothesi
     if (position >= prefixSequence_.size())
         return false;
 
-    //Check reachability of non word lemmas
+    // Check reachability of non word lemmas
     if (nonWordLemmaNodes_.count(hyp.state)) {
         return false;
     }

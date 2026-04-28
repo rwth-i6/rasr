@@ -59,7 +59,8 @@ const Core::ParameterString ProjectionNode<T>::paramProjectionComponents(
 
 template<class T>
 ProjectionNode<T>::ProjectionNode(const Core::Configuration& c)
-        : Component(c), SleeveNode(c) {
+        : Component(c),
+          SleeveNode(c) {
     log() << "Initializing projection";
     addInput(0);
     addOutput(0);
@@ -98,7 +99,7 @@ bool ProjectionNode<T>::work(Flow::PortId p) {
 
     Flow::Vector<T>* out = new Flow::Vector<T>;
 
-    //loop over components
+    // loop over components
     u32 cmp = 0;
     for (u32 i = 0; i < nComponents_; i++) {
         cmp = components_[i];

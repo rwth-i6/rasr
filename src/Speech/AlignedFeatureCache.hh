@@ -17,9 +17,11 @@ protected:
 
 public:
     SortedCache()
-            : cacheDir_("."), bufferSize_(0) {}
+            : cacheDir_("."),
+              bufferSize_(0) {}
     SortedCache(const std::string& cacheDir, u32 bufferSize)
-            : cacheDir_(cacheDir), bufferSize_(bufferSize) {}
+            : cacheDir_(cacheDir),
+              bufferSize_(bufferSize) {}
 
     /**
      * Set the directory for feature cache files
@@ -96,7 +98,8 @@ protected:
 
 public:
     SortedCacheReader()
-            : open_(false), featureType_(0) {}
+            : open_(false),
+              featureType_(0) {}
     SortedCacheReader(const std::string& cacheDir, u32 bufferSize)
             : SortedCache(cacheDir, bufferSize),
               open_(false),

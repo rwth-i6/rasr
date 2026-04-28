@@ -64,6 +64,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ISMOOTHING_MIXTURE_SET_ESTIMATOR_HH

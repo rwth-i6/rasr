@@ -64,7 +64,8 @@ private:
 
 public:
     Parser(const Configuration& c, DependencySet& dependencySet)
-            : XmlSchemaParser(c), dependencySet_(dependencySet) {
+            : XmlSchemaParser(c),
+              dependencySet_(dependencySet) {
         XmlRegularElement* dependency = new XmlRegularElementRelay("dependency", this,
                                                                    XmlRegularElementRelay::startHandler(&Self::startDependency),
                                                                    XmlRegularElementRelay::endHandler(&Self::endDependency));

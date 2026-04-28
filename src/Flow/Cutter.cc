@@ -51,7 +51,7 @@ void CutterNode::setId(const std::string& id) {
 void CutterNode::fillCache() {
     DataPtr<Data> d;
     getData(0, d);
-    while (d && d.get() != Data::eos()) {
+    while (d && Data::isNotSentinel(d.get())) {
         featureSequence_.push_back(d);
         getData(0, d);
     }

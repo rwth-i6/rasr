@@ -53,13 +53,23 @@ public:
     static Value create(Args... value);
 
     template<typename T>
+    static Value createEmpty(std::initializer_list<int64_t> dim);
+
+    template<typename T>
+    static Value createEmpty(std::vector<int64_t> const& dim);
+
+    template<typename T>
     static Value zeros(std::initializer_list<int64_t> dim);
 
     template<typename T>
     static Value zeros(std::vector<int64_t> const& dim);
 
+    static Value concat(Value const& a, Value const& b, int axis);
+    static Value concat(std::vector<Value const*> const& values, int axis);
+
     Value();
-    Value(Value&& other);
+    Value(Value const& other);
+    Value(Value&& value);
     ~Value() = default;
 
     bool empty() const;
@@ -142,6 +152,10 @@ public:
     template<typename T>
     T const* data(size_t dim0_idx, size_t dim1_idx, size_t dim2_idx) const;
 
+    Value slice(int64_t start, int64_t end, int axis);
+
+    Value slice(std::vector<int64_t> const& start, std::vector<int64_t> const& end);
+
     /* -------------------- Setters -------------------- */
 
     template<typename T>
@@ -157,15 +171,21 @@ public:
     void set(std::vector<T> const& vec);
 
     template<typename T>
+    void set(T const* data, std::vector<int64_t> const& shape);
+
+    template<typename T>
     void set(T const& val);
 
     template<typename T>
     void save(std::string const& path) const;
 
 protected:
+    Ort::Value value_;
+
     Value(Ort::Value&& value);
 
-    Ort::Value value_;
+    template<typename T>
+    void copyFrom(Ort::Value const& v);
 
     Ort::Value const* rawValue() const;
 };

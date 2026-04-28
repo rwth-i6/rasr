@@ -12,10 +12,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_HISTOGRAM_HH
-#define _SEARCH_HISTOGRAM_HH
+#ifndef SEARCH_HISTOGRAM_HH
+#define SEARCH_HISTOGRAM_HH
 
 #include <Core/Assertions.hh>
+
 #include "Types.hh"
 
 namespace Search {
@@ -107,4 +108,4 @@ public:
 
 }  // namespace Search
 
-#endif /* _SEARCH_HISTOGRAM_HH */
+#endif  // SEARCH_HISTOGRAM_HH

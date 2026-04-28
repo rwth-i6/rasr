@@ -34,7 +34,8 @@ class RestoreOutputLabelMapper {
 
 public:
     RestoreOutputLabelMapper(int wordLabelOffset, int disambiguatorOffset)
-            : wordLabelOffset_(wordLabelOffset), disambiguatorStart_(disambiguatorOffset) {}
+            : wordLabelOffset_(wordLabelOffset),
+              disambiguatorStart_(disambiguatorOffset) {}
 
     Arc operator()(const Arc& arc) const {
         // transform only acceptors
@@ -78,7 +79,8 @@ class RemoveDisambiguatorMapper {
 
 public:
     RemoveDisambiguatorMapper(int disambiguatorMin, int disambiguatorMax)
-            : disambiguatorMin_(disambiguatorMin), disambiguatorMax_(disambiguatorMax) {}
+            : disambiguatorMin_(disambiguatorMin),
+              disambiguatorMax_(disambiguatorMax) {}
 
     Arc operator()(const Arc& arc) const {
         if (arc.ilabel >= disambiguatorMin_ && arc.ilabel <= disambiguatorMax_) {

@@ -38,7 +38,9 @@ ModelCombinationRef getModelCombination(const Core::Configuration& config, Acous
 
 // -------------------------------------------------------------------------
 SegmentwiseFeatureExtractor::SegmentwiseFeatureExtractor(const Core::Configuration& config, DataSourceRef dataSource)
-        : Core::Component(config), dataSource_(dataSource), statisticsChannel_(config, "statistics") {
+        : Core::Component(config),
+          dataSource_(dataSource),
+          statisticsChannel_(config, "statistics") {
     dataSource_->respondToDelayedErrors();
     nRecordings_ = nSegments_ = 0;
 }
@@ -142,7 +144,8 @@ SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(const Core::Configuration
 }
 
 SegmentwiseSpeechProcessor::SegmentwiseSpeechProcessor(SegmentwiseFeatureExtractorRef featureExtractor, SegmentwiseModelAdaptorRef modelAdaptor)
-        : featureExtractor_(featureExtractor), modelAdaptor_(modelAdaptor) {}
+        : featureExtractor_(featureExtractor),
+          modelAdaptor_(modelAdaptor) {}
 
 SegmentwiseSpeechProcessor::~SegmentwiseSpeechProcessor() {}
 

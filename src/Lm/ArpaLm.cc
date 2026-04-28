@@ -108,13 +108,9 @@ void ArpaLm::read() {
     std::string tempfile;
 
     if (paramReverseLm(config)) {
-        char* tmp = tempnam(0, "lm");
-        tempfile  = tmp;
-        ::free(tmp);
-        log() << "reversing ARPA language model into temporary file '" << tempfile << "'";
-        Lm::reverseArpaLm(filename, tempfile);
-        log() << "successfully reversed";
-        filename = tempfile;
+        log() << "reversing ARPA language model";
+        filename = Lm::reverseArpaLm(filename);
+        log() << "successfully reversed into temporary file '" << filename << "'";
     }
 
     Core::CompressedInputStream* cis = new Core::CompressedInputStream(filename.c_str());
@@ -132,14 +128,17 @@ void ArpaLm::read() {
     Core::MD5   md5;
     std::string line;
     u32         lineNumber = 0, totalNGrams = 0, expectedTotalNGrams = 0, maxTotalNGrams = 0;
-    enum { preamble,
-           sizes,
-           ngrams,
-           postamble,
-           unknown } state = preamble;
-    u32                     nGram, n;
-    Token                   tokens[maxNGramLength];
-    Core::ProgressIndicator pi("reading ARPA lm", "n-grams");
+    enum {
+        preamble,
+        sizes,
+        ngrams,
+        postamble,
+        unknown
+    } state = preamble;
+    u32                             nGram, n;
+    Token                           tokens[maxNGramLength];
+    std::unordered_set<std::string> unknownSyntacticTokenMap;
+    Core::ProgressIndicator         pi("reading ARPA lm", "n-grams");
     pi.start();
     while (!std::getline(is, line).eof()) {
         ++lineNumber;
@@ -205,7 +204,10 @@ void ArpaLm::read() {
                                 tokens[n] = t;
                             }
                             else {
-                                warning("unknown syntactic token '%s' in line %d", word.c_str(), lineNumber);
+                                if (unknownSyntacticTokenMap.find(word) == unknownSyntacticTokenMap.end()) {
+                                    unknownSyntacticTokenMap.insert(word);
+                                    warning("unknown syntactic token '%s' in line %d", word.c_str(), lineNumber);
+                                }
                                 break;
                             }
                         }
@@ -224,6 +226,7 @@ void ArpaLm::read() {
             }
     }
     pi.finish();
+    log("Unknown syntactic tokens in total: %lu", unknownSyntacticTokenMap.size());
     if (state != postamble)
         error("Premature end of language model file.");
     dependency_.setValue(md5);
@@ -232,9 +235,6 @@ void ArpaLm::read() {
     */
     initialize(&*data->items.begin(), &(*(data->items.end() - 1)) + 1);
     delete data;
-
-    if (tempfile.size())
-        std::remove(tempfile.c_str());
 }
 
 ArpaClassLm::ArpaClassLm(const Core::Configuration& c, Bliss::LexiconRef l)

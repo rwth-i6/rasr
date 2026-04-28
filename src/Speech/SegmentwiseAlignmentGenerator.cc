@@ -171,8 +171,8 @@ OrthographyAlignmentGenerator::OrthographyAlignmentGenerator(const Core::Configu
     transducerCache_               = createFsaCache(select("transducer-cache"));
     modelAcceptorCache_            = createFsaCache(select("model-acceptor-cache"));
     wordLatticeBuilder_            = new Search::Aligner::WordLatticeBuilder(select("word-lattice-builder"),
-                                                                  modelCombination()->lexicon(),
-                                                                  acousticModel());
+                                                                             modelCombination()->lexicon(),
+                                                                             acousticModel());
     lemmaPronunciationToLemma_     = modelCombination()->lexicon()->createLemmaPronunciationToLemmaTransducer();
     std::string alignmentCachePath = paramPath(select("alignment-cache"));
     if (!alignmentCachePath.empty()) {

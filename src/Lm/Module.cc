@@ -13,11 +13,19 @@
  *  limitations under the License.
  */
 #include "Module.hh"
+
 #include <Core/Application.hh>
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
+#include <Nn/DummyCompressedVectorFactory.hh>
+#include <Nn/FixedQuantizationCompressedVectorFactory.hh>
+#include <Nn/QuantizedCompressedVectorFactory.hh>
+#include <Nn/ReducedPrecisionCompressedVectorFactory.hh>
 #include "ClassLm.hh"
+#include "CombineLm.hh"
+#include "SimpleHistoryLm.hh"
+
 #ifdef MODULE_LM_ARPA
 #include "ArpaLm.hh"
 #endif
@@ -28,19 +36,12 @@
 #ifdef MODULE_LM_ZEROGRAM
 #include "Zerogram.hh"
 #endif
-#ifdef MODULE_LM_FFNN
-#include "FFNeuralNetworkLanguageModel.hh"
-#endif
 #ifdef MODULE_LM_TFRNN
 #include "TFRecurrentLanguageModel.hh"
 #endif
-#include "CombineLm.hh"
-
-#ifdef MODULE_LM_TFRNN
-#include "DummyCompressedVectorFactory.hh"
-#include "FixedQuantizationCompressedVectorFactory.hh"
-#include "QuantizedCompressedVectorFactory.hh"
-#include "ReducedPrecisionCompressedVectorFactory.hh"
+#ifdef MODULE_LM_ONNX
+#include "OnnxRecurrentLanguageModel.hh"
+#include "OnnxStatelessLanguageModel.hh"
 #endif
 
 #include "SimpleHistoryLm.hh"
@@ -53,24 +54,26 @@ enum LanguageModelType {
     lmTypeArpaWithClasses,
     lmTypeFsa,
     lmTypeZerogram,
-    lmTypeFFNN,
     lmTypeCombine,
     lmTypeTFRNN,
+    lmTypeOnnx,
     lmTypeCheatingSegment,
-    lmTypeSimpleHistory
+    lmTypeSimpleHistory,
+    lmTypeOnnxStateless
 };
-}
+}  // namespace Lm
 
 const Core::Choice Module_::lmTypeChoice(
         "ARPA", lmTypeArpa,
         "ARPA+classes", lmTypeArpaWithClasses,
         "fsa", lmTypeFsa,
         "zerogram", lmTypeZerogram,
-        "ffnn", lmTypeFFNN,
         "combine", lmTypeCombine,
         "tfrnn", lmTypeTFRNN,
+        "onnx", lmTypeOnnx,
         "cheating-segment", lmTypeCheatingSegment,
         "simple-history", lmTypeSimpleHistory,
+        "onnx-stateless", lmTypeOnnxStateless,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Module_::lmTypeParam(
@@ -93,12 +96,13 @@ Core::Ref<LanguageModel> Module_::createLanguageModel(
 #ifdef MODULE_LM_ZEROGRAM
         case lmTypeZerogram: result = Core::ref(new Zerogram(c, l)); break;
 #endif
-#ifdef MODULE_LM_FFNN
-        case lmTypeFFNN: result = Core::ref(new FFNeuralNetworkLanguageModel(c, l)); break;
-#endif
         case lmTypeCombine: result = Core::ref(new CombineLanguageModel(c, l)); break;
 #ifdef MODULE_LM_TFRNN
         case lmTypeTFRNN: result = Core::ref(new TFRecurrentLanguageModel(c, l)); break;
+#endif
+#ifdef MODULE_LM_ONNX
+        case lmTypeOnnx: result = Core::ref(new OnnxRecurrentLanguageModel(c, l)); break;
+        case lmTypeOnnxStateless: result = Core::ref(new OnnxStatelessLm(c, l)); break;
 #endif
         case lmTypeSimpleHistory: result = Core::ref(new SimpleHistoryLm(c, l)); break;
         default:
@@ -115,7 +119,6 @@ Core::Ref<ScaledLanguageModel> Module_::createScaledLanguageModel(
     return languageModel ? Core::Ref<ScaledLanguageModel>(new LanguageModelScaling(c, languageModel)) : Core::Ref<ScaledLanguageModel>();
 }
 
-#ifdef MODULE_LM_TFRNN
 enum CompressedVectorFactoryType {
     DummyCompressedVectorFactoryType,
     FixedQuantizationCompressedVectorFactoryType,
@@ -135,14 +138,12 @@ const Core::ParameterChoice Module_::compressedVectorFactoryTypeParam(
         "type of compressed vector factory",
         DummyCompressedVectorFactoryType);
 
-Lm::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
+Nn::CompressedVectorFactoryPtr<float> Module_::createCompressedVectorFactory(Core::Configuration const& config) {
     switch (compressedVectorFactoryTypeParam(config)) {
-        case DummyCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::DummyCompressedVectorFactory<float>(config));
-        case FixedQuantizationCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::FixedQuantizationCompressedVectorFactory(config));
-        case QuantizedCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::QuantizedCompressedVectorFactory(config));
-        case ReducedPrecisionCompressedVectorFactoryType: return CompressedVectorFactoryPtr<float>(new Lm::ReducedPrecisionCompressedVectorFactory(config));
+        case DummyCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::DummyCompressedVectorFactory<float>(config));
+        case FixedQuantizationCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::FixedQuantizationCompressedVectorFactory(config));
+        case QuantizedCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::QuantizedCompressedVectorFactory(config));
+        case ReducedPrecisionCompressedVectorFactoryType: return Nn::CompressedVectorFactoryPtr<float>(new Nn::ReducedPrecisionCompressedVectorFactory(config));
         default: defect();
     }
 }
-
-#endif

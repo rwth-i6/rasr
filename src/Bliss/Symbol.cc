@@ -39,7 +39,7 @@ Symbol SymbolSet::operator[](const Symbol::String& s) {
     const Symbol::Char* result = 0;
     Map::const_iterator i      = map_.find(s.c_str());
     if (i == map_.end()) {
-        //result = strings_.add0(&*(s.begin()),&*(s.end()));
+        // result = strings_.add0(&*(s.begin()),&*(s.end()));
         result = strings_.add0(&*(s.begin()), (&*(s.end() - 1)) + 1);
         map_.insert(result);
     }

@@ -76,9 +76,9 @@ void HistogramNormalization::apply(const std::vector<Value>& in, std::vector<Val
 
 bool HistogramNormalization::areScalesWellDefined(const std::vector<HistogramWeight>& scales) {
     // 0 <= scale <= 1
-    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::less<HistogramWeight>(), 0)) != scales.end())
+    if (std::find_if(scales.begin(), scales.end(), std::bind(std::less<HistogramWeight>(), std::placeholders::_1, 0)) != scales.end())
         return false;
-    if (std::find_if(scales.begin(), scales.end(), std::bind2nd(std::greater<HistogramWeight>(), 1)) != scales.end())
+    if (std::find_if(scales.begin(), scales.end(), std::bind(std::greater<HistogramWeight>(), std::placeholders::_1, 1)) != scales.end())
         return false;
     return true;
 }

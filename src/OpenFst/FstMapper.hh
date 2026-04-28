@@ -44,7 +44,9 @@ protected:
 
 public:
     FstMapperAutomatonImpl(const FstAutomaton* fst, ConstSemiringRef semiring, WeightConverterType converter)
-            : fst_(fst), semiring_(semiring), weightConverter_(converter) {
+            : fst_(fst),
+              semiring_(semiring),
+              weightConverter_(converter) {
         init();
     }
 
@@ -121,9 +123,11 @@ protected:
 
 public:
     FstMapperAutomaton(const FstAutomaton* fst, WeightConverterType converter = WeightConverterType())
-            : FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
+            : FsaAutomaton(),
+              impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
     FstMapperAutomaton(const FstAutomaton* fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType())
-            : FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
+            : FsaAutomaton(),
+              impl_(new Impl(fst, semiring, converter)) {}
     virtual ~FstMapperAutomaton() {
         delete impl_;
     }
@@ -182,9 +186,11 @@ protected:
 
 public:
     FstMapperAutomaton(const FstAutomaton* fst, WeightConverterType converter = WeightConverterType())
-            : FsaAutomaton(), impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
+            : FsaAutomaton(),
+              impl_(new Impl(fst, Fsa::ConstSemiringRef(), converter)) {}
     FstMapperAutomaton(const FstAutomaton* fst, _ConstSemiringRef semiring, WeightConverterType converter = WeightConverterType())
-            : FsaAutomaton(), impl_(new Impl(fst, semiring, converter)) {}
+            : FsaAutomaton(),
+              impl_(new Impl(fst, semiring, converter)) {}
     virtual ~FstMapperAutomaton() {
         delete impl_;
     }

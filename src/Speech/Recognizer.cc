@@ -41,17 +41,15 @@ using namespace Speech;
 // class Recognizer
 
 const Core::Choice Recognizer::searchTypeChoice_(
-        "word-conditioned-tree-search", Search::WordConditionedTreeSearchType,
         "advanced-tree-search", Search::AdvancedTreeSearch,
         "expanding-fsa-search", Search::ExpandingFsaSearchType,
         "linear-search", Search::LinearSearchType,
-        "generic-seq2seq-tree-search", Search::GenericSeq2SeqTreeSearchType,
         Core::Choice::endMark());
 
 const Core::ParameterChoice Recognizer::paramSearch(
         "search-type", &searchTypeChoice_,
         "select search algorithm",
-        Search::WordConditionedTreeSearchType);
+        Search::AdvancedTreeSearch);
 
 Recognizer::Recognizer(const Core::Configuration& c)
         : Core::Component(c), recognizer_(0) {}
@@ -306,9 +304,9 @@ void OfflineRecognizer::setFeatureDescription(const Mm::FeatureDescription& desc
 
 void OfflineRecognizer::logTraceback(const Recognizer::Traceback& traceback) {
     tracebackChannel_ << Core::XmlOpen("traceback") + Core::XmlAttribute("type", "xml");
-    u32                                  previousIndex = traceback.begin()->time;
-    Search::SearchAlgorithm::ScoreVector previousScore(0.0, 0.0);
-    for (std::vector<Search::SearchAlgorithm::TracebackItem>::const_iterator tbi = traceback.begin(); tbi != traceback.end(); ++tbi) {
+    u32                 previousIndex = traceback.begin()->time;
+    Search::ScoreVector previousScore(0.0, 0.0);
+    for (std::vector<Search::TracebackItem>::const_iterator tbi = traceback.begin(); tbi != traceback.end(); ++tbi) {
         if (tbi->pronunciation) {
             tracebackChannel_ << Core::XmlOpen("item") + Core::XmlAttribute("type", "pronunciation")
                               << Core::XmlFull("orth", tbi->pronunciation->lemma()->preferredOrthographicForm())

@@ -24,7 +24,8 @@ const int maxIterations      = 3;
 const int switchRandomModulo = 10;
 
 PathRecombinationApproximation::PathRecombinationApproximation(const PersistentStateTree& network, const Core::Configuration& config, const PathRecombination& pathrec)
-        : network_(network), pathrec_(pathrec) {
+        : network_(network),
+          pathrec_(pathrec) {
     cliqueSizes_ = paramCliqueSizes(config);
     initialize();
 }

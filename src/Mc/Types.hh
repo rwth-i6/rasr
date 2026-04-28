@@ -15,22 +15,22 @@
 #ifndef _MC_TYPES_HH
 #define _MC_TYPES_HH
 
-#include <Core/Types.hh>
 #include <Core/Hash.hh>
+#include <Core/Types.hh>
 
 namespace Mc {
 
-    typedef f32 Score;
-    typedef Core::StringHashMap<Score> ScaleMap;
+typedef f32                        Score;
+typedef Core::StringHashMap<Score> ScaleMap;
 
-    typedef u32 EditDistance;
-    typedef f32 Scale;
-    typedef f64 Probability;
-    typedef f64 Feature;
-    typedef u32 Count;
-    typedef std::vector<Feature> FeatureVector;
-    typedef std::pair<std::string, Scale> NamedScale;
+typedef u32                           EditDistance;
+typedef f32                           Scale;
+typedef f64                           Probability;
+typedef f64                           Feature;
+typedef u32                           Count;
+typedef std::vector<Feature>          FeatureVector;
+typedef std::pair<std::string, Scale> NamedScale;
 
-} // namespace Mc
+}  // namespace Mc
 
-#endif // _MC_TYPES_HH
+#endif  // _MC_TYPES_HH

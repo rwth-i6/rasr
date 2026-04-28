@@ -89,7 +89,9 @@ public:
 
 public:
     Operation(const Core::Configuration& c, Resources& r)
-            : Core::Component(c), resources_(r), timerChannel_(config, "time") {}
+            : Core::Component(c),
+              resources_(r),
+              timerChannel_(config, "time") {}
     /**
      * number of automata required as input
      */
@@ -144,7 +146,8 @@ protected:
 class SleeveOperation : public virtual Operation {
 public:
     SleeveOperation(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), input_(0) {}
+            : Operation(c, r),
+              input_(0) {}
     virtual u32 nInputAutomata() const {
         return 1;
     }
@@ -176,9 +179,11 @@ protected:
         outputLemmas,
         outputSyntacticTokens
     };
+
     static const Core::ParameterChoice paramOutputType;
     static const Core::Choice          choiceOutputType;
-    OutputType                         outputType() const {
+
+    OutputType outputType() const {
         return static_cast<OutputType>(paramOutputType(config));
     }
 
@@ -220,8 +225,10 @@ protected:
 public:
     LabelTypeDependent(const Core::Configuration& c)
             : Core::Configurable(c) {}
-    enum LabelType { Input,
-                     Output };
+    enum LabelType {
+        Input,
+        Output
+    };
     LabelType labelType() const {
         return static_cast<LabelType>(paramLabel(config));
     }
@@ -238,7 +245,8 @@ protected:
 
 public:
     DisambiguatorDependentOperation(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), nDisambiguators_(paramDisambiguators(config)) {}
+            : Operation(c, r),
+              nDisambiguators_(paramDisambiguators(config)) {}
     virtual u32  nInputAutomata() const;
     virtual bool addInput(AutomatonRef f);
 };
@@ -249,7 +257,8 @@ public:
 class Pop : public SleeveOperation {
 public:
     Pop(const Core::Configuration& c, Resources& r)
-            : Operation(c, r), SleeveOperation(c, r) {}
+            : Operation(c, r),
+              SleeveOperation(c, r) {}
     virtual bool hasOutput() const {
         return false;
     }

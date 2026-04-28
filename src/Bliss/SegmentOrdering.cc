@@ -264,7 +264,10 @@ void SegmentOrderingVisitor::leaveCorpus(Corpus* corpus) {
 }
 
 SegmentOrderingVisitor::CustomCorpusGuide::CustomCorpusGuide(SegmentOrderingVisitor* parent, Corpus* rootCorpus)
-        : parent_(parent), rootCorpus_(rootCorpus), curCorpus_(rootCorpus_), curRecording_(0) {
+        : parent_(parent),
+          rootCorpus_(rootCorpus),
+          curCorpus_(rootCorpus_),
+          curRecording_(0) {
     // Enter the root corpus.
     parent_->visitor_->enterCorpus(rootCorpus_);
 }

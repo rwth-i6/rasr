@@ -104,7 +104,7 @@ u32 WindowingFirFilter::getM(f64 overshoot, f64 deltaOmega) {
 
     u32 M = (u32)((A - 8) / 2.285 / deltaOmega);
 
-    M = u32(M / 2) * 2;  //make M even
+    M = u32(M / 2) * 2;  // make M even
 
     verify(M > 0);
 

@@ -58,7 +58,9 @@ protected:
 
 public:
     ProjectSemiringLattice(ConstLatticeRef l, ConstSemiringRef targetSemiring, const ProjectionMatrix& mapping)
-            : Precursor(l), semiring_(targetSemiring), mapping_(mapping) {
+            : Precursor(l),
+              semiring_(targetSemiring),
+              mapping_(mapping) {
         verify(mapping_.size() <= targetSemiring->size());
         ConstSemiringRef sourceSemiring = l->semiring();
         for (ProjectionMatrix::const_iterator itScales = mapping_.begin(); itScales != mapping_.end(); ++itScales)
@@ -95,7 +97,9 @@ struct FsaWeightToScores {
     ScoresRef        defaultScore;
     ScoreId          id;
     FsaWeightToScores(ConstSemiringRef semiring, ScoresRef defaultScore, ScoreId id)
-            : semiring(semiring), defaultScore(defaultScore), id(id) {}
+            : semiring(semiring),
+              defaultScore(defaultScore),
+              id(id) {}
     ScoresRef operator()(const Fsa::Weight& w) const {
         ScoresRef score = semiring->clone(defaultScore);
         score->set(id, Score(w));
@@ -125,7 +129,11 @@ private:
 
 public:
     FsaVectorLattice(const std::vector<Fsa::ConstAutomatonRef>& fsas, ConstSemiringRef semiring)
-            : Precursor(), fsas_(fsas), semiring_(semiring), tmpStates_(0), tmpArcIterators_(0) {
+            : Precursor(),
+              fsas_(fsas),
+              semiring_(semiring),
+              tmpStates_(0),
+              tmpArcIterators_(0) {
         verify((fsas_.size() > 0) && (fsas_.size() == semiring_->size()));
         tmpStates_.resize(fsas_.size());
         tmpArcIterators_.resize(fsas_.size());
@@ -199,7 +207,8 @@ struct FsaWeightToConstant {
     ConstSemiringRef semiring;
     ScoresRef        constScore;
     FsaWeightToConstant(ConstSemiringRef semiring, ScoresRef constScore)
-            : semiring(semiring), constScore(constScore) {}
+            : semiring(semiring),
+              constScore(constScore) {}
     ScoresRef operator()(const Fsa::Weight& w) const {
         return constScore;
     }
@@ -242,7 +251,8 @@ struct Projection {
     ScoreId id;
     Score   scale;
     Projection(ScoreId id, Score scale = Score(1))
-            : id(id), scale(scale) {}
+            : id(id),
+              scale(scale) {}
     Fsa::Weight operator()(const ScoresRef& a) const {
         return Fsa::Weight(scale * a->get(id));
     }
@@ -295,7 +305,9 @@ protected:
 
 public:
     TopologicalOrderBuilder(ConstLatticeRef l, Core::Ref<StateMap> map)
-            : DfsState(l), map_(map), isCyclic_(false) {}
+            : DfsState(l),
+              map_(map),
+              isCyclic_(false) {}
     bool isCyclic() const {
         return isCyclic_;
     }
@@ -351,7 +363,8 @@ protected:
 
 public:
     FindTopologicalOrder(ConstLatticeRef l, Core::Ref<StateMap> map)
-            : TopologicalOrderBuilder(l, map), time_(0) {
+            : TopologicalOrderBuilder(l, map),
+              time_(0) {
         dfs();
         if (time_ > 0) {
             if (!isCyclic()) {
@@ -397,15 +410,19 @@ ConstStateMapRef findTopologicalOrder(ConstLatticeRef l) {
 struct ChronologicalWeakOrder {
     const Boundaries& boundaries;
     const StateMap&   topologicalOrder;
-    bool              operator()(Fsa::StateId sid1, Fsa::StateId sid2) const {
+
+    bool operator()(Fsa::StateId sid1, Fsa::StateId sid2) const {
         if (boundaries.time(sid1) == boundaries.time(sid2))
             return topologicalOrder[sid1] < topologicalOrder[sid2];
         else
             return boundaries.time(sid1) < boundaries.time(sid2);
     }
+
     ChronologicalWeakOrder(const Boundaries& boundaries, const StateMap& topologicalOrder)
-            : boundaries(boundaries), topologicalOrder(topologicalOrder) {}
+            : boundaries(boundaries),
+              topologicalOrder(topologicalOrder) {}
 };
+
 ConstStateMapRef sortChronologically(ConstLatticeRef l) {
     ConstStateMapRef topologicalSort = sortTopologically(l);
     verify(topologicalSort);
@@ -429,7 +446,8 @@ public:
         ConstStateMapRef   topologicalSort_;  // order = new-sid -> old-sid
     public:
         TopologicalOrderBoundaries(ConstBoundariesRef boundaries, ConstStateMapRef topologicalSort)
-                : boundaries_(boundaries), topologicalSort_(topologicalSort) {}
+                : boundaries_(boundaries),
+                  topologicalSort_(topologicalSort) {}
         virtual ~TopologicalOrderBoundaries() {}
         bool valid() const {
             return boundaries_->valid();
@@ -536,7 +554,9 @@ protected:
 
 public:
     ScoreAppendLattice(ConstLatticeRef l1, ConstLatticeRef l2, ConstSemiringRef semiring)
-            : Precursor(l1), appendL_(l2), semiring_(semiring) {
+            : Precursor(l1),
+              appendL_(l2),
+              semiring_(semiring) {
         const Semiring& semiring1 = *l1->semiring();
         n1_                       = semiring1.size();
         const Semiring& semiring2 = *l2->semiring();

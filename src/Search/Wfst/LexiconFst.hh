@@ -48,9 +48,11 @@ class LexicalFstFactory : public Core::Component {
     typedef StdFst::Arc                     Arc;
 
 public:
-    enum AccumulatorType { DefaultAccumulator,
-                           LogAccumulator,
-                           FastLogAccumulator };
+    enum AccumulatorType {
+        DefaultAccumulator,
+        LogAccumulator,
+        FastLogAccumulator
+    };
 
     struct Options {
         AccumulatorType accumulatorType;

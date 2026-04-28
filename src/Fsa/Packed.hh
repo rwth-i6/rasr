@@ -34,23 +34,28 @@ public:
     PackedAutomaton();
     PackedAutomaton(const std::string& str);
     virtual ~PackedAutomaton();
+
     virtual void          clear();
     virtual bool          hasState(StateId sid) const;
     virtual void          setState(State* sp);
     virtual void          deleteState(StateId);
     virtual ConstStateRef getState(StateId s) const;
-    virtual StateId       maxStateId() const {
+
+    virtual StateId maxStateId() const {
         return states_.size() - 1;
     }
+
     virtual StateId size() const {
         return states_.size();
     }
-    virtual void        normalize() {}
-    virtual size_t      getMemoryUsed() const;
-    float               getStateRatio() const;
-    float               getArcRatio() const;
-    float               getRatio() const;
-    void                dumpMemoryUsage(Core::XmlWriter& o) const;
+
+    virtual void   normalize() {}
+    virtual size_t getMemoryUsed() const;
+    float          getStateRatio() const;
+    float          getArcRatio() const;
+    float          getRatio() const;
+    void           dumpMemoryUsage(Core::XmlWriter& o) const;
+
     virtual std::string describe() const {
         return "packed";
     }

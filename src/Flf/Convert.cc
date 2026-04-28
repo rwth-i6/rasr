@@ -32,7 +32,8 @@ public:
             : Precursor(capacity) {}
 
     static const Core::ParameterStringVector paramRow;
-    static SymbolicMapping                   loadSymbolicMapping(const Core::Configuration& config, ConstSemiringRef target) {
+
+    static SymbolicMapping loadSymbolicMapping(const Core::Configuration& config, ConstSemiringRef target) {
         SymbolicMapping           symbolicMapping(target->size());
         SymbolicMapping::iterator itSymbolicMapping = symbolicMapping.begin();
         for (KeyList::const_iterator itKey = target->keys().begin();
@@ -57,7 +58,8 @@ private:
 
 public:
     MappingBuilder(ConstSemiringRef source, ConstSemiringRef target)
-            : source_(source), target_(target) {}
+            : source_(source),
+              target_(target) {}
 
     ProjectionMatrix buildLinearMapping(ScoreId offset = 0, bool scaled = true) const {
         ProjectionMatrix           scaledMapping(target_->size());
@@ -114,7 +116,9 @@ protected:
 
 public:
     ProjectSemiringLattice(ConstLatticeRef l, ConstSemiringRef targetSemiring, const ProjectionMatrix& mapping)
-            : Precursor(l), semiring_(targetSemiring), mapping_(mapping) {}
+            : Precursor(l),
+              semiring_(targetSemiring),
+              mapping_(mapping) {}
     virtual ~ProjectSemiringLattice() {}
 
     virtual ConstSemiringRef semiring() const {
@@ -240,7 +244,9 @@ public:
 
     public:
         WeightToScoresMap(ConstSemiringRef semiring, ScoreId id, ScoresRef scores)
-                : semiring_(semiring), id_(id), scores_(scores) {
+                : semiring_(semiring),
+                  id_(id),
+                  scores_(scores) {
             verify(id < semiring->size());
         }
         virtual ScoresRef operator()(Fsa::Weight w) const {
@@ -274,7 +280,12 @@ public:
     FsaToLattice(Fsa::ConstAutomatonRef fsa,
                  ConstSemiringRef semiring, WeightMapRef weightMap,
                  Lexicon::AlphabetMapRef inputMap, Lexicon::AlphabetMapRef outputMap)
-            : fsa_(fsa), isAcceptor_(fsa->type() == Fsa::TypeAcceptor), semiring_(semiring), weightMap_(weightMap), inputMap_(inputMap), outputMap_(outputMap) {
+            : fsa_(fsa),
+              isAcceptor_(fsa->type() == Fsa::TypeAcceptor),
+              semiring_(semiring),
+              weightMap_(weightMap),
+              inputMap_(inputMap),
+              outputMap_(outputMap) {
         setProperties(fsa->knownProperties(), fsa->properties());
     }
 

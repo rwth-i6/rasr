@@ -147,7 +147,7 @@ void FullAdaptor::adaptMixtureSet(Core::Ref<Mm::MixtureSet> adaptableMixtureSet)
     // Requires that mean-vectors are not shared between densitys. Should
     // explicity bail out if this is not true. Not implemented yet.
 
-    //adapt references
+    // adapt references
     log("adapting references, using ") << adaptationMatrices_.size() << " matrices";
     for (MixtureIndex mix = 0; mix < adaptableMixtureSet->nMixtures(); ++mix) {
         MatrixConstIterator w = adaptationMatrices_.find(adaptationMatrixIndex_[mix]);
@@ -229,7 +229,7 @@ AdaptorEstimator::AdaptorEstimator(const Core::Configuration&          c,
           silenceMixtures_(adaptationTree->silenceMixtures()),
           adaptationDumpChannel_(config, "dump-adaptation") {
     minAdaptationObservations_ = paramMinAdaptationObservations(config);
-    //no logging because only used for clone()
+    // no logging because only used for clone()
 }
 
 AdaptorEstimator::AdaptorEstimator(const Core::Configuration&          c,
@@ -252,7 +252,7 @@ bool AdaptorEstimator::write(Core::BinaryOutputStream& o) const {
 bool AdaptorEstimator::read(Core::BinaryInputStream& i) {
     i >> clusterId_ >> dimension_ >> count_ >> minAdaptationObservations_ >> minSilenceObservations_;
 
-    //Override values if present in configuration.
+    // Override values if present in configuration.
     minAdaptationObservations_ = paramMinAdaptationObservations(config, minAdaptationObservations_);
     minSilenceObservations_    = paramMinSilenceObservations(config, minSilenceObservations_);
 
@@ -318,7 +318,7 @@ ShiftAdaptorViterbiEstimator::ShiftAdaptorViterbiEstimator(const Core::Configura
         : AdaptorEstimator(c, adaptationTree) {}
 
 void ShiftAdaptorViterbiEstimator::init() {
-    countAccumulators_.resize(nLeafs_, 0);  //number of leafs in MLLR tree
+    countAccumulators_.resize(nLeafs_, 0);  // number of leafs in MLLR tree
     betaAccumulators_.resize(nLeafs_, Math::Vector<Sum>(dimension_));
     shiftAccumulators_.resize(nLeafs_, Math::Vector<Sum>(dimension_));
 
@@ -366,7 +366,7 @@ void ShiftAdaptorViterbiEstimator::estimateWMatrices() {
 
     ensure(beta.size() == shift.size());
     count_.resize(count.size());
-    for (u32 id = 0; id < beta.size(); ++id) {  //loop over all nodes of tree_
+    for (u32 id = 0; id < beta.size(); ++id) {  // loop over all nodes of tree_
         count_[id] = count[id];
         if (count_[id] > minAdaptationObservations_) {
             for (u32 d = 0; d < dimension_; d++)
@@ -378,10 +378,10 @@ void ShiftAdaptorViterbiEstimator::estimateWMatrices() {
     }
 }
 
-void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                              DensityIndex                     density,
-                                              MixtureIndex                     mixture,
-                                              Core::Ref<MixtureSet>            mixtureSet) {
+void ShiftAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                              DensityIndex          density,
+                                              MixtureIndex          mixture,
+                                              Core::Ref<MixtureSet> mixtureSet) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -396,11 +396,11 @@ void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> f
     }
 }
 
-void ShiftAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                              DensityIndex                     density,
-                                              MixtureIndex                     mixture,
-                                              Core::Ref<MixtureSet>            mixtureSet,
-                                              Mm::Weight                       weight) {
+void ShiftAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                              DensityIndex          density,
+                                              MixtureIndex          mixture,
+                                              Core::Ref<MixtureSet> mixtureSet,
+                                              Mm::Weight            weight) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -453,8 +453,8 @@ Core::Ref<Adaptor> ShiftAdaptorViterbiEstimator::adaptor(void) {
 
     id = tree_->root();
     if (count_[id] <= minAdaptationObservations_) {
-        //not enough observations in complete tree
-        ensure(id == tree_->root());  //the only case this can happen
+        // not enough observations in complete tree
+        ensure(id == tree_->root());  // the only case this can happen
         log("too few observations for adaptation\n")
                 << minAdaptationObservations_ << " observations needed, "
                 << count_[id] << " seen.\n"
@@ -478,7 +478,7 @@ Core::Ref<Adaptor> ShiftAdaptorViterbiEstimator::adaptor(void) {
             ensure(count_[id] > minAdaptationObservations());
             if (adaptationMatrices.find(id) == adaptationMatrices.end()) {
                 MatrixConstIterator p = shift_.find(id);
-                ensure(p != shift_.end());  //something has gone wrong in estimateWMatrices()
+                ensure(p != shift_.end());  // something has gone wrong in estimateWMatrices()
                 adaptationMatrices[id] = p->second;
             }
             matrixId[leafId] = id;
@@ -487,7 +487,7 @@ Core::Ref<Adaptor> ShiftAdaptorViterbiEstimator::adaptor(void) {
 
     Core::BinaryTree::Id silenceId = tree_->numberOfNodes() + tree_->numberOfLeafs();
 
-    //estimate WMatrix for silence mixtures
+    // estimate WMatrix for silence mixtures
     for (std::set<MixtureIndex>::const_iterator p = silenceMixtures_.begin(); p != silenceMixtures_.end(); ++p) {
         Core::BinaryTree::Id silenceLeaf = (*leafIndex_)[*p];
         if (countAccumulators_[silenceLeaf] > minSilenceObservations_) {
@@ -565,10 +565,10 @@ FullAdaptorViterbiEstimator::FullAdaptorViterbiEstimator(const Core::Configurati
         : AdaptorEstimator(c, adaptationTree) {}
 
 void FullAdaptorViterbiEstimator::init() {
-    leafZAccumulators_.resize(nLeafs_, ZAccumulator(dimension_));  //number of leafs in MLLR tree
+    leafZAccumulators_.resize(nLeafs_, ZAccumulator(dimension_));  // number of leafs in MLLR tree
     leafGAccumulators_.resize(nLeafs_, GAccumulator(dimension_));
 
-    //initialize matrices. Is this really needed??? Probably not...
+    // initialize matrices. Is this really needed??? Probably not...
     std::stack<NodeId> stack;
     stack.push(tree_->root());
     while (!stack.empty()) {
@@ -585,7 +585,7 @@ void FullAdaptorViterbiEstimator::init() {
 }
 
 void FullAdaptorViterbiEstimator::reset(void) {
-    //todo
+    // todo
     log("resetting adaptation matrices");
     for (u16 i = 0; i < leafZAccumulators_.size(); i++) {
         leafZAccumulators_[i].reset();
@@ -677,7 +677,7 @@ void FullAdaptorViterbiEstimator::estimateWMatrices() {
 
     ensure(z.size() == g.size());
     count_.resize(z.size());
-    for (u32 id = 0; id < z.size(); ++id) {  //loop over all nodes of tree_
+    for (u32 id = 0; id < z.size(); ++id) {  // loop over all nodes of tree_
         count_[id] = g[id].count();
         if (count_[id] > minAdaptationObservations_) {
             Matrix gInverse(g[id].matrix());
@@ -690,10 +690,10 @@ void FullAdaptorViterbiEstimator::estimateWMatrices() {
     }
 }
 
-void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                             DensityIndex                     density,
-                                             MixtureIndex                     mixture,
-                                             Core::Ref<MixtureSet>            mixtureSet) {
+void FullAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                             DensityIndex          density,
+                                             MixtureIndex          mixture,
+                                             Core::Ref<MixtureSet> mixtureSet) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -701,11 +701,11 @@ void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> fe
     leafGAccumulators_[(*leafIndex_)[mixture]].accumulate(mean);
 }
 
-void FullAdaptorViterbiEstimator::accumulate(Core::Ref<const Feature::Vector> feature,
-                                             DensityIndex                     density,
-                                             MixtureIndex                     mixture,
-                                             Core::Ref<MixtureSet>            mixtureSet,
-                                             Mm::Weight                       weight) {
+void FullAdaptorViterbiEstimator::accumulate(Feature::VectorRef    feature,
+                                             DensityIndex          density,
+                                             MixtureIndex          mixture,
+                                             Core::Ref<MixtureSet> mixtureSet,
+                                             Mm::Weight            weight) {
     MeanIndex       meanIndex = mixtureSet->density(density)->meanIndex();
     const Mm::Mean& mean      = *(mixtureSet->mean(meanIndex));
 
@@ -750,8 +750,8 @@ Core::Ref<Adaptor> FullAdaptorViterbiEstimator::adaptor(void) {
 
     id = tree_->root();
     if (count_[id] <= minAdaptationObservations_) {
-        //not enough observations in complete tree
-        ensure(id == tree_->root());  //the only case this can happen
+        // not enough observations in complete tree
+        ensure(id == tree_->root());  // the only case this can happen
         log("too few observations for adaptation\n")
                 << minAdaptationObservations_ << " observations needed, "
                 << count_[id] << " seen.\n"
@@ -774,7 +774,7 @@ Core::Ref<Adaptor> FullAdaptorViterbiEstimator::adaptor(void) {
             ensure(count_[id] > minAdaptationObservations());
             if (adaptationMatrices.find(id) == adaptationMatrices.end()) {
                 MatrixConstIterator p = w_.find(id);
-                ensure(p != w_.end());  //something has gone wrong in estimateWMatrices()
+                ensure(p != w_.end());  // something has gone wrong in estimateWMatrices()
                 adaptationMatrices[id] = p->second;
             }
             matrixId[leafId] = id;
@@ -784,7 +784,7 @@ Core::Ref<Adaptor> FullAdaptorViterbiEstimator::adaptor(void) {
     /*! \todo change if silence is handled correctly by dectree */
     Core::BinaryTree::Id silenceId = tree_->numberOfNodes() + tree_->numberOfLeafs();
 
-    //estimate WMatrix for silence mixtures
+    // estimate WMatrix for silence mixtures
     for (std::set<MixtureIndex>::const_iterator p = silenceMixtures_.begin();
          p != silenceMixtures_.end(); ++p) {
         Core::BinaryTree::Id silenceLeaf = (*leafIndex_)[*p];

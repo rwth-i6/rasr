@@ -67,7 +67,7 @@ Fsa::ConstSemiring64Ref convertSemiring<Fsa::ConstSemiring64Ref>(Fsa::ConstSemir
 }
 
 template<class _leftArc, class _rightArc>
-struct byInputAndOutput : public std::binary_function<_leftArc, _rightArc, bool> {
+struct byInputAndOutput {
     static bool cmp(const _leftArc& a, const _rightArc& b) {
         if (a.input() < b.input())
             return true;
@@ -183,10 +183,11 @@ private:
         inline static _Weight failArc(const _Arc* arc, DirectHits& directHits, _Accumulator* collector, const bool firstLevel, _SsspBackward4SpecialSymbols* owner) {
             Fsa::StateId ts = arc->target();
             _Weight      failWeight, update;
+
             failWeight = owner->processState<AddArc>(ts, directHits);
-            update     = owner->semiring_->extend(
-                    sssp4SpecialSymbolsHelper::convertWeight<_AutomataWeight, _Weight>(arc->weight()),
-                    failWeight);
+            update     = owner->semiring_->extend(sssp4SpecialSymbolsHelper::convertWeight<_AutomataWeight, _Weight>(arc->weight()),
+                                                  failWeight);
+
             collector->feed(update);
             return failWeight;
         }
@@ -273,7 +274,7 @@ private:
                     if (oldDirectHitsEmpty)
                         failPotential_.set(s, failWeight);
                 }  // end else Failure
-            }      // end for arc
+            }  // end for arc
         }
 
         if (state->isFinal()) {
@@ -641,7 +642,7 @@ private:
                     verify(arc->output() == arc->input());  // assume that we only have arcs with fail on both sides
                     _AddArc::failArc(&(*arc), directHits, sourceForwardPotential, oldDirectHitsEmpty, this);
                 }  // end else Failure
-            }      // end arc
+            }  // end arc
         }
     }
 
@@ -1038,8 +1039,8 @@ private:
 
 public:
     /**
-                 *
-                 */
+     *
+     */
     virtual _ConstStateRef getState(Fsa::StateId s) const {
         _ConstStateRef _sp = Precursor::fsa_->getState(s);
         _State*        sp  = new _State(_sp->id(), _sp->tags(), _sp->weight_);

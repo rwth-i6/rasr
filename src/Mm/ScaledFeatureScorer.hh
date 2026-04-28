@@ -26,7 +26,9 @@ class ScaledFeatureScorer : public FeatureScorer,
                             public Mc::Component {
 public:
     ScaledFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), FeatureScorer(c), Component(c) {}
+            : Core::Component(c),
+              FeatureScorer(c),
+              Component(c) {}
     virtual ~ScaledFeatureScorer() {}
     virtual void getDependencies(Core::DependencySet& dependencies) const {
         FeatureScorer::getDependencies(dependencies);
@@ -51,7 +53,8 @@ public:
 
     protected:
         ScaledContextScorer(Scorer scorer, Score scale)
-                : scorer_(scorer), scale_(scale) {}
+                : scorer_(scorer),
+                  scale_(scale) {}
 
     public:
         virtual ~ScaledContextScorer() {}

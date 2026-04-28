@@ -18,9 +18,11 @@
 namespace Search {
 namespace Wfst {
 
-enum OutputType { OutputLemmaPronunciation,
-                  OutputLemma,
-                  OutputSyntacticToken };
+enum OutputType {
+    OutputLemmaPronunciation,
+    OutputLemma,
+    OutputSyntacticToken
+};
 
 enum LookAheadFlags {
     NoLookAheadFlag    = 0,

@@ -33,6 +33,6 @@ public:
     void setMixture(const Mixture*);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_CONVERT_MIXTURE_ESTIMATOR_HH

@@ -47,6 +47,6 @@ typedef std::vector<FeatureType> FeatureVector;
 typedef std::vector<ScaleType> Scales;
 
 const MixtureIndex invalidMixture = Core::Type<MixtureIndex>::max;
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  // _MM_TYPES_HH

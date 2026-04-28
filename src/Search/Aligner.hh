@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_ALIGNER_HH
-#define _SEARCH_ALIGNER_HH
+#ifndef SEARCH_ALIGNER_HH
+#define SEARCH_ALIGNER_HH
 
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
@@ -169,9 +169,11 @@ public:
     void                                           getAlignment(Speech::Alignment&, std::pair<Fsa::ConstAutomatonRef, Fsa::Weight> alignmentPosteriorFsa) const;
     void                                           getAlignment(Speech::Alignment&) const;
     Score                                          alignmentScore() const;
-    bool                                           reachedFinalState() const {
+
+    bool reachedFinalState() const {
         return alignmentScore() != Core::Type<Score>::max;
     }
+
     void selectMode(Mode);
     void selectMode();
     Mode getMode() const;
@@ -209,4 +211,4 @@ public:
 
 }  // namespace Search
 
-#endif  // _SEARCH_ALIGNER_HH
+#endif  // SEARCH_ALIGNER_HH

@@ -230,7 +230,7 @@ bool LutStateTying::loadLut(const std::string& filename) {
 // ============================================================================
 
 const u32 NoStateTyingDense::numBoundaryClasses_ = 4;  // 0: none, 1: start (@i), 2: end (@f), 3: start+end (@i@f)
-const u32 NoStateTyingDense::numWordEndClasses_ = 2; // 0: {none, start (@i)}, 1: {end (@f), 3: start+end (@i@f)}
+const u32 NoStateTyingDense::numWordEndClasses_  = 2;  // 0: {none, start (@i)}, 1: {end (@f), 3: start+end (@i@f)}
 
 const Core::ParameterBool NoStateTyingDense::paramUseBoundaryClasses("use-boundary-classes",
                                                                      "whether boundary classes should be considered during state-tying",
@@ -246,9 +246,9 @@ NoStateTyingDense::NoStateTyingDense(const Core::Configuration& config, ClassicS
           numPhoneClasses_(stateModel->getPhonemeInventory()->nPhonemes() + 1),                                                     // +1 for additional 0 phone == no-context
           numStates_(stateModel->getHmmTopologySet()->getDefault().nPhoneStates()),                                                 // usually 3
           contextLength_(std::max(stateModel->phonology().maximumHistoryLength(), stateModel->phonology().maximumFutureLength())),  // usually 1
+          nClasses_(0),
           useBoundaryClasses_(paramUseBoundaryClasses(config)),
-          useWordEndClasses_(paramUseWordEndClasses(config)),
-          nClasses_(0) {
+          useWordEndClasses_(paramUseWordEndClasses(config)) {
     require(!(useBoundaryClasses_ && useWordEndClasses_));
     nClasses_ = numStates_;
     if (useBoundaryClasses_) {
@@ -414,5 +414,4 @@ Mm::MixtureIndex MonophoneDense::classify(const AllophoneState& a) const {
 
     return result;
 }
-}  // namespace
-
+}  // namespace Am

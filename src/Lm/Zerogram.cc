@@ -19,7 +19,8 @@
 using namespace Lm;
 
 Zerogram::Zerogram(const Core::Configuration& c, Bliss::LexiconRef l)
-        : Core::Component(c), LanguageModel(c, l) {
+        : Core::Component(c),
+          LanguageModel(c, l) {
     historyManager_ = this;
     log("Zerogram LM probability is 1/%d", lexicon()->nSyntacticTokens());
     score_ = ::log(f64(lexicon()->nSyntacticTokens()));

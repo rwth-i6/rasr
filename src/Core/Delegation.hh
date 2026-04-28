@@ -50,7 +50,8 @@ public:
         TargetMethod tm;
 
         Forward(TargetClass& tc, TargetMethod tm)
-                : tc(tc), tm(tm) {}
+                : tc(tc),
+                  tm(tm) {}
         inline void operator()(T t) {
             (tc.*tm)(t);
         }

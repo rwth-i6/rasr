@@ -49,7 +49,7 @@ Mixture::Mixture(const MixtureSet& mixtureSet) {
 
 Mixture& Mixture::operator=(const Mixture& mixture) {
     Precursor::operator=(mixture);
-    logWeights_        = mixture.logWeights_;
+    logWeights_ = mixture.logWeights_;
     return *this;
 }
 
@@ -70,7 +70,7 @@ void Mixture::normalizeWeights() {
         return;
     Weight logNorm = logExpNorm(logWeights_.begin(), logWeights_.end());
     std::transform(logWeights_.begin(), logWeights_.end(),
-                   logWeights_.begin(), std::bind2nd(std::minus<Weight>(), logNorm));
+                   logWeights_.begin(), std::bind(std::minus<Weight>(), std::placeholders::_1, logNorm));
 }
 
 void Mixture::clear() {

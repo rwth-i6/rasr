@@ -239,7 +239,9 @@ public:
 
 public:
     TopologicallySortDfsState(_ConstAutomatonRef f)
-            : Precursor(f), time_(0), isCyclic_(false) {}
+            : Precursor(f),
+              time_(0),
+              isCyclic_(false) {}
     virtual void finishState(Fsa::StateId s) {
         map_.grow(s, Fsa::InvalidStateId);
         map_[s] = time_++;

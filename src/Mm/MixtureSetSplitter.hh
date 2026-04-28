@@ -55,6 +55,6 @@ public:
     Core::Ref<MixtureSet> split(AbstractMixtureSetEstimator&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_MIXTURE_ESTIMATOR_HH

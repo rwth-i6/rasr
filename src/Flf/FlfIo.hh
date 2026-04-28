@@ -65,7 +65,8 @@ struct FsaDescriptor {
 
     FsaDescriptor() {}
     FsaDescriptor(const std::string& format, const std::string& file)
-            : format(format), file(file) {}
+            : format(format),
+              file(file) {}
     FsaDescriptor(const std::string& qualifiedFile);
     FsaDescriptor(const Core::Configuration& config);
     FsaDescriptor& operator=(const FsaDescriptor& desc) {
@@ -98,6 +99,7 @@ struct BoundariesDescriptor {
     BoundariesDescriptor() {}
     BoundariesDescriptor(const std::string& file)
             : file(file) {}
+
     std::string operator()(const std::string& root = "") const;
     operator bool() const {
         return !file.empty();

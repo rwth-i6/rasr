@@ -58,7 +58,7 @@ private:
             Score diffScore = score - Score(fastState(trace)->weight_);
             // mark states that already have an arc with output label
             State* sp = newState(StateTagHasOutput);
-            //std::cout << "add " << trace << " (" << sp->id() << ")" << std::endl;
+            // std::cout << "add " << trace << " (" << sp->id() << ")" << std::endl;
             sp->weight_ = Weight(score);  // temporary potential
             sp->newArc(trace, Weight(diffScore), output);
             return sp->id();
@@ -128,7 +128,9 @@ private:
         Trace   trace_;
         Token() {}
         Token(StateId state, Score score, Trace trace)
-                : state_(state), score_(score), trace_(trace) {}
+                : state_(state),
+                  score_(score),
+                  trace_(trace) {}
     };
     typedef Core::Vector<Token> ActiveTokens;
 
@@ -136,9 +138,11 @@ private:
         Score score_;
         Trace trace_;
         ExpandedToken()
-                : score_(Core::Type<Score>::max), trace_(InvalidStateId) {}
+                : score_(Core::Type<Score>::max),
+                  trace_(InvalidStateId) {}
         ExpandedToken(Score score, Trace trace)
-                : score_(score), trace_(trace) {}
+                : score_(score),
+                  trace_(trace) {}
     };
     typedef Core::Vector<ExpandedToken> ExpandedTokens;
 
@@ -153,9 +157,11 @@ private:
     Score                  threshold_, finalThreshold_, minFinalScore_, minScore_, minThreshold_;
 
 private:
-    enum ExpandType { ExpandTypeNone    = 0,
-                      ExpandTypeUpdated = 1,
-                      ExpandTypeNew     = 2 };
+    enum ExpandType {
+        ExpandTypeNone    = 0,
+        ExpandTypeUpdated = 1,
+        ExpandTypeNew     = 2
+    };
     ExpandType expandToken(Score score, Trace trace, StateId target, LabelId output) {
         if (output != Epsilon)
             trace = tracer_->add(trace, output, score);
@@ -274,7 +280,9 @@ private:
 
 public:
     Search(const StaticAutomaton* fsa, Score threshold)
-            : fsa_(fsa), statesBeforePruning_("states before pruning"), statesAfterPruning_("states after pruning") {
+            : fsa_(fsa),
+              statesBeforePruning_("states before pruning"),
+              statesAfterPruning_("states after pruning") {
         // TODO: test for epsilon cycles?
 
         // require(fsa->hasProperty(PropertySortedByInput));

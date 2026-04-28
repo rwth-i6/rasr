@@ -72,9 +72,11 @@ private:
 
 protected:
     virtual bool init_(NetworkCrawler& crawler, const std::vector<std::string>& arguments);
-    Score        scale() const {
+
+    Score scale() const {
         return scoreScale_;
     }
+
     virtual ConstLatticeRef rescore(ConstLatticeRef l);
     virtual ConstLatticeRef rescore(ConstLatticeRef l, ScoreId id) = 0;
 

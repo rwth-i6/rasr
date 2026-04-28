@@ -125,6 +125,6 @@ public:
     static CombinationHelperRef create(SemiringCombinationHelper::Type comboType, const KeyList& comboKeys, const ScoreList& comboScales);
 };
 
-}  //namespace Flf
+}  // namespace Flf
 
 #endif  // _FLF_COMBINATION_HH

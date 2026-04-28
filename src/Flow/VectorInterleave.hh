@@ -52,7 +52,8 @@ public:
         return std::string("generic-vector-") + Core::Type<T>::name + "-interleave";
     }
     VectorInterleaveNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~VectorInterleaveNode() {}
 
     virtual Vector<T>* merge(std::vector<DataPtr<Vector<T>>>& inputData) {

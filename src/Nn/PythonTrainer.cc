@@ -275,13 +275,13 @@ void PythonTrainer<T>::initializeTrainer(u32 batchSize, std::vector<u32>& stream
         Python::ScopedGIL gil;
         std::string       pyConfigStr(paramPyModConfig(Core::Configurable::config));
         PyObject*         res = Python::PyCallKw(pyMod_, "init", "{s:i,s:i,s:b,s:s,s:s,s:i,s:i}",
-                                         "inputDim", inputDim_,
-                                         "outputDim", outputDim_,
-                                         "allowDownsampling", allowDownsampling_,
-                                         "config", pyConfigStr.c_str(),
-                                         "targetMode", choiceTargetMode[(s32)targetMode_].c_str(),
-                                         "cudaEnabled", int(cudaEnabled),
-                                         "cudaActiveGpu", activeGpu);
+                                                 "inputDim", inputDim_,
+                                                 "outputDim", outputDim_,
+                                                 "allowDownsampling", allowDownsampling_,
+                                                 "config", pyConfigStr.c_str(),
+                                                 "targetMode", choiceTargetMode[(s32)targetMode_].c_str(),
+                                                 "cudaEnabled", int(cudaEnabled),
+                                                 "cudaActiveGpu", activeGpu);
         if (!res) {
             pythonCriticalError("PythonTrainer: init() failed");
             return;

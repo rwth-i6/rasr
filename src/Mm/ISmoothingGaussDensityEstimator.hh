@@ -81,24 +81,30 @@ public:
     void set(Core::Ref<DiscriminativeCovarianceEstimator> parent) {
         parent_ = parent;
     }
-    void                             reset();
-    void                             setICovariance(const Covariance*);
+
+    void reset();
+    void setICovariance(const Covariance*);
+
     const std::vector<VarianceType>& iCovariance() const {
         return iCovariance_;
     }
+
     VarianceType iCovariance(const CovarianceToMeanSetMap::MeanSet&, ComponentIndex i) const {
         return iCovariance_[i];
     }
+
     Accumulator::SumType iSum(const CovarianceToMeanSetMap::MeanSet&, ComponentIndex i) const;
     Sum                  getObjectiveFunction(const CovarianceToMeanSetMap&);
-    void                 setConstant(Weight constant) {
+
+    void setConstant(Weight constant) {
         constant_ = constant;
     }
+
     Weight constant() const {
         return constant_;
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_ISMOOTHING_MIXTURE_ESTIMATOR_HH

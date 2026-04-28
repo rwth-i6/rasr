@@ -37,7 +37,7 @@ AffineFeatureTransformAccumulator::AffineFeatureTransformAccumulator(size_t feat
     }
 }
 
-void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vector> feature,
+void AffineFeatureTransformAccumulator::accumulate(Feature::VectorRef feature,
                                                    DensityIndex density, Core::Ref<MixtureSet> mixture) {
     verify(featureDimension_ != 0);
 
@@ -79,7 +79,7 @@ void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vect
     }
 }
 
-void AffineFeatureTransformAccumulator::accumulate(Core::Ref<const Feature::Vector> feature,
+void AffineFeatureTransformAccumulator::accumulate(Feature::VectorRef feature,
                                                    DensityIndex density, Core::Ref<MixtureSet> mixture, Mm::Weight weight) {
     verify(featureDimension_ != 0);
 
@@ -201,7 +201,7 @@ Math::Matrix<FeatureType> AffineFeatureTransformAccumulator::estimate(int       
     hope(transform.nColumns() == featureDimension_ + 1);
     hope(transform.nRows() == targetDimension);
 
-    if (criterion != naive & beta_ < minObsWeight)
+    if (criterion != naive && beta_ < minObsWeight)
         return transform;
 
     if (hldaCriterion) {
@@ -275,16 +275,16 @@ Math::Matrix<FeatureType> AffineFeatureTransformAccumulator::estimate(int       
                 }
             }
 
-            //Solve for alpha1 and alpha2
+            // Solve for alpha1 and alpha2
             Sum alpha1 = (-epsilon2 + std::sqrt(epsilon2 * epsilon2 + 4 * epsilon1 * beta_)) / (2 * epsilon1);
             Sum alpha2 = (-epsilon2 - std::sqrt(epsilon2 * epsilon2 + 4 * epsilon1 * beta_)) / (2 * epsilon1);
 
-            //Test for largest likelihood
+            // Test for largest likelihood
             Sum l1    = beta_ * std::log(std::abs(alpha1 * epsilon1 + epsilon2)) - 1 / 2 * alpha1 * alpha1 * epsilon1;
             Sum l2    = beta_ * std::log(std::abs(alpha2 * epsilon1 + epsilon2)) - 1 / 2 * alpha2 * alpha2 * epsilon1;
             Sum alpha = l1 > l2 ? alpha1 : alpha2;
 
-            //Update matrix row using alpha, accumulators and cofactors
+            // Update matrix row using alpha, accumulators and cofactors
             Math::Vector<Sum> newRow(gInverse[row] * (cofactors * alpha + kAccumulator_[row]));
             transform.setRow(row, newRow);
 
@@ -329,7 +329,7 @@ Sum AffineFeatureTransformAccumulator::score(Transform& transform, Criterion cri
     else if (criterion == mmiPrime)
         jacobian = Math::Lapack::logDeterminant(linearTransform * globalCovariance * linearTransform.transpose()) / 2;
     else if (criterion == hlda)
-        defect();  //Not implemented yet;
+        defect();  // Not implemented yet;
     else
         defect();
 

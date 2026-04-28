@@ -32,15 +32,15 @@ bool DynamicProgramingSegmentEstimator::precalculateSegmentError() {
             if (segment_end > max_segment_value_)
                 segment_end = max_segment_value_;
 
-            //std::cout << segment_begin << " " << segment_end << std::endl;
+            // std::cout << segment_begin << " " << segment_end << std::endl;
             if (!segmentwise_estimator_->setSegment(segment_begin, segment_end))
                 segmentError__(segment_begin, segment_end) = 0.0;
             else if (!segmentwise_estimator_->work(segmentError__(segment_begin, segment_end))) {
-                //return false;
+                // return false;
                 segmentError__(segment_begin, segment_end) = infinite;
             }
-            //else
-            //segmentError__(segment_begin, segment_end) /= (_float)((segment_end - segment_begin) * (segment_end - segment_begin));
+            // else
+            // segmentError__(segment_begin, segment_end) /= (_float)((segment_end - segment_begin) * (segment_end - segment_begin));
         }
     }
 
@@ -55,7 +55,7 @@ bool DynamicProgramingSegmentEstimator::buildBackPointerMatrix() {
         errorMatrix__(0, i) = infinite;
 
     for (s32 segment_end = step_; segment_end < max_segment_value_ + step_; segment_end += step_) {
-        //Force to cover the rightmost frequency
+        // Force to cover the rightmost frequency
         if (segment_end > max_segment_value_)
             segment_end = max_segment_value_;
 
@@ -64,7 +64,7 @@ bool DynamicProgramingSegmentEstimator::buildBackPointerMatrix() {
             s32    back_pointer = segment_end;
             for (s32 segment_begin = (nr_segment - 1) * step_;
                  segment_begin < segment_end + step_; segment_begin += step_) {
-                //Force to cover the rightmost frequency
+                // Force to cover the rightmost frequency
                 if (segment_begin > segment_end)
                     segment_begin = segment_end;
 

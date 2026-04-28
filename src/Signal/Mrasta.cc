@@ -110,12 +110,12 @@ inline void MrastaFiltering::normalizeFilterResponse(Math::Matrix<Value>& G, int
                                *std::max_element(vector.begin(), vector.end()));
     // normalize vector and write back into the matrix
     std::transform(vector.begin(), vector.end(), vector.begin(),
-                   std::bind2nd(std::multiplies<Value>(), (Value)1 / maxAbsVal));
+                   std::bind(std::multiplies<Value>(), std::placeholders::_1, (Value)1 / maxAbsVal));
     G.setRow(filter_num, vector);
 }
 
 void MrastaFiltering::getBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
-    //Copy each frame of a band.
+    // Copy each frame of a band.
     for (Flow::Vector<Value>::iterator it = out.begin(), itv = (in.begin() + band);
          it != out.end();
          it++, itv += nFeatures_)
@@ -123,7 +123,7 @@ void MrastaFiltering::getBand(size_t band, std::vector<Value>& in, std::vector<V
 }
 
 void MrastaFiltering::setBand(size_t band, std::vector<Value>& in, std::vector<Value>& out) {
-    //Copy value to the end of the output vector.
+    // Copy value to the end of the output vector.
     for (Flow::Vector<Value>::iterator it = in.begin(), itv = (out.begin() + band);
          it != in.end();
          it++, itv += nFeatures_)
@@ -213,7 +213,12 @@ const Core::ParameterInt MrastaFilteringNode::paramGaussFilters(
         "gauss-filter", "number of Gaussian filters", 6);
 
 MrastaFilteringNode::MrastaFilteringNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), contextLength_(0), nDerivatives_(0), nGaussFilters_(0), needInit_(true) {}
+        : Core::Component(c),
+          Precursor(c),
+          contextLength_(0),
+          nDerivatives_(0),
+          nGaussFilters_(0),
+          needInit_(true) {}
 
 MrastaFilteringNode::~MrastaFilteringNode() {}
 

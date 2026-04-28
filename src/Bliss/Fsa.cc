@@ -19,10 +19,14 @@
 using namespace Bliss;
 
 TokenAlphabet::TokenAlphabet(const TokenInventory& ti)
-        : lexicon_(), tokens_(ti), nDisambiguators_(0) {}
+        : lexicon_(),
+          tokens_(ti),
+          nDisambiguators_(0) {}
 
 TokenAlphabet::TokenAlphabet(LexiconRef l, const TokenInventory& ti)
-        : lexicon_(l), tokens_(ti), nDisambiguators_(0) {}
+        : lexicon_(l),
+          tokens_(ti),
+          nDisambiguators_(0) {}
 
 TokenAlphabet::~TokenAlphabet() {}
 

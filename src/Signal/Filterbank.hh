@@ -52,14 +52,20 @@ public:
     typedef f64  Frequency;
     typedef f32  Data;
     typedef Data FilterWeight;
-    enum FilterType { typeTriangular,
-                      typeTrapeze,
-                      typeRastaTrapeze };
-    enum BoundaryType { includeBoundary,
-                        stretchToCover,
-                        emphasizeBoundary };
-    enum NormalizationType { normalizeNone,
-                             normalizeSurface };
+    enum FilterType {
+        typeTriangular,
+        typeTrapeze,
+        typeRastaTrapeze
+    };
+    enum BoundaryType {
+        includeBoundary,
+        stretchToCover,
+        emphasizeBoundary
+    };
+    enum NormalizationType {
+        normalizeNone,
+        normalizeSurface
+    };
 
 public:
     class Filter;
@@ -67,8 +73,8 @@ public:
     class Boundary;
 
 private:
-    FilterBuilder*                 builder_;
-    Boundary*                      boundary_;
+    std::unique_ptr<FilterBuilder> builder_;
+    std::unique_ptr<Boundary>      boundary_;
     Frequency                      filterWidth_;
     Frequency                      spacing_;
     Frequency                      minimumFrequency_;
@@ -88,7 +94,7 @@ private:
 
 public:
     FilterBank(const Core::Configuration&);
-    virtual ~FilterBank();
+    virtual ~FilterBank() = default;
 
     void setFilterWidth(Frequency width) {
         if (filterWidth_ != width) {
@@ -156,7 +162,8 @@ public:
     void      apply(const std::vector<Data>& in, std::vector<Data>& out);
     Frequency outputSampleRate();
     void      dump(Core::XmlWriter&);
-    bool      isConfigurationAllowed() {
+
+    bool isConfigurationAllowed() {
         return !needInit_ || init();
     }
 };

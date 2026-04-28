@@ -103,7 +103,8 @@ class XmlMapDocument : public XmlSchemaParser {
 private:
     XmlMapElement<Map>* mapElement_;
     Map&                map_;
-    Map*                pseudoCreateMap(const XmlAttributes atts) {
+
+    Map* pseudoCreateMap(const XmlAttributes atts) {
         return &map_;
     }
 
@@ -131,6 +132,6 @@ XmlMapDocument<Map>::~XmlMapDocument() {
     delete mapElement_;
 }
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _CORE_MAP_PARSER_HH

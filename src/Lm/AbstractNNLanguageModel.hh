@@ -40,10 +40,9 @@ protected:
     std::string vocab_file_;
     std::string unknown_word_;
 
-    Bliss::LexiconRef   lexicon_;
-    size_t              num_outputs_;
-    std::vector<size_t> lexicon_mapping_;
-    std::vector<u32>    usage_histogram_;
+    Bliss::LexiconRef lexicon_;
+    size_t            num_outputs_;
+    std::vector<u32>  usage_histogram_;
 
     void loadVocabulary();
     void useOutput(NNCacheWithStats const& cache, size_t idx) const;

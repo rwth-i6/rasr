@@ -16,10 +16,6 @@
 #include <Bliss/Lexicon.hh>
 #include <Core/Configuration.hh>
 
-bool isBackwardRecognition(const Core::Configuration& config) {
-    return config.getSelection().find(".backward") != std::string::npos;
-}
-
 bool pronunciationHasEvaluationTokens(const Bliss::LemmaPronunciation* pron) {
     if (pron->lemma()->hasEvaluationTokenSequence()) {
         for (std::pair<Bliss::Lemma::EvaluationTokenSequenceIterator, Bliss::Lemma::EvaluationTokenSequenceIterator> sequences = pron->lemma()->evaluationTokenSequences();

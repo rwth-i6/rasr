@@ -19,7 +19,8 @@
 class TestCorpusVisitor : public Bliss::CorpusVisitor {
 public:
     TestCorpusVisitor()
-            : lCorpus_(0), lRecording_(0) {}
+            : lCorpus_(0),
+              lRecording_(0) {}
     void enterCorpus(Bliss::Corpus* corpus) {
         ++lCorpus_;
         corpus_.push_back(corpus->fullName());

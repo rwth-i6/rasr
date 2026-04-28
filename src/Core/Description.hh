@@ -161,6 +161,6 @@ bool Description::Stream::verifyValue(const std::string& name, const ValueType& 
     return true;
 }
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _CORE_DESCRIPTION_HH

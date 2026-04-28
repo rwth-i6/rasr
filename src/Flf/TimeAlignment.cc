@@ -38,7 +38,9 @@ private:
 
 public:
     StaticScoreLattice(ConstLatticeRef l, ConstSemiringRef semiring, ScoresRef weight)
-            : Precursor(l), semiring_(semiring), weight_(weight) {}
+            : Precursor(l),
+              semiring_(semiring),
+              weight_(weight) {}
     virtual ~StaticScoreLattice() {}
 
     virtual ConstSemiringRef semiring() const {
@@ -79,7 +81,9 @@ private:
         u32 nIntersections;
         u32 nFrameAlignments;
         Statistics()
-                : n(0), nIntersections(0), nFrameAlignments(0) {}
+                : n(0),
+                  nIntersections(0),
+                  nFrameAlignments(0) {}
     };
 
 private:
@@ -107,7 +111,9 @@ private:
 
 public:
     Internal(const Core::Configuration& config, FwdBwdBuilderRef fbBuilder)
-            : Core::Component(config), statisticsChannel_(config, "statistics"), fbBuilder_(fbBuilder) {
+            : Core::Component(config),
+              statisticsChannel_(config, "statistics"),
+              fbBuilder_(fbBuilder) {
         if (!fbBuilder_)
             fbBuilder_ = FwdBwdBuilder::create(select("fb"));
         tryIntersection_ = paramTryIntersection(config);
@@ -277,9 +283,8 @@ public:
             for (ConstStateRef sr = lHyp->getState(lHyp->initialStateId()); sr->hasArcs();
                  sr               = lHyp->getState(sr->begin()->target()))
                 if (sr->nArcs() != 1)
-                    criticalError(
-                            "Cannot align \"%s\" is not linear; lattice is not linear.",
-                            lHyp->describe().c_str());
+                    criticalError("Cannot align \"%s\" is not linear; lattice is not linear.",
+                                                lHyp->describe().c_str());
             lHyp->addProperties(Fsa::PropertyLinear);
         }
         lHyp->setBoundaries(InvalidBoundaries);
@@ -370,7 +375,8 @@ protected:
 
 public:
     TimeAlignmentNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), aligner_() {}
+            : FilterNode(name, config),
+              aligner_() {}
     virtual ~TimeAlignmentNode() {}
     virtual void init(const std::vector<std::string>& arguments) {
         if (!connected(1) && !connected(2))

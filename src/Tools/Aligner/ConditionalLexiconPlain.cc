@@ -41,7 +41,7 @@ void ConditionalLexiconPlain::read(std::istream& is) {
         if (lexica_.size() < lexiconIndex + 1) {
             std::cerr << "resizing lexicon to " << lexiconIndex + 1 << std::endl;
 
-            //initialize new lexica
+            // initialize new lexica
             size_t oldSize = lexica_.size();
             lexica_.resize(lexiconIndex + 1);
             for (size_t i = oldSize; i <= lexiconIndex; ++i) {

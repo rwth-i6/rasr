@@ -139,11 +139,11 @@ Fsa::Weight TdpLatticeRescorerAutomaton::_score(
         const Alignment* alignment = alignmentGenerator_->getAlignment(coarticulatedPronunciation, begtime, endtime);
         Fsa::Weight      score     = Fsa::bestscore(Fsa::staticCopy(
                 allophoneStateGraphBuilder_->build(*alignment,
-                                                   Bliss::Coarticulated<Bliss::Pronunciation>(*coarticulatedPronunciation.object().pronunciation(),
-                                                                                              coarticulatedPronunciation.leftContext(),
-                                                                                              coarticulatedPronunciation.rightContext()))));
+                                                            Bliss::Coarticulated<Bliss::Pronunciation>(*coarticulatedPronunciation.object().pronunciation(),
+                                                                                                       coarticulatedPronunciation.leftContext(),
+                                                                                                       coarticulatedPronunciation.rightContext()))));
         if (fsa_->semiring()->compare(score, fsa_->semiring()->invalid()) == 0) {
-            score = Fsa::Weight(1e9);  //fsa_->semiring()->zero();
+            score = Fsa::Weight(1e9);  // fsa_->semiring()->zero();
         }
         return score;
     }

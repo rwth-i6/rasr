@@ -37,9 +37,11 @@ public:
 
     bool                write(const std::string& id, Search::LatticeHandler* handler) const;
     ConstWordLatticeRef wordLattice(const Search::LatticeHandler* handler) const;
-    virtual bool        empty() const {
+
+    virtual bool empty() const {
         return l_;
     }
+
     ConstLatticeRef get() const {
         return l_;
     }

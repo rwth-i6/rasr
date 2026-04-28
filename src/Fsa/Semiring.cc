@@ -65,7 +65,8 @@ Semiring<Weight>::Accumulator* LogIntegerSemiring_::getCollector(const Fsa::Weig
 }
 template<>
 int LogIntegerSemiring_::compare(const Fsa::Weight& a, const Fsa::Weight& b) const {
-    return (s32(a) < s32(b) ? -1 : s32(a) > s32(b) ? 1 : 0);
+    return (s32(a) < s32(b) ? -1 : s32(a) > s32(b) ? 1
+                                                   : 0);
 }
 template<>
 Fsa::Weight LogIntegerSemiring_::fromString(const std::string& str) const {
@@ -159,7 +160,8 @@ public:
         return Weight(-s32(a));
     }
     virtual int compare(const Weight& a, const Weight& b) const {
-        return (s32(a) < s32(b) ? -1 : s32(a) > s32(b) ? 1 : 0);
+        return (s32(a) < s32(b) ? -1 : s32(a) > s32(b) ? 1
+                                                       : 0);
     }
     virtual size_t hash(const Weight& a) const {
         return size_t(s32(a));
@@ -222,6 +224,8 @@ ConstSemiringRef getSemiring(SemiringType type) {
             return CountSemiring;
         case SemiringTypeProbability:
             return ProbabilitySemiring;
+        case SemiringTypeExpectation:
+            return ConstSemiringRef();
     }
     return ConstSemiringRef();
 }

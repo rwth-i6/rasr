@@ -31,7 +31,6 @@ public:
     int main(const std::vector<std::string>& arguments) {
         return 0;
     }
-
-} app;
+};
 
 APPLICATION(TestApplication);

@@ -16,7 +16,7 @@
 #define REVERSE_ARPA_LM_HH
 
 namespace Lm {
-void reverseArpaLm(const std::string& sourcePath, const std::string& targetPath, int testSamples = 0, std::string testFile = std::string());
+std::string reverseArpaLm(const std::string& sourcePath, int testSamples = 0, std::string testFile = std::string());
 }
 
 #endif

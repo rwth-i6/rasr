@@ -95,10 +95,10 @@ Flf::ConstLatticeRef fromWordLattice(Lattice::ConstWordLatticeRef lattice) {
         keys.push_back(Flf::Key(lattice->name(i)));
     }
     Flf::ConstLatticeRef  l = Flf::fromFsaVector(fsas,
-                                                Flf::Semiring::create(getSemiringType(fsas[0]->semiring()),  //hack
-                                                                      fsas.size(),
-                                                                      Flf::ScoreList(fsas.size(), 1.0),
-                                                                      keys));
+                                                 Flf::Semiring::create(getSemiringType(fsas[0]->semiring()),  // hack
+                                                                       fsas.size(),
+                                                                       Flf::ScoreList(fsas.size(), 1.0),
+                                                                       keys));
     FromWordBoundariesDfs s(lattice);
     l->setBoundaries(s.getBoundaries());
     return l;

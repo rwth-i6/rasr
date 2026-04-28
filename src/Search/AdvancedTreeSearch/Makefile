@@ -13,19 +13,15 @@ LIBSPRINTADVANCEDTREESEARCH_O = $(OBJDIR)/AcousticLookAhead.o \
                         $(OBJDIR)/AdvancedTreeSearch.o \
                         $(OBJDIR)/DynamicBeamPruningStrategy.o \
                         $(OBJDIR)/Helpers.o \
-                        $(OBJDIR)/LanguageModelLookahead.o \
                         $(OBJDIR)/PathRecombination.o \
                         $(OBJDIR)/PathRecombinationApproximation.o \
-                        $(OBJDIR)/PersistentStateTree.o \
                         $(OBJDIR)/PrefixFilter.o \
                         $(OBJDIR)/ScoreDependentStatistics.o \
                         $(OBJDIR)/SearchSpace.o \
                         $(OBJDIR)/SearchSpaceHelpers.o \
                         $(OBJDIR)/SearchSpaceStatistics.o \
                         $(OBJDIR)/SimpleThreadPool.o \
-                        $(OBJDIR)/Trace.o \
-                        $(OBJDIR)/TreeBuilder.o \
-                        $(OBJDIR)/TreeStructure.o
+                        $(OBJDIR)/Trace.o
 
 ifeq ($(OS),darwin)
 CCFLAGS += -fexceptions

@@ -24,7 +24,11 @@ namespace Math {
 
 /** functor for the template constructor std::complex<T>::complex */
 template<class T>
-struct makeComplex : public std::binary_function<T, T, const std::complex<T>> {
+struct makeComplex {
+    using first_argument_type  = T;
+    using second_argument_type = T;
+    using result_type          = const std::complex<T>;
+
     std::complex<T> operator()(T real, T imaginary) const {
         return std::complex<T>(real, imaginary);
     }
@@ -32,15 +36,32 @@ struct makeComplex : public std::binary_function<T, T, const std::complex<T>> {
 
 /** function pointer functor to the template function abs(const std::complex<T> &) */
 template<class T>
-struct pointerAbs : public std::unary_function<const std::complex<T>, T> {
+struct pointerAbs {
+    using argument_type = const std::complex<T>;
+    using result_type   = T;
+
     T operator()(const std::complex<T>& v) const {
         return Core::abs(v);
     }
 };
 
+/** function pointer functor to the template function power(const std::complex<T> &) */
+template<class T>
+struct pointerAbsSqr {
+    using argument_type = const std::complex<T>;
+    using result_type   = T;
+
+    T operator()(const std::complex<T>& v) const {
+        return Core::abs(v) * Core::abs(v);
+    }
+};
+
 /** function pointer functor to the template function arg(const std::complex<T> &) */
 template<class T>
-struct pointerArg : public std::unary_function<const std::complex<T>, T> {
+struct pointerArg {
+    using argument_type = const std::complex<T>;
+    using result_type   = T;
+
     T operator()(const std::complex<T>& v) const {
         return arg(v);
     }
@@ -48,17 +69,23 @@ struct pointerArg : public std::unary_function<const std::complex<T>, T> {
 
 /** function pointer functor to the template function real(const std::complex<T> &) */
 template<class T>
-struct pointerReal : public std::unary_function<const std::complex<T>, T> {
+struct pointerReal {
+    using argument_type = const std::complex<T>;
+    using result_type   = T;
+
     T operator()(const std::complex<T>& v) const {
-        return real(v);
+        return std::real(v);
     }
 };
 
 /** function pointer functor to the template function imag(const std::complex<T> &) */
 template<class T>
-struct pointerImag : public std::unary_function<const std::complex<T>, T> {
+struct pointerImag {
+    using argument_type = const std::complex<T>;
+    using result_type   = T;
+
     T operator()(const std::complex<T>& v) const {
-        return imag(v);
+        return std::imag(v);
     }
 };
 
@@ -69,7 +96,7 @@ struct pointerImag : public std::unary_function<const std::complex<T>, T> {
  *	Alternating complex numbers are first transformed to a complex<InputType> object.
  *  Operation is transforms the complex<InputType> object:
  *     operation must support the function: OutputType operator()(const complex<InputType> &).
- * Operation is a unary function (derived from std::unary_function):
+ * Operation is a unary function:
  *  Argument must have a constructor with two parameters
  *  Result is of arbitrary type
  */
@@ -88,7 +115,7 @@ void transformAlternatingComplex(InputIterator first, InputIterator last,
 /** tranforms a vector of arbitrary type into an alternating complex vector
  * (Alternating complex vectors are stored in a standard container
  * by storing the real and the imaginary parts alternating.)
- * Operation is a unary function (derived from std::unary_function):
+ * Operation is a unary function:
  *  Argument is of arbitrary type
  *  For the result type the functions real and imag must exist.
  *
@@ -97,10 +124,10 @@ template<class InputIterator, class OutputIterator, class Operation>
 void transformToAlternatingComplex(InputIterator first, InputIterator last,
                                    OutputIterator result, Operation operation) {
     for (; first != last; result += 2, ++first) {
-        typename Operation::result_type r = operation(*first);
+        auto r = operation(*first);
 
-        *result       = real(r);
-        *(result + 1) = imag(r);
+        *result       = std::real(r);
+        *(result + 1) = std::imag(r);
     }
 }
 
@@ -108,7 +135,7 @@ void transformToAlternatingComplex(InputIterator first, InputIterator last,
  * (Alternating complex vectors are stored in a standard container
  * by storing the real and the imaginary parts alternating.)
  *
- * Operation is a binary function derived from std::binary_function:
+ * Operation is a binary function:
  *  Arguments must have a constructor with two parameters
  *  For the result type the functions real and imag must exist.
  */
@@ -124,14 +151,18 @@ void transformAlternatingComplexToAlternatingComplex(InputIterator first1, Input
                 typename Operation::first_argument_type(*real1, *imaginary1),
                 typename Operation::second_argument_type(*real2, *imaginary2));
 
-        *result       = real(r);
-        *(result + 1) = imag(r);
+        *result       = std::real(r);
+        *(result + 1) = std::imag(r);
     }
 }
 
 /** functors for x * conjugate(y) */
 template<class T>
-struct conjugateMultiplies : public std::binary_function<std::complex<T>, std::complex<T>, std::complex<T>> {
+struct conjugateMultiplies {
+    using first_argument_type  = std::complex<T>;
+    using second_argument_type = std::complex<T>;
+    using result_type          = std::complex<T>;
+
     std::complex<T> operator()(const std::complex<T>& x, const std::complex<T>& y) const {
         return x * conj(y);
     }
@@ -143,7 +174,7 @@ namespace Core {
 /** binary output for std::complex<T> */
 template<class T>
 Core::BinaryOutputStream& operator<<(Core::BinaryOutputStream& o, const std::complex<T>& c) {
-    return o << real(c) << imag(c);
+    return o << std::real(c) << std::imag(c);
 }
 
 /** binary input for std::complex<T> */

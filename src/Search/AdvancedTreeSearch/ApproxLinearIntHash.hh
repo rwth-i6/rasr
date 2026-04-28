@@ -12,11 +12,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SEARCH_APPROX_LINEARINTHASH_HH
-#define SEARCH_APPROX_LINEARINTHASH_HH
+#ifndef ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH
+#define ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH
+
+#include <vector>
 
 #include <Core/Types.hh>
-#include <vector>
 
 #define U16_MAX 65535
 
@@ -30,7 +31,8 @@ template<class Key, Key invalidKey, bool useHashChain = false>
 class ApproxLinearIntHash {
     struct Value {
         Value()
-                : value(U16_MAX), mark(0) {
+                : value(U16_MAX),
+                  mark(0) {
         }
         u16 value;
         u16 mark;
@@ -41,7 +43,8 @@ class ApproxLinearIntHash {
 
 public:
     ApproxLinearIntHash()
-            : size_(0), mask_(0) {
+            : size_(0),
+              mask_(0) {
     }
 
     u32 hashSize() const {
@@ -166,4 +169,4 @@ private:
 };
 }  // namespace Search
 
-#endif  // SEARCH_LINEARMINIHASH_HH
+#endif  // ADVANCEDTREESEARCH_APPROX_LINEARINTHASH_HH

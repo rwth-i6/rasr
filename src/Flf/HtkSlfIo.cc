@@ -266,7 +266,11 @@ protected:
         TransitState       transit;
         Bliss::Phoneme::Id initialPhonemeId, finalPhonemeId;
         Node()
-                : sp(0), labelId(Fsa::InvalidLabelId), transit(TransitUnchecked), initialPhonemeId(InvalidPhonemeId), finalPhonemeId(InvalidPhonemeId) {}
+                : sp(0),
+                  labelId(Fsa::InvalidLabelId),
+                  transit(TransitUnchecked),
+                  initialPhonemeId(InvalidPhonemeId),
+                  finalPhonemeId(InvalidPhonemeId) {}
     };
     typedef std::vector<Node> NodeList;
 
@@ -1447,4 +1451,4 @@ void HtkSlfArchiveWriter::store(const std::string& id, ConstLatticeRef l) {
         error("Failed to store lattice \"%s\"", id.c_str());
 }
 
-}  //namespace Flf
+}  // namespace Flf

@@ -29,6 +29,7 @@ AdaptationTree::AdaptationTree(const Core::Configuration&     c,
                                Bliss::Phoneme::Id             silencePhoneme)
         : Core::Component(c),
           treeDumpChannel_(config, "dump-tree") {
+    verify(silencePhoneme != Bliss::Phoneme::invalidId);
     numberOfBaseClasses_ = paramNumberOfBaseClasses(config);
     log("number of base classe for MLLR adaptation: ") << numberOfBaseClasses_;
 
@@ -51,7 +52,7 @@ void AdaptationTree::loadDecisionTree(const Core::Configuration&     config,
     Am::DecisionTreeStateTying cartStateTying(config, stateModel);
 
     const Am::Allophone* siAllo      = stateModel->allophoneAlphabet().allophone(Am::Allophone(silencePhoneme,
-                                                                                          Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone));
+                                                                                               Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone));
     Am::AllophoneState   siAlloState = stateModel->allophoneStateAlphabet().allophoneState(siAllo, 0);
     Mm::MixtureIndex     siMixtureId = cartStateTying.classify(siAlloState);
     silenceMixtures_.insert(siMixtureId);
@@ -96,5 +97,5 @@ void AdaptationTree::loadDecisionTree(const Core::Configuration&     config,
     /*! \todo change if silence is handled correctly by dectree */
     (*leafIndex_).push_back(numberOfBaseClasses_);
     nLeafs_ = numberOfBaseClasses_ + 1;
-    //end of part to be changed
+    // end of part to be changed
 }

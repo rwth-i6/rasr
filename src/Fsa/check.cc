@@ -91,6 +91,6 @@ public:
 
         return 0;
     }
-} app;  // <- You have to create ONE instance of the application
+};
 
-APPLICATION
+APPLICATION(MyApplication)

@@ -60,7 +60,7 @@ template<class I, class O>
 MergerNode<I, O>::MergerNode(const Core::Configuration& c)
         : Core::Component(c),
           Precursor(c) {
-    //init additional params here
+    // init additional params here
 }
 
 template<class I, class O>

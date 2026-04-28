@@ -126,6 +126,6 @@ XmlVectorDocument<T>::XmlVectorDocument(const Configuration& c, std::vector<T>& 
     setRoot(collect(new XmlVectorElement<T>(this, XmlVectorElement<T>::creationHandler(&Self::pseudoCreateVector))));
 }
 
-}  //namespace Core
+}  // namespace Core
 
 #endif  // _CORE_VECTOR_PARSER_HH

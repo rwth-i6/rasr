@@ -95,7 +95,9 @@ private:
 // inline implementations
 
 inline NNHistoryManager::NNHistoryManager()
-        : HistoryManager(), has_on_release_handler_(false), on_release_handler_() {
+        : HistoryManager(),
+          has_on_release_handler_(false),
+          on_release_handler_() {
 }
 
 inline NNHistoryManager::~NNHistoryManager() {

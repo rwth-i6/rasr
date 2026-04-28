@@ -34,13 +34,19 @@ bool Lexicon::addPhoneme(const std::string& name, bool contextDependent) {
 void Lexicon::addLemma(const std::string& orth, const std::string& pron,
                        const std::string& special) {
     Bliss::Lemma* lemma = newLemma();
-    if (!special.empty())
+    if (!special.empty()) {
         defineSpecialLemma(special, lemma);
-    Bliss::Pronunciation* p = getPronunciation(pron);
+    }
+
+    Bliss::Pronunciation* p      = nullptr;
+    Core::Status          status = getPronunciation(pron, p);
+    require(status.ok());
     addPronunciation(lemma, p);
+
     std::vector<std::string> orths;
     orths.push_back(orth);
     setOrthographicForms(lemma, orths);
+
     setDefaultLemmaName(lemma);
     setDefaultEvaluationToken(lemma);
     setDefaultSyntacticToken(lemma);

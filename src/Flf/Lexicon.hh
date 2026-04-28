@@ -81,7 +81,8 @@ public:
 
     public:
         SymbolMap()
-                : lexicon_(0), index_(0) {}
+                : lexicon_(0),
+                  index_(0) {}
         SymbolMap(Fsa::ConstAlphabetRef alphabet, IndexFcn indexFcn);
         Fsa::ConstAlphabetRef alphabet() const {
             return alphabet_;

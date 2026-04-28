@@ -29,7 +29,8 @@ private:
 
 public:
     MatrixStorageScheme(size_t nRows = 0, size_t nColumns = 0)
-            : nRows_(nRows), nColumns_(nColumns) {}
+            : nRows_(nRows),
+              nColumns_(nColumns) {}
 
     size_t nRows() const {
         return nRows_;

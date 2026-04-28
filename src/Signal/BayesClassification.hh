@@ -44,8 +44,12 @@ public:
     typedef Flow::Time                      Time;
     typedef std::pair<Time, Time>           StartEndTime;
 
-    enum AprioriProbabilityType { Uniform };
-    enum LikelihoodFunctionType { IndependentSequence };
+    enum AprioriProbabilityType {
+        Uniform
+    };
+    enum LikelihoodFunctionType {
+        IndependentSequence
+    };
 
 private:
     std::vector<std::string> classLabels_;
@@ -136,7 +140,8 @@ public:
     void setClassLabels(u32 nClasses);
     void setNumUsedFeatures(u32 nFeatures);
     void setUseSlidingWindow(bool useWindow, int windowLength, int windowRight);
-    u32  nClasses() const {
+
+    u32 nClasses() const {
         return classLabels_.size();
     }
 

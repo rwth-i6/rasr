@@ -51,7 +51,10 @@ private:
 
 public:
     VectorSequenceNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c), reverse_(false), timestamp_(false) {
+            : Core::Component(c),
+              Precursor(c),
+              reverse_(false),
+              timestamp_(false) {
         reverse_   = paramVectorSequenceNodeReverse(c);
         timestamp_ = paramVectorSequenceNodeTimeStamp(c);
     }

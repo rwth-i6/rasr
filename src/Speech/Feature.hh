@@ -42,7 +42,7 @@ private:
     Flow::Timestamp timestamp_;
 
 private:
-    static Core::Ref<const Vector> convert(Flow::DataPtr<FlowVector>&);
+    static VectorRef convert(Flow::DataPtr<FlowVector>&);
 
 public:
     Feature() {}

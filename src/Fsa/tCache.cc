@@ -36,7 +36,9 @@ private:
 
 public:
     CacheAutomaton(_ConstAutomatonRef f, u32 maxAge)
-            : Precursor(f), maxAge_(maxAge), age_(0) {
+            : Precursor(f),
+              maxAge_(maxAge),
+              age_(0) {
         this->setProperties(Fsa::PropertyCached | Fsa::PropertyStorage, Fsa::PropertyCached);
     }
     virtual ~CacheAutomaton() {

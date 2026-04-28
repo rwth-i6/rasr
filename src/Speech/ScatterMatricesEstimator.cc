@@ -41,10 +41,14 @@ void TextDependentScatterMatricesEstimator::setFeatureDescription(const Mm::Feat
 
 // ----------------------------------------------------------------------------------------
 TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(const Core::Configuration& c)
-        : Component(c), LabeledFeatureProcessor(c), estimator_(new Signal::ScatterMatricesEstimator(c)) {}
+        : Component(c),
+          LabeledFeatureProcessor(c),
+          estimator_(new Signal::ScatterMatricesEstimator(c)) {}
 
 TextIndependentScatterMatricesEstimator::TextIndependentScatterMatricesEstimator(const Core::Configuration& c, Core::Ref<Signal::ScatterMatricesEstimator> estimator)
-        : Component(c), LabeledFeatureProcessor(c), estimator_(estimator) {}
+        : Component(c),
+          LabeledFeatureProcessor(c),
+          estimator_(estimator) {}
 
 void TextIndependentScatterMatricesEstimator::setFeatureDescription(const Mm::FeatureDescription& description) {
     description.verifyNumberOfStreams(1);

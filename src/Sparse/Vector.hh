@@ -60,14 +60,16 @@ public:
 
     /** Creates a new sparse vector. */
     Vector()
-            : Flow::Timestamp(type()), Precursor(){};
+            : Flow::Timestamp(type()),
+              Precursor(){};
 
     /**
      * Creates a new sparse vector with given size.
      * @param size Initial size.
      */
     Vector(int size)
-            : Flow::Timestamp(type()), Precursor(size) {}
+            : Flow::Timestamp(type()),
+              Precursor(size) {}
 
     /**
      * Creates a new sparse vector with given size and content.
@@ -75,21 +77,24 @@ public:
      * @param contentToFill Content to fill the sparse vector with.
      */
     Vector(int size, T contentToFill)
-            : Flow::Timestamp(type()), Precursor(size, contentToFill) {}
+            : Flow::Timestamp(type()),
+              Precursor(size, contentToFill) {}
 
     /**
      * Copy constructor
      * @param v Original data.
      */
     Vector(const Vector<T>& v)
-            : Flow::Timestamp(type()), Precursor(v) {}
+            : Flow::Timestamp(type()),
+              Precursor(v) {}
 
     /**
      * Copy constructor from Precursor.
      * @param v Original data.
      */
     Vector(const Precursor& v)
-            : Flow::Timestamp(type()), Precursor(v) {}
+            : Flow::Timestamp(type()),
+              Precursor(v) {}
 
     /** Destroys the sparse vector. */
     virtual ~Vector() {}

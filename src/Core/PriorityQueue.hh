@@ -42,7 +42,8 @@ public:
     PriorityQueueBase(u32 maxSize = Type<u32>::max)
             : maxSize_(maxSize) {}
     PriorityQueueBase(const PriorityFunction& precedes, u32 maxSize = Type<u32>::max)
-            : maxSize_(maxSize), precedes_(precedes) {}
+            : maxSize_(maxSize),
+              precedes_(precedes) {}
 
     /** Return reference to top-most item in the queue */
     const Item& top() const {
@@ -127,7 +128,8 @@ public:
 
 protected:
     std::vector<Item> heap_;
-    bool              invariant() const {
+
+    bool invariant() const {
         return true;
     }
 

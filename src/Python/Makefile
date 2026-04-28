@@ -20,7 +20,10 @@ LIBPYTHON_O    = \
 		$(OBJDIR)/AllophoneStateFsaBuilder.o \
 		$(OBJDIR)/Configuration.o            \
 		$(OBJDIR)/Init.o                     \
+		$(OBJDIR)/LabelScorer.o              \
 		$(OBJDIR)/Numpy.o                    \
+		$(OBJDIR)/ScoringContext.o           \
+		$(OBJDIR)/Search.o                   \
 		$(OBJDIR)/Utilities.o
 
 CHECK_O		= $(OBJDIR)/check.o 			\

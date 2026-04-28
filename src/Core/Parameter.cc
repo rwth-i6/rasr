@@ -42,7 +42,8 @@ AbstractParameter::AbstractParameter(const char* _ident,
                                      const char* _short_desc,
                                      const char* _long_desc,
                                      bool        needs_arg)
-        : ident(_ident), g_param_max_ident(0) {
+        : ident(_ident),
+          g_param_max_ident(0) {
     require(!ident.empty());
     require(ident.find(Configuration::resource_wildcard_char) == std::string::npos);
     require(ident.find(Configuration::resource_separation_char) == std::string::npos);
@@ -339,10 +340,11 @@ VectorParameter<T>::VectorParameter(const char*       ident,
           maxValue_(maxValue),
           minSize_(minSize),
           maxSize_(maxSize) {
-    if (delimiter_ == "")
+    if (delimiter_ == "") {
         delimiter_ = " ";
-    require(minValue_ <= maxValue_);
-    require(minSize_ <= maxSize_);
+    }
+    require_le(minValue_, maxValue_);
+    require_le(minSize_, maxSize_);
 }
 
 template<class T>

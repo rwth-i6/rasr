@@ -15,7 +15,7 @@
 #ifndef H_V_CONDITIONAL_ALIGN_AUTOMATON
 #define H_V_CONDITIONAL_ALIGN_AUTOMATON
 
-//#include "AlignAutomaton.hh"
+// #include "AlignAutomaton.hh"
 #include "ConditionalAlignAutomaton.hh"
 
 namespace Fsa {

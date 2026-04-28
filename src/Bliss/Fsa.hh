@@ -61,14 +61,14 @@ public:
 };
 
 /**
-         * PhonemeAlphabet as FSA alphabet.
-         *
-         * In addition to the phoneme in the PhonemeAlphabet, the
-         * PhonemeAlphabet virtually contains a variable number
-         * disambiguation symbols.  These are needed to create
-         * determinizable lexicon transducers, even when homophones are
-         * present.
-         */
+ * PhonemeAlphabet as FSA alphabet.
+ *
+ * In addition to the phoneme in the PhonemeAlphabet, the
+ * PhonemeAlphabet virtually contains a variable number
+ * disambiguation symbols.  These are needed to create
+ * determinizable lexicon transducers, even when homophones are
+ * present.
+ */
 class PhonemeAlphabet : public TokenAlphabet {
 private:
     friend class PhonemeInventory;
@@ -116,7 +116,8 @@ private:
     friend class Lexicon;
     mutable u32 nDisambiguators_;
     LemmaPronunciationAlphabet(LexiconRef l)
-            : lexicon_(l), nDisambiguators_(0) {}
+            : lexicon_(l),
+              nDisambiguators_(0) {}
 
 public:
     Fsa::LabelId index(const LemmaPronunciation* l) const {

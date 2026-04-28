@@ -16,7 +16,7 @@
 #include <Am/Module.hh>
 #include <Lm/Module.hh>
 #include <Nn/Module.hh>
-
+#include "Am/AcousticModel.hh"
 
 using namespace Speech;
 
@@ -31,36 +31,60 @@ const ModelCombination::Mode ModelCombination::useLabelScorer   = 0x4;
 const Core::ParameterFloat ModelCombination::paramPronunciationScale(
         "pronunciation-scale", "scaling exponent for lemma pronunciation probabilities", 0.0);
 
+const Core::ParameterInt ModelCombination::paramNumLabelScorers(
+        "num-label-scorers", "number of label scorers", 1, 1);
+
 ModelCombination::ModelCombination(const Core::Configuration& c,
                                    Mode                       mode,
-                                   Am::AcousticModel::Mode    acousticModelMode)
+                                   Am::AcousticModel::Mode    acousticModelMode,
+                                   Bliss::LexiconRef          lexicon)
         : Core::Component(c),
           Mc::Component(c),
-          pronunciationScale_(0) {
-    setLexicon(Bliss::Lexicon::create(select("lexicon")));
-    if (!lexicon_)
-        criticalError("failed to initialize the lexicon");
-
-    /*! \todo Scalable lexicon not implemented yet */
+          pronunciationScale_(0),
+          labelScorers_(paramNumLabelScorers(config)) {
     setPronunciationScale(paramPronunciationScale(c));
+
+    if (lexicon) {
+        setLexicon(lexicon);
+        log() << "Set lexicon in ModelCombination";
+    }
+    else {
+        log() << "Create lexicon in ModelCombination";
+        setLexicon(Bliss::Lexicon::create(select("lexicon")));
+    }
+
+    if (!lexicon_) {
+        criticalError("Failed to initialize the lexicon");
+    }
 
     if (mode & useAcousticModel) {
         setAcousticModel(Am::Module::instance().createAcousticModel(
                 select("acoustic-model"), lexicon_, acousticModelMode));
-        if (!acousticModel_)
-            criticalError("failed to initialize the acoustic model");
+        if (!acousticModel_) {
+            criticalError("Failed to initialize the acoustic model");
+        }
     }
 
     if (mode & useLanguageModel) {
         setLanguageModel(Lm::Module::instance().createScaledLanguageModel(select("lm"), lexicon_));
-        if (!languageModel_)
-            criticalError("failed to initialize language model");
+        if (!languageModel_) {
+            criticalError("Failed to initialize language model");
+        }
     }
-
     if (mode & useLabelScorer) {
-        setLabelScorer(Nn::Module::instance().createLabelScorer(select("label-scorer")));
-        if (!labelScorer_)
-            criticalError("failed to initialize label scorer");
+        for (size_t i = 0; i < labelScorers_.size(); ++i) {
+            std::string subConfigName;
+            if (labelScorers_.size() == 1) {
+                subConfigName = "label-scorer";
+            }
+            else {
+                subConfigName = std::string("label-scorer-") + std::to_string(i + 1);
+            }
+            setLabelScorer(Nn::Module::instance().labelScorerFactory().createLabelScorer(select(subConfigName)), i);
+            if (!labelScorers_[i]) {
+                criticalError("Failed to initialize label scorer %zu", i + 1);
+            }
+        }
     }
 }
 
@@ -68,7 +92,10 @@ ModelCombination::ModelCombination(const Core::Configuration&         c,
                                    Bliss::LexiconRef                  lexicon,
                                    Core::Ref<Am::AcousticModel>       acousticModel,
                                    Core::Ref<Lm::ScaledLanguageModel> languageModel)
-        : Core::Component(c), Mc::Component(c), pronunciationScale_(0) {
+        : Core::Component(c),
+          Mc::Component(c),
+          pronunciationScale_(0),
+          labelScorers_(paramNumLabelScorers(c)) {
     setPronunciationScale(paramPronunciationScale(c));
     setLexicon(lexicon);
     setAcousticModel(acousticModel);
@@ -91,6 +118,11 @@ void ModelCombination::setLanguageModel(Core::Ref<Lm::ScaledLanguageModel> langu
     languageModel_ = languageModel;
     if (languageModel_)
         languageModel_->setParentScale(scale());
+}
+
+void ModelCombination::setLabelScorer(Core::Ref<Nn::LabelScorer> ls, size_t index) {
+    verify(index < labelScorers_.size());
+    labelScorers_[index] = ls;
 }
 
 void ModelCombination::distributeScaleUpdate(const Mc::ScaleUpdate& scaleUpdate) {

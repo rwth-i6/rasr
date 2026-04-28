@@ -101,7 +101,9 @@ const Core::ParameterInt TemporalPatternNode::paramOutputSize(
         "output-size", "number of final frames", 16);
 
 TemporalPatternNode::TemporalPatternNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c), needInit_(true) {
+        : Core::Component(c),
+          Precursor(c),
+          needInit_(true) {
     setOutputSize(paramOutputSize(c));
     setContextLength(paramContextLength(c));
 }

@@ -27,7 +27,14 @@ Core::ParameterString AbstractNNLanguageModel::paramVocabUnknownWord(
         "vocab-unknown-word", "the word from the provided vocabulary file that will serve as unknown token", "");
 
 AbstractNNLanguageModel::AbstractNNLanguageModel(Core::Configuration const& c, Bliss::LexiconRef l)
-        : Core::Component(c), Precursor(c, l), collect_statistics_(paramCollectStatistics(c)), vocab_file_(paramVocabularyFile(c)), unknown_word_(paramVocabUnknownWord(config)), lexicon_(l), num_outputs_(0ul), lexicon_mapping_(), usage_histogram_() {
+        : Core::Component(c),
+          Precursor(c, l),
+          collect_statistics_(paramCollectStatistics(c)),
+          vocab_file_(paramVocabularyFile(c)),
+          unknown_word_(paramVocabUnknownWord(config)),
+          lexicon_(l),
+          num_outputs_(0ul),
+          usage_histogram_() {
     NNHistoryManager* hm = new NNHistoryManager();
     if (collect_statistics_) {
         hm->setOnReleaseHandler(std::bind(&AbstractNNLanguageModel::onRelease, this, std::placeholders::_1));
@@ -89,7 +96,7 @@ void AbstractNNLanguageModel::onRelease(HistoryHandle handle) {
     NNCacheWithStats const* c = reinterpret_cast<NNCacheWithStats const*>(handle);
     if (not c->output_used.empty()) {
         unsigned used_outputs  = std::accumulate(c->output_used.begin(), c->output_used.end(),
-                                                0u, [](unsigned sum, bool used) { return sum + (used ? 1u : 0u); });
+                                                 0u, [](unsigned sum, bool used) { return sum + (used ? 1u : 0u); });
         size_t   promille_used = static_cast<size_t>((1000.0 * used_outputs) / c->output_used.size());
         if (usage_histogram_.size() <= promille_used) {
             usage_histogram_.resize(promille_used + 1ul);

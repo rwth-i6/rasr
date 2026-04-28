@@ -83,7 +83,8 @@ private:
 
     protected:
         virtual void setSymbols(const std::vector<std::string>&) = 0;
-        bool         complementIfRequired(bool contains) const {
+
+        bool complementIfRequired(bool contains) const {
             return shallComplement_ ? !contains : contains;
         }
 
@@ -100,9 +101,11 @@ private:
         virtual bool setParameter(const std::string& name, const std::string& value);
 
         virtual bool contains(const Am::AllophoneState& as, s16 position = 0) const = 0;
-        bool         contains(Am::AllophoneStateIndex emission, s16 position = 0) const {
+
+        bool contains(Am::AllophoneStateIndex emission, s16 position = 0) const {
             return contains(allophoneStateAlphabet_->allophoneState(emission), position);
         }
+
         virtual bool empty() const = 0;
     };
     typedef std::vector<Core::Ref<Set>> Sets;
@@ -133,7 +136,9 @@ private:
 
     public:
         PhonemeSet(const Core::Configuration& c)
-                : Precursor(c), phonemeMap_(0), empty_(true) {}
+                : Precursor(c),
+                  phonemeMap_(0),
+                  empty_(true) {}
         virtual ~PhonemeSet() {
             delete phonemeMap_;
         }

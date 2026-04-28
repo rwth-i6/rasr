@@ -218,7 +218,7 @@ private:
                 typename O::FstMatcher2,
                 typename O::ComposeFilter,
                 typename ComposeStateTable::Table>
-                ComposeFstOptions;
+                                        ComposeFstOptions;
         typedef typename O::FstMatcher1 Matcher1;
         typedef typename O::FstMatcher2 Matcher2;
         /**

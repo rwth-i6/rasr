@@ -36,7 +36,7 @@ using __gnu_cxx::select2nd;
 #else
 
 template<typename T>
-struct identity : public std::unary_function<T, T> {
+struct identity {
     const T& operator()(const T& v) const {
         return v;
     }
@@ -46,8 +46,7 @@ struct identity : public std::unary_function<T, T> {
 };
 
 template<typename BinaryFun, typename UnaryFun1, typename UnaryFun2 = UnaryFun1>
-struct binary_compose
-        : public std::unary_function<typename UnaryFun1::argument_type, typename BinaryFun::result_type> {
+struct binary_compose {
     typename BinaryFun::result_type operator()(const typename UnaryFun1::argument_type& x) const {
         return f(g(x), h(x));
     }
@@ -58,16 +57,14 @@ struct binary_compose
 };
 
 template<typename pair_type>
-struct select1st
-        : public std::unary_function<const pair_type&, const typename pair_type::first_type&> {
+struct select1st {
     const typename pair_type::first_type& operator()(const pair_type& v) const {
         return v.first;
     }
 };
 
 template<typename pair_type>
-struct select2nd
-        : public std::unary_function<const pair_type&, const typename pair_type::second_type&> {
+struct select2nd {
     const typename pair_type::second_type& operator()(const pair_type& v) const {
         return v.second;
     }

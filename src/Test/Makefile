@@ -21,13 +21,14 @@ TEST_O += $(OBJDIR)/Core_StringUtilities.o
 TEST_O += $(OBJDIR)/Core_Thread.o 
 TEST_O += $(OBJDIR)/Core_ThreadPool.o 
 TEST_O += $(OBJDIR)/Fsa_Sssp4SpecialSymbols.o
+TEST_O += $(OBJDIR)/Lm_ArpaLm.o
 TEST_O += $(OBJDIR)/Math_Utilities.o
 TEST_O += $(OBJDIR)/Math_Blas.o 
 TEST_O += $(OBJDIR)/Math_FastVectorOperations.o 
 TEST_O += $(OBJDIR)/Math_CudaVector.o 
 TEST_O += $(OBJDIR)/Math_CudaMatrix.o 
 TEST_O += $(OBJDIR)/Math_FastMatrix.o 
-#TEST_O += $(OBJDIR)/Math_LinearConjugateGradient.o 
+TEST_O += $(OBJDIR)/Math_LinearConjugateGradient.o
 TEST_O += $(OBJDIR)/Test_File.o 
 TEST_O += $(OBJDIR)/Test_Lexicon.o 
 
@@ -61,7 +62,7 @@ UNIT_TEST_O = $(OBJDIR)/UnitTester.o $(TEST_O) \
 		  ../Fsa/libSprintFsa.$(a) \
 		  ../Core/libSprintCore.$(a)\
 		  ../Speech/libSprintSpeech.$(a) \
-		  ../Search/libSprintSearch.$(a) \
+		  $(subst src,..,$(LIBS_SEARCH)) \
 		  ../Lattice/libSprintLattice.$(a) \
 		  ../Am/libSprintAm.$(a) \
 		  ../Mm/libSprintMm.$(a) \
@@ -82,12 +83,6 @@ endif
 ifdef MODULE_FLF_EXT
 UNIT_TEST_O += ../Flf/FlfExt/libSprintFlfExt.$(a)
 endif
-ifdef MODULE_ADVANCED_TREE_SEARCH
-UNIT_TEST_O += ../Search/AdvancedTreeSearch/libSprintAdvancedTreeSearch.$(a)
-endif
-ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-UNIT_TEST_O += ../Search/GenericSeq2SeqTreeSearch/libSprintGenericSeq2SeqTreeSearch.$(a)
-endif
 ifdef MODULE_PYTHON
 UNIT_TEST_O += ../Python/libSprintPython.$(a)
 endif
@@ -100,16 +95,19 @@ endif
 ifdef MODULE_MATH_NR
 UNIT_TEST_O += ../Math/Nr/libSprintMathNr.$(a)
 endif
-ifdef MODULE_SEARCH_WFST
-UNIT_TEST_O += ../Search/Wfst/libSprintSearchWfst.$(a)
-endif
 ifdef MODULE_OPENFST
 UNIT_TEST_O += ../OpenFst/libSprintOpenFst.$(a)
+endif
+ifdef MODULE_ONNX
+UNIT_TEST_O += ../Onnx/libSprintOnnx.$(a)
 endif
 ifdef MODULE_TENSORFLOW
 UNIT_TEST_O += ../Tensorflow/libSprintTensorflow.$(a)
 CXXFLAGS += $(TF_CXXFLAGS)
 LDFLAGS  += $(TF_LDFLAGS)
+endif
+ifdef MODULE_ONNX
+UNIT_TEST_O += ../Onnx/libSprintOnnx.$(a)
 endif
 
 # -----------------------------------------------------------------------------

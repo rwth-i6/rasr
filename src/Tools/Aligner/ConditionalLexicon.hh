@@ -85,7 +85,7 @@ protected:
     Fsa::ConstAlphabetRef tokenRef_;
 
     //! parameter giving the filename to read from
-    //static Core::ParameterString paramFilename_;
+    // static Core::ParameterString paramFilename_;
 
 public:
     //! read a lexicon from a file stream

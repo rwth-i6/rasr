@@ -21,7 +21,9 @@
 namespace Flf {
 
 Module_::Module_()
-        : lexicon_(0), network_(0), processor_(0) {}
+        : lexicon_(0),
+          network_(0),
+          processor_(0) {}
 Module_::~Module_() {
     delete lexicon_;
 }

@@ -124,10 +124,13 @@ public:
     }
 
     int main(const std::vector<std::string>& arguments) {
-        enum { Run,
-               Init,
-               Parse,
-               Help } cmd             = Run;
+        enum {
+            Run,
+            Init,
+            Parse,
+            Help
+        } cmd = Run;
+
         Flf::Module::Instance& flfApp = Flf::Module::instance();
         if (!arguments.empty()) {
             if ((arguments.front() == "init") ||

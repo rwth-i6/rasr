@@ -49,9 +49,9 @@ NodeRef createBestNode(const std::string& name, const Core::Configuration& confi
 std::pair<ConstLatticeRef, Score> bestProjection(ConstLatticeRef l);
 
 /**
-     * Minimal score (sum of projected weights) for all state pairs in lattice.
-     * Invalid score, if no connection between two states.
-     **/
+ * Minimal score (sum of projected weights) for all state pairs in lattice.
+ * Invalid score, if no connection between two states.
+ **/
 class AllPairsShortestDistance;
 typedef Core::Ref<const AllPairsShortestDistance> ConstAllPairsShortestDistanceRef;
 class AllPairsShortestDistance : public Core::ReferenceCounted {

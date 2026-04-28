@@ -25,7 +25,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. 
+SOFTWARE.
 */
 // end LICENSE file
 
@@ -127,10 +127,10 @@ public:
         setg(out_buff, out_buff, out_buff);
     }
 
-    istreambuf(const istreambuf&) = delete;
-    istreambuf(istreambuf&&)      = default;
+    istreambuf(const istreambuf&)            = delete;
+    istreambuf(istreambuf&&)                 = default;
     istreambuf& operator=(const istreambuf&) = delete;
-    istreambuf& operator=(istreambuf&&) = default;
+    istreambuf& operator=(istreambuf&&)      = default;
 
     virtual ~istreambuf() {
         delete[] in_buff;
@@ -236,10 +236,10 @@ public:
         setp(in_buff, in_buff + buff_size);
     }
 
-    ostreambuf(const ostreambuf&) = delete;
-    ostreambuf(ostreambuf&&)      = default;
+    ostreambuf(const ostreambuf&)            = delete;
+    ostreambuf(ostreambuf&&)                 = default;
     ostreambuf& operator=(const ostreambuf&) = delete;
-    ostreambuf& operator=(ostreambuf&&) = default;
+    ostreambuf& operator=(ostreambuf&&)      = default;
 
     int deflate_loop(int flush) {
         while (true) {

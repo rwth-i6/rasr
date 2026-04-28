@@ -134,6 +134,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_SIMD_FEATURE_SCORER_HH

@@ -41,7 +41,7 @@ ConstAutomatonRef mapOutput(ConstAutomatonRef f, const AlphabetMapping& m) {
 ConstAutomatonRef mapInputOutput(ConstAutomatonRef f, const AlphabetMapping& m) {
     return Ftl::mapInputOutput<Automaton>(f, m);
 }
-}  //namespace Fsa
+}  // namespace Fsa
 
 namespace Fsa {
 ConstAutomatonRef normalize(ConstAutomatonRef f) {
@@ -71,7 +71,7 @@ ConstAutomatonRef changeSemiring(ConstAutomatonRef f, ConstSemiringRef semiring)
 ConstMappingRef mapNormalized(ConstAutomatonRef f) {
     return Ftl::mapNormalized<Automaton>(f);
 }
-}  //namespace Fsa
+}  // namespace Fsa
 
 namespace Fsa {
 AutomatonCounts count(ConstAutomatonRef f, bool progress) {

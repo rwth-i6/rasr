@@ -46,7 +46,8 @@ public:
     TypedAggregate()
             : Timestamp(type()) {}
     TypedAggregate(PrecursorVector& v)
-            : Timestamp(type()), PrecursorVector(v) {}
+            : Timestamp(type()),
+              PrecursorVector(v) {}
     virtual ~TypedAggregate() {}
 
     virtual Data* clone() const {
@@ -110,7 +111,8 @@ public:
         return std::string("generic-aggregation-" + DataType::type()->name());
     }
     TypedAggregateNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~TypedAggregateNode() {}
 
     virtual TypedAggregate<DataType>* merge(std::vector<DataPtr<DataType>>& inputData) {
@@ -128,7 +130,8 @@ public:
         return std::string("generic-disaggregation-" + DataType::type()->name());
     }
     TypedDisaggregateNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {
+            : Core::Component(c),
+              Precursor(c) {
         addInput(0);
     }
     virtual ~TypedDisaggregateNode() {}

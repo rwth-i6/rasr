@@ -92,6 +92,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_MIXTURE_FEATURE_SCORER_ELEMENT_HH

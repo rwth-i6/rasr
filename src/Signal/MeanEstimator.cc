@@ -54,7 +54,7 @@ bool MeanEstimator::finalize(Math::Vector<Data>& mean) const {
         return false;
     }
     mean.resize(featureDimension_);
-    std::transform(vectorSum_.begin(), vectorSum_.end(), mean.begin(), std::bind2nd(std::divides<Sum>(), count_));
+    std::transform(vectorSum_.begin(), vectorSum_.end(), mean.begin(), std::bind(std::divides<Sum>(), std::placeholders::_1, count_));
     return true;
 }
 

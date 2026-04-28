@@ -37,7 +37,9 @@ public:
     typedef std::map<Bliss::Phoneme::Id, const Am::Allophone*> AllophoneMap;
 
     NonWordTokens(const Core::Configuration& c, const Bliss::Lexicon& lexicon)
-            : Core::Component(c), lexicon_(lexicon), phoneOffset_(0) {}
+            : Core::Component(c),
+              lexicon_(lexicon),
+              phoneOffset_(0) {}
     ~NonWordTokens();
     bool init();
 

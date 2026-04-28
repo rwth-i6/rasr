@@ -41,7 +41,8 @@ LanguageModel::LanguageModel(const Core::Configuration& c, Bliss::LexiconRef l)
           tokenInventory_(0),
           fallbackToken_(0),
           sentenceBeginToken_(0),
-          sentenceEndToken_(0) {
+          sentenceEndToken_(0),
+          lexicon_mapping_() {
     tokenInventory_                = &l->syntacticTokenInventory();
     tokenAlphabet_                 = l->syntacticTokenAlphabet();
     requiresSentenceBoundaryToken_ = false;
@@ -68,7 +69,8 @@ private:
 
 public:
     TokenAlphabet(Core::Ref<const LanguageModel> lm)
-            : Bliss::TokenAlphabet(lm->tokenInventory()), lm_(lm) {}
+            : Bliss::TokenAlphabet(lm->tokenInventory()),
+              lm_(lm) {}
     virtual ~TokenAlphabet() {}
 };
 void LanguageModel::setTokenInventory(const TokenInventory* _tokenInventory) {
@@ -89,7 +91,7 @@ const Bliss::SyntacticToken* LanguageModel::getSpecialSyntacticToken(const std::
                   "No special lemma \"%s\" defined in lexicon.",
                   name.c_str(), name.c_str());
         }
-        return 0;
+        return nullptr;
     }
 
     if (!lemma->hasSyntacticTokenSequence()) {
@@ -98,7 +100,7 @@ const Bliss::SyntacticToken* LanguageModel::getSpecialSyntacticToken(const std::
                   "Special lemma \"%s\" does not specify a syntactic token.",
                   name.c_str(), name.c_str());
         }
-        return 0;
+        return nullptr;
     }
 
     const Bliss::SyntacticTokenSequence& tokenSequence(
@@ -110,7 +112,7 @@ const Bliss::SyntacticToken* LanguageModel::getSpecialSyntacticToken(const std::
                   "Special lemma \"%s\" specifies a syntactic token sequence of length zero.",
                   name.c_str(), name.c_str());
         }
-        return 0;
+        return nullptr;
     }
 
     const Bliss::SyntacticToken* token = tokenSequence[0];
@@ -160,6 +162,10 @@ History LanguageModel::reducedHistory(const History& h, u32) const {
     return h;
 }
 
+History LanguageModel::reduceHistoryByN(const History& h, u32) const {
+    return h;
+}
+
 Lm::Score LanguageModel::sentenceEndScore(const History& h) const {
     require(sentenceEndToken());
     return score(h, sentenceEndToken());
@@ -194,8 +200,9 @@ void LanguageModel::getBatch(const History& history, const CompiledBatchRequest*
         sco *= ncbr->scale();
         sco += r->offset;
 
-        if (result[r->target] > sco)
+        if (result[r->target] > sco) {
             result[r->target] = sco;
+        }
     }
 }
 

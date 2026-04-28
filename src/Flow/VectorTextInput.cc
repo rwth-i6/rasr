@@ -73,7 +73,8 @@ protected:
 
 public:
     Parser(const Core::Configuration& c, VectorTextInputNodeBase* n)
-            : Core::XmlParser(c), n_(n) {}
+            : Core::XmlParser(c),
+              n_(n) {}
 };
 
 const Core::ParameterString VectorTextInputNodeBase::paramFileName(
@@ -89,7 +90,14 @@ const Core::ParameterInt VectorTextInputNodeBase::paramSampleRate(
 
 VectorTextInputNodeBase::VectorTextInputNodeBase(
         const Core::Configuration& c, const Datatype* type)
-        : Core::Component(c), SourceNode(c), timeInS_(0), shiftInS_(0), lengthInS_(0), sampleRate_(0), type_(type), fileinfoChannel_(c, "text-file-info") {
+        : Core::Component(c),
+          SourceNode(c),
+          timeInS_(0),
+          shiftInS_(0),
+          lengthInS_(0),
+          sampleRate_(0),
+          type_(type),
+          fileinfoChannel_(c, "text-file-info") {
     parser_     = new Parser(c, this);
     fileName_   = paramFileName(c);
     shiftInS_   = paramShift(c);

@@ -40,7 +40,7 @@ void FlacDecoder::stream_decoder_metadata_callback_(const FLAC__StreamDecoder* d
 }
 
 void FlacDecoder::stream_decoder_error_callback_(const FLAC__StreamDecoder* decoder_, FLAC__StreamDecoderErrorStatus status, void* clientData) {
-    //std::cout << "ERROR: error callback" << std::endl;
+    // std::cout << "ERROR: error callback" << std::endl;
     return;
 }
 
@@ -54,12 +54,12 @@ bool FlacDecoder::open(const char* fileName) {
     }
 
     if (!FLAC__stream_decoder_set_metadata_ignore_all(decoder_)) {
-        //std::cout << "stream_decoder_set_metadata_ignore_all FAILED" << std::endl;
+        // std::cout << "stream_decoder_set_metadata_ignore_all FAILED" << std::endl;
         return false;
     }
 
     if (!FLAC__stream_decoder_set_md5_checking(decoder_, false)) {
-        //std::cout << "stream_decoder_set_md5_checking FAILED" << std::endl;
+        // std::cout << "stream_decoder_set_md5_checking FAILED" << std::endl;
         return false;
     }
 
@@ -74,12 +74,12 @@ bool FlacDecoder::open(const char* fileName) {
 
     FLAC__StreamDecoderInitStatus status = FLAC__stream_decoder_init_FILE(decoder_, file_, stream_decoder_write_callback_, stream_decoder_metadata_callback_, stream_decoder_error_callback_, &clientData_);
     if (status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
-        //std::cout << "stream_decoder_init_FILE FAILED" << std::endl;
+        // std::cout << "stream_decoder_init_FILE FAILED" << std::endl;
         return false;
     }
 
     if (!FLAC__stream_decoder_seek_absolute(decoder_, 0)) {
-        //std::cout << "stream_decoder_seek_absolute FAILED" << std::endl;
+        // std::cout << "stream_decoder_seek_absolute FAILED" << std::endl;
         return false;
     }
 
@@ -88,7 +88,7 @@ bool FlacDecoder::open(const char* fileName) {
     clientData_.sampleRate    = FLAC__stream_decoder_get_sample_rate(decoder_);
 
     if (!FLAC__stream_decoder_process_until_end_of_metadata(decoder_)) {
-        //std::cout << "stream_decoder_process_until_end_of_metadata FAILED" << std::endl;
+        // std::cout << "stream_decoder_process_until_end_of_metadata FAILED" << std::endl;
         return false;
     }
 

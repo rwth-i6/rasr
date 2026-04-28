@@ -108,7 +108,8 @@ void StateTreeIo::write<StateTree::CoarticulationStructure::PhonemePair>(
 const std::string StateTreeIo::magic = "SPRINT-ST";
 
 StateTreeIo::StateTreeIo(Bliss::LexiconRef lexicon, Am::AcousticModelRef acousticModel)
-        : lexicon_(lexicon), acousticModel_(acousticModel) {
+        : lexicon_(lexicon),
+          acousticModel_(acousticModel) {
     getDependencies();
 }
 

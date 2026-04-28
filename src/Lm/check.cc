@@ -32,8 +32,6 @@
 #include <Flow/Module.hh>
 #include <Lm/Module.hh>
 #include <Math/Module.hh>
-#include <Mc/Module.hh>
-#include <Me/Module.hh>
 #include <Mm/Module.hh>
 #include <Nn/Module.hh>
 #include <Signal/Module.hh>
@@ -54,14 +52,12 @@ public:
             : Core::Application() {
         INIT_MODULE(Lm);
         INIT_MODULE(Mm);
-        INIT_MODULE(Mc);
         INIT_MODULE(Flf);
         INIT_MODULE(Flow);
         INIT_MODULE(Math);
         INIT_MODULE(Signal);
         INIT_MODULE(Speech);
         INIT_MODULE(Nn);
-        INIT_MODULE(Me);
 
         setTitle("check");
     }

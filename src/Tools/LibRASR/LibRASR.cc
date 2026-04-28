@@ -10,14 +10,14 @@
 #ifndef CMAKE_DISABLE_MODULES_HH
 #include <Modules.hh>
 #endif
-#include <Signal/Module.hh>
-#include <Speech/Module.hh>
 #ifdef MODULE_NN
 #include <Nn/Module.hh>
 #endif
 #ifdef MODULE_ONNX
 #include <Onnx/Module.hh>
 #endif
+#include <Signal/Module.hh>
+#include <Speech/Module.hh>
 #ifdef MODULE_TENSORFLOW
 #include <Tensorflow/Module.hh>
 #endif

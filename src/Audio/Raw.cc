@@ -31,7 +31,9 @@ const Core::ParameterInt RawSourceNode::paramTracks(
         "track-count", "number of tracks", 1, 1);
 
 RawSourceNode::RawSourceNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), SourceNode(c) {
+        : Core::Component(c),
+          Node(c),
+          SourceNode(c) {
     sampleRate_ = paramSampleRate(config);
     sampleSize_ = paramSampleSize(config);
     trackCount_ = paramTracks(config);
@@ -57,7 +59,9 @@ const Core::ParameterInt RawFileInputNode::paramOffset(
         "offset", "number of bytes to skip at start of file", 0, 0);
 
 RawFileInputNode::RawFileInputNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), RawSourceNode(c) {
+        : Core::Component(c),
+          Node(c),
+          RawSourceNode(c) {
     offset_ = paramOffset(c);
 }
 

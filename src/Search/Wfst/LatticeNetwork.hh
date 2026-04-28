@@ -49,7 +49,10 @@ class LatticeNetwork : public StaticNetwork {
 
 public:
     LatticeNetwork(const Core::Configuration& c)
-            : StaticNetwork(c), l_(0), g_(0), archive_(0) {}
+            : StaticNetwork(c),
+              l_(0),
+              g_(0),
+              archive_(0) {}
     virtual ~LatticeNetwork();
     virtual bool init();
     virtual void reset() {}

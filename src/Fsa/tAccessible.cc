@@ -22,7 +22,9 @@ namespace Ftl {
 
 template<class _Automaton>
 CoaccessibleDfsState<_Automaton>::CoaccessibleDfsState(_ConstAutomatonRef f)
-        : Precursor(f), time_(0), scc_(0) {}
+        : Precursor(f),
+          time_(0),
+          scc_(0) {}
 
 template<class _Automaton>
 void CoaccessibleDfsState<_Automaton>::discoverState(_ConstStateRef sp) {

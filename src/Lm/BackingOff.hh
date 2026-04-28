@@ -37,14 +37,15 @@ public:
     class Internal;
     class Node;
 
-private:
+    typedef std::unordered_set<Bliss::Token::Id> TokenSet;
+
+protected:
     static const Core::ParameterString paramImage;
     friend class Internal;
     Core::Ref<Internal> internal_;
     class Automaton;
     void logInitialization() const;
 
-protected:
     BackingOffLm(const Core::Configuration&, Bliss::LexiconRef);
 
     /**
@@ -90,50 +91,41 @@ protected:
 
 public:
     typedef Node HistoryDescriptor;
-    virtual void load();
+
     virtual ~BackingOffLm();
+    virtual void                   load();
+    virtual Fsa::ConstAutomatonRef getFsa() const;
     virtual History                startHistory() const;
     virtual Lm::Score              sentenceBeginScore() const;
     virtual History                extendedHistory(const History&, Token w) const;
     virtual History                reducedHistory(const History&, u32 limit) const;
+    virtual History                reduceHistoryByN(const History&, u32 n) const;
     virtual std::string            formatHistory(const History&) const;
     virtual Lm::Score              score(const History&, Token w) const;
     virtual void                   getBatch(const History&, const CompiledBatchRequest*,
                                             std::vector<f32>& result) const;
-    virtual Fsa::ConstAutomatonRef getFsa() const;
+    virtual bool                   fixedHistory(s32 limit) const;
+    virtual bool                   isSparse(const History& h) const;
+    virtual HistorySuccessors      getHistorySuccessors(const History& h) const;
+    virtual Score                  getBackOffScore(const History& h) const;
+
     /**
      * Writes all tokens stored in the given history into the given vector
      */
     void historyTokens(const History& history, const Bliss::Token** target, u32& size, u32 arraySize) const;
 
-    u32 historyLenght(const History& history) const;
-
-    struct WordScore {
-        Bliss::Token::Id token_;
-        Lm::Score        score_;
-
-    public:
-        Bliss::Token::Id token() const {
-            return token_;
-        }
-        Lm::Score score() const {
-            return score_;
-        }
-        struct Ordering {
-            bool operator()(const WordScore& a, const WordScore& b) const {
-                return (a.token() < b.token());
-            }
-        };
-    };
+    u32 historyLength(const History& history) const;
 
     struct BackOffScores {
         BackOffScores()
-                : start(0), end(0), backOffScore(0) {
+                : start(0),
+                  end(0),
+                  backOffScore(0) {
         }
         const WordScore* start;
         const WordScore* end;
 
-        //Back-off score offset that is applied to the lower-order back-off scores (not to these ones)
+        // Back-off score offset that is applied to the lower-order back-off scores (not to these ones)
         Score backOffScore;
     };
 
@@ -148,6 +140,13 @@ public:
      * With limit 1, returns the sum of the back-off offsets up to the _unigram_ level.
      * */
     Score getAccumulatedBackOffScore(const History& history, int limit) const;
+
+protected:
+    bool   mapOovToUnk_;
+    size_t staticSize_;
+
+    void             initTokenMapping(bool build = false);
+    Bliss::Token::Id reverseMapToken(Bliss::Token::Id tIdx) const;
 };
 
 }  // namespace Lm

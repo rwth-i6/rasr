@@ -83,9 +83,15 @@ public:
         Bliss::Phoneme::Id initial, final;
         ExtendedLabel() {}
         ExtendedLabel(Fsa::LabelId label, f32 length)
-                : label(label), length(length), initial(Boundary::Transit::InvalidId), final(Boundary::Transit::InvalidId) {}
+                : label(label),
+                  length(length),
+                  initial(Boundary::Transit::InvalidId),
+                  final(Boundary::Transit::InvalidId) {}
         ExtendedLabel(Fsa::LabelId label, f32 length, Bliss::Phoneme::Id initial, Bliss::Phoneme::Id final)
-                : label(label), length(length), initial(initial), final(final) {}
+                : label(label),
+                  length(length),
+                  initial(initial),
+                  final(final) {}
     };
     typedef Core::Vector<ExtendedLabel> Mapping;
 
@@ -107,7 +113,9 @@ protected:
 
 public:
     LabelMap(Fsa::ConstAlphabetRef from, Fsa::ConstAlphabetRef to)
-            : from(from), to(to), mappings(0) {}
+            : from(from),
+              to(to),
+              mappings(0) {}
     const Mapping& operator[](Fsa::LabelId label);
     u32            nMappings() const;
     const Mapping& identity() const {

@@ -12,7 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-//#warning change when ported to gcc-3
+// #warning change when ported to gcc-3
 #include "ConjugateGradient.hh"
 #include <algorithm>
 #include <cmath>

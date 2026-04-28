@@ -32,34 +32,6 @@ const Core::ParameterBool FeedForwardTrainer<T>::paramDoublePrecisionAccumulator
         "double-precision-accumulator", "use double precision for accumulated statistics", false);
 
 template<typename T>
-const Core::ParameterBool FeedForwardTrainer<T>::paramConvergenceCheck(
-        "convergence-check", "try to converge to minima", false);
-
-template<typename T>
-const Core::ParameterFloat FeedForwardTrainer<T>::paramConvergenceCheckLearningRateFactor(
-        "convergence-check-learning-rate-factor", "factor to multiply to learning-rate", 0.3);
-
-template<typename T>
-const Core::ParameterFloat FeedForwardTrainer<T>::paramConvergenceCheckGradNormLimit(
-        "convergence-check-grad-norm-limit", "limit for gradient", 0.000001);
-
-template<typename T>
-const Core::ParameterBool FeedForwardTrainer<T>::paramGradientCheck(
-        "gradient-check", "perform standard gradient check", false);
-
-template<typename T>
-const Core::ParameterFloat FeedForwardTrainer<T>::paramGradientCheckPerturbation(
-        "gradient-check-perturbation", "perturbation / step-size", Core::Type<T>::epsilon);
-
-template<typename T>
-const Core::ParameterInt FeedForwardTrainer<T>::paramGradientCheckPrecision(
-        "gradient-check-precision", "significant numbers for precision", 6);
-
-template<typename T>
-const Core::ParameterBool FeedForwardTrainer<T>::paramSimpleGradientCheck(
-        "simple-gradient-check", "gradient check into direction of -grad", false);
-
-template<typename T>
 const Core::ParameterBool FeedForwardTrainer<T>::paramNormalizeByNOfObservations(
         "normalize-by-num-observations", "normalize by number of observations", true);
 
@@ -79,13 +51,6 @@ FeedForwardTrainer<T>::FeedForwardTrainer(const Core::Configuration& c)
           useDoublePrecisionAccumulator_(paramDoublePrecisionAccumulator(c)),
           statistics_(0),
           doublePrecisionStatistics_(0),
-          convergenceCheck_(paramConvergenceCheck(c)),
-          convergenceCheckLearningRateFactor_(paramConvergenceCheckLearningRateFactor(c)),
-          convergenceCheckGradNormLimit_(paramConvergenceCheckGradNormLimit(c)),
-          gradientCheck_(paramGradientCheck(c)),
-          gradientCheckPerturbation_(paramGradientCheckPerturbation(c)),
-          gradientCheckPrecision_(paramGradientCheckPrecision(c)),
-          simpleGradientCheck_(paramSimpleGradientCheck(c)),
           normalizeByNOfObservations_(paramNormalizeByNOfObservations(c)),
           errorSignalClip_(paramErrorSignalClip(c)),
           logFrameEntropy_(paramLogFrameEntropy(c)),
@@ -371,12 +336,6 @@ start:
         }
     }
 
-    if (gradientCheck_) {
-        // Check every gradient component by a simple numerical
-        // gradient approximation into that direction.
-        gradientCheck();
-    }
-
     // update (only if has gradient)
     if (statistics_->hasGradient() && !estimator().fullBatchMode()) {
         if (minibatchCount_ % estimator().accumulateMultipleBatches() == 0) {
@@ -387,24 +346,6 @@ start:
             estimator().estimate(network(), statistics());
             TIMER_GPU_STOP_SUM2(start, end, this->measureTime_, timeEstimationBatch_, timeEstimation_);
         }
-    }
-
-    if (simpleGradientCheck_ || convergenceCheck_) {
-        // Forward again with new parameters, after the estimate.
-        // Use already set features.
-        network().forwardLayers();
-    }
-
-    if (simpleGradientCheck_) {
-        // Make a simple numerical gradient approximation
-        // into the direction of the estimator step.
-        simpleGradientCheck(error);
-    }
-
-    if (convergenceCheck_) {
-        require(!normalizeByNOfObservations_);  // otherwise the stat.finalize-call above breaks it
-        if (convergenceCheckRepeat(error, errorSignal))
-            goto start;
     }
 
     if (doublePrecisionStatistics_ && estimator().fullBatchMode())

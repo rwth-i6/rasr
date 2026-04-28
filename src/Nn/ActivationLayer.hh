@@ -83,7 +83,8 @@ private:
 protected:
     static const Core::ParameterFloat paramScaleGamma;
     static const Core::ParameterBool  paramLogOutput;
-    T                                 getGamma() const {
+
+    T getGamma() const {
         return gamma_;
     }
 

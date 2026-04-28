@@ -31,7 +31,8 @@ public:
         return std::string("generic-vector-") + Core::Type<T>::name + "-sum";
     }
     VectorSumNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~VectorSumNode() {}
 
     /**

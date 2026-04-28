@@ -152,6 +152,6 @@ public:
     virtual void performSearch(Fsa::ConstAutomatonRef fsa);
 };
 
-}  //end namespace Search
+}  // end namespace Search
 
 #endif  //_SEARCH_MINIMUM_BAYES_RISK_SEARCH_HH

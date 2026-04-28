@@ -38,7 +38,8 @@ private:
 
 public:
     SlidingAlgorithmNode(const Core::Configuration& c)
-            : Component(c), SleeveNode(c) {}
+            : Component(c),
+              SleeveNode(c) {}
     virtual ~SlidingAlgorithmNode() {}
 
     /** Feeds new data into the Algorithm and reads data out of the Algorithm if existant.
@@ -63,8 +64,12 @@ bool SlidingAlgorithmNode<Algorithm>::work(Flow::PortId p) {
     while (!Algorithm::get(*out)) {
         if (!getData(0, in)) {
             if (in == Flow::Data::eos()) {
-                if (Algorithm::flush(*out))
+                if (Algorithm::flush(*out)) {
                     return putData(0, out.get());
+                }
+            }
+            else if (in == Flow::Data::ood()) {
+                return putOod(p);
             }
             return putData(0, in.get());
         }

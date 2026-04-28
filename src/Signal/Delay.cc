@@ -141,14 +141,19 @@ bool DelayNode::work(Flow::PortId port) {
     Flow::DataPtr<Flow::Data> i;
     while (getData(0, i)) {
         add(i);
-        if (marginCondition_->isSatisfied())
+        if (marginCondition_->isSatisfied()) {
             return putData();
+        }
+    }
+    if (i == Flow::Data::ood()) {
+        return putData(i);
     }
     if (i == Flow::Data::eos()) {
         while (!empty()) {
             flush();
-            if (marginCondition_->isSatisfied())
+            if (marginCondition_->isSatisfied()) {
                 return putData();
+            }
         }
     }
     return putData(i);

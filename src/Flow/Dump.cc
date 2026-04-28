@@ -36,7 +36,7 @@ DumpNode::~DumpNode() {
 void DumpNode::open(const std::string& filename) {
     if (!filename.empty()) {
         close();
-        //strip of the dirname part and create directory
+        // strip of the dirname part and create directory
         if (!Core::createDirectory(Core::directoryName(filename)))
             warning("Could not create directory for dump file '%s'.", filename.c_str());
         f_.open(filename);

@@ -114,6 +114,6 @@ public:
                                                                        EmissionIndex e, std::vector<Mm::Weight>& result) const;
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_GAUSS_DIAGONAL_MAXIMUM_FEATURE_SCORER_HH

@@ -46,21 +46,28 @@ protected:
 public:
     ComposedNetwork(const Core::Configuration&);
     virtual ~ComposedNetwork();
+
     virtual bool init();
-    virtual u32  nStates() const {
+
+    virtual u32 nStates() const {
         return 0;
     }
+
     static bool hasGrammarState() {
         return true;
     }
+
     StateIndex grammarState(StateIndex s) const {
         return stateTable_->rightState(s);
     }
+
     StateIndex lexiconState(StateIndex s) const {
         return stateTable_->leftState(s);
     }
+
     virtual void reset();
-    void         setLexicon(Bliss::LexiconRef lexicon) {
+
+    void setLexicon(Bliss::LexiconRef lexicon) {
         lexicon_ = lexicon;
     }
 

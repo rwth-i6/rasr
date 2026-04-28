@@ -87,7 +87,8 @@ private:
 
 public:
     ArcWeightAccumulator(Fsa::ConstAutomatonRef f, std::unordered_map<Fsa::LabelId, f32>* sums)
-            : Fsa::DfsState(f), Sums_(sums) {
+            : Fsa::DfsState(f),
+              Sums_(sums) {
         dfs();
     }
     virtual ~ArcWeightAccumulator() {}

@@ -51,8 +51,8 @@ struct PrefixTreeSymbolTraits<const char*> {
 };
 
 /**
-     * Prefix tree class template.
-     */
+ * Prefix tree class template.
+ */
 
 template<class S, class I, class K = typename Core::identity<I>, class T = PrefixTreeSymbolTraits<S>>
 class PrefixTree {

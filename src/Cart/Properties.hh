@@ -271,7 +271,8 @@ public:
 
     struct PtrHashFcn {
         HashFcn hasher;
-        size_t  operator()(const Properties* const props) const {
+
+        size_t operator()(const Properties* const props) const {
             return hasher(*props);
         }
     };

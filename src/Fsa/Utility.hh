@@ -62,7 +62,7 @@ private:
             for (; (*i1 != InvalidLabelId) && (*i1 == *i2); ++i1, ++i2)
                 ;
             if (*i1 == *i2)
-                return true;  //check for different length
+                return true;  // check for different length
             return false;
         }
     };

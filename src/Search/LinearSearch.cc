@@ -35,10 +35,12 @@ LinearSearch::Pronunciation::Pronunciation(const Bliss::LemmaPronunciation* cons
     const Am::Phonology&        phonology = *(acousticModel->phonology());
     isRegularWord_                        = isRegularWordPrivate();
 
+    verify(acousticModel->silence() != Bliss::Phoneme::invalidId);
+
     for (u32 a = 0; a < pron->length(); a++) {
         const Am::Allophone* allo = 0;
 
-        ///Get the allophone:
+        /// Get the allophone:
         {
             u16 bound = 0;
             if (a == 0)
@@ -95,12 +97,12 @@ bool LinearSearch::Pronunciation::isRegularWordPrivate() const {
         return false;
 }
 
-//check if it's really necessary to keep this reference-counted
+// check if it's really necessary to keep this reference-counted
 class WordPronunciationState : public Core::ReferenceCounted {
     typedef LinearSearch::Book Book;
 
 public:
-    ///What Hyp[wrd][sta] used to be on the papers
+    /// What Hyp[wrd][sta] used to be on the papers
     struct Hypo { /*This includes lmScore, so the real score is "score - lmScore" */
         Score                                     score;
         Score                                     lmScore;
@@ -110,7 +112,10 @@ public:
     typedef std::vector<Hypo> HypoVector;
 
     WordPronunciationState(const Bliss::LemmaPronunciation* const lemma, const Am::AcousticModel* const acousticModel, Score unigramScore)
-            : pron_(new LinearSearch::Pronunciation(lemma, acousticModel)), position_(0), unigramScore_(unigramScore), irregularChain_(false) {
+            : pron_(new LinearSearch::Pronunciation(lemma, acousticModel)),
+              position_(0),
+              unigramScore_(unigramScore),
+              irregularChain_(false) {
         hyp_.resize(pron_->nMixtures() + 1);
         HypoVector::iterator it = hyp_.begin();
         it->mixture             = 0;
@@ -139,7 +144,6 @@ public:
 
     void restart() {
         for (HypoVector::iterator it = hyp_.begin(); it != hyp_.end(); ++it) {
-            //it->
             it->score   = Core::Type<Score>::max;
             it->lmScore = 0;
             it->bkp     = 0;
@@ -181,11 +185,14 @@ private:
     LinearSearch::Pronunciation* pron_;
     u32                          position_;
     Score                        unigramScore_;
-    bool                         irregularChain_;  //Whether this state should be used for chains of irregular words
+    bool                         irregularChain_;  // Whether this state should be used for chains of irregular words
 };
 
 LinearSearch::LinearSearch(const Core::Configuration& conf)
-        : Core::Component(conf), SearchAlgorithm(conf), singleWordRecognition_(paramSingleWordRecognition_(conf)), time_(0) {
+        : Core::Component(conf),
+          SearchAlgorithm(conf),
+          singleWordRecognition_(paramSingleWordRecognition_(conf)),
+          time_(0) {
     log("using linear search");
     if (singleWordRecognition_)
         log("using new single-word-recognition");
@@ -199,7 +206,6 @@ bool LinearSearch::setModelCombination(const Speech::ModelCombination& modelComb
     acousticModel_      = modelCombination.acousticModel();
     lm_                 = modelCombination.languageModel();
     pronunciationScale_ = modelCombination.pronunciationScale();
-    lmLookahead_        = 0;
 
     std::pair<Bliss::Lexicon::LemmaPronunciationIterator, Bliss::Lexicon::LemmaPronunciationIterator> pronunciations = lexicon_->lemmaPronunciations();
     addPronunciations(pronunciations);
@@ -231,7 +237,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
     ++time_;
     WordPronunciationState::HypoVector hypTmp;
 
-    //emissionScores represents the scorer for only one single mixture/state
+    // emissionScores represents the scorer for only one single mixture/state
     u32 wordNumber = 0;
 
     for (WordPronunciationStateVector::iterator it = state_.begin(); it != state_.end(); ++it, ++wordNumber) {
@@ -249,7 +255,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
         verify((*it)->pronunciation()->lemma()->lemma() != silence_ || !(*it)->pronunciation()->isRegularWord());
 
         if ((singleWordRecognition_ && last && last->hadRegularWord && (*it)->pronunciation()->isRegularWord()) || (*it)->irregularChain()) {
-            //Only irregular words are allowed before this one
+            // Only irregular words are allowed before this one
             if (irregularBook_.empty()) {
                 last = 0;
             }
@@ -269,7 +275,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
                 localLmScore = (*it)->unigramScore();
             }
             else {
-                ///Bigram
+                /// Bigram
                 Lm::History h(lm_->startHistory());
                 Lm::extendHistoryByLemmaPronunciation(lm_, last->word->pronunciation()->lemma(), h);
                 Lm::addLemmaPronunciationScore(lm_, pron->lemma(), pronunciationScale_, lm_->scale(), h, localLmScore);
@@ -284,7 +290,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
             hyp[0].lmScore = localLmScore;
             hyp[0].score   = 0;
         }
-        hyp[0].score += hyp[0].lmScore;  //The complete lm-score must be added, because last is of type Book, and in Book "lmScore" is not included in "score"
+        hyp[0].score += hyp[0].lmScore;  // The complete lm-score must be added, because last is of type Book, and in Book "lmScore" is not included in "score"
 
         hyp[0].mixture = 0;
 #if defined SEARCH_DEBUG
@@ -312,7 +318,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
                     m = hyp[pre].mixture->stateTransitionModel;
                 }
                 else {
-                    m = acousticModel_->stateTransition(Am::TransitionModel::entryM1);  //This is the first real state, so we use the StateTransitionModel entryM1
+                    m = acousticModel_->stateTransition(Am::TransitionModel::entryM1);  // This is the first real state, so we use the StateTransitionModel entryM1
                 }
 
                 scoTmp += (*m)[sta - pre];
@@ -337,7 +343,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
             hyp[sta].score   = hypTmp[sta].score + emissionScores->score(hyp[sta].mixture->mixture);
             hyp[sta].lmScore = hypTmp[sta].lmScore;
 #if defined SEARCH_DEBUG
-            //DEBUG
+            // DEBUG
             std::cout << "tmpHyp[" << sta << "] = " << hyp[sta].score << " | transition: " << buffer[sta] << " local score: "
                       << emissionScores->score(hyp[sta].mixture->mixture)
                       << " lmScore " << hyp[sta].lmScore
@@ -357,7 +363,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
         book_.pop_back();
 
     if (singleWordRecognition_) {
-        //When single-word recognition is enabled it is also neccessary to keep track of irregular-book-keeping
+        // When single-word recognition is enabled it is also neccessary to keep track of irregular-book-keeping
         irregularBook_.push_back(Book());
 
         Book& newBook(irregularBook_.back());
@@ -372,7 +378,7 @@ void LinearSearch::feed(const Mm::FeatureScorer::Scorer& emissionScores) {
     }
 }
 
-void        LinearSearch::bookKeeping(Book& newBook, bool irregular) {
+void LinearSearch::bookKeeping(Book& newBook, bool irregular) {
 #if defined SEARCH_DEBUG
     // DEBUG
     u32   wordNumber = 0;
@@ -385,10 +391,10 @@ void        LinearSearch::bookKeeping(Book& newBook, bool irregular) {
         verify(!p->hyp().empty());
         WordPronunciationState::Hypo& hyp = p->hyp().back();
         if (irregular && p->pronunciation()->isRegularWord()) {
-            continue;  //Drop regular words when only irregular are wanted
+            continue;  // Drop regular words when only irregular are wanted
         }
         if (irregular && hyp.bkp && hyp.bkp->hadRegularWord) {
-            continue;  //Drop hypotheses whose histories contain regular words when only irregular are wanted
+            continue;  // Drop hypotheses whose histories contain regular words when only irregular are wanted
         }
 
         Score tmpScore = hyp.score;
@@ -426,7 +432,7 @@ void        LinearSearch::bookKeeping(Book& newBook, bool irregular) {
 }
 
 bool LinearSearch::isUnigram() const {
-    return true;  //false; //Always return false, because the score-precomputation doesn't work correctly
+    return true;  // false; //Always return false, because the score-precomputation doesn't work correctly
 }
 
 void LinearSearch::getCurrentBestSentence(Traceback& result) const {
@@ -461,6 +467,10 @@ void LinearSearch::getCurrentBestSentence(Traceback& result) const {
     std::reverse(result.begin(), result.end());
 }
 
+void LinearSearch::getCurrentBestTrace(Traceback& result) const {  // jiang
+    defect();
+}
+
 void LinearSearch::getPartialSentence(Traceback& result) {
     getCurrentBestSentence(result);
     restart();
@@ -475,7 +485,11 @@ void LinearSearch::resetStatistics() {}
 void LinearSearch::logStatistics() const {}
 
 LinearSearch::Book::Book()
-        : score(Core::Type<Score>::max), lmScore(0), hadRegularWord(false), bkp(0), time(0) {
+        : score(Core::Type<Score>::max),
+          lmScore(0),
+          hadRegularWord(false),
+          bkp(0),
+          time(0) {
 }
 
 LinearSearch::Book::~Book() {
@@ -495,7 +509,7 @@ LinearSearchHistoryData LinearSearch::addPronunciations(std::pair<IteratorType, 
         state_.push_back(p);
         ret.states.push_back(p);
         if (singleWordRecognition_ && !p->pronunciation()->isRegularWord()) {
-            //Add an additional state that is necessary for tracking the probability of chains of irregular words
+            // Add an additional state that is necessary for tracking the probability of chains of irregular words
             WordPronunciationStatePointer p2(new WordPronunciationState(*pronunciations.first, acousticModel_.get(), unigramScore));
             p2->setIrregularChain();
             state_.push_back(p2);
@@ -508,7 +522,7 @@ LinearSearchHistoryData LinearSearch::addPronunciations(std::pair<IteratorType, 
 
 bool LinearSearch::removePronunciations(const LinearSearchHistoryData& data) {
     for (std::list<WordPronunciationStatePointer>::const_iterator it = data.states.begin(); it != data.states.end(); ++it) {
-        ///Make more efficient
+        /// Make more efficient
         for (WordPronunciationStateVector::iterator it2 = state_.begin(); it2 != state_.end(); ++it2) {
             if (*it == *it2) {
                 state_.erase(it2);

@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef SEARCH_LATTICE_ADAPTOR_HH
-#define SEARCH_LATTICE_ADAPTOR_HH
+#ifndef SEARCH_LATTICEADAPTOR_HH
+#define SEARCH_LATTICEADAPTOR_HH
 
 #include <Lattice/Lattice.hh>
 
@@ -50,4 +50,4 @@ protected:
 
 }  // namespace Search
 
-#endif /* LATTICEADAPTOR_HH_ */
+#endif  // SEARCH_LATTICEADAPTOR_HH

@@ -177,103 +177,14 @@ void MeanAndVarianceNormalizationPreprocessingLayer<T>::loadNetworkParameters(co
 }
 
 /*===========================================================================*/
-/**
- *
- *  compute polynomial features
- *
- */
-template<typename T>
-const Core::ParameterInt PolynomialPreprocessingLayer<T>::paramOrder(
-        "order", "polynomial order", 1);
-
-template<typename T>
-PolynomialPreprocessingLayer<T>::PolynomialPreprocessingLayer(const Core::Configuration& c)
-        : Core::Component(c),
-          NeuralNetworkLayer<T>(c),
-          order_(paramOrder(c)) {
-    this->log("creating polynomial feature extraction layer with order: ") << order_;
-    u32 outputDimension = Precursor::inputDimensions_[0];
-    if (order_ > 1)
-        outputDimension += Precursor::inputDimensions_[0] * (Precursor::inputDimensions_[0] + 1) / 2;
-    if (order_ > 2)
-        outputDimension += Precursor::inputDimensions_[0] * (Precursor::inputDimensions_[0] + 1) * (Precursor::inputDimensions_[0] + 2) / 6;
-    if (order_ > 3)
-        this->error("only order up to three implemented yet!");
-
-    if (Precursor::outputDimension_ != outputDimension) {
-        this->log("resizing output of polynomial layer to ") << outputDimension;
-        Precursor::outputDimension_ = outputDimension;
-    }
-}
-
-template<typename T>
-void PolynomialPreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
-    if (order_ == 1)
-        output.copy(input);
-    if (order_ == 2)
-        output.setToSecondOrderFeatures(input);
-    if (order_ == 3)
-        output.setToThirdOrderFeatures(input);
-}
-
-template<typename T>
-void PolynomialPreprocessingLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& output) {
-    // one stream only
-    require_eq(input.size(), 1u);
-    require_eq(input[0]->nColumns(), output.nColumns());
-
-    _forward(*(input[0]), output);
-}
-
-/*===========================================================================*/
-/**
- *
- *  add gaussian noise to the input
- *
- */
-template<typename T>
-const Core::ParameterFloat GaussianNoisePreprocessingLayer<T>::paramStandardDeviation(
-        "standard-deviation", "standard deviation", 1.0);
-
-template<typename T>
-GaussianNoisePreprocessingLayer<T>::GaussianNoisePreprocessingLayer(const Core::Configuration& c)
-        : Core::Component(c),
-          NeuralNetworkLayer<T>(c),
-          standardDeviation_(paramStandardDeviation(c)) {
-    this->log("creating gaussian noise layer with standard deviation: ") << standardDeviation_;
-}
-
-template<typename T>
-void GaussianNoisePreprocessingLayer<T>::_forward(const NnMatrix& input, NnMatrix& output) {
-    if (&input != &output) {
-        output.copy(input);
-    }
-    output.addGaussianNoise(standardDeviation_);
-}
-
-template<typename T>
-void GaussianNoisePreprocessingLayer<T>::forward(const std::vector<NnMatrix*>& input, NnMatrix& output) {
-    // one stream only
-    require_eq(input.size(), 1u);
-    require_eq(input[0]->nColumns(), output.nColumns());
-    require_eq(input[0]->nRows(), output.nRows());
-
-    _forward(*(input[0]), output);
-}
-
-/*===========================================================================*/
 namespace Nn {
 
 // (explicit) template instantiation for type f32
 template class LogarithmPreprocessingLayer<f32>;
 template class MeanAndVarianceNormalizationPreprocessingLayer<f32>;
-template class PolynomialPreprocessingLayer<f32>;
-template class GaussianNoisePreprocessingLayer<f32>;
 
 // (explicit) template instantiation for type f64
 template class LogarithmPreprocessingLayer<f64>;
 template class MeanAndVarianceNormalizationPreprocessingLayer<f64>;
-template class PolynomialPreprocessingLayer<f64>;
-template class GaussianNoisePreprocessingLayer<f64>;
 
 }  // namespace Nn

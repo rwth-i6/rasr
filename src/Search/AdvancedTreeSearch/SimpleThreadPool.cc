@@ -32,7 +32,9 @@ public:
 };
 
 SimpleThreadPool::Thread::Thread()
-        : job_(0), jobReady_(false), waiting_(false) {
+        : job_(0),
+          jobReady_(false),
+          waiting_(false) {
 }
 
 void SimpleThreadPool::Thread::stopThread() {

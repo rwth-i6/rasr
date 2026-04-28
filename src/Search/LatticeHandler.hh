@@ -12,8 +12,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-#ifndef _SEARCH_LATTICEHANDLER_HH
-#define _SEARCH_LATTICEHANDLER_HH
+#ifndef SEARCH_LATTICEHANDLER_HH
+#define SEARCH_LATTICEHANDLER_HH
 
 #include <Bliss/Lexicon.hh>
 #include <Core/Component.hh>
@@ -55,9 +55,11 @@ protected:
     typedef Lattice::ConstWordLatticeRef     ConstWordLatticeRef;
 
 public:
-    enum LatticeFormat { formatDefault,
-                         formatFlf,
-                         formatOpenFst };
+    enum LatticeFormat {
+        formatDefault,
+        formatFlf,
+        formatOpenFst
+    };
 
     LatticeHandler(const Core::Configuration& c)
             : Core::Component(c),
@@ -103,4 +105,4 @@ private:
 
 }  // namespace Search
 
-#endif  // _SEARCH_LATTICEHANDLER_HH
+#endif  // SEARCH_LATTICEHANDLER_HH

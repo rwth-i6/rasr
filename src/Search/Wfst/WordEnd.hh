@@ -23,8 +23,10 @@ namespace Wfst {
 
 class WordEndDetector {
 public:
-    enum WordEndType { WordEndHmm,
-                       WordEndOutput };
+    enum WordEndType {
+        WordEndHmm,
+        WordEndOutput
+    };
 
     WordEndDetector()
             : wordEndType_(WordEndHmm) {}

@@ -135,7 +135,9 @@ Core::ParameterInt SegmentwiseFormantExtractionNode::paramStep("step", "devide f
 Core::ParameterInt SegmentwiseFormantExtractionNode::paramMaxFrequency("max-frequency", "frequency range to search", 5000, 0);
 
 SegmentwiseFormantExtractionNode::SegmentwiseFormantExtractionNode(const Core::Configuration& c)
-        : Core::Component(c), SleeveNode(c), SegmentwiseFormantExtraction(c) {
+        : Core::Component(c),
+          SleeveNode(c),
+          SegmentwiseFormantExtraction(c) {
     setOrder(paramOrder(c));
     setMaxNumberOfSegments(paramMaxNumberOfSegments(c));
     setStep(paramStep(c));

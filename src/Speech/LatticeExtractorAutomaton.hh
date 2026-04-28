@@ -78,8 +78,8 @@ public:
             sp->weight_ = semiring()->one();
         for (Fsa::State::iterator a = sp->begin(); a != sp->end(); ++a) {
             const Key              key(a->input(),
-                          (*wordBoundaries_)[sp->id()],
-                          (*wordBoundaries_)[fsa_->getState(a->target())->id()]);
+                                       (*wordBoundaries_)[sp->id()],
+                                       (*wordBoundaries_)[fsa_->getState(a->target())->id()]);
             Scores::const_iterator it = cache_.find(key.str);
             if (it == cache_.end())
                 cache_.insert(std::make_pair(key.str, score(sp->id(), *a)));

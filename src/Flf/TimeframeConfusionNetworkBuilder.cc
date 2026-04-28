@@ -94,7 +94,11 @@ public:
             PosteriorCn&     cn,
             ConstLatticeRef  l,
             const ArcScores& arcScores)
-            : TraverseState(l), arcScores_(arcScores), cn_(cn), begin_(Core::Type<Time>::max), end_(0) {
+            : TraverseState(l),
+              arcScores_(arcScores),
+              cn_(cn),
+              begin_(Core::Type<Time>::max),
+              end_(0) {
         if (!l->getBoundaries()->valid())
             Core::Application::us()->criticalError("FramewiseCollector: Lattice \"%s\" has no time boundaries", l->describe().c_str());
         traverse();
@@ -150,7 +154,8 @@ public:
         State::const_iterator itArc;
         ScoreId               id;
         const_iterator(State::const_iterator itArc, ScoreId id)
-                : itArc(itArc), id(id) {}
+                : itArc(itArc),
+                  id(id) {}
         void operator++() {
             ++itArc;
         }
@@ -171,7 +176,8 @@ private:
 
 public:
     PrecalculatedArcScores(ConstLatticeRef l, ScoreId id)
-            : l_(l), id_(id) {}
+            : l_(l),
+              id_(id) {}
     std::pair<const_iterator, const_iterator>
             operator()(Fsa::StateId sid) const {
         ConstStateRef sr = l_->getState(sid);
@@ -231,7 +237,8 @@ private:
 
 public:
     FramePosteriorCnBuilderNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), n_(0) {}
+            : Node(name, config),
+              n_(0) {}
     virtual ~FramePosteriorCnBuilderNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {

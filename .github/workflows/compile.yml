@@ -1,0 +1,28 @@
+name: compile
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+permissions:
+  contents: read
+  packages: read
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/rwth-i6/rasr:build
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: "rasr"
+    - name: Compile RASR
+      run: |
+        cd rasr
+        ./apptainer/2025-04-23_tensorflow-2.17_onnx-1.20_v2/setup_makefiles.sh
+        make -j4

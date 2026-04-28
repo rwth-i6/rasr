@@ -62,7 +62,8 @@ private:
 
 public:
     IsInvalidArc(Fsa::ConstSemiringRef sr)
-            : invalid_(sr->invalid()), zero_(sr->zero()) {}
+            : invalid_(sr->invalid()),
+              zero_(sr->zero()) {}
     bool operator()(const Fsa::Arc& a) {
         return (a.weight() == invalid_) or (a.weight() == zero_);
     }

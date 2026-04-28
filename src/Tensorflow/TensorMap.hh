@@ -82,7 +82,10 @@ typedef TensorMap<TensorOutputInfo> TensorOutputMap;
 // ---------- TensorInfo ----------
 
 inline TensorInfo::TensorInfo(Core::Configuration const& config)
-        : Precursor(config), param_name_(paramParamName(config)), tensor_name_(paramTensorName(config)), seq_length_tensor_name_(paramSeqLengthTensorName(config)) {
+        : Precursor(config),
+          param_name_(paramParamName(config)),
+          tensor_name_(paramTensorName(config)),
+          seq_length_tensor_name_(paramSeqLengthTensorName(config)) {
 }
 
 inline std::string const& TensorInfo::param_name() const {

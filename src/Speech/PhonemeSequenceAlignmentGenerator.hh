@@ -42,7 +42,11 @@ public:
         Key() {}
         Key(const Bliss::Coarticulated<Bliss::LemmaPronunciation>& p,
             TimeframeIndex tbeg, TimeframeIndex tend)
-                : _id(p.object().id()), _tbeg(tbeg), _tend(tend), _leftContext(p.leftContext()), _rightContext(p.rightContext()) {}
+                : _id(p.object().id()),
+                  _tbeg(tbeg),
+                  _tend(tend),
+                  _leftContext(p.leftContext()),
+                  _rightContext(p.rightContext()) {}
         std::string string() const {
             return Core::form("%d|%d|%d|%d|%d", _id, _tbeg, _tend, _leftContext, _rightContext);
         }
@@ -64,7 +68,7 @@ public:
         }
     };
 
-    struct KeyEquality : std::binary_function<const char*, const char*, bool> {
+    struct KeyEquality {
         bool operator()(const Key& k1, const Key& k2) const {
             return (k1 == k2);
         }
@@ -155,7 +159,8 @@ public:
                                   TimeframeIndex tbeg, TimeframeIndex tend);
     const Alignment* getAlignment(const Bliss::Coarticulated<Bliss::LemmaPronunciation>&,
                                   TimeframeIndex tbeg, TimeframeIndex tend);
-    void             useAlignmentCache(bool use) {
+
+    void useAlignmentCache(bool use) {
         useAlignmentCache_ = use;
     }
 

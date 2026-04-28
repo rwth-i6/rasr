@@ -47,7 +47,10 @@ struct Arc {
 
     Arc(Fsa::StateId target, Weight weight, Fsa::LabelId input,
         Fsa::LabelId output)
-            : target_(target), weight_(weight), input_(input), output_(output) {}
+            : target_(target),
+              weight_(weight),
+              input_(input),
+              output_(output) {}
 
     ~Arc() {}
 
@@ -133,7 +136,8 @@ private:
 
 public:
     ArrayArcContainer()
-            : arcs_(0), nArcs_(0) {}
+            : arcs_(0),
+              nArcs_(0) {}
     ArrayArcContainer(const ArrayArcContainer<_Arc>&);
     ~ArrayArcContainer() {
         clear();
@@ -231,7 +235,9 @@ public:
     ~State() {}
 
     State(const Self& o)
-            : idAndTags_(o.idAndTags_), arcs_(o.arcs_), weight_(o.weight_) {}
+            : idAndTags_(o.idAndTags_),
+              arcs_(o.arcs_),
+              weight_(o.weight_) {}
 
     template<template<typename> class _OtherArcContainer>
     State(const State<_Arc, _OtherArcContainer>& o)
@@ -405,7 +411,8 @@ protected:
 
 protected:
     Automaton()
-            : knownProperties_(0), properties_(0) {
+            : knownProperties_(0),
+              properties_(0) {
     }
 
     virtual void copyProperties(ConstRef      f,
@@ -512,7 +519,8 @@ public:
      *    if the automaton provides no input alphabet
      **/
     virtual Fsa::ConstAlphabetRef getInputAlphabet() const = 0;
-    Fsa::ConstAlphabetRef         inputAlphabet() const {
+
+    Fsa::ConstAlphabetRef inputAlphabet() const {
         return getInputAlphabet();
     }
 
@@ -707,7 +715,8 @@ protected:
 
 public:
     ModifyAutomaton(_ConstAutomatonRef f)
-            : Precursor(f), lastState_(new _State()) {
+            : Precursor(f),
+              lastState_(new _State()) {
         this->setProperties(Fsa::PropertyStorage | Fsa::PropertyCached, 0);
     }
     virtual void           modifyState(_State* sp) const = 0;

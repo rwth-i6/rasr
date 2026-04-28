@@ -43,7 +43,8 @@ private:
 
 public:
     TopologicalOrderQueue(const WeakTopologicalOrder& weakOrder)
-            : Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
+            : Precursor(weakOrder),
+              topologicalOrder_(weakOrder.topologicalOrder) {}
     ConstStateMapRef getTopologicalOrder() const {
         return topologicalOrder_;
     }
@@ -74,7 +75,8 @@ private:
 
 public:
     ReverseTopologicalOrderQueue(const WeakReverseTopologicalOrder& weakOrder)
-            : Precursor(weakOrder), topologicalOrder_(weakOrder.topologicalOrder) {}
+            : Precursor(weakOrder),
+              topologicalOrder_(weakOrder.topologicalOrder) {}
     ConstStateMapRef getTopologicalOrder() const {
         return topologicalOrder_;
     }

@@ -35,7 +35,9 @@ struct NodeCreator {
     NodeCreatorFcn    f;
     // old, deprecated
     NodeCreator(const std::string& name, const std::string& desc, NodeCreatorFcn f)
-            : name(name), generalDesc(desc), f(f) {
+            : name(name),
+              generalDesc(desc),
+              f(f) {
         require(f);
     }
     // new
@@ -44,7 +46,11 @@ struct NodeCreator {
                 const std::string& configDesc,
                 const std::string& portDesc,
                 NodeCreatorFcn     f)
-            : name(name), generalDesc(generalDesc), configDesc(configDesc), portDesc(portDesc), f(f) {
+            : name(name),
+              generalDesc(generalDesc),
+              configDesc(configDesc),
+              portDesc(portDesc),
+              f(f) {
         require(f);
     }
     NodeRef operator()(const std::string& name, const Core::Configuration& config) {

@@ -126,6 +126,6 @@ public:
     bool write();
 };
 
-}  //namespace Signal
+}  // namespace Signal
 
 #endif  // _SIGNAL_SCATTER_TRANSFORM_HH

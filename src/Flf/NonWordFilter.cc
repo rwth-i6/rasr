@@ -36,7 +36,9 @@ struct Hyp {
     Fsa::StateId          bptr;
     State::const_iterator a;
     Hyp()
-            : visited(false), score(Semiring::Max), bptr(Fsa::InvalidStateId) {}
+            : visited(false),
+              score(Semiring::Max),
+              bptr(Fsa::InvalidStateId) {}
 };
 typedef Core::Vector<Hyp>          HypList;
 typedef Core::Vector<Fsa::StateId> StateIdList;

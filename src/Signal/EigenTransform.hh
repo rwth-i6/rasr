@@ -136,6 +136,6 @@ public:
     bool work();
 };
 
-}  //namespace Signal
+}  // namespace Signal
 
 #endif  // _SIGNAL_EIGEN_TRANSFORM_HH

@@ -22,7 +22,8 @@ using namespace Core;
 // class BinaryOutputStream
 
 BinaryStreamIos::BinaryStreamIos(Endianess endianess)
-        : ios_(0), fstream_(0) {
+        : ios_(0),
+          fstream_(0) {
     ios_ = fstream_ = new std::fstream;
     setEndianess(endianess);
 }
@@ -36,7 +37,8 @@ BinaryStreamIos::BinaryStreamIos(std::ios& i, Endianess endianess)
 BinaryStreamIos::BinaryStreamIos(const std::string&      fileName,
                                  std::ios_base::openmode mode,
                                  Endianess               endianess)
-        : ios_(0), fstream_(0) {
+        : ios_(0),
+          fstream_(0) {
     mode |= std::ios::binary;
     fstream_ = new std::fstream(fileName.c_str(), mode);
     ios_     = fstream_;

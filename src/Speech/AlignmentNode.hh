@@ -18,9 +18,6 @@
 #include <Core/Archive.hh>
 #include <Lattice/Lattice.hh>
 #include <Search/Aligner.hh>
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-#include <Search/GenericSeq2SeqTreeSearch/Seq2SeqAligner.hh>
-#endif
 #include "Alignment.hh"
 #include "ModelCombination.hh"
 
@@ -118,25 +115,6 @@ public:
     virtual bool work(Flow::PortId);
 };
 
-#ifdef MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH
-/** Seq2Seq AlignmentNode */
-class Seq2SeqAlignmentNode : public AlignmentBaseNode {
-    typedef AlignmentBaseNode Precursor;
-
-public:
-    static std::string               filterName() {
-        return "speech-generic-seq2seq-alignment";
-    }
-
-public:
-    Seq2SeqAlignmentNode(const Core::Configuration&);
-    virtual bool work(Flow::PortId);
-
-protected:
-    void createModel();
-};
-#endif
-
 /** Dumps alignments in a plain text format */
 class AlignmentDumpNode : public Flow::Node {
     typedef Flow::Node Precursor;
@@ -158,8 +136,10 @@ protected:
     std::string                        filename_;
     std::string                        segmentId_;
     Core::Ref<const Am::AcousticModel> acousticModel_;
-    enum AlignmentType { standard,
-                         plainText };
+    enum AlignmentType {
+        standard,
+        plainText
+    };
     AlignmentType                    alignmentType_;
     Core::StringHashMap<std::string> parameters_;
     Flow::Attributes::Parser         attributesParser_;
@@ -184,9 +164,11 @@ public:
     }
     Core::ArchiveWriter* newWriter(const std::string& name);
     Core::ArchiveReader* newReader(const std::string& name);
-    bool                 hasAccess(Core::Archive::AccessMode a) const {
+
+    bool hasAccess(Core::Archive::AccessMode a) const {
         return (archive_) ? archive_->hasAccess(a) : false;
     }
+
     bool open(Core::Archive::AccessMode access);
     void close();
     bool isOpen() const {

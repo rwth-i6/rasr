@@ -38,7 +38,7 @@ typedef Core::Ref<Lm::LanguageModel>        LanguageModelRef;
 typedef Core::Ref<Lm::ScaledLanguageModel>  ScaledLanguageModelRef;
 typedef Core::Ref<Speech::ModelCombination> ModelCombinationRef;
 
-AcousticModelRef       getAm(const Core::Configuration& config, bool useMixture=true);
+AcousticModelRef       getAm(const Core::Configuration& config, bool useMixture = true);
 ScaledLanguageModelRef getLm(const Core::Configuration& config);
 ModelCombinationRef    getModelCombination(const Core::Configuration& config, AcousticModelRef acousticModel, ScaledLanguageModelRef languageModel = ScaledLanguageModelRef());
 
@@ -52,7 +52,8 @@ private:
 
 public:
     SegmentwiseModelAdaptor(ModelCombinationRef modelCombination)
-            : modelCombination_(modelCombination), acousticModel_(modelCombination->acousticModel()) {}
+            : modelCombination_(modelCombination),
+              acousticModel_(modelCombination->acousticModel()) {}
 
     ModelCombinationRef modelCombination() {
         return modelCombination_;

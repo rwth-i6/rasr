@@ -42,6 +42,7 @@ protected:
     mutable std::deque<Mm::FeatureVector> buffer_;
     mutable bool                          scoresComputed_;
     bool                                  returnScoresInNegLog_;
+    bool                                  applyLog_;
     u32                                   nClasses_;
     u32                                   inputDimension_;
     mutable u32                           batchIteration_;

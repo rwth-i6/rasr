@@ -60,15 +60,19 @@ public:
     SpeechSegmentNode(const std::string& name, const Core::Configuration& config);
     virtual void init(const std::vector<std::string>& arguments);
     virtual void sync();
-    bool         synced() const {
+
+    bool synced() const {
         return !blissSpeechSegment_;
     }
+
     virtual bool good() {
         return true;
     }
+
     void setSpeechSegment(Bliss::SpeechSegment* blissSpeechSegment) {
         blissSpeechSegment_ = blissSpeechSegment;
     }
+
     virtual ConstSegmentRef sendSegment(Port to);
     virtual const void*     sendData(Port to);
 };

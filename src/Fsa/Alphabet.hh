@@ -56,7 +56,8 @@ public:
 
     public:
         explicit const_iterator(Core::Ref<const Alphabet> a, LabelId i)
-                : alphabet_(a), label_(i) {
+                : alphabet_(a),
+                  label_(i) {
         }
         const_iterator& operator++() {
             label_ = alphabet_->next(label_);
@@ -214,14 +215,15 @@ class StaticAlphabet : public Alphabet {
 private:
     struct Symbol {
         std::string name_;
-        //bool isDisambiguator_;
-        // this is due to the binary format which only holds 8 bits for a disambiguator
+        // bool isDisambiguator_;
+        //  this is due to the binary format which only holds 8 bits for a disambiguator
         AlphabetTag tag_;
         Symbol() {}
-        //Symbol(const std::string &name, bool isDisambiguator = false) :
-        //  name_(name), tag_(isDisambiguator ? disambiguatorTag : 0) {}
+        // Symbol(const std::string &name, bool isDisambiguator = false) :
+        //   name_(name), tag_(isDisambiguator ? disambiguatorTag : 0) {}
         Symbol(const std::string& name, AlphabetTag tag = 0)
-                : name_(name), tag_(tag) {}
+                : name_(name),
+                  tag_(tag) {}
     };
     Core::Vector<Symbol>                                       symbols_;
     std::unordered_map<std::string, LabelId, Core::StringHash> indices_;
@@ -243,7 +245,7 @@ public:
      * @return the index of the newly added symbol or InvalidLabelId
      *   if the string was not a valid symbol
      **/
-    //LabelId addSymbol(const std::string &symbol, bool isDisambiguator = false);
+    // LabelId addSymbol(const std::string &symbol, bool isDisambiguator = false);
     LabelId addSymbol(const std::string& symbol, AlphabetTag tag = 0);
 
     /**

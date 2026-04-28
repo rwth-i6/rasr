@@ -225,7 +225,8 @@ int Semiring::compare(const ScoresRef& a, const ScoresRef& b) const {
         pa += (*its) * (*ita);
         pb += (*its) * (*itb);
     }
-    return Core::isAlmostEqualUlp(pa, pb, tolerance_) ? 0 : (pa < pb) ? -1 : 1;
+    return Core::isAlmostEqualUlp(pa, pb, tolerance_) ? 0 : (pa < pb) ? -1
+                                                                      : 1;
 }
 
 bool Semiring::read(ScoresRef& a, Core::BinaryInputStream& i) const {

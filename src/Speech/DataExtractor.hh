@@ -84,7 +84,8 @@ protected:
 
 public:
     FeatureExtractor(const Core::Configuration& c, bool loadFromFile = true)
-            : Core::Component(c), Precursor(c, loadFromFile) {}
+            : Core::Component(c),
+              Precursor(c, loadFromFile) {}
     virtual ~FeatureExtractor() {}
 
     virtual void processSegment(Bliss::Segment* segment);
@@ -111,11 +112,12 @@ protected:
     }
     /** Override this function to achieve the feature vectors extracted form data source one-by-one.
      */
-    virtual void processFeatureVector(Core::Ref<const Feature::Vector>) {}
+    virtual void processFeatureVector(Feature::VectorRef) {}
 
 public:
     FeatureVectorExtractor(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~FeatureVectorExtractor() {}
 };
 

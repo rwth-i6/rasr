@@ -59,7 +59,8 @@ public:
 
     public:
         row_vector_iterator(f64* begin, size_t size)
-                : ptr_(begin), size_(size) {}
+                : ptr_(begin),
+                  size_(size) {}
 
         row_iterator begin() {
             return ptr_;
@@ -99,7 +100,8 @@ public:
 
     public:
         const_row_vector_iterator(f64* begin, size_t size)
-                : ptr_(begin), size_(size) {}
+                : ptr_(begin),
+                  size_(size) {}
 
         const_row_iterator begin() const {
             return ptr_;
@@ -132,7 +134,8 @@ public:
 
     public:
         column_iterator(f64* begin, size_t offset)
-                : ptr_(begin), offset_(offset) {}
+                : ptr_(begin),
+                  offset_(offset) {}
 
         f64& operator*() {
             return *ptr_;
@@ -155,7 +158,8 @@ public:
 
     public:
         const_column_iterator(f64* begin, size_t offset)
-                : ptr_(begin), offset_(offset) {}
+                : ptr_(begin),
+                  offset_(offset) {}
 
         f64 operator*() const {
             return *ptr_;
@@ -179,7 +183,9 @@ public:
 
     public:
         column_vector_iterator(f64* begin, size_t size, size_t overall_size)
-                : ptr_(begin), size_(size), overall_size_(overall_size) {}
+                : ptr_(begin),
+                  size_(size),
+                  overall_size_(overall_size) {}
 
         column_iterator begin() {
             return column_iterator(ptr_, size_);
@@ -220,7 +226,9 @@ public:
 
     public:
         const_column_vector_iterator(f64* begin, size_t size, size_t overall_size)
-                : ptr_(begin), size_(size), overall_size_(overall_size) {}
+                : ptr_(begin),
+                  size_(size),
+                  overall_size_(overall_size) {}
 
         const_column_iterator begin() const {
             return const_column_iterator(ptr_, size_);

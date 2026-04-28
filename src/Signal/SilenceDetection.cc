@@ -135,7 +135,7 @@ bool SilenceDetection::updateDecision(Frame& in, Frame& out) {
             for (; i <= endDelay_; i++)
                 decisionSlidingWindow_[nUnsure_ - i].silence() = speech;
 
-        //set unsures to the last decision
+        // set unsures to the last decision
         for (; i <= nUnsure_; i++)
             decisionSlidingWindow_[nUnsure_ - i].silence() = currentDecision;
 
@@ -216,7 +216,7 @@ bool SilenceDetection::flush(Frame& out) {
     out = Frame();
 
     updateHistogram(add, outHistogram);
-    //threshold not updated
+    // threshold not updated
     updateBlock(outHistogram, outBlock);
     updateDecision(outBlock, outDecision);
     updateDelay(outDecision, out);

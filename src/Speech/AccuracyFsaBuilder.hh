@@ -47,7 +47,9 @@ public:
         Functor(MetricFsaBuilder&  builder,
                 const std::string& id,
                 BuilderInput       builderInput)
-                : builder_(builder), id_(id), builderInput_(builderInput) {}
+                : builder_(builder),
+                  id_(id),
+                  builderInput_(builderInput) {}
 
         const std::string& id() const {
             return id_;
@@ -225,6 +227,6 @@ public:
     virtual Fsa::ConstAutomatonRef build(Lattice::ConstWordLatticeRef);
 };
 
-}  //namespace Speech
+}  // namespace Speech
 
 #endif  // _SPEECH_ACCURACY_FSA_BUILDER_HH

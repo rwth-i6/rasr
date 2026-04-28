@@ -26,4 +26,4 @@ ConstWordLatticeRef cache(ConstWordLatticeRef l, u32 maxAge) {
     return result;
 }
 
-}  //namespace Lattice
+}  // namespace Lattice

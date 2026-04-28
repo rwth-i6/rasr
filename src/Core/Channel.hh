@@ -106,11 +106,15 @@ namespace Core {
 
 class Channel : public std::ostream {
 public:
-    enum TargetType { plainTarget,
-                      xmlTarget };
-    enum Default { disabled,
-                   standard,
-                   error };
+    enum TargetType {
+        plainTarget,
+        xmlTarget
+    };
+    enum Default {
+        disabled,
+        standard,
+        error
+    };
     static const Core::ParameterString paramTargets;
 
 private:

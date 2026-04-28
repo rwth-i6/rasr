@@ -19,7 +19,7 @@ namespace Math {
 namespace Lapack {
 
 s32 pseudoInvert(DoubleMatrix& result, const DoubleMatrix& A) {
-    require(A.nRows() == A.nColumns());  //other cases possible but not implemeted yet
+    require(A.nRows() == A.nColumns());  // other cases possible but not implemeted yet
     if (result.nRows() != A.nRows() || result.nColumns() != A.nColumns())
         result.resize(A.nRows(), A.nColumns());
     DoubleMatrix B(A.nRows());
@@ -50,9 +50,9 @@ s32 solveLinearLeastSquares(DoubleMatrix& result, const DoubleMatrix& A, const D
     f64* s     = new f64[n];
     f64  rcond = svdThreshold;
     s32  rank;
-    f64* work  = new f64[1];  //needed size will be estimated with 1st call;
+    f64* work  = new f64[1];  // needed size will be estimated with 1st call;
     s32  lwork = -1;
-    s32* iwork = new s32[1];  //needed size will be estimated with 1st call;
+    s32* iwork = new s32[1];  // needed size will be estimated with 1st call;
     s32  info;
 
     for (u16 rowIdx = 0; rowIdx < A.nRows(); rowIdx++)
@@ -64,7 +64,7 @@ s32 solveLinearLeastSquares(DoubleMatrix& result, const DoubleMatrix& A, const D
         for (u16 columnIdx = 0; columnIdx < B.nColumns(); columnIdx++)
             b[columnIdx * ldb + rowIdx] = B[rowIdx][columnIdx];
 
-    //first call: estimate size of work array
+    // first call: estimate size of work array
     dgelsd(&m, &n, &nrhs, a, &lda, b, &ldb, s, &rcond, &rank, work, &lwork, iwork, &info);
     lwork = s32(workArrayFactor * work[0]);
     delete[] work;
@@ -98,7 +98,7 @@ s32 solveLinearLeastSquares(DoubleMatrix& result, const DoubleMatrix& A, const D
     return info;
 }
 
-//returns V, not(!) VT
+// returns V, not(!) VT
 s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A) {
     char jobz         = 'A';
     s32  m            = A.nRows();
@@ -111,7 +111,7 @@ s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A
     s32  ldu          = m;
     f64* vt           = new f64[n * n];
     s32  ldvt         = n;
-    s32  lwork        = -1;  //needed size will be estimated with 1st call;
+    s32  lwork        = -1;  // needed size will be estimated with 1st call;
     f64* work         = new f64[1];
     s32* iwork        = new s32[8 * minDimension];
     s32  info;
@@ -121,7 +121,7 @@ s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A
             a[columnIdx * lda + rowIdx] = A[rowIdx][columnIdx];
         }
 
-    //first call: estimate size of work array
+    // first call: estimate size of work array
     dgesdd(&jobz, &m, &n, a, &lda, s, u, &ldu, vt, &ldvt, work, &lwork, iwork, &info);
     lwork = s32(workArrayFactor * work[0]);
     delete[] work;
@@ -137,7 +137,7 @@ s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A
         for (u16 rowIdx = 0; rowIdx < m; rowIdx++) {
             for (u16 columnIdx = 0; columnIdx < m; columnIdx++) {
                 U[rowIdx][columnIdx] = u[columnIdx * ldu + rowIdx];
-                V[columnIdx][rowIdx] = vt[columnIdx * ldvt + rowIdx];  //returns V, not VT
+                V[columnIdx][rowIdx] = vt[columnIdx * ldvt + rowIdx];  // returns V, not VT
             }
             W[rowIdx] = s[rowIdx];
         }
@@ -150,7 +150,7 @@ s32 svd(DoubleMatrix& U, DoubleVector& W, DoubleMatrix& V, const DoubleMatrix& A
         }
         for (u16 rowIdx = 0; rowIdx < n; rowIdx++) {
             for (u16 columnIdx = 0; columnIdx < n; columnIdx++) {
-                V[columnIdx][rowIdx] = vt[columnIdx * ldvt + rowIdx];  //returns V, not VT
+                V[columnIdx][rowIdx] = vt[columnIdx * ldvt + rowIdx];  // returns V, not VT
             }
         }
         for (u16 idx = 0; idx < minDimension; ++idx)

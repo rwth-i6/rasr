@@ -53,12 +53,14 @@ public:
     void setWindowFunction(WindowFunction* windowFunction);
 
     void setLength(u32 length);
-    u32  length() const {
+
+    u32 length() const {
         return length_;
     }
 
     void setShift(u32 shift);
-    u32  shift() const {
+
+    u32 shift() const {
         return shift_;
     }
 };

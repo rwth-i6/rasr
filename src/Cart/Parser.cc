@@ -200,8 +200,8 @@ XmlQuestionRefListBuilderElement::XmlQuestionRefListBuilderElement(
     questionElement_->addFinalState(2);
 
     forEachKeyElement_   = new XmlMixedElementRelay("for-each-key", this,
-                                                  XmlMixedElementRelay::startHandler(&Self::startForEachKey),
-                                                  XmlMixedElementRelay::endHandler(&Self::endForEachKey));
+                                                    XmlMixedElementRelay::startHandler(&Self::startForEachKey),
+                                                    XmlMixedElementRelay::endHandler(&Self::endForEachKey));
     forEachValueElement_ = new XmlMixedElementRelay("for-each-value", this,
                                                     XmlMixedElementRelay::startHandler(&Self::startForEachValue),
                                                     XmlMixedElementRelay::endHandler(&Self::endForEachValue));

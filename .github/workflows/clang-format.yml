@@ -1,0 +1,23 @@
+name: clang-format
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        path: "rasr"
+    - name: Install clang-format
+      run: |
+        sudo apt-get update -qy
+        sudo apt-get install -y clang-format-18
+    - name: Run clang-format
+      run: |
+        cd rasr
+        find . -name "*.cc" -o -name "*.cu" -o -name "*.hh" | xargs clang-format-18 --dry-run --Werror

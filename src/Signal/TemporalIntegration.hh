@@ -26,10 +26,10 @@
 namespace Signal {
 
 /**
-* Performs a reduction of the temporal dimension of a (Gammatone) filterbank
-* output. A window of the length lengthInS is applied every shiftInS, and
-* the samples are summed up, weighted by the window function.
-*/
+ * Performs a reduction of the temporal dimension of a (Gammatone) filterbank
+ * output. A window of the length lengthInS is applied every shiftInS, and
+ * the samples are summed up, weighted by the window function.
+ */
 class TemporalIntegration : public TimeWindowBuffer<Flow::Vector<f32>> {
 public:
     typedef TimeWindowBuffer<Flow::Vector<f32>>       Precursor;
@@ -70,7 +70,7 @@ public:
  * Parameters:
  * shift: shift length in s
  * length: window length in s
-*/
+ */
 class TemporalIntegrationNode : public SlidingAlgorithmNode<TemporalIntegration> {
 public:
     typedef SlidingAlgorithmNode<TemporalIntegration> Predecessor;

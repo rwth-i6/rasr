@@ -29,7 +29,7 @@ const Core::ParameterBool AbstractNode::paramIgnoreUnknownParameters(
 
 AbstractNode::AbstractNode(const Core::Configuration& c)
         : Component(c),
-          //Thread(),
+          // Thread(),
           threaded_(false),
           ignoreUnknownParameters_(paramIgnoreUnknownParameters(c)) {
     setThreaded(paramThreaded(c));

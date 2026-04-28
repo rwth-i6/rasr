@@ -70,9 +70,11 @@ public:
         }
 
         typedef const Arc* const_iterator;
-        const_iterator     begin() const {
+
+        const_iterator begin() const {
             return begin_;
         }
+
         const_iterator end() const {
             return end_;
         }
@@ -99,7 +101,8 @@ public:
     f64 sum() const;
 
     const State& state(Fsa::StateId sid) const;
-    const Arc&   arc(ConstStateRef sr, Flf::State::const_iterator a) const {
+
+    const Arc& arc(ConstStateRef sr, Flf::State::const_iterator a) const {
         return *(state(sr->id()).begin() + (a - sr->begin()));
     }
 

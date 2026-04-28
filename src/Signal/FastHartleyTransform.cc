@@ -301,7 +301,7 @@ void FastHartleyTransform::transform(std::vector<Data>& data) const {
 
     if (sampleRate_ != 1) {
         std::transform(data.begin(), data.end(), data.begin(),
-                       std::bind2nd(std::multiplies<Data>(), 1 / (Data)sampleRate_));
+                       std::bind(std::multiplies<Data>(), std::placeholders::_1, 1 / (Data)sampleRate_));
     }
 }
 
@@ -311,7 +311,7 @@ void FastHartleyTransform::inverseTransform(std::vector<Data>& data) const {
     hartleyTransform(data);
 
     std::transform(data.begin(), data.end(), data.begin(),
-                   std::bind2nd(std::multiplies<Data>(), (Data)sampleRate_ / (Data)length()));
+                   std::bind(std::multiplies<Data>(), std::placeholders::_1, (Data)sampleRate_ / (Data)length()));
 }
 
 void hartleyToFourier(const std::vector<f32>& hartley, std::vector<f32>& fourier) {

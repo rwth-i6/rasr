@@ -25,7 +25,13 @@ ParameterFloat HarmonicSumNode::paramSize("size", "size in continous unit depend
 ParameterInt HarmonicSumNode::paramH("H", "max number of harmonics (0: use all harmonics)", 0, 0);
 
 HarmonicSumNode::HarmonicSumNode(const Configuration& c)
-        : Core::Component(c), SleeveNode(c), continuousSize_(0), size_(0), H_(0), sampleRate_(0), needInit_(true) {
+        : Core::Component(c),
+          SleeveNode(c),
+          continuousSize_(0),
+          size_(0),
+          H_(0),
+          sampleRate_(0),
+          needInit_(true) {
     setContinuousSize(paramSize(c));
     setH(paramH(c));
 }

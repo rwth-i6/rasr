@@ -27,9 +27,11 @@ class StateSequenceList;
 class TiedStateSequenceMap;
 
 class StateTreeConverter : public Core::Component {
-    enum CompressionType { CompressionNone,
-                           CompressionFactorized,
-                           CompressionHmmLabel };
+    enum CompressionType {
+        CompressionNone,
+        CompressionFactorized,
+        CompressionHmmLabel
+    };
     static const Core::Choice          choiceCompression;
     static const Core::ParameterChoice paramCompression;
     static const Core::ParameterBool   paramEpsilonArcs;

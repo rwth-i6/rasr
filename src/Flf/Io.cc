@@ -51,7 +51,9 @@ std::pair<std::string, bool> stripExtension(const std::string& filename) {
 
 // -------------------------------------------------------------------------
 InputStream::InputStream(const std::string& path, Core::Archive* archive)
-        : ar(0), cis(0), is(0) {
+        : ar(0),
+          cis(0),
+          is(0) {
     std::string filename = Core::normalizePath(path);
     if (archive) {
         ar = new Core::ArchiveReader(*archive, filename);
@@ -93,7 +95,9 @@ std::istream* InputStream::steal() {
 
 // -------------------------------------------------------------------------
 OutputStream::OutputStream(const std::string& path, Core::Archive* archive)
-        : aw(0), cos(0), os(0) {
+        : aw(0),
+          cos(0),
+          os(0) {
     std::string filename = Core::normalizePath(path);
     if (archive) {
         aw = new Core::ArchiveWriter(*archive, filename, true);
@@ -409,7 +413,8 @@ protected:
 
 public:
     LatticeReaderNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), reader_(0) {}
+            : Precursor(name, config),
+              reader_(0) {}
     virtual ~LatticeReaderNode() {
         delete reader_;
     }
@@ -576,7 +581,7 @@ protected:
         s->setInitialStateId(sp->id());
 
         Time lastEnd = start;
-        //if ((rec.cursor != rec.end()) && (rec.cursor->start > lastEnd)) {
+        // if ((rec.cursor != rec.end()) && (rec.cursor->start > lastEnd)) {
         //	rec.cursor = rec.begin();
         for (; (rec.cursor != rec.end()) && (rec.cursor->end <= lastEnd); ++rec.cursor)
             ;
@@ -870,7 +875,8 @@ protected:
 
 public:
     LatticeWriterNode(const std::string& name, const Core::Configuration& config)
-            : Precursor(name, config), writer_(0) {}
+            : Precursor(name, config),
+              writer_(0) {}
     virtual ~LatticeWriterNode() {
         delete writer_;
     }

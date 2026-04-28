@@ -520,24 +520,26 @@ s32 FastMatrix<T>::initialize() {
     return maxThreads;
 }
 
-/**	Allocate the memory for the matrix.
+/** Allocate the memory for the matrix.
  *
- * 	Allocate the memory for the matrix. If the size is 0 the pointer
- * 	is ZERO.
+ *  Allocate the memory for the matrix. If the size is 0 the pointer
+ *  is ZERO.
  */
 template<typename T>
 bool FastMatrix<T>::allocate(bool minimalSize) {
     if ((capacity_ < nRows_ * nColumns_) || (minimalSize && (capacity_ > nRows_ * nColumns_))) {
-        if (elem_)
+        if (elem_) {
             delete[] elem_;
-        try {
-            elem_     = nRows_ * nColumns_ > 0 ? new T[nRows_ * nColumns_] : 0;
-            capacity_ = nRows_ * nColumns_;
-            return true;
+            capacity_ = 0;
         }
-        catch (std::bad_alloc& ba) {
+
+        elem_ = nRows_ * nColumns_ > 0 ? new (std::nothrow) T[nRows_ * nColumns_] : nullptr;
+        if (elem_ == nullptr) {
             return false;
         }
+        capacity_ = nRows_ * nColumns_;
+
+        return true;
     }
     else
         return true;
@@ -1090,8 +1092,7 @@ u32 FastMatrix<T>::nClassificationErrors(const FastVector<S>& alignment) {
         Core::Application::us()->warning("FastMatrix<T>::nClassificationErrors expects alignment vector of type u32");
     }
     u32 classificationErrors = 0;
-#pragma omp parallel for reduction(+ \
-                                   : classificationErrors)
+#pragma omp parallel for reduction(+ : classificationErrors)
     for (u32 column = 0; column < nColumns_; column++) {
         if (argMax(column) != (u32)alignment[column])
             classificationErrors++;
@@ -1348,7 +1349,7 @@ void FastMatrix<T>::elementwiseDivision(const FastMatrix<T>& X) {
 
 template<typename T>
 void FastMatrix<T>::addConstantElementwise(T c) {
-    std::transform(elem_, elem_ + nRows_ * nColumns_, elem_, std::bind2nd(std::plus<T>(), c));
+    std::transform(elem_, elem_ + nRows_ * nColumns_, elem_, std::bind(std::plus<T>(), std::placeholders::_1, c));
 }
 
 template<typename T>
@@ -1395,7 +1396,7 @@ void FastMatrix<T>::addToAllRows(const FastVector<T>& v, T alpha) {
 #pragma omp parallel for
     for (u32 j = 0; j < nColumns_; j++) {
         T value = alpha * v.at(j);
-        std::transform(elem_ + j * nRows_, elem_ + (j + 1) * nRows_, elem_ + j * nRows_, std::bind2nd(std::plus<T>(), value));
+        std::transform(elem_ + j * nRows_, elem_ + (j + 1) * nRows_, elem_ + j * nRows_, std::bind(std::plus<T>(), std::placeholders::_1, value));
     }
 }
 
@@ -1624,11 +1625,11 @@ void FastMatrix<T>::convExtractPatches(const FastMatrix<T>&   input,
 
                 val = 0;
                 i   = t * input_dim + patchIdx.at(s, si);
-                //while (i < 0)               i += input_dim;
-                //while (i > num_input_elems) i -= input_dim;
+                // while (i < 0)               i += input_dim;
+                // while (i > num_input_elems) i -= input_dim;
                 if (i >= 0 && i < num_input_elems) {
                     val = input.elem_[i];
-                    //inverse_patches.at(i, si) = pos_patches; // TODO only needed for training -> GPU code
+                    // inverse_patches.at(i, si) = pos_patches; // TODO only needed for training -> GPU code
                 }
                 at(si, t * shifts_num + s) = val;
             }

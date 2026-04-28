@@ -67,14 +67,17 @@ struct ContextEquality {
 
 struct ArcWithContext : public Fsa::Arc {
     Context rightContext_;
-    bool    operator==(const ArcWithContext& rhs) const {
+
+    bool operator==(const ArcWithContext& rhs) const {
         return input_ == rhs.input_ && output_ == rhs.output_ && rightContext_ == rhs.rightContext_;
     }
+
     ArcWithContext(Fsa::StateId target, Fsa::Weight weight,
                    Fsa::LabelId input, Fsa::LabelId output,
                    const Context& rightContext)
             : Fsa::Arc(target, weight, input, output),
               rightContext_(rightContext) {}
+
     const Context& rightContext() const {
         return rightContext_;
     }
@@ -200,7 +203,7 @@ Fsa::ConstAutomatonRef correct(
     return Fsa::minimizeSimple(correct);
 }
 
-}  //namespace Internal
+}  // namespace Internal
 
 /**
  * merge
@@ -235,10 +238,13 @@ public:
     virtual Fsa::StateId initialStateId() const {
         return 0;
     }
+
     virtual Fsa::ConstStateRef getState(Fsa::StateId s) const;
-    virtual std::string        describe() const {
+
+    virtual std::string describe() const {
         return Core::form("merge(%s)", fsa_->describe().c_str());
     }
+
     Core::Ref<const WordBoundaries> wordBoundaries() const {
         return wordBoundaries_;
     }
@@ -345,7 +351,9 @@ private:
         InitializeCorrectHypothesesDfsState(
                 Fsa::ConstAutomatonRef fsa, Fsa::ConstMappingRef mapping,
                 CorrectHypotheses& hypotheses)
-                : Fsa::DfsState(fsa), mapping_(mapping), hypotheses_(hypotheses) {}
+                : Fsa::DfsState(fsa),
+                  mapping_(mapping),
+                  hypotheses_(hypotheses) {}
 
         virtual ~InitializeCorrectHypothesesDfsState() {}
 

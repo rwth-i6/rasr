@@ -57,7 +57,9 @@ private:
 
 public:
     VectorAbsValDumpNode(const Core::Configuration& c)
-            : Core::Component(c), DumpNode(c), normFunction_(c) {}
+            : Core::Component(c),
+              DumpNode(c),
+              normFunction_(c) {}
 
     virtual bool configure() {
         Core::Ref<const Attributes> a = getInputAttributes(0);

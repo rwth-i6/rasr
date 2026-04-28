@@ -57,8 +57,8 @@ public:
         return one;
     }
 
-    static const string& Type() {
-        static const string type = "lattice-" + TropicalWeight::Type();
+    static const std::string& Type() {
+        static const std::string type = "lattice-" + TropicalWeight::Type();
         return type;
     }
 
@@ -137,11 +137,15 @@ public:
     Lattice()
             : outputType_(DefaultOutput) {}
     explicit Lattice(const Lattice& o)
-            : VectorFst(o), wordBoundaries_(o.wordBoundaries_), outputType_(DefaultOutput) {}
+            : VectorFst(o),
+              wordBoundaries_(o.wordBoundaries_),
+              outputType_(DefaultOutput) {}
     explicit Lattice(const VectorFst& o)
-            : VectorFst(o), outputType_(DefaultOutput) {}
+            : VectorFst(o),
+              outputType_(DefaultOutput) {}
     explicit Lattice(const FstLib::Fst<LatticeArc>& o)
-            : VectorFst(o), outputType_(DefaultOutput) {}
+            : VectorFst(o),
+              outputType_(DefaultOutput) {}
     virtual ~Lattice() {}
 
     Lattice* Copy(bool safe = false) const {

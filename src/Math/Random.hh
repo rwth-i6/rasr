@@ -41,8 +41,10 @@ inline void random_shuffle(Iter begin, Iter end) {
 class RandomVectorGenerator {
 public:
     typedef f32 DataType;
-    enum Type { typeUniformIndependent,
-                typeGaussIndependent };
+    enum Type {
+        typeUniformIndependent,
+        typeGaussIndependent
+    };
 
 public:
     static const Core::Choice          choiceType;

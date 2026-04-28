@@ -39,7 +39,9 @@ public:
     typedef Automaton*           AutomatonRef;
 
     AutomatonAdapter(const Automaton* f)
-            : f_(f), nArcs_(0), nEpsArcs_(0) {}
+            : f_(f),
+              nArcs_(0),
+              nEpsArcs_(0) {}
 
     StateId        initialStateId() const;
     bool           isFinal(StateId s) const;
@@ -50,12 +52,15 @@ public:
     OpenFst::Label arcInput(const Arc& arc) const;
     OpenFst::Label arcOutput(const Arc& arc) const;
     StateId        arcTarget(const Arc& arc) const;
-    u32            nStates() const;
-    u32            nArcs() const {
+
+    u32 nStates() const;
+
+    u32 nArcs() const {
         if (!nArcs_)
             countArcs();
         return nArcs_;
     }
+
     u32 nEpsilonArcs() const {
         if (!nArcs_)
             countArcs();

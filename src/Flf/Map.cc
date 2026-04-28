@@ -812,7 +812,9 @@ protected:
 
 public:
     CompoundWordSplittingMap(Fsa::ConstAlphabetRef alphabet)
-            : LabelMap(alphabet, alphabet), alphabet_(alphabet), lexicon_(Lexicon::us().get()) {
+            : LabelMap(alphabet, alphabet),
+              alphabet_(alphabet),
+              lexicon_(Lexicon::us().get()) {
         description = "split-compound-words";
     }
 };
@@ -1063,7 +1065,8 @@ private:
 
 public:
     OneToOneLabelMappingLattice(ConstLatticeRef l, LabelMapRef labelMap)
-            : Precursor(l), labelMap_(labelMap) {
+            : Precursor(l),
+              labelMap_(labelMap) {
         isAcceptor_ = (l->type() == Fsa::TypeAcceptor);
     }
     virtual ~OneToOneLabelMappingLattice() {}
@@ -1229,7 +1232,10 @@ protected:
 public:
     LabelMapper(ConstLatticeRef l, StaticLatticeRef s, StaticBoundariesRef b,
                 LabelMapRef labelMap)
-            : TraverseState(l), s_(s), b_(b), labelMap_(labelMap) {
+            : TraverseState(l),
+              s_(s),
+              b_(b),
+              labelMap_(labelMap) {
         isAcceptor_ = (l->type() == Fsa::TypeAcceptor);
         semiring_   = l->semiring();
         traverse();

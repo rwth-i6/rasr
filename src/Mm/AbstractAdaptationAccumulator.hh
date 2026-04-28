@@ -29,27 +29,30 @@ namespace Mm {
  */
 class AbstractAdaptationAccumulator : public Core::ReferenceCounted {
 public:
-    virtual void accumulate(Core::Ref<const Feature::Vector>,
+    virtual void accumulate(Feature::VectorRef,
                             DensityIndex,
                             MixtureIndex,
                             Core::Ref<MixtureSet>) = 0;
 
-    virtual void accumulate(Core::Ref<const Feature::Vector>,
+    virtual void accumulate(Feature::VectorRef,
                             DensityIndex,
                             MixtureIndex,
                             Core::Ref<MixtureSet>,
                             Mm::Weight) = 0;
 
     virtual std::string typeName() const = 0;
-    virtual u32         featureDimension() {
+
+    virtual u32 featureDimension() {
         return 0;
     };
+
     virtual void combine(AbstractAdaptationAccumulator&, Mm::Weight) {
         defect();
     };
 
     virtual bool read(Core::BinaryInputStream& i)         = 0;
     virtual bool write(Core::BinaryOutputStream& o) const = 0;
+
     virtual void dump(Core::XmlOutputStream&) {
         defect();
     };

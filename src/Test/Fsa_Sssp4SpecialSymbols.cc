@@ -133,7 +133,7 @@ TEST(Fsa, Sssp4SpecialSymbols, removeFailure4SpecialSymbols) {
     LabelId           A      = result->getInputAlphabet()->index("A");
     LabelId           B      = result->getInputAlphabet()->index("B");
 
-    //write(result, "result.fsa.gz");
+    // write(result, "result.fsa.gz");
 
     // state 0
     ConstStateRef s0 = result->getState(result->initialStateId());
@@ -196,7 +196,7 @@ TEST(Fsa, Sssp4SpecialSymbols, best4SpecialSymbols) {
     LabelId           A      = result->getInputAlphabet()->index("A");
     LabelId           B      = result->getInputAlphabet()->index("B");
 
-    //write(result, "result.fsa.gz");
+    // write(result, "result.fsa.gz");
 
     // state 0
     ConstStateRef s0 = result->getState(result->initialStateId());
@@ -234,9 +234,9 @@ TEST(Fsa, Sssp4SpecialSymbols, posterior4SpecialSymbolsLog) {
     LabelId           A      = result->getInputAlphabet()->index("A");
     LabelId           B      = result->getInputAlphabet()->index("B");
 
-    //write(test, "test.fsa.gz");
-    //write(result, "result-log.fsa.gz");
-    //write(sort(posterior4SpecialSymbols(removeFailure4SpecialSymbols(test)), Fsa::SortTypeByInputAndOutput), "result-log-remove.fsa.gz");
+    // write(test, "test.fsa.gz");
+    // write(result, "result-log.fsa.gz");
+    // write(sort(posterior4SpecialSymbols(removeFailure4SpecialSymbols(test)), Fsa::SortTypeByInputAndOutput), "result-log-remove.fsa.gz");
 
     // state 0
     ConstStateRef s0 = result->getState(result->initialStateId());
@@ -326,8 +326,8 @@ TEST(Fsa, Sssp4SpecialSymbols, posterior4SpecialSymbolsTropical) {
     LabelId           A      = result->getInputAlphabet()->index("A");
     LabelId           B      = result->getInputAlphabet()->index("B");
 
-    //write(test, "test.fsa.gz");
-    //write(result, "result-trop.fsa.gz");
+    // write(test, "test.fsa.gz");
+    // write(result, "result-trop.fsa.gz");
 
     // state 0
     ConstStateRef s0 = result->getState(result->initialStateId());

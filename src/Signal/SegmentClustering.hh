@@ -162,14 +162,18 @@ private:
 
 public:
     BICFullCovMonoGaussianModel(u32 dim)
-            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim), glr_(0) {}
+            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim),
+              glr_(0) {}
     BICFullCovMonoGaussianModel(u32 dim, f32 alpha)
-            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim), glr_(0) {}
+            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim),
+              glr_(0) {}
 
     BICFullCovMonoGaussianModel(u32 dim, const std::vector<BICFullCovMonoGaussianModel>& models)
-            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim), glr_(0) {}
+            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim),
+              glr_(0) {}
     BICFullCovMonoGaussianModel(u32 dim, f32 alpha, const std::vector<BICFullCovMonoGaussianModel>& models)
-            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim), glr_(0) {}
+            : FullCovMonoGaussianModel::FullCovMonoGaussianModel(dim),
+              glr_(0) {}
 
     /** @return the N(logDeterminant(variance)) likelihood */
     const f32 likelihood() const {
@@ -222,14 +226,18 @@ private:
 
 public:
     KL2FullCovMonoGaussianModel(u32 dim)
-            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim), kl2_(0) {}
+            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim),
+              kl2_(0) {}
     KL2FullCovMonoGaussianModel(u32 dim, f32 alpha)
-            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim), kl2_(0) {}
+            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim),
+              kl2_(0) {}
 
     KL2FullCovMonoGaussianModel(u32 dim, const std::vector<KL2FullCovMonoGaussianModel>& models)
-            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim), kl2_(0) {}
+            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim),
+              kl2_(0) {}
     KL2FullCovMonoGaussianModel(u32 dim, f32 alpha, const std::vector<KL2FullCovMonoGaussianModel>& models)
-            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim), kl2_(0) {}
+            : BICFullCovMonoGaussianModel::BICFullCovMonoGaussianModel(dim),
+              kl2_(0) {}
 
     /** @return the KL2 distance */
     const f32 score() const {
@@ -442,8 +450,8 @@ public:
             : Core::Component(c),
               bestscore_(-99999.9),
               totalframes_(0),
-              infoChannel_(c, "cluster-info"),
-              minframes_(0){};
+              minframes_(0),
+              infoChannel_(c, "cluster-info"){};
     virtual ~SegmentClustering() {}
 
     /** minimum number of frames to consider the segment for segment clustering */
@@ -551,7 +559,7 @@ public:
 
     void initTracker(u32 dim) {
         classid_.resize(dim);
-        std::iota(classid_.begin(), classid_.end(), 0);  //Iota assigns sequentially increasing values to a range
+        std::iota(classid_.begin(), classid_.end(), 0);  // Iota assigns sequentially increasing values to a range
         matrixTracker_.resize(dim);
         initMatrixTracker();
     }
@@ -699,7 +707,7 @@ public:
     }
 
     void updateDistMat(std::vector<Model>& models) {
-        if (amalgamation_ == 1) {  //maximum linkage
+        if (amalgamation_ == 1) {  // maximum linkage
             maxLinkage();
         }
         else {  // concatenation
@@ -801,7 +809,7 @@ public:
                 j = classid_[j];
             classid_[i] = j;
         }
-        //nrcluster_ = nextclusterid;
+        // nrcluster_ = nextclusterid;
         printClustering();
     }
 

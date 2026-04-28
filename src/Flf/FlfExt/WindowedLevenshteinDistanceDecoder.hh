@@ -15,7 +15,7 @@
 /**
  * Trace alignment
  **/
-//define WINDOWED_LEVENSHTEIN_DECODER_FULL_ALIGNMENT
+// define WINDOWED_LEVENSHTEIN_DECODER_FULL_ALIGNMENT
 
 namespace Flf {
 

@@ -33,7 +33,8 @@ private:
 
 public:
     SleeveNode(const Core::Configuration& c)
-            : Core::Component(c), Flow::SleeveNode(c) {}
+            : Core::Component(c),
+              Flow::SleeveNode(c) {}
     virtual ~SleeveNode() {}
 
 protected:

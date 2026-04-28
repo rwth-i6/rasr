@@ -60,12 +60,12 @@ void BinaryTree::buildTreeStructure(void) const {
         const Node* node = stack.top();
         stack.pop();
         if ((node->left_ != 0) && (node->right_ != 0)) {
-            treeStructure.push_back(TreeStructureEntry(node->id_, invalidId));  //node
+            treeStructure.push_back(TreeStructureEntry(node->id_, invalidId));  // node
             stack.push(node->right_);
             stack.push(node->left_);
         }
         else
-            treeStructure.push_back(TreeStructureEntry(node->id_, node->leafNumber_));  //leaf
+            treeStructure.push_back(TreeStructureEntry(node->id_, node->leafNumber_));  // leaf
     }
 }
 
@@ -83,10 +83,10 @@ void BinaryTree::build(const TreeStructure& s) {
         Node* node = stack.top();
         stack.pop();
         verify(i < s.size());
-        if (s[i].leafNumber == invalidId) {  //node
+        if (s[i].leafNumber == invalidId) {  // node
             node->id_               = s[i].id;
             idToNode[node->id_]     = node;
-            node->leafNumber_       = invalidId;  //no leaf
+            node->leafNumber_       = invalidId;  // no leaf
             node->left_             = new Node;
             node->left_->previous_  = node;
             node->right_            = new Node;
@@ -95,7 +95,7 @@ void BinaryTree::build(const TreeStructure& s) {
             stack.push(node->left_);
             nNodes_++;
         }
-        else {  //leaf
+        else {  // leaf
             leafList_.push_back(node);
             node->id_ = s[i].id;
             ;
@@ -189,7 +189,7 @@ void BinaryTree::cutTree(
             cutTree(node->right_, node->right_->id_, cutoff, newLeafId, lookupTable);
         }
     }
-    else {  //leaf
+    else {  // leaf
         (*newLeafId)[node->leafNumber_] = lastNode;
         if (node->id_ < cutoff) {
             node->leafNumber_      = cutTreeCounter_;

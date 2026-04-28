@@ -248,7 +248,8 @@ ParameterInt DcDetectionNode::paramMaximalOutputSize(
         "maximal-output-size", "maximal size of output", 4096, 1);
 
 DcDetectionNode::DcDetectionNode(const Core::Configuration& c)
-        : Component(c), Predecessor(c) {
+        : Component(c),
+          Predecessor(c) {
     setMinDcLengthInS(paramMinDcLength(c));
     setMaxDcIncrement(paramMaxDcIncrement(c));
     setMinNonDcSegmentLengthInS(paramMinNonDcSegmentLength(c));

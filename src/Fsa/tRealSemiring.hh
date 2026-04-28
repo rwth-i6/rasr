@@ -34,13 +34,17 @@ protected:
 public:
     LogSemiring();
     LogSemiring(s32 tolerance);
+
     virtual std::string name() const;
-    _Weight             create() const {
+
+    _Weight create() const {
         return _Weight();
     }
+
     _Weight clone(const _Weight& a) const {
         return _Weight(_Type(a));
     }
+
     virtual _Weight       invalid() const;
     virtual _Weight       zero() const;
     virtual _Weight       one() const;
@@ -49,9 +53,11 @@ public:
     virtual _Accumulator* getExtender(const _Weight& initial) const;
     virtual _Weight       collect(const _Weight& a, const _Weight& b) const;
     virtual _Weight       invCollect(const _Weight& a, const _Weight& b) const;
-    virtual bool          hasInvCollect() const {
+
+    virtual bool hasInvCollect() const {
         return true;
     }
+
     virtual _Accumulator* getCollector(const _Weight& initial) const;
     virtual _Weight       invert(const _Weight& a) const;
     virtual int           compare(const _Weight& a, const _Weight& b) const;
@@ -81,15 +87,19 @@ public:
 public:
     TropicalSemiring();
     TropicalSemiring(s32 tolerance);
+
     virtual std::string name() const;
     virtual _Weight     collect(const _Weight& a, const _Weight& b) const;
-    virtual _Weight     invCollect(const _Weight& a, const _Weight& b) const {
+
+    virtual _Weight invCollect(const _Weight& a, const _Weight& b) const {
         std::cerr << "method \"invCollect\" is not supported" << std::endl;
         return this->invalid();
     }
+
     virtual bool hasInvCollect() const {
         return false;
     }
+
     virtual _Accumulator* getCollector(const _Weight& initial) const;
 };
 

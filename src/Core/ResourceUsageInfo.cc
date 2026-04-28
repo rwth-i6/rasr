@@ -20,7 +20,15 @@
 using namespace Core;
 
 ResourceUsageInfo::ResourceUsageInfo()
-        : maxrss_(0), minflt_(0), majflt_(0), inblock_(0), outblock_(0), nvcsw_(0), nicsw_(0), utime_(0), stime_(0) {
+        : maxrss_(0),
+          minflt_(0),
+          majflt_(0),
+          inblock_(0),
+          outblock_(0),
+          nvcsw_(0),
+          nicsw_(0),
+          utime_(0),
+          stime_(0) {
     update();
 }
 

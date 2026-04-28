@@ -24,8 +24,10 @@
 using namespace Search::Wfst;
 using Search::Score;
 
-enum AutomatonType { AutomatonTypeFsa,
-                     AutomatonTypeFst };
+enum AutomatonType {
+    AutomatonTypeFsa,
+    AutomatonTypeFst
+};
 
 template<class Automaton>
 class CompressedNetwork::Builder {
@@ -200,7 +202,13 @@ const CompressedNetwork::ArcIndex CompressedNetwork::InvalidArcIndex = Core::Typ
 const Score                       CompressedNetwork::NonFinalWeight  = static_cast<Score>(0xffffffff);
 
 CompressedNetwork::CompressedNetwork(const Core::Configuration& c, bool loadNetwork)
-        : Core::Component(c), states_(0), arcs_(0), epsilonArcs_(0), mmap_(0), mmapSize_(0), loadNetwork_(loadNetwork) {
+        : Core::Component(c),
+          states_(0),
+          arcs_(0),
+          epsilonArcs_(0),
+          mmap_(0),
+          mmapSize_(0),
+          loadNetwork_(loadNetwork) {
 }
 
 CompressedNetwork::~CompressedNetwork() {

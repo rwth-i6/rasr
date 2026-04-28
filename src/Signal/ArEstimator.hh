@@ -68,7 +68,8 @@ public:
         return &dt;
     }
     AutoregressiveCoefficients()
-            : Precursor(type()), gain_(0) {}
+            : Precursor(type()),
+              gain_(0) {}
     virtual ~AutoregressiveCoefficients() {}
     virtual Data* clone() const {
         return new AutoregressiveCoefficients(*this);
@@ -101,7 +102,8 @@ public:
         return std::string("signal-autocorrelation-to-autoregression");
     }
     AutocorrelationToAutoregressionNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~AutocorrelationToAutoregressionNode() {}
 
     virtual bool configure();

@@ -99,4 +99,4 @@ Fsa::ConstAutomatonRef getDenominatorWeights(PosteriorFsa num, PosteriorFsa den)
     return Fsa::ConstAutomatonRef(new DenominatorWeightsAutomaton(num, den));
 }
 
-}  //namespace Speech
+}  // namespace Speech

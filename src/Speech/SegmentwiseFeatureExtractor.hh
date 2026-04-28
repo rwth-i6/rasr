@@ -44,9 +44,11 @@ public:
     Flow::PortId                addPort(const std::string&);
     void                        checkCompatibility(Flow::PortId, Core::Ref<const Am::AcousticModel>) const;
     ConstSegmentwiseFeaturesRef features(Flow::PortId) const;
-    bool                        valid(Flow::PortId port) const {
+
+    bool valid(Flow::PortId port) const {
         return (featureStreams_.find(port) != featureStreams_.end()) && !featureStreams_.find(port)->second->empty();
     }
+
     bool         valid() const;
     virtual void processSegment(Bliss::Segment*);
 };

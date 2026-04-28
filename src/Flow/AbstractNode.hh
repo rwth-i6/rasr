@@ -105,18 +105,21 @@ protected:
      */
     template<class T>
     bool getData(Link* l, DataPtr<T>& d) {
-        if (l != 0) {
-            if (l->isDataAvailable())
-                return l->getData(d);
-            else {
-                if (l->getFromNode()->work(l->getFromPort()))
-                    return l->getData(d);
-                else {
-                    error("Node '%s' could not generate any output.",
-                          l->getFromNode()->name().c_str());
-                }
-            }
+        if (l == 0) {
+            d.reset();
+            return false;
         }
+        if (l->isDataAvailable()) {
+            return l->getData(d);
+        }
+        if (l->getFromNode()->work(l->getFromPort())) {
+            return l->getData(d);
+        }
+        l->getData(d);
+        if (d == Flow::Data::ood()) {
+            return false;
+        }
+        error("Node '%s' could not generate any output.", l->getFromNode()->name().c_str());
         d.reset();
         return false;
     }
@@ -157,7 +160,7 @@ public:
     /** Erases attributes of all output links recursively over all successor nodes.
      *  Signals that node needs the get reconfigured.
      */
-    virtual void eraseOutputAttributes(){};
+    virtual void eraseOutputAttributes() {};
     /** Performs static (independent of input data) configuration of node.
      *  Configure is called if one of the output attributes is not available.
      *  Override this function to evaluate all input attributes and pass them on

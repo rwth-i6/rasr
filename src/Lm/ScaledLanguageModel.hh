@@ -28,7 +28,9 @@ class ScaledLanguageModel : public LanguageModel,
                             public Mc::Component {
 protected:
     ScaledLanguageModel(const Core::Configuration& c, const Bliss::LexiconRef l)
-            : Core::Component(c), LanguageModel(c, l), Mc::Component(c) {}
+            : Core::Component(c),
+              LanguageModel(c, l),
+              Mc::Component(c) {}
 
 public:
     virtual ~ScaledLanguageModel() {}
@@ -75,6 +77,9 @@ public:
     virtual History reducedHistory(const History& h, u32 limit) const {
         return languageModel_->reducedHistory(h, limit);
     }
+    virtual History reduceHistoryByN(const History& h, u32 n) const {
+        return languageModel_->reduceHistoryByN(h, n);
+    }
     virtual std::string formatHistory(const History& h) const {
         return languageModel_->formatHistory(h);
     }
@@ -98,6 +103,25 @@ public:
                           std::vector<f32>&           result) const {
         return languageModel_->getBatch(h, r, result);
     }
+
+    virtual bool fixedHistory(s32 limit) const {
+        return languageModel_->fixedHistory(limit);
+    }
+    virtual bool isSparse(const History& h) const {
+        return languageModel_->isSparse(h);
+    }
+    virtual HistorySuccessors getHistorySuccessors(const History& h) const {
+        HistorySuccessors res;
+        res.backOffScore *= scale();
+        for (auto& ws : res) {
+            ws.score_ *= scale();
+        }
+        return res;
+    }
+    virtual Score getBackOffScore(const History& h) const {
+        return scale() * languageModel_->getBackOffScore(h);
+    };
+
     virtual Core::Ref<const LanguageModel> lookaheadLanguageModel() const {
         return languageModel_->lookaheadLanguageModel();
     }
@@ -106,6 +130,24 @@ public:
     }
     virtual void setSegment(Bliss::SpeechSegment const* s) {
         languageModel_->setSegment(s);
+    }
+    virtual Token sentenceBeginToken() const {
+        return languageModel_->sentenceBeginToken();
+    }
+    virtual Token sentenceEndToken() const {
+        return languageModel_->sentenceEndToken();
+    }
+    virtual Token sentenceBoundaryToken() const {
+        return languageModel_->sentenceBoundaryToken();
+    }
+    virtual Bliss::LexiconRef lexicon() const {
+        return languageModel_->lexicon();
+    }
+    virtual const TokenInventory& tokenInventory() const {
+        return languageModel_->tokenInventory();
+    }
+    virtual Fsa::ConstAlphabetRef tokenAlphabet() const {
+        return languageModel_->tokenAlphabet();
     }
 };
 

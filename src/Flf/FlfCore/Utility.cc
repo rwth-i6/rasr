@@ -117,8 +117,7 @@ const TextFileParser::StringList& TextFileParser::next() {
         n_++;
         std::string line;
         std::getline(tis_, line);
-        bool        isEscaped = false;
-        const char* comment   = 0;
+        bool isEscaped = false;
         for (const char* c = line.c_str();;) {
             for (; (*c != '\0') && ::isspace(*c); ++c)
                 ;
@@ -166,7 +165,6 @@ const TextFileParser::StringList& TextFileParser::next() {
                         isEscaped = true;
                     }
                     else if ((*c == '#') || ((*c == ';') && (*(c + 1) == ';'))) {
-                        comment = c;
                         if (columns_.back().empty())
                             columns_.pop_back();
                         isBreak = true;

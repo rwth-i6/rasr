@@ -20,7 +20,9 @@
 #include <cstdarg>
 #include <stack>
 #include <vector>
+
 #include <libxml/parser.h>
+
 #include "Component.hh"
 
 namespace Core {
@@ -76,7 +78,6 @@ public:
  * <a href="file:/usr/share/doc/libxml2-dev/libxml-dev.html">local</a> or
  * <a href="http://xmlsoft.org/">on the web</a>
  */
-
 class XmlParser : public Component {
     typedef XmlParser self;
 
@@ -151,19 +152,14 @@ protected:
      **/
     virtual XmlChannel* vErrorMessage(ErrorType mt, const char* msg, va_list) const;
 
-    /**
-     * Disable parsing.
-     * Call giveUp() if it seems hopeless trying to continue parsing.
-     **/
-    void giveUp();
-
 private:
     bool warnAboutUnexpectedElements_;
 
 public:
     struct Location {
         const char* systemId;
-        int         line, column;
+        int         line;
+        int         column;
     };
     Location location() const;
 
@@ -172,9 +168,9 @@ public:
     /**
      * Issue a warning about an unexpected element.
      * This method must be called by decendents of XmlParentElement
-     * whenever they use their unexpectedElement().  The reason that
+     * whenever they use their unexpectedElement(). The reason that
      * this deserves an extra method is that these warnings can be
-     * turned of.  It is not a good idea to silently ignore unknown
+     * turned of. It is not a good idea to silently ignore unknown
      * element, because they might be typos.
      **/
     void warnAboutUnexpectedElement(const char* element, const char* context);
@@ -346,7 +342,7 @@ public:
  *
  * XmlEmptyElement must not have any content.  characters() and
  * element() will raise a validity error
-*/
+ */
 class XmlEmptyElement : public XmlElement {
     bool allowWhitespace_;
 

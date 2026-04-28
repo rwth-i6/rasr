@@ -30,7 +30,7 @@ class Bliss::SpeakerDescriptionElement : public Core::XmlBuilderElement<Speaker,
 
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char* ch, int len){};
+    virtual void characters(const char* ch, int len) {};
     void         gender(const std::string& s);
 
 public:
@@ -82,7 +82,7 @@ class Bliss::ConditionDescriptionElement : public Core::XmlBuilderElement<Acoust
 
 protected:
     virtual void start(const Core::XmlAttributes atts);
-    virtual void characters(const char* ch, int len){};
+    virtual void characters(const char* ch, int len) {};
 
 public:
     ConditionDescriptionElement(Core::XmlContext* _context, Handler _handler = 0);
@@ -298,7 +298,8 @@ void CorpusDescriptionParser::initSchema() {
 }
 
 CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c)
-        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+        : XmlSchemaParser(c),
+          progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
     initSchema();
 
     isSubParser_    = false;
@@ -312,7 +313,8 @@ CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c)
 }
 
 CorpusDescriptionParser::CorpusDescriptionParser(const Configuration& c, Corpus* _corpus)
-        : XmlSchemaParser(c), progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
+        : XmlSchemaParser(c),
+          progressIndicator_(paramProgress(c) ? new Core::ProgressIndicator("CorpusDescriptionParser", "segments") : 0) {
     initSchema();
 
     isSubParser_    = true;

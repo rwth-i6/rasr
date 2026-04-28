@@ -19,6 +19,7 @@
 #include <Core/Dependency.hh>
 #include <Core/Description.hh>
 #include <Core/ReferenceCounting.hh>
+#include <Core/ThreadSafeReference.hh>
 #include <Mm/PointerVector.hh>
 #include "Types.hh"
 
@@ -31,7 +32,7 @@ namespace Mm {
  */
 class Feature : public Core::ReferenceCounted {
 public:
-    class Vector : public FeatureVector, public Core::ReferenceCounted {
+    class Vector : public FeatureVector, public Core::ThreadSafeReferenceCounted {
         typedef FeatureVector Precursor;
 
     public:
@@ -41,16 +42,17 @@ public:
         Vector(const Precursor& v)
                 : Precursor(v) {}
     };
+    typedef Core::TsRef<const Vector> VectorRef;
 
-    typedef std::vector<Core::Ref<const Vector>>::const_iterator Iterator;
+    typedef std::vector<VectorRef>::const_iterator Iterator;
 
 public:
-    static Core::Ref<const Vector> convert(const FeatureVector& f) {
-        return Core::Ref<const Vector>(new Vector(f));
+    static VectorRef convert(const FeatureVector& f) {
+        return VectorRef(new Vector(f));
     }
 
 private:
-    std::vector<Core::Ref<const Vector>> streams_;
+    std::vector<VectorRef> streams_;
 
 public:
     /** Creates an empty feature with @param nStreams streams */
@@ -58,7 +60,7 @@ public:
             : streams_(nStreams) {}
 
     /** Creates a feature with a single stream containing the feature vector @param f. */
-    explicit Feature(const Core::Ref<const Vector>& f)
+    explicit Feature(const VectorRef& f)
             : streams_(1) {
         set(0, f);
     }
@@ -71,22 +73,22 @@ public:
     /** Creates a new stream with @param v
      *  @return is the new stream index.
      */
-    size_t add(const Core::Ref<const Vector>& v) {
+    size_t add(const VectorRef& v) {
         streams_.push_back(v);
         return streams_.size() - 1;
     }
 
     /** Creates a new stream at index @param newIndex with @param v */
-    void add(size_t newIndex, const Core::Ref<const Vector>& v);
+    void add(size_t newIndex, const VectorRef& v);
 
     /** Changes value of the stream at index @param newIndex to @param v */
-    void set(size_t streamIndex, const Core::Ref<const Vector>& v) {
+    void set(size_t streamIndex, const VectorRef& v) {
         require_(streamIndex < nStreams());
         streams_[streamIndex] = v;
     }
 
     /** Changes value of the stream at indices @param indices to @param v */
-    void set(const std::vector<size_t>& indices, const Core::Ref<const Vector>& v) {
+    void set(const std::vector<size_t>& indices, const VectorRef& v) {
         for (std::vector<size_t>::const_iterator i = indices.begin(); i != indices.end(); ++i)
             set(*i, v);
     }
@@ -104,14 +106,14 @@ public:
     }
 
     /** @return is value of the stream @param streamIndex */
-    Core::Ref<const Vector> operator[](size_t streamIndex) const {
+    VectorRef operator[](size_t streamIndex) const {
         return streams_[streamIndex];
     }
 
     /** Main stream is used in application working only with one stream.
      *  For example: training, basic feature scorer, etc.
      */
-    Core::Ref<const Vector> mainStream() const {
+    VectorRef mainStream() const {
         return streams_.front();
     }
 
@@ -169,6 +171,6 @@ public:
     FeatureDescription(const Core::Configurable& parent, const Feature&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  // _MM_FEATURE_HH

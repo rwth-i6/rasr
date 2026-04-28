@@ -15,13 +15,48 @@
 #ifndef _CORE_HASH_HH
 #define _CORE_HASH_HH
 
+#include <cstdint>
 #include <cstring>
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace Core {
+
+// Auxiliary function to merge multiple hashes into one via the boost way
+// See https://www.boost.org/doc/libs/1_43_0/doc/html/hash/reference.html#boost.hash_combine
+inline size_t combineHashes(size_t hash1, size_t hash2) {
+    if (hash1 == 0ul) {
+        return hash2;
+    }
+    if (hash2 == 0ul) {
+        return hash1;
+    }
+    return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2));
+}
+
+template<class Key>
+struct StandardValueHash {
+    inline uint32_t operator()(Key a) const {
+        a = (a ^ 0xc761c23c) ^ (a >> 19);
+        a = (a + 0xfd7046c5) + (a << 3);
+        return a;
+    }
+};
+
+template<class T>
+struct SetHash {
+    size_t operator()(const std::set<T>& set) const {
+        size_t a = set.size();
+        a        = (a ^ 0xc761c23c) ^ (a >> 19);
+        a        = (a + 0xfd7046c5) + (a << 3);
+        for (typename std::set<T>::const_iterator it = set.begin(); it != set.end(); ++it)
+            a += (*it << a) + a * *it + (*it ^ 0xb711a53c);
+        return a;
+    }
+};
 
 template<class T>
 struct PointerHash {
@@ -42,7 +77,7 @@ struct StringHash {
     }
 };
 
-struct StringEquality : std::binary_function<const char*, const char*, bool> {
+struct StringEquality {
     bool operator()(const char* s, const char* t) const {
         return (s == t) || (std::strcmp(s, t) == 0);
     }

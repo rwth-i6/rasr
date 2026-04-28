@@ -117,8 +117,7 @@ Lexicon::Lexicon(const Core::Configuration& config)
     else
         insertionChannel_ = 0;
     nLemmaUpdates_ = 0;
-    emptyPron_     = Precursor::getOrCreatePronunciation(
-            std::vector<Bliss::Phoneme::Id>(1, Bliss::Phoneme::term));
+    emptyPron_     = Precursor::getOrCreatePronunciation(std::vector<Bliss::Phoneme::Id>(1, Bliss::Phoneme::term));
     initSpecialLemmas();
 }
 
@@ -273,7 +272,7 @@ void Lexicon::updateLemma(Lemma* _lemma) {
 
 Fsa::LabelId Lexicon::lemmaId(const std::string& id) {
     Fsa::LabelId label = lemmaAlphabet()->specialIndex(id);
-    //Fsa::LabelId label = lemmaAlphabet()->index(id);
+    // Fsa::LabelId label = lemmaAlphabet()->index(id);
     if (label != Fsa::InvalidLabelId)
         return label;
     std::pair<Lemma*, bool> lb = getLemma(id);
@@ -329,7 +328,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
         criticalError("Invalid lemma pronunciation symbol \"%s\".",
                       id.c_str());
 
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -339,7 +338,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
     // Get lemma and pronunciation
     Lemma* _lemma = getLemma(orth).first;
     if (!_lemma) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -350,7 +349,7 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& id) {
             return lpRange.first->id();
     }
     if (isReadOnly_) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -388,14 +387,14 @@ Fsa::LabelId Lexicon::lemmaPronunciationId(const std::string& orth, s32 variant)
     const Lemma* _lemma = getLemma(orth).first;
     if (!_lemma) {
         criticalError("orthography not found in lexicon: ") << orth;
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
     }
     const LemmaPronunciation* _lemmaPron = lemmaPronunciation(_lemma, variant);
     if (!_lemmaPron) {
-        //dbg
+        // dbg
         defect();
 
         return Fsa::InvalidLabelId;
@@ -486,7 +485,9 @@ std::pair<const Lemma*, s32> Lexicon::lemmaPronunciationVariant(const Bliss::Lem
 }
 
 Lexicon::SymbolMap::SymbolMap(Fsa::ConstAlphabetRef alphabet, IndexFcn indexFcn)
-        : lexicon_(Lexicon::us().get()), index_(indexFcn), alphabet_(alphabet) {}
+        : lexicon_(Lexicon::us().get()),
+          index_(indexFcn),
+          alphabet_(alphabet) {}
 
 void Lexicon::SymbolMap::indices(const std::string& str, std::vector<Fsa::LabelId>& ids) const {
     const char *b = str.c_str(), *c;
@@ -756,7 +757,8 @@ protected:
 
     public:
         WordListExtractor(ConstLatticeRef l, Core::Vector<bool>& hasLid)
-                : TraverseState(l), hasLid_(hasLid) {
+                : TraverseState(l),
+                  hasLid_(hasLid) {
             traverse();
         }
         virtual ~WordListExtractor() {}
@@ -781,7 +783,9 @@ private:
 
 public:
     WordListExtractorNode(const std::string& name, const Core::Configuration& config)
-            : FilterNode(name, config), dump_(config, "dump"), hasLid_(0) {}
+            : FilterNode(name, config),
+              dump_(config, "dump"),
+              hasLid_(0) {}
     ~WordListExtractorNode() {}
 
     virtual void init(const std::vector<std::string>& arguments) {}
@@ -801,7 +805,8 @@ NodeRef createWordListExtractorNode(const std::string& name, const Core::Configu
 
 // -------------------------------------------------------------------------
 EditDistance::EditDistance(Fsa::ConstAlphabetRef alphabet, const Bliss::TokenAlphabet* toks)
-        : alphabet_(alphabet), toks_(toks) {
+        : alphabet_(alphabet),
+          toks_(toks) {
     lengthD_ = 256;
     D_       = new Cost[lengthD_];
 }

@@ -590,16 +590,16 @@ bool Statistics<T>::writeHeader(Core::BinaryOutputStream& o) const {
 template<typename T>
 const std::string Statistics<T>::getMagic() const {
     std::string magic("NNSTAT");
-    magic += hasClassCounts_ ? 'C' : '#';      //position 6 of 16
-    magic += hasMeanAndVariance_ ? 'M' : '#';  //position 7 of 16
-    magic += hasBaseStatistics_ ? 'B' : '#';   //position 8 of 16
-    magic += hasGradient_ ? 'G' : '#';         //position 9 of 16
-    magic += singlePrecision_ ? 'S' : 'D';     //position 10 of 16
-    magic += '#';                              //position 11 of 16
-    magic += '#';                              //position 12 of 16
-    magic += '#';                              //position 13 of 16
-    magic += '#';                              //position 14 of 16
-    magic += '#';                              //position 15 of 16
+    magic += hasClassCounts_ ? 'C' : '#';      // position 6 of 16
+    magic += hasMeanAndVariance_ ? 'M' : '#';  // position 7 of 16
+    magic += hasBaseStatistics_ ? 'B' : '#';   // position 8 of 16
+    magic += hasGradient_ ? 'G' : '#';         // position 9 of 16
+    magic += singlePrecision_ ? 'S' : 'D';     // position 10 of 16
+    magic += '#';                              // position 11 of 16
+    magic += '#';                              // position 12 of 16
+    magic += '#';                              // position 13 of 16
+    magic += '#';                              // position 14 of 16
+    magic += '#';                              // position 15 of 16
     return magic;
 }
 

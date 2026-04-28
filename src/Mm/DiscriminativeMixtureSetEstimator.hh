@@ -59,14 +59,16 @@ public:
 
     virtual bool accumulate(Core::BinaryInputStreams& is, Core::BinaryOutputStream& os);
     virtual bool accumulate(const AbstractMixtureSetEstimator&);
-    void         accumulateDenominator(MixtureIndex mixtureIndex, Core::Ref<const Feature::Vector>, Weight);
+    void         accumulateDenominator(MixtureIndex mixtureIndex, Feature::VectorRef, Weight);
     void         accumulateObjectiveFunction(Score);
-    Sum          objectiveFunction() const {
+
+    Sum objectiveFunction() const {
         return objectiveFunction_;
     }
+
     bool distributePreviousMixtureSet(const MixtureSet&);
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_DISCRIMINATIVE_MIXTURE_SET_ESTIMATOR_HH

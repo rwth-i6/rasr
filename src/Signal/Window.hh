@@ -34,20 +34,10 @@ public:
     typedef WindowBuffer::Time   Time;
     typedef WindowBuffer::Sample Sample;
 
-private:
-    Time            lengthInS_;
-    Time            shiftInS_;
-    WindowFunction* windowFunction_;
-
-protected:
-    virtual void init();
-    virtual void transform(Flow::Vector<Sample>& out);
-
-public:
     Window();
-    virtual ~Window();
+    virtual ~Window() = default;
 
-    void setWindowFunction(WindowFunction* windowFunction);
+    void setWindowFunction(std::unique_ptr<WindowFunction>&& windowFunction);
 
     void setSampleRate(f64 sampleRate);
 
@@ -56,10 +46,32 @@ public:
         return lengthInS_;
     }
 
+    void setInputLengthInS(Time length);
+    Time inputLengthInS() const {
+        return lengthInS_;
+    }
+
     void setShiftInS(Time shift);
     Time shiftInS() const {
         return shiftInS_;
     }
+
+    void setWindowOffsetInS(Time window_offset);
+    Time windowOffsetInS() const {
+        return windowOffsetInS_;
+    }
+
+protected:
+    virtual void init();
+    virtual void transform(Flow::Vector<Sample>& out);
+
+private:
+    Time lengthInS_;
+    Time shiftInS_;
+    Time inputLengthInS_;
+    Time windowOffsetInS_;
+
+    std::unique_ptr<WindowFunction> windowFunction_;
 };
 
 /** WindowNode */
@@ -70,6 +82,8 @@ public:
 private:
     static const Core::ParameterFloat paramShift;
     static const Core::ParameterFloat paramLength;
+    static const Core::ParameterFloat paramInputLength;
+    static const Core::ParameterFloat paramWindowOffset;
     static const Core::ParameterBool  paramFlushAll;
     static const Core::ParameterBool  paramFlushBeforeGap;
 

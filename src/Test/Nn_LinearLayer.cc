@@ -26,7 +26,9 @@ class LinearLayer : public Nn::LinearLayer<T> {
 public:
     using Precursor::setParameters;
     LinearLayer(const Core::Configuration& c)
-            : Core::Component(c), Nn::NeuralNetworkLayer<T>(c), Precursor(c) {}
+            : Core::Component(c),
+              Nn::NeuralNetworkLayer<T>(c),
+              Precursor(c) {}
 };
 
 class TestLinearLayer : public Test::ConfigurableFixture {

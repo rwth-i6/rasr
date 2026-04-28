@@ -21,7 +21,8 @@ using namespace Core;
 
 const Choice::Value Choice::IllegalValue      = -1;
 const char* const   Choice::IllegalIdentifier = "";
-const char*         Choice::endMark() {
+
+const char* Choice::endMark() {
     return (const char*)0;
 }
 

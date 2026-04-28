@@ -41,7 +41,9 @@ public:
 
     protected:
         CachedAssigningTransformingContextScorer(const CachedAssigningTransformingFeatureScorer* featureScorer, EmissionIndex nEmissions)
-                : ContextPrecursor(featureScorer, nEmissions), featureScorer_(featureScorer), transformedFeatureCache_(nEmissions) {
+                : ContextPrecursor(featureScorer, nEmissions),
+                  featureScorer_(featureScorer),
+                  transformedFeatureCache_(nEmissions) {
         }
 
     public:
@@ -55,7 +57,7 @@ public:
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).score;
             }
-            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  // copy from cache
             return ContextPrecursor::cache_[e].score;
         }
         virtual DensityInMixture bestDensity(EmissionIndex e, FeatureVector* transformedFeature = 0) const {
@@ -65,7 +67,7 @@ public:
                 transformedFeatureCache_.set(e, r.transformedFeature);
                 return ContextPrecursor::cache_.set(e, r).bestDensity;
             }
-            *transformedFeature = transformedFeatureCache_[e];  //copy from cache
+            *transformedFeature = transformedFeatureCache_[e];  // copy from cache
             return ContextPrecursor::cache_[e].bestDensity;
         }
     };
@@ -73,7 +75,8 @@ public:
 
 public:
     CachedAssigningTransformingFeatureScorer(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {
+            : Core::Component(c),
+              Precursor(c) {
     }
     virtual ~CachedAssigningTransformingFeatureScorer() {
     }

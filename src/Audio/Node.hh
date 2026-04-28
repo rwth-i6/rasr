@@ -52,13 +52,15 @@ public:
     }
 
     virtual bool isFileOpen() const;
-    bool         openFile() {
+
+    bool openFile() {
         require(!isFileOpen());
         bool result  = openFile_();
         sampleCount_ = 0;
         ensure(result == isFileOpen());
         return result;
     }
+
     void closeFile() {
         require(isFileOpen());
         closeFile_();
@@ -78,6 +80,7 @@ public:
         if (isFileOpen())
             closeFile();
     }
+
     virtual bool setParameter(const std::string& name, const std::string& value);
 };
 
@@ -124,11 +127,14 @@ protected:
 
     /** @return is sample position of startTime_. */
     SampleCount getStartSample() const;
+
     /** @return is sample position of endTime_. */
     SampleCount getEndSample() const;
-    void        setBlockSize(u32 blockSize) {
+
+    void setBlockSize(u32 blockSize) {
         blockSize_ = blockSize;
     }
+
     u32 blockSize() const {
         return blockSize_;
     }

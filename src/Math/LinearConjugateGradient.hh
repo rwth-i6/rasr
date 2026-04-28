@@ -47,6 +47,7 @@ template<class S, typename T>
 class CgPreconditioner {
 public:
     CgPreconditioner(){};
+    virtual ~CgPreconditioner()                                  = default;
     virtual void applyInversePreconditioner(const S& in, S& out) = 0;
 };
 

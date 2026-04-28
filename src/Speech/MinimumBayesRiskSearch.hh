@@ -36,7 +36,7 @@ class MinimumBayesRiskSearchNode : public LatticeSetProcessor {
     typedef LatticeSetProcessor Precursor;
 
     /** Registered actions to perform for minimum Bayes risk. */
-    typedef enum SearchMethod {
+    enum SearchMethod {
         searchDryRun,
         searchMap,
         searchNBestListNaive,
@@ -106,6 +106,6 @@ public:
     virtual void processWordLattice(Lattice::ConstWordLatticeRef lattice, Bliss::SpeechSegment* segment);
 };
 
-}  //namespace Speech
+}  // namespace Speech
 
 #endif  // _SPEECH_MINIMUM_BAYES_RISK_SEARCH_HH

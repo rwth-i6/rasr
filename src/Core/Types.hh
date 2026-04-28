@@ -39,22 +39,22 @@ namespace Core {
 template<class T>
 struct Type {
     /** Name to be used to represent data type. */
-    //static const char *name; // don't declare here to force compiler error on non-defined type
+    // static const char *name; // don't declare here to force compiler error on non-defined type
 
     /** Largest representable value of data type. */
-    //static const T max;
+    // static const T max;
 
     /**
      * Smallest representable value of data type.
      * Note that unlike std::numeric_limits<>::min this is the most negative
      * value also for floating point types.
      */
-    //static const T min;
+    // static const T min;
 
     /**
      * The difference between the smallest value greater than one and one.
      */
-    //static const T epsilon;
+    // static const T epsilon;
 
     /**
      * Smallest representable value greater than zero.
@@ -62,7 +62,7 @@ struct Type {
      * types this is the same as std::numeric_limits<>::min or
      * FLT_MIN / DBL_MIN.
      */
-    //static const T delta;
+    // static const T delta;
 };
 
 template<>

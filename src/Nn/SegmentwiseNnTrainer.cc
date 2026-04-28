@@ -406,6 +406,7 @@ void SegmentwiseNnTrainer<T>::setClassWeights() {
         NeuralNetworkTrainer<f32>::weightedAccumulation_ = true;
     }
     else if (silenceWeight != -1.0) {
+        verify(this->acousticModel()->silence() != Bliss::Phoneme::invalidId);
         Am::Allophone silenceAllophone(this->acousticModel()->silence(), Am::Allophone::isInitialPhone | Am::Allophone::isFinalPhone);
         u32           silence = this->acousticModel()->emissionIndex(this->acousticModel()->allophoneStateAlphabet()->index(&silenceAllophone, 0));
         this->log("silence index is ") << silence;
@@ -748,8 +749,8 @@ bool SegmentwiseNnTrainer<T>::getAlignmentVector(Lattice::ConstWordLatticeRef nu
 }
 
 /**
-* factory
-*/
+ * factory
+ */
 template<typename T>
 SegmentwiseNnTrainer<T>* SegmentwiseNnTrainer<T>::createSegmentwiseNnTrainer(const Core::Configuration& config) {
     switch (paramCriterion(config)) {
@@ -767,6 +768,6 @@ SegmentwiseNnTrainer<T>* SegmentwiseNnTrainer<T>::createSegmentwiseNnTrainer(con
 }
 
 template class SegmentwiseNnTrainer<f32>;
-//template class SegmentwiseNnTrainer<f64>;
+// template class SegmentwiseNnTrainer<f64>;
 
 }  // namespace Nn

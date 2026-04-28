@@ -28,7 +28,7 @@ bool ContextPhonology::SemiContext::empty() const {
     }
     else if ((*begin()) == Phoneme::term) {
         // The 'term' element cannot be followed by not 'term' element.
-        verify(std::find_if(begin(), end(), std::bind2nd(std::not_equal_to<Phoneme::Id>(), Phoneme::term)) == end());
+        verify(std::find_if(begin(), end(), std::bind(std::not_equal_to<Phoneme::Id>(), std::placeholders::_1, Phoneme::term)) == end());
         return true;
     }
     return false;

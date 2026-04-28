@@ -42,10 +42,12 @@ ifdef MODULE_MATH_NR
 RASR_LIB_O += ../../Math/Nr/libSprintMathNr.$(a)
 endif
 ifdef MODULE_PYTHON
-RASR_LIB_O += $(OBJDIR)/PybindModule.o \
+RASR_LIB_O += $(OBJDIR)/LabelScorer.o \
+              $(OBJDIR)/Lexicon.o \
+              $(OBJDIR)/PybindModule.o \
+              $(OBJDIR)/Search.o \
               ../../Python/libSprintPython.$(a)
-CXXFLAGS += $(shell python3 -m pybind11 --includes) -fexceptions
-LDFLAGS += $(shell python3-config --ldflags) -Wl,-u,PyInit_librasr
+LDFLAGS += -Wl,-u,PyInit_librasr
 endif
 ifdef MODULE_NN
 RASR_LIB_O += ../../Nn/libSprintNn.$(a)

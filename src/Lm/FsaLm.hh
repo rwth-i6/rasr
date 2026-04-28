@@ -21,33 +21,38 @@
 namespace Lm {
 
 class FsaLm : public LanguageModel {
-private:
-    typedef FsaLm                      Self;
-    static const Core::ParameterString paramFilename;
-    static Fsa::ConstStateRef          invalidHistory;
-
-    Fsa::ConstAlphabetRef  syntacticTokens_;
-    Fsa::ConstAutomatonRef fsa_;
-
-    class HistoryManager;
-
-protected:
-    Score infinityScore_;
-
 public:
-    typedef Fsa::State HistoryDescriptor;
+    using HistoryDescriptor = Fsa::State;
+
+    static const Core::ParameterString paramFilename;
+    static const Core::ParameterBool   paramGarbageLoopMode;
+    static const Core::ParameterBool   paramAcceptPartialRepeat;
 
     FsaLm(const Core::Configuration& c, Bliss::LexiconRef);
     virtual ~FsaLm();
+
     virtual void                   load();
     void                           setFsa(Fsa::ConstAutomatonRef);
     virtual Fsa::ConstAutomatonRef getFsa() const {
         return fsa_;
     }
+
     virtual History startHistory() const;
     virtual History extendedHistory(const History&, Token w) const;
     virtual Score   score(const History&, Token w) const;
     virtual Score   sentenceEndScore(const History&) const;
+
+    // efficient sparse lookahead: reachable next states' (token, score)
+    // always use infinityScore for backOffScore
+    bool isSparse(const History& h) const {
+        return true;
+    }
+
+    virtual HistorySuccessors getHistorySuccessors(const History& h) const;
+
+    Score getBackOffScore(const History& h) const {
+        return infinityScore();
+    }
 
     /**
      * Score for impossible events.
@@ -61,6 +66,27 @@ public:
     Score infinityScore() const {
         return infinityScore_;
     }
+
+protected:
+    Score infinityScore_;
+    // Note: accept & forward has higher priority than start over for the same input
+    bool garbageLoopMode_;
+    bool acceptPartialRepeat_;
+
+    virtual Fsa::ConstStateRef initialState() const;
+    virtual Fsa::ConstStateRef nextState(Fsa::ConstStateRef sp, Token w) const;
+    virtual Score              stateScore(Fsa::ConstStateRef sp, Token w) const;
+    virtual Score              stateSentenceEndScore(Fsa::ConstStateRef sp) const;
+    virtual HistorySuccessors  getStateSuccessors(Fsa::ConstStateRef sp) const;
+
+private:
+    class HistoryManager;
+    typedef FsaLm Self;
+
+    static Fsa::ConstStateRef invalidHistory;
+
+    Fsa::ConstAlphabetRef  syntacticTokens_;
+    Fsa::ConstAutomatonRef fsa_;
 };
 
 }  // namespace Lm

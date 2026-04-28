@@ -65,7 +65,7 @@ private:
     SegmentwiseFeatureExtractorRef                  featureExtractor_;
     SegmentwiseModelAdaptorRef                      modelAdaptor_;
     Core::XmlChannel                                tracebackChannel_;
-    Search::SearchAlgorithm::Traceback              traceback_;
+    Search::Traceback                               traceback_;
     std::vector<Flow::Timestamp>                    featureTimes_;
 
     bool addPronunciationScores_;
@@ -88,14 +88,14 @@ private:
     DataSourceRef dataSource_;
 
 protected:
-    void addPartialToTraceback(Search::SearchAlgorithm::Traceback& partialTraceback) {
+    void addPartialToTraceback(Search::Traceback& partialTraceback) {
         if (!traceback_.empty() && traceback_.back().time == partialTraceback.front().time)
             partialTraceback.erase(partialTraceback.begin());
         traceback_.insert(traceback_.end(), partialTraceback.begin(), partialTraceback.end());
     }
 
     void processResult() {
-        Search::SearchAlgorithm::Traceback remainingTraceback;
+        Search::Traceback remainingTraceback;
         recognizer_->getCurrentBestSentence(remainingTraceback);
         addPartialToTraceback(remainingTraceback);
 
@@ -104,10 +104,12 @@ protected:
         traceback_.write(os, lexicon_->phonemeInventory());
         os << Core::XmlClose("traceback");
         os << Core::XmlOpen("orth") + Core::XmlAttribute("source", "recognized");
-        for (u32 i = 0; i < traceback_.size(); ++i)
-            if (traceback_[i].pronunciation)
+        for (u32 i = 0; i < traceback_.size(); ++i) {
+            if (traceback_[i].pronunciation) {
                 os << traceback_[i].pronunciation->lemma()->preferredOrthographicForm()
                    << Core::XmlBlank();
+            }
+        }
         os << Core::XmlClose("orth");
         if (tracebackChannel_.isOpen()) {
             logTraceback(traceback_);
@@ -258,11 +260,11 @@ protected:
         return l;
     }
 
-    void logTraceback(const Search::SearchAlgorithm::Traceback& traceback) {
+    void logTraceback(const Search::Traceback& traceback) {
         tracebackChannel_ << Core::XmlOpen("traceback") + Core::XmlAttribute("type", "xml");
-        u32                                  previousIndex = traceback.begin()->time;
-        Search::SearchAlgorithm::ScoreVector previousScore(0.0, 0.0);
-        for (std::vector<Search::SearchAlgorithm::TracebackItem>::const_iterator tbi = traceback.begin(); tbi != traceback.end(); ++tbi) {
+        u32                 previousIndex = traceback.begin()->time;
+        Search::ScoreVector previousScore(0.0, 0.0);
+        for (std::vector<Search::TracebackItem>::const_iterator tbi = traceback.begin(); tbi != traceback.end(); ++tbi) {
             if (tbi->pronunciation) {
                 tracebackChannel_ << Core::XmlOpen("item") + Core::XmlAttribute("type", "pronunciation")
                                   << Core::XmlFull("orth", tbi->pronunciation->lemma()->preferredOrthographicForm())
@@ -710,7 +712,10 @@ protected:
 
 public:
     RecognizerNode(const std::string& name, const Core::Configuration& config)
-            : Node(name, config), mc_(), recognizer_(0), grammarChannel_(Core::Configuration(config, "grammar"), "log") {}
+            : Node(name, config),
+              mc_(),
+              recognizer_(0),
+              grammarChannel_(Core::Configuration(config, "grammar"), "log") {}
     virtual ~RecognizerNode() {
         delete recognizer_;
     }

@@ -23,9 +23,10 @@
 /** Internal data structures of BackingOffLm */
 
 namespace BackingOffPrivate {
-typedef u32              NodeIndex;
-typedef u32              WordScoreIndex;
-typedef Bliss::Token::Id TokenIndex;
+typedef u32                                                                                 NodeIndex;
+typedef u32                                                                                 WordScoreIndex;
+typedef Bliss::Token::Id                                                                    TokenIndex;
+typedef std::unordered_map<const char*, TokenIndex, Core::StringHash, Core::StringEquality> TokenMap;
 
 template<class Node>
 const Node* binarySearch(const Node* l, const Node* r, TokenIndex t) {
@@ -46,7 +47,7 @@ const Node* binarySearch(const Node* l, const Node* r, TokenIndex t) {
 }  // namespace BackingOffPrivate
 using BackingOffPrivate::NodeIndex;
 using BackingOffPrivate::TokenIndex;
-typedef Lm::BackingOffLm::WordScore WordScore;
+typedef Lm::WordScore WordScore;
 using BackingOffPrivate::WordScoreIndex;
 
 class Lm::BackingOffLm::Node {
@@ -103,6 +104,8 @@ public:
 
 class Lm::BackingOffLm::Internal : public Core::ReferenceCounted,
                                    public StaticHistoryManager {
+    friend class BackingOffLm;
+
 public:
     typedef const Bliss::Token* Token;
 
@@ -131,6 +134,12 @@ protected:
     size_t mmapSize_;
     bool   writeImageTokenTable(int fd) const;
 
+    // token mapping & processing
+    std::vector<TokenIndex>*    lexiconMapping_;
+    BackingOffPrivate::TokenMap noUseTokens_;
+    TokenIndex                  unkTokenId_;
+    TokenSet                    oovTokens_;
+
 public:
     Internal();
     ~Internal();
@@ -138,7 +147,7 @@ public:
     void reserve(NodeIndex nNodes, WordScoreIndex nWordScores);
     void build(InitItem*, InitItem*);
     bool writeImage(int fd, const std::string& info) const;
-    bool mountImage(int fd, std::string& info, const Bliss::TokenInventory&);
+    bool mountImage(int fd, std::string& info, const Bliss::TokenInventory&, bool mapOovToUnk);
     bool isMapped() const {
         return (mmap_ != NULL);
     }

@@ -17,7 +17,7 @@
 #include "MixtureSet.hh"
 
 using namespace Mm;
-//using namespace Math::Lapack;
+// using namespace Math::Lapack;
 
 const Core::ParameterInt BandMllrEstimator::paramNBands_(
         "mllr-bands",
@@ -37,14 +37,14 @@ BandMllrEstimator::BandMllrEstimator(const Core::Configuration&          c,
                                      const Core::Ref<Am::AdaptationTree> adaptationTree)
         : FullAdaptorViterbiEstimator(c, dim, adaptationTree),
           nBands_(paramNBands_(config)) {
-    //no logging because only used for clone()
+    // no logging because only used for clone()
 }
 
 BandMllrEstimator::BandMllrEstimator(const Core::Configuration&          c,
                                      const Core::Ref<Am::AdaptationTree> adaptationTree)
         : FullAdaptorViterbiEstimator(c, adaptationTree),
           nBands_(paramNBands_(config)) {
-    //no logging because only used for clone()
+    // no logging because only used for clone()
 }
 
 void BandMllrEstimator::estimateWMatrices() {
@@ -58,11 +58,11 @@ void BandMllrEstimator::estimateWMatrices() {
 
     ensure(z.size() == g.size());
     count_.resize(z.size());
-    for (u32 id = 0; id < z.size(); ++id) {  //loop over all nodes of tree_
+    for (u32 id = 0; id < z.size(); ++id) {  // loop over all nodes of tree_
         count_[id] = g[id].count();
         w_[id].resize(dimension_, dimension_ + 1);
         if (count_[id] > minAdaptationObservations_) {
-            //solve MLLR equation row-wise
+            // solve MLLR equation row-wise
             for (u32 row = 0; row < dimension_; ++row) {
                 resultRow   = solveRowEquation(g[id].matrix(), z[id].matrix(), row);
                 w_[id][row] = resultRow;
@@ -79,7 +79,7 @@ Math::Vector<Matrix::Type> BandMllrEstimator::solveRowEquation(
         const Matrix& z,
         u32           wRow) {
     u16                        nRows  = 2 * nBands_ + 1;
-    const s16                  offset = wRow - nBands_;  //originally wRow-nBands_-1, but nRow is starts from 0
+    const s16                  offset = wRow - nBands_;  // originally wRow-nBands_-1, but nRow is starts from 0
     Math::Vector<Matrix::Type> result(dimension_ + 1, 0.0);
     Math::Vector<Matrix::Type> x(nRows + 1);
     Math::Vector<Matrix::Type> c(nRows + 1);
@@ -88,7 +88,7 @@ Math::Vector<Matrix::Type> BandMllrEstimator::solveRowEquation(
     for (u16 row = 1; row < nRows + 1; ++row) {
         if (row + offset > 0 && u16(row + offset) < dimension_ + 1) {
             B[row][0] = g[row + offset][0];
-            B[0][row] = g[0][row + offset];  //put here for efficiency, row=col
+            B[0][row] = g[0][row + offset];  // put here for efficiency, row=col
             for (u16 col = 1; col < nRows + 1; ++col) {
                 if (col + offset > 0 && u16(col + offset) < dimension_ + 1) {
                     B[row][col] = g[row + offset][col + offset];

@@ -49,6 +49,7 @@ public:
 struct PosteriorFsa {
     Fsa::ConstAutomatonRef fsa;
     Fsa::Weight            totalInv;
+
     operator bool() const {
         return fsa;
     }

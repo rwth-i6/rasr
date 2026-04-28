@@ -21,7 +21,12 @@ using namespace Signal;
 
 //========================================================================================================
 CrossCorrelation::CrossCorrelation()
-        : begin_(0), end_(0), similarityFunctionType_(Multiplication), power_(1.0), normalizationType_(None), useFastFourierTransform_(true) {}
+        : begin_(0),
+          end_(0),
+          similarityFunctionType_(Multiplication),
+          power_(1.0),
+          normalizationType_(None),
+          useFastFourierTransform_(true) {}
 
 void CrossCorrelation::crossCorrelation(const std::vector<Data>& x,
                                         const std::vector<Data>& y,
@@ -183,22 +188,28 @@ const ParameterFloat CrossCorrelationNode::paramEnd("end", "correlation is calcu
 const ParameterInt   CrossCorrelationNode::paramNumberOfCoefficients("nr-coefficients", "correlation is calculated for 0, 1, 2, ..nr-coefficients-1 discrete values", 0);
 
 const Choice          CrossCorrelationNode::choiceSimilarityFunctionType("multiplication", Multiplication,
-                                                                "absolute-difference", AbsoluteDifference,
-                                                                Choice::endMark());
+                                                                         "absolute-difference", AbsoluteDifference,
+                                                                         Choice::endMark());
 const ParameterChoice CrossCorrelationNode::paramSimilarityFunctionType("similarity-function", &choiceSimilarityFunctionType, "type of similarity function", Multiplication);
 
 const ParameterFloat CrossCorrelationNode::paramPower("power", "power of similarity function", 1.0);
 
 const Choice          CrossCorrelationNode::choiceNormalizationType("none", None,
-                                                           "unbiased-estimate", UnbiasedEstimate,
-                                                           "upper-bound", UpperBound,
-                                                           Choice::endMark());
+                                                                    "unbiased-estimate", UnbiasedEstimate,
+                                                                    "upper-bound", UpperBound,
+                                                                    Choice::endMark());
 const ParameterChoice CrossCorrelationNode::paramNormalizationType("normalization", &choiceNormalizationType, "type of normalization", None);
 
 const ParameterBool CrossCorrelationNode::paramUseFastFourierTransform("use-fft", "use/not FFT for correlation", true);
 
 CrossCorrelationNode::CrossCorrelationNode(const Core::Configuration& c)
-        : Core::Component(c), Node(c), continuousBegin_(0), continuousEnd_(0), sampleRate_(0), nCoefficients_(0), needInit_(true) {
+        : Core::Component(c),
+          Node(c),
+          continuousBegin_(0),
+          continuousEnd_(0),
+          sampleRate_(0),
+          nCoefficients_(0),
+          needInit_(true) {
     setContinuousBegin(paramBegin(c));
     setContinuousEnd(paramEnd(c));
     setNumberOfCoefficients(paramNumberOfCoefficients(c));

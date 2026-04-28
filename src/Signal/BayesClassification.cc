@@ -419,7 +419,9 @@ const Core::ParameterBool BayesClassificationScoreNode::paramSingleFrameClassifi
         "single-frame-classification", "classify single frames", false);
 
 BayesClassificationScoreNode::BayesClassificationScoreNode(const Core::Configuration& c)
-        : Component(c), Precursor(c), singleFrames_(paramSingleFrameClassification(c)) {
+        : Component(c),
+          Precursor(c),
+          singleFrames_(paramSingleFrameClassification(c)) {
     if (nClasses() == 0)
         setClassLabels(paramNumberOfClasses(c));
 }

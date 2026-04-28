@@ -7,8 +7,7 @@ include $(TOPDIR)/Makefile.cfg
 # -----------------------------------------------------------------------------
 
 SUBDIRS 		=
-#TARGETS			= libSprintLattice.$(a) check$(exe)
-TARGETS			= libSprintLattice.$(a)
+TARGETS			= libSprintLattice.$(a) check$(exe)
 
 LIBSPRINTLATTICE_O	= \
 			  $(OBJDIR)/Archive.o \
@@ -63,7 +62,20 @@ LIBSPRINTLATTICE_O += $(OBJDIR)/HtkWriter.o
 endif
 
 ifdef MODULE_MATH_NR
-CHECK_O += ../Math/Nr/libSprintMathNr$(a)
+CHECK_O += ../Math/Nr/libSprintMathNr.$(a)
+endif
+
+ifdef MODULE_NN_SEQUENCE_TRAINING
+CHECK_O += ../Nn/libSprintNn.$(a)
+endif
+ifdef MODULE_PYTHON
+CHECK_O += ../Python/libSprintPython.$(a)
+endif
+
+ifdef MODULE_TENSORFLOW
+CHECK_O += ../Tensorflow/libSprintTensorflow.$(a)
+CXXFLAGS += $(TF_CXXFLAGS)
+LDFLAGS  += $(TF_LDFLAGS)
 endif
 
 # -----------------------------------------------------------------------------

@@ -44,7 +44,8 @@ private:
         Token()
                 : set_(false) {}
         Token(const std::string& value)
-                : set_(true), value_(value) {}
+                : set_(true),
+                  value_(value) {}
 
         void operator=(const std::string& v) {
             set_   = true;
@@ -134,7 +135,9 @@ public:
     StringExpressionParser(StringExpression&  toBuild,
                            const std::string& openTag  = "$(",
                            const std::string& closeTag = ")")
-            : toBuild_(toBuild), openTag_(openTag), closeTag_(closeTag) {}
+            : toBuild_(toBuild),
+              openTag_(openTag),
+              closeTag_(closeTag) {}
 
     bool accept(const std::string& stringExpression);
 };

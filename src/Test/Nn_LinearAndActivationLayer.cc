@@ -23,7 +23,9 @@ class LinearAndSigmoidLayer : public Nn::LinearAndSigmoidLayer<T> {
 public:
     using Precursor::setParameters;
     LinearAndSigmoidLayer(const Core::Configuration& c)
-            : Core::Component(c), Nn::NeuralNetworkLayer<T>(c), Precursor(c) {}
+            : Core::Component(c),
+              Nn::NeuralNetworkLayer<T>(c),
+              Precursor(c) {}
 };
 
 template<typename T>
@@ -33,7 +35,9 @@ class LinearAndSoftmaxLayer : public Nn::LinearAndSoftmaxLayer<T> {
 public:
     using Precursor::setParameters;
     LinearAndSoftmaxLayer(const Core::Configuration& c)
-            : Core::Component(c), Nn::NeuralNetworkLayer<T>(c), Precursor(c) {}
+            : Core::Component(c),
+              Nn::NeuralNetworkLayer<T>(c),
+              Precursor(c) {}
 };
 
 class TestLinearAndSigmoidLayer : public Test::ConfigurableFixture {

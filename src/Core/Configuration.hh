@@ -21,6 +21,7 @@
 #include <Modules.hh>
 #endif
 #include <iostream>
+#include <list>
 #include <set>
 #include <vector>
 #include <string.h>
@@ -113,10 +114,12 @@ public:
     class Resource;
     class ResourceDataBase;
 
-private:
+protected:
     Ref<ResourceDataBase> db_;
-    std::string           selection_;
-    std::string           name_;
+
+private:
+    std::string selection_;
+    std::string name_;
 
     void warning(const std::string& filename, int lineNumber,
                  const std::string& description);
@@ -313,6 +316,152 @@ private:
 #endif
 
     std::string getResolvedValue(const Resource* resource) const;
+};
+
+/**
+ * Describes where a resource comes from.
+ */
+class Configuration::SourceDescriptor {
+public:
+    std::string type, data;
+    void        write(XmlWriter& os) const {
+        os << XmlFull("source", data) + XmlAttribute("type", type);
+    }
+};
+
+/**
+ * Item of configuration.
+ *
+ * A resource is a piece of configuration specified by the user.
+ * It consists of a name and an associated value.  The name may
+ * contain wildcards.  The value may contain references
+ * (e.g. $(basedir) ), which are subject to substitution.
+ */
+class Configuration::Resource {
+private:
+    const SourceDescriptor* source_;
+    std::string             name_;
+    std::string             value_;
+    mutable bool            isBeingResolved_; /**< flag to trap circular reference */
+
+    struct Usage {
+        std::string              fullParameterName;
+        const AbstractParameter* parameter;
+        std::string              effectiveValue;
+    };
+
+    mutable std::vector<Usage> usage;
+
+public:
+    Resource(const std::string& _name, const std::string& _value, const SourceDescriptor* _source)
+            : source_(_source),
+              name_(_name),
+              value_(_value),
+              isBeingResolved_(false) {}
+
+    inline const std::string& getName() const {
+        return name_;
+    };
+    inline const std::string& getValue() const {
+        return value_;
+    };
+
+    bool isBeingResolved() const {
+        return isBeingResolved_;
+    }
+    void beginResolution() const {
+        isBeingResolved_ = true;
+    }
+    void endResolution() const {
+        isBeingResolved_ = false;
+    }
+
+    inline bool operator<(const Resource& r) const {
+        return name_ < r.name_;
+    }
+    inline bool operator==(const Resource& r) const {
+        return name_ == r.name_;
+    }
+
+    void write(std::ostream& os) const {
+        os << name_ << " = " << value_;
+    }
+
+    /**
+     * Determine if the resource matches a configurtion path.
+     * @param components the components of the configuration path
+     * @return the number of path components matched by the resource,
+     * or -1 of the resource does not match.
+     */
+    s32 match(const std::vector<std::string>& components) const;
+
+    void registerUsage(const std::string& n, const AbstractParameter* p, const std::string& v) const {
+        Usage u;
+        u.fullParameterName = n;
+        u.parameter         = p;
+        u.effectiveValue    = v;
+        usage.push_back(u);
+    }
+
+    void writeUsage(XmlWriter&) const;
+};
+
+/**
+ * Central storage place for all resources.
+ */
+class Configuration::ResourceDataBase : public ReferenceCounted {
+private:
+    std::set<Resource> resources;
+    Resource           noResource_;
+    bool               isLogging_;
+
+    typedef std::list<SourceDescriptor*> SourceList;
+    SourceList                           sources_;
+
+public:
+    /**
+     * Add a resource.
+     * If a resource with the same name already exists, its value is
+     * replaced.
+     * @param name of the resource to be added
+     * @param value of the resource
+     */
+    void set(const std::string&      name,
+             const std::string&      value  = "true",
+             const SourceDescriptor* source = 0);
+
+    /**
+     * Find the resource to be used for a given parameter.
+     * @param parameter the parameter specification string
+     * @return the most specific resource matching @c parameter
+     */
+    const Resource* find(const std::string& parameter) const;
+
+    const std::set<Resource>& getResources() const {
+        return resources;
+    }
+
+    const Resource* noResource() const {
+        return &noResource_;
+    }
+
+    SourceDescriptor* addSource(const std::string& type, const std::string& data) {
+        SourceDescriptor* sd = new SourceDescriptor;
+        sd->type             = type;
+        sd->data             = data;
+        sources_.push_back(sd);
+        return sd;
+    }
+
+    ResourceDataBase();
+    ~ResourceDataBase();
+
+    void enableLogging() {
+        isLogging_ = true;
+    }
+    void writeSources(XmlWriter&) const;
+    void writeUsage(XmlWriter&) const;
+    void write(std::ostream&) const;
 };
 
 }  // namespace Core

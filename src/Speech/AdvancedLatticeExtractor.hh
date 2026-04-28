@@ -15,11 +15,8 @@
 #ifndef _SPEECH_ADVANCED_LATTICE_EXTRACTOR_HH
 #define _SPEECH_ADVANCED_LATTICE_EXTRACTOR_HH
 
+#include <Search/AdvancedTreeSearch/AdvancedTreeSearch.hh>
 #include "LatticeExtractor.hh"
-
-namespace Search {
-class WordConditionedTreeSearch;
-}
 
 namespace Speech {
 
@@ -417,7 +414,7 @@ private:
 protected:
     Core::Ref<SegmentwiseFeatureExtractor> segmentwiseFeatureExtractor_;
     Flow::PortId                           portId_;
-    Search::WordConditionedTreeSearch*     recognizer_;
+    Search::AdvancedTreeSearchManager*     recognizer_;
     Fsa::ConstAutomatonRef                 lemmaPronunciationToLemmaTransducer_;
     Fsa::ConstAutomatonRef                 lemmaToSyntacticTokenTransducer_;
 

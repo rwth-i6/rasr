@@ -140,7 +140,7 @@ bool ScatterDiagonalNormalization::work() {
 //----------------------------------------------------------------------------
 
 const Core::ParameterFloat  ScatterThresholding::paramElementThresholdMin("element-threshold-min",
-                                                                         "minimum threshold for every covariance element", Core::Type<f32>::min);
+                                                                          "minimum threshold for every covariance element", Core::Type<f32>::min);
 const Core::ParameterString ScatterThresholding::paramInputScatterFilename("input-matrix-file",
                                                                            "input file name for scatter matrix");
 const Core::ParameterString ScatterThresholding::paramOutputScatterFilename("output-matrix-file",

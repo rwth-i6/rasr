@@ -16,6 +16,8 @@
 #define _TENSORFLOW_GRAPH_LOADER_HH
 
 #include <Core/Component.hh>
+#include <tensorflow/core/public/version.h>
+#include <tensorflow/core/util/port.h>
 #include "Graph.hh"
 
 namespace Tensorflow {
@@ -39,7 +41,11 @@ protected:
 };
 
 inline GraphLoader::GraphLoader(Core::Configuration const& config)
-        : Precursor(config), required_libraries_(paramRequiredLibraries(config)) {
+        : Precursor(config),
+          required_libraries_(paramRequiredLibraries(config)) {
+    log("TF version: %s\nTF_GRAPH_DEF_VERSION: %d\nCUDA/MKL: %d/%d",
+        TF_VERSION_STRING, TF_GRAPH_DEF_VERSION,
+        tensorflow::IsGoogleCudaEnabled(), tensorflow::IsMklEnabled());
 }
 
 inline void GraphLoader::setGraphDef(Graph& graph, tf::GraphDef const& graph_def) {

@@ -36,8 +36,7 @@ BufferedSegmentFeatureProcessor<FloatT>::~BufferedSegmentFeatureProcessor() {
 // The NN must also know about the segment transcription, though.
 template<typename FloatT>
 void BufferedSegmentFeatureProcessor<FloatT>::processBuffer() {
-    typedef typename Math::FastMatrix<FloatT> FastMatrix;
-    typedef typename Precursor::NnMatrix      NnMatrix;
+    typedef typename Precursor::NnMatrix NnMatrix;
 
     // We expect that the underlying BufferedFeatureProcessor
     // is in utterance buffer mode and this is only called indirectly

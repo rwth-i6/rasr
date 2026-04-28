@@ -53,7 +53,8 @@ public:
             : Timestamp(type()) {}
     template<class InputIterator>
     Aggregate(InputIterator begin, InputIterator end)
-            : Timestamp(type()), Precursor(begin, end) {}
+            : Timestamp(type()),
+              Precursor(begin, end) {}
     virtual ~Aggregate() {}
 
     virtual Data* clone() const {
@@ -75,7 +76,7 @@ public:
     template<class T>
     bool get(std::vector<DataPtr<T>>& d) {
         std::vector<DataPtr<T>> dd(begin(), end());
-        if (std::find_if(dd.begin(), dd.end(), std::bind2nd(std::equal_to<bool>(), false)) != dd.end())
+        if (std::find_if(dd.begin(), dd.end(), std::bind(std::equal_to<bool>(), std::placeholders::_1, false)) != dd.end())
             return false;
         d = dd;
         return true;
@@ -98,7 +99,8 @@ public:
         return std::string("generic-aggregation");
     }
     AggregationNode(const Core::Configuration& c)
-            : Core::Component(c), Precursor(c) {}
+            : Core::Component(c),
+              Precursor(c) {}
     virtual ~AggregationNode() {}
 
     virtual bool configure();

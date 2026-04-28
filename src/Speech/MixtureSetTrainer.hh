@@ -64,11 +64,11 @@ public:
     void initializeAccumulation(size_t nMixtures, size_t dimension,
                                 Core::Ref<const Mm::AssigningFeatureScorer> assigningFeatureScorer = Core::Ref<Mm::AssigningFeatureScorer>(),
                                 Core::Ref<Mm::MixtureSet>                   mixtureSet             = Core::Ref<Mm::MixtureSet>());
-    void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m) {
+    void accumulate(Feature::VectorRef f, Mm::MixtureIndex m) {
         verify_(estimator_ != 0);
         estimator_->accumulate(m, f);
     }
-    void accumulate(Core::Ref<const Feature::Vector> f, Mm::MixtureIndex m, Mm::Weight w) {
+    void accumulate(Feature::VectorRef f, Mm::MixtureIndex m, Mm::Weight w) {
         verify_(estimator_ != 0);
         estimator_->accumulate(m, f, w);
     }

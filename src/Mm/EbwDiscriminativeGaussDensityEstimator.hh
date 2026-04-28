@@ -68,17 +68,22 @@ public:
     const std::vector<Accumulator::SumType>& denSum() const {
         return denAccumulator_.sum();
     }
+
     virtual std::vector<Accumulator::SumType> dtSum() const;
-    Weight                                    denWeight() const {
+
+    Weight denWeight() const {
         return denAccumulator_.weight();
     }
+
     virtual Weight dtWeight() const {
         return weight() - denWeight();
     }
+
     IterationConstant iterationConstant() const {
         verify(iterationConstant_ > 0);
         return iterationConstant_;
     }
+
     void setIterationConstant(IterationConstant);
 };
 
@@ -99,7 +104,8 @@ public:
     EbwDiscriminativeMeanEstimatorWithISmoothing(ComponentIndex dimension = 0);
 
     virtual std::vector<Accumulator::SumType> dtSum() const;
-    virtual Weight                            dtWeight() const {
+
+    virtual Weight dtWeight() const {
         return Precursor::dtWeight() + ISmoothing::constant();
     }
 };
@@ -136,10 +142,13 @@ public:
     const std::vector<Accumulator::SumType>& denSum() const {
         return denAccumulator_.sum();
     }
+
     virtual std::vector<Accumulator::SumType> dtSum(const CovarianceToMeanSetMap::MeanSet&) const;
-    Weight                                    denWeight() const {
+
+    Weight denWeight() const {
         return denAccumulator_.weight();
     }
+
     virtual Weight dtWeight() const {
         return weight() - denWeight();
     }
@@ -175,6 +184,6 @@ public:
     }
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_EBW_DISCRIMINATIVE_MIXTURE_ESTIMATOR_HH

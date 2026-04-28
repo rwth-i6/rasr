@@ -61,18 +61,23 @@ public:
     virtual void reset();
 
     virtual Mixture* estimate(const ReferenceIndexMap<GaussDensityEstimator>& densityMap, bool normalizeWeights = true);
-    Weight           getWeight() const {
+
+    Weight getWeight() const {
         return std::accumulate(weights_.begin(), weights_.end(), 0.0);
     }
+
     size_t nDensities() const {
         return densityEstimators_.size();
     }
+
     const DensityEstimators& densityEstimators() const {
         return densityEstimators_;
     }
+
     std::vector<Weight>& weights() {
         return weights_;
     }
+
     const std::vector<Weight>& weights() const {
         return weights_;
     }
@@ -92,9 +97,10 @@ public:
                        const ReferenceIndexMap<GaussDensityEstimator>&,
                        std::string label = "") const;
 
-    bool         equalTopology(const AbstractMixtureEstimator&                 toCompare,
-                               const ReferenceIndexMap<GaussDensityEstimator>& densityMap,
-                               const ReferenceIndexMap<GaussDensityEstimator>& densityMapToCompare) const;
+    bool equalTopology(const AbstractMixtureEstimator&                 toCompare,
+                       const ReferenceIndexMap<GaussDensityEstimator>& densityMap,
+                       const ReferenceIndexMap<GaussDensityEstimator>& densityMapToCompare) const;
+
     virtual bool equalWeights(const AbstractMixtureEstimator& toCompare) const {
         return weights_ == toCompare.weights_;
     }
@@ -116,6 +122,6 @@ public:
     virtual ~MixtureEstimator() {}
 };
 
-}  //namespace Mm
+}  // namespace Mm
 
 #endif  //_MM_MIXTURE_ESTIMATOR_HH

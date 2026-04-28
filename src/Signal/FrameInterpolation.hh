@@ -41,7 +41,8 @@ public:
 
 template<class Algorithm>
 FrameInterpolationNode<Algorithm>::FrameInterpolationNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c) {
+        : Core::Component(c),
+          Precursor(c) {
     this->setOrder(paramFrameInterpolationOrder(c));
 }
 

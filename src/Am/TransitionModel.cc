@@ -119,12 +119,12 @@ namespace {
  **/
 
 struct ApplicatorState {
-    using Mask = u8;
+    using Mask      = u8;
     using StateType = Am::TransitionModel::StateType;
 
-    Mask              mask;     /**< bitmask of allowed transitions (1 << TransitionType) */
-    Fsa::LabelId      emission; /**< recent most emission */
-    StateType         weights;  /**< transition model to apply */
+    Mask         mask;     /**< bitmask of allowed transitions (1 << TransitionType) */
+    Fsa::LabelId emission; /**< recent most emission */
+    StateType    weights;  /**< transition model to apply */
 
     static const Mask allowLoop    = (1 << Am::StateTransitionModel::loop);
     static const Mask allowForward = (1 << Am::StateTransitionModel::forward);
@@ -136,11 +136,15 @@ struct ApplicatorState {
 
     Fsa::StateId right;
 
-    ApplicatorState() : mask(), emission(Fsa::Epsilon), weights(noWeights), right() {
+    ApplicatorState()
+            : mask(), emission(Fsa::Epsilon), weights(noWeights), right() {
     }
 
     ApplicatorState(Mask m, Fsa::LabelId e, StateType t, Fsa::StateId r)
-            : mask(m), emission(e), weights(t), right(r) {}
+            : mask(m),
+              emission(e),
+              weights(t),
+              right(r) {}
 
     struct Equality {
         bool operator()(ApplicatorState const& ll, ApplicatorState const& rr) const {
@@ -157,18 +161,18 @@ struct ApplicatorState {
 struct ApplicatorStateWithContext : public ApplicatorState {
     Fsa::LabelId context;
 
-    ApplicatorStateWithContext() : ApplicatorState(), context(Fsa::Epsilon) {
+    ApplicatorStateWithContext()
+            : ApplicatorState(), context(Fsa::Epsilon) {
     }
 
-    ApplicatorStateWithContext(Mask m, Fsa::LabelId e,  Fsa::LabelId c, StateType t, Fsa::StateId r)
+    ApplicatorStateWithContext(Mask m, Fsa::LabelId e, Fsa::LabelId c, StateType t, Fsa::StateId r)
             : ApplicatorState(m, e, t, r), context(c) {}
-
 };
 
 class Applicator {
 public:
-    Applicator() : 
-              alphabet_(),
+    Applicator()
+            : alphabet_(),
               silenceLabel_(Fsa::InvalidLabelId),
               applyExitTransitionToFinalStates_(false) {}
 
@@ -190,11 +194,11 @@ protected:
     // -----------------------------------------------------------------------
     class StateDegrees : public Fsa::DfsState {
     public:
-        enum Direction {
+        enum class Direction : u32 {
             incoming = 0,
             outgoing = 2
         };
-        enum Type {
+        enum class Type : u32 {
             emitting       = 0,
             epsilon        = 4,
             disambiguating = 8
@@ -213,7 +217,7 @@ protected:
                     : flags_(0) {}
 
             void add(Direction direction, Type type) {
-                u32 shift = direction + type;
+                u32 shift = static_cast<u32>(direction) + static_cast<u32>(type);
                 if (flags_ & (one << shift))
                     flags_ |= (many << shift);
                 else
@@ -221,7 +225,7 @@ protected:
             };
 
             u8 operator()(Direction direction, Type type) const {
-                u32 shift = direction + type;
+                u32 shift = static_cast<u32>(direction) + static_cast<u32>(type);
                 return (flags_ >> shift) & 0x03;
             };
         };
@@ -234,11 +238,11 @@ protected:
         void exploreArc(Fsa::ConstStateRef from, const Fsa::Arc& arc) {
             degrees_.grow(from->id(), Degree());
             degrees_.grow(arc.target(), Degree());
-            Type type = (arc.input() == Fsa::Epsilon) ? epsilon
-                                                      : (alphabet_->isDisambiguator(arc.input())) ? disambiguating
-                                                                                                  : emitting;
-            degrees_[from->id()].add(outgoing, type);
-            degrees_[arc.target()].add(incoming, type);
+            Type type = (arc.input() == Fsa::Epsilon)               ? Type::epsilon
+                        : (alphabet_->isDisambiguator(arc.input())) ? Type::disambiguating
+                                                                    : Type::emitting;
+            degrees_[from->id()].add(Direction::outgoing, type);
+            degrees_[arc.target()].add(Direction::incoming, type);
         }
 
         virtual void exploreTreeArc(Fsa::ConstStateRef from, const Fsa::Arc& arc) {
@@ -249,7 +253,8 @@ protected:
         }
 
         StateDegrees(Fsa::ConstAutomatonRef ff, Fsa::ConstAlphabetRef aa)
-                : Fsa::DfsState(ff), alphabet_(aa) {}
+                : Fsa::DfsState(ff),
+                  alphabet_(aa) {}
 
         const Degree& operator[](Fsa::StateId ii) const {
             return degrees_[ii];
@@ -259,7 +264,8 @@ protected:
     struct StackItem : AppState {
         Fsa::StateRef result;
         StackItem(AppState const& state, Fsa::StateRef _result)
-                : AppState(state), result(_result) {}
+                : AppState(state),
+                  result(_result) {}
     };
 
     typedef std::stack<StackItem>                                                                            StateStack;
@@ -307,7 +313,7 @@ public:
     AbstractApplicator(const Am::TransitionModel& tm)
             : Applicator(),
               transitionModel_(tm) {
-              }
+    }
 
     virtual Fsa::ConstAutomatonRef apply(Fsa::ConstAutomatonRef in);
 };
@@ -344,7 +350,7 @@ bool AbstractApplicator<AppState>::isStateLegitimate(AppState const& s) const {
     return false;
 }
 
-template <class AppState>
+template<class AppState>
 Fsa::StateId AbstractApplicator<AppState>::getStateId(AppState const& s) {
     typename StateMap::iterator i = states_.find(s);
     if (i == states_.end()) {
@@ -356,7 +362,7 @@ Fsa::StateId AbstractApplicator<AppState>::getStateId(AppState const& s) {
     return i->second;
 }
 
-template <class AppState>
+template<class AppState>
 Core::Ref<Fsa::State> AbstractApplicator<AppState>::createState(AppState const& s) {
     Core::Ref<Fsa::State> result = Core::ref(t_->newState());
     Fsa::ConstStateRef    sr;
@@ -370,7 +376,7 @@ Core::Ref<Fsa::State> AbstractApplicator<AppState>::createState(AppState const& 
     return result;
 }
 
-template <class AppState>
+template<class AppState>
 Fsa::Weight AbstractApplicator<AppState>::weight(const StateType st, Am::StateTransitionModel::TransitionType type) const {
     if (st == AppState::noWeights) {
         return Fsa::Weight(0.0);
@@ -383,7 +389,7 @@ Fsa::Weight AbstractApplicator<AppState>::weight(const StateType st, Am::StateTr
 /**
  * \todo proper distinction between phone-1 and phone-2 states
  */
-template <class AppState>
+template<class AppState>
 typename AbstractApplicator<AppState>::StateType AbstractApplicator<AppState>::stateType(Fsa::LabelId emission) const {
     if (emission == silenceLabel_) {
         return Am::TransitionModel::silence;
@@ -398,37 +404,36 @@ typename AbstractApplicator<AppState>::StateType AbstractApplicator<AppState>::s
     }
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doEpsilon(const StackItem& current, const Fsa::Arc* ra) {
     require(ra->input() == Fsa::Epsilon);
     AppState newState = createStateFromCurrentState(current,
-                                      current.mask & ~(AppState::allowLoop),
-                                      Fsa::Epsilon,
-                                      current.weights,
-                                      ra->target());
+                                                    current.mask & ~(AppState::allowLoop),
+                                                    Fsa::Epsilon,
+                                                    current.weights,
+                                                    ra->target());
     current.result->newArc(getStateId(newState),
                            ra->weight(),
                            Fsa::Epsilon, ra->output());
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doForward(const StackItem& current, const Fsa::Arc* ra) {
     require(!alphabet_->isDisambiguator(ra->input()));
     require(ra->input() != Fsa::Epsilon);
 
-    Fsa::Weight w = getWeightForForward(current);
-    AppState newState = createStateFromCurrentState(current,
-                                                    AppState::allowLoop | AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
-                                                    ra->input(),
-                                                    stateType(ra->input()),
-                                                    ra->target());
+    Fsa::Weight w        = getWeightForForward(current);
+    AppState    newState = createStateFromCurrentState(current,
+                                                       AppState::allowLoop | AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
+                                                       ra->input(),
+                                                       stateType(ra->input()),
+                                                       ra->target());
     current.result->newArc(getStateId(newState),
                            t_->semiring()->extend(ra->weight(), w),
                            ra->input(), ra->output());
-
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doLoop(const StackItem& current) {
     require(current.emission != Fsa::Epsilon);
     current.result->newArc(current.result->id(),
@@ -436,14 +441,14 @@ void AbstractApplicator<AppState>::doLoop(const StackItem& current) {
                            current.emission, Fsa::Epsilon);
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::Arc* ra) {
     require(!alphabet_->isDisambiguator(ra->input()));
     require(ra->input() != Fsa::Epsilon);
 
     typename AbstractApplicator<AppState>::StateDegrees::Degree targetDegree       = (*rightStateDegrees_)[ra->target()];
-    bool                 wouldSkipToDeadEnd = ((targetDegree(StateDegrees::outgoing, StateDegrees::emitting) +
-                                                targetDegree(StateDegrees::outgoing, StateDegrees::epsilon)) == 0);
+    bool                                                        wouldSkipToDeadEnd = ((targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) +
+                                targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::epsilon)) == 0);
     if (wouldSkipToDeadEnd)
         return;
 
@@ -453,9 +458,9 @@ void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::A
         return;
     }
 
-    bool isEligbleForSkipOptimization = ((targetDegree(StateDegrees::outgoing, StateDegrees::disambiguating) == 0) &&
-                                         (targetDegree(StateDegrees::outgoing, StateDegrees::epsilon) == 0) &&
-                                         (targetDegree(StateDegrees::outgoing, StateDegrees::emitting) == 1));
+    bool isEligbleForSkipOptimization = ((targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::disambiguating) == 0) &&
+                                         (targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::epsilon) == 0) &&
+                                         (targetDegree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) == 1));
 
     Fsa::ConstStateRef rat;
     const Fsa::Arc*    ras = 0;
@@ -477,9 +482,9 @@ void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::A
                                                         ras->input(),
                                                         stateType(ras->input()),
                                                         ras->target());
-        ca->target_ = getStateId(newState);
-        ca->weight_ = t_->semiring()->extend(ca->weight_, ras->weight());
-        ca->input_  = ras->input();
+        ca->target_       = getStateId(newState);
+        ca->weight_       = t_->semiring()->extend(ca->weight_, ras->weight());
+        ca->input_        = ras->input();
     }
     else {
         AppState newState = createStateFromCurrentState(current,
@@ -487,50 +492,48 @@ void AbstractApplicator<AppState>::doSkip(const StackItem& current, const Fsa::A
                                                         Fsa::Epsilon,
                                                         AppState::noWeights,
                                                         ra->target());
-        ca->target_ = getStateId(newState);
-        ca->input_  = Fsa::Epsilon;
+        ca->target_       = getStateId(newState);
+        ca->input_        = Fsa::Epsilon;
     }
     ca->output_ = ra->output();
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doExit(const StackItem& current, const Fsa::Arc* ra) {
     require(alphabet_->isDisambiguator(ra->input()));
     verify(!applyExitTransitionToFinalStates_);
     AppState newState = createStateFromCurrentState(current,
-                                      AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
-                                      Fsa::Epsilon,
-                                      Am::TransitionModel::entryM1,
-                                      ra->target());
+                                                    AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
+                                                    Fsa::Epsilon,
+                                                    Am::TransitionModel::entryM1,
+                                                    ra->target());
     current.result->newArc(getStateId(newState),
                            t_->semiring()->extend(ra->weight(), weight(current.weights, Am::StateTransitionModel::exit)),
                            ra->input(), ra->output());
-
 }
 
-template <class AppState>
+template<class AppState>
 void AbstractApplicator<AppState>::doDischarge(const StackItem& current) {
     AppState newState = createStateFromCurrentState(current,
-                                      AppState::allowForward,
-                                      Fsa::Epsilon,
-                                      AppState::noWeights,
-                                      current.right);
+                                                    AppState::allowForward,
+                                                    Fsa::Epsilon,
+                                                    AppState::noWeights,
+                                                    current.right);
     current.result->newArc(getStateId(newState),
                            weight(current.weights, Am::StateTransitionModel::forward),
                            Fsa::Epsilon, Fsa::Epsilon);
 
     newState = createStateFromCurrentState(current,
-                                      AppState::allowSkip | AppState::allowExit,
-                                      Fsa::Epsilon,
-                                      current.weights,
-                                      current.right);
+                                           AppState::allowSkip | AppState::allowExit,
+                                           Fsa::Epsilon,
+                                           current.weights,
+                                           current.right);
     current.result->newArc(getStateId(newState),
                            t_->semiring()->one(),
                            Fsa::Epsilon, Fsa::Epsilon);
 }
 
-
-template <class AppState>
+template<class AppState>
 Fsa::ConstAutomatonRef AbstractApplicator<AppState>::apply(Fsa::ConstAutomatonRef input) {
     require(alphabet_);
     in_ = input;
@@ -545,12 +548,12 @@ Fsa::ConstAutomatonRef AbstractApplicator<AppState>::apply(Fsa::ConstAutomatonRe
     t_->setInputAlphabet(input->getInputAlphabet());
     t_->setOutputAlphabet(input->getOutputAlphabet());
 
-    AppState initialState = createStateFromCurrentState(AppState(),
-                                      AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
-                                      Fsa::Epsilon,
-                                      Am::TransitionModel::entryM1,
-                                      in_->initialStateId());
-    Fsa::StateId initial = getStateId(initialState);
+    AppState     initialState = createStateFromCurrentState(AppState(),
+                                                            AppState::allowForward | AppState::allowSkip | AppState::allowExit | AppState::isFinal,
+                                                            Fsa::Epsilon,
+                                                            Am::TransitionModel::entryM1,
+                                                            in_->initialStateId());
+    Fsa::StateId initial      = getStateId(initialState);
     t_->setInitialStateId(initial);
     pi.start();
     while (!todo_.empty()) {
@@ -560,9 +563,9 @@ Fsa::ConstAutomatonRef AbstractApplicator<AppState>::apply(Fsa::ConstAutomatonRe
 
         typename StateDegrees::Degree degree = (*rightStateDegrees_)[current.right];
 
-        bool shouldDischarge = (degree(StateDegrees::incoming, StateDegrees::emitting) == StateDegrees::many) &&
-                               ((degree(StateDegrees::outgoing, StateDegrees::emitting) == StateDegrees::many) ||
-                                (degree(StateDegrees::outgoing, StateDegrees::disambiguating) == StateDegrees::many));
+        bool shouldDischarge = (degree(StateDegrees::Direction::incoming, StateDegrees::Type::emitting) == StateDegrees::many) &&
+                               ((degree(StateDegrees::Direction::outgoing, StateDegrees::Type::emitting) == StateDegrees::many) ||
+                                (degree(StateDegrees::Direction::outgoing, StateDegrees::Type::disambiguating) == StateDegrees::many));
 
         //	std::cerr << Core::form("expand: mask=%x\temission=%d\tweights=%d\tright=%zd\n", current.mask, current.emission, current.weights, current.right); // DEBUG
 
@@ -620,7 +623,6 @@ protected:
         Fsa::Weight w = weight(current.weights, Am::StateTransitionModel::skip);
         return w;
     }
-
 };
 
 class CorrectedApplicator : public AbstractApplicator<ApplicatorStateWithContext> {
@@ -636,11 +638,11 @@ protected:
             w = t_->semiring()->one();
         }
         else {
-            if (current.emission == Fsa::Epsilon ) {
-                w =  weight(stateType(current.context), Am::StateTransitionModel::forward);
+            if (current.emission == Fsa::Epsilon) {
+                w = weight(stateType(current.context), Am::StateTransitionModel::forward);
             }
             else {
-                w =  weight(current.weights, Am::StateTransitionModel::forward);
+                w = weight(current.weights, Am::StateTransitionModel::forward);
             }
         }
         return w;
@@ -649,10 +651,10 @@ protected:
     virtual Fsa::Weight getWeightForSkip(ApplicatorStateWithContext const& current) {
         Fsa::Weight w;
         if (current.emission == Fsa::Epsilon) {
-            w =  weight(stateType(current.context), Am::StateTransitionModel::skip);
+            w = weight(stateType(current.context), Am::StateTransitionModel::skip);
         }
         else {
-            w =  weight(current.weights, Am::StateTransitionModel::skip);
+            w = weight(current.weights, Am::StateTransitionModel::skip);
         }
         return w;
     }
@@ -663,7 +665,6 @@ public:
 };
 
 }  // namespace
-
 
 using namespace Am;
 
@@ -806,7 +807,7 @@ Fsa::ConstAutomatonRef Am::TransitionModel::apply(Fsa::ConstAutomatonRef in,
     if (appChoice == Core::Choice::IllegalValue)
         criticalError("unknwon transition applicator type.");
 
-    switch(Am::TransitionModel::ApplicatorType(appChoice)) {
+    switch (Am::TransitionModel::ApplicatorType(appChoice)) {
         case Am::TransitionModel::ApplicatorType::LegacyApplicator:
             ap.reset(new LegacyApplicator(*this));
             break;
@@ -903,9 +904,9 @@ CartTransitionModel::CartTransitionModel(const Core::Configuration& c,
 
 // ===========================================================================
 Core::Choice Am::TransitionModel::choiceTyingType(
-        "global",             static_cast<int>(Am::TransitionModel::TyingType::GlobalTransitionModel),
+        "global", static_cast<int>(Am::TransitionModel::TyingType::GlobalTransitionModel),
         "global-and-nonword", static_cast<int>(Am::TransitionModel::TyingType::NonWordAwareTransitionModel),
-        "cart",               static_cast<int>(Am::TransitionModel::TyingType::CartTransitionModel),
+        "cart", static_cast<int>(Am::TransitionModel::TyingType::CartTransitionModel),
 
         Core::Choice::endMark());
 
@@ -916,9 +917,9 @@ Core::ParameterChoice Am::TransitionModel::paramTyingType(
         static_cast<int>(Am::TransitionModel::TyingType::GlobalTransitionModel));
 
 Core::Choice Am::TransitionModel::choiceApplicatorType(
-        "legacy",    static_cast<int>(Am::TransitionModel::ApplicatorType::LegacyApplicator),
+        "legacy", static_cast<int>(Am::TransitionModel::ApplicatorType::LegacyApplicator),
         "corrected", static_cast<int>(Am::TransitionModel::ApplicatorType::CorrectedApplicator),
-         Core::Choice::endMark());
+        Core::Choice::endMark());
 
 Core::ParameterChoice Am::TransitionModel::paramApplicatorType(
         "applicator-type",
@@ -939,7 +940,6 @@ Core::ParameterString Am::TransitionModel::paramTdpValuesFile(
 
 Am::TransitionModel* Am::TransitionModel::createTransitionModel(const Core::Configuration& configuration,
                                                                 ClassicStateModelRef       stateModel) {
-
     Core::Choice::Value transChoice = TransitionModel::paramTyingType(configuration);
 
     switch (Am::TransitionModel::TyingType(transChoice)) {
@@ -961,7 +961,9 @@ Am::TransitionModel* Am::TransitionModel::createTransitionModel(const Core::Conf
 // ===========================================================================
 ScaledTransitionModel::ScaledTransitionModel(const Core::Configuration& c,
                                              ClassicStateModelRef       stateModel)
-        : Core::Component(c), Mc::Component(c), transitionModel_(0) {
+        : Core::Component(c),
+          Mc::Component(c),
+          transitionModel_(0) {
     transitionModel_ = TransitionModel::createTransitionModel(c, stateModel);
 }
 
@@ -1003,4 +1005,3 @@ void CombinedTransitionModel::distributeScaleUpdate(const Mc::ScaleUpdate& scale
     }
     transitionModel_->correct();
 }
-

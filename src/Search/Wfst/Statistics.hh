@@ -113,19 +113,24 @@ public:
     virtual ~DetailedStatistic() {
         delete base_;
     }
+
     void log(Core::XmlChannel& channel) const {
         base_->log(channel);
     }
+
     void reset() {
         base_->reset();
     }
+
     virtual void startProcessing() {}
     virtual void endProcessing() {}
     virtual void processArc(const ArcHyp& arc) {}
     virtual void processHmmStateHyp(const ArcHyp& arc, const HmmStateHyp& hyp, bool isActive, u32 hmmState) {}
-    void         add(u32 value) {
+
+    void add(u32 value) {
         base_->add(value);
     }
+
     void add(f32 value) {
         base_->add(value);
     }
@@ -146,10 +151,12 @@ public:
  */
 class AbstractCollector {
 public:
-    enum EventType { beforePruning,
-                     afterPruning,
-                     afterArcExpansion,
-                     nEvents };
+    enum EventType {
+        beforePruning,
+        afterPruning,
+        afterArcExpansion,
+        nEvents
+    };
     static const char* EventNames[nEvents];
     AbstractCollector() {
         eventNames_[beforePruning]     = "before pruning";
@@ -196,7 +203,8 @@ protected:
 class ActiveArcsStatistic : public SearchSpaceStatistic<u32> {
 public:
     ActiveArcsStatistic(AbstractCollector::EventType eventType, const std::string& eventName)
-            : SearchSpaceStatistic<u32>("active network arcs " + eventName), event_(eventType) {}
+            : SearchSpaceStatistic<u32>("active network arcs " + eventName),
+              event_(eventType) {}
     void process(const SearchSpaceBase& ss) {
         u32 nArcs = SearchSpaceData(ss).nArcs(event_ == AbstractCollector::beforePruning);
         add(nArcs);
@@ -227,7 +235,8 @@ public:
 class NumHypsStatistic : public SearchSpaceStatistic<u32> {
 public:
     NumHypsStatistic(AbstractCollector::EventType eventType, const std::string& eventName)
-            : SearchSpaceStatistic<u32>("total hmm states" + eventName), event_(eventType) {}
+            : SearchSpaceStatistic<u32>("total hmm states" + eventName),
+              event_(eventType) {}
     void process(const SearchSpaceBase& ss) {
         u32 nStates = SearchSpaceData(ss).nHyps(event_ == AbstractCollector::beforePruning);
         add(nStates);
@@ -380,7 +389,8 @@ protected:
 
 public:
     GrammarStateStatistic(const std::string& name)
-            : StateStatistic(name), network_(0) {}
+            : StateStatistic(name),
+              network_(0) {}
     void process(const SearchSpaceBase& ss) {
         const S& searchSpace = dynamic_cast<const S&>(ss);
         network_             = searchSpace.network_;

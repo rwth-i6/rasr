@@ -15,6 +15,8 @@
 #ifndef _SEARCH_SEARCHALGORITHM_HH
 #define _SEARCH_SEARCHALGORITHM_HH
 
+#include <memory>
+
 #include <Am/AcousticModel.hh>
 #include <Bliss/Lexicon.hh>
 #include <Core/Component.hh>
@@ -22,6 +24,8 @@
 #include <Lm/LanguageModel.hh>
 #include <Search/LatticeAdaptor.hh>
 #include <Speech/ModelCombination.hh>
+
+#include "Traceback.hh"
 #include "Types.hh"
 
 namespace Search {
@@ -37,56 +41,13 @@ public:
     typedef Speech::Score          Score;
     typedef Speech::TimeframeIndex TimeframeIndex;
 
-    struct ScoreVector {
-        Score acoustic, lm;
-        ScoreVector(Score a, Score l)
-                : acoustic(a), lm(l) {}
-        operator Score() const {
-            return acoustic + lm;
-        };
-        ScoreVector operator+(ScoreVector const& other) const {
-            return ScoreVector(acoustic + other.acoustic, lm + other.lm);
-        }
-        ScoreVector operator-(ScoreVector const& other) const {
-            return ScoreVector(acoustic - other.acoustic, lm - other.lm);
-        }
-        ScoreVector& operator+=(ScoreVector const& other) {
-            acoustic += other.acoustic;
-            lm += other.lm;
-            return *this;
-        }
-        ScoreVector& operator-=(ScoreVector const& other) {
-            acoustic -= other.acoustic;
-            lm -= other.lm;
-            return *this;
-        }
-    };
-    struct TracebackItem {
-    public:
-        typedef Lattice::WordBoundary::Transit Transit;
-
-    public:
-        const Bliss::LemmaPronunciation* pronunciation;
-        TimeframeIndex                   time;     // Ending time
-        ScoreVector                      score;    // Absolute score
-        Transit                          transit;  // Final transition description
-        TracebackItem(const Bliss::LemmaPronunciation* p, TimeframeIndex t, ScoreVector s, Transit te)
-                : pronunciation(p), time(t), score(s), transit(te) {}
-    };
-    class Traceback : public std::vector<TracebackItem> {
-    public:
-        void                    write(std::ostream& os, Core::Ref<const Bliss::PhonemeInventory>) const;
-        Fsa::ConstAutomatonRef  lemmaAcceptor(Core::Ref<const Bliss::Lexicon>) const;
-        Fsa::ConstAutomatonRef  lemmaPronunciationAcceptor(Core::Ref<const Bliss::Lexicon>) const;
-        Lattice::WordLatticeRef wordLattice(Core::Ref<const Bliss::Lexicon>) const;
-    };
-
-public:
     SearchAlgorithm(const Core::Configuration&);
     virtual ~SearchAlgorithm() {}
 
+    virtual void                           reconfigure(const Core::Configuration& config) {};
     virtual Speech::ModelCombination::Mode modelCombinationNeeded() const;
     virtual bool                           setModelCombination(const Speech::ModelCombination& modelCombination) = 0;
+    virtual bool                           setLanguageModel(Core::Ref<const Lm::ScaledLanguageModel>)            = 0;
 
     virtual void setGrammar(Fsa::ConstAutomatonRef) = 0;
 

@@ -40,9 +40,15 @@ struct Arc {
     Fsa::LabelId output_;
     Arc() {}
     Arc(Fsa::StateId target, ScoresRef a, Fsa::LabelId input)
-            : target_(target), weight_(a), input_(input), output_(input) {}
+            : target_(target),
+              weight_(a),
+              input_(input),
+              output_(input) {}
     Arc(Fsa::StateId target, ScoresRef a, Fsa::LabelId input, Fsa::LabelId output)
-            : target_(target), weight_(a), input_(input), output_(output) {}
+            : target_(target),
+              weight_(a),
+              input_(input),
+              output_(output) {}
     ~Arc() {}
     Fsa::StateId target() const {
         return target_;
@@ -102,11 +108,14 @@ public:
 
 public:
     StateMap()
-            : Precursor(), maxSid(Fsa::InvalidStateId) {}
+            : Precursor(),
+              maxSid(Fsa::InvalidStateId) {}
     StateMap(size_t n)
-            : Precursor(n), maxSid(Fsa::InvalidStateId) {}
+            : Precursor(n),
+              maxSid(Fsa::InvalidStateId) {}
     StateMap(size_t n, Fsa::StateId def)
-            : Precursor(n, def), maxSid(Fsa::InvalidStateId) {}
+            : Precursor(n, def),
+              maxSid(Fsa::InvalidStateId) {}
 };
 typedef Core::Ref<StateMap>       StateMapRef;
 typedef Core::Ref<const StateMap> ConstStateMapRef;
@@ -179,11 +188,26 @@ struct Arc {
         from = to = Core::Type<u32>::max;
     }
     Arc(Label label, ScoresRef scores)
-            : label(label), scores(scores), begin(Speech::InvalidTimeframeIndex), duration(0), from(Core::Type<u32>::max), to(Core::Type<u32>::max) {}
+            : label(label),
+              scores(scores),
+              begin(Speech::InvalidTimeframeIndex),
+              duration(0),
+              from(Core::Type<u32>::max),
+              to(Core::Type<u32>::max) {}
     Arc(Label label, ScoresRef scores, Time begin, Time duration)
-            : label(label), scores(scores), begin(begin), duration(duration), from(Core::Type<u32>::max), to(Core::Type<u32>::max) {}
+            : label(label),
+              scores(scores),
+              begin(begin),
+              duration(duration),
+              from(Core::Type<u32>::max),
+              to(Core::Type<u32>::max) {}
     Arc(Label label, ScoresRef scores, Time begin, Time duration, u32 from, u32 to)
-            : label(label), scores(scores), begin(begin), duration(duration), from(from), to(to) {}
+            : label(label),
+              scores(scores),
+              begin(begin),
+              duration(duration),
+              from(from),
+              to(to) {}
     inline bool operator<(const Arc& a) const {
         return label < a.label;
     }
@@ -194,7 +218,8 @@ struct PosteriorArc {
     Probability score;
     PosteriorArc() {}
     PosteriorArc(Label label, Probability score)
-            : label(label), score(score) {}
+            : label(label),
+              score(score) {}
     inline bool operator<(const PosteriorArc& a) const {
         return label < a.label;
     }
@@ -281,7 +306,8 @@ public:
             Fsa::StateId sid;
             Fsa::StateId aid;
             Mapping(Fsa::StateId sid, Fsa::StateId aid)
-                    : sid(sid), aid(aid) {}
+                    : sid(sid),
+                      aid(aid) {}
         };
         static const Mapping               InvalidMapping;
         typedef std::vector<Mapping>       Map;

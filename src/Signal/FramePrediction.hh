@@ -49,7 +49,8 @@ public:
 
 template<class Algorithm>
 FramePredictionNode<Algorithm>::FramePredictionNode(const Core::Configuration& c)
-        : Core::Component(c), Precursor(c) {
+        : Core::Component(c),
+          Precursor(c) {
     this->setPredictOnlyMissing(paramPredictOnlyMissing(c));
     this->setSyncEndTimes(paramSyncEndTimes(c));
 }

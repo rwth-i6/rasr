@@ -39,9 +39,11 @@ public:
     typedef std::vector<Math::Matrix<Sum>> GMatrixAccumulator;
     typedef std::vector<Math::Vector<Sum>> KVectorAccumulator;
     typedef Math::Matrix<FeatureType>      Transform;
-    enum Criterion { naive,
-                     mmiPrime,
-                     hlda };
+    enum Criterion {
+        naive,
+        mmiPrime,
+        hlda
+    };
 
 private:
     u32                       featureDimension_;
@@ -61,12 +63,12 @@ public:
     AffineFeatureTransformAccumulator(size_t featureDimension, size_t modelDimension_,
                                       const std::string& key);
 
-    void accumulate(Core::Ref<const Feature::Vector>, DensityIndex, Core::Ref<MixtureSet>);
-    void accumulate(Core::Ref<const Feature::Vector>, DensityIndex, Core::Ref<MixtureSet>, Mm::Weight);
-    void accumulate(Core::Ref<const Feature::Vector> f, DensityIndex di, MixtureIndex mi, Core::Ref<MixtureSet> m) {
+    void accumulate(Feature::VectorRef, DensityIndex, Core::Ref<MixtureSet>);
+    void accumulate(Feature::VectorRef, DensityIndex, Core::Ref<MixtureSet>, Mm::Weight);
+    void accumulate(Feature::VectorRef f, DensityIndex di, MixtureIndex mi, Core::Ref<MixtureSet> m) {
         accumulate(f, di, m);
     }
-    void accumulate(Core::Ref<const Feature::Vector> f, DensityIndex di, MixtureIndex mi, Core::Ref<MixtureSet> m, Mm::Weight w) {
+    void accumulate(Feature::VectorRef f, DensityIndex di, MixtureIndex mi, Core::Ref<MixtureSet> m, Mm::Weight w) {
         accumulate(f, di, m, w);
     }
     void      finalize();

@@ -472,7 +472,7 @@ SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::operator+=(c
             temp.push_back(bsv.v_[bsvIndex].first, bsv.v_[bsvIndex].second);
             ++bsvIndex;
         }
-        else {  //thisIter.pos() == bsvIter.pos()
+        else {  // thisIter.pos() == bsvIter.pos()
             temp.push_back(v_[thisIndex].first, v_[thisIndex].second + bsv.v_[bsvIndex].second);
             ++thisIndex;
             ++bsvIndex;
@@ -556,7 +556,7 @@ SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Co
             v_.insert(v_.begin() + thisIndex, std::pair<index_type, Content>(bsvIter.pos(), weightupdate));
             ++bsvIter;
         }
-        else {  //thisIter.pos() == bsvIter.pos()
+        else {  // thisIter.pos() == bsvIter.pos()
             v_[thisIndex].second += weightupdate;
             ++thisIndex;
             ++bsvIter;
@@ -587,7 +587,7 @@ SingleValueSparseVector<Content>& SingleValueSparseVector<Content>::add(const Co
             v_.insert(v_.begin() + thisIndex, std::pair<index_type, Content>(bsvIter->first, weightupdate));  // TODO: correct?
             ++bsvIter;
         }
-        else {  //thisIter.pos() == bsvIter.pos()
+        else {  // thisIter.pos() == bsvIter.pos()
             v_[thisIndex].second += weightupdate;
             ++thisIndex;
             ++bsvIter;

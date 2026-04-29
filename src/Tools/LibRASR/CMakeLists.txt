@@ -3,10 +3,12 @@ find_package(pybind11 REQUIRED)
 set(librasr_SOURCES LibRASR.cc)
 
 if(${MODULE_PYTHON})
-    list(APPEND librasr_SOURCES PybindModule.cc)
+    list(APPEND librasr_SOURCES LabelScorer.cc Lexicon.cc PybindModule.cc
+         Search.cc
+    )
 endif()
 
-pybind11_add_module(librasr PybindModule.cc LibRASR.cc)
+pybind11_add_module(librasr ${librasr_SOURCES})
 
 target_link_libraries(
     librasr

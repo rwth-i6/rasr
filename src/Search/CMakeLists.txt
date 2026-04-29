@@ -4,19 +4,22 @@ endif()
 if(${MODULE_ADVANCED_TREE_SEARCH})
     add_subdirectory(AdvancedTreeSearch)
 endif()
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    add_subdirectory(GenericSeq2SeqTreeSearch)
-endif()
+add_subdirectory(LexiconfreeLabelsyncBeamSearch)
+add_subdirectory(LexiconfreeTimesyncBeamSearch)
+add_subdirectory(TreeTimesyncBeamSearch)
 
 set(RasrSearch_SOURCES
     Aligner.cc
     LatticeHandler.cc
     LanguageModelLookahead.cc
     Module.cc
+    PersistentStateTree.cc
     Search.cc
     StateTree.cc
     StateTreeIo.cc
-    WordConditionedTreeSearch.cc
+    Traceback.cc
+    TreeBuilder.cc
+    TreeStructure.cc
 )
 
 if(${MODULE_SEARCH_MBR})
@@ -32,7 +35,14 @@ endif()
 add_library(RasrSearch STATIC ${RasrSearch_SOURCES})
 
 target_link_libraries(
-    RasrSearch INTERFACE RasrBliss RasrFsa RasrCore RasrLattice
+    RasrSearch
+    INTERFACE RasrBliss
+              RasrFsa
+              RasrCore
+              RasrLattice
+              RasrLexiconfreeLabelsyncBeamSearch
+              RasrLexiconfreeTimesyncBeamSearch
+              RasrTreeTimesyncBeamSearch
 )
 
 add_executable(check-search check.cc)

@@ -1,5 +1,28 @@
 set(RasrNn_SOURCES Module.cc)
 
+list(
+    APPEND
+    RasrNn_SOURCES
+    LabelScorer/BufferedLabelScorer.cc
+    LabelScorer/CombineLabelScorer.cc
+    LabelScorer/DataView.cc
+    LabelScorer/Encoder.cc
+    LabelScorer/EncoderDecoderLabelScorer.cc
+    LabelScorer/EncoderFactory.cc
+    LabelScorer/FixedContextOnnxLabelScorer.cc
+    LabelScorer/LabelScorer.cc
+    LabelScorer/LabelScorerFactory.cc
+    LabelScorer/NoContextOnnxLabelScorer.cc
+    LabelScorer/NoOpLabelScorer.cc
+    LabelScorer/PriorLabelScorer.cc
+    LabelScorer/ScaledLabelScorer.cc
+    LabelScorer/ScoreAccessor.cc
+    LabelScorer/ScoringContext.cc
+    LabelScorer/StatefulOnnxLabelScorer.cc
+    LabelScorer/TransitionLabelScorer.cc
+    LabelScorer/TransitionTypes.cc
+)
+
 if(${MODULE_NN})
     list(
         APPEND
@@ -13,15 +36,14 @@ if(${MODULE_NN})
         BufferedFeatureExtractor.cc
         BufferedSegmentFeatureProcessor.cc
         ClassLabelWrapper.cc
+        CompressedVector.cc
         Criterion.cc
-        CtcCriterion.cc
         Estimator.cc
         FeatureScorer.cc
         FeedForwardTrainer.cc
-        GradientCheck.cc
+        FixedQuantizationCompressedVectorFactory.cc
         LinearAndActivationLayer.cc
         LinearLayer.cc
-        LookupLayer.cc
         MeanNormalizedSgdEstimator.cc
         NetworkTopology.cc
         NeuralNetwork.cc
@@ -32,8 +54,9 @@ if(${MODULE_NN})
         PoolingLayer.cc
         PreprocessingLayer.cc
         Prior.cc
+        QuantizedCompressedVectorFactory.cc
+        ReducedPrecisionCompressedVectorFactory.cc
         Regularizer.cc
-        RpropEstimator.cc
         Statistics.cc
         TrainerFeatureScorer.cc
     )
@@ -55,12 +78,6 @@ if(${MODULE_PYTHON})
          PythonControl.cc PythonLayer.cc
     )
 endif()
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    list(APPEND RasrNn_SOURCES LabelScorer.cc)
-    if(${MODULE_TENSORFLOW})
-        list(APPEND RasrNn_SOURCES TFLabelScorer.cc)
-    endif()
-endif()
 
 add_library(RasrNn STATIC ${RasrNn_SOURCES})
 
@@ -73,6 +90,11 @@ target_compile_options(RasrNn PRIVATE "-fexceptions")
 
 if(${MODULE_PYTHON})
     add_python_dependencies(RasrNn)
+endif()
+
+if(${MODULE_ONNX})
+    target_link_libraries(RasrNn INTERFACE RasrOnnx)
+    add_onnx_dependencies(RasrNn)
 endif()
 
 if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH} AND ${MODULE_TENSORFLOW})

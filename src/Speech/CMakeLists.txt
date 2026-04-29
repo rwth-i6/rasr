@@ -58,6 +58,7 @@ if(${MODULE_SPEECH_DT_ADVANCED})
         Speech_SOURCES
         AdvancedAccuracyFsaBuilder.cc
         AdvancedLatticeExtractor.cc
+        AdvancedWordLatticeExtractor.cc
         AuxiliarySegmentwiseTrainer.cc
         ClusterMixtureSetTrainer.cc
         AdvancedLatticeSetProcessor.cc

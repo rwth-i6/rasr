@@ -1,7 +1,6 @@
 set(Core_SOURCES
     Application.cc
     Archive.cc
-    ArithmeticExpressionParser.cc
     Assertions.cc
     BinaryStream.cc
     BinaryTree.cc
@@ -30,6 +29,8 @@ set(Core_SOURCES
     ReferenceCounting.cc
     ResourceUsageInfo.cc
     Statistics.cc
+    Status.cc
+    StopWatch.cc
     StringExpression.cc
     StringUtilities.cc
     TextStream.cc
@@ -62,3 +63,6 @@ target_compile_options(RasrCore PRIVATE "-fexceptions")
 
 add_executable(check-core check.cc)
 target_link_libraries(check-core PRIVATE RasrCore)
+
+add_executable(check-core-xml check-xml.cc)
+target_link_libraries(check-core-xml PRIVATE RasrCore)

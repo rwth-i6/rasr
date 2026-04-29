@@ -9,6 +9,7 @@ set(Lm_SOURCES
     LanguageModel.cc
     Module.cc
     NNHistoryManager.cc
+    RecurrentLanguageModel.cc
     ReverseArpaLm.cc
     ScaledLanguageModel.cc
     WordlistInterface.cc
@@ -26,25 +27,26 @@ if(${MODULE_LM_ZEROGRAM})
     list(APPEND Lm_SOURCES Zerogram.cc)
 endif()
 
-if(${MODULE_LM_FFNN})
-    list(APPEND Lm_SOURCES FFNeuralNetworkLanguageModel.cc)
-endif()
-
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     list(
         APPEND
         Lm_SOURCES
-        BlasNceSoftmaxAdapter.cc
-        CompressedVector.cc
-        FixedQuantizationCompressedVectorFactory.cc
-        LstmStateManager.cc
-        NceSoftmaxAdapter.cc
-        PassthroughSoftmaxAdapter.cc
-        QuantizedBlasNceSoftmaxAdapter.cc
-        QuantizedCompressedVectorFactory.cc
-        ReducedPrecisionCompressedVectorFactory.cc
-        TransformerStateManager.cc
+        TFBlasNceSoftmaxAdapter.cc
+        TFNceSoftmaxAdapter.cc
+        TFPassthroughSoftmaxAdapter.cc
+        TFQuantizedBlasNceSoftmaxAdapter.cc
         TFRecurrentLanguageModel.cc
+    )
+endif()
+
+if(${MODULE_ONNX})
+    list(
+        APPEND
+        Lm_SOURCES
+        OnnxNceSoftmaxAdapter.cc
+        OnnxPassthroughSoftmaxAdapter.cc
+        OnnxRecurrentLanguageModel.cc
+        OnnxStatelessLanguageModel.cc
     )
 endif()
 
@@ -83,6 +85,10 @@ endif()
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     target_link_libraries(RasrLm INTERFACE RasrTensorflow)
     add_tf_dependencies(RasrLm)
+endif()
+if(${MODULE_ONNX})
+    target_link_libraries(RasrLm INTERFACE RasrOnnx)
+    add_onnx_dependencies(RasrLm)
 endif()
 
 # check.cc code is broken add_executable(check-lm check.cc)

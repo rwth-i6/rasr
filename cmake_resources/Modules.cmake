@@ -80,7 +80,6 @@ add_module_option(MODULE_SEARCH_MBR ON)
 add_module_option(MODULE_SEARCH_WFST OFF)
 add_module_option(MODULE_SEARCH_LINEAR ON)
 add_module_option(MODULE_ADVANCED_TREE_SEARCH ON)
-add_module_option(MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH ON)
 
 # ****** Signal ******
 add_module_option(MODULE_SIGNAL_GAMMATONE ON)
@@ -148,7 +147,9 @@ if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
 endif()
 
-set(SEARCH_LIBS RasrSearch)
+set(SEARCH_LIBS RasrSearch RasrLexiconfreeLabelsyncBeamSearch
+                RasrLexiconfreeTimesyncBeamSearch RasrTreeTimesyncBeamSearch
+)
 if(${MODULE_SEARCH_WFST})
     list(APPEND SEARCH_LIBS RasrSearchWfst RasrOpenFst)
 endif()

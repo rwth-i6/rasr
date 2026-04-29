@@ -9,12 +9,14 @@ set(test_SOURCES
     Core_Thread.cc
     Core_ThreadPool.cc
     Fsa_Sssp4SpecialSymbols.cc
+    Lm_ArpaLm.cc
     Math_Utilities.cc
     Math_Blas.cc
     Math_FastVectorOperations.cc
     Math_CudaVector.cc
     Math_CudaMatrix.cc
     Math_FastMatrix.cc
+    Math_LinearConjugateGradient.cc
     Test_File.cc
     Test_Lexicon.cc
 )

@@ -47,6 +47,7 @@ set(Flf_SOURCES
     Prune.cc
     PushForwardRescoring.cc
     Recognizer.cc
+    RecognizerV2.cc
     IncrementalRecognizer.cc
     Rescore.cc
     RescoreLm.cc

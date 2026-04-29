@@ -17,12 +17,6 @@ set(Bliss_SOURCES
     Unknown.cc
 )
 
-if(${MODULE_THEANO_INTERFACE})
-    list(APPEND Bliss_SOURCES TheanoCommunicator.cc
-         TheanoSegmentOrderingVisitor.cc
-    )
-endif()
-
 if(${MODULE_PYTHON})
     list(APPEND Bliss_SOURCES PythonSegmentOrdering.cc)
 endif()

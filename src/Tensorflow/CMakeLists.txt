@@ -1,12 +1,18 @@
 set(RasrTensorflow_SOURCES
+    DummyStateManager.cc
+    TFLstmStateManager.cc
     Graph.cc
     GraphLoader.cc
     MetaGraphLoader.cc
     Module.cc
     Session.cc
+    StateManager.cc
     Tensor.cc
+    TensorflowFeatureScorer.cc
+    TensorflowFeatureScorerStateCarryover.cc
     TensorflowForwardNode.cc
     TensorMap.cc
+    TransformerStateManager.cc
     VanillaGraphLoader.cc
 )
 

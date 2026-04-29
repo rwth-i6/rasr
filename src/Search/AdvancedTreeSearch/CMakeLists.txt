@@ -3,18 +3,15 @@ set(RasrAdvancedTreeSearch_SOURCES
     AdvancedTreeSearch.cc
     DynamicBeamPruningStrategy.cc
     Helpers.cc
-    LanguageModelLookahead.cc
     PathRecombination.cc
     PathRecombinationApproximation.cc
-    PersistentStateTree.cc
     PrefixFilter.cc
+    ScoreDependentStatistics.cc
     SearchSpace.cc
     SearchSpaceHelpers.cc
     SearchSpaceStatistics.cc
     SimpleThreadPool.cc
     Trace.cc
-    TreeBuilder.cc
-    TreeStructure.cc
 )
 
 add_library(RasrAdvancedTreeSearch STATIC ${RasrAdvancedTreeSearch_SOURCES})

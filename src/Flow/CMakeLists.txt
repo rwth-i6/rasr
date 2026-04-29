@@ -10,6 +10,7 @@ set(Flow_SOURCES
     Datatype.cc
     Demo.cc
     Dump.cc
+    InputNode.cc
     Link.cc
     Module.cc
     Network.cc

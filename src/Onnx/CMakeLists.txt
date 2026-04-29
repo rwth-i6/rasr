@@ -1,5 +1,18 @@
-set(RasrOnnx_SOURCES Session.cc IOSpecification.cc Module.cc
-                     OnnxFeatureScorer.cc OnnxForwardNode.cc Value.cc
+set(
+    RasrOnnx_SOURCES
+    BLstmStateManager.cc
+    ConformerStateManager.cc
+    DummyStateManager.cc
+    IOSpecification.cc
+    Model.cc
+    Module.cc
+    OnnxEncoder.cc
+    OnnxFeatureScorer.cc
+    OnnxForwardNode.cc
+    OnnxLstmStateManager.cc
+    Session.cc
+    StateManager.cc
+    Value.cc
 )
 
 add_library(RasrOnnx STATIC ${RasrOnnx_SOURCES})

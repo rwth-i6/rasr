@@ -18,9 +18,10 @@ set(RasrTensorflow_SOURCES
 
 add_library(RasrTensorflow STATIC ${RasrTensorflow_SOURCES})
 
-target_link_libraries(RasrTensorflow INTERFACE RasrCore)
+target_link_libraries(
+    RasrTensorflow PUBLIC RasrBliss RasrCore RasrFlow RasrMath RasrMm RasrNn
+)
 add_tf_dependencies(RasrTensorflow)
 
 add_executable(check-tensorflow check.cc)
 target_link_libraries(check-tensorflow PRIVATE RasrTensorflow)
-add_tf_dependencies(check-tensorflow)

@@ -68,26 +68,25 @@ set(Flf_SOURCES
 
 add_library(RasrFlf STATIC ${Flf_SOURCES})
 
-target_link_libraries(RasrFlf INTERFACE RasrFlfCore)
-
-if(${MODULE_FLF_EXT})
-    target_link_libraries(RasrFlf INTERFACE RasrFlfExt)
-endif()
-
 target_link_libraries(
     RasrFlf
-    INTERFACE RasrSpeech
-              RasrLattice
-              RasrLm
-              RasrAm
-              RasrMm
-              RasrMc
-              RasrCart
-              RasrBliss
-              RasrFlow
-              RasrFsa
-              RasrCore
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFlfCore
+           RasrFlow
+           RasrFsa
+           RasrLattice
+           RasrLm
+           RasrMath
+           RasrMm
+           RasrSearch
+           RasrSpeech
 )
+
+if(${MODULE_FLF_EXT})
+    target_link_libraries(RasrFlf PUBLIC RasrFlfExt)
+endif()
 
 add_executable(check-flf check.cc)
 target_link_libraries(check-flf PRIVATE RasrFlf)

@@ -39,55 +39,36 @@ if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
     )
 endif()
 
-if(${MODULE_ONNX})
-    list(
-        APPEND
-        Lm_SOURCES
-        OnnxNceSoftmaxAdapter.cc
-        OnnxPassthroughSoftmaxAdapter.cc
-        OnnxRecurrentLanguageModel.cc
-        OnnxStatelessLanguageModel.cc
+if(${MODULE_ONNX} AND ${MODULE_LM_ONNX})
+    list(APPEND Lm_SOURCES OnnxNceSoftmaxAdapter.cc
+         OnnxPassthroughSoftmaxAdapter.cc OnnxRecurrentLanguageModel.cc
+         OnnxStatelessLanguageModel.cc
     )
 endif()
 
 add_library(RasrLm STATIC ${Lm_SOURCES})
 
-target_compile_options(RasrLm PRIVATE "-fexceptions")
-
 target_link_libraries(
     RasrLm
-    INTERFACE RasrFlf
-              RasrFlfCore
-              RasrSpeech
-              RasrAm
-              RasrMc
-              RasrBliss
-              RasrNn
-              RasrMm
-              RasrSignal
-              RasrFlow
-              RasrMath
-              RasrMathLapack
-              ${SEARCH_LIBS}
-              RasrLattice
-              RasrFsa
-              RasrCore
+    PUBLIC RasrBliss
+           RasrCore
+           RasrFlf
+           RasrFlow
+           RasrFsa
+           RasrMath
+           RasrMc
+           RasrMm
+           RasrNn
+           RasrSearch
+           RasrSignal
+           RasrSpeech
 )
-if(${MODULE_CART})
-    target_link_libraries(RasrLm INTERFACE RasrCart)
-endif()
-if(${MODULE_MATH_NR})
-    target_link_libraries(RasrLm INTERFACE RasrMathNr)
-endif()
-if(${MODULE_PYTHON})
-    target_link_libraries(RasrLm INTERFACE RasrPython)
-endif()
 if(${MODULE_TENSORFLOW} AND ${MODULE_LM_TFRNN})
-    target_link_libraries(RasrLm INTERFACE RasrTensorflow)
+    target_link_libraries(RasrLm PUBLIC RasrTensorflow)
     add_tf_dependencies(RasrLm)
 endif()
 if(${MODULE_ONNX})
-    target_link_libraries(RasrLm INTERFACE RasrOnnx)
+    target_link_libraries(RasrLm PUBLIC RasrOnnx)
     add_onnx_dependencies(RasrLm)
 endif()
 

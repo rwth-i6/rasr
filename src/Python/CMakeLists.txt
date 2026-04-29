@@ -1,5 +1,4 @@
-set(
-    RasrPython_SOURCES
+set(RasrPython_SOURCES
     AllophoneStateFsaBuilder.cc
     Configuration.cc
     Init.cc
@@ -11,9 +10,10 @@ set(
 )
 
 add_library(RasrPython STATIC ${RasrPython_SOURCES})
+target_link_libraries(
+    RasrPython PUBLIC RasrBliss RasrCore RasrMath RasrNn RasrSearch RasrSpeech
+)
 add_python_dependencies(RasrPython)
-target_compile_options(RasrPython PRIVATE "-fexceptions")
 
 add_executable(check-python check.cc)
-target_link_libraries(check-python PRIVATE RasrPython)
-add_python_dependencies(check-python)
+target_link_libraries(check-python PRIVATE RasrPython RasrCore)

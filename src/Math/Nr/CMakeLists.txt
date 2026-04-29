@@ -12,7 +12,7 @@ set(RasrMathNr_SOURCES
 
 add_library(RasrMathNr STATIC ${RasrMathNr_SOURCES})
 
-target_link_libraries(RasrMathNr INTERFACE RasrCore)
+target_link_libraries(RasrMathNr PUBLIC RasrCore RasrMath)
 
 add_executable(check-math-nr check.cc)
 target_link_libraries(check-math-nr PRIVATE RasrMathNr)

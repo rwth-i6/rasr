@@ -86,17 +86,17 @@ add_library(RasrSignal STATIC ${RasrSignal_SOURCES})
 
 target_link_libraries(
     RasrSignal
-    INTERFACE RasrFlow
-              RasrBliss
-              RasrMm
-              RasrMath
-              RasrMathLapack
-              RasrMc
-              RasrCore
+    PUBLIC RasrFlow
+           RasrBliss
+           RasrMm
+           RasrMath
+           RasrMathLapack
+           RasrMc
+           RasrCore
 )
 
 if(${MODULE_SIGNAL_ADVANCED_NR})
-    target_link_libraries(RasrSignal INTERFACE RasrMathNr)
+    target_link_libraries(RasrSignal PUBLIC RasrCore RasrFlow RasrMath RasrMm)
 endif()
 
 add_executable(check-signal check.cc)

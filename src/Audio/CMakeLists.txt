@@ -22,7 +22,7 @@ endif()
 
 add_library(RasrAudio STATIC ${Audio_SOURCES})
 
-target_link_libraries(RasrAudio INTERFACE RasrFlow RasrCore)
+target_link_libraries(RasrAudio PUBLIC RasrCore RasrFlow)
 
 add_executable(check-audio check.cc)
 target_link_libraries(check-audio PRIVATE RasrAudio)

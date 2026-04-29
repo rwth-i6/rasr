@@ -7,6 +7,6 @@ add_library(
     ${RasrLexiconfreeLabelsyncBeamSearch_SOURCES}
 )
 target_link_libraries(
-    RasrLexiconfreeLabelsyncBeamSearch INTERFACE RasrSearch RasrBliss RasrFsa
-                                                 RasrCore
+    RasrLexiconfreeLabelsyncBeamSearch PUBLIC RasrBliss RasrCore RasrNn
+                                              RasrSearch
 )

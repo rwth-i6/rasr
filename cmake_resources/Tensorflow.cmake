@@ -58,7 +58,6 @@ endif()
 find_package(OpenSSL REQUIRED)
 
 function(add_tf_dependencies target)
-    target_compile_options(${target} PUBLIC "-fexceptions")
     target_include_directories(${target} PUBLIC ${Tensorflow_INCLUDE_DIR})
     target_link_options(
         ${target} PUBLIC "LINKER:--no-as-needed"

@@ -36,14 +36,28 @@ add_library(RasrSearch STATIC ${RasrSearch_SOURCES})
 
 target_link_libraries(
     RasrSearch
-    INTERFACE RasrBliss
-              RasrFsa
-              RasrCore
-              RasrLattice
-              RasrLexiconfreeLabelsyncBeamSearch
-              RasrLexiconfreeTimesyncBeamSearch
-              RasrTreeTimesyncBeamSearch
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFsa
+           RasrLattice
+           RasrLexiconfreeLabelsyncBeamSearch
+           RasrLexiconfreeTimesyncBeamSearch
+           RasrLm
+           RasrMm
+           RasrNn
+           RasrSignal
+           RasrSpeech
+           RasrTreeTimesyncBeamSearch
 )
+
+if(${MODULE_ADVANCED_TREE_SEARCH})
+    target_link_libraries(RasrSearch PUBLIC RasrAdvancedTreeSearch)
+endif()
+
+if(${MODULE_SEARCH_WFST})
+    target_link_libraries(RasrSearch PUBLIC RasrOpenFst RasrSearchWfst)
+endif()
 
 add_executable(check-search check.cc)
 target_link_libraries(check-search PRIVATE RasrSearch)

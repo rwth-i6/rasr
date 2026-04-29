@@ -23,22 +23,14 @@ add_library(RasrAm ${Am_SOURCES})
 
 target_link_libraries(
     RasrAm
-    INTERFACE RasrMm
-              RasrBliss
-              RasrFsa
-              RasrCore
-              RasrMc
-              RasrMath
-              RasrMathLapack
+    PUBLIC RasrBliss
+           RasrCore
+           RasrFsa
+           RasrMath
+           RasrMc
+           RasrMm
+           RasrSpeech
 )
-
-if(${MODULE_CART})
-    target_link_libraries(RasrAm INTERFACE RasrCart)
-endif()
-
-if(${MODULE_MATH_NR})
-    target_link_libraries(RasrAm INTERFACE RasrMathNr)
-endif()
 
 add_executable(check-am check.cc)
 target_link_libraries(check-am PRIVATE RasrAm)

@@ -16,7 +16,15 @@ set(RasrAdvancedTreeSearch_SOURCES
 
 add_library(RasrAdvancedTreeSearch STATIC ${RasrAdvancedTreeSearch_SOURCES})
 target_link_libraries(
-    RasrAdvancedTreeSearch INTERFACE RasrSearch RasrBliss RasrFsa RasrCore
+    RasrAdvancedTreeSearch
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrLattice
+           RasrLm
+           RasrMm
+           RasrSearch
+           RasrSpeech
 )
 
 target_compile_options(

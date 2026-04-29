@@ -37,7 +37,7 @@ set(Fsa_SOURCES
 
 add_library(RasrFsa STATIC ${Fsa_SOURCES})
 
-target_link_libraries(RasrFsa INTERFACE RasrCore)
+target_link_libraries(RasrFsa PUBLIC RasrCore)
 
 # check.cc code is broken add_executable(check-fsa check.cc)
 # target_link_libraries(check-fsa PRIVATE RasrFsa)

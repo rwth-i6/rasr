@@ -1,27 +1,6 @@
-set(RasrNn_SOURCES Module.cc)
+add_subdirectory(LabelScorer)
 
-list(
-    APPEND
-    RasrNn_SOURCES
-    LabelScorer/BufferedLabelScorer.cc
-    LabelScorer/CombineLabelScorer.cc
-    LabelScorer/DataView.cc
-    LabelScorer/Encoder.cc
-    LabelScorer/EncoderDecoderLabelScorer.cc
-    LabelScorer/EncoderFactory.cc
-    LabelScorer/FixedContextOnnxLabelScorer.cc
-    LabelScorer/LabelScorer.cc
-    LabelScorer/LabelScorerFactory.cc
-    LabelScorer/NoContextOnnxLabelScorer.cc
-    LabelScorer/NoOpLabelScorer.cc
-    LabelScorer/PriorLabelScorer.cc
-    LabelScorer/ScaledLabelScorer.cc
-    LabelScorer/ScoreAccessor.cc
-    LabelScorer/ScoringContext.cc
-    LabelScorer/StatefulOnnxLabelScorer.cc
-    LabelScorer/TransitionLabelScorer.cc
-    LabelScorer/TransitionTypes.cc
-)
+set(RasrNn_SOURCES Module.cc)
 
 if(${MODULE_NN})
     list(
@@ -82,23 +61,21 @@ endif()
 add_library(RasrNn STATIC ${RasrNn_SOURCES})
 
 target_link_libraries(
-    RasrNn INTERFACE RasrCore RasrMath RasrMathLapack RasrFlow RasrSignal
-                     RasrSpeech
+    RasrNn
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFlow
+           RasrFsa
+           RasrLattice
+           RasrMath
+           RasrMm
+           RasrNnLabelScorer
+           RasrSpeech
 )
 
-target_compile_options(RasrNn PRIVATE "-fexceptions")
-
 if(${MODULE_PYTHON})
-    add_python_dependencies(RasrNn)
-endif()
-
-if(${MODULE_ONNX})
-    target_link_libraries(RasrNn INTERFACE RasrOnnx)
-    add_onnx_dependencies(RasrNn)
-endif()
-
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH} AND ${MODULE_TENSORFLOW})
-    add_tf_dependencies(RasrNn)
+    target_link_libraries(RasrNn PUBLIC RasrPython)
 endif()
 
 add_executable(check-nn check.cc)

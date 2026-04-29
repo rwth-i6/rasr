@@ -24,9 +24,10 @@ endif()
 
 add_library(RasrMath STATIC ${RasrMath_SOURCES})
 
-target_compile_options(RasrMath PRIVATE "-fexceptions")
-
-target_link_libraries(RasrMath INTERFACE RasrMathNr RasrMathLapack RasrCore)
+target_link_libraries(RasrMath PUBLIC RasrCore RasrMathLapack RasrMm)
+if(${MODULE_MATH_NR})
+    target_link_libraries(RasrMath PUBLIC RasrMathNr)
+endif()
 
 # check.cc code is broken add_executable(check-math check.cc)
 # target_link_libraries(check-math PRIVATE RasrMath)

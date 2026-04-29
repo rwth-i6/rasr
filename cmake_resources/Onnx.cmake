@@ -4,8 +4,7 @@ find_library(
     onnxruntime_LIBRARY onnxruntime REQUIRED HINTS "/opt/thirdparty/usr/lib"
 )
 
-function(add_onnx_dependencies TARGET)
-    target_compile_options(${TARGET} PUBLIC "-fexceptions")
-    target_include_directories(${TARGET} PUBLIC ${onnx_INCLUDE_DIR})
-    target_link_libraries(${TARGET} PUBLIC ${onnxruntime_LIBRARY})
+function(add_onnx_dependencies target)
+    target_include_directories(${target} PUBLIC ${onnx_INCLUDE_DIR})
+    target_link_libraries(${target} PUBLIC ${onnxruntime_LIBRARY})
 endfunction()

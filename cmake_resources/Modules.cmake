@@ -58,6 +58,7 @@ add_module_option(MODULE_LM_FSA ON)
 add_module_option(MODULE_LM_ZEROGRAM ON)
 add_module_option(MODULE_LM_FFNN ON)
 add_module_option(MODULE_LM_TFRNN ON)
+add_module_option(MODULE_LM_ONNX ON)
 
 # ****** Math ******
 add_module_option(MODULE_MATH_NR ON)
@@ -69,7 +70,6 @@ add_module_option(MODULE_MM_DT ON)
 # ****** Neural Network ******
 add_module_option(MODULE_NN ON)
 add_module_option(MODULE_NN_SEQUENCE_TRAINING ON)
-add_module_option(MODULE_THEANO_INTERFACE ON)
 add_module_option(MODULE_PYTHON ON)
 
 # ****** OpenFst ******
@@ -145,17 +145,4 @@ endif()
 
 if(${MODULE_NN})
     add_tool_option(NnTrainer ON)
-endif()
-
-set(SEARCH_LIBS RasrSearch RasrLexiconfreeLabelsyncBeamSearch
-                RasrLexiconfreeTimesyncBeamSearch RasrTreeTimesyncBeamSearch
-)
-if(${MODULE_SEARCH_WFST})
-    list(APPEND SEARCH_LIBS RasrSearchWfst RasrOpenFst)
-endif()
-if(${MODULE_ADVANCED_TREE_SEARCH})
-    list(APPEND SEARCH_LIBS RasrAdvancedTreeSearch)
-endif()
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    list(APPEND SEARCH_LIBS RasrGenericSeq2SeqTreeSearch)
 endif()

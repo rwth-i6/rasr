@@ -36,19 +36,16 @@ target_compile_options(RasrSearchWfst PRIVATE "-Wno-sign-compare")
 
 target_link_libraries(
     RasrSearchWfst
-    INTERFACE RasrSearch
-              RasrSpeech
-              RasrAm
-              RasrCart
-              RastMath
-              RasrMathLapack
-              RasrMathNr
-              RasrBliss
-              RasrLm
-              RasrFsa
-              RasrOpenFst
-              RasrMc
-              RasrCore
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFlf
+           RasrFsa
+           RasrLattice
+           RasrLm
+           RasrOpenFst
+           RasrSearch
+           RasrSpeech
 )
 
 add_executable(check-search-wfst check.cc)

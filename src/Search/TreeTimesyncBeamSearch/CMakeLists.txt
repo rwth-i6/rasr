@@ -1,11 +1,9 @@
-set(RasrTreeTimesyncBeamSearch_SOURCES
-    TreeTimesyncBeamSearch.cc
-)
+set(RasrTreeTimesyncBeamSearch_SOURCES TreeTimesyncBeamSearch.cc)
 
 add_library(
-    RasrTreeTimesyncBeamSearch STATIC
-    ${RasrTreeTimesyncBeamSearch_SOURCES}
+    RasrTreeTimesyncBeamSearch STATIC ${RasrTreeTimesyncBeamSearch_SOURCES}
 )
 target_link_libraries(
-    RasrTreeTimesyncBeamSearch INTERFACE RasrSearch RasrBliss RasrFsa RasrCore
+    RasrTreeTimesyncBeamSearch PUBLIC RasrAm RasrBliss RasrCore RasrLattice
+                                      RasrNn RasrSearch
 )

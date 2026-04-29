@@ -12,41 +12,23 @@ pybind11_add_module(librasr ${librasr_SOURCES})
 
 target_link_libraries(
     librasr
-    PRIVATE RasrFlf
-            RasrFlfCore
-            RasrSpeech
-            RasrLattice
-            RasrLm
-            RasrAm
-            RasrMm
-            RasrMc
-            RasrBliss
+    PRIVATE RasrAm
             RasrAudio
+            RasrBliss
             RasrCore
-            RasrFsa
+            RasrFlf
             RasrFlow
-            RasrSignal
+            RasrLm
             RasrMath
-            RasrMathLapack
+            RasrMm
+            RasrSignal
+            RasrSpeech
 )
 
 add_install_library(librasr)
 
-if(${MODULE_FLF_EXT})
-    target_link_libraries(librasr PRIVATE RasrFlfExt)
-endif()
-
-if(${MODULE_CART})
-    target_link_libraries(librasr PRIVATE RasrCart)
-endif()
-
-if(${MODULE_MATH_NR})
-    target_link_libraries(librasr PRIVATE RasrMathNr)
-endif()
-
 if(${MODULE_PYTHON})
     target_link_libraries(librasr PRIVATE RasrPython)
-    add_python_dependencies(librasr)
 endif()
 
 if(${MODULE_NN})
@@ -55,10 +37,8 @@ endif()
 
 if(${MODULE_ONNX})
     target_link_libraries(librasr PRIVATE RasrOnnx)
-    add_onnx_dependencies(librasr)
 endif()
 
 if(${MODULE_TENSORFLOW})
     target_link_libraries(librasr PRIVATE RasrTensorflow)
-    add_tf_dependencies(librasr)
 endif()

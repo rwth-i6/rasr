@@ -11,4 +11,4 @@ set(aligner_SOURCES
 add_executable(aligner ${ALIGNER_SOURCES})
 add_install_executable(aligner)
 
-target_link_libraries(aligner PRIVATE RasrFsa RasrCore)
+target_link_libraries(aligner PRIVATE RasrCore RasrFsa)

@@ -1,14 +1,12 @@
-set(RasrTest_SOURCES Registry.cc Lexicon.cc File.cc)
-
-add_library(RasrTest ${RasrTest_SOURCES})
-
 set(test_SOURCES
     UnitTester.cc
     Bliss_SegmentOrdering.cc
     Core_StringUtilities.cc
     Core_Thread.cc
     Core_ThreadPool.cc
+    File.cc
     Fsa_Sssp4SpecialSymbols.cc
+    Lexicon.cc
     Lm_ArpaLm.cc
     Math_Utilities.cc
     Math_Blas.cc
@@ -17,6 +15,7 @@ set(test_SOURCES
     Math_CudaMatrix.cc
     Math_FastMatrix.cc
     Math_LinearConjugateGradient.cc
+    Registry.cc
     Test_File.cc
     Test_Lexicon.cc
 )
@@ -53,69 +52,15 @@ add_install_executable(unit-test)
 
 target_link_libraries(
     unit-test
-    PRIVATE RasrTest
-            RasrBliss
-            RasrFsa
+    PRIVATE RasrBliss
             RasrCore
-            RasrSpeech
-            RasrSearch
-            RasrLattice
-            RasrAm
+            RasrFsa
             RasrLm
-            RasrMc
-            RasrAudio
-            RasrSignal
-            RasrFlow
             RasrMath
-            RasrMathLapack
+            RasrMm
+            RasrNn
 )
-
-if(${MODULE_FLF})
-    target_link_libraries(unit-test PRIVATE RasrFlf)
-endif()
-
-if(${MODULE_FLF_CORE})
-    target_link_libraries(unit-test PRIVATE RasrFlfCore)
-endif()
-
-if(${MODULE_FLF_EXT})
-    target_link_libraries(unit-test PRIVATE RasrFlfExt)
-endif()
-
-if(${MODULE_ADVANCED_TREE_SEARCH})
-    target_link_libraries(unit-test PRIVATE RasrAdvancedTreeSearch)
-endif()
-
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    target_link_libraries(unit-test PRIVATE RasrGenericSeq2SeqTreeSearch)
-endif()
-
-if(${MODULE_PYTHON})
-    target_link_libraries(unit-test PRIVATE RasrPython)
-    add_python_dependencies(unit-test)
-endif()
 
 if(${MODULE_NN})
     target_link_libraries(unit-test PRIVATE RasrNn)
-endif()
-
-if(${MODULE_CART})
-    target_link_libraries(unit-test PRIVATE RasrCart)
-endif()
-
-if(${MODULE_MATH_NR})
-    target_link_libraries(unit-test PRIVATE RasrMathNr)
-endif()
-
-if(${MODULE_SEARCH_WFST})
-    target_link_libraries(unit-test PRIVATE RasrSearchWfst)
-endif()
-
-if(${MODULE_OPENFST})
-    target_link_libraries(unit-test PRIVATE RasrOpenFst)
-endif()
-
-if(${MODULE_TENSORFLOW})
-    target_link_libraries(unit-test PRIVATE RasrTensorflow)
-    add_tf_dependencies(unit-test)
 endif()

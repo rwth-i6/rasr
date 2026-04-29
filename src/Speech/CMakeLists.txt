@@ -117,49 +117,24 @@ add_library(RasrSpeech STATIC ${Speech_SOURCES})
 
 target_link_libraries(
     RasrSpeech
-    INTERFACE RasrLm
-              RasrAm
-              RasrMm
-              RasrMc
-              RasrNn
-              RasrSearch
-              RasrBliss
-              RasrFlow
-              RasrFsa
-              RasrCore
-              RasrLattice
-              RasrMath
-              RasrMathLapack
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFlf
+           RasrFlow
+           RasrFsa
+           RasrLattice
+           RasrLm
+           RasrMath
+           RasrMc
+           RasrMm
+           RasrNn
+           RasrSearch
+           RasrSignal
 )
 
 if(${MODULE_CART})
-    target_link_libraries(RasrSpeech INTERFACE RasrCart)
-endif()
-
-if(${MODULE_MATH_NR})
-    target_link_libraries(RasrSpeech INTERFACE RasrMathNr)
-endif()
-
-if(${MODULE_SEARCH_WFST})
-    target_link_libraries(RasrSpeech INTERFACE RasrSearchWfst RasrOpenFst)
-endif()
-
-if(${MODULE_ADVANCED_TREE_SEARCH})
-    target_link_libraries(RasrSpeech INTERFACE RasrAdvancedTreeSearch)
-endif()
-
-if(${MODULE_GENERIC_SEQ2SEQ_TREE_SEARCH})
-    target_link_libraries(RasrSpeech INTERFACE RasrGenericSeq2SeqTreeSearch)
-endif()
-
-if(${MODULE_PYTHON})
-    target_link_libraries(RasrSpeech INTERFACE RasrPython)
-    add_python_dependencies(RasrSpeech)
-endif()
-
-if(${MODULE_TENSORFLOW})
-    target_link_libraries(RasrSpeech INTERFACE RasrTensorflow)
-    add_tf_dependencies(RasrSpeech)
+    target_link_libraries(RasrSpeech PUBLIC RasrCart)
 endif()
 
 add_executable(check-speech check.cc)

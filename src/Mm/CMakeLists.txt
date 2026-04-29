@@ -64,9 +64,7 @@ endif()
 
 add_library(RasrMm STATIC ${RasrMm_SOURCES})
 
-target_link_libraries(
-    RasrMm INTERFACE RasrMath RasrMathLapack RasrFsa RasrCore RasrMc
-)
+target_link_libraries(RasrMm PUBLIC RasrAm RasrCore RasrMath RasrMc RasrSpeech)
 
 if(${MODULE_MM_BATCH})
     target_compile_options(RasrMm PRIVATE "-msse2")

@@ -31,25 +31,15 @@ add_library(RasrLattice STATIC ${Lattice_SOURCES})
 
 target_link_libraries(
     RasrLattice
-    INTERFACE RasrSpeech
-              RasrLm
-              RasrAm
-              RasrMm
-              RasrMc
-              RasrBliss
-              RasrFsa
-              RasrAudio
-              RasrSignal
-              RasrFlow
-              RasrMath
-              RasrMathLapack
-              RasrCore
-              RasrCart
+    PUBLIC RasrAm
+           RasrBliss
+           RasrCore
+           RasrFsa
+           RasrLm
+           RasrMm
+           RasrSearch
+           RasrSpeech
 )
-
-if(${MODULE_MATH_NR})
-    target_link_libraries(RasrLattice INTERFACE RasrMathNr)
-endif()
 
 # check.cc code is broken add_executable(check-lattice check.cc)
 # target_link_libraries(check-lattice PRIVATE RasrLattice)

@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 add_compile_definitions(CMAKE_DISABLE_MODULES_HH)
 
@@ -7,13 +7,11 @@ add_compile_options(
     -fPIC
     -pipe
     -funsigned-char
-    -fno-exceptions
     -Wno-unknown-pragmas
     -Wall
     -Wno-long-long
     -Wno-deprecated
     -fno-strict-aliasing
-    -ffast-math
 )
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "linux-x86_64")

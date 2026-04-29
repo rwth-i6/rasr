@@ -23,10 +23,10 @@ endif()
 
 add_library(RasrBliss ${Bliss_SOURCES})
 
-target_link_libraries(RasrBliss INTERFACE RasrFsa RasrMath RasrCore)
+target_link_libraries(RasrBliss PUBLIC RasrCore RasrFsa RasrMath RasrSpeech)
 
 if(${MODULE_PYTHON})
-    add_python_dependencies(RasrBliss)
+    target_link_libraries(RasrBliss PUBLIC RasrPython)
 endif()
 
 add_executable(check-bliss check.cc)

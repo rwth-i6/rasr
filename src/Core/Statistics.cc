@@ -15,12 +15,13 @@
 // $Id$
 
 #include "Statistics.hh"
-#include "Application.hh"
+
 #include <algorithm>
 #include <cerrno>
 #include <numeric>
 #include <time.h>
 #include <unistd.h>
+#include "Application.hh"
 
 using namespace Core;
 

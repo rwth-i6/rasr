@@ -17,6 +17,11 @@ add_library(
 
 if(${MODULE_CUDA})
     target_sources(RasrMath PRIVATE CudaMatrixKernels.cu)
+
+    find_package(CUDAToolkit REQUIRED)
+    target_link_libraries(
+        RasrMath PUBLIC CUDA::cublas CUDA::cudart CUDA::curand
+    )
 endif()
 
 if(${MODULE_SIGNAL_PLP})

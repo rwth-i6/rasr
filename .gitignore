@@ -19,7 +19,7 @@
 # From build.
 .build*
 build*
-cmake-build*
+cmake-*
 *.a
 *.pyc
 *.o

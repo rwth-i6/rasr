@@ -58,7 +58,7 @@ add_module_option(MODULE_LM_FSA ON)
 add_module_option(MODULE_LM_ZEROGRAM ON)
 add_module_option(MODULE_LM_FFNN ON)
 add_module_option(MODULE_LM_TFRNN ON)
-add_module_option(MODULE_LM_ONNX ON)
+add_module_option(MODULE_LM_ONNX OFF)
 
 # ****** Math ******
 add_module_option(MODULE_MATH_NR ON)
@@ -108,10 +108,10 @@ add_module_option(MODULE_OPENMP OFF)
 # **** choose optimized blas library if available ******
 add_module_option(MODULE_INTEL_MKL OFF)
 add_module_option(MODULE_ACML OFF)
-add_module_option(MODULE_CUDA OFF)
+add_module_option(MODULE_CUDA ON)
 
 # ****** Tensorflow integration ******
-add_module_option(MODULE_TENSORFLOW ON)
+add_module_option(MODULE_TENSORFLOW OFF)
 
 # ****** ONNX integration ******
 add_module_option(MODULE_ONNX ON)

@@ -94,7 +94,7 @@ endif()
 
 if(${MODULE_CUDA})
     enable_language(CUDA)
-    set(CMAKE_CUDA_ARCHITECTURES 61;75;86;89)
+    set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 
 if(${MODULE_AUDIO_FLAC})
